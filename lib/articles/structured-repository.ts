@@ -36,6 +36,7 @@ export interface CanonicalTextProduct {
   contentMarkdown: string;
   productType: "article" | "diktat";
   chapterId: string | null;
+  babId?: string | null;
 }
 
 /**
@@ -263,6 +264,7 @@ export async function getCanonicalPublishedTextProduct(
         contentMarkdown: articleRecord.contentMarkdown,
         productType: "article",
         chapterId: articleRecord.legacyChapterId ?? articleRecord.babId,
+        babId: articleRecord.babId ?? null,
       };
     }
 
@@ -291,6 +293,7 @@ export async function getCanonicalPublishedTextProduct(
           contentMarkdown: diktatRecord.contentMarkdown,
           productType: "diktat",
           chapterId: diktatRecord.legacyChapterId ?? diktatRecord.babId,
+          babId: diktatRecord.babId ?? null,
         }
       : null;
   } catch (error) {

@@ -23,6 +23,7 @@ import { randomUUID } from "crypto";
 import { storage } from "@/lib/storage";
 import { isSafeKey, joinKey, slugifySegment } from "@/lib/storage/keys";
 import { inngest } from "@/lib/inngest";
+import { generateAndSavePdfThumbnail } from "@/lib/thumbnail";
 import {
   isValidSubcategory,
   type CourseMaterialCategory,
@@ -277,6 +278,7 @@ export async function getCourseDetailData(courseId: string) {
     status: string;
     createdAt?: Date;
     updatedAt?: Date;
+    legacyChapterId?: string | null;
   }>;
 
   if (babList.length > 0) {
@@ -292,6 +294,7 @@ export async function getCourseDetailData(courseId: string) {
         status: b.status,
         createdAt: b.createdAt,
         updatedAt: b.updatedAt,
+        legacyChapterId: b.legacyChapterId ?? null,
       };
     });
   } else {
@@ -304,6 +307,7 @@ export async function getCourseDetailData(courseId: string) {
       status: ch.status,
       createdAt: ch.createdAt,
       updatedAt: ch.updatedAt,
+      legacyChapterId: ch.id,
     }));
   }
 
@@ -609,6 +613,15 @@ export async function saveCourseMaterial(
   try {
     const materialId = randomUUID();
 
+    const thumbnailKey = await generateAndSavePdfThumbnail({
+      courseSlug: cleanCourseId,
+      materialId,
+      fileKey: cleanFileKey,
+    }).catch((err) => {
+      console.warn(`[saveCourseMaterial] Failed to generate thumbnail for ${materialId}:`, err);
+      return null;
+    });
+
     await db.insert(courseMaterials).values({
       id: materialId,
       courseId: cleanCourseId,
@@ -617,19 +630,8 @@ export async function saveCourseMaterial(
       subcategory: cleanSubcategory,
       year: cleanYear,
       fileUrl: cleanFileKey,
-      thumbnailUrl: null,
+      thumbnailUrl: thumbnailKey,
       chapterIds,
-    });
-
-    await inngest.send({
-      id: `thumbnail-${materialId}-${checksum || "v1"}`,
-      name: "pdf/thumbnail.requested",
-      data: {
-        materialId,
-        sourceType: "course_material",
-      },
-    }).catch((inngestErr) => {
-      console.warn(`[saveCourseMaterial] Failed to enqueue thumbnail for ${materialId}:`, inngestErr);
     });
 
     // Dual-write projection to canonical sumberMateri
@@ -817,7 +819,7 @@ export async function updateDocumentStatusAction(input: {
           publishedAt: status === "published" ? now : null,
           updatedAt: now,
         })
-        .where(eq(artikel.id, materialId));
+        .where(or(eq(artikel.id, materialId), eq(artikel.slug, materialId)));
     } else if (source === "canonical-diktat") {
       await db
         .update(diktatMateri)
@@ -870,7 +872,7 @@ export async function updateArticleContentAction(input: {
           babId: babId || null,
           updatedAt: now,
         })
-        .where(eq(artikel.id, id));
+        .where(or(eq(artikel.id, id), eq(artikel.slug, id)));
     } else if (source === "canonical-diktat") {
       await db
         .update(diktatMateri)

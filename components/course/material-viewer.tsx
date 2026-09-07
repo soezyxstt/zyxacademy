@@ -78,6 +78,7 @@ type MaterialViewerProps = {
   course?: { title: string } | null;
   mode?: MaterialReaderMode;
   backHref?: string;
+  hideHeader?: boolean;
 };
 
 interface ChapterSummary {
@@ -584,6 +585,7 @@ export function MaterialViewer({
   course,
   mode = "learner",
   backHref,
+  hideHeader = false,
 }: MaterialViewerProps) {
   const learnerMode = isLearnerReaderMode(mode);
   const [done, setDone] = useState(material.completed);
@@ -1309,73 +1311,75 @@ export function MaterialViewer({
 
     return (
       <div className="flex flex-col h-full w-full overflow-hidden bg-background">
-        <header className="relative flex w-full shrink-0 items-center justify-between gap-3 border-b border-border/80 bg-background/95 px-4 py-2.5 backdrop-blur-sm">
-          <div className="flex min-w-0 items-center gap-2">
-            <Button
-              variant="ghost"
-              size="sm"
-              asChild
-              className="shrink-0 gap-1.5 text-body-xs font-semibold text-muted-foreground hover:text-foreground"
-            >
-              <Link href={backHref ?? `/courses/${material.courseId}/material`} aria-label="Kembali ke daftar materi">
-                <ArrowLeft className="size-4" />
-                <span className="hidden sm:inline">Kembali ke Materi</span>
-              </Link>
-            </Button>
-            <div className="hidden h-4 w-px shrink-0 bg-border sm:block" />
-            <div className="min-w-0">
-              <p className="truncate text-body-xs font-medium text-muted-foreground">
-                {course?.title ?? "Materi Kuliah"}
-              </p>
-              <h1 className="truncate font-heading text-body-sm font-bold text-foreground">
-                {material.title}
-              </h1>
-            </div>
-          </div>
-
-          <div className="flex shrink-0 items-center gap-2">
-            <div className="hidden items-center gap-2 text-body-xs text-muted-foreground md:flex">
-              <div className="h-2 w-24 overflow-hidden rounded-md bg-muted">
-                <div className="h-full rounded-md bg-primary transition-all duration-300" style={{ width: `${progressPercent}%` }} />
+        {!hideHeader && learnerMode && (
+          <header className="relative flex w-full shrink-0 items-center justify-between gap-3 border-b border-border/80 bg-background/95 px-4 py-2.5 backdrop-blur-sm">
+            <div className="flex min-w-0 items-center gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                asChild
+                className="shrink-0 gap-1.5 text-body-xs font-semibold text-muted-foreground hover:text-foreground"
+              >
+                <Link href={backHref ?? `/courses/${material.courseId}/material`} aria-label="Kembali ke daftar materi">
+                  <ArrowLeft className="size-4" />
+                  <span className="hidden sm:inline">Kembali ke Materi</span>
+                </Link>
+              </Button>
+              <div className="hidden h-4 w-px shrink-0 bg-border sm:block" />
+              <div className="min-w-0">
+                <p className="truncate text-body-xs font-medium text-muted-foreground">
+                  {course?.title ?? "Materi Kuliah"}
+                </p>
+                <h1 className="truncate font-heading text-body-sm font-bold text-foreground">
+                  {material.title}
+                </h1>
               </div>
-              <span className="font-semibold text-foreground">{progressPercent}%</span>
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShowOutlineSheet(true)}
-              className="gap-1.5 text-body-xs md:hidden"
-            >
-              <Menu className="size-4" />
-              <span>Daftar Isi</span>
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setIsArticleTocOpen((open) => !open)}
-              className="hidden gap-1.5 text-body-xs md:flex"
-            >
-              {isArticleTocOpen ? <PanelRightClose className="size-4" /> : <PanelRight className="size-4" />}
-              <span>{isArticleTocOpen ? "Sembunyikan Menu" : "Buka Menu"}</span>
-            </Button>
-            {learnerMode && ragEnabled && chapterId && (
-              <ChapterSummarySheet chapterId={chapterId} chapterTitle={material.title} />
-            )}
-            {learnerMode && (
+
+            <div className="flex shrink-0 items-center gap-2">
+              <div className="hidden items-center gap-2 text-body-xs text-muted-foreground md:flex">
+                <div className="h-2 w-24 overflow-hidden rounded-md bg-muted">
+                  <div className="h-full rounded-md bg-primary transition-all duration-300" style={{ width: `${progressPercent}%` }} />
+                </div>
+                <span className="font-semibold text-foreground">{progressPercent}%</span>
+              </div>
               <Button
                 variant="outline"
                 size="sm"
-                onClick={markDone}
-                disabled={done}
-                className="interactive gap-1.5 text-body-xs font-semibold"
+                onClick={() => setShowOutlineSheet(true)}
+                className="gap-1.5 text-body-xs md:hidden"
               >
-                <CheckCircle2 className={cn("size-3.5", done ? "text-emerald-500 fill-emerald-500/10" : "text-muted-foreground")} />
-                <span className="hidden lg:inline">{done ? "Selesai" : "Tandai Selesai"}</span>
+                <Menu className="size-4" />
+                <span>Daftar Isi</span>
               </Button>
-            )}
-          </div>
-          <div className="absolute bottom-0 left-0 h-1 bg-primary transition-all duration-300 ease-out" style={{ width: `${progressPercent}%` }} />
-        </header>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsArticleTocOpen((open) => !open)}
+                className="hidden gap-1.5 text-body-xs md:flex"
+              >
+                {isArticleTocOpen ? <PanelRightClose className="size-4" /> : <PanelRight className="size-4" />}
+                <span>{isArticleTocOpen ? "Sembunyikan Menu" : "Buka Menu"}</span>
+              </Button>
+              {learnerMode && ragEnabled && chapterId && (
+                <ChapterSummarySheet chapterId={chapterId} chapterTitle={material.title} />
+              )}
+              {learnerMode && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={markDone}
+                  disabled={done}
+                  className="interactive gap-1.5 text-body-xs font-semibold"
+                >
+                  <CheckCircle2 className={cn("size-3.5", done ? "text-emerald-500 fill-emerald-500/10" : "text-muted-foreground")} />
+                  <span className="hidden lg:inline">{done ? "Selesai" : "Tandai Selesai"}</span>
+                </Button>
+              )}
+            </div>
+            <div className="absolute bottom-0 left-0 h-1 bg-primary transition-all duration-300 ease-out" style={{ width: `${progressPercent}%` }} />
+          </header>
+        )}
 
         <Sheet open={showOutlineSheet} onOpenChange={setShowOutlineSheet}>
           <SheetContent side="right" className="flex h-full w-[300px] flex-col p-0 sm:w-[360px]">

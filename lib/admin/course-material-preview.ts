@@ -27,7 +27,14 @@ export type AdminMaterialSource =
   | "legacy-pdf";
 
 export type AdminMaterialPreview =
-  | { renderer: "structured"; article: PublicArticleReadModel; source: "canonical-article" }
+  | {
+      renderer: "structured";
+      article: PublicArticleReadModel;
+      source: "canonical-article";
+      contentMarkdown?: string;
+      babId?: string | null;
+      status?: "draft" | "published";
+    }
   | { renderer: "material"; material: CourseMaterial; source: AdminMaterialSource };
 
 function sanitizeMaterialTitle(rawTitle: string): string {
@@ -177,7 +184,11 @@ export async function listAdminCourseMaterials(
         isPastYear: false,
         isPreview: true,
         url: item.fileUrl ? storage.getUrl(item.fileUrl) : undefined,
-        thumbnailUrl: item.thumbnailUrl ? storage.getUrl(item.thumbnailUrl) : undefined,
+        thumbnailUrl: item.thumbnailUrl
+          ? storage.getUrl(item.thumbnailUrl)
+          : item.fileUrl
+            ? `/api/courses/${encodeURIComponent(identity.slug)}/material/${encodeURIComponent(item.id)}/thumbnail`
+            : undefined,
         chapterIds: item.chapterIds as string[],
         href: adminHref(item.id),
       })),
@@ -239,7 +250,9 @@ export async function listAdminCourseMaterials(
         status: "published" as const,
         source: "legacy-pdf" as const,
         url: storage.getUrl(item.fileUrl),
-        thumbnailUrl: item.thumbnailUrl ? storage.getUrl(item.thumbnailUrl) : undefined,
+        thumbnailUrl: item.thumbnailUrl
+          ? storage.getUrl(item.thumbnailUrl)
+          : `/api/courses/${encodeURIComponent(identity.slug)}/material/${encodeURIComponent(item.id)}/thumbnail`,
         chapterIds: item.chapterIds as string[],
         href: adminHref(item.id),
       };
@@ -253,7 +266,34 @@ export async function getAdminCourseMaterialPreview(
 ): Promise<AdminMaterialPreview | null> {
   const canonicalCourseId = identity.canonicalId ?? identity.primaryId;
   const structured = await getCanonicalPublishedArticle(canonicalCourseId, materialId);
-  if (structured) return { renderer: "structured", article: structured, source: "canonical-article" };
+  if (structured) {
+    const [artRecord] = await db
+      .select({
+        contentMarkdown: artikel.contentMarkdown,
+        babId: artikel.babId,
+        status: artikel.status,
+      })
+      .from(artikel)
+      .where(or(eq(artikel.id, structured.id), eq(artikel.slug, structured.slug)))
+      .limit(1);
+
+    const cleanMarkdown = artRecord?.contentMarkdown
+      ? artRecord.contentMarkdown
+          .replace(/\n*<!--__ZYX_V3_ARTICLE_VISUALS__:[A-Za-z0-9_-]+-->/g, "")
+          .trim()
+      : structured.sections
+          .map((s) => `## ${s.title}\n\n${s.blocks.map((b) => b.content).join("\n\n")}`)
+          .join("\n\n---\n\n");
+
+    return {
+      renderer: "structured",
+      article: structured,
+      source: "canonical-article",
+      contentMarkdown: cleanMarkdown,
+      babId: artRecord?.babId ?? null,
+      status: artRecord?.status === "draft" ? "draft" : "published",
+    };
+  }
 
   const canonical = await getCanonicalPublishedTextProduct(canonicalCourseId, materialId);
   if (canonical) {
@@ -273,7 +313,7 @@ export async function getAdminCourseMaterialPreview(
         isPreview: false,
         status: "published",
         source: canonical.productType === "diktat" ? "canonical-diktat" : "canonical-article",
-        chapterId: canonical.chapterId ?? undefined,
+        chapterId: canonical.babId ?? canonical.chapterId ?? undefined,
       },
     };
   }
@@ -310,7 +350,7 @@ export async function getAdminCourseMaterialPreview(
         completed: false,
         isPastYear: false,
         isPreview: false,
-        chapterId: directArticle.legacyChapterId ?? directArticle.babId ?? undefined,
+        chapterId: directArticle.babId ?? directArticle.legacyChapterId ?? undefined,
       },
     };
   }
@@ -347,7 +387,7 @@ export async function getAdminCourseMaterialPreview(
         completed: false,
         isPastYear: false,
         isPreview: false,
-        chapterId: directDiktat.legacyChapterId ?? directDiktat.babId ?? undefined,
+        chapterId: directDiktat.babId ?? directDiktat.legacyChapterId ?? undefined,
       },
     };
   }

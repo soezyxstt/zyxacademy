@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import type { ValidatedSourcePack } from "@/lib/authoring/source-pack";
-import { finishQualityReport, qualityIssue, type AuthoringQualityReport } from "./types";
+import { finishQualityReport, qualityIssue, type AuthoringQualityIssue, type AuthoringQualityReport } from "./types";
 
 const structuredVisualKinds = new Set(["3d-plot", "chart", "diagram", "geometry", "graph", "number-line", "plot"]);
 const visualBaseFields = ["id", "source-unit", "kind", "title", "purpose", "elements", "instructional-meaning", "uncertainty"];
@@ -167,7 +167,7 @@ export function evaluateSourcePackQuality(
   sourcePack: ValidatedSourcePack,
   originals?: ReadonlyMap<string, Uint8Array>,
 ): SourcePackQualityReport {
-  const issues = [];
+  const issues: AuthoringQualityIssue[] = [];
   const documents: SourcePackDocumentQuality[] = [];
   const originalChecksums = new Map<string, string>();
   if (!originals) {

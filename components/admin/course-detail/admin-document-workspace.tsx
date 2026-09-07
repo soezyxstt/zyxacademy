@@ -5,11 +5,15 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
+  BookOpenCheck,
   Check,
   Eye,
   FileText,
   Globe,
   Loader2,
+  Menu,
+  PanelRight,
+  PanelRightClose,
   Pencil,
   RotateCcw,
   Save,
@@ -56,6 +60,7 @@ type Chapter = {
   courseId?: string;
   title: string;
   orderIndex: number;
+  legacyChapterId?: string | null;
 };
 
 type Props = {
@@ -113,15 +118,40 @@ export function AdminDocumentWorkspace({
   // Article / Diktat Editor State
   const [articleTitle, setArticleTitle] = useState(material.title);
   const [articleMarkdown, setArticleMarkdown] = useState(material.body || "");
-  const [articleBabId, setArticleBabId] = useState<string>(material.chapterId || "");
+  const [articleBabId, setArticleBabId] = useState<string>(() => {
+    const rawId = material.chapterId || "";
+    if (!rawId) return "";
+    if (chapters.some((c) => c.id === rawId)) return rawId;
+    const matched = chapters.find((c) => c.legacyChapterId === rawId);
+    return matched ? matched.id : rawId;
+  });
+
+  // TOC sidebar and mobile sheet states for preview mode
+  const [isTocOpen, setIsTocOpen] = useState(true);
+  const [isMobileSheetOpen, setIsMobileSheetOpen] = useState(false);
 
   const documentsHref = `/admin/courses/${encodeURIComponent(courseSlug)}/documents`;
+  const reviewHref = `/admin/courses/${encodeURIComponent(courseSlug)}/review?tab=product`;
+  const isCanonical = source === "canonical-article" || source === "canonical-diktat";
   const isPdf = source === "legacy-pdf" || material.kind === "pdf";
   const isArticleOrDiktat =
     source === "canonical-article" ||
     source === "canonical-diktat" ||
     source === "legacy-article" ||
     material.kind === "article";
+
+  const handleModeChange = (mode: "preview" | "edit") => {
+    setActiveMode(mode);
+    if (typeof window !== "undefined") {
+      const url = new URL(window.location.href);
+      if (mode === "edit") {
+        url.searchParams.set("mode", "edit");
+      } else {
+        url.searchParams.delete("mode");
+      }
+      window.history.replaceState(null, "", url.toString());
+    }
+  };
 
   const availablePdfSubcategories = getSubcategoriesForLevel1(pdfType);
 
@@ -131,7 +161,7 @@ export function AdminDocumentWorkspace({
     setStatusUpdating(true);
     try {
       const res = await updateDocumentStatusAction({
-        materialId,
+        materialId: material.id || materialId,
         source,
         status: nextStatus,
       });
@@ -217,8 +247,8 @@ export function AdminDocumentWorkspace({
   };
 
   // Save Article / Diktat Content
-  const handleSaveArticle = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSaveArticle = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     const cleanTitle = standardizeDocumentTitle(articleTitle.trim());
     if (!cleanTitle) {
       toast.error("Judul dokumen wajib diisi.");
@@ -228,7 +258,7 @@ export function AdminDocumentWorkspace({
     setSaving(true);
     try {
       const res = await updateArticleContentAction({
-        id: materialId,
+        id: material.id || materialId,
         source,
         title: cleanTitle,
         contentMarkdown: articleMarkdown,
@@ -344,13 +374,55 @@ export function AdminDocumentWorkspace({
             </Button>
           ) : null}
 
+          {/* Kelola Lifecycle (for canonical article/diktat) */}
+          {isCanonical ? (
+            <Button asChild variant="outline" size="sm" className="h-8 gap-1.5 rounded-lg text-body-xs font-medium">
+              <Link href={reviewHref}>
+                <BookOpenCheck className="size-3.5 text-muted-foreground" />
+                <span className="hidden sm:inline">Kelola Lifecycle</span>
+              </Link>
+            </Button>
+          ) : null}
+
+          {/* TOC Toggles in Header (for preview mode) */}
+          {activeMode === "preview" && (isArticleOrDiktat || article) ? (
+            <>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setIsMobileSheetOpen(true)}
+                className="h-8 gap-1 rounded-lg text-body-xs font-medium md:hidden"
+                title="Daftar Isi"
+              >
+                <Menu className="size-3.5" />
+                <span>Daftar Isi</span>
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setIsTocOpen((prev) => !prev)}
+                className="h-8 gap-1.5 rounded-lg text-body-xs font-medium hidden md:inline-flex"
+                title={isTocOpen ? "Sembunyikan Menu" : "Buka Menu"}
+              >
+                {isTocOpen ? (
+                  <PanelRightClose className="size-3.5" />
+                ) : (
+                  <PanelRight className="size-3.5" />
+                )}
+                <span>{isTocOpen ? "Sembunyikan Menu" : "Buka Menu"}</span>
+              </Button>
+            </>
+          ) : null}
+
           {/* Mode Switcher: Pratinjau vs Edit */}
           <div className="flex items-center rounded-lg border border-border bg-muted/40 p-0.5">
             <Button
               type="button"
               variant={activeMode === "preview" ? "secondary" : "ghost"}
               size="sm"
-              onClick={() => setActiveMode("preview")}
+              onClick={() => handleModeChange("preview")}
               className="h-7 gap-1 px-2.5 rounded-md text-body-xs font-medium"
             >
               <Eye className="size-3.5" />
@@ -360,13 +432,26 @@ export function AdminDocumentWorkspace({
               type="button"
               variant={activeMode === "edit" ? "secondary" : "ghost"}
               size="sm"
-              onClick={() => setActiveMode("edit")}
+              onClick={() => handleModeChange("edit")}
               className="h-7 gap-1 px-2.5 rounded-md text-body-xs font-medium"
             >
               <Pencil className="size-3.5" />
               <span>Edit</span>
             </Button>
           </div>
+
+          {/* Quick Save Button in Header (for articles and diktats in edit mode) */}
+          {activeMode === "edit" && !isPdf ? (
+            <Button
+              type="button"
+              onClick={handleSaveArticle}
+              disabled={saving || !articleTitle.trim()}
+              className="h-8 gap-1.5 rounded-lg text-body-xs font-semibold"
+            >
+              {saving ? <Loader2 className="size-3.5 animate-spin" /> : <Save className="size-3.5" />}
+              <span>Simpan</span>
+            </Button>
+          ) : null}
 
           {/* Delete Button */}
           {isPdf ? (
@@ -394,6 +479,10 @@ export function AdminDocumentWorkspace({
               course={{ id: courseId, title: courseTitle }}
               mode="admin-preview"
               backHref={documentsHref}
+              isTocOpen={isTocOpen}
+              onToggleToc={() => setIsTocOpen((prev) => !prev)}
+              isMobileSheetOpen={isMobileSheetOpen}
+              onToggleMobileSheet={setIsMobileSheetOpen}
             />
           ) : (
             <MaterialViewer
@@ -402,6 +491,7 @@ export function AdminDocumentWorkspace({
               course={{ title: courseTitle }}
               mode="admin-preview"
               backHref={documentsHref}
+              hideHeader={true}
             />
           )
         ) : (
@@ -600,7 +690,7 @@ export function AdminDocumentWorkspace({
                       type="button"
                       variant="outline"
                       size="sm"
-                      onClick={() => setActiveMode("preview")}
+                      onClick={() => handleModeChange("preview")}
                       className="rounded-lg text-body-sm"
                     >
                       Kembali ke Pratinjau
@@ -634,7 +724,7 @@ export function AdminDocumentWorkspace({
                     type="button"
                     variant="outline"
                     size="sm"
-                    onClick={() => setActiveMode("preview")}
+                    onClick={() => handleModeChange("preview")}
                     className="rounded-lg text-body-sm"
                   >
                     Batal
