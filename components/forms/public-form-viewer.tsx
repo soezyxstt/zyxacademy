@@ -114,7 +114,38 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [direction, setDirection] = useState<1 | -1>(1);
 
-  const inputRef = useRef<HTMLInputElement | HTMLTextAreaElement | null>(null);
+  const activeFocusRef = useRef<HTMLElement | null>(null);
+  const mainScrollRef = useRef<HTMLElement | null>(null);
+
+  const focusActiveElement = useCallback(() => {
+    if (activeFocusRef.current) {
+      const el = activeFocusRef.current;
+      try {
+        el.focus();
+        if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) {
+          if (typeof el.value === "string") {
+            const len = el.value.length;
+            el.setSelectionRange(len, len);
+          }
+        }
+      } catch {
+        // Silently catch unsupported selection ranges (e.g. date inputs)
+      }
+    }
+  }, []);
+
+  const setFocusableRef = useCallback((el: HTMLElement | null) => {
+    if (el) {
+      activeFocusRef.current = el;
+      requestAnimationFrame(() => {
+        try {
+          el.focus();
+        } catch {
+          // Ignore
+        }
+      });
+    }
+  }, []);
 
   const fetchForm = useCallback(async () => {
     setLoading(true);
@@ -201,15 +232,13 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
 
   const currentStep = steps[currentStepIndex];
 
-  // Auto focus input on step change
+  // Auto focus input on step change with animation completion fallback
   useEffect(() => {
     const timer = setTimeout(() => {
-      if (inputRef.current) {
-        inputRef.current.focus();
-      }
-    }, 200);
+      focusActiveElement();
+    }, 320);
     return () => clearTimeout(timer);
-  }, [currentStepIndex]);
+  }, [currentStepIndex, focusActiveElement]);
 
   const otherLabelFor = (qIdx: number) => form?.questions?.[qIdx]?.otherOption?.label || "Lainnya";
 
@@ -352,12 +381,21 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
     return true;
   };
 
+  const resetScroll = () => {
+    if (mainScrollRef.current) {
+      mainScrollRef.current.scrollTo({ top: 0, behavior: "smooth" });
+    }
+    if (typeof window !== "undefined") {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  };
+
   const goToNextStep = () => {
     if (!validateCurrentStep()) return;
     if (currentStepIndex < steps.length - 1) {
       setDirection(1);
       setCurrentStepIndex((prev) => prev + 1);
-      window.scrollTo({ top: 0, behavior: "smooth" });
+      resetScroll();
     }
   };
 
@@ -365,7 +403,7 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
     if (currentStepIndex > 0) {
       setDirection(-1);
       setCurrentStepIndex((prev) => prev - 1);
-      window.scrollTo({ top: 0, behavior: "smooth" });
+      resetScroll();
     }
   };
 
@@ -373,7 +411,7 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
     if (index >= 0 && index < steps.length) {
       setDirection(index > currentStepIndex ? 1 : -1);
       setCurrentStepIndex(index);
-      window.scrollTo({ top: 0, behavior: "smooth" });
+      resetScroll();
     }
   };
 
@@ -569,7 +607,7 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
 
   if (loading) {
     return (
-      <div className="relative flex min-h-screen min-h-[100dvh] flex-col items-center justify-center space-y-4 overflow-hidden bg-background">
+      <div className="relative flex h-screen h-[100dvh] flex-col items-center justify-center space-y-4 overflow-hidden bg-background">
         <PageOrnaments variant="plans" />
         <div className="relative z-10 flex flex-col items-center justify-center space-y-4">
           <RefreshCw className="size-8 animate-spin text-brand-primary" />
@@ -583,7 +621,7 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
 
   if (loginRequired) {
     return (
-      <div className="relative flex min-h-screen min-h-[100dvh] items-center justify-center p-4 overflow-hidden bg-background">
+      <div className="relative flex h-screen h-[100dvh] items-center justify-center p-4 overflow-hidden bg-background">
         <PageOrnaments variant="plans" />
         <div className="mx-auto max-w-md w-full rounded-2xl border border-border bg-card p-8 shadow-sm text-center space-y-5">
           <div className="size-12 rounded-xl bg-primary/10 text-primary flex items-center justify-center mx-auto">
@@ -605,7 +643,7 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
 
   if (errorMsg && !form) {
     return (
-      <div className="relative flex min-h-screen min-h-[100dvh] items-center justify-center p-4 overflow-hidden bg-background">
+      <div className="relative flex h-screen h-[100dvh] items-center justify-center p-4 overflow-hidden bg-background">
         <PageOrnaments variant="plans" />
         <div className="relative z-10 mx-auto max-w-md w-full rounded-2xl border border-border bg-card/95 backdrop-blur-md p-8 shadow-sm text-center space-y-5">
           <div className="size-12 rounded-xl bg-destructive/10 text-destructive flex items-center justify-center mx-auto">
@@ -625,7 +663,7 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
 
   if (isClosed && form) {
     return (
-      <div className="relative flex min-h-screen min-h-[100dvh] items-center justify-center p-4 overflow-hidden bg-background">
+      <div className="relative flex h-screen h-[100dvh] items-center justify-center p-4 overflow-hidden bg-background">
         <PageOrnaments variant="plans" />
         <div className="relative z-10 mx-auto max-w-lg w-full rounded-2xl border border-border bg-card/95 backdrop-blur-md p-8 shadow-sm text-center space-y-5 border-t-4 border-t-status-warning">
           <span className="inline-block rounded-md bg-status-warning/10 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-status-warning">
@@ -645,7 +683,7 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
 
   if (submittedMessage && form) {
     return (
-      <div className="relative flex min-h-screen min-h-[100dvh] items-center justify-center p-4 overflow-hidden bg-background">
+      <div className="relative flex h-screen h-[100dvh] items-center justify-center p-4 overflow-hidden bg-background">
         <PageOrnaments variant="testimonial" />
         <motion.div
           initial={{ opacity: 0, scale: 0.95, y: 15 }}
@@ -685,12 +723,12 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
   if (!form) return null;
 
   return (
-    <div className="relative flex min-h-screen min-h-[100dvh] flex-col justify-between overflow-hidden bg-background text-foreground selection:bg-brand-primary/20 pb-28 sm:pb-32">
+    <div className="relative flex h-screen h-[100dvh] flex-col overflow-hidden bg-background text-foreground selection:bg-brand-primary/20">
       {/* Background Math Symbols, Radial Glows & Geometric Ornaments */}
       <PageOrnaments variant="plans" />
 
       {/* Top Fixed Minimal Progress Header */}
-      <div className="sticky top-0 z-40 w-full backdrop-blur-md bg-background/85 border-b border-border/40">
+      <header className="shrink-0 z-40 w-full backdrop-blur-md bg-background/85 border-b border-border/40">
         <div className="h-1 w-full bg-muted/60">
           <motion.div
             className="h-full bg-brand-primary"
@@ -714,11 +752,11 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
             </span>
           </div>
         </div>
-      </div>
+      </header>
 
       {/* Main Interactive Screen Area */}
-      <div className="relative z-10 flex-1 flex items-center justify-center px-4 py-8 sm:py-12 min-h-[calc(100vh-8rem)]">
-        <div className="w-full max-w-2xl mx-auto">
+      <main ref={mainScrollRef} className="relative z-10 flex-1 min-h-0 overflow-y-auto px-4 py-6 pb-24 sm:pb-28 flex flex-col justify-center">
+        <div className="w-full max-w-2xl mx-auto my-auto">
           <AnimatePresence mode="wait" custom={direction}>
             {/* 1. COVER / WELCOME SCREEN */}
             {currentStep?.kind === "cover" && (
@@ -729,6 +767,7 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
                 initial="enter"
                 animate="center"
                 exit="exit"
+                onAnimationComplete={focusActiveElement}
                 className="space-y-6 text-left"
               >
                 <div className="inline-flex items-center gap-2 rounded-md bg-brand-primary/10 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-brand-primary">
@@ -754,6 +793,7 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
 
                 <div className="pt-4 flex items-center gap-4">
                   <Button
+                    ref={setFocusableRef as any}
                     size="lg"
                     onClick={goToNextStep}
                     className="h-12 px-7 text-body-sm font-bold shadow-sm inline-flex items-center gap-2 group cursor-pointer"
@@ -777,6 +817,7 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
                 initial="enter"
                 animate="center"
                 exit="exit"
+                onAnimationComplete={focusActiveElement}
                 className="space-y-6 text-left"
               >
                 <div className="space-y-2">
@@ -794,7 +835,7 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
 
                 <div className="space-y-2">
                   <input
-                    ref={inputRef as any}
+                    ref={setFocusableRef as any}
                     type="email"
                     required
                     value={responderEmail}
@@ -834,6 +875,10 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
               const q = form.questions[currentStep.questionIndex];
               if (!q) return null;
 
+              const hasUpcomingQuestions = steps
+                .slice(currentStepIndex + 1)
+                .some((s) => s.kind === "question");
+
               return (
                 <motion.div
                   key={`section-${currentStep.questionIndex}`}
@@ -842,11 +887,12 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
                   initial="enter"
                   animate="center"
                   exit="exit"
+                  onAnimationComplete={focusActiveElement}
                   className="space-y-6 text-left"
                 >
                   <div className="inline-flex items-center gap-2 rounded-md bg-brand-secondary/15 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-brand-secondary">
                     <Layers className="size-3.5" />
-                    Bagian Baru
+                    {hasUpcomingQuestions ? "Bagian Baru" : "Penutup"}
                   </div>
 
                   <h2 className="font-heading text-body-base font-bold text-foreground tracking-tight leading-tight">
@@ -881,11 +927,12 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
 
                   <div className="pt-4 flex items-center gap-4">
                     <Button
+                      ref={setFocusableRef as any}
                       size="lg"
                       onClick={goToNextStep}
                       className="h-12 px-7 text-body-sm font-bold shadow-sm inline-flex items-center gap-2 bg-brand-primary text-white cursor-pointer"
                     >
-                      <span>Lanjut ke Bagian Ini</span>
+                      <span>Lanjut</span>
                       <ArrowRight className="size-4" />
                     </Button>
                     <span className="hidden sm:inline-flex items-center gap-1 text-body-xs text-muted-foreground">
@@ -919,6 +966,7 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
                   initial="enter"
                   animate="center"
                   exit="exit"
+                  onAnimationComplete={focusActiveElement}
                   className="space-y-6 text-left"
                 >
                   {/* Question Header */}
@@ -982,7 +1030,7 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
                     {q.type === "TEXT" && (
                       <div className="space-y-3">
                         <input
-                          ref={inputRef as any}
+                          ref={setFocusableRef as any}
                           type="text"
                           required={q.required}
                           value={answerVal || ""}
@@ -997,7 +1045,7 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
                     {q.type === "PARAGRAPH" && (
                       <div className="space-y-2">
                         <textarea
-                          ref={inputRef as any}
+                          ref={setFocusableRef as any}
                           rows={4}
                           required={q.required}
                           value={answerVal || ""}
@@ -1021,6 +1069,7 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
                           return (
                             <button
                               key={oIdx}
+                              ref={oIdx === 0 && answerVal !== OTHER_OPTION_MARKER ? (setFocusableRef as any) : undefined}
                               type="button"
                               onClick={() => {
                                 handleAnswerChange(qIdx, opt);
@@ -1081,6 +1130,7 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
 
                             {answerVal === OTHER_OPTION_MARKER && (
                               <input
+                                ref={setFocusableRef as any}
                                 type="text"
                                 autoFocus
                                 value={otherTexts[qIdx] || ""}
@@ -1111,6 +1161,7 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
                           return (
                             <button
                               key={oIdx}
+                              ref={oIdx === 0 && !selectedList.includes(OTHER_OPTION_MARKER) ? (setFocusableRef as any) : undefined}
                               type="button"
                               onClick={() => handleCheckboxToggle(qIdx, opt)}
                               className={`w-full flex items-center justify-between p-4 rounded-xl border text-left transition-all cursor-pointer group ${
@@ -1197,6 +1248,7 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
 
                                   {isSelected && (
                                     <input
+                                      ref={setFocusableRef as any}
                                       type="text"
                                       autoFocus
                                       value={otherTexts[qIdx] || ""}
@@ -1228,10 +1280,13 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
                             }
                           }}
                         >
-                          <SelectTrigger className="w-full h-12 text-body-sm font-medium rounded-xl">
+                          <SelectTrigger
+                            ref={answerVal !== OTHER_OPTION_MARKER ? (setFocusableRef as any) : undefined}
+                            className="w-full h-12 text-body-sm font-medium rounded-xl"
+                          >
                             <SelectValue placeholder="Pilih salah satu opsi..." />
                           </SelectTrigger>
-                          <SelectContent>
+                          <SelectContent className="max-h-56">
                             {(q.options || []).map((opt, oIdx) => (
                               <SelectItem key={oIdx} value={opt} className="text-body-sm py-2.5">
                                 {opt}
@@ -1247,6 +1302,7 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
 
                         {answerVal === OTHER_OPTION_MARKER && (
                           <input
+                            ref={setFocusableRef as any}
                             type="text"
                             autoFocus
                             value={otherTexts[qIdx] || ""}
@@ -1456,7 +1512,7 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
                       <div className="flex items-center gap-3 max-w-sm">
                         <Calendar className="size-6 text-brand-primary shrink-0" />
                         <input
-                          ref={inputRef as any}
+                          ref={setFocusableRef as any}
                           type="date"
                           required={q.required}
                           value={answerVal || ""}
@@ -1471,7 +1527,7 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
                       <div className="flex items-center gap-3 max-w-sm">
                         <Clock className="size-6 text-brand-primary shrink-0" />
                         <input
-                          ref={inputRef as any}
+                          ref={setFocusableRef as any}
                           type="time"
                           required={q.required}
                           value={answerVal || ""}
@@ -1509,6 +1565,7 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
                 initial="enter"
                 animate="center"
                 exit="exit"
+                onAnimationComplete={focusActiveElement}
                 className="space-y-6 text-left"
               >
                 <div className="space-y-2">
@@ -1598,6 +1655,7 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
                 {/* Final Submit Button */}
                 <div className="pt-2 flex flex-col sm:flex-row items-center gap-4">
                   <Button
+                    ref={setFocusableRef as any}
                     size="lg"
                     disabled={submitting}
                     onClick={handleSubmit}
@@ -1623,7 +1681,7 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
             )}
           </AnimatePresence>
         </div>
-      </div>
+      </main>
 
       {/* Floating Bottom Navigation Dock (Fixed to viewport bottom edge) */}
       <div className="fixed bottom-0 left-0 right-0 z-30 w-full p-4 sm:p-6 flex items-center justify-between pointer-events-none">

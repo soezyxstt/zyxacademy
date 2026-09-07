@@ -30,7 +30,7 @@ Background execution is handled by Deno Deploy, orchestrated via Inngest. Deploy
 
 ### Automated Pipeline Capabilities
 
-The deployment workflow performs the following actions automatically on push:
+The deployment workflow performs the following actions automatically on push (filtered to worker-relevant paths) or manual `workflow_dispatch`:
 1. **Pre-deploy Verification**: Runs `worker:deno:audit` (dependency tree guard) and `worker:deno:check` (typecheck).
 2. **Dynamic Provisioning**: Automatically provisions the Deno Deploy app via `deno deploy create` if it does not already exist.
 3. **Environment Sync**: Synchronizes all repository and environment secrets to Deno Deploy via `deno deploy env load --replace`.
