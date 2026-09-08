@@ -8,9 +8,10 @@ export type CourseMaterialCategory =
 export type MaterialLevel1Category = "materi" | "soal" | "pembahasan_soal";
 
 export type MaterialMateriSubcategory =
-  | "ppt_dosen"
+  | "materi_dosen"
+  | "scl"
+  | "modul"
   | "ebook"
-  | "catatan"
   | "lainnya";
 
 export type MaterialSoalSubcategory =
@@ -33,9 +34,10 @@ export const LEVEL1_CATEGORIES: Array<{ value: MaterialLevel1Category; label: st
 ];
 
 export const MATERI_SUBCATEGORIES: Array<{ value: MaterialMateriSubcategory; label: string }> = [
-  { value: "ppt_dosen", label: "PPT Dosen" },
+  { value: "materi_dosen", label: "Materi Dosen" },
+  { value: "scl", label: "SCL" },
+  { value: "modul", label: "Modul" },
   { value: "ebook", label: "E-Book" },
-  { value: "catatan", label: "Catatan" },
   { value: "lainnya", label: "Lainnya" },
 ];
 
@@ -50,9 +52,9 @@ export const SOAL_SUBCATEGORIES: Array<{ value: MaterialSoalSubcategory; label: 
 ];
 
 export const SUBCATEGORY_LABELS: Record<CourseMaterialSubcategory, string> = {
-  ppt_dosen: "PPT Dosen",
+  materi_dosen: "Materi Dosen",
+  scl: "SCL",
   ebook: "E-Book",
-  catatan: "Catatan",
   kuis: "Kuis",
   kbf: "KBF",
   tutorial: "Tutorial",

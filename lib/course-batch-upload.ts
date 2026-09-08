@@ -95,8 +95,9 @@ function detectMateriSubcategory(
   base: string
 ): CourseMaterialSubcategory | null {
   if (/e-?book|buku|textbook/i.test(base)) return "ebook";
-  if (/\bppt\b|\bslide|slides\b/i.test(base)) return "ppt_dosen";
-  if (/catatan|ringkasan|\bnotes?\b/i.test(base)) return "catatan";
+  if (/\bppt\b|\bslide|slides\b|\bmateri\s*dosen\b/i.test(base)) return "materi_dosen";
+  if (/\bscl\b|\bstudent[- ]?cent/i.test(base)) return "scl";
+  if (/modul|module/i.test(base)) return "modul";
   return null;
 }
 
@@ -168,7 +169,8 @@ const CATEGORY_MAP: Record<string, string> = {
   diktat: "diktat",
   catatan: "catatan",
   silabus: "silabus",
-  ppt_dosen: "materi",
+  materi_dosen: "materi",
+  scl: "materi",
   tutorial: "tutorial",
   latihan: "latihan",
   pr: "pr",

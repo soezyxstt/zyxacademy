@@ -2,6 +2,9 @@ import { describe, it, expect } from "bun:test";
 import { executeToolCall } from "@/lib/admin-ops-ai/tools";
 import { executeOpsAiTool } from "@/lib/admin-ops-ai/runtime-tools";
 import { introspectDbSchema } from "@/lib/admin-ops-ai/schema-introspection";
+import { db } from "@/db";
+import { courseMaterials } from "@/db/schema";
+import { inArray } from "drizzle-orm";
 
 describe("Zyx Ops AI Tools & Schema Introspection", () => {
   it("introspects known tables in database schema", async () => {
@@ -113,6 +116,54 @@ describe("Zyx Ops AI - Expanded Autonomous & Query Tools", () => {
       expect(res.summary).toContain("Audit Kelengkapan");
       expect((res.data as any).totalChapters).toBe(3);
       expect((res.data as any).emptyCount).toBe(3);
+    });
+
+    it("bulk updates materials metadata autonomously", async () => {
+      const matId1 = `mat-test-${Date.now()}-1`;
+      const matId2 = `mat-test-${Date.now()}-2`;
+      await db.insert(courseMaterials).values([
+        {
+          id: matId1,
+          courseId: sharedCourseId,
+          title: "Materi Awal 1",
+          type: "materi",
+          subcategory: "materi_dosen",
+          year: 2023,
+          fileUrl: "courses/test/m1.pdf",
+          chapterIds: ["ch-1"],
+        },
+        {
+          id: matId2,
+          courseId: sharedCourseId,
+          title: "Materi Awal 2",
+          type: "soal",
+          subcategory: "uts",
+          year: 2023,
+          fileUrl: "courses/test/m2.pdf",
+          chapterIds: ["ch-1", "ch-2"],
+        },
+      ]);
+
+      const updateRes = await executeOpsAiTool(
+        "bulk_update_materials",
+        {
+          materialIds: [matId1, matId2],
+          patch: {
+            year: 2024,
+            addChapterIds: ["ch-3"],
+          },
+        },
+        adminContext
+      );
+
+      expect(updateRes.summary).toContain("Berhasil memperbarui metadata 2 berkas materi");
+      expect((updateRes.data as any).updatedCount).toBe(2);
+
+      const checkList = await db.select().from(courseMaterials).where(inArray(courseMaterials.id, [matId1, matId2]));
+      expect(checkList.find((m) => m.id === matId1)?.year).toBe(2024);
+      expect(checkList.find((m) => m.id === matId1)?.chapterIds).toContain("ch-3");
+      expect(checkList.find((m) => m.id === matId2)?.year).toBe(2024);
+      expect(checkList.find((m) => m.id === matId2)?.chapterIds).toContain("ch-3");
     });
   });
 

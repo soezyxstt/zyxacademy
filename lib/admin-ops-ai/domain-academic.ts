@@ -7,8 +7,9 @@ import {
   courseMaterials,
   quizTemplates,
   pengguna,
+  sumberMateri,
 } from "@/db/schema";
-import { eq, asc, and, like, or } from "drizzle-orm";
+import { eq, asc, and, like, or, inArray } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 import {
   saveCourseWithCanonicalProjection,
@@ -486,3 +487,171 @@ export async function executeAuditCourseCompleteness(input: AuditCourseCompleten
     },
   };
 }
+
+export interface BulkUpdateMaterialsInput {
+  materialIds: string[];
+  patch: {
+    title?: string;
+    type?: "materi" | "soal" | "pembahasan_soal" | "materi_kelas" | "contoh_soal";
+    subcategory?:
+      | "materi_dosen"
+      | "scl"
+      | "modul"
+      | "ebook"
+      | "kuis"
+      | "kbf"
+      | "tutorial"
+      | "uts"
+      | "uas"
+      | "lainnya"
+      | null;
+    year?: number | null;
+    chapterIds?: string[];
+    addChapterIds?: string[];
+    removeChapterIds?: string[];
+  };
+}
+
+export async function executeBulkUpdateMaterials(input: BulkUpdateMaterialsInput, _actorId?: string) {
+  if (!input.materialIds || !Array.isArray(input.materialIds) || input.materialIds.length === 0) {
+    throw new Error("Daftar ID materi wajib diisi.");
+  }
+  if (!input.patch || typeof input.patch !== "object") {
+    throw new Error("Objek patch metadata wajib diisi.");
+  }
+
+  const cleanIds = Array.from(new Set(input.materialIds.map((id) => String(id).trim()).filter(Boolean)));
+  if (cleanIds.length === 0) {
+    throw new Error("Tidak ada ID materi valid yang diberikan.");
+  }
+
+  const existingList = await db
+    .select()
+    .from(courseMaterials)
+    .where(inArray(courseMaterials.id, cleanIds));
+
+  if (existingList.length === 0) {
+    throw new Error("Tidak ada materi yang ditemukan dengan ID yang diberikan.");
+  }
+
+  const foundIds = new Set(existingList.map((m) => m.id));
+  const missingIds = cleanIds.filter((id) => !foundIds.has(id));
+
+  const { patch } = input;
+  const cleanTitle = patch.title !== undefined ? patch.title.trim() : undefined;
+  if (cleanTitle !== undefined && !cleanTitle) {
+    throw new Error("Judul materi tidak boleh kosong jika ditentukan.");
+  }
+
+  const allowedTypes = ["materi", "soal", "pembahasan_soal", "materi_kelas", "contoh_soal"] as const;
+  if (patch.type !== undefined && !allowedTypes.includes(patch.type as any)) {
+    throw new Error(`Tipe dokumen '${patch.type}' tidak valid.`);
+  }
+
+  const allowedSubcategories = [
+    "materi_dosen",
+    "scl",
+    "modul",
+    "ebook",
+    "kuis",
+    "kbf",
+    "tutorial",
+    "uts",
+    "uas",
+    "lainnya",
+  ] as const;
+  if (
+    patch.subcategory !== undefined &&
+    patch.subcategory !== null &&
+    !allowedSubcategories.includes(patch.subcategory as any)
+  ) {
+    throw new Error(`Subkategori '${patch.subcategory}' tidak valid.`);
+  }
+
+  let cleanYear: number | null | undefined = undefined;
+  if (patch.year !== undefined) {
+    if (patch.year === null) {
+      cleanYear = null;
+    } else if (typeof patch.year === "number" && !isNaN(patch.year) && patch.year >= 1900 && patch.year <= 2100) {
+      cleanYear = Math.floor(patch.year);
+    } else {
+      throw new Error("Tahun harus berupa angka antara 1900 dan 2100 atau null.");
+    }
+  }
+
+  const hasChapterOps =
+    patch.chapterIds !== undefined ||
+    patch.addChapterIds !== undefined ||
+    patch.removeChapterIds !== undefined;
+
+  const now = new Date();
+
+  await db.transaction(async (tx) => {
+    for (const item of existingList) {
+      const updateData: Record<string, unknown> = {
+        updatedAt: now,
+      };
+
+      if (cleanTitle !== undefined) {
+        updateData.title = cleanTitle;
+      }
+      if (patch.type !== undefined) {
+        updateData.type = patch.type;
+      }
+      if (patch.subcategory !== undefined) {
+        updateData.subcategory = patch.subcategory;
+      }
+      if (cleanYear !== undefined) {
+        updateData.year = cleanYear;
+      }
+
+      if (hasChapterOps) {
+        let currentChapters = Array.isArray(item.chapterIds) ? [...item.chapterIds] : [];
+        if (patch.chapterIds !== undefined) {
+          currentChapters = Array.from(new Set(patch.chapterIds.map((c) => String(c).trim()).filter(Boolean)));
+        }
+        if (patch.addChapterIds !== undefined) {
+          const toAdd = patch.addChapterIds.map((c) => String(c).trim()).filter(Boolean);
+          currentChapters = Array.from(new Set([...currentChapters, ...toAdd]));
+        }
+        if (patch.removeChapterIds !== undefined) {
+          const toRemove = new Set(patch.removeChapterIds.map((c) => String(c).trim()).filter(Boolean));
+          currentChapters = currentChapters.filter((c) => !toRemove.has(c));
+        }
+
+        if (currentChapters.length === 0) {
+          throw new Error(
+            `Gagal memperbarui: materi '${item.id}' (${item.title}) harus memiliki minimal satu bab terkait.`
+          );
+        }
+        updateData.chapterIds = currentChapters;
+      }
+
+      await tx
+        .update(courseMaterials)
+        .set(updateData)
+        .where(eq(courseMaterials.id, item.id));
+
+      if (cleanTitle !== undefined) {
+        await tx
+          .update(sumberMateri)
+          .set({ title: cleanTitle, updatedAt: now })
+          .where(eq(sumberMateri.id, `sm-legacy-${item.id}`))
+          .catch(() => null);
+      }
+    }
+  });
+
+  return {
+    summary: `Berhasil memperbarui metadata ${existingList.length} berkas materi${
+      missingIds.length > 0 ? ` (${missingIds.length} ID tidak ditemukan: ${missingIds.join(", ")})` : ""
+    }.`,
+    data: {
+      updatedCount: existingList.length,
+      updatedIds: existingList.map((m) => m.id),
+      missingIds,
+      appliedPatch: patch,
+    },
+  };
+}
+

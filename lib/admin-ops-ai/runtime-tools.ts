@@ -48,6 +48,7 @@ import {
   executeBatchCreateChapters,
   executeUpdateChapter,
   executeListMaterials,
+  executeBulkUpdateMaterials,
   executeAuditCourseCompleteness,
 } from "./domain-academic";
 import {
@@ -513,6 +514,10 @@ export async function executeOpsAiTool(
       const res = await executeListMaterials(input as any);
       return { summary: res.summary, data: res.data };
     }
+    case "bulk_update_materials": {
+      const res = await executeBulkUpdateMaterials(input as any, context?.actorId);
+      return { summary: res.summary, data: res.data };
+    }
     case "audit_course_completeness": {
       const res = await executeAuditCourseCompleteness(input as any);
       return { summary: res.summary, data: res.data };
@@ -812,6 +817,56 @@ export function createOpsAiTools(context?: OpsAiToolContext) {
         chapterId: z.string().optional().describe("ID bab (opsional)"),
       }),
       execute: async (args) => executeOpsAiTool("list_materials", args, context),
+    }),
+
+    bulk_update_materials: tool({
+      description: OPS_AI_TOOL_SECURITY_REGISTRY.bulk_update_materials.description,
+      inputSchema: z.object({
+        materialIds: z.array(z.string()).describe("Daftar ID berkas materi yang ingin diperbarui"),
+        patch: z
+          .object({
+            title: z.string().optional().describe("Judul baru untuk berkas"),
+            type: z
+              .enum(["materi", "soal", "pembahasan_soal", "materi_kelas", "contoh_soal"])
+              .optional()
+              .describe("Tipe dokumen materi"),
+            subcategory: z
+              .enum([
+                "materi_dosen",
+                "scl",
+                "modul",
+                "ebook",
+                "kuis",
+                "kbf",
+                "tutorial",
+                "uts",
+                "uas",
+                "lainnya",
+              ])
+              .nullable()
+              .optional()
+              .describe("Subkategori dokumen (null untuk menghapus)"),
+            year: z
+              .number()
+              .nullable()
+              .optional()
+              .describe("Tahun dokumen (misal: 2024, null untuk menghapus)"),
+            chapterIds: z
+              .array(z.string())
+              .optional()
+              .describe("Ganti seluruh penugasan bab dengan daftar ID bab ini"),
+            addChapterIds: z
+              .array(z.string())
+              .optional()
+              .describe("Tambahkan ID bab ke daftar bab yang sudah ada"),
+            removeChapterIds: z
+              .array(z.string())
+              .optional()
+              .describe("Hapus ID bab dari daftar bab yang sudah ada"),
+          })
+          .describe("Objek perubahan metadata"),
+      }),
+      execute: async (args) => executeOpsAiTool("bulk_update_materials", args, context),
     }),
 
     audit_course_completeness: tool({

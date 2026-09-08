@@ -74,15 +74,15 @@ describe("filename heuristics", () => {
     });
     expect(detectCategoryFromFilename("ppt-perkuliahan-01.pdf")).toEqual({
       category: "materi",
-      subcategory: "ppt_dosen",
+      subcategory: "materi_dosen",
     });
     expect(detectCategoryFromFilename("e-book-Thermodynamics.pdf")).toEqual({
       category: "materi",
       subcategory: "ebook",
     });
-    expect(detectCategoryFromFilename("catatan-kuliah.pdf")).toEqual({
+    expect(detectCategoryFromFilename("scl-diskusi-kelompok.pdf")).toEqual({
       category: "materi",
-      subcategory: "catatan",
+      subcategory: "scl",
     });
   });
 

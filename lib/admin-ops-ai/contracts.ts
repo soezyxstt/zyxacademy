@@ -385,6 +385,15 @@ export const OPS_AI_TOOL_SECURITY_REGISTRY: Record<string, OpsAiToolSecurityClas
     allowsMutation: false,
     description: "Melihat daftar berkas materi kuliah yang tersimpan.",
   },
+  bulk_update_materials: {
+    name: "bulk_update_materials",
+    toolClass: "autonomous-mutation",
+    isModelCallable: true,
+    requiredRole: "admin",
+    requiresHumanConfirmation: false,
+    allowsMutation: true,
+    description: "Memperbarui metadata (judul, tipe, subkategori, tahun, bab) pada beberapa berkas materi kuliah atau PDF sekaligus.",
+  },
   audit_course_completeness: {
     name: "audit_course_completeness",
     toolClass: "read-only",
