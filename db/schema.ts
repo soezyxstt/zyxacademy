@@ -3542,13 +3542,13 @@ export const courseMaterials = sqliteTable(
 		title: text("title").notNull(),
 		type: text("type").$type<"materi" | "soal" | "pembahasan_soal" | "materi_kelas" | "contoh_soal">().notNull(),
 		subcategory: text("subcategory").$type<
-			| "ppt_dosen"
+			| "materi_dosen"
+			| "scl"
+			| "modul"
 			| "ebook"
-			| "catatan"
 			| "kuis"
 			| "kbf"
 			| "tutorial"
-			| "modul"
 			| "uts"
 			| "uas"
 			| "lainnya"

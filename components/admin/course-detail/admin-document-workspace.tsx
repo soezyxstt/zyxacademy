@@ -106,7 +106,7 @@ export function AdminDocumentWorkspace({
       : "materi"
   );
   const [pdfSubcategory, setPdfSubcategory] = useState<CourseMaterialSubcategory>(
-    (material.subcategory as CourseMaterialSubcategory) || "ppt_dosen"
+    (material.subcategory as CourseMaterialSubcategory) || "materi_dosen"
   );
   const [pdfYear, setPdfYear] = useState<string>(
     material.year ? String(material.year) : ""

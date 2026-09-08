@@ -95,7 +95,7 @@ export function MaterialsTab({
   // Form State
   const [title, setTitle] = useState("");
   const [type, setType] = useState<MaterialLevel1Category>("materi");
-  const [subcategory, setSubcategory] = useState<CourseMaterialSubcategory>("ppt_dosen");
+  const [subcategory, setSubcategory] = useState<CourseMaterialSubcategory>("materi_dosen");
   const [year, setYear] = useState<string>("");
   const [selectedChapters, setSelectedChapters] = useState<Set<string>>(new Set());
   const [selectedFile, setSelectedFile] = useState<File | null>(null);

@@ -152,9 +152,9 @@ function getSubcategoryBadgeClass(subcategory?: string | null): string {
     case "tutorial":
     case "modul":
       return "bg-sky-500/15 text-sky-600 dark:text-sky-400 border-sky-500/30 font-semibold";
-    case "ppt_dosen":
+    case "materi_dosen":
+    case "scl":
     case "ebook":
-    case "catatan":
       return "bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 border-indigo-500/30 font-semibold";
     default:
       return "bg-muted text-muted-foreground border-border";
