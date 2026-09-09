@@ -6,6 +6,9 @@ import type { FormativeCheckEvaluation } from "./pedagogy-contract";
 
 const formativeAiOutputSchema = z
   .object({
+    // Accepted only for rollout compatibility with cached or legacy evaluator output.
+    // The server ignores this field and derives the final verdict from criteria.
+    verdict: z.enum(["correct", "partial", "incorrect"]).optional(),
     criteria: z.array(z.object({
       criterionId: z.string().trim().min(1),
       status: z.enum(["met", "partial", "missed"]),
