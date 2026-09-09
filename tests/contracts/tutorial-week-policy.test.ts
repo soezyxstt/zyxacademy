@@ -34,8 +34,10 @@ describe("Tutorial week policy", () => {
     expect(getBookingLockAt(targetWeek).toISOString()).toBe("2026-08-22T16:59:59.999Z");
   });
 
-  it("enforces tutor and student boundaries in Asia/Jakarta", () => {
+  it("lets tutors publish future availability but still enforces the target deadline", () => {
     expect(getTutorialWeekPhase(targetWeek, beforeOpen)).toBe("before_open");
+    expect(canTutorCreateAvailability(targetWeek, beforeOpen)).toBe(true);
+    expect(canTutorDeleteAvailability(targetWeek, beforeOpen)).toBe(true);
     expect(getTutorialWeekPhase(targetWeek, openingInstant)).toBe("availability_open");
     expect(canTutorCreateAvailability(targetWeek, fridayBeforeDeadline)).toBe(true);
     expect(canTutorDeleteAvailability(targetWeek, fridayBeforeDeadline)).toBe(true);
@@ -48,5 +50,30 @@ describe("Tutorial week policy", () => {
     expect(getTutorialWeekPhase(targetWeek, afterLock)).toBe("locked");
     expect(isTutorialWeekLocked(targetWeek, afterLock)).toBe(true);
     expect(canStudentBook(targetWeek, afterLock)).toBe(false);
+  });
+
+  it("keeps 14-20 September editable on Thursday 10 September", () => {
+    const now = new Date("2026-09-10T00:17:00.000+07:00");
+
+    expect(getTutorialWeekPhase("2026-09-14", now)).toBe("availability_open");
+    expect(canTutorCreateAvailability("2026-09-14", now)).toBe(true);
+    expect(isTutorialWeekLocked("2026-09-14", now)).toBe(false);
+  });
+
+  it("allows availability for 21 September while keeping booking closed that early", () => {
+    const now = new Date("2026-09-10T00:17:00.000+07:00");
+
+    expect(getTutorialWeekPhase("2026-09-21", now)).toBe("before_open");
+    expect(canTutorCreateAvailability("2026-09-21", now)).toBe(true);
+    expect(canStudentBook("2026-09-21", now)).toBe(false);
+    expect(isTutorialWeekLocked("2026-09-21", now)).toBe(false);
+  });
+
+  it("locks 14-20 September only after Saturday 12 September ends", () => {
+    const beforeLock = new Date("2026-09-12T23:59:59.998+07:00");
+    const afterLock = new Date("2026-09-13T00:00:00.000+07:00");
+
+    expect(isTutorialWeekLocked("2026-09-14", beforeLock)).toBe(false);
+    expect(isTutorialWeekLocked("2026-09-14", afterLock)).toBe(true);
   });
 });
