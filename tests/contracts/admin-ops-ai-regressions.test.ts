@@ -80,20 +80,15 @@ describe("Zyx Ops AI conversation regressions", () => {
   });
 
   it("uses ToolLoopAgent as the production runtime instead of a manual model loop", () => {
-    const runtimeFacade = readFileSync(
+    const runtimeCode = readFileSync(
       join(process.cwd(), "lib/admin-ops-ai/runtime.ts"),
       "utf8"
     );
-    const agentRuntime = readFileSync(
-      join(process.cwd(), "lib/admin-ops-ai/agent-runtime.ts"),
-      "utf8"
-    );
 
-    expect(runtimeFacade).toContain('from "./agent-runtime"');
-    expect(runtimeFacade).not.toContain("streamOpsAiModel");
-    expect(runtimeFacade).not.toContain("while (toolStepCount");
-    expect(agentRuntime).toContain("new ToolLoopAgent");
-    expect(agentRuntime).toContain("createOpsAiTools");
+    expect(runtimeCode).toContain("new ToolLoopAgent");
+    expect(runtimeCode).toContain("createOpsAiTools");
+    expect(runtimeCode).not.toContain("streamOpsAiModel(");
+    expect(runtimeCode).not.toContain("while (toolStepCount");
   });
 
   it("retries one empty synthesis and never marks an empty final answer completed", async () => {
