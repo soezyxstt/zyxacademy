@@ -444,6 +444,29 @@ SELECT
 FROM `assessment_sources`;--> statement-breakpoint
 DROP TABLE `assessment_sources`;--> statement-breakpoint
 ALTER TABLE `assessment_sources_new` RENAME TO `assessment_sources`;--> statement-breakpoint
+ALTER TABLE `assessment_sources` ADD `assessment_type` text;--> statement-breakpoint
+ALTER TABLE `assessment_sources` ADD `institution` text;--> statement-breakpoint
+ALTER TABLE `assessment_sources` ADD `academic_year_label` text;--> statement-breakpoint
+ALTER TABLE `assessment_sources` ADD `term` text;--> statement-breakpoint
+ALTER TABLE `assessment_sources` ADD `canonical_course_id` text REFERENCES mata_kuliah(id);--> statement-breakpoint
+ALTER TABLE `assessment_sources` ADD `source_document_id` text REFERENCES course_materials(id);--> statement-breakpoint
+ALTER TABLE `assessment_sources` ADD `solution_document_id` text REFERENCES course_materials(id);--> statement-breakpoint
+ALTER TABLE `assessment_sources` ADD `status` text DEFAULT 'draft' NOT NULL;--> statement-breakpoint
+ALTER TABLE `ai_question_bank` ADD `assessment_source_id` text REFERENCES assessment_sources(id);--> statement-breakpoint
+ALTER TABLE `ai_question_bank` ADD `source_question_number` text;--> statement-breakpoint
+ALTER TABLE `ai_question_bank` ADD `source_question_part` text;--> statement-breakpoint
+ALTER TABLE `ai_question_bank` ADD `source_page` integer;--> statement-breakpoint
+ALTER TABLE `ai_question_bank` ADD `answer_provenance` text;--> statement-breakpoint
+ALTER TABLE `ai_question_bank` ADD `solution_provenance` text;--> statement-breakpoint
+ALTER TABLE `ai_question_bank` ADD `quiz_eligible` integer DEFAULT false NOT NULL;--> statement-breakpoint
+ALTER TABLE `soal` ADD `assessment_source_id` text REFERENCES assessment_sources(id);--> statement-breakpoint
+ALTER TABLE `soal` ADD `source_question_number` text;--> statement-breakpoint
+ALTER TABLE `soal` ADD `source_question_part` text;--> statement-breakpoint
+ALTER TABLE `soal` ADD `source_page` integer;--> statement-breakpoint
+ALTER TABLE `soal` ADD `source_locator` text;--> statement-breakpoint
+ALTER TABLE `soal` ADD `answer_provenance` text;--> statement-breakpoint
+ALTER TABLE `soal` ADD `solution_provenance` text;--> statement-breakpoint
+ALTER TABLE `soal` ADD `quiz_eligible` integer DEFAULT false NOT NULL;--> statement-breakpoint
 CREATE INDEX `idx_academic_sched_type` ON `academic_schedules` (`type`);--> statement-breakpoint
 CREATE INDEX `idx_academic_sched_course_id` ON `academic_schedules` (`course_id`);--> statement-breakpoint
 CREATE INDEX `idx_academic_sched_start_date` ON `academic_schedules` (`start_date`);--> statement-breakpoint
@@ -827,26 +850,3 @@ CREATE INDEX `idx_zyra_proposal_event_actor` ON `zyra_proposal_events` (`actor_i
 CREATE INDEX `idx_zyra_proposal_actor_status` ON `zyra_proposals` (`actor_id`,`status`,`created_at`);--> statement-breakpoint
 CREATE INDEX `idx_zyra_proposal_course_status` ON `zyra_proposals` (`course_id`,`status`);--> statement-breakpoint
 CREATE INDEX `idx_zyra_proposal_expiry` ON `zyra_proposals` (`expires_at`,`status`);--> statement-breakpoint
-ALTER TABLE `assessment_sources` ADD `assessment_type` text;--> statement-breakpoint
-ALTER TABLE `assessment_sources` ADD `institution` text;--> statement-breakpoint
-ALTER TABLE `assessment_sources` ADD `academic_year_label` text;--> statement-breakpoint
-ALTER TABLE `assessment_sources` ADD `term` text;--> statement-breakpoint
-ALTER TABLE `assessment_sources` ADD `canonical_course_id` text REFERENCES mata_kuliah(id);--> statement-breakpoint
-ALTER TABLE `assessment_sources` ADD `source_document_id` text REFERENCES course_materials(id);--> statement-breakpoint
-ALTER TABLE `assessment_sources` ADD `solution_document_id` text REFERENCES course_materials(id);--> statement-breakpoint
-ALTER TABLE `assessment_sources` ADD `status` text DEFAULT 'draft' NOT NULL;--> statement-breakpoint
-ALTER TABLE `ai_question_bank` ADD `assessment_source_id` text REFERENCES assessment_sources(id);--> statement-breakpoint
-ALTER TABLE `ai_question_bank` ADD `source_question_number` text;--> statement-breakpoint
-ALTER TABLE `ai_question_bank` ADD `source_question_part` text;--> statement-breakpoint
-ALTER TABLE `ai_question_bank` ADD `source_page` integer;--> statement-breakpoint
-ALTER TABLE `ai_question_bank` ADD `answer_provenance` text;--> statement-breakpoint
-ALTER TABLE `ai_question_bank` ADD `solution_provenance` text;--> statement-breakpoint
-ALTER TABLE `ai_question_bank` ADD `quiz_eligible` integer DEFAULT false NOT NULL;--> statement-breakpoint
-ALTER TABLE `soal` ADD `assessment_source_id` text REFERENCES assessment_sources(id);--> statement-breakpoint
-ALTER TABLE `soal` ADD `source_question_number` text;--> statement-breakpoint
-ALTER TABLE `soal` ADD `source_question_part` text;--> statement-breakpoint
-ALTER TABLE `soal` ADD `source_page` integer;--> statement-breakpoint
-ALTER TABLE `soal` ADD `source_locator` text;--> statement-breakpoint
-ALTER TABLE `soal` ADD `answer_provenance` text;--> statement-breakpoint
-ALTER TABLE `soal` ADD `solution_provenance` text;--> statement-breakpoint
-ALTER TABLE `soal` ADD `quiz_eligible` integer DEFAULT false NOT NULL;
