@@ -19,6 +19,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { MarkdownRenderer } from "@/components/course/markdown-renderer";
 import { MathText } from "@/components/course/math-text";
+import { useFormativeCheckEndpointBase } from "@/components/course/formative-check-endpoint-context";
 import type {
   PublicFormativeCheckPayload,
   PublicLearningTimeEstimate,
@@ -170,6 +171,7 @@ export function ProductFormativeCheck({
   locator,
   className,
 }: ProductFormativeCheckProps) {
+  const endpointBase = useFormativeCheckEndpointBase();
   const [selectedOptionId, setSelectedOptionId] = useState<string | null>(null);
   const [textValue, setTextValue] = useState("");
   const [numericValue, setNumericValue] = useState("");
@@ -218,7 +220,7 @@ export function ProductFormativeCheck({
     setError(null);
     setUiState("submitting");
     try {
-      const serverResponse = await fetch("/api/materials/formative-check/evaluate", {
+      const serverResponse = await fetch(`${endpointBase}/evaluate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...locator, response }),
@@ -249,7 +251,7 @@ export function ProductFormativeCheck({
     setError(null);
     setIsRevealing(true);
     try {
-      const serverResponse = await fetch("/api/materials/formative-check/reveal", {
+      const serverResponse = await fetch(`${endpointBase}/reveal`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(locator),
