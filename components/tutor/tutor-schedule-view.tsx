@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, useMemo } from "react";
+import { useEffect, useState, useTransition, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import {
   CalendarDays,
@@ -23,7 +23,6 @@ import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { SearchBar } from "@/components/ui/search-bar";
 import {
@@ -55,15 +54,14 @@ import {
   INDONESIAN_DAYS,
   type IndonesianDay,
   getWeekScheduleDays,
-  isSessionLocked,
   getJakartaNow,
   formatIsoDateUtc,
   parseDateInput,
   daysFrom,
 } from "@/lib/date-utils";
+import { isTutorialWeekLocked } from "@/lib/schedule/week-policy";
 import { ScheduleCalendarView } from "@/components/schedule/schedule-calendar-view";
-import { PostSessionModal } from "@/components/schedule/post-session-modal";
-import { AuditLogDrawer } from "@/components/schedule/audit-log-drawer";
+import { SessionDetailDrawer } from "@/components/schedule/session-detail-drawer";
 import { cn } from "@/lib/utils";
 import type {
   TutorScheduleReadModel,
@@ -90,7 +88,7 @@ function getIndonesianWeekdayFromDate(dateStr: string): IndonesianDay {
 import {
   addTutorSlotAction,
   deleteTutorSlotAction,
-  createTutorSessionAction,
+  copyTutorAvailabilityAction,
   moveTutorSessionAction,
   decideTutorRescheduleTicketAction,
   replyTutorTicketMessageAction,
@@ -99,22 +97,32 @@ import {
 export interface TutorScheduleViewProps {
   initialData: TutorScheduleReadModel;
   currentUserId: string;
+  initialWeekOffset?: number;
 }
 
 export function TutorScheduleView({
   initialData,
   currentUserId,
+  initialWeekOffset = 0,
 }: TutorScheduleViewProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [activeTab, setActiveTab] = useUrlTab("tab", "calendar");
-  const [weekOffset, setWeekOffset] = useState(0);
+  const [weekOffset, setWeekOffset] = useState(initialWeekOffset);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedDayFilter, setSelectedDayFilter] = useState<string>("all");
 
-  // Modals for session post-session and audit
-  const [activePostSessionBooking, setActivePostSessionBooking] = useState<OwnedBookingItem | null>(null);
-  const [activeAuditLogBooking, setActiveAuditLogBooking] = useState<OwnedBookingItem | null>(null);
+  const [scheduleData, setScheduleData] = useState(initialData);
+  const [activeSessionBookingId, setActiveSessionBookingId] = useState<string | null>(null);
+  const [feedback, setFeedback] = useState<{
+    type: "success" | "error";
+    message: string;
+  } | null>(null);
+
+  useEffect(() => {
+    setWeekOffset(initialWeekOffset);
+    setScheduleData(initialData);
+  }, [initialData, initialWeekOffset]);
 
   // Week calculation
   const anchorDate = useMemo(() => {
@@ -126,24 +134,16 @@ export function TutorScheduleView({
   }, [anchorDate]);
 
   const isWeekLocked = useMemo(() => {
-    return isSessionLocked(weekInfo.days[0].dateIso);
+    return isTutorialWeekLocked(weekInfo.days[0].dateIso, getJakartaNow());
   }, [weekInfo]);
-
-  // Feedback message
-  const [feedback, setFeedback] = useState<{
-    type: "success" | "error";
-    message: string;
-  } | null>(null);
 
   // Dialog States
   const [isAddSlotOpen, setIsAddSlotOpen] = useState(false);
-  const [isCreateSessionOpen, setIsCreateSessionOpen] = useState(false);
   const [isMoveSessionOpen, setIsMoveSessionOpen] = useState(false);
   const [isDecideTicketOpen, setIsDecideTicketOpen] = useState(false);
 
   // Form State: Add Slot (No weekday Select; derived from selected date; default date-specific)
   const [newSlotDate, setNewSlotDate] = useState(() => formatIsoDateUtc(getJakartaNow()));
-  const [isRepeatWeekly, setIsRepeatWeekly] = useState(false);
   const [newSlotStart, setNewSlotStart] = useState("09:00");
   const [newSlotEnd, setNewSlotEnd] = useState("10:30");
   const [newSlotMode, setNewSlotMode] = useState<"online" | "offline">("online");
@@ -153,13 +153,6 @@ export function TutorScheduleView({
     () => getIndonesianWeekdayFromDate(newSlotDate),
     [newSlotDate]
   );
-
-  // Form State: Create Session
-  const [selectedSlotForSession, setSelectedSlotForSession] = useState<string>("");
-  const [selectedGroupForSession, setSelectedGroupForSession] = useState<string>("");
-  const [selectedCourseForSession, setSelectedCourseForSession] = useState<string>("");
-  const [sessionDateInput, setSessionDateInput] = useState<string>("");
-  const [sessionTopicInput, setSessionTopicInput] = useState<string>("");
 
   // Form State: Move Session
   const [movingBooking, setMovingBooking] = useState<OwnedBookingItem | null>(null);
@@ -179,7 +172,8 @@ export function TutorScheduleView({
   const [replyText, setReplyText] = useState("");
 
   // Filtered Slots
-  const filteredSlots = initialData.ownedSlots.filter((slot) => {
+  const filteredSlots = scheduleData.ownedSlots.filter((slot) => {
+    if (!slot.sessionDate) return false;
     if (selectedDayFilter !== "all" && slot.dayOfWeek !== selectedDayFilter) {
       return false;
     }
@@ -201,7 +195,7 @@ export function TutorScheduleView({
   });
 
   // Filtered Bookings
-  const filteredBookings = initialData.ownedBookings.filter((b) => {
+  const filteredBookings = scheduleData.ownedBookings.filter((b) => {
     if (selectedCourseFilter !== "all" && b.courseId !== selectedCourseFilter) {
       return false;
     }
@@ -220,7 +214,7 @@ export function TutorScheduleView({
   });
 
   // Filtered Tickets (course filter unsupported: ticket rows carry no course data)
-  const filteredTickets = initialData.ownedTickets.filter((t) => {
+  const filteredTickets = scheduleData.ownedTickets.filter((t) => {
     if (selectedGroupFilter !== "all" && t.groupId !== selectedGroupFilter) {
       return false;
     }
@@ -244,7 +238,7 @@ export function TutorScheduleView({
         endTime: newSlotEnd,
         mode: newSlotMode,
         location: newSlotLocation,
-        sessionDate: isRepeatWeekly ? undefined : (newSlotDate || undefined),
+        sessionDate: newSlotDate || undefined,
       });
 
       if (res.success) {
@@ -269,22 +263,20 @@ export function TutorScheduleView({
   ) => {
     setFeedback(null);
     setNewSlotDate(dateIso);
-    setIsRepeatWeekly(false);
     const start = startTimeStr || "09:00";
     setNewSlotStart(start);
     setNewSlotEnd(endTimeStr || computeEndTime(start));
     setIsAddSlotOpen(true);
   };
 
-  const handleSelectSlotToSchedule = (slot: any) => {
-    setFeedback(null);
-    setSelectedSlotForSession(slot.id);
-    if (slot.sessionDate) {
-      setSessionDateInput(slot.sessionDate);
+  const handleWeekChange = (offset: number) => {
+    const url = new URL(window.location.href);
+    if (offset === 0) {
+      url.searchParams.delete("week");
     } else {
-      setSessionDateInput(formatIsoDateUtc(getJakartaNow()));
+      url.searchParams.set("week", String(offset));
     }
-    setIsCreateSessionOpen(true);
+    router.replace(`${url.pathname}${url.search}`, { scroll: false });
   };
 
   const handleOpenMoveModal = (booking: OwnedBookingItem) => {
@@ -306,33 +298,6 @@ export function TutorScheduleView({
         router.refresh();
       } else {
         setFeedback({ type: "error", message: res.error || "Gagal menghapus slot." });
-      }
-    });
-  };
-
-  // Handler: Create Session
-  const handleCreateSession = () => {
-    if (!selectedSlotForSession || !selectedGroupForSession || !selectedCourseForSession || !sessionDateInput) {
-      setFeedback({ type: "error", message: "Harap lengkapi semua field yang diperlukan." });
-      return;
-    }
-
-    setFeedback(null);
-    startTransition(async () => {
-      const res = await createTutorSessionAction({
-        slotId: selectedSlotForSession,
-        groupId: selectedGroupForSession,
-        courseId: selectedCourseForSession,
-        sessionDate: sessionDateInput,
-        topic: sessionTopicInput,
-      });
-
-      if (res.success) {
-        setIsCreateSessionOpen(false);
-        setFeedback({ type: "success", message: "Sesi tutorial berhasil dijadwalkan." });
-        router.refresh();
-      } else {
-        setFeedback({ type: "error", message: res.error || "Gagal menjadwalkan sesi." });
       }
     });
   };
@@ -414,12 +379,44 @@ export function TutorScheduleView({
     });
   };
 
-  const unbookedSlots = initialData.ownedSlots.filter((s) => !s.booking);
+  const unbookedSlots = scheduleData.ownedSlots.filter((s) => s.sessionDate && !s.booking);
+
+  const weekSlots = scheduleData.ownedSlots.filter(
+    (slot) => slot.sessionDate && slot.sessionDate >= weekInfo.startOfWeekIso && slot.sessionDate <= weekInfo.endOfWeekIso,
+  );
+  const weekBookings = scheduleData.ownedBookings.filter(
+    (booking) => booking.sessionDate && booking.sessionDate >= weekInfo.startOfWeekIso && booking.sessionDate <= weekInfo.endOfWeekIso,
+  );
+  const openedSlotCount = weekSlots.length;
+  const filledSlotCount = new Set(weekBookings.map((booking) => booking.slotId)).size;
+  const availableSlotCount = Math.max(0, openedSlotCount - filledSlotCount);
+  const activeSessionBooking = activeSessionBookingId
+    ? scheduleData.ownedBookings.find((booking) => booking.id === activeSessionBookingId) || null
+    : null;
+
+  const handleCopyPreviousWeek = () => {
+    setFeedback(null);
+    startTransition(async () => {
+      const result = await copyTutorAvailabilityAction(weekInfo.startOfWeekIso);
+      if (result.success) {
+        const conflictMessage = result.conflicts.length > 0
+          ? ` ${result.conflicts.length} slot dilewati karena bentrok.`
+          : "";
+        setFeedback({
+          type: "success",
+          message: `${result.createdCount} slot disalin dari pekan sebelumnya.${conflictMessage}`,
+        });
+        router.refresh();
+      } else {
+        setFeedback({ type: "error", message: result.error || "Gagal menyalin slot." });
+      }
+    });
+  };
 
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Jadwal & Sesi Pengajar"
+        title="Jadwal Tutorial"
         icon={CalendarDays}
         divider={true}
         actions={
@@ -429,8 +426,7 @@ export function TutorScheduleView({
               size="sm"
               onClick={() => {
                 setFeedback(null);
-                setNewSlotDate(formatIsoDateUtc(getJakartaNow()));
-                setIsRepeatWeekly(false);
+                setNewSlotDate(getWeekScheduleDays(daysFrom(7, getJakartaNow())).days[0].dateIso);
                 setNewSlotStart("09:00");
                 setNewSlotEnd("10:30");
                 setIsAddSlotOpen(true);
@@ -439,17 +435,6 @@ export function TutorScheduleView({
             >
               <Plus className="size-4 mr-1.5" />
               Tambah Slot
-            </Button>
-            <Button
-              size="sm"
-              onClick={() => {
-                setFeedback(null);
-                setIsCreateSessionOpen(true);
-              }}
-              className="text-body-sm font-semibold h-9 rounded-lg bg-brand-primary text-white hover:bg-brand-primary/90"
-            >
-              <CalendarDays className="size-4 mr-1.5" />
-              Jadwalkan Sesi
             </Button>
           </div>
         }
@@ -472,6 +457,25 @@ export function TutorScheduleView({
           <span>{feedback.message}</span>
         </div>
       )}
+
+      <section className="space-y-2 border-b border-border pb-4">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h2 className="font-heading text-body-base font-bold text-foreground">
+              {weekInfo.days[0].dayOfMonth} {weekInfo.days[0].monthName} - {weekInfo.days[6].dayOfMonth} {weekInfo.days[6].monthName} {weekInfo.days[6].dateIso.slice(0, 4)}
+            </h2>
+            <p className="text-body-xs text-muted-foreground">Buka ketersediaan pekan depan sebelum Jumat 18:00. Booking murid dikunci Sabtu 23:59.</p>
+          </div>
+          <Button type="button" size="sm" variant="outline" disabled={isPending} onClick={handleCopyPreviousWeek} className="text-body-sm">
+            <CalendarDays className="size-3.5" /> Salin pekan sebelumnya
+          </Button>
+        </div>
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-body-xs text-muted-foreground">
+          <span><strong className="font-heading text-body-base text-foreground">{openedSlotCount}</strong> slot dibuka</span>
+          <span><strong className="font-heading text-body-base text-foreground">{filledSlotCount}</strong> terisi</span>
+          <span><strong className="font-heading text-body-base text-foreground">{availableSlotCount}</strong> tersedia</span>
+        </div>
+      </section>
 
       {/* Filter and Search Toolbar (for list views) */}
       {activeTab !== "calendar" && (
@@ -570,7 +574,7 @@ export function TutorScheduleView({
             weekInfo={weekInfo}
             isWeekLocked={isWeekLocked}
             weekOffset={weekOffset}
-            onWeekChange={setWeekOffset}
+            onWeekChange={handleWeekChange}
             coursesList={initialData.assignedActiveCourses.map((c) => ({
               id: c.courseId,
               title: c.title,
@@ -579,14 +583,12 @@ export function TutorScheduleView({
               id: g.id,
               name: g.name,
             }))}
-            slots={initialData.ownedSlots}
-            bookings={initialData.ownedBookings}
+            slots={scheduleData.ownedSlots}
+            bookings={scheduleData.ownedBookings}
             onCreateScheduleDirect={handleCreateSlotDirect}
-            onSelectSlotToSchedule={handleSelectSlotToSchedule}
             onMoveSession={handleOpenMoveModal}
             onDeleteSlot={handleDeleteSlot}
-            onOpenPostSession={setActivePostSessionBooking}
-            onOpenAuditLog={setActiveAuditLogBooking}
+            onOpenSessionDetail={(booking) => setActiveSessionBookingId(booking.id)}
           />
         </TabsContent>
 
@@ -1014,7 +1016,7 @@ export function TutorScheduleView({
               Tambah Slot Ketersediaan 90 Menit
             </DialogTitle>
             <DialogDescription className="text-body-xs">
-              Buat slot ketersediaan mengajar mingguan berdurasi tepat 90 menit.
+              Buat slot ketersediaan pada tanggal yang dipilih dengan durasi tepat 90 menit.
             </DialogDescription>
           </DialogHeader>
 
@@ -1024,24 +1026,8 @@ export function TutorScheduleView({
               <Input
                 type="date"
                 value={newSlotDate}
-                onChange={(e) => setNewSlotDate(e.target.value)}
+                readOnly
                 className="text-body-sm h-9"
-              />
-            </div>
-
-            <div className="flex items-center justify-between rounded-lg border border-border p-3 bg-muted/20">
-              <div className="space-y-0.5">
-                <Label htmlFor="repeat-weekly" className="text-body-sm font-semibold cursor-pointer">
-                  Ulangi Setiap Minggu
-                </Label>
-                <p className="text-body-xs text-muted-foreground">
-                  Hari: <span className="font-semibold text-foreground">{derivedWeekday}</span>
-                </p>
-              </div>
-              <Checkbox
-                id="repeat-weekly"
-                checked={isRepeatWeekly}
-                onCheckedChange={(checked) => setIsRepeatWeekly(Boolean(checked))}
               />
             </div>
 
@@ -1049,9 +1035,13 @@ export function TutorScheduleView({
               <div className="space-y-1">
                 <Label className="text-body-sm font-semibold">Mulai (HH:MM)</Label>
                 <Input
+                  type="time"
                   value={newSlotStart}
                   onChange={(e) => handleStartTimeChange(e.target.value)}
                   placeholder="09:00"
+                  min="07:00"
+                  max="20:30"
+                  step="1800"
                   className="text-body-sm h-9"
                 />
               </div>
@@ -1117,125 +1107,7 @@ export function TutorScheduleView({
         </DialogContent>
       </Dialog>
 
-      {/* Dialog 2: Create Session */}
-      <Dialog
-        open={isCreateSessionOpen}
-        onOpenChange={(open) => {
-          if (!isPending) setIsCreateSessionOpen(open);
-        }}
-      >
-        <DialogContent className="sm:max-w-[460px]">
-          <DialogHeader>
-            <DialogTitle className="text-body-base font-bold font-heading">
-              Jadwalkan Sesi Tutorial
-            </DialogTitle>
-            <DialogDescription className="text-body-xs">
-              Pilih kelompok belajar aktif, mata kuliah, dan slot ketersediaan milik Anda.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-3 py-2">
-            <div className="space-y-1">
-              <Label className="text-body-sm font-semibold">Kelompok Belajar</Label>
-              <Select
-                value={selectedGroupForSession}
-                onValueChange={setSelectedGroupForSession}
-              >
-                <SelectTrigger className="text-body-sm h-9">
-                  <SelectValue placeholder="Pilih Kelompok" />
-                </SelectTrigger>
-                <SelectContent>
-                  {initialData.eligibleGroups.map((g) => (
-                    <SelectItem key={g.id} value={g.id}>
-                      {g.name} ({g.membersCount} anggota)
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-1">
-              <Label className="text-body-sm font-semibold">Mata Kuliah</Label>
-              <Select
-                value={selectedCourseForSession}
-                onValueChange={setSelectedCourseForSession}
-              >
-                <SelectTrigger className="text-body-sm h-9">
-                  <SelectValue placeholder="Pilih Mata Kuliah" />
-                </SelectTrigger>
-                <SelectContent>
-                  {initialData.assignedActiveCourses.map((c) => (
-                    <SelectItem key={c.courseId} value={c.courseId}>
-                      {c.title} ({c.code || c.courseId})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-1">
-              <Label className="text-body-sm font-semibold">Slot Tersedia</Label>
-              <Select
-                value={selectedSlotForSession}
-                onValueChange={setSelectedSlotForSession}
-              >
-                <SelectTrigger className="text-body-sm h-9">
-                  <SelectValue placeholder="Pilih Slot 90 Menit" />
-                </SelectTrigger>
-                <SelectContent>
-                  {unbookedSlots.map((s) => (
-                    <SelectItem key={s.id} value={s.id}>
-                      {s.dayOfWeek} ({s.startTime} - {s.endTime}) [{s.mode}]
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-1">
-              <Label className="text-body-sm font-semibold">Tanggal Sesi (YYYY-MM-DD)</Label>
-              <Input
-                type="date"
-                value={sessionDateInput}
-                onChange={(e) => setSessionDateInput(e.target.value)}
-                className="text-body-sm h-9"
-              />
-            </div>
-
-            <div className="space-y-1">
-              <Label className="text-body-sm font-semibold">Topik Bahasan</Label>
-              <Input
-                value={sessionTopicInput}
-                onChange={(e) => setSessionTopicInput(e.target.value)}
-                placeholder="Contoh: Pembahasan Soal UTS Bab 3"
-                className="text-body-sm h-9"
-              />
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={isPending}
-              onClick={() => setIsCreateSessionOpen(false)}
-              className="text-body-sm h-9 rounded-lg"
-            >
-              Batal
-            </Button>
-            <Button
-              size="sm"
-              isLoading={isPending}
-              onClick={handleCreateSession}
-              className="text-body-sm h-9 rounded-lg bg-brand-primary text-white hover:bg-brand-primary/90"
-            >
-              Jadwalkan Sesi
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Dialog 3: Move Session */}
+      {/* Dialog 2: Move Session */}
       <Dialog
         open={isMoveSessionOpen}
         onOpenChange={(open) => {
@@ -1386,30 +1258,17 @@ export function TutorScheduleView({
         </DialogContent>
       </Dialog>
 
-      {/* Post Session Modal */}
-      <PostSessionModal
-        open={Boolean(activePostSessionBooking)}
+      <SessionDetailDrawer
+        open={Boolean(activeSessionBookingId)}
         onOpenChange={(open) => {
-          if (!open) setActivePostSessionBooking(null);
+          if (!open) setActiveSessionBookingId(null);
         }}
-        booking={activePostSessionBooking}
-        onSuccess={() => {
-          setActivePostSessionBooking(null);
-          setFeedback({
-            type: "success",
-            message: "Catatan dan berkas sesi berhasil disimpan.",
-          });
-          router.refresh();
-        }}
-      />
-
-      {/* Audit Log Drawer */}
-      <AuditLogDrawer
-        open={Boolean(activeAuditLogBooking)}
-        onOpenChange={(open) => {
-          if (!open) setActiveAuditLogBooking(null);
-        }}
-        booking={activeAuditLogBooking}
+        booking={activeSessionBooking}
+        role="teacher"
+        currentUserId={currentUserId}
+        tutorName={scheduleData.tutor.name}
+        availableSlots={scheduleData.ownedSlots}
+        onSuccess={() => router.refresh()}
       />
     </div>
   );

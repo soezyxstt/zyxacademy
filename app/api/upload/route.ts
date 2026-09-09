@@ -53,15 +53,15 @@ export async function POST(req: Request) {
   const folder = typeof folderRaw === "string" ? folderRaw.trim() : "";
   const segments = folder.split("/").filter(Boolean);
   if (
-    segments.length !== 4 ||
+    segments.length !== 3 ||
     segments[0] !== "schedules" ||
-    (segments[3] !== "materials" && segments[3] !== "notes")
+    (segments[2] !== "materials" && segments[2] !== "notes")
   ) {
     return NextResponse.json({ error: "Folder tujuan tidak valid." }, { status: 400 });
   }
 
   const bookingId = segments[1];
-  const kind = segments[3] === "materials" ? "pre_session" : "post_session";
+  const kind = segments[2] === "materials" ? "pre_session" : "post_session";
 
   const booking = await db.query.bookings.findFirst({
     where: eq(bookings.id, bookingId),

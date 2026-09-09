@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/select";
 import { toast } from "@/components/ui/toast";
 import { AdminTable, AdminTableHead } from "@/components/admin/table";
+import { AdminEmptyState } from "@/components/admin/state-panels";
 import { StatusBadge } from "@/components/admin/status-badges";
 import { AdminConfirmDialog } from "@/components/admin/confirm-dialog";
 import {
@@ -51,24 +52,36 @@ import {
   updateAcademicSchedule,
   deleteAcademicSchedule,
   adminBatchGenerateMeet,
+  adminCreateTutorAvailability,
+  adminAssignTutorialSession,
+  adminMoveTutorialSession,
+  adminCancelTutorialSession,
+  updateTutorCourses,
 } from "@/app/(admin)/admin/(academic)/schedules/actions";
-import { updateTutorCourses } from "@/app/(student)/dashboard/schedule/actions";
 import { formatIsoDate } from "@/lib/date-utils";
 import { cn } from "@/lib/utils";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useUrlTab } from "@/hooks/use-url-tab";
+import { SessionDetailDrawer } from "@/components/schedule/session-detail-drawer";
 
 type Props = {
   initialData: any;
+  initialWeekOffset?: number;
 };
 
-export function AcademicSchedulesDashboard({ initialData }: Props) {
+function addMinutesToTime(time: string, minutes: number): string {
+  const [hours, mins] = time.split(":").map(Number);
+  const total = Math.max(0, (hours || 0) * 60 + (mins || 0) + minutes);
+  return `${String(Math.floor(total / 60)).padStart(2, "0")}:${String(total % 60).padStart(2, "0")}`;
+}
+
+export function AcademicSchedulesDashboard({ initialData, initialWeekOffset = 0 }: Props) {
   const router = useRouter();
   const data = initialData;
-  const [weekOffset, setWeekOffset] = useState(0);
 
   // Tabs / Active View
   const [activeTab, setActiveTab] = useUrlTab("tab", "calendar");
+  const [calendarMode, setCalendarMode] = useUrlTab("calendarMode", "academic");
 
   // Dialog States for Academic Schedules CRUD
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -89,6 +102,30 @@ export function AcademicSchedulesDashboard({ initialData }: Props) {
   // Active Modals for viewing session details
   const [selectedAuditBooking, setSelectedAuditBooking] = useState<any | null>(null);
   const [selectedTicketBooking, setSelectedTicketBooking] = useState<any | null>(null);
+  const [selectedSessionDetail, setSelectedSessionDetail] = useState<any | null>(null);
+
+  // Tutorial operations and explicit admin overrides
+  const [availabilityOpen, setAvailabilityOpen] = useState(false);
+  const [availabilityTutorId, setAvailabilityTutorId] = useState("");
+  const [availabilityDate, setAvailabilityDate] = useState("");
+  const [availabilityStart, setAvailabilityStart] = useState("09:00");
+  const [availabilityMode, setAvailabilityMode] = useState<"online" | "offline">("online");
+  const [availabilityLocation, setAvailabilityLocation] = useState("");
+  const [availabilityReason, setAvailabilityReason] = useState("");
+  const [availabilityLoading, setAvailabilityLoading] = useState(false);
+  const [assignmentSlot, setAssignmentSlot] = useState<any | null>(null);
+  const [assignmentGroupId, setAssignmentGroupId] = useState("");
+  const [assignmentCourseId, setAssignmentCourseId] = useState("");
+  const [assignmentReason, setAssignmentReason] = useState("");
+  const [assignmentTopic, setAssignmentTopic] = useState("");
+  const [assignmentLoading, setAssignmentLoading] = useState(false);
+  const [moveBooking, setMoveBooking] = useState<any | null>(null);
+  const [moveTargetSlotId, setMoveTargetSlotId] = useState("");
+  const [moveReason, setMoveReason] = useState("");
+  const [moveLoading, setMoveLoading] = useState(false);
+  const [cancelBooking, setCancelBooking] = useState<any | null>(null);
+  const [cancelReason, setCancelReason] = useState("");
+  const [cancelLoading, setCancelLoading] = useState(false);
 
   // Batch Meet Loading
   const [batchMeetLoading, setBatchMeetLoading] = useState(false);
@@ -102,6 +139,151 @@ export function AcademicSchedulesDashboard({ initialData }: Props) {
   const totalBookings = data.bookings.length;
   const completedBookings = data.bookings.filter((b: any) => b.status === "completed").length;
   const pendingTickets = data.tickets.filter((t: any) => t.status === "pending").length;
+
+  const handleWeekChange = (offset: number) => {
+    const url = new URL(window.location.href);
+    if (offset === 0) {
+      url.searchParams.delete("week");
+    } else {
+      url.searchParams.set("week", String(offset));
+    }
+    router.replace(`${url.pathname}${url.search}`, { scroll: false });
+  };
+
+  const resetAvailabilityForm = () => {
+    setAvailabilityTutorId(data.tutors[0]?.id || "");
+    setAvailabilityDate(data.weekRange?.startIso || "");
+    setAvailabilityStart("09:00");
+    setAvailabilityMode("online");
+    setAvailabilityLocation("");
+    setAvailabilityReason("");
+  };
+
+  const openAvailabilityDialog = () => {
+    resetAvailabilityForm();
+    setAvailabilityOpen(true);
+  };
+
+  const handleAvailabilitySubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setAvailabilityLoading(true);
+    try {
+      const result = await adminCreateTutorAvailability({
+        tutorId: availabilityTutorId,
+        sessionDate: availabilityDate,
+        startTime: availabilityStart,
+        endTime: addMinutesToTime(availabilityStart, 90),
+        mode: availabilityMode,
+        location: availabilityMode === "offline" ? availabilityLocation : null,
+        reason: availabilityReason,
+      });
+      if (result.success) {
+        toast.success("Availability tutor berhasil dibuat");
+        setAvailabilityOpen(false);
+        router.refresh();
+      } else {
+        toast.error(result.error || "Gagal membuat availability");
+      }
+    } catch {
+      toast.error("Terjadi kesalahan koneksi");
+    } finally {
+      setAvailabilityLoading(false);
+    }
+  };
+
+  const openAssignmentDialog = (slot: any) => {
+    setAssignmentSlot(slot);
+    setAssignmentGroupId("");
+    setAssignmentCourseId("");
+    setAssignmentReason("");
+    setAssignmentTopic("");
+  };
+
+  const handleAssignmentSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!assignmentSlot) return;
+    setAssignmentLoading(true);
+    try {
+      const result = await adminAssignTutorialSession({
+        slotId: assignmentSlot.id,
+        groupId: assignmentGroupId,
+        courseId: assignmentCourseId,
+        reason: assignmentReason,
+        topic: assignmentTopic || null,
+      });
+      if (result.success) {
+        toast.success("Sesi tutorial berhasil ditetapkan");
+        setAssignmentSlot(null);
+        router.refresh();
+      } else {
+        toast.error(result.error || "Gagal menetapkan sesi");
+      }
+    } catch {
+      toast.error("Terjadi kesalahan koneksi");
+    } finally {
+      setAssignmentLoading(false);
+    }
+  };
+
+  const openMoveDialog = (booking: any) => {
+    setMoveBooking(booking);
+    setMoveTargetSlotId("");
+    setMoveReason("");
+  };
+
+  const handleMoveSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!moveBooking) return;
+    setMoveLoading(true);
+    try {
+      const result = await adminMoveTutorialSession({
+        bookingId: moveBooking.id,
+        targetSlotId: moveTargetSlotId,
+        reason: moveReason,
+      });
+      if (result.success) {
+        toast.success("Sesi tutorial berhasil dipindahkan");
+        setMoveBooking(null);
+        setSelectedSessionDetail(null);
+        router.refresh();
+      } else {
+        toast.error(result.error || "Gagal memindahkan sesi");
+      }
+    } catch {
+      toast.error("Terjadi kesalahan koneksi");
+    } finally {
+      setMoveLoading(false);
+    }
+  };
+
+  const openCancelDialog = (booking: any) => {
+    setCancelBooking(booking);
+    setCancelReason("");
+  };
+
+  const handleCancelSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!cancelBooking) return;
+    setCancelLoading(true);
+    try {
+      const result = await adminCancelTutorialSession({
+        bookingId: cancelBooking.id,
+        reason: cancelReason,
+      });
+      if (result.success) {
+        toast.success("Sesi tutorial berhasil dibatalkan");
+        setCancelBooking(null);
+        setSelectedSessionDetail(null);
+        router.refresh();
+      } else {
+        toast.error(result.error || "Gagal membatalkan sesi");
+      }
+    } catch {
+      toast.error("Terjadi kesalahan koneksi");
+    } finally {
+      setCancelLoading(false);
+    }
+  };
 
   const handleOpenCreate = () => {
     setFormType("official_exam");
@@ -335,14 +517,25 @@ export function AcademicSchedulesDashboard({ initialData }: Props) {
               </TooltipContent>
             </Tooltip>
 
-            <Button
-              size="sm"
-              onClick={handleOpenCreate}
-              className="h-8.5 px-3 rounded-lg text-body-xs font-semibold bg-brand-primary text-white hover:bg-brand-primary/90 gap-1.5"
-            >
-              <Plus className="size-3.5" />
-              <span>Buat Jadwal</span>
-            </Button>
+            {calendarMode === "tutorial" ? (
+              <Button
+                size="sm"
+                onClick={openAvailabilityDialog}
+                className="h-8.5 px-3 rounded-lg text-body-xs font-semibold bg-brand-primary text-white hover:bg-brand-primary/90 gap-1.5"
+              >
+                <Plus className="size-3.5" />
+                <span>Tambah availability</span>
+              </Button>
+            ) : (
+              <Button
+                size="sm"
+                onClick={handleOpenCreate}
+                className="h-8.5 px-3 rounded-lg text-body-xs font-semibold bg-brand-primary text-white hover:bg-brand-primary/90 gap-1.5"
+              >
+                <Plus className="size-3.5" />
+                <span>Buat jadwal akademik</span>
+              </Button>
+            )}
           </div>
         </div>
 
@@ -350,25 +543,93 @@ export function AcademicSchedulesDashboard({ initialData }: Props) {
 
         {/* TAB 1: Master Calendar */}
         {activeTab === "calendar" && (
-          <ScheduleCalendarView
-            role="admin"
-            currentUserId=""
-            weekInfo={data.weekInfo}
-            isWeekLocked={data.isWeekLocked}
-            weekOffset={weekOffset}
-            onWeekChange={(offset) => setWeekOffset(offset)}
-            coursesList={data.courses}
-            tutorsList={data.tutors}
-            groupsList={data.groups}
-            slots={data.slots}
-            bookings={data.bookings}
-            academicSchedules={data.academicSchedules}
-            onCreateScheduleDirect={handleCreateDirect}
-            onEditSchedule={(sched) => handleOpenEdit(sched)}
-            onDeleteSchedule={(sched) => setPendingDeleteSchedule(sched)}
-            onOpenAuditLog={(booking) => setSelectedAuditBooking(booking)}
-            onOpenRescheduleTicket={(booking) => setSelectedTicketBooking(booking)}
-          />
+          <div className="space-y-3">
+            <Tabs value={calendarMode} onValueChange={setCalendarMode}>
+              <TabsList>
+                <TabsTrigger value="academic">
+                  <GraduationCap className="size-3.5" />
+                  Akademik
+                </TabsTrigger>
+                <TabsTrigger value="tutorial">
+                  <Users className="size-3.5" />
+                  Tutorial
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
+
+            {calendarMode === "tutorial" && (
+              <div className="space-y-2">
+                <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border bg-card px-3 py-2">
+                  <div>
+                    <p className="font-heading text-body-sm font-bold text-foreground">Coverage minggu tutorial</p>
+                    <p className="text-body-xs text-muted-foreground">
+                      Slot dan sesi hanya menampilkan tanggal pada minggu yang sedang dibuka.
+                    </p>
+                  </div>
+                  {Number(data.legacyNullDateSlotCount || 0) > 0 && (
+                    <Badge variant="outline" className="rounded-md border-amber-500/40 text-amber-700 dark:text-amber-300">
+                      {data.legacyNullDateSlotCount} availability legacy perlu ditinjau
+                    </Badge>
+                  )}
+                </div>
+                <AdminTable>
+                  <table className="w-full text-left text-body-sm">
+                    <AdminTableHead>
+                      <tr>
+                        <th scope="col">Tutor</th>
+                        <th scope="col">Slot dibuka</th>
+                        <th scope="col">Booked</th>
+                        <th scope="col">Available</th>
+                        <th scope="col">Status pengiriman</th>
+                      </tr>
+                    </AdminTableHead>
+                    <tbody className="divide-y divide-border">
+                      {(data.coverage || []).length === 0 ? (
+                        <tr>
+                          <td colSpan={5}>
+                            <AdminEmptyState compact title="Belum ada tutor terdaftar." />
+                          </td>
+                        </tr>
+                      ) : (data.coverage || []).map((row: any) => (
+                          <tr key={row.tutorId}>
+                            <td className="px-4 py-2.5 font-semibold text-foreground">{row.tutorName}</td>
+                            <td className="px-4 py-2.5 text-body-xs text-muted-foreground">{row.slotsOpened}</td>
+                            <td className="px-4 py-2.5 text-body-xs text-muted-foreground">{row.booked}</td>
+                            <td className="px-4 py-2.5 text-body-xs text-muted-foreground">{row.available}</td>
+                            <td className="px-4 py-2.5">
+                              <Badge variant="outline" className="rounded-md text-body-xs">{row.status}</Badge>
+                            </td>
+                          </tr>
+                        ))}
+                    </tbody>
+                  </table>
+                </AdminTable>
+              </div>
+            )}
+
+            <ScheduleCalendarView
+              role="admin"
+              adminMode={calendarMode === "tutorial" ? "tutorial" : "academic"}
+              currentUserId=""
+              weekInfo={data.weekInfo}
+              isWeekLocked={data.isWeekLocked}
+              weekOffset={data.weekOffset ?? initialWeekOffset}
+              onWeekChange={handleWeekChange}
+              coursesList={data.courses}
+              tutorsList={data.tutors}
+              groupsList={data.groups}
+              slots={data.slots}
+              bookings={data.bookings}
+              academicSchedules={data.academicSchedules}
+              onCreateScheduleDirect={calendarMode === "academic" ? handleCreateDirect : undefined}
+              onAssignTutorialSlot={calendarMode === "tutorial" ? openAssignmentDialog : undefined}
+              onOpenSessionDetail={calendarMode === "tutorial" ? setSelectedSessionDetail : undefined}
+              onEditSchedule={(sched) => handleOpenEdit(sched)}
+              onDeleteSchedule={(sched) => setPendingDeleteSchedule(sched)}
+              onOpenAuditLog={(booking) => setSelectedAuditBooking(booking)}
+              onOpenRescheduleTicket={(booking) => setSelectedTicketBooking(booking)}
+            />
+          </div>
         )}
 
       {/* TAB 2: Academic Schedules CRUD */}
@@ -686,6 +947,174 @@ export function AcademicSchedulesDashboard({ initialData }: Props) {
           </AdminTable>
         </div>
       )}
+
+      {/* Admin tutor availability override */}
+      <Dialog open={availabilityOpen} onOpenChange={setAvailabilityOpen}>
+        <DialogContent className="max-w-lg rounded-xl border border-border p-6 shadow-xl text-left">
+          <DialogHeader>
+            <DialogTitle className="font-heading text-body-base font-bold">Tambah availability tutor</DialogTitle>
+            <DialogDescription className="text-body-xs text-muted-foreground">
+              Override admin membuat slot konkret 90 menit. Deadline tutor tidak diterapkan, tetapi tanggal, durasi, dan overlap tetap divalidasi.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleAvailabilitySubmit} className="space-y-4">
+            <div className="space-y-1.5">
+              <label className="text-body-xs font-semibold">Tutor</label>
+              <Select value={availabilityTutorId} onValueChange={setAvailabilityTutorId}>
+                <SelectTrigger className="h-10 rounded-lg text-body-sm"><SelectValue placeholder="Pilih tutor" /></SelectTrigger>
+                <SelectContent>{data.tutors.map((tutor: any) => <SelectItem key={tutor.id} value={tutor.id}>{tutor.name}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <label className="text-body-xs font-semibold">Tanggal sesi</label>
+                <Input type="date" value={availabilityDate} onChange={(event) => setAvailabilityDate(event.target.value)} required className="h-10 rounded-lg text-body-sm" />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-body-xs font-semibold">Mulai</label>
+                <Input type="time" value={availabilityStart} onChange={(event) => setAvailabilityStart(event.target.value)} required className="h-10 rounded-lg text-body-sm" />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-body-xs font-semibold">Selesai</label>
+              <Input value={addMinutesToTime(availabilityStart, 90)} readOnly className="h-10 rounded-lg bg-muted text-body-sm" />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <label className="text-body-xs font-semibold">Mode</label>
+                <Select value={availabilityMode} onValueChange={(value: "online" | "offline") => setAvailabilityMode(value)}>
+                  <SelectTrigger className="h-10 rounded-lg text-body-sm"><SelectValue /></SelectTrigger>
+                  <SelectContent><SelectItem value="online">Online</SelectItem><SelectItem value="offline">Tatap muka</SelectItem></SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-body-xs font-semibold">Lokasi</label>
+                <Input value={availabilityLocation} onChange={(event) => setAvailabilityLocation(event.target.value)} disabled={availabilityMode !== "offline"} placeholder="Wajib untuk offline" className="h-10 rounded-lg text-body-sm" />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-body-xs font-semibold">Alasan override</label>
+              <Textarea value={availabilityReason} onChange={(event) => setAvailabilityReason(event.target.value)} required rows={3} placeholder="Contoh: tutor berhalangan mengisi slot sebelum deadline" className="rounded-lg text-body-sm" />
+            </div>
+            <DialogFooter>
+              <DialogClose asChild><Button type="button" variant="outline" disabled={availabilityLoading}>Batal</Button></DialogClose>
+              <Button type="submit" isLoading={availabilityLoading} disabled={availabilityLoading} className="bg-brand-primary text-white">Simpan availability</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Admin direct tutorial assignment override */}
+      <Dialog open={Boolean(assignmentSlot)} onOpenChange={(open) => !open && setAssignmentSlot(null)}>
+        <DialogContent className="max-w-lg rounded-xl border border-border p-6 shadow-xl text-left">
+          <DialogHeader>
+            <DialogTitle className="font-heading text-body-base font-bold">Tetapkan sesi tutorial</DialogTitle>
+            <DialogDescription className="text-body-xs text-muted-foreground">
+              Alur exceptional admin untuk mengisi slot yang sudah tersedia. FCFS dan kuota kelompok tetap berlaku.
+            </DialogDescription>
+          </DialogHeader>
+          {assignmentSlot && (
+            <form onSubmit={handleAssignmentSubmit} className="space-y-4">
+              <div className="rounded-lg border border-border bg-muted/20 p-3 text-body-xs">
+                {assignmentSlot.sessionDate} · {assignmentSlot.startTime} - {assignmentSlot.endTime} · {assignmentSlot.tutor?.name || "Tutor"}
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-body-xs font-semibold">Kelompok</label>
+                <Select value={assignmentGroupId} onValueChange={setAssignmentGroupId}>
+                  <SelectTrigger className="h-10 rounded-lg text-body-sm"><SelectValue placeholder="Pilih kelompok" /></SelectTrigger>
+                  <SelectContent>{data.groups.map((group: any) => <SelectItem key={group.id} value={group.id}>{group.name}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-body-xs font-semibold">Mata kuliah</label>
+                <Select value={assignmentCourseId} onValueChange={setAssignmentCourseId}>
+                  <SelectTrigger className="h-10 rounded-lg text-body-sm"><SelectValue placeholder="Pilih mata kuliah" /></SelectTrigger>
+                  <SelectContent>{data.courses.map((course: any) => <SelectItem key={course.id} value={course.id}>{course.title}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-body-xs font-semibold">Topik awal (opsional)</label>
+                <Input value={assignmentTopic} onChange={(event) => setAssignmentTopic(event.target.value)} className="h-10 rounded-lg text-body-sm" />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-body-xs font-semibold">Alasan override</label>
+                <Textarea value={assignmentReason} onChange={(event) => setAssignmentReason(event.target.value)} required rows={3} placeholder="Jelaskan alasan penetapan manual" className="rounded-lg text-body-sm" />
+              </div>
+              <DialogFooter>
+                <DialogClose asChild><Button type="button" variant="outline" disabled={assignmentLoading}>Batal</Button></DialogClose>
+                <Button type="submit" isLoading={assignmentLoading} disabled={assignmentLoading} className="bg-brand-primary text-white">Tetapkan sesi</Button>
+              </DialogFooter>
+            </form>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Admin move override */}
+      <Dialog open={Boolean(moveBooking)} onOpenChange={(open) => !open && setMoveBooking(null)}>
+        <DialogContent className="max-w-lg rounded-xl border border-border p-6 shadow-xl text-left">
+          <DialogHeader>
+            <DialogTitle className="font-heading text-body-base font-bold">Pindahkan sesi tutorial</DialogTitle>
+            <DialogDescription className="text-body-xs text-muted-foreground">Pilih slot konkret yang masih kosong dan berikan alasan override.</DialogDescription>
+          </DialogHeader>
+          {moveBooking && (
+            <form onSubmit={handleMoveSubmit} className="space-y-4">
+              <div className="rounded-lg border border-border bg-muted/20 p-3 text-body-xs">Sesi {moveBooking.sessionDate} · {moveBooking.startTime || moveBooking.slot?.startTime} - {moveBooking.endTime || moveBooking.slot?.endTime}</div>
+              <div className="space-y-1.5">
+                <label className="text-body-xs font-semibold">Slot tujuan</label>
+                <Select value={moveTargetSlotId} onValueChange={setMoveTargetSlotId}>
+                  <SelectTrigger className="h-10 rounded-lg text-body-sm"><SelectValue placeholder="Pilih slot kosong" /></SelectTrigger>
+                  <SelectContent>
+                    {data.slots.filter((slot: any) => slot.sessionDate && !slot.booking && slot.id !== moveBooking.slotId).map((slot: any) => (
+                      <SelectItem key={slot.id} value={slot.id}>{slot.sessionDate} · {slot.startTime} - {slot.endTime} · {slot.tutor?.name || "Tutor"}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-body-xs font-semibold">Alasan override</label>
+                <Textarea value={moveReason} onChange={(event) => setMoveReason(event.target.value)} required rows={3} placeholder="Jelaskan alasan pemindahan" className="rounded-lg text-body-sm" />
+              </div>
+              <DialogFooter>
+                <DialogClose asChild><Button type="button" variant="outline" disabled={moveLoading}>Batal</Button></DialogClose>
+                <Button type="submit" isLoading={moveLoading} disabled={moveLoading} className="bg-brand-primary text-white">Pindahkan sesi</Button>
+              </DialogFooter>
+            </form>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Admin cancellation override */}
+      <Dialog open={Boolean(cancelBooking)} onOpenChange={(open) => !open && setCancelBooking(null)}>
+        <DialogContent className="max-w-lg rounded-xl border border-border p-6 shadow-xl text-left">
+          <DialogHeader>
+            <DialogTitle className="font-heading text-body-base font-bold">Batalkan sesi tutorial</DialogTitle>
+            <DialogDescription className="text-body-xs text-muted-foreground">Pembatalan adalah override dan selalu membutuhkan alasan.</DialogDescription>
+          </DialogHeader>
+          {cancelBooking && (
+            <form onSubmit={handleCancelSubmit} className="space-y-4">
+              <div className="rounded-lg border border-border bg-muted/20 p-3 text-body-xs">{cancelBooking.course?.title || "Tutorial"} · {cancelBooking.sessionDate}</div>
+              <div className="space-y-1.5">
+                <label className="text-body-xs font-semibold">Alasan override</label>
+                <Textarea value={cancelReason} onChange={(event) => setCancelReason(event.target.value)} required rows={3} placeholder="Jelaskan alasan pembatalan" className="rounded-lg text-body-sm" />
+              </div>
+              <DialogFooter>
+                <DialogClose asChild><Button type="button" variant="outline" disabled={cancelLoading}>Batal</Button></DialogClose>
+                <Button type="submit" isLoading={cancelLoading} disabled={cancelLoading} className="bg-status-error text-white">Batalkan sesi</Button>
+              </DialogFooter>
+            </form>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <SessionDetailDrawer
+        open={Boolean(selectedSessionDetail)}
+        onOpenChange={(open) => !open && setSelectedSessionDetail(null)}
+        booking={selectedSessionDetail}
+        isAdmin
+        onAdminMove={openMoveDialog}
+        onAdminCancel={openCancelDialog}
+        onOpenAuditLog={setSelectedAuditBooking}
+      />
 
       {/* Create Academic Schedule Dialog */}
       <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>

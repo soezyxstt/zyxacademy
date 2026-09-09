@@ -8,9 +8,7 @@ import {
   user,
   groups,
   groupMembers,
-  courses,
   tutorSlots,
-  tutorCourses,
   bookings,
   bookingResources,
   bookingAuditLogs,
@@ -19,14 +17,14 @@ import {
   academicSchedules,
 } from "@/db/schema";
 import { auth } from "@/lib/auth";
-import { getPeranCodes, hasPeran } from "@/lib/auth/authorization";
-import { eq, ne, and, desc, inArray, sql, gte, lte, lt, gt, isNotNull } from "drizzle-orm";
+import { getPeranCodes } from "@/lib/auth/authorization";
+import { eq, ne, and, desc, inArray, sql, gte, lte, lt, gt, isNotNull, isNull, or } from "drizzle-orm";
+import { daysFrom } from "@/lib/date-utils";
 import {
   getJakartaNow,
   getWeekScheduleDays,
   ensureGoogleMeetForBooking,
   fetchLinkPreview,
-  isNinetyMinuteSlot,
   getIsoWeekRange,
 } from "@/lib/schedule-lock";
 import {
@@ -39,23 +37,21 @@ import {
   validateSlotDuration,
   validateSlotWeekdayDate,
 } from "@/lib/schedule/tutor-policy";
-import {
-  executeAddTutorSlot,
-  executeDeleteTutorSlot,
-  executeDecideTutorRescheduleTicket,
-} from "@/app/(tutor)/tutor/schedule/actions";
+import { executeDecideTutorRescheduleTicket } from "@/app/(tutor)/tutor/schedule/actions";
 import { recordMutationAudit } from "@/lib/audit/mutasi";
 import { type DbExecutor } from "@/lib/auth/tutor-access";
-import {
-  dualWriteTutorAssignment,
-  revokeCanonicalTutorCourseAssignments,
-} from "@/lib/migrasi/repository-kompatibilitas";
 import { listStudentEnrollments } from "@/lib/student/course-catalog";
 import {
   canStudentBook,
   getTutorialWeekPhase,
   isTutorialWeekLocked,
 } from "@/lib/schedule/week-policy";
+import {
+  addBookingResource,
+  deleteBookingResource,
+  getBookingResources,
+  type AddBookingResourceInput,
+} from "@/lib/schedule/session-resources";
 
 function isBookingSlotUniqueViolation(error: unknown): boolean {
   const message = [
@@ -92,160 +88,38 @@ export async function getScheduleData(weekOffset = 0) {
   }
 
   const peranCodes = await getPeranCodes(dbUser.id);
-  const isTutor = peranCodes.includes("tutor") || dbUser.role === "teacher";
-  const isAdmin = peranCodes.includes("admin") || dbUser.role === "admin";
-  const role: "student" | "teacher" | "admin" = isAdmin ? "admin" : isTutor ? "teacher" : "student";
+  const isAdmin = dbUser.role === "admin" || peranCodes.includes("admin");
+  const isTutor = dbUser.role === "teacher" || peranCodes.includes("tutor");
+  if (isAdmin || isTutor) {
+    throw new Error("FORBIDDEN_STUDENT_SCHEDULE");
+  }
 
   // Calculate week range
   const nowJakarta = getJakartaNow();
-  const anchorDate = new Date(nowJakarta);
-  anchorDate.setDate(anchorDate.getDate() + weekOffset * 7);
+  const anchorDate = daysFrom(weekOffset * 7, nowJakarta);
 
   const weekInfo = getWeekScheduleDays(anchorDate);
-  const isWeekLocked = isTutorialWeekLocked(weekInfo.days[0].dateIso, new Date());
+  const isWeekLocked = isTutorialWeekLocked(weekInfo.days[0].dateIso, nowJakarta);
+  const { startIso: viewWeekStart, endIso: viewWeekEnd } = getIsoWeekRange(
+    weekInfo.days[0].dateIso,
+  );
 
   // Fetch Academic Schedules (Exams, Tryouts, Quizzes) for the calendar
   const allAcademicSchedules = await db.query.academicSchedules.findMany({
-    where: eq(academicSchedules.status, "published"),
+    where: and(
+      eq(academicSchedules.status, "published"),
+      lte(academicSchedules.startDate, new Date(`${viewWeekEnd}T23:59:59.999+07:00`)),
+      or(
+        isNull(academicSchedules.endDate),
+        gte(academicSchedules.endDate, new Date(`${viewWeekStart}T00:00:00.000+07:00`)),
+      ),
+    ),
     with: {
       course: true,
       creator: true,
     },
     orderBy: [desc(academicSchedules.startDate)],
   });
-
-  if (role === "teacher") {
-    // ── TUTOR ROLE DATA ──────────────────────────────────────────────────────
-    const [mySlots, myCertifications, allCourses, tutorBookings, incomingTickets] =
-      await Promise.all([
-        db.query.tutorSlots.findMany({
-          where: eq(tutorSlots.tutorId, dbUser.id),
-          with: {
-            booking: {
-              with: {
-                group: {
-                  with: {
-                    members: {
-                      with: {
-                        user: true,
-                      },
-                    },
-                  },
-                },
-                course: true,
-                student: true,
-                lastModifier: true,
-                auditLogs: {
-                  with: {
-                    actor: true,
-                  },
-                  orderBy: [desc(bookingAuditLogs.createdAt)],
-                },
-                rescheduleTickets: {
-                  with: {
-                    requestedBy: true,
-                    proposedSlot: true,
-                    messages: {
-                      with: {
-                        sender: true,
-                      },
-                    },
-                  },
-                  orderBy: [desc(bookingRescheduleTickets.createdAt)],
-                },
-              },
-            },
-          },
-        }),
-        db.query.tutorCourses.findMany({
-          where: eq(tutorCourses.tutorId, dbUser.id),
-          with: {
-            course: true,
-          },
-        }),
-        db.select().from(courses),
-        db.query.bookings.findMany({
-          where: inArray(
-            bookings.slotId,
-            db
-              .select({ id: tutorSlots.id })
-              .from(tutorSlots)
-              .where(eq(tutorSlots.tutorId, dbUser.id))
-          ),
-          with: {
-            slot: true,
-            group: {
-              with: {
-                members: {
-                  with: {
-                    user: true,
-                  },
-                },
-              },
-            },
-            course: true,
-            student: true,
-            lastModifier: true,
-            auditLogs: {
-              with: {
-                actor: true,
-              },
-              orderBy: [desc(bookingAuditLogs.createdAt)],
-            },
-            rescheduleTickets: {
-              with: {
-                requestedBy: true,
-                proposedSlot: true,
-                messages: {
-                  with: {
-                    sender: true,
-                  },
-                },
-              },
-            },
-          },
-        }),
-        db.query.bookingRescheduleTickets.findMany({
-          where: eq(bookingRescheduleTickets.tutorId, dbUser.id),
-          with: {
-            booking: {
-              with: {
-                course: true,
-                group: true,
-              },
-            },
-            requestedBy: true,
-            proposedSlot: true,
-            messages: {
-              with: {
-                sender: true,
-              },
-              orderBy: [desc(bookingTicketMessages.createdAt)],
-            },
-          },
-          orderBy: [desc(bookingRescheduleTickets.createdAt)],
-        }),
-      ]);
-
-    return {
-      role: "teacher" as const,
-      user: {
-        id: dbUser.id,
-        name: dbUser.name,
-        email: dbUser.email,
-        image: dbUser.image,
-        role: dbUser.role,
-      },
-      weekInfo,
-      isWeekLocked,
-      mySlots,
-      certifiedCourses: myCertifications.map((c) => c.course),
-      allCourses,
-      tutorBookings,
-      incomingTickets,
-      academicSchedules: allAcademicSchedules,
-    };
-  }
 
   // ── STUDENT ROLE DATA ───────────────────────────────────────────────────────
   // 1. Get student study groups
@@ -273,9 +147,6 @@ export async function getScheduleData(weekOffset = 0) {
   const myGroupIds = myGroups.map((g) => g.id);
 
   // 1b. Weekly usage per group for the viewed week (derived quota display)
-  const { startIso: viewWeekStart, endIso: viewWeekEnd } = getIsoWeekRange(
-    weekInfo.days[0].dateIso
-  );
   const weeklyCounts = myGroupIds.length
     ? await db
         .select({
@@ -336,6 +207,7 @@ export async function getScheduleData(weekOffset = 0) {
           group: true,
           course: true,
           student: true,
+          resources: true,
           lastModifier: true,
           auditLogs: {
             with: {
@@ -362,7 +234,11 @@ export async function getScheduleData(weekOffset = 0) {
   // 4. Get bookings made by the student's groups
   const groupBookings = myGroupIds.length
     ? await db.query.bookings.findMany({
-        where: inArray(bookings.groupId, myGroupIds),
+        where: and(
+          inArray(bookings.groupId, myGroupIds),
+          gte(bookings.sessionDate, viewWeekStart),
+          lte(bookings.sessionDate, viewWeekEnd),
+        ),
         with: {
           slot: {
             with: {
@@ -380,6 +256,7 @@ export async function getScheduleData(weekOffset = 0) {
             },
           },
           student: true,
+          resources: true,
           lastModifier: true,
           auditLogs: {
             with: {
@@ -405,6 +282,15 @@ export async function getScheduleData(weekOffset = 0) {
       })
     : [];
 
+  // A student only needs booking occupancy to hide claimed slots. Keep the
+  // booking details in the group-scoped read above so another group's topic,
+  // notes, resources, audit entries, and ticket thread are never exposed as
+  // part of the availability payload.
+  const availableSlots = allTutorSlots.map(({ booking, ...slot }) => ({
+    ...slot,
+    booking: booking ? { id: booking.id } : null,
+  }));
+
   return {
     role: "student" as const,
     user: {
@@ -419,7 +305,7 @@ export async function getScheduleData(weekOffset = 0) {
     weekRange: { startIso: viewWeekStart, endIso: viewWeekEnd },
     groups: groupsWithWeeklyUsage,
     enrollments: activeEnrollments,
-    availableSlots: allTutorSlots,
+    availableSlots,
     groupBookings,
     academicSchedules: allAcademicSchedules,
   };
@@ -431,6 +317,8 @@ export interface CollaborativeBookSlotOptions {
   actorId?: string;
   executor?: DbExecutor;
   now?: Date;
+  topic?: string;
+  preSessionNotes?: string;
 }
 
 export interface CollaborativeBookSlotResult {
@@ -618,6 +506,12 @@ export async function collaborativeBookSlot(
       const now = new Date();
       const resolvedCourseId =
         groupEligibility.legacyCourseId ?? groupEligibility.courseId ?? courseId;
+      const bookingTopic = typeof options?.topic === "string"
+        ? options.topic.trim().slice(0, 500) || null
+        : null;
+      const bookingNotes = typeof options?.preSessionNotes === "string"
+        ? options.preSessionNotes.trim().slice(0, 5000) || null
+        : null;
 
       // 10. Atomic package quota reservation under transaction (guarded update)
       const quotaClaim = await tx
@@ -653,6 +547,8 @@ export async function collaborativeBookSlot(
         endTime: slot.endTime,
         mode: slot.mode,
         location: slot.location ?? null,
+        topic: bookingTopic,
+        preSessionNotes: bookingNotes,
         lastModifiedBy: currentUser.id,
         lastModifiedAt: now,
         bookedAt: now,
@@ -1164,6 +1060,105 @@ export async function collaborativeCancelSlot(bookingId: string) {
   }
 }
 
+/** Updates only the student-owned pre-session context. Resource mutations use
+ * the phase-aware normalized resource actions below so one member cannot
+ * accidentally replace another member's files. */
+export async function updatePreSessionContextAction(
+  bookingId: string,
+  topic: string,
+  preSessionNotes?: string,
+) {
+  const currentUser = await requireUser();
+  const targetBookingId = typeof bookingId === "string" ? bookingId.trim() : "";
+  if (!targetBookingId) {
+    return { success: false, error: "Jadwal tutorial tidak ditemukan." };
+  }
+
+  try {
+    const booking = await db.query.bookings.findFirst({
+      where: eq(bookings.id, targetBookingId),
+    });
+    if (!booking) {
+      return { success: false, error: "Jadwal tutorial tidak ditemukan." };
+    }
+
+    const membership = await db.query.groupMembers.findFirst({
+      where: and(
+        eq(groupMembers.groupId, booking.groupId),
+        eq(groupMembers.userId, currentUser.id),
+      ),
+    });
+    if (!membership) {
+      return { success: false, error: "Anda bukan anggota kelompok sesi ini." };
+    }
+    if (isTerminalBookingStatus(booking.status)) {
+      return { success: false, error: "Sesi yang sudah selesai atau dibatalkan tidak dapat diubah." };
+    }
+
+    const now = new Date();
+    const nextTopic = typeof topic === "string" ? topic.trim().slice(0, 500) : "";
+    const nextNotes = typeof preSessionNotes === "string"
+      ? preSessionNotes.trim().slice(0, 5000)
+      : "";
+
+    await db.transaction(async (tx) => {
+      await tx
+        .update(bookings)
+        .set({
+          topic: nextTopic || null,
+          preSessionNotes: nextNotes || null,
+          lastModifiedBy: currentUser.id,
+          lastModifiedAt: now,
+        })
+        .where(eq(bookings.id, targetBookingId));
+
+      await tx.insert(bookingAuditLogs).values({
+        id: randomUUID(),
+        bookingId: targetBookingId,
+        groupId: booking.groupId,
+        actorId: currentUser.id,
+        action: "TOPIC_UPDATED",
+        summary: `${currentUser.name || "Murid"} memperbarui konteks sebelum sesi.`,
+        metadata: {
+          topicLength: nextTopic.length,
+          notesLength: nextNotes.length,
+        },
+        createdAt: now,
+      });
+    });
+
+    revalidatePath("/dashboard/schedule");
+    revalidatePath("/tutor/schedule");
+    return { success: true };
+  } catch (error) {
+    console.error("Update pre-session context error:", error);
+    return { success: false, error: "Konteks sebelum sesi gagal disimpan." };
+  }
+}
+
+/** Shared normalized-resource actions used by the session detail drawer. */
+export async function addSessionResourceAction(input: AddBookingResourceInput) {
+  const result = await addBookingResource(input);
+  if (result.success) {
+    revalidatePath("/dashboard/schedule");
+    revalidatePath("/tutor/schedule");
+  }
+  return result;
+}
+
+export async function deleteSessionResourceAction(resourceId: string) {
+  const result = await deleteBookingResource(resourceId);
+  if (result.success) {
+    revalidatePath("/dashboard/schedule");
+    revalidatePath("/tutor/schedule");
+  }
+  return result;
+}
+
+export async function getSessionResourcesAction(bookingId: string) {
+  return getBookingResources(bookingId);
+}
+
 // ── PRE-SESSION WORKFLOW (Topic & Question Materials) ─────────────────────────
 
 export async function updatePreSessionData(
@@ -1473,82 +1468,7 @@ export async function sendTicketMessage(ticketId: string, message: string) {
   }
 }
 
-// ── TUTOR ACTIONS (Availability, Certifications, Decision, Completion) ────────
-
-export async function tutorAddSlot(
-  dayOfWeek: string,
-  startTime: string,
-  endTime: string,
-  mode: "online" | "offline" = "online",
-  location?: string,
-  sessionDate?: string
-) {
-  await requireUser();
-  const res = await executeAddTutorSlot({
-    dayOfWeek,
-    startTime,
-    endTime,
-    mode,
-    location,
-    sessionDate,
-  });
-  if (res.success) {
-    revalidatePath("/dashboard/schedule");
-  }
-  return res;
-}
-
-export async function tutorDeleteSlot(slotId: string) {
-  await requireUser();
-  const res = await executeDeleteTutorSlot({ slotId });
-  if (res.success) {
-    revalidatePath("/dashboard/schedule");
-  }
-  return res;
-}
-
-export async function updateTutorCourses(targetTutorId: string, courseIds: string[]) {
-  const currentUser = await requireUser();
-
-  const isAdmin = (await hasPeran(currentUser.id, "admin")) || currentUser.role === "admin";
-  if (!isAdmin) {
-    const adminCheck = await db
-      .select({ role: user.role })
-      .from(user)
-      .where(eq(user.id, currentUser.id))
-      .limit(1);
-
-    if (adminCheck[0]?.role !== "admin") {
-      return { success: false, error: "Hanya admin yang dapat mengatur sertifikasi mata kuliah tutor" };
-    }
-  }
-
-  try {
-    const uniqueCourseIds = [...new Set(courseIds)];
-    await db.transaction(async (tx) => {
-      await revokeCanonicalTutorCourseAssignments(tx, targetTutorId, currentUser.id);
-      await tx.delete(tutorCourses).where(eq(tutorCourses.tutorId, targetTutorId));
-
-      if (uniqueCourseIds.length === 0) return;
-      const assignments = uniqueCourseIds.map((courseId) => ({
-        id: randomUUID(),
-        tutorId: targetTutorId,
-        courseId,
-      }));
-      await tx.insert(tutorCourses).values(assignments);
-      for (const assignment of assignments) {
-        await dualWriteTutorAssignment(tx, { ...assignment, status: "active" }, currentUser.id);
-      }
-    });
-
-    revalidatePath("/dashboard/schedule");
-    revalidatePath("/admin/schedules");
-    return { success: true };
-  } catch (err: any) {
-    console.error("Update tutor courses error:", err);
-    return { success: false, error: "Gagal memperbarui mata kuliah tutorial" };
-  }
-}
+// ── TUTOR COMPATIBILITY ACTIONS ──────────────────────────────────────────────
 
 export async function tutorDecideTicket(
   ticketId: string,
@@ -1706,5 +1626,77 @@ export async function tutorCompleteSession(
   } catch (err: any) {
     console.error("Tutor complete session error:", err);
     return { success: false, error: err?.message || "Gagal menyelesaikan sesi" };
+  }
+}
+
+/**
+ * Completes a session without replacing normalized post-session resources.
+ * The drawer adds each file, link, or recording through the resource API and
+ * then calls this action for the tutor's summary and lifecycle transition.
+ */
+export async function completeTutorSessionAction(
+  bookingId: string,
+  postSessionNotes: string,
+) {
+  const currentUser = await requireUser();
+  const targetBookingId = typeof bookingId === "string" ? bookingId.trim() : "";
+  if (!targetBookingId) {
+    return { success: false, error: "Jadwal tutorial tidak ditemukan." };
+  }
+
+  try {
+    const booking = await db.query.bookings.findFirst({
+      where: eq(bookings.id, targetBookingId),
+      with: { slot: true },
+    });
+    if (!booking) {
+      return { success: false, error: "Jadwal tutorial tidak ditemukan." };
+    }
+    if (booking.slot.tutorId !== currentUser.id) {
+      return { success: false, error: "Hanya tutor pengampu yang dapat menyelesaikan sesi." };
+    }
+    if (booking.status === "cancelled") {
+      return { success: false, error: "Sesi yang dibatalkan tidak dapat diselesaikan." };
+    }
+
+    const notes = typeof postSessionNotes === "string"
+      ? postSessionNotes.trim().slice(0, 10000)
+      : "";
+    if (!notes) {
+      return { success: false, error: "Ringkasan sesi wajib diisi." };
+    }
+
+    const now = new Date();
+    await db.transaction(async (tx) => {
+      await tx
+        .update(bookings)
+        .set({
+          status: "completed",
+          postSessionNotes: notes,
+          completedAt: booking.completedAt ?? now,
+          completedById: currentUser.id,
+          lastModifiedBy: currentUser.id,
+          lastModifiedAt: now,
+        })
+        .where(eq(bookings.id, targetBookingId));
+
+      await tx.insert(bookingAuditLogs).values({
+        id: randomUUID(),
+        bookingId: targetBookingId,
+        groupId: booking.groupId,
+        actorId: currentUser.id,
+        action: "SESSION_COMPLETED",
+        summary: `Tutor ${currentUser.name || "Pengajar"} menyimpan ringkasan sesi.`,
+        metadata: { notesLength: notes.length },
+        createdAt: now,
+      });
+    });
+
+    revalidatePath("/dashboard/schedule");
+    revalidatePath("/tutor/schedule");
+    return { success: true };
+  } catch (error) {
+    console.error("Complete tutor session error:", error);
+    return { success: false, error: "Ringkasan sesi gagal disimpan." };
   }
 }

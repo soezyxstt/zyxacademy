@@ -2,6 +2,7 @@ import { and, asc, desc, eq, gte, inArray, isNotNull, isNull, lte, or } from "dr
 import { db } from "@/db";
 import {
   academicSchedules,
+  bookingAuditLogs,
   bookingRescheduleTickets,
   bookingTicketMessages,
   bookingResources,
@@ -84,6 +85,18 @@ export interface OwnedSlotItem {
   } | null;
 }
 
+export interface OwnedAuditLogItem {
+  id: string;
+  action: string;
+  summary: string;
+  actor: {
+    id: string;
+    name: string | null;
+    email: string | null;
+  } | null;
+  createdAt: Date;
+}
+
 export interface OwnedBookingItem {
   id: string;
   slotId: string;
@@ -100,6 +113,8 @@ export interface OwnedBookingItem {
   topic: string | null;
   preSessionNotes: string | null;
   postSessionNotes: string | null;
+  postSessionLinkUrl: string | null;
+  postSessionLinkTitle: string | null;
   completedAt: Date | null;
   bookedAt: Date;
   group?: {
@@ -118,6 +133,8 @@ export interface OwnedBookingItem {
   resources: SessionResource[];
   preSessionResources: SessionResource[];
   postSessionResources: SessionResource[];
+  auditLogs: OwnedAuditLogItem[];
+  rescheduleTickets: OwnedTicketItem[];
 }
 
 export interface OwnedTicketMessageItem {
@@ -734,6 +751,8 @@ export async function getTutorScheduleReadModel(
         topic: bookings.topic,
         preSessionNotes: bookings.preSessionNotes,
         postSessionNotes: bookings.postSessionNotes,
+        postSessionLinkUrl: bookings.postSessionLinkUrl,
+        postSessionLinkTitle: bookings.postSessionLinkTitle,
         completedAt: bookings.completedAt,
         bookedAt: bookings.bookedAt,
         groupName: groups.name,
@@ -770,6 +789,8 @@ export async function getTutorScheduleReadModel(
         topic: b.topic ?? null,
         preSessionNotes: b.preSessionNotes ?? null,
         postSessionNotes: b.postSessionNotes ?? null,
+        postSessionLinkUrl: b.postSessionLinkUrl ?? null,
+        postSessionLinkTitle: b.postSessionLinkTitle ?? null,
         completedAt: b.completedAt ? normalizeDate(b.completedAt) : null,
         bookedAt: normalizeDate(b.bookedAt),
         group: b.groupId ? { id: b.groupId, name: b.groupName ?? "" } : null,
@@ -781,14 +802,90 @@ export async function getTutorScheduleReadModel(
               email: b.studentEmail ?? null,
             }
           : null,
+        auditLogs: [],
+        rescheduleTickets: [],
         ...splitBookingResources(resources),
       });
     }
   }
 
+  const rawAuditLogs = ownedBookingIds.length
+    ? await (async () => {
+        try {
+          return await client
+            .select({
+              id: bookingAuditLogs.id,
+              bookingId: bookingAuditLogs.bookingId,
+              action: bookingAuditLogs.action,
+              summary: bookingAuditLogs.summary,
+              actorId: bookingAuditLogs.actorId,
+              actorName: user.name,
+              actorEmail: user.email,
+              createdAt: bookingAuditLogs.createdAt,
+            })
+            .from(bookingAuditLogs)
+            .leftJoin(user, eq(bookingAuditLogs.actorId, user.id))
+            .where(inArray(bookingAuditLogs.bookingId, ownedBookingIds))
+            .orderBy(asc(bookingAuditLogs.createdAt), asc(bookingAuditLogs.id));
+        } catch {
+          console.warn("Booking audit logs are unavailable; continuing without activity entries.");
+          return [];
+        }
+      })()
+    : [];
+
+  const auditLogsByBookingId = new Map<string, OwnedAuditLogItem[]>();
+  for (const log of rawAuditLogs) {
+    const list = auditLogsByBookingId.get(log.bookingId) ?? [];
+    list.push({
+      id: log.id,
+      action: log.action,
+      summary: log.summary,
+      actor: log.actorId
+        ? {
+            id: log.actorId,
+            name: log.actorName ?? null,
+            email: log.actorEmail ?? null,
+          }
+        : null,
+      createdAt: normalizeDate(log.createdAt),
+    });
+    auditLogsByBookingId.set(log.bookingId, list);
+  }
+  for (const booking of ownedBookings) {
+    booking.auditLogs = auditLogsByBookingId.get(booking.id) ?? [];
+  }
+
   // 6. Fetch owned tickets
-  const ticketConditions = [eq(bookingRescheduleTickets.tutorId, tutorId)];
-  if (ownedBookingIds.length > 0) {
+  const ticketConditions = fromDate || toDate
+    ? [
+        and(
+          eq(bookingRescheduleTickets.tutorId, tutorId),
+          ownedBookingIds.length > 0
+            ? or(
+                inArray(bookingRescheduleTickets.bookingId, ownedBookingIds),
+                and(
+                  isNotNull(bookingRescheduleTickets.proposedDate),
+                  ...(fromDate ? [gte(bookingRescheduleTickets.proposedDate, fromDate)] : []),
+                  ...(toDate ? [lte(bookingRescheduleTickets.proposedDate, toDate)] : []),
+                ),
+              )
+            : and(
+                isNotNull(bookingRescheduleTickets.proposedDate),
+                ...(fromDate ? [gte(bookingRescheduleTickets.proposedDate, fromDate)] : []),
+                ...(toDate ? [lte(bookingRescheduleTickets.proposedDate, toDate)] : []),
+              ),
+        )!,
+      ]
+    : [eq(bookingRescheduleTickets.tutorId, tutorId)];
+  if (!fromDate && !toDate && ownedBookingIds.length > 0) {
+    ticketConditions.push(
+      and(
+        isNull(bookingRescheduleTickets.tutorId),
+        inArray(bookingRescheduleTickets.bookingId, ownedBookingIds),
+      )!,
+    );
+  } else if ((fromDate || toDate) && ownedBookingIds.length > 0) {
     ticketConditions.push(
       and(
         isNull(bookingRescheduleTickets.tutorId),
@@ -874,12 +971,33 @@ export async function getTutorScheduleReadModel(
     }
   }
 
+  const ticketsByBookingId = new Map<string, OwnedTicketItem[]>();
+  for (const ticket of ownedTickets) {
+    const list = ticketsByBookingId.get(ticket.bookingId) ?? [];
+    list.push(ticket);
+    ticketsByBookingId.set(ticket.bookingId, list);
+  }
+  for (const booking of ownedBookings) {
+    booking.rescheduleTickets = ticketsByBookingId.get(booking.id) ?? [];
+  }
+
   // 7. Fetch published academic schedules relevant to tutor
   const scheduleConditions = [eq(academicSchedules.createdById, tutorId)];
   if (assignedCourseIdArray.length > 0) {
     scheduleConditions.push(
       inArray(academicSchedules.courseId, assignedCourseIdArray),
     );
+  }
+
+  if (fromDate || toDate) {
+    const rangeStart = fromDate ? new Date(`${fromDate}T00:00:00.000+07:00`) : undefined;
+    const rangeEnd = toDate ? new Date(`${toDate}T23:59:59.999+07:00`) : undefined;
+    if (rangeEnd) scheduleConditions.push(lte(academicSchedules.startDate, rangeEnd));
+    if (rangeStart) {
+      scheduleConditions.push(
+        or(isNull(academicSchedules.endDate), gte(academicSchedules.endDate, rangeStart))!,
+      );
+    }
   }
 
   const rawSchedules = await client

@@ -130,6 +130,7 @@ const DAY_NAMES_ID: IndonesianDay[] = [
 
 export type ScheduleCalendarProps = {
   role: "student" | "teacher" | "admin";
+  adminMode?: "academic" | "tutorial";
   currentUserId: string;
   weekInfo: {
     startOfWeekIso: string;
@@ -163,7 +164,8 @@ export type ScheduleCalendarProps = {
   onDeleteSchedule?: (schedule: any) => void;
   onMoveSession?: (booking: any) => void;
   onDeleteSlot?: (slotId: string) => void;
-  onSelectSlotToSchedule?: (slot: any) => void;
+  onAssignTutorialSlot?: (slot: any) => void;
+  onOpenSessionDetail?: (booking: any) => void;
   initialCourseFilter?: string;
 };
 
@@ -172,6 +174,14 @@ function timeToMinutes(timeStr?: string): number {
   if (!timeStr) return 0;
   const [h, m] = timeStr.split(":").map(Number);
   return (h || 0) * 60 + (m || 0);
+}
+
+function isTutorStartValid(dayIso: string, startMin: number) {
+  const now = getJakartaNow();
+  const today = formatIsoDateUtc(now);
+  if (dayIso < today) return false;
+  if (dayIso === today && startMin < now.getHours() * 60 + now.getMinutes()) return false;
+  return startMin >= START_HOUR * 60 && startMin + 90 <= END_HOUR * 60;
 }
 
 type ParsedAcademicEvent = {
@@ -318,6 +328,7 @@ function getMonthCalendarDays(year: number, month: number) {
 
 export function ScheduleCalendarView({
   role,
+  adminMode = "academic",
   currentUserId: _currentUserId,
   weekInfo,
   isWeekLocked,
@@ -339,9 +350,35 @@ export function ScheduleCalendarView({
   onDeleteSchedule: _onDeleteSchedule,
   onMoveSession,
   onDeleteSlot,
-  onSelectSlotToSchedule,
+  onAssignTutorialSlot,
+  onOpenSessionDetail,
   initialCourseFilter = "all",
 }: ScheduleCalendarProps) {
+  const isAdminTutorial = role === "admin" && adminMode === "tutorial";
+  const showTutorial = role !== "admin" || isAdminTutorial;
+  const showAcademic = role !== "admin" || !isAdminTutorial;
+  const canCreateAcademic = role === "admin" && showAcademic;
+  const canManageTutorial = role === "teacher" || isAdminTutorial;
+
+  const openBookedSession = (booking: any) => {
+    if (onOpenSessionDetail) {
+      onOpenSessionDetail(booking);
+      return;
+    }
+    if (role === "student") {
+      onOpenPreSession?.(booking);
+      return;
+    }
+    onOpenPostSession?.(booking);
+  };
+
+  const openSessionAudit = (booking: any) => {
+    if (onOpenSessionDetail) {
+      onOpenSessionDetail(booking);
+      return;
+    }
+    onOpenAuditLog?.(booking);
+  };
   // View Modes: "month" | "week" | "day"
   const [viewMode, setViewMode] = useState<"month" | "week" | "day">("week");
 
@@ -417,6 +454,10 @@ export function ScheduleCalendarView({
       const targetDayIso = dragState.dayIso;
       setDragState(null);
 
+      if (isTeacher && (isWeekLocked || !isTutorStartValid(targetDayIso, start))) {
+        return;
+      }
+
       onCreateScheduleDirect?.(targetDayIso, startTimeStr, endTimeStr);
     };
 
@@ -424,7 +465,7 @@ export function ScheduleCalendarView({
     return () => {
       window.removeEventListener("mouseup", handleGlobalMouseUp);
     };
-  }, [dragState, onCreateScheduleDirect, role]);
+  }, [dragState, isWeekLocked, onCreateScheduleDirect, role]);
 
   // Current time line calculation
   const nowJakarta = getJakartaNow();
@@ -435,6 +476,7 @@ export function ScheduleCalendarView({
 
   // Parsed and filtered Academic Schedules
   const parsedAcademicEvents = useMemo(() => {
+    if (!showAcademic) return [];
     return academicSchedules
       .map(parseAcademicSchedule)
       .filter((item): item is ParsedAcademicEvent => {
@@ -454,11 +496,13 @@ export function ScheduleCalendarView({
         }
         return true;
       });
-  }, [academicSchedules, selectedCourseFilter, selectedTypeFilter]);
+  }, [academicSchedules, selectedCourseFilter, selectedTypeFilter, showAcademic]);
 
   // Filtered Bookings
   const filteredBookings = useMemo(() => {
+    if (!showTutorial) return [];
     return bookings.filter((b) => {
+      if (!b.sessionDate) return false;
       if (
         selectedCourseFilter !== "all" &&
         b.courseId !== selectedCourseFilter
@@ -476,11 +520,13 @@ export function ScheduleCalendarView({
       }
       return true;
     });
-  }, [bookings, selectedCourseFilter, selectedGroupFilter, selectedTutorFilter]);
+  }, [bookings, selectedCourseFilter, selectedGroupFilter, selectedTutorFilter, showTutorial]);
 
   // Filtered Slots
   const filteredSlots = useMemo(() => {
+    if (!showTutorial) return [];
     return slots.filter((s) => {
+      if (!s.sessionDate) return false;
       if (
         selectedTutorFilter !== "all" &&
         s.tutorId &&
@@ -504,7 +550,7 @@ export function ScheduleCalendarView({
       }
       return true;
     });
-  }, [slots, selectedTutorFilter, selectedCourseFilter, selectedGroupFilter]);
+  }, [slots, selectedTutorFilter, selectedCourseFilter, selectedGroupFilter, showTutorial]);
 
   // Navigation handlers
   const handlePrev = () => {
@@ -592,15 +638,17 @@ export function ScheduleCalendarView({
   };
 
   const handleGridMouseDown = (dayIso: string, hour: number, e: React.MouseEvent<HTMLDivElement>) => {
-    if ((role !== "admin" && role !== "teacher") || !onCreateScheduleDirect) return;
+    const canDragCreate = role === "teacher" || (role === "admin" && canCreateAcademic);
+    if (!canDragCreate || !onCreateScheduleDirect) return;
     if ((e.target as HTMLElement).closest("button, a, .session-card")) return;
 
-    if (role === "teacher" && isPastTime(dayIso, hour)) return;
+    if (role === "teacher" && (isWeekLocked || isPastTime(dayIso, hour))) return;
 
     const rect = e.currentTarget.getBoundingClientRect();
     const clickY = e.clientY - rect.top;
     const isSecondHalf = clickY >= HOUR_HEIGHT / 2;
     const startMin = hour * 60 + (isSecondHalf ? 30 : 0);
+    if (role === "teacher" && !isTutorStartValid(dayIso, startMin)) return;
 
     setDragState({
       isDragging: true,
@@ -964,15 +1012,11 @@ export function ScheduleCalendarView({
                 {/* 2. 7 Day Columns with Time Grid Lines & Event Blocks */}
                 {weekInfo.days.map((day) => {
                   const daySlots = filteredSlots.filter((s) => {
-                    if (s.sessionDate && s.sessionDate !== day.dateIso) return false;
-                    if (!s.sessionDate && s.dayOfWeek !== day.dayName) return false;
-                    return true;
+                    return s.sessionDate === day.dateIso;
                   });
 
                   const dayBookings = filteredBookings.filter((b) => {
-                    if (b.sessionDate && b.sessionDate !== day.dateIso) return false;
-                    if (!b.sessionDate && b.slot?.dayOfWeek !== day.dayName) return false;
-                    return true;
+                    return b.sessionDate === day.dateIso;
                   });
 
                   // Timed academic events on this day
@@ -996,14 +1040,14 @@ export function ScheduleCalendarView({
                           onMouseDown={(e) => handleGridMouseDown(day.dateIso, hour, e)}
                           className={cn(
                             "border-b border-border/30 w-full transition-colors",
-                            (role === "admin" || (role === "teacher" && !isPastTime(day.dateIso, hour))) &&
+                            ((role === "admin" && canCreateAcademic) || (role === "teacher" && !isWeekLocked && !isPastTime(day.dateIso, hour))) &&
                               onCreateScheduleDirect &&
                               "cursor-pointer hover:bg-brand-primary/5"
                           )}
                           title={
-                            role === "admin" && onCreateScheduleDirect
+                            role === "admin" && canCreateAcademic && onCreateScheduleDirect
                               ? `Klik & drag untuk membuat jadwal pada ${day.dayName}, ${String(hour).padStart(2, "0")}:00`
-                              : role === "teacher" && onCreateScheduleDirect && !isPastTime(day.dateIso, hour)
+                              : role === "teacher" && onCreateScheduleDirect && !isWeekLocked && !isPastTime(day.dateIso, hour)
                               ? `Klik atau drag untuk tambah slot ketersediaan 90m pada ${day.dayName}, ${String(hour).padStart(2, "0")}:00`
                               : undefined
                           }
@@ -1100,7 +1144,7 @@ export function ScheduleCalendarView({
                                 </span>
                                 {evt.schedule.course && (
                                   <>
-                                    <span>•</span>
+                                    <span aria-hidden="true">,</span>
                                     <span className="truncate">{evt.schedule.course.title}</span>
                                   </>
                                 )}
@@ -1141,11 +1185,16 @@ export function ScheduleCalendarView({
                         return (
                           <div
                             key={b.id}
+                            onClick={(event) => {
+                              const target = event.target as HTMLElement;
+                              if (target.closest("button, a")) return;
+                              openBookedSession(b);
+                            }}
                             style={{
                               top: `${Math.max(0, top)}px`,
                               height: `${Math.max(32, height)}px`,
                             }}
-                            className={`absolute left-0.5 right-0.5 z-20 rounded-md border ${tutorStyle.border} ${tutorStyle.bg} p-1.5 flex flex-col justify-between overflow-hidden shadow-xs transition-all hover:z-30 hover:shadow-md session-card`}
+                            className={`absolute left-0.5 right-0.5 z-20 rounded-md border ${tutorStyle.border} ${tutorStyle.bg} p-1.5 flex flex-col justify-between overflow-hidden shadow-xs transition-all hover:z-30 hover:shadow-md session-card ${onOpenSessionDetail ? "cursor-pointer" : ""}`}
                           >
                             {/* Left solid color accent bar */}
                             <div
@@ -1180,7 +1229,7 @@ export function ScheduleCalendarView({
                                 <span>
                                   {startTimeStr} - {endTimeStr}
                                 </span>
-                                <span>•</span>
+                                <span aria-hidden="true">,</span>
                                 <span>{b.slot?.tutor?.name || "Tutor"}</span>
                               </div>
                             </div>
@@ -1234,7 +1283,10 @@ export function ScheduleCalendarView({
                                 <div className="flex items-center gap-1">
                                   <button
                                     type="button"
-                                    onClick={() => onOpenPreSession?.(b)}
+                                    onClick={(event) => {
+                                      event.stopPropagation();
+                                      openBookedSession(b);
+                                    }}
                                     className="p-1 rounded text-foreground hover:bg-card text-[9px] font-semibold flex items-center gap-0.5"
                                     title="Unggah Materi / Soal"
                                   >
@@ -1243,7 +1295,14 @@ export function ScheduleCalendarView({
                                   </button>
                                   <button
                                     type="button"
-                                    onClick={() => onOpenRescheduleTicket?.(b)}
+                                    onClick={(event) => {
+                                      event.stopPropagation();
+                                      if (onOpenSessionDetail) {
+                                        openBookedSession(b);
+                                      } else {
+                                        onOpenRescheduleTicket?.(b);
+                                      }
+                                    }}
                                     className="p-1 rounded text-foreground hover:bg-card text-[9px] font-semibold flex items-center gap-0.5"
                                     title="Reschedule / Batal"
                                   >
@@ -1257,7 +1316,10 @@ export function ScheduleCalendarView({
                                 <div className="flex items-center gap-1">
                                   <button
                                     type="button"
-                                    onClick={() => onOpenPostSession?.(b)}
+                                    onClick={(event) => {
+                                      event.stopPropagation();
+                                      openBookedSession(b);
+                                    }}
                                     className="px-1.5 py-0.5 rounded bg-brand-primary text-white text-[9px] font-bold flex items-center gap-1 cursor-pointer"
                                   >
                                     <CheckCircle2 className="size-2.5" />
@@ -1266,7 +1328,10 @@ export function ScheduleCalendarView({
                                   {onMoveSession && (
                                     <button
                                       type="button"
-                                      onClick={() => onMoveSession(b)}
+                                      onClick={(event) => {
+                                        event.stopPropagation();
+                                        onMoveSession(b);
+                                      }}
                                       className="px-1.5 py-0.5 rounded border border-border bg-card text-foreground hover:bg-muted text-[9px] font-semibold flex items-center gap-0.5 cursor-pointer"
                                       title="Pindah Jadwal"
                                     >
@@ -1280,7 +1345,10 @@ export function ScheduleCalendarView({
                               {/* Audit trail icon */}
                               <button
                                 type="button"
-                                onClick={() => onOpenAuditLog?.(b)}
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  openSessionAudit(b);
+                                }}
                                 className="p-1 rounded text-muted-foreground hover:text-foreground ml-auto"
                                 title="Riwayat Jejak Audit"
                               >
@@ -1344,7 +1412,7 @@ export function ScheduleCalendarView({
                           })}
 
                       {/* Render Teacher Slot Occurrences (Unbooked slots: available future vs unavailable past/locked) */}
-                      {role === "teacher" &&
+                      {canManageTutorial &&
                         daySlots
                           .filter((s) => !s.booking)
                           .map((s) => {
@@ -1392,7 +1460,7 @@ export function ScheduleCalendarView({
                                     <div className="flex items-center gap-1 text-[9px] text-muted-foreground/80 mt-0.5">
                                       <span>{s.mode === "online" ? "Online" : s.location || "Tatap Muka"}</span>
                                       <span aria-hidden="true" className="h-3 border-l border-border" />
-                                      <span>{s.sessionDate ? "Khusus" : "Mingguan"}</span>
+                                      <span>Tanggal sesi</span>
                                     </div>
                                   </div>
                                 </div>
@@ -1439,16 +1507,16 @@ export function ScheduleCalendarView({
                                     )}
                                     <span aria-hidden="true" className="h-3 border-l border-border" />
                                     <span className="text-muted-foreground font-medium">
-                                      {s.sessionDate ? "Khusus" : "Mingguan"}
+                                      Tanggal sesi
                                     </span>
                                   </div>
                                 </div>
 
                                 <div className="pl-1.5 flex items-center justify-between gap-1 pt-1 border-t border-emerald-500/20 mt-0.5">
-                                  {onSelectSlotToSchedule && (
+                                  {onAssignTutorialSlot && (
                                     <button
                                       type="button"
-                                      onClick={() => onSelectSlotToSchedule(s)}
+                                      onClick={() => onAssignTutorialSlot(s)}
                                       className="px-1.5 py-0.5 rounded bg-brand-primary text-white text-[9px] font-bold hover:bg-brand-primary/90 transition-colors flex items-center gap-0.5 cursor-pointer"
                                       title="Jadwalkan sesi dengan kelompok"
                                     >
@@ -1545,14 +1613,14 @@ export function ScheduleCalendarView({
                       onMouseDown={(e) => handleGridMouseDown(activeDayIso, hour, e)}
                       className={cn(
                         "border-b border-border/30 w-full transition-colors",
-                        (role === "admin" || (role === "teacher" && !isPastTime(activeDayIso, hour))) &&
+                        ((role === "admin" && canCreateAcademic) || (role === "teacher" && !isWeekLocked && !isPastTime(activeDayIso, hour))) &&
                           onCreateScheduleDirect &&
                           "cursor-pointer hover:bg-brand-primary/5"
                       )}
                       title={
-                        role === "admin" && onCreateScheduleDirect
+                        role === "admin" && canCreateAcademic && onCreateScheduleDirect
                           ? `Klik & drag untuk membuat jadwal pada ${activeDayName}, ${String(hour).padStart(2, "0")}:00`
-                          : role === "teacher" && onCreateScheduleDirect && !isPastTime(activeDayIso, hour)
+                          : role === "teacher" && onCreateScheduleDirect && !isWeekLocked && !isPastTime(activeDayIso, hour)
                           ? `Klik atau drag untuk tambah slot ketersediaan 90m pada ${activeDayName}, ${String(hour).padStart(2, "0")}:00`
                           : undefined
                       }
@@ -1672,11 +1740,7 @@ export function ScheduleCalendarView({
                   {/* Day Booked Sessions */}
                   {filteredBookings
                     .filter((b) => {
-                      if (b.sessionDate && b.sessionDate !== activeDayIso)
-                        return false;
-                      if (!b.sessionDate && b.slot?.dayOfWeek !== activeDayName)
-                        return false;
-                      return true;
+                      return b.sessionDate === activeDayIso;
                     })
                     .map((b) => {
                       const startTimeStr =
@@ -1698,11 +1762,16 @@ export function ScheduleCalendarView({
                       return (
                         <div
                           key={b.id}
+                          onClick={(event) => {
+                            const target = event.target as HTMLElement;
+                            if (target.closest("button, a")) return;
+                            openBookedSession(b);
+                          }}
                           style={{
                             top: `${Math.max(0, top)}px`,
                             height: `${Math.max(50, height)}px`,
                           }}
-                          className={`absolute left-2 right-2 z-20 rounded-xl border ${tutorStyle.border} ${tutorStyle.bg} p-2.5 flex items-start justify-between gap-3 shadow-xs session-card`}
+                          className={`absolute left-2 right-2 z-20 rounded-xl border ${tutorStyle.border} ${tutorStyle.bg} p-2.5 flex items-start justify-between gap-3 shadow-xs session-card ${onOpenSessionDetail ? "cursor-pointer" : ""}`}
                         >
                           <div
                             className={`absolute left-0 top-0 bottom-0 w-1.5 rounded-l-xl ${tutorStyle.bar}`}
@@ -1716,7 +1785,7 @@ export function ScheduleCalendarView({
                                 variant="outline"
                                 className="text-[10px] font-semibold"
                               >
-                                {b.slot?.tutor?.name} • {b.group?.name}
+                                {b.slot?.tutor?.name || "Tutor"}{b.group?.name ? `, ${b.group.name}` : ""}
                               </Badge>
                             </div>
                             <div className="flex items-center gap-3 text-body-xs text-muted-foreground">
@@ -1724,7 +1793,7 @@ export function ScheduleCalendarView({
                                 <Clock className="size-3" />
                                 {startTimeStr} - {endTimeStr}
                               </span>
-                              <span>•</span>
+                              <span aria-hidden="true">,</span>
                               {b.mode === "online" ? (
                                 <span className="flex items-center gap-1 text-blue-600 font-semibold">
                                   <Video className="size-3" />
@@ -1742,10 +1811,13 @@ export function ScheduleCalendarView({
                           <div className="flex items-center gap-1.5 shrink-0">
                             {role === "teacher" && b.status !== "completed" && b.status !== "cancelled" && (
                               <div className="flex items-center gap-1">
-                                {onOpenPostSession && (
+                                {(onOpenPostSession || onOpenSessionDetail) && (
                                   <Button
                                     size="sm"
-                                    onClick={() => onOpenPostSession(b)}
+                                    onClick={(event) => {
+                                      event.stopPropagation();
+                                      openBookedSession(b);
+                                    }}
                                     className="h-7 px-2 text-body-xs font-semibold rounded-lg bg-brand-primary text-white hover:bg-brand-primary/90 flex items-center gap-1"
                                   >
                                     <CheckCircle2 className="size-3" />
@@ -1756,7 +1828,10 @@ export function ScheduleCalendarView({
                                   <Button
                                     variant="outline"
                                     size="sm"
-                                    onClick={() => onMoveSession(b)}
+                                    onClick={(event) => {
+                                      event.stopPropagation();
+                                      onMoveSession(b);
+                                    }}
                                     className="h-7 px-2 text-body-xs font-semibold rounded-lg flex items-center gap-1"
                                   >
                                     <RotateCcw className="size-3" />
@@ -1779,7 +1854,10 @@ export function ScheduleCalendarView({
                             <Button
                               variant="ghost"
                               size="xs"
-                              onClick={() => onOpenAuditLog?.(b)}
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                openSessionAudit(b);
+                              }}
                               className="h-7 w-7 p-0 rounded-lg text-muted-foreground hover:text-foreground"
                               title="Riwayat Jejak Audit"
                             >
@@ -1793,9 +1871,7 @@ export function ScheduleCalendarView({
                   {/* Day Available Slots for booking */}
                   {role === "student" &&
                     filteredSlots
-                      .filter(
-                        (s) => s.dayOfWeek === activeDayName && !s.booking
-                      )
+                      .filter((s) => s.sessionDate === activeDayIso && !s.booking)
                       .map((s) => {
                         const startMin = timeToMinutes(s.startTime);
                         const endMin = timeToMinutes(s.endTime);
@@ -1833,12 +1909,10 @@ export function ScheduleCalendarView({
                       })}
 
                   {/* Day Teacher Unbooked Slots */}
-                  {role === "teacher" &&
+                  {canManageTutorial &&
                     filteredSlots
                       .filter((s) => {
-                        if (s.sessionDate && s.sessionDate !== activeDayIso) return false;
-                        if (!s.sessionDate && s.dayOfWeek !== activeDayName) return false;
-                        return !s.booking;
+                        return s.sessionDate === activeDayIso && !s.booking;
                       })
                       .map((s) => {
                         const startMin = timeToMinutes(s.startTime);
@@ -1880,8 +1954,8 @@ export function ScheduleCalendarView({
                                 </div>
                                 <div className="text-body-xs text-muted-foreground/80 flex items-center gap-2">
                                   <span>{s.mode === "online" ? "Online" : s.location || "Tatap Muka"}</span>
-                                  <span>•</span>
-                                  <span>{s.sessionDate ? "Slot Khusus" : "Berulang Mingguan"}</span>
+                                  <span aria-hidden="true">,</span>
+                                  <span>Tanggal sesi</span>
                                 </div>
                               </div>
                             </div>
@@ -1924,16 +1998,16 @@ export function ScheduleCalendarView({
                                   </span>
                                 )}
                                 <span aria-hidden="true" className="h-3 border-l border-border" />
-                                <span>{s.sessionDate ? "Slot Khusus Tanggal" : "Berulang Mingguan"}</span>
+                                <span>Tanggal sesi</span>
                               </div>
                             </div>
 
                             <div className="flex items-center gap-1.5 shrink-0">
-                              {onSelectSlotToSchedule && (
+                              {onAssignTutorialSlot && (
                                 <Button
                                   variant="default"
                                   size="sm"
-                                  onClick={() => onSelectSlotToSchedule(s)}
+                                  onClick={() => onAssignTutorialSlot(s)}
                                   className="h-7 px-2 text-body-xs font-semibold rounded-lg bg-brand-primary text-white hover:bg-brand-primary/90"
                                 >
                                   <Plus className="size-3 mr-1" />
@@ -1986,16 +2060,12 @@ export function ScheduleCalendarView({
                   {monthDays.map((cell) => {
                     // Find bookings on this day
                     const cellBookings = filteredBookings.filter((b) => {
-                      if (b.sessionDate && b.sessionDate !== cell.dateIso) return false;
-                      if (!b.sessionDate && b.slot?.dayOfWeek !== cell.dayName) return false;
-                      return true;
+                      return b.sessionDate === cell.dateIso;
                     });
 
                     // Find teacher slots on this day
                     const cellSlots = filteredSlots.filter((s) => {
-                      if (s.sessionDate && s.sessionDate !== cell.dateIso) return false;
-                      if (!s.sessionDate && s.dayOfWeek !== cell.dayName) return false;
-                      return true;
+                      return s.sessionDate === cell.dateIso;
                     });
 
                     // Find academic schedules on this day
@@ -2012,7 +2082,7 @@ export function ScheduleCalendarView({
                             setViewMode("day");
                             return;
                           }
-                          if (e.target === e.currentTarget && role === "admin" && onCreateScheduleDirect) {
+                          if (e.target === e.currentTarget && role === "admin" && canCreateAcademic && onCreateScheduleDirect) {
                             onCreateScheduleDirect(cell.dateIso, "09:00", "10:30");
                           }
                         }}
@@ -2022,7 +2092,7 @@ export function ScheduleCalendarView({
                             ? "bg-card hover:bg-muted/10"
                             : "bg-muted/30 opacity-60",
                           cell.isToday && "bg-brand-primary/[0.04]",
-                          ((role === "admin" && onCreateScheduleDirect) || role === "teacher") && "cursor-pointer"
+                          (((role === "admin" && canCreateAcademic && onCreateScheduleDirect) || role === "teacher")) && "cursor-pointer"
                         )}
                         title={
                           role === "teacher"
@@ -2044,7 +2114,7 @@ export function ScheduleCalendarView({
                           </span>
 
                           <div className="flex items-center gap-1">
-                            {role === "admin" && onCreateScheduleDirect && (
+                            {role === "admin" && canCreateAcademic && onCreateScheduleDirect && (
                               <button
                                 type="button"
                                 onClick={(e) => {
@@ -2098,13 +2168,11 @@ export function ScheduleCalendarView({
                                 key={b.id}
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  if (role === "student") {
-                                    onOpenPreSession?.(b);
-                                  } else if (role === "teacher") {
+                                  if (onOpenSessionDetail || role !== "teacher") {
+                                    openBookedSession(b);
+                                  } else {
                                     setActiveDate(cell.date);
                                     setViewMode("day");
-                                  } else {
-                                    onOpenPostSession?.(b);
                                   }
                                 }}
                                 className={`px-1.5 py-0.5 rounded text-[9px] font-semibold truncate border ${tutorStyle.border} ${tutorStyle.bg} cursor-pointer hover:shadow-xs`}
@@ -2119,7 +2187,7 @@ export function ScheduleCalendarView({
                           })}
 
                           {/* Teacher Unbooked Slots */}
-                          {role === "teacher" &&
+                          {canManageTutorial &&
                             cellSlots
                               .filter((s) => !s.booking)
                               .map((s) => {
