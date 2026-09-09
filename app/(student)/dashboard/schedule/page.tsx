@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
@@ -15,5 +16,15 @@ export default async function StudentSchedulePage() {
   const isTutor = legacyRole === "teacher" || await hasAnyPeran(session.user.id, ["tutor"], { allowAdmin: false });
   if (isTutor) redirect("/tutor/schedule");
 
-  return <StudentScheduleClient />;
+  return (
+    <Suspense
+      fallback={
+        <div className="p-16 text-center text-muted-foreground text-body-sm">
+          Memuat data kalender dan slot tutorial...
+        </div>
+      }
+    >
+      <StudentScheduleClient />
+    </Suspense>
+  );
 }
