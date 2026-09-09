@@ -43,6 +43,7 @@ export type WorkedExamplePayload = z.infer<typeof workedExamplePayloadSchema>;
 export const formativeCheckKindSchema = z.enum([
   "multiple_choice",
   "short_answer",
+  "numeric_answer",
   "conceptual_explanation",
 ]);
 export type FormativeCheckKind = z.infer<typeof formativeCheckKindSchema>;
@@ -56,12 +57,110 @@ export const formativeCheckOptionSchema = z
   .strict();
 export type FormativeCheckOption = z.infer<typeof formativeCheckOptionSchema>;
 
+const formativeTextNormalizationSchema = z.enum([
+  "trim_casefold",
+  "trim_casefold_collapse_whitespace",
+]);
+export type FormativeTextNormalization = z.infer<typeof formativeTextNormalizationSchema>;
+
+const formativeChoiceEvaluationSchema = z
+  .object({
+    mode: z.literal("choice"),
+  })
+  .strict();
+
+const formativeTextExactEvaluationSchema = z
+  .object({
+    mode: z.literal("text_exact"),
+    acceptableAnswers: z.array(z.string().trim().min(1)).min(1),
+    normalization: formativeTextNormalizationSchema,
+  })
+  .strict()
+  .superRefine((evaluation, ctx) => {
+    const normalized = evaluation.acceptableAnswers.map((answer) => {
+      const folded = answer.trim().toLocaleLowerCase("id-ID");
+      return evaluation.normalization === "trim_casefold_collapse_whitespace"
+        ? folded.replace(/\s+/g, " ")
+        : folded;
+    });
+    if (new Set(normalized).size !== normalized.length) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "acceptableAnswers must be unique after normalization",
+        path: ["acceptableAnswers"],
+      });
+    }
+  });
+
+const formativeNumericEvaluationSchema = z
+  .object({
+    mode: z.literal("numeric"),
+    target: z.number().finite(),
+    absoluteTolerance: z.number().finite().nonnegative(),
+    unit: z.string().trim().min(1).optional(),
+  })
+  .strict();
+
+const formativeAiRubricCriterionSchema = z
+  .object({
+    id: z.string().trim().min(1),
+    description: z.string().trim().min(1),
+    weight: z.number().finite().positive(),
+  })
+  .strict();
+
+const formativeAiRubricEvaluationSchema = z
+  .object({
+    mode: z.literal("ai_rubric"),
+    criteria: z.array(formativeAiRubricCriterionSchema).min(1),
+    requiredConcepts: z.array(z.string().trim().min(1)).min(1),
+    misconceptionSignals: z.array(z.string().trim().min(1)),
+  })
+  .strict()
+  .superRefine((evaluation, ctx) => {
+    const criterionIds = evaluation.criteria.map((criterion) => criterion.id);
+    if (new Set(criterionIds).size !== criterionIds.length) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "AI rubric criterion IDs must be unique",
+        path: ["criteria"],
+      });
+    }
+
+    const weightTotal = evaluation.criteria.reduce((total, criterion) => total + criterion.weight, 0);
+    if (Math.abs(weightTotal - 1) > 0.000001) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "AI rubric criterion weights must sum to 1",
+        path: ["criteria"],
+      });
+    }
+  });
+
+export const formativeCheckEvaluationSchema = z.discriminatedUnion("mode", [
+  formativeChoiceEvaluationSchema,
+  formativeTextExactEvaluationSchema,
+  formativeNumericEvaluationSchema,
+  formativeAiRubricEvaluationSchema,
+]);
+export type FormativeCheckEvaluation = z.infer<typeof formativeCheckEvaluationSchema>;
+
+export const formativeCheckFeedbackPolicySchema = z
+  .object({
+    hints: z.array(z.string().trim().min(1)).max(3),
+    allowRetry: z.boolean(),
+  })
+  .strict();
+export type FormativeCheckFeedbackPolicy = z.infer<typeof formativeCheckFeedbackPolicySchema>;
+
 export const formativeCheckPayloadSchema = z
   .object({
     checkKind: formativeCheckKindSchema,
     answer: z.string().trim().min(1),
     explanation: z.string().trim().min(1),
     options: z.array(formativeCheckOptionSchema).optional(),
+    evaluation: formativeCheckEvaluationSchema.optional(),
+    feedbackPolicy: formativeCheckFeedbackPolicySchema.optional(),
   })
   .strict()
   .superRefine((payload, ctx) => {
@@ -97,6 +196,23 @@ export const formativeCheckPayloadSchema = z
           });
         }
       }
+    }
+
+    if (!payload.evaluation) return;
+
+    const expectedModeByKind: Record<FormativeCheckKind, FormativeCheckEvaluation["mode"]> = {
+      multiple_choice: "choice",
+      short_answer: "text_exact",
+      numeric_answer: "numeric",
+      conceptual_explanation: "ai_rubric",
+    };
+    const expectedMode = expectedModeByKind[payload.checkKind];
+    if (payload.evaluation.mode !== expectedMode) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `${payload.checkKind} formative checks require evaluation mode ${expectedMode}`,
+        path: ["evaluation", "mode"],
+      });
     }
   });
 export type FormativeCheckPayload = z.infer<typeof formativeCheckPayloadSchema>;

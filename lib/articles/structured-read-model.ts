@@ -2,6 +2,11 @@ import {
   inspectPayloadSecurity,
   epsilonDeltaGraphSpecSchema,
 } from "@/lib/materials/visual-contract";
+import {
+  formativeCheckPayloadSchema,
+  type FormativeCheckEvaluation,
+  type FormativeCheckKind,
+} from "@/lib/materials/pedagogy-contract";
 
 export interface PublicWorkedExampleStep {
   stepIndex: number;
@@ -18,14 +23,17 @@ export interface PublicWorkedExamplePayload {
 export interface PublicFormativeCheckOption {
   id: string;
   text: string;
-  isCorrect: boolean;
 }
 
 export interface PublicFormativeCheckPayload {
-  checkKind: "multiple_choice" | "short_answer" | "conceptual_explanation";
-  answer: string;
-  explanation: string;
+  checkKind: FormativeCheckKind;
   options?: PublicFormativeCheckOption[];
+  evaluationMode: FormativeCheckEvaluation["mode"] | null;
+  unit?: string;
+  feedbackPolicy?: {
+    hints: string[];
+    allowRetry: boolean;
+  };
 }
 
 export interface PublicEpsilonDeltaGraphSpec {
@@ -389,60 +397,29 @@ export function sanitizeWorkedExample(payload: unknown): PublicWorkedExamplePayl
  */
 export function sanitizeFormativeCheck(payload: unknown): PublicFormativeCheckPayload | null {
   if (!payload || typeof payload !== "object") return null;
-  const p = payload as Record<string, unknown>;
-  const kind = p.checkKind;
-  if (kind !== "multiple_choice" && kind !== "short_answer" && kind !== "conceptual_explanation") {
-    return null;
-  }
-  if (typeof p.answer !== "string" || typeof p.explanation !== "string" || !p.answer.trim() || !p.explanation.trim()) {
-    return null;
-  }
 
   const secCheck = inspectPayloadSecurity(payload);
   if (!secCheck.safe) return null;
 
-  let options: PublicFormativeCheckOption[] | undefined = undefined;
-  if (kind === "multiple_choice") {
-    if (!Array.isArray(p.options) || p.options.length < 2) return null;
-    options = [];
-    const seenIds = new Set<string>();
-    let correctCount = 0;
-    for (const opt of p.options) {
-      if (!opt || typeof opt !== "object") return null;
-      const o = opt as Record<string, unknown>;
-      if (typeof o.id !== "string" || typeof o.text !== "string" || typeof o.isCorrect !== "boolean") return null;
-      const trimmedId = o.id.trim();
-      const trimmedText = o.text.trim();
-      if (!trimmedId || !trimmedText || seenIds.has(trimmedId)) return null;
-      seenIds.add(trimmedId);
-      if (o.isCorrect) correctCount++;
-      options.push({
-        id: trimmedId,
-        text: trimmedText,
-        isCorrect: o.isCorrect,
-      });
-    }
-    if (correctCount !== 1) return null;
-  } else if (Array.isArray(p.options)) {
-    options = [];
-    for (const opt of p.options) {
-      if (!opt || typeof opt !== "object") continue;
-      const o = opt as Record<string, unknown>;
-      if (typeof o.id === "string" && typeof o.text === "string" && typeof o.isCorrect === "boolean") {
-        options.push({
-          id: o.id.trim(),
-          text: o.text.trim(),
-          isCorrect: o.isCorrect,
-        });
-      }
-    }
-  }
+  const parsed = formativeCheckPayloadSchema.safeParse(payload);
+  if (!parsed.success) return null;
+
+  const options = parsed.data.options?.map((option) => ({
+    id: option.id,
+    text: option.text,
+  }));
 
   return {
-    checkKind: kind,
-    answer: p.answer.trim(),
-    explanation: p.explanation.trim(),
+    checkKind: parsed.data.checkKind,
     options: options && options.length > 0 ? options : undefined,
+    evaluationMode: parsed.data.evaluation?.mode ?? null,
+    unit: parsed.data.evaluation?.mode === "numeric" ? parsed.data.evaluation.unit : undefined,
+    feedbackPolicy: parsed.data.feedbackPolicy
+      ? {
+          hints: [...parsed.data.feedbackPolicy.hints],
+          allowRetry: parsed.data.feedbackPolicy.allowRetry,
+        }
+      : undefined,
   };
 }
 

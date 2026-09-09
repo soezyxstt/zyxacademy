@@ -132,6 +132,23 @@ export function evaluateProductBundleQuality(data: { products: readonly ProductE
   for (const article of articles) {
     const metrics = articleMetrics(article);
     if ((article.sections?.length ?? 0) > 0) {
+      for (const section of article.sections ?? []) {
+        for (const block of section.blocks) {
+          const payload = block.formativeCheckPayload;
+          if (
+            payload
+            && ["short_answer", "conceptual_explanation", "numeric_answer"].includes(payload.checkKind)
+            && !payload.evaluation
+          ) {
+            issues.push(qualityIssue(
+              "ARTICLE_FORMATIVE_CHECK_REVEAL_ONLY",
+              `Cek formatif ${block.id} hanya dapat membuka pembahasan karena belum memiliki evaluation.`,
+              "warning",
+              { entity: `${article.id}:${section.id}:${block.id}`, expected: "evaluation", observed: "missing" },
+            ));
+          }
+        }
+      }
       const topicMetrics = metrics.sections.filter((section) => section.kind === "topic");
       for (const section of topicMetrics) {
         if (section.wordCount > 1500) issues.push(qualityIssue("ARTICLE_TOPIC_TOO_LONG", `Bagian ${section.id} melebihi hard limit 1.500 kata.`, "blocking", { entity: `${article.id}:${section.id}`, expected: 1500, observed: section.wordCount }));

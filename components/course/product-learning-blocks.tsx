@@ -9,9 +9,14 @@ import {
   ChevronUp,
   Clock,
   HelpCircle,
+  Lightbulb,
+  Loader2,
+  RotateCcw,
   Sparkles,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { MarkdownRenderer } from "@/components/course/markdown-renderer";
 import { MathText } from "@/components/course/math-text";
 import type {
@@ -19,6 +24,7 @@ import type {
   PublicLearningTimeEstimate,
   PublicWorkedExamplePayload,
 } from "@/lib/articles/structured-read-model";
+import type { FormativeLearnerResponse } from "@/lib/materials/formative-evaluation";
 import { cn } from "@/lib/utils";
 
 export interface ProductWorkedExampleProps {
@@ -118,21 +124,168 @@ export interface ProductFormativeCheckProps {
   title?: string | null;
   content: string;
   formativeCheck: PublicFormativeCheckPayload;
+  locator: {
+    articleId: string;
+    articleVersion: number;
+    sectionId: string;
+    blockId: string;
+  };
   className?: string;
 }
+
+type FormativeCheckUiState = "idle" | "answering" | "submitting" | "evaluated" | "revealed" | "error";
+
+interface FormativeCheckResult {
+  verdict: "correct" | "partial" | "incorrect" | "ungradable";
+  feedback: string;
+  criteria?: Array<{ criterionId: string; status: "met" | "partial" | "missed" }>;
+  misconceptions?: string[];
+  canRetry: boolean;
+  revealAllowed: boolean;
+}
+
+interface FormativeCheckReveal {
+  answer: string;
+  explanation: string;
+}
+
+const verdictLabels: Record<FormativeCheckResult["verdict"], string> = {
+  correct: "Benar",
+  partial: "Sebagian tepat",
+  incorrect: "Belum tepat",
+  ungradable: "Belum dapat dinilai",
+};
+
+const verdictClasses: Record<FormativeCheckResult["verdict"], string> = {
+  correct: "border-status-success/40 bg-status-success/10 text-status-success",
+  partial: "border-status-warning/40 bg-status-warning/10 text-status-warning",
+  incorrect: "border-status-error/40 bg-status-error/10 text-status-error",
+  ungradable: "border-border/80 bg-muted/30 text-muted-foreground",
+};
 
 export function ProductFormativeCheck({
   title,
   content,
   formativeCheck,
+  locator,
   className,
 }: ProductFormativeCheckProps) {
   const [selectedOptionId, setSelectedOptionId] = useState<string | null>(null);
-  const [isRevealed, setIsRevealed] = useState<boolean>(false);
+  const [textValue, setTextValue] = useState("");
+  const [numericValue, setNumericValue] = useState("");
+  const [conceptualValue, setConceptualValue] = useState("");
+  const [uiState, setUiState] = useState<FormativeCheckUiState>("idle");
+  const [result, setResult] = useState<FormativeCheckResult | null>(null);
+  const [reveal, setReveal] = useState<FormativeCheckReveal | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [hintIndex, setHintIndex] = useState(0);
+  const [isRevealing, setIsRevealing] = useState(false);
 
   const optionLetters = ["A", "B", "C", "D", "E", "F"];
+  const isLegacy = formativeCheck.evaluationMode === null;
+  const isEvaluated = Boolean(result);
+  const hints = formativeCheck.feedbackPolicy?.hints ?? [];
+  const isSubmitting = uiState === "submitting";
 
-  const correctOption = formativeCheck.options?.find((o) => o.isCorrect);
+  const getLearnerResponse = (): FormativeLearnerResponse | null => {
+    switch (formativeCheck.checkKind) {
+      case "multiple_choice":
+        return selectedOptionId ? { kind: "choice", optionId: selectedOptionId } : null;
+      case "short_answer":
+        return textValue.trim() ? { kind: "text", text: textValue } : null;
+      case "numeric_answer":
+        return numericValue.trim() ? { kind: "numeric", value: numericValue } : null;
+      case "conceptual_explanation":
+        return conceptualValue.trim() ? { kind: "conceptual", text: conceptualValue } : null;
+    }
+  };
+
+  const setAnswering = () => {
+    if (!isEvaluated && !isSubmitting) {
+      setError(null);
+      setUiState("answering");
+    }
+  };
+
+  const submitResponse = async () => {
+    const response = getLearnerResponse();
+    if (!response) {
+      setError("Isi responsmu sebelum mengirim jawaban.");
+      setUiState("error");
+      return;
+    }
+
+    setError(null);
+    setUiState("submitting");
+    try {
+      const serverResponse = await fetch("/api/materials/formative-check/evaluate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...locator, response }),
+      });
+      const body = (await serverResponse.json().catch(() => null)) as { ok?: boolean; result?: FormativeCheckResult; error?: unknown } | null;
+      if (!serverResponse.ok || !body?.ok || !body.result) {
+        throw new Error(typeof body?.error === "string" ? body.error : "Cek pemahaman tidak dapat diproses.");
+      }
+      setResult(body.result);
+      setReveal(null);
+      setUiState("evaluated");
+    } catch (submissionError) {
+      const message = submissionError instanceof Error && submissionError.message.length <= 240
+        ? submissionError.message
+        : "Cek pemahaman tidak dapat diproses sekarang.";
+      setError(message);
+      setUiState("error");
+    }
+  };
+
+  const revealAnswer = async () => {
+    if (reveal) {
+      setReveal(null);
+      setUiState(result ? "evaluated" : "idle");
+      return;
+    }
+
+    setError(null);
+    setIsRevealing(true);
+    try {
+      const serverResponse = await fetch("/api/materials/formative-check/reveal", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(locator),
+      });
+      const body = (await serverResponse.json().catch(() => null)) as FormativeCheckReveal & { error?: unknown };
+      if (!serverResponse.ok || typeof body.answer !== "string" || typeof body.explanation !== "string") {
+        throw new Error(typeof body.error === "string" ? body.error : "Pembahasan tidak dapat dibuka.");
+      }
+      setReveal({ answer: body.answer, explanation: body.explanation });
+      setUiState("revealed");
+    } catch (revealError) {
+      const message = revealError instanceof Error && revealError.message.length <= 240
+        ? revealError.message
+        : "Pembahasan tidak dapat dibuka sekarang.";
+      setError(message);
+      setUiState("error");
+    } finally {
+      setIsRevealing(false);
+    }
+  };
+
+  const retry = () => {
+    setResult(null);
+    setReveal(null);
+    setError(null);
+    setHintIndex(0);
+    setUiState("answering");
+  };
+
+  const criteriaSummary = result?.criteria
+    ? (() => {
+        const met = result.criteria.filter((criterion) => criterion.status === "met").length;
+        const partial = result.criteria.filter((criterion) => criterion.status === "partial").length;
+        return `${met} aspek terpenuhi${partial > 0 ? `, ${partial} aspek perlu diperjelas` : ""}.`;
+      })()
+    : null;
 
   return (
     <div
@@ -163,116 +316,143 @@ export function ProductFormativeCheck({
         </div>
       ) : null}
 
-      {/* Options if Multiple Choice */}
-      {formativeCheck.options && formativeCheck.options.length > 0 ? (
-        <div className="space-y-2 pt-1" role="radiogroup" aria-label="Pilihan jawaban">
-          {formativeCheck.options.map((opt, idx) => {
-            const letter = optionLetters[idx] ?? String(idx + 1);
-            const isSelected = selectedOptionId === opt.id;
-            const isCorrect = opt.isCorrect;
-
-            let borderStyle = "border-border/70 hover:border-primary/40 hover:bg-muted/40";
-            if (isRevealed) {
-              if (isCorrect) {
-                borderStyle = "border-status-success bg-status-success/10";
-              } else if (isSelected && !isCorrect) {
-                borderStyle = "border-status-error bg-status-error/10";
-              }
-            } else if (isSelected) {
-              borderStyle = "border-primary bg-primary/10";
-            }
-
-            return (
-              <button
-                key={opt.id}
-                type="button"
-                role="radio"
-                aria-checked={isSelected}
-                onClick={() => setSelectedOptionId(opt.id)}
-                className={cn(
-                  "w-full text-left p-3 rounded-lg border transition-colors flex items-start gap-3 text-body-sm text-foreground",
-                  borderStyle,
-                )}
-              >
-                <span
+      <form onSubmit={(event) => { event.preventDefault(); void submitResponse(); }} className="space-y-4" aria-busy={isSubmitting}>
+        {formativeCheck.checkKind === "multiple_choice" && formativeCheck.options?.length ? (
+          <div className="space-y-2 pt-1" role="radiogroup" aria-label="Pilihan jawaban">
+            {formativeCheck.options.map((option, index) => {
+              const isSelected = selectedOptionId === option.id;
+              return (
+                <button
+                  key={option.id}
+                  type="button"
+                  role="radio"
+                  aria-checked={isSelected}
+                  disabled={isEvaluated || isSubmitting || Boolean(reveal)}
+                  onClick={() => { setSelectedOptionId(option.id); setAnswering(); }}
                   className={cn(
-                    "flex size-6 shrink-0 items-center justify-center rounded-md font-mono text-body-xs font-bold",
-                    isSelected
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-muted text-muted-foreground",
+                    "w-full text-left rounded-lg border p-3 transition-colors flex items-start gap-3 text-body-sm text-foreground",
+                    isSelected ? "border-primary bg-primary/10" : "border-border/70 hover:border-primary/40 hover:bg-muted/40",
                   )}
                 >
-                  {letter}
-                </span>
-                <MathText as="span" className="min-w-0 flex-1 pt-0.5 leading-snug">{opt.text}</MathText>
-              </button>
-            );
-          })}
+                  <span className={cn(
+                    "flex size-6 shrink-0 items-center justify-center rounded-md font-mono text-body-xs font-bold",
+                    isSelected ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground",
+                  )}>
+                    {optionLetters[index] ?? String(index + 1)}
+                  </span>
+                  <MathText as="span" className="min-w-0 flex-1 pt-0.5 leading-snug">{option.text}</MathText>
+                </button>
+              );
+            })}
+          </div>
+        ) : null}
+
+        {formativeCheck.checkKind === "short_answer" ? (
+          <div className="space-y-2">
+            <label htmlFor={`formative-text-${locator.blockId}`} className="text-body-sm font-semibold text-foreground">Jawaban singkat</label>
+            <Textarea
+              id={`formative-text-${locator.blockId}`}
+              value={textValue}
+              maxLength={2000}
+              disabled={isEvaluated || isSubmitting || Boolean(reveal)}
+              onChange={(event) => { setTextValue(event.target.value); setAnswering(); }}
+              placeholder="Tulis jawabanmu"
+              className="min-h-20"
+            />
+          </div>
+        ) : null}
+
+        {formativeCheck.checkKind === "numeric_answer" ? (
+          <div className="space-y-2">
+            <label htmlFor={`formative-numeric-${locator.blockId}`} className="text-body-sm font-semibold text-foreground">Nilai jawaban</label>
+            <div className="flex flex-wrap items-center gap-2">
+              <Input
+                id={`formative-numeric-${locator.blockId}`}
+                value={numericValue}
+                maxLength={200}
+                disabled={isEvaluated || isSubmitting || Boolean(reveal)}
+                onChange={(event) => { setNumericValue(event.target.value); setAnswering(); }}
+                inputMode="decimal"
+                placeholder="Masukkan angka"
+                className="min-w-[140px] flex-1"
+              />
+              {formativeCheck.unit ? <span className="text-body-sm text-muted-foreground">{formativeCheck.unit}</span> : null}
+            </div>
+          </div>
+        ) : null}
+
+        {formativeCheck.checkKind === "conceptual_explanation" ? (
+          <div className="space-y-2">
+            <label htmlFor={`formative-conceptual-${locator.blockId}`} className="text-body-sm font-semibold text-foreground">Penjelasanmu</label>
+            <Textarea
+              id={`formative-conceptual-${locator.blockId}`}
+              value={conceptualValue}
+              maxLength={6000}
+              disabled={isEvaluated || isSubmitting || Boolean(reveal)}
+              onChange={(event) => { setConceptualValue(event.target.value); setAnswering(); }}
+              placeholder="Jelaskan alasan atau langkah berpikirmu"
+              className="min-h-28"
+            />
+          </div>
+        ) : null}
+
+        <div className="flex flex-wrap items-center gap-2 pt-1">
+          {!isLegacy ? (
+            <Button type="submit" size="sm" disabled={isSubmitting || isEvaluated} className="gap-1.5 text-body-sm">
+              {isSubmitting ? <Loader2 className="size-3.5 animate-spin" /> : <CheckCircle2 className="size-3.5" />}
+              {isSubmitting ? "Memeriksa" : "Periksa jawaban"}
+            </Button>
+          ) : null}
+
+          {isLegacy || result?.revealAllowed ? (
+            <Button type="button" variant="outline" size="sm" disabled={isRevealing} onClick={() => void revealAnswer()} className="gap-1.5 text-body-sm" aria-expanded={Boolean(reveal)}>
+              {isRevealing ? <Loader2 className="size-3.5 animate-spin" /> : reveal ? <ChevronUp className="size-3.5" /> : <ChevronDown className="size-3.5" />}
+              {reveal ? "Sembunyikan pembahasan" : isRevealing ? "Membuka pembahasan" : "Buka jawaban dan pembahasan"}
+            </Button>
+          ) : null}
+
+          {result?.canRetry ? (
+            <Button type="button" variant="ghost" size="sm" onClick={retry} className="gap-1.5 text-body-sm">
+              <RotateCcw className="size-3.5" />
+              Coba lagi
+            </Button>
+          ) : null}
+        </div>
+      </form>
+
+      {error ? <p role="alert" className="rounded-lg border border-status-error/40 bg-status-error/10 px-3 py-2 text-body-sm text-status-error">{error}</p> : null}
+
+      {result ? (
+        <div role="status" aria-live="polite" className={cn("space-y-2 rounded-lg border p-3.5 text-body-sm", verdictClasses[result.verdict])}>
+          <p className="font-semibold">Hasil: {verdictLabels[result.verdict]}</p>
+          <p className="leading-relaxed">{result.feedback}</p>
+          {criteriaSummary ? <p className="text-body-xs">{criteriaSummary}</p> : null}
         </div>
       ) : null}
 
-      {/* Keyboard-operable reveal control */}
-      <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={() => setIsRevealed(!isRevealed)}
-          className="gap-1.5 text-body-xs font-semibold"
-          aria-expanded={isRevealed}
-        >
-          {isRevealed ? (
-            <>
-              <ChevronUp className="size-3.5" />
-              <span>Sembunyikan Pembahasan</span>
-            </>
-          ) : (
-            <>
-              <ChevronDown className="size-3.5" />
-              <span>Buka Jawaban & Pembahasan</span>
-            </>
-          )}
-        </Button>
+      {result && hints.length > 0 && hintIndex < hints.length ? (
+        <div className="space-y-2 rounded-lg border border-primary/30 bg-primary/5 p-3.5">
+          {hintIndex > 0 ? <p className="text-body-sm text-foreground">{hints[hintIndex - 1]}</p> : null}
+          <Button type="button" variant="outline" size="sm" onClick={() => setHintIndex((current) => Math.min(current + 1, hints.length))} className="gap-1.5 text-body-sm">
+            <Lightbulb className="size-3.5" />
+            {hintIndex === 0 ? "Tampilkan petunjuk" : "Petunjuk berikutnya"}
+          </Button>
+        </div>
+      ) : result && hintIndex > 0 && hints.length > 0 ? (
+        <div className="rounded-lg border border-primary/30 bg-primary/5 p-3.5 text-body-sm text-foreground">
+          <p>{hints[hintIndex - 1]}</p>
+        </div>
+      ) : null}
 
-        {isRevealed && selectedOptionId && formativeCheck.options ? (
-          <span
-            className={cn(
-              "text-body-xs font-semibold",
-              selectedOptionId === correctOption?.id
-                ? "text-status-success"
-                : "text-status-error",
-            )}
-          >
-            {selectedOptionId === correctOption?.id
-              ? "Jawaban pilihanmu tepat"
-              : "Jawaban pilihanmu belum tepat"}
-          </span>
-        ) : null}
-      </div>
-
-      {/* Revealable Answer & Explanation */}
-      {isRevealed ? (
-        <div className="rounded-lg border border-border/80 bg-muted/30 p-4 space-y-3 animate-fade-in">
+      {reveal ? (
+        <div className="space-y-3 rounded-lg border border-border/80 bg-muted/30 p-4 animate-fade-in">
           <div>
-            <span className="text-body-2xs font-bold uppercase tracking-wider text-muted-foreground block mb-1">
-              Jawaban Benar
-            </span>
-            <div className="text-body-sm font-semibold text-foreground">
-              {correctOption ? (
-                <MathText as="span">{`${optionLetters[formativeCheck.options?.indexOf(correctOption) ?? 0]}. ${correctOption.text}`}</MathText>
-              ) : (
-                <MathText as="span">{formativeCheck.answer}</MathText>
-              )}
-            </div>
+            <span className="mb-1 block text-body-2xs font-bold uppercase tracking-wider text-muted-foreground">Jawaban</span>
+            <div className="text-body-sm font-semibold text-foreground"><MathText as="span">{reveal.answer}</MathText></div>
           </div>
-
           <div className="border-t border-border/60 pt-2.5">
-            <span className="text-body-2xs font-bold uppercase tracking-wider text-muted-foreground block mb-1">
-              Penjelasan / Pembahasan
-            </span>
-            <div className="text-body-sm text-foreground leading-relaxed">
-              <MarkdownRenderer content={formativeCheck.explanation} density="compact" />
-            </div>
+            <span className="mb-1 block text-body-2xs font-bold uppercase tracking-wider text-muted-foreground">Penjelasan dan pembahasan</span>
+            <div className="text-body-sm leading-relaxed text-foreground"><MarkdownRenderer content={reveal.explanation} density="compact" /></div>
           </div>
         </div>
       ) : null}

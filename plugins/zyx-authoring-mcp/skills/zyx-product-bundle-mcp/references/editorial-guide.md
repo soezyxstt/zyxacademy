@@ -78,11 +78,24 @@ Tulis satu topic sebagai unit belajar mandiri yang tetap memiliki hubungan jelas
 
 Heading, tabel, daftar, formula, dan callout harus dipakai untuk membedakan konteks. Jangan menghasilkan satu rentetan paragraf panjang.
 
-## 7. Contoh bersyarat, limit
+## 7. Cek formatif interaktif
+
+Gunakan cek formatif untuk memberi mahasiswa kesempatan mencoba, menerima umpan balik, dan membuka pembahasan. Cek ini bukan question product dan tidak boleh mengubah nilai, attempt, mastery, atau status asesmen.
+
+- `multiple_choice` memakai evaluator `choice` dan tepat satu opsi benar.
+- `short_answer` memakai evaluator `text_exact` dengan jawaban yang benar-benar dapat dinormalisasi tanpa pasangan duplikat.
+- `numeric_answer` memakai evaluator `numeric` dengan target, toleransi absolut, dan satuan opsional. Jangan meminta ekspresi atau operasi sebagai input.
+- `conceptual_explanation` memakai evaluator `ai_rubric` dengan kriteria berbobot, konsep wajib, dan sinyal miskonsepsi. Model hanya mengklasifikasikan respons terhadap rubric author.
+
+`feedbackPolicy.hints` maksimal tiga petunjuk progresif. Tulis petunjuk dari yang paling umum ke yang paling spesifik dan jangan membocorkan jawaban pada petunjuk pertama. Jika evaluator belum disiapkan, pertahankan `answer` dan `explanation` agar cek tetap dapat dibaca dan dibuka sebagai reveal-only.
+
+Sebelum publikasi, uji redaksi learner-facing tanpa ID internal, alur idle, respons kosong, jawaban benar, jawaban salah, retry, petunjuk, dan pembukaan pembahasan. Pastikan isi yang ditampilkan sebelum reveal tidak memuat kunci, toleransi, acceptable answers, rubric, atau sinyal miskonsepsi.
+
+## 8. Contoh bersyarat, limit
 
 Pada topik limit epsilon-delta, rencana yang baik dapat mencakup urutan quantifier, ketergantungan delta pada epsilon, pengecualian `x = c`, visual pita epsilon-delta dengan fallback tabel, worked example, verifikasi substitusi, fungsi konstan, counterexample lompatan, serta cek verbal, matematis, dan reflektif. Ini contoh penerapan untuk materi limit, bukan template wajib bagi jaringan komputer, sejarah, atau topik lain.
 
-## 8. Diktat sebagai review
+## 9. Diktat sebagai review
 
 Diktat diturunkan dari Artikel yang disetujui dan tidak menambah fakta baru. Pertahankan Idea set, formula penting, kondisi penggunaan, source trace, contoh kilat, jebakan, dan cek ingatan yang relevan. Ringkas sampai cocok sebagai review, kemudian render dengan fasilitas PDF. Target 2 sampai 4 halaman adalah hasil render nyata, bukan perkiraan dari jumlah kata.
 
@@ -90,14 +103,14 @@ Gunakan struktur padat: peta konsep, intisari, formula penting, langkah cepat, c
 
 Jangan menulis “PDF sesuai” dari Markdown, validator MCP, atau perkiraan panjang. Klaim itu memerlukan artefak PDF, checksum Diktat, versi renderer, profil cetak, page count, dan inspeksi setiap halaman. Render gagal, stale, lebih dari 4 halaman, glyph rusak, formula mentah, teks terpotong, atau halaman kosong memblokir publikasi sampai dirender ulang.
 
-## 9. Produk lain
+## 10. Produk lain
 
 - Flashcard menguji satu konsep atau keputusan.
 - Question Product hanya menyalin contoh soal ITB yang diizinkan tanpa mengubah angka atau kondisi.
 - Solution menjelaskan alasan dan langkah dengan istilah manusiawi.
 - Blueprint hanya merujuk question yang ada dalam bundle.
 
-## 10. Empat lapis keputusan
+## 11. Empat lapis keputusan
 
 Jangan menyatukan empat hasil berikut:
 
@@ -106,7 +119,7 @@ Jangan menyatukan empat hasil berikut:
 3. **Review admin** menilai delapan kriteria pedagogi pada revisi dan policy version yang tepat. Edit Artikel atau Diktat membuat bukti lama stale.
 4. **Kesiapan publikasi** baru tercapai bila validator hijau, review admin lengkap dan fresh, PDF ready dengan lineage yang cocok, serta tidak ada blocker lain.
 
-## 11. Preflight author
+## 12. Preflight author
 
 Sebelum validasi dan setelah setiap revisi:
 
@@ -116,9 +129,10 @@ Sebelum validasi dan setelah setiap revisi:
 4. pastikan setiap tujuan memiliki explanation, contoh atau representasi yang relevan, dan understanding check dengan jawaban serta pembahasan;
 5. hitung estimasi belajar setelah konten tuntas dan pecah topic bila beban kognitif atau navigasinya terlalu padat;
 6. periksa formula, kondisi berlaku, tabel, visual fallback, dan semantic callout;
-7. hapus filler serta block yang tidak relevan;
-8. pastikan derived Markdown tetap setara dengan urutan section dan block;
-9. pastikan Diktat tetap ringkas dan lineage Artikel serta Idea-nya cocok;
-10. baca satu topic seolah-olah tidak pernah melihat Source Pack atau Idea Bundle.
+7. periksa setiap cek formatif: mode evaluator cocok, petunjuk maksimal tiga, dan learner-facing output tidak membocorkan kunci sebelum reveal;
+8. hapus filler serta block yang tidak relevan;
+9. pastikan derived Markdown tetap setara dengan urutan section dan block;
+10. pastikan Diktat tetap ringkas dan lineage Artikel serta Idea-nya cocok;
+11. baca satu topic seolah-olah tidak pernah melihat Source Pack atau Idea Bundle.
 
 Panggil `authoring.validate_product_bundle` hanya setelah preflight lulus. Setelah revisi dari MCP atau admin, ulangi preflight dan anggap review serta bukti PDF lama stale sampai terbukti cocok dengan checksum baru.

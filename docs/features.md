@@ -576,6 +576,8 @@ Students read one meaningful section at a time with stable slug links, chapter s
 
 A section completes at 90 percent read depth or when the reader proceeds from its end. Chapter progress is the count of completed sections divided by all sections. Student payloads never expose Idea IDs or internal provenance.
 
+Published Article retrieval blocks may include interactive formative checks for learning only. Supported kinds are multiple choice, short answer, numeric answer, and conceptual explanation. Deterministic choice, exact-text, and numeric evaluators run without persistence; conceptual evaluation uses the existing mistake-feedback AI boundary with a typed author-owned rubric and fails closed to an ungradable result. `POST /api/materials/formative-check/evaluate` and `POST /api/materials/formative-check/reveal` resolve the exact published Article version, section, and block, then require authentication and course enrollment. Public Article serialization exposes only safe prompts and options before reveal. It never exposes answer keys, correctness flags, acceptable answers, numeric targets or tolerances, rubric criteria, misconception signals, grades, attempts, or mastery data. Legacy checks without `evaluation` remain readable and reveal-only.
+
 ## Money & Quota Rules
 
 - AI quota spent only on: tutoring, mistake feedback, content generation

@@ -649,10 +649,12 @@ export function productBundleV3Contract() {
         formativeCheckPayload: {
           targetBlockTypes: ["retrieval_prompt", "retrieval_close"],
           fields: {
-            checkKind: "multiple_choice, short_answer, or conceptual_explanation.",
+            checkKind: "multiple_choice, short_answer, numeric_answer, or conceptual_explanation. These are learning checks, not assessment products.",
             answer: "Canonical answer key.",
             explanation: "Self-study explanation or solution walkthrough.",
             options: "For multiple_choice, at least 2 options with id, text, and exactly 1 marked isCorrect.",
+            evaluation: "Optional typed evaluator: choice, text_exact, numeric, or ai_rubric. The mode must match checkKind; omitted evaluation keeps the check readable and reveal-only.",
+            feedbackPolicy: "Optional learner feedback policy with at most 3 progressive hints and an allowRetry boolean.",
           },
         },
       },
