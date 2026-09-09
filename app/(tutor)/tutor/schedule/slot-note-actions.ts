@@ -36,7 +36,19 @@ export async function addTutorSlotWithNotesAction(
     sessionDate: input.sessionDate,
   });
 
-  if (!result.success || !result.slotId || !notes) {
+  if (!result.success) {
+    if (result.reason === "WEEK_CLOSED") {
+      return {
+        ...result,
+        error: input.sessionDate
+          ? `Perubahan slot untuk pekan yang memuat ${input.sessionDate} sudah ditutup pada Jumat 18:00 WIB.`
+          : "Perubahan slot untuk pekan tersebut sudah ditutup pada Jumat 18:00 WIB.",
+      };
+    }
+    return result;
+  }
+
+  if (!result.slotId || !notes) {
     return result;
   }
 
