@@ -691,6 +691,22 @@ function historicalQuestionOptions(question: ReferenceQuestion) {
   }));
 }
 
+type HistoricalIdeaLinkComparable = {
+  ideaId: string;
+  weight: number;
+  role: string;
+};
+
+function normalizeHistoricalIdeaLinks(links: readonly HistoricalIdeaLinkComparable[]): HistoricalIdeaLinkComparable[] {
+  return links
+    .map((link) => ({ ideaId: link.ideaId, weight: link.weight, role: link.role }))
+    .sort((left, right) => (
+      left.ideaId.localeCompare(right.ideaId)
+      || left.role.localeCompare(right.role)
+      || left.weight - right.weight
+    ));
+}
+
 export function getHistoricalSolutionContent(
   source: Pick<HistoricalSourcePersistenceInput, "solutionMetadata">,
   question: Pick<ReferenceQuestion, "solutionProvenance" | "questionNumber" | "part">,
@@ -748,6 +764,12 @@ export async function createHistoricalQuestionBatch(input: HistoricalQuestionBat
     if (assessmentSource && (
       assessmentSource.sourceHash !== sourceHash
       || assessmentSource.title !== draft.source.title
+      || assessmentSource.category !== historicalCategory(draft.source.assessmentType)
+      || assessmentSource.assessmentType !== draft.source.assessmentType
+      || assessmentSource.year !== draft.source.year
+      || assessmentSource.institution !== draft.source.institution
+      || assessmentSource.academicYearLabel !== draft.source.academicYearLabel
+      || assessmentSource.term !== draft.source.term
       || assessmentSource.solutionDocumentId !== input.source.solutionDocumentId
     )) {
       fail("HISTORICAL_SOURCE_CONFLICT", "Source document yang sama sudah terdaftar dengan metadata atau checksum berbeda.");
@@ -832,6 +854,11 @@ export async function createHistoricalQuestionBatch(input: HistoricalQuestionBat
           correctIndices: aiQuestionBank.correctIndices,
           acceptableAnswers: aiQuestionBank.acceptableAnswers,
         }).from(aiQuestionBank).where(eq(aiQuestionBank.id, existing.id)).limit(1);
+        const existingIdeaLinks = await tx.select({
+          ideaId: soalIde.ideId,
+          weight: soalIde.weight,
+          role: soalIde.role,
+        }).from(soalIde).where(eq(soalIde.soalId, existing.id));
         const sameQuestion = existing.questionType === question.questionType
           && existing.prompt === question.prompt
           && JSON.stringify(existing.optionsSnapshot) === JSON.stringify(historicalQuestionOptions(question))
@@ -842,7 +869,8 @@ export async function createHistoricalQuestionBatch(input: HistoricalQuestionBat
           && existing.difficulty === question.difficulty
           && existing.cognitiveLevel === question.cognitiveLevel
           && JSON.stringify(existingProjection?.correctIndices ?? []) === JSON.stringify(question.correctIndices)
-          && JSON.stringify(existingProjection?.acceptableAnswers ?? []) === JSON.stringify(question.acceptableAnswers);
+          && JSON.stringify(existingProjection?.acceptableAnswers ?? []) === JSON.stringify(question.acceptableAnswers)
+          && JSON.stringify(normalizeHistoricalIdeaLinks(existingIdeaLinks)) === JSON.stringify(normalizeHistoricalIdeaLinks(question.ideaLinks));
         if (!sameQuestion) fail("HISTORICAL_QUESTION_CONFLICT", `Soal ${question.questionNumber} sudah ada dengan isi berbeda.`);
       }
       if (existing) {
