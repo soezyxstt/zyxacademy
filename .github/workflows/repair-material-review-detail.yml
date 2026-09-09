@@ -61,7 +61,7 @@ jobs:
           rm -f components/admin/admin-confirm-dialog.tsx
           git diff --check
 
-      - name: Commit repaired diff
+      - name: Commit repaired diff to PR branch
         shell: bash
         run: |
           set -euo pipefail
@@ -73,4 +73,4 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add components/admin/material-review-detail.tsx components/admin/admin-confirm-dialog.tsx
           git commit -m "fix: narrow draft formative review integration"
-          git push origin HEAD:staging
+          git push --force origin HEAD:agent/repair-material-review-detail
