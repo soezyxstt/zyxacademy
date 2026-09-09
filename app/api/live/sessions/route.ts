@@ -16,7 +16,7 @@ import { liveQuizSessions, mataKuliah, quizTemplates, aiQuestionBank } from "@/d
 import { auth } from "@/lib/auth";
 import { env } from "@/lib/env";
 import { headers } from "next/headers";
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, inArray, or } from "drizzle-orm";
 import { resolveTutorCourseAccess } from "@/lib/auth/tutor-access";
 import { resolveActorRoles, recordTutorMutationAuditSafe } from "@/lib/tutor/assessment-policy";
 
@@ -39,6 +39,17 @@ function makeHostToken(
 function generateCode(): string {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
   return Array.from({ length: 6 }, () => chars[Math.floor(Math.random() * chars.length)]).join("");
+}
+
+function publishedQuizQuestionCondition() {
+  return and(
+    eq(aiQuestionBank.reviewStatus, "published"),
+    or(
+      eq(aiQuestionBank.origin, "zyx_original"),
+      eq(aiQuestionBank.origin, "itb_example"),
+      eq(aiQuestionBank.quizEligible, true),
+    ),
+  );
 }
 
 const CreateSchema = z.object({
@@ -279,7 +290,7 @@ export async function POST(req: NextRequest) {
     prompt: string;
     options: string[];
     correctIndex: number;
-    origin: "zyx_original" | "itb_example";
+    origin: "zyx_original" | "historical_reference" | "itb_example";
     sourceEventName: string | null;
     sourceReferenceId: string | null;
   }> = [];
@@ -297,7 +308,12 @@ export async function POST(req: NextRequest) {
         sourceReferenceId: aiQuestionBank.sourceReferenceId,
       })
       .from(aiQuestionBank)
-      .where(inArray(aiQuestionBank.id, questionIds));
+      .where(
+        and(
+          inArray(aiQuestionBank.id, questionIds),
+          publishedQuizQuestionCondition(),
+        ),
+      );
 
     const rowMap = new Map(rows.map((r) => [r.id, r]));
     const missingIds = questionIds.filter((id) => !rowMap.has(id));
@@ -377,7 +393,10 @@ export async function POST(req: NextRequest) {
         prompt: r.prompt,
         options: opts,
         correctIndex: correct,
-        origin: (r.origin ?? "zyx_original") as "zyx_original" | "itb_example",
+        origin: (r.origin ?? "zyx_original") as
+          | "zyx_original"
+          | "historical_reference"
+          | "itb_example",
         sourceEventName: r.sourceEventName,
         sourceReferenceId: r.sourceReferenceId,
       };

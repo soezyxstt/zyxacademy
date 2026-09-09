@@ -1,4 +1,4 @@
-export const QUESTION_ORIGINS = ["zyx_original", "itb_example"] as const;
+export const QUESTION_ORIGINS = ["zyx_original", "historical_reference", "itb_example"] as const;
 
 export type QuestionOrigin = (typeof QUESTION_ORIGINS)[number];
 
@@ -23,7 +23,11 @@ function nonEmptyString(value: unknown): string | null {
 }
 
 export function normalizeQuestionProvenance(input: ProvenanceInput | null | undefined): QuestionProvenance {
-  const origin = input?.origin === "itb_example" ? "itb_example" : "zyx_original";
+  const origin = input?.origin === "itb_example"
+    ? "itb_example"
+    : input?.origin === "historical_reference"
+      ? "historical_reference"
+      : "zyx_original";
   if (origin === "zyx_original") {
     return { origin, sourceEventName: null, sourceReferenceId: null };
   }
@@ -37,8 +41,8 @@ export function normalizeQuestionProvenance(input: ProvenanceInput | null | unde
 
 export function assertCompleteQuestionProvenance(input: ProvenanceInput): QuestionProvenance {
   const provenance = normalizeQuestionProvenance(input);
-  if (provenance.origin === "itb_example" && (!provenance.sourceEventName || !provenance.sourceReferenceId)) {
-    throw new Error("QUESTION_ITB_PROVENANCE_INCOMPLETE");
+  if ((provenance.origin === "itb_example" || provenance.origin === "historical_reference") && (!provenance.sourceEventName || !provenance.sourceReferenceId)) {
+    throw new Error(provenance.origin === "itb_example" ? "QUESTION_ITB_PROVENANCE_INCOMPLETE" : "QUESTION_HISTORICAL_PROVENANCE_INCOMPLETE");
   }
   return provenance;
 }

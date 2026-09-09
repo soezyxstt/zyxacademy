@@ -2,7 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { and, asc, desc, eq, inArray, like, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { asalIde, artikel, artikelIde, diktatIde, diktatMateri, flashcard, flashcardIde, ide, mataKuliah, potonganSumber, relasiIde, reviewPedagogiBundle, setFlashcard, soal, soalIde, soalItbReferensi, sumberMateri } from "@/db/schema";
+import { asalIde, artikel, artikelIde, assessmentSources, bab, diktatIde, diktatMateri, flashcard, flashcardIde, ide, mataKuliah, pembahasanSoal, potonganSumber, relasiIde, reviewPedagogiBundle, setFlashcard, soal, soalIde, soalItbReferensi, sumberMateri } from "@/db/schema";
 import { serializeDeterministically, validateIdeaBundleZip, type ValidatedIdeaBundle } from "@/lib/bundle/idea-bundle-v2";
 import { previewIdeaBundle } from "@/lib/bundle/idea-preview";
 import { getIdeaBundleImport, listIdeaBundleImports, reviewIdeaBundle, stageIdeaBundle } from "@/lib/bundle/staging";
@@ -28,12 +28,13 @@ import {
   type DiagnosticIssue,
 } from "@/lib/materials/quality-policy";
 import { sha256Text } from "@/lib/bundle/validator";
-import { createCanonicalQuestionBatch, QuestionAuthoringError, updateCanonicalQuestion, validateCanonicalQuestionBatch } from "@/lib/question-authoring";
+import { createCanonicalQuestionBatch, createHistoricalQuestionBatch, QuestionAuthoringError, updateCanonicalQuestion, validateCanonicalQuestionBatch } from "@/lib/question-authoring";
 import { questionAuthoringQuestionSchema, questionIdeaLinkSchema } from "@/lib/question-authoring-contract";
 import { normalizeQuestionBankDraft, parseQuestionBankDraftJson, type NormalizedQuestionBankDraft } from "@/lib/authoring/question-bank-draft";
 import {
   computeIdeaFacets,
   filterIdeaRecords,
+  matchesIdeaFilters,
   normalizeIdeaDifficultyLevel,
   normalizeIdeaInstructionalRole,
   normalizeIdeaKnowledgeKind,
@@ -43,6 +44,11 @@ import {
   IDEA_KNOWLEDGE_KINDS,
 } from "@/lib/authoring/question-catalog";
 import { reviewQuestionBankDraft } from "@/lib/authoring/question-draft-review";
+import {
+  parseReferenceQuestionDraftJson,
+  validateReferenceQuestionDraft,
+  type ReferenceQuestionDraft,
+} from "@/lib/authoring/reference-question-draft";
 import {
   AUTHORING_MCP_MAX_BUNDLE_BYTES,
   AUTHORING_MCP_MAX_ORIGINAL_BYTES,
@@ -64,6 +70,8 @@ import {
 import { requireMcpScope, type McpPrincipal } from "@/lib/authoring/mcp-auth";
 import {
   listStoredSourceFiles,
+  listStoredReferenceFiles,
+  getStoredReferenceSourceFile,
   loadStoredOriginals,
   mergeSourceOriginals,
   readStoredSourceFile,
@@ -165,6 +173,50 @@ function chunkValues<T>(values: readonly T[], size = 200): T[][] {
     chunks.push(values.slice(index, index + size));
   }
   return chunks;
+}
+
+function runScope(run: ReturnType<typeof readMcpRunToken>) {
+  return run.chapterLabel ? { course: run.courseLabel, chapter: run.chapterLabel } : { course: run.courseLabel };
+}
+
+function requireReferenceWorkflow(runToken: string) {
+  const run = readMcpRunToken(runToken);
+  if (run.workflow !== "reference_question_ingest" || run.chapterId || run.chapterLabel || run.sourcePackId) {
+    throw new Error("AUTHORING_MCP_WORKFLOW_MISMATCH");
+  }
+  return run;
+}
+
+async function resolveReferenceCourse(run: ReturnType<typeof readMcpRunToken>) {
+  const [course] = await db
+    .select({ id: mataKuliah.id, legacyCourseId: mataKuliah.legacyCourseId })
+    .from(mataKuliah)
+    .where(and(eq(mataKuliah.id, run.courseId), eq(mataKuliah.status, "active")))
+    .limit(1);
+  if (!course || !course.legacyCourseId) throw new Error("AUTHORING_MCP_COURSE_NOT_FOUND");
+  return course;
+}
+
+async function resolveReferenceDraftContext(run: ReturnType<typeof readMcpRunToken>, draft: ReferenceQuestionDraft) {
+  const course = await resolveReferenceCourse(run);
+  const source = await getStoredReferenceSourceFile(draft.source.sourceFileKey);
+  if (source.row.courseId !== course.legacyCourseId || source.row.type !== "soal") throw new Error("AUTHORING_MCP_SOURCE_FILE_NOT_IN_SCOPE");
+  if (source.metadata.title !== draft.source.title) throw new Error("HISTORICAL_SOURCE_TITLE_MISMATCH");
+  let solution: Awaited<ReturnType<typeof getStoredReferenceSourceFile>> | null = null;
+  if (draft.source.solutionFileKey) {
+    solution = await getStoredReferenceSourceFile(draft.source.solutionFileKey);
+    if (solution.row.courseId !== course.legacyCourseId || solution.row.type !== "pembahasan_soal") throw new Error("AUTHORING_MCP_SOURCE_FILE_NOT_IN_SCOPE");
+  }
+  const ideaIds = [...new Set(draft.questions.flatMap((question) => question.ideaLinks.map((link) => link.ideaId)))];
+  const ideas = ideaIds.length > 0
+    ? await db.select({ id: ide.id, courseId: ide.mataKuliahId, chapterId: ide.babId, status: ide.status }).from(ide).where(inArray(ide.id, ideaIds))
+    : [];
+  return {
+    course,
+    source,
+    solution,
+    ideas: new Map(ideas.map((idea) => [idea.id, idea])),
+  };
 }
 
 function ideaStageItems(bundle: ValidatedIdeaBundle) {
@@ -963,6 +1015,28 @@ function registerWorkflowTools(server: McpServer, principal: McpPrincipal): void
     };
   }));
 
+  (server as any).registerTool("source.list_reference_files", {
+    title: "List historical reference files",
+    description: "Mengembalikan file soal dan pembahasan tersimpan untuk seluruh mata kuliah pada run historical reference.",
+    inputSchema: {
+      runToken: z.string().min(1),
+      categories: z.array(z.enum(["soal", "pembahasan_soal"])).max(2).optional(),
+      cursor: z.string().min(1).optional(),
+      limit: z.number().int().min(1).max(100).default(50),
+    },
+    annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
+  }, async ({ runToken, categories, cursor, limit }: any) => safeTool(async () => {
+    requireMcpScope(principal, "authoring:read");
+    const run = requireReferenceWorkflow(runToken);
+    const course = await resolveReferenceCourse(run);
+    if (!course.legacyCourseId) throw new Error("AUTHORING_MCP_LEGACY_COURSE_MAPPING_MISSING");
+    return {
+      ok: true,
+      scope: runScope(run),
+      ...(await listStoredReferenceFiles({ courseId: course.id, legacyCourseId: course.legacyCourseId, categories, cursor, limit })),
+    };
+  }));
+
   (server as any).registerTool("source.read_file", {
     title: "Read stored PDF",
     description: "Membaca PDF tersimpan sebagai teks dan gambar halaman. Gunakan mode blob hanya sebagai fallback eksplisit setelah pembacaan halaman gagal atau timeout.",
@@ -1194,17 +1268,18 @@ function registerWorkflowTools(server: McpServer, principal: McpPrincipal): void
 
   (server as any).registerTool("workflow.start", {
     title: "Start authoring workflow",
-    description: "Mengunci mata kuliah, bab, dan workflow authoring. Source Pack wajib untuk idea_product dan opsional untuk quiz_bank.",
+    description: "Mengunci scope dan workflow authoring. Historical reference berjalan pada scope course tanpa bab dan tanpa Source Pack.",
     inputSchema: {
       workflow: authoringWorkflowSchema,
       sourcePackToken: z.string().min(1).optional(),
       sourcePackId: z.string().min(1).optional(),
       courseKey: z.string().min(1),
-      chapterKey: z.string().min(1),
+      chapterKey: z.string().min(1).optional(),
     },
     annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
   }, async ({ workflow, sourcePackToken, sourcePackId, courseKey, chapterKey }: any) => safeTool(async () => {
     requireMcpScope(principal, "authoring:read");
+    if (workflow === "reference_question_ingest" && (chapterKey || sourcePackToken || sourcePackId)) throw new Error("WORKFLOW_SCOPE_INVALID");
     let resolvedToken = sourcePackToken;
     if (!resolvedToken && sourcePackId) {
       const stored = await getSourcePackImport(sourcePackId);
@@ -1515,7 +1590,7 @@ function registerValidationTools(server: McpServer, principal: McpPrincipal): vo
       .from(ide)
       .where(eq(ide.id, ideaId))
       .limit(1);
-    if (!idea || idea.courseId !== run.courseId || idea.chapterId !== run.chapterId || idea.status !== "published") {
+    if (!idea || idea.courseId !== run.courseId || idea.status !== "published" || (run.workflow !== "reference_question_ingest" && idea.chapterId !== run.chapterId)) {
       throw new Error("AUTHORING_MCP_IDEA_NOT_IN_SCOPE");
     }
     const outgoingRows = await db
@@ -1545,7 +1620,7 @@ function registerValidationTools(server: McpServer, principal: McpPrincipal): vo
       .groupBy(asalIde.provenanceRole);
     return {
       ok: true,
-      scope: { course: run.courseLabel, chapter: run.chapterLabel },
+      scope: runScope(run),
       idea: {
         id: idea.id,
         code: idea.code,
@@ -1594,6 +1669,265 @@ function registerValidationTools(server: McpServer, principal: McpPrincipal): vo
     const parsed = parseQuestionBankDraftJson(draftJson);
     if (!parsed.success) return { ok: false, valid: false, staged: false, issues: parsed.issues, next: "agent_revision" };
     return stageQuestionBankDraft(principal, runToken, normalizeQuestionBankDraft(parsed.data));
+  }));
+}
+
+function historicalSourceAttribution(row: {
+  title?: string | null;
+  sourceTitle?: string | null;
+  institution: string | null;
+  assessmentType: string | null;
+  year: number | null;
+  academicYearLabel: string | null;
+  term: string | null;
+  sourceQuestionNumber: string | null;
+  sourceQuestionPart: string | null;
+  sourcePage: number | null;
+}) {
+  return {
+    title: row.title ?? row.sourceTitle ?? null,
+    institution: row.institution,
+    assessmentType: row.assessmentType,
+    year: row.year,
+    academicYearLabel: row.academicYearLabel,
+    term: row.term,
+    questionNumber: row.sourceQuestionNumber,
+    part: row.sourceQuestionPart,
+    page: row.sourcePage,
+  };
+}
+
+function referenceDraftSourceInput(
+  resolved: Awaited<ReturnType<typeof resolveReferenceDraftContext>>,
+  draft: ReferenceQuestionDraft,
+) {
+  return {
+    sourceDocumentId: resolved.source.row.id,
+    solutionDocumentId: resolved.solution?.row.id ?? null,
+    sourceFileKey: draft.source.sourceFileKey,
+    solutionFileKey: draft.source.solutionFileKey,
+    sourceMetadata: resolved.source.metadata,
+    solutionMetadata: resolved.solution?.metadata ?? null,
+  };
+}
+
+function registerReferenceQuestionTools(server: McpServer, principal: McpPrincipal): void {
+  (server as any).registerTool("assessment.validate_reference_draft", {
+    title: "Validate historical reference draft",
+    description: "Memeriksa draft soal historis, fidelity source, provenance jawaban, Idea links, dan eligibility quiz.",
+    inputSchema: {
+      runToken: z.string().min(1),
+      draftJson: z.string().min(1).max(8 * 1024 * 1024),
+    },
+    annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
+  }, async ({ runToken, draftJson }: any) => safeTool(async () => {
+    requireMcpScope(principal, "authoring:read");
+    const run = requireReferenceWorkflow(runToken);
+    const parsed = parseReferenceQuestionDraftJson(draftJson);
+    if (!parsed.success) return { ok: false, valid: false, issues: parsed.issues, next: "agent_revision" };
+    const resolved = await resolveReferenceDraftContext(run, parsed.data);
+    const validation = validateReferenceQuestionDraft(parsed.data, {
+      courseId: run.courseId,
+      source: resolved.source.metadata,
+      solution: resolved.solution?.metadata ?? null,
+      ideas: resolved.ideas,
+    });
+    return {
+      ok: validation.valid,
+      valid: validation.valid,
+      issues: validation.issues,
+      stats: { questionCount: validation.questionCount, eligibleCount: validation.eligibleCount },
+      next: validation.valid ? "assessment.submit_reference_draft" : "agent_revision",
+    };
+  }));
+
+  (server as any).registerTool("assessment.submit_reference_draft", {
+    title: "Submit historical reference draft",
+    description: "Menyimpan soal historis sebagai canonical draft dan projection kompatibilitas untuk review admin. Tool ini tidak mempublikasikan soal.",
+    inputSchema: {
+      runToken: z.string().min(1),
+      draftJson: z.string().min(1).max(8 * 1024 * 1024),
+    },
+    annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
+  }, async ({ runToken, draftJson }: any) => safeTool(async () => {
+    requireMcpScope(principal, "authoring:stage");
+    const run = requireReferenceWorkflow(runToken);
+    const parsed = parseReferenceQuestionDraftJson(draftJson);
+    if (!parsed.success) return { ok: false, valid: false, staged: false, issues: parsed.issues, next: "agent_revision" };
+    const resolved = await resolveReferenceDraftContext(run, parsed.data);
+    const validation = validateReferenceQuestionDraft(parsed.data, {
+      courseId: run.courseId,
+      source: resolved.source.metadata,
+      solution: resolved.solution?.metadata ?? null,
+      ideas: resolved.ideas,
+    });
+    if (!validation.valid) return { ok: false, valid: false, staged: false, issues: validation.issues, next: "agent_revision" };
+    const results = await createHistoricalQuestionBatch({
+      courseId: run.courseId,
+      creatorId: principal.actorId,
+      draft: parsed.data,
+      source: referenceDraftSourceInput(resolved, parsed.data),
+    });
+    return {
+      ok: true,
+      valid: true,
+      staged: true,
+      status: "generated",
+      questionCount: results.length,
+      questions: results.map((result, index) => ({ localId: parsed.data.questions[index]?.localId, version: result.version, status: "generated", unchanged: result.unchanged })),
+      next: "admin_review",
+    };
+  }));
+
+  (server as any).registerTool("assessment.list_reference_questions", {
+    title: "List historical reference questions",
+    description: "Mencari soal historical_reference lintas bab dalam course run dengan filter provenance, attribution, dan quiz eligibility.",
+    inputSchema: {
+      runToken: z.string().min(1),
+      query: z.string().trim().max(200).optional(),
+      ideaId: z.string().trim().min(1).optional(),
+      chapterKey: z.string().trim().min(1).optional(),
+      assessmentType: z.enum(["uts", "uas", "quiz", "tutorial", "homework", "exercise", "other"]).optional(),
+      year: z.number().int().min(1900).max(2100).optional(),
+      institution: z.string().trim().min(1).optional(),
+      difficulty: z.enum(["easy", "medium", "hard"]).optional(),
+      cognitiveLevel: z.enum(["remember", "understand", "apply", "analyze", "evaluate", "create"]).optional(),
+      questionType: z.enum(["multiple_choice", "multiple_choices", "short_answer", "essay"]).optional(),
+      quizEligible: z.boolean().optional(),
+      status: z.enum(["draft", "in_review", "published", "retired"]).optional(),
+      limit: z.number().int().min(1).max(200).default(100),
+      offset: z.number().int().min(0).default(0),
+    },
+    annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
+  }, async (input: any) => safeTool(async () => {
+    requireMcpScope(principal, "authoring:read");
+    const run = readMcpRunToken(input.runToken);
+    const conditions = [eq(soal.mataKuliahId, run.courseId), eq(soal.origin, "historical_reference" as const)];
+    if (input.difficulty) conditions.push(eq(soal.difficulty, input.difficulty));
+    if (input.cognitiveLevel) conditions.push(eq(soal.cognitiveLevel, input.cognitiveLevel));
+    if (input.questionType) conditions.push(eq(soal.questionType, input.questionType));
+    if (input.quizEligible !== undefined) conditions.push(eq(soal.quizEligible, input.quizEligible));
+    if (input.status) conditions.push(eq(soal.status, input.status));
+    const rows = await db.select({
+      id: soal.id,
+      prompt: soal.prompt,
+      questionType: soal.questionType,
+      difficulty: soal.difficulty,
+      cognitiveLevel: soal.cognitiveLevel,
+      origin: soal.origin,
+      status: soal.status,
+      quizEligible: soal.quizEligible,
+      sourceQuestionNumber: soal.sourceQuestionNumber,
+      sourceQuestionPart: soal.sourceQuestionPart,
+      sourcePage: soal.sourcePage,
+      answerProvenance: soal.answerProvenance,
+      solutionProvenance: soal.solutionProvenance,
+      sourceId: assessmentSources.id,
+      sourceTitle: assessmentSources.title,
+      institution: assessmentSources.institution,
+      assessmentType: assessmentSources.assessmentType,
+      year: assessmentSources.year,
+      academicYearLabel: assessmentSources.academicYearLabel,
+      term: assessmentSources.term,
+    }).from(soal).innerJoin(assessmentSources, eq(assessmentSources.id, soal.assessmentSourceId)).where(and(...conditions)).orderBy(asc(soal.id));
+    let filtered = input.query ? rows.filter((row) => row.prompt.toLowerCase().includes(input.query.toLowerCase())) : rows;
+    if (input.assessmentType) filtered = filtered.filter((row) => row.assessmentType === input.assessmentType);
+    if (input.year !== undefined) filtered = filtered.filter((row) => row.year === input.year);
+    if (input.institution) filtered = filtered.filter((row) => row.institution?.toLowerCase().includes(input.institution.toLowerCase()));
+    const ids = filtered.map((row) => row.id);
+    if (input.ideaId && ids.length > 0) {
+      const linked = await db.select({ questionId: soalIde.soalId }).from(soalIde).where(and(eq(soalIde.ideId, input.ideaId), inArray(soalIde.soalId, ids)));
+      const linkedIds = new Set(linked.map((row) => row.questionId));
+      filtered = filtered.filter((row) => linkedIds.has(row.id));
+    }
+    if (input.chapterKey && filtered.length > 0) {
+      const linkedIdeas = await db.select({ questionId: soalIde.soalId, chapterId: ide.babId, chapterCode: bab.code }).from(soalIde).innerJoin(ide, eq(ide.id, soalIde.ideId)).leftJoin(bab, eq(bab.id, ide.babId)).where(inArray(soalIde.soalId, filtered.map((row) => row.id)));
+      const chapterIds = new Set(linkedIdeas.filter((row) => row.chapterId === input.chapterKey || row.chapterCode === input.chapterKey).map((row) => row.questionId));
+      filtered = filtered.filter((row) => chapterIds.has(row.id));
+    }
+    const total = filtered.length;
+    const page = filtered.slice(input.offset, input.offset + input.limit);
+    return {
+      ok: true,
+      scope: runScope(run),
+      totalQuestionCount: total,
+      questionCount: page.length,
+      questions: page.map((row) => ({
+        id: row.id,
+        prompt: row.prompt.length > 240 ? `${row.prompt.slice(0, 240)}...` : row.prompt,
+        questionType: row.questionType,
+        difficulty: row.difficulty,
+        cognitiveLevel: row.cognitiveLevel,
+        origin: row.origin,
+        status: row.status,
+        quizEligible: row.quizEligible,
+        answerProvenance: row.answerProvenance,
+        solutionProvenance: row.solutionProvenance,
+        source: historicalSourceAttribution(row),
+        attribution: historicalSourceAttribution(row),
+      })),
+      paging: { limit: input.limit, offset: input.offset, nextOffset: input.offset + input.limit < total ? input.offset + input.limit : null },
+    };
+  }));
+
+  (server as any).registerTool("assessment.get_reference_question", {
+    title: "Get historical reference question",
+    description: "Mengembalikan soal historis beserta attribution, provenance, pembahasan, dan Idea links.",
+    inputSchema: { runToken: z.string().min(1), questionId: z.string().trim().min(1) },
+    annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
+  }, async ({ runToken, questionId }: any) => safeTool(async () => {
+    requireMcpScope(principal, "authoring:read");
+    const run = readMcpRunToken(runToken);
+    const [question] = await db.select({
+      id: soal.id,
+      courseId: soal.mataKuliahId,
+      questionType: soal.questionType,
+      prompt: soal.prompt,
+      optionsSnapshot: soal.optionsSnapshot,
+      difficulty: soal.difficulty,
+      cognitiveLevel: soal.cognitiveLevel,
+      origin: soal.origin,
+      version: soal.version,
+      status: soal.status,
+      quizEligible: soal.quizEligible,
+      sourceQuestionNumber: soal.sourceQuestionNumber,
+      sourceQuestionPart: soal.sourceQuestionPart,
+      sourcePage: soal.sourcePage,
+      answerProvenance: soal.answerProvenance,
+      solutionProvenance: soal.solutionProvenance,
+      sourceTitle: assessmentSources.title,
+      institution: assessmentSources.institution,
+      assessmentType: assessmentSources.assessmentType,
+      year: assessmentSources.year,
+      academicYearLabel: assessmentSources.academicYearLabel,
+      term: assessmentSources.term,
+    }).from(soal).innerJoin(assessmentSources, eq(assessmentSources.id, soal.assessmentSourceId)).where(and(eq(soal.id, questionId), eq(soal.mataKuliahId, run.courseId))).limit(1);
+    if (!question) throw new Error("AUTHORING_MCP_QUESTION_NOT_IN_SCOPE");
+    if (question.origin !== "historical_reference") throw new Error("QUESTION_NOT_HISTORICAL_REFERENCE");
+    const links = await db.select({ ideId: soalIde.ideId, code: ide.code, weight: soalIde.weight, role: soalIde.role }).from(soalIde).innerJoin(ide, eq(ide.id, soalIde.ideId)).where(eq(soalIde.soalId, questionId));
+    const [solution] = await db.select({ content: pembahasanSoal.content, status: pembahasanSoal.status, version: pembahasanSoal.version }).from(pembahasanSoal).where(eq(pembahasanSoal.soalId, questionId)).orderBy(desc(pembahasanSoal.version)).limit(1);
+    return {
+      ok: true,
+      scope: runScope(run),
+      question: {
+        id: question.id,
+        questionType: question.questionType,
+        prompt: question.prompt,
+        optionsSnapshot: question.optionsSnapshot,
+        difficulty: question.difficulty,
+        cognitiveLevel: question.cognitiveLevel,
+        origin: question.origin,
+        version: question.version,
+        status: question.status,
+        quizEligible: question.quizEligible,
+        answerProvenance: question.answerProvenance,
+        solutionProvenance: question.solutionProvenance,
+        source: historicalSourceAttribution(question),
+        attribution: historicalSourceAttribution(question),
+        solution: solution ?? null,
+      },
+      ideaLinks: links,
+    };
   }));
 }
 
@@ -1805,8 +2139,9 @@ function registerLifecycleTools(server: McpServer, principal: McpPrincipal): voi
       .from(soal)
       .where(eq(soal.id, questionId))
       .limit(1);
-    if (!existing || existing.courseId !== run.courseId || existing.chapterId !== run.chapterId) throw new Error("AUTHORING_MCP_QUESTION_NOT_IN_SCOPE");
-    if (existing.origin === "itb_example") throw new Error("QUESTION_AUTHORING_ITB_IMMUTABLE");
+    if (!existing || existing.courseId !== run.courseId) throw new Error("AUTHORING_MCP_QUESTION_NOT_IN_SCOPE");
+    if (existing.origin !== "zyx_original") throw new Error("HISTORICAL_QUESTION_IMMUTABLE");
+    if (existing.chapterId !== run.chapterId) throw new Error("AUTHORING_MCP_QUESTION_NOT_IN_SCOPE");
     if (existing.status === "published" || existing.status === "retired") throw new Error("AUTHORING_MCP_QUESTION_EDIT_DRAFT_REQUIRED");
     const result = await updateCanonicalQuestion({
       ...question,
@@ -1820,6 +2155,65 @@ function registerLifecycleTools(server: McpServer, principal: McpPrincipal): voi
 }
 
 function registerKnowledgeTools(server: McpServer, principal: McpPrincipal): void {
+  (server as any).registerTool("knowledge.search_course_ideas", {
+    title: "Search course Ideas",
+    description: "Mencari Idea published lintas bab dalam course historical reference tanpa membuka ID internal.",
+    inputSchema: {
+      runToken: z.string().min(1),
+      query: z.string().trim().min(1).max(200),
+      chapterKey: z.string().trim().min(1).optional(),
+      knowledgeKinds: z.array(z.enum(IDEA_KNOWLEDGE_KINDS)).max(IDEA_KNOWLEDGE_KINDS.length).optional(),
+      instructionalRoles: z.array(z.enum(IDEA_INSTRUCTIONAL_ROLES)).max(IDEA_INSTRUCTIONAL_ROLES.length).optional(),
+      difficultyLevels: z.array(z.enum(IDEA_DIFFICULTY_LEVELS)).max(IDEA_DIFFICULTY_LEVELS.length).optional(),
+      limit: z.number().int().min(1).max(25).default(10),
+      offset: z.number().int().min(0).default(0),
+    },
+    annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
+  }, async ({ runToken, query, chapterKey, knowledgeKinds, instructionalRoles, difficultyLevels, limit, offset }: any) => safeTool(async () => {
+    requireMcpScope(principal, "authoring:read");
+    const run = requireReferenceWorkflow(runToken);
+    const rows = await db.select({
+      id: ide.id,
+      code: ide.code,
+      statement: ide.canonicalStatement,
+      explanation: ide.conciseExplanation,
+      latex: ide.latex,
+      knowledgeKind: ide.knowledgeKind,
+      instructionalRole: ide.instructionalRole,
+      difficultyMetadata: ide.difficultyMetadata,
+      version: ide.version,
+      semanticHash: ide.semanticHash,
+      chapterId: ide.babId,
+      chapterCode: bab.code,
+      chapterLabel: bab.title,
+    }).from(ide).leftJoin(bab, eq(bab.id, ide.babId)).where(and(eq(ide.mataKuliahId, run.courseId), eq(ide.status, "published"))).orderBy(ide.code);
+    const records = rows.map((row) => ({
+      id: row.id,
+      code: row.code,
+      statement: row.statement,
+      explanation: row.explanation,
+      latex: row.latex,
+      knowledgeKind: normalizeIdeaKnowledgeKind(row.knowledgeKind),
+      instructionalRole: normalizeIdeaInstructionalRole(row.instructionalRole),
+      difficultyLevel: normalizeIdeaDifficultyLevel((row.difficultyMetadata as Record<string, unknown> | null)?.level),
+      version: row.version,
+      semanticHash: row.semanticHash,
+      chapter: { key: row.chapterCode ?? row.chapterId ?? "unassigned", label: row.chapterLabel ?? "Tanpa bab" },
+    }));
+    const filtered = records
+      .filter((record) => matchesIdeaFilters(record, { query, knowledgeKinds, instructionalRoles, difficultyLevels }))
+      .filter((record) => !chapterKey || record.chapter.key === chapterKey);
+    const page = filtered.slice(offset, offset + limit);
+    return {
+      ok: true,
+      scope: runScope(run),
+      totalIdeaCount: filtered.length,
+      ideaCount: page.length,
+      ideas: page.map((record) => ({ ideaId: record.id, code: record.code, statement: record.statement, explanation: record.explanation, latex: record.latex, knowledgeKind: record.knowledgeKind, instructionalRole: record.instructionalRole, difficultyLevel: record.difficultyLevel, version: record.version, semanticHash: record.semanticHash, chapter: record.chapter })),
+      paging: { limit, offset, nextOffset: offset + limit < filtered.length ? offset + limit : null },
+    };
+  }));
+
   (server as any).registerTool("knowledge.search_ideas", {
     title: "Search published Ideas",
     description: "Mencari dan memfilter Idea published pada mata kuliah dan bab yang dikunci. Tersedia untuk semua workflow.",
@@ -1913,7 +2307,7 @@ function registerKnowledgeTools(server: McpServer, principal: McpPrincipal): voi
       .from(ide)
       .where(eq(ide.id, ideaId))
       .limit(1);
-    if (!idea || idea.courseId !== run.courseId || idea.chapterId !== run.chapterId || idea.status !== "published") {
+    if (!idea || idea.courseId !== run.courseId || idea.status !== "published" || (run.workflow !== "reference_question_ingest" && idea.chapterId !== run.chapterId)) {
       throw new Error("AUTHORING_MCP_IDEA_NOT_IN_SCOPE");
     }
     const outgoingRows = await db
@@ -1943,7 +2337,7 @@ function registerKnowledgeTools(server: McpServer, principal: McpPrincipal): voi
       .groupBy(asalIde.provenanceRole);
     return {
       ok: true,
-      scope: { course: run.courseLabel, chapter: run.chapterLabel },
+      scope: runScope(run),
       idea: {
         id: idea.id,
         code: idea.code,
@@ -2289,7 +2683,7 @@ function registerAssessmentAnalysisTools(server: McpServer, principal: McpPrinci
       difficulty: z.enum(["easy", "medium", "hard"]).optional(),
       cognitiveLevel: z.enum(["remember", "understand", "apply", "analyze", "evaluate", "create"]).optional(),
       questionType: z.enum(["multiple_choice", "multiple_choices", "short_answer", "essay"]).optional(),
-      origin: z.enum(["zyx_original", "itb_example"]).optional(),
+      origin: z.enum(["zyx_original", "historical_reference", "itb_example"]).optional(),
       status: z.enum(["draft", "in_review", "published", "retired"]).optional(),
       limit: z.number().int().min(1).max(200).default(100),
       offset: z.number().int().min(0).default(0),
@@ -2298,7 +2692,9 @@ function registerAssessmentAnalysisTools(server: McpServer, principal: McpPrinci
   }, async ({ runToken, query, difficulty, cognitiveLevel, questionType, origin, status, limit, offset }: any) => safeTool(async () => {
     requireMcpScope(principal, "authoring:read");
     const run = readMcpRunToken(runToken);
-    const conditions = [eq(soal.mataKuliahId, run.courseId), eq(soal.babId, run.chapterId)];
+    const conditions = [eq(soal.mataKuliahId, run.courseId)];
+    if (run.chapterId) conditions.push(eq(soal.babId, run.chapterId));
+    else conditions.push(eq(soal.origin, "historical_reference"));
     if (difficulty) conditions.push(eq(soal.difficulty, difficulty));
     if (cognitiveLevel) conditions.push(eq(soal.cognitiveLevel, cognitiveLevel));
     if (questionType) conditions.push(eq(soal.questionType, questionType));
@@ -2314,7 +2710,7 @@ function registerAssessmentAnalysisTools(server: McpServer, principal: McpPrinci
     const page = filtered.slice(offset, offset + limit);
     return {
       ok: true,
-      scope: { course: run.courseLabel, chapter: run.chapterLabel },
+      scope: runScope(run),
       totalQuestionCount: total,
       questionCount: page.length,
       questions: page.map((row) => ({ id: row.id, questionType: row.questionType, prompt: row.prompt.length > 200 ? row.prompt.slice(0, 200) + "..." : row.prompt, difficulty: row.difficulty, cognitiveLevel: row.cognitiveLevel, reasoningPattern: row.reasoningPattern, origin: row.origin, version: row.version, status: row.status })),
@@ -2333,12 +2729,15 @@ function registerAssessmentAnalysisTools(server: McpServer, principal: McpPrinci
   }, async ({ runToken, questionId }: any) => safeTool(async () => {
     requireMcpScope(principal, "authoring:read");
     const run = readMcpRunToken(runToken);
-    const [question] = await db.select().from(soal).where(and(eq(soal.id, questionId), eq(soal.mataKuliahId, run.courseId), eq(soal.babId, run.chapterId))).limit(1);
+    const questionConditions = [eq(soal.id, questionId), eq(soal.mataKuliahId, run.courseId)];
+    if (run.chapterId) questionConditions.push(eq(soal.babId, run.chapterId));
+    else questionConditions.push(eq(soal.origin, "historical_reference"));
+    const [question] = await db.select().from(soal).where(and(...questionConditions)).limit(1);
     if (!question) throw new Error("AUTHORING_MCP_QUESTION_NOT_IN_SCOPE");
     const links = await db.select({ ideId: soalIde.ideId, code: ide.code, weight: soalIde.weight, role: soalIde.role }).from(soalIde).innerJoin(ide, eq(ide.id, soalIde.ideId)).where(eq(soalIde.soalId, questionId));
     return {
       ok: true,
-      scope: { course: run.courseLabel, chapter: run.chapterLabel },
+      scope: runScope(run),
       question: {
         id: question.id, questionType: question.questionType, prompt: question.prompt,
         optionsSnapshot: question.optionsSnapshot, difficulty: question.difficulty,
@@ -2362,11 +2761,11 @@ function registerAssessmentAnalysisTools(server: McpServer, principal: McpPrinci
     const rows = await db
       .select({ id: soal.id, difficulty: soal.difficulty, cognitiveLevel: soal.cognitiveLevel, origin: soal.origin })
       .from(soal)
-      .where(and(eq(soal.mataKuliahId, run.courseId), eq(soal.babId, run.chapterId), eq(soal.status, "published")));
+      .where(and(eq(soal.mataKuliahId, run.courseId), ...(run.chapterId ? [eq(soal.babId, run.chapterId)] : [eq(soal.origin, "historical_reference")]), eq(soal.status, "published")));
 
     const difficultyDistribution = { easy: 0, medium: 0, hard: 0 };
     const cognitiveDistribution = { remember: 0, understand: 0, apply: 0, analyze: 0, evaluate: 0, create: 0 };
-    const originDistribution = { zyx_original: 0, itb_example: 0 };
+    const originDistribution = { zyx_original: 0, historical_reference: 0, itb_example: 0 };
     for (const row of rows) {
       if (row.difficulty in difficultyDistribution) difficultyDistribution[row.difficulty as keyof typeof difficultyDistribution]++;
       if (row.cognitiveLevel in cognitiveDistribution) cognitiveDistribution[row.cognitiveLevel as keyof typeof cognitiveDistribution]++;
@@ -2448,6 +2847,7 @@ export function createAuthoringMcpServer(principal: McpPrincipal): McpServer {
   const server = new McpServer({ name: "zyx-authoring", version: "1.0.0" }, { capabilities: { tools: {} } });
   registerWorkflowTools(server, principal);
   registerValidationTools(server, principal);
+  registerReferenceQuestionTools(server, principal);
   registerLifecycleTools(server, principal);
   registerKnowledgeTools(server, principal);
   registerAnalysisTools(server, principal);

@@ -98,6 +98,11 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
     (tag) => sql`exists (select 1 from json_each(${aiQuestionBank.tags}) where json_each.value = ${tag})`
   );
   const tagCondition = tags.length > 0 ? or(...tagConditions) : undefined;
+  const quizEligibilityCondition = or(
+    eq(aiQuestionBank.origin, "zyx_original"),
+    eq(aiQuestionBank.origin, "itb_example"),
+    eq(aiQuestionBank.quizEligible, true),
+  );
 
   const [questionsCountRow] = await db
     .select({ count: sql<number>`count(*)` })
@@ -106,6 +111,7 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
       and(
         eq(aiQuestionBank.courseId, template.courseId),
         eq(aiQuestionBank.reviewStatus, 'published'),
+        quizEligibilityCondition,
         tagCondition
       )
     );
@@ -297,7 +303,7 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
         question_type?: string;
         options: string[];
         correct_indices: number[];
-        origin?: "zyx_original" | "itb_example";
+        origin?: "zyx_original" | "historical_reference" | "itb_example";
         sourceEventName?: string | null;
         sourceReferenceId?: string | null;
       }>).map((q, idx) => ({
@@ -351,7 +357,7 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
       correct_indices: number[];
       explanation: string;
       difficulty: string;
-      origin?: "zyx_original" | "itb_example";
+      origin?: "zyx_original" | "historical_reference" | "itb_example";
       sourceEventName?: string | null;
       sourceReferenceId?: string | null;
     }>) ?? [];
@@ -364,7 +370,7 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
       correct_indices: number[];
       explanation: string;
       difficulty: string;
-      origin?: "zyx_original" | "itb_example";
+      origin?: "zyx_original" | "historical_reference" | "itb_example";
       sourceEventName?: string | null;
       sourceReferenceId?: string | null;
     }> = [];
@@ -382,6 +388,7 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
           and(
             eq(aiQuestionBank.courseId, template.courseId),
             eq(aiQuestionBank.reviewStatus, 'published'),
+            quizEligibilityCondition,
             inArray(aiQuestionBank.id, fixedQuestionIds)
           )
         );
@@ -397,6 +404,7 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
           and(
             eq(aiQuestionBank.courseId, template.courseId),
             eq(aiQuestionBank.reviewStatus, 'published'),
+            quizEligibilityCondition,
             tagCondition
           )
         ).orderBy(desc(aiQuestionBank.createdAt));

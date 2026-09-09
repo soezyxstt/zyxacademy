@@ -69,18 +69,20 @@ function multipleChoice(id: string, overrides: Record<string, unknown> = {}) {
 }
 
 describe("provider-neutral authoring MCP workflow registry", () => {
-  it("exposes exactly the two supported workflow choices", () => {
+  it("exposes the supported workflow choices without a combined option", () => {
     const workflows = listAuthoringWorkflows();
-    expect(workflows.map((workflow) => workflow.key)).toEqual(["idea_product", "quiz_bank"]);
+    expect(workflows.map((workflow) => workflow.key)).toEqual(["idea_product", "quiz_bank", "reference_question_ingest"]);
     expect(workflows.some((workflow) => workflow.key.includes("both"))).toBe(false);
-    expect(workflows).toHaveLength(2);
+    expect(workflows).toHaveLength(3);
   });
 
   it("keeps the Source Pack mandatory for idea_product and optional for quiz_bank", () => {
     const workflows = listAuthoringWorkflows();
     const ideaProduct = workflows.find((workflow) => workflow.key === "idea_product");
+    const historical = workflows.find((workflow) => workflow.key === "reference_question_ingest");
     const quizBank = workflows.find((workflow) => workflow.key === "quiz_bank");
     expect(ideaProduct?.sourcePackRequired).toBe(true);
+    expect(historical?.sourcePackRequired).toBe(false);
     expect(quizBank?.sourcePackRequired).toBe(false);
   });
 
@@ -230,6 +232,12 @@ describe("provider-neutral authoring MCP workflow registry", () => {
     expect(names).toContain("assessment.get_idea");
     expect(names).toContain("assessment.validate_quiz_draft");
     expect(names).toContain("assessment.submit_quiz_draft");
+    expect(names).toContain("assessment.validate_reference_draft");
+    expect(names).toContain("assessment.submit_reference_draft");
+    expect(names).toContain("assessment.list_reference_questions");
+    expect(names).toContain("assessment.get_reference_question");
+    expect(names).toContain("knowledge.search_course_ideas");
+    expect(names).toContain("source.list_reference_files");
     expect(names).toContain("authoring.list_imports");
     expect(names).toContain("authoring.get_import");
     expect(names).toContain("authoring.restage_idea_bundle");

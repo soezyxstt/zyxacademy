@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray } from "drizzle-orm";
+import { and, asc, eq, inArray, or } from "drizzle-orm";
 import { db } from "@/db";
 import {
   artikel,
@@ -160,7 +160,11 @@ async function readCourse(studentId: string, course: { id: string; canonicalId: 
     }).from(ide).where(and(eq(ide.mataKuliahId, course.canonicalId), eq(ide.status, "published"))).orderBy(asc(ide.code), asc(ide.id)),
     db.select({ id: artikel.id, slug: artikel.slug, title: artikel.title, version: artikel.version }).from(artikel).where(and(eq(artikel.mataKuliahId, course.canonicalId), eq(artikel.status, "published"))).orderBy(asc(artikel.slug)),
     db.select({ id: diktatMateri.id }).from(diktatMateri).where(and(eq(diktatMateri.mataKuliahId, course.canonicalId), eq(diktatMateri.status, "published"))),
-    db.select({ id: soal.id }).from(soal).where(and(eq(soal.mataKuliahId, course.canonicalId), eq(soal.status, "published"))),
+    db.select({ id: soal.id }).from(soal).where(and(
+      eq(soal.mataKuliahId, course.canonicalId),
+      eq(soal.status, "published"),
+      or(eq(soal.origin, "zyx_original"), eq(soal.origin, "itb_example"), eq(soal.quizEligible, true)),
+    )),
   ]);
 
   const ideas = await Promise.all(ideaRows.map(async (row) => ({

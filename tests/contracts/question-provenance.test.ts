@@ -27,6 +27,19 @@ describe("question provenance", () => {
     });
   });
 
+  test("requires attribution for historical references", () => {
+    expect(() => assertCompleteQuestionProvenance({ origin: "historical_reference" })).toThrow("QUESTION_HISTORICAL_PROVENANCE_INCOMPLETE");
+    expect(questionProvenanceSnapshot({
+      origin: "historical_reference",
+      sourceEventName: "Tutorial Matematika I · ITB · 2023 · Soal 4",
+      sourceReferenceId: "assessment-source-2023",
+    })).toEqual({
+      origin: "historical_reference",
+      sourceEventName: "Tutorial Matematika I · ITB · 2023 · Soal 4",
+      sourceReferenceId: "assessment-source-2023",
+    });
+  });
+
   test("accepts legacy snake-case snapshot fields", () => {
     expect(normalizeQuestionProvenance({
       origin: "itb_example",

@@ -252,6 +252,12 @@ async function setupTables() {
       origin TEXT NOT NULL DEFAULT 'zyx_original',
       source_event_name TEXT,
       source_reference_id TEXT,
+      assessment_source_id TEXT,
+      source_question_number TEXT,
+      source_question_part TEXT,
+      source_page INTEGER,
+      answer_provenance TEXT,
+      solution_provenance TEXT,
       knowledge_object_id TEXT,
       source_mtd_id TEXT,
       source_mtd_version INTEGER,
@@ -269,6 +275,7 @@ async function setupTables() {
       distractor_map TEXT DEFAULT '[]',
       explanation TEXT NOT NULL,
       review_status TEXT NOT NULL DEFAULT 'generated',
+      quiz_eligible INTEGER NOT NULL DEFAULT 0,
       quality_score REAL,
       use_count INTEGER NOT NULL DEFAULT 0,
       styled_after_assessment_object_id TEXT,
@@ -279,6 +286,20 @@ async function setupTables() {
       created_at INTEGER NOT NULL DEFAULT (unixepoch())
     );
   `);
+
+  await client.execute(
+    "ALTER TABLE ai_question_bank ADD COLUMN quiz_eligible INTEGER NOT NULL DEFAULT 0",
+  ).catch(() => {});
+  for (const columnDefinition of [
+    "assessment_source_id TEXT",
+    "source_question_number TEXT",
+    "source_question_part TEXT",
+    "source_page INTEGER",
+    "answer_provenance TEXT",
+    "solution_provenance TEXT",
+  ]) {
+    await client.execute(`ALTER TABLE ai_question_bank ADD COLUMN ${columnDefinition}`).catch(() => {});
+  }
 
   await client.execute(`
     CREATE TABLE IF NOT EXISTS blueprint_asesmen (

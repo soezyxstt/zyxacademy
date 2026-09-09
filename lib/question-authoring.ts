@@ -1,9 +1,10 @@
 import { createHash, randomUUID } from "node:crypto";
-import { eq, inArray, or } from "drizzle-orm";
+import { and, eq, inArray, isNull, or } from "drizzle-orm";
 import { db } from "@/db";
 import {
   aiQuestionBank,
   auditMutasi,
+  assessmentSources,
   bab,
   courses,
   ide,
@@ -13,6 +14,7 @@ import {
   pengguna,
   soal,
   soalIde,
+  questionReferenceLinks,
 } from "@/db/schema";
 import {
   canonicalQuestionStatus,
@@ -21,9 +23,12 @@ import {
   type QuestionAuthoringInput,
   type QuestionAuthoringQuestion,
   type QuestionIdeaLink,
+  type QuestionReferenceLink,
   type QuestionReviewStatus,
+  questionReferenceLinkSchema,
 } from "@/lib/question-authoring-contract";
 import { validateExtractedQuestion, type ExtractedQuestion } from "@/lib/question-markdown";
+import { referenceQuestionDraftSchema, type ReferenceQuestion, type ReferenceQuestionDraft, type ReferenceSourceMetadata, toQuestionIdeaLinks } from "@/lib/authoring/reference-question-draft";
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -58,6 +63,7 @@ export type PersistResult = {
 export type QuestionAuthoringBatchItem = {
   question: QuestionAuthoringQuestion;
   ideaLinks?: QuestionIdeaLink[];
+  referenceLinks?: QuestionReferenceLink[];
   questionId?: string;
 };
 
@@ -74,12 +80,17 @@ function fail(code: string, message: string): never {
   throw new QuestionAuthoringError(code, message);
 }
 
+export function isHistoricalReferenceLinkTarget(origin: string): origin is "historical_reference" {
+  return origin === "historical_reference";
+}
+
 function hashQuestion(input: {
   courseId: string;
   chapterId: string | null;
   ideaLinks: QuestionAuthoringInput["ideaLinks"];
   question: QuestionAuthoringQuestion;
   version: number;
+  referenceLinks?: QuestionReferenceLink[];
 }): string {
   return createHash("sha256")
     .update(deterministicQuestionSerialization(input), "utf8")
@@ -155,6 +166,50 @@ async function validateIdeaLinks(tx: Tx, context: AuthoringContext, ideaLinks: Q
   }
 }
 
+async function validateReferenceLinks(
+  tx: Tx,
+  context: AuthoringContext,
+  questionId: string | undefined,
+  referenceLinks: QuestionReferenceLink[],
+  ideaLinks: QuestionIdeaLink[],
+): Promise<void> {
+  if (referenceLinks.length === 0) return;
+  const referenceIds = referenceLinks.map((link) => link.referenceQuestionId);
+  if (new Set(referenceIds).size !== referenceIds.length) fail("QUESTION_REFERENCE_DUPLICATE", "Soal referensi yang sama tidak boleh diulang.");
+  if (questionId && referenceIds.includes(questionId)) fail("QUESTION_REFERENCE_SELF_LINK", "Soal tidak dapat mereferensikan dirinya sendiri.");
+  if (questionId) {
+    const [currentQuestion] = await tx
+      .select({ origin: soal.origin, courseId: soal.mataKuliahId })
+      .from(soal)
+      .where(eq(soal.id, questionId))
+      .limit(1);
+    if (currentQuestion && currentQuestion.origin !== "zyx_original") {
+      fail("QUESTION_REFERENCE_SOURCE_INVALID", "Question yang memiliki reference link harus merupakan soal Zyx original.");
+    }
+    if (currentQuestion && currentQuestion.courseId !== context.canonicalCourseId) {
+      fail("QUESTION_AUTHORING_COURSE_CHANGE_FORBIDDEN", "Soal tidak dapat dipindahkan ke mata kuliah lain saat diedit.");
+    }
+  }
+  const rows = await tx
+    .select({ id: soal.id, courseId: soal.mataKuliahId, origin: soal.origin, status: soal.status })
+    .from(soal)
+    .where(inArray(soal.id, referenceIds));
+  if (rows.length !== referenceIds.length) fail("QUESTION_REFERENCE_NOT_FOUND", "Salah satu soal referensi tidak ditemukan.");
+  for (const row of rows) {
+    if (row.courseId !== context.canonicalCourseId) fail("QUESTION_REFERENCE_COURSE_MISMATCH", "Soal referensi harus berasal dari mata kuliah yang sama.");
+    if (!isHistoricalReferenceLinkTarget(row.origin)) fail("QUESTION_REFERENCE_TARGET_INVALID", "Target reference link baru harus merupakan soal historical_reference.");
+    if (row.status === "retired") fail("QUESTION_REFERENCE_RETIRED", "Soal referensi yang sudah retired tidak dapat digunakan.");
+  }
+  const referencedIdeaRows = await tx
+    .select({ ideId: soalIde.ideId })
+    .from(soalIde)
+    .where(inArray(soalIde.soalId, referenceIds));
+  const currentIdeaIds = new Set(ideaLinks.map((link) => link.ideaId));
+  if (!referencedIdeaRows.some((row) => currentIdeaIds.has(row.ideId))) {
+    fail("QUESTION_REFERENCE_IDEA_OVERLAP_REQUIRED", "Soal Zyx yang memakai referensi harus memiliki minimal satu Idea yang sama dengan soal referensi.");
+  }
+}
+
 async function validateKnowledgeObject(tx: Tx, context: AuthoringContext, knowledgeObjectId: string | null | undefined): Promise<void> {
   if (knowledgeObjectId === undefined || knowledgeObjectId === null) return;
   const [knowledgeObject] = await tx
@@ -184,6 +239,7 @@ async function persistQuestion(
   context: AuthoringContext,
   question: QuestionAuthoringQuestion,
   ideaLinks: QuestionAuthoringInput["ideaLinks"],
+  referenceLinks: QuestionReferenceLink[],
   creatorId: string,
   reviewStatus: QuestionReviewStatus,
   questionId?: string,
@@ -203,7 +259,7 @@ async function persistQuestion(
     .from(soal)
     .where(eq(soal.id, canonicalId))
     .limit(1);
-  if (existingCanonical?.origin === "itb_example") fail("QUESTION_AUTHORING_ITB_IMMUTABLE", "Soal contoh ITB tidak dapat diedit dari authoring manual.");
+  if (existingCanonical && existingCanonical.origin !== "zyx_original") fail("HISTORICAL_QUESTION_IMMUTABLE", "Soal referensi historis tidak dapat diedit dari authoring manual.");
   if (existingCanonical && existingCanonical.courseId !== context.canonicalCourseId) fail("QUESTION_AUTHORING_COURSE_CHANGE_FORBIDDEN", "Soal tidak dapat dipindahkan ke mata kuliah lain saat diedit.");
 
   const [existingCompatibility] = await tx
@@ -218,7 +274,7 @@ async function persistQuestion(
     .from(aiQuestionBank)
     .where(eq(aiQuestionBank.id, canonicalId))
     .limit(1);
-  if (existingCompatibility?.origin === "itb_example") fail("QUESTION_AUTHORING_ITB_IMMUTABLE", "Soal contoh ITB tidak dapat diedit dari authoring manual.");
+  if (existingCompatibility && existingCompatibility.origin !== "zyx_original") fail("HISTORICAL_QUESTION_IMMUTABLE", "Soal referensi historis tidak dapat diedit dari authoring manual.");
   if (existingCompatibility && existingCompatibility.courseId !== context.legacyCourseId) fail("QUESTION_AUTHORING_COURSE_CHANGE_FORBIDDEN", "Soal tidak dapat dipindahkan ke course lain saat diedit.");
 
   const canonicalStatus = canonicalQuestionStatus(reviewStatus);
@@ -229,6 +285,7 @@ async function persistQuestion(
       ideaLinks,
       question,
       version: existingCanonical.version,
+      ...(referenceLinks.length > 0 ? { referenceLinks } : {}),
     });
     if (
       existingCanonical.generationHash === existingInputHash
@@ -259,6 +316,7 @@ async function persistQuestion(
     ideaLinks,
     question,
     version,
+    ...(referenceLinks.length > 0 ? { referenceLinks } : {}),
   });
   const now = new Date();
   const publishedAt = canonicalStatus === "published" ? now : null;
@@ -278,6 +336,7 @@ async function persistQuestion(
         reasoningPattern: question.reasoningPattern,
         version,
         status: canonicalStatus,
+        quizEligible: true,
         generationHash,
         curatorId: creatorId,
         publishedAt,
@@ -295,6 +354,7 @@ async function persistQuestion(
       origin: "zyx_original",
       sourceEventName: null,
       sourceReferenceId: null,
+      quizEligible: true,
       version,
       status: canonicalStatus,
       difficulty: question.difficulty,
@@ -330,6 +390,7 @@ async function persistQuestion(
     origin: "zyx_original" as const,
     sourceEventName: null,
     sourceReferenceId: null,
+    quizEligible: true,
     ...(question.knowledgeObjectId !== undefined ? { knowledgeObjectId: question.knowledgeObjectId } : {}),
     generationHash,
     status: canonicalStatus === "retired" ? "retired" : "active",
@@ -401,7 +462,7 @@ export async function createCanonicalQuestion(input: QuestionAuthoringInput, cre
     const context = await resolveContext(tx, parsed.courseId, parsed.chapterId);
     await validateIdeaLinks(tx, context, parsed.ideaLinks);
     await validateKnowledgeObject(tx, context, question.knowledgeObjectId);
-    return persistQuestionWithLinks(tx, context, question, parsed.ideaLinks, creatorId, parsed.reviewStatus);
+    return persistQuestionWithLinks(tx, context, question, parsed.ideaLinks, [], creatorId, parsed.reviewStatus);
   });
 }
 
@@ -409,7 +470,7 @@ type PreparedBatch = {
   courseId: string;
   chapterId: string | null;
   reviewStatus: QuestionReviewStatus;
-  items: Array<{ question: QuestionAuthoringQuestion; ideaLinks: QuestionIdeaLink[]; questionId?: string }>;
+  items: Array<{ question: QuestionAuthoringQuestion; ideaLinks: QuestionIdeaLink[]; referenceLinks: QuestionReferenceLink[]; questionId?: string }>;
 };
 
 async function prepareBatch(input: Omit<QuestionAuthoringBatchInput, "creatorId"> | QuestionAuthoringBatchInput): Promise<PreparedBatch> {
@@ -418,6 +479,7 @@ async function prepareBatch(input: Omit<QuestionAuthoringBatchInput, "creatorId"
   const items = await Promise.all(input.items.map(async (item, index) => ({
     question: await prepareQuestion(item.question, index + 1),
     ideaLinks: questionAuthoringInputSchema.shape.ideaLinks.parse(item.ideaLinks ?? []),
+    referenceLinks: item.referenceLinks ? item.referenceLinks.map((link) => questionReferenceLinkSchema.parse(link)) : [],
     ...(item.questionId ? { questionId: item.questionId.trim() } : {}),
   })));
   if (items.some((item) => item.questionId === "")) fail("QUESTION_AUTHORING_ID_INVALID", "ID soal tidak boleh kosong.");
@@ -431,6 +493,7 @@ async function validatePreparedBatch(tx: Tx, prepared: PreparedBatch): Promise<A
   for (const item of prepared.items) {
     await validateIdeaLinks(tx, context, item.ideaLinks);
     await validateKnowledgeObject(tx, context, item.question.knowledgeObjectId);
+    await validateReferenceLinks(tx, context, item.questionId, item.referenceLinks, item.ideaLinks);
   }
   return context;
 }
@@ -465,6 +528,7 @@ export async function createCanonicalQuestionBatch(input: QuestionAuthoringBatch
         context,
         item.question,
         item.ideaLinks,
+        item.referenceLinks,
         input.creatorId,
         prepared.reviewStatus,
         item.questionId,
@@ -480,14 +544,16 @@ async function persistQuestionWithLinks(
   context: AuthoringContext,
   question: QuestionAuthoringQuestion,
   ideaLinks: QuestionAuthoringInput["ideaLinks"],
+  referenceLinks: QuestionReferenceLink[],
   creatorId: string,
   reviewStatus: QuestionReviewStatus,
   questionId?: string,
   createOnly = false,
 ): Promise<PersistResult> {
-  const result = await persistQuestion(tx, context, question, ideaLinks, creatorId, reviewStatus, questionId, createOnly);
+  const result = await persistQuestion(tx, context, question, ideaLinks, referenceLinks, creatorId, reviewStatus, questionId, createOnly);
   if (result.unchanged) return result;
   await tx.delete(soalIde).where(eq(soalIde.soalId, result.id));
+  await tx.delete(questionReferenceLinks).where(eq(questionReferenceLinks.questionId, result.id));
   const now = new Date();
   for (const link of ideaLinks) {
     await tx.insert(soalIde).values({
@@ -495,6 +561,15 @@ async function persistQuestionWithLinks(
       soalId: result.id,
       ideId: link.ideaId,
       weight: link.weight,
+      role: link.role,
+      createdAt: now,
+    });
+  }
+  for (const link of referenceLinks) {
+    await tx.insert(questionReferenceLinks).values({
+      id: `question-reference-${result.id}-${link.referenceQuestionId}-${link.role}`,
+      questionId: result.id,
+      referenceQuestionId: link.referenceQuestionId,
       role: link.role,
       createdAt: now,
     });
@@ -510,6 +585,254 @@ export async function updateCanonicalQuestion(input: QuestionAuthoringInput, cre
     const context = await resolveContext(tx, parsed.courseId, parsed.chapterId);
     await validateIdeaLinks(tx, context, parsed.ideaLinks);
     await validateKnowledgeObject(tx, context, question.knowledgeObjectId);
-    return persistQuestionWithLinks(tx, context, question, parsed.ideaLinks, creatorId, parsed.reviewStatus, questionId);
+    return persistQuestionWithLinks(tx, context, question, parsed.ideaLinks, [], creatorId, parsed.reviewStatus, questionId);
+  });
+}
+
+export type HistoricalSourcePersistenceInput = {
+  sourceDocumentId: string;
+  solutionDocumentId: string | null;
+  sourceFileKey: string;
+  solutionFileKey: string | null;
+  sourceMetadata: ReferenceSourceMetadata;
+  solutionMetadata: ReferenceSourceMetadata | null;
+};
+
+export type HistoricalQuestionBatchInput = {
+  courseId: string;
+  creatorId: string;
+  draft: ReferenceQuestionDraft;
+  source: HistoricalSourcePersistenceInput;
+};
+
+function historicalCategory(assessmentType: ReferenceQuestionDraft["source"]["assessmentType"]): "tutorial" | "quiz" | "uts" | "uas" | "homework" | "exercise" | "other" {
+  return assessmentType;
+}
+
+function historicalEventName(draft: ReferenceQuestionDraft, questionNumber: string): string {
+  return [
+    draft.source.title,
+    draft.source.institution,
+    draft.source.year ? String(draft.source.year) : null,
+    `Soal ${questionNumber}`,
+  ].filter(Boolean).join(" · ");
+}
+
+function historicalQuestionHash(courseId: string, sourceId: string, question: ReferenceQuestion): string {
+  return createHash("sha256")
+    .update(deterministicQuestionSerialization({ courseId, sourceId, question }), "utf8")
+    .digest("hex");
+}
+
+export function getHistoricalSolutionContent(
+  source: Pick<HistoricalSourcePersistenceInput, "solutionMetadata">,
+  question: Pick<ReferenceQuestion, "solutionProvenance">,
+): string | null {
+  if (question.solutionProvenance !== "source_solution") return null;
+  const content = source.solutionMetadata?.extractedText?.trim();
+  return content || null;
+}
+
+function historicalSourceHash(input: HistoricalSourcePersistenceInput): string {
+  return createHash("sha256")
+    .update(deterministicQuestionSerialization({
+      sourceDocumentId: input.sourceDocumentId,
+      sourceChecksum: input.sourceMetadata.checksum,
+      solutionDocumentId: input.solutionDocumentId,
+      solutionChecksum: input.solutionMetadata?.checksum ?? null,
+    }), "utf8")
+    .digest("hex");
+}
+
+export async function createHistoricalQuestionBatch(input: HistoricalQuestionBatchInput): Promise<PersistResult[]> {
+  const draft = referenceQuestionDraftSchema.parse(input.draft);
+  return db.transaction(async (tx) => {
+    await requireCreator(tx, input.creatorId);
+    const context = await resolveContext(tx, input.courseId, null);
+    if (input.source.sourceMetadata.category !== "soal") fail("HISTORICAL_SOURCE_CATEGORY_INVALID", "Source utama harus berada pada kategori soal.");
+    if (input.source.solutionMetadata && input.source.solutionMetadata.category !== "pembahasan_soal") fail("HISTORICAL_SOLUTION_CATEGORY_INVALID", "Source pembahasan harus berada pada kategori pembahasan_soal.");
+    if (!input.source.sourceDocumentId) fail("HISTORICAL_SOURCE_DOCUMENT_REQUIRED", "Source document wajib tersedia.");
+    if (input.source.sourceMetadata.fileKey !== input.source.sourceFileKey) fail("HISTORICAL_SOURCE_FILE_MISMATCH", "Source file key tidak cocok dengan metadata source yang di-resolve.");
+    if (input.source.sourceMetadata.title !== draft.source.title) fail("HISTORICAL_SOURCE_TITLE_MISMATCH", "Judul source tidak cocok dengan metadata source yang di-resolve.");
+    if (input.source.solutionFileKey && !input.source.solutionMetadata) fail("HISTORICAL_SOLUTION_FILE_NOT_FOUND", "Metadata source pembahasan wajib tersedia saat solutionFileKey dipakai.");
+    if (!input.source.solutionFileKey && input.source.solutionMetadata) fail("HISTORICAL_SOLUTION_METADATA_UNEXPECTED", "Metadata source pembahasan tidak boleh ada tanpa solutionFileKey.");
+    if (input.source.solutionMetadata && input.source.solutionMetadata.fileKey !== input.source.solutionFileKey) fail("HISTORICAL_SOLUTION_FILE_MISMATCH", "Solution file key tidak cocok dengan metadata source pembahasan yang di-resolve.");
+    if (input.source.sourceMetadata.pageCount !== undefined && input.source.sourceMetadata.pageCount !== null && (!Number.isInteger(input.source.sourceMetadata.pageCount) || input.source.sourceMetadata.pageCount < 1)) {
+      fail("HISTORICAL_SOURCE_PAGE_COUNT_INVALID", "Jumlah halaman source harus berupa bilangan bulat positif.");
+    }
+    if (input.source.solutionMetadata?.pageCount !== undefined && input.source.solutionMetadata.pageCount !== null && (!Number.isInteger(input.source.solutionMetadata.pageCount) || input.source.solutionMetadata.pageCount < 1)) {
+      fail("HISTORICAL_SOLUTION_PAGE_COUNT_INVALID", "Jumlah halaman source pembahasan harus berupa bilangan bulat positif.");
+    }
+    if (input.source.sourceMetadata.pageCount !== undefined && input.source.sourceMetadata.pageCount !== null) {
+      const pageCount = input.source.sourceMetadata.pageCount;
+      if (draft.questions.some((question) => question.page > pageCount)) fail("HISTORICAL_PAGE_OUT_OF_RANGE", "Salah satu nomor halaman soal melebihi jumlah halaman source.");
+    }
+
+    const sourceHash = historicalSourceHash(input.source);
+    const sourceConditions = [
+      eq(assessmentSources.canonicalCourseId, context.canonicalCourseId),
+      eq(assessmentSources.sourceDocumentId, input.source.sourceDocumentId),
+      eq(assessmentSources.title, draft.source.title),
+      eq(assessmentSources.sourceHash, sourceHash),
+      input.source.solutionDocumentId ? eq(assessmentSources.solutionDocumentId, input.source.solutionDocumentId) : isNull(assessmentSources.solutionDocumentId),
+    ];
+    let [assessmentSource] = await tx.select().from(assessmentSources).where(and(...sourceConditions)).limit(1);
+    const now = new Date();
+    if (!assessmentSource) {
+      const sourceId = `assessment-ref-${createHash("sha256").update(deterministicQuestionSerialization({ courseId: context.canonicalCourseId, sourceDocumentId: input.source.sourceDocumentId, solutionDocumentId: input.source.solutionDocumentId, title: draft.source.title, year: draft.source.year, sourceHash }), "utf8").digest("hex").slice(0, 32)}`;
+      await tx.insert(assessmentSources).values({
+        id: sourceId,
+        courseId: context.legacyCourseId,
+        canonicalCourseId: context.canonicalCourseId,
+        title: draft.source.title,
+        origin: "uploaded",
+        category: historicalCategory(draft.source.assessmentType),
+        assessmentType: draft.source.assessmentType,
+        year: draft.source.year,
+        institution: draft.source.institution,
+        academicYearLabel: draft.source.academicYearLabel,
+        term: draft.source.term,
+        sourceDocumentId: input.source.sourceDocumentId,
+        solutionDocumentId: input.source.solutionDocumentId,
+        status: "draft",
+        sourceMarkdown: "",
+        sourceHash,
+        version: 1,
+        parserVersion: "historical-reference.v1",
+        ingestionStatus: "completed",
+        ingestionCompletedAt: now,
+        originalFilename: null,
+        uploadthingKey: null,
+        uploadedByUserId: input.creatorId,
+        createdAt: now,
+        updatedAt: now,
+      });
+      [assessmentSource] = await tx.select().from(assessmentSources).where(eq(assessmentSources.id, sourceId)).limit(1);
+    }
+    if (!assessmentSource) fail("HISTORICAL_SOURCE_PERSIST_FAILED", "Assessment source historis gagal disimpan.");
+
+    const results: PersistResult[] = [];
+    for (const question of draft.questions) {
+      const sourceEventName = historicalEventName(draft, question.questionNumber);
+      const canonicalId = `soal-ref-${createHash("sha256").update(`${assessmentSource.id}:${question.questionNumber}:${question.part ?? ""}:${question.localId}`, "utf8").digest("hex").slice(0, 32)}`;
+      const generationHash = historicalQuestionHash(context.canonicalCourseId, assessmentSource.id, question);
+      const [existing] = await tx.select({ id: soal.id, version: soal.version, origin: soal.origin, generationHash: soal.generationHash, courseId: soal.mataKuliahId, status: soal.status, creatorId: soal.creatorId }).from(soal).where(eq(soal.id, canonicalId)).limit(1);
+      if (existing && (existing.origin !== "historical_reference" || existing.courseId !== context.canonicalCourseId)) fail("HISTORICAL_QUESTION_CONFLICT", `Soal ${question.localId} sudah digunakan oleh record lain.`);
+      if (existing && existing.generationHash !== generationHash) fail("HISTORICAL_QUESTION_CONFLICT", `Soal ${question.localId} sudah ada dengan isi berbeda.`);
+      if (existing) {
+        results.push({ id: existing.id, canonicalCourseId: context.canonicalCourseId, legacyCourseId: context.legacyCourseId, chapterId: null, version: existing.version, reviewStatus: "generated", created: false, unchanged: true });
+        continue;
+      }
+
+      const optionsSnapshot = question.options.map((text, index) => ({ id: `option-${String(index + 1).padStart(2, "0")}`, text, isCorrect: question.correctIndices.includes(index) }));
+      const explanation = getHistoricalSolutionContent(input.source, question);
+      await tx.insert(soal).values({
+        id: canonicalId,
+        mataKuliahId: context.canonicalCourseId,
+        babId: null,
+        questionType: question.questionType,
+        prompt: question.prompt,
+        optionsSnapshot,
+        origin: "historical_reference",
+        sourceEventName,
+        sourceReferenceId: assessmentSource.id,
+        assessmentSourceId: assessmentSource.id,
+        sourceQuestionNumber: question.questionNumber,
+        sourceQuestionPart: question.part,
+        sourcePage: question.page,
+        sourceLocator: {
+          sourceFileKey: input.source.sourceFileKey,
+          sourceChecksum: input.source.sourceMetadata.checksum,
+          sourcePageCount: input.source.sourceMetadata.pageCount ?? null,
+          solutionFileKey: input.source.solutionFileKey,
+          solutionChecksum: input.source.solutionMetadata?.checksum ?? null,
+          solutionPageCount: input.source.solutionMetadata?.pageCount ?? null,
+          page: question.page,
+        },
+        answerProvenance: question.answerProvenance,
+        solutionProvenance: question.solutionProvenance,
+        quizEligible: question.quizEligible,
+        version: 1,
+        status: "draft",
+        difficulty: question.difficulty,
+        cognitiveLevel: question.cognitiveLevel,
+        reasoningPattern: "historical_reference",
+        generationHash,
+        creatorId: input.creatorId,
+        curatorId: null,
+        publishedAt: null,
+        createdAt: now,
+        updatedAt: now,
+      });
+      if (explanation) {
+        await tx.insert(pembahasanSoal).values({
+          id: `${canonicalId}:historical-solution:v1`,
+          soalId: canonicalId,
+          version: 1,
+          content: explanation,
+          status: "draft",
+          generationHash,
+          creatorId: input.creatorId,
+          curatorId: null,
+          publishedAt: null,
+          createdAt: now,
+          updatedAt: now,
+        });
+      }
+      await validateIdeaLinks(tx, context, toQuestionIdeaLinks(question));
+      for (const link of question.ideaLinks) {
+        await tx.insert(soalIde).values({
+          id: `soal-ide-${canonicalId}-${link.ideaId}`,
+          soalId: canonicalId,
+          ideId: link.ideaId,
+          weight: link.weight,
+          role: link.role,
+          createdAt: now,
+        });
+      }
+      await tx.insert(aiQuestionBank).values({
+        id: canonicalId,
+        courseId: context.legacyCourseId,
+        origin: "historical_reference",
+        sourceEventName,
+        sourceReferenceId: assessmentSource.id,
+        assessmentSourceId: assessmentSource.id,
+        sourceQuestionNumber: question.questionNumber,
+        sourceQuestionPart: question.part,
+        sourcePage: question.page,
+        answerProvenance: question.answerProvenance,
+        solutionProvenance: question.solutionProvenance,
+        quizEligible: question.quizEligible,
+        generationHash,
+        status: "active",
+        isStale: false,
+        difficulty: question.difficulty,
+        questionType: question.questionType,
+        tags: ["historical_reference", draft.source.assessmentType],
+        prompt: question.prompt,
+        options: question.options,
+        correctIndices: question.correctIndices,
+        acceptableAnswers: question.acceptableAnswers,
+        distractorMap: [],
+        explanation: explanation ?? "",
+        reviewStatus: "generated",
+        pattern: "historical_reference",
+        reasoningType: "historical_reference",
+        createdAt: now,
+      });
+      await tx.insert(auditMutasi).values({
+        id: `audit-question-${canonicalId}-1-${randomUUID()}`,
+        actorId: input.creatorId,
+        entityType: "question",
+        entityId: canonicalId,
+        action: "created_draft",
+        beforeSnapshot: null,
+        afterSnapshot: { origin: "historical_reference", assessmentSourceId: assessmentSource.id, questionNumber: question.questionNumber, answerProvenance: question.answerProvenance, solutionProvenance: question.solutionProvenance, quizEligible: question.quizEligible },
+        correlationId: assessmentSource.id,
+        createdAt: now,
+      });
+      results.push({ id: canonicalId, canonicalCourseId: context.canonicalCourseId, legacyCourseId: context.legacyCourseId, chapterId: null, version: 1, reviewStatus: "generated", created: true, unchanged: false });
+    }
+    return results;
   });
 }

@@ -48,6 +48,7 @@ interface QuizTemplate {
 interface QuestionBankItem {
   id: string;
   courseId: string;
+  origin: "zyx_original" | "historical_reference" | "itb_example";
   prompt: string;
   options: any; // string[]
   correctIndices: any; // number[]
@@ -474,6 +475,7 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
           ) : (
             <div className="space-y-3">
               {initialQuestionBank.map((q, idx) => {
+                const isImmutableReference = q.origin !== "zyx_original";
                 const tagsArr = typeof q.tags === "string" ? JSON.parse(q.tags) : q.tags;
                 const opts = typeof q.options === "string" ? JSON.parse(q.options) : q.options;
                 const correct = typeof q.correctIndices === "string" ? JSON.parse(q.correctIndices) : q.correctIndices;
@@ -500,14 +502,20 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
                         <MathText className="text-body-base font-medium text-foreground leading-relaxed pt-1" as="p">{q.prompt}</MathText>
                       </div>
                       
-                      <div className="flex gap-1.5">
-                        <Button variant="ghost" size="xs" onClick={() => handleOpenEditQ(q)} className="rounded-md text-muted-foreground hover:text-foreground">
-                          <Edit2 className="size-3.5" />
-                        </Button>
-                        <Button variant="ghost" size="xs" onClick={() => setDeleteQId(q.id)} className="rounded-md text-status-error hover:bg-status-error/10 hover:text-status-error">
-                          <Trash2 className="size-3.5" />
-                        </Button>
-                      </div>
+                      {isImmutableReference ? (
+                        <Badge variant="outline" className="rounded-md text-body-2xs text-muted-foreground">
+                          Referensi, hanya tinjau
+                        </Badge>
+                      ) : (
+                        <div className="flex gap-1.5">
+                          <Button variant="ghost" size="xs" onClick={() => handleOpenEditQ(q)} className="rounded-md text-muted-foreground hover:text-foreground" aria-label="Edit soal">
+                            <Edit2 className="size-3.5" />
+                          </Button>
+                          <Button variant="ghost" size="xs" onClick={() => setDeleteQId(q.id)} className="rounded-md text-status-error hover:bg-status-error/10 hover:text-status-error" aria-label="Hapus soal">
+                            <Trash2 className="size-3.5" />
+                          </Button>
+                        </div>
+                      )}
                     </div>
 
                     {/* Options list / Acceptable answers preview */}

@@ -23,7 +23,7 @@ import { QuestionFilterField, QuestionFilterPopover } from "./question-filter-po
 
 type ReviewStatus = "generated" | "reviewed" | "published" | "flagged" | "retired";
 type Difficulty = "easy" | "medium" | "hard";
-type QuestionOrigin = "zyx_original" | "itb_example";
+type QuestionOrigin = "zyx_original" | "historical_reference" | "itb_example";
 type QuestionType = "multiple_choice" | "multiple_choices" | "short_answer" | "essay";
 type CognitiveLevel = "remember" | "understand" | "apply" | "analyze" | "evaluate" | "create";
 type IdeaRole = "primary" | "supporting" | "required";
@@ -158,7 +158,7 @@ export function QuestionBankClient({ questions, courses, courseMap, authoringCou
   const [filterDifficulty, setFilterDifficulty] = useState<Difficulty | "all">("all");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [updating, setUpdating] = useState(false);
-  const [localQuestions, setLocalQuestions] = useState(questions);
+  const [localQuestions, setLocalQuestions] = useState(() => questions.filter((question) => question.origin !== "historical_reference"));
 
   // Dialog & Form state
   const [createOpen, setCreateOpen] = useState(false);
@@ -253,6 +253,8 @@ export function QuestionBankClient({ questions, courses, courseMap, authoringCou
   }
 
   function toggleSelect(id: string) {
+    const question = localQuestions.find((item) => item.id === id);
+    if (question?.origin === "historical_reference") return;
     setSelected((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
@@ -262,17 +264,26 @@ export function QuestionBankClient({ questions, courses, courseMap, authoringCou
   }
 
   function toggleAll() {
-    const allVisibleSelected = filtered.length > 0 && filtered.every((q) => selected.has(q.id));
+    const selectableQuestions = filtered.filter((question) => question.origin !== "historical_reference");
+    const allVisibleSelected = selectableQuestions.length > 0 && selectableQuestions.every((q) => selected.has(q.id));
     if (allVisibleSelected) {
-      setSelected(new Set());
+      setSelected((current) => {
+        const next = new Set(current);
+        selectableQuestions.forEach((question) => next.delete(question.id));
+        return next;
+      });
     } else {
-      setSelected(new Set(filtered.map((q) => q.id)));
+      setSelected((current) => new Set([...current, ...selectableQuestions.map((question) => question.id)]));
     }
   }
 
   async function bulkUpdate(status: ReviewStatus) {
     if (selected.size === 0) {
       toast.error("Pilih minimal satu soal.");
+      return;
+    }
+    if (localQuestions.some((question) => selected.has(question.id) && question.origin === "historical_reference")) {
+      toast.error("Soal referensi historis hanya dapat ditinjau dari tab Referensi historis.");
       return;
     }
     setUpdating(true);
@@ -717,10 +728,10 @@ export function QuestionBankClient({ questions, courses, courseMap, authoringCou
             <button
               type="button"
               onClick={toggleAll}
-              aria-label={filtered.length > 0 && filtered.every((q) => selected.has(q.id)) ? "Batalkan pilih semua" : "Pilih semua soal"}
+              aria-label={filtered.filter((q) => q.origin !== "historical_reference").length > 0 && filtered.filter((q) => q.origin !== "historical_reference").every((q) => selected.has(q.id)) ? "Batalkan pilih semua" : "Pilih semua soal"}
               className="shrink-0 cursor-pointer text-muted-foreground transition-colors hover:text-foreground"
             >
-              {filtered.length > 0 && filtered.every((q) => selected.has(q.id)) ? (
+              {filtered.filter((q) => q.origin !== "historical_reference").length > 0 && filtered.filter((q) => q.origin !== "historical_reference").every((q) => selected.has(q.id)) ? (
                 <CheckSquare className="size-4 text-brand-primary" />
               ) : (
                 <Square className="size-4" />
@@ -1406,6 +1417,7 @@ function QuestionRow({
   onDelete: (q: Question) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
+  const isHistoricalReference = question.origin === "historical_reference";
   const options = Array.isArray(question.options) ? (question.options as string[]) : [];
   const correctIndices = Array.isArray(question.correctIndices)
     ? (question.correctIndices as number[])
@@ -1426,12 +1438,16 @@ function QuestionRow({
   return (
     <div className={cn("px-4 py-4 transition-colors", selected ? "bg-muted/15" : "hover:bg-muted/5")}>
       <div className="flex items-start gap-3">
-        <button
-          onClick={onToggle}
-          className="text-muted-foreground hover:text-foreground mt-0.5 shrink-0 cursor-pointer transition-colors"
-        >
-          {selected ? <CheckSquare className="size-4.5 text-brand-primary" /> : <Square className="size-4.5" />}
-        </button>
+        {isHistoricalReference ? (
+          <StatusBadge tone="info" subtle className="mt-0.5 shrink-0">Review-only</StatusBadge>
+        ) : (
+          <button
+            onClick={onToggle}
+            className="text-muted-foreground hover:text-foreground mt-0.5 shrink-0 cursor-pointer transition-colors"
+          >
+            {selected ? <CheckSquare className="size-4.5 text-brand-primary" /> : <Square className="size-4.5" />}
+          </button>
+        )}
 
         <div className="flex-1 min-w-0 text-left">
           <div className="flex items-center gap-2.5 flex-wrap text-body-xs font-semibold">
@@ -1443,8 +1459,8 @@ function QuestionRow({
               {question.reviewStatus}
             </StatusBadge>
 
-            <StatusBadge tone={question.origin === "itb_example" ? "info" : "brand"} subtle>
-              {question.origin === "itb_example" ? "Contoh ITB" : "Asli Zyx"}
+            <StatusBadge tone={question.origin === "zyx_original" ? "brand" : "info"} subtle>
+              {question.origin === "itb_example" ? "Contoh ITB" : question.origin === "historical_reference" ? "Referensi historis" : "Asli Zyx"}
             </StatusBadge>
 
             <StatusBadge tone="brand" subtle>
@@ -1543,14 +1559,20 @@ function QuestionRow({
             </div>
           )}
 
-          <div className="flex gap-2 justify-end pt-3 border-t border-border/40">
-            <Button size="sm" variant="outline" className="rounded-lg gap-1.5 cursor-pointer text-body-sm font-bold" onClick={() => onEdit(question)}>
-              <Edit2 className="size-3.5" /> Edit Soal &amp; Kunci
-            </Button>
-            <Button size="sm" variant="destructive" className="rounded-lg gap-1.5 cursor-pointer text-body-sm font-bold animate-colors" onClick={() => onDelete(question)}>
-              <Trash2 className="size-3.5" /> Hapus Soal
-            </Button>
-          </div>
+          {isHistoricalReference ? (
+            <div className="flex items-center justify-end gap-2 border-t border-border/40 pt-3">
+              <StatusBadge tone="info" subtle>Hanya untuk peninjauan historis</StatusBadge>
+            </div>
+          ) : (
+            <div className="flex gap-2 justify-end pt-3 border-t border-border/40">
+              <Button size="sm" variant="outline" className="rounded-lg gap-1.5 cursor-pointer text-body-sm font-bold" onClick={() => onEdit(question)}>
+                <Edit2 className="size-3.5" /> Edit Soal &amp; Kunci
+              </Button>
+              <Button size="sm" variant="destructive" className="rounded-lg gap-1.5 cursor-pointer text-body-sm font-bold animate-colors" onClick={() => onDelete(question)}>
+                <Trash2 className="size-3.5" /> Hapus Soal
+              </Button>
+            </div>
+          )}
         </div>
       )}
     </div>

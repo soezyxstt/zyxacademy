@@ -235,6 +235,12 @@ async function setupTables() {
       origin TEXT NOT NULL DEFAULT 'zyx_original',
       source_event_name TEXT,
       source_reference_id TEXT,
+      assessment_source_id TEXT,
+      source_question_number TEXT,
+      source_question_part TEXT,
+      source_page INTEGER,
+      answer_provenance TEXT,
+      solution_provenance TEXT,
       knowledge_object_id TEXT,
       source_mtd_id TEXT,
       source_mtd_version INTEGER,
@@ -252,6 +258,7 @@ async function setupTables() {
       distractor_map TEXT NOT NULL DEFAULT '[]',
       explanation TEXT NOT NULL,
       review_status TEXT NOT NULL DEFAULT 'generated',
+      quiz_eligible INTEGER NOT NULL DEFAULT 0,
       quality_score REAL,
       use_count INTEGER NOT NULL DEFAULT 0,
       styled_after_assessment_object_id TEXT,
@@ -262,6 +269,20 @@ async function setupTables() {
       created_at INTEGER NOT NULL DEFAULT (cast((julianday('now') - 2440587.5)*86400000 as integer))
     );
   `);
+
+  await client.execute(
+    "ALTER TABLE ai_question_bank ADD COLUMN quiz_eligible INTEGER NOT NULL DEFAULT 0",
+  ).catch(() => {});
+  for (const columnDefinition of [
+    "assessment_source_id TEXT",
+    "source_question_number TEXT",
+    "source_question_part TEXT",
+    "source_page INTEGER",
+    "answer_provenance TEXT",
+    "solution_provenance TEXT",
+  ]) {
+    await client.execute(`ALTER TABLE ai_question_bank ADD COLUMN ${columnDefinition}`).catch(() => {});
+  }
 
   await client.execute(`
     CREATE TABLE IF NOT EXISTS live_quiz_sessions (
@@ -1162,6 +1183,7 @@ describe("Tutor Live Hosting & Canonical Access Control", () => {
       correctIndices: JSON.stringify([0]),
       origin: "zyx_original",
       explanation: "Kecepatan awal adalah nilai v saat t = 0.",
+      reviewStatus: "published",
     });
 
     await testDb.insert(schema.quizTemplates).values({
@@ -1200,6 +1222,7 @@ describe("Tutor Live Hosting & Canonical Access Control", () => {
         correctIndices: JSON.stringify([0]),
         origin: "zyx_original",
         explanation: "Aturan pangkat menghasilkan 2x.",
+        reviewStatus: "published",
       },
       {
         id: "q-calc-2",
@@ -1209,6 +1232,7 @@ describe("Tutor Live Hosting & Canonical Access Control", () => {
         correctIndices: JSON.stringify([0]),
         origin: "zyx_original",
         explanation: "Integral tak tentu dari 2x adalah x^2 + C.",
+        reviewStatus: "published",
       },
     ]);
 
@@ -1246,6 +1270,63 @@ describe("Tutor Live Hosting & Canonical Access Control", () => {
     expect(snapshot.length).toBe(2);
     expect(snapshot[0].prompt).toBe("Integral dari 2x dx?");
     expect(snapshot[1].prompt).toBe("Turunan dari x^2?");
+
+    await testDb.insert(schema.aiQuestionBank).values({
+      id: "q-historical-ineligible",
+      courseId: "crs-kalkulus",
+      origin: "historical_reference",
+      prompt: "Soal historis belum siap",
+      options: JSON.stringify(["A", "B"]),
+      correctIndices: JSON.stringify([0]),
+      explanation: "Belum siap untuk quiz.",
+      reviewStatus: "published",
+      quizEligible: false,
+    });
+    await testDb.insert(schema.quizTemplates).values({
+      id: "tmpl-historical-ineligible",
+      courseId: "crs-kalkulus",
+      title: "Kuis Historis Belum Siap",
+      category: "weekly",
+      status: "published",
+      selectionRules: JSON.stringify({ questionIds: ["q-historical-ineligible"] }),
+    });
+
+    const blockedHistorical = await createLiveSession(
+      new NextRequest("http://localhost/api/live/sessions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          courseId: "mk-kalkulus",
+          templateId: "tmpl-historical-ineligible",
+        }),
+      }),
+    );
+    expect(blockedHistorical.status).toBe(400);
+
+    await testDb
+      .update(schema.aiQuestionBank)
+      .set({ quizEligible: true })
+      .where(eq(schema.aiQuestionBank.id, "q-historical-ineligible"));
+    await testDb.insert(schema.quizTemplates).values({
+      id: "tmpl-historical-eligible",
+      courseId: "crs-kalkulus",
+      title: "Kuis Historis Siap",
+      category: "weekly",
+      status: "published",
+      selectionRules: JSON.stringify({ questionIds: ["q-historical-ineligible"] }),
+    });
+
+    const eligibleHistorical = await createLiveSession(
+      new NextRequest("http://localhost/api/live/sessions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          courseId: "mk-kalkulus",
+          templateId: "tmpl-historical-eligible",
+        }),
+      }),
+    );
+    expect(eligibleHistorical.status).toBe(200);
   });
 
   it("audits tutor control attempts for not-found, ended, invalid body, and missing realtime configuration", async () => {

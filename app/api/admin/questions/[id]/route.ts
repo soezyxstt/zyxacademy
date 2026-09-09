@@ -71,7 +71,7 @@ export async function DELETE(_req: NextRequest, { params }: Context) {
   const result = await db.transaction(async (tx) => {
     const [canonical] = await tx.select({ id: soal.id, origin: soal.origin, version: soal.version, status: soal.status, courseId: soal.mataKuliahId }).from(soal).where(eq(soal.id, id)).limit(1);
     const [compatibility] = await tx.select({ id: aiQuestionBank.id, origin: aiQuestionBank.origin, reviewStatus: aiQuestionBank.reviewStatus, courseId: aiQuestionBank.courseId }).from(aiQuestionBank).where(eq(aiQuestionBank.id, id)).limit(1);
-    if (canonical?.origin === "itb_example" || compatibility?.origin === "itb_example") {
+    if ((canonical && canonical.origin !== "zyx_original") || (compatibility && compatibility.origin !== "zyx_original")) {
       return { forbidden: true };
     }
     if (canonical || compatibility) {
@@ -95,7 +95,7 @@ export async function DELETE(_req: NextRequest, { params }: Context) {
   });
 
   if (result.forbidden) {
-    return NextResponse.json({ error: "Soal contoh ITB tidak dapat dihapus dari authoring manual." }, { status: 400 });
+    return NextResponse.json({ error: "Soal referensi tidak dapat dihapus dari authoring manual." }, { status: 400 });
   }
   return NextResponse.json({ success: true });
 }

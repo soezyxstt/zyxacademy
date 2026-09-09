@@ -458,7 +458,10 @@ Canonical published products share a common shape: versioned rows with `status` 
 * `id`, `mataKuliahId`, optional `babId`
 * `questionType`, `prompt`
 * `optionsSnapshot`: JSON options including stable IDs; correct-answer markers live only here and are redacted from runtime and vector payloads.
-* `origin`: `zyx_original` (default) or `itb_example`; `sourceEventName` and `sourceReferenceId` are required for `itb_example`.
+* `origin`: `zyx_original` (default), `historical_reference`, or legacy-readable `itb_example`. Historical rows keep source attribution, answer provenance, and solution provenance in canonical fields.
+* `assessmentSourceId`, optional `sourceQuestionNumber`, `sourceQuestionPart`, `sourcePage`, and `sourceLocator` identify the historical assessment source and exact question location.
+* `answerProvenance` and `solutionProvenance` use `official`, `source_solution`, `zyx_generated`, or `unavailable`.
+* `quizEligible`: Runtime eligibility gate. Historical rows default to false and become eligible only when the question type and evaluability rules pass.
 * `version`, `status`, `difficulty`, `cognitiveLevel`, `reasoningPattern`, `generationHash`
 * `creatorId`, optional `curatorId`, `publishedAt`, `createdAt`, `updatedAt`
 
@@ -466,6 +469,11 @@ Canonical published products share a common shape: versioned rows with `status` 
 * `id`, `soalId`, `ideId`, `weight`
 * `role`: default `supporting`.
 * Weights are positive and must sum to one per question (service-validated within `0.000001`).
+
+### question_reference_links
+* `id`, `questionId`, `referenceQuestionId`, `role`, optional `notes`, `createdAt`
+* `referenceQuestionId` points to another canonical `soal` row. New reference links target only `historical_reference` rows in the same course; legacy `itb_example` rows remain readable through compatibility paths but are rejected for new links. Self-links and duplicate links are rejected by the authoring service.
+* `role` is `inspired_by`, `adapted_from`, or `derived_from`. The table is additive and does not replace `soal_ide` attribution.
 
 ### soal_relasi_ide
 * `id`, `soalId`, `ideId`, `relationType`, optional `rationale`
@@ -693,6 +701,8 @@ Migrations `0087_curly_black_tom.sql` and `0088_talented_shinobi_shaw.sql` add P
 
 Migration `0068_typical_warbird.sql` adds `origin`, `source_event_name`, and `source_reference_id` to both `soal` and `ai_question_bank`, with `zyx_original` as the non-null default and an origin plus event index on each table. Existing rows therefore remain Zyx originals without a data rewrite. Product publication validates ITB completeness before writing and creates the `ai_question_bank` compatibility projection. Product Bundle source and curation data are retained in the publication audit snapshot, while `soal_itb_referensi.soal_id` links the single source reference to its published question. Article to Diktat lineage is validated through bundle dependency rows and generation hashes. Live legacy quiz submissions use the existing `item_asesmen`, `jawaban_murid`, and `bukti_ide_jawaban` tables to append canonical evidence only after exact published-question and published-Idea checks pass.
 
+Migration `0089_old_wendigo.sql` adds historical-reference provenance, source document metadata, quiz eligibility gates, and `question_reference_links`. It preserves the legacy Product Bundle V2 and ITB compatibility fields while adding Product Bundle V3 validation boundaries. The migration is generated from the current SQLite schema and must be applied only after the target database has the preceding journal and index state expected by Drizzle.
+
 Migration `0085_melodic_korvac.sql` adds `student_quiz_attempts.grading_status` with `not_required` as the compatibility-safe default and an index by template and grading state. It also adds reviewer identity, notes, timestamp, and revision fields to `jawaban_murid` for tutor quiz review.
 
 ### Plan 005 migration tables
@@ -726,14 +736,19 @@ Plan 005 populated the additive targets where the mapping was exact and recorded
 ## 6. Assessment & Ingestion Domain
 
 ### assessmentSources
-Existing rows remain available to compatibility readers. Admin create, re-ingest, archive, restore, and delete endpoints are retired; new source-backed questions enter through Product Bundle and canonical Bank Soal.
+Existing rows remain available to compatibility readers. Admin create, re-ingest, archive, restore, and delete endpoints are retired; new source-backed questions enter through Product Bundle and canonical Bank Soal. Historical reference ingestion adds a course-scoped source record without requiring a chapter or Source Pack.
 
 * `id`
 * `courseId`
 * `title`
 * `origin`: Ingestion starting point (e.g. 'uploaded').
 * `category`: Type of assessment document (e.g. 'uts', 'uas', 'kuis', 'tutorial').
-* `year`: Academic calendar year of the assessment.
+* `assessmentType`: Historical assessment type such as `uts`, `uas`, `kuis`, or `tutorial`.
+* `year`: Nullable academic calendar year of the assessment.
+* `institution`, optional `academicYearLabel`, and optional `term`: Human-facing source identity fields.
+* `canonicalCourseId`: Canonical course binding used by historical question authoring.
+* `sourceDocumentId`, optional `solutionDocumentId`: Course material rows for the original question PDF and its solution PDF.
+* `status`: `draft`, `in_review`, `published`, or `retired`.
 * `semester`: Academic semester number of the assessment.
 * `sourceMarkdown`: Fully uploaded raw text content of the assessment paper.
 * `sourceHash`: Hash of the raw markdown text for change and duplicate tracking.
@@ -1330,9 +1345,12 @@ Per-user read receipts for PKA announcements; composite primary key.
 ### aiQuestionBank
 * `id`
 * `courseId`
-* `origin`: `zyx_original` for normal bank questions or `itb_example` for Product Bundle projections. Existing rows default to `zyx_original`.
+* `origin`: `zyx_original`, `historical_reference`, or `itb_example`. Existing rows default to `zyx_original`.
 * `sourceEventName`: Required by the application contract for `itb_example`; null for Zyx originals.
 * `sourceReferenceId`: Allowed ITB reference ID for `itb_example`; null for Zyx originals.
+* `assessmentSourceId`, optional source question number, part, page, and locator for historical references.
+* `answerProvenance` and `solutionProvenance`: Source-trace enum for historical answers and solutions.
+* `quizEligible`: Historical rows default to false and are excluded from runtime quiz selectors until explicitly eligible.
 * `knowledgeObjectId`
 * `sourceMtdId`
 * `sourceSectionId`

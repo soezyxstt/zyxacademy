@@ -1,5 +1,9 @@
 import { describe, expect, it } from "bun:test";
 import {
+  getHistoricalSolutionContent,
+  isHistoricalReferenceLinkTarget,
+} from "@/lib/question-authoring";
+import {
   canonicalQuestionStatus,
   questionAuthoringInputSchema,
 } from "@/lib/question-authoring-contract";
@@ -102,5 +106,26 @@ B. B
     expect(canonicalQuestionStatus("reviewed")).toBe("in_review");
     expect(canonicalQuestionStatus("published")).toBe("published");
     expect(canonicalQuestionStatus("retired")).toBe("retired");
+  });
+
+  it("allows only historical_reference targets for new reference links", () => {
+    expect(isHistoricalReferenceLinkTarget("historical_reference")).toBe(true);
+    expect(isHistoricalReferenceLinkTarget("itb_example")).toBe(false);
+    expect(isHistoricalReferenceLinkTarget("zyx_original")).toBe(false);
+  });
+
+  it("uses extracted source_solution text and never fabricates a fallback explanation", () => {
+    expect(getHistoricalSolutionContent(
+      { solutionMetadata: { extractedText: "<!-- source page 2 -->\nLangkah resmi." } },
+      { solutionProvenance: "source_solution" },
+    )).toBe("<!-- source page 2 -->\nLangkah resmi.");
+    expect(getHistoricalSolutionContent(
+      { solutionMetadata: { extractedText: null } },
+      { solutionProvenance: "source_solution" },
+    )).toBeNull();
+    expect(getHistoricalSolutionContent(
+      { solutionMetadata: { extractedText: "Generated text" } },
+      { solutionProvenance: "zyx_generated" },
+    )).toBeNull();
   });
 });

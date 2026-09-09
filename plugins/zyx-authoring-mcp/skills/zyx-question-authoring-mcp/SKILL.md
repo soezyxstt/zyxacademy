@@ -7,6 +7,10 @@ description: Menyusun draft soal kuis yang terhubung ke Idea published melalui Z
 
 Gunakan skill ini sebagai instruction layer untuk MCP quiz_bank. MCP adalah enforcement layer untuk scope mata kuliah dan bab, status published Idea, bobot link, dan review admin. Baca [references/workflow.md](references/workflow.md) sebelum mulai.
 
+## Batas dengan referensi historis
+
+`quiz_bank` hanya membuat atau mengubah soal `zyx_original`. Skill ini boleh membaca soal historis melalui `assessment.list_questions`, `assessment.get_question`, atau knowledge lookup sebagai konteks authoring, tetapi tidak boleh membuat, mengubah, atau menghapus baris `historical_reference`. Untuk menyalin soal historis secara verbatim dengan atribusi sumber, gunakan `reference-question-ingest`.
+
 ## Kompatibilitas host
 
 Skill ini netral provider dan berlaku untuk host apa pun yang bisa memanggil MCP tools, termasuk Claude (Desktop, Code, chat lewat remote connector) dan ChatGPT (connector MCP remote). Langkah koneksi per host ada di [references/workflow.md](references/workflow.md). Saat dipakai sebagai instructions ChatGPT atau project, tempel isi skill tanpa frontmatter YAML; semua langkah tetap berlaku karena hanya merujuk nama tool dan kontrak JSON, bukan fitur host tertentu.
@@ -34,7 +38,7 @@ Skill ini netral provider dan berlaku untuk host apa pun yang bisa memanggil MCP
 - **Edit draft soal**: Gunakan `assessment.update_question` dengan `runToken`, `questionId`, `question`, dan `ideaLinks` (membutuhkan scope `authoring:stage`).
 - **Batasan pengeditan soal**:
   - Soal wajib berada dalam scope mata kuliah dan bab yang dikunci oleh run token.
-  - Hanya soal bertipe Zyx original (`origin = "zyx_original"`) yang dapat diedit. Soal contoh ITB (`origin = "itb_example"`) bersifat immutable dan tidak dapat diubah melalui tool ini.
+  - Hanya soal bertipe Zyx original (`origin = "zyx_original"`) yang dapat diedit. Soal contoh ITB (`origin = "itb_example"`) dan soal referensi historis (`origin = "historical_reference"`) bersifat immutable dan tidak dapat diubah melalui tool ini.
   - Hanya soal yang belum published atau belum retired yang dapat diedit. Soal published atau retired ditolak.
   - Pengeditan yang berhasil akan mereset status soal menjadi `reviewStatus = "generated"` untuk peninjauan admin ulang.
 - **Stop condition**: MCP tidak memiliki tool publikasi (`authoring:publish` tidak didukung). Semua soal baru atau soal hasil pembaruan masuk ke antrean review admin.

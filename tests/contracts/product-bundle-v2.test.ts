@@ -56,7 +56,11 @@ function validDependencies(): ProductDependency[] {
   }];
 }
 
-function buildFiles(products = validProducts(), dependencies: ProductDependency[] = validDependencies()): Map<string, Uint8Array> {
+function buildFiles(
+  products = validProducts(),
+  dependencies: ProductDependency[] = validDependencies(),
+  schemaVersion: "product-bundle.v2" | "product-bundle.v3" = "product-bundle.v2",
+): Map<string, Uint8Array> {
   const encode = (value: unknown) => new TextEncoder().encode(`${deterministicProductSerialization(value)}\n`);
   const files = new Map<string, Uint8Array>();
   const productBytes = encode(products);
@@ -66,7 +70,7 @@ function buildFiles(products = validProducts(), dependencies: ProductDependency[
   const manifestBase = {
     bundleId: "product-bundle-008",
     bundleType: "product" as const,
-    schemaVersion: "product-bundle.v2" as const,
+    schemaVersion,
     courseId: "course-008",
     entityFiles: [
       { path: "entities/products.json", entityType: "products" as const, checksum: sha(productBytes), stableIds: products.map((product) => String(product.id)) },
@@ -291,5 +295,22 @@ describe("Plan 008 Product Bundle V2", () => {
     const articleResult = validateProductBundle(archive(buildFiles(incompleteArticle)));
     expect(articleResult.success).toBe(false);
     if (!articleResult.success) expect(articleResult.issues[0]?.code).toBe("PRODUCT_ARTICLE_QUALITY_FAILED");
+  });
+});
+
+describe("Product Bundle V3 assessment boundary", () => {
+  test("accepts learning products while excluding assessment entities", () => {
+    const learningProducts = validProducts().filter((product) => !["question", "solution", "assessment_blueprint"].includes(String(product.productType)));
+    const result = validateProductBundle(archive(buildFiles(learningProducts, validDependencies(), "product-bundle.v3")));
+    expect(result.success).toBe(true);
+  });
+
+  test("rejects question, solution, and assessment blueprint writes", () => {
+    for (const forbiddenType of ["question", "solution", "assessment_blueprint"]) {
+      const products = validProducts().filter((product) => !["question", "solution", "assessment_blueprint"].includes(String(product.productType)) || product.productType === forbiddenType);
+      const result = validateProductBundle(archive(buildFiles(products, validDependencies(), "product-bundle.v3")));
+      expect(result.success).toBe(false);
+      if (!result.success) expect(result.issues[0]?.code).toBe("PRODUCT_BUNDLE_QUESTION_FORBIDDEN");
+    }
   });
 });

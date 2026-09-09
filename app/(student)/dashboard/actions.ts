@@ -17,7 +17,7 @@ import {
   websiteMaterials,
 } from "@/db/schema";
 import { auth } from "@/lib/auth";
-import { eq, and } from "drizzle-orm";
+import { eq, and, or } from "drizzle-orm";
 import { recordLearningEvent } from "@/lib/learning-events";
 import { inngest } from "@/lib/inngest";
 import { getSemesterEndDate } from "@/lib/utils";
@@ -334,7 +334,12 @@ export async function getDailyTrivia(courseId: string) {
         and(
           eq(aiQuestionBank.courseId, questionCourseId),
           eq(aiQuestionBank.status, "active"),
-          eq(aiQuestionBank.reviewStatus, "published")
+          eq(aiQuestionBank.reviewStatus, "published"),
+          or(
+            eq(aiQuestionBank.origin, "zyx_original"),
+            eq(aiQuestionBank.origin, "itb_example"),
+            eq(aiQuestionBank.quizEligible, true),
+          ),
         )
       );
 

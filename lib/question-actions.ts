@@ -25,6 +25,10 @@ export async function saveTutorQuestionEdit(
     return { success: false, errors: [`Question not found: ${questionId}`] };
   }
 
+  if (currentQ.origin !== "zyx_original") {
+    return { success: false, errors: ["Historical and legacy reference questions are immutable."] };
+  }
+
   // Enforce QC checks before saving
   const validationInput = {
     knowledgeObjectId: currentQ.knowledgeObjectId || "",
@@ -73,6 +77,10 @@ export async function approveAndPublishQuestion(
     return { success: false, errors: [`Question not found: ${questionId}`] };
   }
 
+  if (question.origin !== "zyx_original") {
+    return { success: false, errors: ["Historical and legacy reference questions are immutable."] };
+  }
+
   // Run validation on existing values to ensure KaTeX and structure are compliant
   const qc = await validateQuestion({
     knowledgeObjectId: question.knowledgeObjectId || "",
@@ -114,6 +122,10 @@ export async function retireQuestion(
 
   if (!question) {
     return { success: false, errors: [`Question not found: ${questionId}`] };
+  }
+
+  if (question.origin !== "zyx_original") {
+    return { success: false, errors: ["Historical and legacy reference questions are immutable."] };
   }
 
   await db
