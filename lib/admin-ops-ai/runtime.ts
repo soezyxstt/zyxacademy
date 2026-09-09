@@ -574,7 +574,7 @@ export function createOpsAiRuntimeStream(
             executionBudget,
           });
 
-          const result = agent.stream({
+          const result = await agent.stream({
             messages: modelMessages as any,
             abortSignal,
             timeout: {
