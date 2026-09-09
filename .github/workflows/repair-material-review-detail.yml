@@ -1,0 +1,76 @@
+name: Repair Material Review Detail
+
+on:
+  push:
+    branches:
+      - staging
+    paths:
+      - '.github/workflows/repair-material-review-detail.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout staging
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Restore baseline and apply narrow formative review patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git show b9d394860ae69b68f8a2b90a70d9e4e0cd664c84:components/admin/material-review-detail.tsx > components/admin/material-review-detail.tsx
+          python3 <<'PY'
+          from pathlib import Path
+
+          path = Path('components/admin/material-review-detail.tsx')
+          text = path.read_text()
+
+          def replace_once(old: str, new: str, label: str) -> None:
+              global text
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'{label}: expected exactly one match, got {count}')
+              text = text.replace(old, new, 1)
+
+          replace_once(
+              '''import { StructuredArticleSectionContent } from "@/components/course/structured-article-reader";\nimport { computeDeterministicSectionNumbering, type PublicSectionReadModel } from "@/lib/articles/structured-read-model";''',
+              '''import { StructuredArticleSectionContent } from "@/components/course/structured-article-reader";\nimport { FormativeCheckEndpointProvider } from "@/components/course/formative-check-endpoint-context";\nimport {\n  computeDeterministicSectionNumbering,\n  sanitizeFormativeCheck,\n  sanitizeWorkedExample,\n  type PublicSectionReadModel,\n} from "@/lib/articles/structured-read-model";''',
+              'imports',
+          )
+
+          replace_once(
+              '''      content: block.contentMarkdown,\n    })),''',
+              '''      content: block.contentMarkdown,\n      workedExample: sanitizeWorkedExample(block.workedExamplePayload),\n      formativeCheck: sanitizeFormativeCheck(block.formativeCheckPayload),\n    })),''',
+              'structured block projection',
+          )
+
+          replace_once(
+              '''        <article className="mx-auto w-full max-w-[75ch] space-y-6">{publicSection ? <StructuredArticleSectionContent section={publicSection} articleId={product.id} articleVersion={product.version} showProgress={false} /> : <AdminEmptyState icon={BookOpen} title="Artikel belum memiliki bagian" description="Tambahkan section V3 melalui authoring." />}</article>''',
+              '''        <article className="mx-auto w-full max-w-[75ch] space-y-6">\n          {publicSection ? (\n            <FormativeCheckEndpointProvider\n              endpointBase={bundleStatus === "draft"\n                ? `/api/admin/bundles/product/${encodeURIComponent(bundleId)}/formative-check`\n                : "/api/materials/formative-check"}\n            >\n              <StructuredArticleSectionContent\n                section={publicSection}\n                articleId={product.id}\n                articleVersion={product.version}\n                showProgress={false}\n              />\n            </FormativeCheckEndpointProvider>\n          ) : (\n            <AdminEmptyState\n              icon={BookOpen}\n              title="Artikel belum memiliki bagian"\n              description="Tambahkan section V3 melalui authoring."\n            />\n          )}\n        </article>''',
+              'structured article review renderer',
+          )
+
+          path.write_text(text)
+          PY
+
+          rm -f components/admin/admin-confirm-dialog.tsx
+          git diff --check
+
+      - name: Commit repaired diff
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet; then
+            echo "No repair changes required."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add components/admin/material-review-detail.tsx components/admin/admin-confirm-dialog.tsx
+          git commit -m "fix: narrow draft formative review integration"
+          git push origin HEAD:staging
