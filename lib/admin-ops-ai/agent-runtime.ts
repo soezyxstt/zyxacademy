@@ -8,7 +8,6 @@ import {
 import { ZyxLanguageModel } from "./zyx-language-model-adapter";
 import {
   ALL_OPS_AI_TOOL_SECURITY_REGISTRY,
-  OPS_AI_CITATION_OFFICIAL_LABEL,
   OPS_AI_POLICY_BOUNDS,
   validateOpsAiCitation,
   validateOpsAiErrorData,
@@ -24,6 +23,7 @@ import {
 import {
   assertProvenanceIntegrity,
   verifyInlineCitations,
+  OPS_AI_CITATION_OFFICIAL_LABEL,
 } from "./citations";
 import {
   createOpsAiTools,
@@ -687,12 +687,14 @@ export function createOpsAiRuntimeStream(
                 const error = part.error instanceof Error
                   ? part.error.message
                   : String(part.error || "Tool execution failed");
-                writer.write({
-                  type: "tool-result",
-                  toolCallId: String(part.toolCallId || "unknown-call"),
-                  toolName: String(part.toolName || "unknown_tool"),
-                  output: { error },
-                } as any);
+                if (!error.includes("OPS_AI_TOOL_BUDGET_EXCEEDED")) {
+                  writer.write({
+                    type: "tool-result",
+                    toolCallId: String(part.toolCallId || "unknown-call"),
+                    toolName: String(part.toolName || "unknown_tool"),
+                    output: { error },
+                  } as any);
+                }
                 continue;
               }
 
