@@ -4,13 +4,17 @@ import { createClient } from "@libsql/client";
 import { drizzle } from "drizzle-orm/libsql";
 import { eq } from "drizzle-orm";
 import * as schema from "@/db/schema";
-import { CANCELLED_QUOTA_REFUND_LOG_ACTION } from "@/lib/schedule/tutor-policy";
+import {
+  backfillBookedNullTutorSlotDates,
+  CANCELLED_QUOTA_REFUND_LOG_ACTION,
+} from "@/lib/schedule/tutor-policy";
 import {
   executeAddTutorSlot,
   executeDeleteTutorSlot,
   executeCreateTutorSession,
   executeMoveTutorSession,
   executeDecideTutorRescheduleTicket,
+  copyTutorAvailabilityFromPreviousWeek,
   getTutorAuthContext,
 } from "@/app/(tutor)/tutor/schedule/actions";
 import {
@@ -357,6 +361,13 @@ describe("Tutor Schedule Action Contracts", () => {
     },
     now: Date,
   ) {
+    // A booked legacy slot has an unambiguous session date. Keep the fixture
+    // aligned with the compatibility backfill contract.
+    await testDb
+      .update(schema.tutorSlots)
+      .set({ sessionDate: booking.sessionDate })
+      .where(eq(schema.tutorSlots.id, booking.slotId));
+
     await testDb.insert(schema.bookings).values({
       id: booking.id,
       slotId: booking.slotId,
@@ -369,6 +380,37 @@ describe("Tutor Schedule Action Contracts", () => {
       endTime: "10:30",
       lastModifiedAt: now,
       bookedAt: now,
+    });
+  }
+
+  async function setFixtureSlotDate(testDb: TestDb, slotId: string, sessionDate: string) {
+    await testDb
+      .update(schema.tutorSlots)
+      .set({ sessionDate })
+      .where(eq(schema.tutorSlots.id, slotId));
+  }
+
+  async function seedTutorIdentity(testDb: TestDb, now = new Date(), tutorId = "tutor-1") {
+    await testDb.insert(schema.user).values({
+      id: tutorId,
+      name: "Tutor Satu",
+      email: `${tutorId}@zyx.test`,
+      createdAt: now,
+      updatedAt: now,
+      role: "teacher",
+    });
+    await testDb.insert(schema.pengguna).values({
+      id: tutorId,
+      status: "active",
+      createdAt: now,
+      updatedAt: now,
+    });
+    await testDb.insert(schema.penggunaPeran).values({
+      id: `pp-${tutorId}`,
+      penggunaId: tutorId,
+      peranId: "peran-tutor",
+      source: "seed",
+      createdAt: now,
     });
   }
 
@@ -428,9 +470,14 @@ describe("Tutor Schedule Action Contracts", () => {
           dayOfWeek: "Senin",
           startTime: "09:00",
           endTime: "10:30",
+          sessionDate: "2026-09-14",
           mode: "online",
         },
-        { actorId: "tutor-1", executor: testDb },
+        {
+          actorId: "tutor-1",
+          executor: testDb,
+          now: new Date("2026-09-09T08:00:00.000+07:00"),
+        },
       );
 
       expect(res.success).toBe(true);
@@ -481,9 +528,14 @@ describe("Tutor Schedule Action Contracts", () => {
           dayOfWeek: "Senin",
           startTime: "09:00",
           endTime: "10:00", // 60 mins -> invalid
+          sessionDate: "2026-09-14",
           mode: "online",
         },
-        { actorId: "tutor-1", executor: testDb },
+        {
+          actorId: "tutor-1",
+          executor: testDb,
+          now: new Date("2026-09-09T08:00:00.000+07:00"),
+        },
       );
 
       expect(res.success).toBe(false);
@@ -528,14 +580,225 @@ describe("Tutor Schedule Action Contracts", () => {
           dayOfWeek: "Rabu",
           startTime: "13:00",
           endTime: "14:30",
+          sessionDate: "2026-09-16",
           mode: "offline",
           location: "",
         },
-        { actorId: "tutor-1", executor: testDb },
+        {
+          actorId: "tutor-1",
+          executor: testDb,
+          now: new Date("2026-09-09T08:00:00.000+07:00"),
+        },
       );
 
       expect(res.success).toBe(false);
       expect(res.reason).toBe("LOCATION_REQUIRED_FOR_OFFLINE");
+    });
+
+    it("rejects exact duplicates and overlaps while allowing adjacent slots", async () => {
+      const { testDb } = await createTestDb();
+      await seedTutorIdentity(testDb);
+      const options = {
+        actorId: "tutor-1",
+        executor: testDb,
+        now: new Date("2026-09-09T08:00:00.000+07:00"),
+      };
+
+      const first = await executeAddTutorSlot(
+        {
+          dayOfWeek: "Senin",
+          sessionDate: "2026-09-14",
+          startTime: "09:00",
+          endTime: "10:30",
+        },
+        options,
+      );
+      expect(first.success).toBe(true);
+
+      const duplicate = await executeAddTutorSlot(
+        {
+          dayOfWeek: "Senin",
+          sessionDate: "2026-09-14",
+          startTime: "09:00",
+          endTime: "10:30",
+        },
+        options,
+      );
+      expect(duplicate.success).toBe(false);
+      expect(duplicate.reason).toBe("DUPLICATE_TUTOR_SLOT");
+
+      const overlap = await executeAddTutorSlot(
+        {
+          dayOfWeek: "Senin",
+          sessionDate: "2026-09-14",
+          startTime: "08:30",
+          endTime: "10:00",
+        },
+        options,
+      );
+      expect(overlap.success).toBe(false);
+      expect(overlap.reason).toBe("TUTOR_SLOT_OVERLAP");
+
+      const adjacent = await executeAddTutorSlot(
+        {
+          dayOfWeek: "Senin",
+          sessionDate: "2026-09-14",
+          startTime: "10:30",
+          endTime: "12:00",
+        },
+        options,
+      );
+      expect(adjacent.success).toBe(true);
+
+      const slots = await testDb.select().from(schema.tutorSlots);
+      expect(slots).toHaveLength(2);
+    });
+
+    it("requires a valid dated weekday and enforces the tutor mutation deadline", async () => {
+      const { testDb } = await createTestDb();
+      await seedTutorIdentity(testDb);
+
+      const missingDate = await executeAddTutorSlot(
+        {
+          dayOfWeek: "Senin",
+          startTime: "09:00",
+          endTime: "10:30",
+        },
+        { actorId: "tutor-1", executor: testDb },
+      );
+      expect(missingDate.success).toBe(false);
+      expect(missingDate.reason).toBe("SESSION_DATE_REQUIRED");
+
+      const mismatch = await executeAddTutorSlot(
+        {
+          dayOfWeek: "Senin",
+          sessionDate: "2026-09-15",
+          startTime: "09:00",
+          endTime: "10:30",
+        },
+        {
+          actorId: "tutor-1",
+          executor: testDb,
+          now: new Date("2026-09-09T08:00:00.000+07:00"),
+        },
+      );
+      expect(mismatch.success).toBe(false);
+      expect(mismatch.reason).toBe("DAY_OF_WEEK_MISMATCH");
+
+      const afterDeadline = await executeAddTutorSlot(
+        {
+          dayOfWeek: "Senin",
+          sessionDate: "2026-09-14",
+          startTime: "09:00",
+          endTime: "10:30",
+        },
+        {
+          actorId: "tutor-1",
+          executor: testDb,
+          now: new Date("2026-09-11T11:00:00.000Z"),
+        },
+      );
+      expect(afterDeadline.success).toBe(false);
+      expect(afterDeadline.reason).toBe("TUTOR_AVAILABILITY_DEADLINE_PASSED");
+    });
+
+    it("backfills only booked null-date slots with an unambiguous date", async () => {
+      const { testDb } = await createTestDb();
+      const { now } = await seedQuotaFixture(testDb, { weekly: 2, total: 15, used: 0 });
+
+      await testDb.insert(schema.bookings).values({
+        id: "bk-legacy-date",
+        slotId: "slot-a",
+        studentId: "student-1",
+        courseId: "crs-calc",
+        groupId: "grp-q",
+        status: "scheduled",
+        sessionDate: "2026-08-31",
+        startTime: "09:00",
+        endTime: "10:30",
+        lastModifiedAt: now,
+        bookedAt: now,
+      });
+
+      const result = await backfillBookedNullTutorSlotDates(testDb);
+      expect(result.updatedCount).toBe(1);
+      expect(result.skippedCount).toBe(0);
+
+      const slots = await testDb
+        .select({ id: schema.tutorSlots.id, sessionDate: schema.tutorSlots.sessionDate })
+        .from(schema.tutorSlots);
+      expect(slots.find((slot) => slot.id === "slot-a")?.sessionDate).toBe("2026-08-31");
+      expect(slots.find((slot) => slot.id === "slot-b")?.sessionDate).toBeNull();
+    });
+
+    it("copies the previous week's availability into fresh dated slots", async () => {
+      const { testDb } = await createTestDb();
+      const { now } = await seedQuotaFixture(testDb, { weekly: 2, total: 15, used: 0 });
+
+      await setFixtureSlotDate(testDb, "slot-a", "2026-08-24");
+      await setFixtureSlotDate(testDb, "slot-b", "2026-08-26");
+      await setFixtureSlotDate(testDb, "slot-c", "2026-08-28");
+      await seedFixtureBooking(testDb, {
+        id: "bk-source-slot",
+        slotId: "slot-c",
+        sessionDate: "2026-08-28",
+        status: "scheduled",
+      }, now);
+
+      await testDb.insert(schema.tutorSlots).values([
+        {
+          id: "destination-exact",
+          tutorId: "tutor-1",
+          dayOfWeek: "Senin",
+          startTime: "09:00",
+          endTime: "10:30",
+          mode: "online",
+          sessionDate: "2026-08-31",
+          createdAt: now,
+        },
+        {
+          id: "destination-overlap",
+          tutorId: "tutor-1",
+          dayOfWeek: "Rabu",
+          startTime: "09:30",
+          endTime: "11:00",
+          mode: "offline",
+          location: "Ruang 4",
+          sessionDate: "2026-09-02",
+          createdAt: now,
+        },
+      ]);
+
+      const result = await copyTutorAvailabilityFromPreviousWeek("2026-08-31", {
+        actorId: "tutor-1",
+        executor: testDb,
+        now: new Date("2026-08-25T08:00:00.000+07:00"),
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.createdCount).toBe(1);
+      expect(result.skippedCount).toBe(2);
+      expect(result.conflicts).toEqual([
+        expect.objectContaining({
+          sourceSlotId: "slot-b",
+          destinationDate: "2026-09-02",
+          reason: "OVERLAP",
+          existingSlotId: "destination-overlap",
+        }),
+      ]);
+
+      const copied = await testDb
+        .select()
+        .from(schema.tutorSlots)
+        .where(eq(schema.tutorSlots.sessionDate, "2026-09-04"));
+      expect(copied).toHaveLength(1);
+      expect(copied[0].id).not.toBe("slot-c");
+      expect(copied[0].dayOfWeek).toBe("Jumat");
+      expect(copied[0].mode).toBe("online");
+      expect(copied[0].sessionDate).toBe("2026-09-04");
+      expect(
+        await testDb.select().from(schema.bookings).where(eq(schema.bookings.slotId, copied[0].id)),
+      ).toHaveLength(0);
     });
   });
 
@@ -679,6 +942,35 @@ describe("Tutor Schedule Action Contracts", () => {
       expect(audits).toHaveLength(1);
       expect(audits[0].action).toBe("tutor.slot.delete");
       expect(audits[0].outcome).toBe("rejected");
+    });
+
+    it("rejects deletion of an unbooked dated slot after the tutor deadline", async () => {
+      const { testDb } = await createTestDb();
+      const now = new Date();
+      await seedTutorIdentity(testDb, now);
+
+      await testDb.insert(schema.tutorSlots).values({
+        id: "slot-deadline-1",
+        tutorId: "tutor-1",
+        dayOfWeek: "Senin",
+        startTime: "09:00",
+        endTime: "10:30",
+        sessionDate: "2026-09-14",
+        createdAt: now,
+      });
+
+      const res = await executeDeleteTutorSlot(
+        { slotId: "slot-deadline-1" },
+        {
+          actorId: "tutor-1",
+          executor: testDb,
+          now: new Date("2026-09-11T11:00:00.000Z"),
+        },
+      );
+
+      expect(res.success).toBe(false);
+      expect(res.reason).toBe("TUTOR_AVAILABILITY_DEADLINE_PASSED");
+      expect(await testDb.select().from(schema.tutorSlots)).toHaveLength(1);
     });
 
     it("prevents slot deletion race condition if slot is booked right before deletion transaction executes", async () => {
@@ -1361,6 +1653,7 @@ describe("Tutor Schedule Action Contracts", () => {
           actorId: "tutor-1",
           executor: testDb,
           skipNotifications: true,
+          now: new Date("2026-08-25T08:00:00.000+07:00"),
         },
       );
 
@@ -1599,7 +1892,13 @@ describe("Tutor Schedule Action Contracts", () => {
           targetSessionDate: "2026-08-26",
           reason: "Coba pindahkan sesi selesai",
         },
-        { actorId: "tutor-1", executor: testDb, skipExternalMeet: true, skipNotifications: true },
+        {
+          actorId: "tutor-1",
+          executor: testDb,
+          skipExternalMeet: true,
+          skipNotifications: true,
+          now: new Date("2026-08-25T08:00:00.000+07:00"),
+        },
       );
 
       expect(res.success).toBe(false);
@@ -1634,7 +1933,13 @@ describe("Tutor Schedule Action Contracts", () => {
           targetSessionDate: "2026-08-26",
           reason: "Permohonan pertama",
         },
-        { actorId: "tutor-1", executor: testDb, skipExternalMeet: true, skipNotifications: true },
+        {
+          actorId: "tutor-1",
+          executor: testDb,
+          skipExternalMeet: true,
+          skipNotifications: true,
+          now: new Date("2026-08-25T08:00:00.000+07:00"),
+        },
       );
 
       expect(firstMove.success).toBe(true);
@@ -1649,7 +1954,13 @@ describe("Tutor Schedule Action Contracts", () => {
           targetSessionDate: "2026-08-28",
           reason: "Permohonan kedua",
         },
-        { actorId: "tutor-1", executor: testDb, skipExternalMeet: true, skipNotifications: true },
+        {
+          actorId: "tutor-1",
+          executor: testDb,
+          skipExternalMeet: true,
+          skipNotifications: true,
+          now: new Date("2026-08-25T08:00:00.000+07:00"),
+        },
       );
 
       expect(secondMove.success).toBe(false);
@@ -1687,7 +1998,13 @@ describe("Tutor Schedule Action Contracts", () => {
           targetSlotId: "slot-b",
           targetSessionDate: "2026-09-09",
         },
-        { actorId: "tutor-1", executor: testDb, skipExternalMeet: true, skipNotifications: true },
+        {
+          actorId: "tutor-1",
+          executor: testDb,
+          skipExternalMeet: true,
+          skipNotifications: true,
+          now: new Date("2026-08-25T08:00:00.000+07:00"),
+        },
       );
 
       expect(res.success).toBe(false);
@@ -1720,13 +2037,20 @@ describe("Tutor Schedule Action Contracts", () => {
       }, now);
 
       // Move within the SAME week 2026-W36 to Wednesday 2026-09-02 (slot-b)
+      await setFixtureSlotDate(testDb, "slot-b", "2026-09-02");
       const res = await executeMoveTutorSession(
         {
           bookingId: "bk-same-week",
           targetSlotId: "slot-b",
           targetSessionDate: "2026-09-02",
         },
-        { actorId: "tutor-1", executor: testDb, skipExternalMeet: true, skipNotifications: true },
+        {
+          actorId: "tutor-1",
+          executor: testDb,
+          skipExternalMeet: true,
+          skipNotifications: true,
+          now: new Date("2026-08-25T08:00:00.000+07:00"),
+        },
       );
 
       expect(res.success).toBe(true);
@@ -1768,13 +2092,20 @@ describe("Tutor Schedule Action Contracts", () => {
       });
 
       // Move bk-orig-ref to Wednesday 2026-09-09 (slot-b in target week 2026-W37)
+      await setFixtureSlotDate(testDb, "slot-b", "2026-09-09");
       const res = await executeMoveTutorSession(
         {
           bookingId: "bk-orig-ref",
           targetSlotId: "slot-b",
           targetSessionDate: "2026-09-09",
         },
-        { actorId: "tutor-1", executor: testDb, skipExternalMeet: true, skipNotifications: true },
+        {
+          actorId: "tutor-1",
+          executor: testDb,
+          skipExternalMeet: true,
+          skipNotifications: true,
+          now: new Date("2026-08-25T08:00:00.000+07:00"),
+        },
       );
 
       expect(res.success).toBe(true);
@@ -1806,13 +2137,20 @@ describe("Tutor Schedule Action Contracts", () => {
       }, now);
 
       // Move bk-orig-hangus to Wednesday 2026-09-09 (slot-b in target week 2026-W37)
+      await setFixtureSlotDate(testDb, "slot-b", "2026-09-09");
       const res = await executeMoveTutorSession(
         {
           bookingId: "bk-orig-hangus",
           targetSlotId: "slot-b",
           targetSessionDate: "2026-09-09",
         },
-        { actorId: "tutor-1", executor: testDb, skipExternalMeet: true, skipNotifications: true },
+        {
+          actorId: "tutor-1",
+          executor: testDb,
+          skipExternalMeet: true,
+          skipNotifications: true,
+          now: new Date("2026-08-25T08:00:00.000+07:00"),
+        },
       );
 
       expect(res.success).toBe(false);
@@ -2915,12 +3253,17 @@ describe("Tutor Schedule Action Contracts", () => {
         sessionDate: "2026-09-11",
         status: "scheduled",
       }, now);
+      await setFixtureSlotDate(testDb, "slot-b", "2026-09-09");
 
       const res = await collaborativeMoveSlot(
         "bk-std-move-orig",
         "slot-b",
         "2026-09-09",
-        { actorId: "student-1", executor: testDb },
+        {
+          actorId: "student-1",
+          executor: testDb,
+          now: new Date("2026-08-25T08:00:00.000+07:00"),
+        },
       );
 
       expect(res.success).toBe(false);
@@ -2941,12 +3284,17 @@ describe("Tutor Schedule Action Contracts", () => {
         sessionDate: "2026-08-31",
         status: "scheduled",
       }, now);
+      await setFixtureSlotDate(testDb, "slot-b", "2026-09-02");
 
       const res = await collaborativeMoveSlot(
         "bk-std-same-week",
         "slot-b",
         "2026-09-02",
-        { actorId: "student-1", executor: testDb },
+        {
+          actorId: "student-1",
+          executor: testDb,
+          now: new Date("2026-08-25T08:00:00.000+07:00"),
+        },
       );
 
       expect(res.success).toBe(true);
@@ -2984,12 +3332,17 @@ describe("Tutor Schedule Action Contracts", () => {
         summary: "Refund pre-lock cancellation",
         createdAt: now,
       });
+      await setFixtureSlotDate(testDb, "slot-b", "2026-09-09");
 
       const res = await collaborativeMoveSlot(
         "bk-std-orig-ref",
         "slot-b",
         "2026-09-09",
-        { actorId: "student-1", executor: testDb },
+        {
+          actorId: "student-1",
+          executor: testDb,
+          now: new Date("2026-08-25T08:00:00.000+07:00"),
+        },
       );
 
       expect(res.success).toBe(true);
@@ -3017,12 +3370,17 @@ describe("Tutor Schedule Action Contracts", () => {
         sessionDate: "2026-09-11",
         status: "cancelled",
       }, now);
+      await setFixtureSlotDate(testDb, "slot-b", "2026-09-09");
 
       const res = await collaborativeMoveSlot(
         "bk-std-orig-hangus",
         "slot-b",
         "2026-09-09",
-        { actorId: "student-1", executor: testDb },
+        {
+          actorId: "student-1",
+          executor: testDb,
+          now: new Date("2026-08-25T08:00:00.000+07:00"),
+        },
       );
 
       expect(res.success).toBe(false);
@@ -3089,11 +3447,16 @@ describe("Tutor Schedule Action Contracts", () => {
         "crs-calc",
         "grp-q",
         "2026-08-31",
-        { actorId: "student-1", executor: testDb },
+        {
+          actorId: "student-1",
+          executor: testDb,
+          now: new Date("2026-08-25T08:00:00.000+07:00"),
+        },
       );
 
       expect(res1.success).toBe(false);
       expect(res1.error).toContain("First-Come First-Served");
+      expect(res1.reason).toBe("SLOT_TAKEN");
 
       // Verify used quota remains untouched at 3
       const [groupAfter1] = await testDb
@@ -3108,11 +3471,16 @@ describe("Tutor Schedule Action Contracts", () => {
         "crs-calc",
         "grp-q",
         "2026-08-31",
-        { actorId: "student-1", executor: testDb },
+        {
+          actorId: "student-1",
+          executor: testDb,
+          now: new Date("2026-08-25T08:00:00.000+07:00"),
+        },
       );
 
       expect(res2.success).toBe(false);
       expect(res2.error).toContain("First-Come First-Served");
+      expect(res2.reason).toBe("SLOT_TAKEN");
 
       // Verify used quota is still 3
       const [groupAfter2] = await testDb
@@ -3125,6 +3493,7 @@ describe("Tutor Schedule Action Contracts", () => {
     it("eliminates TOCTOU by verifying group membership and slot eligibility inside the transaction", async () => {
       const { testDb } = await createTestDb();
       const { now } = await seedQuotaFixture(testDb, { weekly: 2, total: 15, used: 1 });
+      await setFixtureSlotDate(testDb, "slot-b", "2026-09-02");
 
       // Intercept transaction to simulate concurrent membership removal right before transaction body executes
       const toctouDb = new Proxy(testDb, {
@@ -3147,7 +3516,11 @@ describe("Tutor Schedule Action Contracts", () => {
         "crs-calc",
         "grp-q",
         "2026-09-02",
-        { actorId: "student-1", executor: toctouDb as any },
+        {
+          actorId: "student-1",
+          executor: toctouDb as any,
+          now: new Date("2026-08-25T08:00:00.000+07:00"),
+        },
       );
 
       expect(res.success).toBe(false);
@@ -3163,6 +3536,89 @@ describe("Tutor Schedule Action Contracts", () => {
       // No booking was created
       const bookingsCount = await testDb.select().from(schema.bookings);
       expect(bookingsCount).toHaveLength(0);
+    });
+
+    it("rejects null-date legacy slots and does not invent a booking date", async () => {
+      const { testDb } = await createTestDb();
+      await seedQuotaFixture(testDb, { weekly: 2, total: 15, used: 0 });
+
+      const result = await collaborativeBookSlot(
+        "slot-a",
+        "crs-calc",
+        "grp-q",
+        "2026-08-31",
+        {
+          actorId: "student-1",
+          executor: testDb,
+          now: new Date("2026-08-25T08:00:00.000+07:00"),
+        },
+      );
+
+      expect(result.success).toBe(false);
+      expect(result.reason).toBe("LEGACY_SLOT_NO_DATE");
+      expect(await testDb.select().from(schema.bookings)).toHaveLength(0);
+    });
+
+    it("uses the slot date as the canonical source and enforces date matching", async () => {
+      const { testDb } = await createTestDb();
+      await seedQuotaFixture(testDb, { weekly: 2, total: 15, used: 0 });
+      await setFixtureSlotDate(testDb, "slot-b", "2026-09-02");
+
+      const mismatch = await collaborativeBookSlot(
+        "slot-b",
+        "crs-calc",
+        "grp-q",
+        "2026-09-03",
+        {
+          actorId: "student-1",
+          executor: testDb,
+          now: new Date("2026-08-25T08:00:00.000+07:00"),
+        },
+      );
+
+      expect(mismatch.success).toBe(false);
+      expect(mismatch.reason).toBe("SLOT_DATE_MISMATCH");
+
+      const booked = await collaborativeBookSlot(
+        "slot-b",
+        "crs-calc",
+        "grp-q",
+        "2026-09-02",
+        {
+          actorId: "student-1",
+          executor: testDb,
+          now: new Date("2026-08-25T08:00:00.000+07:00"),
+        },
+      );
+
+      expect(booked.success).toBe(true);
+      expect(booked.bookingId).toBeDefined();
+      const bookingRows = await testDb
+        .select({ sessionDate: schema.bookings.sessionDate })
+        .from(schema.bookings);
+      expect(bookingRows).toEqual([{ sessionDate: "2026-09-02" }]);
+    });
+
+    it("rejects booking after the target week's Saturday lock", async () => {
+      const { testDb } = await createTestDb();
+      await seedQuotaFixture(testDb, { weekly: 2, total: 15, used: 0 });
+      await setFixtureSlotDate(testDb, "slot-a", "2026-08-31");
+
+      const result = await collaborativeBookSlot(
+        "slot-a",
+        "crs-calc",
+        "grp-q",
+        "2026-08-31",
+        {
+          actorId: "student-1",
+          executor: testDb,
+          now: new Date("2026-08-30T00:00:00.000+07:00"),
+        },
+      );
+
+      expect(result.success).toBe(false);
+      expect(result.reason).toBe("BOOKING_LOCKED");
+      expect(await testDb.select().from(schema.bookings)).toHaveLength(0);
     });
   });
 });

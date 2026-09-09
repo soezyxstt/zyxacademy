@@ -13,6 +13,7 @@ import {
   getWeekScheduleDays,
   formatIsoDateUtc,
 } from "@/lib/date-utils";
+import { getTutorialWeekRange } from "@/lib/schedule/week-policy";
 
 export {
   INDONESIAN_DAYS,
@@ -50,12 +51,10 @@ export function isNinetyMinuteSlot(startTime: string, endTime: string): boolean 
 export function getIsoWeekRange(
   dateInput: Date | string
 ): { startIso: string; endIso: string } {
-  const monday = getMondayOfWeek(dateInput);
-  const sunday = new Date(monday);
-  sunday.setDate(monday.getDate() + 6);
+  const { startIso, endIso } = getTutorialWeekRange(dateInput);
   return {
-    startIso: formatIsoDateUtc(monday),
-    endIso: formatIsoDateUtc(sunday),
+    startIso,
+    endIso,
   };
 }
 

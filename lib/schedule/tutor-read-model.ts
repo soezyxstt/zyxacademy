@@ -1,9 +1,10 @@
-import { and, desc, eq, inArray, isNull, or } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, isNotNull, isNull, lte, or } from "drizzle-orm";
 import { db } from "@/db";
 import {
   academicSchedules,
   bookingRescheduleTickets,
   bookingTicketMessages,
+  bookingResources,
   bookings,
   courses,
   groupCourses,
@@ -22,6 +23,7 @@ import {
   type TutorAccessSource,
 } from "@/lib/auth/tutor-access";
 import { normalizeDate } from "@/lib/date-utils";
+import type { SessionResource } from "@/lib/schedule/session-resources";
 import {
   getDeterministicGroupRepresentative,
   type GroupRepresentativeResult,
@@ -76,6 +78,9 @@ export interface OwnedSlotItem {
     endTime: string | null;
     mode: string;
     topic: string | null;
+    resources: SessionResource[];
+    preSessionResources: SessionResource[];
+    postSessionResources: SessionResource[];
   } | null;
 }
 
@@ -110,6 +115,9 @@ export interface OwnedBookingItem {
     name: string | null;
     email: string | null;
   } | null;
+  resources: SessionResource[];
+  preSessionResources: SessionResource[];
+  postSessionResources: SessionResource[];
 }
 
 export interface OwnedTicketMessageItem {
@@ -168,6 +176,143 @@ export interface TutorScheduleReadModel {
 export interface GetTutorScheduleReadModelInput {
   tutorId: string;
   allowAdmin?: boolean;
+  fromDate?: string;
+  toDate?: string;
+}
+
+type LegacyBookingAttachment = {
+  id?: string;
+  name?: string;
+  url?: string;
+  size?: number;
+  type?: string;
+  uploadedBy?: string;
+  uploadedByName?: string;
+  uploadedAt?: string;
+};
+
+function validIsoDate(value: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const [year, month, day] = value.split("-").map(Number);
+  const parsed = new Date(Date.UTC(year, month - 1, day, 12, 0, 0, 0));
+  return (
+    !Number.isNaN(parsed.getTime()) &&
+    parsed.getUTCFullYear() === year &&
+    parsed.getUTCMonth() === month - 1 &&
+    parsed.getUTCDate() === day
+  );
+}
+
+function legacyAttachments(value: unknown): LegacyBookingAttachment[] {
+  return Array.isArray(value)
+    ? value.filter((attachment): attachment is LegacyBookingAttachment =>
+        Boolean(attachment && typeof attachment === "object"),
+      )
+    : [];
+}
+
+function legacyResourceDate(value: string | undefined, fallback: Date): Date {
+  if (!value) return fallback;
+  const parsed = normalizeDate(value);
+  return Number.isNaN(parsed.getTime()) ? fallback : parsed;
+}
+
+function mergeBookingResources(
+  booking: typeof bookings.$inferSelect,
+  normalized: SessionResource[],
+): SessionResource[] {
+  const fallbackDate = normalizeDate(booking.bookedAt);
+  const legacy: SessionResource[] = [];
+  const addLegacyAttachments = (
+    phase: "pre" | "post",
+    attachments: unknown,
+  ) => {
+    for (const attachment of legacyAttachments(attachments)) {
+      if (!attachment.url || !attachment.name) continue;
+      const createdAt = legacyResourceDate(attachment.uploadedAt, fallbackDate);
+      legacy.push({
+        id: `legacy-${booking.id}-${phase}-${attachment.id || attachment.url}`,
+        bookingId: booking.id,
+        phase,
+        kind: "file",
+        label: attachment.name,
+        url: attachment.url,
+        fileName: attachment.name,
+        mimeType: attachment.type ?? null,
+        sizeBytes: attachment.size ?? null,
+        metadata: {
+          legacy: true,
+          uploadedBy: attachment.uploadedBy ?? null,
+          uploadedByName: attachment.uploadedByName ?? null,
+        },
+        createdById: attachment.uploadedBy || "legacy",
+        createdAt,
+        updatedAt: createdAt,
+      });
+    }
+  };
+
+  addLegacyAttachments("pre", booking.preSessionAttachments);
+  addLegacyAttachments("post", booking.postSessionAttachments);
+
+  if (booking.postSessionLinkUrl) {
+    legacy.push({
+      id: `legacy-${booking.id}-post-link`,
+      bookingId: booking.id,
+      phase: "post",
+      kind: "link",
+      label: booking.postSessionLinkTitle || "Link sesi",
+      url: booking.postSessionLinkUrl,
+      fileName: null,
+      mimeType: null,
+      sizeBytes: null,
+      metadata: {
+        legacy: true,
+        description: booking.postSessionLinkDescription ?? null,
+        image: booking.postSessionLinkImage ?? null,
+      },
+      createdById: "legacy",
+      createdAt: fallbackDate,
+      updatedAt: fallbackDate,
+    });
+  }
+
+  const result = [...normalized];
+  const seen = new Set(normalized.map((resource) => `${resource.phase}|${resource.kind}|${resource.url}`));
+  for (const resource of legacy) {
+    const key = `${resource.phase}|${resource.kind}|${resource.url}`;
+    if (!seen.has(key)) {
+      seen.add(key);
+      result.push(resource);
+    }
+  }
+  return result;
+}
+
+function splitBookingResources(resources: SessionResource[]) {
+  return {
+    resources,
+    preSessionResources: resources.filter((resource) => resource.phase === "pre"),
+    postSessionResources: resources.filter((resource) => resource.phase === "post"),
+  };
+}
+
+function storedResource(row: typeof bookingResources.$inferSelect): SessionResource {
+  return {
+    id: row.id,
+    bookingId: row.bookingId,
+    phase: row.phase,
+    kind: row.kind,
+    label: row.label,
+    url: row.url,
+    fileName: row.fileName ?? null,
+    mimeType: row.mimeType ?? null,
+    sizeBytes: row.sizeBytes ?? null,
+    metadata: row.metadata ?? null,
+    createdById: row.createdById,
+    createdAt: normalizeDate(row.createdAt),
+    updatedAt: normalizeDate(row.updatedAt),
+  };
 }
 
 /**
@@ -183,6 +328,15 @@ export async function getTutorScheduleReadModel(
   const tutorId =
     typeof input === "string" ? input.trim() : input.tutorId.trim();
   const allowAdmin = typeof input === "object" && input.allowAdmin === true;
+  const fromDate = typeof input === "object" ? input.fromDate?.trim() : undefined;
+  const toDate = typeof input === "object" ? input.toDate?.trim() : undefined;
+
+  if ((fromDate && !validIsoDate(fromDate)) || (toDate && !validIsoDate(toDate))) {
+    throw new Error("INVALID_SCHEDULE_RANGE");
+  }
+  if (fromDate && toDate && fromDate > toDate) {
+    throw new Error("INVALID_SCHEDULE_RANGE");
+  }
 
   if (!tutorId) {
     throw new Error("TUTOR_ID_REQUIRED");
@@ -471,6 +625,12 @@ export async function getTutorScheduleReadModel(
   }
 
   // 4. Fetch owned slots and attached bookings
+  const slotConditions = [eq(tutorSlots.tutorId, tutorId)];
+  if (fromDate || toDate) {
+    slotConditions.push(isNotNull(tutorSlots.sessionDate));
+    if (fromDate) slotConditions.push(gte(tutorSlots.sessionDate, fromDate));
+    if (toDate) slotConditions.push(lte(tutorSlots.sessionDate, toDate));
+  }
   const rawSlots = await client
     .select({
       id: tutorSlots.id,
@@ -484,10 +644,11 @@ export async function getTutorScheduleReadModel(
       createdAt: tutorSlots.createdAt,
     })
     .from(tutorSlots)
-    .where(eq(tutorSlots.tutorId, tutorId));
+    .where(and(...slotConditions));
 
   const slotIds = rawSlots.map((s) => s.id);
   const slotBookingsMap = new Map<string, typeof bookings.$inferSelect>();
+  const resourcesByBookingId = new Map<string, SessionResource[]>();
 
   if (slotIds.length > 0) {
     const slotBookingRows = await client
@@ -498,10 +659,31 @@ export async function getTutorScheduleReadModel(
     for (const b of slotBookingRows) {
       slotBookingsMap.set(b.slotId, b);
     }
+
+    // The resource table is additive. Keep the legacy read model usable while
+    // an environment is between application deploy and schema migration.
+    try {
+      const normalizedRows = await client
+        .select()
+        .from(bookingResources)
+        .where(inArray(bookingResources.bookingId, slotBookingRows.map((b) => b.id)))
+        .orderBy(asc(bookingResources.createdAt), asc(bookingResources.id));
+      for (const row of normalizedRows) {
+        const list = resourcesByBookingId.get(row.bookingId) ?? [];
+        list.push(storedResource(row));
+        resourcesByBookingId.set(row.bookingId, list);
+      }
+    } catch (error) {
+      console.warn("Normalized booking resources are unavailable; using legacy fields.", error);
+    }
   }
 
   const ownedSlots: OwnedSlotItem[] = rawSlots.map((s) => {
     const b = slotBookingsMap.get(s.id);
+    const resources = b
+      ? mergeBookingResources(b, resourcesByBookingId.get(b.id) ?? [])
+      : [];
+    const resourceSummary = splitBookingResources(resources);
     return {
       id: s.id,
       tutorId: s.tutorId,
@@ -524,6 +706,7 @@ export async function getTutorScheduleReadModel(
             endTime: b.endTime ?? null,
             mode: b.mode,
             topic: b.topic ?? null,
+            ...resourceSummary,
           }
         : null,
     };
@@ -567,6 +750,10 @@ export async function getTutorScheduleReadModel(
 
     for (const b of bookingRows) {
       ownedBookingIds.push(b.id);
+      const bookingSnapshot = slotBookingsMap.get(b.slotId);
+      const resources = bookingSnapshot
+        ? mergeBookingResources(bookingSnapshot, resourcesByBookingId.get(b.id) ?? [])
+        : resourcesByBookingId.get(b.id) ?? [];
       ownedBookings.push({
         id: b.id,
         slotId: b.slotId,
@@ -594,6 +781,7 @@ export async function getTutorScheduleReadModel(
               email: b.studentEmail ?? null,
             }
           : null,
+        ...splitBookingResources(resources),
       });
     }
   }

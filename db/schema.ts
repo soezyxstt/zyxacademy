@@ -576,7 +576,7 @@ export const tutorCourses = sqliteTable(
  ]
 );
 
-// Tutor Slots Table (Weekly empty slots listed by tutors)
+// Tutor Slots Table (Dated availability slots listed by tutors)
 export const tutorSlots = sqliteTable(
   "tutor_slots",
   {
@@ -589,11 +589,19 @@ export const tutorSlots = sqliteTable(
     endTime: text("end_time").notNull(), // '10:30'
     mode: text("mode").$type<"online" | "offline">().default("online").notNull(),
     location: text("location"), // Physical room/branch when offline
-    sessionDate: text("session_date"), // Optional specific ISO date YYYY-MM-DD
+    // Nullable only for legacy rows. Canonical writes must provide YYYY-MM-DD.
+    sessionDate: text("session_date"),
     createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
   },
   (table) => [
     index("tutor_slots_tutor_idx").on(table.tutorId),
+    index("tutor_slots_tutor_date_idx").on(table.tutorId, table.sessionDate),
+    uniqueIndex("tutor_slots_exact_unique_idx").on(
+      table.tutorId,
+      table.sessionDate,
+      table.startTime,
+      table.endTime,
+    ),
   ]
 );
 
@@ -670,6 +678,41 @@ export const bookings = sqliteTable(
     index("bookings_status_idx").on(table.status),
     index("bookings_session_date_idx").on(table.sessionDate),
   ]
+);
+
+// Normalized resources attached to a booked tutorial session.
+export const bookingResources = sqliteTable(
+  "booking_resources",
+  {
+    id: text("id").primaryKey(),
+    bookingId: text("booking_id")
+      .notNull()
+      .references(() => bookings.id, { onDelete: "cascade" }),
+    phase: text("phase").$type<"pre" | "post">().notNull(),
+    kind: text("kind").$type<"link" | "file" | "recording">().notNull(),
+    label: text("label").notNull(),
+    url: text("url").notNull(),
+    fileName: text("file_name"),
+    mimeType: text("mime_type"),
+    sizeBytes: integer("size_bytes"),
+    metadata: text("metadata", { mode: "json" }).$type<Record<string, unknown>>(),
+    createdById: text("created_by_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+    updatedAt: integer("updated_at", { mode: "timestamp" })
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => [
+    index("booking_resources_booking_idx").on(table.bookingId),
+    index("booking_resources_booking_phase_idx").on(table.bookingId, table.phase),
+    index("booking_resources_creator_idx").on(table.createdById),
+    check("booking_resources_phase_check", sql`${table.phase} IN ('pre', 'post')`),
+    check("booking_resources_kind_check", sql`${table.kind} IN ('link', 'file', 'recording')`),
+    check("booking_resources_size_check", sql`${table.sizeBytes} IS NULL OR ${table.sizeBytes} >= 0`),
+  ],
 );
 
 // Audit Trail & Activity Log for Group Bookings
@@ -790,6 +833,7 @@ export const userRelations = relations(user, ({ many, one }) => ({
   accounts: many(account),
   tutorCourses: many(tutorCourses),
   tutorSlots: many(tutorSlots),
+  bookingResources: many(bookingResources),
   enrollments: many(enrollments),
   emailNotificationPreferences: one(emailNotificationPreferences, {
     fields: [user.id],
@@ -921,6 +965,19 @@ export const bookingsRelations = relations(bookings, ({ one, many }) => ({
   }),
   auditLogs: many(bookingAuditLogs),
   rescheduleTickets: many(bookingRescheduleTickets),
+  resources: many(bookingResources),
+}));
+
+// Relations for normalized booking resources
+export const bookingResourcesRelations = relations(bookingResources, ({ one }) => ({
+  booking: one(bookings, {
+    fields: [bookingResources.bookingId],
+    references: [bookings.id],
+  }),
+  creator: one(user, {
+    fields: [bookingResources.createdById],
+    references: [user.id],
+  }),
 }));
 
 // Relations for bookingAuditLogs

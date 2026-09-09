@@ -1,4 +1,4 @@
-import { and, eq, inArray, notInArray, or, sql } from "drizzle-orm";
+import { and, eq, inArray, isNotNull, isNull, ne, notInArray, or, sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
   bookingAuditLogs,
@@ -26,6 +26,7 @@ import {
 
 export { INDONESIAN_DAYS, type IndonesianDay };
 import { isNinetyMinuteSlot, timeToMinutes } from "@/lib/schedule-lock";
+import { canTutorDeleteAvailability } from "@/lib/schedule/week-policy";
 
 const DAY_MAP_FROM_UTC_DAY: Record<number, IndonesianDay> = {
   0: "Minggu",
@@ -212,6 +213,170 @@ export function isExactNinetyMinuteDuration(
   endTime: string,
 ): boolean {
   return isNinetyMinuteSlot(startTime, endTime);
+}
+
+/** Returns true only when two valid half-open time ranges overlap. */
+export function doTutorSlotsOverlap(
+  startTime: string,
+  endTime: string,
+  otherStartTime: string,
+  otherEndTime: string,
+): boolean {
+  const start = timeToMinutes(startTime);
+  const end = timeToMinutes(endTime);
+  const otherStart = timeToMinutes(otherStartTime);
+  const otherEnd = timeToMinutes(otherEndTime);
+
+  if (start === null || end === null || otherStart === null || otherEnd === null) {
+    return false;
+  }
+
+  return start < otherEnd && end > otherStart;
+}
+
+export type LegacySlotDateBackfillConflictReason =
+  | "AMBIGUOUS_BOOKING_DATE"
+  | "INVALID_BOOKING_DATE"
+  | "DATE_CONFLICT";
+
+export interface LegacySlotDateBackfillConflict {
+  slotId: string;
+  bookingId: string | null;
+  sessionDate: string | null;
+  reason: LegacySlotDateBackfillConflictReason;
+  existingSlotId?: string;
+}
+
+export interface LegacySlotDateBackfillResult {
+  updatedCount: number;
+  skippedCount: number;
+  conflicts: LegacySlotDateBackfillConflict[];
+}
+
+/**
+ * Repairs only legacy slots that already have a single, valid booking date.
+ * Unbooked null-date rows are intentionally untouched because no recurrence
+ * date can be inferred for them.
+ */
+export async function backfillBookedNullTutorSlotDates(
+  executor?: DbExecutor,
+): Promise<LegacySlotDateBackfillResult> {
+  const client = (executor ?? db) as typeof db;
+
+  return client.transaction(async (tx) => {
+    const candidateRows = await tx
+      .select({
+        slotId: tutorSlots.id,
+        tutorId: tutorSlots.tutorId,
+        dayOfWeek: tutorSlots.dayOfWeek,
+        startTime: tutorSlots.startTime,
+        endTime: tutorSlots.endTime,
+        bookingId: bookings.id,
+        sessionDate: bookings.sessionDate,
+      })
+      .from(tutorSlots)
+      .innerJoin(bookings, eq(bookings.slotId, tutorSlots.id))
+      .where(
+        and(
+          isNull(tutorSlots.sessionDate),
+          isNotNull(bookings.sessionDate),
+        ),
+      );
+
+    const candidatesBySlot = new Map<string, typeof candidateRows>();
+    for (const row of candidateRows) {
+      const rows = candidatesBySlot.get(row.slotId) ?? [];
+      rows.push(row);
+      candidatesBySlot.set(row.slotId, rows);
+    }
+
+    const conflicts: LegacySlotDateBackfillConflict[] = [];
+    let updatedCount = 0;
+    let skippedCount = 0;
+
+    for (const [slotId, rows] of candidatesBySlot) {
+      const distinctDates = new Set(
+        rows
+          .map((row) => row.sessionDate?.trim())
+          .filter((date): date is string => Boolean(date)),
+      );
+      const candidate = rows[0];
+      const sessionDate = distinctDates.size === 1 ? Array.from(distinctDates)[0] : null;
+
+      if (rows.length !== 1 || !sessionDate) {
+        skippedCount += 1;
+        conflicts.push({
+          slotId,
+          bookingId: rows.length === 1 ? rows[0].bookingId : null,
+          sessionDate,
+          reason: "AMBIGUOUS_BOOKING_DATE",
+        });
+        continue;
+      }
+
+      const dateCheck = validateSlotWeekdayDate(sessionDate, candidate.dayOfWeek);
+      if (!dateCheck.isValid) {
+        skippedCount += 1;
+        conflicts.push({
+          slotId,
+          bookingId: candidate.bookingId,
+          sessionDate,
+          reason: "INVALID_BOOKING_DATE",
+        });
+        continue;
+      }
+
+      const existingSlots = await tx
+        .select({
+          id: tutorSlots.id,
+          startTime: tutorSlots.startTime,
+          endTime: tutorSlots.endTime,
+        })
+        .from(tutorSlots)
+        .where(
+          and(
+            eq(tutorSlots.tutorId, candidate.tutorId),
+            eq(tutorSlots.sessionDate, sessionDate),
+            ne(tutorSlots.id, slotId),
+          ),
+        );
+
+      const conflictingSlot = existingSlots.find(
+        (existing) =>
+          existing.startTime === candidate.startTime ||
+          doTutorSlotsOverlap(
+            candidate.startTime,
+            candidate.endTime,
+            existing.startTime,
+            existing.endTime,
+          ),
+      );
+      if (conflictingSlot) {
+        skippedCount += 1;
+        conflicts.push({
+          slotId,
+          bookingId: candidate.bookingId,
+          sessionDate,
+          reason: "DATE_CONFLICT",
+          existingSlotId: conflictingSlot.id,
+        });
+        continue;
+      }
+
+      const updateResult = await tx
+        .update(tutorSlots)
+        .set({ sessionDate })
+        .where(and(eq(tutorSlots.id, slotId), isNull(tutorSlots.sessionDate)));
+
+      if ((updateResult.rowsAffected ?? 0) > 0) {
+        updatedCount += 1;
+      } else {
+        skippedCount += 1;
+      }
+    }
+
+    return { updatedCount, skippedCount, conflicts };
+  });
 }
 
 /* ────────────────────────────────────────────────────────────────────────────
@@ -423,9 +588,15 @@ export interface SlotDeletionValidationResult {
  * Rejects deletion if slot is not owned by the tutor or if the slot has an existing booking.
  */
 export function validateSlotDeletionPolicy(input: {
-  slot: { id: string; tutorId: string } | null;
+  slot: {
+    id: string;
+    tutorId: string;
+    sessionDate?: string | null;
+    dayOfWeek?: string | null;
+  } | null;
   tutorId: string;
   existingBooking?: { id: string; status: string } | null;
+  now?: Date;
 }): SlotDeletionValidationResult {
   const ownership = validateSlotOwnership(input.slot, input.tutorId);
   if (!ownership.isOwner) {
@@ -447,6 +618,32 @@ export function validateSlotDeletionPolicy(input: {
     };
   }
 
+  // Null-date rows are legacy availability records. They remain deletable for
+  // cleanup, but they are never used as new booking targets.
+  if (input.slot!.sessionDate) {
+    const dateCheck = validateSlotWeekdayDate(
+      input.slot!.sessionDate,
+      input.slot!.dayOfWeek ?? "",
+    );
+    if (!dateCheck.isValid) {
+      return {
+        canDelete: false,
+        slotId: input.slot!.id,
+        tutorId: input.tutorId,
+        reason: "INVALID_SESSION_DATE",
+      };
+    }
+
+    if (!canTutorDeleteAvailability(input.slot!.sessionDate, input.now ?? new Date())) {
+      return {
+        canDelete: false,
+        slotId: input.slot!.id,
+        tutorId: input.tutorId,
+        reason: "TUTOR_AVAILABILITY_DEADLINE_PASSED",
+      };
+    }
+  }
+
   return {
     canDelete: true,
     slotId: input.slot!.id,
@@ -461,6 +658,7 @@ export async function checkCanDeleteTutorSlot(
   slotId: string,
   tutorId: string,
   executor?: DbExecutor,
+  now: Date = new Date(),
 ): Promise<SlotDeletionValidationResult> {
   const client = (executor ?? db) as typeof db;
   const ownership = await checkTutorSlotOwnership(slotId, tutorId, client);
@@ -479,21 +677,12 @@ export async function checkCanDeleteTutorSlot(
     .where(eq(bookings.slotId, slotId))
     .limit(1);
 
-  if (bookingRows.length > 0) {
-    return {
-      canDelete: false,
-      slotId,
-      tutorId,
-      reason: "CANNOT_DELETE_BOOKED_SLOT",
-      bookingId: bookingRows[0].id,
-    };
-  }
-
-  return {
-    canDelete: true,
-    slotId,
+  return validateSlotDeletionPolicy({
+    slot: ownership.slot ?? null,
     tutorId,
-  };
+    existingBooking: bookingRows[0] ?? null,
+    now,
+  });
 }
 
 /* ────────────────────────────────────────────────────────────────────────────

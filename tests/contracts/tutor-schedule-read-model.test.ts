@@ -179,6 +179,24 @@ async function createTestDb() {
   `);
 
   await client.execute(`
+    CREATE TABLE IF NOT EXISTS booking_resources (
+      id TEXT PRIMARY KEY,
+      booking_id TEXT NOT NULL,
+      phase TEXT NOT NULL,
+      kind TEXT NOT NULL,
+      label TEXT NOT NULL,
+      url TEXT NOT NULL,
+      file_name TEXT,
+      mime_type TEXT,
+      size_bytes INTEGER,
+      metadata TEXT,
+      created_by_id TEXT NOT NULL,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
+    );
+  `);
+
+  await client.execute(`
     CREATE TABLE IF NOT EXISTS booking_reschedule_tickets (
       id TEXT PRIMARY KEY,
       booking_id TEXT NOT NULL REFERENCES bookings(id),
@@ -695,6 +713,18 @@ describe("Tutor Schedule Read-Model Contracts", () => {
         endTime: "10:30",
         mode: "online",
         topic: "Regresi Linear",
+        preSessionAttachments: [
+          {
+            id: "legacy-pre",
+            name: "Catatan lama.pdf",
+            url: "https://legacy.test/pre.pdf",
+            uploadedBy: "student-1",
+            uploadedByName: "Student Satu",
+            uploadedAt: now.toISOString(),
+          },
+        ],
+        postSessionLinkUrl: "https://legacy.test/post",
+        postSessionLinkTitle: "Link lama",
         lastModifiedAt: now,
         bookedAt: now,
       },
@@ -712,6 +742,34 @@ describe("Tutor Schedule Read-Model Contracts", () => {
         topic: "Topik Lain",
         lastModifiedAt: now,
         bookedAt: now,
+      },
+    ]);
+
+    await testDb.insert(schema.bookingResources).values([
+      {
+        id: "resource-pre",
+        bookingId: "booking-main-1",
+        phase: "pre",
+        kind: "file",
+        label: "Soal terbaru.pdf",
+        url: "https://files.test/pre.pdf",
+        fileName: "Soal terbaru.pdf",
+        mimeType: "application/pdf",
+        sizeBytes: 120,
+        createdById: "student-1",
+        createdAt: now,
+        updatedAt: now,
+      },
+      {
+        id: "resource-post",
+        bookingId: "booking-main-1",
+        phase: "post",
+        kind: "link",
+        label: "Ringkasan terbaru",
+        url: "https://notes.test/post",
+        createdById: "tutor-main",
+        createdAt: now,
+        updatedAt: now,
       },
     ]);
 
@@ -789,6 +847,14 @@ describe("Tutor Schedule Read-Model Contracts", () => {
     expect(bookedSlot).toBeDefined();
     expect(bookedSlot?.booking?.id).toBe("booking-main-1");
     expect(bookedSlot?.booking?.topic).toBe("Regresi Linear");
+    expect(bookedSlot?.booking?.preSessionResources.map((resource) => resource.url)).toEqual([
+      "https://files.test/pre.pdf",
+      "https://legacy.test/pre.pdf",
+    ]);
+    expect(bookedSlot?.booking?.postSessionResources.map((resource) => resource.url)).toEqual([
+      "https://notes.test/post",
+      "https://legacy.test/post",
+    ]);
     expect(freeSlot).toBeDefined();
     expect(freeSlot?.booking).toBeNull();
     expect(result.ownedSlots.some((s) => s.id === "slot-other")).toBe(false);
@@ -798,6 +864,9 @@ describe("Tutor Schedule Read-Model Contracts", () => {
     expect(result.ownedBookings[0].id).toBe("booking-main-1");
     expect(result.ownedBookings[0].student?.name).toBe("Student Satu");
     expect(result.ownedBookings[0].group?.name).toBe("Kelompok Statistika");
+    expect(result.ownedBookings[0].resources).toHaveLength(4);
+    expect(result.ownedBookings[0].preSessionResources).toHaveLength(2);
+    expect(result.ownedBookings[0].postSessionResources).toHaveLength(2);
 
     // Verify ownedTickets
     expect(result.ownedTickets).toHaveLength(1);
