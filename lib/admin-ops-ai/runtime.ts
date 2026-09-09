@@ -797,6 +797,10 @@ export function createOpsAiRuntimeStream(
                 retryable: true,
                 error: "EMPTY_MODEL_RESPONSE",
               });
+              writer.write({
+                type: "text-delta",
+                textDelta: "Terjadi kendala saat menyusun jawaban. Silakan ulangi permintaan terakhir.",
+              } as any);
               emitError(
                 "INTERNAL_ERROR",
                 "Model tidak menghasilkan jawaban teks. Silakan ulangi permintaan.",
@@ -804,10 +808,6 @@ export function createOpsAiRuntimeStream(
                 failedStepId,
                 { reason: "EMPTY_MODEL_RESPONSE" }
               );
-              writer.write({
-                type: "text-delta",
-                textDelta: "Terjadi kendala saat menyusun jawaban. Silakan ulangi permintaan terakhir.",
-              } as any);
               break;
             }
 
