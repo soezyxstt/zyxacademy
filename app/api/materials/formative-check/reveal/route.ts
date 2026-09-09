@@ -6,6 +6,7 @@ import {
   formativeCheckLocatorSchema,
   resolvePublishedFormativeCheck,
 } from "@/lib/materials/formative-check-server";
+import type { FormativeCheckPayload } from "@/lib/materials/pedagogy-contract";
 
 export const dynamic = "force-dynamic";
 
@@ -26,6 +27,17 @@ function resolutionError(code: string): { status: number; error: string } {
     default:
       return { status: 500, error: "Pembahasan tidak dapat dibuka." };
   }
+}
+
+function answerForReveal(formativeCheck: FormativeCheckPayload): string {
+  if (formativeCheck.checkKind !== "multiple_choice") return formativeCheck.answer;
+
+  const correctIndex = formativeCheck.options?.findIndex((option) => option.isCorrect) ?? -1;
+  const correctOption = correctIndex >= 0 ? formativeCheck.options?.[correctIndex] : undefined;
+  if (!correctOption) return formativeCheck.answer;
+
+  const label = correctIndex < 26 ? String.fromCharCode(65 + correctIndex) : String(correctIndex + 1);
+  return `${label}. ${correctOption.text}`;
 }
 
 export async function POST(request: Request) {
@@ -54,7 +66,7 @@ export async function POST(request: Request) {
     }
 
     return NextResponse.json({
-      answer: resolved.context.formativeCheck.answer,
+      answer: answerForReveal(resolved.context.formativeCheck),
       explanation: resolved.context.formativeCheck.explanation,
     });
   } catch (error) {
