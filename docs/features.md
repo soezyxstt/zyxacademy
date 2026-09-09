@@ -478,7 +478,7 @@ The canonical scheduling workflow uses concrete, date-specific 90-minute tutor s
   - Usage is derived by counting active booking rows of the group inside the target week. Pre-lock cancellations preserve the booking row with status `cancelled` and write a durable `BOOKING_CANCELLED_QUOTA_REFUNDED` marker into `booking_audit_logs` to free the quota. Post-lock cancellations do not receive the refund marker and stay counted against the weekly quota (hangus).
   - Students see "Terpakai minggu ini X/Y" when booking and on the Groups page; the last 4 weeks show attended versus missed/cancelled counts for traceability.
 - Weekly Lock & Automated Cut-Off:
-  - Tutor availability for the following week opens on Monday and closes on Friday at 18:00 WIB. Student booking remains open until Saturday at 23:59 WIB (Asia/Jakarta).
+  - Tutors may publish availability for any future tutorial week. Changes for a target week close on the Friday before that week at 18:00 WIB. Student booking for that target week opens on the preceding Monday and remains open until Saturday at 23:59 WIB (Asia/Jakarta).
   - Post-lock schedule adjustments require formal Reschedule or Cancellation tickets.
 - Fixed 90-Minute Slots:
   - Tutors open concrete availability slots of exactly 90 minutes. The server rejects other durations and the tutor form auto-computes the end time.

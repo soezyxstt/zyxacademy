@@ -104,7 +104,7 @@ export function getTutorialWeekRange(targetDate: TutorialDateInput): TutorialWee
   };
 }
 
-/** Availability opens on the Monday before the target tutorial week. */
+/** Availability enters the near-term window on the Monday before the target tutorial week. */
 export function getAvailabilityOpenAt(targetDate: TutorialDateInput): Date {
   const { startIso } = getTutorialWeekRange(targetDate);
   return atJakarta(shiftIsoDate(startIso, -7), "start");
@@ -141,11 +141,18 @@ export function getTutorialWeekPhase(
   return "locked";
 }
 
+/**
+ * Tutors may publish availability for any future tutorial week. A target week
+ * becomes immutable only when its own Friday 18:00 WIB availability deadline
+ * passes. This keeps the UI and server policy aligned for weeks two or more
+ * weeks ahead while preserving the near-term lock window.
+ */
 export function canTutorCreateAvailability(
   targetDate: TutorialDateInput,
   now: Date = new Date(),
 ): boolean {
-  return getTutorialWeekPhase(targetDate, now) === "availability_open";
+  const phase = getTutorialWeekPhase(targetDate, now);
+  return phase === "before_open" || phase === "availability_open";
 }
 
 export function canTutorDeleteAvailability(
