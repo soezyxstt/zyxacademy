@@ -324,7 +324,6 @@ async function appendAutomaticKnowledgeGrounding(
 
 interface AgentPassResult {
   finalStepText: string;
-  finishReason: string;
   responseMessages: Array<Record<string, unknown>>;
   providerError?: unknown;
 }
@@ -409,6 +408,57 @@ export function createOpsAiRuntimeStream(
           });
         }
         emitError("REQUEST_CANCELLED", "Permintaan telah dibatalkan.", false, active?.stepId);
+      };
+
+      const startToolStep = (
+        toolCallId: string,
+        toolName: string,
+        input: Record<string, unknown>
+      ) => {
+        if (toolSteps.has(toolCallId)) return;
+        const stepId = `step-${toolCallId}`;
+        const startedAt = Date.now();
+        const { stepType, title } = getToolStepTitle(toolName, input);
+        const queued: OpsAiWorkStep = {
+          stepId,
+          runId,
+          stepIndex: stepIndexCounter++,
+          stepType,
+          status: "queued",
+          title,
+          toolName,
+          toolCallId,
+          startedAt,
+        };
+        toolSteps.set(toolCallId, queued);
+        knownStepIds.add(stepId);
+        knownToolCallIds.add(toolCallId);
+        emitWorkStep(queued);
+        const running: OpsAiWorkStep = { ...queued, status: "running" };
+        toolSteps.set(toolCallId, running);
+        emitWorkStep(running);
+      };
+
+      const finishToolStep = (
+        toolCallId: string,
+        status: "completed" | "failed",
+        detail?: string,
+        error?: string
+      ) => {
+        const existing = toolSteps.get(toolCallId);
+        if (!existing) return;
+        const finishedAt = Date.now();
+        const finished: OpsAiWorkStep = {
+          ...existing,
+          status,
+          detail,
+          finishedAt,
+          durationMs: Math.max(0, finishedAt - existing.startedAt),
+          retryable: status === "failed" ? false : undefined,
+          error: status === "failed" ? error : undefined,
+        };
+        toolSteps.set(toolCallId, finished);
+        emitWorkStep(finished);
       };
 
       if (abortSignal) {
@@ -509,7 +559,6 @@ export function createOpsAiRuntimeStream(
           modelMessages: Array<Record<string, unknown>>
         ): Promise<AgentPassResult> => {
           let finalStepText = "";
-          let finishReason = "unknown";
           let providerError: unknown;
 
           const agent = createOpsAiAgent({
@@ -533,74 +582,8 @@ export function createOpsAiRuntimeStream(
               stepMs: OPS_AI_POLICY_BOUNDS.stepTimeoutMs,
               chunkMs: OPS_AI_POLICY_BOUNDS.streamChunkTimeoutMs,
             },
-            experimental_onToolCallStart: (event: any) => {
-              const toolCall = event.toolCall || {};
-              const toolCallId = String(toolCall.toolCallId || `call-${randomUUID()}`);
-              const toolName = String(toolCall.toolName || "unknown_tool");
-              const input = (toolCall.input || {}) as Record<string, unknown>;
-              const stepId = `step-${toolCallId}`;
-              const startedAt = Date.now();
-              const { stepType, title } = getToolStepTitle(toolName, input);
-              const stepIndex = stepIndexCounter++;
-              const queuedStep: OpsAiWorkStep = {
-                stepId,
-                runId,
-                stepIndex,
-                stepType,
-                status: "queued",
-                title,
-                toolName,
-                toolCallId,
-                startedAt,
-              };
-              toolSteps.set(toolCallId, queuedStep);
-              knownStepIds.add(stepId);
-              knownToolCallIds.add(toolCallId);
-              emitWorkStep(queuedStep);
-              const runningStep: OpsAiWorkStep = {
-                ...queuedStep,
-                status: "running",
-              };
-              toolSteps.set(toolCallId, runningStep);
-              emitWorkStep(runningStep);
-            },
-            experimental_onToolCallFinish: (event: any) => {
-              const toolCall = event.toolCall || {};
-              const toolCallId = String(toolCall.toolCallId || "");
-              const existing = toolSteps.get(toolCallId);
-              if (!existing) return;
-              const finishedAt = Date.now();
-              if (event.success) {
-                const output = event.output as { summary?: string } | undefined;
-                const completed: OpsAiWorkStep = {
-                  ...existing,
-                  status: "completed",
-                  detail: output?.summary,
-                  finishedAt,
-                  durationMs: Math.max(0, event.durationMs ?? finishedAt - existing.startedAt),
-                };
-                toolSteps.set(toolCallId, completed);
-                emitWorkStep(completed);
-              } else {
-                const error = event.error instanceof Error
-                  ? event.error.message
-                  : String(event.error || "Tool execution failed");
-                const failed: OpsAiWorkStep = {
-                  ...existing,
-                  status: "failed",
-                  detail: `Tool ${existing.toolName || "unknown"} gagal dijalankan.`,
-                  finishedAt,
-                  durationMs: Math.max(0, event.durationMs ?? finishedAt - existing.startedAt),
-                  retryable: false,
-                  error,
-                };
-                toolSteps.set(toolCallId, failed);
-                emitWorkStep(failed);
-              }
-            },
             onStepFinish: (event: any) => {
               finalStepText = String(event.text || "");
-              finishReason = String(event.finishReason || "unknown");
             },
           } as any);
 
@@ -621,11 +604,15 @@ export function createOpsAiRuntimeStream(
               }
 
               if (part.type === "tool-call") {
+                const toolCallId = String(part.toolCallId);
+                const toolName = String(part.toolName);
+                const input = (part.input ?? part.args ?? {}) as Record<string, unknown>;
+                startToolStep(toolCallId, toolName, input);
                 writer.write({
                   type: "tool-call",
-                  toolCallId: String(part.toolCallId),
-                  toolName: String(part.toolName),
-                  input: part.input ?? part.args ?? {},
+                  toolCallId,
+                  toolName,
+                  input,
                 } as any);
                 continue;
               }
@@ -634,6 +621,11 @@ export function createOpsAiRuntimeStream(
                 const toolCallId = String(part.toolCallId);
                 const toolName = String(part.toolName);
                 const output = part.output ?? part.result;
+                const summary =
+                  output && typeof output === "object" && "summary" in output
+                    ? String((output as { summary?: unknown }).summary || "")
+                    : undefined;
+                finishToolStep(toolCallId, "completed", summary);
                 writer.write({
                   type: "tool-result",
                   toolCallId,
@@ -684,14 +676,24 @@ export function createOpsAiRuntimeStream(
               }
 
               if (part.type === "tool-error") {
+                const toolCallId = String(part.toolCallId || "unknown-call");
+                const toolName = String(part.toolName || "unknown_tool");
+                const input = (part.input ?? part.args ?? {}) as Record<string, unknown>;
+                startToolStep(toolCallId, toolName, input);
                 const error = part.error instanceof Error
                   ? part.error.message
                   : String(part.error || "Tool execution failed");
+                finishToolStep(
+                  toolCallId,
+                  "failed",
+                  `Tool ${toolName} gagal dijalankan.`,
+                  error
+                );
                 if (!error.includes("OPS_AI_TOOL_BUDGET_EXCEEDED")) {
                   writer.write({
                     type: "tool-result",
-                    toolCallId: String(part.toolCallId || "unknown-call"),
-                    toolName: String(part.toolName || "unknown_tool"),
+                    toolCallId,
+                    toolName,
                     output: { error },
                   } as any);
                 }
@@ -718,7 +720,6 @@ export function createOpsAiRuntimeStream(
 
           return {
             finalStepText,
-            finishReason,
             responseMessages,
             providerError,
           };
