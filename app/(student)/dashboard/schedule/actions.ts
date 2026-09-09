@@ -12,6 +12,7 @@ import {
   tutorSlots,
   tutorCourses,
   bookings,
+  bookingResources,
   bookingAuditLogs,
   bookingRescheduleTickets,
   bookingTicketMessages,
@@ -19,11 +20,10 @@ import {
 } from "@/db/schema";
 import { auth } from "@/lib/auth";
 import { getPeranCodes, hasPeran } from "@/lib/auth/authorization";
-import { eq, ne, and, desc, inArray, sql, gte, lte, lt, gt } from "drizzle-orm";
+import { eq, ne, and, desc, inArray, sql, gte, lte, lt, gt, isNotNull } from "drizzle-orm";
 import {
   getJakartaNow,
   getWeekScheduleDays,
-  isSessionLocked,
   ensureGoogleMeetForBooking,
   fetchLinkPreview,
   isNinetyMinuteSlot,
@@ -51,6 +51,19 @@ import {
   revokeCanonicalTutorCourseAssignments,
 } from "@/lib/migrasi/repository-kompatibilitas";
 import { listStudentEnrollments } from "@/lib/student/course-catalog";
+import {
+  canStudentBook,
+  getTutorialWeekPhase,
+  isTutorialWeekLocked,
+} from "@/lib/schedule/week-policy";
+
+function isBookingSlotUniqueViolation(error: unknown): boolean {
+  const message = [
+    error instanceof Error ? error.message : String(error),
+    (error as { code?: string })?.code ?? "",
+  ].join(" ");
+  return /unique|constraint failed/i.test(message) && /slot|booking/i.test(message);
+}
 
 async function requireUser() {
   const h = await headers();
@@ -89,7 +102,7 @@ export async function getScheduleData(weekOffset = 0) {
   anchorDate.setDate(anchorDate.getDate() + weekOffset * 7);
 
   const weekInfo = getWeekScheduleDays(anchorDate);
-  const isWeekLocked = isSessionLocked(weekInfo.days[0].dateIso, nowJakarta);
+  const isWeekLocked = isTutorialWeekLocked(weekInfo.days[0].dateIso, new Date());
 
   // Fetch Academic Schedules (Exams, Tryouts, Quizzes) for the calendar
   const allAcademicSchedules = await db.query.academicSchedules.findMany({
@@ -303,6 +316,11 @@ export async function getScheduleData(weekOffset = 0) {
 
   // 3. Find all available tutor slots with tutors & their certified courses
   const allTutorSlots = await db.query.tutorSlots.findMany({
+    where: and(
+      isNotNull(tutorSlots.sessionDate),
+      gte(tutorSlots.sessionDate, viewWeekStart),
+      lte(tutorSlots.sessionDate, viewWeekEnd),
+    ),
     with: {
       tutor: {
         with: {
@@ -412,6 +430,14 @@ export async function getScheduleData(weekOffset = 0) {
 export interface CollaborativeBookSlotOptions {
   actorId?: string;
   executor?: DbExecutor;
+  now?: Date;
+}
+
+export interface CollaborativeBookSlotResult {
+  success: boolean;
+  bookingId?: string;
+  error?: string;
+  reason?: string;
 }
 
 export async function collaborativeBookSlot(
@@ -420,7 +446,7 @@ export async function collaborativeBookSlot(
   groupId: string,
   targetDateIso: string,
   options?: CollaborativeBookSlotOptions
-) {
+): Promise<CollaborativeBookSlotResult> {
   let currentUser: { id: string; name?: string | null };
   const client = (options?.executor ?? db) as typeof db;
 
@@ -437,17 +463,8 @@ export async function collaborativeBookSlot(
   }
 
   try {
-    // 1. Verify lock status: Cannot book past weekly lock cutoff
-    const isLocked = isSessionLocked(targetDateIso);
-    if (isLocked) {
-      return {
-        success: false,
-        error: "Jadwal untuk minggu ini sudah terkunci (Sabtu 23:59 WIB). Silakan pilih minggu berikutnya.",
-      };
-    }
-
     return await client.transaction(async (tx) => {
-      // 2. Verify student membership in group inside transaction (TOCTOU guard)
+      // 1. Verify student membership in group inside transaction (TOCTOU guard)
       const membership = await tx.query.groupMembers.findFirst({
         where: and(
           eq(groupMembers.groupId, groupId),
@@ -459,7 +476,7 @@ export async function collaborativeBookSlot(
         return { success: false, error: "Anda bukan anggota dari kelompok belajar ini" };
       }
 
-      // 3. Verify slot exists inside transaction (TOCTOU guard)
+      // 2. Verify slot exists inside transaction (TOCTOU guard)
       const slot = await tx.query.tutorSlots.findFirst({
         where: eq(tutorSlots.id, slotId),
         with: {
@@ -471,7 +488,26 @@ export async function collaborativeBookSlot(
         return { success: false, error: "Slot jadwal tutor tidak ditemukan" };
       }
 
-      // 4. Validate exact 90-minute duration
+      // The slot is the only canonical source of the session date. A null-date
+      // legacy row is never a new student booking target.
+      const sessionDateIso = slot.sessionDate?.trim() || "";
+      if (!sessionDateIso) {
+        return {
+          success: false,
+          error: "Slot lama tanpa tanggal tidak dapat dipesan.",
+          reason: "LEGACY_SLOT_NO_DATE",
+        };
+      }
+
+      if (typeof targetDateIso !== "string" || targetDateIso.trim() !== sessionDateIso) {
+        return {
+          success: false,
+          error: "Tanggal permintaan tidak cocok dengan tanggal slot.",
+          reason: "SLOT_DATE_MISMATCH",
+        };
+      }
+
+      // 3. Validate exact 90-minute duration
       const durationCheck = validateSlotDuration(slot.startTime, slot.endTime);
       if (!durationCheck.isValid) {
         return {
@@ -480,12 +516,30 @@ export async function collaborativeBookSlot(
         };
       }
 
-      // 5. Validate weekday and date consistency
-      const weekdayCheck = validateSlotWeekdayDate(targetDateIso, slot.dayOfWeek);
+      // 4. Validate weekday and date consistency
+      const weekdayCheck = validateSlotWeekdayDate(sessionDateIso, slot.dayOfWeek);
       if (!weekdayCheck.isValid) {
         return {
           success: false,
           error: "Tanggal sesi tidak sesuai dengan hari slot atau tanggal tidak valid.",
+        };
+      }
+
+      // 5. Enforce the canonical lifecycle inside the same transaction as the
+      // booking decision. The client date is not used as the source here.
+      const bookingNow = options?.now ?? new Date();
+      const bookingPhase = getTutorialWeekPhase(sessionDateIso, bookingNow);
+      if (!canStudentBook(sessionDateIso, bookingNow)) {
+        return {
+          success: false,
+          error:
+            bookingPhase === "locked"
+              ? "Jadwal untuk minggu ini sudah terkunci (Sabtu 23:59 WIB). Silakan pilih minggu berikutnya."
+              : "Pemesanan untuk minggu ini belum dibuka.",
+          reason:
+            bookingPhase === "locked"
+              ? "BOOKING_LOCKED"
+              : "BOOKING_WINDOW_NOT_OPEN",
         };
       }
 
@@ -520,20 +574,8 @@ export async function collaborativeBookSlot(
         };
       }
 
-      // 8. Verify FCFS: Ensure slot is not already booked BEFORE quota mutation
-      const existingBooking = await tx.query.bookings.findFirst({
-        where: eq(bookings.slotId, slotId),
-      });
-
-      if (existingBooking) {
-        return {
-          success: false,
-          error: "Slot ini baru saja diambil oleh kelompok lain (First-Come First-Served)",
-        };
-      }
-
-      // 9. Verify target week weekly quota under write lock
-      const { startIso, endIso } = getIsoWeekRange(targetDateIso);
+      // 8. Verify target week weekly quota under write lock
+      const { startIso, endIso } = getIsoWeekRange(sessionDateIso);
       const groupQuotaRows = await tx
         .select({ weeklyQuotaSessions: groups.weeklyQuotaSessions })
         .from(groups)
@@ -556,6 +598,20 @@ export async function collaborativeBookSlot(
 
       if (weekBookingCount >= weeklyQuota) {
         throw new Error("WEEKLY_QUOTA_EXCEEDED");
+      }
+
+      // 9. Verify FCFS immediately before the insert. The UNIQUE(slotId)
+      // constraint remains the final race guard for concurrent transactions.
+      const existingBooking = await tx.query.bookings.findFirst({
+        where: eq(bookings.slotId, slotId),
+      });
+
+      if (existingBooking) {
+        return {
+          success: false,
+          error: "Slot ini baru saja diambil oleh kelompok lain (First-Come First-Served)",
+          reason: "SLOT_TAKEN",
+        };
       }
 
       const bookingId = randomUUID();
@@ -592,7 +648,7 @@ export async function collaborativeBookSlot(
         courseId: resolvedCourseId,
         groupId,
         status: "scheduled",
-        sessionDate: targetDateIso,
+        sessionDate: sessionDateIso,
         startTime: slot.startTime,
         endTime: slot.endTime,
         mode: slot.mode,
@@ -603,7 +659,7 @@ export async function collaborativeBookSlot(
       });
 
       // 12. Insert Audit Log
-      const auditSummary = `${currentUser.name || "Murid"} memilih jadwal tutorial (${slot.dayOfWeek}, ${targetDateIso} ${slot.startTime} - ${slot.endTime})`;
+      const auditSummary = `${currentUser.name || "Murid"} memilih jadwal tutorial (${slot.dayOfWeek}, ${sessionDateIso} ${slot.startTime} - ${slot.endTime})`;
 
       await tx.insert(bookingAuditLogs).values({
         id: randomUUID(),
@@ -615,7 +671,7 @@ export async function collaborativeBookSlot(
         metadata: {
           slotId,
           courseId: resolvedCourseId,
-          sessionDate: targetDateIso,
+          sessionDate: sessionDateIso,
           startTime: slot.startTime,
           endTime: slot.endTime,
           mode: slot.mode,
@@ -642,7 +698,7 @@ export async function collaborativeBookSlot(
             slotId,
             groupId,
             courseId: resolvedCourseId,
-            sessionDate: targetDateIso,
+            sessionDate: sessionDateIso,
           },
         },
         tx
@@ -674,8 +730,15 @@ export async function collaborativeBookSlot(
         error: "Kuota sesi minggu ini sudah habis. Beralihlah ke pekan berikutnya.",
       };
     }
+    if (isBookingSlotUniqueViolation(err)) {
+      return {
+        success: false,
+        error: "Slot ini baru saja diambil oleh kelompok lain.",
+        reason: "SLOT_TAKEN",
+      };
+    }
     console.error("Collaborative booking error:", err);
-    return { success: false, error: err?.message || "Gagal memesan slot tutorial" };
+    return { success: false, error: "Gagal memesan slot tutorial" };
   }
 }
 
@@ -684,6 +747,7 @@ export async function collaborativeBookSlot(
 export interface CollaborativeMoveSlotOptions {
   actorId?: string;
   executor?: DbExecutor;
+  now?: Date;
 }
 
 export async function collaborativeMoveSlot(
@@ -709,6 +773,7 @@ export async function collaborativeMoveSlot(
 
   try {
     return await client.transaction(async (tx) => {
+      const moveNow = options?.now ?? new Date();
       const booking = await tx.query.bookings.findFirst({
         where: eq(bookings.id, bookingId),
         with: {
@@ -747,18 +812,11 @@ export async function collaborativeMoveSlot(
       }
 
       // 3. Verify lock status
-      if (booking.sessionDate && isSessionLocked(booking.sessionDate)) {
+      if (booking.sessionDate && isTutorialWeekLocked(booking.sessionDate, moveNow)) {
         return {
           success: false,
           error:
             "Jadwal ini sudah terkunci (Sabtu 23:59 WIB). Silakan ajukan permohonan Reschedule untuk ditinjau tutor.",
-        };
-      }
-
-      if (isSessionLocked(newTargetDateIso)) {
-        return {
-          success: false,
-          error: "Slot tujuan sudah terkunci. Pilih slot pada minggu yang belum terkunci.",
         };
       }
 
@@ -772,6 +830,30 @@ export async function collaborativeMoveSlot(
 
       if (!newSlot) {
         return { success: false, error: "Slot baru tidak ditemukan" };
+      }
+
+      if (!newSlot.sessionDate) {
+        return {
+          success: false,
+          error: "Slot tujuan lama tanpa tanggal tidak dapat digunakan.",
+          reason: "LEGACY_SLOT_NO_DATE",
+        };
+      }
+
+      if (newTargetDateIso.trim() !== newSlot.sessionDate) {
+        return {
+          success: false,
+          error: "Tanggal tujuan harus sama dengan tanggal slot baru.",
+          reason: "SLOT_DATE_MISMATCH",
+        };
+      }
+
+      if (isTutorialWeekLocked(newSlot.sessionDate, moveNow)) {
+        return {
+          success: false,
+          error: "Slot tujuan sudah terkunci. Pilih slot pada minggu yang belum terkunci.",
+          reason: "BOOKING_LOCKED",
+        };
       }
 
       // 5. Validate new slot duration (exact 90m)
@@ -973,7 +1055,7 @@ export async function collaborativeCancelSlot(bookingId: string) {
         };
       }
 
-      if (booking.sessionDate && isSessionLocked(booking.sessionDate)) {
+      if (booking.sessionDate && isTutorialWeekLocked(booking.sessionDate, new Date())) {
         return {
           success: false,
           error:
@@ -1142,6 +1224,32 @@ export async function updatePreSessionData(
         lastModifiedAt: now,
       })
       .where(eq(bookings.id, bookingId));
+
+    await db
+      .delete(bookingResources)
+      .where(and(eq(bookingResources.bookingId, bookingId), eq(bookingResources.phase, "pre")));
+    if (formattedAttachments.length > 0) {
+      await db.insert(bookingResources).values(
+        formattedAttachments.map((attachment) => ({
+          id: randomUUID(),
+          bookingId,
+          phase: "pre" as const,
+          kind: "file" as const,
+          label: attachment.name.trim(),
+          url: attachment.url.trim(),
+          fileName: attachment.name.trim(),
+          mimeType: attachment.type?.trim() || null,
+          sizeBytes: attachment.size ?? null,
+          metadata: {
+            uploadedByName: attachment.uploadedByName,
+            legacyAttachmentId: attachment.id,
+          },
+          createdById: currentUser.id,
+          createdAt: now,
+          updatedAt: now,
+        })),
+      );
+    }
 
     // Audit log
     const auditSummary = `${currentUser.name} memperbarui topik bahasan dan mengunggah berkas soal latihan (${formattedAttachments.length} berkas)`;
@@ -1530,6 +1638,53 @@ export async function tutorCompleteSession(
         lastModifiedAt: now,
       })
       .where(eq(bookings.id, bookingId));
+
+    await db
+      .delete(bookingResources)
+      .where(and(eq(bookingResources.bookingId, bookingId), eq(bookingResources.phase, "post")));
+    const normalizedPostResources = [
+      ...formattedAtts.map((attachment) => ({
+        id: randomUUID(),
+        bookingId,
+        phase: "post" as const,
+        kind: "file" as const,
+        label: attachment.name.trim(),
+        url: attachment.url.trim(),
+        fileName: attachment.name.trim(),
+        mimeType: attachment.type?.trim() || null,
+        sizeBytes: attachment.size ?? null,
+        metadata: {
+          uploadedByName: attachment.uploadedByName,
+          legacyAttachmentId: attachment.id,
+        },
+        createdById: currentUser.id,
+        createdAt: now,
+        updatedAt: now,
+      })),
+      ...(linkUrl?.trim()
+        ? [{
+            id: randomUUID(),
+            bookingId,
+            phase: "post" as const,
+            kind: "link" as const,
+            label: linkTitle || "Link sesi",
+            url: linkUrl.trim(),
+            fileName: null,
+            mimeType: null,
+            sizeBytes: null,
+            metadata: {
+              description: linkDesc,
+              image: linkImg,
+            },
+            createdById: currentUser.id,
+            createdAt: now,
+            updatedAt: now,
+          }]
+        : []),
+    ];
+    if (normalizedPostResources.length > 0) {
+      await db.insert(bookingResources).values(normalizedPostResources);
+    }
 
     await db.insert(bookingAuditLogs).values({
       id: randomUUID(),

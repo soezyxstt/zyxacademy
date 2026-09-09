@@ -3,7 +3,7 @@
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { randomUUID } from "node:crypto";
-import { and, eq, gt, gte, lt, lte, ne, notInArray, sql } from "drizzle-orm";
+import { and, asc, eq, gt, gte, lt, lte, ne, notInArray, sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
   bookingAuditLogs,
@@ -29,22 +29,27 @@ import {
   recordMutationAudit,
   recordTutorMutationAudit,
 } from "@/lib/audit/mutasi";
+import { getIsoWeekRange } from "@/lib/schedule-lock";
 import {
-  getIsoWeekRange,
-  isSessionLocked,
-} from "@/lib/schedule-lock";
+  addTutorialDays,
+  canTutorCreateAvailability,
+  getTutorialWeekRange,
+  isTutorialWeekLocked,
+} from "@/lib/schedule/week-policy";
 import {
   CANCELLED_QUOTA_REFUND_LOG_ACTION,
   checkActiveGroupCourseEligibility,
   checkCanDeleteTutorSlot,
   checkTutorSlotOwnership,
   countsTowardGroupWeeklyQuota,
+  doTutorSlotsOverlap,
   getDeterministicGroupRepresentative,
   INDONESIAN_DAYS,
   type IndonesianDay,
   isTerminalBookingStatus,
   terminalStatusGuard,
   TERMINAL_BOOKING_STATUSES,
+  validateSlotDeletionPolicy,
   validateSlotDuration,
   validateSlotWeekdayDate,
 } from "@/lib/schedule/tutor-policy";
@@ -166,6 +171,15 @@ export interface AddTutorSlotOptions {
   actorId?: string;
   executor?: DbExecutor;
   courseId?: string;
+  now?: Date;
+}
+
+function isTutorSlotUniqueViolation(error: unknown): boolean {
+  const message = [
+    error instanceof Error ? error.message : String(error),
+    (error as { code?: string })?.code ?? "",
+  ].join(" ");
+  return /unique|constraint failed/i.test(message) && /tutor_slots|session_date|start_time/i.test(message);
 }
 
 export async function executeAddTutorSlot(
@@ -198,9 +212,37 @@ export async function executeAddTutorSlot(
 
   const client = (options?.executor ?? db) as typeof db;
   const courseIdForAudit = options?.courseId?.trim() || "global";
+  const sessionDateIso = typeof input.sessionDate === "string" ? input.sessionDate.trim() : "";
+
+  // A slot without a concrete date is a legacy record, not a new bookable
+  // availability row.
+  if (!sessionDateIso) {
+    await recordTutorMutationAudit({
+      actorId: authContext.userId,
+      actorRoles: authContext.roles,
+      courseId: courseIdForAudit,
+      entityType: "tutor_slot",
+      entityId: "new_slot",
+      entityVersion: 1,
+      action: "tutor.slot.create",
+      outcome: "rejected",
+      requestId,
+      reason: "SESSION_DATE_REQUIRED",
+      before: null,
+      after: { ...input },
+    }, client);
+
+    return {
+      success: false,
+      error: "Tanggal sesi wajib diisi untuk slot baru.",
+      reason: "SESSION_DATE_REQUIRED",
+    };
+  }
 
   // 1. Validate duration
-  const durationCheck = validateSlotDuration(input.startTime, input.endTime);
+  const startTime = typeof input.startTime === "string" ? input.startTime.trim() : "";
+  const endTime = typeof input.endTime === "string" ? input.endTime.trim() : "";
+  const durationCheck = validateSlotDuration(startTime, endTime);
   if (!durationCheck.isValid) {
     await recordTutorMutationAudit({
       actorId: authContext.userId,
@@ -249,38 +291,80 @@ export async function executeAddTutorSlot(
     };
   }
 
-  // 3. Validate specific date if provided
-  if (input.sessionDate && input.sessionDate.trim().length > 0) {
-    const weekdayDateCheck = validateSlotWeekdayDate(
-      input.sessionDate.trim(),
-      dayName,
-    );
-    if (!weekdayDateCheck.isValid) {
-      await recordTutorMutationAudit({
-        actorId: authContext.userId,
-        actorRoles: authContext.roles,
-        courseId: courseIdForAudit,
-        entityType: "tutor_slot",
-        entityId: "new_slot",
-        entityVersion: 1,
-        action: "tutor.slot.create",
-        outcome: "rejected",
-        requestId,
-        reason: weekdayDateCheck.reason ?? "DATE_WEEKDAY_MISMATCH",
-        before: null,
-        after: { ...input },
-      }, client);
+  // 3. Validate the mandatory concrete date and its weekday.
+  const weekdayDateCheck = validateSlotWeekdayDate(sessionDateIso, dayName);
+  if (!weekdayDateCheck.isValid) {
+    await recordTutorMutationAudit({
+      actorId: authContext.userId,
+      actorRoles: authContext.roles,
+      courseId: courseIdForAudit,
+      entityType: "tutor_slot",
+      entityId: "new_slot",
+      entityVersion: 1,
+      action: "tutor.slot.create",
+      outcome: "rejected",
+      requestId,
+      reason: weekdayDateCheck.reason ?? "DATE_WEEKDAY_MISMATCH",
+      before: null,
+      after: { ...input },
+    }, client);
 
-      return {
-        success: false,
-        error: "Tanggal tidak cocok dengan hari yang ditentukan atau tanggal tidak valid.",
-        reason: weekdayDateCheck.reason,
-      };
-    }
+    return {
+      success: false,
+      error: "Tanggal tidak cocok dengan hari yang ditentukan atau tanggal tidak valid.",
+      reason: weekdayDateCheck.reason,
+    };
   }
 
-  // 4. Validate offline location
-  const mode = input.mode === "offline" ? "offline" : "online";
+  // 4. Validate mode, lifecycle, and offline location.
+  if (input.mode !== undefined && input.mode !== "online" && input.mode !== "offline") {
+    await recordTutorMutationAudit({
+      actorId: authContext.userId,
+      actorRoles: authContext.roles,
+      courseId: courseIdForAudit,
+      entityType: "tutor_slot",
+      entityId: "new_slot",
+      entityVersion: 1,
+      action: "tutor.slot.create",
+      outcome: "rejected",
+      requestId,
+      reason: "INVALID_MODE",
+      before: null,
+      after: { ...input },
+    }, client);
+
+    return {
+      success: false,
+      error: "Mode sesi tidak valid.",
+      reason: "INVALID_MODE",
+    };
+  }
+
+  const availabilityNow = options?.now ?? new Date();
+  if (!canTutorCreateAvailability(sessionDateIso, availabilityNow)) {
+    await recordTutorMutationAudit({
+      actorId: authContext.userId,
+      actorRoles: authContext.roles,
+      courseId: courseIdForAudit,
+      entityType: "tutor_slot",
+      entityId: "new_slot",
+      entityVersion: 1,
+      action: "tutor.slot.create",
+      outcome: "rejected",
+      requestId,
+      reason: "TUTOR_AVAILABILITY_DEADLINE_PASSED",
+      before: null,
+      after: { ...input },
+    }, client);
+
+    return {
+      success: false,
+      error: "Perubahan ketersediaan tutor untuk minggu ini sudah ditutup.",
+      reason: "TUTOR_AVAILABILITY_DEADLINE_PASSED",
+    };
+  }
+
+  const mode = input.mode ?? "online";
   if (mode === "offline" && (!input.location || input.location.trim().length === 0)) {
     await recordTutorMutationAudit({
       actorId: authContext.userId,
@@ -305,19 +389,47 @@ export async function executeAddTutorSlot(
   }
 
   const slotId = randomUUID();
-  const now = new Date();
+  const now = availabilityNow;
 
   try {
     await client.transaction(async (tx) => {
+      const sameDateSlots = await tx
+        .select({
+          id: tutorSlots.id,
+          startTime: tutorSlots.startTime,
+          endTime: tutorSlots.endTime,
+        })
+        .from(tutorSlots)
+        .where(
+          and(
+            eq(tutorSlots.tutorId, authContext.userId),
+            eq(tutorSlots.sessionDate, sessionDateIso),
+          ),
+        );
+
+      const exactDuplicate = sameDateSlots.find(
+        (existing) => existing.startTime === startTime && existing.endTime === endTime,
+      );
+      if (exactDuplicate) {
+        throw new Error("DUPLICATE_TUTOR_SLOT");
+      }
+
+      const overlap = sameDateSlots.find((existing) =>
+        doTutorSlotsOverlap(startTime, endTime, existing.startTime, existing.endTime),
+      );
+      if (overlap) {
+        throw new Error("TUTOR_SLOT_OVERLAP");
+      }
+
       await tx.insert(tutorSlots).values({
         id: slotId,
         tutorId: authContext.userId,
         dayOfWeek: dayName,
-        startTime: input.startTime.trim(),
-        endTime: input.endTime.trim(),
+        startTime,
+        endTime,
         mode,
         location: mode === "offline" ? input.location?.trim() ?? null : null,
-        sessionDate: input.sessionDate ? input.sessionDate.trim() : null,
+        sessionDate: sessionDateIso,
         createdAt: now,
       });
 
@@ -337,11 +449,11 @@ export async function executeAddTutorSlot(
           id: slotId,
           tutorId: authContext.userId,
           dayOfWeek: dayName,
-          startTime: input.startTime.trim(),
-          endTime: input.endTime.trim(),
+          startTime,
+          endTime,
           mode,
           location: mode === "offline" ? input.location?.trim() : null,
-          sessionDate: input.sessionDate?.trim() ?? null,
+          sessionDate: sessionDateIso,
         },
       }, tx);
     });
@@ -354,6 +466,38 @@ export async function executeAddTutorSlot(
 
     return { success: true, slotId };
   } catch (err: any) {
+    const duplicateRace = isTutorSlotUniqueViolation(err);
+    if (
+      err?.message === "DUPLICATE_TUTOR_SLOT" ||
+      err?.message === "TUTOR_SLOT_OVERLAP" ||
+      duplicateRace
+    ) {
+      const reason = duplicateRace ? "DUPLICATE_TUTOR_SLOT" : err.message;
+      await recordTutorFailureAudit({
+        actorId: authContext.userId,
+        actorRoles: authContext.roles,
+        courseId: courseIdForAudit,
+        entityType: "tutor_slot",
+        entityId: slotId,
+        entityVersion: 1,
+        action: "tutor.slot.create",
+        outcome: "rejected",
+        requestId,
+        reason,
+        before: null,
+        after: { ...input },
+      }, options?.executor ?? client);
+
+      return {
+        success: false,
+        error:
+          reason === "DUPLICATE_TUTOR_SLOT"
+            ? "Slot dengan waktu yang sama sudah tersedia pada tanggal tersebut."
+            : "Waktu slot bertumpang tindih dengan slot tutor lain pada tanggal tersebut.",
+        reason,
+      };
+    }
+
     await recordTutorFailureAudit({
       actorId: authContext.userId,
       actorRoles: authContext.roles,
@@ -393,6 +537,7 @@ export interface DeleteTutorSlotOptions {
   actorId?: string;
   executor?: DbExecutor;
   courseId?: string;
+  now?: Date;
 }
 
 export async function executeDeleteTutorSlot(
@@ -431,6 +576,7 @@ export async function executeDeleteTutorSlot(
     targetSlotId,
     authContext.userId,
     client,
+    options?.now ?? new Date(),
   );
 
   if (!deletionCheck.canDelete) {
@@ -452,9 +598,13 @@ export async function executeDeleteTutorSlot(
     const errorMessage =
       deletionCheck.reason === "CANNOT_DELETE_BOOKED_SLOT"
         ? "Slot yang sudah dibooking tidak dapat dihapus."
-        : deletionCheck.reason === "SLOT_NOT_OWNED_BY_TUTOR"
-          ? "Anda tidak memiliki wewenang untuk menghapus slot ini."
-          : "Slot tidak ditemukan.";
+          : deletionCheck.reason === "SLOT_NOT_OWNED_BY_TUTOR"
+            ? "Anda tidak memiliki wewenang untuk menghapus slot ini."
+            : deletionCheck.reason === "TUTOR_AVAILABILITY_DEADLINE_PASSED"
+              ? "Perubahan ketersediaan tutor untuk minggu ini sudah ditutup."
+              : deletionCheck.reason === "INVALID_SESSION_DATE"
+                ? "Tanggal slot tidak valid."
+            : "Slot tidak ditemukan.";
 
     return {
       success: false,
@@ -477,7 +627,12 @@ export async function executeDeleteTutorSlot(
       }
 
       const slotInTx = await tx
-        .select({ id: tutorSlots.id, tutorId: tutorSlots.tutorId })
+        .select({
+          id: tutorSlots.id,
+          tutorId: tutorSlots.tutorId,
+          dayOfWeek: tutorSlots.dayOfWeek,
+          sessionDate: tutorSlots.sessionDate,
+        })
         .from(tutorSlots)
         .where(eq(tutorSlots.id, targetSlotId))
         .limit(1);
@@ -488,6 +643,16 @@ export async function executeDeleteTutorSlot(
 
       if (slotInTx[0].tutorId !== authContext.userId && !authContext.isAdmin) {
         throw new Error("SLOT_NOT_OWNED_BY_TUTOR");
+      }
+
+      const txPolicy = validateSlotDeletionPolicy({
+        slot: slotInTx[0],
+        tutorId: slotInTx[0].tutorId,
+        existingBooking: null,
+        now: options?.now ?? new Date(),
+      });
+      if (!txPolicy.canDelete) {
+        throw new Error(txPolicy.reason ?? "CANNOT_DELETE_SLOT");
       }
 
       const deleteRes = await tx
@@ -532,7 +697,9 @@ export async function executeDeleteTutorSlot(
     if (
       deleteFailureReason === "CANNOT_DELETE_BOOKED_SLOT" ||
       deleteFailureReason === "SLOT_NOT_OWNED_BY_TUTOR" ||
-      deleteFailureReason === "SLOT_NOT_FOUND"
+      deleteFailureReason === "SLOT_NOT_FOUND" ||
+      deleteFailureReason === "TUTOR_AVAILABILITY_DEADLINE_PASSED" ||
+      deleteFailureReason === "INVALID_SESSION_DATE"
     ) {
       await recordTutorFailureAudit({
         actorId: authContext.userId,
@@ -554,6 +721,10 @@ export async function executeDeleteTutorSlot(
           ? "Slot yang sudah dibooking tidak dapat dihapus."
           : deleteFailureReason === "SLOT_NOT_OWNED_BY_TUTOR"
             ? "Anda tidak memiliki wewenang untuk menghapus slot ini."
+            : deleteFailureReason === "TUTOR_AVAILABILITY_DEADLINE_PASSED"
+              ? "Perubahan ketersediaan tutor untuk minggu ini sudah ditutup."
+              : deleteFailureReason === "INVALID_SESSION_DATE"
+                ? "Tanggal slot tidak valid."
             : "Slot tidak ditemukan.";
 
       return {
@@ -588,6 +759,285 @@ export async function executeDeleteTutorSlot(
 
 export async function deleteTutorSlotAction(input: DeleteTutorSlotInput) {
   return executeDeleteTutorSlot(input);
+}
+
+/* ────────────────────────────────────────────────────────────────────────────
+ * Action 2b: Copy Previous Week Availability
+ * ──────────────────────────────────────────────────────────────────────────── */
+
+export interface CopyTutorAvailabilityOptions {
+  actorId?: string;
+  executor?: DbExecutor;
+  courseId?: string;
+  now?: Date;
+}
+
+export interface TutorAvailabilityCopyConflict {
+  sourceSlotId: string;
+  destinationDate: string | null;
+  reason: "OVERLAP" | "INVALID_SOURCE_SLOT";
+  existingSlotId?: string | null;
+}
+
+export interface CopyTutorAvailabilityResult {
+  success: boolean;
+  createdCount: number;
+  skippedCount: number;
+  conflicts: TutorAvailabilityCopyConflict[];
+  error?: string;
+  reason?: string;
+}
+
+/**
+ * Copies only dated availability rows from the immediately preceding week.
+ * The destination rows are fresh slots and therefore cannot carry booking or
+ * session context from the source week.
+ */
+export async function copyTutorAvailabilityFromPreviousWeek(
+  targetWeekStart: string,
+  options?: CopyTutorAvailabilityOptions,
+): Promise<CopyTutorAvailabilityResult> {
+  const requestId = randomUUID();
+  let authContext: TutorAuthContext;
+
+  try {
+    authContext = await getTutorAuthContext(options?.actorId, options?.executor);
+  } catch (err: any) {
+    await recordUnauthenticatedRejectAudit({
+      action: "tutor.slot.copy_previous_week",
+      entityType: "tutor_slot",
+      entityId: "copy_previous_week",
+      courseId: options?.courseId?.trim() || "global",
+      requestId,
+      reason: err?.message || "UNAUTHORIZED",
+      input: { targetWeekStart },
+      executor: options?.executor,
+    });
+
+    return {
+      success: false,
+      createdCount: 0,
+      skippedCount: 0,
+      conflicts: [],
+      error: err?.message || "UNAUTHORIZED",
+      reason: "AUTH_FAILED",
+    };
+  }
+
+  const client = (options?.executor ?? db) as typeof db;
+  const courseIdForAudit = options?.courseId?.trim() || "global";
+  const targetIso = typeof targetWeekStart === "string" ? targetWeekStart.trim() : "";
+  const targetWeekCheck = validateSlotWeekdayDate(targetIso, "Senin");
+
+  if (!targetWeekCheck.isValid) {
+    return {
+      success: false,
+      createdCount: 0,
+      skippedCount: 0,
+      conflicts: [],
+      error: "Minggu tujuan harus dimulai pada Senin dengan tanggal yang valid.",
+      reason: "TARGET_WEEK_MUST_START_MONDAY",
+    };
+  }
+
+  const targetRange = getTutorialWeekRange(targetIso);
+  const sourceRange = getTutorialWeekRange(addTutorialDays(targetRange.startIso, -7));
+  const now = options?.now ?? new Date();
+
+  if (!canTutorCreateAvailability(targetRange.startIso, now)) {
+    return {
+      success: false,
+      createdCount: 0,
+      skippedCount: 0,
+      conflicts: [],
+      error: "Perubahan ketersediaan tutor untuk minggu tujuan sudah ditutup.",
+      reason: "TUTOR_AVAILABILITY_DEADLINE_PASSED",
+    };
+  }
+
+  try {
+    return await client.transaction(async (tx) => {
+      const sourceSlots = await tx
+        .select({
+          id: tutorSlots.id,
+          dayOfWeek: tutorSlots.dayOfWeek,
+          startTime: tutorSlots.startTime,
+          endTime: tutorSlots.endTime,
+          mode: tutorSlots.mode,
+          location: tutorSlots.location,
+          sessionDate: tutorSlots.sessionDate,
+        })
+        .from(tutorSlots)
+        .where(
+          and(
+            eq(tutorSlots.tutorId, authContext.userId),
+            gte(tutorSlots.sessionDate, sourceRange.startIso),
+            lte(tutorSlots.sessionDate, sourceRange.endIso),
+          ),
+        )
+        .orderBy(
+          asc(tutorSlots.sessionDate),
+          asc(tutorSlots.startTime),
+          asc(tutorSlots.id),
+        );
+
+      const destinationSlots = await tx
+        .select({
+          id: tutorSlots.id,
+          sessionDate: tutorSlots.sessionDate,
+          startTime: tutorSlots.startTime,
+          endTime: tutorSlots.endTime,
+        })
+        .from(tutorSlots)
+        .where(
+          and(
+            eq(tutorSlots.tutorId, authContext.userId),
+            gte(tutorSlots.sessionDate, targetRange.startIso),
+            lte(tutorSlots.sessionDate, targetRange.endIso),
+          ),
+        );
+
+      const occupied = destinationSlots.map((slot) => ({ ...slot }));
+      const conflicts: TutorAvailabilityCopyConflict[] = [];
+      let createdCount = 0;
+      let skippedCount = 0;
+
+      for (const sourceSlot of sourceSlots) {
+        if (!sourceSlot.sessionDate) {
+          skippedCount += 1;
+          conflicts.push({
+            sourceSlotId: sourceSlot.id,
+            destinationDate: null,
+            reason: "INVALID_SOURCE_SLOT",
+          });
+          continue;
+        }
+
+        const sourceDateCheck = validateSlotWeekdayDate(
+          sourceSlot.sessionDate,
+          sourceSlot.dayOfWeek,
+        );
+        const durationCheck = validateSlotDuration(
+          sourceSlot.startTime,
+          sourceSlot.endTime,
+        );
+        if (!sourceDateCheck.isValid || !durationCheck.isValid) {
+          skippedCount += 1;
+          conflicts.push({
+            sourceSlotId: sourceSlot.id,
+            destinationDate: null,
+            reason: "INVALID_SOURCE_SLOT",
+          });
+          continue;
+        }
+
+        const destinationDate = addTutorialDays(sourceSlot.sessionDate, 7);
+        const exactDuplicate = occupied.find(
+          (slot) =>
+            slot.sessionDate === destinationDate &&
+            slot.startTime === sourceSlot.startTime &&
+            slot.endTime === sourceSlot.endTime,
+        );
+        if (exactDuplicate) {
+          skippedCount += 1;
+          continue;
+        }
+
+        const overlap = occupied.find(
+          (slot) =>
+            slot.sessionDate === destinationDate &&
+            doTutorSlotsOverlap(
+              sourceSlot.startTime,
+              sourceSlot.endTime,
+              slot.startTime,
+              slot.endTime,
+            ),
+        );
+        if (overlap) {
+          skippedCount += 1;
+          conflicts.push({
+            sourceSlotId: sourceSlot.id,
+            destinationDate,
+            reason: "OVERLAP",
+            existingSlotId: overlap.id,
+          });
+          continue;
+        }
+
+        const newSlotId = randomUUID();
+        await tx.insert(tutorSlots).values({
+          id: newSlotId,
+          tutorId: authContext.userId,
+          dayOfWeek: sourceSlot.dayOfWeek,
+          startTime: sourceSlot.startTime,
+          endTime: sourceSlot.endTime,
+          mode: sourceSlot.mode,
+          location: sourceSlot.location,
+          sessionDate: destinationDate,
+          createdAt: now,
+        });
+
+        await recordTutorMutationAudit({
+          actorId: authContext.userId,
+          actorRoles: authContext.roles,
+          courseId: courseIdForAudit,
+          entityType: "tutor_slot",
+          entityId: newSlotId,
+          entityVersion: 1,
+          action: "tutor.slot.copy_previous_week",
+          outcome: "success",
+          requestId,
+          reason: "TUTOR_SLOT_COPIED_FROM_PREVIOUS_WEEK",
+          before: {
+            sourceSlotId: sourceSlot.id,
+            sourceDate: sourceSlot.sessionDate,
+          },
+          after: {
+            id: newSlotId,
+            sessionDate: destinationDate,
+            startTime: sourceSlot.startTime,
+            endTime: sourceSlot.endTime,
+            mode: sourceSlot.mode,
+            location: sourceSlot.location,
+          },
+        }, tx);
+
+        occupied.push({
+          id: newSlotId,
+          sessionDate: destinationDate,
+          startTime: sourceSlot.startTime,
+          endTime: sourceSlot.endTime,
+        });
+        createdCount += 1;
+      }
+
+      return { success: true, createdCount, skippedCount, conflicts };
+    });
+  } catch (err: any) {
+    await recordTutorFailureAudit({
+      actorId: authContext.userId,
+      actorRoles: authContext.roles,
+      courseId: courseIdForAudit,
+      entityType: "tutor_slot",
+      entityId: "copy_previous_week",
+      entityVersion: 1,
+      action: "tutor.slot.copy_previous_week",
+      outcome: "failed",
+      requestId,
+      reason: err?.message ?? "DATABASE_TRANSACTION_FAILED",
+      before: { targetWeekStart: targetIso },
+      after: null,
+    }, options?.executor ?? client);
+
+    return {
+      success: false,
+      createdCount: 0,
+      skippedCount: 0,
+      conflicts: [],
+      error: "Gagal menyalin ketersediaan tutor.",
+      reason: "DATABASE_ERROR",
+    };
+  }
 }
 
 /* ────────────────────────────────────────────────────────────────────────────
@@ -674,6 +1124,32 @@ export async function executeCreateTutorSession(
   }
 
   const slot = ownership.slot;
+
+  // Legacy slots may still be used by the existing tutor-created session flow.
+  // Their explicit booking date is validated below; student availability never
+  // exposes these null-date rows as new booking targets.
+  if (slot.sessionDate && sessionDateIso !== slot.sessionDate) {
+    await recordTutorMutationAudit({
+      actorId: authContext.userId,
+      actorRoles: authContext.roles,
+      courseId: targetCourseId || "unknown",
+      entityType: "booking",
+      entityId: "new_session",
+      entityVersion: 1,
+      action: "tutor.session.create",
+      outcome: "rejected",
+      requestId,
+      reason: "SLOT_DATE_MISMATCH",
+      before: { slotSessionDate: slot.sessionDate },
+      after: { requestedSessionDate: sessionDateIso },
+    }, client);
+
+    return {
+      success: false,
+      error: "Tanggal sesi harus sama dengan tanggal slot tutor.",
+      reason: "SLOT_DATE_MISMATCH",
+    };
+  }
 
   // 2. Validate existing slot duration (exact 90 minutes)
   const slotDurationCheck = validateSlotDuration(slot.startTime, slot.endTime);
@@ -1103,6 +1579,7 @@ export interface MoveTutorSessionOptions {
   executor?: DbExecutor;
   skipExternalMeet?: boolean;
   skipNotifications?: boolean;
+  now?: Date;
 }
 
 export async function executeMoveTutorSession(
@@ -1256,6 +1733,32 @@ export async function executeMoveTutorSession(
 
   const targetSlot = targetSlotOwnership.slot;
 
+  // Keep the legacy tutor move path usable for a null-date target. The
+  // requested date is still validated against the target weekday below, while
+  // canonical student booking continues to require targetSlot.sessionDate.
+  if (targetSlot.sessionDate && targetSessionDateIso !== targetSlot.sessionDate) {
+    await recordTutorMutationAudit({
+      actorId: authContext.userId,
+      actorRoles: authContext.roles,
+      courseId: booking.courseId,
+      entityType: "booking",
+      entityId: targetBookingId,
+      entityVersion: 1,
+      action: "tutor.session.move",
+      outcome: "rejected",
+      requestId,
+      reason: "SLOT_DATE_MISMATCH",
+      before: { targetSlotSessionDate: targetSlot.sessionDate },
+      after: { requestedSessionDate: targetSessionDateIso },
+    }, client);
+
+    return {
+      success: false,
+      error: "Tanggal tujuan harus sama dengan tanggal slot tujuan.",
+      reason: "SLOT_DATE_MISMATCH",
+    };
+  }
+
   // 4. Validate target slot duration (exact 90m)
   const targetDurationCheck = validateSlotDuration(targetSlot.startTime, targetSlot.endTime);
   if (!targetDurationCheck.isValid) {
@@ -1340,10 +1843,11 @@ export async function executeMoveTutorSession(
   }
 
   // 7. Evaluate weekly lock rules
+  const scheduleNow = options?.now ?? new Date();
   const isCurrentLocked = booking.sessionDate
-    ? isSessionLocked(booking.sessionDate)
+    ? isTutorialWeekLocked(booking.sessionDate, scheduleNow)
     : false;
-  const isTargetLocked = isSessionLocked(targetSessionDateIso);
+  const isTargetLocked = isTutorialWeekLocked(targetSessionDateIso, scheduleNow);
 
   const isLocked = isCurrentLocked || isTargetLocked;
 
@@ -1680,6 +2184,7 @@ export interface DecideTutorRescheduleTicketOptions {
   actorId?: string;
   executor?: DbExecutor;
   skipNotifications?: boolean;
+  now?: Date;
 }
 
 export async function executeDecideTutorRescheduleTicket(
@@ -1943,6 +2448,29 @@ export async function executeDecideTutorRescheduleTicket(
 
       proposedSlotData = proposedSlotOwnership.slot;
 
+      if (proposedSlotData.sessionDate && ticket.proposedDate && ticket.proposedDate !== proposedSlotData.sessionDate) {
+        await recordTutorMutationAudit({
+          actorId: authContext.userId,
+          actorRoles: authContext.roles,
+          courseId: booking.courseId,
+          entityType: "reschedule_ticket",
+          entityId: targetTicketId,
+          entityVersion: 1,
+          action: "tutor.ticket.decide",
+          outcome: "rejected",
+          requestId,
+          reason: "SLOT_DATE_MISMATCH",
+          before: { slotSessionDate: proposedSlotData.sessionDate },
+          after: { proposedDate: ticket.proposedDate },
+        }, client);
+
+        return {
+          success: false,
+          error: "Tanggal usulan harus sama dengan tanggal slot tujuan.",
+          reason: "SLOT_DATE_MISMATCH",
+        };
+      }
+
       // Validate proposed slot duration (Scope 3 & 6: exact 90m)
       const durationCheck = validateSlotDuration(proposedSlotData.startTime, proposedSlotData.endTime);
       if (!durationCheck.isValid) {
@@ -1969,7 +2497,8 @@ export async function executeDecideTutorRescheduleTicket(
       }
 
       // Validate proposed date format, calendar validity, and weekday match (Scope 3)
-      const proposedDateToValidate = ticket.proposedDate || booking.sessionDate || "";
+      const proposedDateToValidate =
+        proposedSlotData.sessionDate ?? ticket.proposedDate?.trim() ?? "";
       const weekdayDateCheck = validateSlotWeekdayDate(
         proposedDateToValidate,
         proposedSlotData.dayOfWeek,
@@ -2094,9 +2623,10 @@ export async function executeDecideTutorRescheduleTicket(
   }
 
   // 6. Execute state change and mutation audit in one transaction (Scope 4)
+  const decisionNow = options?.now ?? new Date();
   const now = new Date();
   const sessionLockedAtDecision = booking.sessionDate
-    ? isSessionLocked(booking.sessionDate)
+    ? isTutorialWeekLocked(booking.sessionDate, decisionNow)
     : false;
 
   try {
@@ -2125,7 +2655,8 @@ export async function executeDecideTutorRescheduleTicket(
 
       if (decision === "approved") {
         if (ticket.type === "reschedule" && proposedSlotData) {
-          const targetSessionDateIso = ticket.proposedDate || booking.sessionDate;
+          const targetSessionDateIso =
+            proposedSlotData.sessionDate ?? ticket.proposedDate?.trim() ?? "";
           if (targetSessionDateIso) {
             const { startIso, endIso } = getIsoWeekRange(targetSessionDateIso);
             const groupQuotaRows = await tx
@@ -2159,7 +2690,7 @@ export async function executeDecideTutorRescheduleTicket(
             .update(bookings)
             .set({
               slotId: ticket.proposedSlotId!,
-              sessionDate: ticket.proposedDate || booking.sessionDate,
+              sessionDate: targetSessionDateIso,
               startTime: proposedSlotData.startTime,
               endTime: proposedSlotData.endTime,
               mode: proposedSlotData.mode,

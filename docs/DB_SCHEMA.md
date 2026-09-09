@@ -165,8 +165,9 @@ The row is created on the first explicit save or unsubscribe. A missing row deri
 * `endTime`: Session end time in HH:MM format (e.g. "10:30", 90 minutes).
 * `mode`: 'online' or 'offline'.
 * `location`: Physical room or branch location when offline.
-* `sessionDate`: Optional explicit ISO date string (YYYY-MM-DD).
+* `sessionDate`: Concrete ISO date string (YYYY-MM-DD) for new canonical bookable slots. Nullable only for legacy rows, which are excluded from normal student availability.
 * `createdAt`
+* Indexes: `(tutorId)`, `(tutorId, sessionDate)`, and exact concrete duplicate protection on `(tutorId, sessionDate, startTime, endTime)`.
 
 ### bookings
 * `id`
@@ -196,6 +197,24 @@ The row is created on the first explicit save or unsubscribe. A missing row deri
 * `completedAt`: Timestamp when marked complete by tutor.
 * `completedById`: Tutor user ID who marked the session completed.
 * `bookedAt`: Initial creation timestamp.
+
+### bookingResources
+* `id`
+* `bookingId`: Foreign key to `bookings.id`; resources are deleted with the booking.
+* `phase`: 'pre' or 'post', indicating when the resource belongs to the session workflow.
+* `kind`: 'link', 'file', or 'recording'.
+* `label`: Human-readable resource label.
+* `url`: Resource URL or storage proxy URL.
+* `fileName`: Optional original file name.
+* `mimeType`: Optional MIME type.
+* `sizeBytes`: Optional non-negative file size.
+* `metadata`: Optional JSON metadata.
+* `createdById`: Foreign key to `user.id` for the resource creator.
+* `createdAt`, `updatedAt`
+* Indexes: `bookingId`, `(bookingId, phase)`, and `createdById`.
+* Existing booking attachment and post-session link fields remain readable during the additive migration. Read models merge them into the normalized resource representation.
+
+Legacy tutor slots with a null `sessionDate` are not assigned an invented recurring date. The guarded `backfillBookedNullTutorSlotDates` helper may backfill a booked legacy slot only when its booking supplies one unambiguous valid date and no same-tutor conflict exists. Unbooked null-date rows remain legacy cleanup data.
 
 ### bookingAuditLogs
 * `id`
