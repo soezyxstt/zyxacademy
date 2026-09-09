@@ -7,6 +7,7 @@ import {
   MCP_CONNECTION_TOKEN_TTL_SECONDS,
   ingestMcpSourcePack,
   issueMcpConnectionToken,
+  issueMcpRunToken,
   listAuthoringWorkflows,
   readMcpConnectionToken,
 } from "@/lib/authoring/mcp-workflows";
@@ -223,7 +224,7 @@ describe("provider-neutral authoring MCP workflow registry", () => {
       headers: { "content-type": "application/json", accept: "application/json, text/event-stream" },
       body: JSON.stringify({ jsonrpc: "2.0", id: 2, method: "tools/list", params: {} }),
     }));
-    const body = await response.json() as { result?: { tools?: Array<{ name: string; annotations?: { readOnlyHint?: boolean; destructiveHint?: boolean } }> } };
+    const body = await response.json() as { result?: { tools?: Array<{ name: string; inputSchema?: any; annotations?: { readOnlyHint?: boolean; destructiveHint?: boolean } }> } };
     const tools = body.result?.tools ?? [];
     const names = tools.map((tool) => tool.name);
     expect(names).toContain("authoring.submit_idea_bundle");
@@ -249,6 +250,8 @@ describe("provider-neutral authoring MCP workflow registry", () => {
     expect(names).toContain("assessment.update_question");
     expect(names).toContain("source.list_files");
     expect(names).toContain("source.read_file");
+    expect(names).toContain("workflow.list");
+    expect(names).toContain("workflow.start");
     expect(names).toContain("source.list_packs");
     expect(names).toContain("source.get_pack");
     expect(names.some((name) => name.includes("publish"))).toBe(false);
@@ -260,6 +263,49 @@ describe("provider-neutral authoring MCP workflow registry", () => {
     expect(tools.find((tool) => tool.name === "source.get_pack")?.annotations).toMatchObject({ readOnlyHint: true, destructiveHint: false });
     expect(tools.find((tool) => tool.name === "authoring.review_idea_bundle")?.annotations).toMatchObject({ readOnlyHint: false, destructiveHint: true });
     expect(tools.find((tool) => tool.name === "authoring.withdraw_product_bundle")?.annotations).toMatchObject({ readOnlyHint: false, destructiveHint: true });
+
+    const workflowStart = tools.find((tool) => tool.name === "workflow.start")?.inputSchema;
+    expect(workflowStart?.properties?.workflow?.enum).toEqual(["idea_product", "quiz_bank", "reference_question_ingest"]);
+    expect(workflowStart?.required).toContain("courseKey");
+    expect(workflowStart?.required).not.toContain("chapterKey");
+    expect(workflowStart?.required).not.toContain("sourcePackToken");
+
+    const referenceList = tools.find((tool) => tool.name === "assessment.list_reference_questions")?.inputSchema;
+    expect(referenceList?.properties?.limit).toMatchObject({ minimum: 1, maximum: 10, default: 10 });
+  });
+
+  it("calls the public workflow list and historical contract through MCP", async () => {
+    process.env.BETTER_AUTH_SECRET = "test-better-auth-secret-for-mcp-contracts";
+    const server = createAuthoringMcpServer(testPrincipal);
+    const transport = new WebStandardStreamableHTTPServerTransport({ sessionIdGenerator: undefined, enableJsonResponse: true });
+    await server.connect(transport);
+
+    const listResponse = await transport.handleRequest(new Request("http://localhost/api/mcp/authoring", {
+      method: "POST",
+      headers: { "content-type": "application/json", accept: "application/json, text/event-stream" },
+      body: JSON.stringify({ jsonrpc: "2.0", id: 4, method: "tools/call", params: { name: "workflow.list", arguments: {} } }),
+    }));
+    const listBody = await listResponse.json() as { result?: { structuredContent?: { workflows?: Array<{ key: string }> } } };
+    expect(listBody.result?.structuredContent?.workflows?.map((workflow) => workflow.key)).toEqual([
+      "idea_product",
+      "quiz_bank",
+      "reference_question_ingest",
+    ]);
+
+    const runToken = issueMcpRunToken({ workflow: "reference_question_ingest", courseId: "course-contract", courseLabel: "Course contract" });
+    const contractServer = createAuthoringMcpServer(testPrincipal);
+    const contractTransport = new WebStandardStreamableHTTPServerTransport({ sessionIdGenerator: undefined, enableJsonResponse: true });
+    await contractServer.connect(contractTransport);
+    const contractResponse = await contractTransport.handleRequest(new Request("http://localhost/api/mcp/authoring", {
+      method: "POST",
+      headers: { "content-type": "application/json", accept: "application/json, text/event-stream" },
+      body: JSON.stringify({ jsonrpc: "2.0", id: 5, method: "tools/call", params: { name: "workflow.get_contract", arguments: { runToken } } }),
+    }));
+    const contractBody = await contractResponse.json() as { result?: { structuredContent?: any } };
+    expect(contractBody.result?.structuredContent?.workflow?.key).toBe("reference_question_ingest");
+    expect(contractBody.result?.structuredContent?.scope).toEqual({ course: "Course contract" });
+    expect(contractBody.result?.structuredContent?.rules).toContain("Jangan membuat Idea baru, mengarang jawaban, mengoreksi sumber, menerjemahkan, atau menginfer jawaban yang tidak terbukti.");
+    expect(contractBody.result?.structuredContent?.outputs?.referenceQuestionDraft?.allowedSourceTools).toEqual(["source.list_reference_files", "source.read_file"]);
   });
 
   it("does not grant lifecycle mutations to legacy read and stage principals", async () => {

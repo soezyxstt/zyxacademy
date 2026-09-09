@@ -451,7 +451,16 @@ export async function startAuthoringWorkflow(input: {
       workflow,
       scope: { course: course.title },
       source: null,
-      next: ["source.list_reference_files", "knowledge.search_course_ideas", "assessment.validate_reference_draft", "assessment.submit_reference_draft"],
+      next: [
+        "source.list_reference_files",
+        "source.read_file",
+        "knowledge.search_course_ideas",
+        "knowledge.get_idea",
+        "assessment.validate_reference_draft",
+        "assessment.submit_reference_draft",
+        "assessment.list_reference_questions",
+        "assessment.get_reference_question",
+      ],
     };
   }
   if (!input.chapterKey) throw new Error("AUTHORING_MCP_CHAPTER_REQUIRED");
@@ -492,7 +501,16 @@ export async function startAuthoringWorkflow(input: {
     source: source ? { packId: source.packId, name: source.name, checksum: source.checksum } : null,
     next: workflow.key === "idea_product"
       ? ["authoring.validate_idea_bundle", "authoring.submit_idea_bundle", "authoring.validate_product_bundle", "authoring.submit_product_bundle"]
-      : ["assessment.list_ideas", "assessment.get_idea", "assessment.validate_quiz_draft", "assessment.submit_quiz_draft"],
+      : [
+        "assessment.list_ideas",
+        "assessment.get_idea",
+        "assessment.list_questions",
+        "assessment.get_question",
+        "assessment.list_reference_questions",
+        "assessment.get_reference_question",
+        "assessment.validate_quiz_draft",
+        "assessment.submit_quiz_draft",
+      ],
   };
 }
 
@@ -599,6 +617,20 @@ export function quizBankScopeGuidance() {
     tagsRule: "Tag bebas berupa string singkat; gunakan huruf kecil dan konsisten, misalnya nama subtopik bab.",
     catalogTool: "assessment.list_ideas",
     detailTool: "assessment.get_idea",
+    historicalReferenceTools: {
+      listTool: "assessment.list_reference_questions",
+      detailTool: "assessment.get_reference_question",
+      listLimit: { default: 10, maximum: 10 },
+      detailLimit: { maximumPerIdea: 5 },
+      lineageRoles: ["inspired_by", "adapted_from", "derived_from"],
+      procedure: [
+        "Kunci target Idea published dalam scope chapter.",
+        "Baca bank soal Zyx original yang sudah ada.",
+        "Cari maksimal 10 historical reference per Idea, lalu baca maksimal 5 detail yang relevan.",
+        "Gunakan hasil itu untuk gap analysis, bukan untuk menyalin verbatim ke bank soal Zyx.",
+        "Soal original yang terinspirasi harus menyimpan referenceLinks dengan role dan tetap origin zyx_original.",
+      ],
+    },
     coverageHint: "Setiap Idea pada katalog sebaiknya dicover minimal satu soal; MCP melaporkan gap sebagai warning.",
   };
 }
@@ -609,7 +641,14 @@ export function productBundleV3Contract() {
     compatibleReadVersions: ["product-bundle.v2", "product-bundle.v3"],
     writeEntityTypes: ["article", "diktat", "flashcard_set", "flashcard"],
     forbiddenAssessmentEntityTypes: ["question", "solution", "assessment_blueprint"],
-    assessmentWorkflowBoundary: "Questions and their historical references belong to reference_question_ingest or quiz_bank, never Product Bundle V3.",
+    scopeBoundary: {
+      learnerProductsOnly: true,
+      assessmentProductsForbidden: true,
+      historicalReferenceWorkflow: "reference_question_ingest",
+      originalQuestionWorkflow: "quiz_bank",
+      compatibility: "Existing Product Bundle V2 assessment rows remain readable through legacy readers, but new MCP Product submissions cannot create them.",
+    },
+    assessmentWorkflowBoundary: "Questions and their historical references belong to reference_question_ingest or quiz_bank, never a new Product Bundle submission.",
     toolSequence: [
       "authoring.validate_product_bundle",
       "authoring.submit_product_bundle",
@@ -716,20 +755,42 @@ export function productBundleV3Contract() {
 export function workflowContract(runToken: string) {
   const run = readMcpRunToken(runToken);
   const workflow = getAuthoringWorkflow(run.workflow);
+  const rules = workflow.key === "idea_product"
+    ? [
+      "Gunakan hanya Source Pack yang telah divalidasi oleh MCP.",
+      "Source Pack harus dikirim bersama binary asli setiap dokumen agar originalSha256 dapat diverifikasi independen.",
+      "Compatibility check harus selesai sebelum hasil dikirim untuk review.",
+      "Technical quality dan content quality report harus valid tanpa issue blocking.",
+      "Jika quality report gagal, revisi artifact lalu jalankan validator ulang; jangan mengubah checksum secara manual.",
+      "Product Bundle baru hanya boleh berisi article, diktat, flashcard_set, dan flashcard; question, solution, dan assessment_blueprint memakai workflow asesmen.",
+      "Jangan membuat soal kuis Zyx atau soal referensi historis dalam Product Bundle; gunakan workflow asesmen yang sesuai.",
+      "Publish selalu dilakukan oleh admin melalui alur review.",
+    ]
+    : workflow.key === "quiz_bank"
+      ? [
+        "Workflow mengunci course dan chapter; Source Pack bersifat opsional dan harus tetap tervalidasi bila digunakan.",
+        "Target Idea wajib berasal dari katalog published dalam scope yang dikunci.",
+        "Gunakan historical reference hanya sebagai konteks gap analysis; jangan menyalin soal historis secara verbatim.",
+        "Soal baru harus origin zyx_original, memakai referenceLinks bila terinspirasi, lalu masuk review admin tanpa publish otomatis.",
+        "Jangan meminta atau mengirim course ID, chapter ID, atau Idea ID internal kepada operator.",
+      ]
+      : [
+        "Workflow berjalan pada scope course tanpa chapter dan tanpa Source Pack.",
+        "Gunakan hanya source.list_reference_files untuk file kategori soal dan pembahasan_soal dalam course yang dikunci.",
+        "Pertahankan wording, nomor, bagian, opsi, halaman, dan locator sumber; normalisasi hanya whitespace, Markdown, dan LaTeX yang tidak mengubah makna.",
+        "Jangan membuat Idea baru, mengarang jawaban, mengoreksi sumber, menerjemahkan, atau menginfer jawaban yang tidak terbukti.",
+        "Setiap soal wajib memiliki minimal satu Idea published dari course yang sama; Idea boleh berasal dari chapter berbeda.",
+        "Simpan provenance jawaban dan solusi sebagai official, source_solution, zyx_generated, atau unavailable sesuai bukti yang tersedia.",
+        "Submit hanya membuat draft generated untuk admin review; workflow tidak memiliki tool direct publish.",
+        "Jangan meminta atau mengirim course ID, chapter ID, database ID, atau storage key kepada operator.",
+      ];
+
   return {
     version: AUTHORING_MCP_VERSION,
     workflow,
     scope: run.chapterLabel ? { course: run.courseLabel, chapter: run.chapterLabel } : { course: run.courseLabel },
     source: run.sourcePackId ? { packId: run.sourcePackId, checksum: run.sourcePackChecksum } : null,
-    rules: [
-      "Gunakan hanya source pack yang telah divalidasi oleh MCP.",
-      "Source Pack harus dikirim bersama binary asli setiap dokumen agar originalSha256 dapat diverifikasi independen.",
-      "Jangan meminta atau mengirim course ID dan chapter ID kepada operator.",
-      "Compatibility check harus selesai sebelum hasil dikirim untuk review.",
-      "Technical quality dan content quality report harus valid tanpa issue blocking.",
-      "Jika quality report gagal, revisi artifact lalu jalankan validator ulang; jangan mengubah checksum secara manual.",
-      "Publish selalu dilakukan oleh admin melalui alur review.",
-    ],
+    rules,
     outputs: workflow.key === "idea_product"
       ? {
         ideaBundle: { schemaVersion: "idea-bundle.v3", compatibleReadVersions: ["idea-bundle.v2", "idea-bundle.v3"], validationTool: "authoring.validate_idea_bundle", reviewRequired: true },
@@ -745,6 +806,7 @@ export function workflowContract(runToken: string) {
           ideaLinksRequired: false,
           linkedIdeaWeightRule: "Positive weights must sum to 1 when Idea links are present.",
           scopeGuidance: quizBankScopeGuidance(),
+          historicalReferenceBoundary: "Historical questions are read-only context for gap analysis. New quiz questions remain zyx_original and may link lineage with inspired_by, adapted_from, or derived_from.",
           draftExample: {
             schemaVersion: "question-bank-draft.v2",
             draftId: "draft-local-1",

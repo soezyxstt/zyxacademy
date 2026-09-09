@@ -676,9 +676,19 @@ function historicalEventName(draft: ReferenceQuestionDraft, questionNumber: stri
 }
 
 function historicalQuestionHash(courseId: string, sourceId: string, question: ReferenceQuestion): string {
+  const { localId, ...stableQuestion } = question;
+  void localId;
   return createHash("sha256")
-    .update(deterministicQuestionSerialization({ courseId, sourceId, question }), "utf8")
+    .update(deterministicQuestionSerialization({ courseId, sourceId, question: stableQuestion }), "utf8")
     .digest("hex");
+}
+
+function historicalQuestionOptions(question: ReferenceQuestion) {
+  return question.options.map((text, index) => ({
+    id: `option-${String(index + 1).padStart(2, "0")}`,
+    text,
+    isCorrect: question.correctIndices.includes(index),
+  }));
 }
 
 export function getHistoricalSolutionContent(
@@ -727,17 +737,24 @@ export async function createHistoricalQuestionBatch(input: HistoricalQuestionBat
     }
 
     const sourceHash = historicalSourceHash(input.source);
-    const sourceConditions = [
-      eq(assessmentSources.canonicalCourseId, context.canonicalCourseId),
-      eq(assessmentSources.sourceDocumentId, input.source.sourceDocumentId),
-      eq(assessmentSources.title, draft.source.title),
-      eq(assessmentSources.sourceHash, sourceHash),
-      input.source.solutionDocumentId ? eq(assessmentSources.solutionDocumentId, input.source.solutionDocumentId) : isNull(assessmentSources.solutionDocumentId),
-    ];
-    let [assessmentSource] = await tx.select().from(assessmentSources).where(and(...sourceConditions)).limit(1);
+    let [assessmentSource] = await tx
+      .select()
+      .from(assessmentSources)
+      .where(and(
+        eq(assessmentSources.canonicalCourseId, context.canonicalCourseId),
+        eq(assessmentSources.sourceDocumentId, input.source.sourceDocumentId),
+      ))
+      .limit(1);
+    if (assessmentSource && (
+      assessmentSource.sourceHash !== sourceHash
+      || assessmentSource.title !== draft.source.title
+      || assessmentSource.solutionDocumentId !== input.source.solutionDocumentId
+    )) {
+      fail("HISTORICAL_SOURCE_CONFLICT", "Source document yang sama sudah terdaftar dengan metadata atau checksum berbeda.");
+    }
     const now = new Date();
     if (!assessmentSource) {
-      const sourceId = `assessment-ref-${createHash("sha256").update(deterministicQuestionSerialization({ courseId: context.canonicalCourseId, sourceDocumentId: input.source.sourceDocumentId, solutionDocumentId: input.source.solutionDocumentId, title: draft.source.title, year: draft.source.year, sourceHash }), "utf8").digest("hex").slice(0, 32)}`;
+      const sourceId = `assessment-ref-${createHash("sha256").update(deterministicQuestionSerialization({ courseId: context.canonicalCourseId, sourceDocumentId: input.source.sourceDocumentId }), "utf8").digest("hex").slice(0, 32)}`;
       await tx.insert(assessmentSources).values({
         id: sourceId,
         courseId: context.legacyCourseId,
@@ -772,17 +789,68 @@ export async function createHistoricalQuestionBatch(input: HistoricalQuestionBat
     const results: PersistResult[] = [];
     for (const question of draft.questions) {
       const sourceEventName = historicalEventName(draft, question.questionNumber);
-      const canonicalId = `soal-ref-${createHash("sha256").update(`${assessmentSource.id}:${question.questionNumber}:${question.part ?? ""}:${question.localId}`, "utf8").digest("hex").slice(0, 32)}`;
+      const questionIdentity = `${assessmentSource.id}:${question.questionNumber}:${question.part ?? ""}`;
+      const canonicalId = `soal-ref-${createHash("sha256").update(questionIdentity, "utf8").digest("hex").slice(0, 32)}`;
       const generationHash = historicalQuestionHash(context.canonicalCourseId, assessmentSource.id, question);
-      const [existing] = await tx.select({ id: soal.id, version: soal.version, origin: soal.origin, generationHash: soal.generationHash, courseId: soal.mataKuliahId, status: soal.status, creatorId: soal.creatorId }).from(soal).where(eq(soal.id, canonicalId)).limit(1);
-      if (existing && (existing.origin !== "historical_reference" || existing.courseId !== context.canonicalCourseId)) fail("HISTORICAL_QUESTION_CONFLICT", `Soal ${question.localId} sudah digunakan oleh record lain.`);
-      if (existing && existing.generationHash !== generationHash) fail("HISTORICAL_QUESTION_CONFLICT", `Soal ${question.localId} sudah ada dengan isi berbeda.`);
+      const existingFields = {
+        id: soal.id,
+        version: soal.version,
+        origin: soal.origin,
+        generationHash: soal.generationHash,
+        courseId: soal.mataKuliahId,
+        status: soal.status,
+        creatorId: soal.creatorId,
+        assessmentSourceId: soal.assessmentSourceId,
+        sourceQuestionNumber: soal.sourceQuestionNumber,
+        sourceQuestionPart: soal.sourceQuestionPart,
+        questionType: soal.questionType,
+        prompt: soal.prompt,
+        optionsSnapshot: soal.optionsSnapshot,
+        sourcePage: soal.sourcePage,
+        answerProvenance: soal.answerProvenance,
+        solutionProvenance: soal.solutionProvenance,
+        quizEligible: soal.quizEligible,
+        difficulty: soal.difficulty,
+        cognitiveLevel: soal.cognitiveLevel,
+      };
+      const [existingById] = await tx.select(existingFields).from(soal).where(eq(soal.id, canonicalId)).limit(1);
+      const [existingByLocator] = existingById
+        ? [undefined]
+        : await tx.select(existingFields).from(soal).where(and(
+          eq(soal.assessmentSourceId, assessmentSource.id),
+          eq(soal.sourceQuestionNumber, question.questionNumber),
+          question.part === null ? isNull(soal.sourceQuestionPart) : eq(soal.sourceQuestionPart, question.part),
+        )).limit(1);
+      const existing = existingById ?? existingByLocator;
+      if (existing && (
+        existing.origin !== "historical_reference"
+        || existing.courseId !== context.canonicalCourseId
+        || existing.assessmentSourceId !== assessmentSource.id
+      )) fail("HISTORICAL_QUESTION_CONFLICT", `Soal ${question.questionNumber} sudah digunakan oleh record lain.`);
+      if (existing && existing.generationHash !== generationHash) {
+        const [existingProjection] = await tx.select({
+          correctIndices: aiQuestionBank.correctIndices,
+          acceptableAnswers: aiQuestionBank.acceptableAnswers,
+        }).from(aiQuestionBank).where(eq(aiQuestionBank.id, existing.id)).limit(1);
+        const sameQuestion = existing.questionType === question.questionType
+          && existing.prompt === question.prompt
+          && JSON.stringify(existing.optionsSnapshot) === JSON.stringify(historicalQuestionOptions(question))
+          && existing.sourcePage === question.page
+          && existing.answerProvenance === question.answerProvenance
+          && existing.solutionProvenance === question.solutionProvenance
+          && existing.quizEligible === question.quizEligible
+          && existing.difficulty === question.difficulty
+          && existing.cognitiveLevel === question.cognitiveLevel
+          && JSON.stringify(existingProjection?.correctIndices ?? []) === JSON.stringify(question.correctIndices)
+          && JSON.stringify(existingProjection?.acceptableAnswers ?? []) === JSON.stringify(question.acceptableAnswers);
+        if (!sameQuestion) fail("HISTORICAL_QUESTION_CONFLICT", `Soal ${question.questionNumber} sudah ada dengan isi berbeda.`);
+      }
       if (existing) {
         results.push({ id: existing.id, canonicalCourseId: context.canonicalCourseId, legacyCourseId: context.legacyCourseId, chapterId: null, version: existing.version, reviewStatus: "generated", created: false, unchanged: true });
         continue;
       }
 
-      const optionsSnapshot = question.options.map((text, index) => ({ id: `option-${String(index + 1).padStart(2, "0")}`, text, isCorrect: question.correctIndices.includes(index) }));
+      const optionsSnapshot = historicalQuestionOptions(question);
       const explanation = getHistoricalSolutionContent(input.source, question);
       await tx.insert(soal).values({
         id: canonicalId,
