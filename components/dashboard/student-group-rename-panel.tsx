@@ -22,7 +22,7 @@ import { toast } from "@/components/ui/toast";
 export type RenameableStudentGroup = {
   id: string;
   name: string;
-  isLeader: boolean;
+  isLeader?: boolean;
 };
 
 type RenameStatus = {
@@ -44,14 +44,13 @@ export function StudentGroupRenamePanel({
   groups: RenameableStudentGroup[];
 }) {
   const router = useRouter();
-  const leaderGroups = groups.filter((group) => group.isLeader);
   const [selected, setSelected] = useState<RenameableStudentGroup | null>(null);
   const [draftName, setDraftName] = useState("");
   const [status, setStatus] = useState<RenameStatus>(null);
   const [statusLoading, startStatusTransition] = useTransition();
   const [saving, startSaveTransition] = useTransition();
 
-  if (leaderGroups.length === 0) return null;
+  if (groups.length === 0) return null;
 
   const openRename = (group: RenameableStudentGroup) => {
     setSelected(group);
@@ -100,7 +99,7 @@ export function StudentGroupRenamePanel({
   return (
     <>
       <div className="flex flex-wrap items-center gap-2">
-        {leaderGroups.map((group) => (
+        {groups.map((group) => (
           <Button
             key={group.id}
             type="button"
@@ -110,7 +109,7 @@ export function StudentGroupRenamePanel({
             onClick={() => openRename(group)}
           >
             <PencilLine className="h-4 w-4" />
-            Ubah nama {leaderGroups.length > 1 ? group.name : "kelompok"}
+            Ubah nama {groups.length > 1 ? group.name : "kelompok"}
           </Button>
         ))}
       </div>
@@ -125,7 +124,7 @@ export function StudentGroupRenamePanel({
           <DialogHeader>
             <DialogTitle>Ganti nama kelompok</DialogTitle>
             <DialogDescription>
-              Nama ini terlihat oleh semua anggota, tutor, dan admin.
+              Nama ini terlihat oleh semua anggota, tutor, dan admin. Setiap anggota kelompok dapat mengubahnya.
             </DialogDescription>
           </DialogHeader>
 
@@ -150,7 +149,7 @@ export function StudentGroupRenamePanel({
               <div className="space-y-1">
                 <p className="font-medium">Konfirmasi perubahan</p>
                 <p className="text-muted-foreground">
-                  Setelah nama diganti, kelompok ini tidak dapat mengganti nama lagi selama 30 hari.
+                  Setelah nama diganti, seluruh kelompok tidak dapat mengganti nama lagi selama 30 hari.
                 </p>
                 {status?.canRename === false && status.nextRenameAt ? (
                   <p className="font-medium text-foreground">
