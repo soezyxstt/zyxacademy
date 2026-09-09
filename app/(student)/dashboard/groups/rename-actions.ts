@@ -22,7 +22,7 @@ async function requireStudentUser() {
   return session.user;
 }
 
-async function getLeaderMembership(userId: string, groupId: string) {
+async function getMembership(userId: string, groupId: string) {
   return db.query.groupMembers.findFirst({
     where: and(eq(groupMembers.userId, userId), eq(groupMembers.groupId, groupId)),
     with: { group: true },
@@ -41,17 +41,10 @@ async function getLatestNameChange(groupId: string) {
 
 export async function getGroupRenameStatus(groupId: string) {
   const currentUser = await requireStudentUser();
-  const membership = await getLeaderMembership(currentUser.id, groupId);
+  const membership = await getMembership(currentUser.id, groupId);
 
   if (!membership?.group) {
-    return { success: false as const, error: "Kelompok tidak ditemukan." };
-  }
-
-  if (membership.role !== "leader") {
-    return {
-      success: false as const,
-      error: "Hanya ketua kelompok yang dapat mengganti nama kelompok.",
-    };
+    return { success: false as const, error: "Kelompok tidak ditemukan atau Anda bukan anggotanya." };
   }
 
   const lastChangedAt = await getLatestNameChange(groupId);
@@ -75,16 +68,9 @@ export async function renameStudentGroup(groupId: string, proposedName: string) 
     return { success: false as const, error: validationError };
   }
 
-  const membership = await getLeaderMembership(currentUser.id, groupId);
+  const membership = await getMembership(currentUser.id, groupId);
   if (!membership?.group) {
-    return { success: false as const, error: "Kelompok tidak ditemukan." };
-  }
-
-  if (membership.role !== "leader") {
-    return {
-      success: false as const,
-      error: "Hanya ketua kelompok yang dapat mengganti nama kelompok.",
-    };
+    return { success: false as const, error: "Kelompok tidak ditemukan atau Anda bukan anggotanya." };
   }
 
   if (membership.group.name === normalizedName) {
@@ -98,6 +84,26 @@ export async function renameStudentGroup(groupId: string, proposedName: string) 
 
   try {
     const result = await db.transaction(async (tx) => {
+      // Re-check membership inside the write transaction so a user removed from
+      // the group between the initial read and the mutation cannot rename it.
+      const currentMembership = await tx
+        .select({ id: groupMembers.id })
+        .from(groupMembers)
+        .where(
+          and(
+            eq(groupMembers.groupId, groupId),
+            eq(groupMembers.userId, currentUser.id),
+          ),
+        )
+        .limit(1);
+
+      if (currentMembership.length === 0) {
+        return {
+          success: false as const,
+          error: "Kelompok tidak ditemukan atau Anda bukan anggotanya.",
+        };
+      }
+
       const latestRows = await tx
         .select({ changedAt: groupNameChangeAudit.changedAt })
         .from(groupNameChangeAudit)
