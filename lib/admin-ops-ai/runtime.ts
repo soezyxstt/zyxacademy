@@ -73,13 +73,20 @@ export interface ExecuteOpsAiRuntimeOptions {
 
 export function buildOpsAiSystemPrompt(context?: OpsAiChatRequest["context"]): string {
   const mode = context?.mode ?? "ask";
+  const activeCapabilities = DEFAULT_OPS_AI_TOOLS
+    .map((tool) => {
+      const security = ALL_OPS_AI_TOOL_SECURITY_REGISTRY[tool.name];
+      const description = security?.description ?? tool.description;
+      return `- ${tool.name}: ${description}`;
+    })
+    .join("\n");
   const modeInstruction =
     mode === "edit"
-      ? `\nMODE AKTIF: MODE EDIT / AKSI OPERASIONAL.\nFokus utama Anda adalah membantu administrator melakukan aksi operasional atau perubahan data secara terarah. Sebelum mengeksekusi mutasi data, buatkan Action Proposal terstruktur yang merangkum aksi yang akan dilakukan, dan mintalah konfirmasi dari administrator dengan quick-actions.`
+      ? `\nMODE AKTIF: MODE EDIT / AKSI OPERASIONAL.\nBantu administrator menyiapkan atau menjalankan aksi HANYA bila tool aktif pada sesi ini mendukungnya. Jangan mengklaim dapat melakukan mutasi yang tool-nya tidak tersedia. Bila aksi tidak tersedia, jelaskan batas tersebut secara singkat dan tawarkan operasi read-only atau proposal yang memang tersedia.`
       : `\nMODE AKTIF: MODE TANYA / KONSULTASI OPERASIONAL.\nFokus utama Anda adalah menjawab pertanyaan, menganalisis status sistem, dan menerangkan SOP atau fitur teknis Zyx. Bila menjawab pertanyaan seputar fitur, SOP, skema, atau konfigurasi Zyx, panggil tool 'retrieve_admin_knowledge' terlebih dahulu agar sumber referensi resmi dapat tercantum pada jawaban.`;
 
   return `Anda adalah Zyx Ops AI, asisten teknis dan operasional untuk panel administrator Zyx Academy.
-Tugas Anda adalah membantu administrator memahami fitur sistem, skema basis data, arsitektur, prosedur runbook operasional, menavigasi admin panel, serta mengeksekusi operasi administrasi secara langsung dan otonom tanpa perlu pengisian form manual oleh manusia.
+Tugas Anda adalah membantu administrator memahami dan mengoperasikan Zyx menggunakan tool yang AKTIF pada sesi ini. Jangan menganggap seluruh operasi yang ada di codebase dapat Anda jalankan.
 
 ATURAN DAN PEDOMAN UTAMA:
 1. Nama brand adalah Zyx (bukan ZYX).
@@ -89,54 +96,36 @@ ATURAN DAN PEDOMAN UTAMA:
 5. Berikan jawaban berbasis data nyata dan dokumentasi yang diverifikasi.
 6. Bila memerlukan informasi dokumentasi, skema tabel, metrik sistem, navigasi halaman, data pengguna, kuis, jadwal, kelompok belajar, atau form, gunakan native tool calling yang tersedia. JANGAN membuat format teks buatan sendiri seperti markdown tool_call.
 7. Setiap pertanyaan mengenai konfigurasi, SOP, fitur, alur kerja, atau arsitektur Zyx WAJIB memanggil tool 'retrieve_admin_knowledge' untuk menyertakan referensi resmi.
+8. Untuk pertanyaan seperti "apa yang bisa Anda lakukan?", jawab HANYA berdasarkan daftar TOOL AKTIF di bawah. Jangan menyimpulkan kemampuan mutasi dari dokumentasi, nama fitur, atau tool internal yang tidak aktif.
+9. Tool read-only tidak berarti Anda dapat membuat, mengubah, menghapus, mereset, atau mempublikasikan entitas tersebut. Jika tidak ada tool aktif untuk suatu aksi, katakan bahwa aksi tersebut belum dapat dijalankan dari Ops AI saat ini.
 
-RESOLUSI ENTITAS OTOMATIS (PRINSIP UTAMA INTERAKSI MANUSIA):
-8. Administrator adalah manusia dan TIDAK MENGHAFAL ID teknis, slug, atau UUID (seperti 'mat-i', 'kalk-1', dsb.).
-9. JANGAN PERNAH meminta administrator menyebutkan, mencari, atau mengonfirmasi ID teknis entitas! Meminta ID adalah kesalahan fatal.
-10. Bila administrator menyebutkan nama, judul, atau kata kunci entitas (misal: mata kuliah "Matematika I", bab "Turunan" atau "Limit", kuis, pengguna, form, dsb.):
-    - Anda WAJIB PROAKTIF memanggil tool pencarian/pendaftaran terlebih dahulu (misal: 'list_courses', 'list_chapters', 'list_quizzes', 'search_users', dsb.) untuk menemukan entitas tersebut di balik layar.
-    - KASUS 1: Hasil pencarian UNIK (tepat 1 entitas cocok):
-      Langsung gunakan ID tersebut secara mandiri! Jangan tanyakan "apakah ID-nya X?". Langsung sajikan proposal aksi (Action Proposal) yang mencantumkan nama dan detail entitas tersebut, lalu tanyakan konfirmasi proposal.
-    - KASUS 2: Hasil pencarian AMBIGU (lebih dari 1 entitas cocok):
-      Sajikan daftar pilihan secara singkat dan tanyakan entitas mana yang dimaksud administrator. Wajib sertakan blok quick-actions agar administrator dapat memilih dengan satu kali klik.
-    - KASUS 3: Hasil pencarian KOSONG (0 entitas cocok):
-      Jelaskan dengan sopan bahwa entitas tidak ditemukan dan tawarkan alternatif (misal membuat mata kuliah baru).
+TOOL AKTIF PADA SESI INI:
+${activeCapabilities}
+
+RESOLUSI ENTITAS OTOMATIS:
+10. Administrator tidak perlu menghafal ID teknis, slug, atau UUID. Jangan meminta ID jika nama atau kata kunci dapat dicari lewat tool.
+11. Bila administrator menyebut nama, judul, alias, atau kata kunci entitas, proaktif gunakan tool pencarian yang tersedia untuk menemukan entitas tersebut.
+12. Jika hasil pencarian unik, gunakan hasil itu langsung. Jika ambigu, tampilkan pilihan singkat dan minta pengguna memilih.
+13. Hasil 0 BUKAN bukti final bahwa entitas tidak ada bila entitas pernah disebut atau ditemukan pada percakapan yang sama, scope mata kuliah belum pasti, atau input tampak berupa nama pendek/typo. Sebelum menyatakan tidak ditemukan, lakukan maksimal satu pencarian ulang yang lebih luas, misalnya tanpa filter mata kuliah, dengan kata kunci yang lebih pendek, atau dengan nama yang pernah muncul pada riwayat percakapan.
+14. Jika pencarian ulang tetap 0, baru jelaskan bahwa entitas tidak ditemukan pada data yang dapat diakses saat ini. Jangan menyangkal temuan positif sebelumnya tanpa menyebut bahwa hasil terbaru tidak konsisten.
 
 PROPOSAL AKSI DAN EKSEKUSI:
-11. Ketika menyusun proposal aksi (seperti membuat bab materi baru, membuat kuis, mereset kuis siswa, dsb.):
-    - Tampilkan ringkasan Action Proposal dengan jelas (Nama aksi, target, detail atribut).
-    - Akhiri dengan pertanyaan konfirmasi: "Apakah Anda ingin melanjutkan dengan proposal ini?"
-    - Wajib sertakan blok quick-actions:
-      \`\`\`quick-actions
-      ["Ya", "Tidak"]
-      \`\`\`
-12. Bila administrator menjawab "Ya", "Lanjutkan", "Setuju", atau memilih tombol konfirmasi:
-    - Segera eksekusi tool mutasi yang bersangkutan (misal: 'batch_create_chapters', 'create_course', 'create_quiz', 'reset_quiz_attempt', dsb.) dengan parameter yang telah disetujui tanpa menunda lagi.
-13. Bila administrator menjawab "Tidak", "Batal":
-    - Konfirmasikan bahwa proposal dibatalkan dan tanyakan bantuan selanjutnya.
+15. Hanya buat atau eksekusi proposal melalui tool proposal yang benar-benar tercantum pada TOOL AKTIF. Jangan membuat janji bahwa aksi mutasi lain akan dijalankan setelah pengguna menjawab "Ya" bila tool eksekusinya tidak aktif.
+16. Jika tool proposal menghasilkan proposal, ringkas target dan detailnya dengan jelas, lalu gunakan mekanisme konfirmasi UI yang tersedia.
 
-BANTUAN OPERASIONAL SEHARI-HARI (DAY-TO-DAY OPERATIONS):
-14. Dukungan Kendala Siswa (Student Support & Access):
-    - Bila administrator menanyakan masalah akses murid (misal: "siswa tidak bisa buka materi", "cek status akun X", "apakah murid Y sudah masuk kelompok?"), segera panggil tool 'diagnose_student_access' dengan nama atau email murid tersebut.
-    - Sajikan hasil diagnosa yang mencakup status akun, kelompok belajar, sisa kuota/token, dan histori pengerjaan kuis.
-15. Pemulihan Sesi Kuis Siswa (Quiz Attempt Reset):
-    - Bila siswa mengalami kendala teknis saat kuis (misal: jaringan terputus, sesi macet) dan admin ingin mereset, temukan attemptId terkait via diagnosa atau daftar kuis, lalu ajukan Action Proposal untuk tool 'reset_quiz_attempt' dengan alasan yang jelas sebelum mengeksekusinya.
-16. Audit Kesiapan Kurikulum (Course Completeness Audit):
-    - Bila administrator menanyakan kesiapan atau kelengkapan kurikulum mata kuliah (misal: "apakah Kalkulus I sudah lengkap?", "cek bab mana yang belum ada soal/materi"), panggil tool 'audit_course_completeness' untuk memberikan rincian bab yang belum memiliki berkas materi atau bank soal.
+BANTUAN OPERASIONAL SEHARI-HARI:
+17. Untuk kendala akses siswa, gunakan 'diagnose_student_access' bila relevan dan sajikan hasil diagnosis berbasis data.
+18. Jika administrator meminta reset percobaan kuis, perubahan kuis, penghapusan kuis, atau mutasi lain yang tidak ada pada TOOL AKTIF, jangan mengklaim dapat melakukannya. Anda tetap boleh membantu menemukan kuis atau mendiagnosis kondisi dengan tool read-only yang tersedia.
+19. Untuk audit kesiapan kurikulum, gunakan 'audit_course_completeness' setelah scope mata kuliah berhasil diresolusi.
+
+FORMAT JAWABAN:
+20. Gunakan daftar bernomor hanya untuk langkah yang memang berurutan. Untuk kategori dengan subitem, gunakan bullet bertingkat atau heading singkat, jangan mencampur judul kategori dan isi dalam satu urutan nomor.
+21. Setiap jawaban akhir harus memiliki teks yang bermakna. Jangan menyelesaikan turn dengan respons kosong.
 
 FORMAT TOMBOL INTERAKTIF (QUICK ACTIONS):
-17. Setiap kali Anda mengajukan konfirmasi (Ya/Tidak) atau memberikan opsi pilihan (disambiguasi nama):
-    Wajib sertakan blok opsi interaktif di baris paling akhir respons Anda dengan format:
+22. Saat benar-benar perlu meminta pilihan atau konfirmasi yang didukung tool aktif, gunakan blok quick-actions pada baris paling akhir:
     \`\`\`quick-actions
     ["Opsi 1", "Opsi 2"]
-    \`\`\`
-    Contoh:
-    \`\`\`quick-actions
-    ["Ya", "Tidak"]
-    \`\`\`
-    atau untuk pilihan:
-    \`\`\`quick-actions
-    ["Matematika I", "Kalkulus Lanjut"]
     \`\`\`
 ${modeInstruction}
 
@@ -292,9 +281,9 @@ export const DEFAULT_OPS_AI_TOOLS: OpsAiModelToolDeclaration[] = [
     parameters: {
       type: "object",
       properties: {
-        courseId: { type: "string", description: "Filter ID mata kuliah" },
+        courseId: { type: "string", description: "Filter mata kuliah. Boleh ID, nama lengkap, atau alias yang cukup jelas seperti PKA." },
         status: { type: "string", description: "Status kuis (draft / published)" },
-        search: { type: "string", description: "Pencarian judul kuis" },
+        search: { type: "string", description: "Nama, potongan judul, atau nama pendek kuis. Typo kecil akan ditoleransi." },
       },
     },
   },
@@ -709,6 +698,7 @@ export function createOpsAiRuntimeStream(
 
         let toolStepCount = 0;
         let consecutiveToolCalls = 0;
+        let emptySynthesisRetries = 0;
         const streamFn = customModelStream ?? streamOpsAiModel;
 
         while (toolStepCount < maxToolSteps) {
@@ -777,42 +767,82 @@ export function createOpsAiRuntimeStream(
             .filter((c) => c.type === "tool-call" && c.toolCall)
             .map((c) => c.toolCall!);
 
-          // If no tool calls, synthesis is complete
+          // A model turn without a tool call is final only if it contains meaningful text.
           if (toolCalls.length === 0) {
+            if (lastGeneratedText.trim().length === 0) {
+              if (emptySynthesisRetries < 1) {
+                emptySynthesisRetries++;
+                conversationMessages.push({
+                  role: "user",
+                  content:
+                    "Respons sebelumnya kosong. Jawab permintaan admin terakhir dengan teks yang jelas dan tidak kosong. Jika hasil terbaru bertentangan dengan temuan sebelumnya, jelaskan ketidakkonsistenannya dan lakukan pencarian ulang hanya bila perlu.",
+                });
+                continue;
+              }
+
+              const failedStepId = `step-${stepIndexCounter++}`;
+              const failedAt = Date.now();
+              knownStepIds.add(failedStepId);
+              emitWorkStep({
+                stepId: failedStepId,
+                runId,
+                stepIndex: stepIndexCounter - 1,
+                stepType: "synthesis",
+                status: "failed",
+                title: "Sintesis jawaban akhir",
+                detail: "Model tidak menghasilkan jawaban teks setelah satu kali retry.",
+                startedAt: failedAt,
+                finishedAt: failedAt,
+                durationMs: 0,
+                retryable: true,
+                error: "EMPTY_MODEL_RESPONSE",
+              });
+              emitError(
+                "INTERNAL_ERROR",
+                "Model tidak menghasilkan jawaban teks. Silakan ulangi permintaan.",
+                true,
+                failedStepId,
+                { reason: "EMPTY_MODEL_RESPONSE" }
+              );
+              writer.write({
+                type: "text-delta",
+                textDelta: "Terjadi kendala saat menyusun jawaban. Silakan ulangi permintaan terakhir.",
+              } as any);
+              break;
+            }
+
             const finalStepId = `step-${stepIndexCounter++}`;
             const finalStart = Date.now();
             knownStepIds.add(finalStepId);
 
             // Inline citation verification on final text
-            if (lastGeneratedText) {
-              const verification = verifyInlineCitations({
-                text: lastGeneratedText,
-                availableCitations: allRunCitations,
-                runId,
-                knownStepIds,
-                knownToolCallIds,
-              });
+            const verification = verifyInlineCitations({
+              text: lastGeneratedText,
+              availableCitations: allRunCitations,
+              runId,
+              knownStepIds,
+              knownToolCallIds,
+            });
 
-              // If forged markers exist, emit invalid citation records to flag them in the trace
-              if (verification.forgedMarkers.length > 0) {
-                for (const forged of verification.forgedMarkers) {
-                  const forgedCitation: OpsAiCitation = {
-                    id: `cite-forged-${runId}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-                    sourceId: forged.rawReference,
-                    source: "semantic-rag",
-                    availability: "invalid",
-                    runId,
-                    stepId: finalStepId,
-                    title: `Sitasi Palsu/Tidak Ditemukan: ${forged.rawReference}`,
-                    snippet: `Marker inline '${forged.marker}' (${forged.reason}) tidak ditemukan pada sumber yang diberikan kepada model pada run '${runId}'.`,
-                    timestamp: Date.now(),
-                  };
-                  writer.write({
-                    type: "data-citation",
-                    id: `cite-${forgedCitation.id}`,
-                    data: forgedCitation,
-                  } as any);
-                }
+            // If forged markers exist, emit invalid citation records to flag them in the trace
+            if (verification.forgedMarkers.length > 0) {
+              for (const forged of verification.forgedMarkers) {
+                const forgedCitation: OpsAiCitation = {
+                  id: `cite-forged-${runId}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+                  sourceId: forged.rawReference,
+                  source: "semantic-rag",
+                  availability: "invalid",
+                  runId,
+                  stepId: finalStepId,
+                  title: `Sitasi Palsu/Tidak Ditemukan: ${forged.rawReference}`,
+                  snippet: `Marker inline '${forged.marker}' (${forged.reason}) tidak ditemukan pada sumber yang diberikan kepada model pada run '${runId}'.`,
+                  timestamp: Date.now(),
+                };
+                writer.write({
+                  type: "data-citation",
+                  id: `cite-${forgedCitation.id}`,
+                  data: forgedCitation,
+                } as any);
               }
             }
 
@@ -863,7 +893,7 @@ export function createOpsAiRuntimeStream(
               stepTitle = `Pencarian pengetahuan admin: '${(tc.args.query as string) || ""}'`;
             } else if (tc.name === "propose_create_token") {
               stepTitle = `Penyiapan proposal pembuatan token pendaftaran`;
-            } else if (OPS_AI_TOOL_SECURITY_REGISTRY[tc.name]?.allowsMutation) {
+            } else if (ALL_OPS_AI_TOOL_SECURITY_REGISTRY[tc.name]?.allowsMutation) {
               stepTitle = `Eksekusi aksi: ${tc.name}`;
             } else {
               stepTitle = `Eksekusi tool read-only: ${tc.name}`;
@@ -913,6 +943,7 @@ export function createOpsAiRuntimeStream(
             try {
               const stepToolContext: OpsAiToolContext = {
                 ...toolContext,
+                isModelCall: true,
                 runId,
                 stepId: currentStepId,
                 toolCallId: tc.id,
