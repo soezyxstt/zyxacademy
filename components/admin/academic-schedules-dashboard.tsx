@@ -52,8 +52,7 @@ import {
   adminCancelTutorialSession,
   updateTutorCourses,
 } from "@/app/(admin)/admin/(academic)/schedules/actions";
-import { daysFrom, formatIsoDate } from "@/lib/date-utils";
-import { getJakartaNow, getWeekScheduleDays } from "@/lib/schedule-lock";
+import { daysFrom, formatIsoDate, getJakartaNow, getWeekScheduleDays } from "@/lib/date-utils";
 import { isTutorialWeekLocked } from "@/lib/schedule/week-policy";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useUrlTab } from "@/hooks/use-url-tab";
