@@ -90,11 +90,12 @@ export function evaluateNumericResponse(
 ): FormativeEvaluationResult {
   if (response.kind !== "numeric") return { verdict: "ungradable", feedback: "Respons belum sesuai dengan jenis cek ini." };
   const value = response.value.trim();
-  if (!NUMERIC_INPUT_PATTERN.test(value)) {
+  const normalizedValue = value.includes(",") && !value.includes(".") ? value.replace(",", ".") : value;
+  if (!NUMERIC_INPUT_PATTERN.test(normalizedValue)) {
     return { verdict: "ungradable", feedback: "Masukkan satu nilai angka yang valid." };
   }
 
-  const numericValue = Number(value);
+  const numericValue = Number(normalizedValue);
   if (!Number.isFinite(numericValue) || !Number.isFinite(config.target) || !Number.isFinite(config.absoluteTolerance) || config.absoluteTolerance < 0) {
     return { verdict: "ungradable", feedback: "Respons belum dapat dinilai." };
   }
