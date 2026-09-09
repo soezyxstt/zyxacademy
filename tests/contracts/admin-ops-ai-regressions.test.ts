@@ -1,9 +1,16 @@
 import { afterEach, describe, expect, it } from "bun:test";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import {
   buildOpsAiSystemPrompt,
   createOpsAiRuntimeResponse,
+  DEFAULT_OPS_AI_TOOLS,
 } from "@/lib/admin-ops-ai/runtime";
 import { setOpsAiModelStreamMock } from "@/lib/admin-ops-ai/model-factory";
+import {
+  createOpsAiTools,
+  OPS_TOOL_DEFINITIONS,
+} from "@/lib/admin-ops-ai/runtime-tools";
 import {
   resolveQuizCourseReference,
   scoreQuizTitleMatch,
@@ -60,6 +67,30 @@ describe("Zyx Ops AI conversation regressions", () => {
     expect(prompt).not.toContain("- reset_quiz_attempt:");
   });
 
+  it("derives the compatibility capability manifest from the authoritative tool registry", () => {
+    const exposedToolNames = Object.keys(createOpsAiTools()).sort();
+    const compatibilityToolNames = DEFAULT_OPS_AI_TOOLS.map((tool) => tool.name).sort();
+    const expectedToolNames = Object.entries(OPS_TOOL_DEFINITIONS)
+      .filter(([, definition]) => definition.security.isModelCallable)
+      .map(([name]) => name)
+      .sort();
+
+    expect(exposedToolNames).toEqual(expectedToolNames);
+    expect(compatibilityToolNames).toEqual(expectedToolNames);
+  });
+
+  it("uses ToolLoopAgent as the production runtime instead of a manual model loop", () => {
+    const runtimeCode = readFileSync(
+      join(process.cwd(), "lib/admin-ops-ai/runtime.ts"),
+      "utf8"
+    );
+
+    expect(runtimeCode).toContain("new ToolLoopAgent");
+    expect(runtimeCode).toContain("createOpsAiTools");
+    expect(runtimeCode).not.toContain("streamOpsAiModel(");
+    expect(runtimeCode).not.toContain("while (toolStepCount");
+  });
+
   it("retries one empty synthesis and never marks an empty final answer completed", async () => {
     let modelCalls = 0;
     setOpsAiModelStreamMock(async function* () {
@@ -95,46 +126,16 @@ describe("Zyx Ops AI conversation regressions", () => {
     expect(synthesisSteps.some((step) => step.status === "completed")).toBe(false);
   });
 
-  it("marks all runtime-originated tool calls as model calls", async () => {
-    let modelCalls = 0;
-    setOpsAiModelStreamMock(async function* () {
-      if (modelCalls++ === 0) {
-        yield {
-          type: "tool-call",
-          toolCall: {
-            id: "call-forbidden-create-quiz",
-            name: "create_quiz",
-            args: {
-              courseId: "tutorial-pka",
-              title: "Tidak boleh dibuat",
-            },
-          },
-        };
-        yield { type: "finish", finishReason: "tool-calls" };
-        return;
-      }
-
-      yield {
-        type: "text-delta",
-        textDelta: "Aksi tersebut tidak tersedia untuk model pada sesi ini.",
-      };
-      yield { type: "finish", finishReason: "stop" };
+  it("never exposes mutation-only tools to ToolLoopAgent", () => {
+    const tools = createOpsAiTools({
+      callerRole: "admin",
+      actorId: "admin-test",
     });
 
-    const response = createOpsAiRuntimeResponse({
-      messages: [{ role: "user", content: "Buat kuis baru" }],
-      toolContext: { callerRole: "admin", actorId: "admin-test" },
-    });
-
-    const events = await parseSseEvents(response);
-    const forbiddenResult = events.find(
-      (event) =>
-        event.type === "tool-result" && event.toolCallId === "call-forbidden-create-quiz"
-    );
-
-    expect(forbiddenResult).toBeDefined();
-    expect(String(forbiddenResult?.output?.error || "")).toContain(
-      "tidak diizinkan untuk dipanggil oleh model AI"
-    );
+    expect(tools.list_quizzes).toBeDefined();
+    expect(tools.retrieve_admin_knowledge).toBeDefined();
+    expect(tools.create_quiz).toBeUndefined();
+    expect(tools.update_quiz).toBeUndefined();
+    expect(tools.reset_quiz_attempt).toBeUndefined();
   });
 });

@@ -216,15 +216,20 @@ export async function* streamOpsAiModel(
     let promptTokens = 0;
     let completionTokens = 0;
     let finishReason = "stop";
+    let sawFunctionCall = false;
 
     for await (const chunk of responseStream) {
       if (options.signal?.aborted) {
         throw new Error("Model stream aborted by user");
       }
 
-      // Check for function calls
+      // Function-call presence is authoritative for agent-loop continuation.
+      // Gemini commonly reports candidate finishReason=STOP even when the
+      // candidate content contains functionCall parts, so do not let that STOP
+      // overwrite tool-call semantics required by AI SDK ToolLoopAgent.
       const functionCalls = chunk.functionCalls;
       if (functionCalls && functionCalls.length > 0) {
+        sawFunctionCall = true;
         finishReason = "tool-calls";
         for (const fc of functionCalls) {
           yield {
@@ -253,7 +258,7 @@ export async function* streamOpsAiModel(
         completionTokens = chunk.usageMetadata.candidatesTokenCount ?? completionTokens;
       }
 
-      if (chunk.candidates && chunk.candidates[0]?.finishReason) {
+      if (!sawFunctionCall && chunk.candidates && chunk.candidates[0]?.finishReason) {
         finishReason = chunk.candidates[0].finishReason;
       }
     }
@@ -262,7 +267,7 @@ export async function* streamOpsAiModel(
 
     yield {
       type: "finish",
-      finishReason,
+      finishReason: sawFunctionCall ? "tool-calls" : finishReason,
       usage: {
         promptTokens,
         completionTokens,

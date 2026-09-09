@@ -1,28 +1,24 @@
 import {
   createUIMessageStream,
   createUIMessageStreamResponse,
-  ToolLoopAgent,
   stepCountIs,
-  type UIMessageStreamWriter,
+  ToolLoopAgent,
+  type Tool,
 } from "ai";
+import { ZyxLanguageModel } from "./zyx-language-model-adapter";
 import {
-  createZyxLanguageModel,
-  ZyxLanguageModel,
-} from "./zyx-language-model-adapter";
-import {
-  OPS_AI_POLICY_BOUNDS,
-  OPS_AI_TOOL_SECURITY_REGISTRY,
   ALL_OPS_AI_TOOL_SECURITY_REGISTRY,
-  validateOpsAiWorkStep,
-  validateOpsAiErrorData,
+  OPS_AI_POLICY_BOUNDS,
   validateOpsAiCitation,
+  validateOpsAiErrorData,
   validateOpsAiProposal,
-  type OpsAiWorkStep,
-  type OpsAiErrorData,
-  type OpsAiErrorCode,
-  type OpsAiStepType,
-  type OpsAiCitation,
+  validateOpsAiWorkStep,
   type OpsAiActionProposalV2,
+  type OpsAiCitation,
+  type OpsAiErrorCode,
+  type OpsAiErrorData,
+  type OpsAiStepType,
+  type OpsAiWorkStep,
 } from "./contracts";
 import {
   assertProvenanceIntegrity,
@@ -30,25 +26,19 @@ import {
   OPS_AI_CITATION_OFFICIAL_LABEL,
 } from "./citations";
 import {
-  executeOpsAiTool,
-  searchAdminKnowledge,
   createOpsAiTools,
+  OPS_TOOL_DEFINITIONS,
+  searchAdminKnowledge,
   type OpsAiToolContext,
 } from "./runtime-tools";
 import { searchDocs } from "./rag-store";
-import {
-  streamOpsAiModel,
-  type OpsAiModelGenerateStreamOptions,
-  type OpsAiModelStreamChunk,
-  type OpsAiModelToolDeclaration,
-  type OpsAiModelMessage,
+import type {
+  OpsAiModelGenerateStreamOptions,
+  OpsAiModelStreamChunk,
+  OpsAiModelToolDeclaration,
 } from "./model-factory";
-import { type OpsAiChatRequest } from "./types";
+import type { OpsAiChatRequest } from "./types";
 import { randomUUID } from "node:crypto";
-
-// ============================================================================
-// 1. Types & Options
-// ============================================================================
 
 export interface ExecuteOpsAiRuntimeOptions {
   messages: Array<{
@@ -62,14 +52,28 @@ export interface ExecuteOpsAiRuntimeOptions {
   maxToolSteps?: number;
   maxConsecutiveToolCalls?: number;
   runId?: string;
+  /**
+   * Legacy test seam retained for source compatibility. The ToolLoopAgent runtime
+   * uses the model-factory mock registry (`setOpsAiModelStreamMock`) instead.
+   */
   customModelStream?: (
     options: OpsAiModelGenerateStreamOptions
   ) => AsyncIterable<OpsAiModelStreamChunk>;
 }
 
-// ============================================================================
-// 2. System Prompt Builder
-// ============================================================================
+/**
+ * Compatibility/introspection export. Production execution no longer consumes this
+ * declaration array. Names and descriptions are derived from OPS_TOOL_DEFINITIONS,
+ * the same registry used by createOpsAiTools().
+ */
+export const DEFAULT_OPS_AI_TOOLS: OpsAiModelToolDeclaration[] = Object.entries(
+  OPS_TOOL_DEFINITIONS
+)
+  .filter(([, definition]) => definition.security.isModelCallable)
+  .map(([name, definition]) => ({
+    name,
+    description: definition.description,
+  }));
 
 export function buildOpsAiSystemPrompt(context?: OpsAiChatRequest["context"]): string {
   const mode = context?.mode ?? "ask";
@@ -80,6 +84,7 @@ export function buildOpsAiSystemPrompt(context?: OpsAiChatRequest["context"]): s
       return `- ${tool.name}: ${description}`;
     })
     .join("\n");
+
   const modeInstruction =
     mode === "edit"
       ? `\nMODE AKTIF: MODE EDIT / AKSI OPERASIONAL.\nBantu administrator menyiapkan atau menjalankan aksi HANYA bila tool aktif pada sesi ini mendukungnya. Jangan mengklaim dapat melakukan mutasi yang tool-nya tidak tersedia. Bila aksi tidak tersedia, jelaskan batas tersebut secara singkat dan tawarkan operasi read-only atau proposal yang memang tersedia.`
@@ -135,335 +140,194 @@ KONTEKS HALAMAN SAAT INI:
 - Entitas aktif: ${JSON.stringify(context?.activeEntity || null)}`;
 }
 
-// ============================================================================
-// 3. Tool Declarations for Model
-// ============================================================================
+interface ToolExecutionBudget {
+  readonly maxExecutions: number;
+  used: number;
+  blocked: boolean;
+}
 
-export const DEFAULT_OPS_AI_TOOLS: OpsAiModelToolDeclaration[] = [
-  // Baseline Tools
-  {
-    name: "retrieve_admin_knowledge",
-    description: ALL_OPS_AI_TOOL_SECURITY_REGISTRY.retrieve_admin_knowledge.description,
-    parameters: {
-      type: "object",
-      properties: {
-        query: {
-          type: "string",
-          description: "Kata kunci atau topik pencarian dokumentasi teknis dan SOP Zyx",
-        },
-      },
-      required: ["query"],
-    },
-  },
-  {
-    name: "inspect_schema",
-    description: ALL_OPS_AI_TOOL_SECURITY_REGISTRY.inspect_schema.description,
-    parameters: {
-      type: "object",
-      properties: {
-        tableName: {
-          type: "string",
-          description: "Nama tabel database spesifik (opsional, contoh: user, enrollment_tokens)",
-        },
-      },
-    },
-  },
-  {
-    name: "get_system_metrics",
-    description: ALL_OPS_AI_TOOL_SECURITY_REGISTRY.get_system_metrics.description,
-    parameters: {
-      type: "object",
-      properties: {},
-    },
-  },
-  {
-    name: "navigate_admin",
-    description: ALL_OPS_AI_TOOL_SECURITY_REGISTRY.navigate_admin.description,
-    parameters: {
-      type: "object",
-      properties: {
-        destination: {
-          type: "string",
-          description: "Nama fitur atau halaman admin yang dituju",
-        },
-      },
-      required: ["destination"],
-    },
-  },
-  {
-    name: "search_users",
-    description: ALL_OPS_AI_TOOL_SECURITY_REGISTRY.search_users.description,
-    parameters: {
-      type: "object",
-      properties: {
-        query: {
-          type: "string",
-          description: "Nama atau email pengguna yang dicari",
-        },
-      },
-      required: ["query"],
-    },
-  },
-  {
-    name: "propose_create_token",
-    description: ALL_OPS_AI_TOOL_SECURITY_REGISTRY.propose_create_token.description,
-    parameters: {
-      type: "object",
-      properties: {
-        courseIds: {
-          type: "string",
-          description: "Daftar ID mata kuliah dipisah koma (misal: kalkulus-1, fisika-dasar)",
-        },
-        capacity: {
-          type: "string",
-          description: "Kapasitas kuota anggota kelompok (angka 1 sampai 5)",
-        },
-        packageType: {
-          type: "string",
-          description: "Tipe paket (opsional, default: reguler_15)",
-        },
-      },
-      required: ["courseIds", "capacity"],
-    },
-  },
+function createBudgetedTools(
+  context: OpsAiToolContext,
+  budget: ToolExecutionBudget
+): Record<string, Tool> {
+  const tools = createOpsAiTools(context);
+  const budgeted: Record<string, Tool> = {};
 
-  // 1. Academic & Curriculum
-  {
-    name: "list_courses",
-    description: ALL_OPS_AI_TOOL_SECURITY_REGISTRY.list_courses.description,
-    parameters: {
-      type: "object",
-      properties: {
-        search: { type: "string", description: "Kata kunci nama atau ID mata kuliah" },
-        category: { type: "string", description: "Filter kategori mata kuliah" },
-      },
-    },
-  },
-  {
-    name: "list_chapters",
-    description: ALL_OPS_AI_TOOL_SECURITY_REGISTRY.list_chapters.description,
-    parameters: {
-      type: "object",
-      properties: {
-        courseId: { type: "string", description: "Filter berdasarkan ID mata kuliah (opsional)" },
-        search: { type: "string", description: "Kata kunci nama atau judul bab materi" },
-      },
-    },
-  },
-  {
-    name: "list_materials",
-    description: ALL_OPS_AI_TOOL_SECURITY_REGISTRY.list_materials.description,
-    parameters: {
-      type: "object",
-      properties: {
-        courseId: { type: "string", description: "ID mata kuliah" },
-        chapterId: { type: "string", description: "ID bab (opsional)" },
-      },
-      required: ["courseId"],
-    },
-  },
-  {
-    name: "audit_course_completeness",
-    description: ALL_OPS_AI_TOOL_SECURITY_REGISTRY.audit_course_completeness.description,
-    parameters: {
-      type: "object",
-      properties: {
-        courseId: { type: "string", description: "ID mata kuliah yang ingin diaudit" },
-      },
-      required: ["courseId"],
-    },
-  },
+  for (const [name, definition] of Object.entries(tools)) {
+    const originalExecute = (definition as any).execute;
+    budgeted[name] = {
+      ...(definition as any),
+      execute: originalExecute
+        ? async (input: unknown, executionOptions: unknown) => {
+            if (budget.used >= budget.maxExecutions) {
+              budget.blocked = true;
+              throw new Error(
+                `OPS_AI_TOOL_BUDGET_EXCEEDED: batas ${budget.maxExecutions} eksekusi tool tercapai.`
+              );
+            }
+            budget.used += 1;
+            return originalExecute(input, executionOptions);
+          }
+        : undefined,
+    } as Tool;
+  }
 
-  // 2. Assessment & Questions
-  {
-    name: "list_quizzes",
-    description: ALL_OPS_AI_TOOL_SECURITY_REGISTRY.list_quizzes.description,
-    parameters: {
-      type: "object",
-      properties: {
-        courseId: { type: "string", description: "Filter mata kuliah. Boleh ID, nama lengkap, atau alias yang cukup jelas seperti PKA." },
-        status: { type: "string", description: "Status kuis (draft / published)" },
-        search: { type: "string", description: "Nama, potongan judul, atau nama pendek kuis. Typo kecil akan ditoleransi." },
-      },
-    },
-  },
-  {
-    name: "list_questions",
-    description: ALL_OPS_AI_TOOL_SECURITY_REGISTRY.list_questions.description,
-    parameters: {
-      type: "object",
-      properties: {
-        courseId: { type: "string", description: "Filter ID mata kuliah" },
-        difficulty: { type: "string", description: "Tingkat kesulitan: easy, medium, hard" },
-        reviewStatus: { type: "string", description: "Status kurasi: published, reviewed, generated" },
-        search: { type: "string", description: "Pencarian teks soal" },
-      },
-    },
-  },
-  {
-    name: "get_quiz_insights",
-    description: ALL_OPS_AI_TOOL_SECURITY_REGISTRY.get_quiz_insights.description,
-    parameters: {
-      type: "object",
-      properties: {
-        quizId: { type: "string", description: "ID kuis" },
-      },
-      required: ["quizId"],
-    },
-  },
-
-  // 3. Schedules & Meet
-  {
-    name: "list_schedules",
-    description: ALL_OPS_AI_TOOL_SECURITY_REGISTRY.list_schedules.description,
-    parameters: {
-      type: "object",
-      properties: {
-        startDate: { type: "string", description: "Tanggal mulai (YYYY-MM-DD)" },
-        endDate: { type: "string", description: "Tanggal akhir (YYYY-MM-DD)" },
-        courseId: { type: "string", description: "Filter ID mata kuliah" },
-        status: { type: "string", description: "Filter status sesi (scheduled, cancelled, completed)" },
-      },
-    },
-  },
-  {
-    name: "list_tutor_availability",
-    description: ALL_OPS_AI_TOOL_SECURITY_REGISTRY.list_tutor_availability.description,
-    parameters: {
-      type: "object",
-      properties: {
-        tutorId: { type: "string", description: "ID tutor (opsional)" },
-      },
-    },
-  },
-
-  // 4. Study Groups & Tokens
-  {
-    name: "list_study_groups",
-    description: ALL_OPS_AI_TOOL_SECURITY_REGISTRY.list_study_groups.description,
-    parameters: {
-      type: "object",
-      properties: {
-        courseId: { type: "string", description: "Filter ID mata kuliah" },
-        search: { type: "string", description: "Pencarian nama kelompok" },
-        hasTutor: { type: "boolean", description: "Filter kelompok yang memiliki tutor" },
-      },
-    },
-  },
-  {
-    name: "list_enrollment_tokens",
-    description: ALL_OPS_AI_TOOL_SECURITY_REGISTRY.list_enrollment_tokens.description,
-    parameters: {
-      type: "object",
-      properties: {
-        status: { type: "string", description: "Status token: active, exhausted, atau expired" },
-      },
-    },
-  },
-  {
-    name: "diagnose_student_access",
-    description: ALL_OPS_AI_TOOL_SECURITY_REGISTRY.diagnose_student_access.description,
-    parameters: {
-      type: "object",
-      properties: {
-        userIdentifier: { type: "string", description: "Nama, email, atau ID pengguna murid yang ingin didiagnosa" },
-        courseId: { type: "string", description: "ID mata kuliah untuk evaluasi akses khusus (opsional)" },
-      },
-      required: ["userIdentifier"],
-    },
-  },
-
-  // 5. Users, Notifications & Operations
-  {
-    name: "list_pka_registrations",
-    description: ALL_OPS_AI_TOOL_SECURITY_REGISTRY.list_pka_registrations.description,
-    parameters: {
-      type: "object",
-      properties: {
-        search: { type: "string", description: "Pencarian nama atau email pendaftar PKA" },
-      },
-    },
-  },
-  {
-    name: "list_forms",
-    description: ALL_OPS_AI_TOOL_SECURITY_REGISTRY.list_forms.description,
-    parameters: {
-      type: "object",
-      properties: {
-        category: { type: "string", description: "Filter kategori form" },
-        search: { type: "string", description: "Pencarian nama form" },
-      },
-    },
-  },
-  {
-    name: "get_form_responses_summary",
-    description: ALL_OPS_AI_TOOL_SECURITY_REGISTRY.get_form_responses_summary.description,
-    parameters: {
-      type: "object",
-      properties: {
-        formId: { type: "string", description: "ID formulir" },
-      },
-      required: ["formId"],
-    },
-  },
-  {
-    name: "list_blog_articles",
-    description: ALL_OPS_AI_TOOL_SECURITY_REGISTRY.list_blog_articles.description,
-    parameters: {
-      type: "object",
-      properties: {
-        status: { type: "string", description: "Status artikel: published atau draft" },
-        search: { type: "string", description: "Pencarian judul artikel" },
-      },
-    },
-  },
-  {
-    name: "get_feature_flags",
-    description: ALL_OPS_AI_TOOL_SECURITY_REGISTRY.get_feature_flags.description,
-    parameters: {
-      type: "object",
-      properties: {},
-    },
-  },
-];
-
-// ============================================================================
-// 3.5. AI SDK 6 ToolLoopAgent Factory
-// ============================================================================
+  return budgeted;
+}
 
 export interface CreateOpsAiAgentOptions {
   systemPrompt?: string;
   modelId?: string;
   toolContext?: OpsAiToolContext;
+  maxToolSteps?: number;
   maxConsecutiveToolCalls?: number;
+  executionBudget?: ToolExecutionBudget;
 }
 
 /**
- * Creates an AI SDK 6 ToolLoopAgent instance bound to ZyxLanguageModel,
- * unified Ops tools, and bounded by stepCountIs.
+ * Creates the production AI SDK 6 ToolLoopAgent. Tool definitions, execution,
+ * schema validation, and tool-result reinjection are delegated to the SDK.
  */
 export function createOpsAiAgent(options: CreateOpsAiAgentOptions = {}): ToolLoopAgent {
-  const model = createZyxLanguageModel(options.modelId);
-  const tools = createOpsAiTools(options.toolContext);
+  const maxToolSteps = Math.max(
+    1,
+    options.maxToolSteps ?? OPS_AI_POLICY_BOUNDS.maxToolSteps
+  );
+  const maxConsecutiveToolCalls = Math.max(
+    1,
+    options.maxConsecutiveToolCalls ?? OPS_AI_POLICY_BOUNDS.maxConsecutiveToolCalls
+  );
+  const maxExecutions = Math.min(maxToolSteps, maxConsecutiveToolCalls);
+  const executionBudget = options.executionBudget ?? {
+    maxExecutions,
+    used: 0,
+    blocked: false,
+  };
+  const model = new ZyxLanguageModel({
+    modelId: options.modelId,
+    actorId: options.toolContext?.actorId,
+    feature: "admin-ops-ai",
+  });
+  const tools = createBudgetedTools(options.toolContext ?? {}, executionBudget);
+
   return new ToolLoopAgent({
     id: "zyx-ops-ai-agent",
     instructions: options.systemPrompt,
     model,
     tools,
-    stopWhen: stepCountIs(
-      options.maxConsecutiveToolCalls ?? OPS_AI_POLICY_BOUNDS.maxConsecutiveToolCalls
-    ),
+    // One extra generation is reserved for synthesis after the final permitted
+    // tool execution. Any additional tool attempt is blocked by executionBudget.
+    stopWhen: stepCountIs(maxExecutions + 1),
+    maxRetries: OPS_AI_POLICY_BOUNDS.maxRetryAttempts,
   });
 }
 
-// ============================================================================
-// 4. Runtime Stream Orchestrator
-// ============================================================================
+function normalizeModelMessages(
+  messages: ExecuteOpsAiRuntimeOptions["messages"]
+): Array<Record<string, unknown>> {
+  return messages.map((message) => ({
+    role:
+      message.role === "assistant"
+        ? "assistant"
+        : message.role === "system"
+          ? "system"
+          : "user",
+    content: message.content,
+  }));
+}
 
-/**
- * Creates an incremental UI Message Stream for Ops AI v2 adhering to
- * bounded multi-step loops, work-step lifecycle tracking, and strict security bounds.
- */
+function classifyProviderError(error: unknown): OpsAiErrorCode {
+  const message = error instanceof Error ? error.message : String(error || "");
+  if (
+    message.includes("429") ||
+    message.toLowerCase().includes("quota") ||
+    message.includes("RESOURCE_EXHAUSTED")
+  ) {
+    return "RATE_LIMITED";
+  }
+  return "PROVIDER_UNAVAILABLE";
+}
+
+function getToolStepTitle(toolName: string, input: Record<string, unknown>): {
+  stepType: OpsAiStepType;
+  title: string;
+} {
+  if (toolName === "retrieve_admin_knowledge") {
+    return {
+      stepType: "retrieval",
+      title: `Pencarian pengetahuan admin: '${String(input.query || "")}'`,
+    };
+  }
+  if (toolName === "propose_create_token") {
+    return {
+      stepType: "tool_call",
+      title: "Penyiapan proposal pembuatan token pendaftaran",
+    };
+  }
+  if (ALL_OPS_AI_TOOL_SECURITY_REGISTRY[toolName]?.allowsMutation) {
+    return { stepType: "tool_call", title: `Eksekusi aksi: ${toolName}` };
+  }
+  return { stepType: "tool_call", title: `Eksekusi tool read-only: ${toolName}` };
+}
+
+async function appendAutomaticKnowledgeGrounding(
+  systemPrompt: string,
+  messages: ExecuteOpsAiRuntimeOptions["messages"],
+  toolContext?: OpsAiToolContext
+): Promise<string> {
+  const lastUserMessage = [...messages].reverse().find((message) => message.role === "user");
+  const query = lastUserMessage?.content.trim() || "";
+  if (!query) return systemPrompt;
+
+  try {
+    let docs: Array<{
+      title: string;
+      filePath: string;
+      section?: string;
+      snippet: string;
+      score?: number;
+    }> = [];
+
+    try {
+      const vectorResults = await searchAdminKnowledge({
+        query,
+        callerRole: toolContext?.callerRole ?? "admin",
+        vectorProvider: toolContext?.vectorProvider,
+        embeddingAdapter: toolContext?.embeddingAdapter,
+      });
+      if (vectorResults?.results?.length) docs = vectorResults.results;
+    } catch {
+      // Vector provider can be unavailable in isolated/local environments.
+    }
+
+    if (docs.length === 0) {
+      docs = await searchDocs(query, 3);
+    }
+
+    if (docs.length === 0) return systemPrompt;
+
+    return (
+      systemPrompt +
+      `\n\nDOKUMEN REFERENSI TERKAIT DARI BASIS PENGETAHUAN ZYX (Gunakan untuk menjawab secara akurat dan panggil tool 'retrieve_admin_knowledge' bila ingin merujuk resmi):\n` +
+      docs
+        .map(
+          (doc) =>
+            `--- Dokumen: ${doc.title} (${doc.filePath}${doc.section ? ` › ${doc.section}` : ""})\n${doc.snippet}`
+        )
+        .join("\n\n")
+    );
+  } catch (error) {
+    console.warn("[OpsAi Knowledge Grounding Warn]:", error);
+    return systemPrompt;
+  }
+}
+
+interface AgentPassResult {
+  finalStepText: string;
+  responseMessages: Array<Record<string, unknown>>;
+  providerError?: unknown;
+}
+
 export function createOpsAiRuntimeStream(
   options: ExecuteOpsAiRuntimeOptions
 ): ReadableStream {
@@ -476,15 +340,18 @@ export function createOpsAiRuntimeStream(
     maxToolSteps = OPS_AI_POLICY_BOUNDS.maxToolSteps,
     maxConsecutiveToolCalls = OPS_AI_POLICY_BOUNDS.maxConsecutiveToolCalls,
     runId = `run-${randomUUID()}`,
-    customModelStream,
   } = options;
 
   return createUIMessageStream({
     execute: async ({ writer }) => {
       let stepIndexCounter = 0;
       const currentStep: { value: OpsAiWorkStep | null } = { value: null };
+      const knownStepIds = new Set<string>();
+      const knownToolCallIds = new Set<string>();
+      const allRunCitations: OpsAiCitation[] = [];
+      const toolSteps = new Map<string, OpsAiWorkStep>();
+      let abortReported = false;
 
-      // Helper to emit validated work-step parts
       const emitWorkStep = (step: OpsAiWorkStep) => {
         const validation = validateOpsAiWorkStep(step);
         if (!validation.valid) {
@@ -498,7 +365,6 @@ export function createOpsAiRuntimeStream(
         } as any);
       };
 
-      // Helper to emit validated error parts
       const emitError = (
         code: OpsAiErrorCode,
         message: string,
@@ -521,44 +387,93 @@ export function createOpsAiRuntimeStream(
         }
         writer.write({
           type: "data-error",
-          id: `err-${Date.now()}`,
+          id: `err-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
           data: errorData,
         } as any);
       };
 
-      // Handle abort event
-      const onAbort = () => {
-        if (currentStep.value && currentStep.value.status !== "completed" && currentStep.value.status !== "failed") {
+      const reportAbort = () => {
+        if (abortReported) return;
+        abortReported = true;
+        const active = currentStep.value;
+        if (active && active.status !== "completed" && active.status !== "failed") {
           const now = Date.now();
           emitWorkStep({
-            ...currentStep.value,
+            ...active,
             status: "cancelled",
             finishedAt: now,
-            durationMs: Math.max(0, now - currentStep.value.startedAt),
+            durationMs: Math.max(0, now - active.startedAt),
             retryable: false,
             error: "Permintaan dibatalkan oleh pengguna atau timeout.",
           });
         }
-        emitError("REQUEST_CANCELLED", "Permintaan telah dibatalkan.", false, currentStep.value?.stepId);
+        emitError("REQUEST_CANCELLED", "Permintaan telah dibatalkan.", false, active?.stepId);
+      };
+
+      const startToolStep = (
+        toolCallId: string,
+        toolName: string,
+        input: Record<string, unknown>
+      ) => {
+        if (toolSteps.has(toolCallId)) return;
+        const stepId = `step-${toolCallId}`;
+        const startedAt = Date.now();
+        const { stepType, title } = getToolStepTitle(toolName, input);
+        const queued: OpsAiWorkStep = {
+          stepId,
+          runId,
+          stepIndex: stepIndexCounter++,
+          stepType,
+          status: "queued",
+          title,
+          toolName,
+          toolCallId,
+          startedAt,
+        };
+        toolSteps.set(toolCallId, queued);
+        knownStepIds.add(stepId);
+        knownToolCallIds.add(toolCallId);
+        emitWorkStep(queued);
+        const running: OpsAiWorkStep = { ...queued, status: "running" };
+        toolSteps.set(toolCallId, running);
+        emitWorkStep(running);
+      };
+
+      const finishToolStep = (
+        toolCallId: string,
+        status: "completed" | "failed",
+        detail?: string,
+        error?: string
+      ) => {
+        const existing = toolSteps.get(toolCallId);
+        if (!existing) return;
+        const finishedAt = Date.now();
+        const finished: OpsAiWorkStep = {
+          ...existing,
+          status,
+          detail,
+          finishedAt,
+          durationMs: Math.max(0, finishedAt - existing.startedAt),
+          retryable: status === "failed" ? false : undefined,
+          error: status === "failed" ? error : undefined,
+        };
+        toolSteps.set(toolCallId, finished);
+        emitWorkStep(finished);
       };
 
       if (abortSignal) {
         if (abortSignal.aborted) {
-          onAbort();
+          reportAbort();
           return;
         }
-        abortSignal.addEventListener("abort", onAbort, { once: true });
+        abortSignal.addEventListener("abort", reportAbort, { once: true });
       }
 
       try {
-        // ----------------------------------------------------------------------
-        // Step 1: Input Bounds & Policy Validation
-        // ----------------------------------------------------------------------
-        if (!messages || messages.length === 0) {
+        if (!messages?.length) {
           emitError("INVALID_REQUEST", "Daftar pesan tidak boleh kosong.", false);
           return;
         }
-
         if (messages.length > OPS_AI_POLICY_BOUNDS.maxMessagesHistory) {
           emitError(
             "CONTEXT_TOO_LARGE",
@@ -569,8 +484,8 @@ export function createOpsAiRuntimeStream(
         }
 
         let totalPromptChars = 0;
-        for (const msg of messages) {
-          if (msg.content.length > OPS_AI_POLICY_BOUNDS.maxMessageCharLength) {
+        for (const message of messages) {
+          if (message.content.length > OPS_AI_POLICY_BOUNDS.maxMessageCharLength) {
             emitError(
               "CONTEXT_TOO_LARGE",
               `Panjang pesan individual melampaui batas maksimum (${OPS_AI_POLICY_BOUNDS.maxMessageCharLength} karakter).`,
@@ -578,9 +493,8 @@ export function createOpsAiRuntimeStream(
             );
             return;
           }
-          totalPromptChars += msg.content.length;
+          totalPromptChars += message.content.length;
         }
-
         if (totalPromptChars > OPS_AI_POLICY_BOUNDS.maxTotalPromptChars) {
           emitError(
             "CONTEXT_TOO_LARGE",
@@ -590,534 +504,388 @@ export function createOpsAiRuntimeStream(
           return;
         }
 
-        // ----------------------------------------------------------------------
-        // Step 2: Initial Reasoning & Planning Step
-        // ----------------------------------------------------------------------
-        const initialStepId = `step-${stepIndexCounter++}`;
-        const initialStepStart = Date.now();
-
+        const reasoningStepId = `step-${stepIndexCounter++}`;
+        const reasoningStartedAt = Date.now();
         emitWorkStep({
-          stepId: initialStepId,
+          stepId: reasoningStepId,
           runId,
           stepIndex: 0,
           stepType: "reasoning",
           status: "queued",
           title: "Analisis konteks permintaan admin",
-          startedAt: initialStepStart,
+          startedAt: reasoningStartedAt,
         });
-
         emitWorkStep({
-          stepId: initialStepId,
+          stepId: reasoningStepId,
           runId,
           stepIndex: 0,
           stepType: "reasoning",
           status: "running",
           title: "Analisis konteks permintaan admin",
-          startedAt: initialStepStart,
+          startedAt: reasoningStartedAt,
         });
 
         let systemPrompt = buildOpsAiSystemPrompt(context);
+        systemPrompt = await appendAutomaticKnowledgeGrounding(
+          systemPrompt,
+          messages,
+          toolContext
+        );
 
-        const allRunCitations: OpsAiCitation[] = [];
-        const knownSourceIds = new Set<string>();
-        const knownStepIds = new Set<string>();
-        const knownToolCallIds = new Set<string>();
-
-        // ----------------------------------------------------------------------
-        // Automatic Knowledge Grounding & Citation Emission
-        // ----------------------------------------------------------------------
-        const lastUserMsg = [...messages].reverse().find((m) => m.role === "user");
-        const lastUserQuery = lastUserMsg?.content || "";
-
-        if (lastUserQuery.trim().length > 0) {
-          try {
-            let initialDocs: Array<{
-              title: string;
-              filePath: string;
-              section?: string;
-              snippet: string;
-              score?: number;
-            }> = [];
-
-            try {
-              const vectorResults = await searchAdminKnowledge({
-                query: lastUserQuery,
-                callerRole: toolContext?.callerRole ?? "admin",
-                vectorProvider: toolContext?.vectorProvider,
-                embeddingAdapter: toolContext?.embeddingAdapter,
-              });
-              if (vectorResults?.results && vectorResults.results.length > 0) {
-                initialDocs = vectorResults.results;
-              }
-            } catch {
-              // Vectorize may not be available in local environment
-            }
-
-            if (initialDocs.length === 0) {
-              const localDocs = await searchDocs(lastUserQuery, 3);
-              initialDocs = localDocs;
-            }
-
-            if (initialDocs.length > 0) {
-              systemPrompt +=
-                `\n\nDOKUMEN REFERENSI TERKAIT DARI BASIS PENGETAHUAN ZYX (Gunakan untuk menjawab secara akurat dan panggil tool 'retrieve_admin_knowledge' bila ingin merujuk resmi):\n` +
-                initialDocs
-                  .map(
-                    (d) =>
-                      `--- Dokumen: ${d.title} (${d.filePath}${d.section ? ` › ${d.section}` : ""})\n${d.snippet}`
-                  )
-                  .join("\n\n");
-            }
-          } catch (err) {
-            console.warn("[OpsAi Knowledge Grounding Warn]:", err);
-          }
-        }
-
-        // Transition initial step to completed
-        const initialStepFinish = Date.now();
+        const reasoningFinishedAt = Date.now();
         emitWorkStep({
-          stepId: initialStepId,
+          stepId: reasoningStepId,
           runId,
           stepIndex: 0,
           stepType: "reasoning",
           status: "completed",
           title: "Analisis konteks permintaan admin",
-          startedAt: initialStepStart,
-          finishedAt: initialStepFinish,
-          durationMs: initialStepFinish - initialStepStart,
+          startedAt: reasoningStartedAt,
+          finishedAt: reasoningFinishedAt,
+          durationMs: reasoningFinishedAt - reasoningStartedAt,
         });
 
-        // ----------------------------------------------------------------------
-        // Step 3: Bounded Multi-Step Tool Execution Loop
-        // ----------------------------------------------------------------------
-        const conversationMessages: OpsAiModelMessage[] = messages.map((m) => ({
-          role: m.role === "assistant" ? "model" : "user",
-          content: m.content,
-        }));
-        let lastGeneratedText = "";
+        const maxExecutions = Math.max(
+          1,
+          Math.min(maxToolSteps, maxConsecutiveToolCalls)
+        );
+        const executionBudget: ToolExecutionBudget = {
+          maxExecutions,
+          used: 0,
+          blocked: false,
+        };
 
-        let toolStepCount = 0;
-        let consecutiveToolCalls = 0;
-        let emptySynthesisRetries = 0;
-        const streamFn = customModelStream ?? streamOpsAiModel;
+        const runAgentPass = async (
+          modelMessages: Array<Record<string, unknown>>
+        ): Promise<AgentPassResult> => {
+          let finalStepText = "";
+          let providerError: unknown;
 
-        while (toolStepCount < maxToolSteps) {
-          if (abortSignal?.aborted) return;
-          lastGeneratedText = "";
+          const agent = createOpsAiAgent({
+            systemPrompt,
+            modelId,
+            toolContext: {
+              ...toolContext,
+              runId,
+              isModelCall: true,
+            },
+            maxToolSteps,
+            maxConsecutiveToolCalls,
+            executionBudget,
+          });
 
-          // Call model stream with retries for provider resilience
-          let modelStreamChunks: OpsAiModelStreamChunk[] = [];
-          let providerAttempt = 0;
-          let lastProviderError: Error | null = null;
-          const maxRetries = OPS_AI_POLICY_BOUNDS.maxRetryAttempts;
+          const result = agent.stream({
+            messages: modelMessages as any,
+            abortSignal,
+            timeout: {
+              totalMs: OPS_AI_POLICY_BOUNDS.providerTimeoutMs,
+              stepMs: OPS_AI_POLICY_BOUNDS.stepTimeoutMs,
+              chunkMs: OPS_AI_POLICY_BOUNDS.streamChunkTimeoutMs,
+            },
+            onStepFinish: (event: any) => {
+              finalStepText = String(event.text || "");
+            },
+          } as any);
 
-          while (providerAttempt <= maxRetries) {
-            if (abortSignal?.aborted) return;
-            try {
-              modelStreamChunks = [];
-              const stream = streamFn({
-                systemPrompt,
-                messages: conversationMessages,
-                tools: DEFAULT_OPS_AI_TOOLS,
-                modelId,
-                signal: abortSignal,
-              });
+          try {
+            for await (const rawPart of (result as any).fullStream) {
+              if (abortSignal?.aborted) {
+                reportAbort();
+                break;
+              }
+              const part = rawPart as any;
 
-              for await (const chunk of stream) {
-                if (abortSignal?.aborted) return;
-                modelStreamChunks.push(chunk);
-
-                // Incremental text streaming to client
-                if (chunk.type === "text-delta" && chunk.textDelta) {
-                  lastGeneratedText += chunk.textDelta;
-                  writer.write({
-                    type: "text-delta",
-                    textDelta: chunk.textDelta,
-                  } as any);
+              if (part.type === "text-delta" || part.type === "text") {
+                const text = String(part.text ?? part.textDelta ?? part.delta ?? "");
+                if (text) {
+                  writer.write({ type: "text-delta", textDelta: text } as any);
                 }
-              }
-
-              lastProviderError = null;
-              break; // Stream succeeded
-            } catch (err) {
-              lastProviderError = err instanceof Error ? err : new Error(String(err));
-              providerAttempt++;
-              if (providerAttempt <= maxRetries) {
-                const backoffMs = Math.min(
-                  OPS_AI_POLICY_BOUNDS.retryInitialDelayMs * Math.pow(2, providerAttempt - 1),
-                  OPS_AI_POLICY_BOUNDS.retryMaxDelayMs
-                );
-                await new Promise((resolve) => setTimeout(resolve, backoffMs));
-              }
-            }
-          }
-
-          if (lastProviderError) {
-            const isRateLimit =
-              lastProviderError.message.includes("429") ||
-              lastProviderError.message.includes("quota") ||
-              lastProviderError.message.includes("RESOURCE_EXHAUSTED");
-            const errorCode: OpsAiErrorCode = isRateLimit ? "RATE_LIMITED" : "PROVIDER_UNAVAILABLE";
-            emitError(errorCode, lastProviderError.message, true, currentStep.value?.stepId);
-            return;
-          }
-
-          // Extract tool calls from model stream
-          const toolCalls = modelStreamChunks
-            .filter((c) => c.type === "tool-call" && c.toolCall)
-            .map((c) => c.toolCall!);
-
-          // A model turn without a tool call is final only if it contains meaningful text.
-          if (toolCalls.length === 0) {
-            if (lastGeneratedText.trim().length === 0) {
-              if (emptySynthesisRetries < 1) {
-                emptySynthesisRetries++;
-                conversationMessages.push({
-                  role: "user",
-                  content:
-                    "Respons sebelumnya kosong. Jawab permintaan admin terakhir dengan teks yang jelas dan tidak kosong. Jika hasil terbaru bertentangan dengan temuan sebelumnya, jelaskan ketidakkonsistenannya dan lakukan pencarian ulang hanya bila perlu.",
-                });
                 continue;
               }
 
-              const failedStepId = `step-${stepIndexCounter++}`;
-              const failedAt = Date.now();
-              knownStepIds.add(failedStepId);
-              emitWorkStep({
-                stepId: failedStepId,
-                runId,
-                stepIndex: stepIndexCounter - 1,
-                stepType: "synthesis",
-                status: "failed",
-                title: "Sintesis jawaban akhir",
-                detail: "Model tidak menghasilkan jawaban teks setelah satu kali retry.",
-                startedAt: failedAt,
-                finishedAt: failedAt,
-                durationMs: 0,
-                retryable: true,
-                error: "EMPTY_MODEL_RESPONSE",
-              });
-              writer.write({
-                type: "text-delta",
-                textDelta: "Terjadi kendala saat menyusun jawaban. Silakan ulangi permintaan terakhir.",
-              } as any);
-              emitError(
-                "INTERNAL_ERROR",
-                "Model tidak menghasilkan jawaban teks. Silakan ulangi permintaan.",
-                true,
-                failedStepId,
-                { reason: "EMPTY_MODEL_RESPONSE" }
-              );
-              break;
-            }
-
-            const finalStepId = `step-${stepIndexCounter++}`;
-            const finalStart = Date.now();
-            knownStepIds.add(finalStepId);
-
-            // Inline citation verification on final text
-            const verification = verifyInlineCitations({
-              text: lastGeneratedText,
-              availableCitations: allRunCitations,
-              runId,
-              knownStepIds,
-              knownToolCallIds,
-            });
-
-            // If forged markers exist, emit invalid citation records to flag them in the trace
-            if (verification.forgedMarkers.length > 0) {
-              for (const forged of verification.forgedMarkers) {
-                const forgedCitation: OpsAiCitation = {
-                  id: `cite-forged-${runId}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-                  sourceId: forged.rawReference,
-                  source: "semantic-rag",
-                  availability: "invalid",
-                  runId,
-                  stepId: finalStepId,
-                  title: `Sitasi Palsu/Tidak Ditemukan: ${forged.rawReference}`,
-                  snippet: `Marker inline '${forged.marker}' (${forged.reason}) tidak ditemukan pada sumber yang diberikan kepada model pada run '${runId}'.`,
-                  timestamp: Date.now(),
-                };
+              if (part.type === "tool-call") {
+                const toolCallId = String(part.toolCallId);
+                const toolName = String(part.toolName);
+                const input = (part.input ?? part.args ?? {}) as Record<string, unknown>;
+                startToolStep(toolCallId, toolName, input);
                 writer.write({
-                  type: "data-citation",
-                  id: `cite-${forgedCitation.id}`,
-                  data: forgedCitation,
+                  type: "tool-call",
+                  toolCallId,
+                  toolName,
+                  input,
                 } as any);
+                continue;
               }
-            }
 
-            emitWorkStep({
-              stepId: finalStepId,
-              runId,
-              stepIndex: stepIndexCounter - 1,
-              stepType: "synthesis",
-              status: "completed",
-              title: "Sintesis jawaban akhir",
-              detail: allRunCitations.length > 0
-                ? `Jawaban disintesis berdasarkan ${allRunCitations.length} ${OPS_AI_CITATION_OFFICIAL_LABEL.toLowerCase()}.`
-                : undefined,
-              startedAt: finalStart,
-              finishedAt: Date.now(),
-              durationMs: Date.now() - finalStart,
-            });
-            break;
-          }
+              if (part.type === "tool-result") {
+                const toolCallId = String(part.toolCallId);
+                const toolName = String(part.toolName);
+                const output = part.output ?? part.result;
+                const summary =
+                  output && typeof output === "object" && "summary" in output
+                    ? String((output as { summary?: unknown }).summary || "")
+                    : undefined;
+                finishToolStep(toolCallId, "completed", summary);
+                writer.write({
+                  type: "tool-result",
+                  toolCallId,
+                  toolName,
+                  output,
+                } as any);
 
-          // Check consecutive tool call bound using AI SDK stepCountIs
-          const shouldStop = stepCountIs(maxConsecutiveToolCalls);
-          if (shouldStop({ steps: new Array(consecutiveToolCalls) } as any) || consecutiveToolCalls >= maxConsecutiveToolCalls) {
-            writer.write({
-              type: "text-delta",
-              textDelta: "\n\nBatas panggilan tool berturut-turut tercapai.",
-            } as any);
-            break;
-          }
+                if (output && typeof output === "object") {
+                  const toolOutput = output as {
+                    citations?: OpsAiCitation[];
+                    proposal?: OpsAiActionProposalV2;
+                  };
 
-          const stepModelFunctionCalls: Array<Record<string, unknown>> = [];
-          const stepUserFunctionResponses: Array<Record<string, unknown>> = [];
+                  for (const citation of toolOutput.citations || []) {
+                    assertProvenanceIntegrity(toolName, citation.source);
+                    const validation = validateOpsAiCitation(citation);
+                    const validCitation = validation.valid
+                      ? citation
+                      : { ...citation, availability: "invalid" as const };
+                    allRunCitations.push(validCitation);
+                    knownStepIds.add(validCitation.stepId);
+                    if (validCitation.toolCallId) {
+                      knownToolCallIds.add(validCitation.toolCallId);
+                    }
+                    writer.write({
+                      type: "data-citation",
+                      id: `cite-${validCitation.id}`,
+                      data: validCitation,
+                    } as any);
+                  }
 
-          // Execute requested tool calls sequentially
-          for (const tc of toolCalls) {
-            if (abortSignal?.aborted) return;
-            if (toolStepCount >= maxToolSteps) break;
+                  if (toolOutput.proposal) {
+                    const proposalValidation = validateOpsAiProposal(toolOutput.proposal);
+                    if (!proposalValidation.valid) {
+                      console.warn(
+                        "[OpsAi Proposal Validation Error]:",
+                        proposalValidation.errors
+                      );
+                    }
+                    writer.write({
+                      type: "data-proposal",
+                      id: `prop-${toolOutput.proposal.id}`,
+                      data: toolOutput.proposal,
+                    } as any);
+                  }
+                }
+                continue;
+              }
 
-            toolStepCount++;
-            consecutiveToolCalls++;
-
-            const currentStepId = `step-${stepIndexCounter++}`;
-            const currentStepStart = Date.now();
-            const isRetrieval = tc.name === "retrieve_admin_knowledge";
-            const stepType: OpsAiStepType = isRetrieval ? "retrieval" : "tool_call";
-            let stepTitle = `Eksekusi tool: ${tc.name}`;
-            if (isRetrieval) {
-              stepTitle = `Pencarian pengetahuan admin: '${(tc.args.query as string) || ""}'`;
-            } else if (tc.name === "propose_create_token") {
-              stepTitle = `Penyiapan proposal pembuatan token pendaftaran`;
-            } else if (ALL_OPS_AI_TOOL_SECURITY_REGISTRY[tc.name]?.allowsMutation) {
-              stepTitle = `Eksekusi aksi: ${tc.name}`;
-            } else {
-              stepTitle = `Eksekusi tool read-only: ${tc.name}`;
-            }
-
-            // Emit queued
-            emitWorkStep({
-              stepId: currentStepId,
-              runId,
-              stepIndex: stepIndexCounter - 1,
-              stepType,
-              status: "queued",
-              title: stepTitle,
-              toolName: tc.name,
-              toolCallId: tc.id,
-              startedAt: currentStepStart,
-            });
-
-            // Emit running
-            emitWorkStep({
-              stepId: currentStepId,
-              runId,
-              stepIndex: stepIndexCounter - 1,
-              stepType,
-              status: "running",
-              title: stepTitle,
-              toolName: tc.name,
-              toolCallId: tc.id,
-              startedAt: currentStepStart,
-            });
-
-            // Write tool-call part to stream
-            writer.write({
-              type: "tool-call",
-              toolCallId: tc.id,
-              toolName: tc.name,
-              input: tc.args,
-            } as any);
-
-            // Execute tool with security & authorization checks
-            let toolOutput: {
-              summary: string;
-              data?: unknown;
-              citations?: OpsAiCitation[];
-              proposal?: OpsAiActionProposalV2;
-            };
-            try {
-              const stepToolContext: OpsAiToolContext = {
-                ...toolContext,
-                isModelCall: true,
-                runId,
-                stepId: currentStepId,
-                toolCallId: tc.id,
-              };
-
-              toolOutput = await executeOpsAiTool(tc.name, tc.args, stepToolContext);
-
-              // ----------------------------------------------------------------
-              // Emit Citations & Enforce Provenance Isolation
-              // ----------------------------------------------------------------
-              if (toolOutput.citations && toolOutput.citations.length > 0) {
-                for (const citation of toolOutput.citations) {
-                  // Enforce provenance integrity: non-retrieval tools cannot emit semantic-rag
-                  assertProvenanceIntegrity(tc.name, citation.source);
-
-                  // Validate citation schema
-                  const validation = validateOpsAiCitation(citation);
-                  const validCitation = validation.valid
-                    ? citation
-                    : { ...citation, availability: "invalid" as const };
-
-                  allRunCitations.push(validCitation);
-                  knownSourceIds.add(validCitation.sourceId);
-                  knownStepIds.add(currentStepId);
-                  knownToolCallIds.add(tc.id);
-
-                  // Emit data-citation part into UI message stream
+              if (part.type === "tool-error") {
+                const toolCallId = String(part.toolCallId || "unknown-call");
+                const toolName = String(part.toolName || "unknown_tool");
+                const input = (part.input ?? part.args ?? {}) as Record<string, unknown>;
+                startToolStep(toolCallId, toolName, input);
+                const error = part.error instanceof Error
+                  ? part.error.message
+                  : String(part.error || "Tool execution failed");
+                finishToolStep(
+                  toolCallId,
+                  "failed",
+                  `Tool ${toolName} gagal dijalankan.`,
+                  error
+                );
+                if (!error.includes("OPS_AI_TOOL_BUDGET_EXCEEDED")) {
                   writer.write({
-                    type: "data-citation",
-                    id: `cite-${validCitation.id}`,
-                    data: validCitation,
+                    type: "tool-result",
+                    toolCallId,
+                    toolName,
+                    output: { error },
                   } as any);
                 }
+                continue;
               }
 
-              // ----------------------------------------------------------------
-              // Emit Proposal Parts if tool produced an action proposal
-              // ----------------------------------------------------------------
-              if (toolOutput.proposal) {
-                const proposalValidation = validateOpsAiProposal(toolOutput.proposal);
-                if (!proposalValidation.valid) {
-                  console.warn("[OpsAi Proposal Validation Error]:", proposalValidation.errors);
-                }
-                writer.write({
-                  type: "data-proposal",
-                  id: `prop-${toolOutput.proposal.id}`,
-                  data: toolOutput.proposal,
-                } as any);
+              if (part.type === "error") {
+                providerError = part.error;
               }
-
-              const currentStepFinish = Date.now();
-              emitWorkStep({
-                stepId: currentStepId,
-                runId,
-                stepIndex: stepIndexCounter - 1,
-                stepType,
-                status: "completed",
-                title: stepTitle,
-                detail: toolOutput.summary,
-                toolName: tc.name,
-                toolCallId: tc.id,
-                startedAt: currentStepStart,
-                finishedAt: currentStepFinish,
-                durationMs: currentStepFinish - currentStepStart,
-              });
-
-              // Write tool-result part to stream
-              writer.write({
-                type: "tool-result",
-                toolCallId: tc.id,
-                toolName: tc.name,
-                output: toolOutput,
-              } as any);
-
-              // Accumulate functionCall and functionResponse for Gemini multi-turn protocol
-              stepModelFunctionCalls.push({
-                functionCall: {
-                  name: tc.name,
-                  args: tc.args,
-                },
-              });
-
-              stepUserFunctionResponses.push({
-                functionResponse: {
-                  name: tc.name,
-                  response: {
-                    output: toolOutput,
-                  },
-                },
-              });
-            } catch (toolError) {
-              const err = toolError instanceof Error ? toolError : new Error(String(toolError));
-              const currentStepFinish = Date.now();
-
-              emitWorkStep({
-                stepId: currentStepId,
-                runId,
-                stepIndex: stepIndexCounter - 1,
-                stepType,
-                status: "failed",
-                title: stepTitle,
-                detail: `Tool ${tc.name} gagal dijalankan.`,
-                toolName: tc.name,
-                toolCallId: tc.id,
-                startedAt: currentStepStart,
-                finishedAt: currentStepFinish,
-                durationMs: currentStepFinish - currentStepStart,
-                retryable: false,
-                error: err.message,
-              });
-
-              writer.write({
-                type: "tool-result",
-                toolCallId: tc.id,
-                toolName: tc.name,
-                output: { error: err.message },
-              } as any);
-
-              stepModelFunctionCalls.push({
-                functionCall: {
-                  name: tc.name,
-                  args: tc.args,
-                },
-              });
-
-              stepUserFunctionResponses.push({
-                functionResponse: {
-                  name: tc.name,
-                  response: {
-                    error: err.message,
-                  },
-                },
-              });
             }
+          } catch (error) {
+            providerError = error;
           }
 
-          // Append functionCall (model turn) and functionResponse (user turn) to conversation
-          if (stepModelFunctionCalls.length > 0) {
-            conversationMessages.push({
-              role: "model",
-              parts: stepModelFunctionCalls,
-            });
-            conversationMessages.push({
-              role: "user",
-              parts: stepUserFunctionResponses,
-            });
+          let responseMessages: Array<Record<string, unknown>> = [];
+          try {
+            const response = await (result as any).response;
+            if (Array.isArray(response?.messages)) {
+              responseMessages = response.messages;
+            }
+          } catch {
+            // Response metadata is optional when the provider fails or is aborted.
           }
+
+          return {
+            finalStepText,
+            responseMessages,
+            providerError,
+          };
+        };
+
+        let modelMessages = normalizeModelMessages(messages);
+        let pass = await runAgentPass(modelMessages);
+
+        if (abortSignal?.aborted) {
+          reportAbort();
+          return;
         }
 
-        // If loop terminated by reaching max tool steps, report notice
-        if (toolStepCount >= maxToolSteps) {
+        if (pass.providerError) {
+          const code = classifyProviderError(pass.providerError);
+          const message = pass.providerError instanceof Error
+            ? pass.providerError.message
+            : String(pass.providerError);
+          emitError(code, message, true, currentStep.value?.stepId);
+          return;
+        }
+
+        const toolBudgetHitWithoutFinalText =
+          executionBudget.blocked && pass.finalStepText.trim().length === 0;
+
+        if (toolBudgetHitWithoutFinalText) {
+          const reason =
+            maxConsecutiveToolCalls <= maxToolSteps
+              ? "Batas panggilan tool berturut-turut tercapai."
+              : "Batas maksimum langkah penelusuran tercapai.";
+          writer.write({ type: "text-delta", textDelta: `\n\n${reason}` } as any);
+          return;
+        }
+
+        if (pass.finalStepText.trim().length === 0) {
+          modelMessages = [
+            ...modelMessages,
+            ...pass.responseMessages,
+            {
+              role: "user",
+              content:
+                "Respons sebelumnya kosong. Jawab permintaan admin terakhir dengan teks yang jelas dan tidak kosong. Jika hasil terbaru bertentangan dengan temuan sebelumnya, jelaskan ketidakkonsistenannya dan lakukan pencarian ulang hanya bila perlu.",
+            },
+          ];
+          pass = await runAgentPass(modelMessages);
+        }
+
+        if (abortSignal?.aborted) {
+          reportAbort();
+          return;
+        }
+
+        if (pass.providerError) {
+          const code = classifyProviderError(pass.providerError);
+          const message = pass.providerError instanceof Error
+            ? pass.providerError.message
+            : String(pass.providerError);
+          emitError(code, message, true, currentStep.value?.stepId);
+          return;
+        }
+
+        if (pass.finalStepText.trim().length === 0) {
+          const failedStepId = `step-${stepIndexCounter++}`;
+          const failedAt = Date.now();
+          knownStepIds.add(failedStepId);
+          emitWorkStep({
+            stepId: failedStepId,
+            runId,
+            stepIndex: stepIndexCounter - 1,
+            stepType: "synthesis",
+            status: "failed",
+            title: "Sintesis jawaban akhir",
+            detail: "Model tidak menghasilkan jawaban teks setelah satu kali retry.",
+            startedAt: failedAt,
+            finishedAt: failedAt,
+            durationMs: 0,
+            retryable: true,
+            error: "EMPTY_MODEL_RESPONSE",
+          });
           writer.write({
             type: "text-delta",
-            textDelta: "\n\nBatas maksimum langkah penelusuran tercapai.",
+            textDelta: "Terjadi kendala saat menyusun jawaban. Silakan ulangi permintaan terakhir.",
+          } as any);
+          emitError(
+            "INTERNAL_ERROR",
+            "Model tidak menghasilkan jawaban teks. Silakan ulangi permintaan.",
+            true,
+            failedStepId,
+            { reason: "EMPTY_MODEL_RESPONSE" }
+          );
+          return;
+        }
+
+        const synthesisStepId = `step-${stepIndexCounter++}`;
+        const synthesisStartedAt = Date.now();
+        knownStepIds.add(synthesisStepId);
+        const verification = verifyInlineCitations({
+          text: pass.finalStepText,
+          availableCitations: allRunCitations,
+          runId,
+          knownStepIds,
+          knownToolCallIds,
+        });
+
+        for (const forged of verification.forgedMarkers) {
+          const forgedCitation: OpsAiCitation = {
+            id: `cite-forged-${runId}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+            sourceId: forged.rawReference,
+            source: "semantic-rag",
+            availability: "invalid",
+            runId,
+            stepId: synthesisStepId,
+            title: `Sitasi Palsu/Tidak Ditemukan: ${forged.rawReference}`,
+            snippet: `Marker inline '${forged.marker}' (${forged.reason}) tidak ditemukan pada sumber yang diberikan kepada model pada run '${runId}'.`,
+            timestamp: Date.now(),
+          };
+          writer.write({
+            type: "data-citation",
+            id: `cite-${forgedCitation.id}`,
+            data: forgedCitation,
           } as any);
         }
+
+        const synthesisFinishedAt = Date.now();
+        emitWorkStep({
+          stepId: synthesisStepId,
+          runId,
+          stepIndex: stepIndexCounter - 1,
+          stepType: "synthesis",
+          status: "completed",
+          title: "Sintesis jawaban akhir",
+          detail:
+            allRunCitations.length > 0
+              ? `Jawaban disintesis berdasarkan ${allRunCitations.length} ${OPS_AI_CITATION_OFFICIAL_LABEL.toLowerCase()}.`
+              : undefined,
+          startedAt: synthesisStartedAt,
+          finishedAt: synthesisFinishedAt,
+          durationMs: synthesisFinishedAt - synthesisStartedAt,
+        });
       } catch (fatalError) {
-        const err = fatalError instanceof Error ? fatalError : new Error(String(fatalError));
-        emitError("INTERNAL_ERROR", `Terjadi kesalahan internal: ${err.message}`, false, currentStep.value?.stepId);
+        if (abortSignal?.aborted) {
+          reportAbort();
+          return;
+        }
+        const error = fatalError instanceof Error
+          ? fatalError
+          : new Error(String(fatalError));
+        emitError(
+          "INTERNAL_ERROR",
+          `Terjadi kesalahan internal: ${error.message}`,
+          false,
+          currentStep.value?.stepId
+        );
       } finally {
         if (abortSignal) {
-          abortSignal.removeEventListener("abort", onAbort);
+          abortSignal.removeEventListener("abort", reportAbort);
         }
       }
     },
   });
 }
 
-/**
- * Creates an HTTP SSE Response streaming the Ops AI runtime output.
- */
 export function createOpsAiRuntimeResponse(
   options: ExecuteOpsAiRuntimeOptions
 ): Response {
-  const stream = createOpsAiRuntimeStream(options);
-  return createUIMessageStreamResponse({ stream });
+  return createUIMessageStreamResponse({
+    stream: createOpsAiRuntimeStream(options),
+  });
 }
