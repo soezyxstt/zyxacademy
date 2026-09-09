@@ -18,7 +18,7 @@ import {
 } from '@/db/schema';
 import { auth } from '@/lib/auth';
 import { headers } from 'next/headers';
-import { and, eq, inArray, asc, sql } from 'drizzle-orm';
+import { and, eq, inArray, asc, or, sql } from 'drizzle-orm';
 import { dualWriteQuizAttempt } from '@/lib/migrasi/repository-kompatibilitas';
 import { createAssessmentWithLegacyProjection } from '@/lib/asesmen/quiz-canonical-sync';
 
@@ -90,6 +90,11 @@ export async function GET() {
 
  // Select questions ; proportioned by difficulty, sorted by use_count ASC (freshest first)
  const proportions: Record<string, number> = { easy: 2, medium: 2, hard: 1 };
+ const quizEligibilityCondition = or(
+  eq(aiQuestionBank.origin, 'zyx_original'),
+  eq(aiQuestionBank.origin, 'itb_example'),
+  eq(aiQuestionBank.quizEligible, true),
+ );
  const questionsByDifficulty = await Promise.all(
  Object.entries(proportions).map(([diff, count]) =>
  db
@@ -99,6 +104,7 @@ export async function GET() {
  and(
  inArray(aiQuestionBank.courseId, courseIds),
  eq(aiQuestionBank.reviewStatus, 'published'),
+ quizEligibilityCondition,
  eq(aiQuestionBank.difficulty, diff as 'easy' | 'medium' | 'hard'),
  ),
  )

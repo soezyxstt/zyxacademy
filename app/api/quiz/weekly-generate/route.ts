@@ -78,6 +78,11 @@ export async function POST(req: NextRequest) {
  (tag) => sql`exists (select 1 from json_each(${aiQuestionBank.tags}) where json_each.value = ${tag})`
  );
  const tagCondition = validationTags.length > 0 ? or(...tagConditions) : undefined;
+ const quizEligibilityCondition = or(
+  eq(aiQuestionBank.origin, 'zyx_original'),
+  eq(aiQuestionBank.origin, 'itb_example'),
+  eq(aiQuestionBank.quizEligible, true),
+ );
 
  const [{ total }] = await db
  .select({ total: count() })
@@ -86,6 +91,7 @@ export async function POST(req: NextRequest) {
  and(
  eq(aiQuestionBank.courseId, courseId),
  eq(aiQuestionBank.reviewStatus, 'published'),
+ quizEligibilityCondition,
  diffCondition,
  tagCondition,
  ),

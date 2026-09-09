@@ -1,6 +1,4 @@
 import { createHash } from "node:crypto";
-import path from "node:path";
-import { pathToFileURL } from "node:url";
 import { and, asc, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { bab, courseMaterials, mataKuliah } from "@/db/schema";
@@ -20,6 +18,7 @@ export const AUTHORING_MCP_MAX_STORED_BLOB_BYTES = 32 * 1024 * 1024;
 export const AUTHORING_MCP_MAX_TOTAL_ORIGINAL_BYTES = 96 * 1024 * 1024;
 export const AUTHORING_MCP_PDF_PAGE_WIDTH = 1280;
 export const AUTHORING_MCP_MAX_PAGES_PER_READ = 4;
+export const AUTHORING_MCP_MAX_REFERENCE_TEXT_BYTES = 2 * 1024 * 1024;
 
 export type StoredSourceScope = {
   courseId: string;
@@ -37,6 +36,8 @@ export type StoredSourceFileRow = {
   year: number | null;
   fileUrl: string;
   checksum: string | null;
+  /** Optional metadata supplied by an injected catalog implementation. */
+  pageCount?: number | null;
   chapterIds: string[];
   updatedAt: Date | string | number;
 };
@@ -99,7 +100,7 @@ export function assertStoredSourceFileInScope(row: StoredSourceFileRow, token: M
     row.fileUrl !== token.storageKey ||
     row.courseId !== token.legacyCourseId ||
     !Array.isArray(row.chapterIds) ||
-    !row.chapterIds.includes(token.legacyChapterId)
+    (token.legacyChapterId !== undefined && !row.chapterIds.includes(token.legacyChapterId))
   ) {
     throw new Error("AUTHORING_MCP_SOURCE_FILE_NOT_IN_SCOPE");
   }
@@ -252,6 +253,126 @@ export async function listStoredSourceFiles(
   };
 }
 
+function normalizePageCount(value: number | null | undefined): number | null {
+  return typeof value === "number" && Number.isInteger(value) && value > 0 ? value : null;
+}
+
+function canInspectPdf(dependencies: SourceFileDependencies): boolean {
+  return dependencies.parsePages !== defaultDependencies.parsePages || Boolean(process.env.COMPUTE_SERVICE_URL);
+}
+
+async function inspectReferencePdf(
+  fileKey: string,
+  dependencies: SourceFileDependencies,
+  includeText: boolean,
+): Promise<{ pageCount: number | null; extractedText: string | null }> {
+  if (!canInspectPdf(dependencies)) return { pageCount: null, extractedText: null };
+
+  try {
+    const first = await readStoredSourceFile({ fileKey, mode: "pages", pages: [1] }, dependencies);
+    if (first.mode !== "pages") return { pageCount: null, extractedText: null };
+
+    if (!includeText) return { pageCount: first.totalPages, extractedText: null };
+
+    const pages = [...first.pages];
+    for (let pageStart = 2; pageStart <= first.totalPages; pageStart += AUTHORING_MCP_MAX_PAGES_PER_READ) {
+      const pageNumbers = Array.from(
+        { length: Math.min(AUTHORING_MCP_MAX_PAGES_PER_READ, first.totalPages - pageStart + 1) },
+        (_, index) => pageStart + index,
+      );
+      const next = await readStoredSourceFile({ fileKey, mode: "pages", pages: pageNumbers }, dependencies);
+      if (next.mode !== "pages") return { pageCount: first.totalPages, extractedText: null };
+      pages.push(...next.pages);
+    }
+
+    const extractedText = pages
+      .filter((page) => page.text.trim().length > 0)
+      .map((page) => `<!-- source page ${page.pageNumber} -->\n${page.text.trim()}`)
+      .join("\n\n");
+    if (!extractedText || Buffer.byteLength(extractedText, "utf8") > AUTHORING_MCP_MAX_REFERENCE_TEXT_BYTES) {
+      return { pageCount: first.totalPages, extractedText: null };
+    }
+    return { pageCount: first.totalPages, extractedText };
+  } catch {
+    // Page count and extracted text are enrichment. Scope, checksum, and file
+    // identity are still verified by getStoredReferenceSourceFile/readStoredSourceFile.
+    return { pageCount: null, extractedText: null };
+  }
+}
+
+export async function listStoredReferenceFiles(
+  input: {
+    courseId: string;
+    legacyCourseId: string;
+    categories?: Array<"soal" | "pembahasan_soal">;
+    cursor?: string;
+    limit?: number;
+  },
+  dependencies: SourceFileDependencies = defaultDependencies,
+) {
+  const categorySet = input.categories?.length ? new Set(input.categories) : new Set(["soal", "pembahasan_soal"] as const);
+  const rows = (await dependencies.listRows(input.legacyCourseId)).filter((row) => (
+    row.courseId === input.legacyCourseId
+    && categorySet.has(row.type as "soal" | "pembahasan_soal")
+    && isEligibleStorageKey(row.fileUrl, input.legacyCourseId)
+  ));
+  const offset = cursorOffset(input.cursor);
+  const limit = Math.min(Math.max(input.limit ?? 50, 1), 100);
+  const page = rows.slice(offset, offset + limit);
+  const followingOffset = offset + page.length < rows.length ? offset + page.length : null;
+  return {
+    total: rows.length,
+    nextCursor: nextCursor(followingOffset),
+    files: await Promise.all(page.map(async (row) => {
+      const fileKey = dependencies.issueFileKey({
+        materialId: row.id,
+        storageKey: row.fileUrl,
+        courseId: input.courseId,
+        legacyCourseId: input.legacyCourseId,
+        updatedAtMs: rowUpdatedAtMs(row),
+        checksum: row.checksum,
+      });
+      const inspection = await inspectReferencePdf(fileKey, dependencies, false);
+      return {
+        fileKey,
+        title: row.title,
+        category: normalizeLevel1Category(row.type),
+        subcategory: row.subcategory,
+        year: row.year,
+        pageCount: normalizePageCount(row.pageCount) ?? inspection.pageCount,
+        checksum: row.checksum,
+      };
+    })),
+  };
+}
+
+export async function getStoredReferenceSourceFile(
+  fileKey: string,
+  dependencies: SourceFileDependencies = defaultDependencies,
+) {
+  const token = dependencies.readFileKey(fileKey);
+  const row = await dependencies.getRow(token.materialId);
+  if (!row) throw new Error("AUTHORING_MCP_SOURCE_FILE_NOT_FOUND");
+  assertStoredSourceFileInScope(row, token);
+  const category = normalizeLevel1Category(row.type);
+  if (category !== "soal" && category !== "pembahasan_soal") throw new Error("AUTHORING_MCP_REFERENCE_SOURCE_CATEGORY_INVALID");
+  const inspection = await inspectReferencePdf(fileKey, dependencies, category === "pembahasan_soal");
+  return {
+    fileKey,
+    row,
+    metadata: {
+      fileKey,
+      category,
+      title: row.title,
+      subcategory: row.subcategory,
+      year: row.year,
+      pageCount: normalizePageCount(row.pageCount) ?? inspection.pageCount,
+      checksum: row.checksum,
+      ...(category === "pembahasan_soal" ? { extractedText: inspection.extractedText } : {}),
+    },
+  };
+}
+
 async function loadFile(fileKey: string, dependencies: SourceFileDependencies) {
   const token = dependencies.readFileKey(fileKey);
   const row = await dependencies.getRow(token.materialId);
@@ -361,6 +482,7 @@ export async function loadStoredOriginals(
       if (!row) throw new Error("AUTHORING_MCP_SOURCE_FILE_NOT_FOUND");
       assertStoredSourceFileInScope(row, token);
 
+      if (!token.chapterId || !token.legacyChapterId) throw new Error("AUTHORING_MCP_SOURCE_FILE_SCOPE_MISMATCH");
       const scope = { courseId: token.courseId, chapterId: token.chapterId };
       if (boundScope && (boundScope.courseId !== scope.courseId || boundScope.chapterId !== scope.chapterId)) {
         throw new Error("AUTHORING_MCP_SOURCE_FILE_SCOPE_MISMATCH");
@@ -373,6 +495,7 @@ export async function loadStoredOriginals(
       });
     } else {
       const loaded = await loadFile(entry.fileKey, dependencies);
+      if (!loaded.token.chapterId || !loaded.token.legacyChapterId) throw new Error("AUTHORING_MCP_SOURCE_FILE_SCOPE_MISMATCH");
       const scope = { courseId: loaded.token.courseId, chapterId: loaded.token.chapterId };
       if (boundScope && (boundScope.courseId !== scope.courseId || boundScope.chapterId !== scope.chapterId)) {
         throw new Error("AUTHORING_MCP_SOURCE_FILE_SCOPE_MISMATCH");

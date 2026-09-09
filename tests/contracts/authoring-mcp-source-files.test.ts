@@ -6,6 +6,8 @@ import {
   assertStoredSourceFileInScope,
   classifyStoredPdfError,
   listStoredSourceFiles,
+  listStoredReferenceFiles,
+  getStoredReferenceSourceFile,
   loadStoredOriginals,
   mergeSourceOriginals,
   readStoredSourceFile,
@@ -167,6 +169,36 @@ describe("stored Source Pack file catalog", () => {
     await expect(listStoredSourceFiles({ courseKey: "course", chapterKey: "chapter" }, dependencies(rows, {
       resolveScope: async () => { throw new Error("AUTHORING_MCP_LEGACY_CHAPTER_MAPPING_MISSING"); },
     }))).rejects.toThrow("AUTHORING_MCP_LEGACY_CHAPTER_MAPPING_MISSING");
+  });
+});
+
+describe("historical reference file catalog", () => {
+  it("lists only course-scoped question and solution PDFs with opaque course-only keys", async () => {
+    const rows = [
+      row({ id: "question-pdf", title: "Tutorial Soal", type: "soal", fileUrl: "courses/legacy-course/materials/2000-abcdef12-soal.pdf" }),
+      row({ id: "solution-pdf", title: "Pembahasan", type: "pembahasan_soal", fileUrl: "courses/legacy-course/materials/2001-abcdef12-pembahasan.pdf" }),
+      row({ id: "course-material", title: "Materi", type: "materi", fileUrl: "courses/legacy-course/materials/2002-abcdef12-materi.pdf" }),
+      row({ id: "other-course-question", courseId: "another-course", type: "soal", fileUrl: "courses/another-course/materials/2003-abcdef12-soal.pdf" }),
+    ];
+    const result = await listStoredReferenceFiles({ courseId: scope.courseId, legacyCourseId: scope.legacyCourseId }, dependencies(rows));
+    expect(result.total).toBe(2);
+    expect(result.files.map((file) => file.category)).toEqual(["soal", "pembahasan_soal"]);
+    expect(result.files.every((file) => file.pageCount === 8)).toBe(true);
+    const serialized = JSON.stringify(result);
+    expect(serialized).not.toContain("question-pdf");
+    expect(serialized).not.toContain("courses/legacy-course/materials");
+    const token = readMcpSourceFileKey(result.files[0]!.fileKey);
+    expect(token.courseId).toBe(scope.courseId);
+    expect(token.chapterId).toBeUndefined();
+    const resolved = await getStoredReferenceSourceFile(result.files[0]!.fileKey, dependencies(rows));
+    expect(resolved.metadata.category).toBe("soal");
+    expect(resolved.metadata.pageCount).toBe(8);
+
+    const resolvedSolution = await getStoredReferenceSourceFile(result.files[1]!.fileKey, dependencies(rows));
+    expect(resolvedSolution.metadata.category).toBe("pembahasan_soal");
+    expect(resolvedSolution.metadata.pageCount).toBe(8);
+    expect(resolvedSolution.metadata.extractedText).toContain("<!-- source page 2 -->");
+    expect(resolvedSolution.metadata.extractedText).toContain("Teks halaman 8");
   });
 });
 

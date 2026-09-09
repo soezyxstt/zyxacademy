@@ -216,6 +216,15 @@ export function parseProductBundle(input: SecureZipArchive | ProductBundleFiles)
     const bundleSectionIds = new Set<string>();
     const bundleV3BlockIds = new Set<string>();
     for (const product of products) {
+      if (
+        manifest.schemaVersion === "product-bundle.v3"
+        && (product.productType === "question" || product.productType === "solution" || product.productType === "assessment_blueprint")
+      ) {
+        return {
+          success: false,
+          issues: [issue("PRODUCT_BUNDLE_QUESTION_FORBIDDEN", `product ${product.id} cannot enter a Product Bundle V3; questions and assessment solutions belong to assessment workflows`, declared.get("products")?.path)],
+        };
+      }
       const key = `${product.id}:${product.version}`;
       if (productKeys.has(key)) return { success: false, issues: [issue("PRODUCT_DUPLICATE_VERSION", `duplicate product version ${key}`)] };
       productKeys.add(key);

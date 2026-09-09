@@ -89,6 +89,11 @@ export async function POST(req: NextRequest) {
 
   const rules = template.selectionRules as Record<string, any>;
   const fixedQuestionIds = rules?.fixedQuestionIds as string[] | undefined;
+  const quizEligibilityCondition = or(
+    eq(aiQuestionBank.origin, 'zyx_original'),
+    eq(aiQuestionBank.origin, 'itb_example'),
+    eq(aiQuestionBank.quizEligible, true),
+  );
 
   let selected: any[] = [];
 
@@ -100,6 +105,7 @@ export async function POST(req: NextRequest) {
         and(
           eq(aiQuestionBank.courseId, template.courseId),
           eq(aiQuestionBank.reviewStatus, 'published'),
+          quizEligibilityCondition,
           inArray(aiQuestionBank.id, fixedQuestionIds)
         )
       );
@@ -130,6 +136,7 @@ export async function POST(req: NextRequest) {
             and(
               eq(aiQuestionBank.courseId, template.courseId),
               eq(aiQuestionBank.reviewStatus, 'published'),
+              quizEligibilityCondition,
               eq(aiQuestionBank.difficulty, diff as 'easy' | 'medium' | 'hard'),
               tagCondition,
             ),
@@ -153,6 +160,7 @@ export async function POST(req: NextRequest) {
           and(
             eq(aiQuestionBank.courseId, template.courseId),
             eq(aiQuestionBank.reviewStatus, 'published'),
+            quizEligibilityCondition,
             selectedIds.length > 0 ? notInArray(aiQuestionBank.id, selectedIds) : undefined,
             tagCondition,
           ),

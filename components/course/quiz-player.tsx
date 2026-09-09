@@ -31,7 +31,7 @@ type QuizPlayerProps = {
       prompt: string;
       options: string[];
       correctIndex?: number;
-      origin?: "zyx_original" | "itb_example";
+      origin?: "zyx_original" | "historical_reference" | "itb_example";
       sourceEventName?: string | null;
       sourceReferenceId?: string | null;
     }>;

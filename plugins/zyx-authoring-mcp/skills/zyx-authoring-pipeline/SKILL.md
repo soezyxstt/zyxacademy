@@ -12,6 +12,7 @@ Sebelum menjalankan suatu tahap, baca dan ikuti skill tahap tersebut beserta ref
 - Source Pack: [zyx-source-pack-mcp](../zyx-source-pack-mcp/SKILL.md)
 - Idea Bundle: [zyx-idea-bundle-mcp](../zyx-idea-bundle-mcp/SKILL.md)
 - Product Bundle: [zyx-product-bundle-mcp](../zyx-product-bundle-mcp/SKILL.md)
+- Historical reference questions: [reference-question-ingest](../reference-question-ingest/SKILL.md), as a separate course-only workflow
 
 Baca [references/workflow.md](references/workflow.md) sebelum memulai atau melanjutkan pipeline.
 
@@ -62,6 +63,7 @@ Checkpoint tidak boleh dimasukkan ke ZIP Source Pack, Idea Bundle, atau Product 
 
 - Jangan menyalin aturan rinci tiga skill tahap ke skill ini.
 - Jangan menjalankan `$zyx-question-authoring-mcp` sebagai bagian otomatis pipeline. Tawarkan sebagai workflow `quiz_bank` terpisah setelah Idea published bila relevan.
+- Jangan menjalankan `$reference-question-ingest` sebagai bagian otomatis pipeline. Tawarkan sebagai workflow course-only terpisah karena tidak memakai chapter atau Source Pack.
 - Jangan melewati review admin, mengarang status publication, atau menganggap submission sama dengan publication.
 - Jangan melanjutkan ke tahap berikutnya bila entry gate tahap tersebut belum terpenuhi.
 

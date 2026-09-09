@@ -1,0 +1,4 @@
+interface:
+  display_name: "Historical Reference Question Ingest"
+  short_description: "Import course-scoped historical questions with source attribution"
+  default_prompt: "Use $reference-question-ingest to ingest stored historical question and solution PDFs into immutable canonical draft questions with published same-course Idea links and complete source attribution."

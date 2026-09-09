@@ -1,19 +1,19 @@
 {
   "name": "zyx-authoring-mcp",
   "version": "0.2.0",
-  "description": "Orchestrate Source Pack to Idea and Product Bundles, with independent Question Bank authoring through the Zyx MCP.",
+  "description": "Orchestrate Source Pack, Idea, Product, quiz bank, and historical reference authoring through the Zyx MCP.",
   "author": {
     "name": "Zyx Academy"
   },
   "homepage": "https://staging.zyxacademy.com/",
   "license": "UNLICENSED",
-  "keywords": ["zyx", "authoring", "pipeline", "mcp", "source-pack", "idea-bundle", "product-bundle", "question-bank"],
+  "keywords": ["zyx", "authoring", "pipeline", "mcp", "source-pack", "idea-bundle", "product-bundle", "question-bank", "historical-reference"],
   "skills": "./skills/",
   "mcpServers": "./.mcp.json",
   "interface": {
     "displayName": "Zyx Authoring MCP",
     "shortDescription": "Author Zyx content through the MCP quality gates.",
-    "longDescription": "Provides one end-to-end authoring pipeline and four independently invocable specialist skills for prompt-only Source Pack, Idea Bundle, Product Bundle, and Question Bank authoring. The remote MCP server remains the authority for authentication, schema validation, provenance, quality gates, and staging.",
+    "longDescription": "Provides one end-to-end authoring pipeline and five independently invocable specialist skills for prompt-only Source Pack, Idea Bundle, Product Bundle, Question Bank, and historical reference authoring. The remote MCP server remains the authority for authentication, schema validation, provenance, quality gates, and staging.",
     "developerName": "Zyx Academy",
     "category": "Productivity",
     "capabilities": ["Interactive", "Write"],
@@ -23,7 +23,8 @@
       "Build a Source Pack from stored course PDFs and validate it through Zyx MCP.",
       "Author an Idea Bundle from a validated Source Pack.",
       "Author a Product Bundle from published Ideas.",
-      "Author an Idea-linked Question Bank draft for admin review."
+      "Author an Idea-linked Question Bank draft for admin review.",
+      "Ingest stored historical question and solution PDFs into immutable attributed drafts."
     ],
     "brandColor": "#2563EB"
   }

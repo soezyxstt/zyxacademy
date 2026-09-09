@@ -5,6 +5,12 @@ export const difficultySchema = z.enum(["easy", "medium", "hard"]);
 export const cognitiveLevelSchema = z.enum(["remember", "understand", "apply", "analyze", "evaluate", "create"]);
 export const questionReviewStatusSchema = z.enum(["generated", "reviewed", "published", "flagged", "retired"]);
 export const ideaRoleSchema = z.enum(["primary", "supporting", "required"]);
+export const questionReferenceRoleSchema = z.enum(["inspired_by", "adapted_from", "derived_from"]);
+
+export const questionReferenceLinkSchema = z.object({
+  referenceQuestionId: z.string().trim().min(1),
+  role: questionReferenceRoleSchema,
+}).strict();
 
 export const questionIdeaLinkSchema = z.object({
   ideaId: z.string().trim().min(1),
@@ -40,6 +46,8 @@ export type Difficulty = z.infer<typeof difficultySchema>;
 export type CognitiveLevel = z.infer<typeof cognitiveLevelSchema>;
 export type QuestionReviewStatus = z.infer<typeof questionReviewStatusSchema>;
 export type IdeaRole = z.infer<typeof ideaRoleSchema>;
+export type QuestionReferenceRole = z.infer<typeof questionReferenceRoleSchema>;
+export type QuestionReferenceLink = z.infer<typeof questionReferenceLinkSchema>;
 export type QuestionIdeaLink = z.infer<typeof questionIdeaLinkSchema>;
 export type QuestionAuthoringQuestion = z.infer<typeof questionAuthoringQuestionSchema>;
 export type QuestionAuthoringInput = z.infer<typeof questionAuthoringInputSchema>;

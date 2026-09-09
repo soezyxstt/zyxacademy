@@ -7,6 +7,10 @@ description: Menghasilkan Product Bundle V3 draft dengan Artikel terstruktur per
 
 Gunakan skill ini sebagai instruction layer untuk MCP. MCP adalah enforcement layer untuk schema, checksum, provenance, dependency, chapter scope, published Idea, Article compiler, dan content quality. Sebelum menulis, wajib baca [references/workflow.md](references/workflow.md) dan [references/editorial-guide.md](references/editorial-guide.md). Laporan MCP hijau belum membuktikan bahwa materi nyaman dibaca mahasiswa; gate editorial pada skill ini juga wajib lulus.
 
+## Batas Product Bundle V3
+
+Product Bundle V3 menulis produk belajar saja: `article`, `diktat`, `flashcard_set`, dan child `flashcard`. Jangan membuat `question`, `solution`, `assessment_blueprint`, soal kuis Zyx, soal referensi historis, atau item asesmen melalui skill ini. Jika kebutuhan menyentuh asesmen, berhenti dan gunakan `zyx-question-authoring-mcp` untuk soal original atau `reference-question-ingest` untuk soal historis. Product Bundle V2 tetap dapat dibaca dan dipublikasikan demi kompatibilitas legacy, tetapi jangan membuat produk asesmen V2 baru.
+
 ## Hasil yang wajib dicapai
 
 - **Artikel** adalah sumber belajar mandiri terstruktur per subtopik. Chapter memiliki overview, topic yang mengikuti learning section, summary, dan pemeriksaan akhir. Panjangnya ditentukan oleh ketuntasan tujuan belajar, bukan target kata atau durasi baca.
@@ -22,19 +26,18 @@ Gunakan skill ini sebagai instruction layer untuk MCP. MCP adalah enforcement la
 
 ## Workflow authoring
 
-1. Kunci course, chapter, Source Pack checksum, Idea version, semantic hash, source references, allowed ITB reference, dan checksum contract MCP aktif.
+1. Kunci course, chapter, Source Pack checksum, Idea version, semantic hash, source references, dan checksum contract MCP aktif.
 2. Buat peta kerja `ideaId -> nama konsep mahasiswa`. Ambil nama dari canonical statement atau intisari Idea, ringkas menjadi frasa konseptual yang alami, dan jangan menyalin kode Idea ke teks siswa.
 3. Sebelum drafting, rencanakan prasyarat, urutan penjelasan, tujuan terukur, representasi atau visual yang relevan, worked example, cek formatif, jawaban, pembahasan, miskonsepsi, dan batas berlaku untuk setiap topic. Ketidakrelevanan harus dinyatakan secara typed, bukan diisi filler.
 4. Tulis Artikel V3 mengikuti rencana tersebut. Gunakan payload kontrak terbaru: `sections[]`, field section yang typed, dan `blocks[].contentMarkdown`, `ideaIds`, `sourceRefs`, serta payload typed untuk contoh, cek, dan visual. Jangan menyisipkan metadata JSON ke Markdown.
 5. Audit Artikel per topic. Pastikan semua Idea dan tujuan tercakup, prasyarat tersedia, urutan penjelasan koheren, serta setiap cek memiliki jawaban dan pembahasan. Estimasi belajar adalah hasil dari konten tuntas, bukan batas yang harus dikejar.
 6. Turunkan Diktat hanya setelah Artikel lengkap. Kompres, jangan menambah fakta baru. Pertahankan seluruh Idea, formula penting, kondisi penggunaan, source trace, contoh kilat, jebakan, dan cek ingatan yang memang relevan.
 7. Buat flashcard atomic. Front, back, dan explanation memakai istilah konseptual, bukan kode pipeline.
-8. Untuk question Product, salin hanya soal ITB yang benar-benar ada pada Source Pack. Gunakan `itbSource.referenceId` dan event label exact dari allowed context. Jangan membuat soal original Zyx, mengubah angka, atau mengganti benchmark ID dengan reference ID. Prompt, opsi, dan solusi tidak boleh menampilkan ID internal.
-9. Buat solusi terpisah untuk setiap question dan blueprint hanya untuk question dalam bundle.
-10. Jalankan preflight author pada editorial guide. Jika ada ID internal pada learner-facing text, tujuan belum tuntas, prasyarat hilang, cek tanpa pembahasan, Diktat terasa seperti Artikel kedua, formula rusak, visual tidak informatif, atau isi tidak didukung source, berhenti dan revisi sebelum memanggil MCP.
-11. Package hanya `manifest.json`, `entities/products.json`, dan `entities/dependencies.json`. Semua entry harus mode `0644`; jangan masukkan script, state, laporan, binary, symlink, archive bersarang, atau file tambahan.
-12. Panggil `authoring.validate_product_bundle`. Periksa technical issues, publication blocking dependency, published Idea scope, chapter scope, quality per section, Diktat quality, formula, dan Idea coverage.
-13. Revisi sampai `valid: true` tanpa issue blocking dan ulangi preflight author. Panggil `authoring.submit_product_bundle` hanya jika kedua gate hijau. MCP hanya membuat draft review, bukan bukti pedagogi lulus, PDF sesuai, atau siap publikasi.
+8. Jangan membuat question, solution, atau assessment blueprint dalam Product Bundle V3. Jangan menyalin soal ITB, soal original Zyx, atau soal referensi historis ke bundle V3. Jika produk belajar memerlukan asesmen, buat atau baca asesmen melalui workflow MCP yang sesuai, lalu pertahankan batas produk V3.
+9. Jalankan preflight author pada editorial guide. Jika ada ID internal pada learner-facing text, tujuan belum tuntas, prasyarat hilang, cek tanpa pembahasan, Diktat terasa seperti Artikel kedua, formula rusak, visual tidak informatif, atau isi tidak didukung source, berhenti dan revisi sebelum memanggil MCP.
+10. Package hanya `manifest.json`, `entities/products.json`, dan `entities/dependencies.json`. Semua entry harus mode `0644`; jangan masukkan script, state, laporan, binary, symlink, archive bersarang, atau file tambahan.
+11. Panggil `authoring.validate_product_bundle`. Periksa technical issues, publication blocking dependency, published Idea scope, chapter scope, quality per section, Diktat quality, formula, dan Idea coverage.
+12. Revisi sampai `valid: true` tanpa issue blocking dan ulangi preflight author. Panggil `authoring.submit_product_bundle` hanya jika kedua gate hijau. MCP hanya membuat draft review, bukan bukti pedagogi lulus, PDF sesuai, atau siap publikasi.
 
 ## Siklus hidup dan pemeliharaan
 
@@ -51,9 +54,9 @@ Artikel harus memenuhi compiler semantik dan menuntaskan tujuan per topic pada e
 
 ## Aturan keamanan dan provenance
 
-Jangan mengubah checksum manifest setelah mengubah isi. Jangan memasukkan `HOLDOUT_CANARY`, correct-answer snapshot runtime, atau marker internal ke Product Bundle. Semua question harus memiliki satu solution, ITB source, dan ITB curation yang memuat reference tersebut. Product Bundle berstatus draft; hanya admin yang dapat review, edit, publish, atau withdraw.
+Jangan mengubah checksum manifest setelah mengubah isi. Jangan memasukkan `HOLDOUT_CANARY`, correct-answer snapshot runtime, atau marker internal ke Product Bundle. Product Bundle V3 hanya memuat produk belajar yang diizinkan dan tidak memiliki question, solution, atau assessment blueprint. Product Bundle berstatus draft; hanya admin yang dapat review, edit, publish, atau withdraw.
 
-Di seluruh learner-facing text, larang `IDEA-*`, `idea-*`, `source-doc-*`, `chunk-*`, `excerpt-*`, `benchmark-*`, UUID, database ID, `block Idea`, dan kalimat seperti `berdasarkan Idea 3`. Larangan berlaku pada title, Article block content, Diktat Markdown, flashcard, question prompt, option text, solution, dan blueprint title. ID tetap wajib pada field struktural seperti `ideaLinks`, `sourceRefs`, dependencies, dan metadata atribusi block. Jangan menghapus ID struktural untuk memenuhi larangan prosa.
+Di seluruh learner-facing text, larang `IDEA-*`, `idea-*`, `source-doc-*`, `chunk-*`, `excerpt-*`, `benchmark-*`, UUID, database ID, `block Idea`, dan kalimat seperti `berdasarkan Idea 3`. Larangan berlaku pada title, Article block content, Diktat Markdown, flashcard, dan metadata produk belajar yang dirender. ID tetap wajib pada field struktural seperti `ideaLinks`, `sourceRefs`, dependencies, dan metadata atribusi block. Jangan menghapus ID struktural untuk memenuhi larangan prosa.
 
 ## Selesai
 

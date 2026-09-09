@@ -2,8 +2,10 @@ import { z } from "zod";
 import {
   questionAuthoringQuestionSchema,
   questionIdeaLinkSchema,
+  questionReferenceLinkSchema,
   type QuestionAuthoringQuestion,
   type QuestionIdeaLink,
+  type QuestionReferenceLink,
 } from "@/lib/question-authoring-contract";
 
 const questionIdSchema = z.string().trim().min(1).max(160);
@@ -28,6 +30,7 @@ const legacyQuizQuestionSchema = z.object({
 const questionBankQuestionSchema = questionAuthoringQuestionSchema.extend({
   id: questionIdSchema,
   ideaLinks: z.array(questionIdeaLinkSchema).default([]),
+  referenceLinks: z.array(questionReferenceLinkSchema).default([]),
 }).strict();
 
 const legacyQuizDraftSchema = z.object({
@@ -53,6 +56,7 @@ export type NormalizedQuestionBankDraftItem = {
   externalId: string;
   question: QuestionAuthoringQuestion;
   ideaLinks: QuestionIdeaLink[];
+  referenceLinks: QuestionReferenceLink[];
 };
 
 export type NormalizedQuestionBankDraft = {
@@ -92,6 +96,7 @@ export function normalizeQuestionBankDraft(draft: QuestionBankDraft): Normalized
       items: draft.questions.map((question) => ({
         externalId: question.id,
         ideaLinks: [],
+        referenceLinks: [],
         question: {
           knowledgeObjectId: question.knowledgeObjectId,
           applicationLevel: question.applicationLevel,
@@ -114,9 +119,10 @@ export function normalizeQuestionBankDraft(draft: QuestionBankDraft): Normalized
   return {
     schemaVersion: draft.schemaVersion,
     draftId: draft.draftId,
-    items: draft.questions.map(({ id, ideaLinks, ...question }) => ({
+    items: draft.questions.map(({ id, ideaLinks, referenceLinks, ...question }) => ({
       externalId: id,
       ideaLinks,
+      referenceLinks,
       question,
     })),
   };

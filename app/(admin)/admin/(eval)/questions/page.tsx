@@ -3,12 +3,12 @@ import { pageTitle } from "@/lib/site";
 import { db } from "@/db";
 import {
   aiQuestionBank,
-  assessmentObjects,
   assessmentSources,
   bab,
   courses,
   ide,
   mataKuliah,
+  pembahasanSoal,
   soal,
   soalIde,
 } from "@/db/schema";
@@ -26,10 +26,26 @@ export const metadata: Metadata = {
   title: pageTitle("Bank Soal"),
 };
 
+type CanonicalQuestionStatus = "draft" | "in_review" | "published" | "retired";
+type ReviewStatus = "generated" | "reviewed" | "published" | "flagged" | "retired";
+
+function reviewStatusFromCanonical(status: CanonicalQuestionStatus): ReviewStatus {
+  switch (status) {
+    case "in_review":
+      return "reviewed";
+    case "published":
+      return "published";
+    case "retired":
+      return "retired";
+    default:
+      return "generated";
+  }
+}
+
 export default async function AIQuestionsPage() {
   await assertTutorOrAdmin();
 
-  const [rawQuestions, allCourses, historicalQuestions] = await Promise.all([
+  const [rawQuestions, allCourses, historicalRows] = await Promise.all([
     db
       .select()
       .from(aiQuestionBank)
@@ -38,22 +54,34 @@ export default async function AIQuestionsPage() {
     db.select({ id: courses.id, title: courses.title }).from(courses),
     db
       .select({
-        id: assessmentObjects.id,
-        difficulty: assessmentObjects.difficulty,
-        questionMarkdown: assessmentObjects.questionMarkdown,
-        answerMarkdown: assessmentObjects.answerMarkdown,
+        id: soal.id,
+        difficulty: soal.difficulty,
+        questionMarkdown: soal.prompt,
+        options: soal.optionsSnapshot,
+        questionType: soal.questionType,
         sourceTitle: assessmentSources.title,
         sourceCategory: assessmentSources.category,
         sourceYear: assessmentSources.year,
         courseId: assessmentSources.courseId,
+        reviewStatus: aiQuestionBank.reviewStatus,
+        canonicalStatus: soal.status,
+        quizEligible: soal.quizEligible,
+        sourceQuestionNumber: soal.sourceQuestionNumber,
+        sourceQuestionPart: soal.sourceQuestionPart,
+        sourcePage: soal.sourcePage,
+        answerProvenance: soal.answerProvenance,
+        solutionProvenance: soal.solutionProvenance,
       })
-      .from(assessmentObjects)
-      .innerJoin(assessmentSources, eq(assessmentObjects.sourceId, assessmentSources.id))
-      .orderBy(desc(assessmentObjects.createdAt))
+      .from(soal)
+      .innerJoin(assessmentSources, eq(soal.assessmentSourceId, assessmentSources.id))
+      .leftJoin(aiQuestionBank, eq(aiQuestionBank.id, soal.id))
+      .where(eq(soal.origin, "historical_reference"))
+      .orderBy(desc(soal.createdAt))
       .limit(200),
   ]);
 
-  const questionIds = rawQuestions.map((question) => question.id);
+  const activeRawQuestions = rawQuestions.filter((question) => question.origin !== "historical_reference");
+  const questionIds = activeRawQuestions.map((question) => question.id);
   const [authoringCourses, authoringChapters, authoringIdeas, canonicalQuestions, canonicalLinkRows] = await Promise.all([
     db
       .select({ id: mataKuliah.id, legacyCourseId: mataKuliah.legacyCourseId, code: mataKuliah.code, title: mataKuliah.title })
@@ -84,6 +112,24 @@ export default async function AIQuestionsPage() {
       : Promise.resolve([]),
   ]);
 
+  const historicalIds = historicalRows.map((question) => question.id);
+  const historicalSolutions = historicalIds.length > 0
+    ? await db
+      .select({ soalId: pembahasanSoal.soalId, content: pembahasanSoal.content, version: pembahasanSoal.version })
+      .from(pembahasanSoal)
+      .where(inArray(pembahasanSoal.soalId, historicalIds))
+      .orderBy(desc(pembahasanSoal.version))
+    : [];
+  const latestHistoricalSolution = new Map<string, string>();
+  for (const solution of historicalSolutions) {
+    if (!latestHistoricalSolution.has(solution.soalId)) latestHistoricalSolution.set(solution.soalId, solution.content);
+  }
+  const historicalQuestions = historicalRows.map((question) => ({
+    ...question,
+    answerMarkdown: latestHistoricalSolution.get(question.id) ?? null,
+    reviewStatus: question.reviewStatus ?? reviewStatusFromCanonical(question.canonicalStatus),
+  }));
+
   const canonicalQuestionMap = new Map(canonicalQuestions.map((question) => [question.id, question]));
   const canonicalIdeaLinks = new Map<string, (typeof canonicalLinkRows)[number][]>();
   for (const link of canonicalLinkRows) {
@@ -91,7 +137,7 @@ export default async function AIQuestionsPage() {
     current.push(link);
     canonicalIdeaLinks.set(link.questionId, current);
   }
-  const questions = rawQuestions.map((question) => {
+  const questions = activeRawQuestions.map((question) => {
     const canonical = canonicalQuestionMap.get(question.id);
     return {
       ...question,

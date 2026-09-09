@@ -43,6 +43,17 @@ import {
 } from "@/lib/tutor/assessment-policy";
 import { recordTutorMutationAudit } from "@/lib/audit/mutasi";
 
+function publishedQuizQuestionCondition() {
+  return and(
+    eq(aiQuestionBank.reviewStatus, "published"),
+    or(
+      eq(aiQuestionBank.origin, "zyx_original"),
+      eq(aiQuestionBank.origin, "itb_example"),
+      eq(aiQuestionBank.quizEligible, true),
+    ),
+  );
+}
+
 const quizTemplateInputSchema = z.object({
   title: z.string().min(1).max(255),
   category: z.enum(["daily", "weekly", "chapter", "premium", "simulation"]),
@@ -896,7 +907,7 @@ export async function getQuizTemplatePreviewAction(courseId: string, templateId:
       .where(
         and(
           inArray(aiQuestionBank.courseId, candidateCourseIds),
-          eq(aiQuestionBank.reviewStatus, 'published'),
+          publishedQuizQuestionCondition(),
           inArray(aiQuestionBank.id, fixedQuestionIds)
         )
       );
@@ -928,7 +939,7 @@ export async function getQuizTemplatePreviewAction(courseId: string, templateId:
           .where(
             and(
               inArray(aiQuestionBank.courseId, candidateCourseIds),
-              eq(aiQuestionBank.reviewStatus, 'published'),
+              publishedQuizQuestionCondition(),
               eq(aiQuestionBank.difficulty, diff as 'easy' | 'medium' | 'hard'),
               tagCondition,
             ),
@@ -950,7 +961,7 @@ export async function getQuizTemplatePreviewAction(courseId: string, templateId:
         .where(
           and(
             inArray(aiQuestionBank.courseId, candidateCourseIds),
-            eq(aiQuestionBank.reviewStatus, 'published'),
+            publishedQuizQuestionCondition(),
             selectedIds.length > 0 ? notInArray(aiQuestionBank.id, selectedIds) : undefined,
             tagCondition,
           ),
@@ -1070,6 +1081,21 @@ export async function saveQuestionBankAction(
       });
       throw new Error(TUTOR_CAPABILITY_ERRORS.CROSS_COURSE_MUTATION_FORBIDDEN);
     }
+
+    if (existing.origin !== "zyx_original") {
+      await recordTutorMutationAuditSafe({
+        actorId: session.user.id,
+        actorRoles: roles,
+        courseId: access.courseId ?? courseId,
+        entityType: "question_bank",
+        entityId: questionId,
+        entityVersion: 1,
+        action: "question_bank:update",
+        outcome: "rejected",
+        reason: "HISTORICAL_QUESTION_IMMUTABLE",
+      });
+      throw new Error("Soal referensi historis hanya dapat ditinjau, bukan diedit.");
+    }
   }
 
   const requestId = newAuditRequestId();
@@ -1185,6 +1211,21 @@ export async function deleteQuestionBankAction(courseId: string, questionId: str
       reason: TUTOR_CAPABILITY_ERRORS.CROSS_COURSE_MUTATION_FORBIDDEN,
     });
     throw new Error(TUTOR_CAPABILITY_ERRORS.CROSS_COURSE_MUTATION_FORBIDDEN);
+  }
+
+  if (existing.origin !== "zyx_original") {
+    await recordTutorMutationAuditSafe({
+      actorId: session.user.id,
+      actorRoles: roles,
+      courseId: access.courseId ?? courseId,
+      entityType: "question_bank",
+      entityId: questionId,
+      entityVersion: 1,
+      action: "question_bank:delete",
+      outcome: "rejected",
+      reason: "HISTORICAL_QUESTION_IMMUTABLE",
+    });
+    throw new Error("Soal referensi historis hanya dapat ditinjau, bukan dihapus.");
   }
 
   const requestId = newAuditRequestId();
@@ -1641,7 +1682,7 @@ export async function importQuestionBankToTryoutAction(
       .where(
         and(
           inArray(aiQuestionBank.courseId, candidateCourseIds),
-          eq(aiQuestionBank.reviewStatus, "published"),
+          publishedQuizQuestionCondition(),
           inArray(aiQuestionBank.id, uniqueIds),
         ),
       ),

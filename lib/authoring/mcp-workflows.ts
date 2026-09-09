@@ -12,7 +12,7 @@ export const AUTHORING_MCP_MAX_BUNDLE_BYTES = 32 * 1024 * 1024;
 export const AUTHORING_MCP_MAX_ORIGINAL_BYTES = 32 * 1024 * 1024;
 export const MCP_CONNECTION_TOKEN_TTL_SECONDS = 30 * 24 * 60 * 60;
 
-export const authoringWorkflowSchema = z.enum(["idea_product", "quiz_bank"]);
+export const authoringWorkflowSchema = z.enum(["idea_product", "quiz_bank", "reference_question_ingest"]);
 export type AuthoringWorkflow = z.infer<typeof authoringWorkflowSchema>;
 
 type SignedTokenKind = "course_choice" | "chapter_choice" | "source_file" | "source" | "run" | "connection" | "client";
@@ -38,9 +38,9 @@ type McpSourceFileReference = {
   materialId: string;
   storageKey: string;
   courseId: string;
-  chapterId: string;
+  chapterId?: string;
   legacyCourseId: string;
-  legacyChapterId: string;
+  legacyChapterId?: string;
   updatedAtMs: number;
   checksum: string | null;
 };
@@ -116,9 +116,9 @@ export type AuthoringWorkflowOption = {
   label: string;
   description: string;
   sourcePackRequired: boolean;
-  scope: ["course", "chapter"];
+  scope: ["course", "chapter"] | ["course"];
   reviewRequired: true;
-  publicationTarget: "idea_and_product_review" | "quiz_bank_review";
+  publicationTarget: "idea_and_product_review" | "quiz_bank_review" | "reference_question_review";
 };
 
 const WORKFLOW_OPTIONS: readonly AuthoringWorkflowOption[] = [
@@ -139,6 +139,15 @@ const WORKFLOW_OPTIONS: readonly AuthoringWorkflowOption[] = [
     scope: ["course", "chapter"],
     reviewRequired: true,
     publicationTarget: "quiz_bank_review",
+  },
+  {
+    key: "reference_question_ingest",
+    label: "Soal referensi historis",
+    description: "Mengimpor soal historis dari source tersimpan, mempertahankan provenance, dan mengaitkannya ke Idea published.",
+    sourcePackRequired: false,
+    scope: ["course"],
+    reviewRequired: true,
+    publicationTarget: "reference_question_review",
   },
 ];
 
@@ -284,9 +293,9 @@ function openSourceFileReference(value: string): McpSourceFileReference {
       materialId: z.string().min(1),
       storageKey: z.string().min(1),
       courseId: z.string().min(1),
-      chapterId: z.string().min(1),
+      chapterId: z.string().min(1).optional(),
       legacyCourseId: z.string().min(1),
-      legacyChapterId: z.string().min(1),
+      legacyChapterId: z.string().min(1).optional(),
       updatedAtMs: z.number().int().nonnegative(),
       checksum: z.string().nullable(),
     }).strict().parse(JSON.parse(plaintext));
@@ -311,9 +320,9 @@ export function issueMcpSourceFileKey(input: {
   materialId: string;
   storageKey: string;
   courseId: string;
-  chapterId: string;
+  chapterId?: string;
   legacyCourseId: string;
-  legacyChapterId: string;
+  legacyChapterId?: string;
   updatedAtMs: number;
   checksum: string | null;
 }): string {
@@ -415,13 +424,39 @@ export async function startAuthoringWorkflow(input: {
   workflow: AuthoringWorkflow;
   sourcePackToken?: string;
   courseKey: string;
-  chapterKey: string;
+  chapterKey?: string;
 }) {
+  const workflow = getAuthoringWorkflow(input.workflow);
   const courseChoice = verifyToken<SignedTokenPayload & { kind: "course_choice"; courseId: string }>(input.courseKey, "course_choice");
+  if (workflow.key === "reference_question_ingest") {
+    if (input.chapterKey || input.sourcePackToken) throw new Error("WORKFLOW_SCOPE_INVALID");
+    const course = await getAuthoringCourseOption(courseChoice.courseId);
+    if (!course) throw new Error("AUTHORING_MCP_COURSE_NOT_FOUND");
+    const runId = `mcp-run-${randomUUID()}`;
+    const runToken = issueToken({
+      kind: "run",
+      runId,
+      workflow: workflow.key,
+      courseId: course.id,
+      courseLabel: course.title,
+      sourcePackChecksum: null,
+      sourcePackId: null,
+      sourcePackName: null,
+      sourcePackSummary: null,
+      ttlMs: 7 * 24 * 60 * 60 * 1000,
+    });
+    return {
+      runToken,
+      runId,
+      workflow,
+      scope: { course: course.title },
+      source: null,
+      next: ["source.list_reference_files", "knowledge.search_course_ideas", "assessment.validate_reference_draft", "assessment.submit_reference_draft"],
+    };
+  }
+  if (!input.chapterKey) throw new Error("AUTHORING_MCP_CHAPTER_REQUIRED");
   const chapterChoice = verifyToken<SignedTokenPayload & { kind: "chapter_choice"; courseId: string; chapterId: string }>(input.chapterKey, "chapter_choice");
   if (chapterChoice.courseId !== courseChoice.courseId) throw new Error("AUTHORING_MCP_SCOPE_MISMATCH");
-
-  const workflow = getAuthoringWorkflow(input.workflow);
   let source: Pick<SourceTokenPayload, "checksum" | "packId" | "name" | "summary" | "courseId" | "chapterId"> | null = null;
   if (input.sourcePackToken) {
     source = verifyToken<SourceTokenPayload>(input.sourcePackToken, "source");
@@ -469,7 +504,7 @@ export function issueMcpRunToken(input: {
   runId?: string;
   workflow?: AuthoringWorkflow;
   courseId: string;
-  chapterId: string;
+  chapterId?: string;
   courseLabel?: string;
   chapterLabel?: string;
   sourcePackChecksum?: string | null;
@@ -478,14 +513,17 @@ export function issueMcpRunToken(input: {
   sourcePackSummary?: string | null;
   ttlMs?: number;
 }): string {
+  const workflow = input.workflow ?? "idea_product";
+  if (workflow !== "reference_question_ingest" && !input.chapterId) throw new Error("AUTHORING_MCP_CHAPTER_REQUIRED");
+  if (workflow === "reference_question_ingest" && input.chapterId) throw new Error("WORKFLOW_SCOPE_INVALID");
   return issueToken({
     kind: "run",
     runId: input.runId ?? `mcp-run-${randomUUID()}`,
-    workflow: input.workflow ?? "idea_product",
+    workflow,
     courseId: input.courseId,
-    chapterId: input.chapterId,
+    ...(input.chapterId ? { chapterId: input.chapterId } : {}),
     courseLabel: input.courseLabel ?? input.courseId,
-    chapterLabel: input.chapterLabel ?? input.chapterId,
+    ...(input.chapterLabel || input.chapterId ? { chapterLabel: input.chapterLabel ?? input.chapterId } : {}),
     sourcePackChecksum: input.sourcePackChecksum ?? null,
     sourcePackId: input.sourcePackId ?? null,
     sourcePackName: input.sourcePackName ?? null,
@@ -534,7 +572,7 @@ export function publicMcpRun(runToken: string) {
   return {
     runId: run.runId,
     workflow: getAuthoringWorkflow(run.workflow),
-    scope: { course: run.courseLabel, chapter: run.chapterLabel },
+    scope: run.chapterLabel ? { course: run.courseLabel, chapter: run.chapterLabel } : { course: run.courseLabel },
     source: run.sourcePackId
       ? {
         packId: run.sourcePackId,
@@ -569,6 +607,9 @@ export function productBundleV3Contract() {
   return {
     schemaVersion: "product-bundle.v3",
     compatibleReadVersions: ["product-bundle.v2", "product-bundle.v3"],
+    writeEntityTypes: ["article", "diktat", "flashcard_set", "flashcard"],
+    forbiddenAssessmentEntityTypes: ["question", "solution", "assessment_blueprint"],
+    assessmentWorkflowBoundary: "Questions and their historical references belong to reference_question_ingest or quiz_bank, never Product Bundle V3.",
     toolSequence: [
       "authoring.validate_product_bundle",
       "authoring.submit_product_bundle",
@@ -676,7 +717,7 @@ export function workflowContract(runToken: string) {
   return {
     version: AUTHORING_MCP_VERSION,
     workflow,
-    scope: { course: run.courseLabel, chapter: run.chapterLabel },
+    scope: run.chapterLabel ? { course: run.courseLabel, chapter: run.chapterLabel } : { course: run.courseLabel },
     source: run.sourcePackId ? { packId: run.sourcePackId, checksum: run.sourcePackChecksum } : null,
     rules: [
       "Gunakan hanya source pack yang telah divalidasi oleh MCP.",
@@ -692,7 +733,7 @@ export function workflowContract(runToken: string) {
         ideaBundle: { schemaVersion: "idea-bundle.v3", compatibleReadVersions: ["idea-bundle.v2", "idea-bundle.v3"], validationTool: "authoring.validate_idea_bundle", reviewRequired: true },
         productBundle: productBundleV3Contract(),
       }
-      : {
+      : workflow.key === "quiz_bank" ? {
         quizDraft: {
           schemaVersion: "question-bank-draft.v2",
           ideaCatalogTool: "assessment.list_ideas",
@@ -722,6 +763,19 @@ export function workflowContract(runToken: string) {
           },
           reviewRequired: true,
           publicationTarget: "question_bank",
+          initialStatus: "generated",
+        },
+      } : {
+        referenceQuestionDraft: {
+          schemaVersion: "reference-question-draft.v1",
+          allowedSourceTools: ["source.list_reference_files", "source.read_file"],
+          allowedIdeaTools: ["knowledge.search_course_ideas", "knowledge.get_idea"],
+          validationTool: "assessment.validate_reference_draft",
+          submitTool: "assessment.submit_reference_draft",
+          ideaLinksRequired: true,
+          sameCourseAcrossChaptersAllowed: true,
+          origin: "historical_reference",
+          publicationTarget: "reference_question_review",
           initialStatus: "generated",
         },
       },

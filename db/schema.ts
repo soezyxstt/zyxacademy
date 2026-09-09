@@ -1122,11 +1122,19 @@ export const aiQuestionBank = sqliteTable(
     sourceSectionId: text("source_section_id")
       .references(() => aiMaterialInstanceSections.id, { onDelete: "set null" }),
     origin: text("origin")
-      .$type<"zyx_original" | "itb_example">()
+      .$type<"zyx_original" | "historical_reference" | "itb_example">()
       .default("zyx_original")
       .notNull(),
     sourceEventName: text("source_event_name"),
     sourceReferenceId: text("source_reference_id"),
+    assessmentSourceId: text("assessment_source_id")
+      .references(() => assessmentSources.id, { onDelete: "set null" }),
+    sourceQuestionNumber: text("source_question_number"),
+    sourceQuestionPart: text("source_question_part"),
+    sourcePage: integer("source_page"),
+    answerProvenance: text("answer_provenance").$type<"official" | "source_solution" | "zyx_generated" | "unavailable">(),
+    solutionProvenance: text("solution_provenance").$type<"official" | "source_solution" | "zyx_generated" | "unavailable">(),
+    quizEligible: integer("quiz_eligible", { mode: "boolean" }).default(false).notNull(),
 
     // Final v4 adjustments
     knowledgeObjectId: text("knowledge_object_id")
@@ -1177,6 +1185,7 @@ export const aiQuestionBank = sqliteTable(
     index("idx_qbank_ko").on(table.knowledgeObjectId),
     index("idx_qbank_gen_run").on(table.generationRunId),
     index("idx_qbank_origin").on(table.origin, table.sourceEventName),
+    index("idx_qbank_quiz_eligible").on(table.courseId, table.reviewStatus, table.quizEligible),
   ]
 );
 
@@ -2124,9 +2133,17 @@ export const soal = sqliteTable(
   questionType: text("question_type").$type<"multiple_choice" | "multiple_choices" | "short_answer" | "essay">().notNull(),
   prompt: text("prompt").notNull(),
   optionsSnapshot: text("options_snapshot", { mode: "json" }).$type<unknown[]>().$defaultFn(() => []).notNull(),
-  origin: text("origin").$type<"zyx_original" | "itb_example">().default("zyx_original").notNull(),
+  origin: text("origin").$type<"zyx_original" | "historical_reference" | "itb_example">().default("zyx_original").notNull(),
   sourceEventName: text("source_event_name"),
   sourceReferenceId: text("source_reference_id"),
+  assessmentSourceId: text("assessment_source_id").references(() => assessmentSources.id, { onDelete: "set null" }),
+  sourceQuestionNumber: text("source_question_number"),
+  sourceQuestionPart: text("source_question_part"),
+  sourcePage: integer("source_page"),
+  sourceLocator: text("source_locator", { mode: "json" }).$type<Record<string, unknown>>(),
+  answerProvenance: text("answer_provenance").$type<"official" | "source_solution" | "zyx_generated" | "unavailable">(),
+  solutionProvenance: text("solution_provenance").$type<"official" | "source_solution" | "zyx_generated" | "unavailable">(),
+  quizEligible: integer("quiz_eligible", { mode: "boolean" }).default(false).notNull(),
   version: integer("version").default(1).notNull(),
   status: text("status").$type<"draft" | "in_review" | "published" | "retired">().default("draft").notNull(),
   difficulty: text("difficulty").$type<"easy" | "medium" | "hard">().notNull(),
@@ -2144,8 +2161,29 @@ export const soal = sqliteTable(
   index("soal_chapter_idx").on(table.babId),
   index("soal_status_version_idx").on(table.status, table.version),
   index("soal_origin_idx").on(table.origin, table.sourceEventName),
+  index("soal_assessment_source_idx").on(table.assessmentSourceId, table.sourceQuestionNumber),
+  index("soal_quiz_eligible_idx").on(table.mataKuliahId, table.status, table.quizEligible),
   check("soal_version_check", sql`${table.version} > 0`),
   check("soal_status_check", sql`${table.status} IN ('draft', 'in_review', 'published', 'retired')`),
+ ],
+);
+
+export const questionReferenceLinks = sqliteTable(
+ "question_reference_links",
+ {
+  id: text("id").primaryKey(),
+  questionId: text("question_id").notNull().references(() => soal.id, { onDelete: "cascade" }),
+  referenceQuestionId: text("reference_question_id").notNull().references(() => soal.id, { onDelete: "restrict" }),
+  role: text("role").$type<"inspired_by" | "adapted_from" | "derived_from">().notNull(),
+  notes: text("notes"),
+  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+ },
+ (table) => [
+  uniqueIndex("question_ref_links_unique_idx").on(table.questionId, table.referenceQuestionId, table.role),
+  index("question_ref_links_q_idx").on(table.questionId),
+  index("question_ref_links_ref_idx").on(table.referenceQuestionId),
+  check("question_ref_links_role_check", sql`${table.role} IN ('inspired_by', 'adapted_from', 'derived_from')`),
+  check("question_ref_links_no_self_ref_check", sql`${table.questionId} != ${table.referenceQuestionId}`),
  ],
 );
 
@@ -3362,8 +3400,16 @@ export const assessmentSources = sqliteTable("assessment_sources", {
     .references(() => courses.id, { onDelete: "cascade" }),
   title: text("title").notNull(),
   origin: text("origin").$type<"uploaded" | "generated">().default("uploaded").notNull(),
-  category: text("category").$type<"tutorial" | "quiz" | "uts" | "uas" | "tryout">().notNull(),
-  year: integer("year").notNull(),
+  category: text("category").$type<"tutorial" | "quiz" | "uts" | "uas" | "tryout" | "homework" | "exercise" | "other">().notNull(),
+  assessmentType: text("assessment_type").$type<"uts" | "uas" | "quiz" | "tutorial" | "homework" | "exercise" | "other">(),
+  year: integer("year"),
+  institution: text("institution"),
+  academicYearLabel: text("academic_year_label"),
+  term: text("term"),
+  canonicalCourseId: text("canonical_course_id").references(() => mataKuliah.id, { onDelete: "set null" }),
+  sourceDocumentId: text("source_document_id").references(() => courseMaterials.id, { onDelete: "set null" }),
+  solutionDocumentId: text("solution_document_id").references(() => courseMaterials.id, { onDelete: "set null" }),
+  status: text("status").$type<"draft" | "in_review" | "published" | "retired">().default("draft").notNull(),
   semester: integer("semester"),
   sourceMarkdown: text("source_markdown").notNull(),
   sourceHash: text("source_hash").notNull(),
@@ -3389,7 +3435,10 @@ export const assessmentSources = sqliteTable("assessment_sources", {
     .defaultNow()
     .$onUpdate(() => new Date())
     .notNull(),
-});
+}, (table) => [
+  index("assessment_sources_canonical_course_idx").on(table.canonicalCourseId, table.status),
+  index("assessment_sources_document_idx").on(table.sourceDocumentId, table.solutionDocumentId),
+]);
 
 // 11.4.5. assessment_source_chapters
 export const assessmentSourceChapters = sqliteTable(

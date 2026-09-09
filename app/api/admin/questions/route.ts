@@ -7,11 +7,19 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { randomUUID } from 'node:crypto';
 import { db } from '@/db';
-import { aiQuestionBank, auditMutasi, pembahasanSoal, soal } from '@/db/schema';
+import {
+  aiQuestionBank,
+  assessmentSources,
+  auditMutasi,
+  ide,
+  pembahasanSoal,
+  soal,
+  soalIde,
+} from '@/db/schema';
 import { auth } from '@/lib/auth';
 import { hasAnyPeran } from '@/lib/auth/authorization';
 import { headers } from 'next/headers';
-import { and, eq, inArray, desc, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
 import { questionAuthoringInputSchema, canonicalQuestionStatus } from '@/lib/question-authoring-contract';
 import { createCanonicalQuestion, QuestionAuthoringError } from '@/lib/question-authoring';
 
@@ -50,7 +58,7 @@ export async function GET(req: NextRequest) {
       eq(aiQuestionBank.difficulty, difficulty as 'easy' | 'medium' | 'hard'),
     );
   }
-  if (origin === 'zyx_original' || origin === 'itb_example') {
+  if (origin === 'zyx_original' || origin === 'itb_example' || origin === 'historical_reference') {
     conditions.push(eq(aiQuestionBank.origin, origin));
   }
   if (search) {
@@ -96,15 +104,88 @@ export async function PUT(req: NextRequest) {
   const now = new Date();
   const publishedAt = canonicalStatus === 'published' ? now : null;
 
-  await db.transaction(async (tx) => {
+  const result = await db.transaction(async (tx) => {
     const canonicalRows = await tx
-      .select({ id: soal.id, version: soal.version, status: soal.status, courseId: soal.mataKuliahId })
+      .select({
+        id: soal.id,
+        origin: soal.origin,
+        version: soal.version,
+        status: soal.status,
+        courseId: soal.mataKuliahId,
+      })
       .from(soal)
       .where(inArray(soal.id, ids));
     const compatibilityRows = await tx
-      .select({ id: aiQuestionBank.id, reviewStatus: aiQuestionBank.reviewStatus, courseId: aiQuestionBank.courseId })
+      .select({
+        id: aiQuestionBank.id,
+        origin: aiQuestionBank.origin,
+        reviewStatus: aiQuestionBank.reviewStatus,
+        courseId: aiQuestionBank.courseId,
+      })
       .from(aiQuestionBank)
       .where(inArray(aiQuestionBank.id, ids));
+    const canonicalById = new Map(canonicalRows.map((row) => [row.id, row]));
+    const compatibilityById = new Map(compatibilityRows.map((row) => [row.id, row]));
+
+    if (reviewStatus === 'published') {
+      const historicalQuestionIds = [
+        ...new Set([
+          ...canonicalRows
+            .filter((row) => row.origin === 'historical_reference')
+            .map((row) => row.id),
+          ...compatibilityRows
+            .filter((row) => row.origin === 'historical_reference')
+            .map((row) => row.id),
+        ]),
+      ];
+      const canonicalHistoricalQuestionIds = canonicalRows
+        .filter((row) => row.origin === 'historical_reference')
+        .map((row) => row.id);
+
+      if (historicalQuestionIds.length > 0) {
+        const sourceRows = canonicalHistoricalQuestionIds.length > 0
+          ? await tx
+              .select({ questionId: soal.id })
+              .from(soal)
+              .innerJoin(assessmentSources, eq(assessmentSources.id, soal.assessmentSourceId))
+              .where(
+                and(
+                  inArray(soal.id, canonicalHistoricalQuestionIds),
+                  eq(soal.origin, 'historical_reference'),
+                  isNull(assessmentSources.deletedAt),
+                ),
+              )
+          : [];
+        const publishedIdeaRows = canonicalHistoricalQuestionIds.length > 0
+          ? await tx
+              .select({ questionId: soalIde.soalId })
+              .from(soalIde)
+              .innerJoin(soal, eq(soal.id, soalIde.soalId))
+              .innerJoin(ide, eq(ide.id, soalIde.ideId))
+              .where(
+                and(
+                  inArray(soalIde.soalId, canonicalHistoricalQuestionIds),
+                  eq(soal.origin, 'historical_reference'),
+                  eq(ide.status, 'published'),
+                  eq(soal.mataKuliahId, ide.mataKuliahId),
+                ),
+              )
+          : [];
+        const questionsWithSource = new Set(sourceRows.map((row) => row.questionId));
+        const questionsWithPublishedIdea = new Set(publishedIdeaRows.map((row) => row.questionId));
+        const blockedHistoricalQuestionIds = historicalQuestionIds.filter(
+          (id) =>
+            !canonicalById.has(id) ||
+            !questionsWithSource.has(id) ||
+            !questionsWithPublishedIdea.has(id),
+        );
+
+        if (blockedHistoricalQuestionIds.length > 0) {
+          return { blockedHistoricalQuestionIds };
+        }
+      }
+    }
+
     await tx
       .update(aiQuestionBank)
       .set({ reviewStatus, status: canonicalStatus === 'retired' ? 'retired' : 'active' })
@@ -117,8 +198,6 @@ export async function PUT(req: NextRequest) {
       .update(pembahasanSoal)
       .set({ status: canonicalStatus, publishedAt, updatedAt: now })
       .where(inArray(pembahasanSoal.soalId, ids));
-    const canonicalById = new Map(canonicalRows.map((row) => [row.id, row]));
-    const compatibilityById = new Map(compatibilityRows.map((row) => [row.id, row]));
     await tx.insert(auditMutasi).values(ids.map((id) => ({
       id: `audit-question-status-${id}-${randomUUID()}`,
       actorId: session.user.id,
@@ -132,9 +211,21 @@ export async function PUT(req: NextRequest) {
       correlationId: id,
       createdAt: now,
     })));
+    return { blockedHistoricalQuestionIds: [] as string[] };
   });
 
- return NextResponse.json({ updated: ids.length });
+  if (result.blockedHistoricalQuestionIds.length > 0) {
+    return NextResponse.json(
+      {
+        error: 'Soal historis harus memiliki assessment source yang valid dan minimal satu Idea published sebelum dipublikasikan.',
+        code: 'HISTORICAL_PUBLICATION_REQUIREMENTS_NOT_MET',
+        questionIds: result.blockedHistoricalQuestionIds,
+      },
+      { status: 400 },
+    );
+  }
+
+  return NextResponse.json({ updated: ids.length });
 }
 
 export async function POST(req: NextRequest) {

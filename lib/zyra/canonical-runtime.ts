@@ -385,7 +385,10 @@ async function loadCanonicalRecords(
           .where(and(inArray(potonganSumber.id, sourceChunkIds), eq(potonganSumber.embeddingEligible, true)))
       : Promise.resolve([]),
     questionIds.length
-      ? db.select().from(soal).where(inArray(soal.id, questionIds))
+      ? db.select().from(soal).where(and(
+          inArray(soal.id, questionIds),
+          or(eq(soal.origin, "zyx_original"), eq(soal.origin, "itb_example"), eq(soal.quizEligible, true)),
+        ))
       : Promise.resolve([]),
     solutionIds.length
       ? db.select({
@@ -399,7 +402,10 @@ async function loadCanonicalRecords(
           questionStatus: soal.status,
         }).from(pembahasanSoal)
           .innerJoin(soal, eq(pembahasanSoal.soalId, soal.id))
-          .where(inArray(pembahasanSoal.id, solutionIds))
+          .where(and(
+            inArray(pembahasanSoal.id, solutionIds),
+            or(eq(soal.origin, "zyx_original"), eq(soal.origin, "itb_example"), eq(soal.quizEligible, true)),
+          ))
       : Promise.resolve([]),
     referenceIds.length
       ? db.select({
