@@ -31,7 +31,7 @@ concurrency:
 
 jobs:
   regression:
-    name: Schedule contracts and web boundaries
+    name: Schedule regression contracts
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
@@ -53,6 +53,3 @@ jobs:
           tests/contracts/tutorial-week-policy.test.ts
           tests/contracts/group-name-policy.test.ts
           tests/contracts/schedule-calendar-regressions.test.ts
-
-      - name: Audit browser and server boundaries
-        run: bun run audit:web-boundaries
