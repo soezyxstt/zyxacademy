@@ -517,7 +517,7 @@ export function AcademicSchedulesDashboard({ initialData, initialWeekOffset = 0 
 
         {activeTab === "calendar" ? (
           <Select value={calendarMode} onValueChange={setCalendarMode}>
-            <SelectTrigger className="h-9 w-[140px] shrink-0 rounded-lg text-body-xs font-semibold">
+            <SelectTrigger className="h-9 w-[140px] shrink-0 rounded-lg text-body-sm font-semibold">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -527,15 +527,15 @@ export function AcademicSchedulesDashboard({ initialData, initialWeekOffset = 0 
           </Select>
         ) : null}
 
-        <Button variant="outline" size="sm" disabled={batchMeetLoading} onClick={handleBatchMeetAutomation} className="h-9 shrink-0 gap-1.5 rounded-lg px-2.5 text-body-xs font-semibold text-blue-600">
+        <Button variant="outline" size="sm" disabled={batchMeetLoading} onClick={handleBatchMeetAutomation} className="h-9 shrink-0 gap-1.5 rounded-lg px-2.5 text-body-sm font-semibold text-blue-600">
           <Bot className="size-3.5" />
           <span className="hidden sm:inline">Otomasi Meet</span>
         </Button>
 
         {activeTab === "calendar" && calendarMode === "tutorial" ? (
-          <Button size="sm" onClick={openAvailabilityDialog} className="h-9 shrink-0 gap-1.5 rounded-lg text-body-xs font-semibold"><Plus className="size-3.5" />Tambah availability</Button>
+          <Button size="sm" onClick={openAvailabilityDialog} className="h-9 shrink-0 gap-1.5 rounded-lg text-body-sm font-semibold"><Plus className="size-3.5" />Tambah availability</Button>
         ) : (
-          <Button size="sm" onClick={handleOpenCreate} className="h-9 shrink-0 gap-1.5 rounded-lg text-body-xs font-semibold"><Plus className="size-3.5" />Buat jadwal</Button>
+          <Button size="sm" onClick={handleOpenCreate} className="h-9 shrink-0 gap-1.5 rounded-lg text-body-sm font-semibold"><Plus className="size-3.5" />Buat jadwal</Button>
         )}
       </div>
 
@@ -596,9 +596,9 @@ export function AcademicSchedulesDashboard({ initialData, initialWeekOffset = 0 
                     {schedule.description ? <p className="mt-2 line-clamp-3 whitespace-pre-wrap break-words text-body-xs text-muted-foreground">{schedule.description}</p> : null}
                   </td>
                   <td className="px-4 py-3 text-body-xs">{schedule.course?.title || <span className="text-muted-foreground">Semua mata kuliah</span>}</td>
-                  <td className="whitespace-nowrap px-4 py-3 text-body-xs text-muted-foreground">{formatIsoDate(new Date(schedule.startDate))}{schedule.endDate ? ` – ${formatIsoDate(new Date(schedule.endDate))}` : ""}</td>
+                  <td className="whitespace-nowrap px-4 py-3 text-body-xs text-muted-foreground">{formatIsoDate(new Date(schedule.startDate))}{schedule.endDate ? ` - ${formatIsoDate(new Date(schedule.endDate))}` : ""}</td>
                   <td className="max-w-xs break-all px-4 py-3 text-body-xs text-muted-foreground">{schedule.location || "-"}</td>
-                  <td className="px-4 py-3"><StatusBadge tone="success">Published</StatusBadge></td>
+                  <td className="px-4 py-3"><StatusBadge tone="success">Dipublikasikan</StatusBadge></td>
                   <td className="px-4 py-3"><div className="flex justify-center gap-1"><Button variant="ghost" size="xs" onClick={() => handleOpenEdit(schedule)} title="Edit"><Edit3 className="size-4" /></Button><Button variant="ghost" size="xs" onClick={() => setPendingDeleteSchedule(schedule)} className="text-red-500" title="Hapus"><Trash2 className="size-4" /></Button></div></td>
                 </tr>
               ))}
@@ -670,7 +670,7 @@ export function AcademicSchedulesDashboard({ initialData, initialWeekOffset = 0 
         <DialogContent className="max-w-lg">
           <DialogHeader><DialogTitle>Tetapkan sesi tutorial</DialogTitle><DialogDescription>Isi slot yang tersedia dengan kelompok dan mata kuliah.</DialogDescription></DialogHeader>
           {assignmentSlot ? <form onSubmit={handleAssignmentSubmit} className="space-y-4">
-            <div className="rounded-lg border bg-muted/20 p-3 text-body-xs">{assignmentSlot.sessionDate} · {assignmentSlot.startTime} – {assignmentSlot.endTime} · {assignmentSlot.tutor?.name || "Tutor"}</div>
+            <div className="rounded-lg border bg-muted/20 p-3 text-body-xs">{assignmentSlot.sessionDate} · {assignmentSlot.startTime} - {assignmentSlot.endTime} · {assignmentSlot.tutor?.name || "Tutor"}</div>
             <div className="space-y-1.5"><label className="text-body-xs font-semibold">Kelompok</label><Select value={assignmentGroupId} onValueChange={setAssignmentGroupId}><SelectTrigger><SelectValue placeholder="Pilih kelompok" /></SelectTrigger><SelectContent>{data.groups.map((group: any) => <SelectItem key={group.id} value={group.id}>{group.name}</SelectItem>)}</SelectContent></Select></div>
             <div className="space-y-1.5"><label className="text-body-xs font-semibold">Mata kuliah</label><Select value={assignmentCourseId} onValueChange={setAssignmentCourseId}><SelectTrigger><SelectValue placeholder="Pilih mata kuliah" /></SelectTrigger><SelectContent>{data.courses.map((course: any) => <SelectItem key={course.id} value={course.id}>{course.title}</SelectItem>)}</SelectContent></Select></div>
             <div className="space-y-1.5"><label className="text-body-xs font-semibold">Topik awal (opsional)</label><Input value={assignmentTopic} onChange={(event) => setAssignmentTopic(event.target.value)} /></div>
@@ -681,7 +681,7 @@ export function AcademicSchedulesDashboard({ initialData, initialWeekOffset = 0 
       </Dialog>
 
       <Dialog open={Boolean(moveBooking)} onOpenChange={(open) => !open && setMoveBooking(null)}>
-        <DialogContent className="max-w-lg"><DialogHeader><DialogTitle>Pindahkan sesi tutorial</DialogTitle><DialogDescription>Pilih slot konkret yang masih kosong dan beri alasan override.</DialogDescription></DialogHeader>{moveBooking ? <form onSubmit={handleMoveSubmit} className="space-y-4"><div className="space-y-1.5"><label className="text-body-xs font-semibold">Slot tujuan</label><Select value={moveTargetSlotId} onValueChange={setMoveTargetSlotId}><SelectTrigger><SelectValue placeholder="Pilih slot kosong" /></SelectTrigger><SelectContent>{data.slots.filter((slot: any) => slot.sessionDate && !slot.booking && slot.id !== moveBooking.slotId).map((slot: any) => <SelectItem key={slot.id} value={slot.id}>{slot.sessionDate} · {slot.startTime} – {slot.endTime} · {slot.tutor?.name || "Tutor"}</SelectItem>)}</SelectContent></Select></div><div className="space-y-1.5"><label className="text-body-xs font-semibold">Alasan override</label><Textarea value={moveReason} onChange={(event) => setMoveReason(event.target.value)} required rows={3} /></div><DialogFooter><DialogClose asChild><Button type="button" variant="outline" disabled={moveLoading}>Batal</Button></DialogClose><Button type="submit" isLoading={moveLoading}>Pindahkan sesi</Button></DialogFooter></form> : null}</DialogContent>
+        <DialogContent className="max-w-lg"><DialogHeader><DialogTitle>Pindahkan sesi tutorial</DialogTitle><DialogDescription>Pilih slot konkret yang masih kosong dan beri alasan override.</DialogDescription></DialogHeader>{moveBooking ? <form onSubmit={handleMoveSubmit} className="space-y-4"><div className="space-y-1.5"><label className="text-body-xs font-semibold">Slot tujuan</label><Select value={moveTargetSlotId} onValueChange={setMoveTargetSlotId}><SelectTrigger><SelectValue placeholder="Pilih slot kosong" /></SelectTrigger><SelectContent>{data.slots.filter((slot: any) => slot.sessionDate && !slot.booking && slot.id !== moveBooking.slotId).map((slot: any) => <SelectItem key={slot.id} value={slot.id}>{slot.sessionDate} · {slot.startTime} - {slot.endTime} · {slot.tutor?.name || "Tutor"}</SelectItem>)}</SelectContent></Select></div><div className="space-y-1.5"><label className="text-body-xs font-semibold">Alasan override</label><Textarea value={moveReason} onChange={(event) => setMoveReason(event.target.value)} required rows={3} /></div><DialogFooter><DialogClose asChild><Button type="button" variant="outline" disabled={moveLoading}>Batal</Button></DialogClose><Button type="submit" isLoading={moveLoading}>Pindahkan sesi</Button></DialogFooter></form> : null}</DialogContent>
       </Dialog>
 
       <Dialog open={Boolean(cancelBooking)} onOpenChange={(open) => !open && setCancelBooking(null)}>

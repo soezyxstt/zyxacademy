@@ -454,7 +454,7 @@ export function TutorScheduleView({
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
             <h1 className="font-heading text-xl font-bold text-foreground">Jadwal Tutorial</h1>
             <span className="text-body-sm font-semibold text-foreground">
-              {weekInfo.days[0].dayOfMonth} {weekInfo.days[0].monthName} – {weekInfo.days[6].dayOfMonth} {weekInfo.days[6].monthName} {weekInfo.days[6].dateIso.slice(0, 4)}
+              {weekInfo.days[0].dayOfMonth} {weekInfo.days[0].monthName} - {weekInfo.days[6].dayOfMonth} {weekInfo.days[6].monthName} {weekInfo.days[6].dateIso.slice(0, 4)}
             </span>
           </div>
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-body-xs text-muted-foreground">
