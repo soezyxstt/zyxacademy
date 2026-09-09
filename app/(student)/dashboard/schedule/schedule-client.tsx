@@ -18,8 +18,7 @@ import {
   SessionDetailDrawer,
   type PendingSessionResource,
 } from "@/components/schedule/session-detail-drawer";
-import { daysFrom, getJakartaNow } from "@/lib/date-utils";
-import { getWeekScheduleDays } from "@/lib/schedule-lock";
+import { daysFrom, getJakartaNow, getWeekScheduleDays } from "@/lib/date-utils";
 import { isTutorialWeekLocked } from "@/lib/schedule/week-policy";
 
 function LoadingState() {
