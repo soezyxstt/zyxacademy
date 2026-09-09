@@ -138,19 +138,41 @@ export async function executeListQuizzes(input: ListQuizzesInput) {
     conditions.push(eq(quizTemplates.status, input.status as "draft" | "published"));
   }
 
-  // Search is ranked in memory rather than translated directly to SQL LIKE. This
-  // keeps entity resolution tolerant of short references and small typos while the
-  // database scope remains bounded to at most 100 quiz templates.
-  const candidateLimit = input.search?.trim() ? 100 : limit;
-  const rows = await db
-    .select()
-    .from(quizTemplates)
-    .where(conditions.length > 0 ? and(...conditions) : undefined)
-    .orderBy(desc(quizTemplates.createdAt))
-    .limit(candidateLimit);
-
   const search = input.search?.trim();
-  const rankedRows = search
+  let rows;
+  let usedFuzzyFallback = false;
+
+  if (search) {
+    // Search exact/substring matches in SQL first so the full filtered scope is
+    // considered before the result limit is applied. Only use the bounded newest
+    // set when no direct match exists and typo-tolerant fuzzy scoring is needed.
+    const directConditions = [...conditions, like(quizTemplates.title, `%${search}%`)];
+    rows = await db
+      .select()
+      .from(quizTemplates)
+      .where(and(...directConditions))
+      .orderBy(desc(quizTemplates.createdAt))
+      .limit(limit);
+
+    if (rows.length === 0) {
+      usedFuzzyFallback = true;
+      rows = await db
+        .select()
+        .from(quizTemplates)
+        .where(conditions.length > 0 ? and(...conditions) : undefined)
+        .orderBy(desc(quizTemplates.createdAt))
+        .limit(100);
+    }
+  } else {
+    rows = await db
+      .select()
+      .from(quizTemplates)
+      .where(conditions.length > 0 ? and(...conditions) : undefined)
+      .orderBy(desc(quizTemplates.createdAt))
+      .limit(limit);
+  }
+
+  const rankedRows = search && usedFuzzyFallback
     ? rows
         .map((quiz) => ({ quiz, score: scoreQuizTitleMatch(search, quiz.title) }))
         .filter(({ score }) => score >= 52)
