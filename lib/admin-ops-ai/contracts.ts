@@ -107,6 +107,36 @@ export const OpsAiProposalStatusSchema = z.enum([
 ]);
 export type OpsAiProposalStatus = z.infer<typeof OpsAiProposalStatusSchema>;
 
+export type ZyraProposalDbStatus =
+  | "draft"
+  | "validated"
+  | "reviewed"
+  | "confirmed"
+  | "applied"
+  | "rejected"
+  | "expired"
+  | "failed";
+
+export const PROPOSAL_STATUS_TO_DB: Record<OpsAiProposalStatus, ZyraProposalDbStatus> = {
+  pending: "draft",
+  executing: "confirmed",
+  executed: "applied",
+  cancelled: "rejected",
+  expired: "expired",
+  failed: "failed",
+};
+
+export const DB_STATUS_TO_PROPOSAL: Record<ZyraProposalDbStatus, OpsAiProposalStatus> = {
+  draft: "pending",
+  validated: "pending",
+  reviewed: "pending",
+  confirmed: "executing",
+  applied: "executed",
+  rejected: "cancelled",
+  expired: "expired",
+  failed: "failed",
+};
+
 export const OpsAiPreconditionSnapshotSchema = z.object({
   version: z.number().int().positive().optional(),
   contentHash: z.string().regex(/^[a-f0-9]{64}$/i).optional(),
@@ -320,7 +350,9 @@ export const OPS_AI_TOOL_SECURITY_REGISTRY: Record<string, OpsAiToolSecurityClas
     allowsMutation: true,
     description: "Eksekutor server-side yang hanya dipicu klik eksplisit admin pada UI proposal.",
   },
+} as const;
 
+export const OPS_AI_DOMAIN_TOOL_SECURITY_REGISTRY: Record<string, OpsAiToolSecurityClassification> = {
   // ─── 1. Academic & Curriculum ────────────────────────────────────────────────
   list_courses: {
     name: "list_courses",
@@ -343,36 +375,36 @@ export const OPS_AI_TOOL_SECURITY_REGISTRY: Record<string, OpsAiToolSecurityClas
   create_course: {
     name: "create_course",
     toolClass: "autonomous-mutation",
-    isModelCallable: true,
+    isModelCallable: false,
     requiredRole: "admin",
-    requiresHumanConfirmation: false,
+    requiresHumanConfirmation: true,
     allowsMutation: true,
     description: "Membuat mata kuliah baru di platform Zyx secara otonom.",
   },
   update_course: {
     name: "update_course",
     toolClass: "autonomous-mutation",
-    isModelCallable: true,
+    isModelCallable: false,
     requiredRole: "admin",
-    requiresHumanConfirmation: false,
+    requiresHumanConfirmation: true,
     allowsMutation: true,
     description: "Mengubah metadata mata kuliah yang sudah ada.",
   },
   batch_create_chapters: {
     name: "batch_create_chapters",
     toolClass: "autonomous-mutation",
-    isModelCallable: true,
+    isModelCallable: false,
     requiredRole: "admin",
-    requiresHumanConfirmation: false,
+    requiresHumanConfirmation: true,
     allowsMutation: true,
     description: "Membuat daftar bab materi sekaligus secara terurut dan atomik.",
   },
   update_chapter: {
     name: "update_chapter",
     toolClass: "autonomous-mutation",
-    isModelCallable: true,
+    isModelCallable: false,
     requiredRole: "admin",
-    requiresHumanConfirmation: false,
+    requiresHumanConfirmation: true,
     allowsMutation: true,
     description: "Mengubah judul atau urutan bab materi.",
   },
@@ -388,9 +420,9 @@ export const OPS_AI_TOOL_SECURITY_REGISTRY: Record<string, OpsAiToolSecurityClas
   bulk_update_materials: {
     name: "bulk_update_materials",
     toolClass: "autonomous-mutation",
-    isModelCallable: true,
+    isModelCallable: false,
     requiredRole: "admin",
-    requiresHumanConfirmation: false,
+    requiresHumanConfirmation: true,
     allowsMutation: true,
     description: "Memperbarui metadata (judul, tipe, subkategori, tahun, bab) pada beberapa berkas materi kuliah atau PDF sekaligus.",
   },
@@ -417,18 +449,18 @@ export const OPS_AI_TOOL_SECURITY_REGISTRY: Record<string, OpsAiToolSecurityClas
   create_quiz: {
     name: "create_quiz",
     toolClass: "autonomous-mutation",
-    isModelCallable: true,
+    isModelCallable: false,
     requiredRole: "admin",
-    requiresHumanConfirmation: false,
+    requiresHumanConfirmation: true,
     allowsMutation: true,
     description: "Membuat kuis asesmen baru secara otonom.",
   },
   update_quiz: {
     name: "update_quiz",
     toolClass: "autonomous-mutation",
-    isModelCallable: true,
+    isModelCallable: false,
     requiredRole: "admin",
-    requiresHumanConfirmation: false,
+    requiresHumanConfirmation: true,
     allowsMutation: true,
     description: "Mengubah properti kuis (judul, durasi, status publikasi).",
   },
@@ -444,18 +476,18 @@ export const OPS_AI_TOOL_SECURITY_REGISTRY: Record<string, OpsAiToolSecurityClas
   create_question: {
     name: "create_question",
     toolClass: "autonomous-mutation",
-    isModelCallable: true,
+    isModelCallable: false,
     requiredRole: "admin",
-    requiresHumanConfirmation: false,
+    requiresHumanConfirmation: true,
     allowsMutation: true,
     description: "Menambahkan soal baru ke bank soal Zyx.",
   },
   publish_question: {
     name: "publish_question",
     toolClass: "autonomous-mutation",
-    isModelCallable: true,
+    isModelCallable: false,
     requiredRole: "admin",
-    requiresHumanConfirmation: false,
+    requiresHumanConfirmation: true,
     allowsMutation: true,
     description: "Mempublikasikan soal di bank soal agar siap dipakai kuis.",
   },
@@ -471,9 +503,9 @@ export const OPS_AI_TOOL_SECURITY_REGISTRY: Record<string, OpsAiToolSecurityClas
   reset_quiz_attempt: {
     name: "reset_quiz_attempt",
     toolClass: "autonomous-mutation",
-    isModelCallable: true,
+    isModelCallable: false,
     requiredRole: "admin",
-    requiresHumanConfirmation: false,
+    requiresHumanConfirmation: true,
     allowsMutation: true,
     description: "Mereset percobaan pengerjaan kuis siswa yang terputus atau bermasalah agar siswa dapat mengulang kembali.",
   },
@@ -491,18 +523,18 @@ export const OPS_AI_TOOL_SECURITY_REGISTRY: Record<string, OpsAiToolSecurityClas
   create_meet_session: {
     name: "create_meet_session",
     toolClass: "autonomous-mutation",
-    isModelCallable: true,
+    isModelCallable: false,
     requiredRole: "admin",
-    requiresHumanConfirmation: false,
+    requiresHumanConfirmation: true,
     allowsMutation: true,
     description: "Membuat jadwal meet sesi tutorial beserta link Google Meet terintegrasi.",
   },
   reschedule_or_cancel_meet: {
     name: "reschedule_or_cancel_meet",
     toolClass: "autonomous-mutation",
-    isModelCallable: true,
+    isModelCallable: false,
     requiredRole: "admin",
-    requiresHumanConfirmation: false,
+    requiresHumanConfirmation: true,
     allowsMutation: true,
     description: "Memindahkan jadwal atau membatalkan sesi meet tutorial.",
   },
@@ -529,27 +561,27 @@ export const OPS_AI_TOOL_SECURITY_REGISTRY: Record<string, OpsAiToolSecurityClas
   create_study_group: {
     name: "create_study_group",
     toolClass: "autonomous-mutation",
-    isModelCallable: true,
+    isModelCallable: false,
     requiredRole: "admin",
-    requiresHumanConfirmation: false,
+    requiresHumanConfirmation: true,
     allowsMutation: true,
     description: "Membuat kelompok belajar baru dengan kuota anggota tertentu.",
   },
   assign_tutor_to_group: {
     name: "assign_tutor_to_group",
     toolClass: "autonomous-mutation",
-    isModelCallable: true,
+    isModelCallable: false,
     requiredRole: "admin",
-    requiresHumanConfirmation: false,
+    requiresHumanConfirmation: true,
     allowsMutation: true,
     description: "Menugaskan tutor ke suatu kelompok belajar.",
   },
   create_enrollment_token: {
     name: "create_enrollment_token",
     toolClass: "autonomous-mutation",
-    isModelCallable: true,
+    isModelCallable: false,
     requiredRole: "admin",
-    requiresHumanConfirmation: false,
+    requiresHumanConfirmation: true,
     allowsMutation: true,
     description: "Membuat token aktivasi pendaftaran grup belajar secara langsung.",
   },
@@ -576,27 +608,27 @@ export const OPS_AI_TOOL_SECURITY_REGISTRY: Record<string, OpsAiToolSecurityClas
   update_user_role: {
     name: "update_user_role",
     toolClass: "autonomous-mutation",
-    isModelCallable: true,
+    isModelCallable: false,
     requiredRole: "admin",
-    requiresHumanConfirmation: false,
+    requiresHumanConfirmation: true,
     allowsMutation: true,
     description: "Mengubah hak akses peran pengguna (admin/tutor/murid).",
   },
   toggle_user_status: {
     name: "toggle_user_status",
     toolClass: "autonomous-mutation",
-    isModelCallable: true,
+    isModelCallable: false,
     requiredRole: "admin",
-    requiresHumanConfirmation: false,
+    requiresHumanConfirmation: true,
     allowsMutation: true,
     description: "Mengaktifkan atau menonaktifkan akun pengguna.",
   },
   send_broadcast_notification: {
     name: "send_broadcast_notification",
     toolClass: "autonomous-mutation",
-    isModelCallable: true,
+    isModelCallable: false,
     requiredRole: "admin",
-    requiresHumanConfirmation: false,
+    requiresHumanConfirmation: true,
     allowsMutation: true,
     description: "Mengirim notifikasi broadcast ke seluruh atau sebagian siswa.",
   },
@@ -612,18 +644,18 @@ export const OPS_AI_TOOL_SECURITY_REGISTRY: Record<string, OpsAiToolSecurityClas
   create_pka_announcement: {
     name: "create_pka_announcement",
     toolClass: "autonomous-mutation",
-    isModelCallable: true,
+    isModelCallable: false,
     requiredRole: "admin",
-    requiresHumanConfirmation: false,
+    requiresHumanConfirmation: true,
     allowsMutation: true,
     description: "Mempublikasikan pengumuman untuk peserta program PKA.",
   },
   create_pka_schedule: {
     name: "create_pka_schedule",
     toolClass: "autonomous-mutation",
-    isModelCallable: true,
+    isModelCallable: false,
     requiredRole: "admin",
-    requiresHumanConfirmation: false,
+    requiresHumanConfirmation: true,
     allowsMutation: true,
     description: "Menambahkan jadwal sesi belajar program PKA.",
   },
@@ -639,9 +671,9 @@ export const OPS_AI_TOOL_SECURITY_REGISTRY: Record<string, OpsAiToolSecurityClas
   create_or_update_form: {
     name: "create_or_update_form",
     toolClass: "autonomous-mutation",
-    isModelCallable: true,
+    isModelCallable: false,
     requiredRole: "admin",
-    requiresHumanConfirmation: false,
+    requiresHumanConfirmation: true,
     allowsMutation: true,
     description: "Membuat atau memperbarui struktur form kustom Zyx.",
   },
@@ -666,18 +698,18 @@ export const OPS_AI_TOOL_SECURITY_REGISTRY: Record<string, OpsAiToolSecurityClas
   create_blog_article: {
     name: "create_blog_article",
     toolClass: "autonomous-mutation",
-    isModelCallable: true,
+    isModelCallable: false,
     requiredRole: "admin",
-    requiresHumanConfirmation: false,
+    requiresHumanConfirmation: true,
     allowsMutation: true,
     description: "Membuat draf atau mempublikasikan artikel blog baru.",
   },
   publish_blog_article: {
     name: "publish_blog_article",
     toolClass: "autonomous-mutation",
-    isModelCallable: true,
+    isModelCallable: false,
     requiredRole: "admin",
-    requiresHumanConfirmation: false,
+    requiresHumanConfirmation: true,
     allowsMutation: true,
     description: "Mengubah status publikasi artikel blog.",
   },
@@ -693,48 +725,50 @@ export const OPS_AI_TOOL_SECURITY_REGISTRY: Record<string, OpsAiToolSecurityClas
   set_feature_flag: {
     name: "set_feature_flag",
     toolClass: "autonomous-mutation",
-    isModelCallable: true,
+    isModelCallable: false,
     requiredRole: "admin",
-    requiresHumanConfirmation: false,
+    requiresHumanConfirmation: true,
     allowsMutation: true,
     description: "Mengaktifkan atau mematikan status feature flag.",
   },
   create_short_link: {
     name: "create_short_link",
     toolClass: "autonomous-mutation",
-    isModelCallable: true,
+    isModelCallable: false,
     requiredRole: "admin",
-    requiresHumanConfirmation: false,
+    requiresHumanConfirmation: true,
     allowsMutation: true,
     description: "Membuat tautan redirect pendek kustom (/s/xyz).",
   },
   trigger_ai_job: {
     name: "trigger_ai_job",
     toolClass: "autonomous-mutation",
-    isModelCallable: true,
+    isModelCallable: false,
     requiredRole: "admin",
-    requiresHumanConfirmation: false,
+    requiresHumanConfirmation: true,
     allowsMutation: true,
     description: "Memicu background processing job AI untuk materi atau bank soal.",
   },
 } as const;
 
+export const ALL_OPS_AI_TOOL_SECURITY_REGISTRY: Record<string, OpsAiToolSecurityClassification> = {
+  ...OPS_AI_TOOL_SECURITY_REGISTRY,
+  ...OPS_AI_DOMAIN_TOOL_SECURITY_REGISTRY,
+};
+
 /**
- * Invariant Assertion: Model-callable tools may only mutate if classified as autonomous-mutation with admin role.
+ * Invariant Assertion: Model-callable tools may never mutate.
  */
 export function assertNoModelCallableMutation(
-  registry: Record<string, OpsAiToolSecurityClassification> = OPS_AI_TOOL_SECURITY_REGISTRY
+  registry: Record<string, OpsAiToolSecurityClassification> = ALL_OPS_AI_TOOL_SECURITY_REGISTRY
 ): void {
   for (const [name, tool] of Object.entries(registry)) {
     if (tool.isModelCallable) {
-      if (tool.toolClass === "confirmation-executor") {
-        throw new Error(`Security Invariant Violation: Model-callable tool '${name}' has forbidden class 'confirmation-executor'.`);
+      if (tool.toolClass === "confirmation-executor" || tool.toolClass === "autonomous-mutation") {
+        throw new Error(`Security Invariant Violation: Model-callable tool '${name}' has forbidden class '${tool.toolClass}'.`);
       }
-      if (tool.toolClass !== "autonomous-mutation" && tool.allowsMutation) {
-        throw new Error(`Security Invariant Violation: Model-callable tool '${name}' with class '${tool.toolClass}' cannot have allowsMutation=true.`);
-      }
-      if (tool.toolClass === "autonomous-mutation" && tool.requiredRole !== "admin" && tool.requiredRole !== "superadmin") {
-        throw new Error(`Security Invariant Violation: Autonomous mutation tool '${name}' must require admin role.`);
+      if (tool.allowsMutation) {
+        throw new Error(`Security Invariant Violation: Model-callable tool '${name}' cannot have allowsMutation=true.`);
       }
     }
   }

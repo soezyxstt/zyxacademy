@@ -3,7 +3,7 @@ import { describe, expect, it, spyOn, beforeEach, afterEach } from "bun:test";
 process.env.MOCK_GEMINI = "true";
 import { repairJsonString } from "@/lib/ko-utils";
 import { loadAiFixture } from "../helpers/ai-fixtures";
-import { PromptExecutor } from "@/lib/prompt-executor";
+import { PromptExecutor, getStructuredOutputMetrics, resetStructuredOutputMetrics } from "@/lib/prompt-executor";
 import { PromptContract } from "@/lib/ai/contracts";
 import { POLICY_JSON_STRICT, POLICY_ZYX_VOICE, POLICY_MATH_LATEX } from "@/lib/ai/policies";
 import { SemanticValidator } from "@/lib/ai/validation";
@@ -501,4 +501,134 @@ describe("PromptExecutor Contract Tests", () => {
 
     spy.mockRestore();
   });
+
+  it("AI-PROMPT-011: Structured output parsing via Output.object with semantic validation and fallback", async () => {
+    const spy = spyOn(geminiModule, "generateContentWithFallback");
+    spy.mockResolvedValueOnce({
+      response: {
+        text: JSON.stringify({
+          conceptName: "Limit Fungsi",
+          steps: ["Evaluasi substitusi langsung", "Faktorisasi jika bentuk tak tentu"],
+          confidenceScore: 0.95,
+        }),
+      },
+      modelUsed: "gemini-2.5-flash",
+      viaGateway: true,
+      promptTokenCount: 150,
+      candidatesTokenCount: 60,
+    });
+
+    const schema = z.object({
+      conceptName: z.string(),
+      steps: z.array(z.string()),
+      confidenceScore: z.number().min(0).max(1),
+    });
+
+    const contract: PromptContract<{ topic: string }, z.infer<typeof schema>> = {
+      stageId: "structured-output-test",
+      promptVersion: "1.0",
+      policies: [POLICY_JSON_STRICT],
+      inputSchemaVersion: "1.0",
+      outputSchemaVersion: "1.0",
+      systemInstruction: "Berikan penjelasan terstruktur.",
+      userPrompt: (vars) => `Jelaskan ${vars.topic}`,
+    };
+
+    const result = await PromptExecutor.run({
+      userId: "usr_struct_001",
+      contract,
+      variables: { topic: "Limit" },
+      schema,
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.outcome).toBe("success");
+    expect(result.data?.conceptName).toBe("Limit Fungsi");
+    expect(result.data?.steps).toHaveLength(2);
+    expect(result.data?.confidenceScore).toBe(0.95);
+
+    spy.mockRestore();
+  });
+
+  it("AI-PROMPT-012: Observability metrics track native success and mode behavior", async () => {
+    resetStructuredOutputMetrics();
+    const spy = spyOn(geminiModule, "generateContentWithFallback");
+    spy.mockResolvedValueOnce({
+      response: {
+        text: JSON.stringify({ score: 100 }),
+      },
+      modelUsed: "gemini-2.5-flash",
+      viaGateway: true,
+      promptTokenCount: 50,
+      candidatesTokenCount: 20,
+    });
+
+    const schema = z.object({ score: z.number() });
+    const contract: PromptContract<any, z.infer<typeof schema>> = {
+      stageId: "metric-test",
+      promptVersion: "1.0",
+      policies: [POLICY_JSON_STRICT],
+      inputSchemaVersion: "1.0",
+      outputSchemaVersion: "1.0",
+      systemInstruction: "Score answer",
+      userPrompt: () => "Evaluate",
+      structuredOutputMode: "native-only",
+    };
+
+    const result = await PromptExecutor.run({
+      userId: "usr_metric_001",
+      contract,
+      variables: {},
+      schema,
+    });
+
+    expect(result.success).toBe(true);
+    const metrics = getStructuredOutputMetrics();
+    expect(metrics.structured_output_native_success).toBeGreaterThanOrEqual(1);
+
+    spy.mockRestore();
+  });
+
+  it("AI-PROMPT-013: Legacy fallback mode is measured and records fallback_used metric", async () => {
+    resetStructuredOutputMetrics();
+    const spy = spyOn(geminiModule, "generateContentWithFallback");
+    // Trailing comma makes native JSON parser fail, but repairJsonString fixes it
+    spy.mockResolvedValueOnce({
+      response: {
+        text: '{"status": "ok", "items": [1, 2, ],}',
+      },
+      modelUsed: "gemini-2.5-flash",
+      viaGateway: true,
+      promptTokenCount: 50,
+      candidatesTokenCount: 20,
+    });
+
+    const schema = z.object({ status: z.string(), items: z.array(z.number()) });
+    const contract: PromptContract<any, z.infer<typeof schema>> = {
+      stageId: "legacy-fallback-test",
+      promptVersion: "1.0",
+      policies: [POLICY_JSON_STRICT],
+      inputSchemaVersion: "1.0",
+      outputSchemaVersion: "1.0",
+      systemInstruction: "Return items",
+      userPrompt: () => "Get items",
+      structuredOutputMode: "legacy-fallback",
+      maxAttempts: 1,
+    };
+
+    const result = await PromptExecutor.run({
+      userId: "usr_fallback_001",
+      contract,
+      variables: {},
+      schema,
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.data?.status).toBe("ok");
+    const metrics = getStructuredOutputMetrics();
+    expect(metrics.structured_output_fallback_used).toBeGreaterThanOrEqual(1);
+
+    spy.mockRestore();
+  });
 });
+

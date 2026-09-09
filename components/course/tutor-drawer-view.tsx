@@ -65,6 +65,7 @@ import { zyraImageFilesFromClipboard } from "@/lib/zyra/images/composer";
 import type { ZyraMessageAttachment } from "@/lib/zyra/images/contracts";
 import { ZyraMessageAttachments } from "@/components/course/zyra-message-attachments";
 import { getFlashcardsForKOAction } from "@/app/actions/tutor-extra";
+import { consumeZyraStream } from "@/lib/zyra/stream-consumer";
 
 export type TutorMode = "explain" | "mistake" | "study-plan" | "chat" | null;
 type ActiveAction = "none" | "flashcards" | "practice-quiz";
@@ -708,62 +709,46 @@ export function TutorDrawerView({
         throw new Error(errText);
       }
 
-      const reader = response.body?.getReader();
-      const decoder = new TextDecoder();
-      let buffer = "";
-
-      if (reader) {
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-
-          buffer += decoder.decode(value, { stream: true });
-          const lines = buffer.split("\n");
-          buffer = lines.pop() || "";
-
-          for (const line of lines) {
-            const trimmed = line.trim();
-            if (!trimmed.startsWith("data: ")) continue;
-            const dataStr = trimmed.slice(6).trim();
-            if (dataStr === "[DONE]") break;
-
-            try {
-              const parsed = JSON.parse(dataStr);
-              if ((parsed.type === "text-delta" && parsed.textDelta) || (parsed.type === "chunk" && parsed.text)) {
-                accumulatedContent += (parsed.textDelta || parsed.text);
-                setMessages((prev) =>
-                  prev.map((m) =>
-                    m.id === aiMsgId ? { ...m, content: accumulatedContent } : m
-                  )
-                );
-              } else if (parsed.type === "data-sources" && parsed.sources) {
-                finalSources = parsed.sources;
-                setMessages((prev) =>
-                  prev.map((m) =>
-                    m.id === aiMsgId ? { ...m, sources: parsed.sources } : m
-                  )
-                );
-              } else if (parsed.type === "data-canvas" && parsed.canvasSpec) {
-                finalCanvasSpec = parsed.canvasSpec;
-                setMessages((prev) =>
-                  prev.map((m) =>
-                    m.id === aiMsgId ? { ...m, canvasSpec: parsed.canvasSpec } : m
-                  )
-                );
-              } else if (parsed.type === "data-session" && parsed.sessionId) {
-                activeSid = parsed.sessionId;
-                setSessionId(parsed.sessionId);
-              } else if (parsed.type === "data-error" && parsed.data?.message) {
-                accumulatedContent = `Maaf, terjadi kendala: ${parsed.data.message}`;
-                setMessages((prev) =>
-                  prev.map((m) =>
-                    m.id === aiMsgId ? { ...m, content: accumulatedContent } : m
-                  )
-                );
-              }
-            } catch {
-              // Ignore parse errors on individual stream chunks
-            }
+      if (response.body) {
+        for await (const part of consumeZyraStream(response.body, abortController.signal)) {
+          if (part.type === "text-delta" && part.textDelta) {
+            accumulatedContent += part.textDelta;
+            setMessages((prev) =>
+              prev.map((m) =>
+                m.id === aiMsgId ? { ...m, content: accumulatedContent } : m
+              )
+            );
+          } else if (part.type === "chunk" && part.text) {
+            accumulatedContent += part.text;
+            setMessages((prev) =>
+              prev.map((m) =>
+                m.id === aiMsgId ? { ...m, content: accumulatedContent } : m
+              )
+            );
+          } else if (part.type === "data-sources" && part.sources) {
+            finalSources = part.sources;
+            setMessages((prev) =>
+              prev.map((m) =>
+                m.id === aiMsgId ? { ...m, sources: part.sources } : m
+              )
+            );
+          } else if (part.type === "data-canvas" && part.canvasSpec) {
+            finalCanvasSpec = part.canvasSpec;
+            setMessages((prev) =>
+              prev.map((m) =>
+                m.id === aiMsgId ? { ...m, canvasSpec: part.canvasSpec } : m
+              )
+            );
+          } else if (part.type === "data-session" && part.sessionId) {
+            activeSid = part.sessionId;
+            setSessionId(part.sessionId);
+          } else if (part.type === "data-error" && part.data?.message) {
+            accumulatedContent = `Maaf, terjadi kendala: ${part.data.message}`;
+            setMessages((prev) =>
+              prev.map((m) =>
+                m.id === aiMsgId ? { ...m, content: accumulatedContent } : m
+              )
+            );
           }
         }
       }

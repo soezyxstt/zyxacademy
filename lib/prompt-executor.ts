@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { generateContentWithFallback } from "@/lib/gemini";
 import { UsageBudgetService } from "@/lib/usage-budget-service";
 import { z } from "zod";
+import { Output } from "ai";
 import { repairJsonString } from "./ko-utils";
 import { PromptContract } from "./ai/contracts";
 import { composePolicies, POLICY_JSON_STRICT } from "./ai/policies";
@@ -24,6 +25,28 @@ export type ExecutionOutcome =
   | 'quota_exceeded'
   | 'provider_failure'
   | 'invalid_contract';
+
+export interface StructuredOutputMetrics {
+  structured_output_native_success: number;
+  structured_output_fallback_used: number;
+  structured_output_fallback_failed: number;
+}
+
+const globalStructuredOutputMetrics: StructuredOutputMetrics = {
+  structured_output_native_success: 0,
+  structured_output_fallback_used: 0,
+  structured_output_fallback_failed: 0,
+};
+
+export function getStructuredOutputMetrics(): StructuredOutputMetrics {
+  return { ...globalStructuredOutputMetrics };
+}
+
+export function resetStructuredOutputMetrics(): void {
+  globalStructuredOutputMetrics.structured_output_native_success = 0;
+  globalStructuredOutputMetrics.structured_output_fallback_used = 0;
+  globalStructuredOutputMetrics.structured_output_fallback_failed = 0;
+}
 
 export function promptExecutorOwnsAllowance(allowanceEnabled: boolean, providerRouterEnabled: boolean): boolean {
   return allowanceEnabled && !providerRouterEnabled;
@@ -54,6 +77,7 @@ export interface RunParams<TVars, TOutput> {
   cacheKey?: string;
   cacheTtlSeconds?: number;
   maxAttempts?: number;
+  structuredOutputMode?: "native-only" | "legacy-fallback";
   /** Optional sanitized image parts. They bypass all shared response caches. */
   providerParts?: readonly ProviderInputPart[];
   providerRoute?: ProviderRouteRequest;
@@ -107,6 +131,7 @@ export class PromptExecutor {
       cachePolicy: params.cachePolicy,
       cacheKey: params.cacheKey,
       cacheTtlSeconds: params.cacheTtlSeconds,
+      structuredOutputMode: params.structuredOutputMode ?? contract.structuredOutputMode,
       providerParts: params.providerParts,
       providerRoute: params.providerRoute,
     });
@@ -129,6 +154,7 @@ export class PromptExecutor {
       cachePolicy?: "public_scaffold" | "personalized" | "active_assessment" | "bypass";
       cacheKey?: string;
       cacheTtlSeconds?: number;
+      structuredOutputMode?: "native-only" | "legacy-fallback";
       providerParts?: readonly ProviderInputPart[];
       providerRoute?: ProviderRouteRequest;
     }
@@ -380,30 +406,59 @@ export class PromptExecutor {
       };
     }
 
-    // 6. Initial Parse & Validation (JSON + Zod + Semantic)
+    // 6. Initial Parse & Validation (Structured Output via Output.object with fallback)
     let candidateJSON: any = null;
     let jsonParseOk = false;
-
-    try {
-      const cleanJSON = repairJsonString(rawText);
-      candidateJSON = JSON.parse(cleanJSON);
-      jsonParseOk = true;
-    } catch (err: any) {
-      violationCodes.push("JSON_PARSE_ERROR");
-      errors.push(`JSON parse error: ${err.message}`);
-    }
-
     let zodData: TOutput | undefined;
-    if (jsonParseOk) {
-      const zodResult = schema.safeParse(candidateJSON);
-      if (zodResult.success) {
-        zodData = zodResult.data;
-      } else {
-        violationCodes.push("ZOD_SCHEMA_MISMATCH");
-        const zodErrorMsg = zodResult.error.issues
-          .map((e) => `[${e.path.join(".")}]: ${e.message}`)
-          .join("; ");
-        errors.push(zodErrorMsg);
+    const structuredOutputMode = contract.structuredOutputMode ?? options?.structuredOutputMode ?? "native-only";
+
+    // Structured Output: Try AI SDK Output.object parser first
+    if (schema) {
+      try {
+        const objectDef = Output.object({ schema });
+        zodData = (await (objectDef as any).parseCompleteOutput(
+          { text: rawText },
+          {
+            response: { id: "res-0", timestamp: new Date(), modelId: modelUsedName },
+            usage: { promptTokens: inputTokens, completionTokens: outputTokens, totalTokens: inputTokens + outputTokens },
+            finishReason: "stop",
+          }
+        )) as TOutput;
+        candidateJSON = zodData;
+        jsonParseOk = true;
+        globalStructuredOutputMetrics.structured_output_native_success++;
+      } catch (nativeErr: any) {
+        if (structuredOutputMode === "legacy-fallback") {
+          try {
+            const cleanJSON = repairJsonString(rawText);
+            candidateJSON = JSON.parse(cleanJSON);
+            jsonParseOk = true;
+          } catch (err: any) {
+            violationCodes.push("JSON_PARSE_ERROR");
+            errors.push(`JSON parse error: ${err.message}`);
+          }
+
+          if (jsonParseOk) {
+            const zodResult = schema.safeParse(candidateJSON);
+            if (zodResult.success) {
+              zodData = zodResult.data;
+              globalStructuredOutputMetrics.structured_output_fallback_used++;
+            } else {
+              globalStructuredOutputMetrics.structured_output_fallback_failed++;
+              violationCodes.push("ZOD_SCHEMA_MISMATCH");
+              const zodErrorMsg = zodResult.error.issues
+                .map((e) => `[${e.path.join(".")}]: ${e.message}`)
+                .join("; ");
+              errors.push(zodErrorMsg);
+            }
+          } else {
+            globalStructuredOutputMetrics.structured_output_fallback_failed++;
+          }
+        } else {
+          globalStructuredOutputMetrics.structured_output_fallback_failed++;
+          violationCodes.push("JSON_PARSE_ERROR");
+          errors.push(`Native structured output parsing failed: ${nativeErr?.message || nativeErr}`);
+        }
       }
     }
 
@@ -685,19 +740,47 @@ Instructions:
     const cumulativeInputTokens = params.initialInputTokens + repairInputTokens;
     const cumulativeOutputTokens = params.initialOutputTokens + repairOutputTokens;
 
-    // Parse & validate repaired response
+    // Parse & validate repaired response (Structured Output via Output.object with fallback)
     let repairedJSON: any = null;
     let repairJsonOk = false;
+    let repairedData: TOutput | undefined;
     const repairViolationCodes: string[] = [];
     const repairErrors: string[] = [];
 
-    try {
-      const cleanJSON = repairJsonString(repairText);
-      repairedJSON = JSON.parse(cleanJSON);
-      repairJsonOk = true;
-    } catch (err: any) {
-      repairViolationCodes.push("JSON_PARSE_ERROR");
-      repairErrors.push(`Repair JSON parse error: ${err.message}`);
+    // Structured Output: Try AI SDK Output.object parser first
+    const repairStructuredOutputMode = params.contract.structuredOutputMode ?? "native-only";
+    if (params.schema) {
+      try {
+        const objectDef = Output.object({ schema: params.schema });
+        repairedData = (await (objectDef as any).parseCompleteOutput(
+          { text: repairText },
+          {
+            response: { id: "res-repair", timestamp: new Date(), modelId: repairModelUsed },
+            usage: { promptTokens: repairInputTokens, completionTokens: repairOutputTokens, totalTokens: repairInputTokens + repairOutputTokens },
+            finishReason: "stop",
+          }
+        )) as TOutput;
+        repairedJSON = repairedData;
+        repairJsonOk = true;
+        globalStructuredOutputMetrics.structured_output_native_success++;
+      } catch (nativeErr: any) {
+        if (repairStructuredOutputMode === "legacy-fallback") {
+          try {
+            const cleanJSON = repairJsonString(repairText);
+            repairedJSON = JSON.parse(cleanJSON);
+            repairJsonOk = true;
+            globalStructuredOutputMetrics.structured_output_fallback_used++;
+          } catch (err: any) {
+            globalStructuredOutputMetrics.structured_output_fallback_failed++;
+            repairViolationCodes.push("JSON_PARSE_ERROR");
+            repairErrors.push(`Repair JSON parse error: ${err.message}`);
+          }
+        } else {
+          globalStructuredOutputMetrics.structured_output_fallback_failed++;
+          repairViolationCodes.push("JSON_PARSE_ERROR");
+          repairErrors.push(`Native structured output repair parsing failed: ${nativeErr?.message || nativeErr}`);
+        }
+      }
     }
 
     // Check for forbidden cross-field mutations
@@ -717,11 +800,11 @@ Instructions:
         repairErrors.push(
           `UNALLOWED_FIELD_MUTATION: Repair modified fields outside allowlist: ${unallowedMutation}`
         );
+        repairedData = undefined;
       }
     }
 
-    let repairedData: TOutput | undefined;
-    if (repairJsonOk && repairErrors.length === 0) {
+    if (repairJsonOk && repairErrors.length === 0 && repairedData === undefined) {
       const zodResult = params.schema.safeParse(repairedJSON);
       if (zodResult.success) {
         repairedData = zodResult.data;

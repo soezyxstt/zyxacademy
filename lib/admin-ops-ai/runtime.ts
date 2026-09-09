@@ -1,11 +1,18 @@
 import {
   createUIMessageStream,
   createUIMessageStreamResponse,
+  ToolLoopAgent,
+  stepCountIs,
   type UIMessageStreamWriter,
 } from "ai";
 import {
+  createZyxLanguageModel,
+  ZyxLanguageModel,
+} from "./zyx-language-model-adapter";
+import {
   OPS_AI_POLICY_BOUNDS,
   OPS_AI_TOOL_SECURITY_REGISTRY,
+  ALL_OPS_AI_TOOL_SECURITY_REGISTRY,
   validateOpsAiWorkStep,
   validateOpsAiErrorData,
   validateOpsAiCitation,
@@ -25,6 +32,7 @@ import {
 import {
   executeOpsAiTool,
   searchAdminKnowledge,
+  createOpsAiTools,
   type OpsAiToolContext,
 } from "./runtime-tools";
 import { searchDocs } from "./rag-store";
@@ -76,7 +84,7 @@ Tugas Anda adalah membantu administrator memahami fitur sistem, skema basis data
 ATURAN DAN PEDOMAN UTAMA:
 1. Nama brand adalah Zyx (bukan ZYX).
 2. Gaya bahasa: Singkat, lugas, profesional, kalimat dalam sentence-case bahasa Indonesia.
-3. JANGAN PERNAH menggunakan em-dash (—) atau en-dash (–). Gunakan koma, titik dua, atau titik.
+3. JANGAN PERNAH menggunakan em dash atau en dash. Gunakan koma, titik dua, atau titik.
 4. Jangan menambahkan tanda seru berlebih atau kalimat basa-basi.
 5. Berikan jawaban berbasis data nyata dan dokumentasi yang diverifikasi.
 6. Bila memerlukan informasi dokumentasi, skema tabel, metrik sistem, navigasi halaman, data pengguna, kuis, jadwal, kelompok belajar, atau form, gunakan native tool calling yang tersedia. JANGAN membuat format teks buatan sendiri seperti markdown tool_call.
@@ -143,10 +151,10 @@ KONTEKS HALAMAN SAAT INI:
 // ============================================================================
 
 export const DEFAULT_OPS_AI_TOOLS: OpsAiModelToolDeclaration[] = [
-  // ─── 0. Baseline Tools ───────────────────────────────────────────────────────
+  // Baseline Tools
   {
     name: "retrieve_admin_knowledge",
-    description: OPS_AI_TOOL_SECURITY_REGISTRY.retrieve_admin_knowledge.description,
+    description: ALL_OPS_AI_TOOL_SECURITY_REGISTRY.retrieve_admin_knowledge.description,
     parameters: {
       type: "object",
       properties: {
@@ -160,7 +168,7 @@ export const DEFAULT_OPS_AI_TOOLS: OpsAiModelToolDeclaration[] = [
   },
   {
     name: "inspect_schema",
-    description: OPS_AI_TOOL_SECURITY_REGISTRY.inspect_schema.description,
+    description: ALL_OPS_AI_TOOL_SECURITY_REGISTRY.inspect_schema.description,
     parameters: {
       type: "object",
       properties: {
@@ -173,7 +181,7 @@ export const DEFAULT_OPS_AI_TOOLS: OpsAiModelToolDeclaration[] = [
   },
   {
     name: "get_system_metrics",
-    description: OPS_AI_TOOL_SECURITY_REGISTRY.get_system_metrics.description,
+    description: ALL_OPS_AI_TOOL_SECURITY_REGISTRY.get_system_metrics.description,
     parameters: {
       type: "object",
       properties: {},
@@ -181,7 +189,7 @@ export const DEFAULT_OPS_AI_TOOLS: OpsAiModelToolDeclaration[] = [
   },
   {
     name: "navigate_admin",
-    description: OPS_AI_TOOL_SECURITY_REGISTRY.navigate_admin.description,
+    description: ALL_OPS_AI_TOOL_SECURITY_REGISTRY.navigate_admin.description,
     parameters: {
       type: "object",
       properties: {
@@ -195,7 +203,7 @@ export const DEFAULT_OPS_AI_TOOLS: OpsAiModelToolDeclaration[] = [
   },
   {
     name: "search_users",
-    description: OPS_AI_TOOL_SECURITY_REGISTRY.search_users.description,
+    description: ALL_OPS_AI_TOOL_SECURITY_REGISTRY.search_users.description,
     parameters: {
       type: "object",
       properties: {
@@ -209,7 +217,7 @@ export const DEFAULT_OPS_AI_TOOLS: OpsAiModelToolDeclaration[] = [
   },
   {
     name: "propose_create_token",
-    description: OPS_AI_TOOL_SECURITY_REGISTRY.propose_create_token.description,
+    description: ALL_OPS_AI_TOOL_SECURITY_REGISTRY.propose_create_token.description,
     parameters: {
       type: "object",
       properties: {
@@ -230,10 +238,10 @@ export const DEFAULT_OPS_AI_TOOLS: OpsAiModelToolDeclaration[] = [
     },
   },
 
-  // ─── 1. Academic & Curriculum ────────────────────────────────────────────────
+  // 1. Academic & Curriculum
   {
     name: "list_courses",
-    description: OPS_AI_TOOL_SECURITY_REGISTRY.list_courses.description,
+    description: ALL_OPS_AI_TOOL_SECURITY_REGISTRY.list_courses.description,
     parameters: {
       type: "object",
       properties: {
@@ -244,7 +252,7 @@ export const DEFAULT_OPS_AI_TOOLS: OpsAiModelToolDeclaration[] = [
   },
   {
     name: "list_chapters",
-    description: OPS_AI_TOOL_SECURITY_REGISTRY.list_chapters.description,
+    description: ALL_OPS_AI_TOOL_SECURITY_REGISTRY.list_chapters.description,
     parameters: {
       type: "object",
       properties: {
@@ -254,73 +262,8 @@ export const DEFAULT_OPS_AI_TOOLS: OpsAiModelToolDeclaration[] = [
     },
   },
   {
-    name: "create_course",
-    description: OPS_AI_TOOL_SECURITY_REGISTRY.create_course.description,
-    parameters: {
-      type: "object",
-      properties: {
-        id: { type: "string", description: "Slug unik huruf kecil dan strip (misal: 'fisika-dasar-1')" },
-        title: { type: "string", description: "Nama lengkap mata kuliah" },
-        category: { type: "string", description: "Kategori mata kuliah (misal: Matematika, Fisika, Umum)" },
-        description: { type: "string", description: "Deskripsi mata kuliah" },
-      },
-      required: ["id", "title", "category"],
-    },
-  },
-  {
-    name: "update_course",
-    description: OPS_AI_TOOL_SECURITY_REGISTRY.update_course.description,
-    parameters: {
-      type: "object",
-      properties: {
-        id: { type: "string", description: "ID mata kuliah yang diubah" },
-        title: { type: "string", description: "Nama baru mata kuliah" },
-        category: { type: "string", description: "Kategori baru" },
-        description: { type: "string", description: "Deskripsi baru" },
-      },
-      required: ["id"],
-    },
-  },
-  {
-    name: "batch_create_chapters",
-    description: OPS_AI_TOOL_SECURITY_REGISTRY.batch_create_chapters.description,
-    parameters: {
-      type: "object",
-      properties: {
-        courseId: { type: "string", description: "ID mata kuliah" },
-        chapters: {
-          type: "array",
-          description: "Daftar bab yang dibuat",
-          items: {
-            type: "object",
-            properties: {
-              title: { type: "string", description: "Judul bab" },
-              orderIndex: { type: "number", description: "Nomor urut bab" },
-              description: { type: "string", description: "Deskripsi bab" },
-            },
-            required: ["title"],
-          },
-        },
-      },
-      required: ["courseId", "chapters"],
-    },
-  },
-  {
-    name: "update_chapter",
-    description: OPS_AI_TOOL_SECURITY_REGISTRY.update_chapter.description,
-    parameters: {
-      type: "object",
-      properties: {
-        chapterId: { type: "string", description: "ID bab yang diubah" },
-        title: { type: "string", description: "Judul baru bab" },
-        orderIndex: { type: "number", description: "Nomor urut baru" },
-      },
-      required: ["chapterId"],
-    },
-  },
-  {
     name: "list_materials",
-    description: OPS_AI_TOOL_SECURITY_REGISTRY.list_materials.description,
+    description: ALL_OPS_AI_TOOL_SECURITY_REGISTRY.list_materials.description,
     parameters: {
       type: "object",
       properties: {
@@ -332,7 +275,7 @@ export const DEFAULT_OPS_AI_TOOLS: OpsAiModelToolDeclaration[] = [
   },
   {
     name: "audit_course_completeness",
-    description: OPS_AI_TOOL_SECURITY_REGISTRY.audit_course_completeness.description,
+    description: ALL_OPS_AI_TOOL_SECURITY_REGISTRY.audit_course_completeness.description,
     parameters: {
       type: "object",
       properties: {
@@ -342,10 +285,10 @@ export const DEFAULT_OPS_AI_TOOLS: OpsAiModelToolDeclaration[] = [
     },
   },
 
-  // ─── 2. Assessment & Questions ─────────────────────────────────────────────
+  // 2. Assessment & Questions
   {
     name: "list_quizzes",
-    description: OPS_AI_TOOL_SECURITY_REGISTRY.list_quizzes.description,
+    description: ALL_OPS_AI_TOOL_SECURITY_REGISTRY.list_quizzes.description,
     parameters: {
       type: "object",
       properties: {
@@ -356,46 +299,8 @@ export const DEFAULT_OPS_AI_TOOLS: OpsAiModelToolDeclaration[] = [
     },
   },
   {
-    name: "create_quiz",
-    description: OPS_AI_TOOL_SECURITY_REGISTRY.create_quiz.description,
-    parameters: {
-      type: "object",
-      properties: {
-        courseId: { type: "string", description: "ID mata kuliah" },
-        title: { type: "string", description: "Judul kuis" },
-        durationMinutes: { type: "number", description: "Durasi pengerjaan dalam menit" },
-        category: { type: "string", description: "Kategori kuis: daily, weekly, chapter, simulation" },
-        questionIds: {
-          type: "array",
-          items: { type: "string" },
-          description: "Daftar ID soal dari bank soal",
-        },
-      },
-      required: ["courseId", "title"],
-    },
-  },
-  {
-    name: "update_quiz",
-    description: OPS_AI_TOOL_SECURITY_REGISTRY.update_quiz.description,
-    parameters: {
-      type: "object",
-      properties: {
-        quizId: { type: "string", description: "ID kuis" },
-        patch: {
-          type: "object",
-          properties: {
-            title: { type: "string", description: "Judul baru" },
-            durationMinutes: { type: "number", description: "Durasi baru (menit)" },
-            status: { type: "string", description: "Status: draft atau published" },
-          },
-        },
-      },
-      required: ["quizId", "patch"],
-    },
-  },
-  {
     name: "list_questions",
-    description: OPS_AI_TOOL_SECURITY_REGISTRY.list_questions.description,
+    description: ALL_OPS_AI_TOOL_SECURITY_REGISTRY.list_questions.description,
     parameters: {
       type: "object",
       properties: {
@@ -407,39 +312,8 @@ export const DEFAULT_OPS_AI_TOOLS: OpsAiModelToolDeclaration[] = [
     },
   },
   {
-    name: "create_question",
-    description: OPS_AI_TOOL_SECURITY_REGISTRY.create_question.description,
-    parameters: {
-      type: "object",
-      properties: {
-        courseId: { type: "string", description: "ID mata kuliah" },
-        prompt: { type: "string", description: "Teks soal (mendukung LaTeX)" },
-        options: {
-          type: "array",
-          items: { type: "string" },
-          description: "Pilihan jawaban (minimal 2 opsi)",
-        },
-        correctAnswer: { type: "string", description: "Kunci jawaban benar" },
-        difficulty: { type: "string", description: "easy, medium, atau hard" },
-        explanation: { type: "string", description: "Pembahasan soal" },
-      },
-      required: ["courseId", "prompt", "options", "correctAnswer"],
-    },
-  },
-  {
-    name: "publish_question",
-    description: OPS_AI_TOOL_SECURITY_REGISTRY.publish_question.description,
-    parameters: {
-      type: "object",
-      properties: {
-        questionId: { type: "string", description: "ID soal yang ingin dipublikasikan" },
-      },
-      required: ["questionId"],
-    },
-  },
-  {
     name: "get_quiz_insights",
-    description: OPS_AI_TOOL_SECURITY_REGISTRY.get_quiz_insights.description,
+    description: ALL_OPS_AI_TOOL_SECURITY_REGISTRY.get_quiz_insights.description,
     parameters: {
       type: "object",
       properties: {
@@ -448,25 +322,11 @@ export const DEFAULT_OPS_AI_TOOLS: OpsAiModelToolDeclaration[] = [
       required: ["quizId"],
     },
   },
-  {
-    name: "reset_quiz_attempt",
-    description: OPS_AI_TOOL_SECURITY_REGISTRY.reset_quiz_attempt.description,
-    parameters: {
-      type: "object",
-      properties: {
-        attemptId: { type: "string", description: "ID percobaan kuis yang ingin direset" },
-        userId: { type: "string", description: "ID pengguna / murid" },
-        quizId: { type: "string", description: "ID kuis" },
-        reason: { type: "string", description: "Alasan reset percobaan kuis" },
-      },
-      required: ["reason"],
-    },
-  },
 
-  // ─── 3. Schedules & Meet ───────────────────────────────────────────────────
+  // 3. Schedules & Meet
   {
     name: "list_schedules",
-    description: OPS_AI_TOOL_SECURITY_REGISTRY.list_schedules.description,
+    description: ALL_OPS_AI_TOOL_SECURITY_REGISTRY.list_schedules.description,
     parameters: {
       type: "object",
       properties: {
@@ -478,39 +338,8 @@ export const DEFAULT_OPS_AI_TOOLS: OpsAiModelToolDeclaration[] = [
     },
   },
   {
-    name: "create_meet_session",
-    description: OPS_AI_TOOL_SECURITY_REGISTRY.create_meet_session.description,
-    parameters: {
-      type: "object",
-      properties: {
-        tutorId: { type: "string", description: "ID tutor yang ditugaskan" },
-        courseId: { type: "string", description: "ID mata kuliah" },
-        dateIso: { type: "string", description: "Tanggal sesi (YYYY-MM-DD)" },
-        timeSlot: { type: "string", description: "Waktu sesi (misal: '09:00 - 10:30')" },
-        groupId: { type: "string", description: "ID kelompok belajar (opsional)" },
-        topic: { type: "string", description: "Topik diskusi sesi tutorial" },
-      },
-      required: ["tutorId", "courseId", "dateIso", "timeSlot"],
-    },
-  },
-  {
-    name: "reschedule_or_cancel_meet",
-    description: OPS_AI_TOOL_SECURITY_REGISTRY.reschedule_or_cancel_meet.description,
-    parameters: {
-      type: "object",
-      properties: {
-        bookingId: { type: "string", description: "ID sesi booking" },
-        action: { type: "string", description: "'reschedule' atau 'cancel'" },
-        newDateIso: { type: "string", description: "Tanggal baru bila reschedule" },
-        newTimeSlot: { type: "string", description: "Waktu baru bila reschedule" },
-        reason: { type: "string", description: "Alasan perubahan/pembatalan" },
-      },
-      required: ["bookingId", "action"],
-    },
-  },
-  {
     name: "list_tutor_availability",
-    description: OPS_AI_TOOL_SECURITY_REGISTRY.list_tutor_availability.description,
+    description: ALL_OPS_AI_TOOL_SECURITY_REGISTRY.list_tutor_availability.description,
     parameters: {
       type: "object",
       properties: {
@@ -519,10 +348,10 @@ export const DEFAULT_OPS_AI_TOOLS: OpsAiModelToolDeclaration[] = [
     },
   },
 
-  // ─── 4. Study Groups & Tokens ──────────────────────────────────────────────
+  // 4. Study Groups & Tokens
   {
     name: "list_study_groups",
-    description: OPS_AI_TOOL_SECURITY_REGISTRY.list_study_groups.description,
+    description: ALL_OPS_AI_TOOL_SECURITY_REGISTRY.list_study_groups.description,
     parameters: {
       type: "object",
       properties: {
@@ -533,54 +362,8 @@ export const DEFAULT_OPS_AI_TOOLS: OpsAiModelToolDeclaration[] = [
     },
   },
   {
-    name: "create_study_group",
-    description: OPS_AI_TOOL_SECURITY_REGISTRY.create_study_group.description,
-    parameters: {
-      type: "object",
-      properties: {
-        name: { type: "string", description: "Nama kelompok belajar" },
-        courseIds: {
-          type: "array",
-          items: { type: "string" },
-          description: "Daftar ID mata kuliah",
-        },
-        capacity: { type: "number", description: "Kapasitas kuota anggota (1-5)" },
-      },
-      required: ["name", "courseIds"],
-    },
-  },
-  {
-    name: "assign_tutor_to_group",
-    description: OPS_AI_TOOL_SECURITY_REGISTRY.assign_tutor_to_group.description,
-    parameters: {
-      type: "object",
-      properties: {
-        groupId: { type: "string", description: "ID kelompok belajar" },
-        tutorId: { type: "string", description: "ID tutor pendamping" },
-      },
-      required: ["groupId", "tutorId"],
-    },
-  },
-  {
-    name: "create_enrollment_token",
-    description: OPS_AI_TOOL_SECURITY_REGISTRY.create_enrollment_token.description,
-    parameters: {
-      type: "object",
-      properties: {
-        courseIds: {
-          type: "array",
-          items: { type: "string" },
-          description: "Daftar ID mata kuliah",
-        },
-        capacity: { type: "number", description: "Kapasitas kuota anggota (1 sampai 5 orang)" },
-        packageType: { type: "string", description: "Tipe paket (opsional, default: reguler_15)" },
-      },
-      required: ["courseIds", "capacity"],
-    },
-  },
-  {
     name: "list_enrollment_tokens",
-    description: OPS_AI_TOOL_SECURITY_REGISTRY.list_enrollment_tokens.description,
+    description: ALL_OPS_AI_TOOL_SECURITY_REGISTRY.list_enrollment_tokens.description,
     parameters: {
       type: "object",
       properties: {
@@ -590,7 +373,7 @@ export const DEFAULT_OPS_AI_TOOLS: OpsAiModelToolDeclaration[] = [
   },
   {
     name: "diagnose_student_access",
-    description: OPS_AI_TOOL_SECURITY_REGISTRY.diagnose_student_access.description,
+    description: ALL_OPS_AI_TOOL_SECURITY_REGISTRY.diagnose_student_access.description,
     parameters: {
       type: "object",
       properties: {
@@ -601,54 +384,10 @@ export const DEFAULT_OPS_AI_TOOLS: OpsAiModelToolDeclaration[] = [
     },
   },
 
-  // ─── 5. Users, Notifications & Operations ──────────────────────────────────
-  {
-    name: "update_user_role",
-    description: OPS_AI_TOOL_SECURITY_REGISTRY.update_user_role.description,
-    parameters: {
-      type: "object",
-      properties: {
-        userId: { type: "string", description: "ID pengguna" },
-        roles: {
-          type: "array",
-          items: { type: "string" },
-          description: "Daftar peran baru (admin, tutor, murid)",
-        },
-      },
-      required: ["userId", "roles"],
-    },
-  },
-  {
-    name: "toggle_user_status",
-    description: OPS_AI_TOOL_SECURITY_REGISTRY.toggle_user_status.description,
-    parameters: {
-      type: "object",
-      properties: {
-        userId: { type: "string", description: "ID pengguna" },
-        status: { type: "string", description: "Status akun: 'active' atau 'suspended'" },
-        reason: { type: "string", description: "Alasan perubahan status" },
-      },
-      required: ["userId", "status"],
-    },
-  },
-  {
-    name: "send_broadcast_notification",
-    description: OPS_AI_TOOL_SECURITY_REGISTRY.send_broadcast_notification.description,
-    parameters: {
-      type: "object",
-      properties: {
-        title: { type: "string", description: "Judul notifikasi" },
-        body: { type: "string", description: "Isi pesan notifikasi" },
-        target: { type: "string", description: "Target penerima: 'all', 'course', atau 'group'" },
-        targetId: { type: "string", description: "ID spesifik jika target course atau group" },
-        link: { type: "string", description: "Tautan URL ketika notifikasi diklik" },
-      },
-      required: ["title", "body"],
-    },
-  },
+  // 5. Users, Notifications & Operations
   {
     name: "list_pka_registrations",
-    description: OPS_AI_TOOL_SECURITY_REGISTRY.list_pka_registrations.description,
+    description: ALL_OPS_AI_TOOL_SECURITY_REGISTRY.list_pka_registrations.description,
     parameters: {
       type: "object",
       properties: {
@@ -657,34 +396,8 @@ export const DEFAULT_OPS_AI_TOOLS: OpsAiModelToolDeclaration[] = [
     },
   },
   {
-    name: "create_pka_announcement",
-    description: OPS_AI_TOOL_SECURITY_REGISTRY.create_pka_announcement.description,
-    parameters: {
-      type: "object",
-      properties: {
-        title: { type: "string", description: "Judul pengumuman PKA" },
-        content: { type: "string", description: "Isi pengumuman" },
-        isPinned: { type: "boolean", description: "Sematkan pengumuman di atas" },
-      },
-      required: ["title", "content"],
-    },
-  },
-  {
-    name: "create_pka_schedule",
-    description: OPS_AI_TOOL_SECURITY_REGISTRY.create_pka_schedule.description,
-    parameters: {
-      type: "object",
-      properties: {
-        title: { type: "string", description: "Judul kegiatan PKA" },
-        sessionAt: { type: "string", description: "Waktu sesi (YYYY-MM-DD HH:mm atau format ISO)" },
-        meetLink: { type: "string", description: "Link Google Meet sesi PKA" },
-      },
-      required: ["title", "sessionAt"],
-    },
-  },
-  {
     name: "list_forms",
-    description: OPS_AI_TOOL_SECURITY_REGISTRY.list_forms.description,
+    description: ALL_OPS_AI_TOOL_SECURITY_REGISTRY.list_forms.description,
     parameters: {
       type: "object",
       properties: {
@@ -694,23 +407,8 @@ export const DEFAULT_OPS_AI_TOOLS: OpsAiModelToolDeclaration[] = [
     },
   },
   {
-    name: "create_or_update_form",
-    description: OPS_AI_TOOL_SECURITY_REGISTRY.create_or_update_form.description,
-    parameters: {
-      type: "object",
-      properties: {
-        formId: { type: "string", description: "ID form jika mengedit form lama" },
-        slug: { type: "string", description: "Slug URL form (/f/[slug])" },
-        title: { type: "string", description: "Judul formulir" },
-        category: { type: "string", description: "survey, quiz, feedback, registration" },
-        description: { type: "string", description: "Keterangan formulir" },
-      },
-      required: ["slug", "title"],
-    },
-  },
-  {
     name: "get_form_responses_summary",
-    description: OPS_AI_TOOL_SECURITY_REGISTRY.get_form_responses_summary.description,
+    description: ALL_OPS_AI_TOOL_SECURITY_REGISTRY.get_form_responses_summary.description,
     parameters: {
       type: "object",
       properties: {
@@ -721,7 +419,7 @@ export const DEFAULT_OPS_AI_TOOLS: OpsAiModelToolDeclaration[] = [
   },
   {
     name: "list_blog_articles",
-    description: OPS_AI_TOOL_SECURITY_REGISTRY.list_blog_articles.description,
+    description: ALL_OPS_AI_TOOL_SECURITY_REGISTRY.list_blog_articles.description,
     parameters: {
       type: "object",
       properties: {
@@ -731,78 +429,43 @@ export const DEFAULT_OPS_AI_TOOLS: OpsAiModelToolDeclaration[] = [
     },
   },
   {
-    name: "create_blog_article",
-    description: OPS_AI_TOOL_SECURITY_REGISTRY.create_blog_article.description,
-    parameters: {
-      type: "object",
-      properties: {
-        title: { type: "string", description: "Judul artikel blog" },
-        content: { type: "string", description: "Konten teks artikel (format Markdown)" },
-        category: { type: "string", description: "tips_kuliah, pojok_kampus, fakta_seru, kegiatan_zyx" },
-        status: { type: "string", description: "draft atau published" },
-      },
-      required: ["title", "content"],
-    },
-  },
-  {
-    name: "publish_blog_article",
-    description: OPS_AI_TOOL_SECURITY_REGISTRY.publish_blog_article.description,
-    parameters: {
-      type: "object",
-      properties: {
-        articleId: { type: "string", description: "ID artikel blog" },
-        publish: { type: "boolean", description: "true untuk publikasikan, false untuk draf" },
-      },
-      required: ["articleId", "publish"],
-    },
-  },
-  {
     name: "get_feature_flags",
-    description: OPS_AI_TOOL_SECURITY_REGISTRY.get_feature_flags.description,
+    description: ALL_OPS_AI_TOOL_SECURITY_REGISTRY.get_feature_flags.description,
     parameters: {
       type: "object",
       properties: {},
     },
   },
-  {
-    name: "set_feature_flag",
-    description: OPS_AI_TOOL_SECURITY_REGISTRY.set_feature_flag.description,
-    parameters: {
-      type: "object",
-      properties: {
-        flagKey: { type: "string", description: "Kunci feature flag (misal: 'FEATURE_PKA')" },
-        enabled: { type: "boolean", description: "Status aktif (true) atau mati (false)" },
-        reason: { type: "string", description: "Alasan perubahan status" },
-      },
-      required: ["flagKey", "enabled"],
-    },
-  },
-  {
-    name: "create_short_link",
-    description: OPS_AI_TOOL_SECURITY_REGISTRY.create_short_link.description,
-    parameters: {
-      type: "object",
-      properties: {
-        slug: { type: "string", description: "Slug kustom (/s/[slug])" },
-        url: { type: "string", description: "URL target lengkap" },
-        title: { type: "string", description: "Keterangan short link" },
-      },
-      required: ["slug", "url"],
-    },
-  },
-  {
-    name: "trigger_ai_job",
-    description: OPS_AI_TOOL_SECURITY_REGISTRY.trigger_ai_job.description,
-    parameters: {
-      type: "object",
-      properties: {
-        jobType: { type: "string", description: "generate_questions, sync_rag, extract_ko" },
-        courseId: { type: "string", description: "ID mata kuliah" },
-      },
-      required: ["jobType", "courseId"],
-    },
-  },
 ];
+
+// ============================================================================
+// 3.5. AI SDK 6 ToolLoopAgent Factory
+// ============================================================================
+
+export interface CreateOpsAiAgentOptions {
+  systemPrompt?: string;
+  modelId?: string;
+  toolContext?: OpsAiToolContext;
+  maxConsecutiveToolCalls?: number;
+}
+
+/**
+ * Creates an AI SDK 6 ToolLoopAgent instance bound to ZyxLanguageModel,
+ * unified Ops tools, and bounded by stepCountIs.
+ */
+export function createOpsAiAgent(options: CreateOpsAiAgentOptions = {}): ToolLoopAgent {
+  const model = createZyxLanguageModel(options.modelId);
+  const tools = createOpsAiTools(options.toolContext);
+  return new ToolLoopAgent({
+    id: "zyx-ops-ai-agent",
+    instructions: options.systemPrompt,
+    model,
+    tools,
+    stopWhen: stepCountIs(
+      options.maxConsecutiveToolCalls ?? OPS_AI_POLICY_BOUNDS.maxConsecutiveToolCalls
+    ),
+  });
+}
 
 // ============================================================================
 // 4. Runtime Stream Orchestrator
@@ -1170,8 +833,9 @@ export function createOpsAiRuntimeStream(
             break;
           }
 
-          // Check consecutive tool call bound
-          if (consecutiveToolCalls >= maxConsecutiveToolCalls) {
+          // Check consecutive tool call bound using AI SDK stepCountIs
+          const shouldStop = stepCountIs(maxConsecutiveToolCalls);
+          if (shouldStop({ steps: new Array(consecutiveToolCalls) } as any) || consecutiveToolCalls >= maxConsecutiveToolCalls) {
             writer.write({
               type: "text-delta",
               textDelta: "\n\nBatas panggilan tool berturut-turut tercapai.",

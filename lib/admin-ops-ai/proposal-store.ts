@@ -8,10 +8,13 @@ import {
   type OpsAiPreconditionSnapshot,
   type OpsAiProposalPreview,
   type OpsAiErrorCode,
+  PROPOSAL_STATUS_TO_DB,
+  DB_STATUS_TO_PROPOSAL,
+  type ZyraProposalDbStatus,
 } from "./contracts";
 import { db } from "@/db";
 import { auditMutasi, courses, zyraProposals } from "@/db/schema";
-import { inArray, eq } from "drizzle-orm";
+import { inArray, eq, and, gt } from "drizzle-orm";
 import { generateEnrollmentToken } from "@/app/(admin)/admin/(academic)/tokens/actions";
 
 // ============================================================================
@@ -151,9 +154,10 @@ async function defaultCreateTokenPreconditionChecker(
       where: inArray(courses.id, courseIds),
     });
     return courseRecords.length === courseIds.length;
-  } catch {
-    // If DB is unavailable or courses table is not reachable, assume true for testing
-    return true;
+  } catch (err) {
+    // Fail-closed: database error or unreachability strictly denies precondition
+    console.error("[OpsAi Proposal Precondition] Database check failed, denying by default:", err);
+    return false;
   }
 }
 
@@ -186,6 +190,13 @@ export class OpsAiProposalStore {
     this.preconditionCheckers.clear();
     this.actionExecutors.clear();
     this.initDefaults();
+  }
+
+  /**
+   * Wipes only the in-memory proposal map to test database persistence reload.
+   */
+  clearInMemoryCacheOnly(): void {
+    this.proposals.clear();
   }
 
   /**
@@ -289,8 +300,9 @@ export class OpsAiProposalStore {
         expiresAt: new Date(expiresAt),
         createdAt: new Date(createdAt),
       });
-    } catch {
+    } catch (err) {
       // In-memory record is preserved; database error in test or mock environment is handled gracefully
+      // console.warn("[db.insert zyraProposals failed]:", err);
     }
 
     return {
@@ -315,10 +327,61 @@ export class OpsAiProposalStore {
         .where(eq(zyraProposals.id, id))
         .limit(1);
 
-      if (row && (row.scope as any)?.fullProposal) {
-        const full = (row.scope as any).fullProposal as ServerStoredProposal;
-        this.proposals.set(id, full);
-        return full;
+      if (row) {
+        let full: ServerStoredProposal | null = null;
+        const currentStatus = DB_STATUS_TO_PROPOSAL[row.status as ZyraProposalDbStatus] || "pending";
+
+        if ((row.scope as any)?.fullProposal) {
+          full = (row.scope as any).fullProposal as ServerStoredProposal;
+          full.status = currentStatus;
+          full.publicProposal.status = currentStatus;
+        } else {
+          // Reconstruct ServerStoredProposal from persistent DB columns
+          const operation = Array.isArray(row.operations) && row.operations[0] ? (row.operations[0] as any) : {};
+          const scope = (row.scope as any) || {};
+          const preview: OpsAiProposalPreview = scope.preview || {
+            summary: scope.description || row.proposalType,
+            affectedEntities: [],
+          };
+          const publicProposal: OpsAiActionProposalV2 = {
+            id: row.id,
+            runId: (row.proposerTrace as any)?.runId || "persisted-run",
+            stepId: (row.proposerTrace as any)?.stepId || "persisted-step",
+            type: row.proposalType as OpsAiActionProposalType,
+            title: scope.title || row.proposalType,
+            description: scope.description || "",
+            preview,
+            status: currentStatus,
+            preconditions: row.preconditionSnapshot as any,
+            createdAt: row.createdAt ? row.createdAt.getTime() : Date.now(),
+            expiresAt: row.expiresAt ? row.expiresAt.getTime() : Date.now() + 600000,
+            confirmedBy: row.actorId,
+            confirmedAt: row.confirmedAt ? row.confirmedAt.getTime() : undefined,
+          };
+          full = {
+            id: row.id,
+            runId: publicProposal.runId,
+            stepId: publicProposal.stepId,
+            type: row.proposalType as OpsAiActionProposalType,
+            title: publicProposal.title,
+            description: publicProposal.description,
+            preview,
+            status: currentStatus,
+            payload: operation.payload ?? {},
+            preconditions: row.preconditionSnapshot as any,
+            diffHash: row.diffHash,
+            actorId: row.actorId,
+            createdAt: publicProposal.createdAt,
+            expiresAt: row.expiresAt ? row.expiresAt.getTime() : (publicProposal.expiresAt ?? Date.now() + 600000),
+            confirmedBy: row.actorId,
+            confirmedAt: publicProposal.confirmedAt,
+            publicProposal,
+          };
+        }
+        if (full) {
+          this.proposals.set(id, full);
+          return full;
+        }
       }
     } catch {
       // Database not reachable or table missing
@@ -355,6 +418,31 @@ export class OpsAiProposalStore {
       );
     }
 
+    const dbTargetStatus = PROPOSAL_STATUS_TO_DB[newStatus];
+
+    // Determine atomic update condition based on transition
+    let whereClause = eq(zyraProposals.id, id);
+    if (newStatus === "executing") {
+      // Must atomically transition from unconfirmed state (draft / validated / reviewed) and not expired
+      whereClause = and(
+        eq(zyraProposals.id, id),
+        inArray(zyraProposals.status, ["draft", "validated", "reviewed"]),
+        gt(zyraProposals.expiresAt, new Date())
+      )!;
+    } else if (newStatus === "executed") {
+      // Must atomically transition from confirmed (executing)
+      whereClause = and(
+        eq(zyraProposals.id, id),
+        eq(zyraProposals.status, "confirmed")
+      )!;
+    } else if (newStatus === "failed") {
+      whereClause = and(
+        eq(zyraProposals.id, id),
+        eq(zyraProposals.status, "confirmed")
+      )!;
+    }
+
+    // Update in-memory state
     proposal.status = newStatus;
     proposal.publicProposal.status = newStatus;
 
@@ -371,19 +459,10 @@ export class OpsAiProposalStore {
 
     // Update DB record if reachable
     try {
-      const dbStatus =
-        newStatus === "pending"
-          ? "draft"
-          : newStatus === "executed"
-          ? "applied"
-          : newStatus === "cancelled"
-          ? "rejected"
-          : newStatus;
-
-      await db
+      const updateResult = await db
         .update(zyraProposals)
         .set({
-          status: dbStatus as any,
+          status: dbTargetStatus,
           scope: {
             title: proposal.title,
             description: proposal.description,
@@ -395,9 +474,36 @@ export class OpsAiProposalStore {
           failureCode: proposal.failureReason ?? null,
           updatedAt: new Date(),
         })
-        .where(eq(zyraProposals.id, id));
-    } catch {
-      // Graceful fallback
+        .where(whereClause);
+
+      if (
+        (newStatus === "executing" || newStatus === "executed") &&
+        updateResult &&
+        typeof (updateResult as any).rowsAffected === "number" &&
+        (updateResult as any).rowsAffected === 0
+      ) {
+        // Verify if row was persisted in DB
+        const [existingRow] = await db
+          .select({ id: zyraProposals.id, status: zyraProposals.status })
+          .from(zyraProposals)
+          .where(eq(zyraProposals.id, id))
+          .limit(1);
+
+        if (existingRow) {
+          // Revert in-memory status to match database reality
+          proposal.status = DB_STATUS_TO_PROPOSAL[existingRow.status as ZyraProposalDbStatus] || "failed";
+          proposal.publicProposal.status = proposal.status;
+
+          throw new Error(
+            `Atomic transition to '${newStatus}' failed: proposal '${id}' sudah berada dalam status DB '${existingRow.status}' atau telah kedaluwarsa.`
+          );
+        }
+      }
+    } catch (err: any) {
+      if (err?.message?.includes("Atomic transition")) {
+        throw err;
+      }
+      // Non-fatal if DB table is unconfigured in offline mock unit tests
     }
 
     return proposal;
@@ -429,6 +535,28 @@ export class OpsAiProposalStore {
         success: false,
         error: `Proposal '${input.proposalId}' tidak ditemukan di server.`,
         errorCode: "INVALID_REQUEST",
+      };
+    }
+
+    // 0. Actor Binding Check: Only the administrator who created the proposal can execute it
+    if (stored.actorId && stored.actorId !== input.actorId) {
+      await this.recordAuditEvent({
+        actorId: input.actorId,
+        proposalId: stored.id,
+        actionType: stored.type,
+        diffHash: stored.diffHash,
+        status: stored.status,
+        outcome: "rejected",
+        reason: `Actor '${input.actorId}' tidak berwenang mengeksekusi proposal milik '${stored.actorId}'.`,
+        correlationId: stored.runId,
+        entityType: "ops_ai_proposal",
+        entityId: stored.id,
+      });
+
+      return {
+        success: false,
+        error: "Proposal hanya dapat dieksekusi oleh administrator pembuat proposal.",
+        errorCode: "FORBIDDEN",
       };
     }
 
@@ -517,8 +645,29 @@ export class OpsAiProposalStore {
       };
     }
 
-    // 4. Transition to "executing"
-    await this.transitionStatus(stored.id, "executing", { actorId: input.actorId });
+    // 4. Transition to "executing" with atomic race condition protection
+    try {
+      await this.transitionStatus(stored.id, "executing", { actorId: input.actorId });
+    } catch (err: any) {
+      await this.recordAuditEvent({
+        actorId: input.actorId,
+        proposalId: stored.id,
+        actionType: stored.type,
+        diffHash: stored.diffHash,
+        status: stored.status,
+        outcome: "rejected",
+        reason: `Gagal transisi ke status executing: ${err.message}`,
+        correlationId: stored.runId,
+        entityType: "ops_ai_proposal",
+        entityId: stored.id,
+      });
+
+      return {
+        success: false,
+        error: err.message || "Proposal sedang atau telah dieksekusi.",
+        errorCode: "INVALID_REQUEST",
+      };
+    }
 
     // 5. Execute Action via Action Executor
     const executor = this.actionExecutors.get(stored.type);

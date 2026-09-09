@@ -55,6 +55,7 @@ import type {
   OpsAiActionProposalV2,
   OpsAiErrorData,
 } from "@/lib/admin-ops-ai/contracts";
+import { consumeOpsAiStream } from "./use-ops-ai-chat";
 
 const DEFAULT_SUGGESTIONS = [
   "Jelaskan fitur dan fungsi halaman ini",
@@ -522,90 +523,65 @@ export function OpsAiPanel({ initialMessages }: { initialMessages?: OpsAiMessage
         throw new Error("Respons stream tidak tersedia.");
       }
 
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = "";
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split("\n");
-        buffer = lines.pop() || "";
-
-        for (const line of lines) {
-          const trimmed = line.trim();
-          if (!trimmed.startsWith("data: ")) continue;
-          const dataStr = trimmed.slice(6).trim();
-          if (dataStr === "[DONE]") {
-            break;
-          }
-
-          try {
-            const parsed = JSON.parse(dataStr);
-            if (parsed.type === "text-delta" && typeof parsed.textDelta === "string") {
-              setMessages((prev) =>
-                prev.map((m) =>
-                  m.id === assistantMsgId
-                    ? { ...m, content: m.content + parsed.textDelta }
-                    : m
-                )
-              );
-            } else if (parsed.type === "data-work-step" && parsed.data) {
-              const step: OpsAiWorkStep = parsed.data;
-              setMessages((prev) =>
-                prev.map((m) => {
-                  if (m.id !== assistantMsgId) return m;
-                  const existing = m.workSteps || [];
-                  const stepIdx = existing.findIndex((s) => s.stepId === step.stepId);
-                  let updatedSteps: OpsAiWorkStep[];
-                  if (stepIdx >= 0) {
-                    updatedSteps = [...existing];
-                    updatedSteps[stepIdx] = step;
-                  } else {
-                    updatedSteps = [...existing, step];
+      for await (const part of consumeOpsAiStream(res.body, abortController.signal)) {
+        if (part.type === "text-delta") {
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === assistantMsgId
+                ? { ...m, content: m.content + part.textDelta }
+                : m
+            )
+          );
+        } else if (part.type === "data-work-step") {
+          const step: OpsAiWorkStep = part.data;
+          setMessages((prev) =>
+            prev.map((m) => {
+              if (m.id !== assistantMsgId) return m;
+              const existing = m.workSteps || [];
+              const stepIdx = existing.findIndex((s) => s.stepId === step.stepId);
+              let updatedSteps: OpsAiWorkStep[];
+              if (stepIdx >= 0) {
+                updatedSteps = [...existing];
+                updatedSteps[stepIdx] = step;
+              } else {
+                updatedSteps = [...existing, step];
+              }
+              return { ...m, workSteps: updatedSteps };
+            })
+          );
+        } else if (part.type === "data-citation") {
+          const citation: OpsAiCitation = part.data;
+          setMessages((prev) =>
+            prev.map((m) => {
+              if (m.id !== assistantMsgId) return m;
+              const existing = m.citations || [];
+              if (existing.some((c) => c.id === citation.id)) return m;
+              return { ...m, citations: [...existing, citation] };
+            })
+          );
+        } else if (part.type === "data-proposal") {
+          const proposal: OpsAiActionProposalV2 = part.data;
+          setMessages((prev) =>
+            prev.map((m) => {
+              if (m.id !== assistantMsgId) return m;
+              const existing = m.proposals || [];
+              if (existing.some((p) => p.id === proposal.id)) return m;
+              return { ...m, proposals: [...existing, proposal] };
+            })
+          );
+        } else if (part.type === "data-error") {
+          const errData: OpsAiErrorData = part.data;
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === assistantMsgId
+                ? {
+                    ...m,
+                    error: errData,
+                    content: m.content || `Terjadi kendala: ${errData.message}`,
                   }
-                  return { ...m, workSteps: updatedSteps };
-                })
-              );
-            } else if (parsed.type === "data-citation" && parsed.data) {
-              const citation: OpsAiCitation = parsed.data;
-              setMessages((prev) =>
-                prev.map((m) => {
-                  if (m.id !== assistantMsgId) return m;
-                  const existing = m.citations || [];
-                  if (existing.some((c) => c.id === citation.id)) return m;
-                  return { ...m, citations: [...existing, citation] };
-                })
-              );
-            } else if (parsed.type === "data-proposal" && parsed.data) {
-              const proposal: OpsAiActionProposalV2 = parsed.data;
-              setMessages((prev) =>
-                prev.map((m) => {
-                  if (m.id !== assistantMsgId) return m;
-                  const existing = m.proposals || [];
-                  if (existing.some((p) => p.id === proposal.id)) return m;
-                  return { ...m, proposals: [...existing, proposal] };
-                })
-              );
-            } else if (parsed.type === "data-error" && parsed.data) {
-              const errData: OpsAiErrorData = parsed.data;
-              setMessages((prev) =>
-                prev.map((m) =>
-                  m.id === assistantMsgId
-                    ? {
-                        ...m,
-                        error: errData,
-                        content: m.content || `Terjadi kendala: ${errData.message}`,
-                      }
-                    : m
-                )
-              );
-            }
-          } catch {
-            // Ignore parse errors on individual stream chunks
-          }
+                : m
+            )
+          );
         }
       }
     } catch (err: unknown) {

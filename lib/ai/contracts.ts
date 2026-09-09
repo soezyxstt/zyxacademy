@@ -36,6 +36,13 @@ export interface PromptContract<TVars = any, TOutput = any> {
   userPrompt: (vars: TVars) => string;
   /** Native Gemini / OpenAPI response schema */
   responseSchema?: any;
+  /**
+   * Mode for structured output parsing.
+   * 'native-only': AI SDK Output.object only (strict).
+   * 'legacy-fallback': AI SDK Output.object first, falling back to json repair and schema.safeParse.
+   * Defaults to 'native-only'.
+   */
+  structuredOutputMode?: "native-only" | "legacy-fallback";
 }
 
 /**
