@@ -28,21 +28,43 @@ const candidates = [
   ...compiled.map((row) => ({ ...row, table: "diktats" as const })),
 ];
 
-const summary = { mode: apply ? "apply" : "dry-run", candidates: candidates.length, available: 0, missing: 0, unsupported: 0, generated: 0, failed: 0 };
+const limitArg = process.argv.find((a) => a.startsWith("--limit="));
+const limit = limitArg ? parseInt(limitArg.replace("--limit=", ""), 10) : undefined;
+const targetCandidates = typeof limit === "number" && limit > 0 ? candidates.slice(0, limit) : candidates;
+
+const concurrencyArg = process.argv.find((a) => a.startsWith("--concurrency="));
+const concurrency = concurrencyArg ? parseInt(concurrencyArg.replace("--concurrency=", ""), 10) : 4;
+
+const summary = { mode: apply ? "apply" : "dry-run", candidates: targetCandidates.length, available: 0, missing: 0, unsupported: 0, generated: 0, failed: 0 };
 const report: Array<{ table: string; id: string; source: "available" | "missing" | "unsupported"; targetKey: string }> = [];
-for (const candidate of candidates) {
+
+async function processCandidate(candidate: typeof candidates[number], index: number) {
   const key = storageKey(candidate.fileUrl!);
   const targetKey = buildCourseThumbnailKey({ courseSlug: candidate.courseId, materialId: candidate.id, extension: "webp" });
-  if (!key) { summary.unsupported += 1; report.push({ table: candidate.table, id: candidate.id, source: "unsupported", targetKey }); continue; }
-  if (!(await storage.exists(key))) { summary.missing += 1; report.push({ table: candidate.table, id: candidate.id, source: "missing", targetKey }); continue; }
+  if (!key) { summary.unsupported += 1; report.push({ table: candidate.table, id: candidate.id, source: "unsupported", targetKey }); return; }
+  if (!(await storage.exists(key))) { summary.missing += 1; report.push({ table: candidate.table, id: candidate.id, source: "missing", targetKey }); return; }
   summary.available += 1;
   report.push({ table: candidate.table, id: candidate.id, source: "available", targetKey });
-  if (!apply) continue;
+  if (!apply) return;
+  console.log(`[${index}/${targetCandidates.length}] Generating thumbnail for ${candidate.courseId} / ${candidate.id}...`);
   const thumbnailUrl = await generateAndSavePdfThumbnail({ courseSlug: candidate.courseId, materialId: candidate.id, fileKey: key });
-  if (!thumbnailUrl) { summary.failed += 1; continue; }
+  if (!thumbnailUrl) { summary.failed += 1; return; }
   if (candidate.table === "course_materials") await db.update(courseMaterials).set({ thumbnailUrl }).where(eq(courseMaterials.id, candidate.id));
   else await db.update(diktats).set({ thumbnailUrl, updatedAt: new Date() }).where(eq(diktats.id, candidate.id));
   summary.generated += 1;
 }
+
+const queue = [...targetCandidates.map((c, i) => ({ c, i: i + 1 }))];
+const workers = Array.from({ length: concurrency }, async () => {
+  while (queue.length > 0) {
+    const item = queue.shift();
+    if (!item) break;
+    await processCandidate(item.c, item.i).catch((err) => {
+      console.error(`Failed for candidate ${item.c.id}:`, err);
+      summary.failed += 1;
+    });
+  }
+});
+await Promise.all(workers);
 
 console.log(JSON.stringify({ summary, candidates: report }, null, 2));

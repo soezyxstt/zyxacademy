@@ -102,92 +102,101 @@ async function main() {
 
   try {
     // -------------------------------------------------------------------------
-    // Phase 0: Ensure an active admin user exists in pengguna (for foreign keys)
+    // Phase 0: Ensure canonical access roles exist in peran
     // -------------------------------------------------------------------------
-    console.log("--- [Phase 0] Verifying Canonical Admin Identity ---");
-    let adminId: string | null = null;
+    console.log("--- [Phase 0] Seeding Canonical Roles (peran) ---");
+    const peranSeeds = [
+      { id: "peran-admin", code: "admin" },
+      { id: "peran-tutor", code: "tutor" },
+      { id: "peran-murid", code: "murid" },
+    ];
+    for (const seed of peranSeeds) {
+      if (isApply) {
+        await client.execute({
+          sql: `INSERT INTO peran (id, code, created_at)
+                VALUES (?, ?, ?)
+                ON CONFLICT (id) DO NOTHING`,
+          args: [seed.id, seed.code, Date.now()],
+        });
+      }
+    }
+    console.log(`[OK] Canonical roles (${peranSeeds.map((s) => s.code).join(", ")}) ensured in peran.`);
 
+    // -------------------------------------------------------------------------
+    // Phase 1: user -> pengguna & pengguna_peran
+    // -------------------------------------------------------------------------
+    console.log("\n--- [Phase 1] Migrating user -> pengguna & pengguna_peran ---");
+    const usersRes = await client.execute(`
+      SELECT id, name, email, role, created_at
+      FROM user
+      ORDER BY created_at ASC
+    `);
+
+    console.log(`Found ${usersRes.rows.length} user(s) in legacy user table.`);
+    let usersMigrated = 0;
+    let rolesAssigned = 0;
+
+    for (const row of usersRes.rows) {
+      const userId = String(row.id);
+      const userRole = String(row.role || "student");
+      const createdAt = typeof row.created_at === "number"
+        ? (row.created_at < 10_000_000_000 ? row.created_at * 1000 : row.created_at)
+        : Date.now();
+      const updatedAt = createdAt;
+
+      // 1. Ensure pengguna record exists
+      if (isApply) {
+        await client.execute({
+          sql: `INSERT INTO pengguna (id, status, created_at, updated_at)
+                VALUES (?, 'active', ?, ?)
+                ON CONFLICT (id) DO UPDATE SET
+                  status = 'active',
+                  updated_at = excluded.updated_at`,
+          args: [userId, createdAt, updatedAt],
+        });
+      }
+      usersMigrated++;
+
+      // 2. Map role and assign into pengguna_peran
+      const canonicalRoleCode = userRole === "admin" ? "admin" : userRole === "teacher" ? "tutor" : "murid";
+      const targetPeranId = `peran-${canonicalRoleCode}`;
+      const membershipId = `pengguna-peran-${sha256(`${userId}\0${canonicalRoleCode}`).slice(0, 40)}`;
+
+      if (isApply) {
+        await client.execute({
+          sql: `INSERT INTO pengguna_peran (id, pengguna_id, peran_id, source, audit_actor_pengguna_id, created_at)
+                VALUES (?, ?, ?, 'legacy_migration', NULL, ?)
+                ON CONFLICT (pengguna_id, peran_id) DO NOTHING`,
+          args: [membershipId, userId, targetPeranId, createdAt],
+        });
+      }
+      rolesAssigned++;
+    }
+    console.log(`[OK] ${usersMigrated} user(s) ${isApply ? "migrated / updated in" : "planned for"} pengguna.`);
+    console.log(`[OK] ${rolesAssigned} role assignment(s) ${isApply ? "recorded in" : "planned for"} pengguna_peran.`);
+
+    // Determine canonical admin ID for content creation ownership
+    let adminId: string | null = null;
     const activePenggunaAdminRes = await client.execute(`
-      SELECT p.id, p.status
+      SELECT p.id
       FROM pengguna p
       INNER JOIN pengguna_peran pp ON pp.pengguna_id = p.id
       INNER JOIN peran r ON r.id = pp.peran_id
       WHERE p.status = 'active' AND r.code = 'admin'
       LIMIT 1
     `);
-
     if (activePenggunaAdminRes.rows.length > 0) {
       adminId = String(activePenggunaAdminRes.rows[0].id);
-      console.log(`[OK] Active canonical admin found in pengguna: ${adminId}`);
     } else {
-      // Look up admin in legacy user table
-      const legacyAdminRes = await client.execute(`
-        SELECT id, name, email
-        FROM user
-        WHERE role = 'admin'
-        ORDER BY created_at ASC
-        LIMIT 1
-      `);
-
-      if (legacyAdminRes.rows.length > 0) {
-        adminId = String(legacyAdminRes.rows[0].id);
-        const adminEmail = String(legacyAdminRes.rows[0].email);
-        console.log(`[Info] Found legacy admin in user table: ${adminId} (${adminEmail})`);
-
-        if (isApply) {
-          const now = Date.now();
-          await client.execute({
-            sql: `INSERT INTO pengguna (id, status, created_at, updated_at)
-                  VALUES (?, 'active', ?, ?)
-                  ON CONFLICT (id) DO UPDATE SET status = 'active', updated_at = excluded.updated_at`,
-            args: [adminId, now, now],
-          });
-
-          // Ensure peran admin exists
-          const peranRes = await client.execute("SELECT id FROM peran WHERE code = 'admin' LIMIT 1");
-          let peranId = peranRes.rows.length > 0 ? String(peranRes.rows[0].id) : "peran-admin";
-
-          if (peranRes.rows.length === 0) {
-            await client.execute({
-              sql: `INSERT INTO peran (id, code, name, status, created_at, updated_at)
-                    VALUES (?, 'admin', 'Administrator', 'active', ?, ?)
-                    ON CONFLICT (id) DO NOTHING`,
-              args: [peranId, now, now],
-            });
-          }
-
-          // Link pengguna_peran
-          const membershipId = `pp-${adminId}-${peranId}`;
-          await client.execute({
-            sql: `INSERT INTO pengguna_peran (id, pengguna_id, peran_id, status, created_at, updated_at)
-                  VALUES (?, ?, ?, 'active', ?, ?)
-                  ON CONFLICT (id) DO NOTHING`,
-            args: [membershipId, adminId, peranId, now, now],
-          });
-          console.log(`[OK] Seeded canonical admin into pengguna and pengguna_peran: ${adminId}`);
-        } else {
-          console.log(`[Plan] Would ensure admin ${adminId} is registered in pengguna & pengguna_peran`);
-        }
-      } else {
-        // Fallback placeholder admin if no user exists yet
-        adminId = "system-admin-canonical";
-        console.warn("[Warning] No admin user found in user or pengguna table. Using fallback ID: system-admin-canonical");
-        if (isApply) {
-          const now = Date.now();
-          await client.execute({
-            sql: `INSERT INTO pengguna (id, status, created_at, updated_at)
-                  VALUES (?, 'active', ?, ?)
-                  ON CONFLICT (id) DO NOTHING`,
-            args: [adminId, now, now],
-          });
-        }
-      }
+      const adminCandidate = usersRes.rows.find((u) => u.role === "admin");
+      adminId = adminCandidate ? String(adminCandidate.id) : "system-admin-canonical";
     }
+    console.log(`[OK] Active canonical admin identified: ${adminId}`);
 
     // -------------------------------------------------------------------------
-    // Phase 1: courses -> mata_kuliah
+    // Phase 2: courses -> mata_kuliah
     // -------------------------------------------------------------------------
-    console.log("\n--- [Phase 1] Migrating courses -> mata_kuliah ---");
+    console.log("\n--- [Phase 2] Migrating courses -> mata_kuliah ---");
     const coursesRes = await client.execute(`
       SELECT id, title, category, description
       FROM courses
@@ -222,9 +231,9 @@ async function main() {
     console.log(`[OK] ${coursesMigrated} course(s) ${isApply ? "migrated / updated in" : "planned for"} mata_kuliah.`);
 
     // -------------------------------------------------------------------------
-    // Phase 2: chapters -> bab
+    // Phase 3: chapters -> bab
     // -------------------------------------------------------------------------
-    console.log("\n--- [Phase 2] Migrating chapters -> bab ---");
+    console.log("\n--- [Phase 3] Migrating chapters -> bab ---");
     const chaptersRes = await client.execute(`
       SELECT id, course_id, title, description, order_index, status, created_at, updated_at
       FROM chapters
@@ -281,9 +290,9 @@ async function main() {
     }
 
     // -------------------------------------------------------------------------
-    // Phase 3: course_materials -> sumber_materi & potongan_sumber
+    // Phase 4: course_materials -> sumber_materi & potongan_sumber
     // -------------------------------------------------------------------------
-    console.log("\n--- [Phase 3] Migrating course_materials -> sumber_materi & potongan_sumber ---");
+    console.log("\n--- [Phase 4] Migrating course_materials -> sumber_materi & potongan_sumber ---");
     const materialsRes = await client.execute(`
       SELECT id, course_id, title, type, subcategory, year, file_url, checksum, chapter_ids, created_at, updated_at
       FROM course_materials
@@ -385,11 +394,75 @@ async function main() {
     );
 
     // -------------------------------------------------------------------------
-    // Phase 4: Final verification and summary
+    // Phase 5: enrollments -> pendaftaran_murid
     // -------------------------------------------------------------------------
-    console.log("\n--- [Phase 4] Post-Migration Row Count Audit ---");
+    console.log("\n--- [Phase 5] Migrating enrollments -> pendaftaran_murid ---");
+    const enrollmentsRes = await client.execute(`
+      SELECT id, user_id, course_id, enrolled_at, expires_at
+      FROM enrollments
+      ORDER BY enrolled_at ASC
+    `);
+
+    console.log(`Found ${enrollmentsRes.rows.length} enrollment(s) in legacy enrollments table.`);
+    let enrollmentsMigrated = 0;
+    const now = Date.now();
+
+    for (const row of enrollmentsRes.rows) {
+      const enrId = String(row.id);
+      const userId = String(row.user_id);
+      const courseId = String(row.course_id);
+
+      const enrolledAtMs = typeof row.enrolled_at === "number"
+        ? (row.enrolled_at < 10_000_000_000 ? row.enrolled_at * 1000 : row.enrolled_at)
+        : now;
+      const expiresAtMs = typeof row.expires_at === "number"
+        ? (row.expires_at < 10_000_000_000 ? row.expires_at * 1000 : row.expires_at)
+        : null;
+
+      const status = expiresAtMs && expiresAtMs < now ? "expired" : "active";
+
+      if (isApply) {
+        await client.execute({
+          sql: `INSERT INTO pendaftaran_murid (
+                  id, pengguna_id, mata_kuliah_id, status, start_at, end_at,
+                  legacy_enrollment_id, created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT (id) DO UPDATE SET
+                  pengguna_id = excluded.pengguna_id,
+                  mata_kuliah_id = excluded.mata_kuliah_id,
+                  status = excluded.status,
+                  start_at = excluded.start_at,
+                  end_at = excluded.end_at,
+                  legacy_enrollment_id = excluded.legacy_enrollment_id,
+                  updated_at = excluded.updated_at`,
+          args: [
+            enrId,
+            userId,
+            courseId,
+            status,
+            enrolledAtMs,
+            expiresAtMs,
+            enrId,
+            enrolledAtMs,
+            now,
+          ],
+        });
+      }
+      enrollmentsMigrated++;
+    }
+    console.log(
+      `[OK] ${enrollmentsMigrated} enrollment(s) ${isApply ? "migrated / updated in" : "planned for"} pendaftaran_murid.`,
+    );
+
+    // -------------------------------------------------------------------------
+    // Phase 6: Final verification and summary
+    // -------------------------------------------------------------------------
+    console.log("\n--- [Phase 6] Post-Migration Row Count Audit ---");
 
     const [
+      userCnt,
+      penggunaCnt,
+      ppCnt,
       coursesCnt,
       mataKuliahCnt,
       chaptersCnt,
@@ -397,7 +470,12 @@ async function main() {
       cmCnt,
       smCnt,
       psCnt,
+      enrCnt,
+      pmCnt,
     ] = await Promise.all([
+      client.execute("SELECT COUNT(*) as c FROM user"),
+      client.execute("SELECT COUNT(*) as c FROM pengguna"),
+      client.execute("SELECT COUNT(*) as c FROM pengguna_peran"),
       client.execute("SELECT COUNT(*) as c FROM courses"),
       client.execute("SELECT COUNT(*) as c FROM mata_kuliah"),
       client.execute("SELECT COUNT(*) as c FROM chapters"),
@@ -405,16 +483,20 @@ async function main() {
       client.execute("SELECT COUNT(*) as c FROM course_materials"),
       client.execute("SELECT COUNT(*) as c FROM sumber_materi"),
       client.execute("SELECT COUNT(*) as c FROM potongan_sumber"),
+      client.execute("SELECT COUNT(*) as c FROM enrollments"),
+      client.execute("SELECT COUNT(*) as c FROM pendaftaran_murid"),
     ]);
 
     console.log("Entity                  | Legacy Count | Canonical Count");
     console.log("------------------------+--------------+----------------");
+    console.log(`Users / Pengguna        | ${String(userCnt.rows[0].c).padEnd(12)} | ${String(penggunaCnt.rows[0].c).padEnd(15)} (roles: ${ppCnt.rows[0].c})`);
     console.log(`Courses / Mata Kuliah   | ${String(coursesCnt.rows[0].c).padEnd(12)} | ${String(mataKuliahCnt.rows[0].c).padEnd(15)}`);
     console.log(`Chapters / Bab          | ${String(chaptersCnt.rows[0].c).padEnd(12)} | ${String(babCnt.rows[0].c).padEnd(15)}`);
     console.log(`Materials / Sumber      | ${String(cmCnt.rows[0].c).padEnd(12)} | ${String(smCnt.rows[0].c).padEnd(15)} (chunks: ${psCnt.rows[0].c})`);
+    console.log(`Enrollments / Murid     | ${String(enrCnt.rows[0].c).padEnd(12)} | ${String(pmCnt.rows[0].c).padEnd(15)}`);
 
     if (isApply) {
-      console.log("\n--- [Phase 5] Foreign Key Integrity Check ---");
+      console.log("\n--- [Phase 7] Foreign Key Integrity Check ---");
       const fkCheck = await client.execute("PRAGMA foreign_key_check");
       if (fkCheck.rows.length > 0) {
         console.error(`[ERROR] Foreign key violations detected (${fkCheck.rows.length}):`);
