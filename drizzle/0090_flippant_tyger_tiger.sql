@@ -849,4 +849,4 @@ CREATE INDEX `idx_zyra_proposal_event_proposal` ON `zyra_proposal_events` (`prop
 CREATE INDEX `idx_zyra_proposal_event_actor` ON `zyra_proposal_events` (`actor_id`,`created_at`);--> statement-breakpoint
 CREATE INDEX `idx_zyra_proposal_actor_status` ON `zyra_proposals` (`actor_id`,`status`,`created_at`);--> statement-breakpoint
 CREATE INDEX `idx_zyra_proposal_course_status` ON `zyra_proposals` (`course_id`,`status`);--> statement-breakpoint
-CREATE INDEX `idx_zyra_proposal_expiry` ON `zyra_proposals` (`expires_at`,`status`);--> statement-breakpoint
+CREATE INDEX `idx_zyra_proposal_expiry` ON `zyra_proposals` (`expires_at`,`status`);
