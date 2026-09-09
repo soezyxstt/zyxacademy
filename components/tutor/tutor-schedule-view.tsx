@@ -252,20 +252,31 @@ export function TutorScheduleView({
   };
 
   const handleStartTimeChange = (val: string) => {
-    setNewSlotStart(val);
-    setNewSlotEnd(computeEndTime(val));
+    if (!val) {
+      setNewSlotStart("");
+      setNewSlotEnd(computeEndTime(""));
+      return;
+    }
+    const [hours, minutes] = val.split(":").map(Number);
+    if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return;
+    const snappedMinutes = Math.min(
+      20 * 60 + 30,
+      Math.max(7 * 60, Math.round((hours * 60 + minutes) / 30) * 30),
+    );
+    const snapped = `${String(Math.floor(snappedMinutes / 60)).padStart(2, "0")}:${String(snappedMinutes % 60).padStart(2, "0")}`;
+    setNewSlotStart(snapped);
+    setNewSlotEnd(computeEndTime(snapped));
   };
 
   const handleCreateSlotDirect = (
     dateIso: string,
     startTimeStr?: string,
-    endTimeStr?: string
   ) => {
     setFeedback(null);
     setNewSlotDate(dateIso);
     const start = startTimeStr || "09:00";
     setNewSlotStart(start);
-    setNewSlotEnd(endTimeStr || computeEndTime(start));
+    setNewSlotEnd(computeEndTime(start));
     setIsAddSlotOpen(true);
   };
 

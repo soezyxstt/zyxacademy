@@ -555,8 +555,8 @@ export function SessionDetailDrawer({
                 <h3 className="text-body-sm font-semibold text-status-error">Resource belum terunggah</h3>
                 <p className="text-body-xs text-muted-foreground">Booking tetap berhasil. Coba unggah ulang resource berikut.</p>
                 <ul className="space-y-1.5">
-                  {pendingResources.map((pending) => (
-                    <li key={`${pending.kind}-${pending.label}`} className="flex items-center justify-between gap-2 text-body-xs">
+                  {pendingResources.map((pending, index) => (
+                    <li key={`${pending.kind}-${pending.label}-${index}`} className="flex items-center justify-between gap-2 text-body-xs">
                       <span className="truncate">{pending.label}</span>
                       <Button type="button" size="sm" variant="outline" disabled={Boolean(busyAction)} onClick={() => retryPendingResource(pending)} className="h-7 text-body-xs">
                         {busyAction === `retry-${pending.label}` ? <Loader2 className="size-3 animate-spin" /> : <RefreshCcw className="size-3" />} Coba lagi
