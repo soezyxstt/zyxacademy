@@ -51,7 +51,9 @@ export class ZyxLanguageModel implements LanguageModelV3 {
   }
 
   /**
-   * Helper to convert AI SDK LanguageModelV3Prompt into OpsAiModelMessage array.
+   * Convert AI SDK V3 prompt messages to the lower-level Gemini-oriented Ops AI
+   * protocol. Tool turns are deliberately normalized to model/functionCall followed
+   * by user/functionResponse because that is the canonical Gemini conversation shape.
    */
   private convertPrompt(
     options: LanguageModelV3CallOptions
@@ -102,7 +104,7 @@ export class ZyxLanguageModel implements LanguageModelV3 {
           }
         }
         messages.push({
-          role: "assistant",
+          role: "model",
           content: textContent || undefined,
           parts: parts.length > 0 ? parts : undefined,
         });
@@ -127,7 +129,7 @@ export class ZyxLanguageModel implements LanguageModelV3 {
           }
         }
         messages.push({
-          role: "tool",
+          role: "user",
           parts,
         });
       }
