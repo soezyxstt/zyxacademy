@@ -14,392 +14,392 @@ CREATE TABLE `question_reference_links` (
 CREATE UNIQUE INDEX `question_ref_links_unique_idx` ON `question_reference_links` (`question_id`,`reference_question_id`,`role`);--> statement-breakpoint
 CREATE INDEX `question_ref_links_q_idx` ON `question_reference_links` (`question_id`);--> statement-breakpoint
 CREATE INDEX `question_ref_links_ref_idx` ON `question_reference_links` (`reference_question_id`);--> statement-breakpoint
-DROP INDEX "idx_academic_sched_type";--> statement-breakpoint
-DROP INDEX "idx_academic_sched_course_id";--> statement-breakpoint
-DROP INDEX "idx_academic_sched_start_date";--> statement-breakpoint
-DROP INDEX "account_userId_idx";--> statement-breakpoint
-DROP INDEX "idx_admin_ops_chunks_source";--> statement-breakpoint
-DROP INDEX "idx_admin_ops_chunks_status";--> statement-breakpoint
-DROP INDEX "idx_admin_ops_chunks_vector_id";--> statement-breakpoint
-DROP INDEX "idx_admin_ops_chunks_content_hash";--> statement-breakpoint
-DROP INDEX "idx_admin_ops_chunks_source_index_ver";--> statement-breakpoint
-DROP INDEX "idx_admin_ops_sources_path";--> statement-breakpoint
-DROP INDEX "idx_admin_ops_sources_status";--> statement-breakpoint
-DROP INDEX "idx_admin_ops_sources_hash";--> statement-breakpoint
-DROP INDEX "idx_admin_ops_sync_queue_status";--> statement-breakpoint
-DROP INDEX "ai_allowance_leases_idempotency_idx";--> statement-breakpoint
-DROP INDEX "ai_allowance_leases_user_day_idx";--> statement-breakpoint
-DROP INDEX "ai_allowance_leases_user_status_idx";--> statement-breakpoint
-DROP INDEX "ai_allowance_leases_control_plane_idx";--> statement-breakpoint
-DROP INDEX "ai_allowance_leases_run_idx";--> statement-breakpoint
-DROP INDEX "idx_ai_fail_course";--> statement-breakpoint
-DROP INDEX "idx_ai_fail_chapter";--> statement-breakpoint
-DROP INDEX "idx_jobs_status";--> statement-breakpoint
-DROP INDEX "idx_traces_user_created";--> statement-breakpoint
-DROP INDEX "idx_traces_stage_prompt";--> statement-breakpoint
-DROP INDEX "idx_chunks_section";--> statement-breakpoint
-DROP INDEX "ai_sections_instance_idx";--> statement-breakpoint
-DROP INDEX "ai_instances_course_idx";--> statement-breakpoint
-DROP INDEX "idx_qbank_selection";--> statement-breakpoint
-DROP INDEX "idx_qbank_tags";--> statement-breakpoint
-DROP INDEX "idx_qbank_ko";--> statement-breakpoint
-DROP INDEX "idx_qbank_gen_run";--> statement-breakpoint
-DROP INDEX "idx_qbank_origin";--> statement-breakpoint
-DROP INDEX "idx_qbank_quiz_eligible";--> statement-breakpoint
-DROP INDEX "idx_usage_user_created";--> statement-breakpoint
-DROP INDEX "alur_konten_entity_version_idx";--> statement-breakpoint
-DROP INDEX "alur_konten_course_state_idx";--> statement-breakpoint
-DROP INDEX "artikel_slug_idx";--> statement-breakpoint
-DROP INDEX "artikel_course_idx";--> statement-breakpoint
-DROP INDEX "artikel_chapter_idx";--> statement-breakpoint
-DROP INDEX "artikel_status_version_idx";--> statement-breakpoint
-DROP INDEX "artikel_structure_status_idx";--> statement-breakpoint
-DROP INDEX "artikel_ide_unique_idx";--> statement-breakpoint
-DROP INDEX "artikel_ide_ide_idx";--> statement-breakpoint
-DROP INDEX "asal_ide_span_idx";--> statement-breakpoint
-DROP INDEX "asal_ide_ide_idx";--> statement-breakpoint
-DROP INDEX "asal_ide_source_idx";--> statement-breakpoint
-DROP INDEX "asesmen_course_idx";--> statement-breakpoint
-DROP INDEX "asesmen_status_version_idx";--> statement-breakpoint
-DROP INDEX "idx_ao_concepts_ao";--> statement-breakpoint
-DROP INDEX "idx_ao_concepts_concept";--> statement-breakpoint
-DROP INDEX "idx_ao_kos_ao";--> statement-breakpoint
-DROP INDEX "idx_ao_kos_ko";--> statement-breakpoint
-DROP INDEX "assessment_profiles_course_id_unique";--> statement-breakpoint
-DROP INDEX "idx_asc_source";--> statement-breakpoint
-DROP INDEX "idx_asc_chapter";--> statement-breakpoint
-DROP INDEX "assessment_sources_canonical_course_idx";--> statement-breakpoint
-DROP INDEX "assessment_sources_document_idx";--> statement-breakpoint
-DROP INDEX "uq_attempt_feedback_question";--> statement-breakpoint
-DROP INDEX "audit_mutasi_entity_idx";--> statement-breakpoint
-DROP INDEX "audit_mutasi_actor_idx";--> statement-breakpoint
-DROP INDEX "audit_mutasi_course_outcome_idx";--> statement-breakpoint
-DROP INDEX "bab_course_code_idx";--> statement-breakpoint
-DROP INDEX "bab_course_order_idx";--> statement-breakpoint
-DROP INDEX "bab_legacy_chapter_idx";--> statement-breakpoint
-DROP INDEX "bagian_artikel_key_idx";--> statement-breakpoint
-DROP INDEX "bagian_artikel_slug_idx";--> statement-breakpoint
-DROP INDEX "bagian_artikel_order_idx";--> statement-breakpoint
-DROP INDEX "bagian_artikel_learning_section_idx";--> statement-breakpoint
-DROP INDEX "bagian_pembelajaran_stable_key_idx";--> statement-breakpoint
-DROP INDEX "bagian_pembelajaran_slug_idx";--> statement-breakpoint
-DROP INDEX "bagian_pembelajaran_order_idx";--> statement-breakpoint
-DROP INDEX "bagian_pembelajaran_parent_idx";--> statement-breakpoint
-DROP INDEX "bagian_pembelajaran_ide_unique_idx";--> statement-breakpoint
-DROP INDEX "bagian_pembelajaran_ide_ide_idx";--> statement-breakpoint
-DROP INDEX "benchmark_soal_checksum_idx";--> statement-breakpoint
-DROP INDEX "benchmark_soal_dataset_idx";--> statement-breakpoint
-DROP INDEX "blog_articles_slug_unique";--> statement-breakpoint
-DROP INDEX "idx_blog_slug";--> statement-breakpoint
-DROP INDEX "idx_blog_status";--> statement-breakpoint
-DROP INDEX "idx_blog_category";--> statement-breakpoint
-DROP INDEX "blok_artikel_key_idx";--> statement-breakpoint
-DROP INDEX "blok_artikel_order_idx";--> statement-breakpoint
-DROP INDEX "blok_artikel_section_idx";--> statement-breakpoint
-DROP INDEX "blok_artikel_status_idx";--> statement-breakpoint
-DROP INDEX "blok_artikel_ide_unique_idx";--> statement-breakpoint
-DROP INDEX "blok_artikel_ide_ide_idx";--> statement-breakpoint
-DROP INDEX "blok_artikel_sumber_unique_idx";--> statement-breakpoint
-DROP INDEX "blok_artikel_sumber_source_idx";--> statement-breakpoint
-DROP INDEX "blueprint_asesmen_course_idx";--> statement-breakpoint
-DROP INDEX "blueprint_asesmen_status_version_idx";--> statement-breakpoint
-DROP INDEX "idx_booking_audit_booking_id";--> statement-breakpoint
-DROP INDEX "idx_booking_audit_group_id";--> statement-breakpoint
-DROP INDEX "idx_booking_audit_actor_id";--> statement-breakpoint
-DROP INDEX "idx_reschedule_booking_id";--> statement-breakpoint
-DROP INDEX "idx_reschedule_group_id";--> statement-breakpoint
-DROP INDEX "idx_reschedule_status";--> statement-breakpoint
-DROP INDEX "booking_resources_booking_idx";--> statement-breakpoint
-DROP INDEX "booking_resources_booking_phase_idx";--> statement-breakpoint
-DROP INDEX "booking_resources_creator_idx";--> statement-breakpoint
-DROP INDEX "idx_ticket_messages_ticket_id";--> statement-breakpoint
-DROP INDEX "idx_ticket_messages_sender_id";--> statement-breakpoint
-DROP INDEX "bookings_slot_id_unique";--> statement-breakpoint
-DROP INDEX "bookings_slot_idx";--> statement-breakpoint
-DROP INDEX "bookings_student_idx";--> statement-breakpoint
-DROP INDEX "bookings_group_idx";--> statement-breakpoint
-DROP INDEX "bookings_status_idx";--> statement-breakpoint
-DROP INDEX "bookings_session_date_idx";--> statement-breakpoint
-DROP INDEX "bukti_ide_jawaban_unique_idx";--> statement-breakpoint
-DROP INDEX "bukti_ide_jawaban_ide_idx";--> statement-breakpoint
-DROP INDEX "bukti_pdf_bundle_lineage_idx";--> statement-breakpoint
-DROP INDEX "bukti_pdf_bundle_import_idx";--> statement-breakpoint
-DROP INDEX "bukti_pdf_bundle_product_idx";--> statement-breakpoint
-DROP INDEX "bukti_pdf_bundle_status_idx";--> statement-breakpoint
-DROP INDEX "bukti_pdf_bundle_diktat_hash_idx";--> statement-breakpoint
-DROP INDEX "bukti_pdf_bundle_article_hash_idx";--> statement-breakpoint
-DROP INDEX "bukti_pembelajaran_murid_ide_idx";--> statement-breakpoint
-DROP INDEX "bukti_pembelajaran_source_idx";--> statement-breakpoint
-DROP INDEX "bukti_pembelajaran_idempotency_idx";--> statement-breakpoint
-DROP INDEX "cakupan_asesmen_chapter_idx";--> statement-breakpoint
-DROP INDEX "cakupan_asesmen_order_idx";--> statement-breakpoint
-DROP INDEX "idx_career_path_concepts_template";--> statement-breakpoint
-DROP INDEX "idx_career_path_concepts_concept";--> statement-breakpoint
-DROP INDEX "uq_career_path_concepts";--> statement-breakpoint
-DROP INDEX "uq_career_path_templates_title";--> statement-breakpoint
-DROP INDEX "chapter_aliases_alias_name_unique";--> statement-breakpoint
-DROP INDEX "idx_chapters_course_order";--> statement-breakpoint
-DROP INDEX "idx_cms_message";--> statement-breakpoint
-DROP INDEX "idx_cms_source";--> statement-breakpoint
-DROP INDEX "idx_chat_sessions_student_course";--> statement-breakpoint
-DROP INDEX "idx_chat_sessions_last_message";--> statement-breakpoint
-DROP INDEX "idx_cge_course";--> statement-breakpoint
-DROP INDEX "uq_cge_edge";--> statement-breakpoint
-DROP INDEX "idx_concept_loc_concept";--> statement-breakpoint
-DROP INDEX "uq_concept_loc_concept_lang";--> statement-breakpoint
-DROP INDEX "concepts_canonical_slug_unique";--> statement-breakpoint
-DROP INDEX "idx_cqf_course";--> statement-breakpoint
-DROP INDEX "idx_cqf_question";--> statement-breakpoint
-DROP INDEX "uq_cqf_question_type";--> statement-breakpoint
-DROP INDEX "idx_course_snapshot_lookup";--> statement-breakpoint
-DROP INDEX "uq_course_snapshot_date";--> statement-breakpoint
-DROP INDEX "idx_course_materials_course";--> statement-breakpoint
-DROP INDEX "course_policies_course_id_unique";--> statement-breakpoint
-DROP INDEX "idx_custom_form_presets_category";--> statement-breakpoint
-DROP INDEX "idx_custom_form_responses_form_id";--> statement-breakpoint
-DROP INDEX "idx_custom_form_responses_user_id";--> statement-breakpoint
-DROP INDEX "custom_forms_slug_unique";--> statement-breakpoint
-DROP INDEX "idx_custom_forms_slug";--> statement-breakpoint
-DROP INDEX "idx_custom_forms_category";--> statement-breakpoint
-DROP INDEX "idx_daily_rec_student";--> statement-breakpoint
-DROP INDEX "uq_daily_rec_student_date";--> statement-breakpoint
-DROP INDEX "diktat_ide_unique_idx";--> statement-breakpoint
-DROP INDEX "diktat_ide_ide_idx";--> statement-breakpoint
-DROP INDEX "diktat_materi_course_idx";--> statement-breakpoint
-DROP INDEX "diktat_materi_chapter_idx";--> statement-breakpoint
-DROP INDEX "diktat_materi_status_version_idx";--> statement-breakpoint
-DROP INDEX "diktat_pembahasan_diktat_idx";--> statement-breakpoint
-DROP INDEX "idx_distractor_prov_q";--> statement-breakpoint
-DROP INDEX "idx_distractor_prov_ko";--> statement-breakpoint
-DROP INDEX "uq_distractor_prov_option";--> statement-breakpoint
-DROP INDEX "drive_item_parent_idx";--> statement-breakpoint
-DROP INDEX "drive_item_created_by_idx";--> statement-breakpoint
-DROP INDEX "token_courses_token_idx";--> statement-breakpoint
-DROP INDEX "token_courses_course_idx";--> statement-breakpoint
-DROP INDEX "enrollment_tokens_token_unique";--> statement-breakpoint
-DROP INDEX "export_spreadsheets_entity_idx";--> statement-breakpoint
-DROP INDEX "idx_extraction_runs_chapter";--> statement-breakpoint
-DROP INDEX "idx_extraction_runs_state";--> statement-breakpoint
-DROP INDEX "flashcard_set_idx";--> statement-breakpoint
-DROP INDEX "flashcard_status_version_idx";--> statement-breakpoint
-DROP INDEX "flashcard_ide_unique_idx";--> statement-breakpoint
-DROP INDEX "flashcard_ide_ide_idx";--> statement-breakpoint
-DROP INDEX "idx_fc_reviews_student";--> statement-breakpoint
-DROP INDEX "idx_fc_reviews_card";--> statement-breakpoint
-DROP INDEX "google_forms_form_id_unique";--> statement-breakpoint
-DROP INDEX "idx_forms_form_id";--> statement-breakpoint
-DROP INDEX "idx_forms_category";--> statement-breakpoint
-DROP INDEX "google_meet_sessions_space_name_unique";--> statement-breakpoint
-DROP INDEX "google_meet_sessions_slug_unique";--> statement-breakpoint
-DROP INDEX "idx_meet_space_name";--> statement-breakpoint
-DROP INDEX "idx_meet_code";--> statement-breakpoint
-DROP INDEX "idx_meet_slug";--> statement-breakpoint
-DROP INDEX "group_courses_group_idx";--> statement-breakpoint
-DROP INDEX "group_courses_course_idx";--> statement-breakpoint
-DROP INDEX "group_members_group_idx";--> statement-breakpoint
-DROP INDEX "group_members_user_idx";--> statement-breakpoint
-DROP INDEX "ide_stable_key_idx";--> statement-breakpoint
-DROP INDEX "ide_course_code_idx";--> statement-breakpoint
-DROP INDEX "ide_bab_idx";--> statement-breakpoint
-DROP INDEX "ide_concept_idx";--> statement-breakpoint
-DROP INDEX "ide_status_idx";--> statement-breakpoint
-DROP INDEX "impor_bundle_identity_idx";--> statement-breakpoint
-DROP INDEX "impor_bundle_status_idx";--> statement-breakpoint
-DROP INDEX "idx_important_links_category";--> statement-breakpoint
-DROP INDEX "idx_important_links_active";--> statement-breakpoint
-DROP INDEX "uq_active_intervention";--> statement-breakpoint
-DROP INDEX "item_asesmen_order_idx";--> statement-breakpoint
-DROP INDEX "item_asesmen_soal_idx";--> statement-breakpoint
-DROP INDEX "item_diktat_pembahasan_order_idx";--> statement-breakpoint
-DROP INDEX "item_diktat_pembahasan_soal_idx";--> statement-breakpoint
-DROP INDEX "item_impor_bundle_entity_idx";--> statement-breakpoint
-DROP INDEX "item_impor_bundle_status_idx";--> statement-breakpoint
-DROP INDEX "jawaban_murid_attempt_item_idx";--> statement-breakpoint
-DROP INDEX "jawaban_murid_status_idx";--> statement-breakpoint
-DROP INDEX "kemajuan_baca_artikel_unique_idx";--> statement-breakpoint
-DROP INDEX "kemajuan_baca_artikel_resume_idx";--> statement-breakpoint
-DROP INDEX "kemajuan_flashcard_murid_unique_idx";--> statement-breakpoint
-DROP INDEX "kemajuan_flashcard_murid_due_idx";--> statement-breakpoint
-DROP INDEX "ketergantungan_produk_edge_idx";--> statement-breakpoint
-DROP INDEX "ketergantungan_produk_upstream_idx";--> statement-breakpoint
-DROP INDEX "ketergantungan_produk_downstream_idx";--> statement-breakpoint
-DROP INDEX "idx_ko_sources_ko";--> statement-breakpoint
-DROP INDEX "idx_ko_sources_doc_chapter";--> statement-breakpoint
-DROP INDEX "idx_ko_course";--> statement-breakpoint
-DROP INDEX "idx_ko_chapter";--> statement-breakpoint
-DROP INDEX "idx_ko_concept";--> statement-breakpoint
-DROP INDEX "idx_ko_status";--> statement-breakpoint
-DROP INDEX "idx_ko_stable_key";--> statement-breakpoint
-DROP INDEX "idx_rel_source";--> statement-breakpoint
-DROP INDEX "idx_rel_target";--> statement-breakpoint
-DROP INDEX "idx_rel_source_target_type";--> statement-breakpoint
-DROP INDEX "idx_le_student_course_created";--> statement-breakpoint
-DROP INDEX "idx_le_student_concept";--> statement-breakpoint
-DROP INDEX "idx_learning_objectives_chapter";--> statement-breakpoint
-DROP INDEX "idx_lo_concepts_lo";--> statement-breakpoint
-DROP INDEX "idx_lo_concepts_concept";--> statement-breakpoint
-DROP INDEX "uq_lo_concepts";--> statement-breakpoint
-DROP INDEX "idx_learning_outcomes_course";--> statement-breakpoint
-DROP INDEX "idx_learning_outcomes_parent";--> statement-breakpoint
-DROP INDEX "uq_learning_outcomes_course_code";--> statement-breakpoint
-DROP INDEX "legacy_backfill_exception_source_idx";--> statement-breakpoint
-DROP INDEX "legacy_backfill_exception_run_idx";--> statement-breakpoint
-DROP INDEX "legacy_backfill_exception_blocking_idx";--> statement-breakpoint
-DROP INDEX "idx_live_results_session";--> statement-breakpoint
-DROP INDEX "idx_live_results_student";--> statement-breakpoint
-DROP INDEX "uq_live_result_session_student";--> statement-breakpoint
-DROP INDEX "live_quiz_sessions_code_unique";--> statement-breakpoint
-DROP INDEX "idx_live_sessions_code";--> statement-breakpoint
-DROP INDEX "idx_live_sessions_course";--> statement-breakpoint
-DROP INDEX "idx_mrq_status";--> statement-breakpoint
-DROP INDEX "idx_mrq_student_course";--> statement-breakpoint
-DROP INDEX "mata_kuliah_code_idx";--> statement-breakpoint
-DROP INDEX "mata_kuliah_legacy_course_idx";--> statement-breakpoint
-DROP INDEX "migration_checkpoints_run_idx";--> statement-breakpoint
-DROP INDEX "migration_runs_plan_idx";--> statement-breakpoint
-DROP INDEX "migration_runs_status_idx";--> statement-breakpoint
-DROP INDEX "idx_notifications_user_read";--> statement-breakpoint
-DROP INDEX "idx_notifications_user_created";--> statement-breakpoint
-DROP INDEX "pemahaman_ide_murid_ide_idx";--> statement-breakpoint
-DROP INDEX "pemahaman_ide_ide_idx";--> statement-breakpoint
-DROP INDEX "pembahasan_soal_version_idx";--> statement-breakpoint
-DROP INDEX "pendaftaran_murid_legacy_idx";--> statement-breakpoint
-DROP INDEX "pendaftaran_murid_pengguna_idx";--> statement-breakpoint
-DROP INDEX "pendaftaran_murid_mata_kuliah_idx";--> statement-breakpoint
-DROP INDEX "pengguna_status_idx";--> statement-breakpoint
-DROP INDEX "pengguna_peran_unique_idx";--> statement-breakpoint
-DROP INDEX "pengguna_peran_pengguna_idx";--> statement-breakpoint
-DROP INDEX "pengguna_peran_peran_idx";--> statement-breakpoint
-DROP INDEX "penugasan_tutor_legacy_idx";--> statement-breakpoint
-DROP INDEX "penugasan_tutor_scope_idx";--> statement-breakpoint
-DROP INDEX "penugasan_tutor_pengguna_idx";--> statement-breakpoint
-DROP INDEX "penugasan_tutor_mata_kuliah_idx";--> statement-breakpoint
-DROP INDEX "peran_code_unique";--> statement-breakpoint
-DROP INDEX "percobaan_asesmen_murid_idx";--> statement-breakpoint
-DROP INDEX "percobaan_asesmen_assessment_idx";--> statement-breakpoint
-DROP INDEX "perubahan_pemahaman_ide_idx";--> statement-breakpoint
-DROP INDEX "peta_id_legacy_source_idx";--> statement-breakpoint
-DROP INDEX "peta_id_legacy_target_idx";--> statement-breakpoint
-DROP INDEX "peta_id_legacy_run_idx";--> statement-breakpoint
-DROP INDEX "uq_pka_registrations_user";--> statement-breakpoint
-DROP INDEX "uq_pka_stages_subject_stage";--> statement-breakpoint
-DROP INDEX "uq_pka_progress_student_subject_stage";--> statement-breakpoint
-DROP INDEX "potongan_sumber_span_idx";--> statement-breakpoint
-DROP INDEX "potongan_sumber_source_idx";--> statement-breakpoint
-DROP INDEX "publikasi_bundle_version_idx";--> statement-breakpoint
-DROP INDEX "publikasi_bundle_status_idx";--> statement-breakpoint
-DROP INDEX "idx_qgen_runs_course";--> statement-breakpoint
-DROP INDEX "idx_qos_question";--> statement-breakpoint
-DROP INDEX "uq_qos_question_option";--> statement-breakpoint
-DROP INDEX "question_ref_links_unique_idx";--> statement-breakpoint
-DROP INDEX "question_ref_links_q_idx";--> statement-breakpoint
-DROP INDEX "question_ref_links_ref_idx";--> statement-breakpoint
-DROP INDEX "idx_qai_template";--> statement-breakpoint
-DROP INDEX "idx_qai_exam";--> statement-breakpoint
-DROP INDEX "idx_templates_search";--> statement-breakpoint
-DROP INDEX "rekomendasi_flashcard_unique_idx";--> statement-breakpoint
-DROP INDEX "rekomendasi_flashcard_due_idx";--> statement-breakpoint
-DROP INDEX "relasi_ide_unique_idx";--> statement-breakpoint
-DROP INDEX "relasi_ide_source_idx";--> statement-breakpoint
-DROP INDEX "relasi_ide_target_idx";--> statement-breakpoint
-DROP INDEX "review_bundle_reviewer_idx";--> statement-breakpoint
-DROP INDEX "review_bundle_status_idx";--> statement-breakpoint
-DROP INDEX "review_flashcard_progress_idx";--> statement-breakpoint
-DROP INDEX "review_item_bundle_target_idx";--> statement-breakpoint
-DROP INDEX "review_item_bundle_import_idx";--> statement-breakpoint
-DROP INDEX "review_item_bundle_status_idx";--> statement-breakpoint
-DROP INDEX "review_pedagogi_bundle_decision_idx";--> statement-breakpoint
-DROP INDEX "review_pedagogi_bundle_import_idx";--> statement-breakpoint
-DROP INDEX "review_pedagogi_bundle_reviewer_idx";--> statement-breakpoint
-DROP INDEX "review_pedagogi_bundle_fingerprint_idx";--> statement-breakpoint
-DROP INDEX "review_pedagogi_bundle_status_idx";--> statement-breakpoint
-DROP INDEX "idx_search_documents_entity";--> statement-breakpoint
-DROP INDEX "idx_search_documents_synced";--> statement-breakpoint
-DROP INDEX "idx_search_documents_sync_status";--> statement-breakpoint
-DROP INDEX "idx_search_documents_min_role";--> statement-breakpoint
-DROP INDEX "idx_search_documents_course";--> statement-breakpoint
-DROP INDEX "session_token_unique";--> statement-breakpoint
-DROP INDEX "session_userId_idx";--> statement-breakpoint
-DROP INDEX "set_flashcard_course_idx";--> statement-breakpoint
-DROP INDEX "set_flashcard_chapter_idx";--> statement-breakpoint
-DROP INDEX "set_flashcard_status_version_idx";--> statement-breakpoint
-DROP INDEX "short_link_slug_unique";--> statement-breakpoint
-DROP INDEX "soal_course_idx";--> statement-breakpoint
-DROP INDEX "soal_chapter_idx";--> statement-breakpoint
-DROP INDEX "soal_status_version_idx";--> statement-breakpoint
-DROP INDEX "soal_origin_idx";--> statement-breakpoint
-DROP INDEX "soal_assessment_source_idx";--> statement-breakpoint
-DROP INDEX "soal_quiz_eligible_idx";--> statement-breakpoint
-DROP INDEX "soal_ide_unique_idx";--> statement-breakpoint
-DROP INDEX "soal_ide_ide_idx";--> statement-breakpoint
-DROP INDEX "soal_itb_referensi_checksum_idx";--> statement-breakpoint
-DROP INDEX "soal_itb_referensi_visibility_idx";--> statement-breakpoint
-DROP INDEX "soal_relasi_ide_unique_idx";--> statement-breakpoint
-DROP INDEX "soal_relasi_ide_ide_idx";--> statement-breakpoint
-DROP INDEX "idx_scm_student_chapter_course";--> statement-breakpoint
-DROP INDEX "uq_scm_student_chapter";--> statement-breakpoint
-DROP INDEX "idx_student_chap_prog";--> statement-breakpoint
-DROP INDEX "idx_scm_student_course_score";--> statement-breakpoint
-DROP INDEX "uq_scm_student_course_concept";--> statement-breakpoint
-DROP INDEX "idx_scmh_student_course";--> statement-breakpoint
-DROP INDEX "uq_scmh_student_concept_date";--> statement-breakpoint
-DROP INDEX "idx_student_fc_due";--> statement-breakpoint
-DROP INDEX "uq_student_flashcard";--> statement-breakpoint
-DROP INDEX "idx_student_mat_prog";--> statement-breakpoint
-DROP INDEX "uq_student_material";--> statement-breakpoint
-DROP INDEX "student_quiz_analytics_attempt_id_unique";--> statement-breakpoint
-DROP INDEX "idx_sqa_attempt";--> statement-breakpoint
-DROP INDEX "idx_sqa_student";--> statement-breakpoint
-DROP INDEX "idx_sqa_template";--> statement-breakpoint
-DROP INDEX "idx_attempts_student";--> statement-breakpoint
-DROP INDEX "idx_attempts_completed";--> statement-breakpoint
-DROP INDEX "idx_attempts_grading_status";--> statement-breakpoint
-DROP INDEX "idx_study_paths_student";--> statement-breakpoint
-DROP INDEX "uq_study_paths_student_course";--> statement-breakpoint
-DROP INDEX "idx_submissions_user_exam_attempt";--> statement-breakpoint
-DROP INDEX "sumber_materi_version_idx";--> statement-breakpoint
-DROP INDEX "sumber_materi_bab_idx";--> statement-breakpoint
-DROP INDEX "sumber_materi_status_idx";--> statement-breakpoint
-DROP INDEX "idx_tcm_student_course";--> statement-breakpoint
-DROP INDEX "idx_tcm_session";--> statement-breakpoint
-DROP INDEX "idx_tcm_created_at";--> statement-breakpoint
-DROP INDEX "tutor_courses_tutor_idx";--> statement-breakpoint
-DROP INDEX "tutor_courses_course_idx";--> statement-breakpoint
-DROP INDEX "uq_tss_student_course";--> statement-breakpoint
-DROP INDEX "tutor_slots_tutor_idx";--> statement-breakpoint
-DROP INDEX "tutor_slots_tutor_date_idx";--> statement-breakpoint
-DROP INDEX "tutor_slots_exact_unique_idx";--> statement-breakpoint
-DROP INDEX "user_email_unique";--> statement-breakpoint
-DROP INDEX "user_push_tokens_token_unique";--> statement-breakpoint
-DROP INDEX "idx_push_tokens_user";--> statement-breakpoint
-DROP INDEX "idx_push_tokens_token";--> statement-breakpoint
-DROP INDEX "idx_vector_sync_status";--> statement-breakpoint
-DROP INDEX "idx_vector_sync_lease";--> statement-breakpoint
-DROP INDEX "verification_identifier_idx";--> statement-breakpoint
-DROP INDEX "idx_web_mat_ver_mat";--> statement-breakpoint
-DROP INDEX "idx_web_mat_stale";--> statement-breakpoint
-DROP INDEX "idx_web_mat_chapter";--> statement-breakpoint
-DROP INDEX "idx_weekly_ref_student";--> statement-breakpoint
-DROP INDEX "uq_weekly_ref_student_week";--> statement-breakpoint
-DROP INDEX "idx_zyra_preferences_student_course";--> statement-breakpoint
-DROP INDEX "uq_zyra_preferences_student_course";--> statement-breakpoint
-DROP INDEX "idx_zyra_profile_student_course";--> statement-breakpoint
-DROP INDEX "idx_zyra_profile_expiry";--> statement-breakpoint
-DROP INDEX "uq_zyra_profile_student_course";--> statement-breakpoint
-DROP INDEX "idx_zyra_event_student_course_created";--> statement-breakpoint
-DROP INDEX "idx_zyra_event_student_course_kind";--> statement-breakpoint
-DROP INDEX "idx_zyra_event_idea";--> statement-breakpoint
-DROP INDEX "zyra_message_attachments_object_key_unique";--> statement-breakpoint
-DROP INDEX "idx_zyra_attachment_owner_scope";--> statement-breakpoint
-DROP INDEX "idx_zyra_attachment_expiry";--> statement-breakpoint
-DROP INDEX "idx_zyra_attachment_message";--> statement-breakpoint
-DROP INDEX "idx_zyra_ops_event_type_created";--> statement-breakpoint
-DROP INDEX "idx_zyra_ops_route_created";--> statement-breakpoint
-DROP INDEX "idx_zyra_proposal_event_proposal";--> statement-breakpoint
-DROP INDEX "idx_zyra_proposal_event_actor";--> statement-breakpoint
-DROP INDEX "idx_zyra_proposal_actor_status";--> statement-breakpoint
-DROP INDEX "idx_zyra_proposal_course_status";--> statement-breakpoint
-DROP INDEX "idx_zyra_proposal_expiry";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_academic_sched_type";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_academic_sched_course_id";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_academic_sched_start_date";--> statement-breakpoint
+DROP INDEX IF EXISTS "account_userId_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_admin_ops_chunks_source";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_admin_ops_chunks_status";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_admin_ops_chunks_vector_id";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_admin_ops_chunks_content_hash";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_admin_ops_chunks_source_index_ver";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_admin_ops_sources_path";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_admin_ops_sources_status";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_admin_ops_sources_hash";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_admin_ops_sync_queue_status";--> statement-breakpoint
+DROP INDEX IF EXISTS "ai_allowance_leases_idempotency_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "ai_allowance_leases_user_day_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "ai_allowance_leases_user_status_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "ai_allowance_leases_control_plane_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "ai_allowance_leases_run_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_ai_fail_course";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_ai_fail_chapter";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_jobs_status";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_traces_user_created";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_traces_stage_prompt";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_chunks_section";--> statement-breakpoint
+DROP INDEX IF EXISTS "ai_sections_instance_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "ai_instances_course_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_qbank_selection";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_qbank_tags";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_qbank_ko";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_qbank_gen_run";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_qbank_origin";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_qbank_quiz_eligible";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_usage_user_created";--> statement-breakpoint
+DROP INDEX IF EXISTS "alur_konten_entity_version_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "alur_konten_course_state_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "artikel_slug_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "artikel_course_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "artikel_chapter_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "artikel_status_version_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "artikel_structure_status_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "artikel_ide_unique_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "artikel_ide_ide_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "asal_ide_span_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "asal_ide_ide_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "asal_ide_source_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "asesmen_course_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "asesmen_status_version_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_ao_concepts_ao";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_ao_concepts_concept";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_ao_kos_ao";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_ao_kos_ko";--> statement-breakpoint
+DROP INDEX IF EXISTS "assessment_profiles_course_id_unique";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_asc_source";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_asc_chapter";--> statement-breakpoint
+DROP INDEX IF EXISTS "assessment_sources_canonical_course_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "assessment_sources_document_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "uq_attempt_feedback_question";--> statement-breakpoint
+DROP INDEX IF EXISTS "audit_mutasi_entity_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "audit_mutasi_actor_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "audit_mutasi_course_outcome_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "bab_course_code_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "bab_course_order_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "bab_legacy_chapter_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "bagian_artikel_key_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "bagian_artikel_slug_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "bagian_artikel_order_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "bagian_artikel_learning_section_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "bagian_pembelajaran_stable_key_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "bagian_pembelajaran_slug_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "bagian_pembelajaran_order_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "bagian_pembelajaran_parent_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "bagian_pembelajaran_ide_unique_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "bagian_pembelajaran_ide_ide_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "benchmark_soal_checksum_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "benchmark_soal_dataset_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "blog_articles_slug_unique";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_blog_slug";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_blog_status";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_blog_category";--> statement-breakpoint
+DROP INDEX IF EXISTS "blok_artikel_key_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "blok_artikel_order_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "blok_artikel_section_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "blok_artikel_status_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "blok_artikel_ide_unique_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "blok_artikel_ide_ide_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "blok_artikel_sumber_unique_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "blok_artikel_sumber_source_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "blueprint_asesmen_course_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "blueprint_asesmen_status_version_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_booking_audit_booking_id";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_booking_audit_group_id";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_booking_audit_actor_id";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_reschedule_booking_id";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_reschedule_group_id";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_reschedule_status";--> statement-breakpoint
+DROP INDEX IF EXISTS "booking_resources_booking_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "booking_resources_booking_phase_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "booking_resources_creator_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_ticket_messages_ticket_id";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_ticket_messages_sender_id";--> statement-breakpoint
+DROP INDEX IF EXISTS "bookings_slot_id_unique";--> statement-breakpoint
+DROP INDEX IF EXISTS "bookings_slot_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "bookings_student_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "bookings_group_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "bookings_status_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "bookings_session_date_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "bukti_ide_jawaban_unique_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "bukti_ide_jawaban_ide_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "bukti_pdf_bundle_lineage_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "bukti_pdf_bundle_import_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "bukti_pdf_bundle_product_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "bukti_pdf_bundle_status_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "bukti_pdf_bundle_diktat_hash_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "bukti_pdf_bundle_article_hash_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "bukti_pembelajaran_murid_ide_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "bukti_pembelajaran_source_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "bukti_pembelajaran_idempotency_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "cakupan_asesmen_chapter_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "cakupan_asesmen_order_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_career_path_concepts_template";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_career_path_concepts_concept";--> statement-breakpoint
+DROP INDEX IF EXISTS "uq_career_path_concepts";--> statement-breakpoint
+DROP INDEX IF EXISTS "uq_career_path_templates_title";--> statement-breakpoint
+DROP INDEX IF EXISTS "chapter_aliases_alias_name_unique";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_chapters_course_order";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_cms_message";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_cms_source";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_chat_sessions_student_course";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_chat_sessions_last_message";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_cge_course";--> statement-breakpoint
+DROP INDEX IF EXISTS "uq_cge_edge";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_concept_loc_concept";--> statement-breakpoint
+DROP INDEX IF EXISTS "uq_concept_loc_concept_lang";--> statement-breakpoint
+DROP INDEX IF EXISTS "concepts_canonical_slug_unique";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_cqf_course";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_cqf_question";--> statement-breakpoint
+DROP INDEX IF EXISTS "uq_cqf_question_type";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_course_snapshot_lookup";--> statement-breakpoint
+DROP INDEX IF EXISTS "uq_course_snapshot_date";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_course_materials_course";--> statement-breakpoint
+DROP INDEX IF EXISTS "course_policies_course_id_unique";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_custom_form_presets_category";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_custom_form_responses_form_id";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_custom_form_responses_user_id";--> statement-breakpoint
+DROP INDEX IF EXISTS "custom_forms_slug_unique";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_custom_forms_slug";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_custom_forms_category";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_daily_rec_student";--> statement-breakpoint
+DROP INDEX IF EXISTS "uq_daily_rec_student_date";--> statement-breakpoint
+DROP INDEX IF EXISTS "diktat_ide_unique_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "diktat_ide_ide_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "diktat_materi_course_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "diktat_materi_chapter_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "diktat_materi_status_version_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "diktat_pembahasan_diktat_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_distractor_prov_q";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_distractor_prov_ko";--> statement-breakpoint
+DROP INDEX IF EXISTS "uq_distractor_prov_option";--> statement-breakpoint
+DROP INDEX IF EXISTS "drive_item_parent_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "drive_item_created_by_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "token_courses_token_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "token_courses_course_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "enrollment_tokens_token_unique";--> statement-breakpoint
+DROP INDEX IF EXISTS "export_spreadsheets_entity_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_extraction_runs_chapter";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_extraction_runs_state";--> statement-breakpoint
+DROP INDEX IF EXISTS "flashcard_set_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "flashcard_status_version_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "flashcard_ide_unique_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "flashcard_ide_ide_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_fc_reviews_student";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_fc_reviews_card";--> statement-breakpoint
+DROP INDEX IF EXISTS "google_forms_form_id_unique";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_forms_form_id";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_forms_category";--> statement-breakpoint
+DROP INDEX IF EXISTS "google_meet_sessions_space_name_unique";--> statement-breakpoint
+DROP INDEX IF EXISTS "google_meet_sessions_slug_unique";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_meet_space_name";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_meet_code";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_meet_slug";--> statement-breakpoint
+DROP INDEX IF EXISTS "group_courses_group_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "group_courses_course_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "group_members_group_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "group_members_user_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "ide_stable_key_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "ide_course_code_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "ide_bab_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "ide_concept_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "ide_status_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "impor_bundle_identity_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "impor_bundle_status_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_important_links_category";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_important_links_active";--> statement-breakpoint
+DROP INDEX IF EXISTS "uq_active_intervention";--> statement-breakpoint
+DROP INDEX IF EXISTS "item_asesmen_order_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "item_asesmen_soal_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "item_diktat_pembahasan_order_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "item_diktat_pembahasan_soal_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "item_impor_bundle_entity_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "item_impor_bundle_status_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "jawaban_murid_attempt_item_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "jawaban_murid_status_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "kemajuan_baca_artikel_unique_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "kemajuan_baca_artikel_resume_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "kemajuan_flashcard_murid_unique_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "kemajuan_flashcard_murid_due_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "ketergantungan_produk_edge_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "ketergantungan_produk_upstream_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "ketergantungan_produk_downstream_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_ko_sources_ko";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_ko_sources_doc_chapter";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_ko_course";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_ko_chapter";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_ko_concept";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_ko_status";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_ko_stable_key";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_rel_source";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_rel_target";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_rel_source_target_type";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_le_student_course_created";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_le_student_concept";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_learning_objectives_chapter";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_lo_concepts_lo";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_lo_concepts_concept";--> statement-breakpoint
+DROP INDEX IF EXISTS "uq_lo_concepts";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_learning_outcomes_course";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_learning_outcomes_parent";--> statement-breakpoint
+DROP INDEX IF EXISTS "uq_learning_outcomes_course_code";--> statement-breakpoint
+DROP INDEX IF EXISTS "legacy_backfill_exception_source_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "legacy_backfill_exception_run_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "legacy_backfill_exception_blocking_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_live_results_session";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_live_results_student";--> statement-breakpoint
+DROP INDEX IF EXISTS "uq_live_result_session_student";--> statement-breakpoint
+DROP INDEX IF EXISTS "live_quiz_sessions_code_unique";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_live_sessions_code";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_live_sessions_course";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_mrq_status";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_mrq_student_course";--> statement-breakpoint
+DROP INDEX IF EXISTS "mata_kuliah_code_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "mata_kuliah_legacy_course_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "migration_checkpoints_run_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "migration_runs_plan_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "migration_runs_status_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_notifications_user_read";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_notifications_user_created";--> statement-breakpoint
+DROP INDEX IF EXISTS "pemahaman_ide_murid_ide_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "pemahaman_ide_ide_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "pembahasan_soal_version_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "pendaftaran_murid_legacy_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "pendaftaran_murid_pengguna_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "pendaftaran_murid_mata_kuliah_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "pengguna_status_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "pengguna_peran_unique_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "pengguna_peran_pengguna_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "pengguna_peran_peran_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "penugasan_tutor_legacy_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "penugasan_tutor_scope_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "penugasan_tutor_pengguna_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "penugasan_tutor_mata_kuliah_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "peran_code_unique";--> statement-breakpoint
+DROP INDEX IF EXISTS "percobaan_asesmen_murid_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "percobaan_asesmen_assessment_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "perubahan_pemahaman_ide_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "peta_id_legacy_source_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "peta_id_legacy_target_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "peta_id_legacy_run_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "uq_pka_registrations_user";--> statement-breakpoint
+DROP INDEX IF EXISTS "uq_pka_stages_subject_stage";--> statement-breakpoint
+DROP INDEX IF EXISTS "uq_pka_progress_student_subject_stage";--> statement-breakpoint
+DROP INDEX IF EXISTS "potongan_sumber_span_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "potongan_sumber_source_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "publikasi_bundle_version_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "publikasi_bundle_status_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_qgen_runs_course";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_qos_question";--> statement-breakpoint
+DROP INDEX IF EXISTS "uq_qos_question_option";--> statement-breakpoint
+DROP INDEX IF EXISTS "question_ref_links_unique_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "question_ref_links_q_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "question_ref_links_ref_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_qai_template";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_qai_exam";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_templates_search";--> statement-breakpoint
+DROP INDEX IF EXISTS "rekomendasi_flashcard_unique_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "rekomendasi_flashcard_due_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "relasi_ide_unique_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "relasi_ide_source_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "relasi_ide_target_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "review_bundle_reviewer_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "review_bundle_status_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "review_flashcard_progress_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "review_item_bundle_target_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "review_item_bundle_import_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "review_item_bundle_status_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "review_pedagogi_bundle_decision_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "review_pedagogi_bundle_import_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "review_pedagogi_bundle_reviewer_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "review_pedagogi_bundle_fingerprint_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "review_pedagogi_bundle_status_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_search_documents_entity";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_search_documents_synced";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_search_documents_sync_status";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_search_documents_min_role";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_search_documents_course";--> statement-breakpoint
+DROP INDEX IF EXISTS "session_token_unique";--> statement-breakpoint
+DROP INDEX IF EXISTS "session_userId_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "set_flashcard_course_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "set_flashcard_chapter_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "set_flashcard_status_version_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "short_link_slug_unique";--> statement-breakpoint
+DROP INDEX IF EXISTS "soal_course_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "soal_chapter_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "soal_status_version_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "soal_origin_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "soal_assessment_source_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "soal_quiz_eligible_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "soal_ide_unique_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "soal_ide_ide_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "soal_itb_referensi_checksum_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "soal_itb_referensi_visibility_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "soal_relasi_ide_unique_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "soal_relasi_ide_ide_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_scm_student_chapter_course";--> statement-breakpoint
+DROP INDEX IF EXISTS "uq_scm_student_chapter";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_student_chap_prog";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_scm_student_course_score";--> statement-breakpoint
+DROP INDEX IF EXISTS "uq_scm_student_course_concept";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_scmh_student_course";--> statement-breakpoint
+DROP INDEX IF EXISTS "uq_scmh_student_concept_date";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_student_fc_due";--> statement-breakpoint
+DROP INDEX IF EXISTS "uq_student_flashcard";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_student_mat_prog";--> statement-breakpoint
+DROP INDEX IF EXISTS "uq_student_material";--> statement-breakpoint
+DROP INDEX IF EXISTS "student_quiz_analytics_attempt_id_unique";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_sqa_attempt";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_sqa_student";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_sqa_template";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_attempts_student";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_attempts_completed";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_attempts_grading_status";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_study_paths_student";--> statement-breakpoint
+DROP INDEX IF EXISTS "uq_study_paths_student_course";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_submissions_user_exam_attempt";--> statement-breakpoint
+DROP INDEX IF EXISTS "sumber_materi_version_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "sumber_materi_bab_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "sumber_materi_status_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_tcm_student_course";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_tcm_session";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_tcm_created_at";--> statement-breakpoint
+DROP INDEX IF EXISTS "tutor_courses_tutor_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "tutor_courses_course_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "uq_tss_student_course";--> statement-breakpoint
+DROP INDEX IF EXISTS "tutor_slots_tutor_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "tutor_slots_tutor_date_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "tutor_slots_exact_unique_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "user_email_unique";--> statement-breakpoint
+DROP INDEX IF EXISTS "user_push_tokens_token_unique";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_push_tokens_user";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_push_tokens_token";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_vector_sync_status";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_vector_sync_lease";--> statement-breakpoint
+DROP INDEX IF EXISTS "verification_identifier_idx";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_web_mat_ver_mat";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_web_mat_stale";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_web_mat_chapter";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_weekly_ref_student";--> statement-breakpoint
+DROP INDEX IF EXISTS "uq_weekly_ref_student_week";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_zyra_preferences_student_course";--> statement-breakpoint
+DROP INDEX IF EXISTS "uq_zyra_preferences_student_course";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_zyra_profile_student_course";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_zyra_profile_expiry";--> statement-breakpoint
+DROP INDEX IF EXISTS "uq_zyra_profile_student_course";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_zyra_event_student_course_created";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_zyra_event_student_course_kind";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_zyra_event_idea";--> statement-breakpoint
+DROP INDEX IF EXISTS "zyra_message_attachments_object_key_unique";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_zyra_attachment_owner_scope";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_zyra_attachment_expiry";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_zyra_attachment_message";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_zyra_ops_event_type_created";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_zyra_ops_route_created";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_zyra_proposal_event_proposal";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_zyra_proposal_event_actor";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_zyra_proposal_actor_status";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_zyra_proposal_course_status";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_zyra_proposal_expiry";--> statement-breakpoint
 -- SQLite and Turso do not support ALTER COLUMN. Rebuild the table while preserving existing rows.
 CREATE TABLE `assessment_sources_new` (
 	`id` text PRIMARY KEY NOT NULL,
