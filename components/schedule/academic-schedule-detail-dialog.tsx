@@ -83,9 +83,6 @@ export function AcademicScheduleDetailDialog({
         <DialogHeader className="space-y-3 text-left">
           <div className="flex flex-wrap items-center gap-2">
             <Badge variant="secondary">{typeLabel}</Badge>
-            {schedule.status && schedule.status !== "active" ? (
-              <Badge variant="outline">{schedule.status}</Badge>
-            ) : null}
           </div>
           <div>
             <DialogTitle className="text-xl leading-snug">{schedule.title}</DialogTitle>
@@ -122,7 +119,7 @@ export function AcademicScheduleDetailDialog({
               <div>
                 <p className="text-xs text-muted-foreground">Waktu</p>
                 <p className="font-medium">
-                  {formatTime(start)}{end ? ` – ${formatTime(end)}` : ""} WIB
+                  {formatTime(start)}{end ? ` - ${formatTime(end)}` : ""} WIB
                 </p>
               </div>
             </div>
