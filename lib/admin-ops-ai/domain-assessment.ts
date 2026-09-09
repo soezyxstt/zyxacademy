@@ -5,7 +5,7 @@ import {
   studentQuizAttempts,
   courses,
 } from "@/db/schema";
-import { eq, desc, and, like, sql } from "drizzle-orm";
+import { eq, desc, and, inArray } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 
 export interface ListQuizzesInput {
@@ -15,36 +15,171 @@ export interface ListQuizzesInput {
   limit?: number;
 }
 
+export interface QuizCourseCandidate {
+  id: string;
+  title: string;
+}
+
+/**
+ * Normalizes a human-entered entity reference without assuming it is a database ID.
+ * This is intentionally shared by course and quiz lookup so short references such as
+ * "PKA", "kuis 3.2", and minor punctuation differences remain resolvable.
+ */
+export function normalizeQuizLookupText(value: string): string {
+  return value
+    .normalize("NFKD")
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, " ")
+    .trim()
+    .replace(/\s+/g, " ");
+}
+
+function levenshteinDistance(a: string, b: string): number {
+  if (a === b) return 0;
+  if (!a) return b.length;
+  if (!b) return a.length;
+
+  const previous = Array.from({ length: b.length + 1 }, (_, index) => index);
+  const current = new Array<number>(b.length + 1);
+
+  for (let i = 1; i <= a.length; i++) {
+    current[0] = i;
+    for (let j = 1; j <= b.length; j++) {
+      const substitutionCost = a[i - 1] === b[j - 1] ? 0 : 1;
+      current[j] = Math.min(
+        current[j - 1] + 1,
+        previous[j] + 1,
+        previous[j - 1] + substitutionCost
+      );
+    }
+    for (let j = 0; j <= b.length; j++) previous[j] = current[j];
+  }
+
+  return previous[b.length];
+}
+
+/**
+ * Scores a quiz title against a human query. Exact and substring matches always win,
+ * while token overlap and edit distance provide a bounded fallback for small typos.
+ */
+export function scoreQuizTitleMatch(query: string, title: string): number {
+  const q = normalizeQuizLookupText(query);
+  const t = normalizeQuizLookupText(title);
+  if (!q || !t) return 0;
+  if (q === t) return 100;
+  if (t.includes(q)) return 92;
+  if (q.includes(t)) return 88;
+
+  const queryTokens = new Set(q.split(" ").filter(Boolean));
+  const titleTokens = new Set(t.split(" ").filter(Boolean));
+  const overlap = [...queryTokens].filter((token) => titleTokens.has(token)).length;
+  const overlapRatio = overlap / Math.max(queryTokens.size, 1);
+  const tokenScore = overlapRatio >= 0.5 ? 55 + Math.round(overlapRatio * 25) : 0;
+
+  if (Math.max(q.length, t.length) < 4) return tokenScore;
+  const editDistance = levenshteinDistance(q, t);
+  const similarity = 1 - editDistance / Math.max(q.length, t.length);
+  const editScore = similarity >= 0.55 ? Math.round(similarity * 80) : 0;
+
+  return Math.max(tokenScore, editScore);
+}
+
+/**
+ * Resolves a course reference supplied by a human. The input may be a canonical ID,
+ * a complete title, or a distinctive title fragment such as "PKA".
+ */
+export function resolveQuizCourseReference(
+  candidates: QuizCourseCandidate[],
+  reference: string
+): string[] {
+  const ref = normalizeQuizLookupText(reference);
+  if (!ref) return [];
+
+  const exactId = candidates.filter((course) => normalizeQuizLookupText(course.id) === ref);
+  if (exactId.length > 0) return exactId.map((course) => course.id);
+
+  const exactTitle = candidates.filter((course) => normalizeQuizLookupText(course.title) === ref);
+  if (exactTitle.length > 0) return exactTitle.map((course) => course.id);
+
+  return candidates
+    .filter((course) => {
+      const id = normalizeQuizLookupText(course.id);
+      const title = normalizeQuizLookupText(course.title);
+      return id.includes(ref) || title.includes(ref);
+    })
+    .map((course) => course.id);
+}
+
 export async function executeListQuizzes(input: ListQuizzesInput) {
+  const limit = Math.min(Math.max(input.limit ?? 50, 1), 100);
+  const courseRows = await db
+    .select({ id: courses.id, title: courses.title })
+    .from(courses);
+  const courseTitleMap = new Map(courseRows.map((course) => [course.id, course.title]));
+
   const conditions = [];
-  if (input.courseId) {
-    conditions.push(eq(quizTemplates.courseId, input.courseId.trim().toLowerCase()));
+  let resolvedCourseIds: string[] | undefined;
+  if (input.courseId?.trim()) {
+    resolvedCourseIds = resolveQuizCourseReference(courseRows, input.courseId);
+
+    // Keep exact-ID compatibility for data that may exist before the legacy course
+    // projection is present in `courses`.
+    if (resolvedCourseIds.length === 0) {
+      resolvedCourseIds = [input.courseId.trim().toLowerCase()];
+    }
+
+    conditions.push(
+      resolvedCourseIds.length === 1
+        ? eq(quizTemplates.courseId, resolvedCourseIds[0])
+        : inArray(quizTemplates.courseId, resolvedCourseIds)
+    );
   }
   if (input.status) {
     conditions.push(eq(quizTemplates.status, input.status as "draft" | "published"));
   }
-  if (input.search) {
-    conditions.push(like(quizTemplates.title, `%${input.search.trim()}%`));
-  }
 
-  const limit = Math.min(Math.max(input.limit ?? 50, 1), 100);
+  // Search is ranked in memory rather than translated directly to SQL LIKE. This
+  // keeps entity resolution tolerant of short references and small typos while the
+  // database scope remains bounded to at most 100 quiz templates.
+  const candidateLimit = input.search?.trim() ? 100 : limit;
   const rows = await db
     .select()
     .from(quizTemplates)
     .where(conditions.length > 0 ? and(...conditions) : undefined)
     .orderBy(desc(quizTemplates.createdAt))
-    .limit(limit);
+    .limit(candidateLimit);
+
+  const search = input.search?.trim();
+  const rankedRows = search
+    ? rows
+        .map((quiz) => ({ quiz, score: scoreQuizTitleMatch(search, quiz.title) }))
+        .filter(({ score }) => score >= 52)
+        .sort((a, b) => b.score - a.score)
+        .slice(0, limit)
+        .map(({ quiz }) => quiz)
+    : rows.slice(0, limit);
+
+  const scopeParts: string[] = [];
+  if (input.courseId?.trim()) {
+    scopeParts.push(`mata kuliah '${input.courseId.trim()}'`);
+  }
+  if (search) scopeParts.push(`pencarian '${search}'`);
 
   return {
-    summary: `Ditemukan ${rows.length} kuis.`,
-    data: rows.map((q) => ({
+    summary: `Ditemukan ${rankedRows.length} kuis${scopeParts.length > 0 ? ` untuk ${scopeParts.join(" dan ")}` : ""}.`,
+    data: rankedRows.map((q) => ({
       id: q.id,
       title: q.title,
       courseId: q.courseId,
+      courseTitle: courseTitleMap.get(q.courseId) ?? q.courseId,
       category: q.category,
+      visibility: q.visibility,
       status: q.status,
+      manualStatus: q.manualStatus,
       timeLimitMinutes: q.timeLimitSeconds ? Math.round(q.timeLimitSeconds / 60) : null,
       maxAttempts: q.maxAttempts,
+      showDiscussion: q.showDiscussion,
+      selectionRules: q.selectionRules,
       createdAt: q.createdAt,
     })),
   };
@@ -143,7 +278,6 @@ export async function executeListQuestions(input: ListQuestionsInput) {
   if (input.courseId) conditions.push(eq(aiQuestionBank.courseId, input.courseId.trim().toLowerCase()));
   if (input.difficulty) conditions.push(eq(aiQuestionBank.difficulty, input.difficulty));
   if (input.reviewStatus) conditions.push(eq(aiQuestionBank.reviewStatus, input.reviewStatus as any));
-  if (input.search) conditions.push(like(aiQuestionBank.prompt, `%${input.search.trim()}%`));
 
   const limit = Math.min(Math.max(input.limit ?? 20, 1), 100);
   const rows = await db
@@ -159,11 +293,17 @@ export async function executeListQuestions(input: ListQuestionsInput) {
     .from(aiQuestionBank)
     .where(conditions.length > 0 ? and(...conditions) : undefined)
     .orderBy(desc(aiQuestionBank.createdAt))
-    .limit(limit);
+    .limit(input.search ? 100 : limit);
+
+  const questionRows = input.search?.trim()
+    ? rows
+        .filter((question) => scoreQuizTitleMatch(input.search!, question.prompt) >= 52)
+        .slice(0, limit)
+    : rows;
 
   return {
-    summary: `Ditemukan ${rows.length} soal dalam bank soal.`,
-    data: rows,
+    summary: `Ditemukan ${questionRows.length} soal dalam bank soal.`,
+    data: questionRows,
   };
 }
 
