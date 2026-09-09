@@ -23,12 +23,9 @@ import { isTutorialWeekLocked } from "@/lib/schedule/week-policy";
 
 function LoadingState() {
   return (
-    <ApplicationPage>
-      <PageHeader icon={CalendarDays} title="Kalender & Jadwal Tutorial" />
-      <div className="p-16 text-center text-muted-foreground text-body-sm">
-        Memuat data kalender dan slot tutorial...
-      </div>
-    </ApplicationPage>
+    <div className="flex min-h-[40vh] items-center justify-center">
+      <div className="h-8 w-8 animate-spin rounded-full border-4 border-muted border-t-brand-primary" />
+    </div>
   );
 }
 
@@ -45,6 +42,7 @@ export function StudentScheduleClient() {
   const activeRequest = useRef(0);
 
   const fetchData = useCallback(async (offset: number, force = false) => {
+    const requestId = ++activeRequest.current;
     const cached = !force ? weekCache.current.get(offset) : null;
     if (cached) {
       setData(cached);
@@ -52,7 +50,6 @@ export function StudentScheduleClient() {
       return cached;
     }
 
-    const requestId = ++activeRequest.current;
     try {
       setLoading(true);
       const nextData = await getScheduleData(offset);
@@ -103,15 +100,11 @@ export function StudentScheduleClient() {
   if (loading && !data) return <LoadingState />;
 
   const userObj = data?.user || {};
-  const requestedCourseId = searchParams?.get("course") ?? undefined;
-  const coursesList = (data?.enrollments || []).map((enrollment: any) => enrollment.course).filter(Boolean);
-  const initialCourseFilter = requestedCourseId && coursesList.some((course: any) => course.id === requestedCourseId)
-    ? requestedCourseId
-    : "all";
-  const tutorsList = (data?.availableSlots || []).map((slot: any) => slot.tutor).filter(Boolean);
-  const sessionBookings = [...(data?.groupBookings || []), ...(data?.tutorBookings || [])];
+  const coursesList = data?.courses || [];
+  const tutorsList = data?.tutors || [];
+  const initialCourseFilter = searchParams.get("course") || "all";
   const activeSessionBooking = activeSessionBookingId
-    ? sessionBookings.find((booking: any) => booking.id === activeSessionBookingId) || null
+    ? (data?.groupBookings || []).find((booking: any) => booking.id === activeSessionBookingId) || null
     : null;
 
   return (
@@ -141,9 +134,12 @@ export function StudentScheduleClient() {
 
       <CollaborativeBookingModal
         open={Boolean(bookingSlotData)}
-        onOpenChange={(open) => !open && setBookingSlotData(null)}
-        selectedSlot={bookingSlotData?.slot}
-        selectedDateIso={bookingSlotData?.dateIso || ""}
+        onOpenChange={(open) => {
+          if (!open) setBookingSlotData(null);
+        }}
+        slot={bookingSlotData?.slot || null}
+        dateIso={bookingSlotData?.dateIso || ""}
+        courses={coursesList}
         groups={data.groups || []}
         onSuccess={async ({ bookingId, pendingResources }) => {
           setPendingSessionResources(pendingResources);
