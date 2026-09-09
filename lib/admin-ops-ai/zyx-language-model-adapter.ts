@@ -8,15 +8,12 @@ import type {
 } from "@ai-sdk/provider";
 import { MODEL_IDS } from "@/lib/ai/provider/model-registry";
 import {
-  getOpsAiModelKey,
-  recordModelSuccess,
-  recordModelFailure,
   streamOpsAiModel,
   type OpsAiModelMessage,
   type OpsAiModelToolDeclaration,
 } from "./model-factory";
+import { OPS_AI_POLICY_BOUNDS } from "./contracts";
 import { UsageBudgetService } from "@/lib/usage-budget-service";
-import { generateContentWithFallback } from "@/lib/gemini";
 import { recordZyraOperationalEventSafe } from "@/lib/zyra/ops/telemetry";
 import { randomUUID } from "node:crypto";
 
@@ -90,7 +87,9 @@ export class ZyxLanguageModel implements LanguageModelV3 {
           } else if (part.type === "tool-call") {
             let parsedArgs: Record<string, unknown> = {};
             try {
-              parsedArgs = typeof part.input === "string" ? JSON.parse(part.input) : ((part.input as Record<string, unknown>) || {});
+              parsedArgs = typeof part.input === "string"
+                ? JSON.parse(part.input)
+                : ((part.input as Record<string, unknown>) || {});
             } catch {
               parsedArgs = {};
             }
@@ -112,7 +111,11 @@ export class ZyxLanguageModel implements LanguageModelV3 {
         for (const part of msg.content) {
           if (part.type === "tool-result") {
             let outputVal: unknown = part.output;
-            if (part.output && typeof part.output === "object" && "value" in (part.output as Record<string, unknown>)) {
+            if (
+              part.output &&
+              typeof part.output === "object" &&
+              "value" in (part.output as Record<string, unknown>)
+            ) {
               outputVal = (part.output as Record<string, unknown>).value;
             }
             parts.push({
@@ -148,6 +151,11 @@ export class ZyxLanguageModel implements LanguageModelV3 {
 
   /**
    * Generates streaming output using Zyx model streaming pipeline.
+   *
+   * Retry belongs here rather than in the agent orchestrator. AI SDK can retry a
+   * model call that fails before a stream is returned, but provider failures can
+   * also surface while the returned stream is being consumed. We retry only when
+   * no user-visible text/tool output has been emitted, preventing duplicated output.
    */
   async doStream(
     options: LanguageModelV3CallOptions
@@ -174,7 +182,7 @@ export class ZyxLanguageModel implements LanguageModelV3 {
         await UsageBudgetService.markDispatched(leaseId).catch(() => undefined);
       }
     } catch {
-      // In isolated mock test environments, allowance may be bypassed
+      // In isolated mock test environments, allowance may be bypassed.
     }
 
     const abortHandler = async () => {
@@ -207,131 +215,166 @@ export class ZyxLanguageModel implements LanguageModelV3 {
 
     const stream = new ReadableStream<LanguageModelV3StreamPart>({
       start: async (controller) => {
+        let emittedVisibleOutput = false;
+        let currentTextId: string | null = null;
+        let providerAttempt = 0;
+
+        controller.enqueue({
+          type: "stream-start",
+          warnings: [],
+        });
+
         try {
-          const generator = streamOpsAiModel({
-            systemPrompt,
-            messages,
-            tools: tools.length > 0 ? tools : undefined,
-            modelId: this.modelId,
-            signal: options.abortSignal,
-          });
-
-          controller.enqueue({
-            type: "stream-start",
-            warnings: [],
-          });
-
-          let currentTextId: string | null = null;
-
-          for await (const chunk of generator) {
+          while (providerAttempt <= OPS_AI_POLICY_BOUNDS.maxRetryAttempts) {
             if (options.abortSignal?.aborted) {
               await abortHandler();
               controller.error(new Error("Stream aborted by caller."));
               return;
             }
 
-            if (chunk.type === "text-delta" && chunk.textDelta) {
-              if (!currentTextId) {
-                currentTextId = `text-${randomUUID().slice(0, 8)}`;
-                controller.enqueue({
-                  type: "text-start",
-                  id: currentTextId,
-                });
-              }
-              controller.enqueue({
-                type: "text-delta",
-                id: currentTextId,
-                delta: chunk.textDelta,
-              });
-            } else if (chunk.type === "tool-call" && chunk.toolCall) {
-              if (currentTextId) {
-                controller.enqueue({
-                  type: "text-end",
-                  id: currentTextId,
-                });
-                currentTextId = null;
-              }
-              controller.enqueue({
-                type: "tool-call",
-                toolCallType: "function",
-                toolCallId: chunk.toolCall.id,
-                toolName: chunk.toolCall.name,
-                input: JSON.stringify(chunk.toolCall.args),
-              } as any);
-            } else if (chunk.type === "finish") {
-              if (currentTextId) {
-                controller.enqueue({
-                  type: "text-end",
-                  id: currentTextId,
-                });
-                currentTextId = null;
-              }
-              const isToolCall = chunk.finishReason === "tool-calls";
-              controller.enqueue({
-                type: "finish",
-                finishReason: {
-                  unified: isToolCall ? "tool-calls" : "stop",
-                  raw: chunk.finishReason,
-                },
-                usage: {
-                  inputTokens: {
-                    total: chunk.usage?.promptTokens ?? 0,
-                    noCache: chunk.usage?.promptTokens ?? 0,
-                    cacheRead: 0,
-                    cacheWrite: 0,
-                  },
-                  outputTokens: {
-                    total: chunk.usage?.completionTokens ?? 0,
-                    text: chunk.usage?.completionTokens ?? 0,
-                    reasoning: 0,
-                  },
-                },
+            let sawFinish = false;
+
+            try {
+              const generator = streamOpsAiModel({
+                systemPrompt,
+                messages,
+                tools: tools.length > 0 ? tools : undefined,
+                modelId: this.modelId,
+                signal: options.abortSignal,
+                timeoutMs: OPS_AI_POLICY_BOUNDS.providerTimeoutMs,
               });
 
-              // Commit allowance lease
-              if (leaseId) {
-                const idToCommit = leaseId;
-                leaseId = null;
-                await UsageBudgetService.commit(idToCommit, {
-                  model: this.modelId,
-                  inputTokens: chunk.usage?.promptTokens ?? 0,
-                  outputTokens: chunk.usage?.completionTokens ?? 0,
-                  requestType: "provider:success",
-                }).catch(() => undefined);
+              for await (const chunk of generator) {
+                if (options.abortSignal?.aborted) {
+                  await abortHandler();
+                  controller.error(new Error("Stream aborted by caller."));
+                  return;
+                }
+
+                if (chunk.type === "text-delta" && chunk.textDelta) {
+                  emittedVisibleOutput = true;
+                  if (!currentTextId) {
+                    currentTextId = `text-${randomUUID().slice(0, 8)}`;
+                    controller.enqueue({
+                      type: "text-start",
+                      id: currentTextId,
+                    });
+                  }
+                  controller.enqueue({
+                    type: "text-delta",
+                    id: currentTextId,
+                    delta: chunk.textDelta,
+                  });
+                } else if (chunk.type === "tool-call" && chunk.toolCall) {
+                  emittedVisibleOutput = true;
+                  if (currentTextId) {
+                    controller.enqueue({
+                      type: "text-end",
+                      id: currentTextId,
+                    });
+                    currentTextId = null;
+                  }
+                  controller.enqueue({
+                    type: "tool-call",
+                    toolCallType: "function",
+                    toolCallId: chunk.toolCall.id,
+                    toolName: chunk.toolCall.name,
+                    input: JSON.stringify(chunk.toolCall.args),
+                  } as any);
+                } else if (chunk.type === "finish") {
+                  sawFinish = true;
+                  if (currentTextId) {
+                    controller.enqueue({
+                      type: "text-end",
+                      id: currentTextId,
+                    });
+                    currentTextId = null;
+                  }
+                  const isToolCall = chunk.finishReason === "tool-calls";
+                  controller.enqueue({
+                    type: "finish",
+                    finishReason: {
+                      unified: isToolCall ? "tool-calls" : "stop",
+                      raw: chunk.finishReason,
+                    },
+                    usage: {
+                      inputTokens: {
+                        total: chunk.usage?.promptTokens ?? 0,
+                        noCache: chunk.usage?.promptTokens ?? 0,
+                        cacheRead: 0,
+                        cacheWrite: 0,
+                      },
+                      outputTokens: {
+                        total: chunk.usage?.completionTokens ?? 0,
+                        text: chunk.usage?.completionTokens ?? 0,
+                        reasoning: 0,
+                      },
+                    },
+                  });
+
+                  if (leaseId) {
+                    const idToCommit = leaseId;
+                    leaseId = null;
+                    await UsageBudgetService.commit(idToCommit, {
+                      model: this.modelId,
+                      inputTokens: chunk.usage?.promptTokens ?? 0,
+                      outputTokens: chunk.usage?.completionTokens ?? 0,
+                      requestType: "provider:success",
+                    }).catch(() => undefined);
+                  }
+                  void recordZyraOperationalEventSafe({
+                    version: "zyra-ops-event-v1",
+                    eventType: "provider_attempt",
+                    actorRole: "admin",
+                    routeClass: "fast",
+                    modelClass: this.modelId,
+                    resultCode: "PROVIDER_SUCCESS",
+                    latencyMs: Date.now() - startedAt,
+                    sizeBytes: 0,
+                    cacheResult: "bypass",
+                    attachmentCount: 0,
+                  });
+                } else if (chunk.type === "error" && chunk.error) {
+                  throw chunk.error;
+                }
               }
-              void recordZyraOperationalEventSafe({
-                version: "zyra-ops-event-v1",
-                eventType: "provider_attempt",
-                actorRole: "admin",
-                routeClass: "fast",
-                modelClass: this.modelId,
-                resultCode: "PROVIDER_SUCCESS",
-                latencyMs: Date.now() - startedAt,
-                sizeBytes: 0,
-                cacheResult: "bypass",
-                attachmentCount: 0,
-              });
-            } else if (chunk.type === "error" && chunk.error) {
-              if (leaseId) {
-                const idToRefund = leaseId;
-                leaseId = null;
-                await UsageBudgetService.refund(idToRefund).catch(() => undefined);
+
+              if (!sawFinish) {
+                throw new Error("Provider stream ended without a finish event.");
               }
-              controller.enqueue({
-                type: "error",
-                error: chunk.error,
-              });
+
+              controller.close();
+              return;
+            } catch (error) {
+              const err = error instanceof Error ? error : new Error(String(error));
+              if (options.abortSignal?.aborted) {
+                await abortHandler();
+                controller.error(err);
+                return;
+              }
+
+              const canRetry =
+                !emittedVisibleOutput &&
+                providerAttempt < OPS_AI_POLICY_BOUNDS.maxRetryAttempts;
+
+              if (!canRetry) {
+                if (leaseId) {
+                  const idToRefund = leaseId;
+                  leaseId = null;
+                  await UsageBudgetService.refund(idToRefund).catch(() => undefined);
+                }
+                controller.error(err);
+                return;
+              }
+
+              providerAttempt += 1;
+              const backoffMs = Math.min(
+                OPS_AI_POLICY_BOUNDS.retryInitialDelayMs * Math.pow(2, providerAttempt - 1),
+                OPS_AI_POLICY_BOUNDS.retryMaxDelayMs
+              );
+              await new Promise((resolve) => setTimeout(resolve, backoffMs));
             }
           }
-
-          controller.close();
-        } catch (err) {
-          if (leaseId) {
-            const idToRefund = leaseId;
-            leaseId = null;
-            await UsageBudgetService.refund(idToRefund).catch(() => undefined);
-          }
-          controller.error(err);
         } finally {
           if (options.abortSignal) {
             options.abortSignal.removeEventListener("abort", abortHandler);
