@@ -12,14 +12,27 @@ export const metadata: Metadata = {
   description: "Monitor seluruh sesi tutorial kelompok belajar, jadwal Ujian Resmi ITB, Tryout, Kuis, dan tiket reschedule.",
 };
 
-export default async function AdminSchedulesPage() {
+function parseWeekOffset(value: string | string[] | undefined): number {
+  const raw = Array.isArray(value) ? value[0] : value;
+  const parsed = raw ? Number(raw) : 0;
+  if (!Number.isFinite(parsed)) return 0;
+  return Math.max(-520, Math.min(520, Math.trunc(parsed)));
+}
+
+export default async function AdminSchedulesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
   try {
     await assertAdmin();
   } catch {
     redirect("/");
   }
 
-  const data = await getAdminScheduleData(0);
+  const params = await searchParams;
+  const weekOffset = parseWeekOffset(params.week);
+  const data = await getAdminScheduleData(weekOffset);
 
   return (
     <div className="space-y-3">
@@ -27,7 +40,7 @@ export default async function AdminSchedulesPage() {
         icon={CalendarDays}
         title="Jadwal & Kalender Akademik"
       />
-      <AcademicSchedulesDashboard initialData={data} />
+      <AcademicSchedulesDashboard initialData={data} initialWeekOffset={weekOffset} />
     </div>
   );
 }

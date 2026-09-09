@@ -169,6 +169,8 @@ The row is created on the first explicit save or unsubscribe. A missing row deri
 * `createdAt`
 * Indexes: `(tutorId)`, `(tutorId, sessionDate)`, and exact concrete duplicate protection on `(tutorId, sessionDate, startTime, endTime)`.
 
+Canonical policy: tutor availability for the following week opens Monday and closes Friday at 18:00 WIB. Copying a previous week creates concrete dated rows. A null `sessionDate` row is legacy compatibility data only, never a preferred recurring-slot mechanism, and must not be assigned a guessed date.
+
 ### bookings
 * `id`
 * `slotId`: Unique reference to booked tutor slot (FCFS per slot).
@@ -221,10 +223,12 @@ Legacy tutor slots with a null `sessionDate` are not assigned an invented recurr
 * `bookingId`: Reference to `bookings`.
 * `groupId`: Reference to `groups`.
 * `actorId`: Reference to `user` (student, tutor, or admin).
-* `action`: Action type ('BOOK_CREATED', 'SLOT_MOVED', 'TOPIC_UPDATED', 'ATTACHMENT_UPLOADED', 'RESCHEDULE_REQUESTED', 'RESCHEDULE_APPROVED', 'RESCHEDULE_REJECTED', 'BOOKING_CANCELLED', 'BOOKING_CANCELLED_QUOTA_REFUNDED', 'SESSION_COMPLETED', 'NOTES_ADDED').
+* `action`: Action type ('BOOK_CREATED', 'SLOT_MOVED', 'TOPIC_UPDATED', 'ATTACHMENT_UPLOADED', 'RESCHEDULE_REQUESTED', 'RESCHEDULE_APPROVED', 'RESCHEDULE_REJECTED', 'BOOKING_CANCELLED', 'BOOKING_CANCELLED_QUOTA_REFUNDED', 'SESSION_COMPLETED', 'NOTES_ADDED', 'ADMIN_TUTORIAL_SESSION_ASSIGNED', 'ADMIN_TUTORIAL_SESSION_MOVED', 'ADMIN_TUTORIAL_SESSION_CANCELLED').
 * `summary`: Human-readable activity sentence.
 * `metadata`: JSON payload containing action details.
 * `createdAt`
+
+Admin scheduling overrides also write the existing `audit_mutasi` envelope with actor, action, reason, before snapshot, after snapshot, request ID, and timestamp. Admin calendar reads are scoped to the visible tutorial week; null-date legacy slots may only contribute to the compatibility warning count.
 
 ### bookingRescheduleTickets
 * `id`

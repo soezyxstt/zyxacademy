@@ -3,7 +3,7 @@
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { randomUUID } from "node:crypto";
-import { and, asc, eq, gt, gte, lt, lte, ne, notInArray, sql } from "drizzle-orm";
+import { and, asc, eq, gt, gte, lte, ne, sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
   bookingAuditLogs,
@@ -12,7 +12,6 @@ import {
   bookings,
   groupMembers,
   groups,
-  mataKuliah,
   pengguna,
   penggunaPeran,
   peran,
@@ -22,7 +21,6 @@ import {
 import { auth } from "@/lib/auth";
 import {
   type DbExecutor,
-  requireTutorCourseAccess,
   resolveTutorCourseAccess,
 } from "@/lib/auth/tutor-access";
 import {
@@ -43,21 +41,16 @@ import {
   checkTutorSlotOwnership,
   countsTowardGroupWeeklyQuota,
   doTutorSlotsOverlap,
-  getDeterministicGroupRepresentative,
   INDONESIAN_DAYS,
   type IndonesianDay,
   isTerminalBookingStatus,
   terminalStatusGuard,
-  TERMINAL_BOOKING_STATUSES,
   validateSlotDeletionPolicy,
   validateSlotDuration,
   validateSlotWeekdayDate,
 } from "@/lib/schedule/tutor-policy";
 import { sendToMany } from "@/lib/notifications/send";
-import type { NotificationPayload } from "@/lib/notifications/types";
-import { createGoogleMeetSpace } from "@/lib/google-meet";
 import {
-  TutorAuditPersistenceError,
   recordTutorFailureAudit,
   recordUnauthenticatedRejectAudit,
 } from "@/lib/schedule/tutor-audit";
@@ -1040,531 +1033,13 @@ export async function copyTutorAvailabilityFromPreviousWeek(
   }
 }
 
+export async function copyTutorAvailabilityAction(targetWeekStart: string) {
+  return copyTutorAvailabilityFromPreviousWeek(targetWeekStart);
+}
+
+/* Direct tutor assignment was retired in PR 3. Exceptional assignment lives in admin scheduling operations. */
 /* ────────────────────────────────────────────────────────────────────────────
- * Action 3: Create Tutor Session (Active Group / Course)
- * ──────────────────────────────────────────────────────────────────────────── */
-
-export interface CreateTutorSessionInput {
-  slotId: string;
-  groupId: string;
-  courseId: string;
-  sessionDate: string;
-  topic?: string;
-}
-
-export interface CreateTutorSessionOptions {
-  actorId?: string;
-  executor?: DbExecutor;
-  skipExternalMeet?: boolean;
-  skipNotifications?: boolean;
-}
-
-export async function executeCreateTutorSession(
-  input: CreateTutorSessionInput,
-  options?: CreateTutorSessionOptions,
-) {
-  const requestId = randomUUID();
-  let authContext: TutorAuthContext;
-
-  try {
-    authContext = await getTutorAuthContext(options?.actorId, options?.executor);
-  } catch (err: any) {
-    await recordUnauthenticatedRejectAudit({
-      action: "tutor.session.create",
-      entityType: "booking",
-      entityId: "new_session",
-      courseId: typeof input.courseId === "string" ? input.courseId.trim() || "unknown" : "unknown",
-      requestId,
-      reason: err?.message || "UNAUTHORIZED",
-      input: { ...input },
-      executor: options?.executor,
-    });
-
-    return {
-      success: false,
-      error: err?.message || "UNAUTHORIZED",
-      reason: "AUTH_FAILED",
-    };
-  }
-
-  const client = (options?.executor ?? db) as typeof db;
-  const targetSlotId = typeof input.slotId === "string" ? input.slotId.trim() : "";
-  const targetGroupId = typeof input.groupId === "string" ? input.groupId.trim() : "";
-  const targetCourseId = typeof input.courseId === "string" ? input.courseId.trim() : "";
-  const sessionDateIso = typeof input.sessionDate === "string" ? input.sessionDate.trim() : "";
-
-  // 1. Verify tutor slot ownership
-  const ownership = await checkTutorSlotOwnership(
-    targetSlotId,
-    authContext.userId,
-    client,
-  );
-
-  if (!ownership.isOwner || !ownership.slot) {
-    await recordTutorMutationAudit({
-      actorId: authContext.userId,
-      actorRoles: authContext.roles,
-      courseId: targetCourseId || "unknown",
-      entityType: "booking",
-      entityId: "new_session",
-      entityVersion: 1,
-      action: "tutor.session.create",
-      outcome: "rejected",
-      requestId,
-      reason: ownership.reason ?? "SLOT_NOT_OWNED_BY_TUTOR",
-      before: null,
-      after: { ...input },
-    }, client);
-
-    return {
-      success: false,
-      error: "Slot tidak ditemukan atau bukan milik tutor.",
-      reason: ownership.reason,
-    };
-  }
-
-  const slot = ownership.slot;
-
-  // Legacy slots may still be used by the existing tutor-created session flow.
-  // Their explicit booking date is validated below; student availability never
-  // exposes these null-date rows as new booking targets.
-  if (slot.sessionDate && sessionDateIso !== slot.sessionDate) {
-    await recordTutorMutationAudit({
-      actorId: authContext.userId,
-      actorRoles: authContext.roles,
-      courseId: targetCourseId || "unknown",
-      entityType: "booking",
-      entityId: "new_session",
-      entityVersion: 1,
-      action: "tutor.session.create",
-      outcome: "rejected",
-      requestId,
-      reason: "SLOT_DATE_MISMATCH",
-      before: { slotSessionDate: slot.sessionDate },
-      after: { requestedSessionDate: sessionDateIso },
-    }, client);
-
-    return {
-      success: false,
-      error: "Tanggal sesi harus sama dengan tanggal slot tutor.",
-      reason: "SLOT_DATE_MISMATCH",
-    };
-  }
-
-  // 2. Validate existing slot duration (exact 90 minutes)
-  const slotDurationCheck = validateSlotDuration(slot.startTime, slot.endTime);
-  if (!slotDurationCheck.isValid) {
-    await recordTutorMutationAudit({
-      actorId: authContext.userId,
-      actorRoles: authContext.roles,
-      courseId: targetCourseId || "unknown",
-      entityType: "booking",
-      entityId: "new_session",
-      entityVersion: 1,
-      action: "tutor.session.create",
-      outcome: "rejected",
-      requestId,
-      reason: slotDurationCheck.reason ?? "INVALID_DURATION_NOT_90_MINUTES",
-      before: null,
-      after: { ...input, slotStartTime: slot.startTime, slotEndTime: slot.endTime },
-    }, client);
-
-    return {
-      success: false,
-      error: "Durasi slot ketersediaan harus tepat 90 menit.",
-      reason: slotDurationCheck.reason,
-    };
-  }
-
-  // 3. Verify slot is unbooked
-  const existingBooking = await client
-    .select({ id: bookings.id })
-    .from(bookings)
-    .where(eq(bookings.slotId, targetSlotId))
-    .limit(1);
-
-  if (existingBooking.length > 0) {
-    await recordTutorMutationAudit({
-      actorId: authContext.userId,
-      actorRoles: authContext.roles,
-      courseId: targetCourseId,
-      entityType: "booking",
-      entityId: "new_session",
-      entityVersion: 1,
-      action: "tutor.session.create",
-      outcome: "rejected",
-      requestId,
-      reason: "SLOT_ALREADY_BOOKED",
-      before: null,
-      after: { ...input },
-    }, client);
-
-    return {
-      success: false,
-      error: "Slot ini sudah memiliki sesi terdaftar.",
-      reason: "SLOT_ALREADY_BOOKED",
-    };
-  }
-
-  // 4. Verify weekday and date match
-  const weekdayCheck = validateSlotWeekdayDate(sessionDateIso, slot.dayOfWeek);
-  if (!weekdayCheck.isValid) {
-    await recordTutorMutationAudit({
-      actorId: authContext.userId,
-      actorRoles: authContext.roles,
-      courseId: targetCourseId,
-      entityType: "booking",
-      entityId: "new_session",
-      entityVersion: 1,
-      action: "tutor.session.create",
-      outcome: "rejected",
-      requestId,
-      reason: weekdayCheck.reason ?? "DATE_WEEKDAY_MISMATCH",
-      before: null,
-      after: { ...input },
-    }, client);
-
-    return {
-      success: false,
-      error: "Tanggal sesi tidak sesuai dengan hari slot atau tanggal tidak valid.",
-      reason: weekdayCheck.reason,
-    };
-  }
-
-  // 5. Require active canonical tutor assignment with compatibility fallback
-  try {
-    await requireTutorCourseAccess(
-      authContext.userId,
-      targetCourseId,
-      { allowAdmin: authContext.isAdmin },
-      client,
-    );
-  } catch (accessErr: any) {
-    await recordTutorMutationAudit({
-      actorId: authContext.userId,
-      actorRoles: authContext.roles,
-      courseId: targetCourseId,
-      entityType: "booking",
-      entityId: "new_session",
-      entityVersion: 1,
-      action: "tutor.session.create",
-      outcome: "rejected",
-      requestId,
-      reason: "TUTOR_NOT_ASSIGNED_TO_COURSE",
-      before: null,
-      after: { ...input },
-    }, client);
-
-    return {
-      success: false,
-      error: "Tutor tidak memiliki penugasan aktif untuk mata kuliah ini.",
-      reason: "TUTOR_NOT_ASSIGNED_TO_COURSE",
-    };
-  }
-
-  // 6. Verify active group and course enrollment
-  const groupEligibility = await checkActiveGroupCourseEligibility(
-    targetGroupId,
-    targetCourseId,
-    client,
-  );
-
-  if (!groupEligibility.isEligible || !groupEligibility.representative) {
-    await recordTutorMutationAudit({
-      actorId: authContext.userId,
-      actorRoles: authContext.roles,
-      courseId: targetCourseId,
-      entityType: "booking",
-      entityId: "new_session",
-      entityVersion: 1,
-      action: "tutor.session.create",
-      outcome: "rejected",
-      requestId,
-      reason: groupEligibility.reason ?? "GROUP_NOT_ELIGIBLE",
-      before: null,
-      after: { ...input },
-    }, client);
-
-    return {
-      success: false,
-      error: "Kelompok belajar tidak aktif, belum terdaftar pada mata kuliah, atau tidak memiliki anggota.",
-      reason: groupEligibility.reason,
-    };
-  }
-
-  // 7. Quota window for the target ISO week; enforcement happens inside the
-  // transaction so concurrent requests serialize on the SQLite write lock.
-  const { startIso, endIso } = getIsoWeekRange(sessionDateIso);
-
-  const bookingId = randomUUID();
-  const now = new Date();
-  const representativeUserId = groupEligibility.representative.userId;
-  const courseIdForBooking =
-    groupEligibility.legacyCourseId ?? groupEligibility.courseId ?? targetCourseId;
-  const resolvedCourseId = courseIdForBooking;
-
-  // 8. Commit database mutation inside transaction
-  try {
-    await client.transaction(async (tx) => {
-      // Atomic total-quota reservation: the guarded UPDATE claims the last free
-      // package session. libsql transactions begin IMMEDIATE, so this statement
-      // serializes concurrent creates before any quota read below.
-      const quotaClaim = await tx
-        .update(groups)
-        .set({
-          usedQuotaSessions: sql`${groups.usedQuotaSessions} + 1`,
-          updatedAt: now,
-        })
-        .where(
-          and(
-            eq(groups.id, targetGroupId),
-            lt(groups.usedQuotaSessions, groups.totalQuotaSessions),
-          ),
-        );
-
-      if ((quotaClaim.rowsAffected ?? 0) === 0) {
-        throw new Error("TOTAL_QUOTA_EXCEEDED");
-      }
-
-      // Weekly quota re-read under the write lock. Every kept booking row of
-      // the group counts, including post-lock approved cancellations (hangus).
-      // Only cancelled rows carrying the durable pre-lock refund marker in
-      // booking_audit_logs free their weekly slot.
-      const groupQuotaRows = await tx
-        .select({ weeklyQuotaSessions: groups.weeklyQuotaSessions })
-        .from(groups)
-        .where(eq(groups.id, targetGroupId))
-        .limit(1);
-      const weeklyQuota = groupQuotaRows[0]?.weeklyQuotaSessions || 2;
-
-      const weekCountRows = await tx
-        .select({ value: sql<number>`count(*)` })
-        .from(bookings)
-        .where(
-          and(
-            eq(bookings.groupId, targetGroupId),
-            gte(bookings.sessionDate, startIso),
-            lte(bookings.sessionDate, endIso),
-            countsTowardGroupWeeklyQuota(),
-          ),
-        );
-      const weekBookingCount = Number(weekCountRows[0]?.value ?? 0);
-
-      if (weekBookingCount >= weeklyQuota) {
-        throw new Error("WEEKLY_QUOTA_EXCEEDED");
-      }
-
-      await tx.insert(bookings).values({
-        id: bookingId,
-        slotId: targetSlotId,
-        studentId: representativeUserId,
-        courseId: courseIdForBooking,
-        groupId: targetGroupId,
-        status: "scheduled",
-        sessionDate: sessionDateIso,
-        startTime: slot.startTime,
-        endTime: slot.endTime,
-        mode: slot.mode,
-        location: slot.location ?? null,
-        topic: input.topic?.trim() || null,
-        lastModifiedBy: authContext.userId,
-        lastModifiedAt: now,
-        bookedAt: now,
-      });
-
-      // Audit log table entry for compatibility
-      await tx.insert(bookingAuditLogs).values({
-        id: randomUUID(),
-        bookingId,
-        groupId: targetGroupId,
-        actorId: authContext.userId,
-        action: "TUTOR_SESSION_CREATED",
-        summary: `Tutor ${authContext.name ?? "Pengajar"} menjadwalkan sesi (${slot.dayOfWeek}, ${sessionDateIso} ${slot.startTime} - ${slot.endTime})`,
-        metadata: {
-          slotId: targetSlotId,
-          courseId: resolvedCourseId,
-          groupId: targetGroupId,
-          representativeId: representativeUserId,
-        },
-        createdAt: now,
-      });
-
-      await recordTutorMutationAudit({
-        actorId: authContext.userId,
-        actorRoles: authContext.roles,
-        courseId: resolvedCourseId,
-        entityType: "booking",
-        entityId: bookingId,
-        entityVersion: 1,
-        action: "tutor.session.create",
-        outcome: "success",
-        requestId,
-        reason: "TUTOR_SESSION_CREATED",
-        before: null,
-        after: {
-          bookingId,
-          slotId: targetSlotId,
-          groupId: targetGroupId,
-          courseId: resolvedCourseId,
-          sessionDate: sessionDateIso,
-          startTime: slot.startTime,
-          endTime: slot.endTime,
-          mode: slot.mode,
-          representativeUserId,
-        },
-      }, tx);
-    });
-  } catch (err: any) {
-    const failureReason = err?.message ?? "DATABASE_TRANSACTION_FAILED";
-
-    if (failureReason === "WEEKLY_QUOTA_EXCEEDED") {
-      await recordTutorFailureAudit({
-        actorId: authContext.userId,
-        actorRoles: authContext.roles,
-        courseId: resolvedCourseId,
-        entityType: "booking",
-        entityId: "new_session",
-        entityVersion: 1,
-        action: "tutor.session.create",
-        outcome: "rejected",
-        requestId,
-        reason: "WEEKLY_QUOTA_EXCEEDED",
-        before: null,
-        after: { ...input },
-      }, options?.executor);
-
-      return {
-        success: false,
-        error: "Kuota sesi mingguan kelompok telah tercapai.",
-        reason: "WEEKLY_QUOTA_EXCEEDED",
-      };
-    }
-
-    if (failureReason === "TOTAL_QUOTA_EXCEEDED") {
-      await recordTutorFailureAudit({
-        actorId: authContext.userId,
-        actorRoles: authContext.roles,
-        courseId: resolvedCourseId,
-        entityType: "booking",
-        entityId: "new_session",
-        entityVersion: 1,
-        action: "tutor.session.create",
-        outcome: "rejected",
-        requestId,
-        reason: "TOTAL_QUOTA_EXCEEDED",
-        before: null,
-        after: { ...input },
-      }, options?.executor);
-
-      return {
-        success: false,
-        error: "Kuota total sesi kelompok telah tercapai.",
-        reason: "TOTAL_QUOTA_EXCEEDED",
-      };
-    }
-
-    await recordTutorFailureAudit({
-      actorId: authContext.userId,
-      actorRoles: authContext.roles,
-      courseId: resolvedCourseId,
-      entityType: "booking",
-      entityId: bookingId,
-      entityVersion: 1,
-      action: "tutor.session.create",
-      outcome: "failed",
-      requestId,
-      reason: failureReason,
-      before: null,
-      after: { ...input },
-    }, options?.executor);
-
-    return {
-      success: false,
-      error: "Gagal menyimpan jadwal sesi.",
-      reason: "DATABASE_ERROR",
-    };
-  }
-
-  // 8. AFTER COMMIT: Notifications to all active group members
-  let notificationSent = false;
-  if (!options?.skipNotifications) {
-    try {
-      const memberRows = await client
-        .select({ userId: groupMembers.userId })
-        .from(groupMembers)
-        .where(eq(groupMembers.groupId, targetGroupId));
-
-      const memberUserIds = memberRows.map((m: { userId: string }) => m.userId);
-      if (memberUserIds.length > 0) {
-        const payload: NotificationPayload = {
-          title: "Jadwal Tutorial Baru",
-          body: `Sesi baru dijadwalkan pada ${slot.dayOfWeek}, ${sessionDateIso} pukul ${slot.startTime} - ${slot.endTime}.`,
-          type: "tutor_reminder",
-          link: "/dashboard/schedule",
-          metadata: {
-            bookingId,
-            courseId: resolvedCourseId,
-            sessionDate: sessionDateIso,
-          },
-        };
-        await sendToMany(memberUserIds, payload);
-        notificationSent = true;
-      }
-    } catch (notifErr) {
-      // Non-fatal: do not roll back committed session
-      console.error("[TUTOR_SCHEDULE] Failed to deliver notifications:", notifErr);
-    }
-  }
-
-  // 9. AFTER COMMIT: Google Meet Space Creation
-  let googleMeetCreated = false;
-  let googleMeetError: string | null = null;
-
-  if (slot.mode === "online" && !options?.skipExternalMeet) {
-    try {
-      const space = await createGoogleMeetSpace({
-        accessType: "OPEN",
-        entryPointAccess: "ALL",
-      });
-
-      if (space.meetingUri) {
-        await client
-          .update(bookings)
-          .set({
-            googleMeetUrl: space.meetingUri,
-            googleMeetSpaceName: space.name,
-            lastModifiedAt: new Date(),
-          })
-          .where(eq(bookings.id, bookingId));
-        googleMeetCreated = true;
-      }
-    } catch (meetErr: any) {
-      // Record failed external outcome without rolling back committed session
-      googleMeetError = meetErr?.message ?? "GOOGLE_MEET_CREATION_FAILED";
-      console.error("[TUTOR_SCHEDULE] External Google Meet creation failed:", meetErr);
-    }
-  }
-
-  try {
-    revalidatePath("/tutor/schedule");
-  } catch {
-    // Ignored in test runner
-  }
-
-  return {
-    success: true,
-    bookingId,
-    googleMeetCreated,
-    googleMeetError,
-  };
-}
-
-export async function createTutorSessionAction(input: CreateTutorSessionInput) {
-  return executeCreateTutorSession(input);
-}
-
-/* ────────────────────────────────────────────────────────────────────────────
- * Action 4: Move Tutor Session (Direct or Ticket based on Lock Policy)
+ * Action 3: Move Tutor Session (Direct or Ticket based on Lock Policy)
  * ──────────────────────────────────────────────────────────────────────────── */
 
 export interface MoveTutorSessionInput {
@@ -2172,7 +1647,7 @@ export async function moveTutorSessionAction(input: MoveTutorSessionInput) {
 }
 
 /* ────────────────────────────────────────────────────────────────────────────
- * Action 5: Decide Reschedule Ticket (Tutor Decision)
+ * Action 4: Decide Reschedule Ticket (Tutor Decision)
  * ──────────────────────────────────────────────────────────────────────────── */
 export interface DecideTutorRescheduleTicketInput {
   ticketId: string;
@@ -2943,7 +2418,7 @@ export async function decideTutorRescheduleTicketAction(
 }
 
 /* ────────────────────────────────────────────────────────────────────────────
- * Action 6: Reply to Ticket Discussion Thread (Tutor <-> Group)
+ * Action 5: Reply to Ticket Discussion Thread (Tutor <-> Group)
  * ──────────────────────────────────────────────────────────────────────────── */
 
 export interface ReplyTutorTicketMessageInput {

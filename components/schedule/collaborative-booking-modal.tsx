@@ -1,33 +1,43 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import {
+  BookOpen,
+  CalendarDays,
+  Clock,
+  FileText,
+  Link2,
+  Loader2,
+  MapPin,
+  Upload,
+  Video,
+  X,
+} from "lucide-react";
 import {
   Dialog,
   DialogContent,
-  DialogHeader,
-  DialogTitle,
   DialogDescription,
   DialogFooter,
-  DialogClose,
+  DialogHeader,
+  DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/components/ui/toast";
 import {
-  CalendarDays,
-  Clock,
-  Video,
-  MapPin,
-  BookOpen,
-} from "lucide-react";
-import { collaborativeBookSlot } from "@/app/(student)/dashboard/schedule/actions";
+  addSessionResourceAction,
+  collaborativeBookSlot,
+} from "@/app/(student)/dashboard/schedule/actions";
+import type { PendingSessionResource } from "@/components/schedule/session-detail-drawer";
+
+export type BookingSuccessResult = {
+  bookingId: string;
+  pendingResources: PendingSessionResource[];
+};
 
 type Props = {
   open: boolean;
@@ -35,8 +45,18 @@ type Props = {
   selectedSlot: any | null;
   selectedDateIso: string;
   groups: any[];
-  onSuccess: () => void;
+  onSuccess: (result: BookingSuccessResult) => void | Promise<void>;
+  onSlotTaken?: () => void | Promise<void>;
 };
+
+function isHttpUrl(value: string) {
+  try {
+    const url = new URL(value.trim());
+    return url.protocol === "http:" || url.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
 
 export function CollaborativeBookingModal({
   open,
@@ -45,186 +65,239 @@ export function CollaborativeBookingModal({
   selectedDateIso,
   groups,
   onSuccess,
+  onSlotTaken,
 }: Props) {
   const [selectedGroupId, setSelectedGroupId] = useState(groups[0]?.id || "");
   const [selectedCourseId, setSelectedCourseId] = useState("");
+  const [topic, setTopic] = useState("");
+  const [note, setNote] = useState("");
+  const [links, setLinks] = useState("");
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const activeGroup = groups.find((g) => g.id === selectedGroupId) || groups[0] || null;
+  useEffect(() => {
+    if (!open) return;
+    setSelectedGroupId((current: string) => groups.some((group) => group.id === current) ? current : groups[0]?.id || "");
+    setSelectedCourseId("");
+    setTopic("");
+    setNote("");
+    setLinks("");
+    setSelectedFiles([]);
+  }, [open, selectedSlot?.id, groups]);
 
-  // Available courses in the selected group that the tutor is certified for
+  const activeGroup = groups.find((group) => group.id === selectedGroupId) || groups[0] || null;
   const availableCourses = (activeGroup?.courses || [])
-    .map((gc: any) => gc.course || gc)
+    .map((groupCourse: any) => groupCourse.course || groupCourse)
     .filter(Boolean);
+  const parsedLinks = links.split("\n").map((value) => value.trim()).filter(Boolean);
+
+  const uploadBookingFile = async (file: File, bookingId: string) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("folder", `schedules/${bookingId}/materials`);
+    const response = await fetch("/api/upload", { method: "POST", body: formData });
+    const payload = await response.json().catch(() => null);
+    if (!response.ok || !payload?.url) throw new Error("Berkas gagal diunggah.");
+
+    const resource = await addSessionResourceAction({
+      bookingId,
+      phase: "pre",
+      kind: "file",
+      label: file.name,
+      url: payload.url,
+      fileName: file.name,
+      mimeType: payload.type || file.type || null,
+      sizeBytes: file.size,
+    });
+    if (!resource.success) throw new Error("Berkas gagal ditautkan ke sesi.");
+  };
 
   const handleBook = async () => {
     if (!selectedSlot) return;
     if (!selectedGroupId) {
-      toast.error("Pilih kelompok belajar terlebih dahulu");
+      toast.error("Pilih kelompok belajar terlebih dahulu.");
       return;
     }
     if (!selectedCourseId) {
-      toast.error("Pilih mata kuliah tutorial");
+      toast.error("Pilih mata kuliah tutorial.");
+      return;
+    }
+    if (parsedLinks.some((link) => !isHttpUrl(link))) {
+      toast.error("Setiap link harus berupa URL http atau https.");
       return;
     }
 
     setLoading(true);
     try {
-      const res = await collaborativeBookSlot(
+      const result = await collaborativeBookSlot(
         selectedSlot.id,
         selectedCourseId,
         selectedGroupId,
-        selectedDateIso
+        selectedDateIso,
+        {
+          topic: topic.trim() || undefined,
+          preSessionNotes: note.trim() || undefined,
+        },
       );
 
-      if (res.success) {
-        toast.success("Jadwal tutorial kelompok berhasil dipesan!");
-        onOpenChange(false);
-        onSuccess();
-      } else {
-        toast.error(res.error || "Gagal memesan slot");
+      if (!result.success || !result.bookingId) {
+        if (result.reason === "SLOT_TAKEN") {
+          toast.error("Slot ini baru saja diambil kelompok lain.");
+          onOpenChange(false);
+          await onSlotTaken?.();
+        } else {
+          toast.error(result.error || "Gagal memesan slot.");
+        }
+        return;
       }
-    } catch {
-      toast.error("Terjadi kesalahan koneksi");
+
+      const pendingResources: PendingSessionResource[] = [];
+
+      for (const link of parsedLinks) {
+        try {
+          const resource = await addSessionResourceAction({
+            bookingId: result.bookingId,
+            phase: "pre",
+            kind: "link",
+            label: link,
+            url: link,
+          });
+          if (!resource.success) throw new Error("Link gagal disimpan.");
+        } catch (error) {
+          console.error("Booking link resource error:", error);
+          pendingResources.push({ kind: "link", label: link, url: link });
+        }
+      }
+
+      for (const file of selectedFiles) {
+        try {
+          await uploadBookingFile(file, result.bookingId);
+        } catch (error) {
+          console.error("Booking file resource error:", error);
+          pendingResources.push({
+            kind: "file",
+            label: file.name,
+            file,
+            mimeType: file.type,
+            sizeBytes: file.size,
+          });
+        }
+      }
+
+      toast.success(
+        pendingResources.length > 0
+          ? `Jadwal berhasil dipesan. ${pendingResources.length} resource belum berhasil ditambahkan.`
+          : "Jadwal tutorial kelompok berhasil dipesan.",
+      );
+      onOpenChange(false);
+      setSelectedFiles([]);
+      await onSuccess({ bookingId: result.bookingId, pendingResources });
+    } catch (error) {
+      console.error("Collaborative booking error:", error);
+      toast.error("Pemesanan gagal diproses. Coba lagi.");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md rounded-xl border border-border p-6 shadow-xl text-left">
+    <Dialog open={open} onOpenChange={(nextOpen) => !loading && onOpenChange(nextOpen)}>
+      <DialogContent className="max-w-lg rounded-xl border border-border p-6 shadow-xl text-left max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="font-heading text-body-base font-bold flex items-center gap-2">
-            <CalendarDays className="size-5 text-brand-primary" />
-            Pilih Jadwal Tutorial Kelompok
+            <CalendarDays className="size-5 text-brand-primary" /> Booking sesi tutorial
           </DialogTitle>
           <DialogDescription className="text-body-xs text-muted-foreground">
-            Slot ini akan dipesan atas nama kelompok belajar Anda.
+            Periksa detail sesi, lalu tambahkan konteks yang perlu diketahui tutor.
           </DialogDescription>
         </DialogHeader>
 
-        {selectedSlot && (
-          <div className="space-y-4 my-2">
-            {/* Slot Info Card */}
-            <div className="p-3.5 rounded-xl border border-border bg-muted/20 space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="font-bold text-foreground text-body-sm">
-                  {selectedSlot.tutor?.name || "Tutor Zyx"}
-                </span>
-                {selectedSlot.mode === "online" ? (
-                  <Badge variant="outline" className="text-blue-600 border-blue-300 gap-1 text-[10px]">
-                    <Video className="size-3" />
-                    Online (Meet)
-                  </Badge>
-                ) : (
-                  <Badge variant="outline" className="text-emerald-600 border-emerald-300 gap-1 text-[10px]">
-                    <MapPin className="size-3" />
-                    {selectedSlot.location || "Offline"}
-                  </Badge>
-                )}
+        {selectedSlot ? (
+          <div className="space-y-4 py-2">
+            <section className="space-y-2 border-b border-border pb-3">
+              <div className="flex items-center justify-between gap-2">
+                <span className="font-heading text-body-sm font-bold text-foreground">{selectedSlot.tutor?.name || "Tutor Zyx"}</span>
+                <Badge variant="outline" className="text-body-xs">
+                  {selectedSlot.mode === "online" ? <><Video className="mr-1 size-3" /> Online</> : <><MapPin className="mr-1 size-3" /> {selectedSlot.location || "Tatap muka"}</>}
+                </Badge>
               </div>
+              <div className="grid gap-1.5 text-body-xs text-muted-foreground sm:grid-cols-2">
+                <span className="inline-flex items-center gap-1.5"><CalendarDays className="size-3.5 text-brand-primary" />{selectedDateIso} ({selectedSlot.dayOfWeek})</span>
+                <span className="inline-flex items-center gap-1.5"><Clock className="size-3.5 text-brand-primary" />{selectedSlot.startTime} - {selectedSlot.endTime}, 90 menit</span>
+              </div>
+            </section>
 
-              <div className="flex items-center gap-3 text-body-xs text-muted-foreground">
-                <div className="flex items-center gap-1">
-                  <CalendarDays className="size-3.5 text-brand-primary" />
-                  <span>{selectedDateIso} ({selectedSlot.dayOfWeek})</span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <Clock className="size-3.5 text-brand-primary" />
-                  <span>{selectedSlot.startTime} - {selectedSlot.endTime}</span>
-                </div>
-              </div>
+            <div className="space-y-2">
+              <Label htmlFor="booking-group" className="text-body-sm font-semibold">Kelompok</Label>
+              {groups.length > 1 ? (
+                <Select value={selectedGroupId} onValueChange={(value) => { setSelectedGroupId(value); setSelectedCourseId(""); }}>
+                  <SelectTrigger id="booking-group" className="h-9 text-body-sm"><SelectValue placeholder="Pilih kelompok" /></SelectTrigger>
+                  <SelectContent>{groups.map((group) => <SelectItem key={group.id} value={group.id}>{group.name} ({group.weeklyUsedSessions ?? 0}/{group.weeklyQuotaSessions ?? 2} sesi pekan ini)</SelectItem>)}</SelectContent>
+                </Select>
+              ) : (
+                <div className="rounded-md border border-border bg-muted/20 px-3 py-2 text-body-sm text-foreground">{activeGroup?.name || "Kelompok belum tersedia"}</div>
+              )}
             </div>
 
-            {/* Select Group (if multiple) */}
-            {groups.length > 1 && (
-              <div className="space-y-1.5">
-                <label className="text-body-xs font-semibold text-foreground block">
-                  Kelompok Belajar
-                </label>
-                <Select
-                  value={selectedGroupId}
-                  onValueChange={(val) => {
-                    setSelectedGroupId(val);
-                    setSelectedCourseId("");
-                  }}
-                >
-                  <SelectTrigger className="h-10 rounded-lg text-body-sm bg-card">
-                    <SelectValue placeholder="Pilih Kelompok" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {groups.map((g) => (
-                      <SelectItem key={g.id} value={g.id}>
-                        {g.name} (Minggu ini: {g.weeklyUsedSessions ?? 0}/{g.weeklyQuotaSessions ?? 2} sesi)
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-
-            {/* Quota indicator */}
-            {activeGroup && (
-              <div className="flex items-center justify-between p-2.5 rounded-lg border border-border/80 bg-card text-body-xs">
-                <span className="text-muted-foreground">Terpakai minggu ini:</span>
-                <span className="font-bold text-foreground">
-                  {activeGroup.weeklyUsedSessions ?? 0} / {activeGroup.weeklyQuotaSessions ?? 2} Sesi
-                </span>
-              </div>
-            )}
-
-            {/* Select Course */}
-            <div className="space-y-1.5">
-              <label className="text-body-xs font-semibold text-foreground block">
-                Pilih Mata Kuliah Tutorial
-              </label>
+            <div className="space-y-2">
+              <Label className="text-body-sm font-semibold">Mata kuliah</Label>
               {availableCourses.length === 0 ? (
-                <p className="text-body-xs text-muted-foreground italic">
-                  Tidak ada mata kuliah yang terhubung dengan kelompok Anda.
-                </p>
+                <p className="text-body-xs text-muted-foreground">Tidak ada mata kuliah yang terhubung dengan kelompok ini.</p>
               ) : (
-                <div className="grid grid-cols-1 gap-2 max-h-44 overflow-y-auto">
-                  {availableCourses.map((c: any) => {
-                    const isSelected = selectedCourseId === c.id;
+                <div className="grid gap-2">
+                  {availableCourses.map((course: any) => {
+                    const selected = selectedCourseId === course.id;
                     return (
-                      <button
-                        key={c.id}
-                        type="button"
-                        onClick={() => setSelectedCourseId(c.id)}
-                        className={`flex items-center justify-between p-3 rounded-lg border text-left transition-all ${
-                          isSelected
-                            ? "border-brand-primary bg-brand-primary/10 text-foreground font-semibold"
-                            : "border-border bg-card text-muted-foreground hover:bg-muted/40 hover:text-foreground"
-                        }`}
-                      >
-                        <div className="flex items-center gap-2">
-                          <BookOpen className="size-4 text-brand-primary shrink-0" />
-                          <span className="text-body-sm">{c.title}</span>
-                        </div>
-                        {isSelected && <Badge variant="default" className="text-[10px]">Dipilih</Badge>}
+                      <button key={course.id} type="button" onClick={() => setSelectedCourseId(course.id)} className={`flex items-center justify-between rounded-lg border p-2.5 text-left transition-colors ${selected ? "border-brand-primary bg-brand-primary/10 text-foreground" : "border-border bg-card text-muted-foreground hover:bg-muted/40"}`}>
+                        <span className="inline-flex items-center gap-2 text-body-sm"><BookOpen className="size-4 text-brand-primary" />{course.title}</span>
+                        {selected ? <Badge className="text-body-xs">Dipilih</Badge> : null}
                       </button>
                     );
                   })}
                 </div>
               )}
             </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="booking-topic" className="text-body-sm font-semibold">Topik atau yang ingin dibahas <span className="font-normal text-muted-foreground">(opsional)</span></Label>
+              <Input id="booking-topic" value={topic} onChange={(event) => setTopic(event.target.value)} placeholder="Contoh: latihan soal Bab 3" className="h-9 text-body-sm" maxLength={500} />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="booking-note" className="text-body-sm font-semibold">Catatan untuk tutor <span className="font-normal text-muted-foreground">(opsional)</span></Label>
+              <Textarea id="booking-note" value={note} onChange={(event) => setNote(event.target.value)} placeholder="Konteks singkat sebelum sesi" className="min-h-20 text-body-sm" maxLength={5000} />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="booking-links" className="text-body-sm font-semibold">Link pendukung <span className="font-normal text-muted-foreground">(satu per baris, opsional)</span></Label>
+              <Textarea id="booking-links" value={links} onChange={(event) => setLinks(event.target.value)} placeholder="https://..." className="min-h-16 text-body-sm" />
+              {parsedLinks.length > 0 ? <p className="text-body-xs text-muted-foreground">{parsedLinks.length} link akan ditambahkan setelah booking berhasil.</p> : null}
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-body-sm font-semibold">Berkas pendukung <span className="font-normal text-muted-foreground">(opsional)</span></Label>
+              <label className="flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-dashed border-border bg-muted/20 px-3 py-3 text-body-xs font-semibold text-foreground hover:bg-muted/40">
+                <Upload className="size-4" /> Pilih berkas PDF atau gambar
+                <input type="file" accept=".pdf,.png,.jpg,.jpeg,.webp" multiple className="sr-only" onChange={(event) => { setSelectedFiles((current) => [...current, ...Array.from(event.target.files || [])]); event.target.value = ""; }} />
+              </label>
+              {selectedFiles.length > 0 ? (
+                <ul className="space-y-1.5">
+                  {selectedFiles.map((file, index) => (
+                    <li key={`${file.name}-${file.lastModified}-${index}`} className="flex items-center justify-between gap-2 rounded-md border border-border px-2.5 py-1.5 text-body-xs">
+                      <span className="inline-flex min-w-0 items-center gap-1.5 truncate"><FileText className="size-3.5 shrink-0" />{file.name}</span>
+                      <Button type="button" variant="ghost" size="icon-xs" onClick={() => setSelectedFiles((current) => current.filter((_, fileIndex) => fileIndex !== index))} aria-label={`Hapus ${file.name}`}><X className="size-3.5" /></Button>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+            </div>
           </div>
-        )}
+        ) : null}
 
         <DialogFooter className="gap-2 pt-2">
-          <DialogClose asChild>
-            <Button variant="outline" type="button">
-              Batal
-            </Button>
-          </DialogClose>
-          <Button
-            type="button"
-            disabled={loading || !selectedCourseId}
-            onClick={handleBook}
-            className="bg-brand-primary text-white hover:bg-brand-primary/90 rounded-lg"
-          >
-            {loading ? "Memesan..." : "Konfirmasi Booking"}
+          <Button type="button" variant="outline" disabled={loading} onClick={() => onOpenChange(false)} className="text-body-sm">Batal</Button>
+          <Button type="button" disabled={loading || !selectedCourseId} onClick={handleBook} className="bg-brand-primary text-white hover:bg-brand-primary/90 text-body-sm">
+            {loading ? <><Loader2 className="size-4 animate-spin" /> Memesan...</> : <><Link2 className="size-4" /> Konfirmasi booking</>}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -468,6 +468,8 @@ The standalone Admin material editor is retired. Existing website material remai
 
 ### Scheduling & Calendar System (Model Kelompok Belajar)
 
+The canonical scheduling workflow uses concrete, date-specific 90-minute tutor slots. The dedicated tutor surface is `/tutor/schedule`; `/dashboard/schedule` is student-only and redirects tutor accounts to the canonical route.
+
 - Group Ownership & Collaborative Booking:
   - Tutoring sessions are booked on behalf of Study Groups.
   - All group members have equal rights to choose, move, or cancel slots before the weekly lock cut-off.
@@ -476,10 +478,11 @@ The standalone Admin material editor is retired. Existing website material remai
   - Usage is derived by counting active booking rows of the group inside the target week. Pre-lock cancellations preserve the booking row with status `cancelled` and write a durable `BOOKING_CANCELLED_QUOTA_REFUNDED` marker into `booking_audit_logs` to free the quota. Post-lock cancellations do not receive the refund marker and stay counted against the weekly quota (hangus).
   - Students see "Terpakai minggu ini X/Y" when booking and on the Groups page; the last 4 weeks show attended versus missed/cancelled counts for traceability.
 - Weekly Lock & Automated Cut-Off:
-  - Next week's scheduling selection opens throughout the current week and automatically locks every Saturday at 23:59 WIB (Asia/Jakarta).
+  - Tutor availability for the following week opens on Monday and closes on Friday at 18:00 WIB. Student booking remains open until Saturday at 23:59 WIB (Asia/Jakarta).
   - Post-lock schedule adjustments require formal Reschedule or Cancellation tickets.
 - Fixed 90-Minute Slots:
-  - Tutors open availability slots of exactly 90 minutes. The server rejects other durations and the availability panel auto-computes the end time.
+  - Tutors open concrete availability slots of exactly 90 minutes. The server rejects other durations and the tutor form auto-computes the end time.
+  - Copying the previous week creates new concrete rows for the target week. It never creates an unbounded recurring browser event.
 - Google Meet Automation:
   - Online sessions provision a dedicated Google Meet space lazily as soon as the slot is booked, moved, or a reschedule ticket is approved; links render immediately for tutors and students. Admins can batch-generate missing links from the admin dashboard.
   - Offline sessions require tutors to specify explicit physical room or branch locations.
@@ -488,11 +491,18 @@ The standalone Admin material editor is retired. Existing website material remai
 - Pre-Session & Post-Session Workflows:
   - Pre-Session: Any group member can define the discussion topic and upload question files (PDF/images), with uploader identity logged.
   - Post-Session: Tutors mark sessions complete, upload handwritten photo notes or answer PDFs, and embed external links with automated OpenGraph metadata previews.
+  - Students, tutors, and admins use the shared Session Detail Drawer for prep, files, links, Meet or location, tutor summary, recording, post-session resources, audit, and tickets.
 - Reschedule, Cancellation, and Discussion Threads:
   - Post-lock ticket requests open an integrated discussion chat restricted to group members and the assigned tutor.
   - The assigned tutor holds sole approval authority. Approval migrates the booking to the proposed slot and regenerates Meet links; cancellations forfeit the week's quota without refund.
 - Tutor Course Certifications:
-  - Only admins assign the courses a tutor may teach (admin schedules dashboard, Tutor tab). The tutor availability panel displays certifications read-only.
+  - Only admins assign the courses a tutor may teach (admin schedules dashboard, Tutor tab). The canonical tutor schedule displays certifications read-only.
+- Admin Scheduling Operations:
+  - Admin Tutorial mode shows concrete availability, booked sessions, locked sessions, and a compact weekly coverage table with Tutor, Slots opened, Booked, Available, and Submission status.
+  - Admin can create availability, assign a group to a slot, move a session, or cancel a session only through explicit exceptional controls. Every override requires a non-empty reason and records actor, action, reason, before, after, and timestamp through the existing audit mechanisms.
+  - Academic mode remains the only mode that creates official exams, tryouts, quizzes, or other academic schedules. Tutorial mode never turns a calendar gesture into an `official_exam`.
+- Legacy Compatibility:
+  - `sessionDate = null` tutor availability is legacy compatibility data only. It is excluded from student bookable totals, tutor calendar ranges, and admin coverage. Admin may see a review count, but the application never guesses a recurring date.
 - Audit Trail & Activity Log:
   - Every calendar card displays a last-modified indicator: "Diubah oleh [Nama] • [Tanggal]" with full details in the audit drawer.
   - A chronological audit trail records slot selections, migrations, pre-session uploads, and ticket decisions.
@@ -507,7 +517,7 @@ The tutor experience is housed in a dedicated, role-scoped shell (`app/(tutor)`)
 
 - Subroute Structure:
   - `/tutor`: Overview portal displaying assigned courses, high-level KPIs, and quick shortcuts.
-  - `/tutor/schedule`: Full schedule and availability manager (add 90-minute slots, view bookings, delete unbooked slots, book sessions for active groups, approve/reject reschedule tickets, cancel sessions). Each reschedule or cancellation ticket exposes its discussion thread; the assigned tutor can read all group messages and reply inline.
+  - `/tutor/schedule`: Full schedule and availability manager (add concrete 90-minute slots, copy the previous week, view assigned bookings, delete unbooked slots, approve or reject reschedule tickets, and complete sessions). Tutors do not directly assign groups to slots from this surface. Each reschedule or cancellation ticket exposes its discussion thread; the assigned tutor can read all group messages and reply inline.
   - `/tutor/[courseId]`: Course-level dashboard summarizing teaching metrics, active groups, and recent quizzes, with quick-action links to quiz management, live console, grading, and participants.
   - `/tutor/[courseId]/participants`: Enrolled student roster and active study groups with member lists and deterministic representatives.
   - `/tutor/[courseId]/quizzes`: Full quiz template management (create, edit, delete, preview, toggle draft/published status) with creator attribution.
