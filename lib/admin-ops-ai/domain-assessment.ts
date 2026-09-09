@@ -5,7 +5,7 @@ import {
   studentQuizAttempts,
   courses,
 } from "@/db/schema";
-import { eq, desc, and, inArray } from "drizzle-orm";
+import { eq, desc, and, inArray, like } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 
 export interface ListQuizzesInput {
@@ -278,6 +278,7 @@ export async function executeListQuestions(input: ListQuestionsInput) {
   if (input.courseId) conditions.push(eq(aiQuestionBank.courseId, input.courseId.trim().toLowerCase()));
   if (input.difficulty) conditions.push(eq(aiQuestionBank.difficulty, input.difficulty));
   if (input.reviewStatus) conditions.push(eq(aiQuestionBank.reviewStatus, input.reviewStatus as any));
+  if (input.search) conditions.push(like(aiQuestionBank.prompt, `%${input.search.trim()}%`));
 
   const limit = Math.min(Math.max(input.limit ?? 20, 1), 100);
   const rows = await db
@@ -293,17 +294,11 @@ export async function executeListQuestions(input: ListQuestionsInput) {
     .from(aiQuestionBank)
     .where(conditions.length > 0 ? and(...conditions) : undefined)
     .orderBy(desc(aiQuestionBank.createdAt))
-    .limit(input.search ? 100 : limit);
-
-  const questionRows = input.search?.trim()
-    ? rows
-        .filter((question) => scoreQuizTitleMatch(input.search!, question.prompt) >= 52)
-        .slice(0, limit)
-    : rows;
+    .limit(limit);
 
   return {
-    summary: `Ditemukan ${questionRows.length} soal dalam bank soal.`,
-    data: questionRows,
+    summary: `Ditemukan ${rows.length} soal dalam bank soal.`,
+    data: rows,
   };
 }
 
