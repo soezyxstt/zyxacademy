@@ -45,6 +45,7 @@ import {
   formatIsoDate,
   formatIsoDateUtc,
   getJakartaNow,
+  parseDateInput,
   type IndonesianDay,
 } from "@/lib/date-utils";
 import { cn } from "@/lib/utils";
@@ -386,6 +387,15 @@ export function ScheduleCalendarView({
   const [activeDate, setActiveDate] = useState<Date>(() => {
     return getJakartaNow();
   });
+
+  const activeWeekStartDate = useMemo(
+    () => parseDateInput(weekInfo.startOfWeekIso),
+    [weekInfo.startOfWeekIso],
+  );
+
+  useEffect(() => {
+    setActiveDate(activeWeekStartDate);
+  }, [activeWeekStartDate]);
 
   // Filters
   const [selectedCourseFilter, setSelectedCourseFilter] = useState(initialCourseFilter);

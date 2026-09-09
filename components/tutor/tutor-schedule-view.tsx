@@ -134,7 +134,7 @@ export function TutorScheduleView({
   }, [anchorDate]);
 
   const isWeekLocked = useMemo(() => {
-    return isTutorialWeekLocked(weekInfo.days[0].dateIso, getJakartaNow());
+    return isTutorialWeekLocked(weekInfo.days[0].dateIso);
   }, [weekInfo]);
 
   // Dialog States

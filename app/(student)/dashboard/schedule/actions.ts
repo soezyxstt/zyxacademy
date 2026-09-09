@@ -99,7 +99,7 @@ export async function getScheduleData(weekOffset = 0) {
   const anchorDate = daysFrom(weekOffset * 7, nowJakarta);
 
   const weekInfo = getWeekScheduleDays(anchorDate);
-  const isWeekLocked = isTutorialWeekLocked(weekInfo.days[0].dateIso, nowJakarta);
+  const isWeekLocked = isTutorialWeekLocked(weekInfo.days[0].dateIso);
   const { startIso: viewWeekStart, endIso: viewWeekEnd } = getIsoWeekRange(
     weekInfo.days[0].dateIso,
   );

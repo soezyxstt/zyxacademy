@@ -6,7 +6,6 @@ import {
   CalendarDays,
   Plus,
   Users,
-  MessageSquare,
   CheckCircle2,
   Trash2,
   Edit3,
@@ -59,7 +58,6 @@ import {
   updateTutorCourses,
 } from "@/app/(admin)/admin/(academic)/schedules/actions";
 import { formatIsoDate } from "@/lib/date-utils";
-import { cn } from "@/lib/utils";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useUrlTab } from "@/hooks/use-url-tab";
 import { SessionDetailDrawer } from "@/components/schedule/session-detail-drawer";
@@ -136,8 +134,6 @@ export function AcademicSchedulesDashboard({ initialData, initialWeekOffset = 0 
   const [certSaving, setCertSaving] = useState(false);
 
   // Metrics
-  const totalBookings = data.bookings.length;
-  const completedBookings = data.bookings.filter((b: any) => b.status === "completed").length;
   const pendingTickets = data.tickets.filter((t: any) => t.status === "pending").length;
 
   const handleWeekChange = (offset: number) => {
