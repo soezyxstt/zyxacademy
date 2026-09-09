@@ -1227,7 +1227,11 @@ export async function updatePreSessionData(
 
     await db
       .delete(bookingResources)
-      .where(and(eq(bookingResources.bookingId, bookingId), eq(bookingResources.phase, "pre")));
+      .where(and(
+        eq(bookingResources.bookingId, bookingId),
+        eq(bookingResources.phase, "pre"),
+        eq(bookingResources.kind, "file"),
+      ));
     if (formattedAttachments.length > 0) {
       await db.insert(bookingResources).values(
         formattedAttachments.map((attachment) => ({

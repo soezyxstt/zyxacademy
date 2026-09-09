@@ -67,6 +67,34 @@ function parseCreatedIndex(statement: string) {
   };
 }
 
+function migrationCreatesTutorSlotExactUniqueIndex(statements: readonly string[]): boolean {
+  return statements.some((statement) =>
+    /CREATE\s+UNIQUE\s+INDEX\s+(?:IF\s+NOT\s+EXISTS\s+)?[\`\"]tutor_slots_exact_unique_idx[\`\"]\s+ON\s+[\`\"]tutor_slots[\`\"]/i.test(statement),
+  );
+}
+
+async function assertMigrationPreconditions(
+  client: typeof db.$client,
+  statements: readonly string[],
+): Promise<void> {
+  if (!migrationCreatesTutorSlotExactUniqueIndex(statements)) return;
+
+  const duplicateRows = await client.execute(`
+    SELECT tutor_id, session_date, start_time, end_time, COUNT(*) AS duplicate_count
+    FROM tutor_slots
+    WHERE session_date IS NOT NULL
+    GROUP BY tutor_id, session_date, start_time, end_time
+    HAVING COUNT(*) > 1
+    LIMIT 1
+  `);
+  const duplicate = duplicateRows.rows[0] as unknown as Record<string, unknown> | undefined;
+  if (!duplicate) return;
+
+  throw new Error(
+    `MIGRATION_PRECONDITION_FAILED: duplicate dated tutor slot exists for ${String(duplicate.tutor_id)} ${String(duplicate.session_date)} ${String(duplicate.start_time)}-${String(duplicate.end_time)} (${String(duplicate.duplicate_count)} rows)`,
+  );
+}
+
 /**
  * Some SQLite schema diffs emit ADD COLUMN statements after index rebuilds
  * that reference those new columns. Defer only the affected index rebuilds
@@ -201,14 +229,15 @@ async function migrateLocalDatabase() {
   // Keep Drizzle's timestamp gate. This repository has historical migration
   // rows whose hashes no longer match the generated SQL, so hash-only replay
   // would incorrectly execute already-applied migrations again.
-  const lastAppliedMigration = appliedMigrations.rows[0];
-  const lastAppliedAt = lastAppliedMigration?.[2];
+  const lastAppliedMigration = appliedMigrations.rows[0] as unknown as { created_at?: unknown } | undefined;
+  const lastAppliedAt = lastAppliedMigration?.created_at;
 
   for (const migration of migrations) {
     if (
       lastAppliedAt === undefined ||
       Number(lastAppliedAt) < migration.folderMillis
     ) {
+      await assertMigrationPreconditions(client, migration.sql);
       const statementsToApply = await filterExistingColumns(client, migration.sql);
       const statementsWithValidIndexDrops = await filterMissingIndexDrops(
         client,

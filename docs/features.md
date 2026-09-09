@@ -527,7 +527,7 @@ The tutor experience is housed in a dedicated, role-scoped shell (`app/(tutor)`)
 
 - Schedule Quotas, Refunds, and Notifications:
   - Exact 90-Minute Slots: Availability slots must span exactly 90 minutes. Start and end times are validated server-side.
-  - Calendar-First Availability: The tutor schedule opens in week view and also supports day and month views. Selecting a future calendar time creates a date-specific 90-minute slot; tutors may explicitly make it repeat weekly. Visual states distinguish available slots, booked sessions, and unavailable past or locked slots.
+  - Calendar-First Availability: The tutor schedule opens in week view and also supports day and month views. Selecting a future calendar time creates a date-specific 90-minute slot with a concrete session date. Visual states distinguish available slots, booked sessions, and unavailable past or locked slots.
   - Group Eligibility & Representative Selection: Sessions are scheduled for active study groups enrolled in the course. Group representative is deterministically selected (leader first, earliest `joinedAt`, lexicographical `userId`, member record `id`).
   - Weekly Quota & Cancellation Refunds: Groups carry a weekly quota (`weekly_quota_sessions`, default 2). Usage is computed by counting booking rows in the target ISO week. Cancellations before the Saturday 23:59 WIB lock cut-off receive a durable `BOOKING_CANCELLED_QUOTA_REFUNDED` marker in `booking_audit_logs`, keeping the booking row for traceability while exempting it from weekly quota. Post-lock cancellations forfeit the quota without refund (hangus).
   - Notifications: Schedule bookings, cancellations, and status changes dispatch real-time multi-recipient notifications via `sendToMany`.

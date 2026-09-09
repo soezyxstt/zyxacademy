@@ -23,7 +23,6 @@ import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { SearchBar } from "@/components/ui/search-bar";
 import {
@@ -143,7 +142,6 @@ export function TutorScheduleView({
 
   // Form State: Add Slot (No weekday Select; derived from selected date; default date-specific)
   const [newSlotDate, setNewSlotDate] = useState(() => formatIsoDateUtc(getJakartaNow()));
-  const [isRepeatWeekly, setIsRepeatWeekly] = useState(false);
   const [newSlotStart, setNewSlotStart] = useState("09:00");
   const [newSlotEnd, setNewSlotEnd] = useState("10:30");
   const [newSlotMode, setNewSlotMode] = useState<"online" | "offline">("online");
@@ -244,7 +242,7 @@ export function TutorScheduleView({
         endTime: newSlotEnd,
         mode: newSlotMode,
         location: newSlotLocation,
-        sessionDate: isRepeatWeekly ? undefined : (newSlotDate || undefined),
+        sessionDate: newSlotDate || undefined,
       });
 
       if (res.success) {
@@ -269,7 +267,6 @@ export function TutorScheduleView({
   ) => {
     setFeedback(null);
     setNewSlotDate(dateIso);
-    setIsRepeatWeekly(false);
     const start = startTimeStr || "09:00";
     setNewSlotStart(start);
     setNewSlotEnd(endTimeStr || computeEndTime(start));
@@ -430,7 +427,6 @@ export function TutorScheduleView({
               onClick={() => {
                 setFeedback(null);
                 setNewSlotDate(formatIsoDateUtc(getJakartaNow()));
-                setIsRepeatWeekly(false);
                 setNewSlotStart("09:00");
                 setNewSlotEnd("10:30");
                 setIsAddSlotOpen(true);
@@ -1014,7 +1010,7 @@ export function TutorScheduleView({
               Tambah Slot Ketersediaan 90 Menit
             </DialogTitle>
             <DialogDescription className="text-body-xs">
-              Buat slot ketersediaan mengajar mingguan berdurasi tepat 90 menit.
+              Buat slot ketersediaan mengajar berdurasi tepat 90 menit.
             </DialogDescription>
           </DialogHeader>
 
@@ -1026,22 +1022,6 @@ export function TutorScheduleView({
                 value={newSlotDate}
                 onChange={(e) => setNewSlotDate(e.target.value)}
                 className="text-body-sm h-9"
-              />
-            </div>
-
-            <div className="flex items-center justify-between rounded-lg border border-border p-3 bg-muted/20">
-              <div className="space-y-0.5">
-                <Label htmlFor="repeat-weekly" className="text-body-sm font-semibold cursor-pointer">
-                  Ulangi Setiap Minggu
-                </Label>
-                <p className="text-body-xs text-muted-foreground">
-                  Hari: <span className="font-semibold text-foreground">{derivedWeekday}</span>
-                </p>
-              </div>
-              <Checkbox
-                id="repeat-weekly"
-                checked={isRepeatWeekly}
-                onCheckedChange={(checked) => setIsRepeatWeekly(Boolean(checked))}
               />
             </div>
 

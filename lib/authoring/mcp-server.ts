@@ -499,6 +499,7 @@ function canonicalBatchForRun(run: ReturnType<typeof readMcpRunToken>, draft: No
       questionId: questionIdForRun(run.runId, item.externalId),
       question: item.question,
       ideaLinks: item.ideaLinks,
+      referenceLinks: item.referenceLinks,
     })),
   };
 }

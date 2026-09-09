@@ -84,6 +84,63 @@ export function isHistoricalReferenceLinkTarget(origin: string): origin is "hist
   return origin === "historical_reference";
 }
 
+type SolutionQuestionLocator = Pick<ReferenceQuestion, "questionNumber" | "part">;
+
+function normalizeSolutionLocator(value: string | null | undefined): string | null {
+  const normalized = value?.trim().toLowerCase().replace(/[()[\].:\-\s]/g, "");
+  return normalized || null;
+}
+
+function parseSolutionQuestionMarker(line: string): { questionNumber: string; part: string | null } | null {
+  const normalized = line.trim().replace(/^#{1,6}\s*/, "");
+  const match = normalized.match(/^(?:(?:soal|question|nomor)\s+)?(\d+(?:\.\d+)?)(.*)$/i);
+  if (!match) return null;
+
+  const suffix = match[2] ?? "";
+  const startsWithSeparator = /^[\s.)\]}:,]/.test(suffix)
+    || suffix.startsWith("(")
+    || suffix.startsWith("-")
+    || suffix.startsWith("[");
+  if (suffix && !startsWithSeparator && !/^[a-z][.)\]}:,]/i.test(suffix)) return null;
+  const partMatch = suffix.match(/^[\s.)\]}:,]*\(?([a-z])[)\]}:,]/i);
+  return {
+    questionNumber: match[1],
+    part: partMatch?.[1]?.toLowerCase() ?? null,
+  };
+}
+
+function sameSolutionQuestion(left: SolutionQuestionLocator, right: { questionNumber: string; part: string | null }): boolean {
+  const leftNumber = normalizeSolutionLocator(left.questionNumber);
+  const rightNumber = normalizeSolutionLocator(right.questionNumber);
+  if (!leftNumber || leftNumber !== rightNumber) return false;
+  const leftPart = normalizeSolutionLocator(left.part);
+  return leftPart === null || leftPart === normalizeSolutionLocator(right.part);
+}
+
+/**
+ * Extracts one numbered solution block. Returning null when the source has no
+ * reliable question marker is intentional, because storing the whole PDF text
+ * would expose other questions' answers.
+ */
+export function extractHistoricalSolutionSpan(
+  extractedText: string,
+  question: SolutionQuestionLocator,
+): string | null {
+  const lines = extractedText.split(/\r?\n/);
+  const markers = lines.flatMap((line, index) => {
+    const marker = parseSolutionQuestionMarker(line);
+    return marker ? [{ ...marker, index }] : [];
+  });
+  const start = markers.find((marker) => sameSolutionQuestion(question, marker));
+  if (!start) return null;
+
+  const end = markers.find((marker) => marker.index > start.index && (
+    question.part !== null || normalizeSolutionLocator(marker.questionNumber) !== normalizeSolutionLocator(start.questionNumber)
+  ));
+  const content = lines.slice(start.index, end?.index).join("\n").trim();
+  return content || null;
+}
+
 function hashQuestion(input: {
   courseId: string;
   chapterId: string | null;
@@ -626,11 +683,12 @@ function historicalQuestionHash(courseId: string, sourceId: string, question: Re
 
 export function getHistoricalSolutionContent(
   source: Pick<HistoricalSourcePersistenceInput, "solutionMetadata">,
-  question: Pick<ReferenceQuestion, "solutionProvenance">,
+  question: Pick<ReferenceQuestion, "solutionProvenance" | "questionNumber" | "part">,
 ): string | null {
   if (question.solutionProvenance !== "source_solution") return null;
-  const content = source.solutionMetadata?.extractedText?.trim();
-  return content || null;
+  const content = source.solutionMetadata?.extractedText;
+  if (!content) return null;
+  return extractHistoricalSolutionSpan(content, question);
 }
 
 function historicalSourceHash(input: HistoricalSourcePersistenceInput): string {

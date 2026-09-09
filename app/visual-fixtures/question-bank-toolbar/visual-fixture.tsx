@@ -37,13 +37,23 @@ const questions = [
 const historicalQuestions = [
   {
     id: "historical-1",
-    difficulty: 2,
+    difficulty: "medium" as const,
     questionMarkdown: "Hitung turunan pertama dari $f(x)=x^2+2x$.",
     answerMarkdown: "$f'(x)=2x+2$.",
+    options: ["2x", "2x + 2", "x + 2", "2"],
+    questionType: "multiple_choice" as const,
     sourceTitle: "UTS Matematika I",
     sourceCategory: "uts",
     sourceYear: 2025,
     courseId: "course-1",
+    reviewStatus: "generated" as const,
+    canonicalStatus: "draft" as const,
+    quizEligible: true,
+    sourceQuestionNumber: "1",
+    sourceQuestionPart: null,
+    sourcePage: 1,
+    answerProvenance: "official" as const,
+    solutionProvenance: "source_solution" as const,
   },
 ];
 

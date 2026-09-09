@@ -92,6 +92,11 @@ export async function PUT(req: NextRequest) {
  return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
  }
 
+ const isAdmin = Boolean(
+  session?.user &&
+  ((await hasAnyPeran(session.user.id, ['admin'])) || session.user.role === 'admin'),
+ );
+
  const body = await req.json();
  const parsed = BulkUpdateSchema.safeParse(body);
  if (!parsed.success) {
@@ -99,6 +104,13 @@ export async function PUT(req: NextRequest) {
  }
 
   const { ids, reviewStatus } = parsed.data;
+
+  if (reviewStatus === 'published' && !isAdmin) {
+    return NextResponse.json(
+      { error: 'Hanya admin yang dapat menerbitkan soal.', code: 'ADMIN_PUBLICATION_REQUIRED' },
+      { status: 403 },
+    );
+  }
 
   const canonicalStatus = canonicalQuestionStatus(reviewStatus);
   const now = new Date();
