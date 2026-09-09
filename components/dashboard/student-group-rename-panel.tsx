@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { PencilLine, ShieldCheck } from "lucide-react";
 import { useRouter } from "next/navigation";
 import {
@@ -49,18 +49,27 @@ export function StudentGroupRenamePanel({
   const [status, setStatus] = useState<RenameStatus>(null);
   const [statusLoading, startStatusTransition] = useTransition();
   const [saving, startSaveTransition] = useTransition();
+  const statusRequest = useRef(0);
 
   if (groups.length === 0) return null;
 
+  const closeRename = () => {
+    statusRequest.current += 1;
+    setSelected(null);
+  };
+
   const openRename = (group: RenameableStudentGroup) => {
+    const requestId = ++statusRequest.current;
     setSelected(group);
     setDraftName(group.name);
     setStatus(null);
     startStatusTransition(async () => {
       const result = await getGroupRenameStatus(group.id);
+      if (requestId !== statusRequest.current) return;
+
       if (!result.success) {
         toast.error(result.error);
-        setSelected(null);
+        closeRename();
         return;
       }
       setDraftName(result.currentName);
@@ -73,16 +82,21 @@ export function StudentGroupRenamePanel({
 
   const submitRename = () => {
     if (!selected) return;
+    const selectedGroupId = selected.id;
 
     startSaveTransition(async () => {
-      const result = await renameStudentGroup(selected.id, draftName);
+      const result = await renameStudentGroup(selectedGroupId, draftName);
       if (!result.success) {
         const cooldown =
           "nextRenameAt" in result && result.nextRenameAt
             ? ` Nama dapat diganti lagi ${formatDateTime(result.nextRenameAt)}.`
             : "";
         toast.error(`${result.error}${cooldown}`);
-        if ("nextRenameAt" in result && result.nextRenameAt) {
+        if (
+          selected?.id === selectedGroupId &&
+          "nextRenameAt" in result &&
+          result.nextRenameAt
+        ) {
           setStatus({ canRename: false, nextRenameAt: result.nextRenameAt });
         }
         return;
@@ -91,7 +105,9 @@ export function StudentGroupRenamePanel({
       if (result.changed) {
         toast.success("Nama kelompok berhasil diganti.");
       }
-      setSelected(null);
+      if (selected?.id === selectedGroupId) {
+        closeRename();
+      }
       router.refresh();
     });
   };
@@ -117,7 +133,7 @@ export function StudentGroupRenamePanel({
       <Dialog
         open={selected !== null}
         onOpenChange={(open) => {
-          if (!open && !saving) setSelected(null);
+          if (!open && !saving) closeRename();
         }}
       >
         <DialogContent className="sm:max-w-md">
@@ -141,7 +157,7 @@ export function StudentGroupRenamePanel({
                 onChange={(event) => setDraftName(event.target.value)}
                 autoComplete="off"
               />
-              <p className="text-xs text-muted-foreground">3–80 karakter.</p>
+              <p className="text-xs text-muted-foreground">3-80 karakter.</p>
             </div>
 
             <div className="flex gap-3 rounded-lg border bg-muted/30 p-3 text-sm">
@@ -165,7 +181,7 @@ export function StudentGroupRenamePanel({
               type="button"
               variant="outline"
               disabled={saving}
-              onClick={() => setSelected(null)}
+              onClick={closeRename}
             >
               Batal
             </Button>
