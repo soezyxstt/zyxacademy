@@ -103,8 +103,16 @@ export function defineOpsTool<TInput extends z.ZodTypeAny>(config: {
       return aiTool({
         description: config.description,
         inputSchema: config.inputSchema,
-        execute: async (args: z.infer<TInput>) => {
-          return config.execute(args, { ...context, isModelCall: true });
+        execute: async (args: z.infer<TInput>, executionOptions) => {
+          const toolCallId = executionOptions.toolCallId;
+          const stepId = context?.stepId ?? `step-${toolCallId}`;
+
+          return config.execute(args, {
+            ...context,
+            isModelCall: true,
+            stepId,
+            toolCallId,
+          });
         },
       });
     },
