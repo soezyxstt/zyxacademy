@@ -3,7 +3,7 @@
 import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { CheckSquare, Square, ChevronDown, ChevronUp, Plus, Edit2, Trash2, RotateCcw, Upload, ChevronLeft, ChevronRight } from "lucide-react";
+import { CheckSquare, Square, ChevronDown, ChevronUp, Plus, Edit2, Trash2, Upload, ChevronLeft, ChevronRight } from "lucide-react";
 import { toast } from "@/components/ui/toast";
 import { AdminConfirmDialog } from "@/components/admin/confirm-dialog";
 import { DifficultyBadge, StatusBadge } from "@/components/admin/status-badges";
@@ -19,6 +19,7 @@ import { MarkdownRenderer } from "@/components/course/markdown-renderer";
 import { MathText } from "@/components/course/math-text";
 import { AdminEmptyState } from "@/components/admin/state-panels";
 import { AdminTable } from "@/components/admin/table";
+import { QuestionFilterField, QuestionFilterPopover } from "./question-filter-popover";
 
 type ReviewStatus = "generated" | "reviewed" | "published" | "flagged" | "retired";
 type Difficulty = "easy" | "medium" | "hard";
@@ -239,23 +240,15 @@ export function QuestionBankClient({ questions, courses, courseMap, authoringCou
     return filtered.slice(start, start + PAGE_SIZE);
   }, [filtered, safeCurrentPage]);
 
-  const hasActiveFilters = Boolean(
-    searchQuery.trim() ||
-      filterStatus !== "all" ||
-      filterCourse !== "all" ||
-      filterOrigin !== "all" ||
-      filterQuestionType !== "all" ||
-      filterDifficulty !== "all",
-  );
+  const activeFilterCount = [filterStatus, filterCourse, filterOrigin, filterQuestionType, filterDifficulty]
+    .filter((value) => value !== "all").length;
 
   function resetFilters() {
-    setSearchQuery("");
     setFilterStatus("all");
     setFilterCourse("all");
     setFilterOrigin("all");
     setFilterQuestionType("all");
     setFilterDifficulty("all");
-    setSelected(new Set());
     setCurrentPage(1);
   }
 
@@ -578,101 +571,87 @@ export function QuestionBankClient({ questions, courses, courseMap, authoringCou
   };
 
   return (
-    <div className="font-sans space-y-6">
+    <div className="space-y-6 font-sans lg:col-span-2 lg:row-span-2 lg:grid lg:grid-cols-subgrid lg:grid-rows-subgrid lg:space-y-0">
       {/* Search, filters, and actions */}
-      <div className="flex items-center gap-2">
+      <div className="flex min-w-0 flex-wrap items-center gap-2 lg:col-start-2 lg:row-start-1 lg:flex-nowrap">
         <SearchBar
           size="sm"
           placeholder="Cari isi soal, tag, sumber..."
           value={searchQuery}
           onSearch={setSearchQuery}
           onClear={() => setSearchQuery("")}
-          containerClassName="flex-1 min-w-0"
+          containerClassName="min-w-[140px] flex-1"
         />
 
-        <Select value={filterStatus} onValueChange={(value) => setFilterStatus(value as ReviewStatus | "all")}>
-          <SelectTrigger aria-label="Filter status" className="w-[110px] sm:w-[120px] h-9 text-body-sm rounded-lg shrink-0">
-            <SelectValue placeholder="Status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Semua status</SelectItem>
-            <SelectItem value="generated">Generated</SelectItem>
-            <SelectItem value="reviewed">Reviewed</SelectItem>
-            <SelectItem value="published">Published</SelectItem>
-            <SelectItem value="flagged">Flagged</SelectItem>
-            <SelectItem value="retired">Retired</SelectItem>
-          </SelectContent>
-        </Select>
-
-        <Select value={filterCourse} onValueChange={setFilterCourse}>
-          <SelectTrigger aria-label="Filter mata kuliah" className="w-[125px] sm:w-[145px] h-9 text-body-sm rounded-lg shrink-0">
-            <SelectValue placeholder="Mata kuliah" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Semua mata kuliah</SelectItem>
-            {courses.map((c) => (
-              <SelectItem key={c.id} value={c.id}>
-                {c.title}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        <Select value={filterOrigin} onValueChange={(value) => setFilterOrigin(value as QuestionOrigin | "all")}>
-          <SelectTrigger aria-label="Filter asal soal" className="w-[105px] sm:w-[115px] h-9 text-body-sm rounded-lg shrink-0">
-            <SelectValue placeholder="Asal soal" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Semua asal</SelectItem>
-            <SelectItem value="zyx_original">Asli Zyx</SelectItem>
-            <SelectItem value="itb_example">Contoh ITB</SelectItem>
-          </SelectContent>
-        </Select>
-
-        <Select value={filterQuestionType} onValueChange={(value) => setFilterQuestionType(value as QuestionType | "all")}>
-          <SelectTrigger aria-label="Filter tipe soal" className="w-[105px] sm:w-[115px] h-9 text-body-sm rounded-lg shrink-0">
-            <SelectValue placeholder="Tipe soal" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Semua tipe soal</SelectItem>
-            <SelectItem value="multiple_choice">Pilihan ganda</SelectItem>
-            <SelectItem value="multiple_choices">PG kompleks</SelectItem>
-            <SelectItem value="short_answer">Isian singkat</SelectItem>
-            <SelectItem value="essay">Uraian</SelectItem>
-          </SelectContent>
-        </Select>
-
-        <Select value={filterDifficulty} onValueChange={(value) => setFilterDifficulty(value as Difficulty | "all")}>
-          <SelectTrigger aria-label="Filter tingkat kesulitan" className="w-[100px] sm:w-[110px] h-9 text-body-sm rounded-lg shrink-0">
-            <SelectValue placeholder="Kesulitan" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Semua kesulitan</SelectItem>
-            <SelectItem value="easy">Easy</SelectItem>
-            <SelectItem value="medium">Medium</SelectItem>
-            <SelectItem value="hard">Hard</SelectItem>
-          </SelectContent>
-        </Select>
-
-        {hasActiveFilters && (
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={resetFilters}
-                  aria-label="Reset filter"
-                  className="size-9 p-0 rounded-lg shrink-0 text-muted-foreground hover:text-foreground"
-                >
-                  <RotateCcw className="size-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Reset filter</TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        )}
+        <QuestionFilterPopover activeCount={activeFilterCount} onReset={resetFilters}>
+          <QuestionFilterField label="Status">
+            <Select value={filterStatus} onValueChange={(value) => setFilterStatus(value as ReviewStatus | "all")}>
+              <SelectTrigger aria-label="Filter status" className="h-9 w-full rounded-lg text-body-sm">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Semua status</SelectItem>
+                <SelectItem value="generated">Generated</SelectItem>
+                <SelectItem value="reviewed">Reviewed</SelectItem>
+                <SelectItem value="published">Published</SelectItem>
+                <SelectItem value="flagged">Flagged</SelectItem>
+                <SelectItem value="retired">Retired</SelectItem>
+              </SelectContent>
+            </Select>
+          </QuestionFilterField>
+          <QuestionFilterField label="Mata kuliah">
+            <Select value={filterCourse} onValueChange={setFilterCourse}>
+              <SelectTrigger aria-label="Filter mata kuliah" className="h-9 w-full rounded-lg text-body-sm">
+                <SelectValue placeholder="Mata kuliah" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Semua mata kuliah</SelectItem>
+                {courses.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>{c.title}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </QuestionFilterField>
+          <QuestionFilterField label="Asal soal">
+            <Select value={filterOrigin} onValueChange={(value) => setFilterOrigin(value as QuestionOrigin | "all")}>
+              <SelectTrigger aria-label="Filter asal soal" className="h-9 w-full rounded-lg text-body-sm">
+                <SelectValue placeholder="Asal soal" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Semua asal</SelectItem>
+                <SelectItem value="zyx_original">Asli Zyx</SelectItem>
+                <SelectItem value="itb_example">Contoh ITB</SelectItem>
+              </SelectContent>
+            </Select>
+          </QuestionFilterField>
+          <QuestionFilterField label="Tipe soal">
+            <Select value={filterQuestionType} onValueChange={(value) => setFilterQuestionType(value as QuestionType | "all")}>
+              <SelectTrigger aria-label="Filter tipe soal" className="h-9 w-full rounded-lg text-body-sm">
+                <SelectValue placeholder="Tipe soal" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Semua tipe soal</SelectItem>
+                <SelectItem value="multiple_choice">Pilihan ganda</SelectItem>
+                <SelectItem value="multiple_choices">PG kompleks</SelectItem>
+                <SelectItem value="short_answer">Isian singkat</SelectItem>
+                <SelectItem value="essay">Uraian</SelectItem>
+              </SelectContent>
+            </Select>
+          </QuestionFilterField>
+          <QuestionFilterField label="Kesulitan">
+            <Select value={filterDifficulty} onValueChange={(value) => setFilterDifficulty(value as Difficulty | "all")}>
+              <SelectTrigger aria-label="Filter tingkat kesulitan" className="h-9 w-full rounded-lg text-body-sm">
+                <SelectValue placeholder="Kesulitan" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Semua kesulitan</SelectItem>
+                <SelectItem value="easy">Easy</SelectItem>
+                <SelectItem value="medium">Medium</SelectItem>
+                <SelectItem value="hard">Hard</SelectItem>
+              </SelectContent>
+            </Select>
+          </QuestionFilterField>
+        </QuestionFilterPopover>
 
         <TooltipProvider>
           <Tooltip>
@@ -708,8 +687,9 @@ export function QuestionBankClient({ questions, courses, courseMap, authoringCou
         </TooltipProvider>
       </div>
 
-      {/* Bulk actions - Floating Overlay */}
-      {selected.size > 0 && (
+      <div className="space-y-6 lg:col-span-2 lg:col-start-1 lg:row-start-2">
+        {/* Bulk actions - Floating Overlay */}
+        {selected.size > 0 && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 flex items-center gap-4 rounded-xl border border-border/80 bg-background/90 backdrop-blur-md px-5 py-3.5 shadow-xl min-w-[320px] max-w-[90vw] animate-in slide-in-from-bottom-4 duration-300">
           <span className="text-body-sm font-bold text-foreground shrink-0">{selected.size} soal dipilih</span>
           <div className="h-4 w-px bg-border/85 shrink-0" />
@@ -728,7 +708,7 @@ export function QuestionBankClient({ questions, courses, courseMap, authoringCou
             ))}
           </div>
         </div>
-      )}
+        )}
 
       {/* Question list */}
       <AdminTable>
@@ -1292,6 +1272,7 @@ export function QuestionBankClient({ questions, courses, courseMap, authoringCou
           </form>
         </DialogContent>
       </Dialog>
+      </div>
     </div>
   );
 }

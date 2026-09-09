@@ -14,6 +14,7 @@ import {
 import { MarkdownRenderer } from "@/components/course/markdown-renderer";
 import { MathText } from "@/components/course/math-text";
 import { Eye, EyeOff } from "lucide-react";
+import { QuestionFilterField, QuestionFilterPopover } from "./question-filter-popover";
 
 interface HistoricalQuestion {
   id: string;
@@ -44,6 +45,14 @@ export function HistoricalQuestionsClient({ questions, courses, courseMap }: Pro
   const [filterDifficulty, setFilterDifficulty] = useState("all");
 
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const activeFilterCount = [filterCourse, filterCategory, filterDifficulty]
+    .filter((value) => value !== "all").length;
+
+  function resetFilters() {
+    setFilterCourse("all");
+    setFilterCategory("all");
+    setFilterDifficulty("all");
+  }
 
   // Filter & Search logic
   const filteredQuestions = useMemo(() => {
@@ -62,62 +71,67 @@ export function HistoricalQuestionsClient({ questions, courses, courseMap }: Pro
   }, [questions, searchTerm, filterCourse, filterCategory, filterDifficulty]);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 lg:col-span-2 lg:row-span-2 lg:grid lg:grid-cols-subgrid lg:grid-rows-subgrid lg:space-y-0">
       {/* Filters & Search Row */}
-      <div className="flex items-center gap-2">
+      <div className="flex min-w-0 flex-wrap items-center gap-2 lg:col-start-2 lg:row-start-1 lg:flex-nowrap">
         <SearchBar
           size="sm"
           placeholder="Cari konten soal atau judul ujian..."
           value={searchTerm}
           onSearch={setSearchTerm}
           onClear={() => setSearchTerm("")}
-          containerClassName="flex-1 min-w-0"
+          containerClassName="min-w-[140px] flex-1"
         />
 
-        <Select value={filterCourse} onValueChange={setFilterCourse}>
-          <SelectTrigger className="w-[150px] sm:w-[170px] h-9 text-body-sm rounded-lg shrink-0">
-            <SelectValue placeholder="Mata Kuliah" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Semua Mata Kuliah</SelectItem>
-            {courses.map((c) => (
-              <SelectItem key={c.id} value={c.id}>
-                {c.title}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        <Select value={filterCategory} onValueChange={setFilterCategory}>
-          <SelectTrigger className="w-[110px] sm:w-[130px] h-9 text-body-sm rounded-lg shrink-0">
-            <SelectValue placeholder="Kategori" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Semua Kategori</SelectItem>
-            <SelectItem value="uts">UTS</SelectItem>
-            <SelectItem value="uas">UAS</SelectItem>
-            <SelectItem value="quiz">Quiz</SelectItem>
-            <SelectItem value="tutorial">Tutorial</SelectItem>
-          </SelectContent>
-        </Select>
-
-        <Select value={filterDifficulty} onValueChange={setFilterDifficulty}>
-          <SelectTrigger className="w-[110px] sm:w-[130px] h-9 text-body-sm rounded-lg shrink-0">
-            <SelectValue placeholder="Tingkat Kesulitan" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Semua Kesulitan</SelectItem>
-            <SelectItem value="1">Easy</SelectItem>
-            <SelectItem value="2">Medium</SelectItem>
-            <SelectItem value="3">Hard</SelectItem>
-          </SelectContent>
-        </Select>
+        <QuestionFilterPopover activeCount={activeFilterCount} onReset={resetFilters}>
+          <QuestionFilterField label="Mata kuliah">
+            <Select value={filterCourse} onValueChange={setFilterCourse}>
+              <SelectTrigger aria-label="Filter mata kuliah" className="h-9 w-full rounded-lg text-body-sm">
+                <SelectValue placeholder="Mata kuliah" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Semua mata kuliah</SelectItem>
+                {courses.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>{c.title}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </QuestionFilterField>
+          <QuestionFilterField label="Kategori">
+            <Select value={filterCategory} onValueChange={setFilterCategory}>
+              <SelectTrigger aria-label="Filter kategori" className="h-9 w-full rounded-lg text-body-sm">
+                <SelectValue placeholder="Kategori" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Semua kategori</SelectItem>
+                <SelectItem value="uts">UTS</SelectItem>
+                <SelectItem value="uas">UAS</SelectItem>
+                <SelectItem value="quiz">Kuis</SelectItem>
+                <SelectItem value="tutorial">Tutorial</SelectItem>
+              </SelectContent>
+            </Select>
+          </QuestionFilterField>
+          <QuestionFilterField label="Kesulitan">
+            <Select value={filterDifficulty} onValueChange={setFilterDifficulty}>
+              <SelectTrigger aria-label="Filter tingkat kesulitan" className="h-9 w-full rounded-lg text-body-sm">
+                <SelectValue placeholder="Kesulitan" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Semua kesulitan</SelectItem>
+                <SelectItem value="1">Easy</SelectItem>
+                <SelectItem value="2">Medium</SelectItem>
+                <SelectItem value="3">Hard</SelectItem>
+              </SelectContent>
+            </Select>
+          </QuestionFilterField>
+        </QuestionFilterPopover>
       </div>
 
-      {/* Table Content */}
-      <AdminTable>
-        <div className="overflow-x-auto">
-        <table className="w-full text-left border-collapse">
+      <div className="lg:col-span-2 lg:col-start-1 lg:row-start-2">
+        {/* Table Content */}
+        <AdminTable>
+          <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse">
           <AdminTableHead>
             <tr>
               <th className="px-4 py-3 text-left font-medium text-muted-foreground text-body-sm">Soal</th>
@@ -180,9 +194,10 @@ export function HistoricalQuestionsClient({ questions, courses, courseMap }: Pro
               })
             )}
           </tbody>
-        </table>
-        </div>
-      </AdminTable>
+          </table>
+          </div>
+        </AdminTable>
+      </div>
     </div>
   );
 }
