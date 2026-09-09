@@ -14,6 +14,7 @@ import { verifyDiktatCompression } from "./diktat-contract";
 export type QualityGateIssue = {
   code: string;
   message: string;
+  severity?: "warning" | "blocking";
   blockId?: string;
   ideaId?: string;
 };
@@ -27,6 +28,21 @@ export type QualityGateResult = {
 
 function issue(code: string, message: string, extra: Partial<QualityGateIssue> = {}): QualityGateIssue {
   return { code, message, ...extra };
+}
+
+function addFormativeCheckQualityIssue(issues: QualityGateIssue[], block: { id: string; formativeCheckPayload?: { checkKind: string; evaluation?: unknown } }): void {
+  const payload = block.formativeCheckPayload;
+  if (
+    payload
+    && ["short_answer", "conceptual_explanation", "numeric_answer"].includes(payload.checkKind)
+    && !payload.evaluation
+  ) {
+    issues.push(issue(
+      "ARTICLE_FORMATIVE_CHECK_REVEAL_ONLY",
+      "Free-response formative checks without evaluation are reveal-only and cannot provide response feedback.",
+      { blockId: block.id, severity: "warning" },
+    ));
+  }
 }
 
 function hasBalancedMath(value: string): boolean {
@@ -84,6 +100,7 @@ function evaluateArticleQualityV2(article: ArticleDocument, context: ArticleQual
     issues.push(issue("ARTICLE_MISSING_CROSS_IDEA_SYNTHESIS", "multi-Idea articles require a cross-Idea synthesis block"));
   }
   for (const block of blocks) {
+    addFormativeCheckQualityIssue(issues, block);
     if (!block.content.trim()) issues.push(issue("ARTICLE_EMPTY_BLOCK", "empty article blocks do not satisfy the contract", { blockId: block.id }));
     if (block.applicability.status === "inapplicable" && !block.applicability.reason) issues.push(issue("ARTICLE_INAPPLICABLE_REASON_MISSING", "inapplicable blocks require a typed reason", { blockId: block.id }));
     const factual = ["explanation", "verbal_representation", "mathematical_representation", "worked_example", "misconception", "application", "cross_idea_synthesis", "summary"].includes(block.blockType);
@@ -103,11 +120,13 @@ function evaluateArticleQualityV2(article: ArticleDocument, context: ArticleQual
     if (dependency.freshness !== "UP_TO_DATE") issues.push(issue("ARTICLE_STALE_DEPENDENCY", `dependency ${dependency.id} is ${dependency.freshness}`));
   }
   const counts = countSatisfiedRequirements(article);
-  const passed = issues.length === 0 && counts.satisfied === counts.total;
+  const uniqueIssues = [...new Map(issues.map((value) => [`${value.code}:${value.blockId ?? ""}:${value.ideaId ?? ""}`, value])).values()];
+  const blockingIssues = uniqueIssues.filter((value) => value.severity !== "warning");
+  const passed = blockingIssues.length === 0 && counts.satisfied === counts.total;
   return {
     passed,
     score: counts.total === 0 ? 0 : Math.round((counts.satisfied / counts.total) * 100),
-    issues: [...new Map(issues.map((value) => [`${value.code}:${value.blockId ?? ""}:${value.ideaId ?? ""}`, value])).values()],
+    issues: uniqueIssues,
     metrics: {
       requiredCoveragePercent: counts.total === 0 ? 0 : (counts.satisfied / counts.total) * 100,
       traceableBlockPercent: blocks.length === 0 ? 0 : (blocks.filter((block) => block.ideaIds.length > 0 && block.sourceRefs.length > 0).length / blocks.length) * 100,
@@ -168,6 +187,7 @@ function evaluateArticleQualityV3(article: ArticleDocument, context: ArticleQual
   }
 
   for (const block of allBlocks) {
+    addFormativeCheckQualityIssue(issues, block);
     if (!block.content.trim()) issues.push(issue("ARTICLE_EMPTY_BLOCK", "empty article blocks do not satisfy the contract", { blockId: block.id }));
     if (block.applicability.status === "inapplicable" && !block.applicability.reason) issues.push(issue("ARTICLE_INAPPLICABLE_REASON_MISSING", "inapplicable blocks require a typed reason", { blockId: block.id }));
     const factual = ["explanation", "verbal_representation", "mathematical_representation", "worked_example", "misconception", "application", "cross_idea_synthesis", "summary"].includes(block.blockType);
@@ -197,14 +217,15 @@ function evaluateArticleQualityV3(article: ArticleDocument, context: ArticleQual
   const estimatedReadingTimeMin = Math.max(1, Math.round(totalWords / 200));
 
   const uniqueIssues = [...new Map(issues.map((value) => [`${value.code}:${value.blockId ?? ""}:${value.ideaId ?? ""}`, value])).values()];
-  const passed = uniqueIssues.length === 0;
+  const blockingIssues = uniqueIssues.filter((value) => value.severity !== "warning");
+  const passed = blockingIssues.length === 0;
   const traceableBlockCount = allBlocks.filter((b) => b.ideaIds.length > 0 && b.sourceRefs.length > 0).length;
   const traceableBlockPercent = allBlocks.length === 0 ? 0 : (traceableBlockCount / allBlocks.length) * 100;
-  const requiredCoveragePercent = passed ? 100 : Math.max(0, Math.round(100 - uniqueIssues.length * 20));
+  const requiredCoveragePercent = passed ? 100 : Math.max(0, Math.round(100 - blockingIssues.length * 20));
 
   return {
     passed,
-    score: passed ? 100 : Math.max(0, Math.round(100 - uniqueIssues.length * 20)),
+    score: passed ? 100 : Math.max(0, Math.round(100 - blockingIssues.length * 20)),
     issues: uniqueIssues,
     metrics: {
       requiredCoveragePercent,

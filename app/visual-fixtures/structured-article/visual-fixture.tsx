@@ -54,7 +54,15 @@ const sourceArticle: PublicArticleReadModel = {
         { id: "real-1", blockKey: "real-1", blockType: "explanation", title: "Ide inti", orderIndex: 0, content: "Bilangan real mencakup bilangan rasional dan irasional. Setiap bilangan real dapat ditempatkan pada tepat satu titik di garis bilangan. Representasi desimalnya dapat berhenti, berulang, atau berlanjut tanpa pola berulang." },
         { id: "real-2", blockKey: "real-2", blockType: "mathematical_representation", title: "Representasi matematis", orderIndex: 1, content: "$$\\mathbb{R}=\\mathbb{Q}\\cup(\\mathbb{R}\\setminus\\mathbb{Q})$$\n\n| Bilangan | Representasi | Jenis |\n|---|---|---|\n| $\\frac{1}{4}$ | $0{,}25$ | Rasional berhenti |\n| $\\frac{1}{3}$ | $0{,}333\\ldots$ | Rasional berulang |\n| $\\sqrt{2}$ | $1{,}414213\\ldots$ | Irasional |" },
         { id: "real-3", blockKey: "real-3", blockType: "misconception", title: "Jangan terjebak", orderIndex: 2, content: "Bilangan $0{,}999\\ldots$ bukan bilangan yang sedikit lebih kecil dari 1. Keduanya menyatakan titik yang sama: $0{,}999\\ldots=1$." },
-        { id: "real-4", blockKey: "real-4", blockType: "retrieval_prompt", title: "Cek pemahaman", orderIndex: 3, content: "Kelompokkan $-3$, $\\frac{7}{8}$, dan $\\sqrt{5}$ sebagai bilangan rasional atau irasional. Jelaskan alasanmu." },
+        {
+          id: "real-4", blockKey: "real-4", blockType: "retrieval_prompt", title: "Cek pemahaman", orderIndex: 3,
+          content: "Kelompokkan $-3$, $\\frac{7}{8}$, dan $\\sqrt{5}$ sebagai bilangan rasional atau irasional. Jelaskan alasanmu.",
+          formativeCheck: {
+            checkKind: "short_answer",
+            evaluationMode: "text_exact",
+            feedbackPolicy: { hints: ["Periksa apakah desimalnya berhenti, berulang, atau tidak berpola."], allowRetry: true },
+          },
+        },
       ],
     },
     {
@@ -108,13 +116,23 @@ const sourceArticle: PublicArticleReadModel = {
           content: "Apa hasil penyelesaian $5-3x\\leq14$?",
           formativeCheck: {
             checkKind: "multiple_choice",
-            answer: "$x\\geq-3$",
-            explanation: "Kurangi kedua ruas dengan 5, lalu bagi dengan $-3$. Karena pembaginya negatif, arah tanda berubah menjadi $x\\geq-3$.",
+            evaluationMode: "choice",
+            feedbackPolicy: { hints: ["Perhatikan tanda koefisien x saat membagi."], allowRetry: true },
             options: [
-              { id: "a", text: "$x\\leq-3$", isCorrect: false },
-              { id: "b", text: "$x\\geq-3$", isCorrect: true },
-              { id: "c", text: "$x\\leq3$", isCorrect: false },
+              { id: "a", text: "$x\\leq-3$" },
+              { id: "b", text: "$x\\geq-3$" },
+              { id: "c", text: "$x\\leq3$" },
             ],
+          },
+        },
+        {
+          id: "ineq-4", blockKey: "ineq-4", blockType: "retrieval_close", title: "Cek angka", orderIndex: 3,
+          content: "Jika jarak awal dari titik batas adalah $0{,}05$, tuliskan nilainya dalam meter.",
+          formativeCheck: {
+            checkKind: "numeric_answer",
+            evaluationMode: "numeric",
+            unit: "m",
+            feedbackPolicy: { hints: ["Pertahankan nilai desimalnya saat mengubah satuan."], allowRetry: true },
           },
         },
       ],
@@ -131,7 +149,15 @@ const sourceArticle: PublicArticleReadModel = {
       parentSectionId: null,
       blocks: [
         { id: "sum-1", blockKey: "sum-1", blockType: "summary", title: "Inti bab", orderIndex: 0, content: "Bilangan real membentuk garis bilangan tanpa celah. Pertaksamaan menyatakan urutan dan himpunan solusi. Fungsi memakai himpunan tersebut untuk menjelaskan domain serta hubungan input dan output." },
-        { id: "sum-2", blockKey: "sum-2", blockType: "retrieval_close", title: "Pemeriksaan akhir", orderIndex: 1, content: "Jelaskan dengan bahasamu sendiri mengapa pembagian oleh bilangan negatif membalik tanda pertaksamaan. Berikan satu contoh." },
+        {
+          id: "sum-2", blockKey: "sum-2", blockType: "retrieval_close", title: "Pemeriksaan akhir", orderIndex: 1,
+          content: "Jelaskan dengan bahasamu sendiri mengapa pembagian oleh bilangan negatif membalik tanda pertaksamaan. Berikan satu contoh.",
+          formativeCheck: {
+            checkKind: "conceptual_explanation",
+            evaluationMode: "ai_rubric",
+            feedbackPolicy: { hints: ["Hubungkan operasi dengan perubahan urutan pada garis bilangan."], allowRetry: true },
+          },
+        },
       ],
     },
   ],

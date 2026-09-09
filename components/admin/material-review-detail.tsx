@@ -1087,7 +1087,7 @@ function StructuredArticleProductView({
       <div className="flex gap-2 lg:hidden"><Button type="button" variant="outline" onClick={() => setMobileQueueOpen(true)}><ListFilter className="mr-1 size-4" />Daftar bagian</Button><Button type="button" variant="outline" onClick={() => setMobileEvidenceOpen(true)}><Info className="mr-1 size-4" />Keterlacakan</Button></div>
       <div className="grid gap-5 lg:grid-cols-[minmax(220px,0.75fr)_minmax(0,2fr)_minmax(240px,0.85fr)]">
         <aside className="hidden lg:block">{queue}</aside>
-        <article className="mx-auto w-full max-w-[75ch] space-y-6">{publicSection ? <StructuredArticleSectionContent section={publicSection} showProgress={false} /> : <AdminEmptyState icon={BookOpen} title="Artikel belum memiliki bagian" description="Tambahkan section V3 melalui authoring." />}</article>
+        <article className="mx-auto w-full max-w-[75ch] space-y-6">{publicSection ? <StructuredArticleSectionContent section={publicSection} articleId={product.id} articleVersion={product.version} showProgress={false} /> : <AdminEmptyState icon={BookOpen} title="Artikel belum memiliki bagian" description="Tambahkan section V3 melalui authoring." />}</article>
         <aside className="hidden rounded-xl border border-border bg-card p-4 lg:block">{evidence}</aside>
       </div>
       <Sheet open={mobileQueueOpen} onOpenChange={setMobileQueueOpen}><SheetContent side="left" className="overflow-y-auto"><SheetHeader><SheetTitle>Daftar bagian</SheetTitle></SheetHeader><div className="mt-4">{queue}</div></SheetContent></Sheet>

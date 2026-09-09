@@ -15,6 +15,7 @@ Product Bundle V3 menulis produk belajar saja: `article`, `diktat`, `flashcard_s
 
 - **Artikel** adalah sumber belajar mandiri terstruktur per subtopik. Chapter memiliki overview, topic yang mengikuti learning section, summary, dan pemeriksaan akhir. Panjangnya ditentukan oleh ketuntasan tujuan belajar, bukan target kata atau durasi baca.
 - **Diktat** adalah bahan review setelah Artikel, bukan Artikel kedua. Diktat mempertahankan seluruh Idea, formula penting, kondisi penggunaan, dan lineage, lalu harus benar-benar dirender menjadi PDF 2 sampai 4 halaman sebelum dinyatakan sesuai.
+- **Cek formatif** adalah interaksi belajar di dalam Artikel. Cek dapat berupa pilihan ganda, jawaban singkat, nilai numerik, atau penjelasan konseptual. Cek ini tidak membuat baris soal, percobaan, nilai, atau mastery.
 - Semua teks yang dilihat mahasiswa memakai nama konsep manusiawi seperti `Kinematika Benda Tegar`. ID seperti `IDEA-001` hanya boleh berada pada field metadata, provenance, dependency, dan atribusi block yang tidak dirender.
 
 ## Prasyarat
@@ -28,8 +29,8 @@ Product Bundle V3 menulis produk belajar saja: `article`, `diktat`, `flashcard_s
 
 1. Kunci course, chapter, Source Pack checksum, Idea version, semantic hash, source references, dan checksum contract MCP aktif.
 2. Buat peta kerja `ideaId -> nama konsep mahasiswa`. Ambil nama dari canonical statement atau intisari Idea, ringkas menjadi frasa konseptual yang alami, dan jangan menyalin kode Idea ke teks siswa.
-3. Sebelum drafting, rencanakan prasyarat, urutan penjelasan, tujuan terukur, representasi atau visual yang relevan, worked example, cek formatif, jawaban, pembahasan, miskonsepsi, dan batas berlaku untuk setiap topic. Ketidakrelevanan harus dinyatakan secara typed, bukan diisi filler.
-4. Tulis Artikel V3 mengikuti rencana tersebut. Gunakan payload kontrak terbaru: `sections[]`, field section yang typed, dan `blocks[].contentMarkdown`, `ideaIds`, `sourceRefs`, serta payload typed untuk contoh, cek, dan visual. Jangan menyisipkan metadata JSON ke Markdown.
+3. Sebelum drafting, rencanakan prasyarat, urutan penjelasan, tujuan terukur, representasi atau visual yang relevan, worked example, cek formatif, jawaban, pembahasan, miskonsepsi, dan batas berlaku untuk setiap topic. Untuk setiap cek, pilih satu dari empat `checkKind`, lalu siapkan evaluator yang sesuai bila feedback otomatis diinginkan. Ketidakrelevanan harus dinyatakan secara typed, bukan diisi filler.
+4. Tulis Artikel V3 mengikuti rencana tersebut. Gunakan payload kontrak terbaru: `sections[]`, field section yang typed, dan `blocks[].contentMarkdown`, `ideaIds`, `sourceRefs`, serta payload typed untuk contoh, cek, dan visual. `evaluation` harus memakai mode yang cocok dengan `checkKind`; `feedbackPolicy.hints` maksimal tiga petunjuk progresif. Jangan menyisipkan metadata JSON ke Markdown.
 5. Audit Artikel per topic. Pastikan semua Idea dan tujuan tercakup, prasyarat tersedia, urutan penjelasan koheren, serta setiap cek memiliki jawaban dan pembahasan. Estimasi belajar adalah hasil dari konten tuntas, bukan batas yang harus dikejar.
 6. Turunkan Diktat hanya setelah Artikel lengkap. Kompres, jangan menambah fakta baru. Pertahankan seluruh Idea, formula penting, kondisi penggunaan, source trace, contoh kilat, jebakan, dan cek ingatan yang memang relevan.
 7. Buat flashcard atomic. Front, back, dan explanation memakai istilah konseptual, bukan kode pipeline.

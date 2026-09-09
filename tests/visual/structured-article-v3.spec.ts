@@ -276,6 +276,63 @@ test.describe("Structured Article V3 visual acceptance", () => {
     expect(errors).toEqual([]);
   });
 
+  test("formative check interaction states keep grading truth server-side", async ({ page }, testInfo) => {
+    test.setTimeout(120_000);
+    const errors = observeFailures(page);
+    await page.route("**/api/student/articles/visual-article/progress", (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ maxReadPercent: 50, completed: false, timeSpentSeconds: 120 }) }));
+    await page.route("**/api/materials/formative-check/evaluate", (route) => route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        ok: true,
+        result: {
+          verdict: "correct",
+          feedback: "Pilihanmu benar.",
+          canRetry: true,
+          revealAllowed: true,
+        },
+      }),
+    }));
+    await page.route("**/api/materials/formative-check/reveal", (route) => route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        answer: "$x\\geq-3$",
+        explanation: "Kurangi 5, lalu bagi dengan -3 sehingga arah tanda berbalik.",
+      }),
+    }));
+
+    const response = await page.goto(`${ROUTE}?mode=student&section=aturan-pertaksamaan`, { waitUntil: "domcontentloaded", timeout: 90_000 });
+    expect(response?.status()).toBeLessThan(400);
+    await expect(page.getByRole("heading", { name: "Aturan operasi pertaksamaan" })).toBeVisible();
+    const check = page.locator("#block-ineq-3");
+    await expect(check.getByRole("radio").first()).toBeVisible();
+    await expect(check.getByText("Penjelasan dan pembahasan")).toHaveCount(0);
+    await capture(page, testInfo, "formative-check-idle-safe-projection");
+
+    await check.getByRole("radio").nth(1).click();
+    await expect(check.getByRole("radio").nth(1)).toHaveAttribute("aria-checked", "true");
+    await capture(page, testInfo, "formative-check-selected");
+
+    await check.getByRole("button", { name: "Periksa jawaban" }).click();
+    await expect(check.getByText("Hasil: Benar")).toBeVisible();
+    await capture(page, testInfo, "formative-check-evaluated");
+
+    await check.getByRole("button", { name: "Tampilkan petunjuk" }).click();
+    await expect(check.getByText("Perhatikan tanda koefisien x saat membagi.")).toBeVisible();
+    await capture(page, testInfo, "formative-check-hint");
+
+    await check.getByRole("button", { name: "Buka jawaban dan pembahasan" }).click();
+    await expect(check.getByText("Penjelasan dan pembahasan")).toBeVisible();
+    await capture(page, testInfo, "formative-check-reveal");
+
+    await check.getByRole("button", { name: "Coba lagi" }).click();
+    await expect(check.getByText("Hasil: Benar")).toHaveCount(0);
+    await expect(check.getByRole("button", { name: "Periksa jawaban" })).toBeVisible();
+    await capture(page, testInfo, "formative-check-retry");
+    expect(errors).toEqual([]);
+  });
+
   test("Idea split pane and mobile evidence", async ({ page }, testInfo) => {
     const errors = observeFailures(page);
     await page.route("**/api/admin/bundles/idea/visual-idea", (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(ideaPayload) }));

@@ -176,10 +176,14 @@ function getBlockMetadata(blockType: string): BlockMetadata {
 
 export function StructuredArticleSectionContent({
   section,
+  articleId,
+  articleVersion,
   completed = false,
   showProgress = true,
 }: {
   section: PublicSectionReadModel;
+  articleId: string;
+  articleVersion: number;
   completed?: boolean;
   showProgress?: boolean;
 }) {
@@ -271,6 +275,12 @@ export function StructuredArticleSectionContent({
                   title={block.title}
                   content={block.content}
                   formativeCheck={block.formativeCheck}
+                  locator={{
+                    articleId,
+                    articleVersion,
+                    sectionId: section.id,
+                    blockId: block.id,
+                  }}
                 />
               </div>
             );
@@ -1164,6 +1174,8 @@ export function StructuredArticleReader({
                     >
                       <StructuredArticleSectionContent
                         section={sec}
+                        articleId={article.id}
+                        articleVersion={article.version}
                         completed={isSecDone}
                       />
                     </article>

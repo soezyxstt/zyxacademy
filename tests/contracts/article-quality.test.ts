@@ -132,6 +132,22 @@ describe("Article V3 quality contract", () => {
     expect(result.metrics.shortTopicWarning).toBeDefined();
   });
 
+  it("reports reveal-only free-response checks as warnings without blocking V3", () => {
+    const article = validV3Article();
+    const topic = article.sections.find((section) => section.kind === "topic")!;
+    const check = topic.blocks.find((entry) => entry.blockType === "retrieval_prompt")!;
+    check.formativeCheckPayload = {
+      checkKind: "short_answer",
+      answer: "jawaban",
+      explanation: "Pembahasan",
+    };
+
+    const result = evaluateArticleQuality(article);
+    const warning = result.issues.find((issue) => issue.code === "ARTICLE_FORMATIVE_CHECK_REVEAL_ONLY");
+    expect(result.passed).toBe(true);
+    expect(warning?.severity).toBe("warning");
+  });
+
   it("rejects missing overview or summary section in V3", () => {
     const noOverview = validV3Article();
     noOverview.sections = noOverview.sections.filter((s) => s.kind !== "overview");

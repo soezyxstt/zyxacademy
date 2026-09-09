@@ -16,6 +16,8 @@ Each block stores `contentMarkdown`, `blockType`, optional title, Idea IDs, and 
 - Each topic declares a structured learning-time estimate for reading, examples, and practice. Completeness is judged against its objectives, not a fixed word count or reading-duration target.
 - A chapter has overview, synthesis or summary, and a final understanding check.
 - Pedagogy metadata binds objectives to explanation and formative-check blocks, declares prerequisites and symbols, and records whether a visual is required or not relevant.
+- Formative checks are learning interactions only. `checkKind` supports `multiple_choice`, `short_answer`, `numeric_answer`, and `conceptual_explanation`. An optional typed `evaluation` uses `choice`, `text_exact`, `numeric`, or `ai_rubric` respectively. Without `evaluation`, the published check remains readable and reveal-only.
+- `feedbackPolicy` is optional and may contain up to three progressive hints plus `allowRetry`. Evaluation and reveal routes authorize the published Article version and course enrollment, and never write attempts, grades, mastery, or assessment rows.
 - Required visuals use typed, non-executable payloads. A mathematically sampled graph is explanatory evidence only and never replaces an analytic proof.
 
 ## Review, edit, and publication
