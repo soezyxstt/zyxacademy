@@ -6,6 +6,7 @@ import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
 import { getStudentStudyGroups } from "./actions";
 import { StudentGroupsClient } from "@/components/dashboard/student-groups-client";
+import { StudentGroupRenamePanel } from "@/components/dashboard/student-group-rename-panel";
 import { PageHeader } from "@/components/page-header";
 import { ApplicationPage } from "@/components/application-page";
 import { Users } from "lucide-react";
@@ -32,6 +33,13 @@ export default async function StudentGroupsPage() {
       <PageHeader
         icon={Users}
         title="Kelompok Belajar"
+      />
+      <StudentGroupRenamePanel
+        groups={groups.map((group) => ({
+          id: group.id,
+          name: group.name,
+          isLeader: group.isLeader,
+        }))}
       />
       <Suspense fallback={null}>
         <StudentGroupsClient initialGroups={groups} />
