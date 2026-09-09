@@ -1,0 +1,137 @@
+name: PR29 Review Fixes
+
+on:
+  push:
+    branches:
+      - fix/schedule-calendar-ux-policy-group-rename
+    paths:
+      - '.github/workflows/pr29-review-fixes.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          ref: fix/schedule-calendar-ux-policy-group-rename
+          fetch-depth: 0
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Apply review text and UI fixes
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def replace(path: str, old: str, new: str, *, count: int | None = None):
+              p = Path(path)
+              text = p.read_text()
+              found = text.count(old)
+              if found == 0:
+                  raise SystemExit(f"Expected text not found in {path}: {old!r}")
+              if count is not None and found != count:
+                  raise SystemExit(f"Expected {count} matches in {path}, found {found}: {old!r}")
+              p.write_text(text.replace(old, new))
+
+          admin = "components/admin/academic-schedules-dashboard.tsx"
+          replace(
+              admin,
+              'className="h-9 w-[140px] shrink-0 rounded-lg text-body-xs font-semibold"',
+              'className="h-9 w-[140px] shrink-0 rounded-lg text-body-sm font-semibold"',
+              count=1,
+          )
+          replace(
+              admin,
+              'className="h-9 shrink-0 gap-1.5 rounded-lg px-2.5 text-body-xs font-semibold text-blue-600"',
+              'className="h-9 shrink-0 gap-1.5 rounded-lg px-2.5 text-body-sm font-semibold text-blue-600"',
+              count=1,
+          )
+          replace(
+              admin,
+              'className="h-9 shrink-0 gap-1.5 rounded-lg text-body-xs font-semibold"',
+              'className="h-9 shrink-0 gap-1.5 rounded-lg text-body-sm font-semibold"',
+              count=2,
+          )
+          replace(
+              admin,
+              '<StatusBadge tone="success">Published</StatusBadge>',
+              '<StatusBadge tone="success">Dipublikasikan</StatusBadge>',
+              count=1,
+          )
+
+          for path in [
+              "components/admin/academic-schedules-dashboard.tsx",
+              "components/tutor/tutor-schedule-view.tsx",
+              "components/dashboard/student-group-rename-panel.tsx",
+              "components/schedule/academic-schedule-detail-dialog.tsx",
+          ]:
+              p = Path(path)
+              p.write_text(p.read_text().replace("–", "-"))
+
+          docs = Path("docs/features.md")
+          text = docs.read_text()
+          old = "  - Tutor availability for the following week opens on Monday and closes on Friday at 18:00 WIB. Student booking remains open until Saturday at 23:59 WIB (Asia/Jakarta)."
+          new = "  - Tutors may publish availability for any future tutorial week. Changes for a target week close on the Friday before that week at 18:00 WIB. Student booking for that target week opens on the preceding Monday and remains open until Saturday at 23:59 WIB (Asia/Jakarta)."
+          if old not in text:
+              raise SystemExit("Canonical scheduling documentation text was not found")
+          docs.write_text(text.replace(old, new, 1))
+          PY
+
+      - name: Regenerate Drizzle migration metadata
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          sql = Path("drizzle/0091_schedule_group_extras.sql")
+          sql.unlink(missing_ok=True)
+          Path("drizzle/meta/0091_snapshot.json").unlink(missing_ok=True)
+
+          journal_path = Path("drizzle/meta/_journal.json")
+          journal = json.loads(journal_path.read_text())
+          journal["entries"] = [
+              entry
+              for entry in journal["entries"]
+              if entry.get("idx") != 91 and entry.get("tag") != "0091_schedule_group_extras"
+          ]
+          journal_path.write_text(json.dumps(journal, indent=2) + "\n")
+          PY
+          bunx drizzle-kit generate --name schedule_group_extras
+
+      - name: Verify review fixes
+        shell: bash
+        run: |
+          test -f drizzle/meta/0091_snapshot.json
+          test -f drizzle/0091_schedule_group_extras.sql
+          ! grep -n '–' components/admin/academic-schedules-dashboard.tsx components/tutor/tutor-schedule-view.tsx components/dashboard/student-group-rename-panel.tsx components/schedule/academic-schedule-detail-dialog.tsx
+          grep -q 'text-body-sm font-semibold' components/admin/academic-schedules-dashboard.tsx
+          grep -q 'Tutors may publish availability for any future tutorial week' docs/features.md
+          bun test tests/contracts/tutorial-week-policy.test.ts tests/contracts/group-name-policy.test.ts tests/contracts/schedule-calendar-regressions.test.ts
+
+      - name: Commit generated fixes
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add components/admin/academic-schedules-dashboard.tsx components/tutor/tutor-schedule-view.tsx docs/features.md drizzle/0091_schedule_group_extras.sql drizzle/meta/_journal.json drizzle/meta/0091_snapshot.json
+          if git diff --cached --quiet; then
+            echo "No review fixes to commit"
+            exit 0
+          fi
+          git commit -m "fix(pr29): address schedule review feedback"
+          git push origin HEAD:fix/schedule-calendar-ux-policy-group-rename
