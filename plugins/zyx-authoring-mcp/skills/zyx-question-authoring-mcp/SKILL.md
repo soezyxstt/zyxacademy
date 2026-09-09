@@ -9,7 +9,7 @@ Gunakan skill ini sebagai instruction layer untuk MCP quiz_bank. MCP adalah enfo
 
 ## Batas dengan referensi historis
 
-`quiz_bank` hanya membuat atau mengubah soal `zyx_original`. Skill ini boleh membaca soal historis melalui `assessment.list_questions`, `assessment.get_question`, atau knowledge lookup sebagai konteks authoring, tetapi tidak boleh membuat, mengubah, atau menghapus baris `historical_reference`. Untuk menyalin soal historis secara verbatim dengan atribusi sumber, gunakan `reference-question-ingest`.
+`quiz_bank` hanya membuat atau mengubah soal `zyx_original`. Historical reference adalah konteks read-only untuk gap analysis. Untuk menyalin soal historis secara verbatim dengan atribusi sumber, gunakan `reference-question-ingest`. Jangan membuat, mengubah, atau menghapus baris `historical_reference` dari skill ini.
 
 ## Kompatibilitas host
 
@@ -28,17 +28,21 @@ Skill ini netral provider dan berlaku untuk host apa pun yang bisa memanggil MCP
 3. Panggil `workflow.get_contract`. Patuhi `scopeGuidance`: enum difficulty, cognitive level, question type, idea role, aturan bobot, dan aturan tag.
 4. Petakan Idea dengan `assessment.list_ideas`. Gunakan `query` untuk pencarian teks, serta filter `knowledgeKinds`, `instructionalRoles`, dan `difficultyLevels`. Baca `facets` untuk melihat distribusi dan lanjutkan paging lewat `paging.nextOffset`.
 5. Untuk Idea kandidat, panggil `assessment.get_idea` guna membaca relasi prerequisite dan provenance sebelum menautkan soal.
-6. Susun draft `question-bank-draft.v2`. Setiap soal mencantumkan prompt, options, correctIndices, explanation, difficulty, cognitiveLevel, reasoningPattern, tags, dan ideaLinks. Bobot positif ideaLinks harus berjumlah tepat 1 dan semua Idea wajib published dalam scope run.
-7. Panggil `assessment.validate_quiz_draft`. Perbaiki semua issue blocking, lalu tinjau warnings seperti coverage gap dan pembahasan kosong. Ulangi sampai `valid: true`.
-8. Panggil `assessment.submit_quiz_draft` hanya setelah valid. MCP menyimpan soal berstatus generated untuk review admin dan tidak dapat publish.
+6. Untuk setiap target Idea, baca bank soal Zyx original yang sudah ada dengan `assessment.list_questions` dan `assessment.get_question`. Gunakan scope chapter, filter `origin: "zyx_original"`, dan jangan mengubah historical rows.
+7. Gunakan `assessment.list_reference_questions` dengan `ideaId` untuk konteks historis. Ambil maksimal 10 historical reference pada tahap list untuk satu Idea, lalu baca maksimal 5 detail dengan `assessment.get_reference_question`. Gunakan `source`, `answerProvenance`, `solutionProvenance`, dan Idea links untuk memahami gap, bukan untuk menyalin wording.
+8. Lakukan gap analysis per Idea: bandingkan coverage, difficulty, cognitive level, question type, dan kebutuhan pembelajaran antara bank Zyx yang ada dan konteks historical reference. Jika soal baru terinspirasi oleh historical reference, simpan `referenceLinks` dengan salah satu role `inspired_by`, `adapted_from`, atau `derived_from` dan tetap buat soal original yang tidak verbatim.
+9. Susun draft `question-bank-draft.v2`. Setiap soal mencantumkan prompt, options, correctIndices, explanation, difficulty, cognitiveLevel, reasoningPattern, tags, ideaLinks, dan `referenceLinks` bila relevan. Bobot positif `ideaLinks` harus berjumlah tepat 1 dan semua Idea wajib published dalam scope run.
+10. Panggil `assessment.validate_quiz_draft`. Perbaiki semua issue blocking, lalu tinjau warnings seperti coverage gap dan pembahasan kosong. Ulangi sampai `valid: true`.
+11. Panggil `assessment.submit_quiz_draft` hanya setelah valid. MCP menyimpan soal berstatus generated untuk review admin dan tidak dapat publish.
 
 ## Pengeditan soal dan pemeliharaan bank soal
 
 - **Inspeksi bank soal**: Panggil `assessment.list_questions` untuk melihat daftar soal dalam scope (termasuk draft/in-review), `assessment.get_question` untuk detail soal dan Idea links, serta `assessment.analyze_bank` untuk analisis distribusi difficulty, cognitive level, dan coverage Idea (`authoring:read`).
+- **Inspeksi historical reference**: Gunakan `assessment.list_reference_questions` maksimal 10 hasil per Idea dan `assessment.get_reference_question` maksimal 5 detail per Idea. Historical rows hanya untuk discovery dan lineage, bukan target edit.
 - **Edit draft soal**: Gunakan `assessment.update_question` dengan `runToken`, `questionId`, `question`, dan `ideaLinks` (membutuhkan scope `authoring:stage`).
 - **Batasan pengeditan soal**:
   - Soal wajib berada dalam scope mata kuliah dan bab yang dikunci oleh run token.
-  - Hanya soal bertipe Zyx original (`origin = "zyx_original"`) yang dapat diedit. Soal contoh ITB (`origin = "itb_example"`) dan soal referensi historis (`origin = "historical_reference"`) bersifat immutable dan tidak dapat diubah melalui tool ini.
+  - Hanya soal bertipe Zyx original (`origin = "zyx_original"`) yang dapat diedit. Origin selain `zyx_original`, termasuk `itb_example` dan `historical_reference`, bersifat immutable dan tidak dapat diubah melalui tool ini.
   - Hanya soal yang belum published atau belum retired yang dapat diedit. Soal published atau retired ditolak.
   - Pengeditan yang berhasil akan mereset status soal menjadi `reviewStatus = "generated"` untuk peninjauan admin ulang.
 - **Stop condition**: MCP tidak memiliki tool publikasi (`authoring:publish` tidak didukung). Semua soal baru atau soal hasil pembaruan masuk ke antrean review admin.

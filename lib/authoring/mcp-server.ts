@@ -2,7 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { and, asc, desc, eq, inArray, like, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { asalIde, artikel, artikelIde, assessmentSources, bab, diktatIde, diktatMateri, flashcard, flashcardIde, ide, mataKuliah, pembahasanSoal, potonganSumber, relasiIde, reviewPedagogiBundle, setFlashcard, soal, soalIde, soalItbReferensi, sumberMateri } from "@/db/schema";
+import { aiQuestionBank, asalIde, artikel, artikelIde, assessmentSources, bab, diktatIde, diktatMateri, flashcard, flashcardIde, ide, mataKuliah, pembahasanSoal, potonganSumber, questionReferenceLinks, relasiIde, reviewPedagogiBundle, setFlashcard, soal, soalIde, soalItbReferensi, sumberMateri } from "@/db/schema";
 import { serializeDeterministically, validateIdeaBundleZip, type ValidatedIdeaBundle } from "@/lib/bundle/idea-bundle-v2";
 import { previewIdeaBundle } from "@/lib/bundle/idea-preview";
 import { getIdeaBundleImport, listIdeaBundleImports, reviewIdeaBundle, stageIdeaBundle } from "@/lib/bundle/staging";
@@ -187,6 +187,13 @@ function requireReferenceWorkflow(runToken: string) {
   return run;
 }
 
+function requireHistoricalReadWorkflow(runToken: string) {
+  const run = readMcpRunToken(runToken);
+  if (run.workflow === "reference_question_ingest") return requireReferenceWorkflow(runToken);
+  if (run.workflow === "quiz_bank") return run;
+  throw new Error("AUTHORING_MCP_WORKFLOW_MISMATCH");
+}
+
 async function resolveReferenceCourse(run: ReturnType<typeof readMcpRunToken>) {
   const [course] = await db
     .select({ id: mataKuliah.id, legacyCourseId: mataKuliah.legacyCourseId })
@@ -298,6 +305,18 @@ function validateProductChapterScope(run: ReturnType<typeof readMcpRunToken>, bu
     else if (product.chapterId !== run.chapterId) issues.push(scopeIssue("AUTHORING_MCP_CHAPTER_SCOPE_MISMATCH", `Product ${product.id} does not belong to the locked chapter.`, `entities/products.json:${product.id}`));
   }
   return { valid: issues.length === 0, issues };
+}
+
+function validateProductAssessmentBoundary(bundle: Extract<ReturnType<typeof validateProductBundle>, { success: true }>['data']): DiagnosticIssue[] {
+  return bundle.products
+    .filter((product) => product.productType === "question" || product.productType === "solution" || product.productType === "assessment_blueprint")
+    .map((product) => ({
+      code: "PRODUCT_BUNDLE_ASSESSMENT_FORBIDDEN",
+      severity: "blocking" as const,
+      target: { targetType: "document" as const, targetId: `entities/products.json:${product.id}` },
+      reason: `Product ${product.id} has assessment type '${product.productType}', which is not allowed in a new Product Bundle MCP submission.`,
+      remediation: "Move original questions to quiz_bank or historical questions to reference_question_ingest. Keep Product Bundle outputs to article, diktat, flashcard_set, and flashcard.",
+    }));
 }
 
 async function validateIdeaDbConflicts(
@@ -866,9 +885,11 @@ async function stageProductArtifact(input: {
     };
   }
   const chapterScope = validateProductChapterScope(run, validation.data);
+  const assessmentBoundaryIssues = validateProductAssessmentBoundary(validation.data);
   const ideaScope = await validateProductIdeaScope(run, validation.data);
   const dbReferences = await validateProductDbReferences(run, validation.data);
   const scopeIssues: DiagnosticIssue[] = [
+    ...assessmentBoundaryIssues,
     ...chapterScope.issues.map((i) => ({ code: i.code, severity: "blocking" as const, target: { targetType: "document" as const, targetId: i.path }, reason: i.message, remediation: "Ensure all products declare and match the locked chapter." })),
     ...ideaScope.issues.map((i) => ({ code: i.code, severity: "blocking" as const, target: { targetType: "idea" as const, targetId: i.path }, reason: i.message, remediation: "Ensure all referenced Ideas are published and in the course scope." })),
     ...dbReferences.issues.map((i) => ({ code: i.code, severity: "blocking" as const, target: { targetType: "document" as const, targetId: i.path }, reason: i.message, remediation: "Ensure all external references exist and are permitted for authoring." })),
@@ -1450,9 +1471,11 @@ function registerValidationTools(server: McpServer, principal: McpPrincipal): vo
       };
     }
     const chapterScope = validateProductChapterScope(run, validation.data);
+    const assessmentBoundaryIssues = validateProductAssessmentBoundary(validation.data);
     const ideaScope = await validateProductIdeaScope(run, validation.data);
     const dbReferences = await validateProductDbReferences(run, validation.data);
     const scopeIssues: DiagnosticIssue[] = [
+      ...assessmentBoundaryIssues,
       ...chapterScope.issues.map((i) => ({ code: i.code, severity: "blocking" as const, target: { targetType: "document" as const, targetId: i.path }, reason: i.message, remediation: "Ensure all products declare and match the locked chapter." })),
       ...ideaScope.issues.map((i) => ({ code: i.code, severity: "blocking" as const, target: { targetType: "idea" as const, targetId: i.path }, reason: i.message, remediation: "Ensure all referenced Ideas are published and in the course scope." })),
       ...dbReferences.issues.map((i) => ({ code: i.code, severity: "blocking" as const, target: { targetType: "document" as const, targetId: i.path }, reason: i.message, remediation: "Ensure all external references exist and are permitted for authoring." })),
@@ -1796,13 +1819,13 @@ function registerReferenceQuestionTools(server: McpServer, principal: McpPrincip
       questionType: z.enum(["multiple_choice", "multiple_choices", "short_answer", "essay"]).optional(),
       quizEligible: z.boolean().optional(),
       status: z.enum(["draft", "in_review", "published", "retired"]).optional(),
-      limit: z.number().int().min(1).max(200).default(100),
+      limit: z.number().int().min(1).max(10).default(10),
       offset: z.number().int().min(0).default(0),
     },
     annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
   }, async (input: any) => safeTool(async () => {
     requireMcpScope(principal, "authoring:read");
-    const run = readMcpRunToken(input.runToken);
+    const run = requireHistoricalReadWorkflow(input.runToken);
     const conditions = [eq(soal.mataKuliahId, run.courseId), eq(soal.origin, "historical_reference" as const)];
     if (input.difficulty) conditions.push(eq(soal.difficulty, input.difficulty));
     if (input.cognitiveLevel) conditions.push(eq(soal.cognitiveLevel, input.cognitiveLevel));
@@ -1878,7 +1901,7 @@ function registerReferenceQuestionTools(server: McpServer, principal: McpPrincip
     annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
   }, async ({ runToken, questionId }: any) => safeTool(async () => {
     requireMcpScope(principal, "authoring:read");
-    const run = readMcpRunToken(runToken);
+    const run = requireHistoricalReadWorkflow(runToken);
     const [question] = await db.select({
       id: soal.id,
       courseId: soal.mataKuliahId,
@@ -1905,8 +1928,19 @@ function registerReferenceQuestionTools(server: McpServer, principal: McpPrincip
     }).from(soal).innerJoin(assessmentSources, eq(assessmentSources.id, soal.assessmentSourceId)).where(and(eq(soal.id, questionId), eq(soal.mataKuliahId, run.courseId))).limit(1);
     if (!question) throw new Error("AUTHORING_MCP_QUESTION_NOT_IN_SCOPE");
     if (question.origin !== "historical_reference") throw new Error("QUESTION_NOT_HISTORICAL_REFERENCE");
+    const [compatibility] = await db.select({
+      correctIndices: aiQuestionBank.correctIndices,
+      acceptableAnswers: aiQuestionBank.acceptableAnswers,
+      explanation: aiQuestionBank.explanation,
+    }).from(aiQuestionBank).where(eq(aiQuestionBank.id, questionId)).limit(1);
     const links = await db.select({ ideId: soalIde.ideId, code: ide.code, weight: soalIde.weight, role: soalIde.role }).from(soalIde).innerJoin(ide, eq(ide.id, soalIde.ideId)).where(eq(soalIde.soalId, questionId));
     const [solution] = await db.select({ content: pembahasanSoal.content, status: pembahasanSoal.status, version: pembahasanSoal.version }).from(pembahasanSoal).where(eq(pembahasanSoal.soalId, questionId)).orderBy(desc(pembahasanSoal.version)).limit(1);
+    const attribution = historicalSourceAttribution(question);
+    const answer = {
+      correctIndices: compatibility?.correctIndices ?? [],
+      acceptableAnswers: compatibility?.acceptableAnswers ?? [],
+      provenance: question.answerProvenance,
+    };
     return {
       ok: true,
       scope: runScope(run),
@@ -1923,9 +1957,14 @@ function registerReferenceQuestionTools(server: McpServer, principal: McpPrincip
         quizEligible: question.quizEligible,
         answerProvenance: question.answerProvenance,
         solutionProvenance: question.solutionProvenance,
-        source: historicalSourceAttribution(question),
-        attribution: historicalSourceAttribution(question),
+        questionNumber: question.sourceQuestionNumber,
+        part: question.sourceQuestionPart,
+        page: question.sourcePage,
+        source: attribution,
+        attribution,
+        answer,
         solution: solution ?? null,
+        explanation: compatibility?.explanation ?? solution?.content ?? null,
       },
       ideaLinks: links,
     };
@@ -2123,7 +2162,7 @@ function registerLifecycleTools(server: McpServer, principal: McpPrincipal): voi
 
   (server as any).registerTool("assessment.update_question", {
     title: "Edit draft question",
-    description: "Memperbarui soal canonical Zyx original dalam scope run dan mengembalikannya ke generated untuk review. Soal published, retired, atau contoh ITB tidak dapat diedit melalui tool ini.",
+    description: "Memperbarui soal canonical Zyx original dalam scope run dan mengembalikannya ke generated untuk review. Soal published, retired, atau origin selain zyx_original tidak dapat diedit melalui tool ini.",
     inputSchema: {
       runToken: z.string().min(1),
       questionId: z.string().trim().min(1),
@@ -2736,6 +2775,11 @@ function registerAssessmentAnalysisTools(server: McpServer, principal: McpPrinci
     const [question] = await db.select().from(soal).where(and(...questionConditions)).limit(1);
     if (!question) throw new Error("AUTHORING_MCP_QUESTION_NOT_IN_SCOPE");
     const links = await db.select({ ideId: soalIde.ideId, code: ide.code, weight: soalIde.weight, role: soalIde.role }).from(soalIde).innerJoin(ide, eq(ide.id, soalIde.ideId)).where(eq(soalIde.soalId, questionId));
+    const referenceLinks = await db.select({
+      referenceQuestionId: questionReferenceLinks.referenceQuestionId,
+      role: questionReferenceLinks.role,
+      notes: questionReferenceLinks.notes,
+    }).from(questionReferenceLinks).where(eq(questionReferenceLinks.questionId, questionId));
     return {
       ok: true,
       scope: runScope(run),
@@ -2746,6 +2790,7 @@ function registerAssessmentAnalysisTools(server: McpServer, principal: McpPrinci
         origin: question.origin, version: question.version, status: question.status,
       },
       ideaLinks: links,
+      referenceLinks,
     };
   }));
 
