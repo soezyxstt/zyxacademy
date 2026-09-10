@@ -13,7 +13,9 @@ if ! git rev-parse --verify "${BASE_SHA}^{commit}" >/dev/null 2>&1; then
   exit 1
 fi
 
-mapfile -t CHANGED_FILES < <(git diff --name-only "${BASE_SHA}" HEAD)
+# Disable rename detection so a runtime file moved into an allowed path is
+# represented as both a deletion and an addition, and cannot be skipped.
+mapfile -t CHANGED_FILES < <(git diff --no-renames --name-only "${BASE_SHA}" HEAD)
 
 # An empty/unknown diff should build rather than risk serving stale code.
 if [ "${#CHANGED_FILES[@]}" -eq 0 ]; then
