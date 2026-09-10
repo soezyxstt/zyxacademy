@@ -23,9 +23,31 @@ export type AddTutorSlotWithNotesInput = {
   notes?: string;
 };
 
+function errorChainMessage(error: unknown): string {
+  const messages: string[] = [];
+  const seen = new Set<unknown>();
+  let current: unknown = error;
+
+  for (let depth = 0; depth < 8 && current != null && !seen.has(current); depth += 1) {
+    seen.add(current);
+    if (current instanceof Error) {
+      messages.push(current.message);
+    } else if (typeof current === "object") {
+      const message = (current as { message?: unknown }).message;
+      if (typeof message === "string") messages.push(message);
+    } else {
+      messages.push(String(current));
+    }
+    current = typeof current === "object"
+      ? (current as { cause?: unknown }).cause
+      : undefined;
+  }
+
+  return messages.join(" ");
+}
+
 function isMissingTutorSlotNotesTable(error: unknown): boolean {
-  const message = error instanceof Error ? error.message : String(error);
-  return /no such table:\s*tutor_slot_notes/i.test(message);
+  return /no such table:\s*tutor_slot_notes/i.test(errorChainMessage(error));
 }
 
 export async function addTutorSlotWithNotesAction(
