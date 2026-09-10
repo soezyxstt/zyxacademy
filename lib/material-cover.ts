@@ -10,7 +10,7 @@ export interface MaterialCoverInput {
 
 const palettes = [
   ["#0f3d5e", "#dbeeff", "#0b2840"],
-  ["#5b3b8c", "#eee7fb", "#342354"],
+  ["#245b78", "#e2f1f7", "#16384a"],
   ["#176b55", "#e1f5ed", "#0b3d30"],
   ["#8a4b16", "#fff0df", "#512b0c"],
   ["#93415b", "#fde9f0", "#552536"],
@@ -89,7 +89,7 @@ export function createMaterialCoverSvg(input: MaterialCoverInput): string {
   <path d="M835 650 C900 530 985 720 1100 520" fill="none" stroke="${accent}" stroke-opacity="0.28" stroke-width="7" stroke-linecap="round"/>
 
   <text x="88" y="93" font-family="Arial, Helvetica, sans-serif" font-size="30" font-weight="700" fill="${ink}" letter-spacing="1.5">${escapeXml(courseLabel)}</text>
-  <rect x="945" y="55" width="170" height="58" rx="29" fill="${accent}"/>
+  <rect x="945" y="55" width="170" height="58" rx="12" fill="${accent}"/>
   <text x="1030" y="93" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="25" font-weight="700" fill="#ffffff" letter-spacing="2">${typeLabel}</text>
 
   <text x="88" y="310" font-family="Arial, Helvetica, sans-serif" font-size="${fontSize}" font-weight="760" fill="#111827">${titleMarkup}</text>
