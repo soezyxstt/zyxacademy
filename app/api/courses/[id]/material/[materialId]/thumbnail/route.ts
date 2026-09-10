@@ -5,6 +5,9 @@ import { storage } from "@/lib/storage";
 import { buildCourseThumbnailKey } from "@/lib/storage/keys";
 import { inngest } from "@/lib/inngest";
 
+const THUMBNAIL_POLL_ATTEMPTS = 20;
+const THUMBNAIL_POLL_INTERVAL_MS = 750;
+
 function extractStorageKey(value?: string | null): string | null {
   if (!value) return null;
   if (!value.startsWith("http://") && !value.startsWith("https://")) return value;
@@ -12,6 +15,18 @@ function extractStorageKey(value?: string | null): string | null {
   if (value.includes("/f/")) return value.split("/f/").pop() || null;
   const publicBase = process.env.R2_PUBLIC_URL?.replace(/\/$/, "");
   if (publicBase && value.startsWith(`${publicBase}/`)) return value.slice(publicBase.length + 1);
+  return null;
+}
+
+async function findStoredThumbnail(courseId: string, materialId: string): Promise<string | null> {
+  for (const extension of ["png", "webp"] as const) {
+    const expectedKey = buildCourseThumbnailKey({
+      courseSlug: courseId,
+      materialId,
+      extension,
+    });
+    if (await storage.exists(expectedKey)) return expectedKey;
+  }
   return null;
 }
 
@@ -56,13 +71,9 @@ export async function GET(
       return Response.redirect(storage.getUrl(target.thumbnailUrl), 307);
     }
 
-    for (const extension of ["png", "webp"] as const) {
-      const expectedKey = buildCourseThumbnailKey({
-        courseSlug: target.courseId,
-        materialId: target.id,
-        extension,
-      });
-      if (!(await storage.exists(expectedKey))) continue;
+    const repairThumbnail = async (): Promise<Response | null> => {
+      const expectedKey = await findStoredThumbnail(target.courseId, target.id);
+      if (!expectedKey) return null;
 
       if (manual) {
         await db.update(courseMaterials).set({ thumbnailUrl: expectedKey }).where(eq(courseMaterials.id, target.id));
@@ -70,7 +81,10 @@ export async function GET(
         await db.update(diktats).set({ thumbnailUrl: expectedKey, updatedAt: new Date() }).where(eq(diktats.id, target.id));
       }
       return Response.redirect(storage.getUrl(expectedKey), 307);
-    }
+    };
+
+    const existing = await repairThumbnail();
+    if (existing) return existing;
 
     const fileKey = extractStorageKey(target.fileUrl);
     if (!fileKey) return new Response("Source file not found", { status: 404 });
@@ -83,7 +97,16 @@ export async function GET(
       data: { materialId: target.id, sourceType, sourceVersion },
     });
 
-    return new Response("Thumbnail queued", {
+    // This endpoint is consumed by next/image, which does not honor Retry-After.
+    // Keep the image request alive briefly while the compute worker renders the page.
+    // The worker remains the only renderer; the web tier only polls R2 and repairs DB state.
+    for (let attempt = 0; attempt < THUMBNAIL_POLL_ATTEMPTS; attempt += 1) {
+      await new Promise((resolve) => setTimeout(resolve, THUMBNAIL_POLL_INTERVAL_MS));
+      const ready = await repairThumbnail();
+      if (ready) return ready;
+    }
+
+    return new Response("Thumbnail still processing", {
       status: 202,
       headers: {
         "Cache-Control": "no-store",
