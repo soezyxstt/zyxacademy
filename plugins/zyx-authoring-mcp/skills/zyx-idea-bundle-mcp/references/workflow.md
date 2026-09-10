@@ -1,8 +1,10 @@
 # Idea Bundle MCP reference
 
+Baca [idea-decomposition.md](idea-decomposition.md) sebelum authoring. MCP memeriksa kontrak/provenance, sedangkan split/merge quality tetap author preflight yang wajib.
+
 ## Canonical ZIP
 
-Use exactly the repository Idea Bundle V3 contract:
+Gunakan tepat kontrak Idea Bundle V3:
 
 ```text
 manifest.json
@@ -15,24 +17,38 @@ entities/relations.json
 entities/learning-sections.json
 ```
 
-The manifest and every entity file use deterministic SHA-256 checksums. Stable IDs are opaque. Do not derive IDs from labels, slugs, filenames, or chapter titles. Each Idea appears exactly once in `primaryIdeaIds`; supporting membership may repeat. Section slugs are stable and unique, sibling order is unique, parent links are acyclic, and hierarchy depth is at most three.
+Manifest dan entity memakai deterministic SHA-256. Stable IDs opaque; jangan turunkan ID dari label, slug, filename, atau chapter title. Setiap Idea muncul tepat sekali di `primaryIdeaIds`; supporting membership boleh berulang. Section slug unik/stabil, sibling order unik, parent acyclic, hierarchy depth maksimal tiga.
 
-## Quality gates
+## Author decomposition gate
 
-MCP checks schema, canonical checksum, source checksums, exact chunk offsets, course and chapter scope, published-ready status, source-grounded provenance, stable keys, learning section hierarchy and coverage, relation endpoints, duplicate relations, and prerequisite cycles. The content gate also checks meaningful source chunk coverage, Idea provenance coverage, duplicate or near-duplicate canonical statements, and formula trace warnings.
+Sebelum MCP validation:
 
-`quality.valid` must be true before submission. A warning remains visible to the admin and must be reviewed, even if it is not blocking.
+1. terapkan split test pada kandidat multi-klaim;
+2. terapkan merge test pada kandidat terlalu kecil/near-duplicate;
+3. jangan membuat Idea mekanis dari setiap kalimat, formula, contoh, simbol, atau langkah;
+4. deduplicate knowledge sama lintas source sambil mempertahankan provenance;
+5. pastikan setiap relation dapat dijelaskan sesuai semantic relation;
+6. pastikan tepat satu primary section dan provenance primer per Idea.
+
+Jika granularity masih ambigu dan berdampak pada Product/assessment, berhenti untuk judgment daripada memakai validator sebagai penentu pemecahan.
+
+## MCP quality gates
+
+MCP memeriksa schema, canonical checksum, source checksum, exact chunk offsets, course/chapter scope, source-grounded provenance, stable keys, learning section hierarchy/coverage, relation endpoint/duplicate/cycle, meaningful source chunk coverage, Idea provenance coverage, duplicate/near-duplicate canonical statement, dan formula trace warning.
+
+`quality.valid` harus true sebelum submission. Warning tetap harus ditinjau; non-blocking bukan berarti boleh diabaikan.
 
 ## MCP tool sequence
 
-1. Use `$zyx-source-pack-mcp` to receive a validated `sourcePackToken`. For a course and chapter prompt without attachments, prefer stored PDFs and retain the same opaque course and chapter choices used by `storedOriginals`.
-2. Start `idea_product` with that `sourcePackToken` and the same opaque course and chapter choices.
-3. Build the Idea Bundle from the locked Source Pack and run contract.
-4. Call `authoring.validate_idea_bundle` repeatedly during revision (`authoring:read`).
-5. Call `authoring.submit_idea_bundle` only after validation is green (`authoring:stage`).
-6. For existing staged imports:
-   - Call `authoring.list_imports { bundleType: "idea" }` to inspect staged inventory (`authoring:read`).
-   - Call `authoring.get_import { bundleType: "idea", importId }` to inspect validation reports and review history without exposing storage keys or reviewer IDs (`authoring:read`).
-   - Call `authoring.restage_idea_bundle` to revalidate and replace an unreviewed or rejected import, resetting previous reviews via lifecycle services (`authoring:stage`).
-   - Call `authoring.review_idea_bundle` to record an immutable review decision with notes (`authoring:review`).
-7. Stop condition: Wait for admin review and publication via Zyx admin UI before Product authoring. MCP does not provide a publication tool and Idea withdrawal is not implemented.
+1. Dapatkan Source Pack valid melalui `$zyx-source-pack-mcp`; untuk prompt course/chapter tanpa attachment, utamakan stored PDFs.
+2. Mulai `idea_product` dengan Source Pack serta opaque course/chapter yang sama.
+3. Ambil contract aktif dan bangun Idea Bundle dari context terkunci.
+4. Jalankan author decomposition preflight.
+5. Panggil `authoring.validate_idea_bundle` (`authoring:read`).
+6. Perbaiki issue/warning substantif; setelah revisi, ulangi decomposition preflight lalu validasi ulang.
+7. Panggil `authoring.submit_idea_bundle` hanya jika author preflight + MCP validation lulus dan staging diotorisasi (`authoring:stage`).
+8. Existing import:
+   - `authoring.list_imports { bundleType: "idea" }` / `authoring.get_import`: inspeksi;
+   - `authoring.restage_idea_bundle`: mutation, hanya atas instruksi eksplisit;
+   - `authoring.review_idea_bundle`: review mutation, hanya atas instruksi eksplisit.
+9. Stop setelah staging/review. Tunggu admin publication sebelum Product authoring. MCP tidak menyediakan publication tool dan Idea withdrawal tidak diimplementasikan.

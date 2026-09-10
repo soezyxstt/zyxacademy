@@ -1,4 +1,4 @@
 interface:
   display_name: "Zyx Authoring Pipeline"
-  short_description: "Orchestrate Source, Idea, and Product authoring"
-  default_prompt: "Use $zyx-authoring-pipeline to run or resume the end-to-end Zyx authoring workflow from stored course PDFs or local files through validated Idea and Product Bundles."
+  short_description: "Orchestrate Source, Idea, and Product V3 authoring"
+  default_prompt: "Use $zyx-authoring-pipeline to run or resume Source -> Idea -> Product V3 while enforcing each stage's required references and author preflight. Keep Product V3 learning-only: self-contained Article first, review-only Diktat second, recall-only flashcards third; never add assessment entities or historical questions to Product. Respect publication and staging checkpoints."

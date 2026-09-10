@@ -1,16 +1,33 @@
 # Product Bundle V3 editorial guide
 
-Gunakan panduan ini untuk menulis konten mahasiswa. Kontrak JSON dan quality report MCP tetap authoritative, tetapi hasil validator tidak menggantikan penilaian editorial.
+Gunakan panduan ini untuk menulis konten mahasiswa. Kontrak JSON dan quality report MCP tetap authoritative untuk schema/runtime, tetapi hasil validator tidak menggantikan penilaian editorial.
 
-## 1. Pisahkan struktur internal dan bahasa mahasiswa
+## 1. Peran produk tidak boleh tertukar
 
-Buat peta kerja internal `ideaId -> nama konsep mahasiswa`. ID internal hanya boleh berada pada `ideaLinks`, `sourceRefs`, dependency, lineage, `learningSectionId`, dan field `ideaIds`.
+Product Bundle V3 hanya memiliki tiga fungsi learner-facing:
 
-Jangan tampilkan kode Idea, UUID, source ID, chunk ID, excerpt ID, benchmark ID, atau istilah pipeline pada title dan learner-facing content. Gunakan nama konsep alami seperti `Bilangan Real`, `Pertidaksamaan Rasional`, atau `Domain Fungsi`.
+- **Artikel**: satu-satunya bacaan utama mahasiswa untuk belajar isi bab dari awal.
+- **Diktat**: ringkasan review setelah Artikel, terutama sebelum ujian.
+- **Flashcard**: active recall untuk membantu ingatan atas hal yang sudah dipelajari.
 
-## 2. Mulai dari outline pedagogis
+Konsekuensinya:
 
-Gunakan `learningSections` Idea Bundle sebagai tulang punggung, tetapi urutan sumber boleh diubah menjadi urutan belajar yang lebih masuk akal. Semua pemetaan Idea dan sumber harus tetap lengkap.
+1. mahasiswa harus dapat mencapai tujuan belajar dengan Artikel tanpa membuka Source Pack, Idea Bundle, Diktat, flashcard, atau PDF sumber;
+2. Diktat tidak boleh memuat pengetahuan learner-facing yang tidak ada pada Artikel;
+3. flashcard tidak boleh memuat target recall yang belum diajarkan pada Artikel;
+4. question/solution/assessment blueprint bukan bagian authoring Product Bundle V3.
+
+Jika fakta penting ditemukan saat membuat Diktat/flashcard tetapi belum ada di Artikel, **perbaiki Artikel terlebih dahulu**.
+
+## 2. Pisahkan struktur internal dan bahasa mahasiswa
+
+Buat peta kerja internal `ideaId -> nama konsep mahasiswa`. ID internal hanya boleh berada pada `ideaLinks`, `sourceRefs`, dependency, lineage, `learningSectionId`, dan field `ideaIds` yang tidak dirender.
+
+Jangan tampilkan kode Idea, UUID, source ID, chunk ID, excerpt ID, benchmark ID, storage key, atau istilah pipeline pada title dan learner-facing content. Gunakan nama konsep alami.
+
+## 3. Mulai dari outline pedagogis
+
+Gunakan `learningSections` Idea Bundle sebagai dasar, tetapi urutan sumber boleh diubah menjadi urutan belajar yang lebih masuk akal selama coverage/provenance tetap lengkap.
 
 Struktur chapter wajib:
 
@@ -18,121 +35,174 @@ Struktur chapter wajib:
 2. satu atau lebih `topic`, masing-masing terhubung tepat ke satu `learningSectionId`;
 3. satu `summary` yang menyintesis hubungan antartopik dan memuat pemeriksaan akhir.
 
-Hierarki maksimal tiga tingkat. Simpan `parentSectionId`, `slug`, dan `orderIndex`; jangan menulis nomor `1.1` ke data karena aplikasi menghitungnya dari hierarki.
+Hierarki maksimal tiga tingkat. Simpan `parentSectionId`, `slug`, dan `orderIndex`; nomor tampilan dihitung aplikasi.
 
-## 3. Ketuntasan topic dan estimasi belajar
+## 4. Ketuntasan topic
 
-Panjang topic mengikuti pekerjaan yang diperlukan untuk mencapai tujuan belajar. Jangan menetapkan target kata atau durasi sebelum konten direncanakan. Setelah draft tuntas, isi `pedagogy.timeEstimate` memakai `readingMinutes`, `examplesMinutes`, dan `practiceMinutes` sebagai metadata perencanaan mahasiswa, bukan target yang harus dikejar.
+Panjang topic mengikuti pekerjaan yang diperlukan untuk mencapai tujuan belajar. Jangan menetapkan target kata atau durasi sebelum konten direncanakan.
 
 Setiap topic wajib memiliki:
 
 - tujuan belajar yang dapat diamati;
+- prasyarat yang diperlukan atau remediasi singkat;
 - penjelasan inti yang menjawab pertanyaan konsep;
-- minimal satu pemeriksaan pemahaman;
-- Idea dan source provenance pada section serta block.
+- Idea dan source provenance pada section serta block;
+- minimal satu cek pemahaman dengan jawaban dan pembahasan.
 
-Topic yang singkat tetap sah bila tujuan, prasyarat, penjelasan, dan ceknya tuntas. Topic panjang harus dipecah ketika memuat lebih dari satu keputusan belajar utama atau sulit dinavigasi. Jangan menambah filler, mengulang definisi, atau membuat contoh semu untuk mengejar metrik.
+Jika relevan untuk tujuan, topic juga harus memiliki representasi formal, arti simbol, kondisi/batas berlaku, worked example, visual, miskonsepsi/counterexample, atau aplikasi.
 
-## 4. Rencana pedagogi sebelum drafting
+Topic singkat sah bila tuntas. Topic panjang harus dipecah bila memuat lebih dari satu keputusan belajar utama atau sulit dinavigasi. Jangan menambah filler untuk mengejar metrik.
+
+## 5. Rencana pedagogi sebelum drafting
 
 Untuk setiap topic, catat terlebih dahulu:
 
 - tujuan terukur dan Idea yang dicakup;
-- prasyarat internal atau eksternal serta dukungan remediasinya;
-- urutan intuisi, representasi formal, kondisi berlaku, dan batas konsep;
+- prasyarat internal/eksternal serta remediasi;
+- urutan intuisi → representasi formal → kondisi/batas;
 - worked example yang menyelesaikan masalah penting beserta alasan tiap langkah dan verifikasi;
 - cek formatif yang selaras dengan tujuan, jawaban, dan pembahasan;
-- miskonsepsi atau counterexample yang relevan;
-- visual atau representasi alternatif yang membawa informasi dan fallback-nya.
+- miskonsepsi/counterexample yang relevan;
+- visual/representasi alternatif yang membawa informasi dan fallback-nya.
 
-Gunakan status typed `applicable` atau `inapplicable` beserta reason enum yang tersedia pada block kondisional sesuai kontrak. Jangan mengisi analogi, grafik, formula, atau counterexample yang tidak relevan hanya untuk terlihat lengkap.
+Gunakan status typed `applicable`/`inapplicable` beserta reason enum contract untuk elemen kondisional. Jangan membuat analogi, grafik, formula, counterexample, atau contoh hanya agar section terlihat lengkap.
 
-## 5. Block semantik
+## 6. Block semantik
 
 Setiap block menyimpan `blockType`, optional `title`, `contentMarkdown`, `ideaIds`, dan `sourceRefs` sebagai field nyata. Jangan memasukkan JSON metadata ke `contentMarkdown`.
 
-Gunakan block berikut sesuai kebutuhan:
+Gunakan block sesuai fungsi:
 
-- `explanation` untuk penjelasan inti;
-- `verbal_representation` untuk intuisi konseptual;
-- `mathematical_representation` untuk notasi dan formula;
-- `worked_example` untuk contoh bertahap;
-- `analogy` untuk analogi beserta batasnya;
-- `application` untuk situasi penggunaan;
-- `misconception` untuk kesalahan umum dan koreksi;
-- `retrieval_prompt` untuk cek pemahaman topic;
-- `prior_knowledge_activation` dan `problem_introduction` untuk overview;
-- `cross_idea_synthesis`, `summary`, dan `retrieval_close` untuk penutup chapter.
+- `explanation`: penjelasan inti;
+- `verbal_representation`: intuisi konseptual;
+- `mathematical_representation`: notasi/formula;
+- `worked_example`: contoh bertahap;
+- `analogy`: analogi beserta batasnya;
+- `application`: situasi penggunaan;
+- `misconception`: kesalahan umum dan koreksi;
+- `retrieval_prompt`: cek pemahaman topic;
+- `prior_knowledge_activation` / `problem_introduction`: overview;
+- `cross_idea_synthesis`, `summary`, `retrieval_close`: penutup chapter.
 
-Contoh, analogi, visual, formula, penerapan, dan miskonsepsi hanya wajib jika relevan. Validator tidak boleh mendorong author membuat filler. Formula harus menjelaskan simbol, asumsi, kondisi berlaku, dan interpretasi hasil. Visual harus membawa informasi serta memiliki fallback teks.
+Formula harus menjelaskan simbol, asumsi, kondisi berlaku, dan interpretasi hasil. Visual harus membawa informasi serta memiliki fallback teks.
 
-## 6. Alur baca
+## 7. Alur baca Artikel
 
-Tulis satu topic sebagai unit belajar mandiri yang tetap memiliki hubungan jelas dengan topic sebelum dan sesudahnya:
+Tulis setiap topic sebagai unit belajar mandiri:
 
-1. buka dengan pertanyaan atau fenomena;
-2. berikan intuisi sebelum formalisasi;
-3. jelaskan konsep dan batas berlaku;
-4. gunakan contoh atau visual bila memperjelas keputusan;
-5. tutup dengan cek pemahaman dan transisi singkat.
+1. buka dengan masalah/pertanyaan/fenomena yang relevan;
+2. aktifkan prasyarat bila perlu;
+3. berikan intuisi sebelum formalitas;
+4. jelaskan konsep, simbol, dan batas berlaku;
+5. gunakan contoh/visual bila membantu keputusan;
+6. cek pemahaman;
+7. tutup dengan transisi singkat.
 
-Heading, tabel, daftar, formula, dan callout harus dipakai untuk membedakan konteks. Jangan menghasilkan satu rentetan paragraf panjang.
+Heading, tabel, daftar, formula, dan callout dipakai untuk membedakan fungsi, bukan dekorasi. Jangan menghasilkan rentetan paragraf panjang tanpa struktur.
 
-## 7. Cek formatif interaktif
+## 8. Self-contained Article gate
 
-Gunakan cek formatif untuk memberi mahasiswa kesempatan mencoba, menerima umpan balik, dan membuka pembahasan. Cek ini bukan question product dan tidak boleh mengubah nilai, attempt, mastery, atau status asesmen.
+Sebelum membuat Diktat atau flashcard, baca Artikel dengan asumsi mahasiswa **hanya memiliki Artikel**.
 
-- `multiple_choice` memakai evaluator `choice` dan tepat satu opsi benar.
-- `short_answer` memakai evaluator `text_exact` dengan jawaban yang benar-benar dapat dinormalisasi tanpa pasangan duplikat.
-- `numeric_answer` memakai evaluator `numeric` dengan target, toleransi absolut, dan satuan opsional. Jangan meminta ekspresi atau operasi sebagai input.
-- `conceptual_explanation` memakai evaluator `ai_rubric` dengan kriteria berbobot, konsep wajib, dan sinyal miskonsepsi. Model hanya mengklasifikasikan respons terhadap rubric author.
+Untuk setiap tujuan belajar, tanyakan:
 
-`feedbackPolicy.hints` maksimal tiga petunjuk progresif. Tulis petunjuk dari yang paling umum ke yang paling spesifik dan jangan membocorkan jawaban pada petunjuk pertama. Jika evaluator belum disiapkan, pertahankan `answer` dan `explanation` agar cek tetap dapat dibaca dan dibuka sebagai reveal-only.
+- Apakah semua istilah yang dipakai sudah diperkenalkan?
+- Apakah semua simbol dan satuan penting dijelaskan sebelum dipakai?
+- Apakah kondisi penggunaan rumus/metode dinyatakan?
+- Apakah langkah contoh menjelaskan alasan, bukan hanya transformasi?
+- Apakah mahasiswa mendapat cara mengecek hasil?
+- Apakah miskonsepsi/batas yang menentukan keputusan sudah dijelaskan?
+- Apakah cek dapat dijawab dari isi Artikel?
 
-Sebelum publikasi, uji redaksi learner-facing tanpa ID internal, alur idle, respons kosong, jawaban benar, jawaban salah, retry, petunjuk, dan pembukaan pembahasan. Pastikan isi yang ditampilkan sebelum reveal tidak memuat kunci, toleransi, acceptable answers, rubric, atau sinyal miskonsepsi.
+Jika satu jawaban TIDAK dan item itu relevan untuk tujuan, Artikel belum lengkap.
 
-## 8. Contoh bersyarat, limit
+## 9. Cek formatif interaktif
 
-Pada topik limit epsilon-delta, rencana yang baik dapat mencakup urutan quantifier, ketergantungan delta pada epsilon, pengecualian `x = c`, visual pita epsilon-delta dengan fallback tabel, worked example, verifikasi substitusi, fungsi konstan, counterexample lompatan, serta cek verbal, matematis, dan reflektif. Ini contoh penerapan untuk materi limit, bukan template wajib bagi jaringan komputer, sejarah, atau topik lain.
+Cek formatif membantu belajar; ia bukan question product dan tidak membuat nilai/mastery.
 
-## 9. Diktat sebagai review
+- `multiple_choice` → evaluator `choice`, tepat satu opsi benar;
+- `short_answer` → `text_exact`, jawaban dapat dinormalisasi dengan aman;
+- `numeric_answer` → `numeric`, target+toleransi absolut+satuan opsional;
+- `conceptual_explanation` → `ai_rubric`, kriteria berbobot, konsep wajib, dan sinyal miskonsepsi.
 
-Diktat diturunkan dari Artikel yang disetujui dan tidak menambah fakta baru. Pertahankan Idea set, formula penting, kondisi penggunaan, source trace, contoh kilat, jebakan, dan cek ingatan yang relevan. Ringkas sampai cocok sebagai review, kemudian render dengan fasilitas PDF. Target 2 sampai 4 halaman adalah hasil render nyata, bukan perkiraan dari jumlah kata.
+`feedbackPolicy.hints` maksimal tiga petunjuk progresif, dari umum ke spesifik. Petunjuk pertama tidak boleh membocorkan jawaban. Sebelum reveal, UI learner-facing tidak boleh memuat answer key, tolerance, acceptable answers, rubric, atau misconception signals.
 
-Gunakan struktur padat: peta konsep, intisari, formula penting, langkah cepat, contoh kilat, jebakan, dan cek ingatan. Bila Diktat dapat menggantikan Artikel untuk belajar pertama kali secara penuh, Diktat terlalu panjang.
+Jika evaluator tidak tersedia, pertahankan `answer` dan `explanation` untuk reveal-only. Pembahasan tetap wajib.
 
-Jangan menulis “PDF sesuai” dari Markdown, validator MCP, atau perkiraan panjang. Klaim itu memerlukan artefak PDF, checksum Diktat, versi renderer, profil cetak, page count, dan inspeksi setiap halaman. Render gagal, stale, lebih dari 4 halaman, glyph rusak, formula mentah, teks terpotong, atau halaman kosong memblokir publikasi sampai dirender ulang.
+## 10. Worked example
 
-## 10. Produk lain
+Worked example harus:
 
-- Flashcard menguji satu konsep atau keputusan.
-- Question Product hanya menyalin contoh soal ITB yang diizinkan tanpa mengubah angka atau kondisi.
-- Solution menjelaskan alasan dan langkah dengan istilah manusiawi.
-- Blueprint hanya merujuk question yang ada dalam bundle.
+1. menyatakan masalah dan data;
+2. memilih konsep/metode dengan alasan;
+3. menunjukkan langkah penting dalam urutan benar;
+4. menjelaskan alasan tiap langkah yang tidak trivial;
+5. memeriksa hasil, satuan, domain, atau kewajaran bila relevan.
 
-## 11. Empat lapis keputusan
+Jangan mengganti alasan dengan label seperti “analisis” atau “bukti”. Jangan memakai contoh semu yang hanya menyalin formula tanpa keputusan.
 
-Jangan menyatukan empat hasil berikut:
+## 11. Diktat sebagai review
 
-1. **Preflight author** menilai ketuntasan tujuan, alur belajar, relevansi elemen, source grounding, dan bahasa mahasiswa sebelum MCP.
-2. **Validator MCP** menilai schema, checksum, provenance, dependency, contract, dan quality policy deterministik. `valid: true` belum berarti review pedagogi disetujui.
-3. **Review admin** menilai delapan kriteria pedagogi pada revisi dan policy version yang tepat. Edit Artikel atau Diktat membuat bukti lama stale.
-4. **Kesiapan publikasi** baru tercapai bila validator hijau, review admin lengkap dan fresh, PDF ready dengan lineage yang cocok, serta tidak ada blocker lain.
+Diktat diturunkan **setelah Artikel lengkap** dan tidak menambah fakta baru. Pertahankan seluruh Idea penting, formula dan kondisi, langkah cepat, contoh kilat, jebakan, serta retrieval check yang relevan.
 
-## 12. Preflight author
+Struktur padat yang disarankan:
 
-Sebelum validasi dan setelah setiap revisi:
+- peta konsep;
+- intisari;
+- formula + kondisi;
+- langkah cepat/prosedur;
+- contoh kilat;
+- jebakan/miskonsepsi;
+- cek ingatan.
 
-1. pastikan zero internal-ID leak pada learner-facing fields;
-2. pastikan overview, topic, summary, dan final check tersedia;
-3. pastikan setiap Idea memiliki tepat satu topic utama dan seluruh source trace lengkap;
-4. pastikan setiap tujuan memiliki explanation, contoh atau representasi yang relevan, dan understanding check dengan jawaban serta pembahasan;
-5. hitung estimasi belajar setelah konten tuntas dan pecah topic bila beban kognitif atau navigasinya terlalu padat;
-6. periksa formula, kondisi berlaku, tabel, visual fallback, dan semantic callout;
-7. periksa setiap cek formatif: mode evaluator cocok, petunjuk maksimal tiga, dan learner-facing output tidak membocorkan kunci sebelum reveal;
-8. hapus filler serta block yang tidak relevan;
-9. pastikan derived Markdown tetap setara dengan urutan section dan block;
-10. pastikan Diktat tetap ringkas dan lineage Artikel serta Idea-nya cocok;
-11. baca satu topic seolah-olah tidak pernah melihat Source Pack atau Idea Bundle.
+Jika Diktat dapat menggantikan Artikel untuk belajar pertama kali secara penuh, Diktat terlalu panjang. Jika Diktat hanya dapat dipadatkan dengan membuang konsep penting, berhenti untuk keputusan scope; jangan mengecilkan font atau menghapus reasoning penting.
 
-Panggil `authoring.validate_product_bundle` hanya setelah preflight lulus. Setelah revisi dari MCP atau admin, ulangi preflight dan anggap review serta bukti PDF lama stale sampai terbukti cocok dengan checksum baru.
+Target 2 to 4 halaman hanya sah dari PDF render nyata. Klaim PDF ready memerlukan checksum Diktat, versi renderer, profil cetak, page count, dan inspeksi halaman. Render gagal/stale, >4 halaman, glyph rusak, formula mentah, clipping, atau halaman kosong memblokir readiness.
+
+## 12. Flashcard sebagai alat ingatan
+
+Ikuti [flashcard-guide.md](flashcard-guide.md). Ringkasannya:
+
+- satu kartu = satu recall target;
+- target harus penting untuk diingat;
+- jawaban harus sudah diajarkan di Artikel;
+- front spesifik tanpa membocorkan jawaban;
+- back adalah jawaban lengkap terpendek;
+- explanation hanya konteks singkat, bukan materi baru;
+- jangan membuat filler atau duplicate paraphrase;
+- Idea yang terutama menuntut penalaran tidak wajib punya flashcard.
+
+## 13. Estimasi belajar
+
+Isi `pedagogy.timeEstimate` **setelah** draft tuntas. `readingMinutes`, `examplesMinutes`, dan `practiceMinutes` adalah estimasi perencanaan mahasiswa, bukan target yang memaksa penambahan/pengurangan isi.
+
+## 14. Empat lapis keputusan
+
+Jangan menyatukan:
+
+1. **Author preflight**: ketuntasan, alur, relevansi, source grounding, bahasa mahasiswa, Article/Diktat/flashcard role.
+2. **MCP validation**: schema, checksum, provenance, dependency, contract, policy deterministik.
+3. **Admin pedagogic review**: penilaian manusia pada revisi/policy version yang tepat.
+4. **Publication readiness**: validation + review fresh + PDF ready + blocker lain nol.
+
+`valid: true` tidak berarti review pedagogi lulus atau siap publish.
+
+## 15. Preflight author
+
+Sebelum validation dan setelah setiap revisi:
+
+1. zero internal-ID leak;
+2. overview, topic, summary, final check tersedia;
+3. setiap Idea punya tepat satu topic utama dan source trace lengkap;
+4. setiap tujuan memiliki explanation dan understanding check dengan jawaban+pembahasan;
+5. Article lulus self-contained gate;
+6. formula, kondisi, tabel, visual fallback, dan semantic callout benar;
+7. worked example menjelaskan alasan langkah;
+8. evaluator cek sesuai `checkKind`, hints maksimal tiga, tidak membocorkan kunci;
+9. filler dan block tak relevan dihapus;
+10. derived Markdown setara dengan section/block order;
+11. Diktat tidak menambah fakta dan tetap review ringkas;
+12. flashcard lulus `flashcard-guide.md` dan tidak menambah fakta;
+13. estimasi belajar dihitung setelah konten tuntas.
+
+Panggil `authoring.validate_product_bundle` hanya setelah preflight lulus. Setelah revisi, ulangi preflight dan anggap review/PDF evidence lama stale sampai checksum/fingerprint kembali cocok.

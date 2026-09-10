@@ -1,72 +1,109 @@
 ---
 name: zyx-authoring-pipeline
-description: Mengorkestrasi workflow Zyx dari dokumen asli menjadi Source Pack tervalidasi, Idea Bundle V3 staged, lalu Product Bundle V3 tervalidasi atau staged. Gunakan ketika operator meminta alur lengkap atau ingin melanjutkan pipeline dari checkpoint. Jangan gunakan untuk satu tahap saja atau workflow bank soal.
+description: Mengorkestrasi workflow `idea_product` dari Source Pack lossless ke Idea Bundle V3 lalu Product Bundle V3 learning-only. Product V3 hanya berisi Artikel, Diktat, dan flashcard; asesmen memakai workflow terpisah. Gunakan untuk alur lengkap atau resume checkpoint.
 ---
 
 # Zyx Authoring Pipeline
 
-Gunakan skill ini sebagai orchestration layer untuk workflow `idea_product`. Skill ini tidak menggantikan aturan tahap, schema, validator, atau quality gate. MCP tetap menjadi sumber kebenaran runtime.
+Skill ini hanya mengatur transisi/checkpoint. Ia tidak menggantikan aturan tahap, reference, schema, validator, atau author preflight.
 
-Sebelum menjalankan suatu tahap, baca dan ikuti skill tahap tersebut beserta reference yang diwajibkannya. Skill pipeline hanya mengatur transisi dan checkpoint:
+Sebelum menjalankan setiap tahap, baca skill tahap dan semua reference yang diwajibkannya:
 
 - Source Pack: [zyx-source-pack-mcp](../zyx-source-pack-mcp/SKILL.md)
 - Idea Bundle: [zyx-idea-bundle-mcp](../zyx-idea-bundle-mcp/SKILL.md)
 - Product Bundle: [zyx-product-bundle-mcp](../zyx-product-bundle-mcp/SKILL.md)
-- Historical reference questions: [reference-question-ingest](../reference-question-ingest/SKILL.md), as a separate course-only workflow
+- Soal original Zyx: [zyx-question-authoring-mcp](../zyx-question-authoring-mcp/SKILL.md), workflow terpisah
+- Historical reference: [reference-question-ingest](../reference-question-ingest/SKILL.md), workflow course-only terpisah
 
-Baca [references/workflow.md](references/workflow.md) sebelum memulai atau melanjutkan pipeline.
+Baca [references/workflow.md](references/workflow.md) sebelum mulai/resume.
 
-## Tujuan dan otorisasi
+## Invariant lintas tahap
 
-Satu prompt dapat menetapkan tujuan akhir pipeline, tetapi tidak menghapus checkpoint, quality gate, atau kewenangan admin. Secara default, permintaan membuat pipeline mengizinkan pembuatan artifact dan validasi read-only. Panggil tool submission yang membutuhkan `authoring:stage` hanya jika operator telah meminta submit/staging secara eksplisit dalam prompt atau mengonfirmasinya sebelum pemanggilan.
+1. Source Pack harus lossless; jangan meringkas atau menebak sumber.
+2. Idea harus source-grounded dan lulus split/merge preflight.
+3. Artikel Product V3 adalah satu-satunya bacaan utama mahasiswa untuk belajar bab.
+4. Diktat hanya review setelah Artikel dan tidak menambah fakta baru.
+5. Flashcard hanya recall atas hal yang sudah diajarkan Artikel.
+6. Product Bundle V3 tidak memuat question/solution/assessment blueprint.
+7. Soal original dan historical reference tidak boleh dijalankan otomatis sebagai bagian pipeline `idea_product`.
+8. MCP validation dan author preflight adalah gate terpisah; keduanya wajib lulus sesuai tahap.
 
-MCP tidak memiliki publication tool. Jangan menyatakan Idea atau Product sudah published berdasarkan keberhasilan submission. Publication tetap dilakukan admin melalui dashboard Zyx.
+Jika reference lama atau artifact legacy bertentangan dengan batas Product V3, jangan meniru legacy untuk authoring baru.
+
+## Otorisasi
+
+Satu prompt dapat menetapkan tujuan akhir, tetapi tidak menghapus checkpoint, quality gate, atau kewenangan admin. Secara default, permintaan membuat pipeline mengizinkan artifact creation dan read-only validation.
+
+Panggil tool submission/staging hanya bila operator meminta atau mengonfirmasi staging secara eksplisit. Review, restage yang mengubah state, discard, withdraw, dan tindakan destruktif lain mengikuti aturan skill tahap dan tidak boleh dijalankan otomatis.
+
+MCP tidak menyediakan publish. Jangan menyatakan submit/review = published.
 
 ## Input awal
 
-Kumpulkan hanya input yang belum tersedia. Jika prompt sudah menyebut course dan chapter tanpa attachment, cari PDF tersimpan melalui katalog MCP sebelum meminta file lokal.
+Kumpulkan hanya yang belum tersedia:
 
-- target course dan chapter dalam bahasa manusia;
-- dokumen tersimpan yang relevan, atau path absolut dan urutan file lokal sebagai compatibility path;
-- target akhir `product_validated` atau `product_staged`; default `product_validated` bila staging tidak diminta eksplisit;
-- preferensi Product yang benar-benar diperlukan, termasuk pemilihan soal ITB bila ada kandidat.
+- course dan chapter dalam bahasa manusia;
+- stored document yang relevan atau file lokal bila memang diberikan;
+- target akhir `product_validated` atau `product_staged` (default `product_validated` jika staging tidak diminta);
+- preferensi pedagogi yang benar-benar mengubah konten Product.
 
-Gunakan pilihan opaque dari MCP untuk mengunci course dan chapter. Jangan meminta atau menebak ID teknis. Jika hanya ada satu exact match dari prompt, lanjutkan dengan scope itu dan laporkan labelnya. Minta konfirmasi hanya bila hasil ambigu, near-match, atau pilihan akan mengubah scope yang sebelumnya terkunci.
+**Jangan meminta pemilihan soal ITB untuk Product V3.** Asesmen bukan bagian Product V3.
+
+Gunakan opaque choices MCP untuk scope; jangan meminta/menebak ID teknis. Konfirmasi hanya jika kandidat ambigu/near-match atau akan mengubah scope terkunci.
 
 ## Orkestrasi
 
-1. Tentukan apakah pipeline baru atau resume dari checkpoint.
-2. Jalankan tahap Source Pack dengan `$zyx-source-pack-mcp` sampai `source.ingest` menghasilkan `valid: true`. Jika resume dari checkpoint atau Source Pack sudah pernah di-ingest sebelumnya, periksa `source.list_packs` untuk menggunakan Source Pack yang tersimpan di R2 dan database tanpa perlu transkripsi ulang. Untuk prompt-only baru, gunakan `catalog.list_courses`, `catalog.list_chapters`, `source.list_files`, `source.read_file`, dan `storedOriginals`; file lokal tetap didukung melalui `originals`.
-3. Kunci workflow `idea_product`, course, dan chapter; ambil run serta contract aktif.
-4. Jalankan tahap Idea dengan `$zyx-idea-bundle-mcp` sampai valid. Submit hanya jika diotorisasi.
-5. Setelah Idea staged, berhenti pada `WAITING_IDEA_PUBLICATION`. Laporkan checkpoint dan jangan mulai Product berdasarkan Idea draft.
-6. Saat operator meminta resume setelah publikasi, cocokkan checkpoint berdasarkan artifact checksum, run ID, contract checksum, scope, Source Pack checksum, lalu verifikasi ulang Idea published, source excerpt aktif, versi, semantic hash, dan dependency freshness melalui MCP. Jangan mengandalkan ingatan sesi.
-7. Jalankan tahap Product dengan `$zyx-product-bundle-mcp` sampai valid. Sebelum drafting, rencanakan prasyarat, urutan penjelasan, representasi atau visual, contoh, cek, jawaban, dan pembahasan. Wajib lulus preflight author dan MCP quality gate per section, termasuk ketuntasan tujuan, estimasi belajar, zero internal-ID leaks, serta perbedaan Artikel belajar mandiri dan Diktat review. Submit hanya jika diotorisasi.
-8. Laporkan hasil terpadu dan status akhir tanpa mengklaim publication yang tidak dilakukan MCP.
+1. Tentukan pipeline baru atau resume.
+2. Jalankan `$zyx-source-pack-mcp` sampai Source Pack `valid: true`; reuse stored pack bila checksum/scope cocok.
+3. Kunci run `idea_product`, course/chapter, Source Pack, dan contract aktif.
+4. Jalankan `$zyx-idea-bundle-mcp` sampai **author decomposition preflight + MCP validation** lulus.
+5. Submit Idea hanya bila diotorisasi.
+6. Setelah Idea staged, berhenti pada `WAITING_IDEA_PUBLICATION`. Product tidak boleh dibuat dari Idea draft/unpublished.
+7. Saat resume, verifikasi checkpoint: artifact checksum, run ID, contract checksum, scope, Source Pack checksum, published Idea versions/hashes, source excerpt, dan dependency freshness. Jangan mengandalkan ingatan sesi.
+8. Jalankan `$zyx-product-bundle-mcp`. Wajib membuat Artikel lebih dulu sampai self-contained, baru menurunkan Diktat dan flashcard. Luluskan Product author preflight + flashcard preflight + MCP validation.
+9. Submit Product hanya bila diotorisasi.
+10. Laporkan hasil tanpa mengklaim publication.
 
-Validation loop boleh berjalan tanpa meminta keputusan untuk perbaikan mekanis yang langsung ditentukan oleh `issues` dan `quality.metrics`. Berhenti dan diskusikan bila sumber ambigu, pemetaan scope tidak pasti, pemecahan Idea substantif, warning membutuhkan judgment, kandidat soal ITB harus dipilih, context stale, atau dependency publication-blocking.
+Validation loop boleh memperbaiki issue mekanis yang jelas dari validator. Ulangi author preflight setelah revisi substantif; jangan hanya mengoptimalkan agar validator hijau.
 
 ## Checkpoint dan resume
 
-Gunakan status yang didefinisikan dalam reference. Pada setiap jeda, laporkan minimal:
+Setiap jeda laporkan minimal:
 
-- status dan tahap terakhir yang selesai;
-- label course dan chapter terkunci;
-- run ID, contract checksum, nama atau path bila ada, serta checksum artifact yang sudah dibuat;
-- bundle ID, checksum, hasil preflight author, hasil validator MCP, dan staging result yang tersedia;
-- blocker atau keputusan yang dibutuhkan;
-- kondisi objektif untuk melanjutkan dan instruksi resume singkat.
+- state dan tahap terakhir selesai;
+- course/chapter label;
+- run ID, contract checksum, Source Pack checksum;
+- artifact path/name/checksum/bundle ID jika tersedia;
+- hasil author preflight dan MCP validation secara terpisah;
+- staging status;
+- blocker/keputusan yang dibutuhkan;
+- kondisi objektif untuk resume.
 
-Checkpoint tidak boleh dimasukkan ke ZIP Source Pack, Idea Bundle, atau Product Bundle. Jangan menulis connection token, access token, atau credential ke artifact, laporan, source code, atau Git. Pertahankan token workflow hanya pada konteks runtime yang aman; bila token atau contract tidak lagi valid, ambil context baru dan validasi ulang tahap yang bergantung padanya.
+Jangan menulis credential/token ke artifact, report, source code, atau Git.
 
 ## Batas scope
 
-- Jangan menyalin aturan rinci tiga skill tahap ke skill ini.
-- Jangan menjalankan `$zyx-question-authoring-mcp` sebagai bagian otomatis pipeline. Tawarkan sebagai workflow `quiz_bank` terpisah setelah Idea published bila relevan.
-- Jangan menjalankan `$reference-question-ingest` sebagai bagian otomatis pipeline. Tawarkan sebagai workflow course-only terpisah karena tidak memakai chapter atau Source Pack.
-- Jangan melewati review admin, mengarang status publication, atau menganggap submission sama dengan publication.
-- Jangan melanjutkan ke tahap berikutnya bila entry gate tahap tersebut belum terpenuhi.
+- Jangan menyalin aturan rinci tahap ke pipeline; selalu delegasikan ke skill tahap.
+- Jangan menjalankan `$zyx-question-authoring-mcp` otomatis setelah Product. Tawarkan hanya sebagai workflow terpisah bila operator meminta bank soal.
+- Jangan menjalankan `$reference-question-ingest` otomatis. Workflow itu course-only dan tidak memakai Source Pack/chapter scope pipeline ini.
+- Jangan melewati admin review/publication boundary.
+- Jangan lanjut ke tahap berikutnya bila entry gate belum terpenuhi.
+
+## Stop conditions
+
+Masuk `NEEDS_OPERATOR_DECISION`, `BLOCKED_BY_VALIDATION`, atau `STALE_CONTEXT` bila:
+
+- urutan/mapping source ambigu;
+- course/chapter ambigu;
+- source reconciliation belum tuntas;
+- pemecahan/relation Idea butuh judgment substantif;
+- warning near-duplicate/formula trace belum diputuskan;
+- Product tidak dapat dibuat self-contained dari evidence;
+- Idea belum terbukti published;
+- submission belum diotorisasi;
+- context/dependency stale;
+- issue blocking berulang tidak dapat diperbaiki secara mekanis.
 
 ## Selesai
 
-Pipeline selesai pada `PRODUCT_VALIDATED` untuk target `product_validated`, atau `PRODUCT_STAGED` untuk target `product_staged`. Kedua target tetap memerlukan Idea staged dan published sebagai prasyarat Product. Setelah selesai, jelaskan bahwa MCP hijau bukan review pedagogi, bukti PDF, atau kesiapan publikasi. Bila staged, Product masih menunggu review admin, render PDF nyata, dan publication gate.
+Pipeline selesai pada `PRODUCT_VALIDATED` untuk target validasi atau `PRODUCT_STAGED` untuk target staging. Kedua hasil tetap memerlukan published Idea sebagai prasyarat Product. Laporkan bahwa MCP green bukan admin pedagogic review, bukan bukti PDF Diktat, dan bukan publication readiness.

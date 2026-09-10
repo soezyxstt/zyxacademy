@@ -1,4 +1,4 @@
 interface:
   display_name: "Zyx Idea Bundle MCP"
-  short_description: "Author validated Idea Bundles through MCP"
-  default_prompt: "Use $zyx-idea-bundle-mcp to author an Idea Bundle and iterate until the Zyx MCP quality gate passes."
+  short_description: "Author source-grounded Ideas with strict split/merge rules"
+  default_prompt: "Use $zyx-idea-bundle-mcp and its idea-decomposition reference to build a source-grounded Idea Bundle. Apply explicit split/merge tests instead of one-Idea-per-sentence, deduplicate knowledge across sources, justify relations, pass decomposition preflight, then run MCP validation. Submit only when staging is explicitly authorized."

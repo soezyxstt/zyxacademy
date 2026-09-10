@@ -1,69 +1,84 @@
 # Authoring pipeline state machine
 
-Gunakan state machine ini untuk memulai, menjeda, dan melanjutkan workflow `idea_product`. Selalu gunakan contract terbaru dari MCP; nama state di bawah adalah status orkestrasi client, bukan status database.
+Gunakan state machine ini untuk workflow `idea_product`. Nama state adalah status orkestrasi client, bukan status database. Contract MCP terbaru tetap authoritative untuk tool/schema runtime, sedangkan quality rules berasal dari skill tahap yang aktif.
 
 ## States
 
 | State | Entry condition | Exit condition |
 |---|---|---|
-| `SCOPE_CONFIRMATION_REQUIRED` | Kandidat course/chapter ambigu, near-match, atau berbeda dari scope terkunci | Operator mengonfirmasi pilihan opaque yang ditampilkan |
-| `SOURCE_PREPARATION` | PDF course tersimpan atau file lokal dan urutannya tersedia | Source Pack selesai dibuat |
-| `SOURCE_VALIDATION` | ZIP dan seluruh stored atau local originals tersedia | `source.ingest` mengembalikan `valid: true` |
-| `IDEA_AUTHORING` | Run `idea_product` dan contract V3 aktif tersedia | Idea Bundle V3 lolos validation |
-| `IDEA_VALIDATED` | Idea Bundle valid | Operator mengotorisasi submission Idea |
-| `IDEA_STAGED` | `authoring.submit_idea_bundle` berhasil | Checkpoint dicatat |
-| `WAITING_IDEA_PUBLICATION` | Idea staged tetapi belum terbukti published | MCP menunjukkan Idea target sudah published dan context tetap fresh |
-| `PRODUCT_AUTHORING` | Idea published, source aktif, dependency fresh, dan rencana pedagogi tersedia | Product Bundle V3 lolos preflight author dan validation per section |
-| `PRODUCT_VALIDATED` | Product Bundle valid | Selesai untuk target `product_validated`, atau operator mengotorisasi submission Product |
-| `PRODUCT_STAGED` | `authoring.submit_product_bundle` berhasil | Laporan akhir diberikan |
+| `SCOPE_CONFIRMATION_REQUIRED` | course/chapter ambigu, near-match, atau berbeda dari scope terkunci | operator mengonfirmasi pilihan opaque |
+| `SOURCE_PREPARATION` | stored/local source dan urutan tersedia | Source Pack selesai disusun dan source reconciliation preflight lulus |
+| `SOURCE_VALIDATION` | canonical ZIP + originals tersedia | `source.ingest` menghasilkan `valid: true` |
+| `IDEA_AUTHORING` | run `idea_product` + contract aktif | Idea decomposition preflight dan MCP validation lulus |
+| `IDEA_VALIDATED` | Idea Bundle valid | operator mengotorisasi submission Idea |
+| `IDEA_STAGED` | submit Idea berhasil | checkpoint dicatat |
+| `WAITING_IDEA_PUBLICATION` | Idea staged tetapi belum terbukti published | MCP menunjukkan target Idea published dan context fresh |
+| `PRODUCT_AUTHORING` | published Idea + active source + fresh dependency | Product author preflight, flashcard preflight, dan MCP validation lulus |
+| `PRODUCT_VALIDATED` | Product valid + author preflight lulus | selesai untuk `product_validated` atau operator mengotorisasi staging |
+| `PRODUCT_STAGED` | submit Product berhasil | laporan akhir |
 
-Gunakan state tambahan `NEEDS_OPERATOR_DECISION`, `BLOCKED_BY_VALIDATION`, atau `STALE_CONTEXT` ketika transisi normal tidak aman. Sertakan state sebelumnya agar resume tidak mengulang pekerjaan yang sudah terbukti valid.
+Gunakan `NEEDS_OPERATOR_DECISION`, `BLOCKED_BY_VALIDATION`, atau `STALE_CONTEXT` jika transisi aman tidak dapat dilakukan.
+
+## Product V3 invariant pada state machine
+
+`PRODUCT_AUTHORING` hanya mencakup:
+
+1. Artikel sampai self-contained;
+2. Diktat yang diturunkan dari Artikel;
+3. flashcard recall yang diturunkan dari Artikel.
+
+Jangan memasukkan ITB example, historical question, Zyx original question, solution, atau assessment blueprint ke state `PRODUCT_AUTHORING`. Asesmen memakai workflow terpisah dan tidak menjadi entry/exit condition pipeline ini.
 
 ## Resume protocol
 
-1. Baca checkpoint terakhir dan cocokkan artifact berdasarkan path, checksum, bundle ID, run ID, contract checksum, Source Pack checksum, serta scope yang dilaporkan.
-2. Panggil MCP read tools yang relevan untuk memastikan run, contract, published Idea version dan hash, source excerpt, dan dependency masih sesuai.
-3. Jangan mengandalkan pernyataan operator saja untuk status yang dapat diverifikasi MCP. Bila MCP belum menunjukkan Idea published, tetap di `WAITING_IDEA_PUBLICATION`.
-4. Bila context stale atau token tidak valid, ambil run/contract baru. Pertahankan artifact lama sebagai evidence, tetapi validasi ulang semua dependency sebelum submit.
-5. Lanjutkan dari entry condition paling akhir yang masih terbukti benar. Jangan mengulang ekstraksi atau authoring hanya karena sesi sebelumnya telah berakhir, dan jangan menerima keberhasilan dari ingatan tanpa checksum.
+1. Baca checkpoint terakhir dan cocokkan path/name, checksum, bundle ID, run ID, contract checksum, Source Pack checksum, dan scope.
+2. Panggil MCP read tools untuk memastikan run, contract, published Idea version/hash, source excerpt, dan dependency masih sesuai.
+3. Jangan mengandalkan pernyataan sesi lama untuk status yang dapat diverifikasi MCP.
+4. Jika context stale/token invalid, refresh run/contract sesuai tool dan revalidate dependency yang terdampak.
+5. Lanjutkan dari entry condition terakhir yang masih terbukti benar; jangan mengulang extraction/authoring hanya karena sesi berganti.
 
 ## Validation and retry
 
-- Perbaiki kegagalan schema, packaging, checksum generation, atau metrik deterministik sesuai issue MCP, lalu validasi ulang.
-- Jangan mengganti stable identity, scope, source checksum, Idea version, semantic hash, atau dependency hash secara manual untuk membuat validation lolos.
-- Jika server melaporkan retry identik sebagai sukses atau no-op, catat hasil tersebut tanpa membuat bundle baru.
-- Jika ID yang sama memiliki content atau checksum berbeda, berhenti dan laporkan conflict; jangan membuat identitas pengganti tanpa dasar contract.
-- Batasi retry pada perubahan yang memiliki bukti dari issue MCP. Kegagalan berulang yang sama menjadi `BLOCKED_BY_VALIDATION` dan harus dilaporkan.
+- Perbaiki schema/packaging/checksum issue mekanis sesuai diagnostics MCP.
+- Setelah revisi konten substantif, ulangi preflight tahap terkait sebelum MCP validation berikutnya.
+- Jangan mengganti stable identity/scope/source checksum/Idea version/hash/dependency hash secara manual agar validation lolos.
+- Retry identik yang server nyatakan sukses/no-op dicatat tanpa membuat bundle baru.
+- Conflict identity+content menjadi blocker; jangan membuat identity pengganti tanpa dasar contract.
+- Kegagalan berulang yang sama menjadi `BLOCKED_BY_VALIDATION`.
 
 ## Mandatory pauses
 
-Selalu jeda ketika:
+Jeda jika:
 
-- urutan dokumen belum disepakati;
-- teks atau visual sumber ambigu;
-- course/chapter ambigu, near-match, atau berbeda dari scope terkunci;
-- pemecahan atau relasi Idea memerlukan judgment substantif;
-- warning near-duplicate atau formula trace membutuhkan keputusan;
-- rencana prasyarat, urutan penjelasan, visual, contoh, atau cek tidak dapat diselesaikan dari sumber;
+- urutan/mapping dokumen belum pasti;
+- teks, formula, tabel, visual, atau reading order sumber ambigu;
+- course/chapter ambigu atau berubah dari scope;
+- split/merge/relation Idea membutuhkan judgment substantif;
+- warning near-duplicate/formula trace membutuhkan keputusan;
+- Artikel tidak dapat dibuat self-contained dari evidence yang tersedia;
+- Diktat tidak dapat dipadatkan tanpa membuang Idea penting;
+- flashcard membutuhkan fakta yang belum ada di Artikel;
 - submission belum diotorisasi;
 - Idea belum terbukti published;
-- kandidat soal ITB memerlukan pilihan operator;
 - context stale atau dependency publication-blocking.
+
+**Tidak ada pause pemilihan soal ITB pada pipeline Product V3**, karena asesmen bukan bagian Product V3.
 
 ## Checkpoint report
 
-Gunakan format ringkas berikut. Jangan sertakan credential atau token akses.
+Gunakan format ringkas:
 
 ```text
 Pipeline: <status>
 Completed: <last completed state>
 Scope: <course label> / <chapter label>
 Context: <run ID, contract checksum, Source Pack checksum>
-Artifacts: <path, checksum, bundle ID where applicable>
-Quality: <author preflight, MCP validation, and blocking issue summary>
+Artifacts: <path/name, checksum, bundle ID>
+Author quality: <stage preflight result>
+MCP quality: <validation result + blocking summary>
 Staging: <not requested/not submitted/submitted>
 Waiting for: <objective condition or operator decision>
 Resume: <one concise instruction>
 ```
 
-Untuk `WAITING_IDEA_PUBLICATION`, instruksi resume yang disarankan adalah: "Idea sudah direview dan dipublikasikan; verifikasi melalui MCP lalu lanjutkan pipeline ke Product Bundle."
+Untuk `WAITING_IDEA_PUBLICATION`: “Idea sudah direview dan dipublikasikan; verifikasi melalui MCP lalu lanjutkan ke Product Bundle.”
