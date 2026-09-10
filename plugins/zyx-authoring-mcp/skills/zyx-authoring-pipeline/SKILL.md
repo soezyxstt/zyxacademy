@@ -12,8 +12,8 @@ Sebelum menjalankan setiap tahap, baca skill tahap dan semua reference yang diwa
 - Source Pack: [zyx-source-pack-mcp](../zyx-source-pack-mcp/SKILL.md)
 - Idea Bundle: [zyx-idea-bundle-mcp](../zyx-idea-bundle-mcp/SKILL.md)
 - Product Bundle: [zyx-product-bundle-mcp](../zyx-product-bundle-mcp/SKILL.md)
-- Soal original Zyx: [zyx-question-authoring-mcp](../zyx-question-authoring-mcp/SKILL.md) — workflow terpisah
-- Historical reference: [reference-question-ingest](../reference-question-ingest/SKILL.md) — workflow course-only terpisah
+- Soal original Zyx: [zyx-question-authoring-mcp](../zyx-question-authoring-mcp/SKILL.md), workflow terpisah
+- Historical reference: [reference-question-ingest](../reference-question-ingest/SKILL.md), workflow course-only terpisah
 
 Baca [references/workflow.md](references/workflow.md) sebelum mulai/resume.
 
