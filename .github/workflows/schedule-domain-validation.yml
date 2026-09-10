@@ -29,6 +29,7 @@ jobs:
           tests/contracts/schedule-calendar-date.test.ts
           tests/contracts/tutorial-week-policy.test.ts
           tests/contracts/schedule-dates.test.ts
+          tests/contracts/schedule-calendar-regressions.test.ts
           tests/contracts/tutor-schedule-actions.test.ts
       - name: Typecheck
         run: bun run typecheck
