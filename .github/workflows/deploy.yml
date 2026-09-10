@@ -12,6 +12,7 @@ on:
       - 'jobs/**'
       - 'db/**'
       - 'lib/**'
+      - 'prompts/**'
       - 'deno.json'
       - 'deno.lock'
       - 'package.json'
