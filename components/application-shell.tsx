@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import { PageOrnaments } from "@/components/ui/page-ornaments";
 import { PageTransition } from "@/components/ui/page-transition";
+import { MobileSidebarController } from "@/components/mobile-sidebar-controller";
 
 export interface ApplicationShellProps {
   sidebar?: ReactNode;
@@ -28,9 +29,10 @@ export function ApplicationShell({
     <div
       className={cn(
         "relative flex min-h-screen flex-col overflow-x-clip bg-background md:flex-row",
-        className
+        className,
       )}
     >
+      <MobileSidebarController />
       {showOrnaments && <PageOrnaments variant={ornamentsVariant} />}
       {sidebar}
       <div className="relative z-10 flex min-w-0 flex-1 flex-col">
