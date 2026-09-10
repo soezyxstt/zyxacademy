@@ -1,6 +1,6 @@
 import { db } from "@/db";
 import { bookings, tutorSlots } from "@/db/schema";
-import { and, desc, eq, gte, isNull, lte } from "drizzle-orm";
+import { and, desc, eq, gte, lte } from "drizzle-orm";
 import { ensureGoogleMeetForBooking } from "@/lib/schedule-lock";
 import {
   executeAdminAssignTutorialSession,
@@ -43,8 +43,7 @@ export async function executeListSchedules(input: ListSchedulesInput) {
       .select({ id: tutorSlots.id })
       .from(tutorSlots)
       .where(eq(tutorSlots.tutorId, input.tutorId.trim()));
-    const ids = new Set(slotRows.map((row) => row.id));
-    if (ids.size === 0) {
+    if (slotRows.length === 0) {
       return { summary: "Tidak ada jadwal untuk tutor tersebut.", data: [] };
     }
   }
@@ -115,14 +114,7 @@ export async function executeCreateMeetSession(input: CreateMeetSessionInput, ac
   const { startTime, endTime } = parseTimeSlot(input.timeSlot);
   const options = adminMutationOptions(actorId);
   const availability = await executeAdminCreateTutorAvailability(
-    {
-      tutorId,
-      sessionDate: dateIso,
-      startTime,
-      endTime,
-      mode: "online",
-      reason,
-    },
+    { tutorId, sessionDate: dateIso, startTime, endTime, mode: "online", reason },
     options,
   );
   if (!availability.success || !availability.slotId) {
@@ -225,10 +217,7 @@ export async function executeRescheduleOrCancelMeet(input: RescheduleOrCancelMee
     targetSlotId = availability.slotId;
   }
 
-  const moved = await executeAdminMoveTutorialSession(
-    { bookingId, targetSlotId, reason },
-    options,
-  );
+  const moved = await executeAdminMoveTutorialSession({ bookingId, targetSlotId, reason }, options);
   if (!moved.success) throw new Error(moved.error || "Gagal memindahkan sesi.");
 
   return {
@@ -243,9 +232,6 @@ export interface ListTutorAvailabilityInput {
 }
 
 export async function executeListTutorAvailability(input: ListTutorAvailabilityInput) {
-  const conditions = [isNull(tutorSlots.booking) as any].filter(Boolean);
-  if (input.tutorId) conditions.push(eq(tutorSlots.tutorId, input.tutorId.trim()) as any);
-
   const slots = await db.query.tutorSlots.findMany({
     where: input.tutorId ? eq(tutorSlots.tutorId, input.tutorId.trim()) : undefined,
     with: { tutor: true, booking: true },
