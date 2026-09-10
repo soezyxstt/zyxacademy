@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 
 const read = (path: string) => readFileSync(path, "utf8");
 
+// Keep the previously missed PR #36 review findings pinned to the final source tree.
 describe("schedule PR review fixes", () => {
   test("tutor dashboard loads complete owned work and uses structured empty states", () => {
     const source = read("app/(tutor)/tutor/page.tsx");
