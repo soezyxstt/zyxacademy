@@ -1,4 +1,13 @@
 {
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "git": {
+    "deploymentEnabled": {
+      "*": false,
+      "main": true,
+      "staging": true
+    }
+  },
+  "ignoreCommand": "bash scripts/vercel-ignore-build.sh",
   "build": {
     "env": {
       "NODE_OPTIONS": "--max-old-space-size=4096"
