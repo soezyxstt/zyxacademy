@@ -6,14 +6,83 @@ on:
       - main
       - staging
     paths:
+      # Keep this list narrow. scripts/audit-worker-dependencies.ts verifies that
+      # every transitive worker dependency is covered here.
+      # BEGIN DENO_DEPLOY_PATHS
+      - 'workers/deno-background/**'
+      - 'jobs/admin-knowledge.ts'
+      - 'jobs/analytics.ts'
+      - 'jobs/assessment.ts'
+      - 'jobs/audit.ts'
+      - 'jobs/client.ts'
+      - 'jobs/compute.ts'
+      - 'jobs/diktat-pdf.ts'
+      - 'jobs/feedback.ts'
+      - 'jobs/generation.ts'
+      - 'jobs/mastery.ts'
+      - 'jobs/pdf.ts'
+      - 'jobs/reflection.ts'
+      - 'jobs/search-sync.ts'
+      - 'jobs/vector-sync.ts'
+      - 'db/index.ts'
+      - 'db/schema.ts'
+      - 'lib/admin-ops-ai/**'
+      - 'lib/ai/**'
+      - 'lib/authoring/**'
+      - 'lib/bundle/**'
+      - 'lib/compute/**'
+      - 'lib/db/**'
+      - 'lib/email-preferences/**'
+      - 'lib/search/**'
+      - 'lib/storage/**'
+      - 'lib/student-quiz-analytics/**'
+      - 'lib/vectorize/**'
+      - 'lib/ai-router.ts'
+      - 'lib/assessment-extractor.ts'
+      - 'lib/cohort-analytics.ts'
+      - 'lib/content-quality-auditor.ts'
+      - 'lib/context-assembly.ts'
+      - 'lib/date-utils.ts'
+      - 'lib/document-filters.ts'
+      - 'lib/flashcard-generator.ts'
+      - 'lib/gemini.ts'
+      - 'lib/generation-pipeline.ts'
+      - 'lib/knowledge-service.ts'
+      - 'lib/ko-utils.ts'
+      - 'lib/kv-cache.ts'
+      - 'lib/learning-context.ts'
+      - 'lib/learning-events.ts'
+      - 'lib/mastery-recompute.ts'
+      - 'lib/mastery-store.ts'
+      - 'lib/material-generator.ts'
+      - 'lib/material-storage.ts'
+      - 'lib/mistake-feedback.ts'
+      - 'lib/ops-metrics.ts'
+      - 'lib/option-stats.ts'
+      - 'lib/prompt-executor.ts'
+      - 'lib/question-generator.ts'
+      - 'lib/reflection-service.ts'
+      - 'lib/remediation.ts'
+      - 'lib/streak-service.ts'
+      - 'lib/vectorize-client.ts'
+      - 'lib/zyra/runtime-env.ts'
+      - 'deno.json'
+      - 'deno.lock'
+      - '.github/workflows/deploy.yml'
+      # END DENO_DEPLOY_PATHS
+  pull_request:
+    branches:
+      - staging
+    # PR validation is intentionally broader than the deploy trigger. It is a
+    # cheap static audit and catches newly-added worker dependencies before merge.
+    paths:
       - 'workers/deno-background/**'
       - 'jobs/**'
       - 'db/**'
       - 'lib/**'
+      - 'prompts/**'
       - 'deno.json'
       - 'deno.lock'
-      - 'package.json'
-      - 'bun.lock'
       - 'scripts/audit-worker-dependencies.ts'
       - '.github/workflows/deploy.yml'
   workflow_dispatch:
@@ -23,8 +92,37 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  dependency-path-audit:
+    name: Validate Deno Dependency Paths
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Validate Worker Dependency Trigger Coverage
+        run: >-
+          deno run -A scripts/audit-worker-dependencies.ts
+          --check-deploy-paths
+          --dependency-output=artifacts/deno-worker-dependencies.txt
+
+      - name: Upload dependency graph on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: deno-worker-dependency-audit
+          path: artifacts/deno-worker-dependencies.txt
+          retention-days: 1
+
   deploy:
     name: Deploy Background Worker (${{ github.ref_name }})
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     environment: ${{ github.ref_name == 'main' && 'production' || 'staging' }}
 
@@ -32,24 +130,16 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: latest
-
       - name: Setup Deno
         uses: denoland/setup-deno@v2
         with:
           deno-version: v2.x
 
-      - name: Install Dependencies
-        run: bun install --frozen-lockfile
-
       - name: Worker Dependency Audit
-        run: bun run worker:deno:audit
+        run: deno run -A scripts/audit-worker-dependencies.ts --check-deploy-paths
 
       - name: Worker Typecheck
-        run: bun run worker:deno:check
+        run: deno check workers/deno-background/main.ts
 
       - name: Configure Target Environment
         run: |
