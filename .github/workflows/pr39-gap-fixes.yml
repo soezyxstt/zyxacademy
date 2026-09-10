@@ -1,0 +1,54 @@
+name: Apply PR 39 Gap Fixes
+
+on:
+  push:
+    branches:
+      - fix/pr36-schedule-followup
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: pr39-gap-fixes-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  apply:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      BETTER_AUTH_SECRET: schedule-domain-validation-secret-1234567890
+      SKIP_ENV_VALIDATION: "1"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - name: Apply remaining review fixes
+        run: python .github/scripts/pr39_gap_fixes.py
+      - run: bun install --frozen-lockfile
+      - name: Schedule contracts
+        run: >-
+          bun test
+          tests/contracts/schedule-calendar-date.test.ts
+          tests/contracts/tutorial-week-policy.test.ts
+          tests/contracts/schedule-dates.test.ts
+          tests/contracts/schedule-calendar-regressions.test.ts
+          tests/contracts/schedule-review-fixes.test.ts
+          tests/contracts/tutor-schedule-actions.test.ts
+      - name: Typecheck
+        run: bun run typecheck
+      - name: Diff check
+        run: git diff --check
+      - name: Commit final gap fixes
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "fix(schedule): close remaining PR 36 review gaps"
+          git push origin HEAD:${GITHUB_REF_NAME}
