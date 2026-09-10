@@ -1,6 +1,7 @@
 const CALENDAR_DATE_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;
 const JAKARTA_TIME_ZONE = "Asia/Jakarta";
 const JAKARTA_OFFSET = "+07:00";
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 export type CalendarDate = string;
 
@@ -45,6 +46,11 @@ export function formatCalendarDate(parts: CalendarDateParts): CalendarDate {
   return assertCalendarDate(candidate);
 }
 
+function calendarDateEpoch(value: CalendarDate): number {
+  const { year, month, day } = parseCalendarDate(value);
+  return Date.UTC(year, month - 1, day, 12, 0, 0, 0);
+}
+
 export function addCalendarDays(value: CalendarDate, days: number): CalendarDate {
   const { year, month, day } = parseCalendarDate(value);
   const shifted = new Date(Date.UTC(year, month - 1, day + days, 12, 0, 0, 0));
@@ -53,6 +59,10 @@ export function addCalendarDays(value: CalendarDate, days: number): CalendarDate
     month: shifted.getUTCMonth() + 1,
     day: shifted.getUTCDate(),
   });
+}
+
+export function diffCalendarDays(left: CalendarDate, right: CalendarDate): number {
+  return Math.round((calendarDateEpoch(assertCalendarDate(left)) - calendarDateEpoch(assertCalendarDate(right))) / DAY_MS);
 }
 
 export function compareCalendarDates(left: CalendarDate, right: CalendarDate): number {
@@ -75,6 +85,39 @@ export function getCalendarWeekRange(value: CalendarDate): {
   const daysSinceMonday = (dayIndex + 6) % 7;
   const startIso = addCalendarDays(normalized, -daysSinceMonday);
   return { startIso, endIso: addCalendarDays(startIso, 6) };
+}
+
+export function getCalendarMonthRange(value: CalendarDate): {
+  startIso: CalendarDate;
+  endIso: CalendarDate;
+} {
+  const { year, month } = parseCalendarDate(value);
+  const startIso = formatCalendarDate({ year, month, day: 1 });
+  const nextMonth = new Date(Date.UTC(year, month, 1, 12, 0, 0, 0));
+  const endDate = new Date(nextMonth.getTime() - DAY_MS);
+  return {
+    startIso,
+    endIso: formatCalendarDate({
+      year: endDate.getUTCFullYear(),
+      month: endDate.getUTCMonth() + 1,
+      day: endDate.getUTCDate(),
+    }),
+  };
+}
+
+export function addCalendarMonths(value: CalendarDate, months: number): CalendarDate {
+  const { year, month, day } = parseCalendarDate(value);
+  const firstOfTarget = new Date(Date.UTC(year, month - 1 + months, 1, 12, 0, 0, 0));
+  const targetYear = firstOfTarget.getUTCFullYear();
+  const targetMonth = firstOfTarget.getUTCMonth() + 1;
+  const lastDayOfTarget = parseCalendarDate(
+    getCalendarMonthRange(formatCalendarDate({ year: targetYear, month: targetMonth, day: 1 })).endIso,
+  ).day;
+  return formatCalendarDate({
+    year: targetYear,
+    month: targetMonth,
+    day: Math.min(day, lastDayOfTarget),
+  });
 }
 
 export function calendarDateToJakartaInstant(
