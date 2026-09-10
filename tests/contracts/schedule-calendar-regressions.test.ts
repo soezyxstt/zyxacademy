@@ -6,16 +6,19 @@ const root = process.cwd();
 const source = (path: string) => readFileSync(join(root, path), "utf8");
 
 describe("schedule calendar regression contracts", () => {
-  test("client schedule surfaces only import browser-safe date helpers", () => {
+  test("student calendar consumes the server week identity while other client surfaces stay browser-safe", () => {
     const student = source("app/(student)/dashboard/schedule/schedule-client.tsx");
     const admin = source("components/admin/academic-schedules-dashboard.tsx");
     const tutor = source("components/tutor/tutor-schedule-view.tsx");
 
     expect(student).not.toContain('from "@/lib/schedule-lock"');
+    expect(student).not.toContain("getWeekScheduleDays");
+    expect(student).not.toContain("isTutorialWeekLocked");
+    expect(student).toContain("weekInfo={activeData.weekInfo}");
+    expect(student).toContain("isWeekLocked={activeData.isWeekLocked}");
+
     expect(admin).not.toContain('from "@/lib/schedule-lock"');
     expect(tutor).not.toContain('from "@/lib/schedule-lock"');
-
-    expect(student).toContain("getWeekScheduleDays");
     expect(admin).toContain("getWeekScheduleDays");
     expect(tutor).toContain("getWeekScheduleDays");
   });
@@ -79,15 +82,21 @@ describe("schedule calendar regression contracts", () => {
     expect(tutor).toContain("Catatan tutor");
     expect(tutor).toContain("addTutorSlotWithNotesAction");
     expect(actions).toContain("tutorSlotNotes");
+    expect(actions).toContain("errorChainMessage");
+    expect(actions).toContain(".cause");
   });
 
-  test("Ops AI cannot bypass guarded scheduling mutations", () => {
+  test("Ops AI cannot bypass guarded scheduling creation and rolls back orphan availability", () => {
     const ops = source("lib/admin-ops-ai/domain-schedules.ts");
 
     expect(ops).toContain("executeAdminCreateTutorAvailability");
     expect(ops).toContain("executeAdminAssignTutorialSession");
     expect(ops).toContain("executeAdminMoveTutorialSession");
     expect(ops).toContain("executeAdminCancelTutorialSession");
+    expect(ops).toContain("conditions.push(inArray(bookings.slotId");
+    expect(ops).toContain("executeAdminDeleteTutorAvailability");
+    expect(ops).not.toContain("rollbackCreatedAvailability");
+    expect(ops).not.toMatch(/\.delete\(tutorSlots\)/);
     expect(ops).not.toMatch(/\.insert\(tutorSlots\)/);
     expect(ops).not.toMatch(/\.insert\(bookings\)/);
     expect(ops).not.toMatch(/\.update\(bookings\)/);

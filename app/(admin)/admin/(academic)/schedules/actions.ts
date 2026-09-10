@@ -455,6 +455,87 @@ export async function executeAdminCreateTutorAvailability(
   }
 }
 
+export type AdminDeleteTutorAvailabilityInput = {
+  slotId: string;
+  reason: string;
+};
+
+export async function executeAdminDeleteTutorAvailability(
+  input: AdminDeleteTutorAvailabilityInput,
+  options?: AdminScheduleMutationOptions,
+) {
+  const actor = await getAdminActorContext(options);
+  const requestId = generateRequestId();
+  const slotId = typeof input.slotId === "string" ? input.slotId.trim() : "";
+  const reason = requireReason(input.reason);
+
+  if (!reason) {
+    return { success: false, error: "Alasan override wajib diisi.", reason: "REASON_REQUIRED" };
+  }
+  if (!slotId) {
+    return { success: false, error: "Slot wajib dipilih.", reason: "SLOT_ID_REQUIRED" };
+  }
+
+  try {
+    await actor.client.transaction(async (tx) => {
+      const slotRows = await tx
+        .select()
+        .from(tutorSlots)
+        .where(eq(tutorSlots.id, slotId))
+        .limit(1);
+      const slot = slotRows[0];
+      if (!slot) throw new Error("SLOT_NOT_FOUND");
+
+      const existingBooking = await tx
+        .select({ id: bookings.id })
+        .from(bookings)
+        .where(eq(bookings.slotId, slotId))
+        .limit(1);
+      if (existingBooking.length > 0) throw new Error("SLOT_ALREADY_BOOKED");
+
+      const deleted = await tx.delete(tutorSlots).where(eq(tutorSlots.id, slotId));
+      if ((deleted.rowsAffected ?? 0) === 0) throw new Error("SLOT_NOT_FOUND");
+
+      await recordMutationAudit({
+        actorId: actor.actorId,
+        actorRoles: actor.actorRoles,
+        courseId: "global",
+        entityType: "tutor_slot",
+        entityId: slotId,
+        entityVersion: 1,
+        action: "admin.tutor_slot.delete_override",
+        outcome: "success",
+        requestId,
+        reason,
+        before: {
+          id: slot.id,
+          tutorId: slot.tutorId,
+          sessionDate: slot.sessionDate,
+          dayOfWeek: slot.dayOfWeek,
+          startTime: slot.startTime,
+          endTime: slot.endTime,
+          mode: slot.mode,
+          location: slot.location ?? null,
+        },
+        after: null,
+      }, tx);
+    });
+
+    revalidateAdminSchedulePaths(["/admin/schedules", "/tutor/schedule", "/dashboard/schedule"]);
+    return { success: true as const };
+  } catch (error) {
+    const code = error instanceof Error ? error.message : "DATABASE_ERROR";
+    if (code === "SLOT_NOT_FOUND") {
+      return { success: false as const, error: "Slot tidak ditemukan.", reason: code };
+    }
+    if (code === "SLOT_ALREADY_BOOKED") {
+      return { success: false as const, error: "Slot sudah terisi dan tidak dapat dihapus.", reason: code };
+    }
+    console.error("Admin tutor availability delete override error:", error);
+    return { success: false as const, error: "Gagal menghapus availability tutor.", reason: "DATABASE_ERROR" };
+  }
+}
+
 export type AdminAssignTutorialSessionInput = {
   slotId: string;
   groupId: string;

@@ -106,6 +106,7 @@ type CalendarEvent = {
   courseId?: string | null;
   tutorId?: string | null;
   locked?: boolean;
+  allDay?: boolean;
   source: any;
 };
 
@@ -360,7 +361,11 @@ function EventCard({
             </button>
           ) : null}
         </div>
-        <p className={cn("break-words leading-tight text-current/80", compact ? "text-[9px]" : "text-[10px]")}>{minutesToTime(event.startMinutes)}–{minutesToTime(event.endMinutes)}</p>
+        {event.allDay ? (
+          <p className={cn("break-words leading-tight text-current/80", compact ? "text-[9px]" : "text-[10px]")}>Sepanjang hari</p>
+        ) : (
+          <p className={cn("break-words leading-tight text-current/80", compact ? "text-[9px]" : "text-[10px]")}>{minutesToTime(event.startMinutes)} - {minutesToTime(event.endMinutes)}</p>
+        )}
         {event.subtitle ? <p className={cn("break-words leading-tight text-current/75", compact ? "text-[9px]" : "text-[10px]")}>{event.subtitle}</p> : null}
         {!compact && event.meta ? <p className="break-words text-[10px] leading-tight text-current/65">{event.meta}</p> : null}
         {!compact && (event.mode || event.location || event.locked) ? (
@@ -448,7 +453,7 @@ export function ScheduleCalendarView({
         dateIso,
         startMinutes,
         endMinutes,
-        title: `${minutesToTime(startMinutes)}–${minutesToTime(endMinutes)}`,
+        title: `${minutesToTime(startMinutes)}-${minutesToTime(endMinutes)}`,
         subtitle: tutorName,
         meta: slot.notes || null,
         mode: slot.mode,
@@ -486,8 +491,13 @@ export function ScheduleCalendarView({
       const start = parseAcademicInstant(schedule.startDate);
       if (!start) continue;
       const end = parseAcademicInstant(schedule.endDate);
+      const allDay = start.minutes === 0 && !schedule.endDate;
       const sameDayEnd = end && end.dateIso === start.dateIso ? end.minutes : null;
-      const endMinutes = sameDayEnd && sameDayEnd > start.minutes ? sameDayEnd : start.minutes + 90;
+      const endMinutes = allDay
+        ? END_MINUTES
+        : sameDayEnd && sameDayEnd > start.minutes
+          ? sameDayEnd
+          : start.minutes + 90;
       result.push({
         id: `academic-${schedule.id}`,
         kind: "academic",
@@ -499,6 +509,7 @@ export function ScheduleCalendarView({
         meta: schedule.description || null,
         location: schedule.location,
         courseId: schedule.courseId || schedule.course?.id || null,
+        allDay,
         source: schedule,
       });
     }
@@ -541,7 +552,7 @@ export function ScheduleCalendarView({
     ? formatCalendarDateLabel(activeDate, { weekday: "short", day: "numeric", month: "short", year: "numeric" })
     : viewMode === "month"
       ? formatCalendarDateLabel(activeDate, { month: "long", year: "numeric" })
-      : `${formatCalendarDateLabel(weekInfo.startOfWeekIso as CalendarDate, { day: "numeric", month: "short" })} – ${formatCalendarDateLabel(weekInfo.endOfWeekIso as CalendarDate, { day: "numeric", month: "short", year: "numeric" })}`;
+      : `${formatCalendarDateLabel(weekInfo.startOfWeekIso as CalendarDate, { day: "numeric", month: "short" })} - ${formatCalendarDateLabel(weekInfo.endOfWeekIso as CalendarDate, { day: "numeric", month: "short", year: "numeric" })}`;
 
   const openEvent = (event: CalendarEvent) => {
     if (event.kind === "availability") {
@@ -675,6 +686,29 @@ export function ScheduleCalendarView({
               ))}
             </div>
 
+            {filteredEvents.some((event) => event.allDay && visibleDays.some((day) => day.dateIso === event.dateIso)) ? (
+              <div
+                className="grid border-b border-border/70 bg-card"
+                style={{ gridTemplateColumns: viewMode === "day" ? "56px minmax(0,1fr)" : "56px repeat(7,minmax(108px,1fr))" }}
+              >
+                <div className="flex items-center justify-end border-r border-border/70 px-1 py-1.5 text-[9px] font-medium text-muted-foreground">
+                  Sepanjang hari
+                </div>
+                {visibleDays.map((day) => {
+                  const allDayEvents = filteredEvents.filter((event) => event.allDay && event.dateIso === day.dateIso);
+                  return (
+                    <div key={`all-day-${day.dateIso}`} className={cn("min-h-10 space-y-1 border-r border-border/60 p-1", day.isToday && "bg-brand-primary/[0.02]")}>
+                      {allDayEvents.map((event) => (
+                        <div key={event.id} className="min-h-10">
+                          <EventCard event={event} compact onOpen={() => openEvent(event)} />
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })}
+              </div>
+            ) : null}
+
             <div className="max-h-[72vh] overflow-y-auto">
               <div
                 className="grid relative"
@@ -694,7 +728,7 @@ export function ScheduleCalendarView({
 
                 {visibleDays.map((day) => {
                   const dayIso = day.dateIso as CalendarDate;
-                  const dayEvents = layoutEvents(filteredEvents.filter((event) => event.dateIso === dayIso && event.endMinutes > START_MINUTES && event.startMinutes < END_MINUTES));
+                  const dayEvents = layoutEvents(filteredEvents.filter((event) => !event.allDay && event.dateIso === dayIso && event.endMinutes > START_MINUTES && event.startMinutes < END_MINUTES));
                   const canCreate = Boolean(onCreateScheduleDirect) && (role === "admin" || role === "teacher") && dayIso >= today && !isWeekLocked;
                   return (
                     <div key={dayIso} className={cn("relative border-r border-border/60", day.isToday && "bg-brand-primary/[0.02]") }>

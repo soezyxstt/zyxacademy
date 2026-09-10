@@ -1,11 +1,12 @@
 import { db } from "@/db";
 import { bookings, tutorSlots } from "@/db/schema";
-import { and, desc, eq, gte, lte } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, lte } from "drizzle-orm";
 import { ensureGoogleMeetForBooking } from "@/lib/schedule-lock";
 import {
   executeAdminAssignTutorialSession,
   executeAdminCancelTutorialSession,
   executeAdminCreateTutorAvailability,
+  executeAdminDeleteTutorAvailability,
   executeAdminMoveTutorialSession,
   type AdminScheduleMutationOptions,
 } from "@/app/(admin)/admin/(academic)/schedules/actions";
@@ -46,6 +47,7 @@ export async function executeListSchedules(input: ListSchedulesInput) {
     if (slotRows.length === 0) {
       return { summary: "Tidak ada jadwal untuk tutor tersebut.", data: [] };
     }
+    conditions.push(inArray(bookings.slotId, slotRows.map((row) => row.id)));
   }
 
   const limit = Math.min(Math.max(input.limit ?? 25, 1), 100);
@@ -61,13 +63,9 @@ export async function executeListSchedules(input: ListSchedulesInput) {
     limit,
   });
 
-  const filteredRows = input.tutorId
-    ? rows.filter((booking) => booking.slot?.tutorId === input.tutorId?.trim())
-    : rows;
-
   return {
-    summary: `Ditemukan ${filteredRows.length} jadwal sesi meet/tutorial.`,
-    data: filteredRows.map((booking) => ({
+    summary: `Ditemukan ${rows.length} jadwal sesi meet/tutorial.`,
+    data: rows.map((booking) => ({
       id: booking.id,
       sessionDate: booking.sessionDate,
       startTime: booking.startTime,
@@ -133,6 +131,20 @@ export async function executeCreateMeetSession(input: CreateMeetSessionInput, ac
   );
   const createdBookingId = "bookingId" in booking ? booking.bookingId : undefined;
   if (!booking.success || !createdBookingId) {
+    const rollback = await executeAdminDeleteTutorAvailability(
+      {
+        slotId: availability.slotId,
+        reason: `${reason}; rollback setelah assignment gagal`,
+      },
+      options,
+    );
+    const safeConcurrentOutcome = !rollback.success &&
+      (rollback.reason === "SLOT_ALREADY_BOOKED" || rollback.reason === "SLOT_NOT_FOUND");
+    if (!rollback.success && !safeConcurrentOutcome) {
+      throw new Error(
+        `${booking.error || "Gagal menetapkan sesi tutorial melalui domain scheduling."} Rollback slot juga gagal: ${rollback.error || "unknown error"}`,
+      );
+    }
     throw new Error(booking.error || "Gagal menetapkan sesi tutorial melalui domain scheduling.");
   }
 
@@ -198,6 +210,7 @@ export async function executeRescheduleOrCancelMeet(input: RescheduleOrCancelMee
     limit: 5,
   });
   let targetSlotId = exactSlots.find((slot) => !slot.booking)?.id || null;
+  let createdTargetSlotId: string | null = null;
 
   if (!targetSlotId) {
     const availability = await executeAdminCreateTutorAvailability(
@@ -216,10 +229,29 @@ export async function executeRescheduleOrCancelMeet(input: RescheduleOrCancelMee
       throw new Error(availability.error || "Gagal menyiapkan slot tujuan.");
     }
     targetSlotId = availability.slotId;
+    createdTargetSlotId = availability.slotId;
   }
 
   const moved = await executeAdminMoveTutorialSession({ bookingId, targetSlotId, reason }, options);
-  if (!moved.success) throw new Error(moved.error || "Gagal memindahkan sesi.");
+  if (!moved.success) {
+    if (createdTargetSlotId) {
+      const rollback = await executeAdminDeleteTutorAvailability(
+        {
+          slotId: createdTargetSlotId,
+          reason: `${reason}; rollback setelah reschedule gagal`,
+        },
+        options,
+      );
+      const safeConcurrentOutcome = !rollback.success &&
+        (rollback.reason === "SLOT_ALREADY_BOOKED" || rollback.reason === "SLOT_NOT_FOUND");
+      if (!rollback.success && !safeConcurrentOutcome) {
+        throw new Error(
+          `${moved.error || "Gagal memindahkan sesi."} Rollback slot juga gagal: ${rollback.error || "unknown error"}`,
+        );
+      }
+    }
+    throw new Error(moved.error || "Gagal memindahkan sesi.");
+  }
 
   return {
     summary: `Sesi berhasil dipindahkan ke ${newDateIso} jam ${startTime} - ${endTime}.`,

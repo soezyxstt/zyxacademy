@@ -1,9 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { CalendarDays } from "lucide-react";
+import { AlertCircle, CalendarDays } from "lucide-react";
 import { toast } from "@/components/ui/toast";
+import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/page-header";
 import { ApplicationPage } from "@/components/application-page";
 import { getScheduleData } from "./actions";
@@ -18,8 +19,6 @@ import {
   SessionDetailDrawer,
   type PendingSessionResource,
 } from "@/components/schedule/session-detail-drawer";
-import { daysFrom, getJakartaNow, getWeekScheduleDays } from "@/lib/date-utils";
-import { isTutorialWeekLocked } from "@/lib/schedule/week-policy";
 
 function LoadingState() {
   return (
@@ -29,9 +28,36 @@ function LoadingState() {
   );
 }
 
+function getCourseFilterOptions(data: any) {
+  const byId = new Map<string, { id: string; title: string }>();
+  for (const enrollment of data.enrollments || []) {
+    const course = enrollment?.course;
+    if (course?.id) byId.set(course.id, { id: course.id, title: course.title || course.name || "Mata kuliah" });
+  }
+  for (const group of data.groups || []) {
+    for (const entry of group?.courses || []) {
+      const course = entry?.course || entry;
+      if (course?.id) byId.set(course.id, { id: course.id, title: course.title || course.name || "Mata kuliah" });
+    }
+  }
+  return Array.from(byId.values()).sort((left, right) => left.title.localeCompare(right.title, "id"));
+}
+
+function getTutorFilterOptions(data: any) {
+  const byId = new Map<string, { id: string; name: string }>();
+  for (const slot of data.availableSlots || []) {
+    const tutor = slot?.tutor;
+    const id = tutor?.id || slot?.tutorId;
+    if (id) byId.set(id, { id, name: tutor?.name || "Tutor" });
+  }
+  return Array.from(byId.values()).sort((left, right) => left.name.localeCompare(right.name, "id"));
+}
+
 export function StudentScheduleClient() {
   const [data, setData] = useState<any>(null);
+  const [dataWeekOffset, setDataWeekOffset] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [weekOffset, setWeekOffset] = useState(0);
   const [bookingSlotData, setBookingSlotData] = useState<{ slot: any; dateIso: string } | null>(null);
   const [activeSessionBookingId, setActiveSessionBookingId] = useState<string | null>(null);
@@ -46,21 +72,28 @@ export function StudentScheduleClient() {
     const cached = !force ? weekCache.current.get(offset) : null;
     if (cached) {
       setData(cached);
+      setDataWeekOffset(offset);
+      setLoadError(null);
       setLoading(false);
       return cached;
     }
 
     try {
       setLoading(true);
+      setLoadError(null);
       const nextData = await getScheduleData(offset);
       weekCache.current.set(offset, nextData);
       if (requestId === activeRequest.current) {
         setData(nextData);
+        setDataWeekOffset(offset);
+        setLoadError(null);
       }
       return nextData;
     } catch (error) {
       console.error("Gagal mengambil data jadwal:", error);
       if (requestId === activeRequest.current) {
+        const message = "Kalender jadwal gagal dimuat. Periksa koneksi lalu coba lagi.";
+        setLoadError(message);
         toast.error("Gagal memuat kalender jadwal");
       }
       return null;
@@ -76,7 +109,7 @@ export function StudentScheduleClient() {
   }, [fetchData, weekOffset]);
 
   useEffect(() => {
-    if (!data || loading) return;
+    if (!data || loading || dataWeekOffset !== weekOffset) return;
 
     for (const adjacentOffset of [weekOffset - 1, weekOffset + 1]) {
       if (weekCache.current.has(adjacentOffset)) continue;
@@ -86,25 +119,40 @@ export function StudentScheduleClient() {
         })
         .catch(() => undefined);
     }
-  }, [data, loading, weekOffset]);
+  }, [data, dataWeekOffset, loading, weekOffset]);
 
-  const displayWeekInfo = useMemo(
-    () => getWeekScheduleDays(daysFrom(weekOffset * 7, getJakartaNow())),
-    [weekOffset],
-  );
-  const displayWeekLocked = useMemo(
-    () => isTutorialWeekLocked(displayWeekInfo.startOfWeekIso),
-    [displayWeekInfo.startOfWeekIso],
-  );
+  const activeData = dataWeekOffset === weekOffset ? data : null;
+  if (!activeData) {
+    if (loadError) {
+      return (
+        <ApplicationPage spacing="space-y-4">
+          <PageHeader icon={CalendarDays} title="Kalender & Jadwal Tutorial" />
+          <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-5">
+            <div className="flex items-start gap-3">
+              <AlertCircle className="mt-0.5 size-5 shrink-0 text-destructive" aria-hidden />
+              <div className="min-w-0 space-y-3">
+                <div>
+                  <h2 className="font-heading text-body-base font-semibold text-foreground">Jadwal belum dapat dimuat</h2>
+                  <p className="mt-1 text-body-sm text-muted-foreground">{loadError}</p>
+                </div>
+                <Button type="button" size="sm" onClick={() => void fetchData(weekOffset, true)} disabled={loading}>
+                  {loading ? "Memuat..." : "Coba Lagi"}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </ApplicationPage>
+      );
+    }
+    return <LoadingState />;
+  }
 
-  if (loading && !data) return <LoadingState />;
-
-  const userObj = data?.user || {};
-  const coursesList = data?.courses || [];
-  const tutorsList = data?.tutors || [];
+  const userObj = activeData.user || {};
+  const coursesList = getCourseFilterOptions(activeData);
+  const tutorsList = getTutorFilterOptions(activeData);
   const initialCourseFilter = searchParams.get("course") || "all";
   const activeSessionBooking = activeSessionBookingId
-    ? (data?.groupBookings || []).find((booking: any) => booking.id === activeSessionBookingId) || null
+    ? (activeData.groupBookings || []).find((booking: any) => booking.id === activeSessionBookingId) || null
     : null;
 
   return (
@@ -115,17 +163,17 @@ export function StudentScheduleClient() {
         <ScheduleCalendarView
           role="student"
           currentUserId={userObj.id}
-          weekInfo={displayWeekInfo}
-          isWeekLocked={displayWeekLocked}
+          weekInfo={activeData.weekInfo}
+          isWeekLocked={activeData.isWeekLocked}
           weekOffset={weekOffset}
           onWeekChange={setWeekOffset}
           coursesList={coursesList}
           tutorsList={tutorsList}
-          groupsList={data.groups || []}
+          groupsList={activeData.groups || []}
           initialCourseFilter={initialCourseFilter}
-          slots={data.availableSlots || []}
-          bookings={data.groupBookings || []}
-          academicSchedules={data.academicSchedules || []}
+          slots={activeData.availableSlots || []}
+          bookings={activeData.groupBookings || []}
+          academicSchedules={activeData.academicSchedules || []}
           onSelectSlotToBook={(slot, dateIso) => setBookingSlotData({ slot, dateIso })}
           onOpenSessionDetail={(booking) => setActiveSessionBookingId(booking.id)}
           onEditSchedule={(schedule) => setSelectedAcademicSchedule(schedule)}
@@ -140,7 +188,7 @@ export function StudentScheduleClient() {
         slot={bookingSlotData?.slot || null}
         dateIso={bookingSlotData?.dateIso || ""}
         courses={coursesList}
-        groups={data.groups || []}
+        groups={activeData.groups || []}
         onSuccess={async ({ bookingId, pendingResources }) => {
           setPendingSessionResources(pendingResources);
           weekCache.current.delete(weekOffset);
@@ -163,7 +211,7 @@ export function StudentScheduleClient() {
         booking={activeSessionBooking}
         role="student"
         currentUserId={userObj.id}
-        availableSlots={data.availableSlots || []}
+        availableSlots={activeData.availableSlots || []}
         pendingResources={pendingSessionResources}
         onPendingResourcesChange={setPendingSessionResources}
         onSuccess={() => {
