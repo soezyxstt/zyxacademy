@@ -1,24 +1,40 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
-import { ArrowRight, BookOpen, Users, CalendarDays, GraduationCap } from "lucide-react";
+import {
+  ArrowRight,
+  BookOpen,
+  CalendarDays,
+  Clock3,
+  LayoutDashboard,
+  MessageSquareWarning,
+  Plus,
+  Users,
+} from "lucide-react";
+import { auth } from "@/lib/auth";
 import { hasAnyPeran } from "@/lib/auth/authorization";
-import { listTutorAccessibleCourses } from "@/lib/auth/tutor-access";
-import { db } from "@/db";
-import { courses, enrollments, mataKuliah } from "@/db/schema";
-import { and, count, gt, inArray } from "drizzle-orm";
+import { getTutorScheduleReadModel } from "@/lib/schedule/tutor-read-model";
+import { getCalendarWeekRange, getJakartaCalendarDate } from "@/lib/schedule/calendar-date";
 import { PageHeader } from "@/components/page-header";
 import { ApplicationPage } from "@/components/application-page";
-import { AdminStatStrip, AdminStatStripItem } from "@/components/admin/stat-card";
-import { AdminEmptyState } from "@/components/admin/state-panels";
+import { Button } from "@/components/ui/button";
 import { pageTitle } from "@/lib/site";
 
 export const metadata: Metadata = {
-  title: pageTitle("Pengajaran"),
-  description: "Analitik cohort dan manajemen kelas untuk tutor Zyx Academy.",
+  title: pageTitle("Dashboard Pengajar"),
+  description: "Ringkasan operasional kelas, jadwal, dan tindak lanjut tutor Zyx Academy.",
 };
+
+function formatSessionDate(dateIso: string) {
+  const [year, month, day] = dateIso.split("-").map(Number);
+  return new Intl.DateTimeFormat("id-ID", {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+    timeZone: "UTC",
+  }).format(new Date(Date.UTC(year, month - 1, day, 12, 0, 0)));
+}
 
 export default async function TutorPage() {
   const session = await auth.api.getSession({ headers: await headers() });
@@ -27,182 +43,169 @@ export default async function TutorPage() {
   const isAuthorized = await hasAnyPeran(session.user.id, ["tutor"], { allowAdmin: false });
   if (!isAuthorized) redirect("/");
 
-  const accessible = await listTutorAccessibleCourses(session.user.id, { allowAdmin: false });
-  const now = new Date();
+  const today = getJakartaCalendarDate();
+  const week = getCalendarWeekRange(today);
+  const schedule = await getTutorScheduleReadModel({
+    tutorId: session.user.id,
+    allowAdmin: false,
+    fromDate: week.startIso,
+    toDate: week.endIso,
+  });
 
-  let courseList: Array<{ courseId: string; title: string; enrolledCount: number }> = [];
+  const currentWeekBookings = schedule.ownedBookings.filter(
+    (booking) => booking.sessionDate && booking.sessionDate >= week.startIso && booking.sessionDate <= week.endIso && booking.status !== "cancelled",
+  );
+  const pendingTickets = schedule.ownedTickets.filter((ticket) => ticket.status === "pending");
+  const upcomingSessions = schedule.ownedBookings
+    .filter((booking) => booking.sessionDate && booking.sessionDate >= today && !["cancelled", "completed"].includes(booking.status))
+    .sort((left, right) => `${left.sessionDate}-${left.startTime || "00:00"}`.localeCompare(`${right.sessionDate}-${right.startTime || "00:00"}`))
+    .slice(0, 5);
 
-  if (accessible.length > 0) {
-    const canonicalIds = accessible.map((c) => c.courseId);
-    const legacyIds = accessible
-      .map((c) => c.legacyCourseId ?? c.courseId)
-      .filter((id): id is string => Boolean(id));
-
-    const mkRows = await db
-      .select({ id: mataKuliah.id, title: mataKuliah.title })
-      .from(mataKuliah)
-      .where(inArray(mataKuliah.id, canonicalIds));
-
-    const legacyRows =
-      legacyIds.length > 0
-        ? await db
-            .select({ id: courses.id, title: courses.title })
-            .from(courses)
-            .where(inArray(courses.id, legacyIds))
-        : [];
-
-    const mkMap = new Map(mkRows.map((m) => [m.id, m.title]));
-    const legacyMap = new Map(legacyRows.map((l) => [l.id, l.title]));
-
-    const allCheckedIds = Array.from(new Set([...canonicalIds, ...legacyIds]));
-    const enrollmentRows = await db
-      .select({ courseId: enrollments.courseId, n: count() })
-      .from(enrollments)
-      .where(and(inArray(enrollments.courseId, allCheckedIds), gt(enrollments.expiresAt, now)))
-      .groupBy(enrollments.courseId);
-
-    const enrollmentMap = new Map(enrollmentRows.map((e) => [e.courseId, e.n]));
-
-    courseList = accessible.map((item) => {
-      const title =
-        mkMap.get(item.courseId) ??
-        legacyMap.get(item.legacyCourseId ?? item.courseId) ??
-        item.courseId;
-
-      const enrolledCount =
-        (enrollmentMap.get(item.courseId) ?? 0) +
-        (item.legacyCourseId && item.legacyCourseId !== item.courseId
-          ? enrollmentMap.get(item.legacyCourseId) ?? 0
-          : 0);
-
-      return {
-        courseId: item.courseId,
-        title,
-        enrolledCount,
-      };
-    });
-  }
-
-  const totalStudents = courseList.reduce((sum, course) => sum + course.enrolledCount, 0);
+  const statItems = [
+    { label: "Mata kuliah", value: schedule.assignedActiveCourses.length, icon: BookOpen },
+    { label: "Kelompok aktif", value: schedule.eligibleGroups.length, icon: Users },
+    { label: "Sesi pekan ini", value: currentWeekBookings.length, icon: CalendarDays },
+    { label: "Tiket menunggu", value: pendingTickets.length, icon: MessageSquareWarning },
+  ];
 
   return (
-    <ApplicationPage>
-      <PageHeader
-        title="Pengajaran"
-        icon={GraduationCap}
-        divider={false}
-      />
-
-      <AdminStatStrip>
-        <AdminStatStripItem
-          label="Kelas ditugaskan"
-          value={courseList.length}
-          icon={BookOpen}
-          tone="brand"
+    <ApplicationPage spacing="space-y-5">
+      <div className="flex flex-col gap-3 border-b border-border pb-4 sm:flex-row sm:items-end sm:justify-between">
+        <PageHeader
+          title="Dashboard Pengajar"
+          icon={LayoutDashboard}
+          divider={false}
+          description="Prioritas kelas, sesi berikutnya, dan hal yang perlu ditindaklanjuti."
         />
-        <AdminStatStripItem
-          label="Siswa aktif"
-          value={totalStudents}
-          icon={Users}
-          tone="brand-secondary"
-        />
-      </AdminStatStrip>
+        <div className="flex shrink-0 flex-wrap gap-2">
+          <Button asChild variant="outline" size="sm">
+            <Link href="/tutor/schedule">Buka jadwal</Link>
+          </Button>
+          <Button asChild size="sm">
+            <Link href="/tutor/schedule">
+              <Plus className="size-4" /> Tambah slot
+            </Link>
+          </Button>
+        </div>
+      </div>
 
-      <Link
-        href="/tutor/schedule"
-        className="group flex min-w-0 items-center gap-3 rounded-lg border border-border bg-muted/30 px-3 py-2.5 transition-colors hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-      >
-        <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-brand-primary/10 text-brand-primary">
-          <CalendarDays className="size-4" aria-hidden />
-        </span>
-        <span className="min-w-0 flex-1">
-          <span className="block truncate text-body-sm font-semibold text-foreground">
-            Jadwal tutorial
-          </span>
-          <span className="block truncate text-body-xs text-muted-foreground">
-            Kelola jadwal dan sesi kelompok
-          </span>
-        </span>
-        <ArrowRight className="size-4 shrink-0 text-brand-primary transition-transform group-hover:translate-x-0.5" aria-hidden />
-      </Link>
+      <section aria-label="Ringkasan pengajar" className="grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-border bg-border lg:grid-cols-4">
+        {statItems.map((item) => {
+          const Icon = item.icon;
+          return (
+            <div key={item.label} className="bg-card px-4 py-4 sm:px-5">
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <Icon className="size-4" aria-hidden />
+                <span className="text-body-xs font-medium">{item.label}</span>
+              </div>
+              <p className="mt-2 font-heading text-xl font-bold text-foreground">{item.value}</p>
+            </div>
+          );
+        })}
+      </section>
 
-      <section className="space-y-3">
-        <div className="flex items-center justify-between gap-3">
-          <h2 className="font-heading text-body-base font-bold text-foreground">Kelas Anda</h2>
-          <span className="text-body-xs text-muted-foreground">{courseList.length} kelas</span>
+      <div className="grid gap-5 xl:grid-cols-[minmax(0,1.25fr)_minmax(300px,0.75fr)]">
+        <section className="min-w-0 rounded-xl border border-border bg-card">
+          <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">
+            <div>
+              <h2 className="font-heading text-body-base font-bold text-foreground">Sesi berikutnya</h2>
+              <p className="text-body-xs text-muted-foreground">Sesi terjadwal terdekat yang masih aktif.</p>
+            </div>
+            <Link href="/tutor/schedule" className="shrink-0 text-body-xs font-semibold text-brand-primary hover:underline">
+              Semua jadwal
+            </Link>
+          </div>
+
+          {upcomingSessions.length === 0 ? (
+            <div className="px-4 py-8 text-center text-body-sm text-muted-foreground">
+              Belum ada sesi mendatang pada rentang yang dimuat.
+            </div>
+          ) : (
+            <div className="divide-y divide-border">
+              {upcomingSessions.map((booking) => (
+                <Link
+                  key={booking.id}
+                  href="/tutor/schedule?tab=sessions"
+                  className="group flex min-w-0 items-start gap-3 px-4 py-3 transition-colors hover:bg-muted/30"
+                >
+                  <span className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-lg bg-brand-primary/10 text-brand-primary">
+                    <Clock3 className="size-4" aria-hidden />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block break-words text-body-sm font-semibold text-foreground">
+                      {booking.course?.title || booking.topic || "Sesi tutorial"}
+                    </span>
+                    <span className="mt-0.5 block break-words text-body-xs text-muted-foreground">
+                      {booking.sessionDate ? formatSessionDate(booking.sessionDate) : "Tanggal belum ditentukan"}
+                      {booking.startTime ? ` · ${booking.startTime}${booking.endTime ? `–${booking.endTime}` : ""}` : ""}
+                    </span>
+                    <span className="mt-0.5 block break-words text-body-xs text-muted-foreground">
+                      {booking.group?.name || "Kelompok"}{booking.mode ? ` · ${booking.mode === "online" ? "Online" : "Tatap muka"}` : ""}
+                    </span>
+                  </span>
+                  <ArrowRight className="mt-2 size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-brand-primary" aria-hidden />
+                </Link>
+              ))}
+            </div>
+          )}
+        </section>
+
+        <section className="min-w-0 rounded-xl border border-border bg-card">
+          <div className="border-b border-border px-4 py-3">
+            <h2 className="font-heading text-body-base font-bold text-foreground">Perlu perhatian</h2>
+            <p className="text-body-xs text-muted-foreground">Tiket reschedule atau pembatalan yang menunggu keputusan.</p>
+          </div>
+          {pendingTickets.length === 0 ? (
+            <div className="px-4 py-7 text-body-sm text-muted-foreground">Tidak ada tiket pending.</div>
+          ) : (
+            <div className="divide-y divide-border">
+              {pendingTickets.slice(0, 5).map((ticket) => (
+                <Link key={ticket.id} href="/tutor/schedule?tab=tickets" className="block px-4 py-3 transition-colors hover:bg-muted/30">
+                  <p className="text-body-sm font-semibold text-foreground">
+                    {ticket.type === "cancellation" ? "Permintaan pembatalan" : "Permintaan reschedule"}
+                  </p>
+                  <p className="mt-0.5 break-words text-body-xs text-muted-foreground">{ticket.reason}</p>
+                </Link>
+              ))}
+            </div>
+          )}
+        </section>
+      </div>
+
+      <section className="rounded-xl border border-border bg-card">
+        <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">
+          <div>
+            <h2 className="font-heading text-body-base font-bold text-foreground">Pengajaran</h2>
+            <p className="text-body-xs text-muted-foreground">Mata kuliah yang ditugaskan kepada Anda.</p>
+          </div>
+          <span className="text-body-xs text-muted-foreground">{schedule.assignedActiveCourses.length} mata kuliah</span>
         </div>
 
-        {courseList.length === 0 ? (
-          <div className="border-y border-dashed border-border">
-            <AdminEmptyState
-              icon={GraduationCap}
-              title="Belum ada kelas yang ditugaskan"
-              description="Kelas dari admin akan muncul di sini."
-            />
-          </div>
+        {schedule.assignedActiveCourses.length === 0 ? (
+          <div className="px-4 py-8 text-center text-body-sm text-muted-foreground">Belum ada mata kuliah yang ditugaskan.</div>
         ) : (
-          <div className="divide-y divide-border border-y border-border">
-            {courseList.map((course) => {
-              const courseHref = `/tutor/${course.courseId}`;
-
+          <div className="divide-y divide-border">
+            {schedule.assignedActiveCourses.map((course) => {
+              const groupCount = schedule.eligibleGroups.filter((group) =>
+                group.matchedCourseIds.includes(course.courseId) || Boolean(course.legacyCourseId && group.matchedCourseIds.includes(course.legacyCourseId)),
+              ).length;
               return (
-                <article key={course.courseId} className="space-y-3 py-4">
-                  <div className="flex min-w-0 flex-wrap items-start justify-between gap-x-3 gap-y-2">
-                    <Link
-                      href={courseHref}
-                      className="min-w-0 flex-1 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    >
-                      <p className="truncate text-body-base font-semibold text-foreground">
-                        {course.title}
-                      </p>
-                      <p className="text-body-xs text-muted-foreground">
-                        {course.enrolledCount} siswa aktif
-                      </p>
-                    </Link>
-                    <Link
-                      href={courseHref}
-                      className="inline-flex shrink-0 items-center gap-1 text-body-xs font-semibold text-brand-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    >
-                      Ringkasan / Analitik
-                      <ArrowRight className="size-3.5" aria-hidden />
-                    </Link>
-                  </div>
-                  <nav
-                    aria-label={`Navigasi ${course.title}`}
-                    className="flex flex-wrap items-center gap-x-4 gap-y-2 text-body-xs font-semibold"
-                  >
-                    <Link
-                      href={`${courseHref}/participants`}
-                      className="text-muted-foreground transition-colors hover:text-brand-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    >
-                      Peserta & Kelompok
-                    </Link>
-                    <Link
-                      href={`${courseHref}/quizzes`}
-                      className="text-muted-foreground transition-colors hover:text-brand-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    >
-                      Kuis
-                    </Link>
-                    <Link
-                      href={`${courseHref}/live`}
-                      className="text-muted-foreground transition-colors hover:text-brand-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    >
-                      Kuis Langsung
-                    </Link>
-                    <Link
-                      href={`${courseHref}/quizzes/grading`}
-                      className="text-muted-foreground transition-colors hover:text-brand-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    >
-                      Penilaian Kuis
-                    </Link>
-                    <Link
-                      href={`${courseHref}/grading`}
-                      className="text-muted-foreground transition-colors hover:text-brand-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    >
-                      Penilaian Tryout
-                    </Link>
-                  </nav>
-                </article>
+                <Link
+                  key={course.courseId}
+                  href={`/tutor/${course.courseId}`}
+                  className="group flex min-w-0 items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/30"
+                >
+                  <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground group-hover:text-brand-primary">
+                    <BookOpen className="size-4" aria-hidden />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block break-words text-body-sm font-semibold text-foreground">{course.title}</span>
+                    <span className="block text-body-xs text-muted-foreground">
+                      {course.code || "Mata kuliah"} · {groupCount} kelompok terkait
+                    </span>
+                  </span>
+                  <ArrowRight className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-brand-primary" aria-hidden />
+                </Link>
               );
             })}
           </div>
