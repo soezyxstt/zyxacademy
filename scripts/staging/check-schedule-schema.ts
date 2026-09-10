@@ -19,10 +19,10 @@ const requiredTables = [
 const client = createClient({ url, authToken });
 
 try {
-  const result = await client.execute(
-    `SELECT name FROM sqlite_master WHERE type = 'table' AND name IN (${requiredTables.map(() => "?").join(",")})`,
-    [...requiredTables],
-  );
+  const result = await client.execute({
+    sql: `SELECT name FROM sqlite_master WHERE type = 'table' AND name IN (${requiredTables.map(() => "?").join(",")})`,
+    args: [...requiredTables],
+  });
   const found = new Set(
     result.rows
       .map((row) => row.name)
