@@ -6,6 +6,7 @@ import {
   executeAdminAssignTutorialSession,
   executeAdminCancelTutorialSession,
   executeAdminCreateTutorAvailability,
+  executeAdminDeleteTutorAvailability,
   executeAdminMoveTutorialSession,
   type AdminScheduleMutationOptions,
 } from "@/app/(admin)/admin/(academic)/schedules/actions";
@@ -30,20 +31,6 @@ function parseTimeSlot(value: string | undefined, fallbackStart = "10:00", fallb
     startTime: timeParts[0] || fallbackStart,
     endTime: timeParts[1] || fallbackEnd,
   };
-}
-
-async function rollbackCreatedAvailability(slotId: string) {
-  return db.transaction(async (tx) => {
-    const booked = await tx
-      .select({ id: bookings.id })
-      .from(bookings)
-      .where(eq(bookings.slotId, slotId))
-      .limit(1);
-    if (booked.length > 0) return false;
-
-    const deleted = await tx.delete(tutorSlots).where(eq(tutorSlots.id, slotId));
-    return (deleted.rowsAffected ?? 0) > 0;
-  });
 }
 
 export async function executeListSchedules(input: ListSchedulesInput) {
@@ -144,10 +131,21 @@ export async function executeCreateMeetSession(input: CreateMeetSessionInput, ac
   );
   const createdBookingId = "bookingId" in booking ? booking.bookingId : undefined;
   if (!booking.success || !createdBookingId) {
-    const rolledBack = await rollbackCreatedAvailability(availability.slotId).catch(() => false);
-    throw new Error(
-      `${booking.error || "Gagal menetapkan sesi tutorial melalui domain scheduling."}${rolledBack ? "" : " Slot yang baru dibuat tidak dibersihkan karena sudah terisi atau rollback gagal."}`,
+    const rollback = await executeAdminDeleteTutorAvailability(
+      {
+        slotId: availability.slotId,
+        reason: `${reason}; rollback setelah assignment gagal`,
+      },
+      options,
     );
+    const safeConcurrentOutcome = !rollback.success &&
+      (rollback.reason === "SLOT_ALREADY_BOOKED" || rollback.reason === "SLOT_NOT_FOUND");
+    if (!rollback.success && !safeConcurrentOutcome) {
+      throw new Error(
+        `${booking.error || "Gagal menetapkan sesi tutorial melalui domain scheduling."} Rollback slot juga gagal: ${rollback.error || "unknown error"}`,
+      );
+    }
+    throw new Error(booking.error || "Gagal menetapkan sesi tutorial melalui domain scheduling.");
   }
 
   const meetUrl = await ensureGoogleMeetForBooking(createdBookingId).catch(() => null);
@@ -236,10 +234,23 @@ export async function executeRescheduleOrCancelMeet(input: RescheduleOrCancelMee
 
   const moved = await executeAdminMoveTutorialSession({ bookingId, targetSlotId, reason }, options);
   if (!moved.success) {
-    const rolledBack = createdTargetSlotId
-      ? await rollbackCreatedAvailability(createdTargetSlotId).catch(() => false)
-      : true;
-    throw new Error(`${moved.error || "Gagal memindahkan sesi."}${rolledBack ? "" : " Slot tujuan tidak dibersihkan karena sudah terisi atau rollback gagal."}`);
+    if (createdTargetSlotId) {
+      const rollback = await executeAdminDeleteTutorAvailability(
+        {
+          slotId: createdTargetSlotId,
+          reason: `${reason}; rollback setelah reschedule gagal`,
+        },
+        options,
+      );
+      const safeConcurrentOutcome = !rollback.success &&
+        (rollback.reason === "SLOT_ALREADY_BOOKED" || rollback.reason === "SLOT_NOT_FOUND");
+      if (!rollback.success && !safeConcurrentOutcome) {
+        throw new Error(
+          `${moved.error || "Gagal memindahkan sesi."} Rollback slot juga gagal: ${rollback.error || "unknown error"}`,
+        );
+      }
+    }
+    throw new Error(moved.error || "Gagal memindahkan sesi.");
   }
 
   return {

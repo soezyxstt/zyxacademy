@@ -6,10 +6,11 @@ import { buildCourseThumbnailKey } from "@/lib/storage/keys";
 import { storage } from "@/lib/storage";
 
 function installPdfCanvasGlobals() {
-  const globals = globalThis as typeof globalThis & Record<string, unknown>;
-  if (!globals.DOMMatrix && "DOMMatrix" in canvas) globals.DOMMatrix = canvas.DOMMatrix;
-  if (!globals.ImageData && "ImageData" in canvas) globals.ImageData = canvas.ImageData;
-  if (!globals.Path2D && "Path2D" in canvas) globals.Path2D = canvas.Path2D;
+  const globals = globalThis as unknown as Record<string, unknown>;
+  const canvasExports = canvas as unknown as Record<string, unknown>;
+  for (const name of ["DOMMatrix", "ImageData", "Path2D"] as const) {
+    if (!globals[name] && canvasExports[name]) globals[name] = canvasExports[name];
+  }
 }
 
 async function readPdfBytes(params: { pdfBuffer?: Buffer | Uint8Array | null; fileKey?: string | null }): Promise<Uint8Array | null> {

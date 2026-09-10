@@ -94,7 +94,9 @@ describe("schedule calendar regression contracts", () => {
     expect(ops).toContain("executeAdminMoveTutorialSession");
     expect(ops).toContain("executeAdminCancelTutorialSession");
     expect(ops).toContain("conditions.push(inArray(bookings.slotId");
-    expect(ops).toContain("rollbackCreatedAvailability");
+    expect(ops).toContain("executeAdminDeleteTutorAvailability");
+    expect(ops).not.toContain("rollbackCreatedAvailability");
+    expect(ops).not.toMatch(/\.delete\(tutorSlots\)/);
     expect(ops).not.toMatch(/\.insert\(tutorSlots\)/);
     expect(ops).not.toMatch(/\.insert\(bookings\)/);
     expect(ops).not.toMatch(/\.update\(bookings\)/);
