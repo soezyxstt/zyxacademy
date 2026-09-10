@@ -1,8 +1,29 @@
 # Product Bundle MCP reference
 
+## Scope Product Bundle V3
+
+Authoring Product Bundle V3 hanya membuat:
+
+```text
+article
+diktat
+flashcard_set
+flashcard
+```
+
+Jangan membuat `question`, `solution`, atau `assessment_blueprint` pada Product Bundle V3. Produk asesmen lama pada Product Bundle V2 hanya bagian kompatibilitas legacy dan bukan template authoring baru.
+
+Peran learner-facing bersifat tetap:
+
+- Artikel = satu-satunya bacaan utama untuk belajar bab;
+- Diktat = review pra-ujian yang diturunkan dari Artikel;
+- Flashcard = active recall atas hal yang sudah diajarkan di Artikel.
+
+Baca [editorial-guide.md](editorial-guide.md) dan [flashcard-guide.md](flashcard-guide.md) sebelum drafting.
+
 ## Canonical ZIP
 
-Use exactly:
+Gunakan tepat:
 
 ```text
 manifest.json
@@ -10,33 +31,51 @@ entities/products.json
 entities/dependencies.json
 ```
 
-All products are drafts. Every product must use published Idea links, active source references, deterministic generation hashes, and exact dependency hashes. Questions are source ITB examples only; they are never Zyx-original questions.
+Semua product adalah draft. Setiap product harus memakai published Idea links, active source references, deterministic generation hashes, dan dependency hashes yang tepat.
 
-Article products use Product Bundle V3. The learner document is stored in `sections[]`; each topic has exactly one `learningSectionId`, while overview and summary may cover several Ideas. Each block stores `blockType`, optional title, `contentMarkdown`, `ideaIds`, and `sourceRefs` as separate fields. Use the typed section pedagogy, worked example, formative check, and visual payloads returned by the current `workflow.get_contract`; do not embed compatibility JSON inside Markdown.
+Article V3 disimpan dalam `sections[]`; setiap topic memiliki tepat satu `learningSectionId`, sementara overview dan summary boleh mencakup beberapa Idea. Setiap block menyimpan `blockType`, optional `title`, `contentMarkdown`, `ideaIds`, dan `sourceRefs` sebagai field terpisah. Gunakan typed section pedagogy, worked example, formative check, visual, evaluation, dan feedback payload dari `workflow.get_contract` terbaru; jangan menaruh compatibility JSON di Markdown.
 
 ## Quality gates
 
-MCP checks typed products, checksums, source and Idea provenance, chapter scope, published Idea versions and semantic hashes, dependency freshness, holdout markers, semantic Article compiler gates, question and solution links, flashcard atomicity, Diktat lineage, and ITB reference identity. The content gate checks every topic objective, prerequisite plan, explanation sequence, understanding check and explanation, provenance, Idea coverage, estimated learning time, final chapter check, and Diktat coverage.
+MCP memeriksa typed product, checksum, source/Idea provenance, chapter scope, published Idea version/hash, dependency freshness, holdout marker, semantic Article compiler gates, formative checks, flashcard atomicity, Diktat lineage, formula, dan Idea coverage.
 
-`publicationBlocked`, stale Idea links, missing chapter, or any blocking quality issue prevents validation and submission. MCP green is necessary but not sufficient: the learner-facing preflight in [editorial-guide.md](editorial-guide.md) must also pass, including zero internal-ID leaks.
+Author preflight tetap wajib dan harus memeriksa hal yang tidak cukup dijamin schema:
+
+- Artikel self-contained untuk first learning;
+- tidak ada fakta learner-facing pada Diktat/flashcard yang belum diajarkan di Artikel;
+- Diktat benar-benar ringkas untuk review;
+- flashcard hanya satu recall target dan tidak duplikat/filler;
+- zero internal-ID leak;
+- penjelasan, contoh, cek, jawaban, dan pembahasan cukup untuk tujuan belajar.
+
+`publicationBlocked`, stale Idea links, missing chapter, atau blocking quality issue mencegah validation/submission. `valid: true` diperlukan tetapi tidak cukup untuk menyatakan konten layak publish.
 
 ## MCP tool sequence
 
-1. Use the same scoped `idea_product` run and fresh published Idea context. Record the run ID, contract checksum, Source Pack checksum, published Idea versions and hashes, and intended Product Bundle checksum at every checkpoint. If no run exists and the request only names a course and chapter, create the validated Source Pack through `$zyx-source-pack-mcp` from stored PDFs before starting the run.
-2. Plan prerequisites, sequence, representations or visuals, examples, checks, answers, and explanations before building Article. Build Article first, then Diktat, flashcards, ITB examples, solutions, and blueprint.
-3. Call `authoring.validate_product_bundle` during each revision loop (`authoring:read`).
-4. Call `authoring.submit_product_bundle` only when the report is green (`authoring:stage`).
-5. For existing staged or published Product Bundles:
-   - Call `authoring.list_imports { bundleType: "product" }` to inspect staged inventory (`authoring:read`).
-   - Call `authoring.get_import { bundleType: "product", importId }` to inspect validation reports and review history without exposing storage keys or reviewer IDs (`authoring:read`).
-   - Call `authoring.restage_product_bundle` to revalidate and replace an unreviewed or draft import with matching bundle ID and run scope (`authoring:stage`).
-   - Call `authoring.discard_product_draft` to permanently remove a draft Product Bundle and staging artifacts (`authoring:withdraw`). Cannot discard published or withdrawn bundles.
-   - Call `authoring.review_product_bundle` to record an immutable review decision with notes (`authoring:review`).
-   - Call `authoring.withdraw_product_bundle` to execute an audited, idempotent, destructive withdrawal of a published Product Bundle (`authoring:withdraw`).
-6. Stop condition: Admin reviews, renders or previews the Diktat PDF, edits, and publishes the staged draft via Zyx admin UI. MCP does not provide a publication tool (`authoring:publish` is not supported). Destructive lifecycle tools must never be invoked autonomously without explicit instruction.
+1. Gunakan run `idea_product` dengan scope yang sama dan published Idea context yang fresh. Catat run ID, contract checksum, Source Pack checksum, Idea versions/hashes, dan intended Product checksum.
+2. Jika Source Pack belum tersedia dan prompt hanya menyebut course/chapter, jalankan `$zyx-source-pack-mcp` dari stored PDFs.
+3. Rencanakan setiap topic sebelum menulis: prerequisite, objective, sequence, representation/visual, example, formative check, answer, explanation, misconception/boundary.
+4. Bangun **Artikel lebih dulu sampai self-contained**.
+5. Turunkan Diktat dari Artikel yang sudah lengkap; jangan menambah fakta baru.
+6. Buat flashcard hanya dari recall target yang sudah ada di Artikel; jalankan `flashcard-guide.md`.
+7. Jalankan author preflight `editorial-guide.md` dan flashcard preflight.
+8. Panggil `authoring.validate_product_bundle` (`authoring:read`).
+9. Perbaiki issue, ulangi author preflight, lalu validasi ulang. Jangan mengurangi konten penting hanya untuk mengejar metric.
+10. Panggil `authoring.submit_product_bundle` hanya bila MCP hijau, preflight author lulus, dan staging diminta (`authoring:stage`).
+11. Untuk existing Product imports, gunakan lifecycle tool sesuai SKILL.md; destructive/review mutations tidak boleh dijalankan tanpa instruksi eksplisit.
 
-## Resume and evidence
+## Resume dan evidence
 
-Resume only when the artifact checksum, run ID, contract checksum, course and chapter scope, Source Pack checksum, published Idea versions and hashes, and dependency freshness match the checkpoint. A remembered success from an earlier conversation is not evidence. If any value differs, enter stale context, refresh the contract, and revalidate affected artifacts.
+Resume hanya bila artifact checksum, run ID, contract checksum, course/chapter scope, Source Pack checksum, published Idea versions/hashes, dan dependency freshness cocok dengan checkpoint. Ingatan sesi lama bukan evidence.
 
-Keep these decisions separate in reports: author preflight, MCP validation, admin pedagogic review, PDF render evidence, and publication readiness. Never infer admin approval from MCP green or infer PDF quality without a rendered artifact and inspected pages.
+Jika salah satu berubah, refresh contract/context dan revalidate artifact yang terdampak.
+
+Pisahkan dalam laporan:
+
+1. author preflight;
+2. MCP validation;
+3. admin pedagogic review;
+4. Diktat PDF render evidence;
+5. publication readiness.
+
+Jangan infer admin approval dari MCP green. Jangan infer kualitas/page count PDF tanpa artifact render nyata dan inspeksi halaman. MCP tidak menyediakan publication tool.
