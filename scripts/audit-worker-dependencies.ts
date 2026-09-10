@@ -3,10 +3,10 @@ import * as path from "node:path";
 import process from "node:process";
 
 /**
- * Static analysis for the Deno background worker dependency graph.
+ * Static analysis for the deployed Deno background worker dependency graph.
  *
  * It verifies two things:
- * 1. `jobs/compute.ts` and all transitive internal dependencies stay Deno-safe.
+ * 1. `workers/deno-background/main.ts` and all transitive internal dependencies stay Deno-safe.
  * 2. When `--check-deploy-paths` is passed, every internal dependency is covered
  *    by the marked deploy path list in `.github/workflows/deploy.yml`.
  *
@@ -16,7 +16,7 @@ import process from "node:process";
  */
 
 const ROOT_DIR = process.cwd();
-const ENTRY_FILE = path.join(ROOT_DIR, "jobs", "compute.ts");
+const ENTRY_FILE = path.join(ROOT_DIR, "workers", "deno-background", "main.ts");
 const DEPLOY_WORKFLOW_FILE = path.join(ROOT_DIR, ".github", "workflows", "deploy.yml");
 const DEPLOY_PATHS_BEGIN = "# BEGIN DENO_DEPLOY_PATHS";
 const DEPLOY_PATHS_END = "# END DENO_DEPLOY_PATHS";
@@ -190,7 +190,7 @@ function validateDeployPathCoverage(dependencies: string[]): string[] {
   return uncovered;
 }
 
-console.log("Starting static dependency audit for jobs/compute.ts...");
+console.log("Starting static dependency audit for workers/deno-background/main.ts...");
 traverse(ENTRY_FILE);
 
 const dependencies = [...visited]
