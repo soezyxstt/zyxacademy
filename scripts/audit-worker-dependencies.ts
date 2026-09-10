@@ -5,21 +5,18 @@ import process from "node:process";
 /**
  * Static analysis for the deployed Deno background worker dependency graph.
  *
- * It verifies two things:
- * 1. `workers/deno-background/main.ts` and all transitive internal dependencies stay Deno-safe.
- * 2. When `--check-deploy-paths` is passed, every internal dependency is covered
- *    by the marked deploy path list in `.github/workflows/deploy.yml`.
+ * It starts from `workers/deno-background/main.ts`, walks every transitive
+ * internal dependency, and fails when the deployed graph imports packages that
+ * are not safe for the Deno worker runtime.
  *
- * The second check prevents a new shared dependency from being added without
- * also updating the GitHub Actions path filter that decides whether Deno must
- * be redeployed.
+ * Deployment trigger decisions live in `.github/workflows/deploy.yml`. This
+ * script intentionally does not mirror or validate GitHub Actions `paths`
+ * entries; callers can use `--dependency-output=<file>` to consume the computed
+ * graph directly instead of maintaining a second hand-written dependency list.
  */
 
 const ROOT_DIR = process.cwd();
 const ENTRY_FILE = path.join(ROOT_DIR, "workers", "deno-background", "main.ts");
-const DEPLOY_WORKFLOW_FILE = path.join(ROOT_DIR, ".github", "workflows", "deploy.yml");
-const DEPLOY_PATHS_BEGIN = "# BEGIN DENO_DEPLOY_PATHS";
-const DEPLOY_PATHS_END = "# END DENO_DEPLOY_PATHS";
 
 const FORBIDDEN_PATTERNS = [
   { pattern: /^next(\/.*)?$/, label: "Next.js (next/*)" },
@@ -30,15 +27,7 @@ const FORBIDDEN_PATTERNS = [
   { pattern: /^sharp$/, label: "Sharp (native image processor)" },
 ];
 
-const REQUIRED_DEPLOY_PATHS = [
-  "workers/deno-background/**",
-  "deno.json",
-  "deno.lock",
-  ".github/workflows/deploy.yml",
-];
-
 const args = process.argv.slice(2);
-const checkDeployPaths = args.includes("--check-deploy-paths");
 const listDependencies = args.includes("--list");
 const outputArg = args.find((arg) => arg.startsWith("--dependency-output="));
 const dependencyOutput = outputArg?.slice("--dependency-output=".length);
@@ -129,67 +118,6 @@ function traverse(filePath: string, callStack: string[] = []) {
   }
 }
 
-function extractDeployPathPatterns(): string[] {
-  const workflow = fs.readFileSync(DEPLOY_WORKFLOW_FILE, "utf-8");
-  const lines = workflow.split(/\r?\n/);
-  const beginIndex = lines.findIndex((line) => line.trim() === DEPLOY_PATHS_BEGIN);
-  const endIndex = lines.findIndex((line, index) => index > beginIndex && line.trim() === DEPLOY_PATHS_END);
-
-  if (beginIndex < 0 || endIndex < 0) {
-    throw new Error(
-      `Could not find ${DEPLOY_PATHS_BEGIN} / ${DEPLOY_PATHS_END} markers in .github/workflows/deploy.yml`,
-    );
-  }
-
-  const patterns: string[] = [];
-  for (const line of lines.slice(beginIndex + 1, endIndex)) {
-    const match = line.match(/^\s*-\s+['"]([^'"]+)['"]\s*$/);
-    if (match) patterns.push(match[1]);
-  }
-
-  if (patterns.length === 0) {
-    throw new Error("Marked Deno deploy path list is empty.");
-  }
-
-  return patterns;
-}
-
-function matchesDeployPattern(filePath: string, pattern: string): boolean {
-  if (pattern.endsWith("/**")) {
-    const prefix = pattern.slice(0, -3).replace(/\/$/, "");
-    return filePath === prefix || filePath.startsWith(`${prefix}/`);
-  }
-  return filePath === pattern;
-}
-
-function validateDeployPathCoverage(dependencies: string[]): string[] {
-  const patterns = extractDeployPathPatterns();
-  const missingRequiredPatterns = REQUIRED_DEPLOY_PATHS.filter((required) => !patterns.includes(required));
-
-  if (missingRequiredPatterns.length > 0) {
-    console.error("\n[DEPLOY PATH AUDIT FAILED] Required Deno deploy paths are missing:");
-    for (const required of missingRequiredPatterns) {
-      console.error(`  - ${required}`);
-    }
-    return missingRequiredPatterns.map((pattern) => `[required pattern] ${pattern}`);
-  }
-
-  const uncovered = dependencies.filter(
-    (dependency) => !patterns.some((pattern) => matchesDeployPattern(dependency, pattern)),
-  );
-
-  if (uncovered.length > 0) {
-    console.error("\n[DEPLOY PATH AUDIT FAILED] Worker dependencies not covered by push.paths:");
-    for (const dependency of uncovered) {
-      console.error(`  - ${dependency}`);
-    }
-  } else {
-    console.log("\n[DEPLOY PATH AUDIT PASSED] Every worker dependency is covered by the Deno deploy path filter.");
-  }
-
-  return uncovered;
-}
-
 console.log("Starting static dependency audit for workers/deno-background/main.ts...");
 traverse(ENTRY_FILE);
 
@@ -200,8 +128,9 @@ const dependencies = [...visited]
 console.log(`Audited ${dependencies.length} internal files in worker dependency graph.`);
 
 if (dependencyOutput) {
-  fs.mkdirSync(path.dirname(path.resolve(ROOT_DIR, dependencyOutput)), { recursive: true });
-  fs.writeFileSync(path.resolve(ROOT_DIR, dependencyOutput), `${dependencies.join("\n")}\n`, "utf-8");
+  const outputPath = path.resolve(ROOT_DIR, dependencyOutput);
+  fs.mkdirSync(path.dirname(outputPath), { recursive: true });
+  fs.writeFileSync(outputPath, `${dependencies.join("\n")}\n`, "utf-8");
 }
 
 if (listDependencies) {
@@ -211,27 +140,14 @@ if (listDependencies) {
   }
 }
 
-let failed = false;
-
 if (violations.length > 0) {
-  failed = true;
   console.error("\n[AUDIT FAILED] Forbidden dependencies detected in worker graph:");
   for (const violation of violations) {
     console.error(`  - In ${violation.file}: imports "${violation.imported}" (${violation.label})`);
     console.error(`    Trace: ${violation.chain.join(" -> ")}`);
   }
-} else {
-  console.log("\n[AUDIT PASSED] Zero forbidden dependencies detected in worker graph.");
-  console.log("All modules are framework-neutral and compatible with Deno execution.");
+  process.exit(1);
 }
 
-if (checkDeployPaths) {
-  try {
-    if (validateDeployPathCoverage(dependencies).length > 0) failed = true;
-  } catch (error) {
-    failed = true;
-    console.error(`\n[DEPLOY PATH AUDIT FAILED] ${error instanceof Error ? error.message : String(error)}`);
-  }
-}
-
-process.exit(failed ? 1 : 0);
+console.log("\n[AUDIT PASSED] Zero forbidden dependencies detected in worker graph.");
+console.log("All modules are framework-neutral and compatible with Deno execution.");
