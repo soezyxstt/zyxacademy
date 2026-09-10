@@ -19,6 +19,14 @@ entities/learning-sections.json
 
 Manifest dan entity memakai deterministic SHA-256. Stable IDs opaque; jangan turunkan ID dari label, slug, filename, atau chapter title. Setiap Idea muncul tepat sekali di `primaryIdeaIds`; supporting membership boleh berulang. Section slug unik/stabil, sibling order unik, parent acyclic, hierarchy depth maksimal tiga.
 
+## Bukti sebelum packaging
+
+Simpan tabel fragment-ke-Idea/bukti pendukung dari decomposition guide di luar ZIP. Tabel harus mencakup isi bermakna termasuk contoh, soal dan solusi sumber tanpa menjadikannya produk asesmen.
+
+Ambil bentuk field lengkap, offset convention, canonical serialization, dan hash rules dari schema/context resmi. Hitung offset dengan pencarian pada teks sumber final yang dinormalisasi, lalu cocokkan substring dan checksum; jangan menghitung offset manual atau menganggap byte = character untuk Unicode. Jangan menormalisasi ulang source setelah offset ditetapkan.
+
+Bangun checksum entity/file dahulu, lalu manifest dan bundle checksum sesuai kontrak. Checksum ZIP mentah berbeda dari checksum bundle. Buka ulang ZIP final, parse semua JSON, periksa inventory/path/mode dan referensi silang sebelum MCP validation. Submit byte artifact yang sama dengan validasi terakhir; revisi mewajibkan rebuild checksum terkait.
+
 ## Author decomposition gate
 
 Sebelum MCP validation:

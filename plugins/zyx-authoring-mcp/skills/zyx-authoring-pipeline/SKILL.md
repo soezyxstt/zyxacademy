@@ -30,6 +30,16 @@ Baca [references/workflow.md](references/workflow.md) sebelum mulai/resume.
 
 Jika reference lama atau artifact legacy bertentangan dengan batas Product V3, jangan meniru legacy untuk authoring baru.
 
+## Keputusan awal yang tidak boleh ditebak
+
+Artikel adalah satu-satunya source of truth bacaan mahasiswa; Source Pack/Idea tetap bukti internal, bukan bacaan alternatif. Gunakan matriks ketuntasan dan turunan pada skill Product sebagai bukti exit gate, bukan pernyataan “konten sudah baik”.
+
+Kunci scope dan target dari percakapan. Jika operator sudah meminta staging pipeline dalam scope itu, otorisasi mencakup submit Idea dan Product yang diperlukan; jangan bertanya ulang pada setiap checkpoint. Tetap berhenti untuk publication Idea oleh admin karena MCP tidak menyediakan publish. Jika hanya validasi diminta, hasil sementara berhenti pada `IDEA_VALIDATED` sampai prerequisite publication tersedia.
+
+Reuse Source Pack atau published Idea yang memenuhi scope dan checksum. Jangan menghasilkan Idea duplikat hanya agar mengikuti urutan tahap pada pipeline baru. Jika hanya satu tahap diminta, gunakan skill tahap itu dan selesaikan hasil yang diminta tanpa memperluas ke pipeline.
+
+Catatan rencana/checkpoint bukan entity payload dan berada di luar ZIP. Jangan simpan credential, run token, sourcePackToken, fileKey, atau connection token dalam laporan/checkpoint; simpan identitas/checksum non-secret dan ambil token fresh saat resume.
+
 ## Otorisasi
 
 Satu prompt dapat menetapkan tujuan akhir, tetapi tidak menghapus checkpoint, quality gate, atau kewenangan admin. Secara default, permintaan membuat pipeline mengizinkan artifact creation dan read-only validation.
@@ -58,7 +68,7 @@ Gunakan opaque choices MCP untuk scope; jangan meminta/menebak ID teknis. Konfir
 3. Kunci run `idea_product`, course/chapter, Source Pack, dan contract aktif.
 4. Jalankan `$zyx-idea-bundle-mcp` sampai **author decomposition preflight + MCP validation** lulus.
 5. Submit Idea hanya bila diotorisasi.
-6. Setelah Idea staged, berhenti pada `WAITING_IDEA_PUBLICATION`. Product tidak boleh dibuat dari Idea draft/unpublished.
+6. Setelah Idea staged dan belum published, berhenti pada `WAITING_IDEA_PUBLICATION`. Jika published Idea yang sesuai sudah terverifikasi, langsung lanjutkan gate Product tanpa membuat/submit ulang Idea. Product tidak boleh dibuat dari Idea draft/unpublished.
 7. Saat resume, verifikasi checkpoint: artifact checksum, run ID, contract checksum, scope, Source Pack checksum, published Idea versions/hashes, source excerpt, dan dependency freshness. Jangan mengandalkan ingatan sesi.
 8. Jalankan `$zyx-product-bundle-mcp`. Wajib membuat Artikel lebih dulu sampai self-contained, baru menurunkan Diktat dan flashcard. Luluskan Product author preflight + flashcard preflight + MCP validation.
 9. Submit Product hanya bila diotorisasi.
@@ -97,7 +107,7 @@ Masuk `NEEDS_OPERATOR_DECISION`, `BLOCKED_BY_VALIDATION`, atau `STALE_CONTEXT` b
 - course/chapter ambigu;
 - source reconciliation belum tuntas;
 - pemecahan/relation Idea butuh judgment substantif;
-- warning near-duplicate/formula trace belum diputuskan;
+- warning near-duplicate/formula trace tetap belum terselesaikan setelah dibandingkan dengan bukti;
 - Product tidak dapat dibuat self-contained dari evidence;
 - Idea belum terbukti published;
 - submission belum diotorisasi;

@@ -4,7 +4,7 @@ Baca bersama [question-quality.md](question-quality.md). File ini menjelaskan ko
 
 ## Host setup
 
-Endpoint MCP staging: `https://staging.zyxacademy.com/api/mcp/authoring`.
+Gunakan koneksi/environment yang dipilih operator. Endpoint `https://staging.zyxacademy.com/api/mcp/authoring` hanya untuk staging; jangan berpindah environment karena menyalin contoh ini. Verifikasi identitas environment dari koneksi sebelum staging.
 
 Gunakan OAuth admin pada host yang mendukung. Host tanpa OAuth interaktif memakai connection token sesuai prosedur Zyx; jangan simpan credential/token di repository, artifact, atau config yang dikomit.
 
@@ -49,9 +49,9 @@ Schema storage/draft dapat tetap membaca soal lama tanpa `ideaLinks`. Itu **buka
 Untuk setiap soal baru atau `zyx_original` yang diperbarui melalui skill:
 
 - minimal satu Idea published dalam scope wajib ditautkan;
-- tepat satu Idea/kemampuan dipilih sebagai target utama secara pedagogis;
+- tepat satu link `role: "primary"` dipilih untuk target utama;
 - supporting/required link hanya bila benar-benar dibutuhkan;
-- bobot positif seluruh `ideaLinks` harus berjumlah tepat 1;
+- bobot positif seluruh `ideaLinks` harus berjumlah tepat 1; satu Idea memakai bobot 1. Untuk beberapa Idea, tentukan bagian penalaran yang dinilai tiap Idea, normalkan proporsinya, dan periksa total setelah pembulatan. Jangan memberi link pada konsep yang hanya disebut dalam cerita;
 - Idea yang sama tidak boleh muncul dua kali.
 
 Jika MCP masih menerima unlinked question karena kompatibilitas, author preflight harus menolaknya.
@@ -68,6 +68,14 @@ Sebelum membuat soal untuk satu Idea:
 Gap yang sah antara lain: belum ada target tertentu, cognitive level berbeda, reasoning pattern penting, question type yang sesuai, difficulty yang diperlukan, representasi lain, atau miskonsepsi yang belum diuji.
 
 Perubahan angka/konteks tanpa perubahan target/reasoning bukan gap.
+
+## Batas bukti katalog dan Artikel
+
+`assessment.list_questions` tidak menjamin semua soal target tercakup oleh pencarian judul. Gunakan paging, filter scope/origin, dan detail Idea links untuk kandidat pembanding. Catat filter, halaman terakhir/next offset, dan jumlah detail dibaca. Bila cakupan belum lengkap, sebut “tidak ditemukan duplikat pada kandidat yang diperiksa”, bukan “bank bebas duplikat”. Lanjutkan pemeriksaan yang diperlukan sebelum mengklaim gap di seluruh scope.
+
+`knowledge.list_products`/`knowledge.get_product` dapat membantu menemukan identitas Artikel bila tersedia pada run. Saat skill ini ditulis, detail Artikel hanya mengembalikan metadata dan Idea links, bukan body bacaan. Gunakan artifact Artikel atau resource isi yang benar-benar tersedia untuk alignment; jangan mengarang tool baca Artikel, parameter `includeContent`, atau menyimpulkan coverage isi dari `ideaCount`.
+
+Historical reference yang kosong bukan blocker soal original. Jika referensi tidak tersedia, lanjutkan gap analysis dari Idea dan bank yang terbaca, lalu laporkan lineage kosong. Hentikan hanya bila referensi spesifik memang menjadi prasyarat permintaan.
 
 ## Historical reference sebagai konteks read-only
 
@@ -87,29 +95,39 @@ Jika operator ingin menyimpan wording historical verbatim, berhenti dan gunakan 
 
 ## Draft `question-bank-draft.v2`
 
-Field dasar per soal mengikuti contract aktif dan umumnya mencakup:
+Envelope draft berisi 1 sampai 500 soal menurut schema saat skill ini ditulis. Jika jumlah melebihi batas aktif, bagi menjadi draft dengan identity berbeda yang stabil, tetap dedup lintas batch, dan laporkan total. Contoh lengkap struktur:
 
 ```json
 {
-  "id": "q-example-01",
-  "questionType": "multiple_choice",
-  "difficulty": "medium",
-  "cognitiveLevel": "apply",
-  "reasoningPattern": "direct_application",
-  "tags": ["subtopik"],
-  "prompt": "Teks pertanyaan",
-  "options": ["..."],
-  "correctIndices": [0],
-  "acceptableAnswers": [],
-  "explanation": "Pembahasan lengkap",
-  "ideaLinks": [
-    { "ideaId": "<published scoped Idea>", "weight": 1, "role": "primary" }
-  ],
-  "referenceLinks": []
+  "schemaVersion": "question-bank-draft.v2",
+  "draftId": "draft-example-01",
+  "questions": [
+    {
+      "id": "q-example-01",
+      "questionType": "multiple_choice",
+      "difficulty": "easy",
+      "cognitiveLevel": "apply",
+      "reasoningPattern": "direct_application",
+      "tags": ["pertaksamaan-linear"],
+      "prompt": "Selesaikan -2x > 6.",
+      "options": ["x > -3", "x < -3", "x < 3", "x > 3"],
+      "correctIndices": [1],
+      "acceptableAnswers": [],
+      "explanation": "Bagi kedua ruas dengan -2. Karena pembaginya negatif, arah pertaksamaan berbalik sehingga x < -3. Nilai x = -4 memberi 8 > 6, sedangkan batas x = -3 tidak memenuhi pertaksamaan ketat. Opsi pertama gagal membalik arah; opsi ketiga salah tanda batas; opsi keempat salah tanda sekaligus arah.",
+      "ideaLinks": [
+        { "ideaId": "REPLACE_WITH_PUBLISHED_SCOPED_IDEA", "weight": 1, "role": "primary" }
+      ],
+      "referenceLinks": []
+    }
+  ]
 }
 ```
 
-Contoh hanya ilustrasi. `workflow.get_contract` dan tool schema aktif menang untuk field/enum aktual.
+Contoh envelope di atas hanya ilustrasi. Ganti identity lokal sesuai aturan idempotency dan placeholder Idea dengan hasil katalog; jangan submit contoh mentah atau memakai topiknya di luar scope. Gunakan `draftJson` berupa serialisasi envelope lengkap, bukan array `questions` saja.
+
+Untuk `short_answer`/`essay`, `options` dan `correctIndices` kosong. Short answer memiliki `acceptableAnswers` yang terverifikasi; essay memakai pembahasan/model jawaban dan tidak mengarang kunci deterministik. Untuk MC/multi-select, `acceptableAnswers` kosong dan indeks harus cocok dengan opsi final.
+
+`workflow.get_contract` dan tool schema aktif menang untuk field/enum aktual.
 
 ## Author preflight sebelum MCP
 
@@ -139,7 +157,7 @@ Jangan memakai MCP validator sebagai first-pass editor.
 
 ## Pengeditan
 
-`assessment.update_question` hanya untuk `zyx_original` yang editable dalam scope. Jangan edit `historical_reference`, `itb_example`, published/retired item yang ditolak lifecycle, atau item di luar scope. Setelah update, jalankan ulang preflight dan terima reset review status sesuai service.
+`assessment.update_question` hanya untuk `zyx_original` yang editable dalam scope. Jangan edit `historical_reference`, `itb_example`, published/retired item yang ditolak lifecycle, atau item di luar scope. Sebelum update, ambil detail terbaru, jalankan preflight, dan validasi representasi draft revisinya bila tool mendukung. Jangan baru memeriksa isi setelah mutation. Setelah update, baca kembali item untuk mencocokkan field, Idea links, dan reset review status sesuai service.
 
 ## Error handling
 

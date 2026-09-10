@@ -7,7 +7,7 @@ Gunakan panduan ini untuk semua soal `zyx_original` yang dibuat atau diperbarui 
 Setiap soal baru atau soal `zyx_original` yang diperbarui wajib:
 
 1. memiliki minimal satu `ideaLink` ke Idea published dalam scope;
-2. memiliki **tepat satu target utama** yang dinilai;
+2. memiliki **tepat satu target utama** yang dinilai dan tepat satu link `role: "primary"`;
 3. memakai Idea lain hanya sebagai `supporting` atau `required` bila benar-benar dibutuhkan untuk menyelesaikan target utama;
 4. memiliki jawaban/kunci yang dapat dibuktikan dari Idea/source yang tersedia;
 5. memiliki pembahasan yang menjelaskan alasan, bukan hanya menyebut jawaban;
@@ -33,6 +33,14 @@ Historical relation: <none | inspired_by | adapted_from | derived_from>
 ```
 
 Jangan mulai dari “buat soal hard” lalu mencari materi yang cocok. Mulai dari Idea dan target belajar, baru pilih bentuk soal.
+
+## Catatan bukti per soal
+
+Tambahkan ke rencana internal: gap yang ditutup, ID/detail soal pembanding yang dibaca, lokasi bukti Idea/source, lokasi Artikel bila isi tersedia, derivasi jawaban, dan hasil setiap opsi. Rencana ini tidak dikirim sebagai field draft baru.
+
+Untuk pembatasan “hanya dari Artikel”, setiap konsep/kondisi yang diperlukan solusi harus ada pada teks Artikel yang dibaca. Data hipotetis baru boleh diletakkan lengkap pada stem untuk menerapkan aturan yang sudah diajarkan; jangan mengubahnya menjadi klaim fakta dunia nyata tanpa sumber. Jika Artikel belum tersedia dan tugas hanya meminta draft Idea-linked, laporkan `Article alignment: NOT_VERIFIED`, jangan mengklaim ready untuk ujian berbasis Artikel.
+
+Jangan membuat default jumlah atau distribusi yang mengalahkan permintaan operator. Jika jumlah tidak ditentukan, buat satu kandidat per gap berbeda yang dapat dibuktikan dan laporkan cakupan yang dipilih. Penuhi batas yang diminta atau laporkan kekurangan secara eksplisit.
 
 ## Cognitive level operasional
 
@@ -61,7 +69,7 @@ Dilarang menaikkan difficulty dengan angka besar, aritmetika membosankan, kalima
 
 ### Multiple choice
 
-Gunakan bila ada satu jawaban terbaik yang dapat dinilai deterministik. Untuk authoring baru, targetkan empat opsi bila kontrak tidak menentukan lain.
+Gunakan bila tepat satu opsi benar di bawah asumsi stem. Untuk authoring baru, gunakan empat opsi jika operator/contract tidak menentukan lain. Bila tiga distraktor yang masuk akal tidak dapat dibuat, revisi stem atau pilih tipe yang sesuai jika operator tidak mengunci tipe; jangan isi opsi acak.
 
 Distraktor harus masuk akal bagi mahasiswa yang punya miskonsepsi tertentu. Prioritas sumber distraktor:
 
@@ -74,7 +82,7 @@ Jangan membuat distraktor dari angka acak atau pernyataan jelas tidak masuk akal
 
 ### Multiple choices
 
-Gunakan hanya bila beberapa pilihan secara independen dapat benar dan kombinasi itu memang bagian dari target belajar. Jangan mengubah soal single-answer menjadi multi-answer hanya untuk variasi.
+Gunakan hanya bila beberapa pilihan secara independen dapat benar dan kombinasi itu memang bagian dari target belajar. Stem wajib mengatakan “Pilih semua jawaban yang benar”. Harus ada minimal dua opsi benar dan minimal satu salah untuk authoring baru; `correctIndices` memuat seluruh opsi benar tanpa duplikat. Jangan mengubah soal single-answer menjadi multi-answer hanya untuk variasi.
 
 ### Short answer
 
@@ -97,6 +105,24 @@ Stem harus:
 
 Untuk soal numerik, hitung jawaban secara independen sebelum finalisasi. Pastikan satuan, pembulatan, domain, tanda, dan toleransi konsisten. Jangan mengubah angka pada historical reference dan lalu menyebut soal itu sebagai referensi historis; soal hasil adaptasi tetap `zyx_original` dengan lineage yang tepat.
 
+## Pemeriksaan kunci dan opsi sebelum payload
+
+1. Selesaikan stem tanpa melihat opsi. Simpan hasil dan langkah pemeriksaannya.
+2. Verifikasi dengan substitusi balik, cara kedua, pemeriksaan domain/satuan, atau penelusuran bukti untuk soal konseptual. Mengulang teks pembahasan bukan verifikasi independen.
+3. Evaluasi setiap opsi di bawah asumsi stem. Catat benar/salah dan alasan; setiap distraktor harus punya pola salah yang spesifik.
+4. Periksa ekuivalensi: `1/2` dan `0,5` bukan dua opsi berbeda jika keduanya menjawab hal yang sama. Periksa pula overlap, rentang, pembulatan, dan kondisi tersembunyi.
+5. Setelah urutan opsi final, bentuk `correctIndices` dengan indeks **mulai 0**. Bila opsi diubah/diacak, hitung ulang indeks dan cocokkan dengan pembahasan.
+6. Untuk short answer, gunakan hanya bentuk yang evaluator dukung. Jangan mengirim field `tolerance` atau `unit` milik cek Artikel ke draft soal. Jika toleransi numerik/equivalence yang dibutuhkan tidak tersedia, ubah format jawaban menjadi exact yang jelas atau gunakan tipe lain yang diizinkan.
+7. Untuk essay, isi model jawaban, elemen yang wajib dinilai, dan alasan dalam `explanation`; jangan mengarang field rubric runtime jika schema tidak memilikinya.
+
+Contoh editorial, hanya jika aturannya ada pada Idea/source scope:
+
+- Stem: “Selesaikan -2x > 6.” Hasil independen: x < -3.
+- Opsi final: `["x > -3", "x < -3", "x < 3", "x > 3"]`, sehingga `correctIndices: [1]`.
+- Opsi 0 salah karena tidak membalik arah saat membagi negatif; opsi 2 salah tanda batas; opsi 3 salah tanda dan arah. Pembahasan harus menyebut pembagian negatif dan memeriksa nilai contoh/domain, bukan hanya “B benar”.
+
+Jangan memakai contoh ini sebagai payload siap submit atau mengganti angka saja untuk menambah bank.
+
 ## Historical reference
 
 Historical reference adalah konteks read-only untuk memahami bentuk ujian nyata dan gap bank soal.
@@ -116,7 +142,8 @@ Sebelum membuat soal baru untuk satu Idea:
 1. baca soal Zyx original yang sudah ada untuk Idea tersebut;
 2. bandingkan target, reasoning pattern, representasi, dan jebakan utama;
 3. jangan membuat soal baru jika yang berubah hanya angka, nama benda, atau susunan kalimat;
-4. buat soal baru hanya jika ia menutup gap target, tingkat kognitif, tipe soal, difficulty, atau miskonsepsi yang nyata.
+4. buat soal baru hanya jika ia menutup gap target, tingkat kognitif, tipe soal, difficulty, atau miskonsepsi yang nyata;
+5. bandingkan juga dengan seluruh kandidat draft yang sedang dibuat; jangan hanya dedup terhadap bank lama. Label difficulty/type berbeda tidak membuktikan gap jika pekerjaan mentalnya tetap sama.
 
 Coverage bukan tujuan jumlah. Satu Idea tidak membutuhkan banyak soal yang setara.
 
@@ -127,7 +154,7 @@ Pembahasan harus dapat membantu mahasiswa memperbaiki cara berpikir. Minimal:
 1. nyatakan konsep/aturan yang dipakai;
 2. tunjukkan langkah atau alasan utama;
 3. berikan jawaban akhir dengan satuan/kondisi bila relevan;
-4. untuk pilihan ganda, jelaskan mengapa distraktor utama salah bila itu memberi nilai belajar;
+4. untuk pilihan ganda, jelaskan alasan benar/salah setiap opsi secara ringkas, dengan menggabungkan penjelasan bila beberapa opsi memiliki pola salah yang sama;
 5. jangan hanya menulis “jawaban B karena sesuai rumus”.
 
 Jika soal membutuhkan beberapa langkah, pembahasan harus menunjukkan langkah tersebut. Jika solusi memerlukan fakta yang tidak ada di Idea/source/Artikel yang terkait, soal belum layak.
@@ -136,14 +163,14 @@ Jika soal membutuhkan beberapa langkah, pembahasan harus menunjukkan langkah ter
 
 Sebelum `assessment.validate_quiz_draft`, periksa setiap soal:
 
-- [ ] tepat satu primary target;
+- [ ] tepat satu primary target dan satu link primary;
 - [ ] minimal satu published Idea link dalam scope;
 - [ ] cognitive level sesuai pekerjaan mental nyata;
 - [ ] difficulty berasal dari penalaran, bukan noise;
 - [ ] question type cocok dengan target;
 - [ ] kunci/jawaban sudah diverifikasi;
 - [ ] semua opsi masuk akal dan tidak ambigu bila ada;
-- [ ] tidak ada semantic duplicate dengan bank yang dibaca;
+- [ ] tidak ada semantic duplicate dengan bank yang dibaca maupun kandidat dalam batch lain;
 - [ ] historical lineage jujur bila dipakai;
 - [ ] pembahasan lengkap dan dapat diajarkan ulang;
 - [ ] learner-facing text bebas ID internal;

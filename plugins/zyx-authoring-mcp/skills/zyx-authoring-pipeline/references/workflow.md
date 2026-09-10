@@ -44,7 +44,7 @@ Jangan memasukkan ITB example, historical question, Zyx original question, solut
 - Jangan mengganti stable identity/scope/source checksum/Idea version/hash/dependency hash secara manual agar validation lolos.
 - Retry identik yang server nyatakan sukses/no-op dicatat tanpa membuat bundle baru.
 - Conflict identity+content menjadi blocker; jangan membuat identity pengganti tanpa dasar contract.
-- Kegagalan berulang yang sama menjadi `BLOCKED_BY_VALIDATION`.
+- Jika issue yang sama tetap muncul setelah dua perbaikan terarah, gunakan `BLOCKED_BY_VALIDATION`. Simpan artifact terakhir, issue, perubahan yang dicoba, dan evidence yang dibutuhkan; jangan retry tanpa perubahan. Warning substantif berarti dapat mengubah fakta, cakupan, kunci, provenance, atau eligibility. Perbaiki atau beri disposition berbukti; warning administratif tidak boleh dipromosikan menjadi blocker tanpa alasan.
 
 ## Mandatory pauses
 
@@ -57,7 +57,7 @@ Jeda jika:
 - warning near-duplicate/formula trace membutuhkan keputusan;
 - Artikel tidak dapat dibuat self-contained dari evidence yang tersedia;
 - Diktat tidak dapat dipadatkan tanpa membuang Idea penting;
-- flashcard membutuhkan fakta yang belum ada di Artikel;
+- fakta Flashcard belum ada di Artikel dan tidak dapat ditambahkan dari sumber dalam scope;
 - submission belum diotorisasi;
 - Idea belum terbukti published;
 - context stale atau dependency publication-blocking.
@@ -81,4 +81,6 @@ Waiting for: <objective condition or operator decision>
 Resume: <one concise instruction>
 ```
 
-Untuk `WAITING_IDEA_PUBLICATION`: “Idea sudah direview dan dipublikasikan; verifikasi melalui MCP lalu lanjutkan ke Product Bundle.”
+Untuk `WAITING_IDEA_PUBLICATION`, tulis kondisi resume: “Setelah admin mempublikasikan Idea, verifikasi status published dan version/hash melalui MCP, lalu lanjutkan Product.” Jangan menulis seolah publication telah terjadi.
+
+Jika scope hanya memiliki metadata Artikel, jangan melaporkan audit self-contained lulus. Jika PDF belum dirender, laporkan `NOT_RENDERED`; draft Product bisa tervalidasi tetapi belum memiliki bukti publication readiness. Matriks author, MCP, admin review, PDF, dan publication harus dilaporkan terpisah.
