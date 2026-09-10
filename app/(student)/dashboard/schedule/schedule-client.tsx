@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { CalendarDays } from "lucide-react";
 import { toast } from "@/components/ui/toast";
@@ -18,8 +18,6 @@ import {
   SessionDetailDrawer,
   type PendingSessionResource,
 } from "@/components/schedule/session-detail-drawer";
-import { daysFrom, getJakartaNow, getWeekScheduleDays } from "@/lib/date-utils";
-import { isTutorialWeekLocked } from "@/lib/schedule/week-policy";
 
 function LoadingState() {
   return (
@@ -31,6 +29,7 @@ function LoadingState() {
 
 export function StudentScheduleClient() {
   const [data, setData] = useState<any>(null);
+  const [dataWeekOffset, setDataWeekOffset] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [weekOffset, setWeekOffset] = useState(0);
   const [bookingSlotData, setBookingSlotData] = useState<{ slot: any; dateIso: string } | null>(null);
@@ -46,6 +45,7 @@ export function StudentScheduleClient() {
     const cached = !force ? weekCache.current.get(offset) : null;
     if (cached) {
       setData(cached);
+      setDataWeekOffset(offset);
       setLoading(false);
       return cached;
     }
@@ -56,6 +56,7 @@ export function StudentScheduleClient() {
       weekCache.current.set(offset, nextData);
       if (requestId === activeRequest.current) {
         setData(nextData);
+        setDataWeekOffset(offset);
       }
       return nextData;
     } catch (error) {
@@ -76,7 +77,7 @@ export function StudentScheduleClient() {
   }, [fetchData, weekOffset]);
 
   useEffect(() => {
-    if (!data || loading) return;
+    if (!data || loading || dataWeekOffset !== weekOffset) return;
 
     for (const adjacentOffset of [weekOffset - 1, weekOffset + 1]) {
       if (weekCache.current.has(adjacentOffset)) continue;
@@ -86,25 +87,17 @@ export function StudentScheduleClient() {
         })
         .catch(() => undefined);
     }
-  }, [data, loading, weekOffset]);
+  }, [data, dataWeekOffset, loading, weekOffset]);
 
-  const displayWeekInfo = useMemo(
-    () => getWeekScheduleDays(daysFrom(weekOffset * 7, getJakartaNow())),
-    [weekOffset],
-  );
-  const displayWeekLocked = useMemo(
-    () => isTutorialWeekLocked(displayWeekInfo.startOfWeekIso),
-    [displayWeekInfo.startOfWeekIso],
-  );
+  const activeData = dataWeekOffset === weekOffset ? data : null;
+  if (!activeData) return <LoadingState />;
 
-  if (loading && !data) return <LoadingState />;
-
-  const userObj = data?.user || {};
-  const coursesList = data?.courses || [];
-  const tutorsList = data?.tutors || [];
+  const userObj = activeData.user || {};
+  const coursesList = activeData.courses || [];
+  const tutorsList = activeData.tutors || [];
   const initialCourseFilter = searchParams.get("course") || "all";
   const activeSessionBooking = activeSessionBookingId
-    ? (data?.groupBookings || []).find((booking: any) => booking.id === activeSessionBookingId) || null
+    ? (activeData.groupBookings || []).find((booking: any) => booking.id === activeSessionBookingId) || null
     : null;
 
   return (
@@ -115,17 +108,17 @@ export function StudentScheduleClient() {
         <ScheduleCalendarView
           role="student"
           currentUserId={userObj.id}
-          weekInfo={displayWeekInfo}
-          isWeekLocked={displayWeekLocked}
+          weekInfo={activeData.weekInfo}
+          isWeekLocked={activeData.isWeekLocked}
           weekOffset={weekOffset}
           onWeekChange={setWeekOffset}
           coursesList={coursesList}
           tutorsList={tutorsList}
-          groupsList={data.groups || []}
+          groupsList={activeData.groups || []}
           initialCourseFilter={initialCourseFilter}
-          slots={data.availableSlots || []}
-          bookings={data.groupBookings || []}
-          academicSchedules={data.academicSchedules || []}
+          slots={activeData.availableSlots || []}
+          bookings={activeData.groupBookings || []}
+          academicSchedules={activeData.academicSchedules || []}
           onSelectSlotToBook={(slot, dateIso) => setBookingSlotData({ slot, dateIso })}
           onOpenSessionDetail={(booking) => setActiveSessionBookingId(booking.id)}
           onEditSchedule={(schedule) => setSelectedAcademicSchedule(schedule)}
@@ -140,7 +133,7 @@ export function StudentScheduleClient() {
         slot={bookingSlotData?.slot || null}
         dateIso={bookingSlotData?.dateIso || ""}
         courses={coursesList}
-        groups={data.groups || []}
+        groups={activeData.groups || []}
         onSuccess={async ({ bookingId, pendingResources }) => {
           setPendingSessionResources(pendingResources);
           weekCache.current.delete(weekOffset);
@@ -163,7 +156,7 @@ export function StudentScheduleClient() {
         booking={activeSessionBooking}
         role="student"
         currentUserId={userObj.id}
-        availableSlots={data.availableSlots || []}
+        availableSlots={activeData.availableSlots || []}
         pendingResources={pendingSessionResources}
         onPendingResourcesChange={setPendingSessionResources}
         onSuccess={() => {
