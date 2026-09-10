@@ -5,8 +5,8 @@ import { storage } from "@/lib/storage";
 import { buildCourseThumbnailKey } from "@/lib/storage/keys";
 import { inngest } from "@/lib/inngest";
 
-const THUMBNAIL_POLL_ATTEMPTS = 20;
-const THUMBNAIL_POLL_INTERVAL_MS = 750;
+const THUMBNAIL_POLL_ATTEMPTS = 4;
+const THUMBNAIL_POLL_INTERVAL_MS = 500;
 
 function extractStorageKey(value?: string | null): string | null {
   if (!value) return null;
@@ -97,9 +97,9 @@ export async function GET(
       data: { materialId: target.id, sourceType, sourceVersion },
     });
 
-    // This endpoint is consumed by next/image, which does not honor Retry-After.
-    // Keep the image request alive briefly while the compute worker renders the page.
-    // The worker remains the only renderer; the web tier only polls R2 and repairs DB state.
+    // The client retries transient 202 responses with a cache-busted URL. Keep a
+    // short server-side poll so fast jobs can complete within the first request,
+    // while the web tier remains read/repair/queue only.
     for (let attempt = 0; attempt < THUMBNAIL_POLL_ATTEMPTS; attempt += 1) {
       await new Promise((resolve) => setTimeout(resolve, THUMBNAIL_POLL_INTERVAL_MS));
       const ready = await repairThumbnail();
