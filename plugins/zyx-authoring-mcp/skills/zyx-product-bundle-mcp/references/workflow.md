@@ -35,6 +35,16 @@ Semua product adalah draft. Setiap product harus memakai published Idea links, a
 
 Article V3 disimpan dalam `sections[]`; setiap topic memiliki tepat satu `learningSectionId`, sementara overview dan summary boleh mencakup beberapa Idea. Setiap block menyimpan `blockType`, optional `title`, `contentMarkdown`, `ideaIds`, dan `sourceRefs` sebagai field terpisah. Gunakan typed section pedagogy, worked example, formative check, visual, evaluation, dan feedback payload dari `workflow.get_contract` terbaru; jangan menaruh compatibility JSON di Markdown.
 
+## Urutan membentuk artifact
+
+1. Ambil schema lengkap dan contoh resmi yang cocok dengan V3 dari contract/context/resource yang tersedia. Daftar nama field atau contoh parsial bukan schema lengkap.
+2. Buat entity dengan ID stabil, provenance dan links yang benar. Setelah teks final, gunakan aturan canonical serialization/hash dari contract atau helper resmi yang tersedia, bukan hash hasil pretty-print sembarang.
+3. Hitung hash entity dan dependency sesuai urutan dependensinya, lalu checksum file entity, inventory manifest, dan bundle checksum sesuai kontrak. Checksum ZIP mentah adalah bukti transfer terpisah, bukan pengganti bundle checksum.
+4. Buat ZIP dari direktori bersih berisi tiga file yang diizinkan. Baca kembali ZIP dan JSON; cocokkan inventory, mode, path, links, dan checksum dengan byte yang benar-benar dikirim.
+5. Setelah satu byte konten berubah, bangun ulang hash/checksum yang terdampak sebelum validasi ulang. Submit artifact yang checksum-nya sama dengan hasil validasi terakhir.
+
+Matriks audit, catatan recall target, dan laporan PDF berada di luar ZIP. Jangan menambahkan `articleEvidence`, `recallTarget`, atau field rencana lain jika schema tidak menyediakannya.
+
 ## Quality gates
 
 MCP memeriksa typed product, checksum, source/Idea provenance, chapter scope, published Idea version/hash, dependency freshness, holdout marker, semantic Article compiler gates, formative checks, flashcard atomicity, Diktat lineage, formula, dan Idea coverage.
@@ -53,7 +63,7 @@ Author preflight tetap wajib dan harus memeriksa hal yang tidak cukup dijamin sc
 ## MCP tool sequence
 
 1. Gunakan run `idea_product` dengan scope yang sama dan published Idea context yang fresh. Catat run ID, contract checksum, Source Pack checksum, Idea versions/hashes, dan intended Product checksum.
-2. Jika Source Pack belum tersedia dan prompt hanya menyebut course/chapter, jalankan `$zyx-source-pack-mcp` dari stored PDFs.
+2. Jika Source Pack belum tersedia, selesaikan prasyarat melalui `$zyx-source-pack-mcp` dari stored PDFs dalam scope yang diminta; jangan mulai Product atau membuat Idea baru secara diam-diam. Bila Idea belum published, simpan checkpoint dan laporkan prasyarat tersebut.
 3. Rencanakan setiap topic sebelum menulis: prerequisite, objective, sequence, representation/visual, example, formative check, answer, explanation, misconception/boundary.
 4. Bangun **Artikel lebih dulu sampai self-contained**.
 5. Turunkan Diktat dari Artikel yang sudah lengkap; jangan menambah fakta baru.

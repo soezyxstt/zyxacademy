@@ -21,6 +21,8 @@ Sebelum menulis kartu, tulis satu `recallTarget` internal dalam bentuk singkat, 
 - satu hubungan sebab-akibat yang eksplisit;
 - satu pembeda antara dua konsep yang sering tertukar.
 
+Satu rumus dengan kondisi wajibnya adalah satu unit recall yang utuh. Letakkan kondisi pada front bila targetnya rumus; kartu kondisi terpisah hanya bila targetnya keputusan kapan rumus boleh dipakai. Jangan memecah syarat kebenaran sampai jawaban menjadi menyesatkan.
+
 Jangan membuat satu kartu yang meminta dua target bebas. Pecah kartu jika mahasiswa dapat menjawab bagian A benar tetapi bagian B salah tanpa kontradiksi.
 
 Contoh yang harus dipecah:
@@ -88,7 +90,7 @@ Jangan membuat kartu hanya untuk memenuhi jumlah. Hindari:
 Sebelum menambah kartu baru:
 
 1. cari kartu dengan target yang sama;
-2. jika jawaban kanoniknya sama, gabungkan atau pilih front yang paling jelas;
+2. jika target, konteks, dan jawaban kanoniknya sama, gabungkan atau pilih front yang paling jelas;
 3. jangan membuat kartu forward dan reverse bila versi reverse tidak menambah nilai recall;
 4. jangan mencoba membuat satu kartu untuk setiap Idea secara mekanis; hanya buat kartu untuk hal yang memang perlu diingat.
 
@@ -97,6 +99,12 @@ Flashcard set yang baik boleh tidak memiliki kartu untuk Idea tertentu jika Idea
 ## Source dan bahasa mahasiswa
 
 Setiap kartu harus tetap terhubung ke Idea/source struktural sesuai kontrak, tetapi learner-facing text hanya memakai istilah manusiawi. Isi kartu harus dapat ditunjuk kembali ke Artikel yang sudah menurunkan fakta tersebut dari Source Pack/Idea.
+
+## Bukti dan batas panjang
+
+Isi tabel kartu-ke-Artikel pada [derivation-audit.md](derivation-audit.md). Back ditulis sebagai satu jawaban langsung, biasanya satu kalimat atau satu persamaan. Jika memerlukan beberapa langkah penurunan, ubah target menjadi fakta/keputusan yang perlu diingat atau buang kandidat. Panjang bukan kuota kata. Explanation hanya menambahkan konteks pendek yang sudah ada dalam Artikel.
+
+Cloze adalah bentuk teks front, bukan izin menambah `cardType` atau sintaks runtime baru. Gunakan hanya field/bentuk yang didukung schema aktif. Untuk dedup, bandingkan target dan konteks, bukan hanya string back; jawaban “ya” pada dua konsep berbeda tidak otomatis duplikat.
 
 ## Preflight wajib
 

@@ -14,6 +14,14 @@ coverage/*.json
 
 Gunakan LF UTF-8, stable relative paths, regular file mode `0644`. Jangan masukkan source binary ke ZIP; verifikasi melalui `originals` untuk local file atau `storedOriginals` untuk stored Zyx reference.
 
+## Preflight bentuk artifact
+
+Ambil manifest, coverage schema, visual fields, limit file, dan aturan checksum dari tool schema/resource resmi yang tersedia sebelum membuat JSON. Jangan menciptakan field untuk menampung catatan kerja. Jika schema tidak tersedia lengkap, laporkan bagian yang hilang; jangan memakai contoh parsial sebagai kontrak lengkap.
+
+Tetapkan dokumen dan unit asli dahulu, tulis Markdown final, hitung coverage dari hasil itu, lalu hitung checksum file dan manifest sesuai kontrak. Buka ulang ZIP final dan cocokkan daftar entry, UTF-8/LF, mode `0644`, JSON, document IDs, checksum, dan original mapping sebelum ingest. Jangan menghitung hash dari teks sebelum revisi/normalisasi terakhir. Checksum ZIP mentah dan checksum yang diminta manifest tidak boleh saling dipertukarkan.
+
+Simpan tabel rekonsiliasi rinci di luar ZIP; hanya ledger dengan field contract masuk `coverage/*.json`. `source.ingest` adalah operasi ingest sumber yang diminta, bukan izin submission Idea/Product berikutnya.
+
 ## Coverage rules
 
 `processedUnits` harus sama dengan setiap integer `1..expectedUnits` tepat sekali. `outputCounts` dihitung dari Markdown final, bukan disalin dari inventory. Review pass wajib mencakup `inventory`, `transcription`, `visual`, dan `reconciliation`.

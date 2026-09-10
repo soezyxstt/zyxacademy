@@ -8,6 +8,22 @@ Satu Idea harus mewakili **satu klaim, aturan, hubungan, atau kemampuan yang dap
 
 Jangan membuat Idea hanya karena ada heading, bullet, baris rumus, atau kalimat baru pada sumber. Struktur sumber adalah bukti, bukan aturan pemecahan.
 
+## Urutan keputusan dan tie-break
+
+Untuk setiap fragment sumber, jalankan urutan ini dan simpan keputusan serta locator bukti:
+
+1. Apakah fragment hanya heading, simbol penjelas, data contoh, atau satu langkah mekanis? Tautkan ke konsep/prosedur induk sebagai bukti, bukan Idea baru.
+2. Apakah klaim setara sudah ada? Gabungkan provenance; jangan membuat entity atau self-relation baru.
+3. Apakah kandidat menyatakan klaim lengkap beserta syarat kebenarannya? Jika tidak, lengkapi dari bukti sumber sebelum split.
+4. Tulis target A dan target B dalam bentuk “mahasiswa dapat ...”. Jika tidak dapat menulis dua target mandiri tanpa mengulang target yang sama, pertahankan satu Idea.
+5. Terapkan tes split hanya pada dua target mandiri tersebut. Tes split tidak memisahkan nama hukum dari hukum, rumus dari syarat wajibnya, atau prosedur dari langkah mekanisnya hanya karena teks dapat dipotong.
+6. Jika kondisi domain menjadi target mandiri, buat Idea kondisi dan relasinya, tetapi tetap sebutkan kondisi itu pada rumus induk. Link bukan pengganti syarat kebenaran klaim.
+7. Jika dua pilihan masih sama kuat setelah memeriksa bukti, catat dua kandidat dan dampaknya, lalu minta keputusan hanya untuk kandidat tersebut. Lanjutkan bagian lain yang tidak bergantung padanya.
+
+Tabel kerja wajib: fragment/locator, target mandiri, keputusan `new`/`merge`/`support`/`blocked`, Idea induk, alasan, primary section. Label ini hanya catatan author, bukan enum payload.
+
+Contoh: “Luas persegi panjang A = p × l; p panjang dan l lebar” menjadi satu Idea, bukan tiga. Contoh luas dengan angka menjadi bukti pendukung. Klaim tambahan tentang hubungan luas dan faktor skala dapat menjadi Idea kedua jika sumber benar-benar mengajarkannya.
+
 ## Tes split
 
 Pisahkan kandidat A dan B menjadi dua Idea jika salah satu kondisi berikut benar:
@@ -108,6 +124,12 @@ Buat relation hanya bila dapat melengkapi kalimat berikut secara jelas:
 - `related`: ada hubungan berguna tetapi tidak memenuhi relasi yang lebih spesifik.
 
 Jangan memakai `related` sebagai tempat semua pasangan Idea yang muncul berdekatan.
+
+## Relation tanpa entity semu
+
+`example_of` hanya dapat menghubungkan dua Idea yang memang ada; contoh biasa yang bukan Idea tetap ditautkan sebagai source/provenance pendukung. Jangan membuat Idea kosong agar tersedia endpoint.
+
+Catat kalimat semantik lebih dulu, lalu petakan arah endpoint mengikuti schema resmi. Untuk prerequisite, nyatakan mana yang harus dikuasai lebih dulu; jangan mengasumsikan `from` selalu prerequisite tanpa membaca contract. Jika arah tidak dijelaskan contract/resource, jangan menebak. Untuk `related`, wajib tulis hubungan konkret selain “topiknya sama”; bila tidak ada, jangan buat edge.
 
 ## Preflight author
 

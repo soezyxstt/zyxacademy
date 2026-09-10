@@ -2,6 +2,8 @@
 
 Gunakan panduan ini untuk menulis konten mahasiswa. Kontrak JSON dan quality report MCP tetap authoritative untuk schema/runtime, tetapi hasil validator tidak menggantikan penilaian editorial.
 
+Baca dan isi matriks [derivation-audit.md](derivation-audit.md). Matriks tersebut mengoperasionalkan kata “relevan”, “penting”, dan gate self-contained di bawah.
+
 ## 1. Peran produk tidak boleh tertukar
 
 Product Bundle V3 hanya memiliki tiga fungsi learner-facing:
@@ -155,9 +157,9 @@ Struktur padat yang disarankan:
 - jebakan/miskonsepsi;
 - cek ingatan.
 
-Jika Diktat dapat menggantikan Artikel untuk belajar pertama kali secara penuh, Diktat terlalu panjang. Jika Diktat hanya dapat dipadatkan dengan membuang konsep penting, berhenti untuk keputusan scope; jangan mengecilkan font atau menghapus reasoning penting.
+Diktat berisi pengingat dan keputusan ringkas, bukan pengajaran pertama: hapus uraian pengantar dan derivasi panjang yang sudah diajarkan, tetapi pertahankan syarat kebenaran dan seluruh Idea scope. Jika Diktat hanya dapat dipadatkan dengan membuang konsep penting, berhenti untuk keputusan scope; jangan mengecilkan font atau menghapus reasoning penting.
 
-Target 2 to 4 halaman hanya sah dari PDF render nyata. Klaim PDF ready memerlukan checksum Diktat, versi renderer, profil cetak, page count, dan inspeksi halaman. Render gagal/stale, >4 halaman, glyph rusak, formula mentah, clipping, atau halaman kosong memblokir readiness.
+Target 2 sampai 4 halaman hanya sah dari PDF render nyata. Klaim PDF ready memerlukan checksum Diktat, versi renderer, profil cetak, page count, dan inspeksi halaman. Render gagal/stale, di luar 2 sampai 4 halaman, glyph rusak, formula mentah, clipping, atau halaman kosong memblokir readiness.
 
 ## 12. Flashcard sebagai alat ingatan
 
