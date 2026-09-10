@@ -23,6 +23,11 @@ export type AddTutorSlotWithNotesInput = {
   notes?: string;
 };
 
+function isMissingTutorSlotNotesTable(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return /no such table:\s*tutor_slot_notes/i.test(message);
+}
+
 export async function addTutorSlotWithNotesAction(
   input: AddTutorSlotWithNotesInput,
 ) {
@@ -64,8 +69,12 @@ export async function addTutorSlotWithNotesAction(
     await deleteTutorSlotAction({ slotId: result.slotId }).catch(() => undefined);
     return {
       success: false as const,
-      error: "Slot tidak disimpan karena catatan tutor gagal disimpan. Coba lagi.",
-      reason: "SLOT_NOTES_PERSIST_FAILED",
+      error: isMissingTutorSlotNotesTable(error)
+        ? "Schema catatan slot belum tersedia pada database. Slot dibatalkan agar data tidak tersimpan setengah."
+        : "Slot tidak disimpan karena catatan tutor gagal disimpan. Coba lagi.",
+      reason: isMissingTutorSlotNotesTable(error)
+        ? "SCHEDULE_SCHEMA_NOT_READY"
+        : "SLOT_NOTES_PERSIST_FAILED",
     };
   }
 }
@@ -79,19 +88,27 @@ export async function getTutorSlotNotesAction(slotIds: string[]) {
   const ids = Array.from(new Set(slotIds.filter(Boolean))).slice(0, 200);
   if (ids.length === 0) return {} as Record<string, string>;
 
-  const rows = await db
-    .select({
-      slotId: tutorSlotNotes.slotId,
-      notes: tutorSlotNotes.notes,
-    })
-    .from(tutorSlotNotes)
-    .innerJoin(tutorSlots, eq(tutorSlots.id, tutorSlotNotes.slotId))
-    .where(
-      and(
-        inArray(tutorSlotNotes.slotId, ids),
-        eq(tutorSlots.tutorId, session.user.id),
-      ),
-    );
+  try {
+    const rows = await db
+      .select({
+        slotId: tutorSlotNotes.slotId,
+        notes: tutorSlotNotes.notes,
+      })
+      .from(tutorSlotNotes)
+      .innerJoin(tutorSlots, eq(tutorSlots.id, tutorSlotNotes.slotId))
+      .where(
+        and(
+          inArray(tutorSlotNotes.slotId, ids),
+          eq(tutorSlots.tutorId, session.user.id),
+        ),
+      );
 
-  return Object.fromEntries(rows.map((row) => [row.slotId, row.notes]));
+    return Object.fromEntries(rows.map((row) => [row.slotId, row.notes]));
+  } catch (error) {
+    if (isMissingTutorSlotNotesTable(error)) {
+      console.error("Schedule schema is missing tutor_slot_notes; returning empty notes until migration is applied.");
+      return {} as Record<string, string>;
+    }
+    throw error;
+  }
 }

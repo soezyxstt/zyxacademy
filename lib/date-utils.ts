@@ -16,6 +16,16 @@
  */
 
 import { addDays, format, subDays, subWeeks, startOfDay as fnsStartOfDay, startOfWeek as fnsStartOfWeek } from "date-fns";
+import {
+  addCalendarDays,
+  assertCalendarDate,
+  calendarDateToJakartaInstant,
+  getCalendarDayIndex,
+  getCalendarMonthLabel,
+  getCalendarWeekRange,
+  getJakartaCalendarDate,
+  parseCalendarDate,
+} from "@/lib/schedule/calendar-date";
 
 /* ────────────────────────────────────────────────────────────────────────────
  * SQLite integer → Date adapter
@@ -23,14 +33,6 @@ import { addDays, format, subDays, subWeeks, startOfDay as fnsStartOfDay, startO
 
 /**
  * Normalizes a value that may be a SQLite epoch-second integer into a JS Date.
- *
- * Drizzle with `{ mode: "timestamp" }` stores seconds in SQLite. If a raw
- * integer leaks through (e.g. from a raw `sql` query), `new Date(1700000000)`
- * would be interpreted as milliseconds → year 1970, which is fine, but if the
- * value was accidentally pre-multiplied by 1000, the year exceeds 3000.
- * This function detects that and divides by 1000 to recover the correct date.
- *
- * Safe to call on values that are already Date objects or ISO strings.
  */
 export function normalizeDate(value: Date | string | number): Date {
   const d = new Date(value);
@@ -90,18 +92,12 @@ export function yesterdayUtc(): string {
  * Formatting helpers
  * ──────────────────────────────────────────────────────────────────────────── */
 
-/**
- * Formats a Date as `yyyy-MM-dd` in local time.
- * Use for display labels, DB text columns that store date-only values, etc.
- */
+/** Formats a Date as `yyyy-MM-dd` in local time. */
 export function formatIsoDate(date: Date): string {
   return format(date, "yyyy-MM-dd");
 }
 
-/**
- * Formats a Date as `yyyy-MM-dd` in UTC.
- * Use for DB text columns that store UTC date strings (streaks, recommendations, etc.).
- */
+/** Formats a Date as `yyyy-MM-dd` in UTC. */
 export function formatIsoDateUtc(date: Date): string {
   const yyyy = date.getUTCFullYear();
   const mm = String(date.getUTCMonth() + 1).padStart(2, "0");
@@ -109,12 +105,7 @@ export function formatIsoDateUtc(date: Date): string {
   return `${yyyy}-${mm}-${dd}`;
 }
 
-/**
- * Formats a Date as `yyyy-MM-dd'T'HH:mm` in local time.
- * Use for `<input type="datetime-local">` values and datetime-local form fields.
- *
- * Returns empty string for null/undefined/invalid input.
- */
+/** Formats a Date as `yyyy-MM-dd'T'HH:mm` in local time. */
 export function formatDatetimeLocal(d: Date | string | null | undefined): string {
   if (!d) return "";
   const date = d instanceof Date ? d : new Date(d);
@@ -122,14 +113,10 @@ export function formatDatetimeLocal(d: Date | string | null | undefined): string
   return format(date, "yyyy-MM-dd'T'HH:mm");
 }
 
-/**
- * Converts a numeric DB timestamp (epoch seconds or milliseconds) to an ISO string.
- * Returns null for falsy, NaN, or zero values.
- */
+/** Converts a numeric DB timestamp (epoch seconds or milliseconds) to an ISO string. */
 export function toIsoTimestamp(val: unknown): string | null {
   const n = Number(val);
   if (!val || isNaN(n) || n === 0) return null;
-  // If the number looks like seconds (year > 2100 when treated as ms), divide by 1000
   const ms = n > 1e12 ? n : n * 1000;
   return new Date(ms).toISOString();
 }
@@ -138,41 +125,30 @@ export function toIsoTimestamp(val: unknown): string | null {
  * Date arithmetic
  * ──────────────────────────────────────────────────────────────────────────── */
 
-/** Returns a Date set to the start of the given day (00:00:00.000) in local time. */
 export function startOfDay(date: Date = new Date()): Date {
   return fnsStartOfDay(date);
 }
 
-/** Returns a Date set to the start of the given day (00:00:00.000) in UTC. */
 export function startOfDayUtc(date: Date = new Date()): Date {
   const d = new Date(date);
   d.setUTCHours(0, 0, 0, 0);
   return d;
 }
 
-/** Returns a Date that is `n` days before the given date (or today). */
 export function daysAgo(n: number, from: Date = new Date()): Date {
   return subDays(from, n);
 }
 
-/** Returns a Date that is `n` days after the given date (or today). */
 export function daysFrom(n: number, from: Date = new Date()): Date {
   return addDays(from, n);
 }
 
-/** Returns a Date that is `n` weeks before the given date (or today). */
 export function weeksAgo(n: number, from: Date = new Date()): Date {
   return subWeeks(from, n);
 }
 
-/**
- * Returns the Monday–Sunday range of the previous week relative to `now`.
- * Monday is start-of-day (00:00:00.000), Sunday is end-of-day (23:59:59.999).
- */
 export function previousWeekRange(now: Date = new Date()): { monday: Date; sunday: Date } {
-  // Start of this week (Monday) using date-fns (weekStartsOn: 1 = Monday)
   const thisMonday = fnsStartOfWeek(now, { weekStartsOn: 1 });
-  // Previous week Monday
   const monday = subWeeks(thisMonday, 1);
   const sunday = new Date(monday);
   sunday.setDate(monday.getDate() + 6);
@@ -207,66 +183,63 @@ const DAY_MAP_ID: Record<number, IndonesianDay> = {
 };
 
 /**
- * Returns current timestamp in milliseconds adjusted for Asia/Jakarta timezone (UTC+7).
+ * Legacy wall-clock adapter. Prefer `getJakartaCalendarDate(new Date())` for
+ * calendar identity and real `Date` instants for comparisons.
  */
 export function getJakartaNow(): Date {
   const now = new Date();
-  return new Date(now.toLocaleString("en-US", { timeZone: "Asia/Jakarta" }));
+  return new Date(now.toLocaleString("en-US", { timeZone: JAKARTA_TIME_ZONE }));
 }
 
-/**
- * Parse an ISO date string or Date object to a normalized Date.
- */
+/** Parse an ISO date string or Date object to a neutral Date representation. */
 export function parseDateInput(input: Date | string): Date {
   if (typeof input === "string") {
-    // If it is YYYY-MM-DD
     if (/^\d{4}-\d{2}-\d{2}$/.test(input)) {
-      const [y, m, d] = input.split("-").map(Number);
-      return new Date(Date.UTC(y, m - 1, d, 12, 0, 0));
+      const { year, month, day } = parseCalendarDate(input);
+      return new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
     }
     return new Date(input);
   }
   return normalizeDate(input);
 }
 
-/**
- * Given a target session date (or day in a week), returns the Monday of that week.
- */
+function scheduleCalendarDate(input?: Date | string): string {
+  if (typeof input === "string" && /^\d{4}-\d{2}-\d{2}$/.test(input.trim())) {
+    return assertCalendarDate(input.trim());
+  }
+  if (input instanceof Date) {
+    if (Number.isNaN(input.getTime())) throw new RangeError("INVALID_CALENDAR_DATE");
+    // Calendar Date objects in this legacy API are intentionally treated as
+    // wall-clock placeholders. Read their local Y/M/D fields rather than
+    // formatting the instant as UTC, which caused the one-day shift in Jakarta.
+    return assertCalendarDate(
+      `${input.getFullYear().toString().padStart(4, "0")}-${String(input.getMonth() + 1).padStart(2, "0")}-${String(input.getDate()).padStart(2, "0")}`,
+    );
+  }
+  return getJakartaCalendarDate(new Date());
+}
+
+/** Given a target session date, returns a neutral Date representing Monday. */
 export function getMondayOfWeek(targetDate: Date | string): Date {
-  const d = parseDateInput(targetDate);
-  const day = d.getDay(); // 0 is Sunday, 1 is Monday...
-  const diff = d.getDate() - day + (day === 0 ? -6 : 1); // adjust when day is sunday
-  const monday = new Date(d);
-  monday.setDate(diff);
-  monday.setHours(0, 0, 0, 0);
-  return monday;
+  const { startIso } = getCalendarWeekRange(scheduleCalendarDate(targetDate));
+  const { year, month, day } = parseCalendarDate(startIso);
+  return new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
 }
 
-/**
- * Weekly lock cut-off: The Saturday at 23:59:59 WIB directly preceding the Monday of the session week.
- */
+/** Weekly lock cut-off: Saturday 23:59:59.999 WIB preceding the target week. */
 export function getWeeklyLockCutoff(targetSessionDate: Date | string): Date {
-  const monday = getMondayOfWeek(targetSessionDate);
-  // Saturday preceding this Monday is Monday minus 2 days
-  const saturday = new Date(monday);
-  saturday.setDate(monday.getDate() - 2);
-  saturday.setHours(23, 59, 59, 999);
-  return saturday;
+  const { startIso } = getCalendarWeekRange(scheduleCalendarDate(targetSessionDate));
+  return calendarDateToJakartaInstant(addCalendarDays(startIso, -2), "23:59:59.999");
 }
 
-/**
- * Checks if a session on targetSessionDate is currently locked.
- * Sessions are locked after Saturday 23:59 WIB before the target week starts.
- */
+/** Checks whether the target tutorial week is past its booking lock instant. */
 export function isSessionLocked(targetSessionDate: Date | string, customNow?: Date): boolean {
   const cutoff = getWeeklyLockCutoff(targetSessionDate);
-  const now = customNow || getJakartaNow();
+  const now = customNow || new Date();
   return now.getTime() > cutoff.getTime();
 }
 
-/**
- * Generates an array of 7 days (Monday to Sunday) for the week containing anchorDate.
- */
+/** Generates seven stable calendar dates for the Monday-Sunday target week. */
 export function getWeekScheduleDays(anchorDate?: Date | string): {
   startOfWeekIso: string;
   endOfWeekIso: string;
@@ -280,44 +253,31 @@ export function getWeekScheduleDays(anchorDate?: Date | string): {
     isPast: boolean;
   }>;
 } {
-  const refDate = anchorDate ? parseDateInput(anchorDate) : getJakartaNow();
-  const monday = getMondayOfWeek(refDate);
-  const now = getJakartaNow();
-  const todayIso = formatIsoDateUtc(now);
+  const anchorIso = scheduleCalendarDate(anchorDate);
+  const { startIso, endIso } = getCalendarWeekRange(anchorIso);
+  const todayIso = getJakartaCalendarDate(new Date());
+  const { year, month, day } = parseCalendarDate(startIso);
+  const mondayDate = new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
 
-  const days: Array<{
-    dateIso: string;
-    dayName: IndonesianDay;
-    dayOfMonth: number;
-    monthName: string;
-    isToday: boolean;
-    isPast: boolean;
-  }> = [];
-  for (let i = 0; i < 7; i++) {
-    const d = new Date(monday);
-    d.setDate(monday.getDate() + i);
-    const dateIso = formatIsoDateUtc(d);
-    const dayName = DAY_MAP_ID[d.getDay()] || "Senin";
-    const isToday = dateIso === todayIso;
-    const isPast = dateIso < todayIso;
+  const days = Array.from({ length: 7 }, (_, index) => {
+    const dateIso = addCalendarDays(startIso, index);
+    const dateParts = parseCalendarDate(dateIso);
+    const dayName = DAY_MAP_ID[getCalendarDayIndex(dateIso)] || "Senin";
 
-    days.push({
+    return {
       dateIso,
       dayName,
-      dayOfMonth: d.getDate(),
-      monthName: d.toLocaleDateString("id-ID", { month: "short" }),
-      isToday,
-      isPast,
-    });
-  }
-
-  const sunday = new Date(monday);
-  sunday.setDate(monday.getDate() + 6);
+      dayOfMonth: dateParts.day,
+      monthName: getCalendarMonthLabel(dateIso),
+      isToday: dateIso === todayIso,
+      isPast: dateIso < todayIso,
+    };
+  });
 
   return {
-    startOfWeekIso: formatIsoDateUtc(monday),
-    endOfWeekIso: formatIsoDateUtc(sunday),
-    mondayDate: monday,
+    startOfWeekIso: startIso,
+    endOfWeekIso: endIso,
+    mondayDate,
     days,
   };
 }

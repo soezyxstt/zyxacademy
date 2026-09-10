@@ -1,7 +1,9 @@
-import { formatIsoDateUtc, jakartaDay } from "@/lib/date-utils";
-
-const JAKARTA_OFFSET = "+07:00";
-const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+import {
+  addCalendarDays,
+  calendarDateFromInput,
+  calendarDateToJakartaInstant,
+  getCalendarWeekRange,
+} from "@/lib/schedule/calendar-date";
 
 export type TutorialDateInput = Date | string;
 
@@ -20,106 +22,49 @@ export interface TutorialWeekRange {
   sunday: Date;
 }
 
-function invalidTutorialDate(): never {
-  throw new RangeError("INVALID_TUTORIAL_DATE");
-}
-
-function isValidIsoDate(value: string): boolean {
-  if (!ISO_DATE_PATTERN.test(value)) return false;
-
-  const [year, month, day] = value.split("-").map(Number);
-  const parsed = new Date(Date.UTC(year, month - 1, day, 12, 0, 0, 0));
-
-  return (
-    !Number.isNaN(parsed.getTime()) &&
-    parsed.getUTCFullYear() === year &&
-    parsed.getUTCMonth() === month - 1 &&
-    parsed.getUTCDate() === day
-  );
-}
-
-function dateInputToIso(input: TutorialDateInput): string {
-  if (typeof input === "string") {
-    const value = input.trim();
-    if (ISO_DATE_PATTERN.test(value)) {
-      if (!isValidIsoDate(value)) invalidTutorialDate();
-      return value;
-    }
-
-    const parsed = new Date(value);
-    if (Number.isNaN(parsed.getTime())) invalidTutorialDate();
-    return jakartaDay(parsed);
-  }
-
-  if (!(input instanceof Date) || Number.isNaN(input.getTime())) {
-    invalidTutorialDate();
-  }
-
-  return jakartaDay(input);
-}
-
-function shiftIsoDate(dateIso: string, days: number): string {
-  const [year, month, day] = dateIso.split("-").map(Number);
-  return formatIsoDateUtc(new Date(Date.UTC(year, month - 1, day + days, 12, 0, 0, 0)));
+function targetWeekStartIso(targetDate: TutorialDateInput): string {
+  return getCalendarWeekRange(calendarDateFromInput(targetDate)).startIso;
 }
 
 /** Shifts a validated tutorial calendar date without changing its timezone semantics. */
 export function addTutorialDays(dateIso: string, days: number): string {
-  if (!isValidIsoDate(dateIso.trim())) invalidTutorialDate();
-  return shiftIsoDate(dateIso.trim(), days);
-}
-
-function atJakarta(dateIso: string, time: "start" | "deadline" | "lock"): Date {
-  const clock = {
-    start: "00:00:00.000",
-    deadline: "18:00:00.000",
-    lock: "23:59:59.999",
-  }[time];
-
-  return new Date(`${dateIso}T${clock}${JAKARTA_OFFSET}`);
-}
-
-function targetWeekStartIso(targetDate: TutorialDateInput): string {
-  const targetIso = dateInputToIso(targetDate);
-  const targetNoonUtc = new Date(`${targetIso}T12:00:00.000Z`);
-  const daysSinceMonday = (targetNoonUtc.getUTCDay() + 6) % 7;
-  return shiftIsoDate(targetIso, -daysSinceMonday);
+  return addCalendarDays(calendarDateFromInput(dateIso), days);
 }
 
 /**
  * Returns the Monday through Sunday range containing the target calendar day
- * in Asia/Jakarta.
+ * in Asia/Jakarta. Calendar identity is date-only and therefore does not depend
+ * on the host/browser timezone.
  */
 export function getTutorialWeekRange(targetDate: TutorialDateInput): TutorialWeekRange {
-  const startIso = targetWeekStartIso(targetDate);
-  const endIso = shiftIsoDate(startIso, 6);
+  const { startIso, endIso } = getCalendarWeekRange(calendarDateFromInput(targetDate));
 
   return {
     startIso,
     endIso,
     weekStartIso: startIso,
     weekEndIso: endIso,
-    monday: atJakarta(startIso, "start"),
-    sunday: atJakarta(endIso, "lock"),
+    monday: calendarDateToJakartaInstant(startIso),
+    sunday: calendarDateToJakartaInstant(endIso, "23:59:59.999"),
   };
 }
 
 /** Availability enters the near-term window on the Monday before the target tutorial week. */
 export function getAvailabilityOpenAt(targetDate: TutorialDateInput): Date {
   const { startIso } = getTutorialWeekRange(targetDate);
-  return atJakarta(shiftIsoDate(startIso, -7), "start");
+  return calendarDateToJakartaInstant(addCalendarDays(startIso, -7));
 }
 
 /** Tutor availability changes close on the Friday before the target week. */
 export function getTutorAvailabilityDeadline(targetDate: TutorialDateInput): Date {
   const { startIso } = getTutorialWeekRange(targetDate);
-  return atJakarta(shiftIsoDate(startIso, -3), "deadline");
+  return calendarDateToJakartaInstant(addCalendarDays(startIso, -3), "18:00:00.000");
 }
 
 /** Student booking closes at the end of the Saturday before the target week. */
 export function getBookingLockAt(targetDate: TutorialDateInput): Date {
   const { startIso } = getTutorialWeekRange(targetDate);
-  return atJakarta(shiftIsoDate(startIso, -2), "lock");
+  return calendarDateToJakartaInstant(addCalendarDays(startIso, -2), "23:59:59.999");
 }
 
 export function getTutorialWeekPhase(
@@ -144,8 +89,7 @@ export function getTutorialWeekPhase(
 /**
  * Tutors may publish availability for any future tutorial week. A target week
  * becomes immutable only when its own Friday 18:00 WIB availability deadline
- * passes. This keeps the UI and server policy aligned for weeks two or more
- * weeks ahead while preserving the near-term lock window.
+ * passes.
  */
 export function canTutorCreateAvailability(
   targetDate: TutorialDateInput,

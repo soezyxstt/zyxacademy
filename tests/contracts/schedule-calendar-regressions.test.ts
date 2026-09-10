@@ -32,6 +32,34 @@ describe("schedule calendar regression contracts", () => {
     expect(admin).toContain('<SelectItem value="tutorial">Tutorial</SelectItem>');
   });
 
+  test("student booking modal contract matches its calendar caller and never trusts a client date", () => {
+    const student = source("app/(student)/dashboard/schedule/schedule-client.tsx");
+    const modal = source("components/schedule/collaborative-booking-modal.tsx");
+    const bookingAction = source("app/(student)/dashboard/schedule/booking-actions.ts");
+
+    expect(student).toContain('slot={bookingSlotData?.slot || null}');
+    expect(student).toContain('dateIso={bookingSlotData?.dateIso || ""}');
+    expect(modal).toContain("slot: any | null");
+    expect(modal).toContain("dateIso: string");
+    expect(modal).toContain("bookTutorialSlot");
+    expect(bookingAction).toContain("tutorSlots.sessionDate");
+    expect(bookingAction).not.toContain("targetDateIso");
+  });
+
+  test("calendar supports day/week/month, a range picker, 07:00-24:00, and vertical event composition", () => {
+    const calendar = source("components/schedule/schedule-calendar-view.tsx");
+
+    expect(calendar).toContain('type CalendarViewMode = "day" | "week" | "month"');
+    expect(calendar).toContain("MonthPicker");
+    expect(calendar).toContain("const START_HOUR = 7");
+    expect(calendar).toContain("const END_HOUR = 24");
+    expect(calendar).toContain("24:00");
+    expect(calendar).toContain("break-words");
+    expect(calendar).not.toContain("line-clamp");
+    expect(calendar).not.toContain("Keterangan:");
+    expect(calendar).toContain("Keterangan");
+  });
+
   test("student calendar cards open detailed schedule and tutorial views", () => {
     const student = source("app/(student)/dashboard/schedule/schedule-client.tsx");
 
@@ -51,6 +79,18 @@ describe("schedule calendar regression contracts", () => {
     expect(tutor).toContain("Catatan tutor");
     expect(tutor).toContain("addTutorSlotWithNotesAction");
     expect(actions).toContain("tutorSlotNotes");
+  });
+
+  test("Ops AI cannot bypass guarded scheduling mutations", () => {
+    const ops = source("lib/admin-ops-ai/domain-schedules.ts");
+
+    expect(ops).toContain("executeAdminCreateTutorAvailability");
+    expect(ops).toContain("executeAdminAssignTutorialSession");
+    expect(ops).toContain("executeAdminMoveTutorialSession");
+    expect(ops).toContain("executeAdminCancelTutorialSession");
+    expect(ops).not.toMatch(/\.insert\(tutorSlots\)/);
+    expect(ops).not.toMatch(/\.insert\(bookings\)/);
+    expect(ops).not.toMatch(/\.update\(bookings\)/);
   });
 
   test("every current group member can request a rename under one shared cooldown", () => {

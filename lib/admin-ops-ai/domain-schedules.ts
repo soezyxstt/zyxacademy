@@ -1,15 +1,14 @@
 import { db } from "@/db";
-import {
-  bookings,
-  tutorSlots,
-  academicSchedules,
-  user,
-  courses,
-  groups,
-} from "@/db/schema";
-import { eq, and, desc, gte, lte, inArray } from "drizzle-orm";
-import { randomUUID } from "node:crypto";
+import { bookings, tutorSlots } from "@/db/schema";
+import { and, desc, eq, gte, lte } from "drizzle-orm";
 import { ensureGoogleMeetForBooking } from "@/lib/schedule-lock";
+import {
+  executeAdminAssignTutorialSession,
+  executeAdminCancelTutorialSession,
+  executeAdminCreateTutorAvailability,
+  executeAdminMoveTutorialSession,
+  type AdminScheduleMutationOptions,
+} from "@/app/(admin)/admin/(academic)/schedules/actions";
 
 export interface ListSchedulesInput {
   startDate?: string;
@@ -20,45 +19,66 @@ export interface ListSchedulesInput {
   limit?: number;
 }
 
+function adminMutationOptions(actorId?: string): AdminScheduleMutationOptions | undefined {
+  const normalized = actorId?.trim();
+  return normalized ? { actorId: normalized, executor: db } : undefined;
+}
+
+function parseTimeSlot(value: string | undefined, fallbackStart = "10:00", fallbackEnd = "11:30") {
+  const timeParts = (value || "").split("-").map((part) => part.trim()).filter(Boolean);
+  return {
+    startTime: timeParts[0] || fallbackStart,
+    endTime: timeParts[1] || fallbackEnd,
+  };
+}
+
 export async function executeListSchedules(input: ListSchedulesInput) {
   const conditions = [];
-  if (input.courseId) conditions.push(eq(bookings.courseId, input.courseId.trim().toLowerCase()));
+  if (input.courseId) conditions.push(eq(bookings.courseId, input.courseId.trim()));
   if (input.status) conditions.push(eq(bookings.status, input.status as any));
-  if (input.startDate) conditions.push(gte(bookings.sessionDate, input.startDate));
-  if (input.endDate) conditions.push(lte(bookings.sessionDate, input.endDate));
+  if (input.startDate) conditions.push(gte(bookings.sessionDate, input.startDate.trim()));
+  if (input.endDate) conditions.push(lte(bookings.sessionDate, input.endDate.trim()));
+  if (input.tutorId) {
+    const slotRows = await db
+      .select({ id: tutorSlots.id })
+      .from(tutorSlots)
+      .where(eq(tutorSlots.tutorId, input.tutorId.trim()));
+    if (slotRows.length === 0) {
+      return { summary: "Tidak ada jadwal untuk tutor tersebut.", data: [] };
+    }
+  }
 
   const limit = Math.min(Math.max(input.limit ?? 25, 1), 100);
-
   const rows = await db.query.bookings.findMany({
     where: conditions.length > 0 ? and(...conditions) : undefined,
     with: {
       course: true,
       group: true,
       student: true,
-      slot: {
-        with: {
-          tutor: true,
-        },
-      },
+      slot: { with: { tutor: true } },
     },
     orderBy: [desc(bookings.sessionDate)],
     limit,
   });
 
+  const filteredRows = input.tutorId
+    ? rows.filter((booking) => booking.slot?.tutorId === input.tutorId?.trim())
+    : rows;
+
   return {
-    summary: `Ditemukan ${rows.length} jadwal sesi meet/tutorial.`,
-    data: rows.map((b) => ({
-      id: b.id,
-      sessionDate: b.sessionDate,
-      startTime: b.startTime,
-      endTime: b.endTime,
-      status: b.status,
-      course: b.course?.title || b.courseId,
-      tutor: b.slot?.tutor?.name || "Belum ditentukan",
-      group: b.group?.name || null,
-      student: b.student?.name || null,
-      googleMeetUrl: b.googleMeetUrl,
-      topic: b.topic,
+    summary: `Ditemukan ${filteredRows.length} jadwal sesi meet/tutorial.`,
+    data: filteredRows.map((booking) => ({
+      id: booking.id,
+      sessionDate: booking.sessionDate,
+      startTime: booking.startTime,
+      endTime: booking.endTime,
+      status: booking.status,
+      course: booking.course?.title || booking.courseId,
+      tutor: booking.slot?.tutor?.name || "Belum ditentukan",
+      group: booking.group?.name || null,
+      student: booking.student?.name || null,
+      googleMeetUrl: booking.googleMeetUrl,
+      topic: booking.topic,
     })),
   };
 }
@@ -69,91 +89,59 @@ export interface CreateMeetSessionInput {
   groupId?: string;
   studentId?: string;
   dateIso: string;
-  timeSlot: string; // e.g. "09:00 - 10:30" or "10:00"
+  timeSlot: string;
   topic?: string;
 }
 
+/**
+ * Ops AI is an adapter only. It must not insert tutor_slots/bookings directly;
+ * the guarded admin scheduling actions own validation, quota and audit writes.
+ */
 export async function executeCreateMeetSession(input: CreateMeetSessionInput, actorId?: string) {
-  const cleanTutorId = input.tutorId.trim();
-  const cleanCourseId = input.courseId.trim().toLowerCase();
-  const dateIso = input.dateIso.trim();
+  const tutorId = input.tutorId?.trim();
+  const courseId = input.courseId?.trim();
+  const groupId = input.groupId?.trim();
+  const dateIso = input.dateIso?.trim();
+  const reason = "Ops AI: buat sesi tutorial";
 
-  if (!cleanTutorId) throw new Error("ID Tutor wajib diisi.");
-  if (!cleanCourseId) throw new Error("ID Mata Kuliah wajib diisi.");
+  if (!tutorId) throw new Error("ID Tutor wajib diisi.");
+  if (!courseId) throw new Error("ID Mata Kuliah wajib diisi.");
+  if (!groupId) {
+    throw new Error("ID Kelompok wajib diisi. Ops AI tidak boleh memilih kelompok atau murid secara otomatis.");
+  }
   if (!dateIso) throw new Error("Tanggal sesi (YYYY-MM-DD) wajib diisi.");
 
-  const tutorUser = await db.query.user.findFirst({ where: eq(user.id, cleanTutorId) });
-  if (!tutorUser) throw new Error(`Tutor dengan ID '${cleanTutorId}' tidak ditemukan.`);
-
-  const courseObj = await db.query.courses.findFirst({ where: eq(courses.id, cleanCourseId) });
-  if (!courseObj) throw new Error(`Mata kuliah '${cleanCourseId}' tidak ditemukan.`);
-
-  let targetGroupId = input.groupId?.trim();
-  let targetStudentId = input.studentId?.trim();
-
-  if (!targetGroupId && !targetStudentId) {
-    const firstGroup = await db.query.groups.findFirst();
-    if (firstGroup) targetGroupId = firstGroup.id;
-    else {
-      const firstStudent = await db.query.user.findFirst({ where: eq(user.role, "student") });
-      if (firstStudent) targetStudentId = firstStudent.id;
-    }
+  const { startTime, endTime } = parseTimeSlot(input.timeSlot);
+  const options = adminMutationOptions(actorId);
+  const availability = await executeAdminCreateTutorAvailability(
+    { tutorId, sessionDate: dateIso, startTime, endTime, mode: "online", reason },
+    options,
+  );
+  if (!availability.success || !availability.slotId) {
+    throw new Error(availability.error || "Gagal membuat slot tutor melalui domain scheduling.");
   }
 
-  // Parse time
-  const timeParts = input.timeSlot.split("-").map((s) => s.trim());
-  const startTime = timeParts[0] || "10:00";
-  const endTime = timeParts[1] || "11:30";
-
-  // Days of week in Indonesian
-  const dayIndex = new Date(dateIso).getDay();
-  const dayNames = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
-  const dayOfWeek = dayNames[dayIndex] || "Senin";
-
-  // Create slot first
-  const slotId = `slot-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
-  await db.insert(tutorSlots).values({
-    id: slotId,
-    tutorId: cleanTutorId,
-    dayOfWeek,
-    startTime,
-    endTime,
-    sessionDate: dateIso,
-    mode: "online",
-  });
-
-  // Create booking
-  const bookingId = `book-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
-  await db.insert(bookings).values({
-    id: bookingId,
-    slotId,
-    courseId: cleanCourseId,
-    groupId: targetGroupId || "grp-default",
-    studentId: targetStudentId || cleanTutorId,
-    status: "scheduled",
-    sessionDate: dateIso,
-    startTime,
-    endTime,
-    mode: "online",
-    topic: input.topic?.trim() || "Tutorial Zyx Ops AI",
-    lastModifiedBy: actorId ?? cleanTutorId,
-  });
-
-  // Try auto-generate meet link
-  let meetUrl: string | null = null;
-  try {
-    meetUrl = await ensureGoogleMeetForBooking(bookingId);
-  } catch {
-    // If Google Meet integration not configured in env, ignore
+  const booking = await executeAdminAssignTutorialSession(
+    {
+      slotId: availability.slotId,
+      groupId,
+      courseId,
+      topic: input.topic?.trim() || null,
+      reason,
+    },
+    options,
+  );
+  const createdBookingId = "bookingId" in booking ? booking.bookingId : undefined;
+  if (!booking.success || !createdBookingId) {
+    throw new Error(booking.error || "Gagal menetapkan sesi tutorial melalui domain scheduling.");
   }
 
+  const meetUrl = await ensureGoogleMeetForBooking(createdBookingId).catch(() => null);
   return {
-    summary: `Sesi meet berhasil dijadwalkan untuk mata kuliah '${courseObj.title}' bersama tutor '${tutorUser.name}' pada ${dateIso} jam ${startTime} - ${endTime}.${meetUrl ? ` Google Meet link: ${meetUrl}` : ""}`,
+    summary: `Sesi tutorial berhasil dibuat pada ${dateIso} jam ${startTime} - ${endTime}.${meetUrl ? ` Google Meet: ${meetUrl}` : ""}`,
     data: {
-      bookingId,
-      slotId,
-      tutorName: tutorUser.name,
-      courseTitle: courseObj.title,
+      bookingId: createdBookingId,
+      slotId: availability.slotId,
       dateIso,
       time: `${startTime} - ${endTime}`,
       googleMeetUrl: meetUrl,
@@ -170,53 +158,72 @@ export interface RescheduleOrCancelMeetInput {
 }
 
 export async function executeRescheduleOrCancelMeet(input: RescheduleOrCancelMeetInput, actorId?: string) {
-  const bookingId = input.bookingId.trim();
+  const bookingId = input.bookingId?.trim();
   if (!bookingId) throw new Error("ID Booking wajib diisi.");
 
-  const booking = await db.query.bookings.findFirst({
+  const current = await db.query.bookings.findFirst({
     where: eq(bookings.id, bookingId),
     with: { course: true, slot: { with: { tutor: true } } },
   });
+  if (!current || !current.slot) throw new Error(`Jadwal dengan ID '${bookingId}' tidak ditemukan.`);
 
-  if (!booking) throw new Error(`Jadwal dengan ID '${bookingId}' tidak ditemukan.`);
+  const reason = input.reason?.trim() || "Ops AI: perubahan jadwal";
+  const options = adminMutationOptions(actorId);
 
   if (input.action === "cancel") {
-    await db
-      .update(bookings)
-      .set({
-        status: "cancelled",
-        lastModifiedBy: actorId ?? "admin",
-        lastModifiedAt: new Date(),
-      })
-      .where(eq(bookings.id, bookingId));
-
+    const cancelled = await executeAdminCancelTutorialSession({ bookingId, reason }, options);
+    if (!cancelled.success) throw new Error(cancelled.error || "Gagal membatalkan sesi.");
     return {
-      summary: `Sesi meet '${booking.course?.title}' pada ${booking.sessionDate} berhasil dibatalkan.`,
-      data: { bookingId, status: "cancelled", reason: input.reason },
+      summary: `Sesi '${current.course?.title || current.courseId}' pada ${current.sessionDate} berhasil dibatalkan.`,
+      data: { bookingId, status: "cancelled", reason },
     };
   }
 
-  // Reschedule
-  if (!input.newDateIso) throw new Error("Tanggal baru wajib diisi untuk reschedule.");
-  const timeParts = (input.newTimeSlot || "").split("-").map((s) => s.trim());
-  const newStartTime = timeParts[0] || booking.startTime || "10:00";
-  const newEndTime = timeParts[1] || booking.endTime || "11:30";
+  const newDateIso = input.newDateIso?.trim();
+  if (!newDateIso) throw new Error("Tanggal baru wajib diisi untuk reschedule.");
+  const { startTime, endTime } = parseTimeSlot(
+    input.newTimeSlot,
+    current.startTime || current.slot.startTime,
+    current.endTime || current.slot.endTime,
+  );
 
-  await db
-    .update(bookings)
-    .set({
-      sessionDate: input.newDateIso,
-      startTime: newStartTime,
-      endTime: newEndTime,
-      status: "rescheduled",
-      lastModifiedBy: actorId ?? "admin",
-      lastModifiedAt: new Date(),
-    })
-    .where(eq(bookings.id, bookingId));
+  const exactSlots = await db.query.tutorSlots.findMany({
+    where: and(
+      eq(tutorSlots.tutorId, current.slot.tutorId),
+      eq(tutorSlots.sessionDate, newDateIso),
+      eq(tutorSlots.startTime, startTime),
+      eq(tutorSlots.endTime, endTime),
+    ),
+    with: { booking: true },
+    limit: 5,
+  });
+  let targetSlotId = exactSlots.find((slot) => !slot.booking)?.id || null;
+
+  if (!targetSlotId) {
+    const availability = await executeAdminCreateTutorAvailability(
+      {
+        tutorId: current.slot.tutorId,
+        sessionDate: newDateIso,
+        startTime,
+        endTime,
+        mode: current.slot.mode,
+        location: current.slot.location,
+        reason,
+      },
+      options,
+    );
+    if (!availability.success || !availability.slotId) {
+      throw new Error(availability.error || "Gagal menyiapkan slot tujuan.");
+    }
+    targetSlotId = availability.slotId;
+  }
+
+  const moved = await executeAdminMoveTutorialSession({ bookingId, targetSlotId, reason }, options);
+  if (!moved.success) throw new Error(moved.error || "Gagal memindahkan sesi.");
 
   return {
-    summary: `Sesi meet berhasil dipindahkan ke tanggal ${input.newDateIso} jam ${newStartTime} - ${newEndTime}.`,
-    data: { bookingId, status: "rescheduled", date: input.newDateIso, time: `${newStartTime} - ${newEndTime}` },
+    summary: `Sesi berhasil dipindahkan ke ${newDateIso} jam ${startTime} - ${endTime}.`,
+    data: { bookingId, status: "scheduled", date: newDateIso, time: `${startTime} - ${endTime}`, targetSlotId },
   };
 }
 
@@ -226,30 +233,23 @@ export interface ListTutorAvailabilityInput {
 }
 
 export async function executeListTutorAvailability(input: ListTutorAvailabilityInput) {
-  const conditions = [];
-  if (input.tutorId) conditions.push(eq(tutorSlots.tutorId, input.tutorId.trim()));
-
   const slots = await db.query.tutorSlots.findMany({
-    where: conditions.length > 0 ? and(...conditions) : undefined,
-    with: {
-      tutor: true,
-      booking: true,
-    },
+    where: input.tutorId ? eq(tutorSlots.tutorId, input.tutorId.trim()) : undefined,
+    with: { tutor: true, booking: true },
     limit: 50,
   });
-
-  const availableSlots = slots.filter((s) => !s.booking || s.booking.status === "cancelled");
+  const availableSlots = slots.filter((slot) => !slot.booking);
 
   return {
-    summary: `Ditemukan ${availableSlots.length} slot waktu tutor yang kosong/tersedia.`,
-    data: availableSlots.map((s) => ({
-      slotId: s.id,
-      tutorName: s.tutor.name,
-      dayOfWeek: s.dayOfWeek,
-      startTime: s.startTime,
-      endTime: s.endTime,
-      mode: s.mode,
-      sessionDate: s.sessionDate,
+    summary: `Ditemukan ${availableSlots.length} slot waktu tutor yang tersedia.`,
+    data: availableSlots.map((slot) => ({
+      slotId: slot.id,
+      tutorName: slot.tutor.name,
+      dayOfWeek: slot.dayOfWeek,
+      startTime: slot.startTime,
+      endTime: slot.endTime,
+      mode: slot.mode,
+      sessionDate: slot.sessionDate,
     })),
   };
 }

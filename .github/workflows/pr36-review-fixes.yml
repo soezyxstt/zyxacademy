@@ -1,0 +1,49 @@
+name: Apply PR 36 Review Fixes
+
+on:
+  push:
+    branches:
+      - fix/schedule-domain-calendar-tutor-shell
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      BETTER_AUTH_SECRET: schedule-domain-validation-secret-1234567890
+      SKIP_ENV_VALIDATION: "1"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - name: Apply reviewed fixes
+        run: python .github/scripts/pr36_review_fixes.py
+      - run: bun install --frozen-lockfile
+      - name: Focused regression tests
+        run: >-
+          bun test
+          tests/contracts/schedule-calendar-date.test.ts
+          tests/contracts/tutorial-week-policy.test.ts
+          tests/contracts/schedule-dates.test.ts
+          tests/contracts/schedule-calendar-regressions.test.ts
+          tests/contracts/schedule-review-fixes.test.ts
+          tests/contracts/tutor-schedule-actions.test.ts
+      - name: Typecheck
+        run: bun run typecheck
+      - name: Diff check
+        run: git diff --check
+      - name: Commit reviewed fixes
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "fix: address schedule review findings"
+          git push origin HEAD:${GITHUB_REF_NAME}

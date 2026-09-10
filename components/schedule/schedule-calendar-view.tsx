@@ -1,28 +1,25 @@
 "use client";
 
-import { useState, useMemo, useEffect, useRef } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
-  Clock,
-  Video,
-  MapPin,
+  AlertCircle,
+  CalendarDays,
   CheckCircle2,
-  FileText,
-  FileQuestion,
   ChevronLeft,
   ChevronRight,
-  ExternalLink,
-  History,
-  MessageSquare,
+  Info,
   Lock,
-  Plus,
-  Calendar as CalendarIcon,
-  GraduationCap,
+  MapPin,
   SlidersHorizontal,
-  RotateCcw,
   Trash2,
+  Video,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import {
   Select,
   SelectContent,
@@ -30,104 +27,26 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import {
-  formatIsoDate,
-  formatIsoDateUtc,
-  getJakartaNow,
-  parseDateInput,
-  type IndonesianDay,
-} from "@/lib/date-utils";
 import { cn } from "@/lib/utils";
+import {
+  addCalendarDays,
+  addCalendarMonths,
+  diffCalendarDays,
+  getCalendarDayIndex,
+  getCalendarMonthRange,
+  getCalendarWeekRange,
+  getJakartaCalendarDate,
+  parseCalendarDate,
+  type CalendarDate,
+} from "@/lib/schedule/calendar-date";
 
-// Tutor distinct color styling
-const TUTOR_COLORS = [
-  {
-    border: "border-indigo-400 dark:border-indigo-600",
-    bg: "bg-indigo-50/90 dark:bg-indigo-950/50 hover:bg-indigo-100/90 dark:hover:bg-indigo-900/60",
-    badge: "bg-indigo-100 text-indigo-800 dark:bg-indigo-900/60 dark:text-indigo-200",
-    accent: "bg-indigo-500 text-white",
-    bar: "bg-indigo-500",
-    text: "text-indigo-900 dark:text-indigo-200",
-  },
-  {
-    border: "border-emerald-400 dark:border-emerald-600",
-    bg: "bg-emerald-50/90 dark:bg-emerald-950/50 hover:bg-emerald-100/90 dark:hover:bg-emerald-900/60",
-    badge: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-200",
-    accent: "bg-emerald-500 text-white",
-    bar: "bg-emerald-500",
-    text: "text-emerald-900 dark:text-emerald-200",
-  },
-  {
-    border: "border-amber-400 dark:border-amber-600",
-    bg: "bg-amber-50/90 dark:bg-amber-950/50 hover:bg-amber-100/90 dark:hover:bg-amber-900/60",
-    badge: "bg-amber-100 text-amber-800 dark:bg-amber-900/60 dark:text-amber-200",
-    accent: "bg-amber-500 text-white",
-    bar: "bg-amber-500",
-    text: "text-amber-900 dark:text-amber-200",
-  },
-  {
-    border: "border-rose-400 dark:border-rose-600",
-    bg: "bg-rose-50/90 dark:bg-rose-950/50 hover:bg-rose-100/90 dark:hover:bg-rose-900/60",
-    badge: "bg-rose-100 text-rose-800 dark:bg-rose-900/60 dark:text-rose-200",
-    accent: "bg-rose-500 text-white",
-    bar: "bg-rose-500",
-    text: "text-rose-900 dark:text-rose-200",
-  },
-  {
-    border: "border-violet-400 dark:border-violet-600",
-    bg: "bg-violet-50/90 dark:bg-violet-950/50 hover:bg-violet-100/90 dark:hover:bg-violet-900/60",
-    badge: "bg-violet-100 text-violet-800 dark:bg-violet-900/60 dark:text-violet-200",
-    accent: "bg-violet-500 text-white",
-    bar: "bg-violet-500",
-    text: "text-violet-900 dark:text-violet-200",
-  },
-  {
-    border: "border-cyan-400 dark:border-cyan-600",
-    bg: "bg-cyan-50/90 dark:bg-cyan-950/50 hover:bg-cyan-100/90 dark:hover:bg-cyan-900/60",
-    badge: "bg-cyan-100 text-cyan-800 dark:bg-cyan-900/60 dark:text-cyan-200",
-    accent: "bg-cyan-500 text-white",
-    bar: "bg-cyan-500",
-    text: "text-cyan-900 dark:text-cyan-200",
-  },
-];
-
-export function getTutorColorStyle(tutorId: string) {
-  let hash = 0;
-  for (let i = 0; i < (tutorId || "default").length; i++) {
-    hash = (tutorId || "default").charCodeAt(i) + ((hash << 5) - hash);
-  }
-  const index = Math.abs(hash) % TUTOR_COLORS.length;
-  return TUTOR_COLORS[index];
-}
-
-// Operating Hours for Google Calendar grid (07:00 to 22:00 WIB)
 const START_HOUR = 7;
-const END_HOUR = 22;
-const HOURS_COUNT = END_HOUR - START_HOUR;
-const HOUR_HEIGHT = 56; // 56px per hour row => 90 min slot = 84px
-
-const HOURS = Array.from({ length: HOURS_COUNT }, (_, i) => START_HOUR + i);
-
-const DAY_NAMES_ID: IndonesianDay[] = [
-  "Senin",
-  "Selasa",
-  "Rabu",
-  "Kamis",
-  "Jumat",
-  "Sabtu",
-  "Minggu",
-];
+const END_HOUR = 24;
+const HOUR_HEIGHT = 64;
+const START_MINUTES = START_HOUR * 60;
+const END_MINUTES = END_HOUR * 60;
+const HOURS = Array.from({ length: END_HOUR - START_HOUR }, (_, index) => START_HOUR + index);
+const DAY_LABELS = ["MIN", "SEN", "SEL", "RAB", "KAM", "JUM", "SAB"];
 
 export type ScheduleCalendarProps = {
   role: "student" | "teacher" | "admin";
@@ -170,174 +89,302 @@ export type ScheduleCalendarProps = {
   initialCourseFilter?: string;
 };
 
-// Helper: parse "09:00" or "09:30" to minutes from midnight
-function timeToMinutes(timeStr?: string): number {
-  if (!timeStr) return 0;
-  const [h, m] = timeStr.split(":").map(Number);
-  return (h || 0) * 60 + (m || 0);
-}
+type CalendarViewMode = "day" | "week" | "month";
+type EventKind = "availability" | "booking" | "academic";
 
-function isTutorStartValid(dayIso: string, startMin: number) {
-  const now = getJakartaNow();
-  const today = formatIsoDateUtc(now);
-  if (dayIso < today) return false;
-  if (dayIso === today && startMin < now.getHours() * 60 + now.getMinutes()) return false;
-  return startMin >= START_HOUR * 60 && startMin + 90 <= END_HOUR * 60;
-}
-
-type ParsedAcademicEvent = {
-  schedule: any;
-  dateIso: string;
-  isAllDay: boolean;
+type CalendarEvent = {
+  id: string;
+  kind: EventKind;
+  dateIso: CalendarDate;
   startMinutes: number;
   endMinutes: number;
-  duration: number;
-  startTimeStr: string;
-  endTimeStr: string;
+  title: string;
+  subtitle?: string | null;
+  meta?: string | null;
+  mode?: "online" | "offline" | string | null;
+  location?: string | null;
+  courseId?: string | null;
+  tutorId?: string | null;
+  locked?: boolean;
+  source: any;
 };
 
-function parseAcademicSchedule(sched: any): ParsedAcademicEvent | null {
-  if (!sched.startDate) return null;
-  const startD = new Date(sched.startDate);
-  if (isNaN(startD.getTime())) return null;
+type PositionedEvent = CalendarEvent & {
+  lane: number;
+  laneCount: number;
+};
 
-  const dateIso = formatIsoDate(startD);
-  const startH = startD.getHours();
-  const startM = startD.getMinutes();
-  const startMinutes = startH * 60 + startM;
+function timeToMinutes(value?: string | null): number {
+  if (!value || !/^\d{1,2}:\d{2}$/.test(value)) return START_MINUTES;
+  const [hour, minute] = value.split(":").map(Number);
+  return hour * 60 + minute;
+}
 
-  let endMinutes = startMinutes + 90;
-  if (sched.endDate) {
-    const endD = new Date(sched.endDate);
-    if (!isNaN(endD.getTime())) {
-      const endH = endD.getHours();
-      const endM = endD.getMinutes();
-      const calcEnd = endH * 60 + endM;
-      if (calcEnd > startMinutes) {
-        endMinutes = calcEnd;
-      }
-    }
-  }
+function minutesToTime(value: number): string {
+  const bounded = Math.max(0, Math.min(24 * 60, value));
+  const hour = Math.floor(bounded / 60);
+  const minute = bounded % 60;
+  return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+}
 
-  // If start is 00:00 and either no endDate or spans to end of day, treat as all-day
-  const isAllDay = startH === 0 && startM === 0 && (!sched.endDate || endMinutes >= 23 * 60 + 50);
+function formatCalendarDateLabel(dateIso: CalendarDate, options: Intl.DateTimeFormatOptions): string {
+  const { year, month, day } = parseCalendarDate(dateIso);
+  return new Intl.DateTimeFormat("id-ID", { ...options, timeZone: "UTC" }).format(
+    new Date(Date.UTC(year, month - 1, day, 12, 0, 0, 0)),
+  );
+}
 
-  const startTimeStr = `${String(startH).padStart(2, "0")}:${String(startM).padStart(2, "0")}`;
-  const endH = Math.floor(endMinutes / 60);
-  const endM = endMinutes % 60;
-  const endTimeStr = `${String(endH).padStart(2, "0")}:${String(endM).padStart(2, "0")}`;
+function getJakartaClock(now = new Date()) {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Jakarta",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(now);
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return Number(values.hour) * 60 + Number(values.minute);
+}
 
+function parseAcademicInstant(value: unknown): { dateIso: CalendarDate; minutes: number } | null {
+  if (!value) return null;
+  const date = new Date(value as string | number | Date);
+  if (Number.isNaN(date.getTime())) return null;
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Jakarta",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(date);
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  const dateIso = `${values.year}-${values.month}-${values.day}` as CalendarDate;
   return {
-    schedule: sched,
     dateIso,
-    isAllDay,
-    startMinutes,
-    endMinutes,
-    duration: Math.max(30, endMinutes - startMinutes),
-    startTimeStr,
-    endTimeStr,
+    minutes: Number(values.hour) * 60 + Number(values.minute),
   };
 }
 
-function getAcademicStyle(type: string) {
-  switch (type) {
-    case "official_exam":
-      return {
-        border: "border-amber-400 dark:border-amber-600",
-        bg: "bg-amber-500/10 hover:bg-amber-500/20 dark:bg-amber-950/40 dark:hover:bg-amber-900/50",
-        badge: "bg-amber-500/20 text-amber-800 dark:text-amber-300 border-amber-500/30",
-        bar: "bg-amber-500",
-        label: "Ujian ITB",
-      };
-    case "tryout":
-      return {
-        border: "border-purple-400 dark:border-purple-600",
-        bg: "bg-purple-500/10 hover:bg-purple-500/20 dark:bg-purple-950/40 dark:hover:bg-purple-900/50",
-        badge: "bg-purple-500/20 text-purple-800 dark:text-purple-300 border-purple-500/30",
-        bar: "bg-purple-500",
-        label: "Tryout",
-      };
-    case "quiz":
-      return {
-        border: "border-sky-400 dark:border-sky-600",
-        bg: "bg-sky-500/10 hover:bg-sky-500/20 dark:bg-sky-950/40 dark:hover:bg-sky-900/50",
-        badge: "bg-sky-500/20 text-sky-800 dark:text-sky-300 border-sky-500/30",
-        bar: "bg-sky-500",
-        label: "Kuis",
-      };
-    default:
-      return {
-        border: "border-brand-primary/40 dark:border-brand-primary/60",
-        bg: "bg-brand-primary/10 hover:bg-brand-primary/15 dark:bg-brand-primary/20",
-        badge: "bg-brand-primary/20 text-brand-primary border-brand-primary/30",
-        bar: "bg-brand-primary",
-        label: "Akademik",
-      };
-  }
+function academicTypeLabel(type?: string | null): string {
+  if (type === "official_exam") return "Ujian ITB";
+  if (type === "tryout") return "Tryout";
+  if (type === "quiz") return "Kuis";
+  return "Akademik";
 }
 
-// Helper: get month calendar days grid (7 cols x 4-6 rows)
-function getMonthCalendarDays(year: number, month: number) {
-  const firstDayOfMonth = new Date(year, month, 1);
-  const lastDayOfMonth = new Date(year, month + 1, 0);
-
-  // Day of week for 1st (0 = Sun, 1 = Mon ... 6 = Sat)
-  const firstDayWeekday = firstDayOfMonth.getDay();
-  // We start week on Monday (1). If Sunday (0), it is 7th day
-  const prefixDays = firstDayWeekday === 0 ? 6 : firstDayWeekday - 1;
-
-  const startDate = new Date(firstDayOfMonth);
-  startDate.setDate(startDate.getDate() - prefixDays);
-
-  const days: Array<{
-    date: Date;
-    dateIso: string;
-    dayOfMonth: number;
-    isCurrentMonth: boolean;
-    isToday: boolean;
-    dayName: IndonesianDay;
-  }> = [];
-
-  const nowJakarta = getJakartaNow();
-  const todayIso = formatIsoDateUtc(nowJakarta);
-
-  // Generate 35 or 42 days grid
-  const totalDays = prefixDays + lastDayOfMonth.getDate() > 35 ? 42 : 35;
-
-  for (let i = 0; i < totalDays; i++) {
-    const d = new Date(startDate);
-    d.setDate(startDate.getDate() + i);
-    const dateIso = formatIsoDateUtc(d);
-    const dayOfWeekIndex = d.getDay();
-    const dayName =
-      dayOfWeekIndex === 0
-        ? "Minggu"
-        : DAY_NAMES_ID[dayOfWeekIndex - 1] || "Senin";
-
-    days.push({
-      date: d,
-      dateIso,
-      dayOfMonth: d.getDate(),
-      isCurrentMonth: d.getMonth() === month,
-      isToday: dateIso === todayIso,
-      dayName,
-    });
+function eventTone(event: CalendarEvent): string {
+  if (event.locked) {
+    return "border-zinc-500/60 bg-zinc-500/10 text-muted-foreground";
   }
+  if (event.kind === "availability") {
+    return "border-emerald-500/70 bg-emerald-500/10 text-emerald-950 dark:text-emerald-100";
+  }
+  if (event.kind === "booking") {
+    return "border-indigo-500/70 bg-indigo-500/10 text-indigo-950 dark:text-indigo-100";
+  }
+  const type = event.source?.type;
+  if (type === "official_exam") return "border-amber-500/80 bg-amber-500/15 text-amber-950 dark:text-amber-100";
+  if (type === "tryout") return "border-violet-500/70 bg-violet-500/10 text-violet-950 dark:text-violet-100";
+  if (type === "quiz") return "border-sky-500/70 bg-sky-500/10 text-sky-950 dark:text-sky-100";
+  return "border-brand-primary/60 bg-brand-primary/10 text-foreground";
+}
 
-  return days;
+function eventAccent(event: CalendarEvent): string {
+  if (event.locked) return "bg-zinc-500";
+  if (event.kind === "availability") return "bg-emerald-500";
+  if (event.kind === "booking") return "bg-indigo-500";
+  if (event.source?.type === "official_exam") return "bg-amber-500";
+  if (event.source?.type === "tryout") return "bg-violet-500";
+  if (event.source?.type === "quiz") return "bg-sky-500";
+  return "bg-brand-primary";
+}
+
+function layoutEvents(events: CalendarEvent[]): PositionedEvent[] {
+  const sorted = [...events].sort((a, b) => a.startMinutes - b.startMinutes || a.endMinutes - b.endMinutes);
+  const result: PositionedEvent[] = [];
+  let group: CalendarEvent[] = [];
+  let groupEnd = -1;
+
+  const flush = () => {
+    if (group.length === 0) return;
+    const laneEnds: number[] = [];
+    const staged: Array<{ event: CalendarEvent; lane: number }> = [];
+    for (const event of group) {
+      let lane = laneEnds.findIndex((end) => end <= event.startMinutes);
+      if (lane === -1) {
+        lane = laneEnds.length;
+        laneEnds.push(event.endMinutes);
+      } else {
+        laneEnds[lane] = event.endMinutes;
+      }
+      staged.push({ event, lane });
+    }
+    const laneCount = Math.max(1, laneEnds.length);
+    result.push(...staged.map(({ event, lane }) => ({ ...event, lane, laneCount })));
+    group = [];
+    groupEnd = -1;
+  };
+
+  for (const event of sorted) {
+    if (group.length > 0 && event.startMinutes >= groupEnd) flush();
+    group.push(event);
+    groupEnd = Math.max(groupEnd, event.endMinutes);
+  }
+  flush();
+  return result;
+}
+
+function MonthPicker({
+  value,
+  viewMode,
+  onSelect,
+}: {
+  value: CalendarDate;
+  viewMode: CalendarViewMode;
+  onSelect: (dateIso: CalendarDate) => void;
+}) {
+  const [cursor, setCursor] = useState<CalendarDate>(() => getCalendarMonthRange(value).startIso);
+
+  useEffect(() => {
+    setCursor(getCalendarMonthRange(value).startIso);
+  }, [value]);
+
+  const monthRange = getCalendarMonthRange(cursor);
+  const firstDay = getCalendarDayIndex(monthRange.startIso);
+  const mondayOffset = (firstDay + 6) % 7;
+  const gridStart = addCalendarDays(monthRange.startIso, -mondayOffset);
+  const selectedWeek = getCalendarWeekRange(value);
+  const days = Array.from({ length: 42 }, (_, index) => addCalendarDays(gridStart, index));
+  const today = getJakartaCalendarDate();
+  const cursorParts = parseCalendarDate(cursor);
+
+  return (
+    <div className="w-[min(22rem,calc(100vw-2rem))] p-1">
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <Button type="button" size="icon-sm" variant="ghost" onClick={() => setCursor(addCalendarMonths(cursor, -1))} aria-label="Bulan sebelumnya">
+          <ChevronLeft className="size-4" />
+        </Button>
+        <p className="font-heading text-body-sm font-semibold">
+          {formatCalendarDateLabel(cursor, { month: "long", year: "numeric" })}
+        </p>
+        <Button type="button" size="icon-sm" variant="ghost" onClick={() => setCursor(addCalendarMonths(cursor, 1))} aria-label="Bulan berikutnya">
+          <ChevronRight className="size-4" />
+        </Button>
+      </div>
+      <div className="grid grid-cols-7 text-center text-[10px] font-semibold text-muted-foreground">
+        {["S", "S", "R", "K", "J", "S", "M"].map((label, index) => (
+          <div key={`${label}-${index}`} className="py-1">{label}</div>
+        ))}
+      </div>
+      <div className="grid grid-cols-7 gap-0.5">
+        {days.map((dateIso) => {
+          const parts = parseCalendarDate(dateIso);
+          const isCurrentMonth = parts.month === cursorParts.month;
+          const selected = viewMode === "week"
+            ? dateIso >= selectedWeek.startIso && dateIso <= selectedWeek.endIso
+            : viewMode === "month"
+              ? parts.month === parseCalendarDate(value).month && parts.year === parseCalendarDate(value).year
+              : dateIso === value;
+          const isToday = dateIso === today;
+          return (
+            <button
+              key={dateIso}
+              type="button"
+              onClick={() => onSelect(dateIso)}
+              className={cn(
+                "relative flex h-9 items-center justify-center rounded-md text-body-xs transition-colors hover:bg-muted",
+                !isCurrentMonth && "text-muted-foreground/45",
+                selected && "bg-brand-primary/10 text-brand-primary",
+                dateIso === value && "font-bold ring-1 ring-brand-primary/60",
+                isToday && "after:absolute after:bottom-1 after:size-1 after:rounded-full after:bg-brand-primary",
+              )}
+            >
+              {parts.day}
+            </button>
+          );
+        })}
+      </div>
+      <div className="mt-2 flex justify-end">
+        <Button type="button" variant="ghost" size="sm" onClick={() => onSelect(today)}>Hari ini</Button>
+      </div>
+    </div>
+  );
+}
+
+function EventCard({
+  event,
+  compact = false,
+  onOpen,
+  onDeleteSlot,
+}: {
+  event: CalendarEvent;
+  compact?: boolean;
+  onOpen?: () => void;
+  onDeleteSlot?: (slotId: string) => void;
+}) {
+  const interactive = Boolean(onOpen);
+  return (
+    <div
+      role={interactive ? "button" : undefined}
+      tabIndex={interactive ? 0 : undefined}
+      onClick={onOpen}
+      onKeyDown={(eventKey) => {
+        if (interactive && (eventKey.key === "Enter" || eventKey.key === " ")) {
+          eventKey.preventDefault();
+          onOpen?.();
+        }
+      }}
+      className={cn(
+        "group relative h-full min-h-10 overflow-hidden rounded-md border pl-2 pr-1.5 py-1.5 text-left shadow-xs",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        eventTone(event),
+        interactive && "cursor-pointer hover:brightness-[1.04]",
+      )}
+    >
+      <span className={cn("absolute inset-y-0 left-0 w-1", eventAccent(event))} aria-hidden />
+      <div className="flex h-full min-w-0 flex-col gap-0.5">
+        <div className="flex min-w-0 items-start gap-1">
+          <p className={cn("min-w-0 flex-1 break-words font-semibold leading-tight", compact ? "text-[10px]" : "text-[11px]")}>{event.title}</p>
+          {event.kind === "availability" && onDeleteSlot && !event.locked ? (
+            <button
+              type="button"
+              onClick={(clickEvent) => {
+                clickEvent.stopPropagation();
+                onDeleteSlot(event.source.id);
+              }}
+              className="shrink-0 rounded p-0.5 text-current/65 opacity-0 transition-opacity hover:bg-black/5 group-hover:opacity-100 focus:opacity-100 dark:hover:bg-white/10"
+              aria-label="Hapus slot"
+            >
+              <Trash2 className="size-3" />
+            </button>
+          ) : null}
+        </div>
+        <p className={cn("break-words leading-tight text-current/80", compact ? "text-[9px]" : "text-[10px]")}>{minutesToTime(event.startMinutes)}–{minutesToTime(event.endMinutes)}</p>
+        {event.subtitle ? <p className={cn("break-words leading-tight text-current/75", compact ? "text-[9px]" : "text-[10px]")}>{event.subtitle}</p> : null}
+        {!compact && event.meta ? <p className="break-words text-[10px] leading-tight text-current/65">{event.meta}</p> : null}
+        {!compact && (event.mode || event.location || event.locked) ? (
+          <div className="mt-auto flex flex-wrap items-center gap-x-1.5 gap-y-0.5 pt-0.5 text-[9px] font-medium text-current/75">
+            {event.locked ? <span className="inline-flex items-center gap-1"><Lock className="size-2.5" /> Terkunci</span> : null}
+            {event.mode === "online" ? <span className="inline-flex items-center gap-1"><Video className="size-2.5" /> Online</span> : null}
+            {event.mode === "offline" ? <span className="inline-flex items-center gap-1"><MapPin className="size-2.5" /> Offline</span> : null}
+            {event.location ? <span className="break-words">{event.location}</span> : null}
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
 }
 
 export function ScheduleCalendarView({
   role,
   adminMode = "academic",
-  currentUserId: _currentUserId,
   weekInfo,
   isWeekLocked,
   weekOffset,
   onWeekChange,
   coursesList,
   tutorsList = [],
-  groupsList = [],
   slots,
   bookings,
   academicSchedules = [],
@@ -345,1211 +392,355 @@ export function ScheduleCalendarView({
   onCreateScheduleDirect,
   onOpenPreSession,
   onOpenPostSession,
-  onOpenRescheduleTicket,
   onOpenAuditLog,
   onEditSchedule,
-  onDeleteSchedule: _onDeleteSchedule,
   onMoveSession,
   onDeleteSlot,
   onAssignTutorialSlot,
   onOpenSessionDetail,
   initialCourseFilter = "all",
 }: ScheduleCalendarProps) {
-  const isAdminTutorial = role === "admin" && adminMode === "tutorial";
-  const showTutorial = role !== "admin" || isAdminTutorial;
-  const showAcademic = role !== "admin" || !isAdminTutorial;
-  const canCreateAcademic = role === "admin" && showAcademic;
-  const canManageTutorial = role === "teacher" || isAdminTutorial;
-
-  const openBookedSession = (booking: any) => {
-    if (onOpenSessionDetail) {
-      onOpenSessionDetail(booking);
-      return;
-    }
-    if (role === "student") {
-      onOpenPreSession?.(booking);
-      return;
-    }
-    onOpenPostSession?.(booking);
-  };
-
-  const openSessionAudit = (booking: any) => {
-    if (onOpenSessionDetail) {
-      onOpenSessionDetail(booking);
-      return;
-    }
-    onOpenAuditLog?.(booking);
-  };
-  // View Modes: "month" | "week" | "day"
-  const [viewMode, setViewMode] = useState<"month" | "week" | "day">("week");
-
-  // Active anchor date for Day / Month views
-  const [activeDate, setActiveDate] = useState<Date>(() => {
-    return getJakartaNow();
-  });
-
-  const activeWeekStartDate = useMemo(
-    () => parseDateInput(weekInfo.startOfWeekIso),
-    [weekInfo.startOfWeekIso],
-  );
+  const [viewMode, setViewMode] = useState<CalendarViewMode>("week");
+  const [activeDate, setActiveDate] = useState<CalendarDate>(() => weekInfo.startOfWeekIso as CalendarDate);
+  const [courseFilter, setCourseFilter] = useState(initialCourseFilter || "all");
+  const [tutorFilter, setTutorFilter] = useState("all");
+  const today = getJakartaCalendarDate();
+  const nowMinutes = getJakartaClock();
 
   useEffect(() => {
-    setActiveDate(activeWeekStartDate);
-  }, [activeWeekStartDate]);
-
-  // Filters
-  const [selectedCourseFilter, setSelectedCourseFilter] = useState(initialCourseFilter);
-  const [selectedTutorFilter, setSelectedTutorFilter] = useState("all");
-  const [selectedGroupFilter, setSelectedGroupFilter] = useState("all");
-  const [selectedTypeFilter, setSelectedTypeFilter] = useState("all");
-  const [isFilterOpen, setIsFilterOpen] = useState(false);
-
-  useEffect(() => {
-    if (initialCourseFilter) {
-      setSelectedCourseFilter(initialCourseFilter);
+    const incomingStart = weekInfo.startOfWeekIso as CalendarDate;
+    const incomingEnd = weekInfo.endOfWeekIso as CalendarDate;
+    if (activeDate < incomingStart || activeDate > incomingEnd) {
+      setActiveDate(incomingStart);
     }
-  }, [initialCourseFilter]);
+  }, [activeDate, weekInfo.endOfWeekIso, weekInfo.startOfWeekIso]);
 
-  const activeFilterCount =
-    (selectedCourseFilter !== "all" ? 1 : 0) +
-    (selectedTutorFilter !== "all" ? 1 : 0) +
-    (selectedGroupFilter !== "all" ? 1 : 0) +
-    (selectedTypeFilter !== "all" ? 1 : 0);
-
-  const handleResetFilters = () => {
-    setSelectedCourseFilter("all");
-    setSelectedTutorFilter("all");
-    setSelectedGroupFilter("all");
-    setSelectedTypeFilter("all");
+  const selectAnchor = (dateIso: CalendarDate) => {
+    setActiveDate(dateIso);
+    const currentWeekStart = getCalendarWeekRange(today).startIso;
+    const targetWeekStart = getCalendarWeekRange(dateIso).startIso;
+    const targetOffset = Math.round(diffCalendarDays(targetWeekStart, currentWeekStart) / 7);
+    if (targetOffset !== weekOffset) onWeekChange(targetOffset);
   };
 
-  // Drag-to-Create state (Google Calendar style)
-  const [dragState, setDragState] = useState<{
-    isDragging: boolean;
-    dayIso: string;
-    startMin: number;
-    currentMin: number;
-  } | null>(null);
-
-  const gridScrollRef = useRef<HTMLDivElement>(null);
-
-  // Auto-scroll to 08:00 on mount for time grid
-  useEffect(() => {
-    if (gridScrollRef.current) {
-      gridScrollRef.current.scrollTop = HOUR_HEIGHT * 1; // scroll to 08:00
-    }
-  }, [viewMode]);
-
-  // Global mouseup listener to finish dragging cleanly
-  useEffect(() => {
-    if (!dragState?.isDragging) return;
-
-    const handleGlobalMouseUp = () => {
-      const isTeacher = role === "teacher";
-      const start = isTeacher ? dragState.startMin : Math.min(dragState.startMin, dragState.currentMin);
-      let end = isTeacher ? start + 90 : Math.max(dragState.startMin, dragState.currentMin);
-      if (!isTeacher && end <= start) {
-        end = start + 90;
-      }
-      end = Math.min(END_HOUR * 60, end);
-
-      const startH = Math.floor(start / 60);
-      const startM = start % 60;
-      const endH = Math.floor(end / 60);
-      const endM = end % 60;
-
-      const startTimeStr = `${String(startH).padStart(2, "0")}:${String(startM).padStart(2, "0")}`;
-      const endTimeStr = `${String(endH).padStart(2, "0")}:${String(endM).padStart(2, "0")}`;
-
-      const targetDayIso = dragState.dayIso;
-      setDragState(null);
-
-      if (isTeacher && (isWeekLocked || !isTutorStartValid(targetDayIso, start))) {
-        return;
-      }
-
-      onCreateScheduleDirect?.(targetDayIso, startTimeStr, endTimeStr);
-    };
-
-    window.addEventListener("mouseup", handleGlobalMouseUp);
-    return () => {
-      window.removeEventListener("mouseup", handleGlobalMouseUp);
-    };
-  }, [dragState, isWeekLocked, onCreateScheduleDirect, role]);
-
-  // Current time line calculation
-  const nowJakarta = getJakartaNow();
-  const nowMinutes = nowJakarta.getHours() * 60 + nowJakarta.getMinutes();
-  const nowTopPosition =
-    ((nowMinutes - START_HOUR * 60) / 60) * HOUR_HEIGHT;
-  const todayIso = formatIsoDateUtc(nowJakarta);
-
-  // Parsed and filtered Academic Schedules
-  const parsedAcademicEvents = useMemo(() => {
-    if (!showAcademic) return [];
-    return academicSchedules
-      .map(parseAcademicSchedule)
-      .filter((item): item is ParsedAcademicEvent => {
-        if (!item) return false;
-        if (
-          selectedCourseFilter !== "all" &&
-          item.schedule.courseId &&
-          item.schedule.courseId !== selectedCourseFilter
-        ) {
-          return false;
-        }
-        if (
-          selectedTypeFilter !== "all" &&
-          item.schedule.type !== selectedTypeFilter
-        ) {
-          return false;
-        }
-        return true;
-      });
-  }, [academicSchedules, selectedCourseFilter, selectedTypeFilter, showAcademic]);
-
-  // Filtered Bookings
-  const filteredBookings = useMemo(() => {
-    if (!showTutorial) return [];
-    return bookings.filter((b) => {
-      if (!b.sessionDate) return false;
-      if (
-        selectedCourseFilter !== "all" &&
-        b.courseId !== selectedCourseFilter
-      ) {
-        return false;
-      }
-      if (selectedGroupFilter !== "all" && b.groupId !== selectedGroupFilter) {
-        return false;
-      }
-      if (
-        selectedTutorFilter !== "all" &&
-        b.slot?.tutorId !== selectedTutorFilter
-      ) {
-        return false;
-      }
-      return true;
-    });
-  }, [bookings, selectedCourseFilter, selectedGroupFilter, selectedTutorFilter, showTutorial]);
-
-  // Filtered Slots
-  const filteredSlots = useMemo(() => {
-    if (!showTutorial) return [];
-    return slots.filter((s) => {
-      if (!s.sessionDate) return false;
-      if (
-        selectedTutorFilter !== "all" &&
-        s.tutorId &&
-        s.tutorId !== selectedTutorFilter
-      ) {
-        return false;
-      }
-      if (
-        selectedCourseFilter !== "all" &&
-        s.booking?.courseId &&
-        s.booking.courseId !== selectedCourseFilter
-      ) {
-        return false;
-      }
-      if (
-        selectedGroupFilter !== "all" &&
-        s.booking?.groupId &&
-        s.booking.groupId !== selectedGroupFilter
-      ) {
-        return false;
-      }
-      return true;
-    });
-  }, [slots, selectedTutorFilter, selectedCourseFilter, selectedGroupFilter, showTutorial]);
-
-  // Navigation handlers
-  const handlePrev = () => {
-    if (viewMode === "day") {
-      const nextD = new Date(activeDate);
-      nextD.setDate(nextD.getDate() - 1);
-      setActiveDate(nextD);
-    } else if (viewMode === "week") {
-      onWeekChange(weekOffset - 1);
-    } else if (viewMode === "month") {
-      const nextD = new Date(activeDate);
-      nextD.setMonth(nextD.getMonth() - 1);
-      setActiveDate(nextD);
-    }
+  const navigate = (direction: -1 | 1) => {
+    const next = viewMode === "day"
+      ? addCalendarDays(activeDate, direction)
+      : viewMode === "week"
+        ? addCalendarDays(activeDate, direction * 7)
+        : addCalendarMonths(activeDate, direction);
+    selectAnchor(next);
   };
 
-  const handleNext = () => {
-    if (viewMode === "day") {
-      const nextD = new Date(activeDate);
-      nextD.setDate(nextD.getDate() + 1);
-      setActiveDate(nextD);
-    } else if (viewMode === "week") {
-      onWeekChange(weekOffset + 1);
-    } else if (viewMode === "month") {
-      const nextD = new Date(activeDate);
-      nextD.setMonth(nextD.getMonth() + 1);
-      setActiveDate(nextD);
-    }
-  };
+  const normalizedEvents = useMemo<CalendarEvent[]>(() => {
+    const result: CalendarEvent[] = [];
+    const bookingSlotIds = new Set(bookings.map((booking: any) => booking.slotId).filter(Boolean));
 
-  const handleToday = () => {
-    const now = getJakartaNow();
-    setActiveDate(now);
-    if (weekOffset !== 0) {
-      onWeekChange(0);
-    }
-  };
-
-  // Header Date Range Label
-  const headerDateLabel = useMemo(() => {
-    if (viewMode === "day") {
-      return activeDate.toLocaleDateString("id-ID", {
-        weekday: "long",
-        day: "numeric",
-        month: "long",
-        year: "numeric",
+    for (const slot of slots) {
+      const dateIso = slot.sessionDate as CalendarDate | null | undefined;
+      if (!dateIso || bookingSlotIds.has(slot.id) || slot.booking) continue;
+      const startMinutes = timeToMinutes(slot.startTime);
+      const endMinutes = Math.max(startMinutes + 30, timeToMinutes(slot.endTime));
+      const tutorName = slot.tutor?.name || "Tutor";
+      result.push({
+        id: `slot-${slot.id}`,
+        kind: "availability",
+        dateIso,
+        startMinutes,
+        endMinutes,
+        title: `${minutesToTime(startMinutes)}–${minutesToTime(endMinutes)}`,
+        subtitle: tutorName,
+        meta: slot.notes || null,
+        mode: slot.mode,
+        location: slot.location,
+        tutorId: slot.tutorId || slot.tutor?.id || null,
+        locked: isWeekLocked || dateIso < today,
+        source: slot,
       });
     }
-    if (viewMode === "month") {
-      return activeDate.toLocaleDateString("id-ID", {
-        month: "long",
-        year: "numeric",
+
+    for (const booking of bookings) {
+      const dateIso = booking.sessionDate as CalendarDate | null | undefined;
+      if (!dateIso) continue;
+      const startMinutes = timeToMinutes(booking.startTime || booking.slot?.startTime);
+      const endMinutes = Math.max(startMinutes + 30, timeToMinutes(booking.endTime || booking.slot?.endTime));
+      result.push({
+        id: `booking-${booking.id}`,
+        kind: "booking",
+        dateIso,
+        startMinutes,
+        endMinutes,
+        title: booking.course?.title || booking.courseTitle || booking.topic || "Sesi tutorial",
+        subtitle: booking.group?.name || booking.groupName || booking.slot?.tutor?.name || null,
+        meta: booking.topic || booking.preSessionNotes || null,
+        mode: booking.mode || booking.slot?.mode,
+        location: booking.location || booking.slot?.location,
+        courseId: booking.courseId || booking.course?.id || null,
+        tutorId: booking.slot?.tutorId || booking.tutorId || booking.slot?.tutor?.id || null,
+        locked: false,
+        source: booking,
       });
     }
-    // Week mode
-    const first = weekInfo.days[0];
-    const last = weekInfo.days[6];
-    return `${first.dayOfMonth} ${first.monthName} - ${last.dayOfMonth} ${last.monthName}`;
-  }, [viewMode, activeDate, weekInfo]);
 
-  // Day View specific day object
-  const activeDayIso = formatIsoDateUtc(activeDate);
-  const activeDayOfWeekIndex = activeDate.getDay();
-  const activeDayName =
-    activeDayOfWeekIndex === 0
-      ? "Minggu"
-      : DAY_NAMES_ID[activeDayOfWeekIndex - 1] || "Senin";
-
-  // Month View Days
-  const monthDays = useMemo(() => {
-    return getMonthCalendarDays(
-      activeDate.getFullYear(),
-      activeDate.getMonth()
-    );
-  }, [activeDate]);
-
-  // Grid Drag interaction handlers
-  const isPastTime = (dayIso: string, hour: number) => {
-    const now = getJakartaNow();
-    const todayStr = formatIsoDateUtc(now);
-    const nowMin = now.getHours() * 60 + now.getMinutes();
-    if (dayIso < todayStr) return true;
-    if (dayIso === todayStr && (hour + 1) * 60 <= nowMin) return true;
-    return false;
-  };
-
-  const handleGridMouseDown = (dayIso: string, hour: number, e: React.MouseEvent<HTMLDivElement>) => {
-    const canDragCreate = role === "teacher" || (role === "admin" && canCreateAcademic);
-    if (!canDragCreate || !onCreateScheduleDirect) return;
-    if ((e.target as HTMLElement).closest("button, a, .session-card")) return;
-
-    if (role === "teacher" && (isWeekLocked || isPastTime(dayIso, hour))) return;
-
-    const rect = e.currentTarget.getBoundingClientRect();
-    const clickY = e.clientY - rect.top;
-    const isSecondHalf = clickY >= HOUR_HEIGHT / 2;
-    const startMin = hour * 60 + (isSecondHalf ? 30 : 0);
-    if (role === "teacher" && !isTutorStartValid(dayIso, startMin)) return;
-
-    setDragState({
-      isDragging: true,
-      dayIso,
-      startMin,
-      currentMin: role === "teacher" ? startMin + 90 : startMin + 60,
-    });
-  };
-
-  const handleColumnMouseMove = (dayIso: string, e: React.MouseEvent<HTMLDivElement>) => {
-    if (!dragState?.isDragging || dragState.dayIso !== dayIso) return;
-    if (role === "teacher") return;
-
-    const rect = e.currentTarget.getBoundingClientRect();
-    const offsetY = e.clientY - rect.top;
-    const minuteFromTop = (offsetY / (HOURS_COUNT * HOUR_HEIGHT)) * (HOURS_COUNT * 60);
-    const rawMin = START_HOUR * 60 + minuteFromTop;
-    const roundedMin = Math.max(
-      START_HOUR * 60,
-      Math.min(END_HOUR * 60, Math.round(rawMin / 30) * 30)
-    );
-
-    if (roundedMin !== dragState.currentMin) {
-      setDragState((prev) => (prev ? { ...prev, currentMin: roundedMin } : null));
+    for (const schedule of academicSchedules) {
+      const start = parseAcademicInstant(schedule.startDate);
+      if (!start) continue;
+      const end = parseAcademicInstant(schedule.endDate);
+      const sameDayEnd = end && end.dateIso === start.dateIso ? end.minutes : null;
+      const endMinutes = sameDayEnd && sameDayEnd > start.minutes ? sameDayEnd : start.minutes + 90;
+      result.push({
+        id: `academic-${schedule.id}`,
+        kind: "academic",
+        dateIso: start.dateIso,
+        startMinutes: start.minutes,
+        endMinutes,
+        title: schedule.title || academicTypeLabel(schedule.type),
+        subtitle: schedule.course?.title || schedule.courseTitle || academicTypeLabel(schedule.type),
+        meta: schedule.description || null,
+        location: schedule.location,
+        courseId: schedule.courseId || schedule.course?.id || null,
+        source: schedule,
+      });
     }
+
+    return result;
+  }, [academicSchedules, bookings, isWeekLocked, slots, today]);
+
+  const filteredEvents = useMemo(() => normalizedEvents.filter((event) => {
+    if (courseFilter !== "all") {
+      if (event.kind === "availability") {
+        const tutorCourses = event.source?.tutor?.tutorCourses || [];
+        const hasCourse = tutorCourses.some((entry: any) => (entry.courseId || entry.course?.id) === courseFilter);
+        if (!hasCourse) return false;
+      } else if (event.courseId !== courseFilter) {
+        return false;
+      }
+    }
+    if (tutorFilter !== "all" && event.kind !== "academic" && event.tutorId !== tutorFilter) return false;
+    if (role === "admin" && adminMode === "academic" && event.kind !== "academic") return false;
+    if (role === "admin" && adminMode === "tutorial" && event.kind === "academic") return false;
+    return true;
+  }), [adminMode, courseFilter, normalizedEvents, role, tutorFilter]);
+
+  const visibleDays = useMemo(() => {
+    if (viewMode === "day") {
+      const info = weekInfo.days.find((day) => day.dateIso === activeDate);
+      return [info || {
+        dateIso: activeDate,
+        dayName: formatCalendarDateLabel(activeDate, { weekday: "long" }),
+        dayOfMonth: parseCalendarDate(activeDate).day,
+        monthName: formatCalendarDateLabel(activeDate, { month: "short" }),
+        isToday: activeDate === today,
+        isPast: activeDate < today,
+      }];
+    }
+    return weekInfo.days;
+  }, [activeDate, today, viewMode, weekInfo.days]);
+
+  const rangeLabel = viewMode === "day"
+    ? formatCalendarDateLabel(activeDate, { weekday: "short", day: "numeric", month: "short", year: "numeric" })
+    : viewMode === "month"
+      ? formatCalendarDateLabel(activeDate, { month: "long", year: "numeric" })
+      : `${formatCalendarDateLabel(weekInfo.startOfWeekIso as CalendarDate, { day: "numeric", month: "short" })} – ${formatCalendarDateLabel(weekInfo.endOfWeekIso as CalendarDate, { day: "numeric", month: "short", year: "numeric" })}`;
+
+  const openEvent = (event: CalendarEvent) => {
+    if (event.kind === "availability") {
+      if (role === "student" && !event.locked) onSelectSlotToBook?.(event.source, event.dateIso);
+      else if (role === "admin" && adminMode === "tutorial") onAssignTutorialSlot?.(event.source);
+      return;
+    }
+    if (event.kind === "academic") {
+      onEditSchedule?.(event.source);
+      return;
+    }
+    if (onOpenSessionDetail) onOpenSessionDetail(event.source);
+    else if (role === "student") onOpenPreSession?.(event.source);
+    else onOpenPostSession?.(event.source);
+  };
+
+  const handleGridCreate = (dateIso: CalendarDate, hour: number) => {
+    if (!onCreateScheduleDirect) return;
+    const start = hour * 60;
+    const end = role === "teacher" ? start + 90 : start + 60;
+    if (end > END_MINUTES) return;
+    onCreateScheduleDirect(dateIso, minutesToTime(start), minutesToTime(end));
   };
 
   return (
-    <TooltipProvider delayDuration={150}>
-      <div className="space-y-2.5 font-sans">
-        {/* ══════════════════════════════════════════════════════════════════ */}
-        {/* 1. SINGLE-ROW GOOGLE CALENDAR-STYLE TOOLBAR                       */}
-        {/* ══════════════════════════════════════════════════════════════════ */}
-        <div className="flex flex-wrap items-center justify-between gap-2 p-1.5 px-2 rounded-xl border border-border bg-card shadow-xs">
-          {/* Left: View Mode Switcher & Date Navigation */}
-          <div className="flex items-center gap-1.5 flex-wrap">
-            {/* View Mode Select */}
-            <div className="w-[96px] shrink-0">
-              <Select
-                value={viewMode}
-                onValueChange={(val: "day" | "week" | "month") => setViewMode(val)}
-              >
-                <SelectTrigger className="h-8 text-body-xs font-semibold rounded-lg bg-card">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="week">Minggu</SelectItem>
-                  <SelectItem value="day">Hari</SelectItem>
-                  <SelectItem value="month">Bulan</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+    <div className="min-w-0 space-y-2">
+      <div className="flex min-w-0 flex-wrap items-center gap-2 rounded-xl border border-border/80 bg-card/65 p-2 shadow-xs backdrop-blur-sm sm:flex-nowrap">
+        <Select value={viewMode} onValueChange={(value: CalendarViewMode) => setViewMode(value)}>
+          <SelectTrigger className="h-9 w-[106px] shrink-0 text-body-sm font-semibold">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="day">Hari</SelectItem>
+            <SelectItem value="week">Minggu</SelectItem>
+            <SelectItem value="month">Bulan</SelectItem>
+          </SelectContent>
+        </Select>
 
-            {/* Today Button */}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleToday}
-              className="h-8 px-2.5 rounded-lg text-body-xs font-semibold text-foreground hover:bg-muted shrink-0"
-            >
-              Hari Ini
+        <Button type="button" variant="outline" size="sm" className="h-9 shrink-0" onClick={() => selectAnchor(today)}>Hari Ini</Button>
+        <div className="flex shrink-0 items-center">
+          <Button type="button" variant="ghost" size="icon-sm" onClick={() => navigate(-1)} aria-label="Rentang sebelumnya"><ChevronLeft className="size-4" /></Button>
+          <Button type="button" variant="ghost" size="icon-sm" onClick={() => navigate(1)} aria-label="Rentang berikutnya"><ChevronRight className="size-4" /></Button>
+        </div>
+
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button type="button" variant="ghost" size="sm" className="h-9 min-w-0 max-w-full justify-start gap-2 px-2 text-body-sm font-semibold sm:flex-1">
+              <CalendarDays className="size-4 shrink-0 text-brand-primary" />
+              <span className="truncate">{rangeLabel}</span>
             </Button>
+          </PopoverTrigger>
+          <PopoverContent align="start" className="w-auto p-2">
+            <MonthPicker value={activeDate} viewMode={viewMode} onSelect={selectAnchor} />
+          </PopoverContent>
+        </Popover>
 
-            {/* Prev & Next Arrows */}
-            <div className="flex items-center gap-0.5 shrink-0">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={handlePrev}
-                className="h-8 w-8 rounded-lg text-muted-foreground hover:text-foreground"
-                aria-label="Sebelumnya"
-              >
-                <ChevronLeft className="size-3.5" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={handleNext}
-                className="h-8 w-8 rounded-lg text-muted-foreground hover:text-foreground"
-                aria-label="Berikutnya"
-              >
-                <ChevronRight className="size-3.5" />
-              </Button>
-            </div>
+        <div className="ml-auto flex shrink-0 items-center gap-1">
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button type="button" variant="ghost" size="icon-sm" aria-label="Keterangan warna"><Info className="size-4" /></Button>
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-60 space-y-2 p-3 text-body-xs">
+              <p className="font-semibold text-foreground">Keterangan</p>
+              <div className="space-y-1.5 text-muted-foreground">
+                <p className="flex items-center gap-2"><span className="size-2.5 rounded-sm bg-emerald-500" /> Slot tersedia</p>
+                <p className="flex items-center gap-2"><span className="size-2.5 rounded-sm bg-indigo-500" /> Sesi terjadwal</p>
+                <p className="flex items-center gap-2"><span className="size-2.5 rounded-sm bg-amber-500" /> Jadwal akademik / ujian</p>
+                <p className="flex items-center gap-2"><span className="size-2.5 rounded-sm bg-zinc-500" /> Lewat atau terkunci</p>
+              </div>
+            </PopoverContent>
+          </Popover>
 
-            {/* Date Range Text */}
-            <div className="flex items-center gap-1.5 px-1 py-0.5 shrink-0">
-              <CalendarIcon className="size-3.5 text-brand-primary shrink-0" />
-              <span className="text-body-xs font-bold text-foreground capitalize whitespace-nowrap">
-                {headerDateLabel}
-              </span>
-            </div>
-
-            {/* Lock Status (Icon + Accessible Tooltip) */}
-            {isWeekLocked && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <div className="flex items-center justify-center size-7 rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/30 cursor-help shrink-0">
-                    <Lock className="size-3.5" />
-                    <span className="sr-only">Jadwal Minggu Ini Terkunci</span>
-                  </div>
-                </TooltipTrigger>
-                <TooltipContent side="bottom" className="text-body-xs">
-                  Jadwal minggu ini telah dikunci (Sabtu 23:59 WIB). Perubahan jadwal wajib melalui tiket reschedule.
-                </TooltipContent>
-              </Tooltip>
-            )}
-          </div>
-
-          {/* Right: Unified Single Filter Popover Button */}
-          <div className="flex items-center gap-1.5 ml-auto">
-            <Popover open={isFilterOpen} onOpenChange={setIsFilterOpen}>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className={cn(
-                    "h-8 px-2.5 rounded-lg text-body-xs font-semibold gap-1.5 shrink-0 transition-colors",
-                    activeFilterCount > 0
-                      ? "border-brand-primary text-brand-primary bg-brand-primary/5 hover:bg-brand-primary/10"
-                      : "text-muted-foreground hover:text-foreground"
-                  )}
-                >
-                  <SlidersHorizontal className="size-3.5" />
-                  <span>Filter</span>
-                  {activeFilterCount > 0 && (
-                    <span className="inline-flex items-center justify-center size-4 rounded-full bg-brand-primary text-white text-[9px] font-bold">
-                      {activeFilterCount}
-                    </span>
-                  )}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent align="end" className="w-72 p-3 space-y-2.5 rounded-xl shadow-xl">
-                <div className="flex items-center justify-between pb-1.5 border-b border-border">
-                  <span className="text-body-xs font-bold text-foreground">Filter Kalender</span>
-                  {activeFilterCount > 0 && (
-                    <button
-                      type="button"
-                      onClick={handleResetFilters}
-                      className="text-[11px] font-semibold text-brand-primary hover:underline flex items-center gap-1"
-                    >
-                      <RotateCcw className="size-2.5" />
-                      <span>Reset</span>
-                    </button>
-                  )}
-                </div>
-
-                {/* Course Filter */}
-                <div className="space-y-1">
-                  <label className="text-[11px] font-semibold text-muted-foreground block">
-                    Mata Kuliah
-                  </label>
-                  <Select
-                    value={selectedCourseFilter}
-                    onValueChange={setSelectedCourseFilter}
-                  >
-                    <SelectTrigger className="h-8 text-body-xs rounded-lg bg-card">
-                      <SelectValue placeholder="Semua Mata Kuliah" />
-                    </SelectTrigger>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button type="button" variant="outline" size="sm" className="h-9 gap-1.5 px-2.5"><SlidersHorizontal className="size-4" /><span className="hidden sm:inline">Filter</span></Button>
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-72 space-y-3 p-3">
+              <div className="space-y-1.5">
+                <p className="text-body-xs font-semibold">Mata kuliah</p>
+                <Select value={courseFilter} onValueChange={setCourseFilter}>
+                  <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Semua mata kuliah</SelectItem>
+                    {coursesList.map((course) => <SelectItem key={course.id} value={course.id}>{course.title}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              {tutorsList.length > 0 ? (
+                <div className="space-y-1.5">
+                  <p className="text-body-xs font-semibold">Tutor</p>
+                  <Select value={tutorFilter} onValueChange={setTutorFilter}>
+                    <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all">Semua Mata Kuliah</SelectItem>
-                      {coursesList.map((c) => (
-                        <SelectItem key={c.id} value={c.id}>
-                          {c.title}
-                        </SelectItem>
-                      ))}
+                      <SelectItem value="all">Semua tutor</SelectItem>
+                      {tutorsList.map((tutor) => <SelectItem key={tutor.id} value={tutor.id}>{tutor.name}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
-
-                {/* Tutor Filter */}
-                {(role === "student" || role === "admin") && tutorsList.length > 0 && (
-                  <div className="space-y-1">
-                    <label className="text-[11px] font-semibold text-muted-foreground block">
-                      Tutor
-                    </label>
-                    <Select
-                      value={selectedTutorFilter}
-                      onValueChange={setSelectedTutorFilter}
-                    >
-                      <SelectTrigger className="h-8 text-body-xs rounded-lg bg-card">
-                        <SelectValue placeholder="Semua Tutor" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">Semua Tutor</SelectItem>
-                        {tutorsList.map((t) => (
-                          <SelectItem key={t.id} value={t.id}>
-                            {t.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
-
-                {/* Group Filter */}
-                {(role === "teacher" || role === "admin") && groupsList.length > 0 && (
-                  <div className="space-y-1">
-                    <label className="text-[11px] font-semibold text-muted-foreground block">
-                      Kelompok Belajar
-                    </label>
-                    <Select
-                      value={selectedGroupFilter}
-                      onValueChange={setSelectedGroupFilter}
-                    >
-                      <SelectTrigger className="h-8 text-body-xs rounded-lg bg-card">
-                        <SelectValue placeholder="Semua Kelompok" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">Semua Kelompok</SelectItem>
-                        {groupsList.map((g) => (
-                          <SelectItem key={g.id} value={g.id}>
-                            {g.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
-
-                {/* Schedule Type Filter (for Admin) */}
-                {role === "admin" && (
-                  <div className="space-y-1">
-                    <label className="text-[11px] font-semibold text-muted-foreground block">
-                      Jenis Jadwal
-                    </label>
-                    <Select
-                      value={selectedTypeFilter}
-                      onValueChange={setSelectedTypeFilter}
-                    >
-                      <SelectTrigger className="h-8 text-body-xs rounded-lg bg-card">
-                        <SelectValue placeholder="Semua Jenis" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">Semua Jenis</SelectItem>
-                        <SelectItem value="official_exam">Ujian ITB</SelectItem>
-                        <SelectItem value="tryout">Tryout</SelectItem>
-                        <SelectItem value="quiz">Kuis</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
-              </PopoverContent>
-            </Popover>
-          </div>
+              ) : null}
+            </PopoverContent>
+          </Popover>
         </div>
+      </div>
 
-        {/* Compact Legend for Teacher */}
-        {role === "teacher" && (
-          <div className="flex flex-wrap items-center gap-3 p-2 px-3 rounded-xl border border-border bg-card shadow-xs text-body-xs">
-            <span className="font-bold text-foreground">Keterangan:</span>
-            <div className="flex items-center gap-1.5">
-              <div className="size-2.5 rounded-xs bg-emerald-500 shrink-0" />
-              <span className="text-muted-foreground">Slot tersedia</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <div className="size-2.5 rounded-xs bg-indigo-500 shrink-0" />
-              <span className="text-muted-foreground">Sesi terjadwal</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <div className="size-2.5 rounded-xs bg-muted-foreground/40 shrink-0" />
-              <span className="text-muted-foreground flex items-center gap-1">
-                <Lock className="size-2.5" />
-                Tidak aktif, lewat atau terkunci
-              </span>
-            </div>
-          </div>
-        )}
-
-        {/* ══════════════════════════════════════════════════════════════════ */}
-        {/* VIEW 1: GOOGLE CALENDAR 7-DAY WEEKLY TIME GRID                     */}
-        {/* ══════════════════════════════════════════════════════════════════ */}
-        {viewMode === "week" && (
-          <div className="rounded-xl border border-border bg-card shadow-xs overflow-hidden flex flex-col select-none">
-            <div className="overflow-x-auto">
-              <div className="min-w-[640px] md:min-w-0">
-                {/* Top All-Day Row Header */}
-            <div className="grid grid-cols-[52px_repeat(7,minmax(0,1fr))] border-b border-border/80 bg-muted/20">
-              {/* Timezone corner label */}
-              <div className="p-1.5 text-center text-[10px] font-semibold text-muted-foreground border-r border-border/60 flex flex-col justify-center">
-                <span>WIB</span>
-                <span className="text-[8px] text-muted-foreground/80">GMT+7</span>
-              </div>
-
-              {/* 7 Day Column Headers */}
-              {weekInfo.days.map((day) => {
-                // Find all-day academic events on this day
-                const dayAllDayEvents = parsedAcademicEvents.filter(
-                  (e) => e.dateIso === day.dateIso && e.isAllDay
-                );
-
-                return (
-                  <div
-                    key={day.dateIso}
-                    className={`p-1.5 border-r border-border/60 text-center flex flex-col justify-between ${
-                      day.isToday ? "bg-brand-primary/5" : ""
-                    }`}
-                  >
-                    <div>
-                      <span className="text-[10px] uppercase font-semibold text-muted-foreground block">
-                        {day.dayName.slice(0, 3)}
-                      </span>
-                      <span
-                        className={`inline-flex items-center justify-center size-5 text-body-xs font-bold rounded-full my-0.5 ${
-                          day.isToday
-                            ? "bg-brand-primary text-white"
-                            : "text-foreground"
-                        }`}
-                      >
-                        {day.dayOfMonth}
-                      </span>
-                    </div>
-
-                    {/* All-Day Event Chips */}
-                    {dayAllDayEvents.length > 0 && (
-                      <div className="space-y-0.5 mt-1 text-left">
-                        {dayAllDayEvents.map((evt) => {
-                          const style = getAcademicStyle(evt.schedule.type);
-                          return (
-                            <div
-                              key={evt.schedule.id}
-                              onClick={() => onEditSchedule?.(evt.schedule)}
-                              className={`px-1.5 py-0.5 rounded text-[9px] font-bold truncate border ${style.border} ${style.bg} flex items-center gap-1 cursor-pointer`}
-                              title={`${evt.schedule.title} (${style.label})`}
-                            >
-                              <GraduationCap className="size-2.5 shrink-0" />
-                              <span className="truncate">{evt.schedule.title}</span>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* Scrollable Hourly Time Grid */}
+      {viewMode === "month" ? (
+        <MonthView
+          activeDate={activeDate}
+          events={filteredEvents}
+          today={today}
+          onSelectDate={(dateIso) => {
+            setViewMode("day");
+            selectAnchor(dateIso);
+          }}
+          onOpenEvent={openEvent}
+        />
+      ) : (
+        <div className="overflow-x-auto rounded-xl border border-border/80 bg-card/55 shadow-xs">
+          <div className={cn("min-w-[820px]", viewMode === "day" && "min-w-[420px]") }>
             <div
-              ref={gridScrollRef}
-              className="relative max-h-[600px] overflow-y-auto overflow-x-hidden"
-              style={{ height: `${HOURS_COUNT * HOUR_HEIGHT}px` }}
+              className="grid border-b border-border/70 bg-muted/20"
+              style={{ gridTemplateColumns: viewMode === "day" ? "56px minmax(0,1fr)" : "56px repeat(7,minmax(108px,1fr))" }}
             >
+              <div className="flex flex-col items-center justify-center border-r border-border/70 py-2 text-[10px] font-semibold text-muted-foreground">
+                <span>WIB</span><span className="mt-0.5 text-[9px]">GMT+7</span>
+              </div>
+              {visibleDays.map((day) => (
+                <div key={day.dateIso} className={cn("border-r border-border/60 px-2 py-2 text-center", day.isToday && "bg-brand-primary/5") }>
+                  <p className="text-[10px] font-semibold uppercase text-muted-foreground">{String(day.dayName).slice(0, 3)}</p>
+                  <p className={cn("mx-auto mt-1 flex size-7 items-center justify-center rounded-full text-body-sm font-bold", day.isToday && "bg-brand-primary text-white")}>{day.dayOfMonth}</p>
+                </div>
+              ))}
+            </div>
+
+            <div className="max-h-[72vh] overflow-y-auto">
               <div
-                className="grid grid-cols-[52px_repeat(7,minmax(0,1fr))] relative"
-                style={{ height: `${HOURS_COUNT * HOUR_HEIGHT}px` }}
+                className="grid relative"
+                style={{
+                  gridTemplateColumns: viewMode === "day" ? "56px minmax(0,1fr)" : "56px repeat(7,minmax(108px,1fr))",
+                  height: `${HOURS.length * HOUR_HEIGHT}px`,
+                }}
               >
-                {/* 1. Left Time Axis */}
-                <div className="border-r border-border/60 bg-muted/10 select-none">
+                <div className="relative border-r border-border/70 bg-muted/5">
                   {HOURS.map((hour) => (
-                    <div
-                      key={hour}
-                      style={{ height: `${HOUR_HEIGHT}px` }}
-                      className="border-b border-border/30 px-1 pt-0.5 text-right text-[10px] font-semibold text-muted-foreground"
-                    >
+                    <div key={hour} style={{ height: HOUR_HEIGHT }} className="border-b border-border/35 pr-1 pt-1 text-right text-[10px] font-medium text-muted-foreground">
                       {String(hour).padStart(2, "0")}:00
                     </div>
                   ))}
+                  <span className="absolute bottom-0 right-1 translate-y-1/2 bg-card px-0.5 text-[9px] text-muted-foreground">24:00</span>
                 </div>
 
-                {/* 2. 7 Day Columns with Time Grid Lines & Event Blocks */}
-                {weekInfo.days.map((day) => {
-                  const daySlots = filteredSlots.filter((s) => {
-                    return s.sessionDate === day.dateIso;
-                  });
-
-                  const dayBookings = filteredBookings.filter((b) => {
-                    return b.sessionDate === day.dateIso;
-                  });
-
-                  // Timed academic events on this day
-                  const dayTimedAcademic = parsedAcademicEvents.filter(
-                    (e) => e.dateIso === day.dateIso && !e.isAllDay
-                  );
-
+                {visibleDays.map((day) => {
+                  const dayIso = day.dateIso as CalendarDate;
+                  const dayEvents = layoutEvents(filteredEvents.filter((event) => event.dateIso === dayIso && event.endMinutes > START_MINUTES && event.startMinutes < END_MINUTES));
+                  const canCreate = Boolean(onCreateScheduleDirect) && (role === "admin" || role === "teacher") && dayIso >= today && !isWeekLocked;
                   return (
-                    <div
-                      key={day.dateIso}
-                      onMouseMove={(e) => handleColumnMouseMove(day.dateIso, e)}
-                      className={`relative border-r border-border/60 ${
-                        day.isToday ? "bg-brand-primary/[0.02]" : ""
-                      }`}
-                    >
-                      {/* Horizontal Grid lines */}
+                    <div key={dayIso} className={cn("relative border-r border-border/60", day.isToday && "bg-brand-primary/[0.02]") }>
                       {HOURS.map((hour) => (
-                        <div
+                        <button
                           key={hour}
-                          style={{ height: `${HOUR_HEIGHT}px` }}
-                          onMouseDown={(e) => handleGridMouseDown(day.dateIso, hour, e)}
-                          className={cn(
-                            "border-b border-border/30 w-full transition-colors",
-                            ((role === "admin" && canCreateAcademic) || (role === "teacher" && !isWeekLocked && !isPastTime(day.dateIso, hour))) &&
-                              onCreateScheduleDirect &&
-                              "cursor-pointer hover:bg-brand-primary/5"
-                          )}
-                          title={
-                            role === "admin" && canCreateAcademic && onCreateScheduleDirect
-                              ? `Klik & drag untuk membuat jadwal pada ${day.dayName}, ${String(hour).padStart(2, "0")}:00`
-                              : role === "teacher" && onCreateScheduleDirect && !isWeekLocked && !isPastTime(day.dateIso, hour)
-                              ? `Klik atau drag untuk tambah slot ketersediaan 90m pada ${day.dayName}, ${String(hour).padStart(2, "0")}:00`
-                              : undefined
-                          }
+                          type="button"
+                          aria-label={`Buat jadwal ${dayIso} ${hour}:00`}
+                          onClick={() => canCreate && handleGridCreate(dayIso, hour)}
+                          className={cn("block w-full border-b border-border/35 transition-colors", canCreate && "cursor-pointer hover:bg-brand-primary/5")}
+                          style={{ height: HOUR_HEIGHT }}
+                          disabled={!canCreate}
                         />
                       ))}
 
-                      {/* Current Time Line if Today */}
-                      {day.isToday &&
-                        nowMinutes >= START_HOUR * 60 &&
-                        nowMinutes <= END_HOUR * 60 && (
-                          <div
-                            className="absolute left-0 right-0 z-30 pointer-events-none flex items-center"
-                            style={{ top: `${nowTopPosition}px` }}
-                          >
-                            <div className="size-2 rounded-full bg-red-500 -ml-1 ring-2 ring-white dark:ring-background" />
-                            <div className="h-[2px] w-full bg-red-500" />
-                          </div>
-                        )}
+                      {day.isToday && nowMinutes >= START_MINUTES && nowMinutes <= END_MINUTES ? (
+                        <div className="pointer-events-none absolute left-0 right-0 z-30 flex items-center" style={{ top: `${((nowMinutes - START_MINUTES) / 60) * HOUR_HEIGHT}px` }}>
+                          <span className="-ml-1 size-2 rounded-full bg-red-500 ring-2 ring-card" />
+                          <span className="h-0.5 flex-1 bg-red-500" />
+                        </div>
+                      ) : null}
 
-                      {/* Interactive Drag Selection Preview Box */}
-                      {dragState?.isDragging && dragState.dayIso === day.dateIso && (() => {
-                        const isTeacher = role === "teacher";
-                        const minMin = isTeacher ? dragState.startMin : Math.min(dragState.startMin, dragState.currentMin);
-                        const duration = isTeacher ? 90 : Math.max(30, Math.max(dragState.startMin, dragState.currentMin) - minMin);
-                        const top = ((minMin - START_HOUR * 60) / 60) * HOUR_HEIGHT;
-                        const height = (duration / 60) * HOUR_HEIGHT;
-
-                        const sH = Math.floor(minMin / 60);
-                        const sM = minMin % 60;
-                        const eH = Math.floor((minMin + duration) / 60);
-                        const eM = (minMin + duration) % 60;
-                        const timeLabel = `${String(sH).padStart(2, "0")}:${String(sM).padStart(2, "0")} - ${String(eH).padStart(2, "0")}:${String(eM).padStart(2, "0")}`;
-
+                      {dayEvents.map((event) => {
+                        const visibleStart = Math.max(START_MINUTES, event.startMinutes);
+                        const visibleEnd = Math.min(END_MINUTES, event.endMinutes);
+                        const top = ((visibleStart - START_MINUTES) / 60) * HOUR_HEIGHT;
+                        const height = Math.max(42, ((visibleEnd - visibleStart) / 60) * HOUR_HEIGHT - 3);
+                        const laneWidth = 100 / event.laneCount;
+                        const left = event.lane * laneWidth;
+                        const opening = event.kind === "availability"
+                          ? role === "student" ? !event.locked : role === "admin" && adminMode === "tutorial"
+                          : true;
                         return (
                           <div
-                            style={{
-                              top: `${Math.max(0, top)}px`,
-                              height: `${Math.max(28, height)}px`,
-                            }}
-                            className="absolute left-0.5 right-0.5 z-40 rounded-md bg-blue-500/20 border-2 border-blue-500 p-1.5 flex flex-col justify-start pointer-events-none shadow-md backdrop-blur-[1px] animate-in fade-in-50"
+                            key={event.id}
+                            className="absolute z-20 px-0.5"
+                            style={{ top, height, left: `${left}%`, width: `${laneWidth}%` }}
                           >
-                            <span className="text-[10px] font-bold text-blue-600 dark:text-blue-400 leading-tight">
-                              {isTeacher ? "Slot Baru (90m)" : "(Jadwal Baru)"}
-                            </span>
-                            <span className="text-[9px] font-semibold text-blue-600 dark:text-blue-400 mt-0.5">
-                              {timeLabel}
-                            </span>
-                          </div>
-                        );
-                      })()}
-
-                      {/* Render Timed Academic Schedules (Exams, Tryouts, Quizzes) ON HOURLY GRID */}
-                      {dayTimedAcademic.map((evt) => {
-                        const top =
-                          ((evt.startMinutes - START_HOUR * 60) / 60) * HOUR_HEIGHT;
-                        const height = (evt.duration / 60) * HOUR_HEIGHT - 2;
-                        const style = getAcademicStyle(evt.schedule.type);
-
-                        return (
-                          <div
-                            key={evt.schedule.id}
-                            onClick={() => onEditSchedule?.(evt.schedule)}
-                            style={{
-                              top: `${Math.max(0, top)}px`,
-                              height: `${Math.max(34, height)}px`,
-                            }}
-                            className={cn(
-                              `absolute left-0.5 right-0.5 z-25 rounded-md border ${style.border} ${style.bg} p-1.5 flex flex-col justify-between overflow-hidden shadow-xs transition-all hover:z-35 hover:shadow-md session-card`,
-                              onEditSchedule && "cursor-pointer"
-                            )}
-                          >
-                            {/* Left solid color accent bar */}
-                            <div
-                              className={`absolute left-0 top-0 bottom-0 w-1 ${style.bar}`}
+                            <EventCard
+                              event={event}
+                              onOpen={opening ? () => openEvent(event) : undefined}
+                              onDeleteSlot={(role === "teacher" || (role === "admin" && adminMode === "tutorial")) ? onDeleteSlot : undefined}
                             />
-
-                            <div className="pl-1.5 min-w-0">
-                              <div className="flex items-start justify-between gap-1 leading-tight">
-                                <span className="text-[11px] font-bold text-foreground truncate block">
-                                  {evt.schedule.title}
-                                </span>
-                                <Badge
-                                  variant="outline"
-                                  className={`text-[8px] px-1 py-0 ${style.badge}`}
-                                >
-                                  {style.label}
-                                </Badge>
-                              </div>
-
-                              <div className="flex items-center gap-1 text-[9px] text-muted-foreground mt-0.5">
-                                <Clock className="size-2.5 shrink-0" />
-                                <span>
-                                  {evt.startTimeStr} - {evt.endTimeStr}
-                                </span>
-                                {evt.schedule.course && (
-                                  <>
-                                    <span aria-hidden="true">,</span>
-                                    <span className="truncate">{evt.schedule.course.title}</span>
-                                  </>
-                                )}
-                              </div>
-                            </div>
-
-                            {evt.schedule.location && (
-                              <div className="pl-1.5 flex items-center gap-1 text-[8px] text-muted-foreground mt-0.5 truncate">
-                                <MapPin className="size-2.5 shrink-0" />
-                                <span className="truncate">{evt.schedule.location}</span>
-                              </div>
-                            )}
                           </div>
                         );
                       })}
-
-                      {/* Render Booked Sessions (Google Calendar Block Style) */}
-                      {dayBookings.map((b) => {
-                        const startTimeStr = b.startTime || b.slot?.startTime || "09:00";
-                        const endTimeStr = b.endTime || b.slot?.endTime || "10:30";
-                        const startMin = timeToMinutes(startTimeStr);
-                        const endMin = timeToMinutes(endTimeStr);
-                        const duration = Math.max(30, endMin - startMin);
-
-                        const top =
-                          ((startMin - START_HOUR * 60) / 60) * HOUR_HEIGHT;
-                        const height = (duration / 60) * HOUR_HEIGHT - 2;
-
-                        const tutorStyle = getTutorColorStyle(
-                          b.slot?.tutorId || b.studentId
-                        );
-                        const isCompleted = b.status === "completed";
-                        const isCancelled = b.status === "cancelled";
-                        const hasQuestions =
-                          b.preSessionAttachments &&
-                          b.preSessionAttachments.length > 0;
-
-                        return (
-                          <div
-                            key={b.id}
-                            onClick={(event) => {
-                              const target = event.target as HTMLElement;
-                              if (target.closest("button, a")) return;
-                              openBookedSession(b);
-                            }}
-                            style={{
-                              top: `${Math.max(0, top)}px`,
-                              height: `${Math.max(32, height)}px`,
-                            }}
-                            className={`absolute left-0.5 right-0.5 z-20 rounded-md border ${tutorStyle.border} ${tutorStyle.bg} p-1.5 flex flex-col justify-between overflow-hidden shadow-xs transition-all hover:z-30 hover:shadow-md session-card ${onOpenSessionDetail ? "cursor-pointer" : ""}`}
-                          >
-                            {/* Left solid color accent bar */}
-                            <div
-                              className={`absolute left-0 top-0 bottom-0 w-1 ${tutorStyle.bar}`}
-                            />
-
-                            {/* Header row: Course Title & Time */}
-                            <div className="pl-1.5 min-w-0">
-                              <div className="flex items-start justify-between gap-1 leading-tight">
-                                <span className="text-[11px] font-bold text-foreground truncate block">
-                                  {b.course?.title || "Tutorial"}
-                                </span>
-                                {isCompleted ? (
-                                  <Badge
-                                    variant="outline"
-                                    className="text-[8px] bg-emerald-500/10 text-emerald-600 border-emerald-500/30 px-1 py-0"
-                                  >
-                                    Selesai
-                                  </Badge>
-                                ) : isCancelled ? (
-                                  <Badge
-                                    variant="outline"
-                                    className="text-[8px] bg-red-500/10 text-red-600 border-red-500/30 px-1 py-0"
-                                  >
-                                    Batal
-                                  </Badge>
-                                ) : null}
-                              </div>
-
-                              <div className="flex items-center gap-1 text-[9px] text-muted-foreground mt-0.5">
-                                <Clock className="size-2.5 shrink-0" />
-                                <span>
-                                  {startTimeStr} - {endTimeStr}
-                                </span>
-                                <span aria-hidden="true">,</span>
-                                <span>{b.slot?.tutor?.name || "Tutor"}</span>
-                              </div>
-                            </div>
-
-                            {/* Mode badge & Indicators */}
-                            <div className="pl-1.5 flex items-center justify-between gap-1 mt-1">
-                              <div className="flex items-center gap-1 truncate">
-                                {b.mode === "online" || b.slot?.mode === "online" ? (
-                                  <span className="inline-flex items-center gap-0.5 text-[9px] font-bold text-blue-600 dark:text-blue-400">
-                                    <Video className="size-2.5" />
-                                    Online
-                                  </span>
-                                ) : (
-                                  <span
-                                    className="inline-flex items-center gap-0.5 text-[9px] font-bold text-emerald-600 dark:text-emerald-400 truncate max-w-[80px]"
-                                    title={b.location || b.slot?.location || "Offline"}
-                                  >
-                                    <MapPin className="size-2.5 shrink-0" />
-                                    {b.location || b.slot?.location || "Offline"}
-                                  </span>
-                                )}
-
-                                {hasQuestions && (
-                                  <span className="inline-flex items-center gap-0.5 text-[9px] font-semibold text-brand-primary">
-                                    <FileQuestion className="size-2.5" />
-                                    {b.preSessionAttachments.length}
-                                  </span>
-                                )}
-                              </div>
-
-                              {/* Google Meet 1-click button if available */}
-                              {b.googleMeetUrl && !isCompleted && !isCancelled && (
-                                <a
-                                  href={b.googleMeetUrl}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-blue-600 text-white hover:bg-blue-700 text-[9px] font-bold transition-colors shrink-0"
-                                  title="Buka Google Meet"
-                                >
-                                  <Video className="size-2.5" />
-                                  <span>Meet</span>
-                                  <ExternalLink className="size-2" />
-                                </a>
-                              )}
-                            </div>
-
-                            {/* Action Buttons Row */}
-                            <div className="pl-1.5 flex items-center justify-between gap-1 pt-1 border-t border-border/40 mt-1">
-                              {/* Student action buttons */}
-                              {role === "student" && !isCompleted && !isCancelled && (
-                                <div className="flex items-center gap-1">
-                                  <button
-                                    type="button"
-                                    onClick={(event) => {
-                                      event.stopPropagation();
-                                      openBookedSession(b);
-                                    }}
-                                    className="p-1 rounded text-foreground hover:bg-card text-[9px] font-semibold flex items-center gap-0.5"
-                                    title="Unggah Materi / Soal"
-                                  >
-                                    <FileText className="size-2.5" />
-                                    <span>Materi</span>
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={(event) => {
-                                      event.stopPropagation();
-                                      if (onOpenSessionDetail) {
-                                        openBookedSession(b);
-                                      } else {
-                                        onOpenRescheduleTicket?.(b);
-                                      }
-                                    }}
-                                    className="p-1 rounded text-foreground hover:bg-card text-[9px] font-semibold flex items-center gap-0.5"
-                                    title="Reschedule / Batal"
-                                  >
-                                    <MessageSquare className="size-2.5" />
-                                  </button>
-                                </div>
-                              )}
-
-                              {/* Tutor action button */}
-                              {role === "teacher" && !isCompleted && !isCancelled && (
-                                <div className="flex items-center gap-1">
-                                  <button
-                                    type="button"
-                                    onClick={(event) => {
-                                      event.stopPropagation();
-                                      openBookedSession(b);
-                                    }}
-                                    className="px-1.5 py-0.5 rounded bg-brand-primary text-white text-[9px] font-bold flex items-center gap-1 cursor-pointer"
-                                  >
-                                    <CheckCircle2 className="size-2.5" />
-                                    <span>Selesai</span>
-                                  </button>
-                                  {onMoveSession && (
-                                    <button
-                                      type="button"
-                                      onClick={(event) => {
-                                        event.stopPropagation();
-                                        onMoveSession(b);
-                                      }}
-                                      className="px-1.5 py-0.5 rounded border border-border bg-card text-foreground hover:bg-muted text-[9px] font-semibold flex items-center gap-0.5 cursor-pointer"
-                                      title="Pindah Jadwal"
-                                    >
-                                      <RotateCcw className="size-2.5" />
-                                      <span>Pindah</span>
-                                    </button>
-                                  )}
-                                </div>
-                              )}
-
-                              {/* Audit trail icon */}
-                              <button
-                                type="button"
-                                onClick={(event) => {
-                                  event.stopPropagation();
-                                  openSessionAudit(b);
-                                }}
-                                className="p-1 rounded text-muted-foreground hover:text-foreground ml-auto"
-                                title="Riwayat Jejak Audit"
-                              >
-                                <History className="size-3" />
-                              </button>
-                            </div>
-                          </div>
-                        );
-                      })}
-
-                      {/* Render Available Slots for Booking (Student) */}
-                      {role === "student" &&
-                        daySlots
-                          .filter((s) => !s.booking)
-                          .map((s) => {
-                            const startMin = timeToMinutes(s.startTime);
-                            const endMin = timeToMinutes(s.endTime);
-                            const duration = Math.max(30, endMin - startMin);
-
-                            const top =
-                              ((startMin - START_HOUR * 60) / 60) * HOUR_HEIGHT;
-                            const height =
-                              (duration / 60) * HOUR_HEIGHT - 2;
-
-                            return (
-                              <button
-                                key={s.id}
-                                type="button"
-                                style={{
-                                  top: `${Math.max(0, top)}px`,
-                                  height: `${Math.max(28, height)}px`,
-                                }}
-                                onClick={() => onSelectSlotToBook?.(s, day.dateIso)}
-                                className="absolute left-0.5 right-0.5 z-10 rounded-md border border-dashed border-brand-primary/50 bg-brand-primary/5 hover:bg-brand-primary/15 hover:border-brand-primary p-1 flex flex-col justify-between text-left transition-all group session-card"
-                              >
-                                <div className="flex items-center justify-between w-full">
-                                  <span className="text-[10px] font-bold text-foreground truncate">
-                                    {s.startTime} - {s.endTime}
-                                  </span>
-                                  {s.mode === "online" ? (
-                                    <span className="text-[8px] text-blue-600 font-bold">
-                                      Online
-                                    </span>
-                                  ) : (
-                                    <span className="text-[8px] text-emerald-600 font-bold truncate max-w-[60px]">
-                                      {s.location || "Offline"}
-                                    </span>
-                                  )}
-                                </div>
-                                <div className="flex items-center justify-between text-[9px] text-muted-foreground w-full mt-0.5">
-                                  <span className="truncate">
-                                    {s.tutor?.name || "Tutor"}
-                                  </span>
-                                  <span className="text-brand-primary font-bold group-hover:underline flex items-center gap-0.5">
-                                    <Plus className="size-2.5" />
-                                    Pilih
-                                  </span>
-                                </div>
-                              </button>
-                            );
-                          })}
-
-                      {/* Render Teacher Slot Occurrences (Unbooked slots: available future vs unavailable past/locked) */}
-                      {canManageTutorial &&
-                        daySlots
-                          .filter((s) => !s.booking)
-                          .map((s) => {
-                            const startMin = timeToMinutes(s.startTime);
-                            const endMin = timeToMinutes(s.endTime);
-                            const duration = Math.max(30, endMin - startMin);
-
-                            const top = ((startMin - START_HOUR * 60) / 60) * HOUR_HEIGHT;
-                            const height = (duration / 60) * HOUR_HEIGHT - 2;
-
-                            const isPastDate =
-                              day.isPast || (day.isToday && endMin <= nowMinutes);
-                            const isLocked = isWeekLocked;
-                            const isUnavailable = isPastDate || isLocked;
-
-                            if (isUnavailable) {
-                              return (
-                                <div
-                                  key={s.id}
-                                  style={{
-                                    top: `${Math.max(0, top)}px`,
-                                    height: `${Math.max(28, height)}px`,
-                                  }}
-                                  className="absolute left-0.5 right-0.5 z-15 rounded-md border border-border/80 bg-muted/40 p-1.5 flex flex-col justify-between overflow-hidden opacity-80 session-card"
-                                  title={
-                                    isLocked
-                                      ? "Jadwal minggu ini telah dikunci"
-                                      : "Slot telah melewati batas waktu"
-                                  }
-                                >
-                                  <div className="absolute left-0 top-0 bottom-0 w-1 bg-muted-foreground/30" />
-                                  <div className="pl-1.5 min-w-0">
-                                    <div className="flex items-center justify-between gap-1 leading-tight">
-                                      <span className="text-[10px] font-bold text-muted-foreground truncate block">
-                                        {s.startTime} - {s.endTime}
-                                      </span>
-                                      <Badge
-                                        variant="outline"
-                                        className="text-[8px] border-muted-foreground/30 text-muted-foreground px-1 py-0 flex items-center gap-0.5"
-                                      >
-                                        <Lock className="size-2 shrink-0" />
-                                        <span>{isLocked ? "Terkunci" : "Kedaluwarsa"}</span>
-                                      </Badge>
-                                    </div>
-                                    <div className="flex items-center gap-1 text-[9px] text-muted-foreground/80 mt-0.5">
-                                      <span>{s.mode === "online" ? "Online" : s.location || "Tatap Muka"}</span>
-                                      <span aria-hidden="true" className="h-3 border-l border-border" />
-                                      <span>Tanggal sesi</span>
-                                    </div>
-                                  </div>
-                                </div>
-                              );
-                            }
-
-                            // Available Future Slot
-                            return (
-                              <div
-                                key={s.id}
-                                style={{
-                                  top: `${Math.max(0, top)}px`,
-                                  height: `${Math.max(30, height)}px`,
-                                }}
-                                className="absolute left-0.5 right-0.5 z-20 rounded-md border border-emerald-500/40 bg-emerald-500/10 dark:bg-emerald-950/30 p-1.5 flex flex-col justify-between overflow-hidden shadow-xs hover:z-30 hover:shadow-md transition-all session-card"
-                              >
-                                <div className="absolute left-0 top-0 bottom-0 w-1 bg-emerald-500" />
-
-                                <div className="pl-1.5 min-w-0">
-                                  <div className="flex items-center justify-between gap-1 leading-tight">
-                                    <span className="text-[10px] font-bold text-foreground truncate block">
-                                      {s.startTime} - {s.endTime}
-                                    </span>
-                                    <Badge
-                                      variant="outline"
-                                      className="text-[8px] bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 px-1 py-0 flex items-center gap-0.5"
-                                    >
-                                      <CheckCircle2 className="size-2 shrink-0" />
-                                      <span>Tersedia</span>
-                                    </Badge>
-                                  </div>
-
-                                  <div className="flex items-center gap-1 text-[9px] text-muted-foreground mt-0.5">
-                                    {s.mode === "online" ? (
-                                      <span className="inline-flex items-center gap-0.5 text-blue-600 dark:text-blue-400 font-semibold">
-                                        <Video className="size-2.5" />
-                                        Online
-                                      </span>
-                                    ) : (
-                                      <span className="inline-flex items-center gap-0.5 text-emerald-600 dark:text-emerald-400 font-semibold truncate max-w-[80px]">
-                                        <MapPin className="size-2.5 shrink-0" />
-                                        {s.location || "Offline"}
-                                      </span>
-                                    )}
-                                    <span aria-hidden="true" className="h-3 border-l border-border" />
-                                    <span className="text-muted-foreground font-medium">
-                                      Tanggal sesi
-                                    </span>
-                                  </div>
-                                </div>
-
-                                <div className="pl-1.5 flex items-center justify-between gap-1 pt-1 border-t border-emerald-500/20 mt-0.5">
-                                  {onAssignTutorialSlot && (
-                                    <button
-                                      type="button"
-                                      onClick={() => onAssignTutorialSlot(s)}
-                                      className="px-1.5 py-0.5 rounded bg-brand-primary text-white text-[9px] font-bold hover:bg-brand-primary/90 transition-colors flex items-center gap-0.5 cursor-pointer"
-                                      title="Jadwalkan sesi dengan kelompok"
-                                    >
-                                      <Plus className="size-2.5" />
-                                      <span>Jadwalkan</span>
-                                    </button>
-                                  )}
-
-                                  {onDeleteSlot && (
-                                    <button
-                                      type="button"
-                                      onClick={() => onDeleteSlot(s.id)}
-                                      className="p-1 rounded text-muted-foreground hover:text-status-error hover:bg-status-error/10 text-[9px] transition-colors ml-auto cursor-pointer"
-                                      title="Hapus slot ketersediaan ini"
-                                      aria-label="Hapus slot"
-                                    >
-                                      <Trash2 className="size-3" />
-                                    </button>
-                                  )}
-                                </div>
-                              </div>
-                            );
-                          })}
                     </div>
                   );
                 })}
@@ -1557,682 +748,64 @@ export function ScheduleCalendarView({
             </div>
           </div>
         </div>
-      </div>
-    )}
+      )}
 
-        {/* ══════════════════════════════════════════════════════════════════ */}
-        {/* VIEW 2: GOOGLE CALENDAR SINGLE-DAY EXPANDED VIEW                   */}
-        {/* ══════════════════════════════════════════════════════════════════ */}
-        {viewMode === "day" && (
-          <div className="rounded-xl border border-border bg-card shadow-xs overflow-hidden flex flex-col select-none">
-            {/* Day Header */}
-            <div className="flex flex-col gap-1.5 border-b border-border bg-muted/20 p-2.5 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex min-w-0 flex-wrap items-center gap-2">
-                <span className="font-heading text-body-sm font-bold text-foreground">
-                  {activeDate.toLocaleDateString("id-ID", {
-                    weekday: "long",
-                    day: "numeric",
-                    month: "long",
-                    year: "numeric",
-                  })}
-                </span>
-                {activeDayIso === todayIso && (
-                  <Badge variant="default" className="shrink-0 whitespace-nowrap bg-brand-primary text-body-xs">
-                    Hari ini
-                  </Badge>
-                )}
-              </div>
-              <span className="shrink-0 text-body-xs font-semibold text-muted-foreground">
-                Zona waktu: WIB (GMT+7)
-              </span>
-            </div>
+      {isWeekLocked && viewMode !== "month" ? (
+        <p className="flex items-center gap-1.5 px-1 text-[10px] text-muted-foreground">
+          <Lock className="size-3" /> Booking pekan ini telah melewati batas Sabtu 23:59 WIB.
+        </p>
+      ) : null}
+    </div>
+  );
+}
 
-            {/* Day Hourly Grid */}
-            <div
-              ref={gridScrollRef}
-              className="relative max-h-[600px] overflow-y-auto overflow-x-hidden"
-              style={{ height: `${HOURS_COUNT * HOUR_HEIGHT}px` }}
-            >
-              <div
-                className="grid grid-cols-[56px_1fr] relative"
-                style={{ height: `${HOURS_COUNT * HOUR_HEIGHT}px` }}
-              >
-                {/* Time Axis */}
-                <div className="border-r border-border/60 bg-muted/10 select-none">
-                  {HOURS.map((hour) => (
-                    <div
-                      key={hour}
-                      style={{ height: `${HOUR_HEIGHT}px` }}
-                      className="border-b border-border/30 px-1 pt-0.5 text-right text-[10px] font-semibold text-muted-foreground"
-                    >
-                      {String(hour).padStart(2, "0")}:00
+function MonthView({
+  activeDate,
+  events,
+  today,
+  onSelectDate,
+  onOpenEvent,
+}: {
+  activeDate: CalendarDate;
+  events: CalendarEvent[];
+  today: CalendarDate;
+  onSelectDate: (dateIso: CalendarDate) => void;
+  onOpenEvent: (event: CalendarEvent) => void;
+}) {
+  const monthRange = getCalendarMonthRange(activeDate);
+  const firstDay = getCalendarDayIndex(monthRange.startIso);
+  const gridStart = addCalendarDays(monthRange.startIso, -((firstDay + 6) % 7));
+  const days = Array.from({ length: 42 }, (_, index) => addCalendarDays(gridStart, index));
+  const activeParts = parseCalendarDate(activeDate);
+
+  return (
+    <div className="overflow-x-auto rounded-xl border border-border/80 bg-card/55 shadow-xs">
+      <div className="min-w-[760px]">
+        <div className="grid grid-cols-7 border-b border-border/70 bg-muted/20">
+          {["SEN", "SEL", "RAB", "KAM", "JUM", "SAB", "MIN"].map((label) => (
+            <div key={label} className="border-r border-border/60 px-2 py-2 text-center text-[10px] font-semibold text-muted-foreground">{label}</div>
+          ))}
+        </div>
+        <div className="grid grid-cols-7">
+          {days.map((dateIso) => {
+            const parts = parseCalendarDate(dateIso);
+            const inMonth = parts.month === activeParts.month && parts.year === activeParts.year;
+            const dayEvents = events.filter((event) => event.dateIso === dateIso).sort((a, b) => a.startMinutes - b.startMinutes);
+            return (
+              <div key={dateIso} className={cn("min-h-32 border-b border-r border-border/50 p-1.5", !inMonth && "bg-muted/10 text-muted-foreground/55", dateIso === today && "bg-brand-primary/[0.025]") }>
+                <button type="button" onClick={() => onSelectDate(dateIso)} className={cn("mb-1 flex size-7 items-center justify-center rounded-full text-body-xs font-semibold hover:bg-muted", dateIso === today && "bg-brand-primary text-white")}>{parts.day}</button>
+                <div className="space-y-1">
+                  {dayEvents.map((event) => (
+                    <div key={event.id} className="min-h-12">
+                      <EventCard event={event} compact onOpen={() => onOpenEvent(event)} />
                     </div>
                   ))}
                 </div>
-
-                {/* Day Column */}
-                <div
-                  onMouseMove={(e) => handleColumnMouseMove(activeDayIso, e)}
-                  className="relative"
-                >
-                  {/* Grid lines */}
-                  {HOURS.map((hour) => (
-                    <div
-                      key={hour}
-                      style={{ height: `${HOUR_HEIGHT}px` }}
-                      onMouseDown={(e) => handleGridMouseDown(activeDayIso, hour, e)}
-                      className={cn(
-                        "border-b border-border/30 w-full transition-colors",
-                        ((role === "admin" && canCreateAcademic) || (role === "teacher" && !isWeekLocked && !isPastTime(activeDayIso, hour))) &&
-                          onCreateScheduleDirect &&
-                          "cursor-pointer hover:bg-brand-primary/5"
-                      )}
-                      title={
-                        role === "admin" && canCreateAcademic && onCreateScheduleDirect
-                          ? `Klik & drag untuk membuat jadwal pada ${activeDayName}, ${String(hour).padStart(2, "0")}:00`
-                          : role === "teacher" && onCreateScheduleDirect && !isWeekLocked && !isPastTime(activeDayIso, hour)
-                          ? `Klik atau drag untuk tambah slot ketersediaan 90m pada ${activeDayName}, ${String(hour).padStart(2, "0")}:00`
-                          : undefined
-                      }
-                    />
-                  ))}
-
-                  {/* Current time line if today */}
-                  {activeDayIso === todayIso &&
-                    nowMinutes >= START_HOUR * 60 &&
-                    nowMinutes <= END_HOUR * 60 && (
-                      <div
-                        className="absolute left-0 right-0 z-30 pointer-events-none flex items-center"
-                        style={{ top: `${nowTopPosition}px` }}
-                      >
-                      <div className="size-2 rounded-full bg-red-500 -ml-1 ring-2 ring-white dark:ring-background" />
-                        <div className="h-[2px] w-full bg-red-500" />
-                      </div>
-                    )}
-
-                  {/* Interactive Drag Selection Preview Box */}
-                  {dragState?.isDragging && dragState.dayIso === activeDayIso && (() => {
-                    const isTeacher = role === "teacher";
-                    const minMin = isTeacher ? dragState.startMin : Math.min(dragState.startMin, dragState.currentMin);
-                    const duration = isTeacher ? 90 : Math.max(30, Math.max(dragState.startMin, dragState.currentMin) - minMin);
-                    const top = ((minMin - START_HOUR * 60) / 60) * HOUR_HEIGHT;
-                    const height = (duration / 60) * HOUR_HEIGHT;
-
-                    const sH = Math.floor(minMin / 60);
-                    const sM = minMin % 60;
-                    const eH = Math.floor((minMin + duration) / 60);
-                    const eM = (minMin + duration) % 60;
-                    const timeLabel = `${String(sH).padStart(2, "0")}:${String(sM).padStart(2, "0")} - ${String(eH).padStart(2, "0")}:${String(eM).padStart(2, "0")}`;
-
-                    return (
-                      <div
-                        style={{
-                          top: `${Math.max(0, top)}px`,
-                          height: `${Math.max(32, height)}px`,
-                        }}
-                        className="absolute left-2 right-2 z-40 rounded-xl bg-blue-500/20 border-2 border-blue-500 p-2 flex flex-col justify-start pointer-events-none shadow-md backdrop-blur-[1px] animate-in fade-in-50"
-                      >
-                        <span className="text-body-xs font-bold text-blue-600 dark:text-blue-400">
-                          {isTeacher ? "Slot Baru (90m)" : "(Jadwal Baru)"}
-                        </span>
-                        <span className="text-[11px] font-semibold text-blue-600 dark:text-blue-400 mt-0.5">
-                          {timeLabel}
-                        </span>
-                      </div>
-                    );
-                  })()}
-
-                  {/* Timed Academic Events on this Day */}
-                  {parsedAcademicEvents
-                    .filter((e) => e.dateIso === activeDayIso && !e.isAllDay)
-                    .map((evt) => {
-                      const top =
-                        ((evt.startMinutes - START_HOUR * 60) / 60) * HOUR_HEIGHT;
-                      const height = (evt.duration / 60) * HOUR_HEIGHT - 2;
-                      const style = getAcademicStyle(evt.schedule.type);
-
-                      return (
-                        <div
-                          key={evt.schedule.id}
-                          onClick={() => onEditSchedule?.(evt.schedule)}
-                          style={{
-                            top: `${Math.max(0, top)}px`,
-                            height: `${Math.max(45, height)}px`,
-                          }}
-                          className={cn(
-                            `absolute left-2 right-2 z-25 rounded-xl border ${style.border} ${style.bg} p-2.5 flex items-start justify-between gap-3 shadow-xs session-card`,
-                            onEditSchedule && "cursor-pointer"
-                          )}
-                        >
-                          <div
-                            className={`absolute left-0 top-0 bottom-0 w-1.5 rounded-l-xl ${style.bar}`}
-                          />
-                          <div className="pl-2 space-y-0.5 min-w-0 flex-1">
-                            <div className="flex items-center gap-2">
-                              <h4 className="font-heading text-body-sm font-bold text-foreground truncate">
-                                {evt.schedule.title}
-                              </h4>
-                              <Badge
-                                variant="outline"
-                                className={`text-[10px] font-semibold ${style.badge}`}
-                              >
-                                {style.label}
-                              </Badge>
-                            </div>
-                            <div className="flex items-center gap-2 text-body-xs text-muted-foreground">
-                              <span className="flex items-center gap-1">
-                                <Clock className="size-3" />
-                                {evt.startTimeStr} - {evt.endTimeStr}
-                              </span>
-                              {evt.schedule.course && (
-                                <>
-                                  <span aria-hidden="true" className="h-3 border-l border-border" />
-                                  <span className="font-semibold text-brand-primary">
-                                    {evt.schedule.course.title}
-                                  </span>
-                                </>
-                              )}
-                              {evt.schedule.location && (
-                                <>
-                                  <span aria-hidden="true" className="h-3 border-l border-border" />
-                                  <span className="flex items-center gap-1">
-                                    <MapPin className="size-3" />
-                                    {evt.schedule.location}
-                                  </span>
-                                </>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-
-                  {/* Day Booked Sessions */}
-                  {filteredBookings
-                    .filter((b) => {
-                      return b.sessionDate === activeDayIso;
-                    })
-                    .map((b) => {
-                      const startTimeStr =
-                        b.startTime || b.slot?.startTime || "09:00";
-                      const endTimeStr =
-                        b.endTime || b.slot?.endTime || "10:30";
-                      const startMin = timeToMinutes(startTimeStr);
-                      const endMin = timeToMinutes(endTimeStr);
-                      const duration = Math.max(45, endMin - startMin);
-
-                      const top =
-                        ((startMin - START_HOUR * 60) / 60) * HOUR_HEIGHT;
-                      const height = (duration / 60) * HOUR_HEIGHT - 2;
-
-                      const tutorStyle = getTutorColorStyle(
-                        b.slot?.tutorId || b.studentId
-                      );
-
-                      return (
-                        <div
-                          key={b.id}
-                          onClick={(event) => {
-                            const target = event.target as HTMLElement;
-                            if (target.closest("button, a")) return;
-                            openBookedSession(b);
-                          }}
-                          style={{
-                            top: `${Math.max(0, top)}px`,
-                            height: `${Math.max(50, height)}px`,
-                          }}
-                          className={`absolute left-2 right-2 z-20 rounded-xl border ${tutorStyle.border} ${tutorStyle.bg} p-2.5 flex items-start justify-between gap-3 shadow-xs session-card ${onOpenSessionDetail ? "cursor-pointer" : ""}`}
-                        >
-                          <div
-                            className={`absolute left-0 top-0 bottom-0 w-1.5 rounded-l-xl ${tutorStyle.bar}`}
-                          />
-                          <div className="pl-2 space-y-0.5 min-w-0 flex-1">
-                            <div className="flex items-center gap-2">
-                              <h4 className="font-heading text-body-sm font-bold text-foreground truncate">
-                                {b.course?.title}
-                              </h4>
-                              <Badge
-                                variant="outline"
-                                className="text-[10px] font-semibold"
-                              >
-                                {b.slot?.tutor?.name || "Tutor"}{b.group?.name ? `, ${b.group.name}` : ""}
-                              </Badge>
-                            </div>
-                            <div className="flex items-center gap-3 text-body-xs text-muted-foreground">
-                              <span className="flex items-center gap-1">
-                                <Clock className="size-3" />
-                                {startTimeStr} - {endTimeStr}
-                              </span>
-                              <span aria-hidden="true">,</span>
-                              {b.mode === "online" ? (
-                                <span className="flex items-center gap-1 text-blue-600 font-semibold">
-                                  <Video className="size-3" />
-                                  Online
-                                </span>
-                              ) : (
-                                <span className="flex items-center gap-1 text-emerald-600 font-semibold">
-                                    <MapPin className="size-3" />
-                                  {b.location || "Offline"}
-                                </span>
-                              )}
-                            </div>
-                          </div>
-
-                          <div className="flex items-center gap-1.5 shrink-0">
-                            {role === "teacher" && b.status !== "completed" && b.status !== "cancelled" && (
-                              <div className="flex items-center gap-1">
-                                {(onOpenPostSession || onOpenSessionDetail) && (
-                                  <Button
-                                    size="sm"
-                                    onClick={(event) => {
-                                      event.stopPropagation();
-                                      openBookedSession(b);
-                                    }}
-                                    className="h-7 px-2 text-body-xs font-semibold rounded-lg bg-brand-primary text-white hover:bg-brand-primary/90 flex items-center gap-1"
-                                  >
-                                    <CheckCircle2 className="size-3" />
-                                    <span>Selesai</span>
-                                  </Button>
-                                )}
-                                {onMoveSession && (
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={(event) => {
-                                      event.stopPropagation();
-                                      onMoveSession(b);
-                                    }}
-                                    className="h-7 px-2 text-body-xs font-semibold rounded-lg flex items-center gap-1"
-                                  >
-                                    <RotateCcw className="size-3" />
-                                    <span>Pindah</span>
-                                  </Button>
-                                )}
-                              </div>
-                            )}
-                            {b.googleMeetUrl && (
-                              <a
-                                href={b.googleMeetUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="px-2.5 py-1 rounded-lg bg-blue-600 text-white text-body-xs font-semibold hover:bg-blue-700 flex items-center gap-1 shadow-xs"
-                              >
-                                <Video className="size-3" />
-                                <span>Meet</span>
-                              </a>
-                            )}
-                            <Button
-                              variant="ghost"
-                              size="xs"
-                              onClick={(event) => {
-                                event.stopPropagation();
-                                openSessionAudit(b);
-                              }}
-                              className="h-7 w-7 p-0 rounded-lg text-muted-foreground hover:text-foreground"
-                              title="Riwayat Jejak Audit"
-                            >
-                              <History className="size-3.5" />
-                            </Button>
-                          </div>
-                        </div>
-                      );
-                    })}
-
-                  {/* Day Available Slots for booking */}
-                  {role === "student" &&
-                    filteredSlots
-                      .filter((s) => s.sessionDate === activeDayIso && !s.booking)
-                      .map((s) => {
-                        const startMin = timeToMinutes(s.startTime);
-                        const endMin = timeToMinutes(s.endTime);
-                        const duration = Math.max(45, endMin - startMin);
-
-                        const top =
-                          ((startMin - START_HOUR * 60) / 60) * HOUR_HEIGHT;
-                        const height = (duration / 60) * HOUR_HEIGHT - 2;
-
-                        return (
-                          <button
-                            key={s.id}
-                            type="button"
-                            style={{
-                              top: `${Math.max(0, top)}px`,
-                              height: `${Math.max(36, height)}px`,
-                            }}
-                            onClick={() => onSelectSlotToBook?.(s, activeDayIso)}
-                            className="absolute left-2 right-2 z-10 rounded-xl border border-dashed border-brand-primary/50 bg-brand-primary/5 hover:bg-brand-primary/15 hover:border-brand-primary p-2 flex items-center justify-between text-left transition-all group session-card"
-                          >
-                            <div className="flex items-center gap-3">
-                              <span className="text-body-xs font-bold text-foreground">
-                                {s.startTime} - {s.endTime}
-                              </span>
-                              <span className="text-body-xs text-muted-foreground">
-                                Tutor: {s.tutor?.name}
-                              </span>
-                            </div>
-                            <span className="text-brand-primary font-bold text-body-xs flex items-center gap-1 group-hover:underline">
-                              <Plus className="size-3.5" />
-                              Pilih Slot
-                            </span>
-                          </button>
-                        );
-                      })}
-
-                  {/* Day Teacher Unbooked Slots */}
-                  {canManageTutorial &&
-                    filteredSlots
-                      .filter((s) => {
-                        return s.sessionDate === activeDayIso && !s.booking;
-                      })
-                      .map((s) => {
-                        const startMin = timeToMinutes(s.startTime);
-                        const endMin = timeToMinutes(s.endTime);
-                        const duration = Math.max(45, endMin - startMin);
-
-                        const top = ((startMin - START_HOUR * 60) / 60) * HOUR_HEIGHT;
-                        const height = (duration / 60) * HOUR_HEIGHT - 2;
-
-                        const isPastDate =
-                          activeDayIso < todayIso ||
-                          (activeDayIso === todayIso && endMin <= nowMinutes);
-                        const isLocked = isWeekLocked;
-                        const isUnavailable = isPastDate || isLocked;
-
-                        if (isUnavailable) {
-                          return (
-                            <div
-                              key={s.id}
-                              style={{
-                                top: `${Math.max(0, top)}px`,
-                                height: `${Math.max(40, height)}px`,
-                              }}
-                              className="absolute left-2 right-2 z-15 rounded-xl border border-border/80 bg-muted/40 p-2.5 flex items-start justify-between gap-3 opacity-80 session-card"
-                            >
-                              <div className="absolute left-0 top-0 bottom-0 w-1.5 rounded-l-xl bg-muted-foreground/30" />
-                              <div className="pl-2 space-y-0.5 min-w-0 flex-1">
-                                <div className="flex items-center gap-2">
-                                  <span className="font-heading text-body-sm font-bold text-muted-foreground">
-                                    {s.startTime} - {s.endTime} (90m)
-                                  </span>
-                                  <Badge
-                                    variant="outline"
-                                    className="text-[10px] border-muted-foreground/30 text-muted-foreground flex items-center gap-1"
-                                  >
-                                    <Lock className="size-2.5" />
-                                    {isLocked ? "Terkunci" : "Kedaluwarsa"}
-                                  </Badge>
-                                </div>
-                                <div className="text-body-xs text-muted-foreground/80 flex items-center gap-2">
-                                  <span>{s.mode === "online" ? "Online" : s.location || "Tatap Muka"}</span>
-                                  <span aria-hidden="true">,</span>
-                                  <span>Tanggal sesi</span>
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        }
-
-                        return (
-                          <div
-                            key={s.id}
-                            style={{
-                              top: `${Math.max(0, top)}px`,
-                              height: `${Math.max(48, height)}px`,
-                            }}
-                            className="absolute left-2 right-2 z-20 rounded-xl border border-emerald-500/40 bg-emerald-500/10 dark:bg-emerald-950/30 p-2.5 flex items-start justify-between gap-3 shadow-xs hover:shadow-md transition-all session-card"
-                          >
-                            <div className="absolute left-0 top-0 bottom-0 w-1.5 rounded-l-xl bg-emerald-500" />
-                            <div className="pl-2 space-y-0.5 min-w-0 flex-1">
-                              <div className="flex items-center gap-2">
-                                <h4 className="font-heading text-body-sm font-bold text-foreground">
-                                  {s.startTime} - {s.endTime} (90m)
-                                </h4>
-                                <Badge
-                                  variant="outline"
-                                  className="text-[10px] bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 flex items-center gap-1"
-                                >
-                                  <CheckCircle2 className="size-2.5" />
-                                  Slot tersedia
-                                </Badge>
-                              </div>
-                              <div className="text-body-xs text-muted-foreground flex items-center gap-2">
-                                {s.mode === "online" ? (
-                                  <span className="flex items-center gap-1 text-blue-600 font-semibold">
-                                    <Video className="size-3" />
-                                    Online
-                                  </span>
-                                ) : (
-                                  <span className="flex items-center gap-1 text-emerald-600 font-semibold">
-                                    <MapPin className="size-3" />
-                                    {s.location || "Tatap Muka"}
-                                  </span>
-                                )}
-                                <span aria-hidden="true" className="h-3 border-l border-border" />
-                                <span>Tanggal sesi</span>
-                              </div>
-                            </div>
-
-                            <div className="flex items-center gap-1.5 shrink-0">
-                              {onAssignTutorialSlot && (
-                                <Button
-                                  variant="default"
-                                  size="sm"
-                                  onClick={() => onAssignTutorialSlot(s)}
-                                  className="h-7 px-2 text-body-xs font-semibold rounded-lg bg-brand-primary text-white hover:bg-brand-primary/90"
-                                >
-                                  <Plus className="size-3 mr-1" />
-                                  Jadwalkan
-                                </Button>
-                              )}
-                              {onDeleteSlot && (
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() => onDeleteSlot(s.id)}
-                                  className="h-7 w-7 rounded-lg text-muted-foreground hover:text-status-error hover:bg-status-error/10"
-                                  title="Hapus slot"
-                                  aria-label="Hapus slot"
-                                >
-                                  <Trash2 className="size-3.5" />
-                                </Button>
-                              )}
-                            </div>
-                          </div>
-                        );
-                      })}
-                </div>
               </div>
-            </div>
-          </div>
-        )}
-
-        {/* ══════════════════════════════════════════════════════════════════ */}
-        {/* VIEW 3: GOOGLE CALENDAR MONTH GRID VIEW                            */}
-        {/* ══════════════════════════════════════════════════════════════════ */}
-        {viewMode === "month" && (
-          <div className="rounded-xl border border-border bg-card shadow-xs overflow-hidden flex flex-col select-none">
-            <div className="overflow-x-auto">
-              <div className="min-w-[560px] md:min-w-0">
-                {/* 7 Days Column Headers */}
-                <div className="grid grid-cols-7 border-b border-border bg-muted/20 text-center">
-                  {DAY_NAMES_ID.map((dayName) => (
-                    <div
-                      key={dayName}
-                      className="p-1.5 text-body-xs font-bold text-muted-foreground uppercase tracking-wider"
-                    >
-                      {dayName.slice(0, 3)}
-                    </div>
-                  ))}
-                </div>
-
-                {/* Month Day Cells (7 cols x 5/6 rows) */}
-                <div className="grid grid-cols-7 divide-x divide-y divide-border/60 zebra-no-rows">
-                  {monthDays.map((cell) => {
-                    // Find bookings on this day
-                    const cellBookings = filteredBookings.filter((b) => {
-                      return b.sessionDate === cell.dateIso;
-                    });
-
-                    // Find teacher slots on this day
-                    const cellSlots = filteredSlots.filter((s) => {
-                      return s.sessionDate === cell.dateIso;
-                    });
-
-                    // Find academic schedules on this day
-                    const cellAcademic = parsedAcademicEvents.filter(
-                      (e) => e.dateIso === cell.dateIso
-                    );
-
-                    return (
-                      <div
-                        key={cell.dateIso}
-                        onClick={(e) => {
-                          if (role === "teacher") {
-                            setActiveDate(cell.date);
-                            setViewMode("day");
-                            return;
-                          }
-                          if (e.target === e.currentTarget && role === "admin" && canCreateAcademic && onCreateScheduleDirect) {
-                            onCreateScheduleDirect(cell.dateIso, "09:00", "10:30");
-                          }
-                        }}
-                        className={cn(
-                          "min-h-[96px] p-1.5 flex flex-col justify-between transition-colors",
-                          cell.isCurrentMonth
-                            ? "bg-card hover:bg-muted/10"
-                            : "bg-muted/30 opacity-60",
-                          cell.isToday && "bg-brand-primary/[0.04]",
-                          (((role === "admin" && canCreateAcademic && onCreateScheduleDirect) || role === "teacher")) && "cursor-pointer"
-                        )}
-                        title={
-                          role === "teacher"
-                            ? `Buka tampilan hari untuk ${cell.dayName}, ${cell.dayOfMonth}`
-                            : undefined
-                        }
-                      >
-                        {/* Cell Day Header */}
-                        <div className="flex items-center justify-between mb-1">
-                          <span
-                            className={cn(
-                              "inline-flex items-center justify-center size-5 text-[11px] font-bold rounded-full",
-                              cell.isToday
-                                ? "bg-brand-primary text-white"
-                                : "text-foreground"
-                            )}
-                          >
-                            {cell.dayOfMonth}
-                          </span>
-
-                          <div className="flex items-center gap-1">
-                            {role === "admin" && canCreateAcademic && onCreateScheduleDirect && (
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  onCreateScheduleDirect(cell.dateIso, "09:00", "10:30");
-                                }}
-                                className="text-muted-foreground hover:text-brand-primary font-bold p-0.5 rounded transition-colors cursor-pointer"
-                                title="Buat Jadwal pada tanggal ini"
-                              >
-                                <Plus className="size-3" />
-                              </button>
-                            )}
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setActiveDate(cell.date);
-                                setViewMode("day");
-                              }}
-                              className="text-[9px] text-muted-foreground hover:text-brand-primary font-medium cursor-pointer"
-                            >
-                              Detail
-                            </button>
-                          </div>
-                        </div>
-
-                        {/* Events List in Day Cell */}
-                        <div className="flex-1 space-y-1 overflow-y-auto max-h-[75px]">
-                          {/* Academic Schedules */}
-                          {cellAcademic.map((evt) => {
-                            const style = getAcademicStyle(evt.schedule.type);
-                            return (
-                              <div
-                                key={evt.schedule.id}
-                                onClick={() => onEditSchedule?.(evt.schedule)}
-                                className={`px-1.5 py-0.5 rounded text-[9px] font-bold truncate border ${style.border} ${style.bg} cursor-pointer`}
-                                title={`${evt.schedule.title} (${style.label})`}
-                              >
-                                * {evt.schedule.title}
-                              </div>
-                            );
-                          })}
-
-                          {/* Booked Sessions */}
-                          {cellBookings.map((b) => {
-                            const tutorStyle = getTutorColorStyle(
-                              b.slot?.tutorId || b.studentId
-                            );
-                            return (
-                              <div
-                                key={b.id}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  if (onOpenSessionDetail || role !== "teacher") {
-                                    openBookedSession(b);
-                                  } else {
-                                    setActiveDate(cell.date);
-                                    setViewMode("day");
-                                  }
-                                }}
-                                className={`px-1.5 py-0.5 rounded text-[9px] font-semibold truncate border ${tutorStyle.border} ${tutorStyle.bg} cursor-pointer hover:shadow-xs`}
-                                title={`${b.course?.title || "Tutorial"} (${b.startTime} - ${b.endTime})`}
-                              >
-                                <span className="font-bold">
-                                  {b.startTime?.slice(0, 5)}
-                                </span>{" "}
-                                {b.course?.title || "Tutorial"}
-                              </div>
-                            );
-                          })}
-
-                          {/* Teacher Unbooked Slots */}
-                          {canManageTutorial &&
-                            cellSlots
-                              .filter((s) => !s.booking)
-                              .map((s) => {
-                                const isPastDate = cell.dateIso < todayIso;
-                                return (
-                                  <div
-                                    key={s.id}
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setActiveDate(cell.date);
-                                      setViewMode("day");
-                                    }}
-                                    className={cn(
-                                      "px-1.5 py-0.5 rounded text-[9px] font-semibold truncate border cursor-pointer hover:shadow-xs",
-                                      isPastDate
-                                        ? "border-border/80 bg-muted/40 text-muted-foreground opacity-75"
-                                        : "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
-                                    )}
-                                    title={`Slot: ${s.startTime} - ${s.endTime} (${isPastDate ? "Kedaluwarsa" : "Tersedia"})`}
-                                  >
-                                    <span className="font-bold">{s.startTime?.slice(0, 5)}</span>{" "}
-                                    {isPastDate ? "Slot lewat" : "Slot tersedia"}
-                                  </div>
-                                );
-                              })}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+            );
+          })}
+        </div>
       </div>
-    </TooltipProvider>
+    </div>
   );
 }
