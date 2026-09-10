@@ -27,6 +27,31 @@ function LoadingState() {
   );
 }
 
+function getCourseFilterOptions(data: any) {
+  const byId = new Map<string, { id: string; title: string }>();
+  for (const enrollment of data.enrollments || []) {
+    const course = enrollment?.course;
+    if (course?.id) byId.set(course.id, { id: course.id, title: course.title || course.name || "Mata kuliah" });
+  }
+  for (const group of data.groups || []) {
+    for (const entry of group?.courses || []) {
+      const course = entry?.course || entry;
+      if (course?.id) byId.set(course.id, { id: course.id, title: course.title || course.name || "Mata kuliah" });
+    }
+  }
+  return Array.from(byId.values()).sort((left, right) => left.title.localeCompare(right.title, "id"));
+}
+
+function getTutorFilterOptions(data: any) {
+  const byId = new Map<string, { id: string; name: string }>();
+  for (const slot of data.availableSlots || []) {
+    const tutor = slot?.tutor;
+    const id = tutor?.id || slot?.tutorId;
+    if (id) byId.set(id, { id, name: tutor?.name || "Tutor" });
+  }
+  return Array.from(byId.values()).sort((left, right) => left.name.localeCompare(right.name, "id"));
+}
+
 export function StudentScheduleClient() {
   const [data, setData] = useState<any>(null);
   const [dataWeekOffset, setDataWeekOffset] = useState<number | null>(null);
@@ -93,8 +118,8 @@ export function StudentScheduleClient() {
   if (!activeData) return <LoadingState />;
 
   const userObj = activeData.user || {};
-  const coursesList = activeData.courses || [];
-  const tutorsList = activeData.tutors || [];
+  const coursesList = getCourseFilterOptions(activeData);
+  const tutorsList = getTutorFilterOptions(activeData);
   const initialCourseFilter = searchParams.get("course") || "all";
   const activeSessionBooking = activeSessionBookingId
     ? (activeData.groupBookings || []).find((booking: any) => booking.id === activeSessionBookingId) || null
