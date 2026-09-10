@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useTransition, useMemo } from "react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import {
   CalendarDays,
   Clock,
@@ -10,8 +11,6 @@ import {
   Users,
   Video,
   MapPin,
-  CheckCircle2,
-  AlertCircle,
   BookOpen,
   Send,
   ExternalLink,
@@ -121,10 +120,6 @@ export function TutorScheduleView({
   const [scheduleData, setScheduleData] = useState(initialData);
   const [slotNotes, setSlotNotes] = useState<Record<string, string>>({});
   const [activeSessionBookingId, setActiveSessionBookingId] = useState<string | null>(null);
-  const [feedback, setFeedback] = useState<{
-    type: "success" | "error";
-    message: string;
-  } | null>(null);
 
   useEffect(() => {
     setWeekOffset(initialWeekOffset);
@@ -250,7 +245,6 @@ export function TutorScheduleView({
   });
 
   const handleAddSlot = () => {
-    setFeedback(null);
     startTransition(async () => {
       const res = await addTutorSlotWithNotesAction({
         dayOfWeek: derivedWeekday,
@@ -265,10 +259,10 @@ export function TutorScheduleView({
       if (res.success) {
         setIsAddSlotOpen(false);
         setNewSlotNotes("");
-        setFeedback({ type: "success", message: "Slot ketersediaan berhasil ditambahkan." });
+        toast.success("Slot ketersediaan berhasil ditambahkan.");
         router.refresh();
       } else {
-        setFeedback({ type: "error", message: res.error || "Gagal menambahkan slot." });
+        toast.error(res.error || "Gagal menambahkan slot.");
       }
     });
   };
@@ -291,7 +285,6 @@ export function TutorScheduleView({
   };
 
   const handleCreateSlotDirect = (dateIso: string, startTimeStr?: string) => {
-    setFeedback(null);
     setNewSlotDate(dateIso);
     setNewSlotNotes("");
     const start = startTimeStr || "09:00";
@@ -309,7 +302,6 @@ export function TutorScheduleView({
   };
 
   const handleOpenMoveModal = (booking: OwnedBookingItem) => {
-    setFeedback(null);
     setMovingBooking(booking);
     setTargetMoveSlotId("");
     setTargetMoveDate(booking.sessionDate || "");
@@ -318,7 +310,6 @@ export function TutorScheduleView({
   };
 
   const handleDeleteSlot = (slotId: string) => {
-    setFeedback(null);
     startTransition(async () => {
       const res = await deleteTutorSlotAction({ slotId });
       if (res.success) {
@@ -327,20 +318,19 @@ export function TutorScheduleView({
           delete next[slotId];
           return next;
         });
-        setFeedback({ type: "success", message: "Slot berhasil dihapus." });
+        toast.success("Slot berhasil dihapus.");
         router.refresh();
       } else {
-        setFeedback({ type: "error", message: res.error || "Gagal menghapus slot." });
+        toast.error(res.error || "Gagal menghapus slot.");
       }
     });
   };
 
   const handleMoveSession = () => {
     if (!movingBooking || !targetMoveSlotId || !targetMoveDate) {
-      setFeedback({ type: "error", message: "Harap pilih slot dan tanggal tujuan." });
+      toast.error("Harap pilih slot dan tanggal tujuan.");
       return;
     }
-    setFeedback(null);
     startTransition(async () => {
       const res = await moveTutorSessionAction({
         bookingId: movingBooking.id,
@@ -351,22 +341,20 @@ export function TutorScheduleView({
       if (res.success) {
         setIsMoveSessionOpen(false);
         setMovingBooking(null);
-        setFeedback({
-          type: "success",
-          message: res.movedDirectly
-            ? "Sesi berhasil dipindahkan."
-            : "Jadwal terkunci. Permohonan reschedule berhasil diajukan sebagai tiket.",
-        });
+        if (res.movedDirectly) {
+          toast.success("Sesi berhasil dipindahkan.");
+        } else {
+          toast.info("Jadwal terkunci. Permohonan reschedule berhasil diajukan sebagai tiket.");
+        }
         router.refresh();
       } else {
-        setFeedback({ type: "error", message: res.error || "Gagal memindahkan sesi." });
+        toast.error(res.error || "Gagal memindahkan sesi.");
       }
     });
   };
 
   const handleDecideTicket = () => {
     if (!decidingTicket) return;
-    setFeedback(null);
     startTransition(async () => {
       const res = await decideTutorRescheduleTicketAction({
         ticketId: decidingTicket.id,
@@ -376,20 +364,16 @@ export function TutorScheduleView({
       if (res.success) {
         setIsDecideTicketOpen(false);
         setDecidingTicket(null);
-        setFeedback({
-          type: "success",
-          message: `Tiket berhasil ${ticketDecision === "approved" ? "disetujui" : "ditolak"}.`,
-        });
+        toast.success(`Tiket berhasil ${ticketDecision === "approved" ? "disetujui" : "ditolak"}.`);
         router.refresh();
       } else {
-        setFeedback({ type: "error", message: res.error || "Gagal memproses tiket." });
+        toast.error(res.error || "Gagal memproses tiket.");
       }
     });
   };
 
   const handleReplyTicket = () => {
     if (!openThreadId || replyText.trim().length === 0) return;
-    setFeedback(null);
     startTransition(async () => {
       const res = await replyTutorTicketMessageAction({
         ticketId: openThreadId,
@@ -397,9 +381,10 @@ export function TutorScheduleView({
       });
       if (res.success) {
         setReplyText("");
+        toast.success("Balasan diskusi terkirim.");
         router.refresh();
       } else {
-        setFeedback({ type: "error", message: res.error || "Gagal mengirim pesan." });
+        toast.error(res.error || "Gagal mengirim pesan.");
       }
     });
   };
@@ -419,26 +404,21 @@ export function TutorScheduleView({
     : null;
 
   const handleCopyPreviousWeek = () => {
-    setFeedback(null);
     startTransition(async () => {
       const result = await copyTutorAvailabilityAction(weekInfo.startOfWeekIso);
       if (result.success) {
         const conflictMessage = result.conflicts.length > 0
           ? ` ${result.conflicts.length} slot dilewati karena bentrok.`
           : "";
-        setFeedback({
-          type: "success",
-          message: `${result.createdCount} slot disalin dari pekan sebelumnya.${conflictMessage}`,
-        });
+        toast.success(`${result.createdCount} slot disalin dari pekan sebelumnya.${conflictMessage}`);
         router.refresh();
       } else {
-        setFeedback({ type: "error", message: result.error || "Gagal menyalin slot." });
+        toast.error(result.error || "Gagal menyalin slot.");
       }
     });
   };
 
   const openAddSlotDialog = () => {
-    setFeedback(null);
     const nextWeekMonday = getWeekScheduleDays(daysFrom(7, getJakartaNow())).days[0].dateIso;
     setNewSlotDate(canTutorCreateAvailability(weekInfo.days[0].dateIso) ? weekInfo.days[0].dateIso : nextWeekMonday);
     setNewSlotStart("09:00");
@@ -475,19 +455,6 @@ export function TutorScheduleView({
           </Button>
         </div>
       </header>
-
-      {feedback && (
-        <div
-          className={`flex items-center gap-2 rounded-lg border p-2.5 text-body-sm ${
-            feedback.type === "success"
-              ? "border-status-success/20 bg-status-success/10 text-status-success"
-              : "border-status-error/20 bg-status-error/10 text-status-error"
-          }`}
-        >
-          {feedback.type === "success" ? <CheckCircle2 className="size-4 shrink-0" /> : <AlertCircle className="size-4 shrink-0" />}
-          <span>{feedback.message}</span>
-        </div>
-      )}
 
       {activeTab !== "calendar" && (
         <div className="flex flex-wrap items-center gap-2">
