@@ -51,7 +51,7 @@ Panjang mengikuti ketuntasan tujuan, bukan target kata atau waktu.
 
 ### Diktat
 
-Diktat adalah ringkasan review pra-ujian yang diturunkan setelah Artikel lengkap. Ia harus mempertahankan seluruh Idea penting, formula dan kondisi, langkah cepat, contoh kilat, jebakan, dan retrieval check yang relevan tanpa menambah pengetahuan baru. Klaim PDF 2–4 halaman hanya sah setelah render nyata dan inspeksi visual.
+Diktat adalah ringkasan review pra-ujian yang diturunkan setelah Artikel lengkap. Ia harus mempertahankan seluruh Idea penting, formula dan kondisi, langkah cepat, contoh kilat, jebakan, dan retrieval check yang relevan tanpa menambah pengetahuan baru. Klaim PDF 2 to 4 halaman hanya sah setelah render nyata dan inspeksi visual.
 
 ### Flashcard
 
