@@ -2,8 +2,9 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { CalendarDays } from "lucide-react";
+import { AlertCircle, CalendarDays } from "lucide-react";
 import { toast } from "@/components/ui/toast";
+import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/page-header";
 import { ApplicationPage } from "@/components/application-page";
 import { getScheduleData } from "./actions";
@@ -56,6 +57,7 @@ export function StudentScheduleClient() {
   const [data, setData] = useState<any>(null);
   const [dataWeekOffset, setDataWeekOffset] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [weekOffset, setWeekOffset] = useState(0);
   const [bookingSlotData, setBookingSlotData] = useState<{ slot: any; dateIso: string } | null>(null);
   const [activeSessionBookingId, setActiveSessionBookingId] = useState<string | null>(null);
@@ -71,22 +73,27 @@ export function StudentScheduleClient() {
     if (cached) {
       setData(cached);
       setDataWeekOffset(offset);
+      setLoadError(null);
       setLoading(false);
       return cached;
     }
 
     try {
       setLoading(true);
+      setLoadError(null);
       const nextData = await getScheduleData(offset);
       weekCache.current.set(offset, nextData);
       if (requestId === activeRequest.current) {
         setData(nextData);
         setDataWeekOffset(offset);
+        setLoadError(null);
       }
       return nextData;
     } catch (error) {
       console.error("Gagal mengambil data jadwal:", error);
       if (requestId === activeRequest.current) {
+        const message = "Kalender jadwal gagal dimuat. Periksa koneksi lalu coba lagi.";
+        setLoadError(message);
         toast.error("Gagal memuat kalender jadwal");
       }
       return null;
@@ -115,7 +122,30 @@ export function StudentScheduleClient() {
   }, [data, dataWeekOffset, loading, weekOffset]);
 
   const activeData = dataWeekOffset === weekOffset ? data : null;
-  if (!activeData) return <LoadingState />;
+  if (!activeData) {
+    if (loadError) {
+      return (
+        <ApplicationPage spacing="space-y-4">
+          <PageHeader icon={CalendarDays} title="Kalender & Jadwal Tutorial" />
+          <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-5">
+            <div className="flex items-start gap-3">
+              <AlertCircle className="mt-0.5 size-5 shrink-0 text-destructive" aria-hidden />
+              <div className="min-w-0 space-y-3">
+                <div>
+                  <h2 className="font-heading text-body-base font-semibold text-foreground">Jadwal belum dapat dimuat</h2>
+                  <p className="mt-1 text-body-sm text-muted-foreground">{loadError}</p>
+                </div>
+                <Button type="button" size="sm" onClick={() => void fetchData(weekOffset, true)} disabled={loading}>
+                  {loading ? "Memuat..." : "Coba Lagi"}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </ApplicationPage>
+      );
+    }
+    return <LoadingState />;
+  }
 
   const userObj = activeData.user || {};
   const coursesList = getCourseFilterOptions(activeData);
