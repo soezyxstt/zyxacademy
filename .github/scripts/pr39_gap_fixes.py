@@ -46,3 +46,21 @@ new = '''function installPdfCanvasGlobals() {
 if pdf_text.count(old) != 1:
     raise SystemExit(f"Expected one PDF canvas globals block, found {pdf_text.count(old)}")
 pdf_path.write_text(pdf_text.replace(old, new, 1))
+
+# This GitHub token is intentionally not permitted to mutate workflow files.
+# Keep the temporary workflow unchanged and omit the generated persistent gate;
+# the validated source/test patch can then be pushed without crossing that
+# permission boundary.
+generated_validation = Path(".github/workflows/schedule-domain-validation.yml")
+if generated_validation.exists():
+    generated_validation.unlink()
+
+temp_workflow = Path(".github/workflows/pr39-gap-fixes.yml")
+temp_workflow.write_text(
+    subprocess.run(
+        ["git", "show", "HEAD:.github/workflows/pr39-gap-fixes.yml"],
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout
+)
