@@ -131,15 +131,16 @@ export async function executeCreateMeetSession(input: CreateMeetSessionInput, ac
     },
     options,
   );
-  if (!booking.success || !booking.bookingId) {
+  const createdBookingId = "bookingId" in booking ? booking.bookingId : undefined;
+  if (!booking.success || !createdBookingId) {
     throw new Error(booking.error || "Gagal menetapkan sesi tutorial melalui domain scheduling.");
   }
 
-  const meetUrl = await ensureGoogleMeetForBooking(booking.bookingId).catch(() => null);
+  const meetUrl = await ensureGoogleMeetForBooking(createdBookingId).catch(() => null);
   return {
     summary: `Sesi tutorial berhasil dibuat pada ${dateIso} jam ${startTime} - ${endTime}.${meetUrl ? ` Google Meet: ${meetUrl}` : ""}`,
     data: {
-      bookingId: booking.bookingId,
+      bookingId: createdBookingId,
       slotId: availability.slotId,
       dateIso,
       time: `${startTime} - ${endTime}`,
