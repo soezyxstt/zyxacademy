@@ -24,15 +24,15 @@ assessment.list_questions { runToken, query?, difficulty?, cognitiveLevel?, ques
 assessment.get_question { runToken, questionId }
 assessment.analyze_bank { runToken }
 
-assessment.list_reference_questions { runToken, ideaId?, ...contract filters }
-assessment.get_reference_question { runToken, referenceQuestionId }
+assessment.list_reference_questions { runToken, query?, ideaId?, chapterKey?, assessmentType?, year?, institution?, difficulty?, cognitiveLevel?, questionType?, quizEligible?, status?, limit?, offset? }
+assessment.get_reference_question { runToken, questionId }
 
 assessment.validate_quiz_draft { runToken, draftJson }
 assessment.submit_quiz_draft { runToken, draftJson }  // authoring:stage
-assessment.update_question { runToken, questionId, question, ideaLinks, referenceLinks? } // bila contract aktif mendukung field tersebut
+assessment.update_question { runToken, questionId, question, ideaLinks } // authoring:stage
 ```
 
-Jangan menebak bentuk argument yang tidak dikembalikan contract/tool schema aktif. Bila nama identifier historical detail berbeda pada contract aktif, gunakan schema tool tersebut, bukan contoh di atas.
+Daftar argumen di atas mengikuti tool registry saat skill ini ditulis. `workflow.get_contract` dan tool schema aktif tetap menang bila contract berubah. Jangan menebak field yang tidak tersedia.
 
 `workflow.start` tanpa Source Pack sah untuk `quiz_bank`. Bila Source Pack dipakai, course/chapter harus sama dengan scope run.
 
@@ -71,15 +71,17 @@ Perubahan angka/konteks tanpa perubahan target/reasoning bukan gap.
 
 ## Historical reference sebagai konteks read-only
 
-Gunakan `assessment.list_reference_questions` dengan `ideaId` untuk discovery. Batas skill: maksimal 10 hasil list per Idea dan maksimal 5 detail per Idea. Baca source attribution, answer/solution provenance, Idea links, bentuk soal, dan detail yang diperlukan untuk memahami pola ujian.
+Gunakan `assessment.list_reference_questions { runToken, ideaId, limit: 10 }` untuk discovery per Idea. Batas skill: maksimal 10 hasil list per Idea dan maksimal 5 detail per Idea. Buka detail dengan `assessment.get_reference_question { runToken, questionId }`.
 
-Historical row tidak boleh diedit melalui `quiz_bank`.
+Baca source attribution, answer/solution provenance, Idea links, bentuk soal, dan detail yang diperlukan untuk memahami pola ujian. Historical row tidak boleh diedit melalui `quiz_bank`.
 
-Jika soal original memiliki hubungan nyata ke reference, isi `referenceLinks` sesuai **contract aktif** dengan role:
+Jika soal original memiliki hubungan nyata ke reference, isi `referenceLinks` pada **draft** sesuai contract aktif dengan role:
 
 - `inspired_by` untuk pengaruh pola/tema umum;
 - `adapted_from` untuk struktur masalah yang dekat tetapi menjadi soal original;
 - `derived_from` untuk turunan kuat yang membutuhkan lineage eksplisit.
+
+`assessment.update_question` saat ini hanya menerima `question` dan `ideaLinks`; jangan mengarang `referenceLinks` pada tool update. Bila lineage existing question perlu diubah tetapi tool aktif tidak mendukungnya, berhenti dan laporkan batas tool.
 
 Jika operator ingin menyimpan wording historical verbatim, berhenti dan gunakan `$reference-question-ingest`.
 
