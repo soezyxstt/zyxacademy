@@ -1,6 +1,6 @@
 import { db } from "@/db";
 import { bookings, tutorSlots } from "@/db/schema";
-import { and, desc, eq, gte, lte } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, lte } from "drizzle-orm";
 import { ensureGoogleMeetForBooking } from "@/lib/schedule-lock";
 import {
   executeAdminAssignTutorialSession,
@@ -32,6 +32,18 @@ function parseTimeSlot(value: string | undefined, fallbackStart = "10:00", fallb
   };
 }
 
+async function rollbackCreatedAvailability(slotId: string) {
+  const booked = await db
+    .select({ id: bookings.id })
+    .from(bookings)
+    .where(eq(bookings.slotId, slotId))
+    .limit(1);
+  if (booked.length > 0) return false;
+
+  await db.delete(tutorSlots).where(eq(tutorSlots.id, slotId));
+  return true;
+}
+
 export async function executeListSchedules(input: ListSchedulesInput) {
   const conditions = [];
   if (input.courseId) conditions.push(eq(bookings.courseId, input.courseId.trim()));
@@ -46,6 +58,7 @@ export async function executeListSchedules(input: ListSchedulesInput) {
     if (slotRows.length === 0) {
       return { summary: "Tidak ada jadwal untuk tutor tersebut.", data: [] };
     }
+    conditions.push(inArray(bookings.slotId, slotRows.map((row) => row.id)));
   }
 
   const limit = Math.min(Math.max(input.limit ?? 25, 1), 100);
@@ -61,13 +74,9 @@ export async function executeListSchedules(input: ListSchedulesInput) {
     limit,
   });
 
-  const filteredRows = input.tutorId
-    ? rows.filter((booking) => booking.slot?.tutorId === input.tutorId?.trim())
-    : rows;
-
   return {
-    summary: `Ditemukan ${filteredRows.length} jadwal sesi meet/tutorial.`,
-    data: filteredRows.map((booking) => ({
+    summary: `Ditemukan ${rows.length} jadwal sesi meet/tutorial.`,
+    data: rows.map((booking) => ({
       id: booking.id,
       sessionDate: booking.sessionDate,
       startTime: booking.startTime,
@@ -133,7 +142,10 @@ export async function executeCreateMeetSession(input: CreateMeetSessionInput, ac
   );
   const createdBookingId = "bookingId" in booking ? booking.bookingId : undefined;
   if (!booking.success || !createdBookingId) {
-    throw new Error(booking.error || "Gagal menetapkan sesi tutorial melalui domain scheduling.");
+    const rolledBack = await rollbackCreatedAvailability(availability.slotId).catch(() => false);
+    throw new Error(
+      `${booking.error || "Gagal menetapkan sesi tutorial melalui domain scheduling."}${rolledBack ? "" : " Slot yang baru dibuat juga gagal dibersihkan."}`,
+    );
   }
 
   const meetUrl = await ensureGoogleMeetForBooking(createdBookingId).catch(() => null);
@@ -198,6 +210,7 @@ export async function executeRescheduleOrCancelMeet(input: RescheduleOrCancelMee
     limit: 5,
   });
   let targetSlotId = exactSlots.find((slot) => !slot.booking)?.id || null;
+  let createdTargetSlotId: string | null = null;
 
   if (!targetSlotId) {
     const availability = await executeAdminCreateTutorAvailability(
@@ -216,10 +229,16 @@ export async function executeRescheduleOrCancelMeet(input: RescheduleOrCancelMee
       throw new Error(availability.error || "Gagal menyiapkan slot tujuan.");
     }
     targetSlotId = availability.slotId;
+    createdTargetSlotId = availability.slotId;
   }
 
   const moved = await executeAdminMoveTutorialSession({ bookingId, targetSlotId, reason }, options);
-  if (!moved.success) throw new Error(moved.error || "Gagal memindahkan sesi.");
+  if (!moved.success) {
+    const rolledBack = createdTargetSlotId
+      ? await rollbackCreatedAvailability(createdTargetSlotId).catch(() => false)
+      : true;
+    throw new Error(`${moved.error || "Gagal memindahkan sesi."}${rolledBack ? "" : " Slot tujuan yang baru dibuat juga gagal dibersihkan."}`);
+  }
 
   return {
     summary: `Sesi berhasil dipindahkan ke ${newDateIso} jam ${startTime} - ${endTime}.`,
