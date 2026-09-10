@@ -52,11 +52,12 @@ describe("Tutorial week policy", () => {
     expect(canStudentBook(targetWeek, afterLock)).toBe(false);
   });
 
-  it("keeps 14-20 September editable on Thursday 10 September", () => {
+  it("keeps 14-20 September editable and bookable on Thursday 10 September", () => {
     const now = new Date("2026-09-10T00:17:00.000+07:00");
 
     expect(getTutorialWeekPhase("2026-09-14", now)).toBe("availability_open");
     expect(canTutorCreateAvailability("2026-09-14", now)).toBe(true);
+    expect(canStudentBook("2026-09-14", now)).toBe(true);
     expect(isTutorialWeekLocked("2026-09-14", now)).toBe(false);
   });
 
