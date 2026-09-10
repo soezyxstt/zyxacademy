@@ -157,7 +157,7 @@ Struktur padat yang disarankan:
 
 Jika Diktat dapat menggantikan Artikel untuk belajar pertama kali secara penuh, Diktat terlalu panjang. Jika Diktat hanya dapat dipadatkan dengan membuang konsep penting, berhenti untuk keputusan scope; jangan mengecilkan font atau menghapus reasoning penting.
 
-Target 2–4 halaman hanya sah dari PDF render nyata. Klaim PDF ready memerlukan checksum Diktat, versi renderer, profil cetak, page count, dan inspeksi halaman. Render gagal/stale, >4 halaman, glyph rusak, formula mentah, clipping, atau halaman kosong memblokir readiness.
+Target 2 to 4 halaman hanya sah dari PDF render nyata. Klaim PDF ready memerlukan checksum Diktat, versi renderer, profil cetak, page count, dan inspeksi halaman. Render gagal/stale, >4 halaman, glyph rusak, formula mentah, clipping, atau halaman kosong memblokir readiness.
 
 ## 12. Flashcard sebagai alat ingatan
 
