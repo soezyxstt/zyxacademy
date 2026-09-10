@@ -29,6 +29,15 @@ describe("PDF thumbnail compute boundary", () => {
     expect(compute).toContain('import { pdfThumbnailWorker } from "./pdf-thumbnail"');
     expect(compute).toMatch(/computeFunctions\s*=\s*\[[\s\S]*pdfThumbnailWorker[\s\S]*\]/);
   });
+
+  test("material cards retry transient queued thumbnails without Next image caching", () => {
+    const list = source("app/(student)/courses/[id]/material/document-list-client.tsx");
+    expect(list).toContain("MAX_THUMBNAIL_RETRIES");
+    expect(list).toContain('baseThumbnailUrl.includes("/thumbnail")');
+    expect(list).toContain("unoptimized={isRetryableThumbnail}");
+    expect(list).toContain("retry=${retryAttempt}");
+    expect(list).toContain("handleThumbnailError");
+  });
 });
 
 describe("canonical material covers", () => {
