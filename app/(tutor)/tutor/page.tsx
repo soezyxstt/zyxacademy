@@ -18,6 +18,7 @@ import { getTutorScheduleReadModel } from "@/lib/schedule/tutor-read-model";
 import { getCalendarWeekRange, getJakartaCalendarDate } from "@/lib/schedule/calendar-date";
 import { PageHeader } from "@/components/page-header";
 import { ApplicationPage } from "@/components/application-page";
+import { AdminEmptyState } from "@/components/admin/state-panels";
 import { Button } from "@/components/ui/button";
 import { pageTitle } from "@/lib/site";
 
@@ -48,8 +49,6 @@ export default async function TutorPage() {
   const schedule = await getTutorScheduleReadModel({
     tutorId: session.user.id,
     allowAdmin: false,
-    fromDate: week.startIso,
-    toDate: week.endIso,
   });
 
   const currentWeekBookings = schedule.ownedBookings.filter(
@@ -117,9 +116,17 @@ export default async function TutorPage() {
           </div>
 
           {upcomingSessions.length === 0 ? (
-            <div className="px-4 py-8 text-center text-body-sm text-muted-foreground">
-              Belum ada sesi mendatang pada rentang yang dimuat.
-            </div>
+            <AdminEmptyState
+              icon={Clock3}
+              title="Belum ada sesi mendatang"
+              description="Tambahkan slot agar kelompok dapat memilih waktu tutorial berikutnya."
+              action={
+                <Button asChild variant="outline" size="sm">
+                  <Link href="/tutor/schedule">Tambah slot</Link>
+                </Button>
+              }
+              className="px-4 py-8"
+            />
           ) : (
             <div className="divide-y divide-border">
               {upcomingSessions.map((booking) => (
@@ -137,7 +144,7 @@ export default async function TutorPage() {
                     </span>
                     <span className="mt-0.5 block break-words text-body-xs text-muted-foreground">
                       {booking.sessionDate ? formatSessionDate(booking.sessionDate) : "Tanggal belum ditentukan"}
-                      {booking.startTime ? ` · ${booking.startTime}${booking.endTime ? `–${booking.endTime}` : ""}` : ""}
+                      {booking.startTime ? ` · ${booking.startTime}${booking.endTime ? `-${booking.endTime}` : ""}` : ""}
                     </span>
                     <span className="mt-0.5 block break-words text-body-xs text-muted-foreground">
                       {booking.group?.name || "Kelompok"}{booking.mode ? ` · ${booking.mode === "online" ? "Online" : "Tatap muka"}` : ""}
@@ -156,7 +163,12 @@ export default async function TutorPage() {
             <p className="text-body-xs text-muted-foreground">Tiket reschedule atau pembatalan yang menunggu keputusan.</p>
           </div>
           {pendingTickets.length === 0 ? (
-            <div className="px-4 py-7 text-body-sm text-muted-foreground">Tidak ada tiket pending.</div>
+            <AdminEmptyState
+              icon={MessageSquareWarning}
+              title="Tidak ada tiket pending"
+              description="Permintaan reschedule dan pembatalan yang perlu ditinjau akan muncul di sini."
+              className="px-4 py-7"
+            />
           ) : (
             <div className="divide-y divide-border">
               {pendingTickets.slice(0, 5).map((ticket) => (
@@ -182,7 +194,12 @@ export default async function TutorPage() {
         </div>
 
         {schedule.assignedActiveCourses.length === 0 ? (
-          <div className="px-4 py-8 text-center text-body-sm text-muted-foreground">Belum ada mata kuliah yang ditugaskan.</div>
+          <AdminEmptyState
+            icon={BookOpen}
+            title="Belum ada mata kuliah"
+            description="Penugasan mata kuliah tutor dikelola oleh admin."
+            className="px-4 py-8"
+          />
         ) : (
           <div className="divide-y divide-border">
             {schedule.assignedActiveCourses.map((course) => {
