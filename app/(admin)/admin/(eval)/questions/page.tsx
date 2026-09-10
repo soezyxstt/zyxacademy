@@ -170,16 +170,16 @@ export default async function AIQuestionsPage() {
       />
       <Tabs
         defaultValue="ai-generated"
-        className="grid grid-cols-1 items-center gap-x-2 gap-y-4 lg:grid-cols-[auto_minmax(0,1fr)] lg:grid-rows-[auto_auto]"
+        className="space-y-4"
       >
-        <TabsList className="relative z-10 col-start-1 row-start-1 justify-self-start">
+        <TabsList className="justify-self-start">
           <TabsTrigger value="ai-generated">Bank soal aktif</TabsTrigger>
           <TabsTrigger value="historical">Referensi historis</TabsTrigger>
         </TabsList>
 
         <TabsContent
           value="ai-generated"
-          className="mt-0 lg:col-span-2 lg:row-span-2 lg:col-start-1 lg:row-start-1 lg:grid lg:grid-cols-subgrid lg:grid-rows-subgrid"
+          className="mt-0"
         >
           <QuestionBankClient
             questions={questions}
@@ -193,7 +193,7 @@ export default async function AIQuestionsPage() {
 
         <TabsContent
           value="historical"
-          className="mt-0 lg:col-span-2 lg:row-span-2 lg:col-start-1 lg:row-start-1 lg:grid lg:grid-cols-subgrid lg:grid-rows-subgrid"
+          className="mt-0"
         >
           <HistoricalQuestionsClient
             questions={historicalQuestions}

@@ -582,9 +582,9 @@ export function QuestionBankClient({ questions, courses, courseMap, authoringCou
   };
 
   return (
-    <div className="space-y-6 font-sans lg:col-span-2 lg:row-span-2 lg:grid lg:grid-cols-subgrid lg:grid-rows-subgrid lg:space-y-0">
+    <div className="space-y-6 font-sans">
       {/* Search, filters, and actions */}
-      <div className="flex min-w-0 flex-wrap items-center gap-2 lg:col-start-2 lg:row-start-1 lg:flex-nowrap">
+      <div className="flex min-w-0 flex-wrap items-center gap-2 lg:flex-nowrap">
         <SearchBar
           size="sm"
           placeholder="Cari isi soal, tag, sumber..."

@@ -239,7 +239,7 @@ export function HistoricalQuestionsClient({ questions, courses, courseMap }: Pro
 
   return (
     <div className="space-y-6">
-      <div className="flex min-w-0 flex-wrap items-center gap-2">
+      <div className="flex min-w-0 flex-wrap items-center gap-2 lg:flex-nowrap">
         <SearchBar
           size="sm"
           placeholder="Cari isi soal atau sumber..."
@@ -309,6 +309,7 @@ export function HistoricalQuestionsClient({ questions, courses, courseMap }: Pro
           </div>
         </div>
       ) : null}
+
 
       <AdminTable>
         {filteredQuestions.length === 0 ? (

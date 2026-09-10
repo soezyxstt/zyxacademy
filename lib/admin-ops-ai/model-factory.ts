@@ -213,6 +213,16 @@ export async function* streamOpsAiModel(
       config: config as any,
     });
 
+    if (
+      responseStream == null ||
+      typeof (responseStream as any)[Symbol.asyncIterator] !== "function"
+    ) {
+      throw new Error(
+        `Gemini generateContentStream returned a non-iterable response (${typeof responseStream}). ` +
+        `This may indicate an API version mismatch or a gateway configuration issue.`
+      );
+    }
+
     let promptTokens = 0;
     let completionTokens = 0;
     let finishReason = "stop";
