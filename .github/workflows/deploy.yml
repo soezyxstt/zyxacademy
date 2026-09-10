@@ -6,14 +6,171 @@ on:
       - main
       - staging
     paths:
+      # Keep this list narrow. scripts/audit-worker-dependencies.ts verifies that
+      # every transitive worker dependency is covered here.
+      # BEGIN DENO_DEPLOY_PATHS
+      - 'workers/deno-background/**'
+      - 'db/index.ts'
+      - 'db/schema.ts'
+      - 'jobs/admin-knowledge.ts'
+      - 'jobs/analytics.ts'
+      - 'jobs/assessment.ts'
+      - 'jobs/audit.ts'
+      - 'jobs/client.ts'
+      - 'jobs/compute.ts'
+      - 'jobs/diktat-pdf.ts'
+      - 'jobs/feedback.ts'
+      - 'jobs/generation.ts'
+      - 'jobs/mastery.ts'
+      - 'jobs/pdf.ts'
+      - 'jobs/reflection.ts'
+      - 'jobs/search-sync.ts'
+      - 'jobs/vector-sync.ts'
+      - 'lib/admin-ops-ai/admin-knowledge-chunker.ts'
+      - 'lib/admin-ops-ai/admin-knowledge-contracts.ts'
+      - 'lib/admin-ops-ai/admin-knowledge-sources.ts'
+      - 'lib/admin-ops-ai/admin-knowledge-store.ts'
+      - 'lib/admin-ops-ai/admin-knowledge-sync.ts'
+      - 'lib/admin-ops-ai/contracts.ts'
+      - 'lib/ai-router.ts'
+      - 'lib/ai/analytics.ts'
+      - 'lib/ai/control-plane-client.ts'
+      - 'lib/ai/gateway-metadata.ts'
+      - 'lib/ai/provider/errors.ts'
+      - 'lib/ai/provider/gemini-generate-adapter.ts'
+      - 'lib/ai/provider/gemini-interactions-adapter.ts'
+      - 'lib/ai/provider/model-registry.ts'
+      - 'lib/ai/provider/provider-adapter.ts'
+      - 'lib/ai/request-lifecycle.ts'
+      - 'lib/analytics-service.ts'
+      - 'lib/articles/structured-read-model.ts'
+      - 'lib/articles/structured-repository.ts'
+      - 'lib/asesmen/quiz-canonical-sync.ts'
+      - 'lib/assessment-assistance-policy.ts'
+      - 'lib/assessment-extractor.ts'
+      - 'lib/assessment-frontmatter.ts'
+      - 'lib/assessment-utils.ts'
+      - 'lib/ast-validator.ts'
+      - 'lib/auth-secret.ts'
+      - 'lib/auth/authorization.ts'
+      - 'lib/auth/peran.ts'
+      - 'lib/auth/tutor-access.ts'
+      - 'lib/bundle/product-bundle-v2.ts'
+      - 'lib/bundle/product-diktat-evidence.ts'
+      - 'lib/bundle/product-diktat-pdf.ts'
+      - 'lib/bundle/product-review-preservation.ts'
+      - 'lib/bundle/product-staging.ts'
+      - 'lib/bundle/product-validator.ts'
+      - 'lib/bundle/validator.ts'
+      - 'lib/bundle/zip-reader.ts'
+      - 'lib/cohort-analytics.ts'
+      - 'lib/compute/diktat-pdf.ts'
+      - 'lib/compute/product-diktat-inspector.ts'
+      - 'lib/concept-evidence.service.ts'
+      - 'lib/content-quality-auditor.ts'
+      - 'lib/date-utils.ts'
+      - 'lib/db/index.ts'
+      - 'lib/diktat-auditor.ts'
+      - 'lib/diktat-exam-intelligence.ts'
+      - 'lib/diktat-generator.ts'
+      - 'lib/diktat-pdf-auditor.ts'
+      - 'lib/diktat-renderer.ts'
+      - 'lib/diktat-validator.ts'
+      - 'lib/diktat/audit-contracts.ts'
+      - 'lib/distractor-mapper.ts'
+      - 'lib/email-preferences/contracts.ts'
+      - 'lib/email-preferences/delivery-contract.ts'
+      - 'lib/email-preferences/repository.ts'
+      - 'lib/email-preferences/send.ts'
+      - 'lib/email-preferences/token.ts'
+      - 'lib/feature-flags.ts'
+      - 'lib/flashcard-generator.ts'
+      - 'lib/gemini-keys.ts'
+      - 'lib/gemini.ts'
+      - 'lib/generation-pipeline.ts'
+      - 'lib/graph-trace.ts'
+      - 'lib/inngest.ts'
+      - 'lib/intervention-service.ts'
+      - 'lib/knowledge/contracts.ts'
+      - 'lib/knowledge/identity.ts'
+      - 'lib/ko-coverage-auditor.ts'
+      - 'lib/ko-extractor.ts'
+      - 'lib/ko-utils.ts'
+      - 'lib/kv-cache.ts'
+      - 'lib/markdown-compiler.ts'
+      - 'lib/mastery-engine.ts'
+      - 'lib/mastery-recompute.ts'
+      - 'lib/mastery-store.ts'
+      - 'lib/material-generator.ts'
+      - 'lib/material-storage.ts'
+      - 'lib/materials/article-contract.ts'
+      - 'lib/materials/compiler.ts'
+      - 'lib/materials/diktat-contract.ts'
+      - 'lib/materials/pdf-artifact-contract.ts'
+      - 'lib/materials/pedagogy-contract.ts'
+      - 'lib/materials/quality-gates.ts'
+      - 'lib/materials/quality-policy.ts'
+      - 'lib/materials/visual-contract.ts'
+      - 'lib/migrasi/repository-kompatibilitas.ts'
+      - 'lib/mistake-feedback.ts'
+      - 'lib/namespaces.ts'
+      - 'lib/option-stats.ts'
+      - 'lib/pedagogical-validator.ts'
+      - 'lib/pemahaman/compatibility.ts'
+      - 'lib/pemahaman/engine.ts'
+      - 'lib/pemahaman/evidence.ts'
+      - 'lib/public-app-url.ts'
+      - 'lib/question-generator.ts'
+      - 'lib/question-validator.ts'
+      - 'lib/questions/blueprint.ts'
+      - 'lib/questions/contracts.ts'
+      - 'lib/questions/distractor-provenance.ts'
+      - 'lib/questions/independent-solver.ts'
+      - 'lib/questions/option-shuffle.ts'
+      - 'lib/questions/pedagogical-critic.ts'
+      - 'lib/reflection-service.ts'
+      - 'lib/resend.ts'
+      - 'lib/search/contracts.ts'
+      - 'lib/search/service.ts'
+      - 'lib/staging/migration-ledger.ts'
+      - 'lib/storage/index.ts'
+      - 'lib/storage/keys.ts'
+      - 'lib/storage/r2.ts'
+      - 'lib/storage/wrangler-r2.ts'
+      - 'lib/student-quiz-analytics/ai-pipeline.ts'
+      - 'lib/student-quiz-analytics/calculator.ts'
+      - 'lib/student-quiz-analytics/types.ts'
+      - 'lib/student/course-catalog.ts'
+      - 'lib/study-path-service.ts'
+      - 'lib/term-index.ts'
+      - 'lib/term-match.ts'
+      - 'lib/usage-budget-service.ts'
+      - 'lib/vector-sync-dispatch.ts'
+      - 'lib/vectorize-client.ts'
+      - 'lib/vectorize/contracts.ts'
+      - 'lib/vectorize/embedding.ts'
+      - 'lib/vectorize/outbox.ts'
+      - 'lib/vectorize/runtime.ts'
+      - 'lib/zyra/ops/contracts.ts'
+      - 'lib/zyra/ops/telemetry.ts'
+      - 'lib/zyra/runtime-env.ts'
+      - 'deno.json'
+      - 'deno.lock'
+      - '.github/workflows/deploy.yml'
+      # END DENO_DEPLOY_PATHS
+  pull_request:
+    branches:
+      - staging
+    # PR validation is intentionally broader than the deploy trigger. It is a
+    # cheap static audit and catches newly-added worker dependencies before merge.
+    paths:
       - 'workers/deno-background/**'
       - 'jobs/**'
       - 'db/**'
       - 'lib/**'
+      - 'prompts/**'
       - 'deno.json'
       - 'deno.lock'
-      - 'package.json'
-      - 'bun.lock'
       - 'scripts/audit-worker-dependencies.ts'
       - '.github/workflows/deploy.yml'
   workflow_dispatch:
@@ -23,8 +180,37 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  dependency-path-audit:
+    name: Validate Deno Dependency Paths
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Validate Worker Dependency Trigger Coverage
+        run: >-
+          deno run -A scripts/audit-worker-dependencies.ts
+          --check-deploy-paths
+          --dependency-output=artifacts/deno-worker-dependencies.txt
+
+      - name: Upload dependency graph on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: deno-worker-dependency-audit
+          path: artifacts/deno-worker-dependencies.txt
+          retention-days: 1
+
   deploy:
     name: Deploy Background Worker (${{ github.ref_name }})
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     environment: ${{ github.ref_name == 'main' && 'production' || 'staging' }}
 
@@ -32,24 +218,16 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: latest
-
       - name: Setup Deno
         uses: denoland/setup-deno@v2
         with:
           deno-version: v2.x
 
-      - name: Install Dependencies
-        run: bun install --frozen-lockfile
-
       - name: Worker Dependency Audit
-        run: bun run worker:deno:audit
+        run: deno run -A scripts/audit-worker-dependencies.ts --check-deploy-paths
 
       - name: Worker Typecheck
-        run: bun run worker:deno:check
+        run: deno check workers/deno-background/main.ts
 
       - name: Configure Target Environment
         run: |
