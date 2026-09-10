@@ -33,15 +33,17 @@ function parseTimeSlot(value: string | undefined, fallbackStart = "10:00", fallb
 }
 
 async function rollbackCreatedAvailability(slotId: string) {
-  const booked = await db
-    .select({ id: bookings.id })
-    .from(bookings)
-    .where(eq(bookings.slotId, slotId))
-    .limit(1);
-  if (booked.length > 0) return false;
+  return db.transaction(async (tx) => {
+    const booked = await tx
+      .select({ id: bookings.id })
+      .from(bookings)
+      .where(eq(bookings.slotId, slotId))
+      .limit(1);
+    if (booked.length > 0) return false;
 
-  await db.delete(tutorSlots).where(eq(tutorSlots.id, slotId));
-  return true;
+    const deleted = await tx.delete(tutorSlots).where(eq(tutorSlots.id, slotId));
+    return (deleted.rowsAffected ?? 0) > 0;
+  });
 }
 
 export async function executeListSchedules(input: ListSchedulesInput) {
@@ -144,7 +146,7 @@ export async function executeCreateMeetSession(input: CreateMeetSessionInput, ac
   if (!booking.success || !createdBookingId) {
     const rolledBack = await rollbackCreatedAvailability(availability.slotId).catch(() => false);
     throw new Error(
-      `${booking.error || "Gagal menetapkan sesi tutorial melalui domain scheduling."}${rolledBack ? "" : " Slot yang baru dibuat juga gagal dibersihkan."}`,
+      `${booking.error || "Gagal menetapkan sesi tutorial melalui domain scheduling."}${rolledBack ? "" : " Slot yang baru dibuat tidak dibersihkan karena sudah terisi atau rollback gagal."}`,
     );
   }
 
@@ -237,7 +239,7 @@ export async function executeRescheduleOrCancelMeet(input: RescheduleOrCancelMee
     const rolledBack = createdTargetSlotId
       ? await rollbackCreatedAvailability(createdTargetSlotId).catch(() => false)
       : true;
-    throw new Error(`${moved.error || "Gagal memindahkan sesi."}${rolledBack ? "" : " Slot tujuan yang baru dibuat juga gagal dibersihkan."}`);
+    throw new Error(`${moved.error || "Gagal memindahkan sesi."}${rolledBack ? "" : " Slot tujuan tidak dibersihkan karena sudah terisi atau rollback gagal."}`);
   }
 
   return {
