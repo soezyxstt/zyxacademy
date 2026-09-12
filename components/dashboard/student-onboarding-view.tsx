@@ -12,7 +12,7 @@ import { Card } from "@/components/ui/card";
 import { PageHeader } from "@/components/page-header";
 import { EnrollmentForm } from "@/components/enrollment-form";
 import { planTiers } from "@/lib/plan-tiers";
-import { calculatePlanPrice } from "@/lib/pricing-constants";
+import { PlanPrice, PlanPromotion } from "@/components/pricing/plan-price";
 import { PKA_COURSE_ID } from "@/lib/pka-config";
 import { cn } from "@/lib/utils";
 
@@ -34,20 +34,7 @@ interface StudentOnboardingViewProps {
 const ONBOARDING_PERSONS = 5;
 const ONBOARDING_COURSES = 1;
 
-const formatPrice = (amount: number): string => {
-  return "Rp " + amount.toLocaleString("id-ID");
-};
-
-const previewTiers = planTiers
-  .filter((tier) => ["minimal", "essential", "premium"].includes(tier.key))
-  .map((tier) => {
-    const total = calculatePlanPrice(tier.key, ONBOARDING_PERSONS, ONBOARDING_COURSES);
-    const perPerson = Math.round(total / ONBOARDING_PERSONS);
-    return {
-      ...tier,
-      pricePerPerson: formatPrice(perPerson),
-    };
-  });
+const previewTiers = planTiers.filter((tier) => ["minimal", "essential", "premium"].includes(tier.key));
 
 const featureHighlights = [
   {
@@ -237,6 +224,8 @@ export function StudentOnboardingView({
               </div>
             </div>
 
+            <p className="mb-2 text-body-xs text-muted-foreground">Estimasi untuk 5 orang dan 1 mata kuliah.</p>
+            <PlanPromotion className="mb-3" />
             <div className="space-y-2.5">
               {previewTiers.map((tier) => (
                 <div
@@ -257,14 +246,9 @@ export function StudentOnboardingView({
                         </span>
                       )}
                     </div>
-                    <div className="flex items-baseline gap-1">
-                      <span className="font-heading text-body-xs font-bold text-foreground">
-                        {tier.pricePerPerson}
-                      </span>
-                      <span className="text-[10px] text-muted-foreground font-medium">
-                        / orang
-                      </span>
-                    </div>
+                  </div>
+                  <div className="mt-2">
+                    <PlanPrice plan={tier.key} persons={ONBOARDING_PERSONS} courses={ONBOARDING_COURSES} perPerson />
                   </div>
                   <p className="text-body-xs text-muted-foreground mt-1 line-clamp-1">
                     {tier.note}

@@ -5,7 +5,8 @@ import Link from "next/link";
 import { Check, Plus, Minus, BookOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { SectionHeading } from "@/components/ui/section-heading";
+import { PlanPrice, PlanPromotion } from "@/components/pricing/plan-price";
+import { usePlanPricingPhase } from "@/hooks/use-plan-pricing-phase";
 import { SectionContainer } from "@/components/layout/section-container";
 import { MarketingPageHero } from "@/components/marketing-page-hero";
 import { Reveal } from "@/components/ui/reveal";
@@ -18,12 +19,12 @@ import {
   MIN_COURSES,
   MAX_COURSES,
   CORE_SUBJECTS,
-  calculatePlanPrice,
   getWhatsAppPlanUrl,
 } from "@/lib/pricing-constants";
 import { planTiers } from "@/lib/plan-tiers";
 
 export default function PlansClient() {
+  const pricingPhase = usePlanPricingPhase();
   const [persons, setPersons] = useState<number>(DEFAULT_PERSONS);
   // Separate standard courses and other courses (Lain-Lain) count
   const [selectedStandardCourses, setSelectedStandardCourses] = useState<string[]>(() =>
@@ -48,10 +49,6 @@ export default function PlansClient() {
         ]
       : []),
   ];
-
-  const formatPrice = (amount: number): string => {
-    return "Rp " + amount.toLocaleString("id-ID");
-  };
 
   const handleIncrementPersons = () => {
     setPersons((prev) => Math.min(prev + 1, MAX_PERSONS));
@@ -299,26 +296,12 @@ export default function PlansClient() {
       <Reveal>
         <SectionContainer className="border-b border-border bg-muted/70 overflow-hidden pt-8 pb-16 md:pt-12 md:pb-24">
           <PageOrnaments variant="plans" />
-          <div className="relative z-10 grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 items-stretch">
+          <PlanPromotion className="relative z-10 mb-6" />
+          <div className="relative z-10 grid gap-6 md:grid-cols-2 lg:grid-cols-3 items-stretch">
             {planTiers.map((tier) => {
-              const calculatedPrice = calculatePlanPrice(tier.key, persons, courses);
               const isCustom = tier.key === "custom";
               const isFree = tier.key === "free";
-              
-              // Format total price display
-              const priceDisplay = isFree 
-                ? "Gratis" 
-                : isCustom 
-                  ? "Hubungi Kami" 
-                  : formatPrice(calculatedPrice);
-              
-              // Calculate price per person
-              const pricePerPerson = (!isFree && !isCustom) 
-                ? formatPrice(Math.round(calculatedPrice / persons)) 
-                : null;
-
-              // Generate WhatsApp link dynamically
-              const whatsAppUrl = getWhatsAppPlanUrl(tier.key, tier.name, persons, courses, selectedCoursesList);
+              const whatsAppUrl = getWhatsAppPlanUrl(tier.key, tier.name, persons, courses, selectedCoursesList, pricingPhase ?? "regular");
 
               return (
                 <article
@@ -336,9 +319,9 @@ export default function PlansClient() {
                   ) : null}
 
                   <div className="flex-1">
-                    <SectionHeading as="h3" tier="secondary" className="text-card-foreground font-bold font-heading">
+                    <h3 className="text-body-base text-card-foreground font-bold font-heading">
                       {tier.name}
-                    </SectionHeading>
+                    </h3>
                     
                     <p className="mt-2 text-body-xs text-muted-foreground min-h-[32px]">
                       {tier.note}
@@ -346,20 +329,10 @@ export default function PlansClient() {
 
                     <div className="mt-4 pt-4 border-t border-border/60">
                       {(!isFree && !isCustom) ? (
-                        <>
-                          <div className="flex items-baseline gap-1">
-                            <span className="font-heading text-h5 font-extrabold text-foreground tracking-tight transition-all duration-300">
-                              {pricePerPerson}
-                            </span>
-                            <span className="text-[10px] text-muted-foreground font-medium">/ orang</span>
-                          </div>
-                          <p className="text-[10px] text-muted-foreground mt-1">
-                            Total: <span className="font-semibold text-foreground">{priceDisplay}</span> / semester
-                          </p>
-                        </>
+                        <PlanPrice plan={tier.key} persons={persons} courses={courses} perPerson className="text-h5" />
                       ) : (
                         <p className="font-heading text-h5 font-extrabold text-foreground tracking-tight transition-all duration-300">
-                          {priceDisplay}
+                          {isFree ? "Gratis" : "Hubungi admin"}
                         </p>
                       )}
                     </div>
@@ -392,7 +365,11 @@ export default function PlansClient() {
                           Daftar Sekarang
                         </Link>
                       ) : (
-                        <Link href={whatsAppUrl} target="_blank" rel="noopener noreferrer">
+                        <Link href={whatsAppUrl} target="_blank" rel="noopener noreferrer"
+                          onClick={(event) => {
+                            event.currentTarget.href = getWhatsAppPlanUrl(tier.key, tier.name, persons, courses, selectedCoursesList);
+                          }}
+                        >
                           {isCustom ? "Hubungi Admin" : "Pilih Paket"}
                         </Link>
                       )}

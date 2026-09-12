@@ -52,6 +52,15 @@ Canonical access-role codes are `admin`, `tutor`, and `murid`. Admin and tutor l
 - Manages course-scoped leaderboard (`/admin/courses/[slug]/leaderboard`) for per-student ranking within a single course, with backward compatibility redirects from `/admin/leaderboard`
 - Operates inside unified course workspaces (`/admin/courses/[slug]`) with contextual navigation across Bab, Dokumen, Kuis, Soal, Flashcard, Hasil, Papan Peringkat, Analitik, Review Materi, and Pengaturan
 
+## Plan pricing
+
+- `/plans`, the landing preview, student dashboard preview, and student onboarding use the same scheduled pricing quote and display components.
+- From 12 September 2026 at 00:00 WIB until 12 October 2026 at 00:00 WIB (exclusive), paid plans use the existing formula result `x` as the introductory price. The regular price is `ceil(x / 0.6)` in whole Rupiah, a 40% introductory saving subject to sub-Rupiah rounding.
+- From 12 October 2026, the calculator actually returns the regular price. Before the campaign starts, the previous price `x` applies without a promotion. Free and Custom plans do not receive a discount badge.
+- The UI identifies the higher amount as the future regular price, with its effective date. It does not label that amount as a previous selling price. Group totals are authoritative; per-person amounts are rounded estimates.
+- Client pricing refreshes on a one-second tick and when a tab regains focus or visibility. Server HTML shows a neutral loading state so cached pages do not retain an expired offer. Static plan metadata contains no monetary snapshots.
+- Payment remains outside the website through the admin. WhatsApp enrollment text includes the current semester total and, during the campaign, the introductory deadline and future regular price. Clicking the link refreshes the quote. Admin must confirm the applicable price at payment time; the website does not collect or enforce an external payment.
+
 ## Core Pipelines
 
 ### Site-wide command search
