@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils";
 export function PlanPreviewGrid({ className }: { className?: string }) {
   return (
     <div className={className}>
-      <PlanPromotion className="mb-4" />
+      <PlanPromotion className="mb-3" />
       <div className="grid gap-4 md:grid-cols-3">
         {previewPlanTiers.map((tier) => (
           <Card
@@ -21,7 +21,7 @@ export function PlanPreviewGrid({ className }: { className?: string }) {
               tier.highlighted && "border-primary ring-1 ring-primary/20",
             )}
           >
-            <CardHeader className="p-5 pb-3">
+            <CardHeader className="p-4 pb-3">
               <div className="flex min-h-6 items-start justify-between gap-2">
                 <CardTitle className="text-body-base">{tier.name}</CardTitle>
                 {tier.highlighted ? <Badge variant="default">Rekomendasi</Badge> : null}
@@ -31,7 +31,7 @@ export function PlanPreviewGrid({ className }: { className?: string }) {
                 <PlanPrice plan={tier.key} persons={DEFAULT_PERSONS} courses={DEFAULT_COURSES} />
               </div>
             </CardHeader>
-            <CardContent className="flex flex-1 flex-col p-5 pt-0">
+            <CardContent className="flex flex-1 flex-col p-4 pt-0">
               <ul className="flex-1 space-y-2 border-t border-border pt-3">
                 {tier.features.slice(0, 2).map((feature) => (
                   <li key={feature} className="flex items-start gap-2 text-body-xs text-muted-foreground">
@@ -44,7 +44,7 @@ export function PlanPreviewGrid({ className }: { className?: string }) {
                 asChild
                 variant={tier.highlighted ? "default" : "outline"}
                 size="sm"
-                className="mt-5 w-full"
+                className="mt-3 w-full"
               >
                 <Link href="/plans">Pelajari paket {tier.name}</Link>
               </Button>

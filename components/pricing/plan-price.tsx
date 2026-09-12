@@ -15,19 +15,20 @@ export function PlanPrice({ plan, persons, courses, perPerson = false, className
 }) {
   const phase = usePlanPricingPhase();
   if (phase === null) {
-    return <div className="min-h-32 text-body-xs text-muted-foreground" role="status">Memuat harga...</div>;
+    return <div className="min-h-20 text-body-xs text-muted-foreground" role="status">Memuat harga...</div>;
   }
   const quote = getPlanPriceQuote(plan, persons, courses, phase);
   const amount = perPerson ? Math.round(quote.price / persons) : quote.price;
+  const regularAmount = perPerson ? Math.round(quote.regularPrice / persons) : quote.regularPrice;
   return (
     <div className="space-y-1" data-plan-price={plan}>
       {quote.isIntroductory && (
-        <>
-          <Badge variant="outline" className="border-primary/30 text-primary">Hemat 40%</Badge>
-          <p className="text-body-xs text-muted-foreground">
-            Reguler mulai 12 Okt: {formatPlanPrice(quote.regularPrice)} / semester
-          </p>
-        </>
+        <div className="flex items-center justify-between gap-2">
+          <s className="text-body-sm text-muted-foreground" aria-label={`Harga reguler mulai 12 Oktober 2026: ${formatPlanPrice(regularAmount)}${perPerson ? " per orang" : " per semester"}`}>
+            {formatPlanPrice(regularAmount)}
+          </s>
+          <Badge className="shrink-0 rounded-md border-[var(--zx-accent)]/30 bg-[var(--zx-accent)]/10 px-2 py-0.5 text-[var(--zx-accent)]">40% off</Badge>
+        </div>
       )}
       <p className={cn("font-heading text-body-base font-bold text-foreground", className)}>
         {formatPlanPrice(amount)}
@@ -36,7 +37,6 @@ export function PlanPrice({ plan, persons, courses, perPerson = false, className
       <p className="text-body-xs text-muted-foreground">
         {perPerson ? `Total ${formatPlanPrice(quote.price)} / semester` : "Total per semester"}
       </p>
-      {quote.isIntroductory && <p className="text-body-xs text-muted-foreground">Harga perkenalan sampai 11 Okt 2026</p>}
     </div>
   );
 }
@@ -46,8 +46,8 @@ export function PlanPromotion({ className }: { className?: string }) {
   if (phase !== "intro") return null;
   return (
     <p className={cn("text-body-xs text-muted-foreground", className)}>
-      <strong className="font-semibold text-primary">Mumpung harga perkenalan, hemat 40%.</strong>{" "}
-      Berlaku 12 September sampai 11 Oktober 2026 pukul 23.59 WIB. Harga reguler berlaku mulai 12 Oktober 2026.
+      <strong className="font-semibold text-foreground">Harga perkenalan sampai 11 Oktober 2026, 23.59 WIB.</strong>{" "}
+      Harga coret berlaku mulai 12 Oktober 2026.
     </p>
   );
 }

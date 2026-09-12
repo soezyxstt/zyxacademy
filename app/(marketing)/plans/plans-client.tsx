@@ -85,6 +85,7 @@ export default function PlansClient() {
     <div className="flex flex-col min-h-screen">
       <Reveal>
         <MarketingPageHero
+          className="py-8 md:py-10"
           sectionId="plans"
           eyebrow="Zyx Academy"
           title="Paket & layanan"
@@ -121,7 +122,7 @@ export default function PlansClient() {
                   onClick={handleDecrementPersons}
                   disabled={persons <= MIN_PERSONS}
                   aria-label="Kurangi jumlah orang"
-                  className="rounded-full size-7 bg-background"
+                  className="rounded-md size-7 bg-background"
                 >
                   <Minus className="size-3" />
                 </Button>
@@ -134,7 +135,7 @@ export default function PlansClient() {
                   onClick={handleIncrementPersons}
                   disabled={persons >= MAX_PERSONS}
                   aria-label="Tambah jumlah orang"
-                  className="rounded-full size-7 bg-background"
+                  className="rounded-md size-7 bg-background"
                 >
                   <Plus className="size-3" />
                 </Button>
@@ -151,7 +152,7 @@ export default function PlansClient() {
                   onClick={handleDecrementCourses}
                   disabled={courses <= MIN_COURSES}
                   aria-label="Kurangi mata kuliah"
-                  className="rounded-full size-7 bg-background"
+                  className="rounded-md size-7 bg-background"
                 >
                   <Minus className="size-3" />
                 </Button>
@@ -164,7 +165,7 @@ export default function PlansClient() {
                   onClick={handleIncrementCourses}
                   disabled={courses >= MAX_COURSES}
                   aria-label="Tambah mata kuliah"
-                  className="rounded-full size-7 bg-background"
+                  className="rounded-md size-7 bg-background"
                 >
                   <Plus className="size-3" />
                 </Button>
@@ -294,10 +295,10 @@ export default function PlansClient() {
 
       {/* Pricing Cards Grid */}
       <Reveal>
-        <SectionContainer className="border-b border-border bg-muted/70 overflow-hidden pt-8 pb-16 md:pt-12 md:pb-24">
+        <SectionContainer className="border-b border-border bg-muted/70 overflow-hidden py-6 md:py-8">
           <PageOrnaments variant="plans" />
-          <PlanPromotion className="relative z-10 mb-6" />
-          <div className="relative z-10 grid gap-6 md:grid-cols-2 lg:grid-cols-3 items-stretch">
+          <PlanPromotion className="relative z-10 mb-4" />
+          <div className="relative z-10 grid gap-4 md:grid-cols-2 lg:grid-cols-3 items-stretch">
             {planTiers.map((tier) => {
               const isCustom = tier.key === "custom";
               const isFree = tier.key === "free";
@@ -306,28 +307,19 @@ export default function PlansClient() {
               return (
                 <article
                   key={tier.key}
-                  className={
-                    tier.highlighted
-                      ? "relative flex flex-col rounded-3xl border-2 border-[var(--zx-accent)] bg-card/75 backdrop-blur-md p-6 shadow-md ring-4 ring-[var(--zx-accent)]/10 md:p-7 transition-all duration-300 hover:scale-[1.02] hover:bg-card/90"
-                      : "relative flex flex-col rounded-3xl border border-border/70 bg-card/70 backdrop-blur-md p-6 shadow-sm md:p-7 transition-all duration-300 hover:scale-[1.01] hover:border-border-strong hover:bg-card/90 hover:shadow-md"
-                  }
+                  className={`flex flex-col rounded-xl border bg-card p-4 md:p-5 ${tier.highlighted ? "border-brand-secondary shadow-sm" : "border-border"}`}
                 >
-                  {tier.highlighted ? (
-                    <Badge className="absolute -top-3 left-6 bg-[var(--zx-accent)] text-white hover:bg-[var(--zx-accent)] font-semibold shadow-xs">
-                      Rekomendasi
-                    </Badge>
-                  ) : null}
-
                   <div className="flex-1">
-                    <h3 className="text-body-base text-card-foreground font-bold font-heading">
-                      {tier.name}
-                    </h3>
+                    <div className="flex items-center justify-between gap-2">
+                      <h3 className="text-body-base text-card-foreground font-bold font-heading">{tier.name}</h3>
+                      {tier.highlighted && <Badge className="rounded-md">Rekomendasi</Badge>}
+                    </div>
                     
-                    <p className="mt-2 text-body-xs text-muted-foreground min-h-[32px]">
+                    <p className="mt-1 text-body-xs text-muted-foreground">
                       {tier.note}
                     </p>
 
-                    <div className="mt-4 pt-4 border-t border-border/60">
+                    <div className="mt-3">
                       {(!isFree && !isCustom) ? (
                         <PlanPrice plan={tier.key} persons={persons} courses={courses} perPerson className="text-h5" />
                       ) : (
@@ -337,19 +329,17 @@ export default function PlansClient() {
                       )}
                     </div>
 
-                    <ul className="mt-6 flex flex-col gap-3">
+                    {!isCustom && <ul className="mt-4 flex flex-col gap-2">
                       {tier.features.map((f) => (
                         <li key={f} className="flex gap-2 text-body-sm text-muted-foreground items-start">
-                          <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
-                            <Check className="size-3" strokeWidth={2.5} aria-hidden />
-                          </span>
+                          <Check className="mt-0.5 size-4 shrink-0 text-status-success" strokeWidth={2} aria-hidden />
                           <span className="leading-tight">{f}</span>
                         </li>
                       ))}
-                    </ul>
+                    </ul>}
                   </div>
 
-                  <div className="mt-8">
+                  <div className="mt-4">
                     <Button
                       asChild
                       variant={tier.highlighted ? "default" : "outline"}

@@ -10,12 +10,6 @@ export type PlanTier = {
 
 export const planTiers: readonly PlanTier[] = [
   {
-    key: "free",
-    name: "Free",
-    note: "Akses materi dasar tanpa biaya.",
-    features: ["Bank Materi dan Soal"],
-  },
-  {
     key: "minimal",
     name: "Minimal",
     note: "Pendampingan platform mandiri lengkap.",
@@ -47,6 +41,12 @@ export const planTiers: readonly PlanTier[] = [
       "Konsultasi Tugas Kuliah (On-Demand)",
       "Plus Tambahan 15x Tutorial (Total 30x Tatap Muka untuk Satu Semester)",
     ],
+  },
+  {
+    key: "free",
+    name: "Free",
+    note: "Akses materi dasar tanpa biaya.",
+    features: ["Bank Materi dan Soal"],
   },
   {
     key: "custom",

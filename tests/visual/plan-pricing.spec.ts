@@ -40,13 +40,21 @@ for (const [name, route] of [
     await page.emulateMedia({ reducedMotion: "reduce" });
     // Let entrance animations settle even while the campaign clock is paused.
     await page.clock.runFor(1000);
-    await expect(page.getByText("Hemat 40%", { exact: true })).toHaveCount(3);
+    await expect(page.getByText("40% off", { exact: true })).toHaveCount(3);
     await expect(prices.first()).toContainText(name === "onboarding" ? "Total Rp 1.000.000" : name === "plans" ? "Total Rp 1.170.000" : "Rp 1.170.000");
+    await expect(prices.first().locator("s")).toHaveText(name === "onboarding" ? "Rp 333.333" : name === "plans" ? "Rp 650.000" : "Rp 1.950.000");
+    await expect(prices.first().locator("s")).toHaveCSS("text-decoration-line", "line-through");
+    expect(await page.getByText("40% off", { exact: true }).first().evaluate((element) =>
+      parseFloat(getComputedStyle(element).borderTopRightRadius) < element.getBoundingClientRect().height / 2,
+    )).toBe(true);
+    if (name === "plans") {
+      await expect(page.locator("article h3")).toHaveText(["Minimal", "Essential", "Premium", "Free", "Custom"]);
+    }
     await capture(page, info, `${name}-intro`);
     await page.clock.fastForward(11000);
-    await expect(page.getByText("Hemat 40%", { exact: true })).toHaveCount(0);
-    await expect(page.getByText(/Mumpung harga perkenalan/)).toHaveCount(0);
-    await expect(prices.first()).not.toContainText("Reguler mulai");
+    await expect(page.getByText("40% off", { exact: true })).toHaveCount(0);
+    await expect(page.getByText(/Harga perkenalan sampai/)).toHaveCount(0);
+    await expect(prices.locator("s")).toHaveCount(0);
     await expect(prices.first()).toContainText(name === "onboarding" ? "Total Rp 1.666.667" : name === "plans" ? "Total Rp 1.950.000" : "Rp 1.950.000");
     await capture(page, info, `${name}-regular`);
 
@@ -82,11 +90,28 @@ test("plans intermediate breakpoints", async ({ page }, info) => {
   for (const width of [768, 1024, 1280]) {
     await page.setViewportSize({ width, height: 864 });
     await page.addStyleTag({ content: "*, *::before, *::after { transition: none !important; }" });
-    await expect(page.getByText("Hemat 40%", { exact: true })).toHaveCount(3);
+    await expect(page.getByText("40% off", { exact: true })).toHaveCount(3);
     expect(await page.locator("[data-plan-price] p").evaluateAll((elements) =>
       elements.filter((element) => element.scrollWidth > element.clientWidth).map((element) => element.textContent),
     )).toEqual([]);
     await capture(page, info, `plans-intro-${width}`);
   }
+  expect(errors).toEqual([]);
+});
+
+test("compact pricing in dark mode", async ({ page }, info) => {
+  const errors: string[] = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  page.on("console", (message) => { if (message.type() === "error") errors.push(message.text()); });
+  page.on("response", (response) => { if (response.status() >= 400) errors.push(`${response.status()} ${response.url()}`); });
+  await page.clock.install({ time: new Date("2026-09-15T12:00:00+07:00") });
+  await page.emulateMedia({ colorScheme: "dark" });
+  const response = await page.goto("/plans", { waitUntil: "domcontentloaded" });
+  expect(response?.status()).toBe(200);
+  expect(new URL(page.url()).pathname).toBe("/plans");
+  await expect(page.locator("[data-plan-price]")).toHaveCount(3);
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await expect(page.locator("html")).toHaveClass(/dark/);
+  await capture(page, info, "plans-intro-dark");
   expect(errors).toEqual([]);
 });
