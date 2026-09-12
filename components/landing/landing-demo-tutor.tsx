@@ -80,14 +80,14 @@ export function LandingDemoTutor() {
  Zyra
  </p>
  <SectionHeading as="h2" id="landing-tutor-heading" className="mt-3 text-foreground">
- Jawaban dari materimu, bukan dari internet.
+ Jawaban bertumpu pada materi yang tersedia.
  </SectionHeading>
  <p className="mt-4 text-body-base text-muted-foreground">
- Zyra menjawab berdasar materi kuliahmu dan menyebutkan sumbernya ; bab, contoh
- soal, sampai kuis yang pernah kamu kerjakan.
+ Zyra dapat menjawab berdasarkan materi kuliah yang tersedia dan menyebutkan sumbernya ; bab,
+ contoh soal, sampai kuis yang terkait.
  </p>
  <p className="mt-3 text-body-sm italic text-muted-foreground">
- Kalau jawabannya tidak ada di materimu, dia bilang jujur.
+ Jika materi yang tersedia belum cukup, batas jawabannya perlu diperiksa kembali.
  </p>
  </div>
  </div>

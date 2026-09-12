@@ -33,20 +33,20 @@ export function LandingHero() {
             Untuk mahasiswa ITB · TPB &amp; jurusan
           </p>
           <SectionHeading as="h1" tier="hero" id="landing-hero-heading" className="mt-3 text-foreground">
-            Kuasai kuliah tersulitmu,{" "}
-            <span className="font-bold italic text-primary">satu konsep sekaligus.</span>
+            Pahami materi kuliah ITB,{" "}
+            <span className="font-bold italic text-primary">dengan arah yang jelas.</span>
           </SectionHeading>
           <p className="mt-4 max-w-prose text-body-base text-muted-foreground">
-            Zyx memetakan apa yang sudah dan belum kamu kuasai, lalu menyusun rencana belajar
-            harian; kuis, flashcard, dan materi yang selaras dengan kuliah ITB.
+            Zyx membantu kamu belajar dari materi yang selaras dengan kuliah ITB, berlatih dengan
+            terarah, dan memilih pendampingan tutor saat kamu membutuhkannya.
           </p>
 
           <div className="mt-7 flex flex-wrap items-center gap-3">
             <Button asChild variant="marketingPrimary" size="marketing">
-              <Link href="/sign-up">Mulai belajar</Link>
+              <Link href="/sign-up">Mulai gratis</Link>
             </Button>
             <Button asChild variant="ghost" size="marketing" className="text-foreground">
-              <Link href="/plans">Lihat paket</Link>
+              <Link href="#landing-quiz">Coba demo</Link>
             </Button>
           </div>
         </div>

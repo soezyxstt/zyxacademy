@@ -1,10 +1,12 @@
 import Image from "next/image";
 import { testimonialStories } from "@/lib/testimonials";
 
-export function TestimonialCarousel() {
+export function TestimonialCarousel({ excludeStoryIds = [] }: { excludeStoryIds?: string[] }) {
+  const stories = testimonialStories.filter((story) => !excludeStoryIds.includes(story.id));
+
   return (
     <div className="grid gap-5 md:grid-cols-3">
-      {testimonialStories.map((story) => (
+      {stories.map((story) => (
         <figure
           key={story.id}
           itemScope

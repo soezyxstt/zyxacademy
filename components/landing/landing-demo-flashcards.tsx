@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils";
+import { Flame } from "lucide-react";
 import { MathText } from "@/components/course/math-text";
 import { SectionContainer } from "@/components/layout/section-container";
 import { SectionHeading } from "@/components/ui/section-heading";
@@ -53,12 +54,13 @@ function StreakStrip() {
  </div>
  ))}
  </div>
- <p className="text-right text-body-xs font-semibold text-foreground">
- 🔥 6 hari beruntun
+ <p className="flex items-center justify-end gap-1 text-right text-body-xs font-semibold text-foreground">
+ <Flame className="size-3.5 text-[var(--zx-accent)]" aria-hidden="true" />
+ Contoh: 6 hari beruntun
  </p>
  </div>
  <p className="mt-2.5 text-body-xs text-muted-foreground">
- Jadwal review selesai 6 hari berturut-turut ; jangan putus di hari Minggu.
+ Contoh jadwal review dengan enam hari berturut-turut.
  </p>
  </div>
  );
@@ -67,8 +69,8 @@ function StreakStrip() {
 export function LandingDemoFlashcards() {
  return (
  <SectionContainer className="bg-background" aria-labelledby="landing-flashcards-heading">
- <div className="grid items-center gap-12 lg:grid-cols-2 lg:gap-16">
- <div className="max-w-xl">
+ <div className="grid min-w-0 items-center gap-12 lg:grid-cols-2 lg:gap-16">
+ <div className="min-w-0 max-w-xl">
  <p className="text-body-xs font-semibold uppercase tracking-[0.2em] text-[var(--zx-accent)]">
  Flashcard · Spaced Repetition
  </p>
@@ -76,18 +78,17 @@ export function LandingDemoFlashcards() {
  Diulang tepat sebelum kamu lupa.
  </SectionHeading>
  <p className="mt-4 text-body-base text-muted-foreground">
- Algoritma SM-2 menjadwalkan tiap kartu ; yang sulit muncul besok, yang lancar muncul
- minggu depan.{" "}
- <strong className="font-semibold text-foreground">Lima menit sehari</strong> cukup.
+ Algoritma SM-2 menjadwalkan tiap kartu ; yang sulit muncul lebih cepat, yang lancar
+ muncul dengan jeda lebih panjang.
  </p>
  <p className="mt-3 text-body-sm text-muted-foreground">
- Kartu dibuat otomatis dari materi tiap bab, jadi kamu tinggal review.
+ Contoh kartu yang dibuat dari materi bab, sehingga kamu dapat langsung berlatih mengingat.
  </p>
  </div>
 
- <LandingVisible>
+ <LandingVisible className="min-w-0">
  <div className="landing-rise">
- <DemoFrame title="Review Harian · Kalkulus IA" meta={<span>12 kartu jatuh tempo</span>}>
+ <DemoFrame title="Simulasi · Review Harian · Kalkulus IA" meta={<span>Contoh sesi</span>}>
  <FlashcardDemo cards={cards} />
  <StreakStrip />
  </DemoFrame>

@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { db } from "@/db";
 import { blogArticles } from "@/db/schema";
 import { eq, desc, inArray } from "drizzle-orm";
@@ -7,11 +8,14 @@ import { Badge } from "@/components/ui/badge";
 import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
 import { hasAnyPeran } from "@/lib/auth/authorization";
-import { Calendar, Clock, ChevronRight, Bot, BookOpen, FileText, CreditCard, Target, ArrowRight } from "lucide-react";
+import { Calendar, Clock, Bot, BookOpen, FileText, CreditCard, Target } from "lucide-react";
+import { MarketingPageHero } from "@/components/marketing-page-hero";
 import { PageOrnaments } from "@/components/ui/page-ornaments";
+import { SectionHeading } from "@/components/ui/section-heading";
+import { Reveal } from "@/components/ui/reveal";
 import { cn } from "@/lib/utils";
 
-export const metadata = {
+export const metadata: Metadata = {
   title: "Blog - Zyx Academy",
   description: "Artikel terbaru seputar tips kuliah, pojok kampus, fakta seru, dan kegiatan Zyx Academy.",
 };
@@ -22,38 +26,38 @@ const CATEGORIES = [
   { id: "pojok_kampus", name: "Pojok Kampus", value: "pojok_kampus" },
   { id: "fakta_seru", name: "Fakta Seru", value: "fakta_seru" },
   { id: "kegiatan_zyx", name: "Kegiatan Zyx", value: "kegiatan_zyx" },
-];
+] as const;
 
 const APP_FEATURES = [
   {
-    title: "Asisten Belajar Zyra",
-    desc: "Belajar adaptif dengan asisten belajar pribadi 24/7.",
+    title: "Asisten belajar Zyra",
+    desc: "Bantuan belajar berbasis percakapan untuk membahas materi yang tersedia.",
     icon: Bot,
-    bg: "bg-blue-500/10 text-blue-500 border-blue-500/20",
+    bg: "bg-primary/10 text-primary border-primary/20",
   },
   {
-    title: "Diktat Interaktif",
-    desc: "Master Teaching Document lengkap dengan penjelasan rumus.",
+    title: "Diktat interaktif",
+    desc: "Materi ringkas dengan penjelasan konsep dan rumus yang relevan.",
     icon: BookOpen,
-    bg: "bg-orange-500/10 text-orange-500 border-orange-500/20",
+    bg: "bg-[var(--zx-accent)]/10 text-[var(--zx-accent)] border-[var(--zx-accent)]/20",
   },
   {
-    title: "Ujian & Tryout",
-    desc: "Latihan soal terarah seputar materi ITB dan PTN.",
+    title: "Ujian dan tryout",
+    desc: "Latihan soal terarah seputar materi kuliah yang tersedia.",
     icon: FileText,
-    bg: "bg-red-500/10 text-red-500 border-red-500/20",
+    bg: "bg-status-error/10 text-status-error border-status-error/20",
   },
   {
-    title: "SM-2 Flashcards",
-    desc: "Hafalkan formula penting dengan Spaced Repetition.",
+    title: "SM-2 flashcards",
+    desc: "Review berkala untuk membantu mengingat konsep dan formula penting.",
     icon: CreditCard,
-    bg: "bg-emerald-500/10 text-emerald-500 border-emerald-500/20",
+    bg: "bg-status-success/10 text-status-success border-status-success/20",
   },
   {
-    title: "Misi Belajar",
-    desc: "Panduan studi harian adaptif sesuai kurikulum Anda.",
+    title: "Misi belajar",
+    desc: "Panduan belajar yang disusun dari progres dan konsep yang perlu dilatih.",
     icon: Target,
-    bg: "bg-violet-500/10 text-violet-500 border-violet-500/20",
+    bg: "bg-tertiary-1/10 text-tertiary-1 border-tertiary-1/20",
   },
 ];
 
@@ -63,7 +67,12 @@ interface BlogPageProps {
 
 export default async function BlogPage({ searchParams }: BlogPageProps) {
   const resolvedParams = await searchParams;
-  const activeCategory = resolvedParams.category || null;
+  const requestedCategory = resolvedParams.category || null;
+  const activeCategory = CATEGORIES.some(
+    (category) => category.value !== null && category.value === requestedCategory,
+  )
+    ? requestedCategory
+    : null;
 
   const h = await headers();
   const session = await auth.api.getSession({ headers: h });
@@ -78,218 +87,231 @@ export default async function BlogPage({ searchParams }: BlogPageProps) {
     ? inArray(blogArticles.status, ["published", "draft"])
     : eq(blogArticles.status, "published");
 
-  // Fetch articles based on user permissions
   const allArticles = await db.query.blogArticles.findMany({
     where: statusFilter,
     orderBy: [desc(blogArticles.publishedAt), desc(blogArticles.createdAt)],
     with: { author: true },
   });
 
-  // Filter based on active category
   const filteredArticles = activeCategory
-    ? allArticles.filter((a) => a.category === activeCategory)
+    ? allArticles.filter((article) => article.category === activeCategory)
     : allArticles;
-
-  // Split data for the dashboard layout
-  const latestArticles = allArticles.slice(0, 2); // 2 featured articles
-  
-  // Group rest by category
-  const articlesByCategory = (cat: string) => {
-    return allArticles.filter((a) => a.category === cat).slice(0, 3);
-  };
+  const featuredArticles = allArticles.slice(0, 3);
+  const featuredIds = new Set(featuredArticles.map((article) => article.id));
+  const activeCategoryName = CATEGORIES.find((category) => category.value === activeCategory)?.name;
 
   return (
-    <div className="relative min-h-screen bg-background overflow-hidden">
+    <div className="relative min-h-screen overflow-hidden bg-background">
       <PageOrnaments variant="about" />
 
-      {activeCategory ? (
-        /* Filtered Grid View */
-        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 relative z-10">
-          <div className="mb-10">
-            <h1 className="text-h2 font-heading text-foreground mb-2">
-              Kategori: {CATEGORIES.find((c) => c.value === activeCategory)?.name}
-            </h1>
-            <p className="text-body-base text-muted-foreground">
-              Menampilkan {filteredArticles.length} artikel terbit.
-            </p>
-          </div>
+      <main className="relative z-10">
+        <Reveal>
+          <MarketingPageHero
+            sectionId="blog"
+            eyebrow="Zyx Academy"
+            title="Blog"
+            description="Artikel untuk membantu kamu belajar, memahami kehidupan kampus, dan mengenal kegiatan Zyx."
+          />
+        </Reveal>
 
-          {filteredArticles.length === 0 ? (
-            <div className="text-center py-20 border border-dashed border-border rounded-xl">
-              <h3 className="text-h4 font-heading text-foreground mb-2">Belum ada artikel</h3>
-              <p className="text-body-base text-muted-foreground">Artikel untuk kategori ini akan segera hadir.</p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredArticles.map((article) => (
-                <ArticleCard key={article.id} article={article} />
-              ))}
-            </div>
-          )}
-        </main>
-      ) : (
-        /* Dashboard Home View */
-        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-16 relative z-10">
-          
-          {/* Custom Scrollbar Styles */}
-          <style dangerouslySetInnerHTML={{ __html: `
-            .custom-scroll::-webkit-scrollbar {
-              height: 6px;
-            }
-            .custom-scroll::-webkit-scrollbar-track {
-              background: transparent;
-            }
-            .custom-scroll::-webkit-scrollbar-thumb {
-              background: rgba(156, 163, 175, 0.25);
-              border-radius: 9999px;
-            }
-            .custom-scroll::-webkit-scrollbar-thumb:hover {
-              background: var(--color-brand-primary, #3b82f6);
-            }
-            .dark .custom-scroll::-webkit-scrollbar-thumb {
-              background: rgba(156, 163, 175, 0.15);
-            }
-          `}} />
+        <div className="mx-auto max-w-7xl space-y-14 px-4 py-10 sm:px-6 lg:px-8 lg:py-14">
+          <nav aria-label="Kategori blog" className="flex flex-wrap gap-2">
+            {CATEGORIES.map((category) => {
+              const href = category.value ? `/blog?category=${category.value}` : "/blog";
+              const isActive = category.value === activeCategory || (category.value === null && activeCategory === null);
+              return (
+                <Link
+                  key={category.id}
+                  href={href}
+                  aria-current={isActive ? "page" : undefined}
+                  className={cn(
+                    "rounded-md border px-3 py-1.5 text-body-sm font-semibold transition-colors",
+                    isActive
+                      ? "border-primary bg-primary text-primary-foreground"
+                      : "border-border bg-background text-muted-foreground hover:border-primary/40 hover:text-foreground",
+                  )}
+                >
+                  {category.name}
+                </Link>
+              );
+            })}
+          </nav>
 
-          {/* Super App Carousel Section */}
-          <section className="space-y-6">
-            <div className="space-y-1">
-              <h2 className="text-h4 font-heading font-bold text-foreground">
-                Belajar Seru dengan Zyx Academy
-              </h2>
-              <p className="text-body-sm text-muted-foreground">
-                Akses semua materi persiapan kuliah dan kompetisi sains dalam satu platform.
-              </p>
-            </div>
-            <div className="flex gap-4 overflow-x-auto pb-4 custom-scroll -mx-4 px-4 sm:mx-0 sm:px-0">
-              {APP_FEATURES.map((feature, idx) => {
-                const Icon = feature.icon;
-                return (
-                  <div
-                    key={idx}
-                    className="flex flex-col justify-between w-[240px] shrink-0 p-5 rounded-xl border border-border bg-card shadow-sm hover:shadow-md transition-shadow"
-                  >
-                    <div>
-                      <div className={cn("p-2.5 w-fit rounded-lg border mb-4", feature.bg)}>
-                        <Icon className="w-5 h-5" />
-                      </div>
-                      <h4 className="text-body-base font-heading font-semibold text-foreground mb-1">
-                        {feature.title}
-                      </h4>
-                      <p className="text-body-sm text-muted-foreground">
-                        {feature.desc}
-                      </p>
-                    </div>
-                    <Link
-                      href="/courses"
-                      className="mt-6 text-body-sm font-semibold text-brand-primary hover:text-brand-primary/80 inline-flex items-center gap-1"
-                    >
-                      Lihat Detail <ChevronRight className="w-3.5 h-3.5" />
-                    </Link>
-                  </div>
-                );
-              })}
-            </div>
-          </section>
-
-          {/* Featured / Latest Articles */}
-          {latestArticles.length > 0 && (
-            <section className="space-y-6">
-              <h2 className="text-h3 font-heading font-bold text-foreground">Artikel Terbaru</h2>
-              <div className="grid grid-flow-col auto-cols-[280px] sm:auto-cols-[320px] md:auto-cols-[360px] gap-6 overflow-x-auto pb-4 custom-scroll -mx-4 px-4 sm:mx-0 sm:px-0 lg:grid-flow-row lg:grid-cols-3 lg:overflow-x-visible lg:pb-0 lg:px-0">
-                {latestArticles.map((article) => (
-                  <div key={article.id} className="w-full">
-                    <ArticleCard article={article} />
-                  </div>
-                ))}
+          {activeCategory ? (
+            <section aria-labelledby="blog-category-heading" className="space-y-6">
+              <div className="space-y-2">
+                <SectionHeading as="h2" id="blog-category-heading" tier="secondary" className="text-foreground">
+                  {activeCategoryName}
+                </SectionHeading>
+                <p className="text-body-base text-muted-foreground">
+                  Menampilkan {filteredArticles.length} artikel pada kategori ini.
+                </p>
               </div>
-            </section>
-          )}
 
-          {/* Sectioned Category Lists */}
-          {CATEGORIES.filter((c) => c.value !== null).map((cat) => {
-            const catArticles = articlesByCategory(cat.value!);
-            if (catArticles.length === 0) return null;
-
-            return (
-              <section key={cat.id} className="space-y-6">
-                <div className="flex items-center justify-between border-b border-border pb-3">
-                  <h3 className="text-h3 font-heading font-bold text-foreground">
-                    {cat.name}
-                  </h3>
-                  <Link
-                    href={`/blog?category=${cat.value}`}
-                    className="text-body-sm font-semibold text-brand-primary hover:text-brand-primary/80 inline-flex items-center gap-1"
-                  >
-                    Lihat Semua <ArrowRight className="w-4 h-4" />
-                  </Link>
-                </div>
-                
-                <div className="grid grid-flow-col auto-cols-[280px] sm:auto-cols-[320px] md:auto-cols-[360px] gap-6 overflow-x-auto pb-4 custom-scroll -mx-4 px-4 sm:mx-0 sm:px-0 lg:grid-flow-row lg:grid-cols-3 lg:overflow-x-visible lg:pb-0 lg:px-0">
-                  {catArticles.map((article) => (
-                    <div key={article.id} className="w-full">
-                      <ArticleCard article={article} />
-                    </div>
+              {filteredArticles.length > 0 ? (
+                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                  {filteredArticles.map((article) => (
+                    <ArticleCard key={article.id} article={article} />
                   ))}
                 </div>
-              </section>
-            );
-          })}
+              ) : (
+                <BlogEmptyState description="Artikel untuk kategori ini akan segera hadir." />
+              )}
+            </section>
+          ) : (
+            <>
+              <section aria-labelledby="blog-latest-heading" className="space-y-6">
+                <div className="flex flex-wrap items-end justify-between gap-3">
+                  <div className="space-y-2">
+                    <SectionHeading as="h2" id="blog-latest-heading" tier="secondary" className="text-foreground">
+                      Artikel terbaru
+                    </SectionHeading>
+                    <p className="text-body-base text-muted-foreground">
+                      Baca artikel terbaru sebelum menjelajahi fitur belajar.
+                    </p>
+                  </div>
+                  {allArticles.length > 0 ? (
+                    <span className="text-body-xs text-muted-foreground">{allArticles.length} artikel tersedia</span>
+                  ) : null}
+                </div>
 
-        </main>
-      )}
+                {featuredArticles.length > 0 ? (
+                  <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                    {featuredArticles.map((article) => (
+                      <ArticleCard key={article.id} article={article} />
+                    ))}
+                  </div>
+                ) : (
+                  <BlogEmptyState description="Artikel baru akan muncul di sini setelah diterbitkan." />
+                )}
+              </section>
+
+              {CATEGORIES.filter((category) => category.value !== null).map((category) => {
+                const remainingArticles = allArticles
+                  .filter((article) => article.category === category.value && !featuredIds.has(article.id))
+                  .slice(0, 3);
+                if (remainingArticles.length === 0) return null;
+
+                return (
+                  <section key={category.id} aria-labelledby={`blog-${category.id}-heading`} className="space-y-6">
+                    <div className="flex flex-wrap items-end justify-between gap-3 border-b border-border pb-3">
+                      <SectionHeading as="h3" id={`blog-${category.id}-heading`} tier="secondary" className="text-foreground">
+                        {category.name}
+                      </SectionHeading>
+                      <Link
+                        href={`/blog?category=${category.value}`}
+                        className="inline-flex items-center text-body-sm font-semibold text-primary underline underline-offset-2 hover:text-primary/80"
+                      >
+                        Lihat semua
+                      </Link>
+                    </div>
+                    <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                      {remainingArticles.map((article) => (
+                        <ArticleCard key={article.id} article={article} />
+                      ))}
+                    </div>
+                  </section>
+                );
+              })}
+
+              <section aria-labelledby="blog-features-heading" className="space-y-6 border-t border-border pt-10">
+                <div className="max-w-2xl space-y-2">
+                  <SectionHeading as="h2" id="blog-features-heading" tier="secondary" className="text-foreground">
+                    Fitur untuk menemani belajar
+                  </SectionHeading>
+                  <p className="text-body-base text-muted-foreground">
+                    Setelah membaca, lihat ruang belajar dan course yang tersedia di Zyx.
+                  </p>
+                </div>
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+                  {APP_FEATURES.map((feature) => {
+                    const Icon = feature.icon;
+                    return (
+                      <div key={feature.title} className="flex flex-col gap-4 rounded-xl border border-border bg-card p-5 shadow-xs">
+                        <div className={cn("w-fit rounded-lg border p-2.5", feature.bg)}>
+                          <Icon className="size-5" aria-hidden="true" />
+                        </div>
+                        <div className="space-y-1.5">
+                          <h3 className="font-heading text-body-base font-semibold text-foreground">{feature.title}</h3>
+                          <p className="text-body-sm leading-relaxed text-muted-foreground">{feature.desc}</p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                <Link
+                  href="/courses"
+                  className="inline-flex items-center rounded-md border border-primary px-4 py-2 text-body-sm font-semibold text-primary transition-colors hover:bg-primary/10"
+                >
+                  Buka katalog course
+                </Link>
+              </section>
+            </>
+          )}
+        </div>
+      </main>
     </div>
   );
 }
 
-// Reusable Article Card Component
+function BlogEmptyState({ description }: { description: string }) {
+  return (
+    <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-border px-6 py-16 text-center">
+      <FileText className="size-8 text-muted-foreground" aria-hidden="true" />
+      <h3 className="font-heading text-h5 font-semibold text-foreground">Belum ada artikel</h3>
+      <p className="max-w-md text-body-base text-muted-foreground">{description}</p>
+    </div>
+  );
+}
+
 function ArticleCard({ article }: { article: any }) {
   const isDraft = article.status === "draft";
   return (
     <Link
       href={`/blog/${article.slug}`}
-      className="group flex flex-col h-full bg-card border border-border rounded-xl overflow-hidden hover:shadow-md transition-shadow relative"
+      className="group relative flex h-full flex-col overflow-hidden rounded-xl border border-border bg-card transition-shadow hover:shadow-md"
     >
       {isDraft && (
-        <Badge className="absolute top-3 left-3 z-20 bg-status-warning text-status-warning-foreground hover:bg-status-warning/90 rounded-md">
-          DRAFT
+        <Badge className="absolute left-3 top-3 z-20 rounded-md bg-status-warning text-status-warning-foreground hover:bg-status-warning/90">
+          Draft
         </Badge>
       )}
-      <div className="aspect-[4/3] w-full bg-muted relative overflow-hidden border-b border-border/50">
+      <div className="relative aspect-[4/3] w-full overflow-hidden border-b border-border/50 bg-muted">
         {article.thumbnailUrl ? (
           <Image
             src={article.thumbnailUrl}
             alt={article.title}
             fill
+            sizes="(max-width: 768px) 100vw, (max-width: 1280px) 33vw, 400px"
             className="object-cover transition-transform duration-300 group-hover:scale-105"
           />
         ) : (
-          <div className="absolute inset-0 w-full h-full flex items-center justify-center bg-muted/80">
-            <span className="text-muted-foreground font-heading">Zyx Blog</span>
+          <div className="absolute inset-0 flex items-center justify-center bg-muted/80">
+            <span className="font-heading text-body-sm text-muted-foreground">Zyx Blog</span>
           </div>
         )}
       </div>
-      
-      <div className="p-5 flex flex-col flex-1 justify-between">
+
+      <div className="flex flex-1 flex-col justify-between p-5">
         <div className="space-y-2">
-          <h4 className="text-body-base font-heading font-bold text-foreground line-clamp-2 group-hover:text-brand-primary transition-colors leading-snug">
+          <h3 className="line-clamp-2 font-heading text-body-base font-bold leading-snug text-foreground transition-colors group-hover:text-primary">
             {article.title}
-          </h4>
-          <p className="text-body-sm text-muted-foreground line-clamp-3">
-            {article.summary}
-          </p>
+          </h3>
+          <p className="line-clamp-3 text-body-sm text-muted-foreground">{article.summary}</p>
         </div>
-        
-        <div className="flex items-center gap-4 text-body-sm text-muted-foreground pt-4 mt-4 border-t border-border/50">
-          {article.publishedAt && (
+
+        <div className="mt-4 flex items-center gap-4 border-t border-border/50 pt-4 text-body-xs text-muted-foreground">
+          {article.publishedAt ? (
             <span className="flex items-center">
-              <Calendar className="w-3.5 h-3.5 mr-1.5" />
-              {new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric" }).format(new Date(article.publishedAt))}
+              <Calendar className="mr-1.5 size-3.5" aria-hidden="true" />
+              {new Intl.DateTimeFormat("id-ID", { month: "short", day: "numeric", year: "numeric" }).format(
+                new Date(article.publishedAt),
+              )}
             </span>
-          )}
+          ) : null}
           <span className="flex items-center">
-            <Clock className="w-3.5 h-3.5 mr-1.5" />
-            {article.readMinutes} min read
+            <Clock className="mr-1.5 size-3.5" aria-hidden="true" />
+            {article.readMinutes} min baca
           </span>
         </div>
       </div>

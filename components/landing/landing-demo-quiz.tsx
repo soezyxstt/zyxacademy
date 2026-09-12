@@ -7,8 +7,8 @@ import { QuizDemo, type QuizDemoOption } from "@/components/landing/demo/quiz-de
 
 const checklist = [
  <>
- Disusun dari <strong className="font-semibold text-foreground">materi kuliahmu</strong>, bukan
- bank soal generik
+ Disusun dari <strong className="font-semibold text-foreground">materi kuliah yang dipilih</strong>
+ dan konsep yang sedang dilatih
  </>,
  <>
  Pembahasan <strong className="font-semibold text-foreground">langkah demi langkah</strong> untuk
@@ -69,8 +69,8 @@ function WrongPanel() {
 export function LandingDemoQuiz() {
  return (
  <SectionContainer className="bg-background" aria-labelledby="landing-quiz-heading">
- <div className="grid items-center gap-12 lg:grid-cols-2 lg:gap-16">
- <div className="max-w-xl">
+ <div className="grid min-w-0 items-center gap-12 lg:grid-cols-2 lg:gap-16">
+ <div className="min-w-0 max-w-xl">
  <p className="text-body-xs font-semibold uppercase tracking-[0.2em] text-[var(--zx-accent)]">
  Kuis Latihan
  </p>
@@ -91,7 +91,7 @@ export function LandingDemoQuiz() {
  </ul>
  </div>
 
- <LandingVisible className="relative">
+ <LandingVisible className="relative min-w-0">
  <div className="bg-landing-dots pointer-events-none absolute -inset-6 -z-10 rounded-3xl opacity-70" aria-hidden />
  <div className="landing-rise">
  <QuizDemo

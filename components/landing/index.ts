@@ -1,4 +1,5 @@
 export { LandingHero } from "./landing-hero";
+export { LandingProof } from "./landing-proof";
 export { LandingLearningLoop } from "./landing-learning-loop";
 export { LandingDemoQuiz } from "./landing-demo-quiz";
 export { LandingDemoTutor } from "./landing-demo-tutor";
@@ -10,3 +11,5 @@ export { LandingSubjectShowcase } from "./landing-subject-showcase";
 export { LandingTestimonials } from "./landing-testimonials";
 export { LandingPricingPreview } from "./landing-pricing-preview";
 export { LandingClosingCta } from "./landing-closing-cta";
+export { LandingTutorSupport } from "./landing-tutor-support";
+export { LandingFaq } from "./landing-faq";

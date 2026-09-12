@@ -2,7 +2,22 @@
 
 Status: `OPEN / IN PROGRESS`
 Tanggal: 2026-09-12
-Tahap: perencanaan, implementasi belum dimulai.
+Tahap: implementasi lokal dan validasi, dependency publik masih terbuka.
+
+## Status implementasi
+
+Pembaruan 2026-09-13. Implementasi dikerjakan di worktree terpisah pada branch `agent/marketing-conversion-portfolio` untuk PR ini. Deployment dan mutasi layanan eksternal tidak dilakukan.
+
+| Item | Status | Catatan |
+|---|---|---|
+| CP0 | `COMPLETE` lokal | Baseline route, source of truth, batas bukti, lingkungan SQLite lokal, dan jalur validasi sudah dicatat. |
+| CP1 | `COMPLETE` lokal | M01 dan M02 memakai helper pricing yang sama. CTA paket memakai WhatsApp dengan konfigurasi fail-closed. M06 dan M09 sudah diselaraskan. |
+| CP2 | `COMPLETE` lokal | Homepage mengutamakan sasaran mahasiswa, bukti tutor, alur belajar, dukungan tutor, paket, FAQ, dan CTA penutup. |
+| CP3 | `PARTIAL` | Kontribusi software Adi dan tautan portfolio serta repository authoring publik ditambahkan. URL studi kasus publik yang spesifik belum tersedia atau terverifikasi, jadi klaim studi kasus tidak dipasang. |
+| CP4 | `COMPLETE` lokal | Toolbar Paket diringkas dan Blog diubah menjadi article-first. Testimoni diberi konteks sebagai bukti pendampingan tutor. |
+| CP5 | `PARTIAL` | Spec funnel marketing lulus 4/4 dan regression pricing lulus 11 dengan 1 skip yang disengaja. Generic route check lulus 8/10, dengan 2 kegagalan mismatch hydration `PageTransition` yang sudah ada. Full lint timeout dan build terhenti di fallback SQLite lokal saat prerender sitemap. |
+
+M01 sampai M03 dan M05 sampai M09 selesai pada source lokal. M04 tetap terbuka karena dependency studi kasus publik. Hasil komersial, analytics, konfigurasi runtime publik, dan perilaku production atau staging belum diverifikasi.
 
 ## Tujuan dan batas pekerjaan
 
@@ -12,11 +27,11 @@ Homepage tetap berorientasi pada mahasiswa ITB. Jalur portfolio ditempatkan seca
 
 Lingkup: `/`, `/plans`, `/about`, `/blog`, `/testimonial`, komponen marketing yang dipakai route tersebut, dan dokumentasi terkait. Tujuan CTA seperti `/sign-up`, `/courses`, dan `/feedback` diperiksa sebagai batas navigasi. Tidak merombak aplikasi Student atau Admin.
 
-Tidak termasuk perubahan harga, formula pricing, hak akses paket, backend pembelajaran, database, provider AI, autentikasi, deployment, publikasi eksternal, atau penambahan analytics vendor. Permintaan saat ini hanya membuat plan. Implementasi, commit, push, dan publikasi belum dilakukan. Kerjakan langsung tanpa AGY sesuai instruksi pengguna.
+Tidak termasuk perubahan harga, formula pricing, hak akses paket, backend pembelajaran, database, provider AI, autentikasi, deployment, publikasi eksternal, atau penambahan analytics vendor. Implementasi plan ini dikerjakan di worktree terpisah. Commit dan push dibatasi pada branch PR ini; deployment dan publikasi eksternal belum dilakukan. Kerjakan tanpa AGY sesuai instruksi pengguna.
 
 ## Dasar audit dan batas bukti
 
-Audit percakapan 2026-09-12 memeriksa source marketing dan halaman publik Home, Paket, About, Blog, serta navigasi kontak. Screenshot Home dan Paket diperiksa pada viewport 380px; About dan Blog juga diperiksa pada desktop. Halaman Testimoni mandiri hanya diperiksa melalui source karena browser timeout. Semua screenshot itu merupakan observasi awal, bukan sign-off visual atau bukti perilaku backend.
+Audit awal pada 2026-09-12 memeriksa source marketing dan halaman publik Home, Paket, About, Blog, serta navigasi kontak. Screenshot awal Home dan Paket diperiksa pada viewport 380px; About dan Blog juga diperiksa pada desktop. Halaman Testimoni mandiri saat itu hanya diperiksa melalui source karena browser timeout. Semua screenshot itu merupakan observasi awal, bukan sign-off visual atau bukti perilaku backend.
 
 Tidak ada data funnel, pengukuran Core Web Vitals, eksperimen konversi, atau verifikasi lengkap entitlement produk dalam audit ini. Dampak komersial yang diharapkan adalah hipotesis. Temuan harus diperiksa ulang pada checkout implementasi karena source dan deployment dapat berubah.
 
@@ -144,7 +159,7 @@ Kriteria selesai: konfigurator tidak mendominasi layar mobile; artikel menjadi i
 
 ## CP5. Validasi dan penutupan
 
-Validasi proporsional. Tidak menjalankan lint, typecheck, atau build untuk penulisan plan ini. Saat implementasi, full lint/typecheck hanya untuk perubahan yang ternyata substansial atau lintas sistem; build hanya bila diminta atau menyentuh batas build/runtime.
+Validasi proporsional. Untuk implementasi ini, pemeriksaan source, contract test, typecheck, targeted lint, Playwright, dan build sudah dijalankan sesuai batas yang dicatat pada bagian Status implementasi. Tidak ada klaim staging, production, OAuth, atau external-service success.
 
 ### Pemeriksaan perilaku terfokus
 

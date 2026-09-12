@@ -60,6 +60,8 @@ Canonical access-role codes are `admin`, `tutor`, and `murid`. Admin and tutor l
 - Paid pricing uses a compact struck-through regular amount above the current amount, with a rectangular `40% off` badge on the right. Both amounts use the same unit (per person or group total). The promotion deadline and the future regular price effective date appear once per pricing section. Group totals are authoritative; per-person amounts are rounded estimates. Cards are ordered Minimal, Essential, Premium, Free, Custom.
 - Client pricing refreshes on a one-second tick and when a tab regains focus or visibility. Server HTML shows a neutral loading state so cached pages do not retain an expired offer. Static plan metadata contains no monetary snapshots.
 - Payment remains outside the website through the admin. WhatsApp enrollment text includes the current semester total and, during the campaign, the introductory deadline and future regular price. Clicking the link refreshes the quote. Admin must confirm the applicable price at payment time; the website does not collect or enforce an external payment.
+- The public landing pricing preview uses the same quote source, labels the main amount per person per semester, and shows the configured group total as secondary context. Paid preview cards expose a plan-specific WhatsApp consultation link only when `NEXT_PUBLIC_WHATSAPP_NUMBER` is configured; no fallback number is generated.
+- The public landing page separates platform benefits, tutor evidence, and package questions. Its FAQ describes only the published Free, Minimal, Essential, Premium, payment, and activation behavior.
 
 ## Core Pipelines
 
@@ -309,6 +311,7 @@ The standalone Admin material editor is retired. Existing website material remai
 
 ### Blog & Short Links
 - Multi-category blog (tips_kuliah, pojok_kampus, fakta_seru, kegiatan_zyx)
+- The public Blog route leads with its identity, category navigation, and latest articles. Feature promotion follows the article content and links to the general course catalog instead of presenting every feature as a detail page.
 - URL shortener (zyxacademy.com/s/[slug])
 
 ### Assessment Integrity & Assistance Policy

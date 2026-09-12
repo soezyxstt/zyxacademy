@@ -96,7 +96,7 @@ export function TutorChatDemo({ messages }: TutorChatDemoProps) {
   return (
     <div ref={containerRef}>
       <DemoFrame
-        title="Zyra"
+        title="Simulasi · Zyra"
         meta={
           <span className="flex items-center gap-1 text-[var(--zx-accent)]">
             <ZyraMark className="size-3.5" aria-hidden />
@@ -138,7 +138,7 @@ export function TutorChatDemo({ messages }: TutorChatDemoProps) {
         </div>
 
         <div className="mt-4 flex items-center justify-between gap-3 border-t border-border/80 pt-3">
-          <p className="text-body-xs text-muted-foreground">Percakapan contoh dari sesi nyata.</p>
+          <p className="text-body-xs text-muted-foreground">Simulasi percakapan bantuan belajar.</p>
           <button
             type="button"
             onClick={replay}
