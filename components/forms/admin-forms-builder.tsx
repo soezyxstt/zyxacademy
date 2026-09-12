@@ -1785,133 +1785,139 @@ export default function AdminFormsBuilder({
               </p>
             </div>
           ) : (
-            <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-body-sm">
-                  <thead className="border-b border-border bg-muted/50 text-body-xs font-semibold text-muted-foreground">
-                    <tr>
-                      <th className="px-4 py-3">Nama Formulir</th>
-                      <th className="px-4 py-3">Kategori</th>
-                      <th className="px-4 py-3">Total Respon</th>
-                      <th className="px-4 py-3">Link Responden & Short Link</th>
-                      <th className="px-4 py-3 text-right">Visualisasi & Aksi</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border">
-                    {forms.map((f) => {
-                      const isDeleting = deletingId === f.id;
-                      const shortPath = `/f/${f.slug}`;
-                      const fullPath = `/forms/${f.id}`;
-                      const isShortCopied = copiedId === `short_${f.id}`;
-                      const isFullCopied = copiedId === `full_${f.id}`;
+            <div className="grid gap-4">
+              {forms.map((f) => {
+                const isDeleting = deletingId === f.id;
+                const shortPath = `/f/${f.slug}`;
+                const fullPath = `/forms/${f.id}`;
+                const isShortCopied = copiedId === `short_${f.id}`;
+                const isFullCopied = copiedId === `full_${f.id}`;
 
-                      return (
-                        <tr key={f.id} className="hover:bg-muted/30 transition-colors">
-                          <td className="px-4 py-3.5 font-medium text-foreground whitespace-nowrap">
-                            <p className="font-bold text-body-sm text-foreground">{f.title}</p>
-                            <p className="font-mono text-body-xs text-muted-foreground">
-                              Slug: /f/{f.slug}
-                            </p>
-                          </td>
+                return (
+                  <article
+                    key={f.id}
+                    className="min-w-0 rounded-2xl border border-border/80 bg-card p-4 shadow-xs transition-colors hover:border-border hover:bg-muted/20 sm:p-5"
+                  >
+                    <div className="flex min-w-0 flex-col gap-4">
+                      <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                        <div className="min-w-0">
+                          <p className="break-words font-heading text-body-base font-bold text-foreground">
+                            {f.title}
+                          </p>
+                          <p className="mt-1 break-all font-mono text-body-xs text-muted-foreground">
+                            Slug: /f/{f.slug}
+                          </p>
+                        </div>
 
-                          <td className="px-4 py-3.5 whitespace-nowrap">
-                            <span className="rounded-md bg-muted px-2.5 py-1 text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                              {f.category}
-                            </span>
-                          </td>
+                        <div className="flex min-w-0 flex-wrap items-center gap-2 sm:justify-end">
+                          <span className="rounded-md bg-muted px-2.5 py-1 text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                            {f.category}
+                          </span>
+                          <span className="font-mono text-body-sm font-bold text-brand-primary">
+                            {f.totalResponses || 0} Pengisian
+                          </span>
+                        </div>
+                      </div>
 
-                          <td className="px-4 py-3.5 whitespace-nowrap">
-                            <span className="font-mono font-bold text-body-sm text-brand-primary">
-                              {f.totalResponses || 0} Pengisian
-                            </span>
-                          </td>
+                      <div className="grid min-w-0 gap-3 border-t border-border/60 pt-4 sm:grid-cols-2">
+                        <div className="min-w-0">
+                          <p className="mb-1 text-body-xs font-semibold text-muted-foreground">Short link</p>
+                          <div className="flex min-w-0 items-start gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => handleCopyLink(shortPath, `short_${f.id}`)}
+                              className="flex min-w-0 w-full items-start gap-1.5 rounded-md border border-border bg-background px-2.5 py-1.5 text-left text-body-sm font-semibold text-foreground transition-colors hover:bg-muted cursor-pointer"
+                            >
+                              {isShortCopied ? (
+                                <Check className="mt-0.5 size-3.5 shrink-0 text-status-success" />
+                              ) : (
+                                <Copy className="mt-0.5 size-3.5 shrink-0" />
+                              )}
+                              <span className="min-w-0 break-all">
+                                {isShortCopied ? "Tersalin" : shortPath}
+                              </span>
+                            </button>
+                            <a
+                              href={shortPath}
+                              target="_blank"
+                              rel="noreferrer"
+                              aria-label={`Buka short link ${shortPath}`}
+                              className="mt-2 shrink-0 text-brand-primary hover:underline"
+                            >
+                              <ExternalLink className="size-3.5" aria-hidden="true" />
+                            </a>
+                          </div>
+                        </div>
 
-                          <td className="px-4 py-3.5 whitespace-nowrap">
-                            <div className="flex flex-col gap-1">
-                              <div className="flex items-center gap-1.5">
-                                <span className="font-mono text-body-xs text-muted-foreground w-14">Short:</span>
-                                <button
-                                  type="button"
-                                  onClick={() => handleCopyLink(shortPath, `short_${f.id}`)}
-                                  className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-2 py-0.5 text-body-xs font-semibold text-foreground hover:bg-muted transition-colors cursor-pointer"
-                                >
-                                  {isShortCopied ? <Check className="size-3 text-status-success" /> : <Copy className="size-3" />}
-                                  {isShortCopied ? "Tersalin!" : shortPath}
-                                </button>
-                                <a
-                                  href={shortPath}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  className="text-brand-primary hover:underline text-body-xs"
-                                >
-                                  <ExternalLink className="size-3 inline" />
-                                </a>
-                              </div>
+                        <div className="min-w-0">
+                          <p className="mb-1 text-body-xs font-semibold text-muted-foreground">Full link</p>
+                          <div className="flex min-w-0 items-start gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => handleCopyLink(fullPath, `full_${f.id}`)}
+                              className="flex min-w-0 w-full items-start gap-1.5 rounded-md border border-border bg-background px-2.5 py-1.5 text-left text-body-sm font-semibold text-foreground transition-colors hover:bg-muted cursor-pointer"
+                            >
+                              {isFullCopied ? (
+                                <Check className="mt-0.5 size-3.5 shrink-0 text-status-success" />
+                              ) : (
+                                <Copy className="mt-0.5 size-3.5 shrink-0" />
+                              )}
+                              <span className="min-w-0 break-all">
+                                {isFullCopied ? "Tersalin" : fullPath}
+                              </span>
+                            </button>
+                            <a
+                              href={fullPath}
+                              target="_blank"
+                              rel="noreferrer"
+                              aria-label={`Buka full link ${fullPath}`}
+                              className="mt-2 shrink-0 text-brand-primary hover:underline"
+                            >
+                              <ExternalLink className="size-3.5" aria-hidden="true" />
+                            </a>
+                          </div>
+                        </div>
+                      </div>
 
-                              <div className="flex items-center gap-1.5">
-                                <span className="font-mono text-body-xs text-muted-foreground w-14">Full:</span>
-                                <button
-                                  type="button"
-                                  onClick={() => handleCopyLink(fullPath, `full_${f.id}`)}
-                                  className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-2 py-0.5 text-body-xs font-semibold text-foreground hover:bg-muted transition-colors cursor-pointer"
-                                >
-                                  {isFullCopied ? <Check className="size-3 text-status-success" /> : <Copy className="size-3" />}
-                                  {isFullCopied ? "Tersalin!" : fullPath}
-                                </button>
-                                <a
-                                  href={fullPath}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  className="text-brand-primary hover:underline text-body-xs"
-                                >
-                                  <ExternalLink className="size-3 inline" />
-                                </a>
-                              </div>
-                            </div>
-                          </td>
+                      <div className="flex flex-col gap-2 border-t border-border/60 pt-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
+                        <button
+                          type="button"
+                          onClick={() => handleStartEdit(f)}
+                          title="Edit formulir"
+                          className="inline-flex min-h-9 w-full items-center justify-center gap-1.5 rounded-lg border border-border bg-background px-3 py-1.5 text-body-sm font-semibold text-foreground transition-colors hover:bg-muted cursor-pointer sm:w-auto"
+                        >
+                          <Edit3 className="size-3.5 text-brand-primary" />
+                          Edit
+                        </button>
 
-                          <td className="px-4 py-3.5 text-right whitespace-nowrap">
-                            <div className="flex items-center justify-end gap-2">
-                              <button
-                                type="button"
-                                onClick={() => handleStartEdit(f)}
-                                title="Edit formulir"
-                                className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background px-2.5 py-1.5 text-body-xs font-semibold text-foreground hover:bg-muted transition-colors cursor-pointer"
-                              >
-                                <Edit3 className="size-3.5 text-brand-primary" />
-                                Edit
-                              </button>
+                        <Link
+                          href={`/admin/forms/${f.id}`}
+                          className="inline-flex min-h-9 w-full items-center justify-center gap-1.5 rounded-lg border border-brand-primary/30 bg-brand-primary/10 px-3 py-1.5 text-body-sm font-semibold text-brand-primary transition-colors hover:bg-brand-primary/20 sm:w-auto"
+                        >
+                          <BarChart3 className="size-3.5" />
+                          Visualisasi Data & Respon
+                          <ChevronRight className="size-3.5" />
+                        </Link>
 
-                              <Link
-                                href={`/admin/forms/${f.id}`}
-                                className="inline-flex items-center gap-1.5 rounded-lg border border-brand-primary/30 bg-brand-primary/10 px-3 py-1.5 text-body-xs font-semibold text-brand-primary hover:bg-brand-primary/20 transition-colors"
-                              >
-                                <BarChart3 className="size-3.5" />
-                                Visualisasi Data & Respon
-                                <ChevronRight className="size-3.5" />
-                              </Link>
-
-                              <button
-                                type="button"
-                                onClick={() => setConfirmDeleteFormId(f.id)}
-                                disabled={isDeleting}
-                                title="Hapus formulir"
-                                className="inline-flex items-center justify-center rounded-lg border border-status-error/30 bg-status-error/10 p-1.5 text-status-error hover:bg-status-error/20 transition-colors disabled:opacity-50 cursor-pointer"
-                              >
-                                {isDeleting ? (
-                                  <RefreshCw className="size-3.5 animate-spin" />
-                                ) : (
-                                  <Trash2 className="size-3.5" />
-                                )}
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
+                        <button
+                          type="button"
+                          onClick={() => setConfirmDeleteFormId(f.id)}
+                          disabled={isDeleting}
+                          title="Hapus formulir"
+                          aria-label="Hapus formulir"
+                          className="inline-flex min-h-9 min-w-9 shrink-0 items-center justify-center self-end rounded-lg border border-status-error/30 bg-status-error/10 p-1.5 text-status-error transition-colors hover:bg-status-error/20 disabled:opacity-50 cursor-pointer sm:self-auto"
+                        >
+                          {isDeleting ? (
+                            <RefreshCw className="size-3.5 animate-spin" />
+                          ) : (
+                            <Trash2 className="size-3.5" />
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  </article>
+                );
+              })}
             </div>
           )}
         </div>
