@@ -314,7 +314,7 @@ export default function PlansClient() {
                   }
                 >
                   {tier.highlighted ? (
-                    <Badge className="absolute -top-3 left-5 bg-[var(--zx-accent)] font-semibold text-white shadow-xs hover:bg-[var(--zx-accent)]">
+                    <Badge className="absolute -top-3 left-5 bg-[var(--zx-accent)] font-semibold text-black-1 shadow-xs hover:bg-[var(--zx-accent)]">
                       Rekomendasi
                     </Badge>
                   ) : null}
