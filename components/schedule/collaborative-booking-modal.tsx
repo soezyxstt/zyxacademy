@@ -28,10 +28,8 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/components/ui/toast";
-import {
-  addSessionResourceAction,
-  collaborativeBookSlot,
-} from "@/app/(student)/dashboard/schedule/actions";
+import { addSessionResourceAction } from "@/app/(student)/dashboard/schedule/actions";
+import { bookTutorialSlot } from "@/app/(student)/dashboard/schedule/booking-actions";
 import type { PendingSessionResource } from "@/components/schedule/session-detail-drawer";
 
 export type BookingSuccessResult = {
@@ -42,8 +40,9 @@ export type BookingSuccessResult = {
 type Props = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  selectedSlot: any | null;
-  selectedDateIso: string;
+  slot: any | null;
+  dateIso: string;
+  courses?: any[];
   groups: any[];
   onSuccess: (result: BookingSuccessResult) => void | Promise<void>;
   onSlotTaken?: () => void | Promise<void>;
@@ -61,8 +60,8 @@ function isHttpUrl(value: string) {
 export function CollaborativeBookingModal({
   open,
   onOpenChange,
-  selectedSlot,
-  selectedDateIso,
+  slot: selectedSlot,
+  dateIso: selectedDateIso,
   groups,
   onSuccess,
   onSlotTaken,
@@ -129,16 +128,13 @@ export function CollaborativeBookingModal({
 
     setLoading(true);
     try {
-      const result = await collaborativeBookSlot(
-        selectedSlot.id,
-        selectedCourseId,
-        selectedGroupId,
-        selectedDateIso,
-        {
-          topic: topic.trim() || undefined,
-          preSessionNotes: note.trim() || undefined,
-        },
-      );
+      const result = await bookTutorialSlot({
+        slotId: selectedSlot.id,
+        courseId: selectedCourseId,
+        groupId: selectedGroupId,
+        topic: topic.trim() || undefined,
+        preSessionNotes: note.trim() || undefined,
+      });
 
       if (!result.success || !result.bookingId) {
         if (result.reason === "SLOT_TAKEN") {

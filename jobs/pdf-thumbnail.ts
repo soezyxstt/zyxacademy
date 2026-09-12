@@ -4,7 +4,7 @@ import { db } from "@/db";
 import { courseMaterials, diktats } from "@/db/schema";
 import { storage } from "@/lib/storage";
 import { buildCourseThumbnailKey } from "@/lib/storage/keys";
-import { generateAndSavePdfThumbnail } from "@/lib/thumbnail";
+import { generateAndSavePdfThumbnailCompute } from "@/lib/compute/pdf-thumbnail";
 
 function extractStorageKey(value?: string | null): string | null {
   if (!value) return null;
@@ -21,17 +21,17 @@ export const pdfThumbnailWorker = inngest.createFunction(
     id: "pdf-thumbnail-worker",
     name: "PDF Thumbnail Worker",
     triggers: [{ event: "pdf/thumbnail.requested" }],
-    retries: 2,
+    retries: 3,
     concurrency: { limit: 2 },
   },
   async ({ event, step }) => {
-    const { materialId, sourceType } = event.data as {
+    const { materialId, sourceType, sourceVersion } = event.data as {
       materialId: string;
       sourceType: "course_material" | "diktat";
+      sourceVersion?: string;
     };
 
     return step.run("generate-thumbnail", async () => {
-      // 1. Fetch record from DB
       const isManual = sourceType === "course_material";
       let courseSlug = "";
       let fileUrl = "";
@@ -49,7 +49,7 @@ export const pdfThumbnailWorker = inngest.createFunction(
           .where(eq(courseMaterials.id, materialId))
           .limit(1);
 
-        if (!row) return { skipped: true, reason: "MATERIAL_NOT_FOUND" };
+        if (!row) throw new Error(`MATERIAL_NOT_READY_${materialId}`);
         courseSlug = row.courseId;
         fileUrl = row.fileUrl;
         existingThumb = row.thumbnailUrl;
@@ -65,51 +65,45 @@ export const pdfThumbnailWorker = inngest.createFunction(
           .where(eq(diktats.id, materialId))
           .limit(1);
 
-        if (!row || !row.fileUrl) return { skipped: true, reason: "DIKTAT_NOT_FOUND" };
+        if (!row || !row.fileUrl) throw new Error(`DIKTAT_NOT_READY_${materialId}`);
         courseSlug = row.courseId;
         fileUrl = row.fileUrl;
         existingThumb = row.thumbnailUrl;
-
       }
 
-      // 2. Early return if thumbnailUrl already in DB
       if (existingThumb) {
         return { success: true, thumbnailUrl: existingThumb, skipped: true };
       }
 
       const fileKey = extractStorageKey(fileUrl);
-      if (!fileKey) {
-        return { skipped: true, reason: "SOURCE_FILE_KEY_NOT_FOUND" };
+      if (!fileKey) return { skipped: true, reason: "SOURCE_FILE_KEY_NOT_FOUND" };
+      if (sourceVersion && sourceVersion !== fileKey) {
+        return { skipped: true, reason: "STALE_SOURCE_VERSION" };
       }
 
-      const expectedKey = buildCourseThumbnailKey({
+      const expectedPngKey = buildCourseThumbnailKey({
         courseSlug,
         materialId,
-        extension: "webp",
+        extension: "png",
       });
 
-      // 3. Check storage existence
-      if (await storage.exists(expectedKey)) {
+      if (await storage.exists(expectedPngKey)) {
         if (isManual) {
-          await db.update(courseMaterials).set({ thumbnailUrl: expectedKey }).where(eq(courseMaterials.id, materialId));
+          await db.update(courseMaterials).set({ thumbnailUrl: expectedPngKey }).where(eq(courseMaterials.id, materialId));
         } else {
-          await db.update(diktats).set({ thumbnailUrl: expectedKey, updatedAt: new Date() }).where(eq(diktats.id, materialId));
+          await db.update(diktats).set({ thumbnailUrl: expectedPngKey, updatedAt: new Date() }).where(eq(diktats.id, materialId));
         }
-        return { success: true, thumbnailUrl: expectedKey, existedInStorage: true };
+        return { success: true, thumbnailUrl: expectedPngKey, existedInStorage: true };
       }
 
-      // 4. Generate thumbnail from fileKey
-      const generatedKey = await generateAndSavePdfThumbnail({
+      const generatedKey = await generateAndSavePdfThumbnailCompute({
         courseSlug,
         materialId,
         fileKey,
       });
 
-      if (!generatedKey) {
-        throw new Error(`THUMBNAIL_GENERATION_FAILED_${materialId}`);
-      }
+      if (!generatedKey) throw new Error(`THUMBNAIL_GENERATION_FAILED_${materialId}`);
 
-      // 5. Update DB
       if (isManual) {
         await db.update(courseMaterials).set({ thumbnailUrl: generatedKey }).where(eq(courseMaterials.id, materialId));
       } else {
@@ -118,5 +112,5 @@ export const pdfThumbnailWorker = inngest.createFunction(
 
       return { success: true, thumbnailUrl: generatedKey };
     });
-  }
+  },
 );

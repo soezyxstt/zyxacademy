@@ -22,6 +22,7 @@ async function prepareForScreenshot(page: Page) {
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.addStyleTag({
     content: `
+      nextjs-portal { display: none !important; }
       *, *::before, *::after {
         animation-delay: 0s !important;
         animation-duration: 0s !important;
@@ -51,6 +52,9 @@ for (const route of routes) {
 
     const response = await page.goto(route, { waitUntil: "domcontentloaded" });
     await expect(page.locator("body")).toBeVisible();
+    // Pricing deliberately hydrates from a neutral server snapshot. Wait for
+    // hydration before changing media preferences or capturing its final state.
+    await expect(page.getByRole("status").filter({ hasText: "Memuat harga..." })).toHaveCount(0);
     await prepareForScreenshot(page);
 
     const screenshotPath = testInfo.outputPath(

@@ -52,6 +52,15 @@ Canonical access-role codes are `admin`, `tutor`, and `murid`. Admin and tutor l
 - Manages course-scoped leaderboard (`/admin/courses/[slug]/leaderboard`) for per-student ranking within a single course, with backward compatibility redirects from `/admin/leaderboard`
 - Operates inside unified course workspaces (`/admin/courses/[slug]`) with contextual navigation across Bab, Dokumen, Kuis, Soal, Flashcard, Hasil, Papan Peringkat, Analitik, Review Materi, and Pengaturan
 
+## Plan pricing
+
+- `/plans`, the landing preview, student dashboard preview, and student onboarding use the same scheduled pricing quote and display components.
+- From 12 September 2026 at 00:00 WIB until 12 October 2026 at 00:00 WIB (exclusive), paid plans use the existing formula result `x` as the introductory price. The regular price is `ceil(x / 0.6)` in whole Rupiah, a 40% introductory saving subject to sub-Rupiah rounding.
+- From 12 October 2026, the calculator actually returns the regular price. Before the campaign starts, the previous price `x` applies without a promotion. Free and Custom plans do not receive a discount badge.
+- Paid pricing uses a compact struck-through regular amount above the current amount, with a rectangular `40% off` badge on the right. Both amounts use the same unit (per person or group total). The promotion deadline and the future regular price effective date appear once per pricing section. Group totals are authoritative; per-person amounts are rounded estimates. Cards are ordered Minimal, Essential, Premium, Free, Custom.
+- Client pricing refreshes on a one-second tick and when a tab regains focus or visibility. Server HTML shows a neutral loading state so cached pages do not retain an expired offer. Static plan metadata contains no monetary snapshots.
+- Payment remains outside the website through the admin. WhatsApp enrollment text includes the current semester total and, during the campaign, the introductory deadline and future regular price. Clicking the link refreshes the quote. Admin must confirm the applicable price at payment time; the website does not collect or enforce an external payment.
+
 ## Core Pipelines
 
 ### Site-wide command search
@@ -478,7 +487,7 @@ The canonical scheduling workflow uses concrete, date-specific 90-minute tutor s
   - Usage is derived by counting active booking rows of the group inside the target week. Pre-lock cancellations preserve the booking row with status `cancelled` and write a durable `BOOKING_CANCELLED_QUOTA_REFUNDED` marker into `booking_audit_logs` to free the quota. Post-lock cancellations do not receive the refund marker and stay counted against the weekly quota (hangus).
   - Students see "Terpakai minggu ini X/Y" when booking and on the Groups page; the last 4 weeks show attended versus missed/cancelled counts for traceability.
 - Weekly Lock & Automated Cut-Off:
-  - Tutor availability for the following week opens on Monday and closes on Friday at 18:00 WIB. Student booking remains open until Saturday at 23:59 WIB (Asia/Jakarta).
+  - Tutors may publish availability for any future tutorial week. Changes for a target week close on the Friday before that week at 18:00 WIB. Student booking for that target week opens on the preceding Monday and remains open until Saturday at 23:59 WIB (Asia/Jakarta).
   - Post-lock schedule adjustments require formal Reschedule or Cancellation tickets.
 - Fixed 90-Minute Slots:
   - Tutors open concrete availability slots of exactly 90 minutes. The server rejects other durations and the tutor form auto-computes the end time.

@@ -5,7 +5,8 @@ import Link from "next/link";
 import { Check, Plus, Minus, BookOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { SectionHeading } from "@/components/ui/section-heading";
+import { PlanPrice, PlanPromotion } from "@/components/pricing/plan-price";
+import { usePlanPricingPhase } from "@/hooks/use-plan-pricing-phase";
 import { SectionContainer } from "@/components/layout/section-container";
 import { MarketingPageHero } from "@/components/marketing-page-hero";
 import { Reveal } from "@/components/ui/reveal";
@@ -18,12 +19,12 @@ import {
   MIN_COURSES,
   MAX_COURSES,
   CORE_SUBJECTS,
-  calculatePlanPrice,
   getWhatsAppPlanUrl,
 } from "@/lib/pricing-constants";
 import { planTiers } from "@/lib/plan-tiers";
 
 export default function PlansClient() {
+  const pricingPhase = usePlanPricingPhase();
   const [persons, setPersons] = useState<number>(DEFAULT_PERSONS);
   // Separate standard courses and other courses (Lain-Lain) count
   const [selectedStandardCourses, setSelectedStandardCourses] = useState<string[]>(() =>
@@ -48,10 +49,6 @@ export default function PlansClient() {
         ]
       : []),
   ];
-
-  const formatPrice = (amount: number): string => {
-    return "Rp " + amount.toLocaleString("id-ID");
-  };
 
   const handleIncrementPersons = () => {
     setPersons((prev) => Math.min(prev + 1, MAX_PERSONS));
@@ -88,6 +85,7 @@ export default function PlansClient() {
     <div className="flex flex-col min-h-screen">
       <Reveal>
         <MarketingPageHero
+          className="py-8 md:py-10"
           sectionId="plans"
           eyebrow="Zyx Academy"
           title="Paket & layanan"
@@ -124,7 +122,7 @@ export default function PlansClient() {
                   onClick={handleDecrementPersons}
                   disabled={persons <= MIN_PERSONS}
                   aria-label="Kurangi jumlah orang"
-                  className="rounded-full size-7 bg-background"
+                  className="rounded-md size-7 bg-background"
                 >
                   <Minus className="size-3" />
                 </Button>
@@ -137,7 +135,7 @@ export default function PlansClient() {
                   onClick={handleIncrementPersons}
                   disabled={persons >= MAX_PERSONS}
                   aria-label="Tambah jumlah orang"
-                  className="rounded-full size-7 bg-background"
+                  className="rounded-md size-7 bg-background"
                 >
                   <Plus className="size-3" />
                 </Button>
@@ -154,7 +152,7 @@ export default function PlansClient() {
                   onClick={handleDecrementCourses}
                   disabled={courses <= MIN_COURSES}
                   aria-label="Kurangi mata kuliah"
-                  className="rounded-full size-7 bg-background"
+                  className="rounded-md size-7 bg-background"
                 >
                   <Minus className="size-3" />
                 </Button>
@@ -167,7 +165,7 @@ export default function PlansClient() {
                   onClick={handleIncrementCourses}
                   disabled={courses >= MAX_COURSES}
                   aria-label="Tambah mata kuliah"
-                  className="rounded-full size-7 bg-background"
+                  className="rounded-md size-7 bg-background"
                 >
                   <Plus className="size-3" />
                 </Button>
@@ -297,86 +295,51 @@ export default function PlansClient() {
 
       {/* Pricing Cards Grid */}
       <Reveal>
-        <SectionContainer className="border-b border-border bg-muted/70 overflow-hidden pt-8 pb-16 md:pt-12 md:pb-24">
+        <SectionContainer className="border-b border-border bg-muted/70 overflow-hidden py-6 md:py-8">
           <PageOrnaments variant="plans" />
-          <div className="relative z-10 grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 items-stretch">
+          <PlanPromotion className="relative z-10 mb-4" />
+          <div className="relative z-10 grid gap-4 md:grid-cols-2 lg:grid-cols-3 items-stretch">
             {planTiers.map((tier) => {
-              const calculatedPrice = calculatePlanPrice(tier.key, persons, courses);
               const isCustom = tier.key === "custom";
               const isFree = tier.key === "free";
-              
-              // Format total price display
-              const priceDisplay = isFree 
-                ? "Gratis" 
-                : isCustom 
-                  ? "Hubungi Kami" 
-                  : formatPrice(calculatedPrice);
-              
-              // Calculate price per person
-              const pricePerPerson = (!isFree && !isCustom) 
-                ? formatPrice(Math.round(calculatedPrice / persons)) 
-                : null;
-
-              // Generate WhatsApp link dynamically
-              const whatsAppUrl = getWhatsAppPlanUrl(tier.key, tier.name, persons, courses, selectedCoursesList);
+              const whatsAppUrl = getWhatsAppPlanUrl(tier.key, tier.name, persons, courses, selectedCoursesList, pricingPhase ?? "regular");
 
               return (
                 <article
                   key={tier.key}
-                  className={
-                    tier.highlighted
-                      ? "relative flex flex-col rounded-3xl border-2 border-[var(--zx-accent)] bg-card/75 backdrop-blur-md p-6 shadow-md ring-4 ring-[var(--zx-accent)]/10 md:p-7 transition-all duration-300 hover:scale-[1.02] hover:bg-card/90"
-                      : "relative flex flex-col rounded-3xl border border-border/70 bg-card/70 backdrop-blur-md p-6 shadow-sm md:p-7 transition-all duration-300 hover:scale-[1.01] hover:border-border-strong hover:bg-card/90 hover:shadow-md"
-                  }
+                  className={`flex flex-col rounded-xl border bg-card p-4 md:p-5 ${tier.highlighted ? "border-brand-secondary shadow-sm" : "border-border"}`}
                 >
-                  {tier.highlighted ? (
-                    <Badge className="absolute -top-3 left-6 bg-[var(--zx-accent)] text-white hover:bg-[var(--zx-accent)] font-semibold shadow-xs">
-                      Rekomendasi
-                    </Badge>
-                  ) : null}
-
                   <div className="flex-1">
-                    <SectionHeading as="h3" tier="secondary" className="text-card-foreground font-bold font-heading">
-                      {tier.name}
-                    </SectionHeading>
+                    <div className="flex items-center justify-between gap-2">
+                      <h3 className="text-body-base text-card-foreground font-bold font-heading">{tier.name}</h3>
+                      {tier.highlighted && <Badge className="rounded-md">Rekomendasi</Badge>}
+                    </div>
                     
-                    <p className="mt-2 text-body-xs text-muted-foreground min-h-[32px]">
+                    <p className="mt-1 text-body-xs text-muted-foreground">
                       {tier.note}
                     </p>
 
-                    <div className="mt-4 pt-4 border-t border-border/60">
+                    <div className="mt-3">
                       {(!isFree && !isCustom) ? (
-                        <>
-                          <div className="flex items-baseline gap-1">
-                            <span className="font-heading text-h5 font-extrabold text-foreground tracking-tight transition-all duration-300">
-                              {pricePerPerson}
-                            </span>
-                            <span className="text-[10px] text-muted-foreground font-medium">/ orang</span>
-                          </div>
-                          <p className="text-[10px] text-muted-foreground mt-1">
-                            Total: <span className="font-semibold text-foreground">{priceDisplay}</span> / semester
-                          </p>
-                        </>
+                        <PlanPrice plan={tier.key} persons={persons} courses={courses} perPerson className="text-h5" />
                       ) : (
                         <p className="font-heading text-h5 font-extrabold text-foreground tracking-tight transition-all duration-300">
-                          {priceDisplay}
+                          {isFree ? "Gratis" : "Hubungi admin"}
                         </p>
                       )}
                     </div>
 
-                    <ul className="mt-6 flex flex-col gap-3">
+                    {!isCustom && <ul className="mt-4 flex flex-col gap-2">
                       {tier.features.map((f) => (
                         <li key={f} className="flex gap-2 text-body-sm text-muted-foreground items-start">
-                          <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
-                            <Check className="size-3" strokeWidth={2.5} aria-hidden />
-                          </span>
+                          <Check className="mt-0.5 size-4 shrink-0 text-status-success" strokeWidth={2} aria-hidden />
                           <span className="leading-tight">{f}</span>
                         </li>
                       ))}
-                    </ul>
+                    </ul>}
                   </div>
 
-                  <div className="mt-8">
+                  <div className="mt-4">
                     <Button
                       asChild
                       variant={tier.highlighted ? "default" : "outline"}
@@ -392,7 +355,11 @@ export default function PlansClient() {
                           Daftar Sekarang
                         </Link>
                       ) : (
-                        <Link href={whatsAppUrl} target="_blank" rel="noopener noreferrer">
+                        <Link href={whatsAppUrl} target="_blank" rel="noopener noreferrer"
+                          onClick={(event) => {
+                            event.currentTarget.href = getWhatsAppPlanUrl(tier.key, tier.name, persons, courses, selectedCoursesList);
+                          }}
+                        >
                           {isCustom ? "Hubungi Admin" : "Pilih Paket"}
                         </Link>
                       )}

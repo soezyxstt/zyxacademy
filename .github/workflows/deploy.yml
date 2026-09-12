@@ -5,15 +5,33 @@ on:
     branches:
       - main
       - staging
+    # Start cheaply on broad code areas, then decide from the actual worker
+    # dependency graph whether a Deno deploy is needed.
     paths:
       - 'workers/deno-background/**'
       - 'jobs/**'
       - 'db/**'
       - 'lib/**'
+      - 'prompts/**'
       - 'deno.json'
       - 'deno.lock'
       - 'package.json'
-      - 'bun.lock'
+      - 'scripts/audit-worker-dependencies.ts'
+      - '.github/workflows/deploy.yml'
+  pull_request:
+    branches:
+      - staging
+    # PR validation stays broad so a new transitive worker dependency is checked
+    # before it can be merged into staging.
+    paths:
+      - 'workers/deno-background/**'
+      - 'jobs/**'
+      - 'db/**'
+      - 'lib/**'
+      - 'prompts/**'
+      - 'deno.json'
+      - 'deno.lock'
+      - 'package.json'
       - 'scripts/audit-worker-dependencies.ts'
       - '.github/workflows/deploy.yml'
   workflow_dispatch:
@@ -23,35 +41,112 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  deploy:
-    name: Deploy Background Worker (${{ github.ref_name }})
+  dependency-audit:
+    name: Validate Deno Worker Dependencies
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
-    environment: ${{ github.ref_name == 'main' && 'production' || 'staging' }}
 
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
-
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: latest
 
       - name: Setup Deno
         uses: denoland/setup-deno@v2
         with:
           deno-version: v2.x
 
-      - name: Install Dependencies
-        run: bun install --frozen-lockfile
+      - name: Validate Worker Dependency Graph
+        run: >-
+          deno run -A scripts/audit-worker-dependencies.ts
+          --dependency-output=artifacts/deno-worker-dependencies.txt
+
+      - name: Upload dependency graph on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: deno-worker-dependency-audit
+          path: artifacts/deno-worker-dependencies.txt
+          retention-days: 1
+
+  deploy:
+    name: Deploy Background Worker (${{ github.ref_name }})
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    environment: ${{ github.ref_name == 'main' && 'production' || 'staging' }}
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          # The impact gate compares github.event.before with the pushed commit.
+          fetch-depth: 0
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
 
       - name: Worker Dependency Audit
-        run: bun run worker:deno:audit
+        run: >-
+          deno run -A scripts/audit-worker-dependencies.ts
+          --dependency-output=artifacts/deno-worker-dependencies.txt
+
+      - name: Detect Worker Impact
+        id: impact
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BEFORE_SHA: ${{ github.event.before }}
+          AFTER_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+
+          # Manual runs are explicit deploy requests.
+          if [ "$EVENT_NAME" != "push" ]; then
+            echo "should_deploy=true" >> "$GITHUB_OUTPUT"
+            echo "Manual workflow run: deploying worker."
+            exit 0
+          fi
+
+          # A zero/empty before SHA can happen on the first push of a ref. Be
+          # conservative and deploy instead of trying to infer an incomplete diff.
+          if [ -z "${BEFORE_SHA:-}" ] || [[ "$BEFORE_SHA" =~ ^0+$ ]]; then
+            echo "should_deploy=true" >> "$GITHUB_OUTPUT"
+            echo "No usable before SHA: deploying worker."
+            exit 0
+          fi
+
+          mkdir -p artifacts
+          git diff --name-only "$BEFORE_SHA" "$AFTER_SHA" | sort -u > artifacts/changed-files.txt
+
+          echo "Changed files:"
+          cat artifacts/changed-files.txt
+
+          # These files affect worker resolution/deploy behavior even when they
+          # are not regular source imports in the dependency graph.
+          if grep -Eq '^(workers/deno-background/|deno\.json$|deno\.lock$|package\.json$|scripts/audit-worker-dependencies\.ts$|\.github/workflows/deploy\.yml$)' artifacts/changed-files.txt; then
+            echo "should_deploy=true" >> "$GITHUB_OUTPUT"
+            echo "Worker runtime/configuration changed: deploying worker."
+            exit 0
+          fi
+
+          # The dependency file is generated from the current deployed entrypoint,
+          # so newly-added transitive imports are picked up automatically.
+          if grep -Fxf artifacts/deno-worker-dependencies.txt artifacts/changed-files.txt >/dev/null 2>&1; then
+            echo "should_deploy=true" >> "$GITHUB_OUTPUT"
+            echo "A deployed worker dependency changed: deploying worker."
+            exit 0
+          fi
+
+          echo "should_deploy=false" >> "$GITHUB_OUTPUT"
+          echo "No deployed worker dependency changed: skipping Deno deploy."
 
       - name: Worker Typecheck
-        run: bun run worker:deno:check
+        if: steps.impact.outputs.should_deploy == 'true'
+        run: deno check workers/deno-background/main.ts
 
       - name: Configure Target Environment
+        if: steps.impact.outputs.should_deploy == 'true'
         run: |
           if [ "${{ github.ref_name }}" = "main" ]; then
             echo "APP_NAME=zyx-background" >> $GITHUB_ENV
@@ -62,6 +157,7 @@ jobs:
           fi
 
       - name: Provision Deno Deploy App (if not exists)
+        if: steps.impact.outputs.should_deploy == 'true'
         env:
           DENO_DEPLOY_TOKEN: ${{ secrets.DENO_DEPLOY_TOKEN }}
         run: |
@@ -76,6 +172,7 @@ jobs:
             || echo "App $APP_NAME already exists or initialized."
 
       - name: Sync Environment Variables to Deno Deploy
+        if: steps.impact.outputs.should_deploy == 'true'
         env:
           DENO_DEPLOY_TOKEN: ${{ secrets.DENO_DEPLOY_TOKEN }}
           SECRET_DATABASE_URL: ${{ secrets.DATABASE_URL }}
@@ -125,12 +222,14 @@ jobs:
           rm -f .env.deploy .env.deploy.filtered
 
       - name: Deploy Worker to Deno Deploy
+        if: steps.impact.outputs.should_deploy == 'true'
         env:
           DENO_DEPLOY_TOKEN: ${{ secrets.DENO_DEPLOY_TOKEN }}
         run: |
           deno run -A jsr:@deno/deploy --non-interactive --org soezyxst --app $APP_NAME --prod
 
       - name: Verify Worker Health Check
+        if: steps.impact.outputs.should_deploy == 'true'
         run: |
           echo "Verifying healthcheck at $APP_URL/health..."
           for i in {1..12}; do
@@ -146,6 +245,7 @@ jobs:
           exit 1
 
       - name: Automated Inngest App Sync
+        if: steps.impact.outputs.should_deploy == 'true'
         env:
           INNGEST_SIGNING_KEY: ${{ secrets.INNGEST_SIGNING_KEY }}
         run: |

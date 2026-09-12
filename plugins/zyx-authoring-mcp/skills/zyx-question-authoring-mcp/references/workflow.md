@@ -1,12 +1,12 @@
 # Question authoring MCP reference
 
+Baca bersama [question-quality.md](question-quality.md). File ini menjelaskan kontrak/tool; `question-quality.md` menentukan quality gate author.
+
 ## Host setup
 
-Endpoint MCP: `https://staging.zyxacademy.com/api/mcp/authoring`
+Gunakan koneksi/environment yang dipilih operator. Endpoint `https://staging.zyxacademy.com/api/mcp/authoring` hanya untuk staging; jangan berpindah environment karena menyalin contoh ini. Verifikasi identitas environment dari koneksi sebelum staging.
 
-- Claude Desktop atau Claude Code: pasang plugin `zyx-authoring-mcp` yang membawa `.mcp.json` dan skills, atau tambah remote connector dengan URL di atas. OAuth admin Zyx dibuka otomatis pada host yang mendukung.
-- ChatGPT: aktifkan Developer mode pada Settings, tambah connector bertipe MCP dengan URL di atas, lalu autentikasi lewat OAuth. Jika host tidak mendukung OAuth interaktif, minta admin Zyx membuat connection token 30 hari lewat `POST /api/mcp/authoring/connection` saat sesi admin aktif dan gunakan sebagai Bearer token (token terikat pada sesi Better Auth dan peran admin aktif, dapat kedaluwarsa lebih awal, dan tidak pernah bersifat permanen). Tempel isi SKILL.md ke instructions custom GPT atau project agar alur tool dipatuhi; buang frontmatter YAML karena hanya dibutuhkan loader skill Claude, dan ganti tautan `references/workflow.md` pada langkah pertama dengan file ini bila ikut ditempel.
-- Jangan pernah menyimpan connection token di file konfigurasi atau repositori.
+Gunakan OAuth admin pada host yang mendukung. Host tanpa OAuth interaktif memakai connection token sesuai prosedur Zyx; jangan simpan credential/token di repository, artifact, atau config yang dikomit.
 
 ## Tool sequence
 
@@ -16,118 +16,153 @@ catalog.list_courses
 catalog.list_chapters { courseKey }
 workflow.start { workflow: "quiz_bank", courseKey, chapterKey, sourcePackToken? }
 workflow.get_contract { runToken }
+
 assessment.list_ideas { runToken, query?, knowledgeKinds?, instructionalRoles?, difficultyLevels?, limit?, offset? }
 assessment.get_idea { runToken, ideaId }
-assessment.validate_quiz_draft { runToken, draftJson }   // ulangi sampai valid
-assessment.submit_quiz_draft { runToken, draftJson }     // butuh scope authoring:stage
 
-// Inspeksi dan pengeditan soal yang sudah ada:
 assessment.list_questions { runToken, query?, difficulty?, cognitiveLevel?, questionType?, origin?, status?, limit?, offset? }
 assessment.get_question { runToken, questionId }
 assessment.analyze_bank { runToken }
-assessment.update_question { runToken, questionId, question, ideaLinks } // butuh scope authoring:stage
+
+assessment.list_reference_questions { runToken, query?, ideaId?, chapterKey?, assessmentType?, year?, institution?, difficulty?, cognitiveLevel?, questionType?, quizEligible?, status?, limit?, offset? }
+assessment.get_reference_question { runToken, questionId }
+
+assessment.validate_quiz_draft { runToken, draftJson }
+assessment.submit_quiz_draft { runToken, draftJson }  // authoring:stage
+assessment.update_question { runToken, questionId, question, ideaLinks } // authoring:stage
 ```
 
-`workflow.start` tanpa `sourcePackToken` sah untuk quiz_bank. Dengan Source Pack opsional dari PDF course tersimpan, jalankan urutan `$zyx-source-pack-mcp`: `source.list_files`, `source.read_file`, lalu `source.ingest` dengan `storedOriginals`. Sertakan `sourcePackToken` pada `workflow.start` dengan course dan chapter yang sama. Jalur file lokal memakai `originals` dan tetap didukung.
+Daftar argumen di atas mengikuti tool registry saat skill ini ditulis. `workflow.get_contract` dan tool schema aktif tetap menang bila contract berubah. Jangan menebak field yang tidak tersedia.
+
+`workflow.start` tanpa Source Pack sah untuk `quiz_bank`. Bila Source Pack dipakai, course/chapter harus sama dengan scope run.
 
 ## Katalog Idea
 
-Respons `assessment.list_ideas` memuat:
+`assessment.list_ideas` memberi published Idea dalam scope, beserta facets dan paging. Gunakan query/filter untuk discovery dan `paging.nextOffset` sampai kandidat target cukup dipahami.
 
-- `scope`: label mata kuliah dan bab yang dikunci.
-- `totalIdeaCount` dan `ideaCount`: total published di scope dan jumlah hasil filter.
-- `ideas`: halaman berisi id, code, statement, explanation, latex, knowledgeKind, instructionalRole, difficultyLevel, version, semanticHash.
-- `facets`: hitungan per knowledgeKind, instructionalRole, dan difficultyLevel untuk menyaring iterasi berikutnya.
-- `paging.nextOffset`: kirim sebagai `offset` berikutnya bila tidak null.
+`assessment.get_idea` dipakai untuk memeriksa statement, explanation, latex, prerequisite/relation, provenance, version, dan semantic hash sebelum menautkan soal.
 
-Filter bersifat kombinasi DAN. Gunakan `query` untuk kata kunci teks bebas atas code, statement, explanation, dan latex.
+### Aturan authoring vs kompatibilitas legacy
 
-`assessment.get_idea` menambahkan relations aktif (arah outgoing dan incoming beserta code Idea pasangan) dan ringkasan provenance. Manfaatkan relasi prerequisite untuk memastikan soal tidak menuntut Ide yang belum diajarkan.
+Schema storage/draft dapat tetap membaca soal lama tanpa `ideaLinks`. Itu **bukan izin** untuk authoring baru.
 
-## Draft contract
+Untuk setiap soal baru atau `zyx_original` yang diperbarui melalui skill:
 
-Schema `question-bank-draft.v2`, maksimal 500 soal:
+- minimal satu Idea published dalam scope wajib ditautkan;
+- tepat satu link `role: "primary"` dipilih untuk target utama;
+- supporting/required link hanya bila benar-benar dibutuhkan;
+- bobot positif seluruh `ideaLinks` harus berjumlah tepat 1; satu Idea memakai bobot 1. Untuk beberapa Idea, tentukan bagian penalaran yang dinilai tiap Idea, normalkan proporsinya, dan periksa total setelah pembulatan. Jangan memberi link pada konsep yang hanya disebut dalam cerita;
+- Idea yang sama tidak boleh muncul dua kali.
+
+Jika MCP masih menerima unlinked question karena kompatibilitas, author preflight harus menolaknya.
+
+## Existing bank dan gap analysis
+
+Sebelum membuat soal untuk satu Idea:
+
+1. `assessment.list_questions` dengan `origin: "zyx_original"` dan filter yang relevan;
+2. buka detail yang perlu dibandingkan dengan `assessment.get_question`;
+3. gunakan `assessment.analyze_bank` untuk distribusi/coverage agregat bila membantu;
+4. catat gap substantif, bukan sekadar jumlah soal.
+
+Gap yang sah antara lain: belum ada target tertentu, cognitive level berbeda, reasoning pattern penting, question type yang sesuai, difficulty yang diperlukan, representasi lain, atau miskonsepsi yang belum diuji.
+
+Perubahan angka/konteks tanpa perubahan target/reasoning bukan gap.
+
+## Batas bukti katalog dan Artikel
+
+`assessment.list_questions` tidak menjamin semua soal target tercakup oleh pencarian judul. Gunakan paging, filter scope/origin, dan detail Idea links untuk kandidat pembanding. Catat filter, halaman terakhir/next offset, dan jumlah detail dibaca. Bila cakupan belum lengkap, sebut “tidak ditemukan duplikat pada kandidat yang diperiksa”, bukan “bank bebas duplikat”. Lanjutkan pemeriksaan yang diperlukan sebelum mengklaim gap di seluruh scope.
+
+`knowledge.list_products`/`knowledge.get_product` dapat membantu menemukan identitas Artikel bila tersedia pada run. Saat skill ini ditulis, detail Artikel hanya mengembalikan metadata dan Idea links, bukan body bacaan. Gunakan artifact Artikel atau resource isi yang benar-benar tersedia untuk alignment; jangan mengarang tool baca Artikel, parameter `includeContent`, atau menyimpulkan coverage isi dari `ideaCount`.
+
+Historical reference yang kosong bukan blocker soal original. Jika referensi tidak tersedia, lanjutkan gap analysis dari Idea dan bank yang terbaca, lalu laporkan lineage kosong. Hentikan hanya bila referensi spesifik memang menjadi prasyarat permintaan.
+
+## Historical reference sebagai konteks read-only
+
+Gunakan `assessment.list_reference_questions { runToken, ideaId, limit: 10 }` untuk discovery per Idea. Batas skill: maksimal 10 hasil list per Idea dan maksimal 5 detail per Idea. Buka detail dengan `assessment.get_reference_question { runToken, questionId }`.
+
+Baca source attribution, answer/solution provenance, Idea links, bentuk soal, dan detail yang diperlukan untuk memahami pola ujian. Historical row tidak boleh diedit melalui `quiz_bank`.
+
+Jika soal original memiliki hubungan nyata ke reference, isi `referenceLinks` pada **draft** sesuai contract aktif dengan role:
+
+- `inspired_by` untuk pengaruh pola/tema umum;
+- `adapted_from` untuk struktur masalah yang dekat tetapi menjadi soal original;
+- `derived_from` untuk turunan kuat yang membutuhkan lineage eksplisit.
+
+`assessment.update_question` saat ini hanya menerima `question` dan `ideaLinks`; jangan mengarang `referenceLinks` pada tool update. Bila lineage existing question perlu diubah tetapi tool aktif tidak mendukungnya, berhenti dan laporkan batas tool.
+
+Jika operator ingin menyimpan wording historical verbatim, berhenti dan gunakan `$reference-question-ingest`.
+
+## Draft `question-bank-draft.v2`
+
+Envelope draft berisi 1 sampai 500 soal menurut schema saat skill ini ditulis. Jika jumlah melebihi batas aktif, bagi menjadi draft dengan identity berbeda yang stabil, tetap dedup lintas batch, dan laporkan total. Contoh lengkap struktur:
 
 ```json
 {
   "schemaVersion": "question-bank-draft.v2",
-  "draftId": "draft-2026-08-21-kalkulus-bab1",
+  "draftId": "draft-example-01",
   "questions": [
     {
-      "id": "q-limit-01",
+      "id": "q-example-01",
       "questionType": "multiple_choice",
-      "difficulty": "medium",
+      "difficulty": "easy",
       "cognitiveLevel": "apply",
       "reasoningPattern": "direct_application",
-      "tags": ["limit-barisan"],
-      "prompt": "Teks pertanyaan.",
-      "options": ["Opsi A", "Opsi B", "Opsi C", "Opsi D"],
+      "tags": ["pertaksamaan-linear"],
+      "prompt": "Selesaikan -2x > 6.",
+      "options": ["x > -3", "x < -3", "x < 3", "x > 3"],
       "correctIndices": [1],
       "acceptableAnswers": [],
-      "explanation": "Pembahasan lengkap.",
+      "explanation": "Bagi kedua ruas dengan -2. Karena pembaginya negatif, arah pertaksamaan berbalik sehingga x < -3. Nilai x = -4 memberi 8 > 6, sedangkan batas x = -3 tidak memenuhi pertaksamaan ketat. Opsi pertama gagal membalik arah; opsi ketiga salah tanda batas; opsi keempat salah tanda sekaligus arah.",
       "ideaLinks": [
-        { "ideaId": "<dari katalog>", "weight": 0.7, "role": "primary" },
-        { "ideaId": "<dari katalog>", "weight": 0.3, "role": "supporting" }
-      ]
+        { "ideaId": "REPLACE_WITH_PUBLISHED_SCOPED_IDEA", "weight": 1, "role": "primary" }
+      ],
+      "referenceLinks": []
     }
   ]
 }
 ```
 
-Nilai yang diizinkan:
+Contoh envelope di atas hanya ilustrasi. Ganti identity lokal sesuai aturan idempotency dan placeholder Idea dengan hasil katalog; jangan submit contoh mentah atau memakai topiknya di luar scope. Gunakan `draftJson` berupa serialisasi envelope lengkap, bukan array `questions` saja.
 
-| Field | Nilai |
-|---|---|
-| questionType | multiple_choice, multiple_choices, short_answer, essay |
-| difficulty | easy, medium, hard |
-| cognitiveLevel | remember, understand, apply, analyze, evaluate, create |
-| ideaLinks[].role | primary, supporting, required |
-| tags | string singkat huruf kecil, konsisten antar soal |
+Untuk `short_answer`/`essay`, `options` dan `correctIndices` kosong. Short answer memiliki `acceptableAnswers` yang terverifikasi; essay memakai pembahasan/model jawaban dan tidak mengarang kunci deterministik. Untuk MC/multi-select, `acceptableAnswers` kosong dan indeks harus cocok dengan opsi final.
 
-Aturan tautan:
+`workflow.get_contract` dan tool schema aktif menang untuk field/enum aktual.
 
-1. Tautan bersifat opsional tetapi sangat disarankan; soal tanpa tautan tetap valid.
-2. Bobot positif semua ideaLinks satu soal harus berjumlah tepat 1.
-3. Idea wajib published, satu mata kuliah, dan satu bab dengan run.
-4. Satu Idea tidak boleh muncul dua kali pada soal yang sama.
+## Author preflight sebelum MCP
+
+Sebelum `assessment.validate_quiz_draft`, setiap soal wajib lulus checklist `question-quality.md`, termasuk:
+
+- satu target utama;
+- Idea link wajib;
+- cognitive level/difficulty/type selaras;
+- kunci diverifikasi;
+- distractor masuk akal;
+- tidak semantic duplicate;
+- lineage historical jujur;
+- explanation lengkap;
+- tidak ada internal-ID leak atau fakta tak terlacak.
+
+Jangan memakai MCP validator sebagai first-pass editor.
 
 ## Validasi dan submit
 
-`assessment.validate_quiz_draft` mengembalikan seluruh temuan dalam satu panggilan, bukan satu per satu:
+`assessment.validate_quiz_draft` mengembalikan blocking issues, warnings, dan stats. Perbaiki blocking issue serta warning substantif. Setelah setiap revisi:
 
-- `issues`: blocking, wajib nol sebelum submit.
-- `warnings`: misalnya QUESTION_COVERAGE_GAP untuk Idea belum tercover dan QUESTION_EXPLANATION_EMPTY.
-- `stats`: distribusi difficulty, cognitive level, question type, frekuensi tag, dan coverage per Idea.
+1. ulangi author preflight;
+2. validasi ulang;
+3. submit hanya jika kedua gate lulus dan operator mengizinkan staging.
 
-Perbaiki draft, validasi ulang, lalu submit. Respons submit memuat `createdCount`, `existingCount`, `questionIds`, warnings tersisa, dan `next: "admin_review"`. Tidak ada tool MCP yang dapat publish; publikasi hanya oleh admin.
+`QUESTION_COVERAGE_GAP` adalah sinyal untuk meninjau gap, bukan perintah membuat filler. `QUESTION_EXPLANATION_EMPTY` harus diperlakukan sebagai author failure walau server mengategorikannya warning.
 
-## Pengeditan soal (assessment.update_question)
+## Pengeditan
 
-Gunakan `assessment.update_question` untuk memperbarui soal yang sudah ada dalam scope run:
+`assessment.update_question` hanya untuk `zyx_original` yang editable dalam scope. Jangan edit `historical_reference`, `itb_example`, published/retired item yang ditolak lifecycle, atau item di luar scope. Sebelum update, ambil detail terbaru, jalankan preflight, dan validasi representasi draft revisinya bila tool mendukung. Jangan baru memeriksa isi setelah mutation. Setelah update, baca kembali item untuk mencocokkan field, Idea links, dan reset review status sesuai service.
 
-1. Hanya berlaku untuk soal bertipe `origin = "zyx_original"`. Soal contoh ITB (`itb_example`) bersifat immutable dan menghasilkan error `QUESTION_AUTHORING_ITB_IMMUTABLE`.
-2. Hanya berlaku untuk soal canonical berstatus `draft` atau `in_review`. Soal yang sudah `published` atau `retired` menghasilkan error `AUTHORING_MCP_QUESTION_EDIT_DRAFT_REQUIRED`.
-3. Setelah update berhasil, status soal direset menjadi `reviewStatus = "generated"` untuk review admin ulang.
+## Error handling
 
-## Error codes dan tindakan
+Ikuti error code MCP. Jangan memperbaiki error scope dengan menebak ID, mengganti identity, atau membuat duplicate row. Token expired → mulai/refresh run sesuai tool. Idea stale/not found → query ulang katalog. Historical reference tidak dapat ditelusuri → jangan mengarang lineage.
 
-| Code | Arti | Tindakan |
-|---|---|---|
-| AUTHORING_MCP_WORKFLOW_MISMATCH | Run bukan quiz_bank | Mulai run baru dengan workflow quiz_bank |
-| AUTHORING_MCP_IDEA_NOT_IN_SCOPE | Idea tidak published atau di luar scope | Pilih ulang dari assessment.list_ideas |
-| AUTHORING_MCP_QUESTION_NOT_IN_SCOPE | Soal di luar mata kuliah atau bab terkunci | Periksa questionId pada scope run yang sesuai |
-| AUTHORING_MCP_QUESTION_EDIT_DRAFT_REQUIRED | Soal sudah published atau retired | Hanya soal draft yang dapat diedit via tool ini |
-| QUESTION_AUTHORING_ITB_IMMUTABLE | Soal contoh ITB tidak boleh diedit | Buat soal zyx_original baru untuk materi ini |
-| QUESTION_BANK_DRAFT_DUPLICATE_ID | ID soal ganda dalam draft | Beri ID unik per soal |
-| QUESTION_AUTHORING_INVALID_QUESTION | Struktur soal tidak lengkap | Ikuti pesan, misal opsi minimal dua |
-| QUESTION_AUTHORING_DUPLICATE_ANSWER | Kunci jawaban ganda | Satu indeks unik untuk multiple_choice |
-| QUESTION_AUTHORING_DUPLICATE_IDEA | Idea sama dua kali di satu soal | Hapus duplikat |
-| QUESTION_AUTHORING_IDEA_WEIGHT_INVALID | Total bobot bukan 1 | Normalisasi bobot positif menjadi 1 |
-| QUESTION_AUTHORING_IDEA_NOT_FOUND | ideaId tidak ada | Salin ulang dari katalog terbaru |
-| QUESTION_AUTHORING_IDEA_NOT_PUBLISHED | Idea belum published | Ganti Idea published lain |
-| QUESTION_AUTHORING_IDEA_COURSE_MISMATCH | Idea beda mata kuliah | Ganti dari katalog scope |
-| QUESTION_AUTHORING_IDEA_CHAPTER_MISMATCH | Idea beda bab | Ganti dari katalog scope |
-| AUTHORING_MCP_TOKEN_EXPIRED | Run token kedaluwarsa (7 hari) | workflow.start ulang |
-| AUTHORING_MCP_SCOPE_REQUIRED | Scope token kurang | Minta koneksi dengan authoring:stage untuk submit/update |
+## Stop condition
 
-Draft yang sudah staged atau diperbarui berstatus generated dan ditinjau admin di alur review bank soal.
+MCP tidak memiliki publication tool. Output submit/update tetap menunggu admin review. `valid`, `generated`, atau `admin_review` bukan `published`.

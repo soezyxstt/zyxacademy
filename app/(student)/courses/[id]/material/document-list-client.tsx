@@ -77,6 +77,8 @@ const categoryLabel: Record<string, string> = {
   diktat: "Diktat",
 };
 
+const MAX_THUMBNAIL_RETRIES = 8;
+
 const emptyFilters = (): DocumentFilterState => ({
   categories: new Set(),
   subcategories: new Set(),
@@ -190,8 +192,42 @@ function DocumentPlaceholder({
 function DocumentPreview({ material }: { material: CourseMaterial }) {
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
+  const [retryAttempt, setRetryAttempt] = useState(0);
+  const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const hasThumbnail = Boolean(material.thumbnailUrl) && !imageError;
+  const baseThumbnailUrl = material.thumbnailUrl ?? "";
+  const isRetryableThumbnail = baseThumbnailUrl.includes("/thumbnail");
+  const thumbnailSrc =
+    baseThumbnailUrl && retryAttempt > 0
+      ? `${baseThumbnailUrl}${baseThumbnailUrl.includes("?") ? "&" : "?"}retry=${retryAttempt}`
+      : baseThumbnailUrl;
+  const hasThumbnail = Boolean(baseThumbnailUrl) && !imageError;
+
+  useEffect(() => {
+    setImageLoaded(false);
+    setImageError(false);
+    setRetryAttempt(0);
+  }, [baseThumbnailUrl]);
+
+  useEffect(() => {
+    return () => {
+      if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
+    };
+  }, []);
+
+  const handleThumbnailError = () => {
+    if (!isRetryableThumbnail || retryAttempt >= MAX_THUMBNAIL_RETRIES) {
+      setImageError(true);
+      return;
+    }
+
+    if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
+    const delayMs = Math.min(750 * 2 ** retryAttempt, 5000);
+    retryTimerRef.current = setTimeout(() => {
+      setImageLoaded(false);
+      setRetryAttempt((current) => current + 1);
+    }, delayMs);
+  };
 
   return (
     <div className="relative flex aspect-[16/10] w-full items-center justify-center overflow-hidden bg-muted/15 select-none sm:aspect-[4/3]">
@@ -215,16 +251,18 @@ function DocumentPreview({ material }: { material: CourseMaterial }) {
         <div className="relative z-10 size-full p-2.5">
           <div className="relative size-full overflow-hidden rounded-xs bg-white shadow-xs ring-1 ring-black/5 dark:ring-white/10">
             <Image
-              src={material.thumbnailUrl!}
+              key={thumbnailSrc}
+              src={thumbnailSrc}
               alt={`Pratinjau ${material.title}`}
               fill
+              unoptimized={isRetryableThumbnail}
               sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
               className={cn(
                 "object-contain object-center transition-all duration-200 group-hover:scale-[1.015]",
                 imageLoaded ? "opacity-100" : "opacity-0"
               )}
               onLoad={() => setImageLoaded(true)}
-              onError={() => setImageError(true)}
+              onError={handleThumbnailError}
             />
           </div>
         </div>

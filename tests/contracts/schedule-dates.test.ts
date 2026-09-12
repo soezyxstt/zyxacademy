@@ -32,57 +32,58 @@ describe("Schedule Date Utilities Contract", () => {
   test("parseDateInput handles ISO date string, standard string, and Date object", () => {
     const fromIso = parseDateInput("2026-08-24");
     expect(fromIso.getUTCFullYear()).toBe(2026);
-    expect(fromIso.getUTCMonth()).toBe(7); // August is month 7 (0-indexed)
+    expect(fromIso.getUTCMonth()).toBe(7);
     expect(fromIso.getUTCDate()).toBe(24);
 
     const fromDate = parseDateInput(new Date(2026, 7, 24));
-    expect(fromDate.getFullYear()).toBe(2026);
+    expect(fromDate instanceof Date).toBe(true);
   });
 
-  test("getMondayOfWeek correctly determines the Monday of the given week", () => {
-    // 2026-08-26 is a Wednesday. Monday should be 2026-08-24.
-    const wednesday = new Date(2026, 7, 26, 10, 0, 0);
-    const mondayFromWed = getMondayOfWeek(wednesday);
-    expect(mondayFromWed.getDate()).toBe(24);
-    expect(mondayFromWed.getDay()).toBe(1); // 1 = Monday
+  test("getMondayOfWeek returns a neutral Monday without changing calendar identity", () => {
+    const mondayFromWed = getMondayOfWeek("2026-08-26");
+    expect(mondayFromWed.toISOString()).toBe("2026-08-24T12:00:00.000Z");
 
-    // 2026-08-30 is a Sunday. Monday should be 2026-08-24.
-    const sunday = new Date(2026, 7, 30, 10, 0, 0);
-    const mondayFromSun = getMondayOfWeek(sunday);
-    expect(mondayFromSun.getDate()).toBe(24);
-    expect(mondayFromSun.getDay()).toBe(1);
+    const mondayFromSun = getMondayOfWeek("2026-08-30");
+    expect(mondayFromSun.toISOString()).toBe("2026-08-24T12:00:00.000Z");
   });
 
-  test("getWeeklyLockCutoff returns Saturday 23:59:59 preceding the target session week", () => {
-    // For week starting Monday 2026-08-24, cutoff is Saturday 2026-08-22 23:59:59.999
+  test("getWeeklyLockCutoff returns Saturday 23:59:59.999 WIB preceding the target week", () => {
     const cutoff = getWeeklyLockCutoff("2026-08-24");
-    expect(cutoff.getDay()).toBe(6); // Saturday
-    expect(cutoff.getHours()).toBe(23);
-    expect(cutoff.getMinutes()).toBe(59);
-    expect(cutoff.getSeconds()).toBe(59);
-    expect(cutoff.getMilliseconds()).toBe(999);
+    expect(cutoff.toISOString()).toBe("2026-08-22T16:59:59.999Z");
   });
 
-  test("isSessionLocked verifies cutoff correctly", () => {
+  test("isSessionLocked verifies the exact instant correctly", () => {
     const sessionDate = "2026-08-24";
     const cutoff = getWeeklyLockCutoff(sessionDate);
-
-    // 1 hour before cutoff -> not locked
-    const beforeCutoff = new Date(cutoff.getTime() - 3600000);
-    expect(isSessionLocked(sessionDate, beforeCutoff)).toBe(false);
-
-    // 1 hour after cutoff -> locked
-    const afterCutoff = new Date(cutoff.getTime() + 3600000);
-    expect(isSessionLocked(sessionDate, afterCutoff)).toBe(true);
+    expect(isSessionLocked(sessionDate, new Date(cutoff.getTime() - 1))).toBe(false);
+    expect(isSessionLocked(sessionDate, cutoff)).toBe(false);
+    expect(isSessionLocked(sessionDate, new Date(cutoff.getTime() + 1))).toBe(true);
   });
 
-  test("getWeekScheduleDays returns 7 days starting from Monday", () => {
+  test("getWeekScheduleDays preserves Monday-Sunday date identity", () => {
     const result = getWeekScheduleDays("2026-08-24");
     expect(result.days).toHaveLength(7);
     expect(result.days[0].dayName).toBe("Senin");
+    expect(result.days[0].dateIso).toBe("2026-08-24");
     expect(result.days[6].dayName).toBe("Minggu");
+    expect(result.days[6].dateIso).toBe("2026-08-30");
     expect(result.startOfWeekIso).toBe("2026-08-24");
     expect(result.endOfWeekIso).toBe("2026-08-30");
+  });
+
+  test("14-20 September never shifts to 13-19 September", () => {
+    const result = getWeekScheduleDays("2026-09-14");
+    expect(result.startOfWeekIso).toBe("2026-09-14");
+    expect(result.endOfWeekIso).toBe("2026-09-20");
+    expect(result.days.map((day) => day.dateIso)).toEqual([
+      "2026-09-14",
+      "2026-09-15",
+      "2026-09-16",
+      "2026-09-17",
+      "2026-09-18",
+      "2026-09-19",
+      "2026-09-20",
+    ]);
   });
 
   test("schedule-lock re-exports match date-utils exports", () => {

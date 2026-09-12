@@ -1,0 +1,19 @@
+.root :global(.session-card) {
+  min-width: 0;
+}
+
+.root :global(.session-card .truncate) {
+  display: -webkit-box !important;
+  overflow: hidden !important;
+  white-space: normal !important;
+  text-overflow: clip !important;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-height: 1.2;
+}
+
+.root :global(.session-card button),
+.root :global(.session-card a) {
+  position: relative;
+  z-index: 1;
+}

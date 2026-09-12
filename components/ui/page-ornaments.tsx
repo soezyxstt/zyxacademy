@@ -100,14 +100,16 @@ type ShapeSpec = {
 function hexPoints(cx: number, cy: number, r: number, angleDeg = 30): string {
   return Array.from({ length: 6 }, (_, i) => {
     const a = ((i * 60 + angleDeg) * Math.PI) / 180;
-    return `${cx + r * Math.cos(a)},${cy + r * Math.sin(a)}`;
+    // Keep SVG attributes identical across server and browser math engines.
+    return `${(cx + r * Math.cos(a)).toFixed(3)},${(cy + r * Math.sin(a)).toFixed(3)}`;
   }).join(" ");
 }
 
 function triPoints(cx: number, cy: number, r: number, angleDeg = 0): string {
   return Array.from({ length: 3 }, (_, i) => {
     const a = ((i * 120 + angleDeg) * Math.PI) / 180;
-    return `${cx + r * Math.cos(a)},${cy + r * Math.sin(a)}`;
+    // Keep SVG attributes identical across server and browser math engines.
+    return `${(cx + r * Math.cos(a)).toFixed(3)},${(cy + r * Math.sin(a)).toFixed(3)}`;
   }).join(" ");
 }
 

@@ -28,6 +28,7 @@
     "date-fns": "npm:date-fns@^4.4.0",
     "katex": "npm:katex@^0.17.0",
     "pdf-parse": "npm:pdf-parse@^2.4.5",
+    "@napi-rs/canvas": "npm:@napi-rs/canvas@^1.0.8",
     "resend": "npm:resend@^6.14.0",
     "fuse.js": "npm:fuse.js@^7.4.2",
     "@aws-sdk/client-s3": "npm:@aws-sdk/client-s3@^3.1071.0",

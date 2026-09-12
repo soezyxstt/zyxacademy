@@ -1,4 +1,21 @@
 import { env } from "@/lib/env";
+import { getJakartaCalendarDate } from "@/lib/date-utils";
+import type { PlanKey } from "@/lib/plan-tiers";
+
+export const INTRO_PRICE_START = "2026-09-12";
+export const REGULAR_PRICE_START = "2026-10-12";
+export const INTRO_DISCOUNT_PERCENT = 40;
+export type PlanPricingPhase = "before" | "intro" | "regular";
+
+export function getPlanPricingPhase(now: Date = new Date()): PlanPricingPhase {
+  const day = getJakartaCalendarDate(now);
+  return day < INTRO_PRICE_START ? "before" : day < REGULAR_PRICE_START ? "intro" : "regular";
+}
+
+export function formatPlanPrice(amount: number): string {
+  return "Rp " + amount.toLocaleString("id-ID");
+}
+
 
 // ==========================================
 // 1. CONSTANTS
@@ -52,7 +69,7 @@ export const getTutorialCost = (meetCount: number, baseConstant: number, persons
 /**
  * Calculates the total price for a given plan reactively.
  */
-export const calculatePlanPrice = (
+const calculateIntroductoryPrice = (
   plan: 'free' | 'minimal' | 'essential' | 'premium' | 'custom',
   persons: number,
   courses: number
@@ -92,6 +109,26 @@ export const calculatePlanPrice = (
   return roundedInThousands * 1000;
 };
 
+export function getPlanPriceQuote(
+  plan: PlanKey,
+  persons: number,
+  courses: number,
+  phase: PlanPricingPhase = getPlanPricingPhase(),
+) {
+  const introductoryPrice = calculateIntroductoryPrice(plan, persons, courses);
+  // Whole Rupiah, rounded up so the advertised saving is at least 40%.
+  const regularPrice = Math.ceil(introductoryPrice * 100 / (100 - INTRO_DISCOUNT_PERCENT));
+  return {
+    price: phase === "regular" ? regularPrice : introductoryPrice,
+    regularPrice,
+    isIntroductory: phase === "intro" && introductoryPrice > 0,
+  };
+}
+
+export function calculatePlanPrice(plan: PlanKey, persons: number, courses: number, now: Date = new Date()): number {
+  return getPlanPriceQuote(plan, persons, courses, getPlanPricingPhase(now)).price;
+}
+
 // ==========================================
 // 3. WHATSAPP LINK GENERATOR
 // ==========================================
@@ -104,7 +141,8 @@ export const getWhatsAppPlanUrl = (
   planName: string,
   persons: number,
   courses: number,
-  selectedCourses?: string[]
+  selectedCourses?: string[],
+  phase: PlanPricingPhase = getPlanPricingPhase(),
 ): string => {
   // Try reading the public whatsapp number from environment variables
   // Since client component needs to run, we check both public and admin env variables.
@@ -124,5 +162,13 @@ export const getWhatsAppPlanUrl = (
     message = `Halo Admin, saya ingin mendaftar paket ${planName} untuk grup berisi ${persons} orang dengan total ${courses} mata kuliah${courseDetails}.`;
   }
   
+  if (planKey !== "custom" && planKey !== "free") {
+    const quote = getPlanPriceQuote(planKey, persons, courses, phase);
+    message += ` Total paket per semester: ${formatPlanPrice(quote.price)}.`;
+    if (quote.isIntroductory) {
+      message += ` Harga perkenalan hemat 40% berlaku sampai 11 Oktober 2026 pukul 23.59 WIB. Harga reguler mulai 12 Oktober 2026: ${formatPlanPrice(quote.regularPrice)}. Mohon konfirmasi harga saat pembayaran.`;
+    }
+  }
+
   return `https://wa.me/${digits}?text=${encodeURIComponent(message)}`;
 };

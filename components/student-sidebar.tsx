@@ -72,6 +72,8 @@ export function StudentSidebar({
     return () => window.removeEventListener("popstate", readCourseId);
   }, [pathname]);
 
+  // Route context is authoritative for the sidebar mode. Course metadata may load later,
+  // but the shell must switch on the same render as the route itself.
   const activeCourseId = courseIdFromPath ?? courseIdFromSchedule;
 
   const [activeCourse, setActiveCourse] = useState<any>(undefined);
@@ -79,6 +81,12 @@ export function StudentSidebar({
   const [enrolledCourses, setEnrolledCourses] = useState<StudentEnrollment[]>([]);
   const [streakCurrent, setStreakCurrent] = useState<number | null>(null);
   const [weeklyActivity, setWeeklyActivity] = useState<boolean[]>([]);
+
+  const enrolledActiveCourse = activeCourseId
+    ? enrolledCourses.find((course) => course.id === activeCourseId)
+    : undefined;
+  const activeCourseMetadata = enrolledActiveCourse
+    ?? (activeCourse?.id === activeCourseId ? activeCourse : undefined);
 
   useEffect(() => {
     if (!activeCourseId) {
@@ -90,13 +98,19 @@ export function StudentSidebar({
       setActiveCourse(enrolled);
       return;
     }
+
+    // Clear stale metadata immediately. navContent still renders course mode from
+    // activeCourseId, so switching A -> B cannot flash A or the general sidebar.
+    setActiveCourse(undefined);
+    let cancelled = false;
     getCourseAction(activeCourseId)
       .then((course) => {
-        if (course) {
-          setActiveCourse(course);
-        }
+        if (!cancelled && course) setActiveCourse(course);
       })
       .catch(console.error);
+    return () => {
+      cancelled = true;
+    };
   }, [activeCourseId, enrolledCourses]);
 
   useEffect(() => {
@@ -137,7 +151,61 @@ export function StudentSidebar({
   };
 
   const navContent = (c: boolean) => {
-    if (activeCourse) {
+    if (activeCourseId) {
+      const base = `/courses/${activeCourseId}`;
+      const isPka = activeCourseId === PKA_COURSE_ID;
+      const courseTitle = activeCourseMetadata?.title ?? "Memuat mata kuliah…";
+      const courseCategory = activeCourseMetadata?.category ?? "Kelas";
+
+      const primaryItems: Array<{
+        href: string;
+        icon: typeof LayoutDashboard;
+        label: string;
+        exact?: boolean;
+        customActive?: boolean;
+      }> = isPka
+        ? [
+            { href: base, icon: LayoutDashboard, label: "Ringkasan", exact: true },
+            { href: `${base}/jadwal`, icon: CalendarRange, label: "Jadwal" },
+            { href: `${base}/simulasi`, icon: ClipboardList, label: "Simulasi" },
+            { href: `${base}/laporan`, icon: BarChart3, label: "Laporan Diagnostik" },
+          ]
+        : [
+            { href: base, icon: LayoutDashboard, label: "Ringkasan", exact: true },
+            { href: `${base}/material`, icon: FileText, label: "Dokumen" },
+            { href: `${base}/quiz`, icon: ClipboardList, label: "Kuis" },
+            {
+              href: `/dashboard/schedule?course=${activeCourseId}`,
+              icon: CalendarRange,
+              label: "Jadwal",
+              customActive: pathname === "/dashboard/schedule" && courseIdFromSchedule === activeCourseId,
+            },
+          ];
+
+      const secondaryItems: Array<{
+        href: string;
+        icon: typeof LayoutDashboard;
+        label: string;
+        exact?: boolean;
+        badge?: string;
+      }> = isPka
+        ? [
+            { href: `${base}/flashcard`, icon: Brain, label: "Flashcard" },
+            { href: `${base}/quiz`, icon: ClipboardList, label: "Kuis" },
+            { href: `${base}/leaderboard`, icon: Trophy, label: "Peringkat" },
+            { href: `${base}/material`, icon: FileText, label: "Materi" },
+          ]
+        : [
+            { href: `${base}/flashcard`, icon: Brain, label: "Flashcard" },
+            { href: `${base}/tryout`, icon: GraduationCap, label: "Tryout" },
+            ...(showStudyPath ? [{ href: `${base}/path`, icon: Compass, label: "Alur Belajar" }] : []),
+            ...(showMastery ? [{ href: `${base}/mastery`, icon: Target, label: "Penguasaan" }] : []),
+            { href: `${base}/progress`, icon: BarChart3, label: "Progres" },
+            { href: `${base}/leaderboard`, icon: Trophy, label: "Peringkat" },
+            { href: `${base}/my-results`, icon: History, label: "Hasil Ujian" },
+            ...(showLive ? [{ href: `${base}/live`, icon: Play, label: "Kuis Langsung", badge: "Beta" }] : []),
+          ];
+
       return (
         <nav className={cn(
           "flex flex-1 flex-col gap-1 py-4 font-sans text-left",
@@ -167,10 +235,10 @@ export function StudentSidebar({
                 </span>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-body-xs font-bold text-foreground font-heading leading-tight">
-                    {activeCourse.title}
+                    {courseTitle}
                   </p>
                   <p className="truncate text-[10px] text-muted-foreground uppercase tracking-widest font-semibold mt-0.5">
-                    {activeCourse.category || "Kelas"}
+                    {courseCategory}
                   </p>
                 </div>
               </div>
@@ -178,99 +246,41 @@ export function StudentSidebar({
           )}
 
           <div className={cn("space-y-1", c && "w-full flex flex-col items-center")}>
-            {(() => {
-              const base = `/courses/${activeCourse.id}`;
-              const isPka = activeCourse.id === PKA_COURSE_ID;
+            {primaryItems.map((item) => (
+              <NavItem
+                key={item.href}
+                href={item.href}
+                icon={item.icon}
+                label={item.label}
+                active={item.customActive ?? (item.exact ? pathname === item.href : pathname.startsWith(item.href))}
+                collapsed={c}
+              />
+            ))}
 
-              const primaryItems: Array<{
-                href: string;
-                icon: typeof LayoutDashboard;
-                label: string;
-                exact?: boolean;
-                customActive?: boolean;
-              }> = isPka
-                ? [
-                    { href: base, icon: LayoutDashboard, label: "Ringkasan", exact: true },
-                    { href: `${base}/jadwal`, icon: CalendarRange, label: "Jadwal" },
-                    { href: `${base}/simulasi`, icon: ClipboardList, label: "Simulasi" },
-                    { href: `${base}/laporan`, icon: BarChart3, label: "Laporan Diagnostik" },
-                  ]
-                : [
-                    { href: base, icon: LayoutDashboard, label: "Ringkasan", exact: true },
-                    { href: `${base}/material`, icon: FileText, label: "Dokumen" },
-                    { href: `${base}/quiz`, icon: ClipboardList, label: "Kuis" },
-                    {
-                      href: `/dashboard/schedule?course=${activeCourse.id}`,
-                      icon: CalendarRange,
-                      label: "Jadwal",
-                      customActive: pathname === "/dashboard/schedule" && courseIdFromSchedule === activeCourse.id,
-                    },
-                  ];
+            {secondaryItems.length > 0 && (
+              <>
+                {!c && (
+                  <div className="pt-2.5 pb-1 px-2.5 text-left">
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/80">
+                      Lainnya
+                    </span>
+                  </div>
+                )}
+                {c && <div className="my-1.5 w-5 border-t border-border/60" />}
 
-              const secondaryItems: Array<{
-                href: string;
-                icon: typeof LayoutDashboard;
-                label: string;
-                exact?: boolean;
-                badge?: string;
-              }> = isPka
-                ? [
-                    { href: `${base}/flashcard`, icon: Brain, label: "Flashcard" },
-                    { href: `${base}/quiz`, icon: ClipboardList, label: "Kuis" },
-                    { href: `${base}/leaderboard`, icon: Trophy, label: "Peringkat" },
-                    { href: `${base}/material`, icon: FileText, label: "Materi" },
-                  ]
-                : [
-                    { href: `${base}/flashcard`, icon: Brain, label: "Flashcard" },
-                    { href: `${base}/tryout`, icon: GraduationCap, label: "Tryout" },
-                    ...(showStudyPath ? [{ href: `${base}/path`, icon: Compass, label: "Alur Belajar" }] : []),
-                    ...(showMastery ? [{ href: `${base}/mastery`, icon: Target, label: "Penguasaan" }] : []),
-                    { href: `${base}/progress`, icon: BarChart3, label: "Progres" },
-                    { href: `${base}/leaderboard`, icon: Trophy, label: "Peringkat" },
-                    { href: `${base}/my-results`, icon: History, label: "Hasil Ujian" },
-                    ...(showLive ? [{ href: `${base}/live`, icon: Play, label: "Kuis Langsung", badge: "Beta" }] : []),
-                  ];
-
-              return (
-                <>
-                  {primaryItems.map((item) => (
-                    <NavItem
-                      key={item.href}
-                      href={item.href}
-                      icon={item.icon}
-                      label={item.label}
-                      active={item.customActive ?? (item.exact ? pathname === item.href : pathname.startsWith(item.href))}
-                      collapsed={c}
-                    />
-                  ))}
-
-                  {secondaryItems.length > 0 && (
-                    <>
-                      {!c && (
-                        <div className="pt-2.5 pb-1 px-2.5 text-left">
-                          <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/80">
-                            Lainnya
-                          </span>
-                        </div>
-                      )}
-                      {c && <div className="my-1.5 w-5 border-t border-border/60" />}
-
-                      {secondaryItems.map((item) => (
-                        <NavItem
-                          key={item.href}
-                          href={item.href}
-                          icon={item.icon}
-                          label={item.label}
-                          badge={item.badge}
-                          active={item.exact ? pathname === item.href : pathname.startsWith(item.href)}
-                          collapsed={c}
-                        />
-                      ))}
-                    </>
-                  )}
-                </>
-              );
-            })()}
+                {secondaryItems.map((item) => (
+                  <NavItem
+                    key={item.href}
+                    href={item.href}
+                    icon={item.icon}
+                    label={item.label}
+                    badge={item.badge}
+                    active={item.exact ? pathname === item.href : pathname.startsWith(item.href)}
+                    collapsed={c}
+                  />
+                ))}
+              </>
+            )}
           </div>
 
           <div className="flex-1" />

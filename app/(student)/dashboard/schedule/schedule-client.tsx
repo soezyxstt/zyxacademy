@@ -1,14 +1,20 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { CalendarDays } from "lucide-react";
+import { AlertCircle, CalendarDays } from "lucide-react";
 import { toast } from "@/components/ui/toast";
+import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/page-header";
 import { ApplicationPage } from "@/components/application-page";
 import { getScheduleData } from "./actions";
 import { ScheduleCalendarView } from "@/components/schedule/schedule-calendar-view";
+import calendarStyles from "@/components/schedule/schedule-calendar-readability.module.css";
 import { CollaborativeBookingModal } from "@/components/schedule/collaborative-booking-modal";
+import {
+  AcademicScheduleDetailDialog,
+  type AcademicScheduleDetail,
+} from "@/components/schedule/academic-schedule-detail-dialog";
 import {
   SessionDetailDrawer,
   type PendingSessionResource,
@@ -16,33 +22,85 @@ import {
 
 function LoadingState() {
   return (
-    <ApplicationPage>
-      <PageHeader icon={CalendarDays} title="Kalender & Jadwal Tutorial" />
-      <div className="p-16 text-center text-muted-foreground text-body-sm">
-        Memuat data kalender dan slot tutorial...
-      </div>
-    </ApplicationPage>
+    <div className="flex min-h-[40vh] items-center justify-center">
+      <div className="h-8 w-8 animate-spin rounded-full border-4 border-muted border-t-brand-primary" />
+    </div>
   );
+}
+
+function getCourseFilterOptions(data: any) {
+  const byId = new Map<string, { id: string; title: string }>();
+  for (const enrollment of data.enrollments || []) {
+    const course = enrollment?.course;
+    if (course?.id) byId.set(course.id, { id: course.id, title: course.title || course.name || "Mata kuliah" });
+  }
+  for (const group of data.groups || []) {
+    for (const entry of group?.courses || []) {
+      const course = entry?.course || entry;
+      if (course?.id) byId.set(course.id, { id: course.id, title: course.title || course.name || "Mata kuliah" });
+    }
+  }
+  return Array.from(byId.values()).sort((left, right) => left.title.localeCompare(right.title, "id"));
+}
+
+function getTutorFilterOptions(data: any) {
+  const byId = new Map<string, { id: string; name: string }>();
+  for (const slot of data.availableSlots || []) {
+    const tutor = slot?.tutor;
+    const id = tutor?.id || slot?.tutorId;
+    if (id) byId.set(id, { id, name: tutor?.name || "Tutor" });
+  }
+  return Array.from(byId.values()).sort((left, right) => left.name.localeCompare(right.name, "id"));
 }
 
 export function StudentScheduleClient() {
   const [data, setData] = useState<any>(null);
+  const [dataWeekOffset, setDataWeekOffset] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [weekOffset, setWeekOffset] = useState(0);
   const [bookingSlotData, setBookingSlotData] = useState<{ slot: any; dateIso: string } | null>(null);
   const [activeSessionBookingId, setActiveSessionBookingId] = useState<string | null>(null);
+  const [selectedAcademicSchedule, setSelectedAcademicSchedule] = useState<AcademicScheduleDetail | null>(null);
   const [pendingSessionResources, setPendingSessionResources] = useState<PendingSessionResource[]>([]);
   const searchParams = useSearchParams();
+  const weekCache = useRef(new Map<number, any>());
+  const activeRequest = useRef(0);
 
-  const fetchData = useCallback(async (offset: number) => {
+  const fetchData = useCallback(async (offset: number, force = false) => {
+    const requestId = ++activeRequest.current;
+    const cached = !force ? weekCache.current.get(offset) : null;
+    if (cached) {
+      setData(cached);
+      setDataWeekOffset(offset);
+      setLoadError(null);
+      setLoading(false);
+      return cached;
+    }
+
     try {
       setLoading(true);
-      setData(await getScheduleData(offset));
+      setLoadError(null);
+      const nextData = await getScheduleData(offset);
+      weekCache.current.set(offset, nextData);
+      if (requestId === activeRequest.current) {
+        setData(nextData);
+        setDataWeekOffset(offset);
+        setLoadError(null);
+      }
+      return nextData;
     } catch (error) {
       console.error("Gagal mengambil data jadwal:", error);
-      toast.error("Gagal memuat kalender jadwal");
+      if (requestId === activeRequest.current) {
+        const message = "Kalender jadwal gagal dimuat. Periksa koneksi lalu coba lagi.";
+        setLoadError(message);
+        toast.error("Gagal memuat kalender jadwal");
+      }
+      return null;
     } finally {
-      setLoading(false);
+      if (requestId === activeRequest.current) {
+        setLoading(false);
+      }
     }
   }, []);
 
@@ -50,54 +108,97 @@ export function StudentScheduleClient() {
     void fetchData(weekOffset);
   }, [fetchData, weekOffset]);
 
-  if (loading && !data) return <LoadingState />;
+  useEffect(() => {
+    if (!data || loading || dataWeekOffset !== weekOffset) return;
 
-  const userObj = data?.user || {};
-  const requestedCourseId = searchParams?.get("course") ?? undefined;
-  const coursesList = (data?.enrollments || []).map((enrollment: any) => enrollment.course).filter(Boolean);
-  const initialCourseFilter = requestedCourseId && coursesList.some((course: any) => course.id === requestedCourseId)
-    ? requestedCourseId
-    : "all";
-  const tutorsList = (data?.availableSlots || []).map((slot: any) => slot.tutor).filter(Boolean);
-  const sessionBookings = [...(data?.groupBookings || []), ...(data?.tutorBookings || [])];
+    for (const adjacentOffset of [weekOffset - 1, weekOffset + 1]) {
+      if (weekCache.current.has(adjacentOffset)) continue;
+      void getScheduleData(adjacentOffset)
+        .then((adjacentData) => {
+          weekCache.current.set(adjacentOffset, adjacentData);
+        })
+        .catch(() => undefined);
+    }
+  }, [data, dataWeekOffset, loading, weekOffset]);
+
+  const activeData = dataWeekOffset === weekOffset ? data : null;
+  if (!activeData) {
+    if (loadError) {
+      return (
+        <ApplicationPage spacing="space-y-4">
+          <PageHeader icon={CalendarDays} title="Kalender & Jadwal Tutorial" />
+          <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-5">
+            <div className="flex items-start gap-3">
+              <AlertCircle className="mt-0.5 size-5 shrink-0 text-destructive" aria-hidden />
+              <div className="min-w-0 space-y-3">
+                <div>
+                  <h2 className="font-heading text-body-base font-semibold text-foreground">Jadwal belum dapat dimuat</h2>
+                  <p className="mt-1 text-body-sm text-muted-foreground">{loadError}</p>
+                </div>
+                <Button type="button" size="sm" onClick={() => void fetchData(weekOffset, true)} disabled={loading}>
+                  {loading ? "Memuat..." : "Coba Lagi"}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </ApplicationPage>
+      );
+    }
+    return <LoadingState />;
+  }
+
+  const userObj = activeData.user || {};
+  const coursesList = getCourseFilterOptions(activeData);
+  const tutorsList = getTutorFilterOptions(activeData);
+  const initialCourseFilter = searchParams.get("course") || "all";
   const activeSessionBooking = activeSessionBookingId
-    ? sessionBookings.find((booking: any) => booking.id === activeSessionBookingId) || null
+    ? (activeData.groupBookings || []).find((booking: any) => booking.id === activeSessionBookingId) || null
     : null;
 
   return (
     <ApplicationPage spacing="space-y-4">
       <PageHeader icon={CalendarDays} title="Kalender & Jadwal Tutorial" />
 
-      <ScheduleCalendarView
-        role="student"
-        currentUserId={userObj.id}
-        weekInfo={data.weekInfo}
-        isWeekLocked={data.isWeekLocked}
-        weekOffset={weekOffset}
-        onWeekChange={setWeekOffset}
-        coursesList={coursesList}
-        tutorsList={tutorsList}
-        groupsList={data.groups || []}
-        initialCourseFilter={initialCourseFilter}
-        slots={data.availableSlots || []}
-        bookings={data.groupBookings || []}
-        academicSchedules={data.academicSchedules || []}
-        onSelectSlotToBook={(slot, dateIso) => setBookingSlotData({ slot, dateIso })}
-        onOpenSessionDetail={(booking) => setActiveSessionBookingId(booking.id)}
-      />
+      <div className={calendarStyles.root} aria-busy={loading}>
+        <ScheduleCalendarView
+          role="student"
+          currentUserId={userObj.id}
+          weekInfo={activeData.weekInfo}
+          isWeekLocked={activeData.isWeekLocked}
+          weekOffset={weekOffset}
+          onWeekChange={setWeekOffset}
+          coursesList={coursesList}
+          tutorsList={tutorsList}
+          groupsList={activeData.groups || []}
+          initialCourseFilter={initialCourseFilter}
+          slots={activeData.availableSlots || []}
+          bookings={activeData.groupBookings || []}
+          academicSchedules={activeData.academicSchedules || []}
+          onSelectSlotToBook={(slot, dateIso) => setBookingSlotData({ slot, dateIso })}
+          onOpenSessionDetail={(booking) => setActiveSessionBookingId(booking.id)}
+          onEditSchedule={(schedule) => setSelectedAcademicSchedule(schedule)}
+        />
+      </div>
 
       <CollaborativeBookingModal
         open={Boolean(bookingSlotData)}
-        onOpenChange={(open) => !open && setBookingSlotData(null)}
-        selectedSlot={bookingSlotData?.slot}
-        selectedDateIso={bookingSlotData?.dateIso || ""}
-        groups={data.groups || []}
+        onOpenChange={(open) => {
+          if (!open) setBookingSlotData(null);
+        }}
+        slot={bookingSlotData?.slot || null}
+        dateIso={bookingSlotData?.dateIso || ""}
+        courses={coursesList}
+        groups={activeData.groups || []}
         onSuccess={async ({ bookingId, pendingResources }) => {
           setPendingSessionResources(pendingResources);
-          await fetchData(weekOffset);
+          weekCache.current.delete(weekOffset);
+          await fetchData(weekOffset, true);
           setActiveSessionBookingId(bookingId);
         }}
-        onSlotTaken={() => fetchData(weekOffset)}
+        onSlotTaken={() => {
+          weekCache.current.delete(weekOffset);
+          return fetchData(weekOffset, true);
+        }}
       />
       <SessionDetailDrawer
         open={Boolean(activeSessionBooking)}
@@ -110,10 +211,20 @@ export function StudentScheduleClient() {
         booking={activeSessionBooking}
         role="student"
         currentUserId={userObj.id}
-        availableSlots={data.availableSlots || []}
+        availableSlots={activeData.availableSlots || []}
         pendingResources={pendingSessionResources}
         onPendingResourcesChange={setPendingSessionResources}
-        onSuccess={() => fetchData(weekOffset)}
+        onSuccess={() => {
+          weekCache.current.delete(weekOffset);
+          return fetchData(weekOffset, true);
+        }}
+      />
+      <AcademicScheduleDetailDialog
+        schedule={selectedAcademicSchedule}
+        open={Boolean(selectedAcademicSchedule)}
+        onOpenChange={(open) => {
+          if (!open) setSelectedAcademicSchedule(null);
+        }}
       />
     </ApplicationPage>
   );

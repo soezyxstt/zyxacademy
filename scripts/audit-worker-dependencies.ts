@@ -1,13 +1,22 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
+import process from "node:process";
 
 /**
- * Static analysis script to verify that `jobs/*` and its transitive dependencies
- * do not import Next.js, React, @t3-oss/env-nextjs, puppeteer, or incompatible packages.
+ * Static analysis for the deployed Deno background worker dependency graph.
+ *
+ * It starts from `workers/deno-background/main.ts`, walks every transitive
+ * internal dependency, and fails when the deployed graph imports packages that
+ * are not safe for the Deno worker runtime.
+ *
+ * Deployment trigger decisions live in `.github/workflows/deploy.yml`. This
+ * script intentionally does not mirror or validate GitHub Actions `paths`
+ * entries; callers can use `--dependency-output=<file>` to consume the computed
+ * graph directly instead of maintaining a second hand-written dependency list.
  */
 
 const ROOT_DIR = process.cwd();
-const ENTRY_FILE = path.join(ROOT_DIR, "jobs", "compute.ts");
+const ENTRY_FILE = path.join(ROOT_DIR, "workers", "deno-background", "main.ts");
 
 const FORBIDDEN_PATTERNS = [
   { pattern: /^next(\/.*)?$/, label: "Next.js (next/*)" },
@@ -17,6 +26,11 @@ const FORBIDDEN_PATTERNS = [
   { pattern: /^@sentry\/nextjs$/, label: "@sentry/nextjs" },
   { pattern: /^sharp$/, label: "Sharp (native image processor)" },
 ];
+
+const args = process.argv.slice(2);
+const listDependencies = args.includes("--list");
+const outputArg = args.find((arg) => arg.startsWith("--dependency-output="));
+const dependencyOutput = outputArg?.slice("--dependency-output=".length);
 
 const visited = new Set<string>();
 
@@ -28,11 +42,9 @@ function resolveImportPath(importSpecifier: string, fromFile: string): string | 
   } else if (importSpecifier.startsWith("./") || importSpecifier.startsWith("../")) {
     targetPath = path.resolve(path.dirname(fromFile), importSpecifier);
   } else {
-    // External npm module
     return null;
   }
 
-  // Handle extension resolution
   const candidates = [
     targetPath,
     `${targetPath}.ts`,
@@ -57,14 +69,12 @@ function extractImports(filePath: string): string[] {
   const content = fs.readFileSync(filePath, "utf-8");
   const imports: string[] = [];
 
-  // Match static: import ... from "..."
   const staticImportRegex = /(?:import|export)\s+(?:[\s\S]*?from\s+)?['"]([^'"]+)['"]/g;
   let match: RegExpExecArray | null;
   while ((match = staticImportRegex.exec(content)) !== null) {
     imports.push(match[1]);
   }
 
-  // Match dynamic: import("...")
   const dynamicImportRegex = /import\s*\(\s*['"]([^'"]+)['"]\s*\)/g;
   while ((match = dynamicImportRegex.exec(content)) !== null) {
     imports.push(match[1]);
@@ -108,20 +118,36 @@ function traverse(filePath: string, callStack: string[] = []) {
   }
 }
 
-console.log("Starting static dependency audit for jobs/compute.ts...");
+console.log("Starting static dependency audit for workers/deno-background/main.ts...");
 traverse(ENTRY_FILE);
 
-console.log(`Audited ${visited.size} internal files in worker dependency graph.`);
+const dependencies = [...visited]
+  .map((filePath) => path.relative(ROOT_DIR, filePath).replace(/\\/g, "/"))
+  .sort();
+
+console.log(`Audited ${dependencies.length} internal files in worker dependency graph.`);
+
+if (dependencyOutput) {
+  const outputPath = path.resolve(ROOT_DIR, dependencyOutput);
+  fs.mkdirSync(path.dirname(outputPath), { recursive: true });
+  fs.writeFileSync(outputPath, `${dependencies.join("\n")}\n`, "utf-8");
+}
+
+if (listDependencies) {
+  console.log("\nWorker dependency graph:");
+  for (const dependency of dependencies) {
+    console.log(dependency);
+  }
+}
 
 if (violations.length > 0) {
   console.error("\n[AUDIT FAILED] Forbidden dependencies detected in worker graph:");
-  for (const v of violations) {
-    console.error(`  - In ${v.file}: imports "${v.imported}" (${v.label})`);
-    console.error(`    Trace: ${v.chain.join(" -> ")}`);
+  for (const violation of violations) {
+    console.error(`  - In ${violation.file}: imports "${violation.imported}" (${violation.label})`);
+    console.error(`    Trace: ${violation.chain.join(" -> ")}`);
   }
   process.exit(1);
-} else {
-  console.log("\n[AUDIT PASSED] Zero forbidden dependencies detected in worker graph.");
-  console.log("All modules are framework-neutral and compatible with Deno execution.");
-  process.exit(0);
 }
+
+console.log("\n[AUDIT PASSED] Zero forbidden dependencies detected in worker graph.");
+console.log("All modules are framework-neutral and compatible with Deno execution.");

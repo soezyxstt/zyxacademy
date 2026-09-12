@@ -2,21 +2,19 @@
 
 import { usePathname } from "next/navigation";
 import {
-  GraduationCap,
+  BookOpen,
   CalendarDays,
-  LayoutDashboard,
-  Users,
-  ClipboardList,
-  ClipboardCheck,
-  Radio,
   CheckSquare,
+  ClipboardCheck,
+  ClipboardList,
+  GraduationCap,
+  LayoutDashboard,
+  Radio,
+  Users,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { SidebarShell, NavItem } from "@/components/sidebar-shell";
-import {
-  TutorCourseSwitcher,
-  type AssignedTutorCourse,
-} from "@/components/tutor/tutor-course-switcher";
+import { NavCollapsible, NavItem, SidebarShell } from "@/components/sidebar-shell";
+import type { AssignedTutorCourse } from "@/components/tutor/tutor-course-switcher";
 
 export type { AssignedTutorCourse };
 
@@ -26,142 +24,133 @@ export interface TutorSidebarProps {
 
 export function TutorSidebar({ assignedCourses = [] }: TutorSidebarProps) {
   const pathname = usePathname();
-
-  // Active course detection strictly from /tutor/:courseId (excluding /tutor/schedule)
   const parts = pathname.split("/").filter(Boolean);
-  let courseId: string | undefined = undefined;
-  if (parts[0] === "tutor" && parts[1] && parts[1] !== "schedule") {
-    courseId = parts[1];
-  }
-
+  const courseId = parts[0] === "tutor" && parts[1] && parts[1] !== "schedule"
+    ? parts[1]
+    : undefined;
+  const isCourseRoute = Boolean(courseId);
   const quizPath = courseId ? `/tutor/${courseId}/quizzes` : undefined;
   const quizGradingPath = quizPath ? `${quizPath}/grading` : undefined;
-  const isQuizGradingPath =
-    quizGradingPath !== undefined &&
-    (pathname === quizGradingPath || pathname.startsWith(`${quizGradingPath}/`));
+  const isQuizGradingPath = Boolean(
+    quizGradingPath && (pathname === quizGradingPath || pathname.startsWith(`${quizGradingPath}/`)),
+  );
 
-  const navContent = (c: boolean) => {
-    return (
-      <nav
-        className={cn(
-          "flex flex-1 flex-col gap-1 py-4 font-sans text-left",
-          c
-            ? "px-1 items-center overflow-y-hidden sidebar-scroll-hidden"
-            : "px-3 overflow-y-auto overflow-x-hidden sidebar-scroll",
-        )}
+  const navContent = (collapsed: boolean) => (
+    <nav
+      className={cn(
+        "flex flex-1 flex-col gap-1 py-4 font-sans text-left",
+        collapsed
+          ? "items-center overflow-y-hidden px-1 sidebar-scroll-hidden"
+          : "overflow-y-auto overflow-x-hidden px-3 sidebar-scroll",
+      )}
+    >
+      <NavItem
+        href="/tutor"
+        icon={LayoutDashboard}
+        label="Dashboard"
+        active={pathname === "/tutor"}
+        collapsed={collapsed}
+      />
+
+      <NavItem
+        href="/tutor/schedule"
+        icon={CalendarDays}
+        label="Jadwal"
+        active={pathname === "/tutor/schedule" || pathname.startsWith("/tutor/schedule/")}
+        collapsed={collapsed}
+      />
+
+      <NavCollapsible
+        id="tutor-teaching"
+        icon={GraduationCap}
+        label="Pengajaran"
+        active={isCourseRoute}
+        defaultOpen={isCourseRoute}
+        collapsed={collapsed}
+        previewItems={assignedCourses.slice(0, 5).map((course) => course.title)}
       >
-        <NavItem
-          href="/tutor"
-          icon={GraduationCap}
-          label="Pengajaran"
-          active={pathname === "/tutor"}
-          collapsed={c}
-        />
-
-        <NavItem
-          href="/tutor/schedule"
-          icon={CalendarDays}
-          label="Jadwal"
-          active={pathname === "/tutor/schedule" || pathname.startsWith("/tutor/schedule/")}
-          collapsed={c}
-        />
-
-        {courseId && (
-          <>
-            {!c && (
-              <>
-                <div className="h-px bg-border/50 my-3 shrink-0 w-full" />
-                <div className="mb-1">
-                  <TutorCourseSwitcher
-                    courses={assignedCourses}
-                    activeCourseId={courseId}
-                    collapsed={c}
-                  />
-                </div>
-                <p className="px-3 py-1 text-body-xs font-bold uppercase tracking-wider text-muted-foreground font-sans">
-                  Navigasi Kelas
-                </p>
-              </>
-            )}
-            {c && (
-              <>
-                <div className="h-px bg-border/50 my-2 shrink-0 w-full" />
-                <TutorCourseSwitcher
-                  courses={assignedCourses}
-                  activeCourseId={courseId}
-                  collapsed={c}
-                />
-              </>
-            )}
-
+        {assignedCourses.length === 0 ? (
+          <NavItem
+            icon={BookOpen}
+            label="Belum ada mata kuliah"
+            collapsed={false}
+            className="pointer-events-none opacity-60"
+          />
+        ) : (
+          assignedCourses.map((course) => (
             <NavItem
-              href={`/tutor/${courseId}`}
-              icon={LayoutDashboard}
-              label="Ringkasan"
-              active={pathname === `/tutor/${courseId}`}
-              collapsed={c}
+              key={course.courseId}
+              href={`/tutor/${course.courseId}`}
+              icon={BookOpen}
+              label={course.title}
+              active={courseId === course.courseId || courseId === course.legacyCourseId}
+              collapsed={false}
+              isChild
             />
-
-            <NavItem
-              href={`/tutor/${courseId}/participants`}
-              icon={Users}
-              label="Peserta & Kelompok"
-              active={
-                pathname === `/tutor/${courseId}/participants` ||
-                pathname.startsWith(`/tutor/${courseId}/participants/`)
-              }
-              collapsed={c}
-            />
-
-            <NavItem
-              href={`/tutor/${courseId}/quizzes`}
-              icon={ClipboardList}
-              label="Kuis"
-              active={
-                pathname === quizPath ||
-                (quizPath !== undefined &&
-                  pathname.startsWith(`${quizPath}/`) &&
-                  !isQuizGradingPath)
-              }
-              collapsed={c}
-            />
-
-            <NavItem
-              href={`/tutor/${courseId}/quizzes/grading`}
-              icon={ClipboardCheck}
-              label="Penilaian Kuis"
-              active={isQuizGradingPath}
-              collapsed={c}
-            />
-
-            <NavItem
-              href={`/tutor/${courseId}/live`}
-              icon={Radio}
-              label="Kuis Langsung"
-              active={
-                pathname === `/tutor/${courseId}/live` ||
-                pathname.startsWith(`/tutor/${courseId}/live/`)
-              }
-              collapsed={c}
-            />
-
-            <NavItem
-              href={`/tutor/${courseId}/grading`}
-              icon={CheckSquare}
-              label="Penilaian Tryout"
-              active={
-                pathname === `/tutor/${courseId}/grading` ||
-                pathname.startsWith(`/tutor/${courseId}/grading/`)
-              }
-              collapsed={c}
-            />
-          </>
+          ))
         )}
+      </NavCollapsible>
 
-        <div className="flex-1" />
-      </nav>
-    );
-  };
+      {courseId ? (
+        <>
+          {!collapsed ? (
+            <div className="px-2.5 pb-1 pt-3">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/75">
+                Navigasi kelas
+              </p>
+            </div>
+          ) : (
+            <div className="my-1.5 w-5 border-t border-border/60" />
+          )}
+
+          <NavItem
+            href={`/tutor/${courseId}`}
+            icon={LayoutDashboard}
+            label="Ringkasan"
+            active={pathname === `/tutor/${courseId}`}
+            collapsed={collapsed}
+          />
+          <NavItem
+            href={`/tutor/${courseId}/participants`}
+            icon={Users}
+            label="Peserta & Kelompok"
+            active={pathname === `/tutor/${courseId}/participants` || pathname.startsWith(`/tutor/${courseId}/participants/`)}
+            collapsed={collapsed}
+          />
+          <NavItem
+            href={`/tutor/${courseId}/quizzes`}
+            icon={ClipboardList}
+            label="Kuis"
+            active={Boolean(quizPath && pathname.startsWith(quizPath) && !isQuizGradingPath)}
+            collapsed={collapsed}
+          />
+          <NavItem
+            href={`/tutor/${courseId}/quizzes/grading`}
+            icon={ClipboardCheck}
+            label="Penilaian Kuis"
+            active={isQuizGradingPath}
+            collapsed={collapsed}
+          />
+          <NavItem
+            href={`/tutor/${courseId}/live`}
+            icon={Radio}
+            label="Kuis Langsung"
+            active={pathname === `/tutor/${courseId}/live` || pathname.startsWith(`/tutor/${courseId}/live/`)}
+            collapsed={collapsed}
+          />
+          <NavItem
+            href={`/tutor/${courseId}/grading`}
+            icon={CheckSquare}
+            label="Penilaian Tryout"
+            active={pathname === `/tutor/${courseId}/grading` || pathname.startsWith(`/tutor/${courseId}/grading/`)}
+            collapsed={collapsed}
+          />
+        </>
+      ) : null}
+
+      <div className="flex-1" />
+    </nav>
+  );
 
   return (
     <SidebarShell

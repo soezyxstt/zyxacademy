@@ -1,4 +1,4 @@
 interface:
   display_name: "Historical Reference Question Ingest"
-  short_description: "Import course-scoped historical questions with source attribution"
-  default_prompt: "Use $reference-question-ingest to ingest stored historical question and solution PDFs into immutable canonical draft questions with published same-course Idea links and complete source attribution."
+  short_description: "Import historical questions with strict source fidelity"
+  default_prompt: "Use $reference-question-ingest to ingest stored historical question and solution PDFs verbatim with complete source attribution. Resolve multipart, shared-stimulus, multi-page option, visual, and solution-locator boundaries from page evidence; never guess or rewrite source content; require same-course published Idea links and safe quiz eligibility before staging."
