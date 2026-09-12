@@ -66,7 +66,7 @@ Every document in this repository has one of the following explicit statuses:
 
 | Document | Category | Status | Updated / Date | Purpose and Scope |
 |---|---|---|---|---|
-| [README.md](README.md) | Index | `ACTIVE` | 2026-09-07 | Master documentation index, hierarchy map, course workspace compatibility status, and lifecycle status ledger. |
+| [README.md](README.md) | Index | `ACTIVE` | 2026-09-12 | Master documentation index, hierarchy map, course workspace compatibility status, marketing improvement plan, and lifecycle status ledger. |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Core Architecture | `ACTIVE` | 2026-09-08 | Core platform architecture, canonical-first student reads, historical reference authoring, Product Bundle V3 boundaries, course workspace hierarchy, reader modes, compatibility redirects, and manual browser authoring retirement. |
 | [DATABASE.md](DATABASE.md) | Core Database | `ACTIVE` | Current | Database topology (Turso remote, SQLite local), Drizzle workflows, and driver adapters. |
 | [DB_SCHEMA.md](DB_SCHEMA.md) | Core Database | `ACTIVE` | 2026-09-09 | Comprehensive schema catalog including tutorial scheduling lifecycle, dated tutor slots, normalized booking resources, historical assessment provenance, question reference links, Product Bundle pedagogic review, and PDF evidence. |
@@ -100,6 +100,7 @@ Implementation plans reside in `plans/` with detailed specifications:
 
 | Plan Track | Path | Status | Summary |
 |---|---|---|---|
+| Marketing conversion and portfolio | [marketing-conversion-and-portfolio.md](../plans/marketing-conversion-and-portfolio.md) | `OPEN / IN PROGRESS` | Proposed CP0 through CP5 plan for marketing contact flow, pricing clarity, evidence-backed messaging, founder contribution attribution, mobile layout, and visual validation. Implementation has not started. |
 | Product Bundle sebagai sumber belajar mandiri | [product-bundle-sumber-belajar-mandiri.md](../plans/product-bundle-sumber-belajar-mandiri.md) | `COMPLETED / RESOLVED` | Locally completed CP0 through CP8 implementation for self-study Articles, review Diktat PDF export, revision-bound pedagogic review, shared MCP gates, UI, skills, and four authoring rehearsals. Ready for a separately authorized guarded staging rollout. |
 
 On 2026-09-05, the previous plan index, Plan 017, student learning UX plan, Ops AI orchestration and checkpoint handoffs/corrections, and Zyra AI System Plans 001 through 014 were removed at the user's direction. Their prior versions remain in Git history. Removal does not certify completion of previously open work; current runtime behavior remains documented in the canonical documents above.
