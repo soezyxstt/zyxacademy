@@ -298,7 +298,7 @@ export default function PlansClient() {
         <SectionContainer className="border-b border-border bg-muted/70 overflow-hidden py-6 md:py-8">
           <PageOrnaments variant="plans" />
           <PlanPromotion className="relative z-10 mb-4" />
-          <div className="relative z-10 grid gap-4 md:grid-cols-2 lg:grid-cols-3 items-stretch">
+          <div className="relative z-10 grid gap-5 md:grid-cols-2 lg:grid-cols-3 items-stretch">
             {planTiers.map((tier) => {
               const isCustom = tier.key === "custom";
               const isFree = tier.key === "free";
@@ -307,19 +307,28 @@ export default function PlansClient() {
               return (
                 <article
                   key={tier.key}
-                  className={`flex flex-col rounded-xl border bg-card p-4 md:p-5 ${tier.highlighted ? "border-brand-secondary shadow-sm" : "border-border"}`}
+                  className={
+                    tier.highlighted
+                      ? "relative flex flex-col rounded-2xl border-2 border-[var(--zx-accent)] bg-card/85 p-5 shadow-md ring-2 ring-[var(--zx-accent)]/10 backdrop-blur-md transition-all duration-200 hover:-translate-y-0.5 hover:bg-card/95 md:p-6"
+                      : "relative flex flex-col rounded-2xl border border-border/70 bg-card/80 p-5 shadow-sm backdrop-blur-md transition-all duration-200 hover:-translate-y-0.5 hover:border-border-strong hover:bg-card/95 hover:shadow-md md:p-6"
+                  }
                 >
+                  {tier.highlighted ? (
+                    <Badge className="absolute -top-3 left-5 bg-[var(--zx-accent)] font-semibold text-white shadow-xs hover:bg-[var(--zx-accent)]">
+                      Rekomendasi
+                    </Badge>
+                  ) : null}
+
                   <div className="flex-1">
-                    <div className="flex items-center justify-between gap-2">
-                      <h3 className="text-body-base text-card-foreground font-bold font-heading">{tier.name}</h3>
-                      {tier.highlighted && <Badge className="rounded-md">Rekomendasi</Badge>}
-                    </div>
+                    <h3 className="text-body-base font-heading font-bold text-card-foreground">
+                      {tier.name}
+                    </h3>
                     
-                    <p className="mt-1 text-body-xs text-muted-foreground">
+                    <p className="mt-2 min-h-[32px] text-body-xs text-muted-foreground">
                       {tier.note}
                     </p>
 
-                    <div className="mt-3">
+                    <div className="mt-4 border-t border-border/60 pt-4">
                       {(!isFree && !isCustom) ? (
                         <PlanPrice plan={tier.key} persons={persons} courses={courses} perPerson className="text-h5" />
                       ) : (
@@ -329,17 +338,19 @@ export default function PlansClient() {
                       )}
                     </div>
 
-                    {!isCustom && <ul className="mt-4 flex flex-col gap-2">
+                    {!isCustom && <ul className="mt-6 flex flex-col gap-3">
                       {tier.features.map((f) => (
                         <li key={f} className="flex gap-2 text-body-sm text-muted-foreground items-start">
-                          <Check className="mt-0.5 size-4 shrink-0 text-status-success" strokeWidth={2} aria-hidden />
+                          <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+                            <Check className="size-3" strokeWidth={2.5} aria-hidden />
+                          </span>
                           <span className="leading-tight">{f}</span>
                         </li>
                       ))}
                     </ul>}
                   </div>
 
-                  <div className="mt-4">
+                  <div className="mt-8">
                     <Button
                       asChild
                       variant={tier.highlighted ? "default" : "outline"}
