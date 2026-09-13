@@ -34,7 +34,7 @@ export function PlanConsultationLink({
       rel="noopener noreferrer"
       className="inline-flex items-center justify-center gap-1.5 text-body-xs font-semibold text-primary underline-offset-4 hover:underline"
       onClick={(event) => {
-        const refreshedHref = getWhatsAppPlanUrl(plan, planName, persons, courses, selectedCourses, phase);
+        const refreshedHref = getWhatsAppPlanUrl(plan, planName, persons, courses, selectedCourses);
         if (refreshedHref) event.currentTarget.href = refreshedHref;
       }}
     >

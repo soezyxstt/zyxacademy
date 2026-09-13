@@ -314,16 +314,13 @@ export default function PlansClient() {
                   target="_blank"
                   rel="noopener noreferrer"
                   onClick={(event) => {
-                    const refreshedHref = pricingPhase
-                      ? getWhatsAppPlanUrl(
-                          tier.key,
-                          tier.name,
-                          persons,
-                          courses,
-                          selectedCoursesList,
-                          pricingPhase,
-                        )
-                      : null;
+                    const refreshedHref = getWhatsAppPlanUrl(
+                      tier.key,
+                      tier.name,
+                      persons,
+                      courses,
+                      selectedCoursesList,
+                    );
                     if (refreshedHref) event.currentTarget.href = refreshedHref;
                   }}
                 >

@@ -132,6 +132,7 @@ https://<zyx-origin>/api/mcp/authoring
 - `DIKTAT_RENDERER_URL`, `DIKTAT_RENDERER_SECRET` ; Puppeteer PDF service
 - `NEXT_PUBLIC_REALTIME_URL`, `LIVE_HMAC_SECRET` ; Live quiz Worker
 - `WHATSAPP_ADMIN_NUMBER` ; Admin WhatsApp notifications
+- `NEXT_PUBLIC_WHATSAPP_NUMBER` ; Public browser WhatsApp number for paid and Custom plan CTAs. Required to enable those links; if absent, the CTAs stay disabled or hidden. It is not a fallback for admin notifications.
 - `NEXT_PUBLIC_SENTRY_DSN`, `SENTRY_AUTH_TOKEN`, `SENTRY_ORG`, `SENTRY_PROJECT`, `SENTRY_PUBLIC_KEY`, `SENTRY_OTLP_TRACES_URL`, `SENTRY_VERCEL_LOG_DRAIN_URL` ; Sentry error monitoring and performance tracking
 
 ### Staging overhaul guard
