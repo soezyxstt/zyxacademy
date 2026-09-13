@@ -10,23 +10,25 @@ export function LandingHero() {
   return (
     <SectionContainer
       density="hero"
-      className="relative overflow-hidden border-b border-border bg-landing-aurora"
+      className="relative overflow-hidden border-b border-border bg-landing-hero-shell"
       contentClassName="relative z-10"
       aria-labelledby="landing-hero-heading"
+      backgroundContent={
+        <>
+          <MarketingHeroLoops id="landing-home" />
+          <AnimatedOrnamentCanvas
+            className="opacity-45"
+            variant="orbit"
+            symbolSet={["pi", "sum", "int", "inf", "sqrt", "delta"]}
+            particleCount={48}
+            tone="light"
+            waveOpacity={0.25}
+            lineOpacity={0.2}
+            particleOpacity={0.35}
+          />
+        </>
+      }
     >
-      <MarketingHeroLoops id="landing-home" />
-      <AnimatedOrnamentCanvas
-        className="opacity-45"
-        variant="orbit"
-        symbolSet={["pi", "sum", "int", "inf", "sqrt", "delta"]}
-        particleCount={48}
-        tone="light"
-        waveOpacity={0.25}
-        lineOpacity={0.2}
-        particleOpacity={0.35}
-      />
-      <div className="pointer-events-none absolute inset-0 z-0 bg-linear-to-b from-transparent via-background/40 to-background/80" />
-
       <div className="landing-stagger grid items-center gap-10 lg:grid-cols-2 lg:gap-14 xl:gap-20 [&>*]:[animation-delay:120ms]">
         <div className="max-w-xl text-left [&>*:nth-child(1)]:[animation-delay:0ms] [&>*:nth-child(2)]:[animation-delay:60ms] [&>*:nth-child(3)]:[animation-delay:120ms] [&>*:nth-child(4)]:[animation-delay:180ms] [&>*:nth-child(5)]:[animation-delay:240ms]">
           <p className="text-body-xs font-semibold uppercase tracking-[0.2em] text-[var(--zx-accent)]">

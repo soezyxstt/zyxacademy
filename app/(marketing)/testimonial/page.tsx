@@ -41,13 +41,10 @@ export default function TestimonialPage() {
  >
  <PageOrnaments variant="testimonial" />
 
- <div className="relative z-10 mx-auto mb-10 max-w-2xl space-y-3 text-center">
+ <div className="relative z-10 mx-auto mb-10 max-w-2xl text-center">
  <SectionHeading as="h2" id="testimonial-grid-heading" tier="secondary" className="text-foreground">
  Cerita dari proses belajar
  </SectionHeading>
- <p className="text-body-base text-muted-foreground">
- Kutipan berikut berfokus pada pengalaman pendampingan tutor. Detail ini tidak dimaksudkan sebagai bukti metrik platform.
- </p>
  </div>
 
  <div className="relative z-10 columns-1 gap-6 sm:columns-2 lg:columns-3">

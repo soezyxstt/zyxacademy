@@ -56,12 +56,9 @@ function StreakStrip() {
  </div>
  <p className="flex items-center justify-end gap-1 text-right text-body-xs font-semibold text-foreground">
  <Flame className="size-3.5 text-[var(--zx-accent)]" aria-hidden="true" />
- Contoh: 6 hari beruntun
- </p>
- </div>
- <p className="mt-2.5 text-body-xs text-muted-foreground">
- Contoh jadwal review dengan enam hari berturut-turut.
- </p>
+  6 hari beruntun
+  </p>
+  </div>
  </div>
  );
 }
@@ -81,14 +78,11 @@ export function LandingDemoFlashcards() {
  Algoritma SM-2 menjadwalkan tiap kartu ; yang sulit muncul lebih cepat, yang lancar
  muncul dengan jeda lebih panjang.
  </p>
- <p className="mt-3 text-body-sm text-muted-foreground">
- Contoh kartu yang dibuat dari materi bab, sehingga kamu dapat langsung berlatih mengingat.
- </p>
  </div>
 
  <LandingVisible className="min-w-0">
  <div className="landing-rise">
- <DemoFrame title="Simulasi · Review Harian · Kalkulus IA" meta={<span>Contoh sesi</span>}>
+  <DemoFrame title="Review Harian · Kalkulus IA">
  <FlashcardDemo cards={cards} />
  <StreakStrip />
  </DemoFrame>

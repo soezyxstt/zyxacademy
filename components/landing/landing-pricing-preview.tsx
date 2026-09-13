@@ -21,10 +21,6 @@ export function LandingPricingPreview() {
       </div>
 
       <div className="mx-auto mt-8 max-w-6xl text-left">
-        <p className="mb-3 text-body-sm text-muted-foreground">
-          Harga utama per orang per semester. Contoh ini untuk 3 orang dan 3 mata kuliah;
-          total grup ditampilkan di setiap paket.
-        </p>
         <PlanPreviewGrid perPerson showConsultationLink />
       </div>
     </SectionContainer>

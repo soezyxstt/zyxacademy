@@ -35,10 +35,6 @@ export function LandingTutorSupport() {
         <SectionHeading as="h2" id="landing-tutor-support-heading" className="mt-3 text-foreground">
           Saat belajar mandiri belum cukup, pilih dukungan yang tepat.
         </SectionHeading>
-        <p className="mt-4 text-body-base text-muted-foreground">
-          Akses belajar mandiri dan tutorial berada di paket yang berbeda. Pilih sesuai kebutuhan
-          kelompokmu, lalu bahas jadwal dan aktivasi dengan admin.
-        </p>
       </div>
 
       <div className="mx-auto mt-10 grid max-w-6xl gap-px overflow-hidden rounded-xl border border-border bg-border md:grid-cols-3">

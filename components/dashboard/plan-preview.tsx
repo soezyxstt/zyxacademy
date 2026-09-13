@@ -14,9 +14,6 @@ export function DashboardPlanPreview() {
           <h3 id="dashboard-plan-title" className="mt-1 font-heading text-body-base font-semibold text-foreground">
             Pilih dukungan belajar yang cocok
           </h3>
-          <p className="mt-1 max-w-xl text-body-sm text-muted-foreground">
-            Bandingkan akses belajar mandiri, tutorial, dan konsultasi dalam satu semester.
-          </p>
         </div>
         <Button asChild variant="outline" size="sm" className="self-start sm:self-auto">
           <Link href="/plans">
@@ -26,9 +23,6 @@ export function DashboardPlanPreview() {
         </Button>
       </div>
 
-      <p className="mt-5 text-body-xs text-muted-foreground">
-        Estimasi untuk 3 orang dan 3 mata kuliah.
-      </p>
       <PlanPreviewGrid className="mt-3" />
     </section>
   );

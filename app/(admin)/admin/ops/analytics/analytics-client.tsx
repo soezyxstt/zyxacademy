@@ -135,7 +135,7 @@ export function AiAnalyticsClient() {
           >
             {gatewayMode === "gateway"
               ? "🛡️ Cloudflare AI Gateway"
-              : "⚡ Direct Gemini API"}
+              : "Direct API"}
           </span>
         </div>
         <div className="flex items-center gap-4">
@@ -202,7 +202,7 @@ export function AiAnalyticsClient() {
 
         <div className="rounded-xl border border-border bg-card p-5">
           <p className="text-body-sm font-semibold text-foreground mb-3">
-            ⚡ Direct Gemini API
+            Direct API
           </p>
           <div className="space-y-2 text-body-sm">
             <div className="flex justify-between">

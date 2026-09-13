@@ -8,7 +8,6 @@ export { LandingDemoPath } from "./landing-demo-path";
 export { LandingForTutors } from "./landing-for-tutors";
 export { LandingCoursePreview } from "./landing-course-preview";
 export { LandingSubjectShowcase } from "./landing-subject-showcase";
-export { LandingTestimonials } from "./landing-testimonials";
 export { LandingPricingPreview } from "./landing-pricing-preview";
 export { LandingClosingCta } from "./landing-closing-cta";
 export { LandingTutorSupport } from "./landing-tutor-support";

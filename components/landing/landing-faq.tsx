@@ -16,7 +16,7 @@ const faqItems = [
   {
     question: "Harga yang ditampilkan dihitung bagaimana?",
     answer:
-      "Harga utama ditampilkan per orang per semester. Total mengikuti jumlah orang dan mata kuliah yang dipilih. Contoh di halaman ini menggunakan 3 orang dan 3 mata kuliah.",
+      "Harga utama ditampilkan per orang per semester. Total mengikuti jumlah orang dan mata kuliah yang dipilih.",
   },
   {
     question: "Bagaimana tutorial berlangsung?",
@@ -40,9 +40,6 @@ export function LandingFaq() {
         <SectionHeading as="h2" id="landing-faq-heading" className="mt-3 text-foreground">
           Pertanyaan tentang akses dan paket.
         </SectionHeading>
-        <p className="mt-4 text-body-base text-muted-foreground">
-          Ringkasan batas akses, harga, dan proses aktivasi sebelum kamu lanjut.
-        </p>
       </div>
 
       <div className="mx-auto mt-10 max-w-3xl">

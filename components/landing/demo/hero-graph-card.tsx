@@ -12,7 +12,6 @@ export function HeroGraphCard() {
 
  return (
  <div className="relative mx-auto w-full max-w-lg justify-self-end lg:max-w-none">
- <div className="pointer-events-none absolute -inset-4 rounded-[2rem] bg-linear-to-br from-primary/15 via-transparent to-[var(--zx-accent)]/12 blur-2xl" />
  <div className="relative overflow-hidden rounded-xl border border-border bg-card shadow-xl ring-1 ring-black/5">
  <DesmosStyleGraph mode="quadratic" a={a} b={0} c={2} className="w-full" />
  <div className="border-t border-border bg-card px-4 py-3 md:px-5">
@@ -31,10 +30,6 @@ export function HeroGraphCard() {
  aria-label="Ubah koefisien a pada grafik kuadratik"
  />
  </label>
-  <p className="mt-2 text-body-xs font-semibold text-primary">Simulasi grafik interaktif</p>
-  <p className="mt-1 text-body-xs text-muted-foreground">
-  Contoh interaksi grafik; bentuk interaksi tiap materi dapat berbeda.
-  </p>
  </div>
  </div>
  </div>

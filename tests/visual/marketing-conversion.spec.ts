@@ -65,6 +65,8 @@ test.describe("Marketing conversion homepage", () => {
     await expect(page.getByRole("link", { name: "Mulai gratis", exact: true }).first()).toHaveAttribute("href", "/sign-up");
     await expect(page.getByRole("link", { name: "Coba demo", exact: true })).toHaveAttribute("href", "#landing-quiz");
     await expect(page.getByRole("heading", { name: "Ruang belajar yang membuatmu berani bertanya." })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Cerita dari proses belajar yang nyata." })).toHaveCount(0);
+    await expect(page.getByText("Gemini", { exact: true })).toHaveCount(0);
 
     const hero = page.locator('[aria-labelledby="landing-hero-heading"]');
     await page.getByRole("slider", { name: "Ubah koefisien a pada grafik kuadratik" }).fill("-0.16");
@@ -95,10 +97,12 @@ test.describe("Marketing conversion homepage", () => {
     await capture(page, testInfo, flashcards, `${testInfo.project.name}-home-flashcard-rated`);
 
     const path = page.locator('[aria-labelledby="landing-path-heading"]');
-    await expect(path.getByText(/Integral sudah terbuka/)).toBeVisible();
+    await expect(path.getByText("Integral", { exact: true })).toBeVisible();
+    await expect(path.getByText("terbuka", { exact: true })).toBeVisible();
     await capture(page, testInfo, path, `${testInfo.project.name}-home-path-a`);
     await path.getByRole("button", { name: "Mahasiswa B" }).click();
-    await expect(path.getByText(/langsung menargetkan integral parsial/)).toBeVisible();
+    await expect(path.getByRole("button", { name: "Mahasiswa B" })).toHaveAttribute("aria-pressed", "true");
+    await expect(path.getByText("Integral Parsial", { exact: true })).toBeVisible();
     await capture(page, testInfo, path, `${testInfo.project.name}-home-path-b`);
 
     const faq = page.locator('[aria-labelledby="landing-faq-heading"]');

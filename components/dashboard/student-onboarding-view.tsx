@@ -201,11 +201,7 @@ export function StudentOnboardingView({
               </span>
               Aktivasi Token Kelas
             </h2>
-            <p className="text-body-xs text-muted-foreground mt-1 mb-3.5">
-              Masukkan token kelas dari pendaftaran paket atau dari tutor/admin.
-            </p>
-
-            <EnrollmentForm />
+            <EnrollmentForm className="mt-3.5" />
           </Card>
 
           {/* Section 2: Subscription Plans Preview */}
@@ -218,15 +214,11 @@ export function StudentOnboardingView({
                   </span>
                   Paket Belajar Semester
                 </h2>
-                <p className="text-body-xs text-muted-foreground mt-0.5">
-                  Akses modul, video pembahasan, dan sesi tutorial tatap muka.
-                </p>
               </div>
             </div>
 
-            <p className="mb-2 text-body-xs text-muted-foreground">Estimasi untuk 5 orang dan 1 mata kuliah.</p>
             <PlanPromotion className="mb-3" />
-            <div className="space-y-2.5">
+            <div className="mt-3 space-y-2.5">
               {previewTiers.map((tier) => (
                 <div
                   key={tier.key}

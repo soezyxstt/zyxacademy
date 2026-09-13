@@ -65,6 +65,7 @@ for (const [name, route] of [
     )).toBe(true);
     if (name === "plans") {
       await expect(page.locator("article h3")).toHaveText(["Minimal", "Essential", "Premium", "Free", "Custom"]);
+      await expect(page.getByText("3 orang, 3 mata kuliah", { exact: true })).toHaveCount(0);
     }
     await capture(page, info, `${name}-intro`);
     await page.clock.fastForward(11000);
