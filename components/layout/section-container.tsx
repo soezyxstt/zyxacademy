@@ -3,6 +3,7 @@ import { cn } from "@/lib/utils";
 
 type SectionContainerProps = React.ComponentPropsWithoutRef<"section"> & {
   children: React.ReactNode;
+  backgroundContent?: React.ReactNode;
   contentClassName?: string;
   tight?: boolean;
   /** Mengurangi padding vertikal atas (alur beranda di bawah nav tetap). */
@@ -12,6 +13,7 @@ type SectionContainerProps = React.ComponentPropsWithoutRef<"section"> & {
 
 export function SectionContainer({
   children,
+  backgroundContent,
   className,
   contentClassName,
   tight = false,
@@ -29,6 +31,7 @@ export function SectionContainer({
 
   return (
     <section className={cn("relative", verticalPadding, className)} {...props}>
+      {backgroundContent}
       {stepLabel ? (
         <span
           aria-hidden
