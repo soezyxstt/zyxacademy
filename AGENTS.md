@@ -6,7 +6,11 @@ This file contains durable rules for work in this repository. Read the relevant 
 
 - The brand is **Zyx**, never `ZYX`, except in literal filesystem paths.
 - Token prefixes use `Zyx-XXXXXXXX-{capacity}-{courseIds.length}`.
-- Use short, sentence-case UI copy. Prefer numbers over long explanations. Do not add exclamation marks or filler descriptions.
+- Use short, sentence-case UI copy. Prefer numbers over long explanations. Do not add exclamation marks.
+- Treat filler descriptions as visible copy that only labels a self-evident demo, sample, preview, or mock; explains that static marketing content is not account or usage data; repeats a heading, card, input placeholder, or visible control; narrates an obvious click or selection; or restates values already shown next to it. Remove the copy entirely, including its wrapper, spacing, `caption`, `meta`, or reserved height.
+- On landing and marketing surfaces, assume the composition already establishes demo context. Do not add labels such as "Simulasi", "Contoh", or "Pratinjau", or disclaimers such as "bukan metrik" and "bukan data pengguna", unless omitting them could cause a real safety, legal, authority, or accuracy misunderstanding.
+- Keep copy when it communicates non-obvious product behavior, access or eligibility terms, a price unit users must decide on, safety or accuracy boundaries, dynamic state, required action or format, recovery guidance, or instructional content. Keep these statements as short as possible and do not duplicate a placeholder.
+- Before finalizing a surface, audit nearby rendered copy for the same pattern. Do not replace removed filler with another generic caption or helper paragraph.
 - Never use em dashes or en dashes in code, copy, metadata, or documentation. Use commas, semicolons, or periods instead.
 
 ## Working agreement

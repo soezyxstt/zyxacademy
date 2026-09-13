@@ -12,7 +12,6 @@ import {
   LandingFaq,
   LandingProof,
   LandingPricingPreview,
-  LandingTestimonials,
   LandingTutorSupport,
 } from "@/components/landing";
 import { pageTitle, siteDescription } from "@/lib/site";
@@ -47,7 +46,6 @@ export default function Home() {
       <LandingTutorSupport />
       <LandingForTutors />
       <LandingCoursePreview />
-      <LandingTestimonials excludeStoryIds={["yomi"]} />
       <LandingPricingPreview />
       <LandingFaq />
       <LandingClosingCta />

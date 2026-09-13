@@ -90,7 +90,7 @@ export function AnimatedOrnamentCanvas({
         const p = particles[i];
         if (variant === "orbit") {
           const radiusX = (width * 0.18 + (i % 9) * 8) * (i % 2 === 0 ? 1 : 0.72);
-          const radiusY = (height * 0.22 + (i % 7) * 7) * (i % 2 === 0 ? 0.82 : 1);
+          const radiusY = (height * 0.46 + (i % 7) * 7) * (i % 2 === 0 ? 0.82 : 1);
           const spin = time * (0.6 + (i % 5) * 0.08) + i;
           p.x = width * 0.5 + Math.cos(spin) * radiusX;
           p.y = height * 0.5 + Math.sin(spin) * radiusY;
@@ -132,7 +132,7 @@ export function AnimatedOrnamentCanvas({
             : ((i + 1) * width) / (symbolSet.length + 1);
         const y =
           variant === "orbit"
-            ? height * 0.5 + Math.sin(time * 1.3 + i) * (height * 0.2)
+            ? height * 0.5 + Math.sin(time * 1.3 + i) * (height * 0.44)
             : height * 0.25 + (i % 2 === 0 ? 1 : -1) * Math.sin(time * 1.6 + i) * 16;
         ctx.fillStyle = `rgba(${baseColor},0.18)`;
         ctx.fillText(symbolSet[i] ?? "", x, y);
@@ -176,5 +176,5 @@ export function AnimatedOrnamentCanvas({
     };
   }, [lineOpacity, particleCount, particleOpacity, symbolSet, tone, variant, waveOpacity]);
 
-  return <canvas ref={canvasRef} className={cn("pointer-events-none absolute inset-0 z-0 h-full w-full", className)} aria-hidden />;
+  return <canvas ref={canvasRef} className={cn("pointer-events-none absolute inset-0 z-0", className)} aria-hidden />;
 }

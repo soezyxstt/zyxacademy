@@ -25,8 +25,7 @@ export function LandingProof() {
             Ruang belajar yang membuatmu berani bertanya.
           </SectionHeading>
           <p className="mt-4 text-body-base text-muted-foreground">
-            Tutor membantu menjelaskan konsep dengan sabar dan bertahap. Cerita ini membuktikan
-            pengalaman tutorial, bukan klaim hasil fitur platform.
+            Tutor membantu menjelaskan konsep dengan sabar dan bertahap.
           </p>
           <Button asChild variant="link" size="default" className="mt-4 px-0">
             <Link href="/testimonial">

@@ -291,14 +291,6 @@ export default function PlansClient() {
         <SectionContainer className="border-b border-border bg-muted/70 overflow-hidden py-6 md:py-8">
           <PageOrnaments variant="plans" />
           <PlanPromotion className="relative z-10 mb-4" />
-          <div className="relative z-10 mb-4 flex flex-col gap-1 rounded-lg border border-border/70 bg-card/80 px-4 py-3 sm:flex-row sm:items-baseline sm:justify-between sm:gap-4">
-            <p className="text-body-sm font-semibold text-foreground">
-              {persons} orang, {courses} mata kuliah
-            </p>
-            <p className="text-body-xs text-muted-foreground">
-              Harga utama per orang per semester. Total grup mengikuti konfigurasi ini.
-            </p>
-          </div>
           <div className="relative z-10 grid items-stretch gap-5 md:grid-cols-2 lg:grid-cols-3">
             {planTiers.map((tier) => {
               const isCustom = tier.key === "custom";

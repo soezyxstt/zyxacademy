@@ -56,11 +56,10 @@ const subjects = [
 
 function SubjectVisual({ accent, bar }: { accent: string; bar: string }) {
   return (
-    <div className={cn("relative flex min-h-[220px] flex-col justify-between rounded-2xl p-6 md:min-h-[260px]", "bg-linear-to-br", accent)}>
-      <div className="flex items-center gap-2">
-        <span className={cn("h-1.5 w-12 rounded", bar)} />
-        <span className="text-body-sm font-medium text-white/90">Pratinjau modul</span>
-      </div>
+      <div className={cn("relative flex min-h-[220px] flex-col justify-between rounded-2xl p-6 md:min-h-[260px]", "bg-linear-to-br", accent)}>
+        <div className="flex items-center gap-2">
+          <span className={cn("h-1.5 w-12 rounded", bar)} />
+        </div>
       <div className="grid grid-cols-3 gap-2 rounded-xl bg-black-2/25 p-3 ring-1 ring-white/20 backdrop-blur-sm">
         {Array.from({ length: 6 }).map((_, i) => (
           <div key={i} className="aspect-square rounded-md bg-white/15" />
@@ -102,7 +101,7 @@ export function LandingSubjectShowcase() {
             <p className="text-body-sm font-medium uppercase tracking-wide text-muted-foreground">{s.tag}</p>
             <h3 className="mt-1 font-heading text-body-base font-bold text-card-foreground">{s.title}</h3>
             <p className="mt-2 text-body-base text-muted-foreground">{s.blurb}</p>
-            <p className="mt-4 font-heading text-body-sm font-semibold text-card-foreground">Contoh topik</p>
+            <p className="mt-4 font-heading text-body-sm font-semibold text-card-foreground">Topik</p>
             <ul className="mt-2 flex flex-1 flex-col gap-2 overflow-y-auto">
               {s.courses.map((c) => (
                 <li
