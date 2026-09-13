@@ -134,8 +134,8 @@ export const env = createEnv({
  /** Desmos API key from https://www.desmos.com/my-api ; embeds the graphing calculator on the landing lab when set. */
  NEXT_PUBLIC_DESMOS_API_KEY: z.string().optional(),
  /**
- * Nomor WhatsApp publik (fallback jika `WHATSAPP_ADMIN_NUMBER` tidak diset di server).
- * Hanya angka; `+`/spasi diperbolehkan.
+ * Nomor WhatsApp publik untuk tautan konsultasi paket di browser.
+ * Hanya angka; `+`/spasi diperbolehkan. Tanpa nilai, tautan tidak ditampilkan.
  */
  NEXT_PUBLIC_WHATSAPP_NUMBER: z.string().optional(),
   /** Base URL of the Cloudflare Worker for real-time quiz (P9). e.g. https://zyx-realtime.workers.dev */

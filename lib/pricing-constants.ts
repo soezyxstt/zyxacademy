@@ -143,12 +143,28 @@ export const getWhatsAppPlanUrl = (
   courses: number,
   selectedCourses?: string[],
   phase: PlanPricingPhase = getPlanPricingPhase(),
+): string | null => {
+  const rawNumber = env.NEXT_PUBLIC_WHATSAPP_NUMBER?.trim();
+  const digits = rawNumber?.replace(/\D/g, "") ?? "";
+  if (digits.length < 8) return null;
+
+  return buildWhatsAppPlanUrl(digits, planKey, planName, persons, courses, selectedCourses, phase);
+};
+
+/** Builds a plan-specific WhatsApp URL from an already verified public number. */
+export const buildWhatsAppPlanUrl = (
+  rawNumber: string,
+  planKey: 'free' | 'minimal' | 'essential' | 'premium' | 'custom',
+  planName: string,
+  persons: number,
+  courses: number,
+  selectedCourses?: string[],
+  phase: PlanPricingPhase = getPlanPricingPhase(),
 ): string => {
-  // Try reading the public whatsapp number from environment variables
-  // Since client component needs to run, we check both public and admin env variables.
-  // env.NEXT_PUBLIC_WHATSAPP_NUMBER is exposed in browser.
-  const rawNumber = env.NEXT_PUBLIC_WHATSAPP_NUMBER || "6281234567890";
   const digits = rawNumber.replace(/\D/g, "");
+  if (digits.length < 8) {
+    throw new Error("A valid public WhatsApp number is required.");
+  }
   
   let courseDetails = "";
   if (selectedCourses && selectedCourses.length > 0) {

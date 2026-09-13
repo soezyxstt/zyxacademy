@@ -71,14 +71,14 @@ export function LandingScrollSteps({ steps, renderPanel, className }: LandingScr
  );
 
  return (
- <div className={cn("grid items-start gap-10 lg:grid-cols-2 lg:gap-16", className)}>
+ <div className={cn("grid min-w-0 items-start gap-10 lg:grid-cols-2 lg:gap-16", className)}>
  {/* Sticky visual panel ; desktop only */}
  <div className="max-lg:hidden lg:sticky lg:top-28 lg:self-start">
  {renderPanel ? renderPanel(panes) : panes}
  </div>
 
  {/* Scroll steps */}
- <div className="flex flex-col gap-14 lg:gap-0">
+ <div className="flex min-w-0 flex-col gap-14 lg:gap-0">
  {steps.map((step, index) => (
  <div
  key={step.id}
@@ -88,7 +88,7 @@ export function LandingScrollSteps({ steps, renderPanel, className }: LandingScr
  data-step-index={index}
  className="lg:flex lg:min-h-[55vh] lg:items-center"
  >
- <div className="w-full">
+ <div className="w-full min-w-0">
  <div
  className={cn(
  "border-l-2 pl-5 transition-all duration-300 md:pl-6",
@@ -100,7 +100,7 @@ export function LandingScrollSteps({ steps, renderPanel, className }: LandingScr
  {step.copy}
  </div>
  {/* Inline pane ; mobile only */}
- <div className="mt-6 lg:hidden">{step.pane}</div>
+ <div className="mt-6 min-w-0 lg:hidden">{step.pane}</div>
  </div>
  </div>
  ))}

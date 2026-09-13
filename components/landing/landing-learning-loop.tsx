@@ -67,7 +67,7 @@ function TrendIcon({ trend }: { trend: "up" | "flat" | "down" }) {
 
 function MasteryPane() {
  return (
- <DemoFrame title="Peta Penguasaan · Kalkulus IA" className="h-full" bodyClassName="flex h-[calc(100%-2.25rem)] flex-col justify-center gap-4">
+ <DemoFrame title="Simulasi · Peta Penguasaan · Kalkulus IA" className="h-full" bodyClassName="flex h-[calc(100%-2.25rem)] flex-col justify-center gap-4">
  {masteryRows.map((row, index) => (
  <div key={row.name}>
  <div className="flex items-center justify-between gap-2 text-body-sm">
@@ -86,7 +86,7 @@ function MasteryPane() {
  </div>
  ))}
  <p className="mt-1 text-body-xs text-muted-foreground">
- Diperbarui otomatis dari 3 kuis dan 2 sesi flashcard terakhir.
+ Contoh ringkasan dari beberapa aktivitas belajar.
  </p>
  </DemoFrame>
  );
@@ -102,11 +102,11 @@ const planItems = [
 
 function DailyPlanPane() {
  return (
- <DemoFrame title="Rencana Hari Ini" className="h-full" bodyClassName="flex h-[calc(100%-2.25rem)] flex-col justify-center">
+ <DemoFrame title="Simulasi · Rencana Hari Ini" className="h-full" bodyClassName="flex h-[calc(100%-2.25rem)] flex-col justify-center">
  <div className="flex items-center justify-between gap-3">
- <p className="font-heading text-body-base font-semibold text-foreground">Halo, Salsa 👋</p>
+ <p className="font-heading text-body-base font-semibold text-foreground">Halo, Salsa</p>
  <span className="rounded-md border border-[var(--zx-accent)]/40 bg-[var(--zx-accent)]/10 px-2 py-0.5 text-body-xs font-semibold text-[var(--zx-accent)]">
- 🔥 6 hari beruntun
+ Contoh: 6 hari beruntun
  </span>
  </div>
  <div className="mt-4 divide-y divide-border border-y border-border">
@@ -137,7 +137,7 @@ function DailyPlanPane() {
  ))}
  </div>
  <p className="mt-4 text-body-xs text-muted-foreground">
- 1 dari 3 selesai ; rencana disusun ulang setiap pagi dari peta penguasaanmu.
+ Contoh rencana dari peta penguasaanmu.
  </p>
  </DemoFrame>
  );
@@ -148,8 +148,8 @@ function DailyPlanPane() {
 function PracticePane() {
  return (
  <DemoFrame
- title="Kuis Mingguan #4"
- meta={<span>dari materi kuliahmu</span>}
+ title="Simulasi · Kuis Mingguan #4"
+          meta={<span>Contoh materi</span>}
  className="h-full"
  bodyClassName="flex h-[calc(100%-2.25rem)] flex-col justify-center"
  >
@@ -192,7 +192,7 @@ const pathNodes = [
 
 function UnlockPane() {
  return (
- <DemoFrame title="Jalur Belajar · Kalkulus IA" className="h-full" bodyClassName="flex h-[calc(100%-2.25rem)] flex-col justify-center">
+ <DemoFrame title="Simulasi · Jalur Belajar · Kalkulus IA" className="h-full" bodyClassName="flex h-[calc(100%-2.25rem)] flex-col justify-center">
  <div className="flex flex-col">
  {pathNodes.map((node, index) => (
  <div key={node.name} className="flex gap-4">
@@ -252,7 +252,7 @@ const loopSteps: ScrollStep[] = [
  />
  ),
  pane: (
- <LandingVisible className="h-full">
+ <LandingVisible className="h-full min-w-0">
  <MasteryPane />
  </LandingVisible>
  ),
@@ -263,11 +263,11 @@ const loopSteps: ScrollStep[] = [
  <StepCopy
  index={2}
  title="Rencana harian"
- body="Buka dashboard, langsung tahu: hari ini 12 flashcard, 1 kuis, 1 materi. Tanpa bingung mulai dari mana."
+ body="Dashboard merangkum contoh agenda: 12 flashcard, 1 kuis, dan 1 materi, supaya kamu punya titik mulai yang jelas."
  />
  ),
  pane: (
- <LandingVisible className="h-full">
+ <LandingVisible className="h-full min-w-0">
  <DailyPlanPane />
  </LandingVisible>
  ),
@@ -282,7 +282,7 @@ const loopSteps: ScrollStep[] = [
  />
  ),
  pane: (
- <LandingVisible className="h-full">
+ <LandingVisible className="h-full min-w-0">
  <PracticePane />
  </LandingVisible>
  ),
@@ -297,7 +297,7 @@ const loopSteps: ScrollStep[] = [
  />
  ),
  pane: (
- <LandingVisible className="h-full">
+ <LandingVisible className="h-full min-w-0">
  <UnlockPane />
  </LandingVisible>
  ),
@@ -314,13 +314,14 @@ export function LandingLearningLoop() {
  <p className="text-body-xs font-semibold uppercase tracking-[0.2em] text-[var(--zx-accent)]">
  Satu lingkaran belajar
  </p>
- <SectionHeading as="h2" id="landing-loop-heading" className="mt-3 text-foreground">
- Platform yang tahu kamu butuh apa.
- </SectionHeading>
- <p className="mt-4 text-body-base text-muted-foreground">
- Setiap jawabanmu memperbarui peta penguasaanmu ; dan peta itu menentukan apa yang kamu
- pelajari berikutnya.
- </p>
+  <SectionHeading as="h2" id="landing-loop-heading" className="mt-3 text-foreground">
+  Belajar dari apa yang perlu kamu kuasai.
+  </SectionHeading>
+  <p className="mt-4 text-body-base text-muted-foreground">
+  Setiap jawabanmu memperbarui peta penguasaanmu ; dan peta itu menentukan apa yang kamu
+  pelajari berikutnya.
+  </p>
+  <p className="mt-3 text-body-xs text-muted-foreground">Contoh alur simulasi, bukan data akun pengguna.</p>
  </div>
 
  <LandingScrollSteps className="mt-16 md:mt-20" steps={loopSteps} />

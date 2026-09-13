@@ -25,7 +25,7 @@ const profiles: Profile[] = [
  {
  id: "a",
  label: "Mahasiswa A",
- description: "A kuat di dasar tapi tersendat di aturan rantai ; jalurnya menahan konsep integral sampai fondasinya siap.",
+ description: "A kuat di dasar tapi sedang membangun aturan rantai ; konsep Integral sudah terbuka untuk mulai dipelajari.",
  nodes: [
  { name: "Limit", status: "done", score: 95 },
  { name: "Turunan", status: "done", score: 88 },

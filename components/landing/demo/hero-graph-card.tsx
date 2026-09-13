@@ -4,7 +4,7 @@ import { useState } from "react";
 import { DesmosStyleGraph } from "@/components/landing/desmos-style-graph";
 
 /**
- * Hero demo: live quadratic graph with one draggable coefficient slider ; 
+ * Hero demo: a quadratic graph with one draggable coefficient slider ;
  * the first thing a visitor can interact with on the page.
  */
 export function HeroGraphCard() {
@@ -31,9 +31,10 @@ export function HeroGraphCard() {
  aria-label="Ubah koefisien a pada grafik kuadratik"
  />
  </label>
- <p className="mt-2 text-body-xs text-muted-foreground">
- Geser koefisiennya ; semua materi di Zyx interaktif seperti ini.
- </p>
+  <p className="mt-2 text-body-xs font-semibold text-primary">Simulasi grafik interaktif</p>
+  <p className="mt-1 text-body-xs text-muted-foreground">
+  Contoh interaksi grafik; bentuk interaksi tiap materi dapat berbeda.
+  </p>
  </div>
  </div>
  </div>

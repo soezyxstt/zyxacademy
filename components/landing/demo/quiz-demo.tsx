@@ -43,7 +43,7 @@ export function QuizDemo({ prompt, options, correctPanel, wrongPanel }: QuizDemo
 
  return (
  <DemoFrame
- title="Kuis Mingguan · Kalkulus IA"
+ title="Simulasi · Kuis Mingguan · Kalkulus IA"
  meta={
  <>
  <span className="flex items-center gap-1 font-mono">

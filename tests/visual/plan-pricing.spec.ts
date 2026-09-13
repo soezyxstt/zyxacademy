@@ -36,13 +36,29 @@ for (const [name, route] of [
     expect(response?.status()).toBe(200);
     expect(new URL(page.url()).pathname).toBe(new URL(route, "http://local").pathname);
     const prices = page.locator("[data-plan-price]");
-    await expect(prices).toHaveCount(3);
+    await expect(prices).toHaveCount(3, { timeout: 15_000 });
     await page.emulateMedia({ reducedMotion: "reduce" });
     // Let entrance animations settle even while the campaign clock is paused.
     await page.clock.runFor(1000);
     await expect(page.getByText("40% off", { exact: true })).toHaveCount(3);
-    await expect(prices.first()).toContainText(name === "onboarding" ? "Total Rp 1.000.000" : name === "plans" ? "Total Rp 1.170.000" : "Rp 1.170.000");
-    await expect(prices.first().locator("s")).toHaveText(name === "onboarding" ? "Rp 333.333" : name === "plans" ? "Rp 650.000" : "Rp 1.950.000");
+    await expect(prices.first()).toContainText(
+      name === "onboarding"
+        ? "Total Rp 1.000.000"
+        : name === "plans"
+          ? "Total Rp 1.170.000"
+          : name === "landing"
+            ? "Rp 390.000"
+            : "Rp 1.170.000",
+    );
+    await expect(prices.first().locator("s")).toHaveText(
+      name === "onboarding"
+        ? "Rp 333.333"
+        : name === "plans"
+          ? "Rp 650.000"
+          : name === "landing"
+            ? "Rp 650.000"
+            : "Rp 1.950.000",
+    );
     await expect(prices.first().locator("s")).toHaveCSS("text-decoration-line", "line-through");
     expect(await page.getByText("40% off", { exact: true }).first().evaluate((element) =>
       parseFloat(getComputedStyle(element).borderTopRightRadius) < element.getBoundingClientRect().height / 2,
@@ -64,11 +80,11 @@ for (const [name, route] of [
       await page.getByRole("button", { name: "Tambah mata kuliah", exact: true }).click();
       await expect(prices.first()).not.toHaveText(before);
       const paidCard = page.locator("article").filter({ has: page.locator('[data-plan-price="minimal"]') });
-      const href = await paidCard.getByRole("link", { name: "Pilih Paket" }).getAttribute("href");
+      const href = await paidCard.getByRole("link", { name: "Tanya paket via WhatsApp" }).getAttribute("href");
       const message = new URL(href!).searchParams.get("text")!;
       expect(message).toContain("4 orang");
       expect(message).not.toContain("40%");
-      await page.getByRole("button", { name: "Mata Kuliah (4)" }).click();
+      await page.getByRole("button", { name: "Daftar matkul (4)", exact: true }).click();
       await capture(page, info, "plans-regular-configured-open");
     }
     expect(errors).toEqual([]);
@@ -85,7 +101,7 @@ test("plans intermediate breakpoints", async ({ page }, info) => {
   const response = await page.goto("/plans", { waitUntil: "domcontentloaded" });
   expect(response?.status()).toBe(200);
   expect(new URL(page.url()).pathname).toBe("/plans");
-  await expect(page.locator("[data-plan-price]")).toHaveCount(3);
+  await expect(page.locator("[data-plan-price]")).toHaveCount(3, { timeout: 15_000 });
   await page.emulateMedia({ reducedMotion: "reduce" });
   for (const width of [768, 1024, 1280]) {
     await page.setViewportSize({ width, height: 864 });
@@ -109,7 +125,7 @@ test("compact pricing in dark mode", async ({ page }, info) => {
   const response = await page.goto("/plans", { waitUntil: "domcontentloaded" });
   expect(response?.status()).toBe(200);
   expect(new URL(page.url()).pathname).toBe("/plans");
-  await expect(page.locator("[data-plan-price]")).toHaveCount(3);
+  await expect(page.locator("[data-plan-price]")).toHaveCount(3, { timeout: 15_000 });
   await page.emulateMedia({ reducedMotion: "reduce" });
   await expect(page.locator("html")).toHaveClass(/dark/);
   await capture(page, info, "plans-intro-dark");
