@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { UsageBudgetService } from "@/lib/usage-budget-service";
+import { resolveEffectiveRoleForActor, UsageBudgetService } from "@/lib/usage-budget-service";
 
 describe("Plan 004 allowance role ownership", () => {
   it("resolves multi-role identities deterministically without accepting speaker roles", () => {
@@ -12,5 +12,12 @@ describe("Plan 004 allowance role ownership", () => {
   it("does not expose an effective role for an empty or unknown membership", () => {
     expect(UsageBudgetService.resolveEffectiveRole([])).toBeNull();
     expect(UsageBudgetService.resolveEffectiveRole(["assistant" as never])).toBeNull();
+  });
+
+  it("matches course-access Free fallback for known accounts without normalized roles", () => {
+    expect(resolveEffectiveRoleForActor([], { identityStatus: "active", hasAuthUser: true })).toBe("murid");
+    expect(resolveEffectiveRoleForActor([], { identityStatus: null, hasAuthUser: true })).toBe("murid");
+    expect(resolveEffectiveRoleForActor([], { identityStatus: "suspended", hasAuthUser: true })).toBeNull();
+    expect(resolveEffectiveRoleForActor([], { identityStatus: null, hasAuthUser: false })).toBeNull();
   });
 });

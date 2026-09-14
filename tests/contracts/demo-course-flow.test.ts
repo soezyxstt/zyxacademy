@@ -101,6 +101,7 @@ describe("public demo course contract", () => {
     const detail = source("app/(marketing)/demo/[view]/page.tsx");
     expect(shell).toContain("demoCoursePath(course.id)");
     expect(shell).toContain("return `/courses/${encodeURIComponent(courseId)}`");
+    expect(shell).not.toContain("Mode demo");
     expect(dashboard).toContain("demoCoursePath(content.course.id)");
     expect(detail).toContain("const nextPath = demoCoursePath(content.course.id)");
     for (const component of [

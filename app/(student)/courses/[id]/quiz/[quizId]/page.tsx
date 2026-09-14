@@ -21,7 +21,7 @@ import { MistakeFeedbackButton } from "@/components/pka/mistake-feedback-button"
 import { normalizeDate } from "@/lib/date-utils";
 import { ZyraMark } from "@/components/course/zyra-mark";
 import { QuestionSourceCitation } from "@/components/course/question-source-citation";
-import { getCourse, isFreeQuizTemplate } from "@/lib/course-utils";
+import { extractFreeQuizChapterScope, getCourse, isFreeQuizTemplate } from "@/lib/course-utils";
 import { resolveCourseAccess } from "@/lib/student/course-access";
 import { AdminStatStrip, AdminStatStripItem } from "@/components/admin/stat-card";
 
@@ -143,6 +143,17 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
   const isFreeQuizScoped = isFree && isFreeQuizTemplate(template, access.freeChapterIds);
   const isAccessible = access.hasCourseAccess && (isStaff || isEnrolled || isFreeQuizScoped);
 
+  const requestedFreeChapterIds = isFree ? extractFreeQuizChapterScope(rules) : null;
+  const freeQuizChapterIds = requestedFreeChapterIds
+    ? [...new Set(
+        access.freeChapters
+          .filter((chapter) => [chapter.id, chapter.canonicalId, chapter.legacyId]
+            .some((chapterId) => chapterId && requestedFreeChapterIds.includes(chapterId)))
+          .flatMap((chapter) => [chapter.id, chapter.canonicalId, chapter.legacyId])
+          .filter((chapterId): chapterId is string => Boolean(chapterId)),
+      )]
+    : [];
+
   // Check if questions are available for this template
   const tags = (rules.tags as string[] | undefined) || [];
   const tagConditions = tags.map(
@@ -155,8 +166,8 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
     eq(aiQuestionBank.quizEligible, true),
   );
   const chapterScopeCondition = isFree
-    ? access && access.freeChapterIds.length > 0
-      ? sql`exists (select 1 from ${knowledgeObjects} inner join ${chapters} on ${chapters.id} = ${knowledgeObjects.chapterId} where ${knowledgeObjects.id} = ${aiQuestionBank.knowledgeObjectId} and ${knowledgeObjects.status} = 'active' and ${chapters.status} = 'published' and ${inArray(chapters.id, access.freeChapterIds)})`
+    ? freeQuizChapterIds.length > 0
+      ? sql`exists (select 1 from ${knowledgeObjects} inner join ${chapters} on ${chapters.id} = ${knowledgeObjects.chapterId} where ${knowledgeObjects.id} = ${aiQuestionBank.knowledgeObjectId} and ${knowledgeObjects.status} = 'active' and ${chapters.status} = 'published' and ${inArray(chapters.id, freeQuizChapterIds)})`
       : sql`0 = 1`
     : undefined;
   const questionStateCondition = isFree

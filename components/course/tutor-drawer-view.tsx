@@ -171,7 +171,10 @@ export function TutorDrawerView({
   const courseIdFromPath = pathname?.startsWith("/courses/") ? pathname.split("/")[2] : null;
   const caps = getTutorCapabilities(courseIdFromPath);
   const [zyraAccessTier, setZyraAccessTier] = React.useState<"free" | "standard" | null>(null);
-  const advancedModesEnabled = zyraAccessTier === "standard";
+  // Allow existing standard modes unless the server has explicitly identified
+  // this actor as Free. A temporary allowance-summary failure must not hide
+  // standard functionality for the rest of the drawer session.
+  const advancedModesEnabled = zyraAccessTier !== "free";
   const imageInputEnabled = caps.imageInput && activeMode === "chat" && advancedModesEnabled;
 
   // Loading and response states

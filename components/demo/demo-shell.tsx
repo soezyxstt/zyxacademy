@@ -67,12 +67,7 @@ export function DemoShell({
       <div className="relative z-10 mx-auto max-w-6xl px-4 pb-16 pt-10 sm:px-6 md:pb-24 md:pt-14 lg:px-8">
         <div className="flex flex-col gap-5 border-b border-border pb-6 md:flex-row md:items-end md:justify-between">
           <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-2 text-body-xs font-semibold text-brand-primary">
-              <span className="rounded-md border border-brand-primary/25 bg-brand-primary/8 px-2 py-1">
-                Mode demo
-              </span>
-              <span className="text-muted-foreground">{course.category}</span>
-            </div>
+            <p className="text-body-xs font-semibold text-muted-foreground">{course.category}</p>
             <h1 className="mt-3 max-w-3xl font-heading text-h5 font-bold tracking-tight text-foreground sm:text-h4">
               {course.title}
             </h1>

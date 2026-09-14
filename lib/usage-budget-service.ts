@@ -7,6 +7,7 @@ import {
   pengguna,
   penggunaPeran,
   peran,
+  user as authUser,
 } from "@/db/schema";
 import {
   calendarDateToJakartaInstant,
@@ -150,6 +151,15 @@ function effectiveRole(codes: readonly PeranCode[]): PeranCode | null {
   return null;
 }
 
+export function resolveEffectiveRoleForActor(
+  canonicalRoles: readonly PeranCode[],
+  actor: { identityStatus: "active" | "suspended" | null; hasAuthUser: boolean },
+): PeranCode | null {
+  const role = effectiveRole(canonicalRoles);
+  if (role || actor.identityStatus === "suspended") return role;
+  return actor.identityStatus === "active" || actor.hasAuthUser ? "murid" : null;
+}
+
 function toNumber(value: unknown): number {
   const result = Number(value ?? 0);
   return Number.isFinite(result) ? result : 0;
@@ -290,7 +300,29 @@ async function activeRoles(executor: QueryExecutor, userId: string): Promise<Per
       eq(pengguna.status, "active"),
       inArray(peran.code, ["admin", "tutor", "murid"]),
     ));
-  return normalizePeranCodes(rows.map((row) => row.code));
+  const roles = normalizePeranCodes(rows.map((row) => row.code));
+  if (roles.length > 0) return roles;
+
+  // Keep the allowance boundary aligned with course-access compatibility for
+  // authenticated accounts whose normalized role membership is still absent.
+  // Suspended identities and arbitrary IDs fail closed.
+  const [[identity], [knownAuthUser]] = await Promise.all([
+    executor
+      .select({ status: pengguna.status })
+      .from(pengguna)
+      .where(eq(pengguna.id, userId))
+      .limit(1),
+    executor
+      .select({ id: authUser.id })
+      .from(authUser)
+      .where(eq(authUser.id, userId))
+      .limit(1),
+  ]);
+  const fallbackRole = resolveEffectiveRoleForActor(roles, {
+    identityStatus: identity?.status ?? null,
+    hasAuthUser: Boolean(knownAuthUser),
+  });
+  return fallbackRole ? [fallbackRole] : [];
 }
 
 async function usageFor(

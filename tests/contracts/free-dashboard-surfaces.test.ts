@@ -19,10 +19,10 @@ describe("Free dashboard and Zyra surface contract", () => {
     expect(view).toContain("Progres tersimpan");
   });
 
-  test("keeps Free Zyra on text chat until standard access is confirmed", () => {
+  test("disables advanced Zyra modes only after Free access is confirmed", () => {
     const drawer = source("components/course/tutor-drawer-view.tsx");
 
-    expect(drawer).toContain('const advancedModesEnabled = zyraAccessTier === "standard"');
+    expect(drawer).toContain('const advancedModesEnabled = zyraAccessTier !== "free"');
     expect(drawer).toContain("caps.imageInput && activeMode === \"chat\" && advancedModesEnabled");
     expect(drawer).toContain("if (!advancedModesEnabled) return;");
     expect(drawer).toContain("advancedModesEnabled && caps.explain");
