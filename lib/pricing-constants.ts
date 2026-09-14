@@ -28,6 +28,10 @@ export const DEFAULT_COURSES = 3;
 export const MIN_COURSES = 1;
 export const MAX_COURSES = 5;
 
+export const CUSTOM_DEFAULT_MEETINGS = 15;
+export const CUSTOM_MIN_MEETINGS = 5;
+export const CUSTOM_MEETING_STEP = 5;
+
 // List of core university courses represented
 export const CORE_SUBJECTS = [
   "Matematika I",
@@ -66,6 +70,14 @@ export const getTutorialCost = (meetCount: number, baseConstant: number, persons
   return meetCount * 1000 * costPerSession;
 };
 
+function roundPlanTotal(rawPrice: number, persons: number): number {
+  // The price is in Rupiah. Round the price in thousands to a multiple of 5 * persons (defaulting to 5).
+  const priceInThousands = rawPrice / 1000;
+  const multiple = 5 * (persons || 1);
+  const roundedInThousands = Math.ceil(priceInThousands / multiple) * multiple;
+  return roundedInThousands * 1000;
+}
+
 /**
  * Calculates the total price for a given plan reactively.
  */
@@ -102,12 +114,45 @@ const calculateIntroductoryPrice = (
       return 0; // Handled as "Hubungi Kami" string in UI
   }
 
-  // The price is in Rupiah. Round the price in thousands to a multiple of 5 * persons (defaulting to 5).
-  const priceInThousands = rawPrice / 1000;
-  const multiple = 5 * (persons || 1);
-  const roundedInThousands = Math.ceil(priceInThousands / multiple) * multiple;
-  return roundedInThousands * 1000;
+  return roundPlanTotal(rawPrice, persons);
 };
+
+export type CustomPlanPriceQuote = {
+  beforeDiscount: number;
+  afterDiscount: number;
+  discountAmount: number;
+  discountPercent: number;
+};
+
+/**
+ * Estimates a custom package using the shared platform and tutorial components.
+ * Custom tutorial quantities are intentionally limited to positive multiples of five.
+ */
+export function getCustomPlanPriceQuote(
+  meetings: number,
+  persons: number,
+  courses: number,
+): CustomPlanPriceQuote {
+  const quantities = [meetings, persons, courses];
+  if (!quantities.every((value) => Number.isInteger(value) && value > 0)) {
+    throw new RangeError("Jumlah pertemuan, mata kuliah, dan anggota harus berupa bilangan bulat positif.");
+  }
+  if (meetings < CUSTOM_MIN_MEETINGS || meetings % CUSTOM_MEETING_STEP !== 0) {
+    throw new RangeError(`Jumlah pertemuan harus kelipatan ${CUSTOM_MEETING_STEP}.`);
+  }
+
+  const platformComponent = getPlatformCost(250, courses, persons);
+  const tutorialComponent = getTutorialCost(meetings, 155, persons);
+  const afterDiscount = roundPlanTotal(platformComponent + tutorialComponent, persons);
+  const beforeDiscount = Math.ceil(afterDiscount * 100 / (100 - INTRO_DISCOUNT_PERCENT));
+
+  return {
+    beforeDiscount,
+    afterDiscount,
+    discountAmount: beforeDiscount - afterDiscount,
+    discountPercent: INTRO_DISCOUNT_PERCENT,
+  };
+}
 
 export function getPlanPriceQuote(
   plan: PlanKey,

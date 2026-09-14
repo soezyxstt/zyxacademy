@@ -41,6 +41,7 @@ export function getRouteTitle(
   if (pathname.startsWith("/admin/quiz-insights")) return "Analisis Kuis";
   if (pathname.startsWith("/admin/jobs")) return "Generasi Soal";
   if (pathname.startsWith("/admin/distractors")) return "Distraktor";
+  if (pathname.startsWith("/admin/pricing")) return "Kalkulator Harga";
   if (pathname.startsWith("/admin/forms")) return "Form Studio";
   if (pathname.startsWith("/admin/meet")) return "Meet";
   if (pathname.startsWith("/admin/media")) return "Pustaka Media";

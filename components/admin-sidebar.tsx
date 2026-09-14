@@ -39,6 +39,7 @@ import {
   Activity,
   ArrowLeft,
   Layers,
+  Calculator,
 } from "lucide-react";
 import {
   SidebarShell,
@@ -129,6 +130,7 @@ const ALL_ADMIN_TABS: AdminTabDef[] = [
   { id: "bank-soal", label: "Bank Soal", href: "/admin/questions", icon: Library, group: "akademik" },
 
   // Alat & Komunikasi
+  { id: "pricing", label: "Kalkulator Harga", href: "/admin/pricing", icon: Calculator, group: "alat" },
   { id: "forms", label: "Form Studio", href: "/admin/forms", icon: FilePen, group: "alat" },
   { id: "meet", label: "Meet", href: "/admin/meet", icon: Video, group: "alat" },
   { id: "media", label: "Pustaka Media", href: "/admin/media", icon: ImageIcon, group: "alat" },
