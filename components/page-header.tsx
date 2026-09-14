@@ -29,7 +29,7 @@ export function PageHeader({
   return (
     <header
       className={cn(
-        "flex w-full min-w-0 flex-col items-stretch gap-2 text-left",
+        "hidden w-full min-w-0 flex-col items-stretch gap-2 text-left md:flex",
         divider && "border-b border-border pb-2.5 mb-3.5",
         className,
       )}
