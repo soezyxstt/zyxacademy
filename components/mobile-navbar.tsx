@@ -122,7 +122,6 @@ export function MobileNavbar({ surface, className }: MobileNavbarProps) {
   }, []);
 
   useEffect(() => {
-    setCustomTitle(null);
     titleRef.current?.scrollTo({ left: 0 });
   }, [pathname]);
 
@@ -165,7 +164,7 @@ export function MobileNavbar({ surface, className }: MobileNavbarProps) {
         >
           <span
             ref={titleRef}
-            className="block min-w-0 overflow-x-hidden whitespace-nowrap scroll-smooth font-heading text-sm font-semibold leading-tight tracking-tight text-foreground [text-overflow:ellipsis]"
+            className="block min-w-0 overflow-x-hidden whitespace-nowrap scroll-smooth font-heading text-body-sm font-semibold leading-tight tracking-tight text-foreground [text-overflow:ellipsis]"
           >
             {displayTitle}
           </span>
