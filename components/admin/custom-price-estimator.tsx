@@ -136,8 +136,12 @@ export function CustomPriceEstimator() {
               aria-describedby="custom-courses-help"
               className={errors.courses ? "border-destructive focus-visible:border-destructive" : undefined}
             />
-            <p id="custom-courses-help" className="text-body-xs text-muted-foreground">
-              Jumlah mata kuliah yang masuk ke paket.
+            <p
+              id="custom-courses-help"
+              className={errors.courses ? "text-body-xs text-destructive" : "text-body-xs text-muted-foreground"}
+              aria-live="polite"
+            >
+              {errors.courses ?? "Jumlah mata kuliah yang masuk ke paket."}
             </p>
           </div>
 
@@ -155,8 +159,12 @@ export function CustomPriceEstimator() {
               aria-describedby="custom-persons-help"
               className={errors.persons ? "border-destructive focus-visible:border-destructive" : undefined}
             />
-            <p id="custom-persons-help" className="text-body-xs text-muted-foreground">
-              Jumlah anggota yang berbagi paket.
+            <p
+              id="custom-persons-help"
+              className={errors.persons ? "text-body-xs text-destructive" : "text-body-xs text-muted-foreground"}
+              aria-live="polite"
+            >
+              {errors.persons ?? "Jumlah anggota yang berbagi paket."}
             </p>
           </div>
         </div>

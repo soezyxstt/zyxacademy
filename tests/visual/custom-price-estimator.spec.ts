@@ -43,6 +43,21 @@ test("renders valid, invalid, and updated custom price states", async ({ page },
   await expect(page.locator("[data-price-after]")).toHaveCount(0);
   await captureEstimator(page, info, "custom-price-estimator-invalid-meetings");
 
+  await page.getByLabel("Jumlah pertemuan").fill("15");
+  await page.getByLabel("Jumlah mata kuliah").fill("0");
+  await expect(page.getByText("Jumlah mata kuliah harus berupa bilangan bulat positif.", { exact: true })).toBeVisible();
+  await expect(page.locator('[data-price-state="invalid"]')).toBeVisible();
+  await expect(page.locator("[data-price-after]")).toHaveCount(0);
+  await captureEstimator(page, info, "custom-price-estimator-invalid-courses");
+
+  await page.getByLabel("Jumlah mata kuliah").fill("3");
+  await page.getByLabel("Anggota kelompok").fill("0");
+  await expect(page.getByText("Jumlah anggota kelompok harus berupa bilangan bulat positif.", { exact: true })).toBeVisible();
+  await expect(page.locator('[data-price-state="invalid"]')).toBeVisible();
+  await expect(page.locator("[data-price-after]")).toHaveCount(0);
+  await captureEstimator(page, info, "custom-price-estimator-invalid-persons");
+
+  await page.getByLabel("Anggota kelompok").fill("3");
   await page.getByLabel("Jumlah pertemuan").fill("10");
   await expect(page.locator("[data-price-before]")).toContainText("Rp 6.200.000");
   await expect(page.locator("[data-price-after]")).toContainText("Rp 3.720.000");
