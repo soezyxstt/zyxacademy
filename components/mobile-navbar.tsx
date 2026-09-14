@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { Menu, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -102,6 +102,7 @@ export function MobileNavbar({ surface, className }: MobileNavbarProps) {
   const pathname = usePathname();
   const { setOpen: setSearchOpen } = useCommandMenu();
   const [customTitle, setCustomTitle] = useState<string | null>(null);
+  const titleRef = useRef<HTMLSpanElement>(null);
 
   useEffect(() => {
     const handleSetTitle = (e: Event) => {
@@ -122,14 +123,26 @@ export function MobileNavbar({ surface, className }: MobileNavbarProps) {
 
   useEffect(() => {
     setCustomTitle(null);
+    titleRef.current?.scrollTo({ left: 0 });
   }, [pathname]);
 
   const displayTitle = customTitle || getRouteTitle(pathname, surface);
 
+  const revealFullTitle = () => {
+    const title = titleRef.current;
+    if (!title) return;
+
+    const maxScroll = title.scrollWidth - title.clientWidth;
+    if (maxScroll <= 1) return;
+
+    const atEnd = title.scrollLeft >= maxScroll - 1;
+    title.scrollTo({ left: atEnd ? 0 : maxScroll, behavior: "smooth" });
+  };
+
   return (
     <header
       className={cn(
-        "sticky top-0 z-30 flex h-13 w-full max-w-full shrink-0 items-center justify-between gap-2 border-b border-border/80 bg-background/95 px-3 backdrop-blur-md overflow-hidden md:!hidden sm:px-4",
+        "sticky top-0 z-30 flex h-13 w-full max-w-full shrink-0 items-center justify-between gap-2 overflow-hidden border-b border-border/80 bg-background/95 px-3 backdrop-blur-md md:!hidden sm:px-4",
         className
       )}
     >
@@ -138,14 +151,25 @@ export function MobileNavbar({ surface, className }: MobileNavbarProps) {
           type="button"
           onClick={openMobileSidebar}
           aria-label="Buka navigasi"
-          className="flex size-9 shrink-0 items-center justify-center rounded-xl border border-border bg-card text-muted-foreground shadow-xs transition-colors hover:bg-muted hover:text-foreground active:scale-95 cursor-pointer"
+          className="flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-border bg-card text-muted-foreground shadow-xs transition-colors hover:bg-muted hover:text-foreground active:scale-95"
         >
           <Menu className="size-4.5" />
         </button>
 
-        <span className="font-heading text-body-base font-bold tracking-tight text-foreground truncate min-w-0 flex-1 leading-tight select-none">
-          {displayTitle}
-        </span>
+        <button
+          type="button"
+          onClick={revealFullTitle}
+          aria-label={`Tampilkan judul lengkap: ${displayTitle}`}
+          title={displayTitle}
+          className="min-w-0 flex-1 cursor-pointer overflow-hidden text-left"
+        >
+          <span
+            ref={titleRef}
+            className="block min-w-0 overflow-x-hidden whitespace-nowrap scroll-smooth font-heading text-sm font-semibold leading-tight tracking-tight text-foreground [text-overflow:ellipsis]"
+          >
+            {displayTitle}
+          </span>
+        </button>
       </div>
 
       <div className="flex shrink-0 items-center gap-1.5">
@@ -153,7 +177,7 @@ export function MobileNavbar({ surface, className }: MobileNavbarProps) {
           type="button"
           onClick={() => setSearchOpen(true)}
           aria-label="Cari"
-          className="flex size-9 shrink-0 items-center justify-center rounded-xl border border-border bg-card text-muted-foreground shadow-xs transition-colors hover:bg-muted hover:text-foreground active:scale-95 cursor-pointer"
+          className="flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-border bg-card text-muted-foreground shadow-xs transition-colors hover:bg-muted hover:text-foreground active:scale-95"
         >
           <Search className="size-4" />
         </button>
