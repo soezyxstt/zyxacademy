@@ -19,18 +19,18 @@ function setSidebarOpen(open: boolean) {
   if (!isMobileViewport()) return;
   const sidebar = getSidebar();
   if (!sidebar) return;
-  sidebar.style.transform = open ? "translateX(0)" : "translateX(-100%)";
+  sidebar.style.translate = open ? "0 0" : "-100% 0";
   sidebar.setAttribute("aria-hidden", open ? "false" : "true");
 }
 
 /**
  * Compatibility controller for the shared sidebar shell.
  *
- * The shell historically coupled its mobile transform to a JS `innerWidth`
+ * The shell historically coupled its mobile position to a JS `innerWidth`
  * flag while the hamburger visibility is controlled by CSS breakpoints. On
  * some mobile/webview layouts those two sources disagree, leaving both the
  * hamburger event and edge swipe unable to reveal the drawer. This controller
- * uses the same CSS breakpoint as the UI and guarantees the drawer transform,
+ * uses the same CSS breakpoint as the UI and guarantees the drawer translate,
  * while the existing SidebarShell state continues to own its normal rendering.
  */
 export function MobileSidebarController() {
@@ -48,7 +48,7 @@ export function MobileSidebarController() {
     if (typeof document === "undefined") return;
     const sidebar = getSidebar();
     if (sidebar && isMobileViewport()) {
-      sidebar.style.transform = "translateX(-100%)";
+      sidebar.style.translate = "-100% 0";
       sidebar.setAttribute("aria-hidden", "true");
     }
   };
@@ -101,10 +101,10 @@ export function MobileSidebarController() {
       const sidebar = getSidebar();
       if (!media.matches && sidebar) {
         openRef.current = false;
-        sidebar.style.transform = "";
+        sidebar.style.translate = "";
         sidebar.removeAttribute("aria-hidden");
       } else if (media.matches && sidebar && !openRef.current) {
-        sidebar.style.transform = "translateX(-100%)";
+        sidebar.style.translate = "-100% 0";
         sidebar.setAttribute("aria-hidden", "true");
       }
     };

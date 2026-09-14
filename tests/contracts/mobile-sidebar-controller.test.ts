@@ -21,4 +21,15 @@ describe("mobile sidebar controller contract", () => {
     expect(controller).toContain("onSwipeLeft");
     expect(controller).toContain("(max-width: 767px)");
   });
+
+  test("mobile drawer overrides Tailwind v4 translate instead of transform", () => {
+    const sidebar = source("components/sidebar-shell.tsx");
+    const controller = source("components/mobile-sidebar-controller.tsx");
+
+    expect(sidebar).toContain('translate: mobileOpen ? "0 0" : "-100% 0"');
+    expect(sidebar).toContain('transition-[translate,width]');
+    expect(controller).toContain('sidebar.style.translate = open ? "0 0" : "-100% 0"');
+    expect(controller).toContain('sidebar.style.translate = ""');
+    expect(controller).not.toContain("sidebar.style.transform");
+  });
 });
