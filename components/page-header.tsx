@@ -27,39 +27,62 @@ export function PageHeader({
   className,
 }: PageHeaderProps) {
   return (
-    <header
-      className={cn(
-        "hidden w-full min-w-0 flex-col items-stretch gap-2 text-left md:flex",
-        divider && "border-b border-border pb-2.5 mb-3.5",
-        className,
-      )}
-    >
-      {backHref && (
-        <Link
-          href={backHref}
-          className="inline-flex w-fit items-center gap-1.5 text-body-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
-        >
-          <ArrowLeft className="size-3.5" aria-hidden />
-          {backLabel ?? "Kembali"}
-        </Link>
-      )}
-      <div className="flex w-full min-w-0 flex-wrap items-center justify-between gap-3">
-        <div className="flex min-w-0 items-center gap-2.5">
-          {Icon && (
-            <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-brand-primary/10 text-brand-primary">
-              <Icon className="size-4" aria-hidden />
-            </span>
+    <>
+      {(backHref || actions) && (
+        <div className="mb-3 flex w-full min-w-0 flex-wrap items-center justify-between gap-2 md:hidden">
+          {backHref ? (
+            <Link
+              href={backHref}
+              className="inline-flex w-fit shrink-0 items-center gap-1.5 text-body-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+            >
+              <ArrowLeft className="size-3.5" aria-hidden />
+              {backLabel ?? "Kembali"}
+            </Link>
+          ) : (
+            <span />
           )}
-          <h1 className="font-heading text-h5 font-bold tracking-tight text-foreground leading-none">
-            {title}
-          </h1>
+          {actions && (
+            <div className="flex min-w-0 max-w-full flex-wrap items-center justify-end gap-2">
+              {actions}
+            </div>
+          )}
         </div>
-        {actions && (
-          <div className="flex max-w-full shrink-0 flex-wrap items-center gap-2">
-            {actions}
-          </div>
+      )}
+
+      <header
+        className={cn(
+          "hidden w-full min-w-0 flex-col items-stretch gap-2 text-left md:flex",
+          divider && "border-b border-border pb-2.5 mb-3.5",
+          className,
         )}
-      </div>
-    </header>
+      >
+        {backHref && (
+          <Link
+            href={backHref}
+            className="inline-flex w-fit items-center gap-1.5 text-body-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+          >
+            <ArrowLeft className="size-3.5" aria-hidden />
+            {backLabel ?? "Kembali"}
+          </Link>
+        )}
+        <div className="flex w-full min-w-0 flex-wrap items-center justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-2.5">
+            {Icon && (
+              <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-brand-primary/10 text-brand-primary">
+                <Icon className="size-4" aria-hidden />
+              </span>
+            )}
+            <h1 className="font-heading text-h5 font-bold tracking-tight text-foreground leading-none">
+              {title}
+            </h1>
+          </div>
+          {actions && (
+            <div className="flex max-w-full shrink-0 flex-wrap items-center gap-2">
+              {actions}
+            </div>
+          )}
+        </div>
+      </header>
+    </>
   );
 }
