@@ -34,6 +34,7 @@ import {
   MousePointerClick,
   CalendarDays,
   Library,
+  Calculator,
 } from "lucide-react";
 
 import { RefreshAnalyticsButton } from "@/components/admin/refresh-analytics-button";
@@ -201,6 +202,14 @@ export default async function AdminHomePage() {
     {
       name: "Alat & Komunikasi",
       items: [
+        {
+          title: "Kalkulator Harga",
+          icon: Calculator,
+          iconColor: "text-status-info",
+          href: "/admin/pricing",
+          label: "Hitung paket custom",
+          stat: null,
+        },
         {
           title: "Kelola Blog",
           icon: Newspaper,

@@ -323,6 +323,14 @@ export const STATIC_PAGES: Omit<SiteSearchDocument, "id">[] = [
 
   // Admin Panels - Alat, Komunikasi & Media
   {
+    title: "Kalkulator harga custom",
+    subtitle: "Admin",
+    href: "/admin/pricing",
+    group: "Halaman",
+    keywords: "admin kalkulator harga custom paket diskon pertemuan matkul anggota kelompok",
+    content: "Hitung estimasi harga paket custom sebelum dan setelah diskon berdasarkan jumlah pertemuan, mata kuliah, dan anggota kelompok",
+  },
+  {
     title: "Form studio",
     subtitle: "Admin",
     href: "/admin/forms",
