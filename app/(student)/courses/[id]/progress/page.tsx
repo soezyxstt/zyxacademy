@@ -14,7 +14,6 @@ import { getCourseLearningSummary } from "@/lib/learning-analytics";
 import { StudyStatisticsCard } from "@/components/course/study-statistics-card";
 import { RecentActivityCard } from "@/components/course/recent-activity-card";
 import { studentCardClass } from "@/components/course/course-surfaces";
-import { cn } from "@/lib/utils";
 
 type Props = { params: Promise<{ id: string }> };
 
@@ -41,12 +40,7 @@ export default async function CourseProgressPage({ params }: Props) {
 
   if (!isEnrolled) {
     return (
-      <CoursePageShell
-        title={`Progres Belajar: ${course.title}`}
-        icon={BarChart3}
-        backHref={`/courses/${id}`}
-        backLabel="Kembali ke kelas"
-      >
+      <CoursePageShell title={`Progres Belajar: ${course.title}`} icon={BarChart3}>
         <Reveal>
           <div className="rounded-xl border border-brand-secondary/25 bg-brand-secondary/5 p-6">
             <h3 className="font-heading text-body-base font-bold text-brand-secondary">
@@ -67,23 +61,14 @@ export default async function CourseProgressPage({ params }: Props) {
   const learningSummary = studentId ? await getCourseLearningSummary(id, studentId) : null;
 
   return (
-    <CoursePageShell
-      title={`Progres Belajar: ${course.title}`}
-      icon={BarChart3}
-      backHref={`/courses/${id}`}
-      backLabel="Ringkasan kelas"
-    >
+    <CoursePageShell title={`Progres Belajar: ${course.title}`} icon={BarChart3}>
       <Reveal>
         <div className="space-y-6">
-          {/* Study Statistics Card */}
           <StudyStatisticsCard data={learningSummary?.studyStatistics ?? null} />
-
-          {/* Recent Activity Card */}
           <RecentActivityCard data={learningSummary?.recentActivities ?? null} />
 
-          {/* Further Analysis Navigation */}
           <section className={studentCardClass("text-left")}>
-            <h3 className="font-heading text-body-base font-bold text-foreground mb-3">
+            <h3 className="mb-3 font-heading text-body-base font-bold text-foreground">
               Analisis lebih lanjut
             </h3>
             <div className="divide-y divide-border/40">

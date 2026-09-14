@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import {
   BookOpen,
@@ -110,7 +111,7 @@ function documentMeta(material: CourseMaterial, typeLabel: string): string {
     .join(" · ");
 }
 
-function HierarchyDocumentRow({ material, courseId }: { material: CourseMaterial; courseId: string }) {
+function HierarchyDocumentCard({ material, courseId }: { material: CourseMaterial; courseId: string }) {
   const group = resolveTabGroup(material);
   const style = typeStyle[group];
   const Icon = style.icon;
@@ -120,19 +121,33 @@ function HierarchyDocumentRow({ material, courseId }: { material: CourseMaterial
     <Link
       href={itemHref}
       className={cn(
-        "group flex w-full min-w-0 items-center gap-2.5 rounded-md border border-border/45 border-l-2 bg-background px-3 py-2 text-left transition-colors hover:bg-muted/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
+        "group flex min-w-0 items-center gap-2.5 rounded-lg border border-border/50 border-l-2 bg-background p-2 text-left transition-colors hover:bg-muted/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
         style.border
       )}
     >
-      <Icon className={cn("size-4 shrink-0", style.iconClass)} aria-hidden />
+      <div className="relative flex h-14 w-18 shrink-0 items-center justify-center overflow-hidden rounded-md border border-border/45 bg-muted/20">
+        {material.thumbnailUrl ? (
+          <Image
+            src={material.thumbnailUrl}
+            alt=""
+            fill
+            sizes="72px"
+            className="object-cover object-center transition-transform duration-200 group-hover:scale-[1.02]"
+          />
+        ) : (
+          <Icon className={cn("size-5", style.iconClass)} aria-hidden />
+        )}
+      </div>
+
       <div className="min-w-0 flex-1">
-        <p className="truncate text-body-sm font-medium leading-tight text-foreground" title={material.title}>
+        <p className="line-clamp-2 text-body-sm font-semibold leading-snug text-foreground" title={material.title}>
           {material.title}
         </p>
-        <p className="mt-0.5 truncate text-body-xs leading-tight text-muted-foreground">
+        <p className="mt-1 truncate text-body-xs leading-tight text-muted-foreground">
           {documentMeta(material, style.label)}
         </p>
       </div>
+
       {material.completed ? (
         <CheckCircle2 className="size-3.5 shrink-0 text-status-success" aria-label="Selesai dipelajari" />
       ) : null}
@@ -148,17 +163,23 @@ function ChapterDocuments({
   chapter,
   materials,
   courseId,
-  defaultOpen = false,
+  open,
+  onOpenChange,
 }: {
   chapter: Pick<Chapter, "title" | "orderIndex">;
   materials: CourseMaterial[];
   courseId: string;
-  defaultOpen?: boolean;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
 }) {
   const hasDocuments = materials.length > 0;
 
   return (
-    <Collapsible defaultOpen={defaultOpen && hasDocuments} className="border-b border-border/45 last:border-b-0">
+    <Collapsible
+      open={open && hasDocuments}
+      onOpenChange={onOpenChange}
+      className="border-b border-border/45 last:border-b-0"
+    >
       <CollapsibleTrigger
         disabled={!hasDocuments}
         className="group flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors hover:bg-muted/30 disabled:cursor-default disabled:hover:bg-transparent sm:px-3.5"
@@ -180,9 +201,9 @@ function ChapterDocuments({
       </CollapsibleTrigger>
       {hasDocuments ? (
         <CollapsibleContent>
-          <div className="grid gap-1.5 border-t border-border/35 bg-muted/10 p-1.5 sm:p-2">
+          <div className="grid grid-cols-1 gap-2 border-t border-border/35 bg-muted/10 p-2 sm:grid-cols-2 lg:grid-cols-3">
             {materials.map((material) => (
-              <HierarchyDocumentRow key={material.id} material={material} courseId={courseId} />
+              <HierarchyDocumentCard key={material.id} material={material} courseId={courseId} />
             ))}
           </div>
         </CollapsibleContent>
@@ -194,16 +215,18 @@ function ChapterDocuments({
 function UnassignedDocuments({
   materials,
   courseId,
-  defaultOpen = false,
+  open,
+  onOpenChange,
 }: {
   materials: CourseMaterial[];
   courseId: string;
-  defaultOpen?: boolean;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
 }) {
   if (materials.length === 0) return null;
 
   return (
-    <Collapsible defaultOpen={defaultOpen} className="border-b border-border/45 last:border-b-0">
+    <Collapsible open={open} onOpenChange={onOpenChange} className="border-b border-border/45 last:border-b-0">
       <CollapsibleTrigger className="group flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors hover:bg-muted/30 sm:px-3.5">
         <span className="w-12 shrink-0 text-body-xs font-semibold text-muted-foreground">Lainnya</span>
         <span className="min-w-0 flex-1 truncate text-body-sm font-semibold text-foreground">
@@ -216,9 +239,9 @@ function UnassignedDocuments({
         />
       </CollapsibleTrigger>
       <CollapsibleContent>
-        <div className="grid gap-1.5 border-t border-border/35 bg-muted/10 p-1.5 sm:p-2">
+        <div className="grid grid-cols-1 gap-2 border-t border-border/35 bg-muted/10 p-2 sm:grid-cols-2 lg:grid-cols-3">
           {materials.map((material) => (
-            <HierarchyDocumentRow key={material.id} material={material} courseId={courseId} />
+            <HierarchyDocumentCard key={material.id} material={material} courseId={courseId} />
           ))}
         </div>
       </CollapsibleContent>
@@ -260,14 +283,18 @@ export function CourseDocumentsClient({
     [knownChapterIds, materials]
   );
 
+  const [openSection, setOpenSection] = useState<string | null>(() =>
+    firstPopulatedChapterId ? `chapter:${firstPopulatedChapterId}` : unassignedMaterials.length > 0 ? "unassigned" : null
+  );
+
   return (
     <div className="space-y-3 font-sans">
       <Tabs value={activeTab} onValueChange={(value) => setUrlTab(normalizeTabKey(value))}>
-        <TabsList className="max-w-full justify-start overflow-x-auto" aria-label="Kategori dokumen mata kuliah">
+        <TabsList className="max-w-full justify-start" aria-label="Kategori dokumen mata kuliah">
           {tabs.map((tab) => {
             const Icon = tab.icon;
             return (
-              <TabsTrigger key={tab.key} value={tab.key} className="shrink-0">
+              <TabsTrigger key={tab.key} value={tab.key}>
                 <Icon className="size-3.5 shrink-0" />
                 <span>{tab.label}</span>
               </TabsTrigger>
@@ -279,19 +306,24 @@ export function CourseDocumentsClient({
       {activeTab === "all" ? (
         materials.length > 0 ? (
           <div className="overflow-hidden rounded-xl border border-border/55 bg-card">
-            {chapterGroups.map(({ chapter, materials: chapterMaterials }) => (
-              <ChapterDocuments
-                key={chapter.id}
-                chapter={chapter}
-                materials={chapterMaterials}
-                courseId={courseId}
-                defaultOpen={chapter.id === firstPopulatedChapterId}
-              />
-            ))}
+            {chapterGroups.map(({ chapter, materials: chapterMaterials }) => {
+              const sectionKey = `chapter:${chapter.id}`;
+              return (
+                <ChapterDocuments
+                  key={chapter.id}
+                  chapter={chapter}
+                  materials={chapterMaterials}
+                  courseId={courseId}
+                  open={openSection === sectionKey}
+                  onOpenChange={(nextOpen) => setOpenSection(nextOpen ? sectionKey : null)}
+                />
+              );
+            })}
             <UnassignedDocuments
               materials={unassignedMaterials}
               courseId={courseId}
-              defaultOpen={!firstPopulatedChapterId}
+              open={openSection === "unassigned"}
+              onOpenChange={(nextOpen) => setOpenSection(nextOpen ? "unassigned" : null)}
             />
           </div>
         ) : (

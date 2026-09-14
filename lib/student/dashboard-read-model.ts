@@ -4,7 +4,6 @@ import {
   exams,
   aiMaterialInstances,
   websiteMaterials,
-  diktats,
   artikel,
 } from "@/db/schema";
 import { eq, and, notLike, sql } from "drizzle-orm";
@@ -21,8 +20,8 @@ export interface CatalogCourseSummary {
 }
 
 /**
- * Aggregates course materials, quizzes, and tryout counts in single batch SQL GROUP BY queries
- * to eliminate N+1 queries on student onboarding view.
+ * Aggregates article, quiz, and tryout counts in batch SQL GROUP BY queries.
+ * Dashboard "bahan belajar" intentionally counts article-like learning content only.
  */
 export async function getCatalogCourseSummaries(
   activeCourses: StudentCourseRecord[]
@@ -34,7 +33,6 @@ export async function getCatalogCourseSummaries(
     tryoutCounts,
     aiMatCounts,
     webMatCounts,
-    diktatCounts,
     artikelCounts,
   ] = await Promise.all([
     db
@@ -70,14 +68,6 @@ export async function getCatalogCourseSummaries(
       .groupBy(websiteMaterials.courseId),
     db
       .select({
-        courseId: diktats.courseId,
-        count: sql<number>`count(*)`,
-      })
-      .from(diktats)
-      .where(eq(diktats.status, "ready"))
-      .groupBy(diktats.courseId),
-    db
-      .select({
         courseId: artikel.mataKuliahId,
         count: sql<number>`count(*)`,
       })
@@ -90,7 +80,6 @@ export async function getCatalogCourseSummaries(
   const tryoutMap = new Map(tryoutCounts.map((r) => [r.courseId, Number(r.count)]));
   const aiMatMap = new Map(aiMatCounts.map((r) => [r.courseId, Number(r.count)]));
   const webMatMap = new Map(webMatCounts.map((r) => [r.courseId, Number(r.count)]));
-  const diktatMap = new Map(diktatCounts.map((r) => [r.courseId, Number(r.count)]));
   const artikelMap = new Map(artikelCounts.map((r) => [r.courseId, Number(r.count)]));
 
   return activeCourses.map((c) => {
@@ -103,7 +92,6 @@ export async function getCatalogCourseSummaries(
     const materials =
       (aiMatMap.get(legacyId) ?? 0) +
       (webMatMap.get(legacyId) ?? 0) +
-      (diktatMap.get(legacyId) ?? 0) +
       (canonicalId ? (artikelMap.get(canonicalId) ?? 0) : 0);
 
     return {

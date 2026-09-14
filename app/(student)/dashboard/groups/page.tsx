@@ -5,8 +5,7 @@ import { pageTitle } from "@/lib/site";
 import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
 import { getStudentStudyGroups } from "./actions";
-import { StudentGroupsClient } from "@/components/dashboard/student-groups-client";
-import { StudentGroupRenamePanel } from "@/components/dashboard/student-group-rename-panel";
+import { StudentGroupsCompactClient } from "@/components/dashboard/student-groups-compact-client";
 import { PageHeader } from "@/components/page-header";
 import { ApplicationPage } from "@/components/application-page";
 import { Users } from "lucide-react";
@@ -18,9 +17,7 @@ export const metadata: Metadata = {
 
 export default async function StudentGroupsPage() {
   const h = await headers();
-  const session = await auth.api.getSession({
-    headers: h,
-  });
+  const session = await auth.api.getSession({ headers: h });
 
   if (!session?.user?.id) {
     redirect("/auth/sign-in?callbackUrl=/dashboard/groups");
@@ -30,19 +27,9 @@ export default async function StudentGroupsPage() {
 
   return (
     <ApplicationPage>
-      <PageHeader
-        icon={Users}
-        title="Kelompok Belajar"
-      />
-      <StudentGroupRenamePanel
-        groups={groups.map((group) => ({
-          id: group.id,
-          name: group.name,
-          isLeader: group.isLeader,
-        }))}
-      />
+      <PageHeader icon={Users} title="Kelompok Belajar" />
       <Suspense fallback={null}>
-        <StudentGroupsClient initialGroups={groups} />
+        <StudentGroupsCompactClient initialGroups={groups} />
       </Suspense>
     </ApplicationPage>
   );
