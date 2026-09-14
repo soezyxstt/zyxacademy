@@ -4,7 +4,7 @@ import { FileText } from "lucide-react";
 import { CoursePageShell } from "@/components/course/course-page-shell";
 import { pageTitle } from "@/lib/site";
 import { getCourse, getCourseChapterOutline } from "@/lib/course-utils";
-import { DocumentListClient } from "./document-list-client";
+import { CourseDocumentsClient } from "./course-documents-client";
 import { Reveal } from "@/components/ui/reveal";
 import { db } from "@/db";
 import { aiMaterialInstances, websiteMaterials, diktats, diktatMateri, bab, courseMaterials, progress, studentMaterialProgress, quizTemplates, studentQuizAttempts, exams } from "@/db/schema";
@@ -242,7 +242,7 @@ export default async function CourseMaterialListPage({ params, searchParams }: P
     <CoursePageShell title={`Materi Belajar: ${course.title}`} description="Pelajari bahan belajar, ringkasan rumus, dan diktat kuliah." icon={FileText}>
       <Reveal>
         <Suspense fallback={null}>
-          <DocumentListClient courseId={id} materials={allMaterials} chapters={courseChapters} defaultTab={initialTab} />
+          <CourseDocumentsClient courseId={id} materials={allMaterials} chapters={courseChapters} defaultTab={initialTab} />
         </Suspense>
       </Reveal>
     </CoursePageShell>

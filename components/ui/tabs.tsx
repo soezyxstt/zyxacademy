@@ -77,7 +77,7 @@ function Tabs({ paramKey, syncUrl, ...props }: TabsProps) {
 }
 
 function TabsList({ className, ...props }: React.ComponentProps<typeof TabsPrimitive.List>) {
-  return <TabsPrimitive.List className={cn(tabListClassName, className)} {...props} />;
+  return <TabsPrimitive.List data-slot="tabs-list" className={cn(tabListClassName, className)} {...props} />;
 }
 
 function TabsTrigger({ className, ...props }: React.ComponentProps<typeof TabsPrimitive.Trigger>) {
