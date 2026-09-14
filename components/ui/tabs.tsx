@@ -13,9 +13,9 @@ type TabsProps = React.ComponentProps<typeof TabsPrimitive.Root> & {
 };
 
 const tabListClassName =
-  "inline-flex h-auto max-w-full flex-wrap items-center gap-1 rounded-xl border border-border bg-muted/40 p-1 text-muted-foreground";
+  "inline-flex h-auto max-w-full flex-nowrap items-center gap-1 overflow-x-auto overscroll-x-contain rounded-xl border border-border bg-muted/40 p-1 text-muted-foreground [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:flex-wrap sm:overflow-visible";
 const tabTriggerClassName =
-  "interactive inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-1.5 text-body-xs font-semibold text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
+  "interactive inline-flex shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-1.5 text-body-xs font-semibold text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
 const tabTriggerActiveClassName = "bg-card text-foreground shadow-xs";
 
 function TabsInner({
@@ -106,7 +106,7 @@ function TabNav({ tabs, label = "Navigasi bagian" }: { tabs: TabNavItem[]; label
   const pathname = usePathname();
 
   return (
-    <nav className="mb-6" aria-label={label}>
+    <nav className="mb-6 max-w-full overflow-hidden" aria-label={label}>
       <div className={tabListClassName}>
         {tabs.map((tab) => {
           const isActive = pathname === tab.href || pathname.startsWith(`${tab.href}/`);

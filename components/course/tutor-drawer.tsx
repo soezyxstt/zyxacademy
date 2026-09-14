@@ -52,6 +52,37 @@ const TutorDrawerView = dynamic(
   }
 );
 
+const LEGACY_WELCOME =
+  "Halo! Aku Zyra, asisten belajar buatan Zyx. Tanyakan apa saja seputar materi kuliah atau soal latihan, aku siap membimbingmu dengan pendekatan Socratic!";
+const CLEAN_WELCOME = "Halo! Aku Zyra. Tanyakan materi kuliah atau soal latihan yang ingin kamu bahas.";
+
+function ZyraWelcomeCopyGuard({ children }: { children: React.ReactNode }) {
+  const rootRef = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    const root = rootRef.current;
+    if (!root) return;
+
+    const normalizeWelcome = () => {
+      const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+      let node = walker.nextNode();
+      while (node) {
+        if (node.nodeValue?.includes(LEGACY_WELCOME)) {
+          node.nodeValue = node.nodeValue.replace(LEGACY_WELCOME, CLEAN_WELCOME);
+        }
+        node = walker.nextNode();
+      }
+    };
+
+    normalizeWelcome();
+    const observer = new MutationObserver(normalizeWelcome);
+    observer.observe(root, { childList: true, subtree: true, characterData: true });
+    return () => observer.disconnect();
+  }, []);
+
+  return <div ref={rootRef} className="contents">{children}</div>;
+}
+
 export function TutorProvider({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const courseIdFromPath = pathname?.startsWith("/courses/") ? pathname.split("/")[2] : null;
@@ -147,7 +178,6 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
       <div className="relative flex min-h-screen w-full flex-row overflow-x-clip bg-background">
         {children}
 
-        {/* Global floating Zyra trigger */}
         {pathname?.startsWith("/courses/") &&
           !pathname.includes("/live/host") &&
           !pathname.endsWith("/daftar") &&
@@ -171,18 +201,20 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
           ))}
 
         {isOpen && (
-          <TutorDrawerView
-            isOpen={isOpen}
-            onClose={close}
-            activeMode={activeMode}
-            setActiveMode={setActiveMode}
-            koId={koId}
-            questionId={questionId}
-            userAnswer={userAnswer}
-            explainMode={explainMode}
-            initialQuestion={initialQuestion}
-            onClearInitialQuestion={() => setInitialQuestion(null)}
-          />
+          <ZyraWelcomeCopyGuard>
+            <TutorDrawerView
+              isOpen={isOpen}
+              onClose={close}
+              activeMode={activeMode}
+              setActiveMode={setActiveMode}
+              koId={koId}
+              questionId={questionId}
+              userAnswer={userAnswer}
+              explainMode={explainMode}
+              initialQuestion={initialQuestion}
+              onClearInitialQuestion={() => setInitialQuestion(null)}
+            />
+          </ZyraWelcomeCopyGuard>
         )}
       </div>
     </TutorContext.Provider>

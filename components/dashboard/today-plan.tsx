@@ -42,7 +42,6 @@ export function TodayPlan({ firstName }: { firstName: string }) {
       .finally(() => setLoading(false));
   }, []);
 
-  // Feature disabled or unrecoverable error
   if (!loading && !data) return null;
 
   const doneCount = data?.items.filter((i) => i.done).length ?? 0;
@@ -61,8 +60,7 @@ export function TodayPlan({ firstName }: { firstName: string }) {
   };
 
   return (
-    <div className="mb-8">
-      {/* Region 1: Greeting row */}
+    <div className="mb-4 sm:mb-8">
       <PageHeader
         title={
           <>
@@ -70,24 +68,25 @@ export function TodayPlan({ firstName }: { firstName: string }) {
           </>
         }
         actions={
-          loading ? (
-            <div className="h-9 w-32 bg-muted rounded-xl animate-pulse" />
-          ) : (
-            <StreakTag current={data?.streak.current ?? 0} />
-          )
+          <div className="hidden sm:block">
+            {loading ? (
+              <div className="h-9 w-32 animate-pulse rounded-xl bg-muted" />
+            ) : (
+              <StreakTag current={data?.streak.current ?? 0} />
+            )}
+          </div>
         }
       />
 
-      {/* Region 2: Today's plan */}
       {total > 0 && (
-        <section className={studentCardClass("mt-6")}>
-          <div className="flex items-center justify-between border-b border-border/40 pb-3 mb-4">
-            <h2 className="font-heading text-body-base font-bold text-foreground flex items-center gap-2">
+        <section className={studentCardClass("mt-4 sm:mt-6")}>
+          <div className="mb-4 flex items-center justify-between border-b border-border/40 pb-3">
+            <h2 className="flex items-center gap-2 font-heading text-body-base font-bold text-foreground">
               <CalendarCheck className="size-4.5 text-brand-primary" />
               Rencana belajar hari ini
             </h2>
             {!loading && (
-              <span className="text-body-xs font-semibold bg-brand-primary/10 text-brand-primary px-2.5 py-1 rounded-md">
+              <span className="rounded-md bg-brand-primary/10 px-2.5 py-1 text-body-xs font-semibold text-brand-primary">
                 {doneCount} dari {total} selesai
               </span>
             )}
@@ -96,14 +95,14 @@ export function TodayPlan({ firstName }: { firstName: string }) {
           {loading ? (
             <div className="divide-y divide-border/30 zebra-no-rows">
               {[1, 2].map((i) => (
-                <div key={i} className="py-3.5 flex items-center gap-4">
-                  <div className="size-5 rounded-full bg-muted animate-pulse shrink-0" />
-                  <div className="h-4 flex-1 bg-muted rounded-md animate-pulse" />
+                <div key={i} className="flex items-center gap-4 py-3.5">
+                  <div className="size-5 shrink-0 animate-pulse rounded-full bg-muted" />
+                  <div className="h-4 flex-1 animate-pulse rounded-md bg-muted" />
                 </div>
               ))}
             </div>
           ) : allDone ? (
-            <div className="py-4 text-center rounded-xl bg-status-success/5 border border-status-success/15 text-status-success p-4">
+            <div className="rounded-xl border border-status-success/15 bg-status-success/5 p-4 py-4 text-center text-status-success">
               <p className="text-body-sm font-semibold">Semua target hari ini telah tercapai.</p>
             </div>
           ) : (
@@ -113,53 +112,48 @@ export function TodayPlan({ firstName }: { firstName: string }) {
                 return (
                   <li
                     key={item.id}
-                    className="py-3.5 flex items-center gap-4 transition-all duration-200"
+                    className="flex items-center gap-4 py-3.5 transition-all duration-200"
                     style={{ animationDelay: `${index * 50}ms` }}
                   >
-                    {/* Check circle (1:1 ratio perfect circle is allowed to use rounded-full) */}
                     <button
                       type="button"
                       aria-label={item.done ? "Selesai" : "Tandai selesai"}
                       onClick={() => !item.done && markDone(item.id)}
                       className={cn(
-                        "size-5 rounded-full border flex items-center justify-center shrink-0 transition-all cursor-pointer",
+                        "flex size-5 shrink-0 cursor-pointer items-center justify-center rounded-full border transition-all",
                         item.done
-                          ? "bg-brand-primary border-brand-primary text-white"
+                          ? "border-brand-primary bg-brand-primary text-white"
                           : "border-border hover:border-brand-primary/60 hover:bg-brand-primary/5"
                       )}
                     >
                       {item.done && <Check className="size-3" />}
                     </button>
 
-                    {/* Kind icon */}
                     <div className={cn(
-                      "flex size-8 items-center justify-center rounded-lg border shrink-0",
-                      item.done 
-                        ? "bg-muted border-border/30 text-muted-foreground" 
-                        : "bg-brand-primary/5 border-brand-primary/10 text-brand-primary"
+                      "flex size-8 shrink-0 items-center justify-center rounded-lg border",
+                      item.done
+                        ? "border-border/30 bg-muted text-muted-foreground"
+                        : "border-brand-primary/10 bg-brand-primary/5 text-brand-primary"
                     )}>
                       <Icon className="size-4 shrink-0" />
                     </div>
 
-                    {/* Title */}
                     <span
                       className={cn(
-                        "text-body-sm font-semibold flex-1 min-w-0 truncate text-foreground",
-                        item.done && "line-through text-muted-foreground font-medium"
+                        "min-w-0 flex-1 truncate text-body-sm font-semibold text-foreground",
+                        item.done && "font-medium text-muted-foreground line-through"
                       )}
                     >
                       {item.title}
                     </span>
 
-                    {/* Count badge */}
                     {item.count != null && (
-                      <Badge variant="outline" className="rounded-md border-border/50 text-[10px] px-1.5 py-0.2 shrink-0">
+                      <Badge variant="outline" className="shrink-0 rounded-md border-border/50 px-1.5 py-0.2 text-[10px]">
                         {item.count} kartu
                       </Badge>
                     )}
 
-                    {/* CTA */}
-                    <Button variant="ghost" size="sm" asChild className="rounded-lg hover:bg-muted shrink-0">
+                    <Button variant="ghost" size="sm" asChild className="shrink-0 rounded-lg hover:bg-muted">
                       <Link href={item.href} aria-label={`Buka ${item.title}`}>
                         <ArrowRight className="size-4 text-muted-foreground hover:text-foreground" />
                       </Link>

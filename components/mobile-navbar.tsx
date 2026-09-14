@@ -11,7 +11,6 @@ export function getRouteTitle(
   pathname: string,
   surface?: "admin" | "student" | "tutor"
 ): string {
-  // 1. Admin routes
   if (pathname === "/admin") return "Panel Admin";
   if (pathname.startsWith("/admin/blog")) return "Kelola Blog";
   if (pathname.startsWith("/admin/courses/")) {
@@ -65,12 +64,10 @@ export function getRouteTitle(
   if (pathname.startsWith("/admin/bundles/idea")) return "Idea Bundles";
   if (pathname.startsWith("/admin/bundles/product")) return "Product Bundles";
 
-  // 2. Tutor routes
   if (pathname === "/tutor") return "Panel Pengajar";
   if (pathname.startsWith("/tutor/schedule")) return "Jadwal Mengajar";
   if (pathname.startsWith("/tutor")) return "Panel Pengajar";
 
-  // 3. Student routes
   if (pathname === "/dashboard/schedule") return "Jadwal Belajar";
   if (pathname.startsWith("/dashboard/groups")) return "Kelompok Belajar";
   if (pathname === "/dashboard") return "Dashboard Siswa";
@@ -98,6 +95,15 @@ export type MobileNavbarProps = {
   className?: string;
 };
 
+function isMobileSidebarBackdrop(target: EventTarget | null): target is HTMLElement {
+  return target instanceof HTMLElement
+    && target.classList.contains("fixed")
+    && target.classList.contains("inset-0")
+    && target.classList.contains("z-40")
+    && target.classList.contains("bg-black/50")
+    && target.classList.contains("md:hidden");
+}
+
 export function MobileNavbar({ surface, className }: MobileNavbarProps) {
   const pathname = usePathname();
   const { setOpen: setSearchOpen } = useCommandMenu();
@@ -108,9 +114,7 @@ export function MobileNavbar({ surface, className }: MobileNavbarProps) {
   useEffect(() => {
     const handleSetTitle = (e: Event) => {
       const detail = (e as CustomEvent<string>).detail;
-      if (typeof detail === "string") {
-        setCustomTitle(detail);
-      }
+      if (typeof detail === "string") setCustomTitle(detail);
     };
     const handleClearTitle = () => setCustomTitle(null);
 
@@ -120,6 +124,19 @@ export function MobileNavbar({ surface, className }: MobileNavbarProps) {
       window.removeEventListener("zyx:set-mobile-title", handleSetTitle);
       window.removeEventListener("zyx:clear-mobile-title", handleClearTitle);
     };
+  }, []);
+
+  useEffect(() => {
+    const handleBackdropPointerDown = (event: PointerEvent) => {
+      if (!isMobileSidebarBackdrop(event.target)) return;
+
+      event.preventDefault();
+      event.stopPropagation();
+      event.target.click();
+    };
+
+    document.addEventListener("pointerdown", handleBackdropPointerDown, true);
+    return () => document.removeEventListener("pointerdown", handleBackdropPointerDown, true);
   }, []);
 
   useEffect(() => {
