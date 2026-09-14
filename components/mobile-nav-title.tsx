@@ -5,8 +5,12 @@ import { setMobileNavTitle } from "@/components/mobile-navbar";
 
 export function MobileNavTitle({ title }: { title: string }) {
   useEffect(() => {
-    setMobileNavTitle(title);
+    const frame = window.requestAnimationFrame(() => {
+      setMobileNavTitle(title);
+    });
+
     return () => {
+      window.cancelAnimationFrame(frame);
       window.dispatchEvent(new Event("zyx:clear-mobile-title"));
     };
   }, [title]);
