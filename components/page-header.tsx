@@ -28,6 +28,8 @@ export function PageHeader({
 }: PageHeaderProps) {
   return (
     <>
+      <h1 className="sr-only md:hidden">{title}</h1>
+
       {(backHref || actions) && (
         <div className="mb-3 flex w-full min-w-0 flex-wrap items-center justify-between gap-2 md:hidden">
           {backHref ? (
