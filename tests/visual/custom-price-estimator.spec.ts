@@ -33,7 +33,9 @@ test("renders valid, invalid, and updated custom price states", async ({ page },
 
   await expect(page.getByLabel("Jumlah pertemuan")).toHaveValue("15");
   await expect(page.locator("[data-price-before]")).toContainText("Rp 8.325.000");
+  await expect(page.locator("[data-price-before-per-person]")).toContainText("Rp 2.775.000");
   await expect(page.locator("[data-price-after]")).toContainText("Rp 4.995.000");
+  await expect(page.locator("[data-price-after-per-person]")).toContainText("Rp 1.665.000");
   await expect(page.getByText("Diskon 40%", { exact: true })).toBeVisible();
   await captureEstimator(page, info, "custom-price-estimator-valid");
 
@@ -60,7 +62,9 @@ test("renders valid, invalid, and updated custom price states", async ({ page },
   await page.getByLabel("Anggota kelompok").fill("3");
   await page.getByLabel("Jumlah pertemuan").fill("10");
   await expect(page.locator("[data-price-before]")).toContainText("Rp 6.200.000");
+  await expect(page.locator("[data-price-before-per-person]")).toContainText("Rp 2.066.667");
   await expect(page.locator("[data-price-after]")).toContainText("Rp 3.720.000");
+  await expect(page.locator("[data-price-after-per-person]")).toContainText("Rp 1.240.000");
   await expect(page.getByText("10 pertemuan", { exact: true })).toBeVisible();
   await assertNoOverflow(page);
   await captureEstimator(page, info, "custom-price-estimator-10-meetings");

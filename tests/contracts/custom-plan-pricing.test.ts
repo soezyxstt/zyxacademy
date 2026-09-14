@@ -13,7 +13,10 @@ describe("custom plan price estimator", () => {
 
     expect(quote.afterDiscount).toBe(essential.price);
     expect(quote.beforeDiscount).toBe(Math.ceil(quote.afterDiscount * 5 / 3));
+    expect(quote.beforeDiscountPerPerson).toBe(Math.round(quote.beforeDiscount / 3));
+    expect(quote.afterDiscountPerPerson).toBe(Math.round(quote.afterDiscount / 3));
     expect(quote.discountAmount).toBe(quote.beforeDiscount - quote.afterDiscount);
+    expect(quote.discountAmountPerPerson).toBe(quote.beforeDiscountPerPerson - quote.afterDiscountPerPerson);
     expect(quote.discountPercent).toBe(40);
   });
 
@@ -24,6 +27,14 @@ describe("custom plan price estimator", () => {
     expect(fiveMeetings.afterDiscount).toBe(2_445_000);
     expect(tenMeetings.afterDiscount).toBeGreaterThan(fiveMeetings.afterDiscount);
     expect(tenMeetings.beforeDiscount).toBe(Math.ceil(tenMeetings.afterDiscount * 5 / 3));
+  });
+
+  test("calculates the per-person estimate from the selected group size", () => {
+    const quote = getCustomPlanPriceQuote(10, 4, 2);
+
+    expect(quote.beforeDiscountPerPerson).toBe(Math.round(quote.beforeDiscount / 4));
+    expect(quote.afterDiscountPerPerson).toBe(Math.round(quote.afterDiscount / 4));
+    expect(quote.discountAmountPerPerson).toBe(quote.beforeDiscountPerPerson - quote.afterDiscountPerPerson);
   });
 
   test("rejects meeting counts below five or outside the five-meeting step", () => {

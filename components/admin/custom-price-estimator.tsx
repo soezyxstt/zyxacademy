@@ -203,7 +203,17 @@ export function CustomPriceEstimator() {
                 >
                   <s>{formatPlanPrice(quote.beforeDiscount)}</s>
                 </p>
-                <p className="mt-1 text-body-xs text-muted-foreground">Harga reguler per semester</p>
+                <p className="mt-1 text-body-xs text-muted-foreground">Total kelompok per semester</p>
+                <div className="mt-3 border-t border-border/70 pt-3">
+                  <p className="text-body-xs font-semibold text-muted-foreground">Per orang</p>
+                  <p
+                    className="mt-1 font-heading text-body-base font-bold text-foreground"
+                    data-price-before-per-person={quote.beforeDiscountPerPerson}
+                  >
+                    {formatPlanPrice(quote.beforeDiscountPerPerson)}
+                    <span className="ml-1 font-sans text-body-xs font-normal text-muted-foreground">/ semester</span>
+                  </p>
+                </div>
               </div>
 
               <div className="rounded-lg border border-[var(--zx-accent)]/30 bg-[var(--zx-accent)]/8 p-4">
@@ -214,15 +224,33 @@ export function CustomPriceEstimator() {
                 >
                   {formatPlanPrice(quote.afterDiscount)}
                 </p>
-                <p className="mt-1 text-body-xs text-muted-foreground">Estimasi per semester</p>
+                <p className="mt-1 text-body-xs text-muted-foreground">Total kelompok per semester</p>
+                <div className="mt-3 border-t border-[var(--zx-accent)]/20 pt-3">
+                  <p className="text-body-xs font-semibold text-[var(--zx-accent)]">Per orang</p>
+                  <p
+                    className="mt-1 font-heading text-body-base font-bold text-foreground"
+                    data-price-after-per-person={quote.afterDiscountPerPerson}
+                  >
+                    {formatPlanPrice(quote.afterDiscountPerPerson)}
+                    <span className="ml-1 font-sans text-body-xs font-normal text-muted-foreground">/ semester</span>
+                  </p>
+                </div>
               </div>
             </div>
 
             <div className="flex items-center justify-between gap-3 border-y border-border/70 py-3 text-body-sm">
               <span className="text-muted-foreground">Potongan {quote.discountPercent}%</span>
-              <span className="font-semibold text-status-success" data-price-discount={quote.discountAmount}>
-                -{formatPlanPrice(quote.discountAmount)}
-              </span>
+              <div className="text-right">
+                <span className="font-semibold text-status-success" data-price-discount={quote.discountAmount}>
+                  -{formatPlanPrice(quote.discountAmount)}
+                </span>
+                <span
+                  className="block text-body-xs text-muted-foreground"
+                  data-price-discount-per-person={quote.discountAmountPerPerson}
+                >
+                  -{formatPlanPrice(quote.discountAmountPerPerson)} / orang
+                </span>
+              </div>
             </div>
 
             <div className="space-y-2">

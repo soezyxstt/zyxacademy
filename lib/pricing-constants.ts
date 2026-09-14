@@ -119,8 +119,11 @@ const calculateIntroductoryPrice = (
 
 export type CustomPlanPriceQuote = {
   beforeDiscount: number;
+  beforeDiscountPerPerson: number;
   afterDiscount: number;
+  afterDiscountPerPerson: number;
   discountAmount: number;
+  discountAmountPerPerson: number;
   discountPercent: number;
 };
 
@@ -145,11 +148,16 @@ export function getCustomPlanPriceQuote(
   const tutorialComponent = getTutorialCost(meetings, 155, persons);
   const afterDiscount = roundPlanTotal(platformComponent + tutorialComponent, persons);
   const beforeDiscount = Math.ceil(afterDiscount * 100 / (100 - INTRO_DISCOUNT_PERCENT));
+  const beforeDiscountPerPerson = Math.round(beforeDiscount / persons);
+  const afterDiscountPerPerson = Math.round(afterDiscount / persons);
 
   return {
     beforeDiscount,
+    beforeDiscountPerPerson,
     afterDiscount,
+    afterDiscountPerPerson,
     discountAmount: beforeDiscount - afterDiscount,
+    discountAmountPerPerson: beforeDiscountPerPerson - afterDiscountPerPerson,
     discountPercent: INTRO_DISCOUNT_PERCENT,
   };
 }
