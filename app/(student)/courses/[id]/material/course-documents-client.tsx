@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import {
@@ -32,6 +32,8 @@ type CourseDocumentsClientProps = {
   chapters: Chapter[];
   defaultTab?: string;
 };
+
+const MAX_THUMBNAIL_RETRIES = 8;
 
 const tabs: Array<{ key: TabKey; label: string; icon: typeof FileText }> = [
   { key: "all", label: "Semua", icon: FileText },
@@ -111,10 +113,79 @@ function documentMeta(material: CourseMaterial, typeLabel: string): string {
     .join(" · ");
 }
 
+function CompactDocumentThumbnail({
+  material,
+  icon: Icon,
+  iconClass,
+}: {
+  material: CourseMaterial;
+  icon: typeof FileText;
+  iconClass: string;
+}) {
+  const [imageLoaded, setImageLoaded] = useState(false);
+  const [imageError, setImageError] = useState(false);
+  const [retryAttempt, setRetryAttempt] = useState(0);
+  const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const baseThumbnailUrl = material.thumbnailUrl ?? "";
+  const isRetryableThumbnail = baseThumbnailUrl.includes("/thumbnail");
+  const thumbnailSrc =
+    baseThumbnailUrl && retryAttempt > 0
+      ? `${baseThumbnailUrl}${baseThumbnailUrl.includes("?") ? "&" : "?"}retry=${retryAttempt}`
+      : baseThumbnailUrl;
+  const hasThumbnail = Boolean(baseThumbnailUrl) && !imageError;
+
+  useEffect(() => {
+    setImageLoaded(false);
+    setImageError(false);
+    setRetryAttempt(0);
+  }, [baseThumbnailUrl]);
+
+  useEffect(() => () => {
+    if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
+  }, []);
+
+  const handleThumbnailError = () => {
+    if (!isRetryableThumbnail || retryAttempt >= MAX_THUMBNAIL_RETRIES) {
+      setImageError(true);
+      return;
+    }
+
+    if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
+    const delayMs = Math.min(750 * 2 ** retryAttempt, 5000);
+    retryTimerRef.current = setTimeout(() => {
+      setImageLoaded(false);
+      setRetryAttempt((current) => current + 1);
+    }, delayMs);
+  };
+
+  return (
+    <div className="relative flex h-14 w-18 shrink-0 items-center justify-center overflow-hidden rounded-md border border-border/45 bg-muted/20">
+      {(!hasThumbnail || !imageLoaded) && (
+        <Icon className={cn("size-5", iconClass, hasThumbnail && "animate-pulse opacity-70")} aria-hidden />
+      )}
+      {hasThumbnail && (
+        <Image
+          key={thumbnailSrc}
+          src={thumbnailSrc}
+          alt={`Pratinjau ${material.title}`}
+          fill
+          unoptimized={isRetryableThumbnail}
+          sizes="72px"
+          className={cn(
+            "object-cover object-center transition-all duration-200 group-hover:scale-[1.02]",
+            imageLoaded ? "opacity-100" : "opacity-0"
+          )}
+          onLoad={() => setImageLoaded(true)}
+          onError={handleThumbnailError}
+        />
+      )}
+    </div>
+  );
+}
+
 function HierarchyDocumentCard({ material, courseId }: { material: CourseMaterial; courseId: string }) {
   const group = resolveTabGroup(material);
   const style = typeStyle[group];
-  const Icon = style.icon;
   const itemHref = material.href ?? `/courses/${courseId}/material/${material.id}`;
 
   return (
@@ -125,19 +196,7 @@ function HierarchyDocumentCard({ material, courseId }: { material: CourseMateria
         style.border
       )}
     >
-      <div className="relative flex h-14 w-18 shrink-0 items-center justify-center overflow-hidden rounded-md border border-border/45 bg-muted/20">
-        {material.thumbnailUrl ? (
-          <Image
-            src={material.thumbnailUrl}
-            alt=""
-            fill
-            sizes="72px"
-            className="object-cover object-center transition-transform duration-200 group-hover:scale-[1.02]"
-          />
-        ) : (
-          <Icon className={cn("size-5", style.iconClass)} aria-hidden />
-        )}
-      </div>
+      <CompactDocumentThumbnail material={material} icon={style.icon} iconClass={style.iconClass} />
 
       <div className="min-w-0 flex-1">
         <p className="line-clamp-2 text-body-sm font-semibold leading-snug text-foreground" title={material.title}>
