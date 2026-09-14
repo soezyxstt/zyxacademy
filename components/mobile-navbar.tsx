@@ -102,6 +102,7 @@ export function MobileNavbar({ surface, className }: MobileNavbarProps) {
   const pathname = usePathname();
   const { setOpen: setSearchOpen } = useCommandMenu();
   const [customTitle, setCustomTitle] = useState<string | null>(null);
+  const [isTitleOverflowing, setIsTitleOverflowing] = useState(false);
   const titleRef = useRef<HTMLSpanElement>(null);
 
   useEffect(() => {
@@ -127,6 +128,17 @@ export function MobileNavbar({ surface, className }: MobileNavbarProps) {
 
   const displayTitle = customTitle || getRouteTitle(pathname, surface);
 
+  useEffect(() => {
+    const checkOverflow = () => {
+      const title = titleRef.current;
+      setIsTitleOverflowing(Boolean(title && title.scrollWidth - title.clientWidth > 1));
+    };
+
+    checkOverflow();
+    window.addEventListener("resize", checkOverflow);
+    return () => window.removeEventListener("resize", checkOverflow);
+  }, [displayTitle]);
+
   const revealFullTitle = () => {
     const title = titleRef.current;
     if (!title) return;
@@ -141,6 +153,15 @@ export function MobileNavbar({ surface, className }: MobileNavbarProps) {
       behavior: prefersReducedMotion ? "auto" : "smooth",
     });
   };
+
+  const titleContent = (
+    <span
+      ref={titleRef}
+      className="block min-w-0 overflow-x-hidden whitespace-nowrap font-heading text-body-sm font-semibold leading-tight tracking-tight text-foreground [text-overflow:ellipsis]"
+    >
+      {displayTitle}
+    </span>
+  );
 
   return (
     <header
@@ -159,20 +180,21 @@ export function MobileNavbar({ surface, className }: MobileNavbarProps) {
           <Menu className="size-4.5" />
         </button>
 
-        <button
-          type="button"
-          onClick={revealFullTitle}
-          aria-label={`Tampilkan judul lengkap: ${displayTitle}`}
-          title={displayTitle}
-          className="min-w-0 flex-1 cursor-pointer overflow-hidden text-left"
-        >
-          <span
-            ref={titleRef}
-            className="block min-w-0 overflow-x-hidden whitespace-nowrap font-heading text-body-sm font-semibold leading-tight tracking-tight text-foreground [text-overflow:ellipsis]"
+        {isTitleOverflowing ? (
+          <button
+            type="button"
+            onClick={revealFullTitle}
+            aria-label={`Tampilkan judul lengkap: ${displayTitle}`}
+            title={displayTitle}
+            className="min-w-0 flex-1 cursor-pointer overflow-hidden text-left"
           >
-            {displayTitle}
-          </span>
-        </button>
+            {titleContent}
+          </button>
+        ) : (
+          <div className="min-w-0 flex-1 overflow-hidden text-left" title={displayTitle}>
+            {titleContent}
+          </div>
+        )}
       </div>
 
       <div className="flex shrink-0 items-center gap-1.5">
