@@ -135,7 +135,11 @@ export function MobileNavbar({ surface, className }: MobileNavbarProps) {
     if (maxScroll <= 1) return;
 
     const atEnd = title.scrollLeft >= maxScroll - 1;
-    title.scrollTo({ left: atEnd ? 0 : maxScroll, behavior: "smooth" });
+    const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    title.scrollTo({
+      left: atEnd ? 0 : maxScroll,
+      behavior: prefersReducedMotion ? "auto" : "smooth",
+    });
   };
 
   return (
@@ -164,7 +168,7 @@ export function MobileNavbar({ surface, className }: MobileNavbarProps) {
         >
           <span
             ref={titleRef}
-            className="block min-w-0 overflow-x-hidden whitespace-nowrap scroll-smooth font-heading text-body-sm font-semibold leading-tight tracking-tight text-foreground [text-overflow:ellipsis]"
+            className="block min-w-0 overflow-x-hidden whitespace-nowrap font-heading text-body-sm font-semibold leading-tight tracking-tight text-foreground [text-overflow:ellipsis]"
           >
             {displayTitle}
           </span>
