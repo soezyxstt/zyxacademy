@@ -233,7 +233,7 @@ export function CourseDocumentsClient({
   defaultTab,
 }: CourseDocumentsClientProps) {
   const initialTab = normalizeTabKey(defaultTab);
-  const [urlTab, setUrlTab] = useUrlTab("tab", initialTab);
+  const [urlTab, setUrlTab] = useUrlTab("tab", "all", initialTab);
   const activeTab = normalizeTabKey(urlTab);
 
   const chapterGroups = useMemo(
