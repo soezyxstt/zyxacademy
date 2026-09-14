@@ -31,8 +31,9 @@ import {
   renameStudentGroup,
 } from "@/app/(student)/dashboard/groups/rename-actions";
 import { formatIsoDate } from "@/lib/date-utils";
+import { useUrlTab } from "@/hooks/use-url-tab";
 
- type StudentGroup = {
+type StudentGroup = {
   id: string;
   name: string;
   packageName: string;
@@ -72,7 +73,8 @@ function formatDateTime(value: string) {
 
 export function StudentGroupsCompactClient({ initialGroups }: Props) {
   const router = useRouter();
-  const [selectedGroupId, setSelectedGroupId] = useState(initialGroups[0]?.id ?? "");
+  const defaultGroupId = initialGroups[0]?.id ?? "";
+  const [selectedGroupId, setSelectedGroupId] = useUrlTab("group", defaultGroupId, defaultGroupId);
   const [tokenInput, setTokenInput] = useState("");
   const [tokenLoading, setTokenLoading] = useState(false);
   const [copiedToken, setCopiedToken] = useState<string | null>(null);
