@@ -4,6 +4,7 @@ import { and, eq } from "drizzle-orm";
 import { randomUUID } from "crypto";
 import { recordLearningEvent } from "@/lib/learning-events";
 import { inngest } from "@/lib/inngest";
+import { getStudentMaterialAccess, isFreeChapterScoped } from "@/lib/course-utils";
 
 export async function getStudentMaterialProgress(studentId: string, materialId: string) {
   const [row] = await db
@@ -31,6 +32,52 @@ export async function updateMaterialProgress(progress: {
   } | null;
   timeSpentSeconds: number; // Increment of time spent in seconds
 }) {
+  // This repository is called by a browser-facing route, so the material
+  // identity must be resolved again on the server before any progress row or
+  // completion side effect is written. Do not trust the caller to provide a
+  // course or a material that it has already opened in the UI.
+  // student_material_progress is the compatibility table for website_materials
+  // (its foreign key points to that table). Resolve that exact published row
+  // first so canonical Diktat/Article IDs or legacy PDFs cannot create an
+  // orphaned progress record or trigger a cross-course event.
+  const [persistedMaterial] = await db
+    .select({
+      courseId: websiteMaterials.courseId,
+      chapterId: websiteMaterials.chapterId,
+    })
+    .from(websiteMaterials)
+    .where(
+      and(
+        eq(websiteMaterials.id, progress.materialId),
+        eq(websiteMaterials.status, "published"),
+        eq(websiteMaterials.isStale, false),
+      ),
+    )
+    .limit(1);
+  if (!persistedMaterial) {
+    throw new Error("MATERIAL_ACCESS_DENIED");
+  }
+
+  const materialAccess = await getStudentMaterialAccess(progress.studentId, progress.materialId);
+  const accessCourseId = materialAccess
+    ? materialAccess.access.legacyCourseId ?? materialAccess.access.courseId
+    : null;
+  if (
+    !materialAccess
+    || materialAccess.contentKind !== "article"
+    || accessCourseId !== persistedMaterial.courseId
+  ) {
+    throw new Error("MATERIAL_ACCESS_DENIED");
+  }
+  if (
+    materialAccess.access.tier === "free"
+    && (
+      !isFreeChapterScoped([persistedMaterial.chapterId], materialAccess.access.freeChapterIds)
+    )
+  ) {
+    throw new Error("MATERIAL_UPGRADE_REQUIRED");
+  }
+
   const now = new Date();
   const existing = await getStudentMaterialProgress(progress.studentId, progress.materialId);
   const rawPercent = Math.max(0, Math.min(100, Math.round(progress.completionPercent)));
@@ -78,52 +125,44 @@ export async function updateMaterialProgress(progress: {
 
   // Trigger completion events if progress crosses 90%
   if (isNowCompleted && !wasPreviouslyCompleted) {
-    const [mat] = await db
-      .select({ courseId: websiteMaterials.courseId })
-      .from(websiteMaterials)
-      .where(eq(websiteMaterials.id, progress.materialId))
-      .limit(1);
+    try {
+      const existingLegacy = await db.query.progress.findFirst({
+        where: and(
+          eq(legacyProgress.userId, progress.studentId),
+          eq(legacyProgress.materialId, progress.materialId)
+        ),
+      });
 
-    if (mat) {
-      try {
-        const existingLegacy = await db.query.progress.findFirst({
-          where: and(
-            eq(legacyProgress.userId, progress.studentId),
-            eq(legacyProgress.materialId, progress.materialId)
-          ),
-        });
-
-        if (existingLegacy) {
-          if (existingLegacy.status !== "completed") {
-            await db
-              .update(legacyProgress)
-              .set({ status: "completed", completedAt: now })
-              .where(eq(legacyProgress.id, existingLegacy.id));
-          }
-        } else {
-          await db.insert(legacyProgress).values({
-            id: `prog-${randomUUID()}`,
-            userId: progress.studentId,
-            materialId: progress.materialId,
-            status: "completed",
-            completedAt: now,
-          });
+      if (existingLegacy) {
+        if (existingLegacy.status !== "completed") {
+          await db
+            .update(legacyProgress)
+            .set({ status: "completed", completedAt: now })
+            .where(eq(legacyProgress.id, existingLegacy.id));
         }
-
-        await Promise.all([
-          recordLearningEvent({
-            studentId: progress.studentId,
-            courseId: mat.courseId,
-            eventType: "material_completed",
-          }),
-          inngest.send({
-            name: "mastery/recompute.requested",
-            data: { studentId: progress.studentId, courseId: mat.courseId },
-          }),
-        ]);
-      } catch (err) {
-        console.error("Failed to trigger automatic completion sync:", err);
+      } else {
+        await db.insert(legacyProgress).values({
+          id: `prog-${randomUUID()}`,
+          userId: progress.studentId,
+          materialId: progress.materialId,
+          status: "completed",
+          completedAt: now,
+        });
       }
+
+      await Promise.all([
+        recordLearningEvent({
+          studentId: progress.studentId,
+          courseId: persistedMaterial.courseId,
+          eventType: "material_completed",
+        }),
+        inngest.send({
+          name: "mastery/recompute.requested",
+          data: { studentId: progress.studentId, courseId: persistedMaterial.courseId },
+        }),
+      ]);
+    } catch (err) {
+      console.error("Failed to trigger automatic completion sync:", err);
     }
   }
 

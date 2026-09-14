@@ -6,7 +6,12 @@ const faqItems = [
   {
     question: "Apa yang termasuk akses Free?",
     answer:
-      "Paket Free berisi Bank Materi dan Soal. Fitur tambahan seperti solusi soal, diktat, kuis dengan pembahasan, dan tutorial tercantum di paket masing-masing.",
+      "Paket Free memberi akses penuh ke dua bab pertama setiap mata kuliah, termasuk Artikel, Diktat, Kuis, dan Flashcard. Diktat dapat dibaca tanpa unduhan. Zyra tersedia satu pertanyaan per hari.",
+  },
+  {
+    question: "Bisa melihat fitur sebelum membuat akun?",
+    answer:
+      "Bisa. Coba demo untuk melihat satu mata kuliah pilihan dengan Artikel lengkap, dua bagian pertama Diktat, lima Flashcard, tiga soal Kuis, dan contoh percakapan Zyra.",
   },
   {
     question: "Apa perbedaan paket berbayar?",

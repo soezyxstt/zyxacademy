@@ -48,7 +48,7 @@ export function LandingHero() {
               <Link href="/sign-up">Mulai gratis</Link>
             </Button>
             <Button asChild variant="ghost" size="marketing" className="text-foreground">
-              <Link href="#landing-quiz">Coba demo</Link>
+              <Link href="/demo">Coba demo</Link>
             </Button>
           </div>
         </div>

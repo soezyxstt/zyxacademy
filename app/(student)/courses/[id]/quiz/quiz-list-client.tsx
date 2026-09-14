@@ -13,17 +13,23 @@ type AttemptType = typeof studentQuizAttempts.$inferSelect;
 type QuizListClientProps = {
   courseId: string;
   isEnrolled: boolean;
+  accessTier?: "anonymous" | "free" | "standard";
+  /** Server-approved Free templates. Invalid or broad rules stay locked. */
+  freeEligibleTemplateIds?: string[];
   templates: TemplateType[];
   attempts: AttemptType[];
 };
 
-export function QuizListClient({ courseId, isEnrolled, templates, attempts }: QuizListClientProps) {
+export function QuizListClient({ courseId, isEnrolled, accessTier = isEnrolled ? "standard" : "anonymous", freeEligibleTemplateIds = [], templates, attempts }: QuizListClientProps) {
+  const freeEligibleIds = new Set(freeEligibleTemplateIds);
+
   return (
     <div className="font-sans">
       <ul className="overflow-hidden rounded-lg border border-border/70 bg-card/75 backdrop-blur-sm">
         {templates.map((template) => {
           const isFree = template.visibility === "free";
-          const accessible = isEnrolled || isFree;
+          const accessible = accessTier === "standard"
+            || (accessTier === "free" && freeEligibleIds.has(template.id));
 
           // Parse selection rules to get question count
           const rules = template.selectionRules as Record<string, any>;
@@ -218,7 +224,7 @@ export function QuizListClient({ courseId, isEnrolled, templates, attempts }: Qu
                       : "bg-brand-primary/10 text-brand-primary ring-brand-primary/20",
                   )}
                 >
-                  {!isFree && !isEnrolled && <Lock className="size-3" />}
+                  {!isFree && accessTier !== "standard" && <Lock className="size-3" />}
                   {isFree ? "Gratis" : "Premium"}
                 </span>
 

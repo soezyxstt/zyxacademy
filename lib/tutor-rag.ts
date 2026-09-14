@@ -32,7 +32,7 @@ import {
 } from "@/lib/learner-profile";
 import { recordLearningEvent } from "@/lib/learning-events";
 import { USE_CASES } from "@/lib/ai-router";
-import { UsageBudgetService } from "@/lib/usage-budget-service";
+import { UsageBudgetService, type AllowanceAccessTier } from "@/lib/usage-budget-service";
 import { zyraRuntimeEnv } from "@/lib/zyra/runtime-env";
 import {
   evaluateAssessmentAssistancePolicy,
@@ -252,13 +252,19 @@ export function normalizeQuestion(question: string): string {
  .trim();
 }
 
-async function logCacheHit(userId: string, feature: string): Promise<void> {
+async function logCacheHit(
+  userId: string,
+  feature: string,
+  accessTier: AllowanceAccessTier = "standard",
+  idempotencyKey?: string,
+): Promise<void> {
   if (UsageBudgetService.isAllowanceEnabled()) {
     await UsageBudgetService.recordCacheHit({
       userId,
-      idempotencyKey: `cache:${feature}:${randomUUID()}`,
+      idempotencyKey: idempotencyKey ?? `cache:${feature}:${randomUUID()}`,
       feature,
       model: "kv-cache",
+      accessTier,
     });
     return;
   }
@@ -461,22 +467,30 @@ async function retrieve(
   question: string,
   runtime?: {
     studentId: string;
+    accessTier?: AllowanceAccessTier;
+    freeChapterIds?: readonly string[];
     activityKind: ActivityKind;
     attemptState: AttemptState;
     answerReleaseState: AnswerReleaseState;
     matchState: MatchState;
   }
 ): Promise<RetrievedSource[]> {
- const result = await retrieveCanonicalEvidence({
+ const canonicalRequest = {
   studentId: runtime?.studentId,
   courseId,
   chapterId,
-  isEnrolled: false,
+  // Canonical runtime owns the final content decision. Keep the legacy
+  // boolean for compatibility while also passing the explicit Free scope to
+  // newer runtimes. The extra fields are intentionally server-owned.
+  isEnrolled: runtime?.accessTier !== "free",
+  accessTier: runtime?.accessTier ?? "standard",
+  allowedChapterIds: runtime?.freeChapterIds,
   activityKind: runtime?.activityKind,
   attemptState: runtime?.attemptState,
   answerReleaseState: runtime?.answerReleaseState,
   matchState: runtime?.matchState,
- }, question);
+ };
+ const result = await retrieveCanonicalEvidence(canonicalRequest, question);
  return result.sources.map((source) => ({
   type: source.type,
   id: source.id,
@@ -534,6 +548,12 @@ async function buildAddendum(
 export interface AskTutorParams {
   studentId: string;
   courseId: string;
+  /** Access lane is resolved by the server action, never by the client. */
+  accessTier?: AllowanceAccessTier;
+  /** First-two-chapter scope for the authenticated Free lane. */
+  freeChapterIds?: readonly string[];
+  /** Stable request key for one allowance reservation and safe retries. */
+  idempotencyKey?: string;
   chapterId?: string | null;
   question: string;
   sessionId?: string | null;
@@ -565,6 +585,11 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
   const pageContext = params.pageContext ?? null;
   const hasPageContext = pageContext !== null;
   const hasImages = imageParts.length > 0;
+  const accessTier = params.accessTier ?? "standard";
+  const idempotencyKey = params.idempotencyKey;
+  if (accessTier === "free" && hasImages) {
+    throw new Error("FREE_TEXT_ONLY");
+  }
   const emitOperationalOutcome = (resultCode: string, cached = false): void => {
     void recordZyraOperationalEventSafe({
       version: "zyra-ops-event-v1",
@@ -612,7 +637,9 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
   });
 
   const protectedPayload = protectedAnswers || {};
-  const profile = await buildLearnerProfile(studentId, courseId);
+  const profile = accessTier === "free"
+    ? { weakConcepts: [], masteredConcepts: [], recentStruggles: [], recentTutorTopics: [] } as LearnerProfile
+    : await buildLearnerProfile(studentId, courseId);
 
   // Load conversation history context
   const history = sessionId
@@ -622,11 +649,18 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
   // Classify query action deterministically or via AI action classifier
   const classification = await classifyQueryAction(
     { question, historyMessages: history.recentMessages },
-    { userId: studentId, deterministicOnly: pedagogyMode !== "legacy" || hasImages }
+    {
+      userId: studentId,
+      // Free users receive one accepted question per day. Keep action
+      // classification deterministic so an ambiguous multi-turn request
+      // cannot spend a second allowance before the actual answer generation.
+      deterministicOnly: accessTier === "free" || pedagogyMode !== "legacy" || hasImages,
+    }
   );
 
-  // 1. Action: Clarify
-  if (classification.action === "clarify" && !hasImages) {
+  // 1. Action: Clarify. Free questions still pass through the allowance
+  // boundary, so deterministic clarification cannot bypass the daily limit.
+  if (classification.action === "clarify" && !hasImages && accessTier !== "free") {
     emitOperationalOutcome("CLARIFY");
     return {
       answer: "Mohon berikan pertanyaan yang lebih spesifik atau jelas mengenai materi kuliah agar aku bisa membantu.",
@@ -651,9 +685,10 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
       prompt: hasImages ? tutorImageAnswer : tutorUngroundedAnswer,
       variables: { question, conversationHistory: historyText },
       schema: UngroundedSchema,
-      useCase: USE_CASES.UNGROUNDED_TUTOR,
+      useCase: accessTier === "free" ? USE_CASES.UNGROUNDED_TUTOR_GEMMA : USE_CASES.UNGROUNDED_TUTOR,
       providerParts: imageParts,
       maxAttempts: hasImages ? 1 : undefined,
+      idempotencyKey,
     });
     let ansText = result.success && result.data
       ? sanitizeAnswer(result.data.answer)
@@ -687,7 +722,7 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
   let terminalFailure: TutorRagResult["failureCode"] | undefined;
 
   const generateGeneralTeachingFallback = async (): Promise<TutorRagAnswer | null> => {
-    const remaining = await UsageBudgetService.getRemainingPremium(studentId);
+    const remaining = accessTier === "free" ? 0 : await UsageBudgetService.getRemainingPremium(studentId);
     const useCase = remaining > 0 ? USE_CASES.UNGROUNDED_TUTOR : USE_CASES.UNGROUNDED_TUTOR_GEMMA;
     const historyText = history.recentMessages
       .map((message) => `${message.role === "student" ? "STUDENT" : "ZYRA"}: ${message.content}`)
@@ -700,6 +735,7 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
       useCase,
       providerParts: imageParts,
       maxAttempts: hasImages ? 1 : undefined,
+      idempotencyKey,
     });
 
     if (!result.success || !result.data) {
@@ -752,16 +788,19 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
         }
       }
     }
-    const rehydrated = await rehydrateCanonicalSourceIds({
+    const canonicalRequest = {
       studentId,
       courseId,
       chapterId,
-      isEnrolled: false,
+      isEnrolled: accessTier !== "free",
+      accessTier,
+      allowedChapterIds: params.freeChapterIds,
       activityKind,
       attemptState,
       answerReleaseState,
       matchState,
-    }, historySources.map((source) => source.id));
+    };
+    const rehydrated = await rehydrateCanonicalSourceIds(canonicalRequest, historySources.map((source) => source.id));
     retrieved = rehydrated.sources.map((source) => ({
       type: source.type,
       id: source.id,
@@ -769,7 +808,7 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
       href: source.href,
       content: source.content,
     }));
-  } else if (await isMetaExamQuery(searchQuestion)) {
+  } else if (accessTier !== "free" && await isMetaExamQuery(searchQuestion)) {
     const statsSummary = await executeMetaQuery(courseId, searchQuestion);
     retrieved = [
       {
@@ -781,9 +820,11 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
       },
     ];
   } else {
-    retrieved = await retrieve(courseId, chapterId, searchQuestion, {
-      studentId,
-      activityKind,
+      retrieved = await retrieve(courseId, chapterId, searchQuestion, {
+        studentId,
+        accessTier,
+        freeChapterIds: params.freeChapterIds,
+        activityKind,
       attemptState,
       answerReleaseState,
       matchState,
@@ -812,6 +853,7 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
   });
 
   const remoteCacheEnabled = !hasImages
+    && accessTier !== "free"
     && !hasPageContext
     && zyraRuntimeEnv.FEATURE_ZYRA_SEMANTIC_CACHE_V1 === "1"
     && classification.action === "retrieve"
@@ -849,7 +891,7 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
   let pedagogyCanvasSpec: CanvasSpec | null = null;
 
   // Shared Tier 1 cache lookup: ONLY for direct 'retrieve' actions
-  if (classification.action === "retrieve" && !hasImages && !hasPageContext) {
+  if (accessTier !== "free" && classification.action === "retrieve" && !hasImages && !hasPageContext) {
     if (remoteCache && remoteCacheKey) {
       try {
         let shared = await remoteCache.get(remoteCacheKey);
@@ -893,7 +935,12 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
         canvasSpec: isZyraCanvasFeatureEnabled() ? base.canvasSpec ?? null : null,
       };
       assertNoStudentTextInSharedCache(cacheKey, base, [studentId, sessionId ?? ""]);
-      await logCacheHit(studentId, "tutor_rag");
+      await logCacheHit(
+        studentId,
+        "tutor_rag",
+        accessTier,
+        idempotencyKey ? `${idempotencyKey}:cache` : undefined,
+      );
     } else {
       base = null;
     }
@@ -1007,7 +1054,7 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
             cacheTtlSeconds: pedagogyMode === "shadow" ? undefined : remoteCache ? SHARED_TUTOR_TTL_SECONDS : undefined,
             idempotencyKey: pedagogyMode === "shadow"
               ? `pedagogy-shadow:${params.pedagogyShadowRunId}:${params.pedagogyShadowCaseId}:candidate`
-              : undefined,
+              : idempotencyKey,
             imageParts,
           });
 
@@ -1089,6 +1136,7 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
             cacheTtlSeconds: remoteCache ? SHARED_TUTOR_TTL_SECONDS : undefined,
             providerParts: imageParts,
             maxAttempts: hasImages ? 1 : undefined,
+            idempotencyKey,
           });
         }
 
@@ -1145,6 +1193,7 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
 
           const isEligibleToCache =
             classification.action === "retrieve" &&
+            accessTier !== "free" &&
             !hasPageContext &&
             base.grounded &&
             (base.coverageState === "full" || base.coverageState === "partial") &&
@@ -1234,7 +1283,7 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
 
  // Tier 3: personalized AI, only for weak concepts, charged, silent on exhaustion
   let personalized: string | null = null;
-  if (addendum && pedagogyMode === "legacy" && !hasImages) {
+  if (accessTier !== "free" && addendum && pedagogyMode === "legacy" && !hasImages) {
    const remaining = await UsageBudgetService.getRemainingPremium(studentId);
    const useCase = remaining > 0 ? USE_CASES.WEAK_CONCEPT_GUIDANCE : USE_CASES.WEAK_CONCEPT_GUIDANCE_GEMMA;
    const result = await PromptExecutor.run({

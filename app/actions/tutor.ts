@@ -4,13 +4,16 @@ import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
 import { TutorActionService } from "@/lib/tutor-actions";
 import { db } from "@/db";
-import { aiQuestionBank, knowledgeObjects, tutorChatMessages, chatSessions, studentQuizAttempts, quizTemplates, zyraMessageAttachments, courses } from "@/db/schema";
+import { aiQuestionBank, knowledgeObjects, tutorChatMessages, chatSessions, studentQuizAttempts, quizTemplates, zyraMessageAttachments, bab, chapters, mataKuliah } from "@/db/schema";
 import { eq, and, asc, desc, gt, inArray, isNull, or } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 import { exams } from "@/lib/student-course-fixtures";
 import { askTutorRag, type TutorPageContext } from "@/lib/tutor-rag";
 import { getOrCreateChatSession } from "@/lib/zyra/zyra-context-builder";
-import { isEnrolled } from "@/lib/course-utils";
+import { isFreeChapterScoped } from "@/lib/course-utils";
+import { resolveCourseAccess, type CourseAccessResult } from "@/lib/student/course-access";
+import { resolveCourseIdentity } from "@/lib/admin/course-identity";
+import { FREE_ALLOWANCE_IDEMPOTENCY_PREFIX } from "@/lib/usage-budget-service";
 import { zyraRuntimeEnv } from "@/lib/zyra/runtime-env";
 import {
   assertZyraImageCount,
@@ -25,8 +28,18 @@ import {
   serializeTutorMessageSources,
 } from "@/lib/zyra/canvas";
 
-/** Thrown when a signed-in user tries to use Zyra for a course they are not enrolled in. */
+/** Thrown when a signed-in user has no access to the requested course. */
 const NOT_ENROLLED = "NOT_ENROLLED";
+const UPGRADE_REQUIRED = "UPGRADE_REQUIRED";
+const COURSE_SCOPE_REQUIRED = "COURSE_SCOPE_REQUIRED";
+const FREE_TEXT_ONLY = "FREE_TEXT_ONLY";
+const CHAT_SESSION_ACCESS_DENIED = "CHAT_SESSION_ACCESS_DENIED";
+const MISTAKE_ATTEMPT_REQUIRED = "MISTAKE_ATTEMPT_REQUIRED";
+
+type TutorCourseAuthorization = {
+  user: Awaited<ReturnType<typeof requireUser>>;
+  access: CourseAccessResult;
+};
 
 async function requireUser() {
   const h = await headers();
@@ -39,19 +52,93 @@ async function requireUser() {
   return session.user;
 }
 
-/**
- * Zyra is enrollment-gated: only students enrolled in a course (and admins) may
- * invoke tutor actions scoped to it. Course-scoped actions resolve the course
- * either directly (courseId arg) or via the referenced KO/question, then check
- * enrollment. Keeps AI spend and course content behind the enrollment wall.
- */
-async function requireCourseAccess(courseId: string | null | undefined) {
+/** Every course-scoped server action resolves the central access policy. */
+async function requireCourseAccess(courseId: string | null | undefined): Promise<TutorCourseAuthorization> {
   const user = await requireUser();
-  if ((user as { role?: string | null }).role === "admin") return user;
-  if (!courseId || !(await isEnrolled(user.id, courseId))) {
+  const normalizedCourseId = typeof courseId === "string" ? courseId.trim() : "";
+  if (!normalizedCourseId || normalizedCourseId === "unknown") {
+    throw new Error(COURSE_SCOPE_REQUIRED);
+  }
+  const access = await resolveCourseAccess({ courseId: normalizedCourseId, userId: user.id });
+  // All actors, including admins, must pass the central active-course and
+  // role/assignment policy. A session role is never an authorization bypass.
+  if (!access.hasCourseAccess) {
+    if (access.reason === "COURSE_NOT_FOUND"
+      || access.reason === "COURSE_INACTIVE"
+      || access.reason === "COURSE_MAPPING_AMBIGUOUS") {
+      throw new Error(COURSE_SCOPE_REQUIRED);
+    }
     throw new Error(NOT_ENROLLED);
   }
-  return user;
+  return { user, access };
+}
+
+/**
+ * A client-provided chat session is an authorization boundary, not merely a
+ * grouping key. Resolve it against both the authenticated owner and course
+ * before reading, writing, attaching, or deleting any conversation data.
+ */
+async function requireOwnedChatSession(
+  userId: string,
+  courseId: string,
+  requestedSessionId: string | null | undefined,
+  title: string,
+): Promise<string> {
+  const sessionId = typeof requestedSessionId === "string" ? requestedSessionId.trim() : "";
+  if (sessionId) {
+    const [session] = await db
+      .select({ id: chatSessions.id })
+      .from(chatSessions)
+      .where(and(
+        eq(chatSessions.id, sessionId),
+        eq(chatSessions.studentId, userId),
+        eq(chatSessions.courseId, courseId),
+      ))
+      .limit(1);
+    if (!session) throw new Error(CHAT_SESSION_ACCESS_DENIED);
+    return session.id;
+  }
+  return getOrCreateChatSession(userId, courseId, title);
+}
+
+async function requireEnrolledTutorAccess(courseId: string | null | undefined): Promise<TutorCourseAuthorization> {
+  const authorization = await requireCourseAccess(courseId);
+  if (authorization.access?.tier === "free") throw new Error(UPGRADE_REQUIRED);
+  return authorization;
+}
+
+function assertFreeScope(access: CourseAccessResult | null, chapterIds: readonly (string | null | undefined)[]): void {
+  if (access?.tier === "free" && !isFreeChapterScoped(
+    chapterIds.filter((id): id is string => typeof id === "string" && id.trim().length > 0),
+    access.freeChapterIds,
+  )) {
+    throw new Error(UPGRADE_REQUIRED);
+  }
+}
+
+async function chapterIdForKnowledgeObject(koId: string): Promise<string | null> {
+  const [row] = await db
+    .select({ chapterId: knowledgeObjects.chapterId })
+    .from(knowledgeObjects)
+    .where(eq(knowledgeObjects.id, koId))
+    .limit(1);
+  return row?.chapterId ?? null;
+}
+
+async function courseIdForChapter(chapterId: string): Promise<string | null> {
+  const [canonical] = await db
+    .select({ courseId: mataKuliah.id })
+    .from(bab)
+    .innerJoin(mataKuliah, eq(bab.mataKuliahId, mataKuliah.id))
+    .where(or(eq(bab.id, chapterId), eq(bab.legacyChapterId, chapterId)))
+    .limit(1);
+  if (canonical) return canonical.courseId;
+  const [legacy] = await db
+    .select({ courseId: chapters.courseId })
+    .from(chapters)
+    .where(eq(chapters.id, chapterId))
+    .limit(1);
+  return legacy?.courseId ?? null;
 }
 
 async function courseIdForKO(koId: string): Promise<string | null> {
@@ -72,29 +159,108 @@ async function courseIdForQuestion(questionId: string): Promise<string | null> {
   return row?.courseId ?? null;
 }
 
+function snapshotQuestions(value: unknown): Array<Record<string, unknown>> {
+  const parsed = typeof value === "string"
+    ? (() => {
+        try {
+          return JSON.parse(value);
+        } catch {
+          return null;
+        }
+      })()
+    : value;
+  if (!Array.isArray(parsed)) return [];
+  return parsed.filter((item): item is Record<string, unknown> => Boolean(item && typeof item === "object" && !Array.isArray(item)));
+}
+
+function publicSnapshotOptionTexts(value: unknown): string[] {
+  const options = Array.isArray(value)
+    ? value
+    : typeof value === "string"
+      ? (() => {
+          try {
+            const parsed = JSON.parse(value);
+            return Array.isArray(parsed) ? parsed : [];
+          } catch {
+            return [];
+          }
+        })()
+      : [];
+
+  return options.flatMap((option) => {
+    if (typeof option === "string") return [option];
+    if (!option || typeof option !== "object" || Array.isArray(option)) return [];
+    const record = option as Record<string, unknown>;
+    for (const key of ["text", "label", "value", "content"]) {
+      if (typeof record[key] === "string") return [record[key] as string];
+    }
+    return [];
+  });
+}
+
 export async function explainConceptAction(
   koId: string,
   mode: "content" | "analogy" | "simplification"
 ) {
-  const user = await requireCourseAccess(await courseIdForKO(koId));
+  const { user } = await requireEnrolledTutorAccess(await courseIdForKO(koId));
   return TutorActionService.explainConcept(koId, user.id, mode);
 }
 
 export async function analyzeMistakeAction(
   questionId: string,
-  userAnswerOrIndex: string | number
+  userAnswerOrIndex: string | number,
+  requestedAttemptId?: string | null,
 ) {
   // Resolve the owning course when the question lives in the AI question bank;
-  // enforce enrollment when known. Questions sourced elsewhere (e.g. fixtures)
-  // cannot be resolved, so they fall back to a plain auth check.
+  // enforce the central course decision. Questions without a course owner
+  // cannot be authorized because there is no scope decision to apply.
   const questionCourseId = await courseIdForQuestion(questionId);
-  const user = questionCourseId
-    ? await requireCourseAccess(questionCourseId)
-    : await requireUser();
+  if (!questionCourseId) throw new Error(COURSE_SCOPE_REQUIRED);
+  const authorization = await requireEnrolledTutorAccess(questionCourseId);
+  const { user, access } = authorization;
+  const identity = await resolveCourseIdentity(questionCourseId);
+  const courseScopeIds = [...new Set([
+    questionCourseId,
+    access.courseId,
+    access.canonicalCourseId,
+    access.legacyCourseId,
+    ...(identity?.allIds ?? []),
+  ].filter((value): value is string => typeof value === "string" && value.trim().length > 0))];
+  if (courseScopeIds.length === 0) throw new Error(COURSE_SCOPE_REQUIRED);
+
+  const attemptId = typeof requestedAttemptId === "string" ? requestedAttemptId.trim() : "";
+  const attemptConditions = [
+    eq(studentQuizAttempts.studentId, user.id),
+    eq(studentQuizAttempts.status, "completed"),
+    inArray(quizTemplates.courseId, courseScopeIds),
+  ];
+  if (attemptId) attemptConditions.push(eq(studentQuizAttempts.id, attemptId));
+  const completedAttempts = await db
+    .select({
+      id: studentQuizAttempts.id,
+      questionsSnapshot: studentQuizAttempts.questionsSnapshot,
+    })
+    .from(studentQuizAttempts)
+    .innerJoin(quizTemplates, eq(studentQuizAttempts.templateId, quizTemplates.id))
+    .where(and(...attemptConditions))
+    .orderBy(desc(studentQuizAttempts.submittedAt), desc(studentQuizAttempts.startedAt));
+
+  const matchingAttempt = completedAttempts.find((attempt) =>
+    snapshotQuestions(attempt.questionsSnapshot).some((question) => question.id === questionId),
+  );
+  if (!matchingAttempt) throw new Error(MISTAKE_ATTEMPT_REQUIRED);
+
+  const snapshotQuestion = snapshotQuestions(matchingAttempt.questionsSnapshot)
+    .find((question) => question.id === questionId);
+  const snapshotOptions = publicSnapshotOptionTexts(snapshotQuestion?.options);
   let selectedIndex = -1;
 
   if (typeof userAnswerOrIndex === "number") {
-    selectedIndex = userAnswerOrIndex;
+    selectedIndex = Number.isInteger(userAnswerOrIndex)
+      && userAnswerOrIndex >= 0
+      && userAnswerOrIndex < snapshotOptions.length
+      ? userAnswerOrIndex
+      : -1;
   } else if (
     userAnswerOrIndex === "(diskusi umum)" ||
     userAnswerOrIndex === "(tidak menjawab)"
@@ -108,16 +274,18 @@ export async function analyzeMistakeAction(
         .from(aiQuestionBank)
         .where(eq(aiQuestionBank.id, questionId));
 
-      let options: string[] = [];
-      if (dbQuestion && Array.isArray(dbQuestion.options)) {
-        options = dbQuestion.options as string[];
+      let options: string[] = snapshotOptions;
+      if (options.length === 0 && dbQuestion && Array.isArray(dbQuestion.options)) {
+        options = publicSnapshotOptionTexts(dbQuestion.options);
       } else {
         // Fallback: look up in mock exams
-        for (const exam of exams) {
-          const q = exam.questions.find((quest: any) => quest.id === questionId);
-          if (q && "options" in q) {
-            options = q.options;
-            break;
+        if (options.length === 0) {
+          for (const exam of exams) {
+            const q = exam.questions.find((quest: any) => quest.id === questionId);
+            if (q && "options" in q) {
+              options = publicSnapshotOptionTexts(q.options);
+              break;
+            }
           }
         }
       }
@@ -152,7 +320,7 @@ export async function buildStudyPlanAction() {
 }
 
 export async function generatePracticeQuizAction(koId: string, difficulty: string) {
-  await requireCourseAccess(await courseIdForKO(koId));
+  await requireEnrolledTutorAccess(await courseIdForKO(koId));
   return TutorActionService.generatePracticeQuiz(koId, difficulty);
 }
 
@@ -162,17 +330,21 @@ export async function reviewWeakConceptsAction() {
 }
 
 export async function startFlashcardReviewAction(koId: string) {
-  const user = await requireCourseAccess(await courseIdForKO(koId));
+  const authorization = await requireCourseAccess(await courseIdForKO(koId));
+  assertFreeScope(authorization.access, [await chapterIdForKnowledgeObject(koId)]);
+  const { user } = authorization;
   return TutorActionService.startFlashcardReview(koId, user.id);
 }
 
 export async function openMaterialAction(chapterId: string, sectionId: string) {
-  await requireUser();
+  if (!chapterId || !sectionId) throw new Error(COURSE_SCOPE_REQUIRED);
+  const authorization = await requireCourseAccess(await courseIdForChapter(chapterId));
+  assertFreeScope(authorization.access, [chapterId]);
   return TutorActionService.openMaterial(chapterId, sectionId);
 }
 
 export async function findKoForMaterialSectionAction(courseId: string, selectedText: string) {
-  await requireCourseAccess(courseId);
+  const { access } = await requireCourseAccess(courseId);
 
   if (!selectedText || selectedText.trim().length < 3) {
     return { success: false, error: "Text too short" };
@@ -192,17 +364,21 @@ export async function findKoForMaterialSectionAction(courseId: string, selectedT
         )
       );
 
+    const visibleKos = access?.tier === "free"
+      ? kos.filter((ko) => isFreeChapterScoped([ko.chapterId], access.freeChapterIds))
+      : kos;
+
     // 1. Try exact or substring match on conceptName
-    let bestMatch = kos.find(ko => ko.conceptName.toLowerCase().includes(text) || text.includes(ko.conceptName.toLowerCase()));
+    let bestMatch = visibleKos.find(ko => ko.conceptName.toLowerCase().includes(text) || text.includes(ko.conceptName.toLowerCase()));
     
     // 2. Try matching the title
     if (!bestMatch) {
-      bestMatch = kos.find(ko => ko.title.toLowerCase().includes(text) || text.includes(ko.title.toLowerCase()));
+      bestMatch = visibleKos.find(ko => ko.title.toLowerCase().includes(text) || text.includes(ko.title.toLowerCase()));
     }
 
     // 3. Try matching content keywords
     if (!bestMatch) {
-      bestMatch = kos.find(ko => ko.content.toLowerCase().includes(text));
+      bestMatch = visibleKos.find(ko => ko.content.toLowerCase().includes(text));
     }
 
     if (bestMatch) {
@@ -210,8 +386,8 @@ export async function findKoForMaterialSectionAction(courseId: string, selectedT
     }
 
     // Fallback: If no match found, check if there is any KO in this course at all
-    if (kos.length > 0) {
-      return { success: true, koId: kos[0].id };
+    if (visibleKos.length > 0) {
+      return { success: true, koId: visibleKos[0].id };
     }
   } catch (e) {
     console.error("Error in findKoForMaterialSectionAction:", e);
@@ -226,13 +402,8 @@ export async function findKoForMaterialSectionAction(courseId: string, selectedT
  * Returns null when the course does not exist; the UI falls back to the slug.
  */
 export async function getTutorCourseContextAction(courseId: string) {
-  await requireUser();
-  const [row] = await db
-    .select({ title: courses.title })
-    .from(courses)
-    .where(eq(courses.id, courseId))
-    .limit(1);
-  return row?.title ?? null;
+  const { access } = await requireCourseAccess(courseId);
+  return access.courseTitle;
 }
 
 export async function askTutorRagAction(
@@ -242,12 +413,25 @@ export async function askTutorRagAction(
   sessionId?: string | null,
   attachmentIds?: readonly string[],
   pagePath?: string | null,
+  requestId?: string | null,
 ) {
-  const user = await requireCourseAccess(courseId);
+  const { user, access } = await requireCourseAccess(courseId);
+  const normalizedQuestion = typeof question === "string" ? question.trim() : "";
+  if (!normalizedQuestion && !(attachmentIds && attachmentIds.length > 0)) {
+    throw new Error("QUESTION_REQUIRED");
+  }
 
-  const sid = sessionId ?? await getOrCreateChatSession(user.id, courseId, question.slice(0, 100));
+  const sid = await requireOwnedChatSession(
+    user.id,
+    courseId,
+    sessionId,
+    normalizedQuestion.slice(0, 100),
+  );
   const startTime = Date.now();
   const requestedAttachmentIds = attachmentIds ?? [];
+  if (access?.tier === "free" && requestedAttachmentIds.length > 0) {
+    throw new Error(FREE_TEXT_ONLY);
+  }
   assertZyraImageCount(requestedAttachmentIds.length);
   if (requestedAttachmentIds.length > 0 && !isZyraImageFeatureEnabled(zyraRuntimeEnv.FEATURE_ZYRA_IMAGE_INPUT_V1)) {
     throw new Error("IMAGE_INPUT_DISABLED");
@@ -258,15 +442,51 @@ export async function askTutorRagAction(
         studentId: user.id,
         courseId,
         sessionId: sid,
-        promptBytes: new TextEncoder().encode(question).byteLength,
+        promptBytes: new TextEncoder().encode(normalizedQuestion).byteLength,
       })
     : [];
+
+  let resolvedChapterId = chapterId;
+  if (access?.tier === "free" && resolvedChapterId) {
+    const koChapterId = await chapterIdForKnowledgeObject(resolvedChapterId);
+    if (koChapterId) resolvedChapterId = koChapterId;
+    assertFreeScope(access, [resolvedChapterId]);
+  }
+
+  const normalizedRequestId = typeof requestId === "string" && /^[A-Za-z0-9._:-]{1,96}$/.test(requestId)
+    ? requestId
+    : randomUUID();
+  const idempotencyKey = access?.tier === "free"
+    ? `${FREE_ALLOWANCE_IDEMPOTENCY_PREFIX}${normalizedRequestId.replace(/^zyra-free:/, "")}`
+    : `zyra:${normalizedRequestId.replace(/^zyra:/, "")}`;
+
+  // Quiz templates still use the legacy course foreign key during the
+  // compatibility window. Scope the guard to the fully resolved identity so
+  // a canonical URL cannot miss an active attempt, while an unrelated course
+  // with a colliding ID cannot satisfy it.
+  const courseIdentity = await resolveCourseIdentity(courseId);
+  if (!courseIdentity) throw new Error(COURSE_SCOPE_REQUIRED);
+  const courseScopeIds = [...new Set([
+    courseId,
+    access.courseId,
+    access.canonicalCourseId,
+    access.legacyCourseId,
+    courseIdentity.primaryId,
+    courseIdentity.canonicalId,
+    courseIdentity.legacyId,
+    ...(courseIdentity.allIds ?? []),
+  ].filter((value): value is string => typeof value === "string" && value.trim().length > 0))];
+  const courseScopeCondition = inArray(quizTemplates.courseId, courseScopeIds);
 
   const activeAttempt = await db
     .select({ id: studentQuizAttempts.id, questionsSnapshot: studentQuizAttempts.questionsSnapshot })
     .from(studentQuizAttempts)
     .innerJoin(quizTemplates, eq(studentQuizAttempts.templateId, quizTemplates.id))
-    .where(and(eq(studentQuizAttempts.studentId, user.id), eq(quizTemplates.courseId, courseId), eq(studentQuizAttempts.status, "in_progress")))
+    .where(and(
+      eq(studentQuizAttempts.studentId, user.id),
+      courseScopeCondition,
+      eq(studentQuizAttempts.status, "in_progress"),
+    ))
     .limit(1);
 
   const hasActiveAttempt = activeAttempt.length > 0;
@@ -297,7 +517,7 @@ export async function askTutorRagAction(
   const reviewMatch = requestedAttachmentIds.length === 0
     ? pagePath?.match(/^\/courses\/([^/]+)\/my-results\/([^/]+)(?:\/.*)?$/)
     : null;
-  if (reviewMatch?.[1] === courseId) {
+  if (reviewMatch && courseScopeIds.some((scopeId) => scopeId.toLowerCase() === reviewMatch[1].toLowerCase())) {
     const attemptId = reviewMatch[2];
     const [reviewAttempt] = await db
       .select({
@@ -312,7 +532,7 @@ export async function askTutorRagAction(
       .where(and(
         eq(studentQuizAttempts.id, attemptId),
         eq(studentQuizAttempts.studentId, user.id),
-        eq(quizTemplates.courseId, courseId),
+        inArray(quizTemplates.courseId, courseScopeIds),
       ))
       .limit(1);
 
@@ -348,9 +568,12 @@ export async function askTutorRagAction(
   const result = await askTutorRag({
     studentId: user.id,
     courseId,
-    chapterId,
-    question,
+    chapterId: resolvedChapterId,
+    question: normalizedQuestion,
     sessionId: sid,
+    accessTier: access?.tier === "free" ? "free" : "standard",
+    freeChapterIds: access?.freeChapterIds,
+    idempotencyKey,
     attemptState: hasActiveAttempt ? "in_progress" : "none",
     activityKind: hasActiveAttempt ? "quiz" : "study",
     protectedAnswers,
@@ -376,11 +599,21 @@ export async function saveTutorMessagesAction(
   messages: Array<{ role: "student" | "ai"; content: string; sources?: unknown; canvasSpec?: unknown; attachmentIds?: readonly string[] }>,
   sessionId?: string | null
 ) {
-  const user = await requireCourseAccess(courseId);
+  const { user, access } = await requireCourseAccess(courseId);
 
-  if (!messages.length) return { success: true };
+  const providedSessionId = typeof sessionId === "string" ? sessionId.trim() : "";
+  if (!messages.length) {
+    if (providedSessionId) {
+      await requireOwnedChatSession(user.id, courseId, providedSessionId, "General Chat");
+    }
+    return { success: true };
+  }
 
-  const sid = sessionId ?? await getOrCreateChatSession(user.id, courseId, "General Chat");
+  if (access?.tier === "free" && messages.some((message) => (message.attachmentIds?.length ?? 0) > 0)) {
+    throw new Error(FREE_TEXT_ONLY);
+  }
+
+  const sid = await requireOwnedChatSession(user.id, courseId, providedSessionId, "General Chat");
 
   const preparedRows = messages.map((m) => ({
       id: randomUUID(),
@@ -389,10 +622,12 @@ export async function saveTutorMessagesAction(
       sessionId: sid,
       role: m.role,
       content: m.content ?? "",
-      sources: serializeTutorMessageSources(
-        m.sources,
-        isZyraCanvasFeatureEnabled() ? m.canvasSpec : undefined,
-      ),
+      sources: access?.tier === "free"
+        ? null
+        : serializeTutorMessageSources(
+            m.sources,
+            isZyraCanvasFeatureEnabled() ? m.canvasSpec : undefined,
+          ),
       attachmentIds: m.role === "student" ? [...(m.attachmentIds ?? [])] : [],
     }));
 
@@ -421,7 +656,11 @@ export async function saveTutorMessagesAction(
   await db
     .update(chatSessions)
     .set({ lastMessageAt: new Date() })
-    .where(eq(chatSessions.id, sid));
+    .where(and(
+      eq(chatSessions.id, sid),
+      eq(chatSessions.studentId, user.id),
+      eq(chatSessions.courseId, courseId),
+    ));
 
   const rows = await db
     .select({ id: tutorChatMessages.id })
@@ -449,9 +688,9 @@ export async function loadTutorHistoryAction(
   courseId: string,
   sessionId?: string | null
 ) {
-  const user = await requireCourseAccess(courseId);
+  const { user, access } = await requireCourseAccess(courseId);
 
-  const sid = sessionId ?? await getOrCreateChatSession(user.id, courseId, "General Chat");
+  const sid = await requireOwnedChatSession(user.id, courseId, sessionId, "General Chat");
 
   const conditions = [
     eq(tutorChatMessages.studentId, user.id),
@@ -467,7 +706,9 @@ export async function loadTutorHistoryAction(
     .limit(CHAT_HISTORY_LIMIT);
 
   const messageIds = rows.map((row) => row.id);
-  const attachmentRows = messageIds.length > 0 && isZyraImageFeatureEnabled(zyraRuntimeEnv.FEATURE_ZYRA_IMAGE_INPUT_V1)
+  const attachmentRows = access?.tier !== "free"
+    && messageIds.length > 0
+    && isZyraImageFeatureEnabled(zyraRuntimeEnv.FEATURE_ZYRA_IMAGE_INPUT_V1)
     ? await db
         .select({
           id: zyraMessageAttachments.id,
@@ -502,8 +743,12 @@ export async function loadTutorHistoryAction(
         id: r.id,
         role: r.role as "student" | "ai",
         content: r.content,
-        sources: decoded.sources.length > 0 ? decoded.sources : undefined,
-        canvasSpec: isZyraCanvasFeatureEnabled() ? decoded.canvasSpec : undefined,
+        sources: access?.tier === "free"
+          ? undefined
+          : decoded.sources.length > 0 ? decoded.sources : undefined,
+        canvasSpec: access?.tier === "free"
+          ? undefined
+          : isZyraCanvasFeatureEnabled() ? decoded.canvasSpec : undefined,
         attachments: attachmentsByMessage.get(r.id)?.map((attachment) => ({
           id: attachment.id,
           mimeType: attachment.mimeType as ZyraImageMime,
@@ -519,20 +764,28 @@ export async function clearTutorHistoryAction(
   courseId: string,
   sessionId?: string | null
 ) {
-  const user = await requireCourseAccess(courseId);
+  const { user } = await requireCourseAccess(courseId);
+  const providedSessionId = typeof sessionId === "string" ? sessionId.trim() : "";
+  if (providedSessionId) {
+    await requireOwnedChatSession(user.id, courseId, providedSessionId, "General Chat");
+  }
 
   const conditions = [
     eq(tutorChatMessages.studentId, user.id),
     eq(tutorChatMessages.courseId, courseId),
   ];
-  if (sessionId) {
-    conditions.push(eq(tutorChatMessages.sessionId, sessionId));
+  if (providedSessionId) {
+    conditions.push(eq(tutorChatMessages.sessionId, providedSessionId));
   }
 
   await db.delete(tutorChatMessages).where(and(...conditions));
 
-  if (sessionId) {
-    await db.delete(chatSessions).where(eq(chatSessions.id, sessionId));
+  if (providedSessionId) {
+    await db.delete(chatSessions).where(and(
+      eq(chatSessions.id, providedSessionId),
+      eq(chatSessions.studentId, user.id),
+      eq(chatSessions.courseId, courseId),
+    ));
   }
 
   return { success: true };

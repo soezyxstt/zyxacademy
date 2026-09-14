@@ -36,6 +36,7 @@ import {
   saveChapterWithCanonicalProjection,
   saveCourseWithCanonicalProjection,
 } from "@/lib/academic/course-canonical-sync";
+import { getDemoCourseEligibility } from "@/app/(marketing)/demo/demo-data";
 
 export async function getCourses() {
   await assertAdmin();
@@ -199,6 +200,101 @@ export async function deleteCourse(id: string) {
   }
 }
 
+/**
+ * Selects the one public demo course after checking every published asset that
+ * the demo shell needs. The clear and set operations share one transaction so
+ * the partial unique index on mata_kuliah.is_demo cannot leave two selections.
+ */
+export async function setDemoCourse(courseId: string, enabled: boolean) {
+  await assertAdmin();
+
+  const cleanCourseId = courseId.trim().toLowerCase();
+  if (!cleanCourseId) {
+    return { success: false, error: "Mata kuliah tidak ditemukan." };
+  }
+
+  const matchingCanonicalCourses = await db
+    .select({ id: mataKuliah.id, status: mataKuliah.status, legacyCourseId: mataKuliah.legacyCourseId })
+    .from(mataKuliah)
+    .where(or(eq(mataKuliah.id, cleanCourseId), eq(mataKuliah.legacyCourseId, cleanCourseId)))
+    .orderBy(asc(mataKuliah.id));
+
+  if (matchingCanonicalCourses.length === 0) {
+    return { success: false, error: "Mata kuliah tidak ditemukan." };
+  }
+  if (matchingCanonicalCourses.length !== 1) {
+    return { success: false, error: "Pemetaan mata kuliah tidak jelas." };
+  }
+
+  const canonicalCourse = matchingCanonicalCourses[0];
+  if (canonicalCourse.legacyCourseId) {
+    const mappedCourses = await db
+      .select({ id: mataKuliah.id })
+      .from(mataKuliah)
+      .where(eq(mataKuliah.legacyCourseId, canonicalCourse.legacyCourseId));
+    if (mappedCourses.length !== 1 || mappedCourses[0]?.id !== canonicalCourse.id) {
+      return { success: false, error: "Pemetaan mata kuliah tidak jelas." };
+    }
+
+    const legacyCourses = await db
+      .select({ id: courses.id })
+      .from(courses)
+      .where(eq(courses.id, canonicalCourse.legacyCourseId));
+    if (legacyCourses.length !== 1) {
+      return { success: false, error: "Pemetaan mata kuliah tidak jelas." };
+    }
+  }
+
+  if (enabled) {
+    if (canonicalCourse.status !== "active") {
+      return { success: false, error: "Hanya mata kuliah aktif yang dapat dipilih sebagai demo." };
+    }
+
+    const eligibility = await getDemoCourseEligibility(canonicalCourse.id);
+    if (!eligibility.eligible) {
+      return {
+        success: false,
+        error: `Belum siap untuk demo: ${eligibility.issues.join("; ")}`,
+        eligibility,
+      };
+    }
+  }
+
+  try {
+    const now = new Date();
+    await db.transaction(async (tx) => {
+      if (enabled) {
+        await tx
+          .update(mataKuliah)
+          .set({ isDemo: false, updatedAt: now })
+          .where(eq(mataKuliah.isDemo, true));
+      }
+
+      await tx
+        .update(mataKuliah)
+        .set({ isDemo: enabled, updatedAt: now })
+        .where(eq(mataKuliah.id, canonicalCourse.id));
+    });
+
+    revalidatePath("/demo");
+    revalidatePath(`/demo/article`);
+    revalidatePath(`/demo/diktat`);
+    revalidatePath(`/demo/flashcards`);
+    revalidatePath(`/demo/quiz`);
+    revalidatePath(`/demo/zyra`);
+    revalidatePath("/admin/courses");
+    revalidatePath(`/admin/courses/${canonicalCourse.id}`);
+    revalidatePath(`/admin/courses/${canonicalCourse.id}/settings`);
+    return { success: true, isDemo: enabled };
+  } catch (error) {
+    console.error("Failed to update demo course selection:", error);
+    return {
+      success: false,
+      error: "Pilihan demo tidak dapat diperbarui. Muat ulang halaman dan coba lagi.",
+    };
+  }
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Detailed Course Hub Server Action
 // ─────────────────────────────────────────────────────────────────────────────
@@ -232,12 +328,16 @@ export async function getCourseDetailData(courseId: string) {
     category: legacyCourse?.category ?? "Umum",
     description: legacyCourse?.description ?? null,
     status: canonicalCourse?.status ?? (legacyCourse as { status?: string } | null)?.status ?? "active",
+    isDemo: canonicalCourse?.isDemo ?? false,
     createdAt: canonicalCourse?.createdAt ?? (legacyCourse as { createdAt?: Date } | null)?.createdAt ?? new Date(),
     updatedAt: canonicalCourse?.updatedAt ?? (legacyCourse as { updatedAt?: Date } | null)?.updatedAt ?? new Date(),
   };
 
   const canonicalCourseId = canonicalCourse?.id ?? cleanCourseId;
   const legacyCourseId = legacyCourse?.id ?? cleanCourseId;
+  const demoEligibility = canonicalCourse
+    ? await getDemoCourseEligibility(canonicalCourse.id)
+    : null;
 
   const [babList, legacyChapters, materialsList, quizTemplatesList, rawQuestions] = await Promise.all([
     db
@@ -372,7 +472,10 @@ export async function getCourseDetailData(courseId: string) {
   const overallPassRate = totalCompletedAttempts > 0 ? Math.round((allScores.filter((s) => s >= 70).length / totalCompletedAttempts) * 100) : 0;
 
   return {
-    course,
+    course: {
+      ...course,
+      demoEligibility,
+    },
     chapters: chaptersList,
     materials: materialsList,
     quizzes: quizzesWithMetrics,

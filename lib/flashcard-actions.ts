@@ -10,6 +10,7 @@ import {
   flashcardIde,
   flashcard as canonicalFlashcard,
   setFlashcard,
+  bab,
   kemajuanFlashcardMurid,
   reviewFlashcard,
   pemahamanIde,
@@ -17,11 +18,11 @@ import {
 import { eq, and, lte, or, inArray, isNull, gt } from "drizzle-orm";
 import { calculateSM2 } from "./flashcard-scheduler";
 import { randomUUID } from "crypto";
-import { inngest } from "@/lib/inngest";
 import { markRecommendationDone } from "@/lib/recommendation-service";
 import { dualWriteFlashcardReview, dualWriteLearningEvent } from "@/lib/migrasi/repository-kompatibilitas";
 import { recordLearningEvidence } from "@/lib/pemahaman/evidence";
-import { isStudentEnrolled, resolveStudentCourse } from "@/lib/student/course-catalog";
+import { resolveStudentCourse } from "@/lib/student/course-catalog";
+import { getStudentCourseAccess, isFreeChapterScoped } from "@/lib/course-utils";
 import { rankFlashcardQueue, type FlashcardQueuePriorityInput } from "@/lib/flashcard-ranking";
 
 export interface FlashcardHistoryItem {
@@ -44,6 +45,15 @@ function flashcardPriorityReason(item: FlashcardQueuePriorityInput): string {
   if ((item.masteryScore ?? 0) < 40) return "Perlu dikuasai";
   if (!item.seenBefore) return "Kartu baru";
   return "Waktunya mengulang";
+}
+
+function assertReviewInput(grade: number, responseTimeMs: number): void {
+  if (!Number.isInteger(grade) || grade < 1 || grade > 4) {
+    throw new Error("FLASHCARD_INPUT_INVALID");
+  }
+  if (!Number.isFinite(responseTimeMs) || responseTimeMs < 0) {
+    throw new Error("FLASHCARD_INPUT_INVALID");
+  }
 }
 
 // ==========================================
@@ -75,11 +85,16 @@ export function evaluateExamAnswer(userAnswer: string, correctAnswer: string): b
 
 export async function getReviewQueue(studentId: string, courseId: string) {
   const course = await resolveStudentCourse(courseId);
+  const access = await getStudentCourseAccess(studentId, courseId);
+  if (!access) return [];
+  const freeChapterIds = access?.tier === "free" ? new Set(access.freeChapterIds) : null;
   if (course?.canonicalId) {
     const canonicalCards = await db
       .select({
         id: canonicalFlashcard.id,
         setId: canonicalFlashcard.setFlashcardId,
+        chapterId: setFlashcard.babId,
+        legacyChapterId: bab.legacyChapterId,
         front: canonicalFlashcard.front,
         back: canonicalFlashcard.back,
         explanation: canonicalFlashcard.explanation,
@@ -88,6 +103,7 @@ export async function getReviewQueue(studentId: string, courseId: string) {
       })
       .from(canonicalFlashcard)
       .innerJoin(setFlashcard, eq(canonicalFlashcard.setFlashcardId, setFlashcard.id))
+      .leftJoin(bab, eq(setFlashcard.babId, bab.id))
       .where(
         and(
           eq(setFlashcard.mataKuliahId, course.canonicalId),
@@ -133,7 +149,11 @@ export async function getReviewQueue(studentId: string, courseId: string) {
       }
       const now = Date.now();
       const eligible = canonicalCards
-        .flatMap((card) => {
+      .flatMap((card) => {
+          if (
+            freeChapterIds
+            && !isFreeChapterScoped([card.chapterId, card.legacyChapterId], freeChapterIds)
+          ) return [];
           const progress = progressByCard.get(card.id);
           if (progress && (progress.status !== "active" || progress.dueAt.getTime() > now)) return [];
           const idea = ideaByCard.get(card.id);
@@ -158,16 +178,20 @@ export async function getReviewQueue(studentId: string, courseId: string) {
   }
 
   // Find published flashcard sets of this course
-  const publishedSets = await db
+  let publishedSets = await db
     .select()
     .from(flashcardSets)
     .where(
       and(
         eq(flashcardSets.courseId, course?.legacyId ?? courseId),
-        eq(flashcardSets.status, "published")
+        eq(flashcardSets.status, "published"),
+        eq(flashcardSets.isStale, false),
       )
     );
 
+  if (freeChapterIds) {
+    publishedSets = publishedSets.filter((set) => freeChapterIds.has(set.chapterId));
+  }
   if (publishedSets.length === 0) return [];
 
   const setIds = publishedSets.map(s => s.id);
@@ -271,17 +295,47 @@ export async function submitReview(
   if (!cardRecord && !canonicalCardRecord) throw new Error(`Flashcard not found with ID: ${flashcardId}`);
   const [reviewCourse] = cardRecord
     ? await db
-        .select({ courseId: flashcardSets.courseId })
+      .select({
+        courseId: flashcardSets.courseId,
+        chapterId: flashcardSets.chapterId,
+        setStatus: flashcardSets.status,
+        setIsStale: flashcardSets.isStale,
+      })
         .from(flashcardSets)
         .where(eq(flashcardSets.id, cardRecord.setId))
         .limit(1)
     : await db
-        .select({ courseId: setFlashcard.mataKuliahId })
+        .select({
+          courseId: setFlashcard.mataKuliahId,
+          chapterId: setFlashcard.babId,
+          legacyChapterId: bab.legacyChapterId,
+          setStatus: setFlashcard.status,
+        })
         .from(setFlashcard)
+        .leftJoin(bab, eq(setFlashcard.babId, bab.id))
         .where(eq(setFlashcard.id, canonicalCardRecord!.setFlashcardId))
         .limit(1);
-  if (!reviewCourse || !(await isStudentEnrolled(studentId, reviewCourse.courseId))) {
-    throw new Error("Student is not enrolled in this flashcard course");
+  if (!reviewCourse) {
+    throw new Error("FLASHCARD_ACCESS_DENIED");
+  }
+  if (cardRecord && cardRecord.status !== "active") {
+    throw new Error("FLASHCARD_NOT_AVAILABLE");
+  }
+  if (cardRecord && reviewCourse.setStatus !== "published") {
+    throw new Error("FLASHCARD_NOT_AVAILABLE");
+  }
+  if (cardRecord && "setIsStale" in reviewCourse && reviewCourse.setIsStale) {
+    throw new Error("FLASHCARD_NOT_AVAILABLE");
+  }
+  const access = await getStudentCourseAccess(studentId, reviewCourse.courseId);
+  if (!access || (access.tier === "free" && !isFreeChapterScoped(
+    [
+      reviewCourse.chapterId,
+      "legacyChapterId" in reviewCourse ? reviewCourse.legacyChapterId : null,
+    ].filter((id): id is string => Boolean(id)),
+    access.freeChapterIds,
+  ))) {
+    throw new Error("FLASHCARD_ACCESS_DENIED");
   }
 
   let examInputPassed: boolean | undefined = undefined;
@@ -305,18 +359,31 @@ async function submitCanonicalFlashcardReviewTx(
   grade: number,
   responseTimeMs: number,
 ) {
+  assertReviewInput(grade, responseTimeMs);
+
   const [card] = await db
     .select({
       id: canonicalFlashcard.id,
       status: canonicalFlashcard.status,
       setStatus: setFlashcard.status,
+      courseId: setFlashcard.mataKuliahId,
+      chapterId: setFlashcard.babId,
+      legacyChapterId: bab.legacyChapterId,
     })
     .from(canonicalFlashcard)
     .innerJoin(setFlashcard, eq(canonicalFlashcard.setFlashcardId, setFlashcard.id))
+    .leftJoin(bab, eq(setFlashcard.babId, bab.id))
     .where(eq(canonicalFlashcard.id, flashcardId))
     .limit(1);
   if (!card || card.status !== "published" || card.setStatus !== "published") {
     throw new Error("Published canonical flashcard not found");
+  }
+  const access = await getStudentCourseAccess(studentId, card.courseId);
+  if (!access || (access.tier === "free" && !isFreeChapterScoped(
+    [card.chapterId, card.legacyChapterId].filter((id): id is string => Boolean(id)),
+    access.freeChapterIds,
+  ))) {
+    throw new Error("FLASHCARD_ACCESS_DENIED");
   }
 
   const correctnessMap: Record<number, number> = { 1: 0, 2: 0.5, 3: 0.8, 4: 1 };
@@ -392,10 +459,13 @@ export async function submitFlashcardReviewTx(
   grade: number,
   responseTimeMs: number
 ) {
+  assertReviewInput(grade, responseTimeMs);
+
   // Fetch flashcard and course
   const [card] = await db
     .select({
       id: flashcards.id,
+      status: flashcards.status,
       koId: flashcards.koId,
       setId: flashcards.setId,
     })
@@ -404,16 +474,26 @@ export async function submitFlashcardReviewTx(
     .limit(1);
 
   if (!card) return submitCanonicalFlashcardReviewTx(studentId, flashcardId, grade, responseTimeMs);
+  if (card.status !== "active") throw new Error("FLASHCARD_NOT_AVAILABLE");
 
   const [set] = await db
     .select({
       courseId: flashcardSets.courseId,
+      chapterId: flashcardSets.chapterId,
+      status: flashcardSets.status,
+      isStale: flashcardSets.isStale,
     })
     .from(flashcardSets)
     .where(eq(flashcardSets.id, card.setId))
     .limit(1);
 
   if (!set) throw new Error("Flashcard set not found");
+  if (set.status !== "published" || set.isStale) throw new Error("FLASHCARD_NOT_AVAILABLE");
+
+  const access = await getStudentCourseAccess(studentId, set.courseId);
+  if (!access || (access.tier === "free" && !isFreeChapterScoped([set.chapterId], access.freeChapterIds))) {
+    throw new Error("FLASHCARD_ACCESS_DENIED");
+  }
 
   let conceptName: string | null = null;
   if (card.koId) {
@@ -574,6 +654,7 @@ export async function submitFlashcardReviewTx(
           and(
             eq(flashcards.status, "active"),
             eq(flashcardSets.status, "published"),
+            eq(flashcardSets.isStale, false),
             or(
               isNull(studentFlashcardProgress.id),
               lte(studentFlashcardProgress.dueDate, now)
@@ -598,6 +679,7 @@ export async function skipFlashcardTx(
   const [card] = await db
     .select({
       id: flashcards.id,
+      status: flashcards.status,
       koId: flashcards.koId,
       setId: flashcards.setId,
     })
@@ -606,16 +688,26 @@ export async function skipFlashcardTx(
     .limit(1);
 
   if (!card) throw new Error("Flashcard not found");
+  if (card.status !== "active") throw new Error("FLASHCARD_NOT_AVAILABLE");
 
   const [set] = await db
     .select({
       courseId: flashcardSets.courseId,
+      chapterId: flashcardSets.chapterId,
+      status: flashcardSets.status,
+      isStale: flashcardSets.isStale,
     })
     .from(flashcardSets)
     .where(eq(flashcardSets.id, card.setId))
     .limit(1);
 
   if (!set) throw new Error("Flashcard set not found");
+  if (set.status !== "published" || set.isStale) throw new Error("FLASHCARD_NOT_AVAILABLE");
+
+  const access = await getStudentCourseAccess(studentId, set.courseId);
+  if (!access || (access.tier === "free" && !isFreeChapterScoped([set.chapterId], access.freeChapterIds))) {
+    throw new Error("FLASHCARD_ACCESS_DENIED");
+  }
 
   let conceptName: string | null = null;
   if (card.koId) {

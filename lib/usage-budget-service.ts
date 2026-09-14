@@ -9,6 +9,7 @@ import {
   peran,
 } from "@/db/schema";
 import {
+  calendarDateToJakartaInstant,
   daysAgo,
   jakartaDay,
   nextJakartaReset,
@@ -23,6 +24,21 @@ export const ZYRA_ALLOWANCE_POLICY = {
   tutor: { providerPerDay: 50, totalInteractions: 150, perMinute: 12, premiumPerDay: 50 },
   admin: { providerPerDay: null, totalInteractions: 300, perMinute: 20, premiumPerDay: null },
 } as const;
+
+/**
+ * The authenticated Free lane is deliberately separate from the enrolled
+ * allowance. This keeps the existing murid allowance unchanged while making
+ * the one-question-per-Jakarta-day promise atomic across every Free course.
+ */
+export const ZYRA_FREE_ALLOWANCE_POLICY = {
+  providerPerDay: 1,
+  totalInteractions: 1,
+  perMinute: 1,
+  premiumPerDay: 0,
+} as const;
+
+export type AllowanceAccessTier = "free" | "standard";
+export const FREE_ALLOWANCE_IDEMPOTENCY_PREFIX = "zyra-free:";
 
 const ACTIVE_STATUSES = ["reserved", "dispatched", "committed"] as const;
 type LeaseStatus = (typeof ACTIVE_STATUSES)[number] | "refunded";
@@ -40,6 +56,8 @@ export type AllowanceLease = {
   controlPlaneLeaseId: string | null;
   createdAt: Date;
   expiresAt: Date;
+  /** Optional for legacy test doubles and callers; persisted leases always set it. */
+  accessTier?: AllowanceAccessTier;
 };
 
 export type AllowanceRemaining = {
@@ -81,6 +99,7 @@ export type AllowanceSummary = {
   premiumTurnsRemaining: number | null;
   cacheSaves: number;
   nextResetAt: string;
+  accessTier: AllowanceAccessTier;
 };
 
 export type AllowanceUsageSnapshot = {
@@ -111,6 +130,7 @@ type ReserveParams = {
   expiresAt?: Date;
   now?: Date;
   runId?: string;
+  accessTier?: AllowanceAccessTier;
 };
 
 type LeaseTransitionResult = {
@@ -139,11 +159,51 @@ function defaultExpiry(now: Date): Date {
   return new Date(now.getTime() + 2 * 60 * 1000);
 }
 
+type AllowancePolicy = {
+  providerPerDay: number | null;
+  totalInteractions: number;
+  perMinute: number;
+  premiumPerDay: number | null;
+};
+
+function policyFor(role: PeranCode, accessTier: AllowanceAccessTier): AllowancePolicy {
+  return accessTier === "free" ? ZYRA_FREE_ALLOWANCE_POLICY : ZYRA_ALLOWANCE_POLICY[role];
+}
+
+/** The column is added by the access-tier foundation migration. */
+function accessTierColumn(): any {
+  return (aiAllowanceLeases as unknown as { accessTier?: any }).accessTier;
+}
+
+function accessTierCondition(accessTier: AllowanceAccessTier): any {
+  const column = accessTierColumn();
+  // Before the additive migration, every historical lease is standard. The
+  // Free lane must fail closed until the column exists.
+  return column ? eq(column, accessTier) : accessTier === "standard" ? undefined : sql`0 = 1`;
+}
+
+function normalizeAccessTier(value: unknown): AllowanceAccessTier {
+  return value === "free" ? "free" : "standard";
+}
+
+function requestedAccessTier(params: Pick<ReserveParams, "accessTier" | "idempotencyKey" | "runId">): AllowanceAccessTier {
+  if (params.accessTier) return params.accessTier;
+  // RequestLifecycle forwards the idempotency key and run id but does not yet
+  // carry application access metadata. The server action prefixes its own
+  // authenticated Free request id, allowing this boundary to remain fail
+  // closed for arbitrary client input while the lifecycle is upgraded.
+  return params.idempotencyKey.startsWith(FREE_ALLOWANCE_IDEMPOTENCY_PREFIX)
+    || params.runId?.startsWith(FREE_ALLOWANCE_IDEMPOTENCY_PREFIX) === true
+    ? "free"
+    : "standard";
+}
+
 function remainingFromUsage(
   role: PeranCode,
   usage: { provider: number; total: number; premium: number },
+  accessTier: AllowanceAccessTier = "standard",
 ): AllowanceRemaining {
-  const policy = ZYRA_ALLOWANCE_POLICY[role];
+  const policy = policyFor(role, accessTier);
   return {
     providerTurns: policy.providerPerDay === null
       ? null
@@ -159,11 +219,12 @@ function remainingFromUsage(
 export function evaluateAllowance(
   role: PeranCode,
   usage: AllowanceUsageSnapshot,
-  request: { units: number; premium: boolean; interactionUnits?: number },
+  request: { units: number; premium: boolean; interactionUnits?: number; accessTier?: AllowanceAccessTier },
 ): AllowanceDecision {
-  const policy = ZYRA_ALLOWANCE_POLICY[role];
+  const accessTier = request.accessTier ?? "standard";
+  const policy = policyFor(role, accessTier);
   const interactionUnits = request.interactionUnits ?? (request.units > 0 ? request.units : 1);
-  const remaining = remainingFromUsage(role, usage);
+  const remaining = remainingFromUsage(role, usage, accessTier);
   if (usage.minute + interactionUnits > policy.perMinute) {
     return { accepted: false, reason: "PER_MINUTE_LIMIT", remaining };
   }
@@ -182,7 +243,7 @@ export function evaluateAllowance(
       provider: usage.provider + request.units,
       total: usage.total + interactionUnits,
       premium: usage.premium + (request.premium ? request.units : 0),
-    }),
+    }, accessTier),
   };
 }
 
@@ -198,6 +259,7 @@ function leaseFromRow(row: {
   controlPlaneLeaseId: string | null;
   createdAt: Date;
   expiresAt: Date;
+  accessTier?: string | null;
 }): AllowanceLease {
   const role = effectiveRole(normalizePeranCodes([row.peran]));
   if (!role) throw new Error("Invalid allowance lease role");
@@ -213,6 +275,7 @@ function leaseFromRow(row: {
     controlPlaneLeaseId: row.controlPlaneLeaseId,
     createdAt: row.createdAt,
     expiresAt: row.expiresAt,
+    accessTier: normalizeAccessTier(row.accessTier),
   };
 }
 
@@ -235,7 +298,15 @@ async function usageFor(
   userId: string,
   appDay: string,
   minuteStart: Date,
+  accessTier: AllowanceAccessTier = "standard",
 ) {
+  const dayConditions = [
+    eq(aiAllowanceLeases.userId, userId),
+    eq(aiAllowanceLeases.appDay, appDay),
+    inArray(aiAllowanceLeases.status, ACTIVE_STATUSES),
+    gte(aiAllowanceLeases.createdAt, calendarDateToJakartaInstant(appDay)),
+    accessTierCondition(accessTier),
+  ];
   const [row] = await executor
     .select({
       provider: sql<number>`coalesce(sum(case when ${aiAllowanceLeases.units} > 0 then ${aiAllowanceLeases.units} else 0 end), 0)`,
@@ -244,12 +315,7 @@ async function usageFor(
       minute: sql<number>`coalesce(sum(${aiAllowanceLeases.interactionUnits}), 0)`,
     })
     .from(aiAllowanceLeases)
-    .where(and(
-      eq(aiAllowanceLeases.userId, userId),
-      eq(aiAllowanceLeases.appDay, appDay),
-      inArray(aiAllowanceLeases.status, ACTIVE_STATUSES),
-      gte(aiAllowanceLeases.createdAt, new Date(`${appDay}T00:00:00.000+07:00`)),
-    ));
+    .where(and(...dayConditions));
 
   const [minuteRow] = await executor
     .select({ minute: sql<number>`coalesce(sum(${aiAllowanceLeases.interactionUnits}), 0)` })
@@ -258,6 +324,7 @@ async function usageFor(
       eq(aiAllowanceLeases.userId, userId),
       inArray(aiAllowanceLeases.status, ACTIVE_STATUSES),
       gte(aiAllowanceLeases.createdAt, minuteStart),
+      accessTierCondition(accessTier),
     ));
 
   return {
@@ -280,20 +347,23 @@ async function expireReservations(executor: QueryExecutor, userId: string, now: 
 }
 
 async function readLeaseWithExecutor(executor: QueryExecutor, leaseId: string): Promise<AllowanceLease | null> {
+  const tierColumn = accessTierColumn();
+  const columns = {
+    id: aiAllowanceLeases.id,
+    userId: aiAllowanceLeases.userId,
+    peran: aiAllowanceLeases.peran,
+    feature: aiAllowanceLeases.feature,
+    appDay: aiAllowanceLeases.appDay,
+    units: aiAllowanceLeases.units,
+    premium: aiAllowanceLeases.premium,
+    status: aiAllowanceLeases.status,
+    controlPlaneLeaseId: aiAllowanceLeases.controlPlaneLeaseId,
+    createdAt: aiAllowanceLeases.createdAt,
+    expiresAt: aiAllowanceLeases.expiresAt,
+    ...(tierColumn ? { accessTier: tierColumn } : {}),
+  };
   const [row] = await executor
-    .select({
-      id: aiAllowanceLeases.id,
-      userId: aiAllowanceLeases.userId,
-      peran: aiAllowanceLeases.peran,
-      feature: aiAllowanceLeases.feature,
-      appDay: aiAllowanceLeases.appDay,
-      units: aiAllowanceLeases.units,
-      premium: aiAllowanceLeases.premium,
-      status: aiAllowanceLeases.status,
-      controlPlaneLeaseId: aiAllowanceLeases.controlPlaneLeaseId,
-      createdAt: aiAllowanceLeases.createdAt,
-      expiresAt: aiAllowanceLeases.expiresAt,
-    })
+    .select(columns)
     .from(aiAllowanceLeases)
     .where(eq(aiAllowanceLeases.id, leaseId))
     .limit(1);
@@ -413,20 +483,24 @@ export class UsageBudgetService {
     const role = effectiveRole(roles);
     if (!role) return { accepted: false, reason: "NO_ACTIVE_ROLE" };
     const appDay = jakartaDay(now);
+    const accessTier = requestedAccessTier(params);
+    const tierColumn = accessTierColumn();
+    const leaseColumns = {
+      id: aiAllowanceLeases.id,
+      userId: aiAllowanceLeases.userId,
+      peran: aiAllowanceLeases.peran,
+      feature: aiAllowanceLeases.feature,
+      appDay: aiAllowanceLeases.appDay,
+      units: aiAllowanceLeases.units,
+      premium: aiAllowanceLeases.premium,
+      status: aiAllowanceLeases.status,
+      controlPlaneLeaseId: aiAllowanceLeases.controlPlaneLeaseId,
+      createdAt: aiAllowanceLeases.createdAt,
+      expiresAt: aiAllowanceLeases.expiresAt,
+      ...(tierColumn ? { accessTier: tierColumn } : {}),
+    };
     const existing = await db
-      .select({
-        id: aiAllowanceLeases.id,
-        userId: aiAllowanceLeases.userId,
-        peran: aiAllowanceLeases.peran,
-        feature: aiAllowanceLeases.feature,
-        appDay: aiAllowanceLeases.appDay,
-        units: aiAllowanceLeases.units,
-        premium: aiAllowanceLeases.premium,
-        status: aiAllowanceLeases.status,
-        controlPlaneLeaseId: aiAllowanceLeases.controlPlaneLeaseId,
-        createdAt: aiAllowanceLeases.createdAt,
-        expiresAt: aiAllowanceLeases.expiresAt,
-      })
+      .select(leaseColumns)
       .from(aiAllowanceLeases)
       .where(eq(aiAllowanceLeases.idempotencyKey, params.idempotencyKey))
       .limit(1);
@@ -435,12 +509,21 @@ export class UsageBudgetService {
         return { accepted: false, reason: "IDEMPOTENCY_CONFLICT" };
       }
       const lease = leaseFromRow(existing[0]);
-      const usage = await usageFor(db, params.userId, appDay, new Date(now.getTime() - 60_000));
+      // Idempotency is request-scoped, not a reusable daily token. A key
+      // replayed on another Jakarta day or for another feature must not
+      // bypass that day's allowance.
+      if (lease.appDay !== appDay || lease.feature !== params.feature || lease.accessTier !== accessTier) {
+        return { accepted: false, reason: "IDEMPOTENCY_CONFLICT" };
+      }
+      if (lease.status === "refunded") {
+        return { accepted: false, reason: "IDEMPOTENCY_CONFLICT" };
+      }
+      const usage = await usageFor(db, params.userId, appDay, new Date(now.getTime() - 60_000), accessTier);
       return {
         accepted: true,
         idempotent: true,
         lease,
-        remaining: remainingFromUsage(role, usage),
+        remaining: remainingFromUsage(role, usage, accessTier),
       };
     }
 
@@ -451,12 +534,13 @@ export class UsageBudgetService {
         const currentRoles = effectiveRole(await activeRoles(executor, params.userId));
         if (!currentRoles) return { accepted: false, reason: "NO_ACTIVE_ROLE" } as const;
 
-        const usage = await usageFor(executor, params.userId, appDay, new Date(now.getTime() - 60_000));
+        const usage = await usageFor(executor, params.userId, appDay, new Date(now.getTime() - 60_000), accessTier);
         const interactionUnits = mode === "provider" ? units : 1;
         const decision = evaluateAllowance(currentRoles, usage, {
           units,
           interactionUnits,
           premium: Boolean(params.premium),
+          accessTier,
         });
         if (!decision.accepted) {
           return decision;
@@ -486,7 +570,8 @@ export class UsageBudgetService {
           dispatchedAt: null,
           resolvedAt: status === "committed" ? now : null,
           expiresAt,
-        });
+          ...(tierColumn ? { accessTier } : {}),
+        } as any);
 
         const lease = await readLeaseWithExecutor(executor, leaseId);
         if (!lease) return { accepted: false, reason: "PERSISTENCE_FAILURE" } as const;
@@ -504,26 +589,22 @@ export class UsageBudgetService {
       return result;
     } catch {
       const retry = await db
-        .select({
-          id: aiAllowanceLeases.id,
-          userId: aiAllowanceLeases.userId,
-          peran: aiAllowanceLeases.peran,
-          feature: aiAllowanceLeases.feature,
-          appDay: aiAllowanceLeases.appDay,
-          units: aiAllowanceLeases.units,
-          premium: aiAllowanceLeases.premium,
-          status: aiAllowanceLeases.status,
-          controlPlaneLeaseId: aiAllowanceLeases.controlPlaneLeaseId,
-          createdAt: aiAllowanceLeases.createdAt,
-          expiresAt: aiAllowanceLeases.expiresAt,
-        })
+        .select(leaseColumns)
         .from(aiAllowanceLeases)
         .where(eq(aiAllowanceLeases.idempotencyKey, params.idempotencyKey))
         .limit(1);
       if (retry[0] && retry[0].userId === params.userId) {
         const lease = leaseFromRow(retry[0]);
-        const usage = await usageFor(db, params.userId, appDay, new Date(now.getTime() - 60_000));
-        return { accepted: true, idempotent: true, lease, remaining: remainingFromUsage(role, usage) };
+        if (
+          lease.appDay !== appDay
+          || lease.feature !== params.feature
+          || lease.accessTier !== accessTier
+          || lease.status === "refunded"
+        ) {
+          return { accepted: false, reason: "IDEMPOTENCY_CONFLICT" };
+        }
+        const usage = await usageFor(db, params.userId, appDay, new Date(now.getTime() - 60_000), accessTier);
+        return { accepted: true, idempotent: true, lease, remaining: remainingFromUsage(role, usage, accessTier) };
       }
       return { accepted: false, reason: "PERSISTENCE_FAILURE" };
     }
@@ -581,12 +662,16 @@ export class UsageBudgetService {
     return this.recordCacheHit(params);
   }
 
-  static async getSummary(userId: string, now = new Date()): Promise<AllowanceSummary | null> {
+  static async getSummary(
+    userId: string,
+    now = new Date(),
+    accessTier: AllowanceAccessTier = "standard",
+  ): Promise<AllowanceSummary | null> {
     if (!allowanceEnabled()) return null;
     const role = effectiveRole(await activeRoles(db, userId));
     if (!role) return null;
     const appDay = jakartaDay(now);
-    const usage = await usageFor(db, userId, appDay, new Date(now.getTime() - 60_000));
+    const usage = await usageFor(db, userId, appDay, new Date(now.getTime() - 60_000), accessTier);
     const [cacheRow] = await db
       .select({ count: sql<number>`count(*)` })
       .from(aiAllowanceLeases)
@@ -595,8 +680,9 @@ export class UsageBudgetService {
         eq(aiAllowanceLeases.appDay, appDay),
         eq(aiAllowanceLeases.status, "committed"),
         eq(aiAllowanceLeases.units, 0),
+        accessTierCondition(accessTier),
       ));
-    const remaining = remainingFromUsage(role, usage);
+    const remaining = remainingFromUsage(role, usage, accessTier);
     return {
       userId,
       peran: role,
@@ -609,11 +695,16 @@ export class UsageBudgetService {
       premiumTurnsRemaining: remaining.premiumTurns,
       cacheSaves: toNumber(cacheRow?.count),
       nextResetAt: nextJakartaReset(now).toISOString(),
+      accessTier,
     };
   }
 
-  static async currentUserSummary(userId: string, now = new Date()): Promise<AllowanceSummary | null> {
-    return this.getSummary(userId, now);
+  static async currentUserSummary(
+    userId: string,
+    now = new Date(),
+    accessTier: AllowanceAccessTier = "standard",
+  ): Promise<AllowanceSummary | null> {
+    return this.getSummary(userId, now, accessTier);
   }
 
   static async reconcileCompatibilityEvents(): Promise<{ committedLeases: number; missingEvents: number; repaired: number }> {

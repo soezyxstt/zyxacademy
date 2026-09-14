@@ -1,10 +1,9 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { Lock, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { checkEnrollment } from "@/app/(student)/dashboard/actions";
 import { CoursePageShell } from "@/components/course/course-page-shell";
 import { MaterialViewer } from "@/components/course/material-viewer";
 import { StructuredArticleReader } from "@/components/course/structured-article-reader";
@@ -12,7 +11,7 @@ import { EnrollmentForm } from "@/components/enrollment-form";
 import { Reveal } from "@/components/ui/reveal";
 import { pageTitle } from "@/lib/site";
 import { getMaterial, type CourseMaterial } from "@/lib/student-course-fixtures";
-import { getCourse } from "@/lib/course-utils";
+import { getCourse, getStudentCourseAccess, isFreeChapterScoped } from "@/lib/course-utils";
 import { getCanonicalPublishedArticle, getCanonicalPublishedTextProduct } from "@/lib/articles/structured-repository";
 import { db } from "@/db";
 import { aiMaterialInstances, diktats, courseMaterials, websiteMaterials, progress, studentMaterialProgress } from "@/db/schema";
@@ -29,6 +28,8 @@ async function fetchMaterial(courseId: string, materialId: string, studentId?: s
   if (staticMat) return staticMat;
   const course = await getCourse(courseId);
   const compatibilityCourseId = course?.legacyId ?? courseId;
+  const studentAccess = studentId ? await getStudentCourseAccess(studentId, courseId) : null;
+  const canDownloadDiktat = Boolean(studentAccess?.policy.capabilities.canDownloadDiktat);
 
   let completed = false;
   if (studentId) {
@@ -85,7 +86,7 @@ function sanitizeMaterialTitle(rawTitle: string): string {
   if (canonicalProduct) {
     const isDiktat = canonicalProduct.productType === "diktat";
     const downloadUrl = (isDiktat && canonicalProduct.fileKey)
-      ? `/api/courses/${courseId}/diktats/${canonicalProduct.id}/pdf?download=1`
+      ? `/api/courses/${encodeURIComponent(courseId)}/diktats/${encodeURIComponent(canonicalProduct.id)}/pdf${canDownloadDiktat ? "?download=1" : ""}`
       : undefined;
 
     return {
@@ -101,6 +102,7 @@ function sanitizeMaterialTitle(rawTitle: string): string {
       isPastYear: false,
       isPreview: false,
       chapterId: canonicalProduct.chapterId ?? undefined,
+      chapterIds: canonicalProduct.chapterId ? [canonicalProduct.chapterId] : [],
     };
   }
 
@@ -109,7 +111,12 @@ function sanitizeMaterialTitle(rawTitle: string): string {
     const [diktatRecord] = await db
       .select()
       .from(diktats)
-      .where(and(eq(diktats.id, materialId), eq(diktats.courseId, compatibilityCourseId)));
+      .where(and(
+        eq(diktats.id, materialId),
+        eq(diktats.courseId, compatibilityCourseId),
+        eq(diktats.status, "ready"),
+      ))
+      .limit(1);
 
     if (diktatRecord) {
       return {
@@ -120,11 +127,12 @@ function sanitizeMaterialTitle(rawTitle: string): string {
         docCategory: "diktat",
         fileSize: "PDF File",
         url: diktatRecord.fileUrl
-          ? `/api/courses/${courseId}/diktats/${diktatRecord.id}/pdf?download=1`
+          ? `/api/courses/${encodeURIComponent(courseId)}/diktats/${encodeURIComponent(diktatRecord.id)}/pdf${canDownloadDiktat ? "?download=1" : ""}`
           : undefined,
         completed,
         isPastYear: false,
         isPreview: true,
+        chapterIds: Array.isArray(diktatRecord.chapterIds) ? diktatRecord.chapterIds : [],
       };
     }
   } catch (error) {
@@ -152,6 +160,7 @@ function sanitizeMaterialTitle(rawTitle: string): string {
         isPastYear: false,
         isPreview: true,
         chapterId: webMatRecord.chapterId,
+        chapterIds: [webMatRecord.chapterId],
       };
     }
   } catch (error) {
@@ -186,6 +195,7 @@ function sanitizeMaterialTitle(rawTitle: string): string {
         completed,
         isPastYear: Boolean(matRecord.year),
         isPreview: true,
+        chapterIds: Array.isArray(matRecord.chapterIds) ? matRecord.chapterIds : [],
       };
     }
   } catch (error) {
@@ -231,6 +241,7 @@ function sanitizeMaterialTitle(rawTitle: string): string {
         completed,
         isPastYear: false,
         isPreview: true, // Allow review without enrolling for simplicity
+        chapterIds: Array.isArray(dbMaterial.chapterIds) ? dbMaterial.chapterIds : [],
       };
     }
   } catch (error) {
@@ -268,13 +279,20 @@ export default async function CourseMaterialDetailPage({ params }: Props) {
   const course = await getCourse(id);
   const session = await auth.api.getSession({ headers: await headers() });
   const studentId = session?.user?.id;
+  if (!studentId) {
+    redirect(`/sign-in?next=${encodeURIComponent(`/courses/${id}/material/${materialId}`)}`);
+  }
 
   // 1. Canonical structured article first. Published V2 Article and Diktat
   // content falls through to the canonical text product reader below.
   const canonicalArticle = await getCanonicalPublishedArticle(id, materialId, studentId);
   if (canonicalArticle && course) {
-    const isEnrolled = await checkEnrollment(id);
-    if (!isEnrolled) {
+    const access = studentId ? await getStudentCourseAccess(studentId, id) : null;
+    const isAllowed = Boolean(access) && (
+      access?.tier !== "free"
+      || isFreeChapterScoped([canonicalArticle.chapterId].filter((chapterId): chapterId is string => Boolean(chapterId)), access.freeChapterIds)
+    );
+    if (!isAllowed) {
       return (
         <CoursePageShell title="Materi terkunci" description={`${course.title} · konten premium`} hideHeader>
           <div className="mb-4">
@@ -314,9 +332,23 @@ export default async function CourseMaterialDetailPage({ params }: Props) {
   const material = await fetchMaterial(id, materialId, studentId);
   if (!course || !material) notFound();
 
-  const isEnrolled = await checkEnrollment(id);
-  const isFree = material.isPastYear || material.isPreview;
-  const isAccessible = isEnrolled || isFree;
+  const access = studentId ? await getStudentCourseAccess(studentId, id) : null;
+  const isFreeMaterial = material.kind === "article"
+    || material.kind === "quiz"
+    || material.docCategory === "diktat";
+  const isAccessible = Boolean(access) && (
+    access?.tier !== "free"
+    || (
+      isFreeMaterial
+      && isFreeChapterScoped(
+        [
+          ...(material.chapterIds ?? []),
+          ...(material.chapterId ? [material.chapterId] : []),
+        ],
+        access.freeChapterIds,
+      )
+    )
+  );
 
   if (!isAccessible) {
     return (
@@ -362,6 +394,7 @@ export default async function CourseMaterialDetailPage({ params }: Props) {
         termIndex={termIndex}
         materialLiveEnabled={true}
         course={course}
+        canDownload={Boolean(access?.policy.capabilities.canDownloadDiktat)}
       />
     </Suspense>
   );

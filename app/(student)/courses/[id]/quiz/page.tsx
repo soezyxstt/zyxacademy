@@ -4,16 +4,15 @@ import { ClipboardList } from "lucide-react";
 import Link from "next/link";
 import { CoursePageShell } from "@/components/course/course-page-shell";
 import { pageTitle } from "@/lib/site";
-import { checkEnrollment } from "@/app/(student)/dashboard/actions";
 import { QuizListClient } from "./quiz-list-client";
 import { Reveal } from "@/components/ui/reveal";
 import { db } from "@/db";
-import { quizTemplates, studentQuizAttempts } from "@/db/schema";
+import { studentQuizAttempts } from "@/db/schema";
 import { auth } from "@/lib/auth";
-import { eq, desc, and, ne } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { headers } from "next/headers";
-import { notFound } from "next/navigation";
-import { getCourse, getStudentVisibleCourseQuizzes } from "@/lib/course-utils";
+import { notFound, redirect } from "next/navigation";
+import { getCourse, getStudentCourseAccess, getStudentVisibleCourseQuizzes } from "@/lib/course-utils";
 import { cn } from "@/lib/utils";
 
 type QuizAccessFilter = "all" | "free" | "premium";
@@ -47,14 +46,23 @@ export default async function CourseQuizListPage({ params, searchParams }: Props
 
   if (!course) notFound();
 
-  const isEnrolled = await checkEnrollment(id);
-
-  // Retrieve templates
-  const templates = await getStudentVisibleCourseQuizzes(id);
-
   // Retrieve previous attempts
   const session = await auth.api.getSession({ headers: await headers() });
   const studentId = session?.user?.id;
+  if (!studentId) {
+    redirect(`/sign-in?next=${encodeURIComponent(`/courses/${id}/quiz`)}`);
+  }
+  const studentAccess = studentId ? await getStudentCourseAccess(studentId, id) : null;
+
+  // The server-side catalog helper removes unscoped, mixed, and chapter 3+
+  // templates for authenticated Free users before they reach the client.
+  const templates = await getStudentVisibleCourseQuizzes(id, studentId);
+  const accessTier = !studentId
+    ? "anonymous" as const
+    : studentAccess
+      ? studentAccess.tier
+      : "anonymous" as const;
+  const isEnrolled = studentAccess?.tier === "standard";
   const attempts = studentId
     ? await db
         .select()
@@ -67,6 +75,9 @@ export default async function CourseQuizListPage({ params, searchParams }: Props
     if (access === "premium") return template.visibility === "paid";
     return true;
   });
+  const freeEligibleTemplateIds = studentAccess?.tier === "free"
+    ? templates.map((template) => template.id)
+    : [];
   const counts = {
     all: templates.length,
     free: templates.filter((template) => template.visibility === "free").length,
@@ -108,6 +119,8 @@ export default async function CourseQuizListPage({ params, searchParams }: Props
         <QuizListClient
           courseId={id}
           isEnrolled={isEnrolled}
+          accessTier={accessTier}
+          freeEligibleTemplateIds={freeEligibleTemplateIds}
           templates={filteredTemplates}
           attempts={attempts}
         />

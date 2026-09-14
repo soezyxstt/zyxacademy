@@ -80,6 +80,8 @@ type MaterialViewerProps = {
   mode?: MaterialReaderMode;
   backHref?: string;
   hideHeader?: boolean;
+  /** Free Diktat access is inline-only and must not expose a download action. */
+  canDownload?: boolean;
 };
 
 interface ChapterSummary {
@@ -587,6 +589,7 @@ export function MaterialViewer({
   mode = "learner",
   backHref,
   hideHeader = false,
+  canDownload = true,
 }: MaterialViewerProps) {
   const learnerMode = isLearnerReaderMode(mode);
   const [done, setDone] = useState(material.completed);
@@ -1410,7 +1413,7 @@ export function MaterialViewer({
                 </div>
                 <span className="font-semibold text-foreground">{progressPercent}%</span>
               </div>
-              {material.url && (
+              {material.url && canDownload && (
                 <Button
                   variant="outline"
                   size="sm"
@@ -1491,7 +1494,7 @@ export function MaterialViewer({
                       </span>
                       {course?.title && <span>· {course.title}</span>}
                     </div>
-                    {material.url && (
+                    {material.url && canDownload && (
                       <Button
                         variant="outline"
                         size="sm"
@@ -1590,7 +1593,7 @@ export function MaterialViewer({
                         <CheckCircle2 className="size-4" />
                         <span>{done ? "Sudah Selesai" : "Tandai Selesai & Simpan"}</span>
                       </Button>
-                      {material.url && (
+                      {material.url && canDownload && (
                         <Button
                           variant="outline"
                           asChild
@@ -1700,7 +1703,7 @@ export function MaterialViewer({
               </div>
 
               <div className="flex items-center gap-1.5">
-                {material.url && (
+                {material.url && canDownload && (
                   <>
                     <Button asChild variant="outline" size="xs" className="rounded-md text-[10px] font-semibold h-7">
                       <a href={material.url} download target="_blank" rel="noopener noreferrer">
@@ -2264,7 +2267,7 @@ export function MaterialViewer({
                         >
                           {isFullscreen ? <Minimize2 className="size-4" /> : <Maximize2 className="size-4" />}
                         </button>
-                        {material.url && (
+                        {material.url && canDownload && (
                           <a
                             href={material.url}
                             download

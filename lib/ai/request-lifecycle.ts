@@ -49,6 +49,8 @@ export type RequestLifecycleErrorCode =
   | "PROVIDER_PROJECT_UNAVAILABLE"
   | "LIFECYCLE_PRE_DISPATCH_FAILURE"
   | "LIFECYCLE_RECONCILIATION_FAILURE"
+  | "IDEMPOTENCY_IN_PROGRESS"
+  | "IDEMPOTENCY_REPLAY_UNAVAILABLE"
   | "PROVIDER_REQUEST_FAILED";
 
 export class RequestLifecycleError extends Error {
@@ -164,6 +166,70 @@ function emitLifecycleEvent(input: {
   });
 }
 
+/**
+ * A request key can be retried while the original request is still awaiting a
+ * provider. Keep one in-process promise per authenticated request identity so
+ * concurrent retries wait for the original result instead of dispatching a
+ * second provider call. Keep a short-lived completed result as well, so a
+ * client that retries after the response stream is interrupted receives the
+ * answer that already consumed its allowance. The application lease remains
+ * the cross-process guard; after this process forgets the result, replay is
+ * rejected below instead of dispatching a second paid request.
+ */
+const IDEMPOTENCY_RESULT_TTL_MS = 5 * 60 * 1000;
+const IDEMPOTENCY_RESULT_CACHE_MAX = 1024;
+const inFlightRequests = new Map<string, Promise<RequestLifecycleResult>>();
+const completedRequests = new Map<string, {
+  result: RequestLifecycleResult;
+  expiresAt: number;
+}>();
+
+function stableDedupeValue(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(stableDedupeValue);
+  if (!value || typeof value !== "object") return value;
+  return Object.fromEntries(
+    Object.entries(value as Record<string, unknown>)
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([key, item]) => [key, stableDedupeValue(item)]),
+  );
+}
+
+function lifecycleInputFingerprint(input: RequestLifecycleInput): string {
+  const serialized = JSON.stringify(stableDedupeValue({
+    parts: input.parts,
+    config: input.config ?? null,
+    route: input.route ?? null,
+    useCase: input.useCase ?? null,
+    cacheStatus: input.cacheStatus ?? null,
+    cachePolicy: input.cachePolicy ?? null,
+    cacheKey: input.cacheKey ?? null,
+    cacheTtlSeconds: input.cacheTtlSeconds ?? null,
+  }));
+  return createHash("sha256").update(serialized).digest("hex");
+}
+
+function rememberCompletedRequest(key: string, result: RequestLifecycleResult): void {
+  const now = Date.now();
+  for (const [existingKey, existing] of completedRequests) {
+    if (existing.expiresAt <= now) completedRequests.delete(existingKey);
+  }
+  while (completedRequests.size >= IDEMPOTENCY_RESULT_CACHE_MAX) {
+    const oldest = completedRequests.keys().next().value;
+    if (oldest === undefined) break;
+    completedRequests.delete(oldest);
+  }
+  completedRequests.set(key, {
+    result,
+    expiresAt: now + IDEMPOTENCY_RESULT_TTL_MS,
+  });
+}
+
+function lifecycleDedupeKey(input: RequestLifecycleInput): string | null {
+  const idempotencyKey = input.idempotencyKey?.trim();
+  if (!idempotencyKey) return null;
+  return [input.userId, input.courseId ?? "", input.feature, idempotencyKey, lifecycleInputFingerprint(input)].join("\u0000");
+}
+
 export class RequestLifecycle {
   private readonly allowance: NonNullable<RequestLifecycleDependencies["allowance"]>;
   private readonly controlPlane: ControlPlaneClient;
@@ -175,12 +241,40 @@ export class RequestLifecycle {
     this.requestIdFactory = dependencies.requestIdFactory ?? randomUUID;
   }
 
-  async execute(input: RequestLifecycleInput): Promise<RequestLifecycleResult> {
+  execute(input: RequestLifecycleInput): Promise<RequestLifecycleResult> {
+    const dedupeKey = lifecycleDedupeKey(input);
+    if (!dedupeKey) return this.executeOnce(input);
+
+    const completed = completedRequests.get(dedupeKey);
+    if (completed) {
+      if (completed.expiresAt > Date.now()) return Promise.resolve(completed.result);
+      completedRequests.delete(dedupeKey);
+    }
+
+    const inFlight = inFlightRequests.get(dedupeKey);
+    if (inFlight) return inFlight;
+
+    const execution = this.executeOnce(input);
+    inFlightRequests.set(dedupeKey, execution);
+    void execution.then(
+      (result) => {
+        if (inFlightRequests.get(dedupeKey) !== execution) return;
+        inFlightRequests.delete(dedupeKey);
+        rememberCompletedRequest(dedupeKey, result);
+      },
+      () => {
+        if (inFlightRequests.get(dedupeKey) === execution) inFlightRequests.delete(dedupeKey);
+      },
+    );
+    return execution;
+  }
+
+  private async executeOnce(input: RequestLifecycleInput): Promise<RequestLifecycleResult> {
     if (!input.userId || !input.feature || input.parts.length === 0) {
       throw new RequestLifecycleError("ROUTER_INPUT_INVALID", "provider lifecycle input is incomplete");
     }
 
-    const requestId = input.idempotencyKey ?? this.requestIdFactory();
+    const requestId = input.idempotencyKey?.trim() || this.requestIdFactory();
     const requestedRoute = getProviderRoutePlan({ ...input.route, useCase: input.route?.useCase ?? input.useCase });
     const hasImage = input.parts.some((part) => part.type === "image");
     const route = hasImage
@@ -241,6 +335,21 @@ export class RequestLifecycle {
       runId: requestId,
     });
     if (!applicationAllowance.accepted) throw allowanceRejected(applicationAllowance);
+    if (applicationAllowance.idempotent) {
+      const existingStatus = applicationAllowance.lease.status;
+      if (existingStatus === "reserved" || existingStatus === "dispatched") {
+        throw new RequestLifecycleError(
+          "IDEMPOTENCY_IN_PROGRESS",
+          "an identical provider request is already in progress",
+          "IDEMPOTENCY_IN_PROGRESS",
+        );
+      }
+      throw new RequestLifecycleError(
+        "IDEMPOTENCY_REPLAY_UNAVAILABLE",
+        "an identical provider result is no longer available for replay",
+        "IDEMPOTENCY_REPLAY_UNAVAILABLE",
+      );
+    }
 
     let applicationDispatched = applicationAllowance.lease.status === "dispatched";
     let providerResult: ProviderGenerationResult | null = null;

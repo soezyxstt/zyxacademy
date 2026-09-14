@@ -62,13 +62,13 @@ test.describe("Marketing conversion homepage", () => {
     // this spec reports errors introduced by the interactions it exercises.
     await page.waitForTimeout(500);
     const errors = observeFailures(page);
+    const hero = page.locator('[aria-labelledby="landing-hero-heading"]');
     await expect(page.getByRole("link", { name: "Mulai gratis", exact: true }).first()).toHaveAttribute("href", "/sign-up");
-    await expect(page.getByRole("link", { name: "Coba demo", exact: true })).toHaveAttribute("href", "#landing-quiz");
+    await expect(hero.getByRole("link", { name: "Coba demo", exact: true })).toHaveAttribute("href", "/demo");
     await expect(page.getByRole("heading", { name: "Ruang belajar yang membuatmu berani bertanya." })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Cerita dari proses belajar yang nyata." })).toHaveCount(0);
     await expect(page.getByText("Gemini", { exact: true })).toHaveCount(0);
 
-    const hero = page.locator('[aria-labelledby="landing-hero-heading"]');
     await page.getByRole("slider", { name: "Ubah koefisien a pada grafik kuadratik" }).fill("-0.16");
     await capture(page, testInfo, hero, `${testInfo.project.name}-home-hero-graph`);
 
@@ -115,6 +115,7 @@ test.describe("Marketing conversion homepage", () => {
 
     const closing = page.locator('[aria-labelledby="closing-heading"]');
     await expect(closing.getByRole("link", { name: "Lihat paket" })).toHaveAttribute("href", "/plans");
+    await expect(closing.getByRole("link", { name: "Coba demo", exact: true })).toHaveAttribute("href", "/demo");
     await capture(page, testInfo, closing, `${testInfo.project.name}-home-closing-cta`);
     expect(errors).toEqual([]);
   });

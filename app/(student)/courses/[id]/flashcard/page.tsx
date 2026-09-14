@@ -4,15 +4,14 @@ import { Brain } from "lucide-react";
 import { CoursePageShell } from "@/components/course/course-page-shell";
 import { studentCardClass } from "@/components/course/course-surfaces";
 import { pageTitle } from "@/lib/site";
-import { checkEnrollment } from "@/app/(student)/dashboard/actions";
 import { FlashcardClient } from "./flashcard-client";
 import { Reveal } from "@/components/ui/reveal";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { getReviewQueue } from "@/lib/flashcard-actions";
 import { EnrollmentForm } from "@/components/enrollment-form";
-import { getCourse } from "@/lib/course-utils";
+import { getCourse, getStudentCourseAccess } from "@/lib/course-utils";
 
 type Props = { params: Promise<{ id: string }> };
 
@@ -33,14 +32,17 @@ export default async function CourseFlashcardPage({ params }: Props) {
 
   if (!course) notFound();
 
-  const isEnrolled = await checkEnrollment(id);
-
   // Retrieve user session
   const session = await auth.api.getSession({ headers: await headers() });
   const studentId = session?.user?.id;
+  if (!studentId) {
+    redirect(`/sign-in?next=${encodeURIComponent(`/courses/${id}/flashcard`)}`);
+  }
+  const access = studentId ? await getStudentCourseAccess(studentId, id) : null;
+  const canUseFlashcards = Boolean(access);
 
   let queue: any[] = [];
-  if (studentId && isEnrolled) {
+  if (studentId && canUseFlashcards) {
     try {
       queue = await getReviewQueue(studentId, id);
     } catch (error) {
@@ -55,13 +57,13 @@ export default async function CourseFlashcardPage({ params }: Props) {
       icon={Brain}
     >
       <Reveal>
-        {!isEnrolled ? (
+        {!canUseFlashcards ? (
           <div className={studentCardClass("mx-auto max-w-2xl text-center")}>
             <h3 className="font-heading text-body-base font-bold text-foreground">
               Akses Terkunci
             </h3>
             <p className="mt-2 text-body-sm text-muted-foreground mb-6">
-              Silakan aktifkan kelas ini menggunakan token pendaftaran Anda untuk mulai berlatih dengan flashcard.
+              Masuk dan aktifkan akses belajar untuk mulai berlatih dengan flashcard.
             </p>
             <EnrollmentForm className="mx-auto max-w-md text-left" />
           </div>

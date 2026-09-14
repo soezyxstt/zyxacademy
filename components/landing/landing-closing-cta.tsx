@@ -32,6 +32,9 @@ export function LandingClosingCta() {
           >
             <Link href="/plans">Lihat paket</Link>
           </Button>
+          <Button asChild variant="ghost" size="marketing" className="text-foreground">
+            <Link href="/demo">Coba demo</Link>
+          </Button>
         </div>
       </div>
     </SectionContainer>

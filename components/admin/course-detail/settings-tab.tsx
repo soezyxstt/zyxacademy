@@ -17,6 +17,7 @@ import {
 import {
   saveCourse,
   deleteCourse,
+  setDemoCourse,
 } from "@/app/(admin)/admin/(academic)/courses/actions";
 import { allowedCategories } from "@/app/(admin)/admin/(academic)/courses/constants";
 import {
@@ -25,7 +26,11 @@ import {
   Save,
   AlertTriangle,
   Loader2,
+  CheckCircle2,
+  CircleAlert,
+  Eye,
 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
   DialogContent,
@@ -41,6 +46,17 @@ type Course = {
   title: string;
   category: string;
   description?: string | null;
+  isDemo?: boolean;
+  demoEligibility?: {
+    eligible: boolean;
+    checks: Array<{
+      key: "article" | "diktat" | "flashcards" | "quiz";
+      label: string;
+      ready: boolean;
+      count: number;
+    }>;
+    issues: string[];
+  } | null;
 };
 
 type Props = {
@@ -50,6 +66,7 @@ type Props = {
 export function SettingsTab({ course }: Props) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [demoLoading, setDemoLoading] = useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
 
   // Form State
@@ -97,6 +114,19 @@ export function SettingsTab({ course }: Props) {
       router.push("/admin/courses");
     } else {
       toast.error(res.error || "Gagal menghapus mata kuliah.");
+    }
+  };
+
+  const handleDemoToggle = async () => {
+    setDemoLoading(true);
+    const res = await setDemoCourse(course.id, !course.isDemo);
+    setDemoLoading(false);
+
+    if (res.success) {
+      toast.success(course.isDemo ? "Mata kuliah dikeluarkan dari demo." : "Mata kuliah dipilih sebagai demo.");
+      router.refresh();
+    } else {
+      toast.error(res.error || "Pilihan demo tidak dapat diperbarui.");
     }
   };
 
@@ -180,6 +210,63 @@ export function SettingsTab({ course }: Props) {
             </Button>
           </div>
         </form>
+      </div>
+
+      {/* Public demo selection */}
+      <div className="rounded-xl border border-brand-primary/25 bg-brand-primary/5 p-4 shadow-2xs">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="flex items-start gap-2.5">
+            <Eye className="mt-0.5 size-4 shrink-0 text-brand-primary" aria-hidden="true" />
+            <div>
+              <h3 className="font-heading text-body-sm font-semibold text-foreground">Demo publik</h3>
+              <p className="mt-1 max-w-2xl text-body-xs leading-relaxed text-muted-foreground">
+                Pilih satu mata kuliah aktif untuk halaman demo tanpa login. Konten harus terbit dan lengkap.
+              </p>
+            </div>
+          </div>
+          <Badge variant="outline" className={course.isDemo ? "border-brand-primary/40 text-brand-primary" : "text-muted-foreground"}>
+            {course.isDemo ? "Terpilih" : "Belum dipilih"}
+          </Badge>
+        </div>
+
+        {course.demoEligibility ? (
+          <div className="mt-4 grid gap-2 sm:grid-cols-2">
+            {course.demoEligibility.checks.map((check) => (
+              <div key={check.key} className="flex items-start gap-2 rounded-lg border border-border/70 bg-background px-3 py-2.5">
+                {check.ready ? (
+                  <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-status-success" aria-hidden="true" />
+                ) : (
+                  <CircleAlert className="mt-0.5 size-4 shrink-0 text-status-error" aria-hidden="true" />
+                )}
+                <div className="min-w-0">
+                  <p className="text-body-xs font-semibold text-foreground">{check.label}</p>
+                  <p className="mt-0.5 text-body-xs text-muted-foreground">{check.count} tersedia</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : null}
+
+        {course.demoEligibility && !course.demoEligibility.eligible ? (
+          <p className="mt-3 text-body-xs text-status-error">
+            Lengkapi konten terbit sebelum memilih mata kuliah ini.
+          </p>
+        ) : null}
+
+        <div className="mt-4">
+          <Button
+            type="button"
+            size="sm"
+            variant={course.isDemo ? "outline" : "default"}
+            onClick={handleDemoToggle}
+            disabled={loading || demoLoading || (!course.isDemo && !course.demoEligibility?.eligible)}
+            isLoading={demoLoading}
+            className="gap-1.5 rounded-lg"
+          >
+            <Eye className="size-3.5" aria-hidden="true" />
+            {course.isDemo ? "Keluarkan dari demo" : "Jadikan demo publik"}
+          </Button>
+        </div>
       </div>
 
       {/* Danger Zone */}

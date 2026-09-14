@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { BookOpen, ArrowRight } from "lucide-react";
-import { checkEnrollment } from "@/app/(student)/dashboard/actions";
 import { CoursePageShell } from "@/components/course/course-page-shell";
 import { ChapterOutline } from "@/components/course/chapter-outline";
 import { CoursePrimaryActions } from "@/components/course/course-primary-actions";
@@ -9,10 +8,11 @@ import { CourseAttentionStrip } from "@/components/course/course-attention-strip
 import { EnrollmentForm } from "@/components/enrollment-form";
 import { Reveal } from "@/components/ui/reveal";
 import { pageTitle } from "@/lib/site";
-import { getCourse, getCourseChapterOutline } from "@/lib/course-utils";
+import { getCourse, getCourseChapterOutline, getStudentCourseAccess } from "@/lib/course-utils";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
 import { getCourseOverviewData } from "@/lib/learning-analytics";
+import { redirect } from "next/navigation";
 
 type Props = { params: Promise<{ id: string }> };
 
@@ -32,12 +32,17 @@ export default async function CourseOverviewPage({ params }: Props) {
 
   const session = await auth.api.getSession({ headers: await headers() });
   const studentId = session?.user?.id;
+  if (!studentId) {
+    redirect(`/sign-in?next=${encodeURIComponent(`/courses/${id}`)}`);
+  }
 
   // Independent reads run together to keep TTFB low.
-  const [isEnrolled, chapterOutline] = await Promise.all([
-    checkEnrollment(id),
+  const [studentAccess, chapterOutline] = await Promise.all([
+    studentId ? getStudentCourseAccess(studentId, id) : Promise.resolve(null),
     getCourseChapterOutline(id, studentId),
   ]);
+  const isEnrolled = studentAccess?.tier === "standard";
+  const hasCourseAccess = Boolean(studentAccess);
 
   const overviewData =
     studentId && isEnrolled
@@ -80,7 +85,7 @@ export default async function CourseOverviewPage({ params }: Props) {
       <CoursePageShell title={course.title} description={shortDescription} icon={BookOpen} maxWidth="7xl">
         <Reveal>
           {/* Enrollment banner (unenrolled only) */}
-          {!isEnrolled && (
+          {!hasCourseAccess && (
             <div className="mb-6 rounded-lg border border-brand-secondary/25 bg-brand-secondary/5 p-4">
               <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(280px,420px)] md:items-center">
                 <div>

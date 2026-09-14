@@ -163,6 +163,14 @@ Admin course and chapter CRUD uses `lib/academic/course-canonical-sync.ts`. Crea
 
 Student course, enrollment, chapter, published Article, Diktat, flashcard, Idea mastery, Concept Explorer, and study path reads are canonical first. Historical PDFs, generated website materials, quiz and tryout templates, attempt snapshots, and submissions remain explicit compatibility fallbacks. A canonical entity suppresses its mapped legacy duplicate, and an archived canonical course cannot reappear through its legacy mapping.
 
+### Public demo boundary
+
+The public `/demo` route is a separate read-only presentation boundary. It selects exactly one active `mata_kuliah.isDemo` row, requires an unambiguous canonical and legacy mapping, resolves the first active `bab` by `orderIndex` and ID, and reads only published structured content. The resolver requires a complete Article, a two-section Diktat preview, five published Flashcards, and three published Kuis questions. If selection is absent, duplicated, ambiguously mapped, or content fails a requirement, the route returns an empty recovery state rather than draft or legacy content.
+
+The dashboard and its Article, Diktat, Flashcard, Kuis, and scripted Zyra views do not call the auth, progress, attempt, allowance, or AI provider boundaries. Flashcard interaction and quiz answers live only in browser memory. Quiz grading is a stateless POST that resolves the current published selection server-side and returns results only after submission. Sign-in CTAs pass a safe local `next` path to the real selected course route, `/courses/{id}`.
+
+Admin course settings own the selection mutation. The server checks admin membership and content eligibility, clears the previous marker, sets the new marker, and revalidates public and admin paths inside one database transaction. A partial unique index provides a second singleton guard.
+
 Student document thumbnails are stored raster assets, not browser viewer captures. `lib/thumbnail.ts` downloads or accepts the PDF bytes, renders page one with `PDFParse.getScreenshot()`, converts the raster to WebP with `sharp`, and writes an explicit key from `buildCourseThumbnailKey()`. Parser cleanup is guaranteed in `finally`. Upload and Diktat completion call the same generator. A missing or failed thumbnail remains a presentation fallback and never blocks access to the source document.
 
 The boundary covers material publication, flashcard review, quiz attempt start and submission, learning events with exact Idea identity, enrollment, tutor assignment, and Tutorial PKA progress. Target failures roll back the transaction. Compatibility reads remain available for historical rows, while new writes use the canonical repository.

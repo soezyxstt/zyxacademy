@@ -1,9 +1,17 @@
 import { Suspense } from "react";
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 import { FileText } from "lucide-react";
 import { CoursePageShell } from "@/components/course/course-page-shell";
 import { pageTitle } from "@/lib/site";
-import { getCourse, getCourseChapterOutline } from "@/lib/course-utils";
+import {
+  getCourse,
+  getCourseChapterOutline,
+  getStudentCourseAccess,
+  extractFreeQuizChapterScope,
+  isFreeChapterScoped,
+  isFreeQuizTemplate,
+} from "@/lib/course-utils";
 import { DocumentListClient } from "./document-list-client";
 import { Reveal } from "@/components/ui/reveal";
 import { db } from "@/db";
@@ -41,6 +49,13 @@ export default async function CourseMaterialListPage({ params, searchParams }: P
 
   const session = await auth.api.getSession({ headers: await headers() });
   const studentId = session?.user?.id;
+  if (!studentId) {
+    redirect(`/sign-in?next=${encodeURIComponent(`/courses/${id}/material`)}`);
+  }
+  const studentAccess = studentId ? await getStudentCourseAccess(studentId, id) : null;
+  const isFreeAccess = studentAccess?.tier === "free";
+  const canDownloadDiktat = Boolean(studentAccess?.policy.capabilities.canDownloadDiktat);
+  const freeChapterIds = new Set(studentAccess?.freeChapterIds ?? []);
 
   const completedMaterialIds = new Set<string>();
   if (studentId) {
@@ -100,7 +115,14 @@ export default async function CourseMaterialListPage({ params, searchParams }: P
     .where(eq(courseMaterials.courseId, compatibilityCourseId));
 
   const courseQuizzes = await db
-    .select({ id: quizTemplates.id, title: quizTemplates.title, visibility: quizTemplates.visibility, selectionRules: quizTemplates.selectionRules })
+    .select({
+      id: quizTemplates.id,
+      title: quizTemplates.title,
+      category: quizTemplates.category,
+      visibility: quizTemplates.visibility,
+      status: quizTemplates.status,
+      selectionRules: quizTemplates.selectionRules,
+    })
     .from(quizTemplates)
     .where(and(eq(quizTemplates.courseId, compatibilityCourseId), eq(quizTemplates.status, "published"), ne(quizTemplates.category, "simulation")))
     .orderBy(desc(quizTemplates.createdAt));
@@ -159,7 +181,9 @@ export default async function CourseMaterialListPage({ params, searchParams }: P
     thumbnailUrl: `/api/courses/${encodeURIComponent(id)}/material/${encodeURIComponent(diktat.id)}/cover.svg`,
     chapterId: diktat.legacyChapterId ?? diktat.babId ?? undefined,
     chapterIds: [diktat.legacyChapterId ?? diktat.babId].filter((chapterId): chapterId is string => Boolean(chapterId)),
-    url: diktat.fileKey ? `/api/courses/${id}/diktats/${diktat.id}/pdf?download=1` : undefined,
+    url: diktat.fileKey
+      ? `/api/courses/${encodeURIComponent(id)}/diktats/${encodeURIComponent(diktat.id)}/pdf${canDownloadDiktat ? "?download=1" : ""}`
+      : undefined,
     href: `/courses/${id}/material/${diktat.id}`,
     source: "canonical-diktat" as const,
   }));
@@ -173,7 +197,9 @@ export default async function CourseMaterialListPage({ params, searchParams }: P
   const mappedDiktats = visibleCourseDiktats.map((d) => ({
     id: d.id, courseId: id, title: sanitizeMaterialTitle(d.title), kind: "pdf" as const, docCategory: "diktat" as const, tabGroup: "diktat" as const,
     fileSize: "PDF Diktat", completed: completedMaterialIds.has(d.id), isPastYear: false, isPreview: true,
-    url: d.fileUrl ? `/api/courses/${id}/diktats/${d.id}/pdf?download=1` : undefined,
+    url: d.fileUrl
+      ? `/api/courses/${encodeURIComponent(id)}/diktats/${encodeURIComponent(d.id)}/pdf${canDownloadDiktat ? "?download=1" : ""}`
+      : undefined,
     thumbnailUrl: d.thumbnailUrl ? storage.getUrl(d.thumbnailUrl) : d.fileUrl ? `/api/courses/${id}/material/${d.id}/thumbnail` : undefined,
     chapterIds: d.chapterIds as string[], href: `/courses/${id}/material/${d.id}`, source: "legacy-diktat" as const,
   }));
@@ -215,14 +241,17 @@ export default async function CourseMaterialListPage({ params, searchParams }: P
     thumbnailUrl: m.thumbnailUrl ? storage.getUrl(m.thumbnailUrl) : undefined, chapterId: m.chapterId, chapterIds: m.chapterId ? [m.chapterId] : [], href: `/courses/${id}/material/${m.id}`,
   }));
 
-  const mappedQuizzes = courseQuizzes.map((q) => {
+  const visibleCourseQuizzes = isFreeAccess
+    ? courseQuizzes.filter((quiz) => isFreeQuizTemplate(quiz, freeChapterIds))
+    : courseQuizzes;
+
+  const mappedQuizzes = visibleCourseQuizzes.map((q) => {
     let qCount = 10;
     let quizChapterIds: string[] = [];
     try {
       const rules = typeof q.selectionRules === "string" ? JSON.parse(q.selectionRules) : q.selectionRules;
       if (rules?.count) qCount = Number(rules.count);
-      if (rules?.chapterId) quizChapterIds = [rules.chapterId];
-      else if (Array.isArray(rules?.chapterIds)) quizChapterIds = rules.chapterIds;
+      quizChapterIds = extractFreeQuizChapterScope(q.selectionRules) ?? [];
     } catch {}
     return { id: q.id, courseId: id, title: q.title, kind: "quiz" as const, docCategory: "soal" as const, tabGroup: "bank_soal" as const, subcategory: "kuis", fileSize: `${qCount} Soal · Kuis Interaktif`, completed: completedQuizIds.has(q.id), isPastYear: false, isPreview: false, chapterIds: quizChapterIds, href: `/courses/${id}/quiz/${q.id}` };
   });
@@ -237,12 +266,28 @@ export default async function CourseMaterialListPage({ params, searchParams }: P
   });
 
   const allMaterials = [...mappedCanonical, ...mappedCanonicalDiktats, ...mappedDiktats, ...mappedDb, ...mappedWeb, ...mappedManual, ...mappedQuizzes, ...mappedTryouts];
+  const freeVisibleMaterials = studentId && !studentAccess
+    ? []
+    : isFreeAccess
+    ? allMaterials.filter((material) => {
+        const isAllowedKind = material.kind === "article" || material.docCategory === "diktat" || material.kind === "quiz";
+        return isAllowedKind && isFreeChapterScoped(material.chapterIds, freeChapterIds);
+      })
+    : allMaterials;
+  const lockedMaterialCount = isFreeAccess ? allMaterials.length - freeVisibleMaterials.length : 0;
 
   return (
     <CoursePageShell title={`Materi Belajar: ${course.title}`} description="Pelajari bahan belajar, ringkasan rumus, dan diktat kuliah." icon={FileText}>
       <Reveal>
         <Suspense fallback={null}>
-          <DocumentListClient courseId={id} materials={allMaterials} chapters={courseChapters} defaultTab={initialTab} />
+          <DocumentListClient
+            courseId={id}
+            materials={freeVisibleMaterials}
+            chapters={courseChapters}
+            defaultTab={initialTab}
+            accessTier={studentAccess?.tier}
+            lockedMaterialCount={lockedMaterialCount}
+          />
         </Suspense>
       </Reveal>
     </CoursePageShell>

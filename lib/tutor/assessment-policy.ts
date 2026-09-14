@@ -1,7 +1,8 @@
 import { createHash, randomUUID } from "node:crypto";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
 import {
+  pengguna,
   penggunaPeran,
   peran,
 } from "@/db/schema";
@@ -63,11 +64,34 @@ export async function resolveActorRoles(
     return { roles: [], isTutor: false, isAdmin: false };
   }
 
-  const roleRows = await client
-    .select({ code: peran.code })
-    .from(penggunaPeran)
-    .innerJoin(peran, eq(penggunaPeran.peranId, peran.id))
-    .where(eq(penggunaPeran.penggunaId, rawUserId));
+  const [[identity], membershipRows, roleRows] = await Promise.all([
+    client
+      .select({ id: pengguna.id, status: pengguna.status })
+      .from(pengguna)
+      .where(eq(pengguna.id, rawUserId))
+      .limit(1),
+    client
+      .select({ id: penggunaPeran.id })
+      .from(penggunaPeran)
+      .where(eq(penggunaPeran.penggunaId, rawUserId)),
+    client
+      .select({ code: peran.code })
+      .from(penggunaPeran)
+      .innerJoin(pengguna, eq(penggunaPeran.penggunaId, pengguna.id))
+      .innerJoin(peran, eq(penggunaPeran.peranId, peran.id))
+      .where(and(
+        eq(penggunaPeran.penggunaId, rawUserId),
+        eq(pengguna.status, "active"),
+      )),
+  ]);
+
+  // A suspended canonical identity can never regain access through a stale
+  // session claim. The canonical identity and membership tables are also
+  // authoritative when they exist, even when the membership has an unknown
+  // role code that cannot be normalized.
+  if (identity && identity.status !== "active") {
+    return { roles: [], isTutor: false, isAdmin: false };
+  }
 
   if (roleRows.length > 0) {
     const dbRoles = roleRows.map((r: { code: string }) => r.code);
@@ -80,6 +104,10 @@ export async function resolveActorRoles(
       isTutor,
       isAdmin,
     };
+  }
+
+  if (identity || membershipRows.length > 0) {
+    return { roles: [], isTutor: false, isAdmin: false };
   }
 
   if (sessionRole && typeof sessionRole === "string" && sessionRole.trim()) {

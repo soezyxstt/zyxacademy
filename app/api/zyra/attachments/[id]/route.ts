@@ -3,7 +3,7 @@ import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { zyraMessageAttachments } from "@/db/schema";
 import { auth } from "@/lib/auth";
-import { isEnrolled } from "@/lib/course-utils";
+import { resolveCourseAccess } from "@/lib/student/course-access";
 import { storage } from "@/lib/storage";
 import { zyraRuntimeEnv } from "@/lib/zyra/runtime-env";
 import {
@@ -55,13 +55,18 @@ async function authorizedRow(
     requestedSessionId: scope.sessionId,
     storedSessionId: row.sessionId,
   })) return null;
-  if (user.role !== "admin" && !(await isEnrolled(user.id, scope.courseId))) return null;
+  const access = await resolveCourseAccess({
+    courseId: scope.courseId,
+    userId: user.id,
+    roleHint: user.role,
+  });
+  if (!access.hasCourseAccess || (access.tier !== "enrolled" && access.tier !== "staff")) return null;
   if (!canAccessZyraAttachment({
     actorId: user.id,
     ownerId: row.studentId,
     courseId: row.courseId,
     authorizedCourseId: scope.courseId,
-    role: user.role,
+    role: access.roles.includes("admin") ? "admin" : null,
   })) return null;
   return { row, user };
 }

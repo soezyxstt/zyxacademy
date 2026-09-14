@@ -14,8 +14,58 @@ import { exams, questions } from "@/db/schema";
 import { and, eq, asc } from "drizzle-orm";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
+import type { ExamFixture } from "@/lib/student-course-fixtures";
 
 type Props = { params: Promise<{ id: string; tryoutId: string }> };
+
+function publicOptionTexts(value: unknown): string[] {
+  const options = Array.isArray(value)
+    ? value
+    : typeof value === "string"
+      ? (() => {
+          try {
+            const parsed = JSON.parse(value);
+            return Array.isArray(parsed) ? parsed : [];
+          } catch {
+            return [];
+          }
+        })()
+      : [];
+
+  return options
+    .map((option) => {
+      if (typeof option === "string") return option;
+      if (!option || typeof option !== "object" || Array.isArray(option)) return null;
+      const record = option as Record<string, unknown>;
+      for (const key of ["text", "label", "value", "content"]) {
+        if (typeof record[key] === "string") return record[key];
+      }
+      return null;
+    })
+    .filter((option): option is string => option !== null);
+}
+
+function publicExamSettings(value: unknown): ExamFixture["settings"] {
+  const parsed = typeof value === "string"
+    ? (() => {
+        try {
+          return JSON.parse(value);
+        } catch {
+          return null;
+        }
+      })()
+    : value;
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    return { timeLimitMinutes: 90, maxAttempts: 2 };
+  }
+
+  const settings = parsed as Record<string, unknown>;
+  return {
+    ...(typeof settings.timeLimitMinutes === "number" ? { timeLimitMinutes: settings.timeLimitMinutes } : {}),
+    ...(typeof settings.maxAttempts === "number" ? { maxAttempts: settings.maxAttempts } : {}),
+    ...(typeof settings.oneTimeOnly === "boolean" ? { oneTimeOnly: settings.oneTimeOnly } : {}),
+  };
+}
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id, tryoutId } = await params;
@@ -52,15 +102,13 @@ export default async function CourseTryoutTakePage({ params }: Props) {
       .where(eq(questions.examId, tryoutId))
       .orderBy(asc(questions.order));
 
-    const settings = typeof dbExam.settings === "string" ? JSON.parse(dbExam.settings) : dbExam.settings;
-
     exam = {
       id: dbExam.id,
       courseId: id,
       title: dbExam.title,
       type: "tryout" as const,
       status: dbExam.status,
-      settings: settings || { timeLimitMinutes: 90, maxAttempts: 2 },
+      settings: publicExamSettings(dbExam.settings),
       questions: dbQuestions.map((q) => {
         const content = typeof q.content === "string" ? JSON.parse(q.content) : q.content;
         return {
@@ -68,18 +116,15 @@ export default async function CourseTryoutTakePage({ params }: Props) {
           order: q.order,
           type: q.type as any,
           prompt: content.prompt,
-          options: content.options || [],
-          correctIndex: content.correctIndex,
-          correctIndices: content.correctIndices || [],
+          options: publicOptionTexts(content.options),
           acceptsImage: content.acceptsImage,
           acceptsFile: content.acceptsFile,
-          acceptableAnswers: content.acceptableAnswers || [],
           origin: content.origin,
           sourceEventName: content.sourceEventName,
           sourceReferenceId: content.sourceReferenceId,
         };
       }),
-    };
+    } as unknown as ExamFixture;
   }
 
   if (!exam || exam.type !== "tryout") notFound();
