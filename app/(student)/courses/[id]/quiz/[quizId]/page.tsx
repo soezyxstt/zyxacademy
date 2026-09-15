@@ -151,13 +151,15 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
     ?? rules.fixed_question_ids
     ?? rules.questionIds
     ?? rules.question_ids;
-  const fixedQuestionIds = Array.isArray(rawFixedQuestionIds)
-    ? [...new Set(
-        rawFixedQuestionIds
-          .filter((questionId): questionId is string => typeof questionId === "string")
-          .map((questionId) => questionId.trim())
-          .filter(Boolean),
-      )]
+  const declaredFixedQuestionIds = Array.isArray(rawFixedQuestionIds)
+    ? rawFixedQuestionIds.map((questionId) => typeof questionId === "string" ? questionId.trim() : "")
+    : null;
+  const hasMalformedFixedQuestionIds = rawFixedQuestionIds !== undefined
+    && (!declaredFixedQuestionIds
+      || declaredFixedQuestionIds.some((questionId) => !questionId)
+      || new Set(declaredFixedQuestionIds).size !== declaredFixedQuestionIds.length);
+  const fixedQuestionIds = declaredFixedQuestionIds && !hasMalformedFixedQuestionIds
+    ? [...new Set(declaredFixedQuestionIds)]
     : [];
 
   const requestedFreeChapterIds = isFree ? extractFreeQuizChapterScope(rules) : null;
@@ -190,9 +192,10 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
   const questionStateCondition = isFree
     ? and(eq(aiQuestionBank.status, "active"), eq(aiQuestionBank.isStale, false))
     : undefined;
-  const fixedQuestionCondition = isFree && fixedQuestionIds.length > 0
+  const fixedQuestionCondition = fixedQuestionIds.length > 0
     ? inArray(aiQuestionBank.id, fixedQuestionIds)
     : undefined;
+  const availabilityTagCondition = fixedQuestionIds.length > 0 ? undefined : tagCondition;
 
   const [questionsCountRow] = await db
     .select({ count: sql<number>`count(*)` })
@@ -203,13 +206,15 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
         eq(aiQuestionBank.reviewStatus, 'published'),
         quizEligibilityCondition,
         questionStateCondition,
-        tagCondition,
+        availabilityTagCondition,
         chapterScopeCondition,
         fixedQuestionCondition,
       )
     );
   const availableQuestionCount = questionsCountRow?.count ?? 0;
-  const questionsCount = isFree && fixedQuestionIds.length > 0
+  const questionsCount = hasMalformedFixedQuestionIds
+    ? 0
+    : fixedQuestionIds.length > 0
     ? availableQuestionCount === fixedQuestionIds.length ? availableQuestionCount : 0
     : availableQuestionCount;
 

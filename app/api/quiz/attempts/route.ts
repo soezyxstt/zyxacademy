@@ -356,15 +356,24 @@ export async function POST(req: NextRequest) {
  }
 
   const rules = parseSelectionRules(template.selectionRules);
-  const rawFixedQuestionIds = rules?.fixedQuestionIds ?? rules?.fixed_question_ids;
-  const fixedQuestionIds = Array.isArray(rawFixedQuestionIds)
-    ? [...new Set(
-        rawFixedQuestionIds
-          .filter((id): id is string => typeof id === 'string')
-          .map((id) => id.trim())
-          .filter(Boolean),
-      )]
-    : [];
+  const rawFixedQuestionIds = rules?.fixedQuestionIds
+    ?? rules?.fixed_question_ids
+    ?? rules?.questionIds
+    ?? rules?.question_ids;
+  const declaredFixedQuestionIds = Array.isArray(rawFixedQuestionIds)
+    ? rawFixedQuestionIds.map((id) => typeof id === 'string' ? id.trim() : '')
+    : null;
+  const hasMalformedFixedQuestionIds = rawFixedQuestionIds !== undefined
+    && (!declaredFixedQuestionIds
+      || declaredFixedQuestionIds.some((id) => !id)
+      || new Set(declaredFixedQuestionIds).size !== declaredFixedQuestionIds.length);
+  if (hasMalformedFixedQuestionIds) {
+    return NextResponse.json(
+      { error: 'Daftar soal tetap kuis tidak valid.' },
+      { status: 422 },
+    );
+  }
+  const fixedQuestionIds = declaredFixedQuestionIds ? [...new Set(declaredFixedQuestionIds)] : [];
   const quizEligibilityCondition = or(
     eq(aiQuestionBank.origin, 'zyx_original'),
     eq(aiQuestionBank.origin, 'itb_example'),

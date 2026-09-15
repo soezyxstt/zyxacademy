@@ -57,6 +57,8 @@ describe("student learning access boundaries", () => {
 
     const quizPage = source("app/(student)/courses/[id]/quiz/[quizId]/page.tsx");
     expect(quizPage).toContain("fixedQuestionCondition");
+    expect(quizPage).toContain("const fixedQuestionCondition = fixedQuestionIds.length > 0");
+    expect(quizPage).toContain("const questionsCount = hasMalformedFixedQuestionIds");
     expect(quizPage).toContain("inArray(aiQuestionBank.id, fixedQuestionIds)");
     expect(quizPage).toContain("availableQuestionCount === fixedQuestionIds.length");
   });

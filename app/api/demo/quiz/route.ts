@@ -73,9 +73,11 @@ export async function POST(request: Request) {
   }
 
   const expectedQuestionIds = quizSet.questions.map((question) => question.id);
+  const expectedQuestionVersions = quizSet.questions.map((question) => question.version);
   if (!verifyDemoQuestionSetToken(questionSetToken, {
     courseId: quizSet.courseId,
     questionIds: expectedQuestionIds,
+    questionVersions: expectedQuestionVersions,
   }) || !sameQuestionOrder(questionIds, expectedQuestionIds)) {
     return response({ error: "Sesi kuis demo sudah tidak valid. Muat ulang halaman." }, 409);
   }

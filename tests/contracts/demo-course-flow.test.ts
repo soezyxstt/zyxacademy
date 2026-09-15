@@ -72,7 +72,11 @@ describe("public demo course contract", () => {
     expect(data).toContain("quiz: pieces.quiz.map(({ id, prompt, options, multiple })");
     expect(data).toContain("DEMO_QUESTION_SET_TOKEN_VERSION");
     expect(data).toContain("quizSetToken");
+    expect(data).toContain("version: soal.version");
+    expect(data).toContain("questionVersions");
+    expect(data).toContain("sameQuestionVersions(payload.questionVersions, expected.questionVersions)");
     expect(data).toContain("sameQuestionOrder(payload.questionIds, expected.questionIds)");
+    expect(api).toContain("expectedQuestionVersions");
   });
 
   test("guards admin selection and clears the singleton in one transaction", () => {

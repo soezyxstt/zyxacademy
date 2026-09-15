@@ -41,6 +41,7 @@ export type DemoQuizQuestion = {
 };
 
 type DemoQuizQuestionPrivate = DemoQuizQuestion & {
+  version: number;
   correctIndices: number[];
   explanation: string | null;
 };
@@ -100,6 +101,7 @@ type DemoQuestionSetTokenPayload = {
   version: typeof DEMO_QUESTION_SET_TOKEN_VERSION;
   courseId: string;
   questionIds: string[];
+  questionVersions: number[];
   expiresAt: number;
 };
 
@@ -113,14 +115,20 @@ function sameQuestionOrder(left: readonly string[], right: readonly string[]): b
   return left.length === right.length && left.every((id, index) => id === right[index]);
 }
 
+function sameQuestionVersions(left: readonly number[], right: readonly number[]): boolean {
+  return left.length === right.length && left.every((version, index) => version === right[index]);
+}
+
 function issueDemoQuestionSetToken(input: {
   courseId: string;
   questionIds: readonly string[];
+  questionVersions: readonly number[];
 }): string {
   const payload: DemoQuestionSetTokenPayload = {
     version: DEMO_QUESTION_SET_TOKEN_VERSION,
     courseId: input.courseId,
     questionIds: [...input.questionIds],
+    questionVersions: [...input.questionVersions],
     expiresAt: Date.now() + DEMO_QUESTION_SET_TOKEN_TTL_MS,
   };
   const encodedPayload = Buffer.from(JSON.stringify(payload), "utf8").toString("base64url");
@@ -129,7 +137,7 @@ function issueDemoQuestionSetToken(input: {
 
 export function verifyDemoQuestionSetToken(
   token: unknown,
-  expected: { courseId: string; questionIds: readonly string[] },
+  expected: { courseId: string; questionIds: readonly string[]; questionVersions: readonly number[] },
 ): boolean {
   if (typeof token !== "string") return false;
   const [encodedPayload, encodedSignature, extra] = token.split(".");
@@ -157,7 +165,10 @@ export function verifyDemoQuestionSetToken(
     && payload.expiresAt > Date.now()
     && Array.isArray(payload.questionIds)
     && payload.questionIds.every((id): id is string => typeof id === "string" && id.length > 0)
-    && sameQuestionOrder(payload.questionIds, expected.questionIds);
+    && sameQuestionOrder(payload.questionIds, expected.questionIds)
+    && Array.isArray(payload.questionVersions)
+    && payload.questionVersions.every((version): version is number => Number.isInteger(version) && version > 0)
+    && sameQuestionVersions(payload.questionVersions, expected.questionVersions);
 }
 
 function asCanonicalCourse(row: typeof mataKuliah.$inferSelect): CanonicalCourse {
@@ -418,6 +429,7 @@ async function resolveQuiz(course: CanonicalCourse, chapter: typeof bab.$inferSe
   const rows = await db
     .select({
       id: soal.id,
+      version: soal.version,
       prompt: soal.prompt,
       questionType: soal.questionType,
       optionsSnapshot: soal.optionsSnapshot,
@@ -449,6 +461,7 @@ async function resolveQuiz(course: CanonicalCourse, chapter: typeof bab.$inferSe
     return options
       ? [{
           id: row.id,
+          version: row.version,
           prompt: row.prompt,
           multiple: row.questionType === "multiple_choices",
           ...options,
@@ -479,8 +492,9 @@ async function resolveQuiz(course: CanonicalCourse, chapter: typeof bab.$inferSe
     }
   }
 
-  return parsed.map(({ id, prompt, options, multiple, correctIndices }) => ({
+  return parsed.map(({ id, version, prompt, options, multiple, correctIndices }) => ({
     id,
+    version,
     prompt,
     options,
     multiple,
@@ -603,13 +617,14 @@ async function resolveSelectedPieces(): Promise<DemoPieces | null> {
 
 function toPublicContent(pieces: DemoPieces): DemoContent {
   const questionIds = pieces.quiz.map((question) => question.id);
+  const questionVersions = pieces.quiz.map((question) => question.version);
   return {
     course: pieces.course,
     article: pieces.article!,
     diktat: pieces.diktat!,
     flashcards: pieces.flashcards,
     quiz: pieces.quiz.map(({ id, prompt, options, multiple }) => ({ id, prompt, options, multiple })),
-    quizSetToken: issueDemoQuestionSetToken({ courseId: pieces.course.id, questionIds }),
+    quizSetToken: issueDemoQuestionSetToken({ courseId: pieces.course.id, questionIds, questionVersions }),
   };
 }
 
