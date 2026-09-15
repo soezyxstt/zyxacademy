@@ -1,8 +1,24 @@
 # Zyx Authoring MCP plugin
 
-This package connects an MCP host to the Zyx Authoring MCP at:
+This package connects an MCP host to one explicitly named Zyx Authoring environment.
 
-`https://staging.zyxacademy.com/api/mcp/authoring`
+<!-- BEGIN:environment-config -->
+## Active environment
+
+- Environment: `staging`
+- Plugin ID: `zyx-authoring-mcp-staging`
+- MCP server ID: `zyx-authoring-staging`
+- Endpoint: `https://staging.zyxacademy.com/api/mcp/authoring`
+<!-- END:environment-config -->
+
+Production and staging can be installed together because both the plugin ID and MCP server ID differ:
+
+| Environment | Plugin ID | MCP server ID | Expected Codex tool prefix |
+| --- | --- | --- | --- |
+| Production | `zyx-authoring-mcp` | `zyx-authoring-production` | `mcp__zyx_authoring_production__` |
+| Staging | `zyx-authoring-mcp-staging` | `zyx-authoring-staging` | `mcp__zyx_authoring_staging__` |
+
+Do not publish either variant with the legacy MCP server ID `zyx-authoring`. A host can collapse two connections with that shared ID into one ambiguous callable namespace.
 
 It includes six active authoring skills from this repository:
 
@@ -19,12 +35,13 @@ It includes six active authoring skills from this repository:
 
 - `.codex-plugin/plugin.json` is the Codex Desktop plugin manifest.
 - `.claude-plugin/plugin.json` is the Claude Code Desktop plugin manifest.
-- `.mcp.json` is shared by both plugin manifests.
+- `.mcp.json` is shared by both plugin manifests and contains an environment-specific server ID.
+- `scripts/configure_environment.py` deterministically configures the mirrored package for production or staging.
 - `claude-desktop-config.example.json` is a standalone MCP configuration template for the Claude chat tab.
 
 ## Authentication and scopes
 
-The server does not use a static token in this package. It requires an active Zyx admin session. Hosts with MCP OAuth support should open the Zyx sign-in flow automatically.
+The server does not use a static token in this package. It requires an active Zyx admin session. Hosts with MCP OAuth support should open the sign-in flow for the active endpoint automatically.
 
 - **Default OAuth scopes**: `authoring:read` and `authoring:stage`.
 - **Supported explicit scopes**: `authoring:review` and `authoring:withdraw`.
@@ -69,6 +86,6 @@ The chat tab has a separate MCP configuration from the Code tab. Use `claude-des
 
 ## ChatGPT
 
-Enable Developer mode, add an MCP connector pointing at the endpoint URL above, and authenticate with the Zyx admin OAuth flow. Hosts without interactive OAuth can use the 30-day connection token from `/api/mcp/authoring/connection`, which remains valid while the originating Better Auth session and admin role stay active. Paste `skills/zyx-question-authoring-mcp/SKILL.md` or `skills/reference-question-ingest/SKILL.md` into custom GPT or project instructions so the agent follows the same tool sequence.
+Enable Developer mode, add an MCP connector pointing at the active endpoint above, give the connector the matching environment-specific server ID, and authenticate with the Zyx admin OAuth flow. Hosts without interactive OAuth can use the 30-day connection token from `/api/mcp/authoring/connection`, which remains valid while the originating Better Auth session and admin role stay active. Paste `skills/zyx-question-authoring-mcp/SKILL.md` or `skills/reference-question-ingest/SKILL.md` into custom GPT or project instructions so the agent follows the same tool sequence.
 
 The MCP server remains authoritative for admin access, workflow scope, checksums, provenance, quality reports, and staging. The client skills only provide workflow instructions.
