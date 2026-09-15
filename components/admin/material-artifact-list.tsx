@@ -28,7 +28,8 @@ const statusLabels: Record<string, string> = {
   approved: "Disetujui",
   rejected: "Ditolak",
   staged: "Staged",
-  published: "Published",
+  published: "Terbit",
+  withdrawn: "Ditarik",
   archived: "Diarsipkan",
 };
 

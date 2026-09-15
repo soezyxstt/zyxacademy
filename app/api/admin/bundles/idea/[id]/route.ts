@@ -2,7 +2,7 @@ import { headers } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { previewIdeaBundle } from "@/lib/bundle/idea-preview";
-import { getIdeaBundleImport, listIdeaItemReviews, parseStagedIdeaBundle } from "@/lib/bundle/staging";
+import { discardIdeaBundleDraft, getIdeaBundleImport, listIdeaItemReviews, parseStagedIdeaBundle } from "@/lib/bundle/staging";
 import { createIdeaBundleDraft, finalizeIdeaBundleDraft, type IdeaBundleDraft } from "@/lib/bundle/idea-draft";
 import { serializeDeterministically } from "@/lib/bundle/idea-bundle-v2";
 import { sha256Text } from "@/lib/bundle/validator";
@@ -90,6 +90,19 @@ export async function PUT(request: NextRequest, context: { params: Promise<{ id:
   } catch (error) {
     const code = error instanceof Error ? error.message.split(":", 1)[0] : "IDEA_BUNDLE_UPDATE_FAILED";
     const status = code === "IDEA_BUNDLE_NOT_FOUND" ? 404 : 422;
+    return NextResponse.json({ error: code }, { status });
+  }
+}
+
+export async function DELETE(_request: NextRequest, context: { params: Promise<{ id: string }> }) {
+  const session = await auth.api.getSession({ headers: await headers() });
+  if (!session?.user || session.user.role !== "admin") return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const { id } = await context.params;
+  try {
+    return NextResponse.json({ result: await discardIdeaBundleDraft({ importId: id, actorId: session.user.id }) });
+  } catch (error) {
+    const code = error instanceof Error ? error.message.split(":", 1)[0] : "IDEA_BUNDLE_DISCARD_FAILED";
+    const status = code.endsWith("FORBIDDEN") ? 403 : code === "IDEA_BUNDLE_NOT_FOUND" ? 404 : 422;
     return NextResponse.json({ error: code }, { status });
   }
 }

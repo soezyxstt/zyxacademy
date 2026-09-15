@@ -395,6 +395,33 @@ export async function reviewIdeaBundle(input: {
   return { reviewId, status: nextImportStatus, reviewerRole: role };
 }
 
+export async function discardIdeaBundleDraft(input: { importId: string; actorId: string }): Promise<{ importId: string; discarded: boolean }> {
+  const row = await getIdeaBundleImport(input.importId);
+  if (!row) throw new Error("IDEA_BUNDLE_NOT_FOUND");
+  if (row.status === "published" || row.status === "withdrawn") throw new Error("IDEA_BUNDLE_DRAFT_REQUIRED");
+
+  await db.transaction(async (tx) => {
+    const [actor] = await tx.select({ role: user.role }).from(user).where(eq(user.id, input.actorId)).limit(1);
+    if (!actor || actor.role !== "admin") throw new Error("IDEA_BUNDLE_DISCARD_FORBIDDEN");
+    await tx.delete(reviewItemBundle).where(eq(reviewItemBundle.imporBundleId, row.id));
+    await tx.delete(reviewBundle).where(eq(reviewBundle.imporBundleId, row.id));
+    await tx.delete(itemImporBundle).where(eq(itemImporBundle.imporBundleId, row.id));
+    await tx.delete(imporBundle).where(eq(imporBundle.id, row.id));
+    await tx.insert(auditMutasi).values({
+      id: stableId("audit", `${row.id}:discarded`),
+      actorId: input.actorId,
+      entityType: "idea_bundle",
+      entityId: row.id,
+      action: "draft_discarded",
+      beforeSnapshot: { status: row.status, bundleId: row.bundleId, checksum: row.checksum },
+      afterSnapshot: null,
+      correlationId: row.id,
+    });
+  });
+  await deleteArtifact(row.sourceUriOrKey);
+  return { importId: row.id, discarded: true };
+}
+
 export async function reconcileIdeaBundle(importId: string) {
   const row = await getIdeaBundleImport(importId);
   if (!row) throw new Error("IDEA_BUNDLE_NOT_FOUND");

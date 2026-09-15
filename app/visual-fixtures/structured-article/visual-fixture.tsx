@@ -4,6 +4,7 @@ import { IdeaBundleReviewDetail, ProductBundleReviewDetail } from "@/components/
 import { StructuredArticleReader } from "@/components/course/structured-article-reader";
 import { TutorProvider } from "@/components/course/tutor-drawer";
 import type { PublicArticleReadModel } from "@/lib/articles/structured-read-model";
+import { useEffect, useState } from "react";
 
 const sourceArticle: PublicArticleReadModel = {
   id: "visual-article",
@@ -164,10 +165,18 @@ const sourceArticle: PublicArticleReadModel = {
 };
 
 export function StructuredArticleVisualFixture({ mode }: { mode: "student" | "idea" | "product" }) {
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => setReady(true), []);
+
   if (mode === "student") return <TutorProvider><StructuredArticleReader article={sourceArticle} course={{ id: "matematika-1", title: "Matematika I" }} /></TutorProvider>;
   return (
     <TutorProvider>
-      <main id="main-content" className="min-h-screen bg-background p-4 text-foreground sm:p-6">
+      <main
+        id="main-content"
+        data-fixture-ready={ready ? "true" : "false"}
+        className="min-h-screen bg-background p-4 text-foreground sm:p-6"
+      >
         <div className="mx-auto max-w-[1536px] space-y-4">
           <h1 className="font-heading text-h5 font-bold">{mode === "idea" ? "Review Source Pack + Idea" : "Review Product"}</h1>
           {mode === "idea" ? <IdeaBundleReviewDetail detailId="visual-idea" courseLabels={{ "matematika-1": "Matematika I" }} /> : <ProductBundleReviewDetail detailId="visual-product" courseLabels={{ "matematika-1": "Matematika I" }} />}

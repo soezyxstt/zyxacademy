@@ -74,7 +74,7 @@ export function MaterialWorkspace({
       )}
 
       {detailMode ? (
-        mode === "idea-detail" ? <IdeaBundleReviewDetail detailId={detailId ?? ""} courseLabels={courseLabels} /> : <ProductBundleReviewDetail detailId={detailId ?? ""} courseLabels={courseLabels} />
+        mode === "idea-detail" ? <IdeaBundleReviewDetail detailId={detailId ?? ""} courseLabels={courseLabels} backHref={effectiveBackHref} /> : <ProductBundleReviewDetail detailId={detailId ?? ""} courseLabels={courseLabels} />
       ) : (
         <div className="space-y-6">
           <Tabs value={activeReviewTab} onValueChange={(value) => setActiveReviewTab(value as "idea" | "product")}>
