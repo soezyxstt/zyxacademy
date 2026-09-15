@@ -1,6 +1,6 @@
 import { S3Client, GetObjectCommand } from "@aws-sdk/client-s3";
 import { headers as nextHeaders } from "next/headers";
-import { and, eq, isNotNull } from "drizzle-orm";
+import { and, eq, inArray, isNotNull } from "drizzle-orm";
 import { db } from "@/db";
 import { diktatMateri, diktats, mataKuliah } from "@/db/schema";
 import { auth } from "@/lib/auth";
@@ -49,46 +49,76 @@ function normalizeStorageKey(value: unknown): string | null {
   }
 }
 
-async function canDownloadDiktat(key: string): Promise<boolean> {
+type DiktatAuthorization = {
+  matched: boolean;
+  allowed: boolean;
+};
+
+function storageKeyCandidates(key: string): string[] {
+  const candidates = new Set<string>();
+  const keyVariants = new Set([key, encodeURI(key)]);
+  const publicBase = process.env.R2_PUBLIC_URL?.trim().replace(/\/+$/, "");
+
+  for (const keyVariant of keyVariants) {
+    candidates.add(keyVariant);
+    candidates.add(`/api/storage/file/${keyVariant}`);
+    candidates.add(`/f/${keyVariant}`);
+    if (publicBase) candidates.add(`${publicBase}/${keyVariant}`);
+  }
+
+  return [...candidates];
+}
+
+async function resolveDiktatAuthorization(key: string): Promise<DiktatAuthorization> {
   try {
+    const candidates = storageKeyCandidates(key);
     const [canonicalRows, legacyRows] = await Promise.all([
       db
         .select({ key: diktatMateri.fileKey, courseId: mataKuliah.id, source: "canonical" as const })
         .from(diktatMateri)
         .innerJoin(mataKuliah, eq(diktatMateri.mataKuliahId, mataKuliah.id))
-        .where(and(eq(diktatMateri.status, "published"), isNotNull(diktatMateri.fileKey))),
+        .where(and(
+          eq(diktatMateri.status, "published"),
+          isNotNull(diktatMateri.fileKey),
+          inArray(diktatMateri.fileKey, candidates),
+        )),
       db
         .select({ key: diktats.fileUrl, courseId: diktats.courseId, source: "legacy" as const })
         .from(diktats)
-        .where(eq(diktats.status, "ready")),
+        .where(and(eq(diktats.status, "ready"), inArray(diktats.fileUrl, candidates))),
     ]);
     const matches = [...canonicalRows, ...legacyRows].filter(
       (row): row is { key: string; courseId: string; source: "canonical" | "legacy" } => normalizeStorageKey(row.key) === key,
     );
-    if (matches.length === 0) return true;
+    if (matches.length === 0) return { matched: false, allowed: true };
 
     const identities = await Promise.all(
       [...new Set(matches.map((row) => row.courseId))].map((courseId) => resolveCourseIdentity(courseId)),
     );
-    if (identities.some((identity) => !identity || identity.status !== "active")) return false;
+    if (identities.some((identity) => !identity || identity.status !== "active")) {
+      return { matched: true, allowed: false };
+    }
     const canonicalCourseIds = new Set(
       identities.map((identity) => identity?.canonicalId ?? identity?.primaryId),
     );
-    if (canonicalCourseIds.size !== 1) return false;
+    if (canonicalCourseIds.size !== 1) return { matched: true, allowed: false };
     const courseId = [...canonicalCourseIds][0];
-    if (!courseId) return false;
+    if (!courseId) return { matched: true, allowed: false };
     const session = await auth.api.getSession({ headers: await nextHeaders() });
-    if (!session?.user?.id) return false;
+    if (!session?.user?.id) return { matched: true, allowed: false };
     const role = (session.user as { role?: string | null }).role;
     const access = await resolveCourseAccess({
       courseId,
       userId: session.user.id,
       roleHint: role,
     });
-    return access.hasCourseAccess && access.capabilities.canDownloadDiktat;
+    return {
+      matched: true,
+      allowed: access.hasCourseAccess && access.capabilities.canDownloadDiktat,
+    };
   } catch {
     // A storage authorization failure must not turn into a downloadable file.
-    return false;
+    return { matched: true, allowed: false };
   }
 }
 
@@ -115,7 +145,8 @@ export async function GET(
     const isDownload = urlObj.searchParams.get("download") === "1" || urlObj.searchParams.get("download") === "true";
     // Authorize Diktat delivery before fetching the object. The disposition
     // query only changes a browser hint and must never decide authorization.
-    if (!(await canDownloadDiktat(normalizeStorageKey(key) ?? key))) {
+    const diktatAuthorization = await resolveDiktatAuthorization(key);
+    if (diktatAuthorization.matched && !diktatAuthorization.allowed) {
       return new Response("File not found", { status: 404 });
     }
 
@@ -149,9 +180,11 @@ export async function GET(
       headers.set("Content-Length", s3Res.ContentLength.toString());
     }
     
-    // Authorization depends on the current session, so never let a shared
-    // cache replay the bytes to a different user.
-    headers.set("Cache-Control", "private, no-store");
+    // Only Diktat delivery depends on the current session. Keep unrelated
+    // public storage objects on the cacheable response path.
+    if (diktatAuthorization.matched) {
+      headers.set("Cache-Control", "private, no-store");
+    }
 
     // Extract clean filename (last path segment minus the {timestamp}-{hash}- prefix)
     const filename = leafFilename(key);

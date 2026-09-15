@@ -248,21 +248,8 @@ async function resolveCourseIdentity(
   requestedCourseId: string,
   client: typeof db,
 ): Promise<CourseIdentity> {
-  const canonicalById = await client
-    .select({
-      id: mataKuliah.id,
-      title: mataKuliah.title,
-      status: mataKuliah.status,
-      legacyCourseId: mataKuliah.legacyCourseId,
-      isDemo: mataKuliah.isDemo,
-    })
-    .from(mataKuliah)
-    .where(eq(mataKuliah.id, requestedCourseId))
-    .limit(1);
-
-  let canonical = canonicalById[0];
-  if (!canonical) {
-    const mappedRows = await client
+  const [canonicalRows, legacyRows] = await Promise.all([
+    client
       .select({
         id: mataKuliah.id,
         title: mataKuliah.title,
@@ -271,21 +258,44 @@ async function resolveCourseIdentity(
         isDemo: mataKuliah.isDemo,
       })
       .from(mataKuliah)
-      .where(eq(mataKuliah.legacyCourseId, requestedCourseId));
+      .where(or(eq(mataKuliah.id, requestedCourseId), eq(mataKuliah.legacyCourseId, requestedCourseId)))
+      .limit(2),
+    client
+      .select({ id: courses.id, title: courses.title })
+      .from(courses)
+      .where(eq(courses.id, requestedCourseId))
+      .limit(2),
+  ]);
 
-    if (mappedRows.length > 1) {
-      return {
-        courseId: requestedCourseId,
-        publicCourseId: requestedCourseId,
-        canonicalCourseId: null,
-        legacyCourseId: requestedCourseId,
-        courseTitle: "",
-        isDemo: false,
-        status: "inactive",
-        reason: "COURSE_MAPPING_AMBIGUOUS",
-      };
-    }
-    canonical = mappedRows[0];
+  // A public course identifier is an authorization boundary. Do not choose
+  // an arbitrary row when canonical aliases or legacy IDs collide.
+  if (canonicalRows.length > 1 || legacyRows.length > 1) {
+    return {
+      courseId: requestedCourseId,
+      publicCourseId: requestedCourseId,
+      canonicalCourseId: null,
+      legacyCourseId: requestedCourseId,
+      courseTitle: "",
+      isDemo: false,
+      status: "inactive",
+      reason: "COURSE_MAPPING_AMBIGUOUS",
+    };
+  }
+
+  const canonical = canonicalRows[0];
+  const legacy = legacyRows[0];
+
+  if (canonical && legacy && canonical.legacyCourseId !== legacy.id) {
+    return {
+      courseId: requestedCourseId,
+      publicCourseId: requestedCourseId,
+      canonicalCourseId: null,
+      legacyCourseId: requestedCourseId,
+      courseTitle: "",
+      isDemo: false,
+      status: "inactive",
+      reason: "COURSE_MAPPING_AMBIGUOUS",
+    };
   }
 
   if (canonical) {
@@ -301,11 +311,6 @@ async function resolveCourseIdentity(
     };
   }
 
-  const [legacy] = await client
-    .select({ id: courses.id, title: courses.title })
-    .from(courses)
-    .where(eq(courses.id, requestedCourseId))
-    .limit(1);
   if (!legacy) {
     return {
       courseId: requestedCourseId,

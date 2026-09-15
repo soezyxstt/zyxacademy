@@ -535,6 +535,47 @@ describe("student course access policy", () => {
     }
   });
 
+  it("fails closed when a canonical ID collides with an unrelated legacy course ID", async () => {
+    const { client, testDb } = await createTestDb();
+    try {
+      const now = new Date("2026-09-14T00:00:00.000Z");
+      const future = new Date("2026-10-01T00:00:00.000Z");
+      await testDb.insert(schema.courses).values({
+        id: "shared-course-id",
+        title: "Legacy Course",
+        category: "Matematika",
+      });
+      await testDb.insert(schema.mataKuliah).values({
+        id: "shared-course-id",
+        code: "CANONICAL-101",
+        title: "Canonical Course",
+        status: "active",
+        isDemo: false,
+        createdAt: now,
+        updatedAt: now,
+      });
+      await insertUser(testDb, { id: "collision-user" });
+      await testDb.insert(schema.enrollments).values({
+        id: "collision-legacy-enrollment",
+        userId: "collision-user",
+        courseId: "shared-course-id",
+        enrolledAt: now,
+        expiresAt: future,
+      });
+
+      const access = await resolveCourseAccess({
+        courseId: "shared-course-id",
+        userId: "collision-user",
+      }, testDb);
+
+      expect(access.reason).toBe("COURSE_MAPPING_AMBIGUOUS");
+      expect(access.hasCourseAccess).toBe(false);
+      expect(access.isEnrolled).toBe(false);
+    } finally {
+      client.close();
+    }
+  });
+
   it("keeps the murid lane for a tutor who also has the murid role", async () => {
     const { client, testDb } = await createTestDb();
     try {
