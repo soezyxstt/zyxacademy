@@ -60,10 +60,19 @@ describe("public demo course contract", () => {
     expect(api).toContain('"Cache-Control": "no-store"');
     expect(api).not.toContain("db.insert");
     expect(api).not.toContain("correctIndices");
+    expect(api).toContain("questionIds");
+    expect(api).toContain("questionSetToken");
+    expect(api).toContain("verifyDemoQuestionSetToken");
+    expect(api).toContain("sameQuestionOrder");
     expect(quiz).toContain('fetch("/api/demo/quiz"');
+    expect(quiz).toContain("questionSetToken");
+    expect(quiz).not.toContain("Kuis singkat");
     expect(quiz).toContain("hasil hanya muncul setelah dikirim.");
     expect(data).toContain("function toPublicContent");
-    expect(data).toContain("quiz: pieces.quiz.map(({ prompt, options, multiple })");
+    expect(data).toContain("quiz: pieces.quiz.map(({ id, prompt, options, multiple })");
+    expect(data).toContain("DEMO_QUESTION_SET_TOKEN_VERSION");
+    expect(data).toContain("quizSetToken");
+    expect(data).toContain("sameQuestionOrder(payload.questionIds, expected.questionIds)");
   });
 
   test("guards admin selection and clears the singleton in one transaction", () => {

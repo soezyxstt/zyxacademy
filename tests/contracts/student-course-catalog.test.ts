@@ -79,4 +79,34 @@ describe("student course catalog compatibility suppression", () => {
     await testDb.delete(schema.courses).where(eq(schema.courses.id, "legacy-archived"));
     await testDb.delete(schema.courses).where(eq(schema.courses.id, "legacy-ambiguous"));
   });
+
+  test("suppresses both canonical rows in a canonical and legacy alias collision", async () => {
+    const now = new Date("2026-09-14T00:00:00.000Z");
+    await testDb.insert(schema.courses).values({ id: "legacy-canonical-id", title: "Legacy Collision", category: "Fisika" });
+    await testDb.insert(schema.mataKuliah).values([
+      {
+        id: "mk-with-alias",
+        code: "COLLISION-101",
+        title: "Canonical With Alias",
+        status: "active",
+        legacyCourseId: "legacy-canonical-id",
+        createdAt: now,
+        updatedAt: now,
+      },
+      {
+        id: "legacy-canonical-id",
+        code: "COLLISION-102",
+        title: "Canonical Alias ID",
+        status: "active",
+        createdAt: now,
+        updatedAt: now,
+      },
+    ]);
+
+    expect(await listStudentCourses()).toHaveLength(0);
+
+    await testDb.delete(schema.mataKuliah).where(eq(schema.mataKuliah.id, "mk-with-alias"));
+    await testDb.delete(schema.mataKuliah).where(eq(schema.mataKuliah.id, "legacy-canonical-id"));
+    await testDb.delete(schema.courses).where(eq(schema.courses.id, "legacy-canonical-id"));
+  });
 });

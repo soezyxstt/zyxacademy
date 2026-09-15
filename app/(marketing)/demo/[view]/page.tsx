@@ -49,7 +49,7 @@ export default async function DemoViewPage({ params }: Props) {
       body = <DemoFlashcards cards={content.flashcards} nextPath={nextPath} />;
       break;
     case "quiz":
-      body = <DemoQuiz questions={content.quiz} nextPath={nextPath} />;
+      body = <DemoQuiz questions={content.quiz} quizSetToken={content.quizSetToken} nextPath={nextPath} />;
       break;
     case "zyra":
       body = <DemoZyra nextPath={nextPath} />;

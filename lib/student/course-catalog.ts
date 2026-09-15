@@ -119,8 +119,9 @@ export async function listStudentCourses(): Promise<StudentCourseRecord[]> {
     ),
   );
   const safeCanonicalRows = canonicalRows.filter((course) =>
-    !course.legacyCourseId
-      || (!ambiguousLegacyIds.has(course.legacyCourseId) && !collidingAliasIds.has(course.id)),
+    !collidingAliasIds.has(course.id)
+      && (!course.legacyCourseId
+        || (!ambiguousLegacyIds.has(course.legacyCourseId) && !collidingAliasIds.has(course.legacyCourseId))),
   );
   const projected = safeCanonicalRows.map((course) =>
     projectCanonicalCourse(course, course.legacyCourseId ? legacyById.get(course.legacyCourseId) : undefined),

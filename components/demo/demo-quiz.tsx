@@ -13,7 +13,15 @@ type QuizResult = {
   explanation: string | null;
 };
 
-export function DemoQuiz({ questions, nextPath }: { questions: DemoQuizQuestion[]; nextPath: string }) {
+export function DemoQuiz({
+  questions,
+  quizSetToken,
+  nextPath,
+}: {
+  questions: DemoQuizQuestion[];
+  quizSetToken: string;
+  nextPath: string;
+}) {
   const [answers, setAnswers] = useState<number[][]>(() => questions.map(() => []));
   const [results, setResults] = useState<QuizResult[] | null>(null);
   const [score, setScore] = useState<number | null>(null);
@@ -40,7 +48,11 @@ export function DemoQuiz({ questions, nextPath }: { questions: DemoQuizQuestion[
         method: "POST",
         headers: { "Content-Type": "application/json" },
         cache: "no-store",
-        body: JSON.stringify({ answers }),
+        body: JSON.stringify({
+          answers,
+          questionIds: questions.map((question) => question.id),
+          questionSetToken: quizSetToken,
+        }),
       });
       const payload = await response.json().catch(() => null) as {
         score?: number;
@@ -65,8 +77,7 @@ export function DemoQuiz({ questions, nextPath }: { questions: DemoQuizQuestion[
         <div className="flex items-start gap-3 border-b border-border pb-5">
           <CheckSquare className="mt-1 size-5 shrink-0 text-brand-primary" aria-hidden="true" />
           <div>
-            <p className="text-body-xs font-semibold uppercase tracking-[0.16em] text-brand-primary">Kuis singkat</p>
-            <h2 className="mt-2 font-heading text-h5 font-bold text-foreground">Cek pemahamanmu</h2>
+            <h2 className="font-heading text-h5 font-bold text-foreground">Cek pemahamanmu</h2>
             <p className="mt-1 text-body-xs text-muted-foreground">Tiga soal, hasil hanya muncul setelah dikirim.</p>
           </div>
         </div>

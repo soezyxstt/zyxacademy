@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
-import { getDemoQuizAnswers, gradeDemoAnswers } from "@/app/(marketing)/demo/demo-data";
+import {
+  getDemoQuizSet,
+  gradeDemoAnswers,
+  verifyDemoQuestionSetToken,
+} from "@/app/(marketing)/demo/demo-data";
 
 export const dynamic = "force-dynamic";
 
@@ -16,6 +20,10 @@ function isInteger(value: unknown): value is number {
   return typeof value === "number" && Number.isInteger(value);
 }
 
+function sameQuestionOrder(left: readonly string[], right: readonly string[]): boolean {
+  return left.length === right.length && left.every((id, index) => id === right[index]);
+}
+
 export async function POST(request: Request) {
   let payload: unknown;
   try {
@@ -28,10 +36,25 @@ export async function POST(request: Request) {
     payload && typeof payload === "object" && !Array.isArray(payload)
       ? (payload as { answers?: unknown }).answers
       : undefined;
+  const rawQuestionIds =
+    payload && typeof payload === "object" && !Array.isArray(payload)
+      ? (payload as { questionIds?: unknown }).questionIds
+      : undefined;
+  const questionSetToken =
+    payload && typeof payload === "object" && !Array.isArray(payload)
+      ? (payload as { questionSetToken?: unknown }).questionSetToken
+      : undefined;
 
   if (!Array.isArray(rawAnswers) || rawAnswers.length !== 3) {
     return response({ error: "Kuis demo membutuhkan tiga jawaban." }, 400);
   }
+
+  if (!Array.isArray(rawQuestionIds) || rawQuestionIds.length !== 3
+    || rawQuestionIds.some((id) => typeof id !== "string" || !id.trim())
+    || new Set(rawQuestionIds).size !== rawQuestionIds.length) {
+    return response({ error: "Daftar soal kuis demo tidak valid." }, 400);
+  }
+  const questionIds = rawQuestionIds.map((id) => (id as string).trim());
 
   const answers = rawAnswers.map((answer) => {
     if (Array.isArray(answer)) {
@@ -44,12 +67,20 @@ export async function POST(request: Request) {
     return response({ error: "Pilihan jawaban tidak valid." }, 400);
   }
 
-  const questions = await getDemoQuizAnswers();
-  if (!questions) {
+  const quizSet = await getDemoQuizSet();
+  if (!quizSet) {
     return response({ error: "Kuis demo belum tersedia." }, 404);
   }
 
-  const result = gradeDemoAnswers(questions, answers);
+  const expectedQuestionIds = quizSet.questions.map((question) => question.id);
+  if (!verifyDemoQuestionSetToken(questionSetToken, {
+    courseId: quizSet.courseId,
+    questionIds: expectedQuestionIds,
+  }) || !sameQuestionOrder(questionIds, expectedQuestionIds)) {
+    return response({ error: "Sesi kuis demo sudah tidak valid. Muat ulang halaman." }, 409);
+  }
+
+  const result = gradeDemoAnswers(quizSet.questions, answers);
   return response({
     score: result.score,
     total: result.total,

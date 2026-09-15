@@ -356,7 +356,15 @@ export async function POST(req: NextRequest) {
  }
 
   const rules = parseSelectionRules(template.selectionRules);
-  const fixedQuestionIds = (rules?.fixedQuestionIds ?? rules?.fixed_question_ids) as string[] | undefined;
+  const rawFixedQuestionIds = rules?.fixedQuestionIds ?? rules?.fixed_question_ids;
+  const fixedQuestionIds = Array.isArray(rawFixedQuestionIds)
+    ? [...new Set(
+        rawFixedQuestionIds
+          .filter((id): id is string => typeof id === 'string')
+          .map((id) => id.trim())
+          .filter(Boolean),
+      )]
+    : [];
   const quizEligibilityCondition = or(
     eq(aiQuestionBank.origin, 'zyx_original'),
     eq(aiQuestionBank.origin, 'itb_example'),
@@ -465,6 +473,13 @@ export async function POST(req: NextRequest) {
   if (isFreeQuiz) {
     const allowedQuestionIds = new Set(freeQuestionIds ?? []);
     selected = selected.filter((question) => allowedQuestionIds.has(question.id));
+  }
+
+  if (fixedQuestionIds.length > 0 && selected.length !== fixedQuestionIds.length) {
+    return NextResponse.json(
+      { error: 'Sebagian soal tetap kuis sudah tidak tersedia.' },
+      { status: 422 },
+    );
   }
 
  // Bump useCount so the next attempt's "prefer least-used" ordering (above) is meaningful.

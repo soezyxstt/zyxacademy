@@ -65,6 +65,7 @@ import { matchTerm, type TermIndexEntry } from "@/lib/term-match";
 import { isZyraSelectionAskEnabled, normalizeZyraSelection } from "@/lib/zyra/murid";
 import { formatReaderTocTitle } from "@/lib/materials/reader-toc";
 import { isLearnerReaderMode, type MaterialReaderMode } from "@/lib/materials/reader-mode";
+import type { CourseAccessTier } from "@/lib/student/course-access";
 
 type MaterialViewerProps = {
   material: CourseMaterial;
@@ -72,6 +73,8 @@ type MaterialViewerProps = {
   chapterId?: string;
   /** P3 grounded-tutor feature flag, resolved on the server. */
   ragEnabled?: boolean;
+  /** Free readers do not have access to the enrolled-only summary action. */
+  accessTier?: CourseAccessTier;
   /** EIF E3: course concept term index for the interactive material popover. */
   termIndex?: TermIndexEntry[];
   /** EIF E3: interactive material popover selection gate, defaults to true. */
@@ -583,6 +586,7 @@ export function MaterialViewer({
   material,
   chapterId,
   ragEnabled,
+  accessTier,
   termIndex,
   materialLiveEnabled,
   course,
@@ -1445,7 +1449,7 @@ export function MaterialViewer({
                 {isArticleTocOpen ? <PanelRightClose className="size-4" /> : <PanelRight className="size-4" />}
                 <span>{isArticleTocOpen ? "Sembunyikan Menu" : "Buka Menu"}</span>
               </Button>
-              {learnerMode && ragEnabled && chapterId && (
+              {learnerMode && accessTier !== "free" && ragEnabled && chapterId && (
                 <ChapterSummarySheet chapterId={chapterId} chapterTitle={material.title} />
               )}
               {learnerMode && (
@@ -1647,7 +1651,7 @@ export function MaterialViewer({
         </div>
 
         <div className="flex items-center gap-2">
-          {learnerMode && ragEnabled && chapterId && (
+          {learnerMode && accessTier !== "free" && ragEnabled && chapterId && (
             <ChapterSummarySheet chapterId={chapterId} chapterTitle={material.title} />
           )}
           {learnerMode && (

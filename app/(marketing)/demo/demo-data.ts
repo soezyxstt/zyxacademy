@@ -1,5 +1,6 @@
 import "server-only";
 
+import { createHmac, timingSafeEqual } from "node:crypto";
 import { and, asc, desc, eq, inArray, or } from "drizzle-orm";
 import {
   artikel,
@@ -17,6 +18,7 @@ import {
   getCanonicalPublishedArticle,
 } from "@/lib/articles/structured-repository";
 import type { PublicArticleReadModel } from "@/lib/articles/structured-read-model";
+import { resolveAuthSecret } from "@/lib/auth-secret";
 
 const demoColumn = mataKuliah.isDemo;
 
@@ -32,6 +34,7 @@ export type DemoFlashcard = {
 };
 
 export type DemoQuizQuestion = {
+  id: string;
   prompt: string;
   options: string[];
   multiple: boolean;
@@ -60,6 +63,7 @@ export type DemoContent = {
   };
   flashcards: DemoFlashcard[];
   quiz: DemoQuizQuestion[];
+  quizSetToken: string;
 };
 
 export type DemoEligibilityCheck = {
@@ -88,6 +92,73 @@ type DemoPieces = {
   quiz: DemoQuizQuestionPrivate[];
   checks: DemoEligibilityCheck[];
 };
+
+const DEMO_QUESTION_SET_TOKEN_VERSION = 1;
+const DEMO_QUESTION_SET_TOKEN_TTL_MS = 15 * 60 * 1000;
+
+type DemoQuestionSetTokenPayload = {
+  version: typeof DEMO_QUESTION_SET_TOKEN_VERSION;
+  courseId: string;
+  questionIds: string[];
+  expiresAt: number;
+};
+
+function signDemoQuestionSetToken(encodedPayload: string): string {
+  return createHmac("sha256", resolveAuthSecret())
+    .update(encodedPayload, "utf8")
+    .digest("base64url");
+}
+
+function sameQuestionOrder(left: readonly string[], right: readonly string[]): boolean {
+  return left.length === right.length && left.every((id, index) => id === right[index]);
+}
+
+function issueDemoQuestionSetToken(input: {
+  courseId: string;
+  questionIds: readonly string[];
+}): string {
+  const payload: DemoQuestionSetTokenPayload = {
+    version: DEMO_QUESTION_SET_TOKEN_VERSION,
+    courseId: input.courseId,
+    questionIds: [...input.questionIds],
+    expiresAt: Date.now() + DEMO_QUESTION_SET_TOKEN_TTL_MS,
+  };
+  const encodedPayload = Buffer.from(JSON.stringify(payload), "utf8").toString("base64url");
+  return `${encodedPayload}.${signDemoQuestionSetToken(encodedPayload)}`;
+}
+
+export function verifyDemoQuestionSetToken(
+  token: unknown,
+  expected: { courseId: string; questionIds: readonly string[] },
+): boolean {
+  if (typeof token !== "string") return false;
+  const [encodedPayload, encodedSignature, extra] = token.split(".");
+  if (!encodedPayload || !encodedSignature || extra) return false;
+
+  const expectedSignature = Buffer.from(signDemoQuestionSetToken(encodedPayload), "utf8");
+  const receivedSignature = Buffer.from(encodedSignature, "utf8");
+  if (expectedSignature.length !== receivedSignature.length
+    || !timingSafeEqual(expectedSignature, receivedSignature)) {
+    return false;
+  }
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(Buffer.from(encodedPayload, "base64url").toString("utf8"));
+  } catch {
+    return false;
+  }
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return false;
+
+  const payload = parsed as Partial<DemoQuestionSetTokenPayload>;
+  return payload.version === DEMO_QUESTION_SET_TOKEN_VERSION
+    && payload.courseId === expected.courseId
+    && typeof payload.expiresAt === "number"
+    && payload.expiresAt > Date.now()
+    && Array.isArray(payload.questionIds)
+    && payload.questionIds.every((id): id is string => typeof id === "string" && id.length > 0)
+    && sameQuestionOrder(payload.questionIds, expected.questionIds);
+}
 
 function asCanonicalCourse(row: typeof mataKuliah.$inferSelect): CanonicalCourse {
   return row as CanonicalCourse;
@@ -409,6 +480,7 @@ async function resolveQuiz(course: CanonicalCourse, chapter: typeof bab.$inferSe
   }
 
   return parsed.map(({ id, prompt, options, multiple, correctIndices }) => ({
+    id,
     prompt,
     options,
     multiple,
@@ -530,12 +602,14 @@ async function resolveSelectedPieces(): Promise<DemoPieces | null> {
 }
 
 function toPublicContent(pieces: DemoPieces): DemoContent {
+  const questionIds = pieces.quiz.map((question) => question.id);
   return {
     course: pieces.course,
     article: pieces.article!,
     diktat: pieces.diktat!,
     flashcards: pieces.flashcards,
-    quiz: pieces.quiz.map(({ prompt, options, multiple }) => ({ prompt, options, multiple })),
+    quiz: pieces.quiz.map(({ id, prompt, options, multiple }) => ({ id, prompt, options, multiple })),
+    quizSetToken: issueDemoQuestionSetToken({ courseId: pieces.course.id, questionIds }),
   };
 }
 
@@ -550,13 +624,18 @@ export async function getDemoContent(): Promise<DemoContent | null> {
   }
 }
 
-export async function getDemoQuizAnswers(): Promise<DemoQuizQuestionPrivate[] | null> {
+export async function getDemoQuizSet(): Promise<{ courseId: string; questions: DemoQuizQuestionPrivate[] } | null> {
   try {
     const pieces = await resolveSelectedPieces();
-    return pieces?.quiz ?? null;
+    return pieces ? { courseId: pieces.course.id, questions: pieces.quiz } : null;
   } catch {
     return null;
   }
+}
+
+export async function getDemoQuizAnswers(): Promise<DemoQuizQuestionPrivate[] | null> {
+  const quizSet = await getDemoQuizSet();
+  return quizSet?.questions ?? null;
 }
 
 export function gradeDemoAnswers(

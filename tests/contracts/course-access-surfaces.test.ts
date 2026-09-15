@@ -14,6 +14,8 @@ describe("student course access surface contract", () => {
     expect(overview).toContain("redirect(`/sign-in?next=${encodeURIComponent(`/courses/${id}`)}`)");
     expect(materialList).toContain("redirect(`/sign-in?next=${encodeURIComponent(`/courses/${id}/material`)}`)");
     expect(materialDetail).toContain("redirect(`/sign-in?next=${encodeURIComponent(`/courses/${id}/material/${materialId}`)}`)");
+    expect(materialDetail).toContain("accessTier={access?.tier}");
+    expect(source("components/course/material-viewer.tsx")).toContain('accessTier !== "free" && ragEnabled');
     expect(quizList).toContain("redirect(`/sign-in?next=${encodeURIComponent(`/courses/${id}/quiz`)}`)");
     expect(flashcards).toContain("redirect(`/sign-in?next=${encodeURIComponent(`/courses/${id}/flashcard`)}`)");
   });

@@ -391,6 +391,7 @@ export default async function CourseMaterialDetailPage({ params }: Props) {
         material={material}
         chapterId={material.chapterId}
         ragEnabled
+        accessTier={access?.tier}
         termIndex={termIndex}
         materialLiveEnabled={true}
         course={course}
