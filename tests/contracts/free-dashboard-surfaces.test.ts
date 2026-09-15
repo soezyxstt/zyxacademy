@@ -17,6 +17,9 @@ describe("Free dashboard and Zyra surface contract", () => {
     expect(view).toContain("course.firstIncompleteMaterialId");
     expect(view).toContain("Mulai Bab 1");
     expect(view).toContain("Progres tersimpan");
+    const buttonLines = view.split("\n").filter((line) => line.includes("<Button"));
+    expect(buttonLines.length).toBeGreaterThan(0);
+    expect(buttonLines.every((line) => !line.includes("text-body-xs"))).toBe(true);
   });
 
   test("disables advanced Zyra modes only after Free access is confirmed", () => {

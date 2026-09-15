@@ -80,10 +80,10 @@ export function StudentOnboardingView({
         }
         actions={
           <div className="flex flex-wrap items-center gap-2">
-            <Button asChild variant="outline" size="sm" className="rounded-lg text-body-xs">
+            <Button asChild variant="outline" size="sm" className="rounded-lg text-body-sm">
               <Link href="/plans">Lihat paket</Link>
             </Button>
-            <Button asChild size="sm" className="gap-1.5 rounded-lg text-body-xs">
+            <Button asChild size="sm" className="gap-1.5 rounded-lg text-body-sm">
               <Link href="/courses">
                 Jelajahi semua course
                 <ArrowRight className="size-3.5" />
@@ -149,7 +149,7 @@ export function StudentOnboardingView({
                             <span>{course.freeQuizCount} kuis</span>
                           </div>
                         </div>
-                        <Button asChild size="sm" className="shrink-0 rounded-lg text-body-xs">
+                        <Button asChild size="sm" className="shrink-0 rounded-lg text-body-sm">
                           <Link href={nextHref}>
                             {nextLabel}
                             <ArrowRight className="ml-1.5 size-3.5" />
@@ -274,7 +274,7 @@ export function StudentOnboardingView({
                 </div>
               ))}
             </div>
-            <Button asChild variant="outline" size="sm" className="mt-4 w-full rounded-lg text-body-xs">
+            <Button asChild variant="outline" size="sm" className="mt-4 w-full rounded-lg text-body-sm">
               <Link href="/plans">Bandingkan semua paket</Link>
             </Button>
           </Card>

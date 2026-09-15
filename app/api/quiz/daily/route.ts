@@ -10,7 +10,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { randomUUID } from "crypto";
+import { createHmac, randomUUID, timingSafeEqual } from "crypto";
 import { db } from "@/db";
 import {
   aiQuestionBank,
@@ -29,11 +29,87 @@ import {
   resolveCourseAccess,
   type CourseAccessResult,
 } from "@/lib/student/course-access";
+import { resolveAuthSecret } from "@/lib/auth-secret";
 
 const DAILY_QUESTION_COUNT = 5;
 const DAILY_CATEGORIES: ReadonlySet<string> = new Set(["daily"]);
 
 type SelectionRules = Record<string, unknown>;
+
+const DAILY_QUESTION_SET_TOKEN_VERSION = 1;
+const DAILY_QUESTION_SET_TOKEN_TTL_MS = 15 * 60 * 1000;
+
+type DailyQuestionSetTokenPayload = {
+  version: typeof DAILY_QUESTION_SET_TOKEN_VERSION;
+  userId: string;
+  templateId: string;
+  questionIds: string[];
+  expiresAt: number;
+};
+
+function signDailyQuestionSetToken(encodedPayload: string): string {
+  return createHmac("sha256", resolveAuthSecret())
+    .update(encodedPayload, "utf8")
+    .digest("base64url");
+}
+
+function sameQuestionSet(left: readonly string[], right: readonly string[]): boolean {
+  const normalize = (ids: readonly string[]) => [...new Set(ids)].sort();
+  const normalizedLeft = normalize(left);
+  const normalizedRight = normalize(right);
+  return normalizedLeft.length === normalizedRight.length
+    && normalizedLeft.every((id, index) => id === normalizedRight[index]);
+}
+
+function issueDailyQuestionSetToken(input: {
+  userId: string;
+  templateId: string;
+  questionIds: readonly string[];
+}): string {
+  const payload: DailyQuestionSetTokenPayload = {
+    version: DAILY_QUESTION_SET_TOKEN_VERSION,
+    userId: input.userId,
+    templateId: input.templateId,
+    questionIds: [...new Set(input.questionIds)],
+    expiresAt: Date.now() + DAILY_QUESTION_SET_TOKEN_TTL_MS,
+  };
+  const encodedPayload = Buffer.from(JSON.stringify(payload), "utf8").toString("base64url");
+  return `${encodedPayload}.${signDailyQuestionSetToken(encodedPayload)}`;
+}
+
+function verifyDailyQuestionSetToken(
+  token: unknown,
+  expected: { userId: string; templateId: string; questionIds: readonly string[] },
+): boolean {
+  if (typeof token !== "string") return false;
+  const [encodedPayload, encodedSignature, extra] = token.split(".");
+  if (!encodedPayload || !encodedSignature || extra) return false;
+
+  const expectedSignature = Buffer.from(signDailyQuestionSetToken(encodedPayload), "utf8");
+  const receivedSignature = Buffer.from(encodedSignature, "utf8");
+  if (expectedSignature.length !== receivedSignature.length
+    || !timingSafeEqual(expectedSignature, receivedSignature)) {
+    return false;
+  }
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(Buffer.from(encodedPayload, "base64url").toString("utf8"));
+  } catch {
+    return false;
+  }
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return false;
+
+  const payload = parsed as Partial<DailyQuestionSetTokenPayload>;
+  return payload.version === DAILY_QUESTION_SET_TOKEN_VERSION
+    && payload.userId === expected.userId
+    && payload.templateId === expected.templateId
+    && typeof payload.expiresAt === "number"
+    && payload.expiresAt > Date.now()
+    && Array.isArray(payload.questionIds)
+    && payload.questionIds.every((id): id is string => typeof id === "string" && id.length > 0)
+    && sameQuestionSet(payload.questionIds, expected.questionIds);
+}
 
 type DailyTemplateAccess = {
   access: CourseAccessResult;
@@ -370,6 +446,7 @@ const SubmitSchema = z.object({
   // never used for grading.
   questionIds: z.array(z.string().min(1)).min(1).max(DAILY_QUESTION_COUNT).optional(),
   questionsSnapshot: z.array(z.object({ id: z.string().min(1) })).min(1).max(DAILY_QUESTION_COUNT).optional(),
+  questionSetToken: z.string().min(1).optional(),
 }).refine((input) => Boolean(input.questionIds?.length || input.questionsSnapshot?.length), {
   message: "Question IDs are required",
   path: ["questionIds"],
@@ -401,10 +478,14 @@ export async function GET() {
 
   const { template, resolved } = selected;
   const questions = await selectDailyQuestions(template, resolved.rules, resolved.chapterIds);
+  const questionIds = questions.map((question) => question.id);
   return NextResponse.json({
     questions: questions.map(clientQuestion),
-    questionIds: questions.map((question) => question.id),
+    questionIds,
     templateId: template.id,
+    ...(resolved.access.tier === "free" && questionIds.length > 0
+      ? { questionSetToken: issueDailyQuestionSetToken({ userId: session.user.id, templateId: template.id, questionIds }) }
+      : {}),
   });
 }
 
@@ -444,6 +525,13 @@ export async function POST(req: NextRequest) {
     (session.user as { role?: string | null }).role,
   );
   if (!resolved) return NextResponse.json({ error: "Kuis ini belum tersedia." }, { status: 403 });
+
+  if (resolved.access.tier === "free" && !verifyDailyQuestionSetToken(
+    parsed.data.questionSetToken,
+    { userId: session.user.id, templateId: template.id, questionIds: requestedIds },
+  )) {
+    return NextResponse.json({ error: "Sesi kuis Free sudah tidak valid." }, { status: 403 });
+  }
 
   const rules = resolved.rules;
   const fixedIds = fixedQuestionIds(rules).slice(0, requestedCount(rules));

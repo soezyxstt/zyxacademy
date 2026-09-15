@@ -11,5 +11,7 @@ describe("storage file authorization boundary", () => {
     expect(authorization).toBeGreaterThan(-1);
     expect(authorization).toBeLessThan(objectFetch);
     expect(routeSource).not.toContain("if (isDownload && !(await canDownloadDiktat");
+    expect(routeSource).toContain('headers.set("Cache-Control", "private, no-store")');
+    expect(routeSource).not.toContain('headers.set("Cache-Control", "public, max-age=3600")');
   });
 });

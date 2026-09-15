@@ -400,6 +400,26 @@ describe("student course access policy", () => {
       const tutor = await resolveCourseAccess({ courseId: "mk-legacy-staff", userId: "legacy-tutor-user" }, testDb);
       expect(tutor.tier).toBe("staff");
       expect(tutor.roles).toEqual(["tutor"]);
+
+      // A prior request may have committed the identity before its role
+      // membership. The next access resolution must repair that partial row.
+      await testDb.insert(schema.user).values({
+        id: "roleless-legacy-admin",
+        name: "Roleless Legacy Admin",
+        email: "roleless-legacy-admin@zyx.test",
+        createdAt: now,
+        updatedAt: now,
+        role: "admin",
+      });
+      await testDb.insert(schema.pengguna).values({
+        id: "roleless-legacy-admin",
+        status: "active",
+        createdAt: now,
+        updatedAt: now,
+      });
+      const repairedAdmin = await resolveCourseAccess({ courseId: "mk-legacy-staff", userId: "roleless-legacy-admin" }, testDb);
+      expect(repairedAdmin.tier).toBe("staff");
+      expect(repairedAdmin.roles).toEqual(["admin"]);
     } finally {
       client.close();
     }
@@ -428,7 +448,7 @@ describe("student course access policy", () => {
       await insertUser(testDb, { id: "admin-user", peran: "admin", role: "admin" });
       await insertUser(testDb, { id: "tutor-user", peran: "tutor", role: "teacher" });
       await insertUser(testDb, { id: "unassigned-tutor", peran: "tutor", role: "teacher" });
-      await insertUser(testDb, { id: "role-hint-admin", role: "admin" });
+      await insertUser(testDb, { id: "role-hint-admin", role: "student" });
       await testDb.insert(schema.user).values({
         id: "suspended-user",
         name: "suspended-user",

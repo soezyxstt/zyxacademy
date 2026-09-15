@@ -436,7 +436,7 @@ async function resolveActor(
     };
   }
 
-  const roleRows = await client
+  let roleRows = await client
     .select({ code: peran.code })
     .from(penggunaPeran)
     .innerJoin(pengguna, eq(penggunaPeran.penggunaId, pengguna.id))
@@ -446,6 +446,39 @@ async function resolveActor(
       eq(pengguna.status, "active"),
       inArray(peran.code, [...ROLE_CODES]),
     ));
+
+  // A previous request may have created the canonical identity before the
+  // membership write failed. Retry that missing membership on every request
+  // so a transient failure cannot permanently downgrade a legacy staff user.
+  if (roleRows.length === 0 && knownAuthUser) {
+    try {
+      const legacyRole = mapLegacyRole(knownAuthUser.role ?? "student");
+      if (legacyRole) {
+        const [roleRecord] = await client
+          .select({ id: peran.id })
+          .from(peran)
+          .where(eq(peran.code, legacyRole))
+          .limit(1);
+        if (roleRecord) {
+          await client
+            .insert(penggunaPeran)
+            .values({
+              id: membershipIdFor(userId, legacyRole),
+              penggunaId: userId,
+              peranId: roleRecord.id,
+              source: "better_auth_user_create",
+              auditActorPenggunaId: null,
+              createdAt: knownAuthUser.createdAt,
+            })
+            .onConflictDoNothing();
+          roleRows = [{ code: legacyRole }];
+        }
+      }
+    } catch {
+      // Keep the compatibility fallback for this request; the next request
+      // retries the membership repair before resolving the actor again.
+    }
+  }
   const roles = new Set<CourseAccessRoleCode>(
     roleRows
       .map((row) => row.code)

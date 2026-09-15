@@ -33,6 +33,8 @@ describe("public demo course contract", () => {
     expect(resolver).toContain("eq(soal.status, \"published\")");
     expect(resolver).toContain(".limit(5)");
     expect(resolver).toContain(".slice(0, 3)");
+    expect(resolver).toContain("chapterNumber: chapter.orderIndex,");
+    expect(resolver).not.toContain("chapter.orderIndex + 1");
     expect(resolver).not.toContain("gemini");
     expect(resolver).not.toContain("GoogleGenerativeAI");
   });

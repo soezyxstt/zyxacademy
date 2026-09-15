@@ -138,10 +138,27 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
     difficulty_proportions?: Record<string, number>;
     chapterId?: string;
     chapterIds?: string[];
+    fixedQuestionIds?: string[];
+    fixed_question_ids?: string[];
+    questionIds?: string[];
+    question_ids?: string[];
   };
   const isFree = access?.tier === "free";
   const isFreeQuizScoped = isFree && isFreeQuizTemplate(template, access.freeChapterIds);
   const isAccessible = access.hasCourseAccess && (isStaff || isEnrolled || isFreeQuizScoped);
+
+  const rawFixedQuestionIds = rules.fixedQuestionIds
+    ?? rules.fixed_question_ids
+    ?? rules.questionIds
+    ?? rules.question_ids;
+  const fixedQuestionIds = Array.isArray(rawFixedQuestionIds)
+    ? [...new Set(
+        rawFixedQuestionIds
+          .filter((questionId): questionId is string => typeof questionId === "string")
+          .map((questionId) => questionId.trim())
+          .filter(Boolean),
+      )]
+    : [];
 
   const requestedFreeChapterIds = isFree ? extractFreeQuizChapterScope(rules) : null;
   const freeQuizChapterIds = requestedFreeChapterIds
@@ -173,6 +190,9 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
   const questionStateCondition = isFree
     ? and(eq(aiQuestionBank.status, "active"), eq(aiQuestionBank.isStale, false))
     : undefined;
+  const fixedQuestionCondition = isFree && fixedQuestionIds.length > 0
+    ? inArray(aiQuestionBank.id, fixedQuestionIds)
+    : undefined;
 
   const [questionsCountRow] = await db
     .select({ count: sql<number>`count(*)` })
@@ -185,9 +205,13 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
         questionStateCondition,
         tagCondition,
         chapterScopeCondition,
+        fixedQuestionCondition,
       )
     );
-  const questionsCount = questionsCountRow?.count ?? 0;
+  const availableQuestionCount = questionsCountRow?.count ?? 0;
+  const questionsCount = isFree && fixedQuestionIds.length > 0
+    ? availableQuestionCount === fixedQuestionIds.length ? availableQuestionCount : 0
+    : availableQuestionCount;
 
   if (!isAccessible) {
     return (

@@ -149,8 +149,9 @@ export async function GET(
       headers.set("Content-Length", s3Res.ContentLength.toString());
     }
     
-    // Enable browser caching for 1 hour to reduce R2 egress operations
-    headers.set("Cache-Control", "public, max-age=3600");
+    // Authorization depends on the current session, so never let a shared
+    // cache replay the bytes to a different user.
+    headers.set("Cache-Control", "private, no-store");
 
     // Extract clean filename (last path segment minus the {timestamp}-{hash}- prefix)
     const filename = leafFilename(key);

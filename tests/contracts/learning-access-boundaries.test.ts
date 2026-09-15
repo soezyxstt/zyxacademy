@@ -46,9 +46,19 @@ describe("student learning access boundaries", () => {
     expect(route).toContain("const serverQuestions = await selectDailyQuestions");
     expect(route).toContain("isAnswerCorrect(question, answers[question.id])");
     expect(route).toContain("publicOptions(question.options)");
+    expect(route).toContain("issueDailyQuestionSetToken");
+    expect(route).toContain("verifyDailyQuestionSetToken");
+    expect(route).toContain("sameQuestionSet(payload.questionIds, expected.questionIds)");
+    expect(route).toContain("questionSetToken");
+    expect(route).toContain("eq(bab.mataKuliahId, access.canonicalCourseId)");
     const clientStart = route.indexOf("function clientQuestion");
     const clientEnd = route.indexOf("function submittedText", clientStart);
     expect(route.slice(clientStart, clientEnd)).not.toContain("correctIndices");
+
+    const quizPage = source("app/(student)/courses/[id]/quiz/[quizId]/page.tsx");
+    expect(quizPage).toContain("fixedQuestionCondition");
+    expect(quizPage).toContain("inArray(aiQuestionBank.id, fixedQuestionIds)");
+    expect(quizPage).toContain("availableQuestionCount === fixedQuestionIds.length");
   });
 
   test("thumbnail reads bind material to the requested course without DB repair", () => {
