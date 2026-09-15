@@ -4,12 +4,18 @@ import {
   BookOpen,
   CheckCircle2,
   ClipboardList,
+  Flame,
   LockKeyhole,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { PageHeader } from "@/components/page-header";
 import { EnrollmentForm } from "@/components/enrollment-form";
+import { previewPlanTiers } from "@/lib/plan-tiers";
+import { PlanPrice, PlanPromotion } from "@/components/pricing/plan-price";
+import { DEFAULT_COURSES, DEFAULT_PERSONS } from "@/lib/pricing-constants";
+import { PKA_COURSE_ID } from "@/lib/pka-config";
+import { cn } from "@/lib/utils";
 
 export interface CatalogCourse {
   id: string;
@@ -128,6 +134,11 @@ export function StudentOnboardingView({
                             <span className="rounded-md bg-brand-primary/10 px-2 py-0.5 text-body-2xs font-bold uppercase tracking-wider text-brand-primary">
                               {course.category}
                             </span>
+                            {course.id === PKA_COURSE_ID ? (
+                              <span className="rounded-md bg-brand-secondary/10 px-2 py-0.5 text-body-2xs font-bold text-brand-secondary">
+                                Maba ITB
+                              </span>
+                            ) : null}
                             <h3 className="truncate font-heading text-body-sm font-bold text-foreground">
                               {course.title}
                             </h3>
@@ -196,7 +207,7 @@ export function StudentOnboardingView({
 
           <section className="border-b border-border/70 pb-6">
             <h2 className="mb-4 flex items-center gap-2 font-heading text-body-base font-bold text-foreground">
-              <CheckCircle2 className="size-4.5 text-brand-primary" />
+              <Flame className="size-4.5 text-brand-primary" />
               Yang tersedia di Free
             </h2>
 
@@ -228,6 +239,43 @@ export function StudentOnboardingView({
                 Lihat pilihan paket
                 <ArrowRight className="ml-1.5 size-4" />
               </Link>
+            </Button>
+          </Card>
+
+          <Card className="p-4 sm:p-5">
+            <h2 className="font-heading text-body-sm font-bold text-foreground">Paket belajar semester</h2>
+            <PlanPromotion className="mb-3 mt-3.5" />
+            <div className="space-y-2.5">
+              {previewPlanTiers.map((tier) => (
+                <div
+                  key={tier.key}
+                  className={cn(
+                    "rounded-lg border border-border/60 bg-card/50 p-3",
+                    tier.highlighted && "border-brand-primary/40 bg-brand-primary/10",
+                  )}
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="font-heading text-body-xs font-bold text-foreground">{tier.name}</span>
+                    {tier.highlighted ? (
+                      <span className="rounded-md bg-brand-primary/10 px-1.5 py-0.5 text-body-2xs font-bold text-brand-primary">
+                        Populer
+                      </span>
+                    ) : null}
+                  </div>
+                  <div className="mt-2">
+                    <PlanPrice
+                      plan={tier.key}
+                      persons={DEFAULT_PERSONS}
+                      courses={DEFAULT_COURSES}
+                      perPerson
+                    />
+                  </div>
+                  <p className="mt-1 line-clamp-1 text-body-xs text-muted-foreground">{tier.note}</p>
+                </div>
+              ))}
+            </div>
+            <Button asChild variant="outline" size="sm" className="mt-4 w-full rounded-lg text-body-xs">
+              <Link href="/plans">Bandingkan semua paket</Link>
             </Button>
           </Card>
 

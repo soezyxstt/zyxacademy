@@ -775,13 +775,13 @@ export function SidebarShell({
           top: 0,
           height: "100svh",
           ...(isMobile
-            ? { transform: mobileOpen ? "translateX(0)" : "translateX(-100%)" }
+            ? { translate: mobileOpen ? "0 0" : "-100% 0" }
             : {}),
         }}
         className={cn(
           "flex flex-col shrink-0 overflow-hidden",
           "border-r border-border bg-card",
-          "transition-[transform,width] duration-300 ease-in-out",
+          "transition-[translate,width] duration-300 ease-in-out",
           "fixed inset-y-0 left-0 z-50 shadow-xl w-[clamp(248px,80vw,300px)] -translate-x-full",
           "md:sticky md:top-0 md:self-start md:translate-x-0 md:z-30 md:shadow-none",
           isCollapsed ? "md:w-[64px]" : "md:w-[248px]"

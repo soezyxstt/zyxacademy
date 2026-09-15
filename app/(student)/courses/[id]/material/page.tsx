@@ -12,7 +12,7 @@ import {
   isFreeChapterScoped,
   isFreeQuizTemplate,
 } from "@/lib/course-utils";
-import { DocumentListClient } from "./document-list-client";
+import { CourseDocumentsClient } from "./course-documents-client";
 import { Reveal } from "@/components/ui/reveal";
 import { db } from "@/db";
 import { aiMaterialInstances, websiteMaterials, diktats, diktatMateri, bab, courseMaterials, progress, studentMaterialProgress, quizTemplates, studentQuizAttempts, exams } from "@/db/schema";
@@ -280,7 +280,7 @@ export default async function CourseMaterialListPage({ params, searchParams }: P
     <CoursePageShell title={`Materi Belajar: ${course.title}`} description="Pelajari bahan belajar, ringkasan rumus, dan diktat kuliah." icon={FileText}>
       <Reveal>
         <Suspense fallback={null}>
-          <DocumentListClient
+          <CourseDocumentsClient
             courseId={id}
             materials={freeVisibleMaterials}
             chapters={courseChapters}

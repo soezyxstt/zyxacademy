@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { notFound, redirect } from "next/navigation";
+import { MobileNavTitle } from "@/components/mobile-nav-title";
 import { getCourse } from "@/lib/course-utils";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
@@ -20,6 +21,10 @@ export default async function CourseLayout({ children, params }: Props) {
   const course = await getCourse(id);
   if (!course) notFound();
 
-  return <>{children}</>;
+  return (
+    <>
+      <MobileNavTitle title={course.title} />
+      {children}
+    </>
+  );
 }
-
