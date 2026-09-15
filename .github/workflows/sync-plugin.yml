@@ -79,6 +79,10 @@ jobs:
             const homepageUrl = isStaging
               ? 'https://staging.zyxacademy.com/'
               : 'https://www.zyxacademy.com/';
+            const productionDocumentationFiles = [
+              'README.md',
+              'claude-desktop-config.example.json',
+            ];
             const pluginId = isStaging
               ? 'zyx-authoring-mcp-staging'
               : 'zyx-authoring-mcp';
@@ -87,7 +91,20 @@ jobs:
               : 'Zyx Authoring MCP';
             const brandColor = isStaging ? '#F59E0B' : '#2563EB';
 
-            // 2. Adjust .mcp.json
+            // 2. Keep production connection documentation aligned with the target host.
+            if (!isStaging) {
+              for (const relativePath of productionDocumentationFiles) {
+                const filePath = path.join(buildDir, relativePath);
+                if (!fs.existsSync(filePath)) continue;
+                const content = fs.readFileSync(filePath, 'utf8');
+                fs.writeFileSync(
+                  filePath,
+                  content.replaceAll('https://staging.zyxacademy.com', 'https://www.zyxacademy.com'),
+                );
+              }
+            }
+
+            // 3. Adjust .mcp.json
             const mcpJsonPath = path.join(buildDir, '.mcp.json');
             if (fs.existsSync(mcpJsonPath)) {
               const mcpData = JSON.parse(fs.readFileSync(mcpJsonPath, 'utf8'));
@@ -97,7 +114,7 @@ jobs:
               fs.writeFileSync(mcpJsonPath, JSON.stringify(mcpData, null, 2) + '\n');
             }
 
-            // 3. Adjust .claude-plugin/plugin.json
+            // 4. Adjust .claude-plugin/plugin.json
             const claudeManifestPath = path.join(buildDir, '.claude-plugin', 'plugin.json');
             if (fs.existsSync(claudeManifestPath)) {
               const claudeData = JSON.parse(fs.readFileSync(claudeManifestPath, 'utf8'));
@@ -106,7 +123,7 @@ jobs:
               fs.writeFileSync(claudeManifestPath, JSON.stringify(claudeData, null, 2) + '\n');
             }
 
-            // 4. Adjust .codex-plugin/plugin.json
+            // 5. Adjust .codex-plugin/plugin.json
             const codexManifestPath = path.join(buildDir, '.codex-plugin', 'plugin.json');
             if (fs.existsSync(codexManifestPath)) {
               const codexData = JSON.parse(fs.readFileSync(codexManifestPath, 'utf8'));
