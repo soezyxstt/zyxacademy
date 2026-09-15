@@ -24,7 +24,7 @@ describe("admin course reader mode contract", () => {
     expect(content).toContain('if (!learnerMode) return;\n    let secondsSinceLastSave = 0');
     expect(content).toContain('if (!learnerMode) return;\n    try {\n      const storedNotes');
     expect(content).toContain('async function markDone() {\n    if (!learnerMode) return;');
-    expect(content).toContain("learnerMode && ragEnabled && chapterId");
+    expect(content).toContain('learnerMode && accessTier !== "free" && ragEnabled && chapterId');
   });
 
   test("gates progress and Zyra paths in StructuredArticleReader", () => {

@@ -19,6 +19,7 @@ import {
   GraduationCap,
   LayoutGrid,
   List,
+  LockKeyhole,
   MoreVertical,
   Pencil,
   Plus,
@@ -61,6 +62,8 @@ type DocumentListClientProps = {
   defaultTab?: string;
   forcePageNavigation?: boolean;
   isAdmin?: boolean;
+  accessTier?: "free" | "standard";
+  lockedMaterialCount?: number;
 };
 
 const tabConfig: Array<{ key: TabKey; label: string; icon: typeof FileText }> = [
@@ -352,9 +355,11 @@ function DocumentItemWrapper({
 function PdfViewerModal({
   material,
   onClose,
+  allowDownload = false,
 }: {
   material: CourseMaterial | null;
   onClose: () => void;
+  allowDownload?: boolean;
 }) {
   const [loaded, setLoaded] = useState(false);
 
@@ -400,41 +405,43 @@ function PdfViewerModal({
               {/* Right: Actions */}
               <div className="flex items-center gap-1 shrink-0">
                 {pdfUrl ? (
-                  <>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="size-7 rounded-md text-muted-foreground hover:text-foreground"
-                      asChild
-                    >
-                      <a
-                        href={pdfUrl}
-                        download
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        title="Unduh PDF"
-                        aria-label="Unduh PDF"
+                  allowDownload ? (
+                    <>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="size-7 rounded-md text-muted-foreground hover:text-foreground"
+                        asChild
                       >
-                        <Download className="size-3.5" />
-                      </a>
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="size-7 rounded-md text-muted-foreground hover:text-foreground"
-                      asChild
-                    >
-                      <a
-                        href={pdfUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        title="Buka di tab baru"
-                        aria-label="Buka di tab baru"
+                        <a
+                          href={pdfUrl}
+                          download
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          title="Unduh PDF"
+                          aria-label="Unduh PDF"
+                        >
+                          <Download className="size-3.5" />
+                        </a>
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="size-7 rounded-md text-muted-foreground hover:text-foreground"
+                        asChild
                       >
-                        <ExternalLink className="size-3.5" />
-                      </a>
-                    </Button>
-                  </>
+                        <a
+                          href={pdfUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          title="Buka di tab baru"
+                          aria-label="Buka di tab baru"
+                        >
+                          <ExternalLink className="size-3.5" />
+                        </a>
+                      </Button>
+                    </>
+                  ) : null
                 ) : null}
                 <Button
                   variant="ghost"
@@ -498,6 +505,8 @@ export function DocumentListClient({
   defaultTab = "materi",
   forcePageNavigation = false,
   isAdmin = false,
+  accessTier,
+  lockedMaterialCount = 0,
 }: DocumentListClientProps) {
   const router = useRouter();
   const initialDefaultTab = normalizeTabKey(defaultTab);
@@ -576,6 +585,8 @@ export function DocumentListClient({
     filters.chapters.size +
     filters.years.size;
 
+  const allowDownload = isAdmin || accessTier === "standard";
+
   const toggleFilter = (group: keyof DocumentFilterState, value: string) => {
     setFilters((current) => {
       const next = new Set(current[group]);
@@ -593,6 +604,17 @@ export function DocumentListClient({
 
   return (
     <div className="space-y-3 font-sans">
+      {accessTier === "free" && lockedMaterialCount > 0 ? (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-brand-primary/25 bg-brand-primary/5 px-3 py-2.5">
+          <div className="flex min-w-0 items-center gap-2 text-body-xs text-muted-foreground">
+            <LockKeyhole className="size-4 shrink-0 text-brand-primary" aria-hidden />
+            <span>Bab berikutnya dan materi yang belum memiliki satu bab tersedia setelah aktivasi kelas.</span>
+          </div>
+          <Button asChild variant="outline" size="sm" className="h-8 shrink-0 rounded-md text-body-sm">
+            <Link href="/plans">Aktifkan akses</Link>
+          </Button>
+        </div>
+      ) : null}
       {/* Unified Toolbar: Tab Strip, SearchBar, Filter Popover, Grid/List Toggle */}
       <div className="flex flex-wrap items-center gap-2">
         <Tabs value={activeTab} onValueChange={(value) => handleTabChange(normalizeTabKey(value))}>
@@ -871,7 +893,7 @@ export function DocumentListClient({
                           aria-label="Selesai dipelajari"
                         />
                       ) : null}
-                      {material.url ? (
+                      {material.url && allowDownload ? (
                         <Button
                           type="button"
                           variant="ghost"
@@ -1023,7 +1045,7 @@ export function DocumentListClient({
                     </div>
                   ) : (
                     <div className="flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
-                      {material.url ? (
+                      {material.url && allowDownload ? (
                         <Button
                           type="button"
                           variant="ghost"
@@ -1092,6 +1114,7 @@ export function DocumentListClient({
       <PdfViewerModal
         material={selectedPdf}
         onClose={() => setSelectedPdf(null)}
+        allowDownload={allowDownload}
       />
 
       {/* Upload Dialog for Admin */}

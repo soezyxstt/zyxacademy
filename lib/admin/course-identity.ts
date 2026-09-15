@@ -27,53 +27,61 @@ export async function resolveCourseIdentity(
   const cleanId = identifier.trim().toLowerCase();
   if (!cleanId) return null;
 
-  const [canonicalCourse, legacyCourse] = await Promise.all([
+  const [canonicalRows, legacyRows] = await Promise.all([
     db
       .select()
       .from(mataKuliah)
-      .where(
-        and(
-          eq(mataKuliah.status, "active"),
-          or(eq(mataKuliah.id, cleanId), eq(mataKuliah.legacyCourseId, cleanId))
-        )
-      )
-      .limit(1)
-      .then((rows) => rows[0] ?? null),
+      .where(or(eq(mataKuliah.id, cleanId), eq(mataKuliah.legacyCourseId, cleanId)))
+      .limit(2),
     db
       .select()
       .from(courses)
       .where(eq(courses.id, cleanId))
-      .limit(1)
-      .then((rows) => rows[0] ?? null),
+      .limit(2),
   ]);
 
-  if (!canonicalCourse && !legacyCourse) {
+  // A public identifier is an authorization boundary. Never select an
+  // arbitrary first row when corrupted aliases or a canonical/legacy ID
+  // collision make that boundary ambiguous.
+  if (canonicalRows.length > 1 || legacyRows.length > 1) return null;
+
+  const canonicalCourse = canonicalRows[0] ?? null;
+  const directLegacyCourse = legacyRows[0] ?? null;
+  if (!canonicalCourse && !directLegacyCourse) {
     return null;
   }
 
-  let linkedLegacy = legacyCourse;
+  // When both tables match the same identifier, they must describe the same
+  // compatibility mapping. A canonical ID colliding with an unrelated legacy
+  // course must fail closed rather than silently preferring the canonical row.
+  if (
+    canonicalCourse &&
+    directLegacyCourse &&
+    canonicalCourse.legacyCourseId !== directLegacyCourse.id
+  ) {
+    return null;
+  }
+
+  let linkedLegacy = directLegacyCourse;
   if (!linkedLegacy && canonicalCourse?.legacyCourseId) {
-    linkedLegacy = await db
+    const linkedLegacyRows = await db
       .select()
       .from(courses)
       .where(eq(courses.id, canonicalCourse.legacyCourseId))
-      .limit(1)
-      .then((rows) => rows[0] ?? null);
+      .limit(2);
+    if (linkedLegacyRows.length > 1) return null;
+    linkedLegacy = linkedLegacyRows[0] ?? null;
   }
 
   let linkedCanonical = canonicalCourse;
-  if (!linkedCanonical && legacyCourse) {
-    linkedCanonical = await db
+  if (!linkedCanonical && directLegacyCourse) {
+    const linkedCanonicalRows = await db
       .select()
       .from(mataKuliah)
-      .where(
-        and(
-          eq(mataKuliah.status, "active"),
-          eq(mataKuliah.legacyCourseId, legacyCourse.id)
-        )
-      )
-      .limit(1)
-      .then((rows) => rows[0] ?? null);
+      .where(eq(mataKuliah.legacyCourseId, directLegacyCourse.id))
+      .limit(2);
+    if (linkedCanonicalRows.length > 1) return null;
+    linkedCanonical = linkedCanonicalRows[0] ?? null;
   }
 
   const primaryId = linkedCanonical?.id ?? linkedLegacy!.id;
@@ -160,7 +168,9 @@ export async function resolveBundleCourseIdentity(
     .select({ courseId: imporBundle.courseId, bundleType: imporBundle.bundleType })
     .from(imporBundle)
     .where(bundleType ? and(bundleIdentity, eq(imporBundle.bundleType, bundleType)) : bundleIdentity)
-    .limit(1);
+    .limit(2);
+
+  if (rows.length > 1) return null;
 
   const row = rows[0];
   if (!row?.courseId) return null;

@@ -184,7 +184,7 @@ export async function POST(req: NextRequest) {
  {
  mode: 'generation_triggered',
  jobId,
- message: `Only ${total} approved questions found. Generating ${activeKOs.length} more via Gemini. Poll /api/admin/generation-jobs/${jobId} for status, then create template manually.`,
+ message: `Only ${total} approved questions found. Generating ${activeKOs.length} more. Poll /api/admin/generation-jobs/${jobId} for status, then create template manually.`,
  },
  { status: 202 },
  );

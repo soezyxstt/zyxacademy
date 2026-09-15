@@ -118,6 +118,87 @@ describe("Plan 013 Zyra canonical runtime", () => {
     expect(result.rejected[0]?.reasonCode).toBe("NOT_ENROLLED");
   });
 
+  it("limits Free evidence to the first two chapters and excludes unscoped or locked answers", () => {
+    const freeRequest = {
+      ...studyRequest,
+      chapterId: null,
+      isEnrolled: false,
+      accessTier: "free" as const,
+      freeChapterIds: ["chapter-1", "chapter-2"],
+      capability: "read:published_solutions" as const,
+      answerReleaseState: "released" as const,
+    };
+    const allowedContent = "Konsep yang tersedia untuk Free.";
+    const allowedCandidate = candidate({
+      entityId: "idea-free",
+      chapterId: "chapter-2",
+      contentHash: hash(allowedContent),
+    });
+    const chapterThreeCandidate = candidate({
+      entityId: "idea-chapter-3",
+      chapterId: "chapter-3",
+      contentHash: hash("Bab tiga terkunci."),
+    });
+    const unscopedCandidate = candidate({
+      entityId: "idea-unscoped",
+      chapterId: undefined,
+      contentHash: hash("Konten tanpa bab."),
+    });
+    const unscopedCourseCandidate = candidate({
+      entityId: "idea-unscoped-course",
+      chapterId: "chapter-1",
+      courseId: undefined,
+      contentHash: hash("Konten tanpa mata kuliah."),
+    });
+    const lockedCandidate = candidate({
+      entityId: "idea-locked",
+      chapterId: "chapter-1",
+      accessClass: "admin",
+      contentHash: hash("Konten admin."),
+    });
+    const answerCandidate = candidate({
+      namespace: "published_solutions",
+      entityType: "solution",
+      entityId: "solution-free",
+      version: 1,
+      status: "published",
+      accessClass: "restricted_solution",
+      chapterId: "chapter-1",
+      contentHash: hash("Jawaban yang tidak boleh masuk."),
+    });
+
+    const result = hydrateCanonicalCandidates(
+      [allowedCandidate, chapterThreeCandidate, unscopedCandidate, unscopedCourseCandidate, lockedCandidate, answerCandidate],
+      [
+        record({ entityId: "idea-free", chapterId: "chapter-2", content: allowedContent }),
+        record({ entityId: "idea-chapter-3", chapterId: "chapter-3", content: "Bab tiga terkunci." }),
+        record({ entityId: "idea-unscoped", chapterId: undefined, content: "Konten tanpa bab." }),
+        record({ entityId: "idea-unscoped-course", chapterId: "chapter-1", courseId: undefined, content: "Konten tanpa mata kuliah." }),
+        record({ entityId: "idea-locked", chapterId: "chapter-1", accessClass: "admin", content: "Konten admin." }),
+        record({
+          namespace: "published_solutions",
+          entityType: "solution",
+          entityId: "solution-free",
+          version: 1,
+          accessClass: "restricted_solution",
+          chapterId: "chapter-1",
+          content: "Jawaban yang tidak boleh masuk.",
+        }),
+      ],
+      freeRequest,
+    );
+
+    expect(result.sources).toHaveLength(1);
+    expect(result.sources[0]).toMatchObject({ entityType: "idea", content: allowedContent });
+    expect(result.rejected).toEqual(expect.arrayContaining([
+      { id: chapterThreeCandidate.id, reasonCode: "CHAPTER_SCOPE_MISMATCH" },
+      { id: unscopedCandidate.id, reasonCode: "CHAPTER_SCOPE_MISMATCH" },
+      { id: unscopedCourseCandidate.id, reasonCode: "CHAPTER_SCOPE_MISMATCH" },
+      { id: lockedCandidate.id, reasonCode: "NOT_ENROLLED" },
+      { id: answerCandidate.id, reasonCode: "ACTIVE_ATTEMPT_ANSWER_DENIED" },
+    ]));
+  });
+
   it("keeps question content answer-safe during an active assessment", () => {
     const questionContent = "Apa definisi konsep ini?\n\nOptions: [\"A\",\"B\"]";
     const questionCandidate = candidate({

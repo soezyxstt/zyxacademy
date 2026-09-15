@@ -60,6 +60,17 @@ Canonical access-role codes are `admin`, `tutor`, and `murid`. Admin and tutor l
 - Paid pricing uses a compact struck-through regular amount above the current amount, with a rectangular `40% off` badge on the right. Both amounts use the same unit (per person or group total). The promotion deadline and the future regular price effective date appear once per pricing section. Group totals are authoritative; per-person amounts are rounded estimates. Cards are ordered Minimal, Essential, Premium, Free, Custom.
 - Client pricing refreshes on a one-second tick and when a tab regains focus or visibility. Server HTML shows a neutral loading state so cached pages do not retain an expired offer. Static plan metadata contains no monetary snapshots.
 - Payment remains outside the website through the admin. WhatsApp enrollment text includes the current semester total and, during the campaign, the introductory deadline and future regular price. Clicking the link refreshes the quote. Admin must confirm the applicable price at payment time; the website does not collect or enforce an external payment.
+- The public landing pricing preview uses the same quote source, labels the main amount per person per semester, and shows the configured group total as secondary context. Paid preview cards expose a plan-specific WhatsApp consultation link only when `NEXT_PUBLIC_WHATSAPP_NUMBER` is configured; no fallback number is generated.
+- Admin `/admin/pricing` provides a read-only Custom estimate using the shared platform and tutorial components. Meetings must be positive multiples of five, while course and group-member counts are configurable. The page shows the regular and discounted group totals, the corresponding per-person estimates, a simulated 40% introductory discount, and the discount amount without persisting a quote.
+- The public landing page separates platform benefits, tutor evidence, and package questions. Its FAQ describes only the published Free, Minimal, Essential, Premium, payment, and activation behavior.
+
+## Public demo and Free access
+
+- `/demo` is a public, read-only introduction. It requires exactly one active course selected by an admin, an unambiguous canonical and legacy mapping, and resolves only published content from the first active Bab, in deterministic order.
+- The demo dashboard links to the full structured Article, a two-section Diktat preview with no download, five Flashcards, a stateless three-question Kuis, and a scripted Zyra conversation. Demo interactions stay in memory, never create progress or quiz attempts, and never call an AI provider.
+- If zero or more than one course is selected, its canonical and legacy mapping is ambiguous, or its published content becomes incomplete, `/demo` shows a recovery state and does not fall back to draft or legacy content. Sign-in links use a safe `next` callback to return to the real selected course path, `/courses/{id}`.
+- The Free package provides Bab 1 and Bab 2 in every mata kuliah, including the related Article, Diktat, Kuis, and Flashcard content. Diktat is readable without download. Zyra allows one question per day, and authenticated learning progress is stored.
+- Admins select the public course from course settings. Selection is allowed only when the course is active, its canonical and legacy mapping is unambiguous, and it has a complete published Article, two-section Diktat, at least five published Flashcards, and at least three published Kuis questions. The selection is transactional and singleton-scoped.
 
 ## Core Pipelines
 
@@ -309,6 +320,7 @@ The standalone Admin material editor is retired. Existing website material remai
 
 ### Blog & Short Links
 - Multi-category blog (tips_kuliah, pojok_kampus, fakta_seru, kegiatan_zyx)
+- The public Blog route leads with its identity, category navigation, and latest articles. Feature promotion follows the article content and links to the general course catalog instead of presenting every feature as a detail page.
 - URL shortener (zyxacademy.com/s/[slug])
 
 ### Assessment Integrity & Assistance Policy

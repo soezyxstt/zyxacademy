@@ -30,7 +30,7 @@ export function QuizStartButton({ courseId, templateId, label = "Mulai Kuis", cl
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ templateId }),
+        body: JSON.stringify({ courseId, templateId }),
       });
 
       if (!res.ok) {

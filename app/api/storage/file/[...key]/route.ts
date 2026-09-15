@@ -1,4 +1,11 @@
 import { S3Client, GetObjectCommand } from "@aws-sdk/client-s3";
+import { headers as nextHeaders } from "next/headers";
+import { and, eq, inArray, isNotNull } from "drizzle-orm";
+import { db } from "@/db";
+import { diktatMateri, diktats, mataKuliah } from "@/db/schema";
+import { auth } from "@/lib/auth";
+import { resolveCourseIdentity } from "@/lib/admin/course-identity";
+import { resolveCourseAccess } from "@/lib/student/course-access";
 import { isProtectedProductDiktatPdfKey, leafFilename } from "@/lib/storage/keys";
 
 const bucket = process.env.R2_BUCKET || "zyx";
@@ -11,13 +18,118 @@ const s3 = new S3Client({
   },
 });
 
+function normalizeStorageKey(value: unknown): string | null {
+  if (typeof value !== "string" || !value.trim()) return null;
+  const raw = value.trim().split(/[?#]/, 1)[0];
+  let candidate = raw;
+  const proxyMarkers = ["/api/storage/file/", "/f/"];
+  const relativeMarker = proxyMarkers.find((marker) => raw.startsWith(marker));
+  if (relativeMarker) {
+    candidate = raw.slice(relativeMarker.length);
+  } else if (/^https?:\/\//i.test(raw)) {
+    try {
+      const url = new URL(raw);
+      const pathname = url.pathname;
+      const proxyMarker = proxyMarkers.find((marker) => pathname.includes(marker));
+      if (proxyMarker) candidate = pathname.split(proxyMarker).pop() || "";
+      else {
+        const publicBase = process.env.R2_PUBLIC_URL?.replace(/\/$/, "");
+        if (!publicBase || !raw.startsWith(`${publicBase}/`)) return null;
+        candidate = pathname.slice(new URL(publicBase).pathname.replace(/\/$/, "").length + 1);
+      }
+    } catch {
+      return null;
+    }
+  }
+  try {
+    const decoded = decodeURIComponent(candidate).replace(/^\/+/, "");
+    return decoded || null;
+  } catch {
+    return null;
+  }
+}
+
+type DiktatAuthorization = {
+  matched: boolean;
+  allowed: boolean;
+};
+
+function storageKeyCandidates(key: string): string[] {
+  const candidates = new Set<string>();
+  const keyVariants = new Set([key, encodeURI(key)]);
+  const publicBase = process.env.R2_PUBLIC_URL?.trim().replace(/\/+$/, "");
+
+  for (const keyVariant of keyVariants) {
+    candidates.add(keyVariant);
+    candidates.add(`/api/storage/file/${keyVariant}`);
+    candidates.add(`/f/${keyVariant}`);
+    if (publicBase) candidates.add(`${publicBase}/${keyVariant}`);
+  }
+
+  return [...candidates];
+}
+
+async function resolveDiktatAuthorization(key: string): Promise<DiktatAuthorization> {
+  try {
+    const candidates = storageKeyCandidates(key);
+    const [canonicalRows, legacyRows] = await Promise.all([
+      db
+        .select({ key: diktatMateri.fileKey, courseId: mataKuliah.id, source: "canonical" as const })
+        .from(diktatMateri)
+        .innerJoin(mataKuliah, eq(diktatMateri.mataKuliahId, mataKuliah.id))
+        .where(and(
+          eq(diktatMateri.status, "published"),
+          isNotNull(diktatMateri.fileKey),
+          inArray(diktatMateri.fileKey, candidates),
+        )),
+      db
+        .select({ key: diktats.fileUrl, courseId: diktats.courseId, source: "legacy" as const })
+        .from(diktats)
+        .where(and(eq(diktats.status, "ready"), inArray(diktats.fileUrl, candidates))),
+    ]);
+    const matches = [...canonicalRows, ...legacyRows].filter(
+      (row): row is { key: string; courseId: string; source: "canonical" | "legacy" } => normalizeStorageKey(row.key) === key,
+    );
+    if (matches.length === 0) return { matched: false, allowed: true };
+
+    const identities = await Promise.all(
+      [...new Set(matches.map((row) => row.courseId))].map((courseId) => resolveCourseIdentity(courseId)),
+    );
+    if (identities.some((identity) => !identity || identity.status !== "active")) {
+      return { matched: true, allowed: false };
+    }
+    const canonicalCourseIds = new Set(
+      identities.map((identity) => identity?.canonicalId ?? identity?.primaryId),
+    );
+    if (canonicalCourseIds.size !== 1) return { matched: true, allowed: false };
+    const courseId = [...canonicalCourseIds][0];
+    if (!courseId) return { matched: true, allowed: false };
+    const session = await auth.api.getSession({ headers: await nextHeaders() });
+    if (!session?.user?.id) return { matched: true, allowed: false };
+    const role = (session.user as { role?: string | null }).role;
+    const access = await resolveCourseAccess({
+      courseId,
+      userId: session.user.id,
+      roleHint: role,
+    });
+    return {
+      matched: true,
+      allowed: access.hasCourseAccess && access.capabilities.canDownloadDiktat,
+    };
+  } catch {
+    // A storage authorization failure must not turn into a downloadable file.
+    return { matched: true, allowed: false };
+  }
+}
+
 export async function GET(
   req: Request,
   { params }: { params: Promise<{ key: string[] }> }
 ) {
   try {
     const { key: keyParts } = await params;
-    const key = Array.isArray(keyParts) ? keyParts.join("/") : keyParts;
+    const requestedKey = Array.isArray(keyParts) ? keyParts.join("/") : keyParts;
+    const key = normalizeStorageKey(requestedKey) ?? requestedKey;
     
     if (!key) {
       return new Response("Missing file key", { status: 400 });
@@ -26,6 +138,15 @@ export async function GET(
     // Product Bundle Diktat PDFs carry enrollment-gated course material. They
     // are served only by the authenticated admin preview and learner routes.
     if (isProtectedProductDiktatPdfKey(key)) {
+      return new Response("File not found", { status: 404 });
+    }
+
+    const urlObj = new URL(req.url);
+    const isDownload = urlObj.searchParams.get("download") === "1" || urlObj.searchParams.get("download") === "true";
+    // Authorize Diktat delivery before fetching the object. The disposition
+    // query only changes a browser hint and must never decide authorization.
+    const diktatAuthorization = await resolveDiktatAuthorization(key);
+    if (diktatAuthorization.matched && !diktatAuthorization.allowed) {
       return new Response("File not found", { status: 404 });
     }
 
@@ -59,15 +180,15 @@ export async function GET(
       headers.set("Content-Length", s3Res.ContentLength.toString());
     }
     
-    // Enable browser caching for 1 hour to reduce R2 egress operations
-    headers.set("Cache-Control", "public, max-age=3600");
+    // Only Diktat delivery depends on the current session. Keep unrelated
+    // public storage objects on the cacheable response path.
+    if (diktatAuthorization.matched) {
+      headers.set("Cache-Control", "private, no-store");
+    }
 
     // Extract clean filename (last path segment minus the {timestamp}-{hash}- prefix)
     const filename = leafFilename(key);
 
-    const urlObj = new URL(req.url);
-    const isDownload = urlObj.searchParams.get("download") === "1" || urlObj.searchParams.get("download") === "true";
-    
     headers.set(
       "Content-Disposition",
       `${isDownload ? "attachment" : "inline"}; filename="${filename.replace(/"/g, '\\"')}"; filename*=UTF-8''${encodeURIComponent(filename)}`

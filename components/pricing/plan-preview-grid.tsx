@@ -4,13 +4,28 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PlanPrice, PlanPromotion } from "@/components/pricing/plan-price";
-import { DEFAULT_PERSONS, DEFAULT_COURSES } from "@/lib/pricing-constants";
+import { PlanConsultationLink } from "@/components/pricing/plan-consultation-link";
+import { CORE_SUBJECTS, DEFAULT_PERSONS, DEFAULT_COURSES } from "@/lib/pricing-constants";
 import { previewPlanTiers } from "@/lib/plan-tiers";
 import { cn } from "@/lib/utils";
 
-export function PlanPreviewGrid({ className }: { className?: string }) {
+type PlanPreviewGridProps = {
+  className?: string;
+  perPerson?: boolean;
+  showConsultationLink?: boolean;
+};
+
+export function PlanPreviewGrid({
+  className,
+  perPerson = false,
+  showConsultationLink = false,
+}: PlanPreviewGridProps) {
   return (
-    <div className={className}>
+    <div
+      className={className}
+      data-pricing-persons={DEFAULT_PERSONS}
+      data-pricing-courses={DEFAULT_COURSES}
+    >
       <PlanPromotion className="mb-3" />
       <div className="grid gap-4 md:grid-cols-3">
         {previewPlanTiers.map((tier) => (
@@ -28,7 +43,12 @@ export function PlanPreviewGrid({ className }: { className?: string }) {
               </div>
               <p className="text-body-xs text-muted-foreground">{tier.note}</p>
               <div className="pt-2">
-                <PlanPrice plan={tier.key} persons={DEFAULT_PERSONS} courses={DEFAULT_COURSES} />
+                <PlanPrice
+                  plan={tier.key}
+                  persons={DEFAULT_PERSONS}
+                  courses={DEFAULT_COURSES}
+                  perPerson={perPerson}
+                />
               </div>
             </CardHeader>
             <CardContent className="flex flex-1 flex-col p-4 pt-0">
@@ -48,6 +68,15 @@ export function PlanPreviewGrid({ className }: { className?: string }) {
               >
                 <Link href="/plans">Pelajari paket {tier.name}</Link>
               </Button>
+              {showConsultationLink ? (
+                <PlanConsultationLink
+                  plan={tier.key}
+                  planName={tier.name}
+                  persons={DEFAULT_PERSONS}
+                  courses={DEFAULT_COURSES}
+                  selectedCourses={CORE_SUBJECTS.slice(0, DEFAULT_COURSES)}
+                />
+              ) : null}
             </CardContent>
           </Card>
         ))}

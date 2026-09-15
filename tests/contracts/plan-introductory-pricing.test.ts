@@ -1,5 +1,18 @@
 import { describe, expect, test } from "bun:test";
-import { calculatePlanPrice, getPlanPriceQuote, getPlanPricingPhase, getWhatsAppPlanUrl } from "@/lib/pricing-constants";
+import { buildWhatsAppPlanUrl, calculatePlanPrice, getPlanPriceQuote, getPlanPricingPhase } from "@/lib/pricing-constants";
+
+const TEST_WHATSAPP_NUMBER = "12345678";
+
+function getTestWhatsAppPlanUrl(
+  planKey: Parameters<typeof buildWhatsAppPlanUrl>[1],
+  planName: string,
+  persons: number,
+  courses: number,
+  selectedCourses?: string[],
+  phase?: Parameters<typeof buildWhatsAppPlanUrl>[6],
+) {
+  return buildWhatsAppPlanUrl(TEST_WHATSAPP_NUMBER, planKey, planName, persons, courses, selectedCourses, phase);
+}
 
 describe("scheduled introductory pricing", () => {
   test("uses Jakarta midnight for both boundaries", () => {
@@ -36,13 +49,13 @@ describe("scheduled introductory pricing", () => {
     for (const plan of ["free", "custom"] as const) {
       for (const phase of ["before", "intro", "regular"] as const) {
         expect(getPlanPriceQuote(plan, 3, 3, phase)).toEqual({ price: 0, regularPrice: 0, isIntroductory: false });
-        expect(new URL(getWhatsAppPlanUrl(plan, plan, 3, 3, [], phase)).searchParams.get("text")).not.toContain("40%");
+        expect(new URL(getTestWhatsAppPlanUrl(plan, plan, 3, 3, [], phase)).searchParams.get("text")).not.toContain("40%");
       }
     }
   });
 
   test("WhatsApp enrollment carries the applicable price and only active promotion", () => {
-    const message = (phase: "intro" | "regular") => new URL(getWhatsAppPlanUrl("minimal", "Minimal", 1, 1, ["Matematika I"], phase)).searchParams.get("text")!;
+    const message = (phase: "intro" | "regular") => new URL(getTestWhatsAppPlanUrl("minimal", "Minimal", 1, 1, ["Matematika I"], phase)).searchParams.get("text")!;
     expect(message("intro")).toContain("Rp 250.000");
     expect(message("intro")).toContain("11 Oktober 2026");
     expect(message("intro")).toContain("Matematika I");

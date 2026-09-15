@@ -79,11 +79,7 @@ export function QuizDemo({ prompt, options, correctPanel, wrongPanel }: QuizDemo
  <div className="mt-4 motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 motion-safe:duration-300">
  {wasCorrect ? correctPanel : wrongPanel}
  </div>
- ) : (
- <p className="mt-4 text-body-xs text-muted-foreground">
- Pilih salah satu jawaban ; coba juga jawab salah untuk melihat pembahasannya.
- </p>
- )}
+ ) : null}
  </div>
 
  {answered ? (

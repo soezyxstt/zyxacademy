@@ -85,9 +85,6 @@ function MasteryPane() {
  </div>
  </div>
  ))}
- <p className="mt-1 text-body-xs text-muted-foreground">
- Diperbarui otomatis dari 3 kuis dan 2 sesi flashcard terakhir.
- </p>
  </DemoFrame>
  );
 }
@@ -104,9 +101,9 @@ function DailyPlanPane() {
  return (
  <DemoFrame title="Rencana Hari Ini" className="h-full" bodyClassName="flex h-[calc(100%-2.25rem)] flex-col justify-center">
  <div className="flex items-center justify-between gap-3">
- <p className="font-heading text-body-base font-semibold text-foreground">Halo, Salsa 👋</p>
+ <p className="font-heading text-body-base font-semibold text-foreground">Halo, Salsa</p>
  <span className="rounded-md border border-[var(--zx-accent)]/40 bg-[var(--zx-accent)]/10 px-2 py-0.5 text-body-xs font-semibold text-[var(--zx-accent)]">
- 🔥 6 hari beruntun
+  6 hari beruntun
  </span>
  </div>
  <div className="mt-4 divide-y divide-border border-y border-border">
@@ -136,9 +133,6 @@ function DailyPlanPane() {
  </div>
  ))}
  </div>
- <p className="mt-4 text-body-xs text-muted-foreground">
- 1 dari 3 selesai ; rencana disusun ulang setiap pagi dari peta penguasaanmu.
- </p>
  </DemoFrame>
  );
 }
@@ -149,7 +143,6 @@ function PracticePane() {
  return (
  <DemoFrame
  title="Kuis Mingguan #4"
- meta={<span>dari materi kuliahmu</span>}
  className="h-full"
  bodyClassName="flex h-[calc(100%-2.25rem)] flex-col justify-center"
  >
@@ -252,7 +245,7 @@ const loopSteps: ScrollStep[] = [
  />
  ),
  pane: (
- <LandingVisible className="h-full">
+ <LandingVisible className="h-full min-w-0">
  <MasteryPane />
  </LandingVisible>
  ),
@@ -263,11 +256,11 @@ const loopSteps: ScrollStep[] = [
  <StepCopy
  index={2}
  title="Rencana harian"
- body="Buka dashboard, langsung tahu: hari ini 12 flashcard, 1 kuis, 1 materi. Tanpa bingung mulai dari mana."
+  body="Dashboard merangkum agenda: 12 flashcard, 1 kuis, dan 1 materi, supaya kamu punya titik mulai yang jelas."
  />
  ),
  pane: (
- <LandingVisible className="h-full">
+ <LandingVisible className="h-full min-w-0">
  <DailyPlanPane />
  </LandingVisible>
  ),
@@ -282,7 +275,7 @@ const loopSteps: ScrollStep[] = [
  />
  ),
  pane: (
- <LandingVisible className="h-full">
+ <LandingVisible className="h-full min-w-0">
  <PracticePane />
  </LandingVisible>
  ),
@@ -297,7 +290,7 @@ const loopSteps: ScrollStep[] = [
  />
  ),
  pane: (
- <LandingVisible className="h-full">
+ <LandingVisible className="h-full min-w-0">
  <UnlockPane />
  </LandingVisible>
  ),
@@ -314,14 +307,10 @@ export function LandingLearningLoop() {
  <p className="text-body-xs font-semibold uppercase tracking-[0.2em] text-[var(--zx-accent)]">
  Satu lingkaran belajar
  </p>
- <SectionHeading as="h2" id="landing-loop-heading" className="mt-3 text-foreground">
- Platform yang tahu kamu butuh apa.
- </SectionHeading>
- <p className="mt-4 text-body-base text-muted-foreground">
- Setiap jawabanmu memperbarui peta penguasaanmu ; dan peta itu menentukan apa yang kamu
- pelajari berikutnya.
- </p>
- </div>
+  <SectionHeading as="h2" id="landing-loop-heading" className="mt-3 text-foreground">
+  Belajar dari apa yang perlu kamu kuasai.
+  </SectionHeading>
+  </div>
 
  <LandingScrollSteps className="mt-16 md:mt-20" steps={loopSteps} />
  </SectionContainer>

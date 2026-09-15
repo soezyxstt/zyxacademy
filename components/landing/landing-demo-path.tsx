@@ -16,10 +16,6 @@ export function LandingDemoPath() {
  <SectionHeading as="h2" id="landing-path-heading" className="mt-3 text-foreground">
  Dua mahasiswa, dua jalur berbeda.
  </SectionHeading>
- <p className="mt-4 text-body-base text-muted-foreground">
- Jalurmu disusun dari peta penguasaanmu sendiri ; konsep prasyarat harus kuat dulu sebelum
- konsep lanjutan terbuka.
- </p>
  </div>
 
  <LandingVisible className="mt-12">

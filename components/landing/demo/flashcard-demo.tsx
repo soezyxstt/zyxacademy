@@ -103,11 +103,7 @@ export function FlashcardDemo({ cards }: FlashcardDemoProps) {
  {lastSchedule.split(" → ")[1]}
  </span>
  </p>
- ) : (
- <p className="text-body-xs text-muted-foreground">
- Nilai kartumu ; jadwal pengulangan menyesuaikan otomatis.
- </p>
- )}
+ ) : null}
  </div>
  </div>
  );

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import {
-  // LandingClosingCta,
+  LandingClosingCta,
   LandingCoursePreview,
   LandingDemoFlashcards,
   LandingDemoPath,
@@ -9,8 +9,10 @@ import {
   LandingForTutors,
   LandingHero,
   LandingLearningLoop,
+  LandingFaq,
+  LandingProof,
   LandingPricingPreview,
-  LandingTestimonials,
+  LandingTutorSupport,
 } from "@/components/landing";
 import { pageTitle, siteDescription } from "@/lib/site";
 
@@ -35,16 +37,18 @@ export default function Home() {
         }}
       />
       <LandingHero />
+      <LandingProof />
       <LandingLearningLoop />
       <LandingDemoQuiz />
       <LandingDemoTutor />
       <LandingDemoFlashcards />
       <LandingDemoPath />
+      <LandingTutorSupport />
       <LandingForTutors />
       <LandingCoursePreview />
-      <LandingTestimonials />
       <LandingPricingPreview />
-      {/* <LandingClosingCta /> */}
+      <LandingFaq />
+      <LandingClosingCta />
     </div>
   );
 }

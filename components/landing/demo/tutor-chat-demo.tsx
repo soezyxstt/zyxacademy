@@ -4,7 +4,6 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { RotateCcw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { DemoFrame } from "@/components/landing/demo/demo-frame";
-import { ZyraMark } from "@/components/course/zyra-mark";
 
 export type TutorChatMessage = {
   id: string;
@@ -97,12 +96,6 @@ export function TutorChatDemo({ messages }: TutorChatDemoProps) {
     <div ref={containerRef}>
       <DemoFrame
         title="Zyra"
-        meta={
-          <span className="flex items-center gap-1 text-[var(--zx-accent)]">
-            <ZyraMark className="size-3.5" aria-hidden />
-            Gemini
-          </span>
-        }
         bodyClassName="flex min-h-[380px] flex-col p-4 md:p-5"
       >
         <div className="flex flex-1 flex-col justify-end gap-3" aria-live="polite">
@@ -137,8 +130,7 @@ export function TutorChatDemo({ messages }: TutorChatDemoProps) {
           {waitingForAi ? <TypingIndicator /> : null}
         </div>
 
-        <div className="mt-4 flex items-center justify-between gap-3 border-t border-border/80 pt-3">
-          <p className="text-body-xs text-muted-foreground">Percakapan contoh dari sesi nyata.</p>
+        <div className="mt-4 flex items-center justify-end gap-3 border-t border-border/80 pt-3">
           <button
             type="button"
             onClick={replay}

@@ -1,10 +1,41 @@
 import { headers } from "next/headers";
+import { randomUUID } from "node:crypto";
 import { auth } from "@/lib/auth";
 import { askTutorRagAction } from "@/app/actions/tutor";
-import { isEnrolled } from "@/lib/course-utils";
+import { resolveCourseAccess } from "@/lib/student/course-access";
+import { FREE_ALLOWANCE_IDEMPOTENCY_PREFIX } from "@/lib/usage-budget-service";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
+
+function publicZyraError(error: unknown): string {
+  const code = error instanceof Error ? error.message : "";
+  if (code === "NOT_ENROLLED" || code === "COURSE_SCOPE_REQUIRED") {
+    return "Akses Zyra untuk mata kuliah ini belum tersedia.";
+  }
+  if (code === "UPGRADE_REQUIRED") {
+    return "Fitur ini tersedia setelah aktivasi kelas.";
+  }
+  if (code === "FREE_TEXT_ONLY") {
+    return "Paket Free hanya mendukung satu pertanyaan teks per hari.";
+  }
+  if (code === "QUESTION_REQUIRED") {
+    return "Pertanyaan tidak boleh kosong.";
+  }
+  if (code === "IMAGE_INPUT_DISABLED") {
+    return "Input gambar Zyra sedang tidak tersedia.";
+  }
+  if (code.includes("DAILY_QUOTA_EXCEEDED") || code.includes("TOTAL_INTERACTION_LIMIT")) {
+    return "Batas pertanyaan Zyra hari ini sudah tercapai. Coba lagi besok.";
+  }
+  return "Terjadi kendala saat memproses pertanyaan.";
+}
+
+function requestKey(value: unknown): string {
+  return typeof value === "string" && /^[A-Za-z0-9._:-]{1,96}$/.test(value)
+    ? value
+    : randomUUID();
+}
 
 export async function POST(req: Request) {
   let h: Headers;
@@ -23,7 +54,6 @@ export async function POST(req: Request) {
   }
 
   const userId = session.user.id;
-  const userRole = (session.user as { role?: string | null }).role;
 
   try {
     const body = await req.json();
@@ -31,29 +61,56 @@ export async function POST(req: Request) {
       courseId,
       conceptId = null,
       question,
-      sessionId,
+      sessionId = null,
       attachmentIds = [],
       pathname,
+      requestId,
     } = body;
 
-    if (!question && (!attachmentIds || attachmentIds.length === 0)) {
+    const normalizedCourseId = typeof courseId === "string" ? courseId.trim() : "";
+    const normalizedQuestion = typeof question === "string" ? question.trim() : "";
+    const normalizedConceptId = typeof conceptId === "string" ? conceptId : null;
+    const normalizedSessionId = typeof sessionId === "string" ? sessionId : null;
+    const normalizedPathname = typeof pathname === "string" ? pathname : null;
+    if (!normalizedCourseId) {
+      return new Response(JSON.stringify({ error: "Mata kuliah tidak valid." }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+    if (!Array.isArray(attachmentIds) || !attachmentIds.every((id): id is string => typeof id === "string")) {
+      return new Response(JSON.stringify({ error: "Lampiran tidak valid." }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    if (!normalizedQuestion && attachmentIds.length === 0) {
       return new Response(JSON.stringify({ error: "Pertanyaan atau lampiran tidak boleh kosong." }), {
         status: 400,
         headers: { "Content-Type": "application/json" },
       });
     }
 
-    if (userRole !== "admin") {
-      if (courseId && courseId !== "unknown") {
-        const enrolled = await isEnrolled(userId, courseId);
-        if (!enrolled) {
-          return new Response(JSON.stringify({ error: "Anda belum terdaftar pada mata kuliah ini." }), {
-            status: 403,
-            headers: { "Content-Type": "application/json" },
-          });
-        }
-      }
+    const access = await resolveCourseAccess({ courseId: normalizedCourseId, userId });
+    // The central resolver validates course identity, active status, and the
+    // actor's canonical role/assignment. A session role must never bypass it.
+    if (!access.hasCourseAccess) {
+      return new Response(JSON.stringify({ error: "Akses Zyra untuk mata kuliah ini belum tersedia." }), {
+        status: 403,
+        headers: { "Content-Type": "application/json" },
+      });
     }
+    if (access?.tier === "free" && attachmentIds.length > 0) {
+      return new Response(JSON.stringify({ error: "Paket Free hanya mendukung pertanyaan teks." }), {
+        status: 403,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    const idempotencyKey = access?.tier === "free"
+      ? `${FREE_ALLOWANCE_IDEMPOTENCY_PREFIX}${requestKey(requestId).replace(/^zyra-free:/, "")}`
+      : `zyra:${requestKey(requestId).replace(/^zyra:/, "")}`;
 
     // Set up Server-Sent Events stream
     const encoder = new TextEncoder();
@@ -85,12 +142,13 @@ export async function POST(req: Request) {
 
           // 2. Call askTutorRagAction
           const res = await askTutorRagAction(
-            courseId ?? "unknown",
-            conceptId,
-            question || "Tolong jelaskan materi sesuai konteks.",
-            sessionId,
+            normalizedCourseId,
+            normalizedConceptId,
+            normalizedQuestion || "Tolong jelaskan materi sesuai konteks.",
+            normalizedSessionId,
             attachmentIds,
-            pathname,
+            normalizedPathname,
+            idempotencyKey,
           );
 
           if (req.signal.aborted) {
@@ -164,7 +222,7 @@ export async function POST(req: Request) {
           sendEvent("[DONE]");
           controller.close();
         } catch (err: unknown) {
-          const errMsg = err instanceof Error ? err.message : "Terjadi kendala internal.";
+          const errMsg = publicZyraError(err);
           sendEvent({
             type: "data-error",
             data: { message: errMsg },

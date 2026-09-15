@@ -30,15 +30,12 @@ function ActionCard({ card }: { card: CourseOverviewActionCard }) {
       )}
     >
       <div>
-        <div className="flex items-center justify-between gap-2 border-b border-border/40 pb-2.5">
-          <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-            {card.tag}
-          </span>
+        <div className="flex justify-end">
           <span className="flex size-6 items-center justify-center rounded-md bg-brand-primary/10 text-brand-primary">
             <Icon className="size-3.5" aria-hidden="true" />
           </span>
         </div>
-        <div className="mt-3 min-w-0">
+        <div className="mt-1 min-w-0">
           <h3 className="line-clamp-2 font-heading text-body-base font-bold text-foreground transition-colors group-hover:text-brand-primary">
             <MathText as="span">{card.title}</MathText>
           </h3>

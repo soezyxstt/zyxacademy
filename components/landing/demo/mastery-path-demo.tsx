@@ -17,7 +17,6 @@ type PathNode = {
 type Profile = {
  id: string;
  label: string;
- description: string;
  nodes: PathNode[];
 };
 
@@ -25,7 +24,6 @@ const profiles: Profile[] = [
  {
  id: "a",
  label: "Mahasiswa A",
- description: "A kuat di dasar tapi tersendat di aturan rantai ; jalurnya menahan konsep integral sampai fondasinya siap.",
  nodes: [
  { name: "Limit", status: "done", score: 95 },
  { name: "Turunan", status: "done", score: 88 },
@@ -38,7 +36,6 @@ const profiles: Profile[] = [
  {
  id: "b",
  label: "Mahasiswa B",
- description: "B sudah jauh di depan ; jalurnya langsung menargetkan integral parsial, tanpa mengulang yang sudah dikuasai.",
  nodes: [
  { name: "Limit", status: "done", score: 90 },
  { name: "Turunan", status: "done", score: 85 },
@@ -118,7 +115,7 @@ export function MasteryPathDemo() {
 
  return (
  <div>
- <div className="flex flex-wrap items-center justify-center gap-2" role="group" aria-label="Pilih contoh mahasiswa">
+ <div className="flex flex-wrap items-center justify-center gap-2" role="group" aria-label="Pilih profil mahasiswa">
  {profiles.map((entry) => (
  <button
  key={entry.id}
@@ -136,10 +133,6 @@ export function MasteryPathDemo() {
  </button>
  ))}
  </div>
-
- <p className="mx-auto mt-3 max-w-xl text-center text-body-sm text-muted-foreground">
- {profile.description}
- </p>
 
  <div className="mt-10 overflow-x-auto pb-4">
  {/* Key by profile so switching replays the entrance animations. */}

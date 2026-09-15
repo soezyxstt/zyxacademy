@@ -345,10 +345,12 @@ Admin scheduling overrides also write the existing `audit_mutasi` envelope with 
 Plan 003 adds these tables without changing legacy courses, chapters, enrollments, tutor assignments, KOs, source spans, relationships, or the global `concepts` registry.
 
 ### mata_kuliah
-* `id`, `code`, `title`, `status`
+* `id`, `code`, `title`, `status`, `isDemo`
 * `legacyCourseId`: Optional compatibility reference to `courses.id`.
+* `isDemo`: Boolean marker for the single active public demo course. A partial unique index allows at most one row with `isDemo = true`; archived or incomplete courses are not eligible for selection.
 * `createdAt`, `updatedAt`
 * Admin course create and update mirror `courses` and `mata_kuliah` transactionally. Admin delete removes the legacy projection and archives the canonical row.
+* Admin demo selection validates the first active `bab` and its published Article, Diktat, Flashcard, and Kuis requirements before clearing and setting the marker in one transaction.
 
 ### bab
 * `id`, `mataKuliahId`, `code`, `title`, `orderIndex`, `status`

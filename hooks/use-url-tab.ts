@@ -8,12 +8,16 @@ import { useState, useEffect, useCallback } from "react";
  * Uses the browser History API directly so tab changes stay instant and do not
  * trigger a Server Component roundtrip. Reading the initial URL after mount also
  * avoids requiring a Next.js Suspense boundary during prerendering.
+ *
+ * `defaultTab` is the canonical value omitted from the URL. `initialTab` can be
+ * supplied separately when the server already resolved an incoming query value.
  */
 export function useUrlTab(
   paramKey: string = "tab",
-  defaultTab: string = "default"
+  defaultTab: string = "default",
+  initialTab: string = defaultTab
 ): [string, (newTab: string) => void] {
-  const [tab, setTabState] = useState<string>(defaultTab);
+  const [tab, setTabState] = useState<string>(initialTab);
 
   const readCurrentTab = useCallback(() => {
     if (typeof window === "undefined") return defaultTab;

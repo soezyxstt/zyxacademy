@@ -12,6 +12,7 @@ describe("student dashboard plan preview", () => {
     expect(markup).not.toContain(">Free<");
     expect(markup).not.toContain(">Custom<");
     expect(markup).toContain('href="/plans"');
-    expect(markup).toContain("Estimasi untuk 3 orang dan 3 mata kuliah.");
+    expect(markup).not.toContain("Estimasi untuk 3 orang dan 3 mata kuliah.");
+    expect(markup).not.toContain("Bandingkan akses belajar mandiri, tutorial, dan konsultasi dalam satu semester.");
   });
 });

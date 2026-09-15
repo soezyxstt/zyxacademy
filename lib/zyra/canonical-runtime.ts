@@ -32,6 +32,8 @@ import {
 } from "@/lib/vectorize/contracts";
 import type { TutorSource } from "@/lib/tutor-rag";
 import { redactQuestionAnswerKeys } from "@/lib/asesmen/question-options";
+import { hasChapterScopeWithin } from "@/lib/student/course-access";
+import { resolveCourseIdentity } from "@/lib/admin/course-identity";
 
 export const CANONICAL_RUNTIME_REASON_CODES = [
   "INVALID_VECTOR_ID",
@@ -60,6 +62,8 @@ export interface CanonicalRuntimeCandidate {
   metadata: CanonicalVectorMetadata;
 }
 
+export type CanonicalRuntimeAccessTier = "free" | "standard";
+
 export interface CanonicalHydrationRecord {
   namespace: CanonicalNamespace;
   entityType: CanonicalEntityType;
@@ -81,6 +85,12 @@ export interface CanonicalRuntimeRequest {
   courseId: string;
   chapterId?: string | null;
   isEnrolled: boolean;
+  /** The server-resolved allowance lane. Free is always chapter-scoped. */
+  accessTier?: CanonicalRuntimeAccessTier;
+  /** First-two-chapter scope from the central course access resolver. */
+  freeChapterIds?: readonly string[];
+  /** Compatibility alias for older tutor adapters. */
+  allowedChapterIds?: readonly string[];
   activityKind?: ActivityKind;
   attemptState?: AttemptState;
   answerReleaseState?: AnswerReleaseState;
@@ -200,6 +210,43 @@ function isAnswerBearingDenied(request: CanonicalRuntimeRequest): boolean {
   return !policy.allowDirectAnswerReveal;
 }
 
+function isFreeRequest(request: CanonicalRuntimeRequest): boolean {
+  return request.accessTier === "free";
+}
+
+function freeChapterIdsFor(request: CanonicalRuntimeRequest): readonly string[] {
+  return request.freeChapterIds ?? request.allowedChapterIds ?? [];
+}
+
+/**
+ * Free Zyra may only use hydrated records that resolve to one of the first
+ * two chapters returned by the central course access policy. The database
+ * record is authoritative during rehydration, while an explicitly present
+ * vector chapter is checked as an additional consistency guard.
+ */
+function hasFreeChapterScope(
+  candidate: CanonicalRuntimeCandidate,
+  record: CanonicalHydrationRecord,
+  request: CanonicalRuntimeRequest,
+): boolean {
+  if (!isFreeRequest(request)) return true;
+
+  // The first-two-chapter allowance is course scoped as well. A record or
+  // vector without an explicit course relation must fail closed, even when
+  // its chapter id happens to match the Free chapter set.
+  if (record.courseId !== request.courseId || candidate.metadata.courseId !== request.courseId) {
+    return false;
+  }
+
+  const allowedChapterIds = freeChapterIdsFor(request);
+  if (!hasChapterScopeWithin([record.chapterId], allowedChapterIds)) return false;
+
+  if (Object.prototype.hasOwnProperty.call(candidate.metadata, "chapterId")) {
+    return hasChapterScopeWithin([candidate.metadata.chapterId], allowedChapterIds);
+  }
+  return true;
+}
+
 function reject(
   rejected: CanonicalRejectedCandidate[],
   id: string,
@@ -301,7 +348,29 @@ export function hydrateCanonicalCandidates(
       reject(rejected, candidate.id, "CHAPTER_SCOPE_MISMATCH");
       continue;
     }
-    if (record.accessClass === "enrolled" && !request.isEnrolled) {
+    if (isFreeRequest(request) && !hasFreeChapterScope(candidate, record, request)) {
+      reject(rejected, candidate.id, "CHAPTER_SCOPE_MISMATCH");
+      continue;
+    }
+    if (isFreeRequest(request) && record.entityType === "solution") {
+      reject(rejected, candidate.id, "ACTIVE_ATTEMPT_ANSWER_DENIED");
+      continue;
+    }
+    if (isFreeRequest(request) && record.accessClass !== "public" && record.accessClass !== "enrolled") {
+      reject(
+        rejected,
+        candidate.id,
+        record.accessClass === "restricted_solution"
+          ? "ACTIVE_ATTEMPT_ANSWER_DENIED"
+          : "NOT_ENROLLED",
+      );
+      continue;
+    }
+    if (isFreeRequest(request) && record.accessClass !== candidate.metadata.accessClass) {
+      reject(rejected, candidate.id, "VECTOR_METADATA_MISMATCH");
+      continue;
+    }
+    if (record.accessClass === "enrolled" && !request.isEnrolled && !isFreeRequest(request)) {
       reject(rejected, candidate.id, "NOT_ENROLLED");
       continue;
     }
@@ -537,12 +606,8 @@ async function loadCanonicalRecords(
 }
 
 async function resolveCanonicalCourseId(courseId: string): Promise<string | null> {
-  const rows = await db
-    .select({ id: mataKuliah.id })
-    .from(mataKuliah)
-    .where(or(eq(mataKuliah.id, courseId), eq(mataKuliah.legacyCourseId, courseId)))
-    .limit(1);
-  return rows[0]?.id ?? null;
+  const identity = await resolveCourseIdentity(courseId);
+  return identity?.status === "active" ? identity.canonicalId : null;
 }
 
 async function resolveCanonicalEnrollment(studentId: string | undefined, courseId: string, fallback: boolean): Promise<boolean> {
@@ -630,7 +695,7 @@ export async function retrieveCanonicalEvidence(
       "published_questions",
       "itb_question_references",
     ];
-    if (request.capability === "read:published_solutions" && policy.allowDirectAnswerReveal) {
+    if (request.accessTier !== "free" && request.capability === "read:published_solutions" && policy.allowDirectAnswerReveal) {
       namespaces.push("published_solutions");
     }
 

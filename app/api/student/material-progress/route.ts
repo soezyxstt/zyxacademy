@@ -44,6 +44,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(result);
   } catch (error: any) {
     console.error("POST /api/student/material-progress error:", error);
-    return NextResponse.json({ error: error.message || "Failed to update material progress" }, { status: 500 });
+    if (error?.message === "MATERIAL_ACCESS_DENIED") {
+      return NextResponse.json({ error: "Progres materi tidak dapat disimpan." }, { status: 403 });
+    }
+    if (error?.message === "MATERIAL_UPGRADE_REQUIRED") {
+      return NextResponse.json({ error: "Materi ini belum tersedia di paket Free." }, { status: 403 });
+    }
+    return NextResponse.json({ error: "Progres materi tidak dapat disimpan saat ini." }, { status: 500 });
   }
 }

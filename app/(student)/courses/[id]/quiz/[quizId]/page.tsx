@@ -2,16 +2,14 @@ import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { Lock, ChevronRight, Calendar, Award, Clock, AlertTriangle, ArrowLeft, CheckCircle2, XCircle } from "lucide-react";
-import { checkEnrollment } from "@/app/(student)/dashboard/actions";
 import { CoursePageShell } from "@/components/course/course-page-shell";
 import { QuizPlayer } from "@/components/course/quiz-player";
 import { EnrollmentForm } from "@/components/enrollment-form";
 import { Reveal } from "@/components/ui/reveal";
 import { pageTitle } from "@/lib/site";
 import { db } from "@/db";
-import { quizTemplates, studentQuizAttempts, aiQuestionBank } from "@/db/schema";
+import { quizTemplates, studentQuizAttempts, aiQuestionBank, knowledgeObjects, chapters } from "@/db/schema";
 import { auth } from "@/lib/auth";
-import { hasAnyPeran } from "@/lib/auth/authorization";
 import { and, or, eq, desc, sql, inArray } from "drizzle-orm";
 import { headers } from "next/headers";
 import { Button } from "@/components/ui/button";
@@ -23,7 +21,8 @@ import { MistakeFeedbackButton } from "@/components/pka/mistake-feedback-button"
 import { normalizeDate } from "@/lib/date-utils";
 import { ZyraMark } from "@/components/course/zyra-mark";
 import { QuestionSourceCitation } from "@/components/course/question-source-citation";
-import { getCourse } from "@/lib/course-utils";
+import { extractFreeQuizChapterScope, getCourse, isFreeQuizTemplate } from "@/lib/course-utils";
+import { resolveCourseAccess } from "@/lib/student/course-access";
 import { AdminStatStrip, AdminStatStripItem } from "@/components/admin/stat-card";
 
 type Props = {
@@ -35,11 +34,16 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id, quizId } = await params;
   const course = await getCourse(id);
 
-  const [template] = await db
-    .select({ title: quizTemplates.title })
-    .from(quizTemplates)
-    .where(eq(quizTemplates.id, quizId))
-    .limit(1);
+  const courseIds = course
+    ? [...new Set([course.id, course.canonicalId, course.legacyId, id].filter((value): value is string => Boolean(value)))]
+    : [];
+  const [template] = courseIds.length > 0
+    ? await db
+        .select({ title: quizTemplates.title })
+        .from(quizTemplates)
+        .where(and(eq(quizTemplates.id, quizId), inArray(quizTemplates.courseId, courseIds)))
+        .limit(1)
+    : [];
 
   return {
     title: pageTitle(course && template ? `${course.title} - ${template.title}` : "Kuis"),
@@ -56,43 +60,120 @@ function formatDuration(seconds: number | null) {
   return m > 0 ? `${m} menit ${s} detik` : `${s} detik`;
 }
 
+function publicOptionTexts(value: unknown): string[] {
+  const options = Array.isArray(value)
+    ? value
+    : typeof value === "string"
+      ? (() => {
+          try {
+            const parsed = JSON.parse(value);
+            return Array.isArray(parsed) ? parsed : [];
+          } catch {
+            return [];
+          }
+        })()
+      : [];
+
+  return options
+    .map((option) => {
+      if (typeof option === "string") return option;
+      if (!option || typeof option !== "object" || Array.isArray(option)) return null;
+      const record = option as Record<string, unknown>;
+      for (const key of ["text", "label", "value", "content"]) {
+        if (typeof record[key] === "string") return record[key];
+      }
+      return null;
+    })
+    .filter((option): option is string => option !== null);
+}
+
 export default async function CourseQuizTakePage({ params, searchParams }: Props) {
   const { id, quizId } = await params;
   const { attemptId, viewDiscussion } = await searchParams;
 
   const session = await auth.api.getSession({ headers: await headers() });
   const studentId = session?.user?.id;
-  if (!studentId) return redirect("/sign-in");
+  if (!studentId) {
+    return redirect(`/sign-in?next=${encodeURIComponent(`/courses/${id}/quiz/${quizId}`)}`);
+  }
 
   const course = await getCourse(id);
 
-  const [template] = await db
-    .select()
-    .from(quizTemplates)
-    .where(eq(quizTemplates.id, quizId))
-    .limit(1);
+  const courseIds = course
+    ? [...new Set([course.id, course.canonicalId, course.legacyId, id].filter((value): value is string => Boolean(value)))]
+    : [];
+  const [template] = courseIds.length > 0
+    ? await db
+        .select()
+        .from(quizTemplates)
+        .where(and(eq(quizTemplates.id, quizId), inArray(quizTemplates.courseId, courseIds)))
+        .limit(1)
+    : [];
 
   if (!course || !template) notFound();
 
   const role = (session.user as { role?: string | null }).role;
-  const isStaff =
-    (await hasAnyPeran(session.user.id, ["admin", "tutor"], { allowAdmin: true })) ||
-    role === "admin" ||
-    role === "teacher";
+  // The central resolver binds staff access to this active course. A tutor
+  // without an assignment must not see draft quizzes or use the attempt flow
+  // merely because the session contains a teacher-like role string.
+  const access = await resolveCourseAccess({
+    courseId: course.canonicalId ?? course.id,
+    userId: studentId,
+    roleHint: role,
+  });
+  const isStaff = access.tier === "staff";
   if (template.status === "draft" && !isStaff) {
     notFound();
   }
 
-  const isEnrolled = await checkEnrollment(id);
-  const isFree = template.visibility === "free";
-  const isAccessible = isEnrolled || isFree;
-
-  // Check if questions are available for this template
-  const rules = template.selectionRules as {
+  // Access is resolved on the server. Free users may start only a regular
+  // quiz whose complete chapter scope is within the first two chapters.
+  const isEnrolled = access.tier === "enrolled";
+  const parsedAccessRules = typeof template.selectionRules === "string"
+    ? (() => { try { return JSON.parse(template.selectionRules); } catch { return {}; } })()
+    : template.selectionRules;
+  const rules = (parsedAccessRules ?? {}) as {
     tags?: string[];
     count?: number;
     difficulty_proportions?: Record<string, number>;
+    chapterId?: string;
+    chapterIds?: string[];
+    fixedQuestionIds?: string[];
+    fixed_question_ids?: string[];
+    questionIds?: string[];
+    question_ids?: string[];
   };
+  const isFree = access?.tier === "free";
+  const isFreeQuizScoped = isFree && isFreeQuizTemplate(template, access.freeChapterIds);
+  const isAccessible = access.hasCourseAccess && (isStaff || isEnrolled || isFreeQuizScoped);
+
+  const rawFixedQuestionIds = rules.fixedQuestionIds
+    ?? rules.fixed_question_ids
+    ?? rules.questionIds
+    ?? rules.question_ids;
+  const declaredFixedQuestionIds = Array.isArray(rawFixedQuestionIds)
+    ? rawFixedQuestionIds.map((questionId) => typeof questionId === "string" ? questionId.trim() : "")
+    : null;
+  const hasMalformedFixedQuestionIds = rawFixedQuestionIds !== undefined
+    && (!declaredFixedQuestionIds
+      || declaredFixedQuestionIds.some((questionId) => !questionId)
+      || new Set(declaredFixedQuestionIds).size !== declaredFixedQuestionIds.length);
+  const fixedQuestionIds = declaredFixedQuestionIds && !hasMalformedFixedQuestionIds
+    ? [...new Set(declaredFixedQuestionIds)]
+    : [];
+
+  const requestedFreeChapterIds = isFree ? extractFreeQuizChapterScope(rules) : null;
+  const freeQuizChapterIds = requestedFreeChapterIds
+    ? [...new Set(
+        access.freeChapters
+          .filter((chapter) => [chapter.id, chapter.canonicalId, chapter.legacyId]
+            .some((chapterId) => chapterId && requestedFreeChapterIds.includes(chapterId)))
+          .flatMap((chapter) => [chapter.id, chapter.canonicalId, chapter.legacyId])
+          .filter((chapterId): chapterId is string => Boolean(chapterId)),
+      )]
+    : [];
+
+  // Check if questions are available for this template
   const tags = (rules.tags as string[] | undefined) || [];
   const tagConditions = tags.map(
     (tag) => sql`exists (select 1 from json_each(${aiQuestionBank.tags}) where json_each.value = ${tag})`
@@ -103,6 +184,18 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
     eq(aiQuestionBank.origin, "itb_example"),
     eq(aiQuestionBank.quizEligible, true),
   );
+  const chapterScopeCondition = isFree
+    ? freeQuizChapterIds.length > 0
+      ? sql`exists (select 1 from ${knowledgeObjects} inner join ${chapters} on ${chapters.id} = ${knowledgeObjects.chapterId} where ${knowledgeObjects.id} = ${aiQuestionBank.knowledgeObjectId} and ${knowledgeObjects.status} = 'active' and ${chapters.status} = 'published' and ${inArray(chapters.id, freeQuizChapterIds)})`
+      : sql`0 = 1`
+    : undefined;
+  const questionStateCondition = isFree
+    ? and(eq(aiQuestionBank.status, "active"), eq(aiQuestionBank.isStale, false))
+    : undefined;
+  const fixedQuestionCondition = fixedQuestionIds.length > 0
+    ? inArray(aiQuestionBank.id, fixedQuestionIds)
+    : undefined;
+  const availabilityTagCondition = fixedQuestionIds.length > 0 ? undefined : tagCondition;
 
   const [questionsCountRow] = await db
     .select({ count: sql<number>`count(*)` })
@@ -112,10 +205,18 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
         eq(aiQuestionBank.courseId, template.courseId),
         eq(aiQuestionBank.reviewStatus, 'published'),
         quizEligibilityCondition,
-        tagCondition
+        questionStateCondition,
+        availabilityTagCondition,
+        chapterScopeCondition,
+        fixedQuestionCondition,
       )
     );
-  const questionsCount = questionsCountRow?.count ?? 0;
+  const availableQuestionCount = questionsCountRow?.count ?? 0;
+  const questionsCount = hasMalformedFixedQuestionIds
+    ? 0
+    : fixedQuestionIds.length > 0
+    ? availableQuestionCount === fixedQuestionIds.length ? availableQuestionCount : 0
+    : availableQuestionCount;
 
   if (!isAccessible) {
     return (
@@ -148,7 +249,11 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
     const [att] = await db
       .select({ status: studentQuizAttempts.status })
       .from(studentQuizAttempts)
-      .where(eq(studentQuizAttempts.id, attemptId))
+      .where(and(
+        eq(studentQuizAttempts.id, attemptId),
+        eq(studentQuizAttempts.studentId, studentId),
+        eq(studentQuizAttempts.templateId, quizId),
+      ))
       .limit(1);
     if (att?.status === "completed") {
       isReview = true;
@@ -302,7 +407,6 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
         prompt: string;
         question_type?: string;
         options: string[];
-        correct_indices: number[];
         origin?: "zyx_original" | "historical_reference" | "itb_example";
         sourceEventName?: string | null;
         sourceReferenceId?: string | null;
@@ -311,8 +415,7 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
         order: idx + 1,
         type: (q.question_type as any) || "multiple_choice",
         prompt: q.prompt,
-        options: q.options || [],
-        correctIndex: q.correct_indices?.[0] ?? 0,
+        options: publicOptionTexts(q.options),
         origin: q.origin,
         sourceEventName: q.sourceEventName,
         sourceReferenceId: q.sourceReferenceId,
@@ -350,7 +453,7 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
 
   // Unified State
   if (shouldShowUnifiedView) {
-    const snapshot = (targetAttempt?.questionsSnapshot as Array<{
+    const rawSnapshot = (targetAttempt?.questionsSnapshot as Array<{
       id: string;
       prompt: string;
       options: string[];
@@ -361,6 +464,10 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
       sourceEventName?: string | null;
       sourceReferenceId?: string | null;
     }>) ?? [];
+    const snapshot = rawSnapshot.map((question) => ({
+      ...question,
+      options: publicOptionTexts(question.options),
+    }));
     const answers = (targetAttempt?.answersSnapshot as Record<string, number[]>) ?? {};
 
     let unseenSnapshot: Array<{
@@ -389,6 +496,8 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
             eq(aiQuestionBank.courseId, template.courseId),
             eq(aiQuestionBank.reviewStatus, 'published'),
             quizEligibilityCondition,
+            questionStateCondition,
+            chapterScopeCondition,
             inArray(aiQuestionBank.id, fixedQuestionIds)
           )
         );
@@ -405,6 +514,8 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
             eq(aiQuestionBank.courseId, template.courseId),
             eq(aiQuestionBank.reviewStatus, 'published'),
             quizEligibilityCondition,
+            questionStateCondition,
+            chapterScopeCondition,
             tagCondition
           )
         ).orderBy(desc(aiQuestionBank.createdAt));
@@ -425,7 +536,7 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
         return {
           id: q.id,
           prompt: q.prompt,
-          options: Array.isArray(opts) ? opts : [],
+          options: publicOptionTexts(opts),
           correct_indices: Array.isArray(corrects) ? corrects : [],
           difficulty: q.difficulty,
           explanation: q.explanation || "",

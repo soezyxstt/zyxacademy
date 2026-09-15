@@ -28,6 +28,10 @@ export const DEFAULT_COURSES = 3;
 export const MIN_COURSES = 1;
 export const MAX_COURSES = 5;
 
+export const CUSTOM_DEFAULT_MEETINGS = 15;
+export const CUSTOM_MIN_MEETINGS = 5;
+export const CUSTOM_MEETING_STEP = 5;
+
 // List of core university courses represented
 export const CORE_SUBJECTS = [
   "Matematika I",
@@ -66,6 +70,14 @@ export const getTutorialCost = (meetCount: number, baseConstant: number, persons
   return meetCount * 1000 * costPerSession;
 };
 
+function roundPlanTotal(rawPrice: number, persons: number): number {
+  // The price is in Rupiah. Round the price in thousands to a multiple of 5 * persons (defaulting to 5).
+  const priceInThousands = rawPrice / 1000;
+  const multiple = 5 * (persons || 1);
+  const roundedInThousands = Math.ceil(priceInThousands / multiple) * multiple;
+  return roundedInThousands * 1000;
+}
+
 /**
  * Calculates the total price for a given plan reactively.
  */
@@ -102,12 +114,53 @@ const calculateIntroductoryPrice = (
       return 0; // Handled as "Hubungi Kami" string in UI
   }
 
-  // The price is in Rupiah. Round the price in thousands to a multiple of 5 * persons (defaulting to 5).
-  const priceInThousands = rawPrice / 1000;
-  const multiple = 5 * (persons || 1);
-  const roundedInThousands = Math.ceil(priceInThousands / multiple) * multiple;
-  return roundedInThousands * 1000;
+  return roundPlanTotal(rawPrice, persons);
 };
+
+export type CustomPlanPriceQuote = {
+  beforeDiscount: number;
+  beforeDiscountPerPerson: number;
+  afterDiscount: number;
+  afterDiscountPerPerson: number;
+  discountAmount: number;
+  discountAmountPerPerson: number;
+  discountPercent: number;
+};
+
+/**
+ * Estimates a custom package using the shared platform and tutorial components.
+ * Custom tutorial quantities are intentionally limited to positive multiples of five.
+ */
+export function getCustomPlanPriceQuote(
+  meetings: number,
+  persons: number,
+  courses: number,
+): CustomPlanPriceQuote {
+  const quantities = [meetings, persons, courses];
+  if (!quantities.every((value) => Number.isInteger(value) && value > 0)) {
+    throw new RangeError("Jumlah pertemuan, mata kuliah, dan anggota harus berupa bilangan bulat positif.");
+  }
+  if (meetings < CUSTOM_MIN_MEETINGS || meetings % CUSTOM_MEETING_STEP !== 0) {
+    throw new RangeError(`Jumlah pertemuan harus kelipatan ${CUSTOM_MEETING_STEP}.`);
+  }
+
+  const platformComponent = getPlatformCost(250, courses, persons);
+  const tutorialComponent = getTutorialCost(meetings, 155, persons);
+  const afterDiscount = roundPlanTotal(platformComponent + tutorialComponent, persons);
+  const beforeDiscount = Math.ceil(afterDiscount * 100 / (100 - INTRO_DISCOUNT_PERCENT));
+  const beforeDiscountPerPerson = Math.round(beforeDiscount / persons);
+  const afterDiscountPerPerson = Math.round(afterDiscount / persons);
+
+  return {
+    beforeDiscount,
+    beforeDiscountPerPerson,
+    afterDiscount,
+    afterDiscountPerPerson,
+    discountAmount: beforeDiscount - afterDiscount,
+    discountAmountPerPerson: beforeDiscountPerPerson - afterDiscountPerPerson,
+    discountPercent: INTRO_DISCOUNT_PERCENT,
+  };
+}
 
 export function getPlanPriceQuote(
   plan: PlanKey,
@@ -143,12 +196,28 @@ export const getWhatsAppPlanUrl = (
   courses: number,
   selectedCourses?: string[],
   phase: PlanPricingPhase = getPlanPricingPhase(),
+): string | null => {
+  const rawNumber = env.NEXT_PUBLIC_WHATSAPP_NUMBER?.trim();
+  const digits = rawNumber?.replace(/\D/g, "") ?? "";
+  if (digits.length < 8) return null;
+
+  return buildWhatsAppPlanUrl(digits, planKey, planName, persons, courses, selectedCourses, phase);
+};
+
+/** Builds a plan-specific WhatsApp URL from an already verified public number. */
+export const buildWhatsAppPlanUrl = (
+  rawNumber: string,
+  planKey: 'free' | 'minimal' | 'essential' | 'premium' | 'custom',
+  planName: string,
+  persons: number,
+  courses: number,
+  selectedCourses?: string[],
+  phase: PlanPricingPhase = getPlanPricingPhase(),
 ): string => {
-  // Try reading the public whatsapp number from environment variables
-  // Since client component needs to run, we check both public and admin env variables.
-  // env.NEXT_PUBLIC_WHATSAPP_NUMBER is exposed in browser.
-  const rawNumber = env.NEXT_PUBLIC_WHATSAPP_NUMBER || "6281234567890";
   const digits = rawNumber.replace(/\D/g, "");
+  if (digits.length < 8) {
+    throw new Error("A valid public WhatsApp number is required.");
+  }
   
   let courseDetails = "";
   if (selectedCourses && selectedCourses.length > 0) {

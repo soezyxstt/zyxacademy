@@ -24,7 +24,12 @@ import {
   getMaterialsProgress,
   getStudentSubmissions,
 } from "@/app/(student)/dashboard/actions";
-import { getCourseMaterials, getCourseQuizzes, getCourseTryouts } from "@/lib/course-utils";
+import {
+  getCourseChapterOutline,
+  getCourseMaterials,
+  getCourseQuizzes,
+  getCourseTryouts,
+} from "@/lib/course-utils";
 import { DashboardWeakConcepts } from "@/components/course/dashboard-weak-concepts";
 import { MathText } from "@/components/course/math-text";
 import { TodayPlan } from "@/components/dashboard/today-plan";
@@ -52,7 +57,10 @@ import { getOrUpdateStreak } from "@/lib/streak-service";
 import { ActivateClassModal } from "@/components/dashboard/activate-class-modal";
 import { PageHeader } from "@/components/page-header";
 import { cn } from "@/lib/utils";
-import { StudentOnboardingView } from "@/components/dashboard/student-onboarding-view";
+import {
+  StudentOnboardingView,
+  type CatalogCourse,
+} from "@/components/dashboard/student-onboarding-view";
 import { PKA_COURSE_ID } from "@/lib/pka-config";
 import { listStudentCourses } from "@/lib/student/course-catalog";
 import { studentCardClass } from "@/components/course/course-surfaces";
@@ -83,17 +91,9 @@ export default async function DashboardPage() {
   const enrolledCourseIds = enrollments.map((e) => e.id);
 
   // If not enrolled in any course, fetch catalog courses for onboarding preview
-  let catalogCourses: Array<{
-    id: string;
-    title: string;
-    category: string;
-    description: string;
-    materialsCount: number;
-    quizzesCount: number;
-    tryoutsCount: number;
-  }> = [];
+  let catalogCourses: CatalogCourse[] = [];
 
-  if (!isEnrolledInAny) {
+  if (!isEnrolledInAny && user?.id) {
     const dbCourses = await listStudentCourses();
     const TEST_COURSE_IDS = new Set([
       "embed-test-course",
@@ -106,7 +106,53 @@ export default async function DashboardPage() {
       (c) => !TEST_COURSE_IDS.has(c.id) && (c.id !== PKA_COURSE_ID || env.FEATURE_PKA === "1")
     );
 
-    catalogCourses = await getCatalogCourseSummaries(activeCourses);
+    const summaries = await getCatalogCourseSummaries(activeCourses);
+    const summaryById = new Map(summaries.map((summary) => [summary.id, summary]));
+
+    const freeCourseDetails = await Promise.all(
+      activeCourses.map(async (course) => {
+        const [chapterOutline, freeMaterials, freeQuizzes] = await Promise.all([
+          getCourseChapterOutline(course.id, user.id),
+          getCourseMaterials(course.id, user.id),
+          getCourseQuizzes(course.id, user.id),
+        ]);
+        const completedMaterialCount = freeMaterials.filter((material) => (
+          material.completed
+          || ("completionPercent" in material
+            && typeof material.completionPercent === "number"
+            && material.completionPercent >= 100)
+        )).length;
+        const firstIncompleteChapter = chapterOutline.find(
+          (chapter) => chapter.hasMaterial && !chapter.completed,
+        );
+        const summary = summaryById.get(course.id);
+
+        return {
+          ...(summary ?? {
+            id: course.id,
+            title: course.title,
+            category: course.category,
+            description: course.description,
+            materialsCount: 0,
+            quizzesCount: 0,
+            tryoutsCount: 0,
+          }),
+          freeChapters: chapterOutline.map((chapter) => ({
+            id: chapter.id,
+            title: chapter.title,
+            completed: chapter.completed,
+            completionPercent: chapter.completionPercent,
+            materialId: chapter.materialId,
+          })),
+          freeMaterialCount: freeMaterials.length,
+          completedFreeMaterialCount: completedMaterialCount,
+          freeQuizCount: freeQuizzes.length,
+          firstIncompleteMaterialId: firstIncompleteChapter?.materialId ?? null,
+        };
+      }),
+    );
+
+    catalogCourses = freeCourseDetails;
   }
 
   let streakInfo = null;

@@ -14,15 +14,15 @@ export function LandingClosingCta() {
           Mulai hari ini
         </p>
         <SectionHeading id="closing-heading" tier="primary" className="mt-2 text-foreground">
-          Mulai semester ini dengan arah yang jelas.
+          Mulai belajar dengan langkah yang jelas.
         </SectionHeading>
         <p className="mx-auto mt-4 max-w-prose text-body-base text-muted-foreground">
-          Masuk dengan akun Google, kerjakan diagnosa singkat, dan lihat rencana belajar pertamamu
-          hari ini juga.
+          Buat akun untuk melihat materi dan latihan yang tersedia, lalu pilih paket bila kamu
+          membutuhkan pendampingan tambahan.
         </p>
         <div className="mt-10 flex flex-wrap items-center justify-center gap-3">
           <Button asChild variant="marketingPrimary" size="marketing">
-            <Link href="/sign-up">Mulai belajar</Link>
+            <Link href="/sign-up">Mulai gratis</Link>
           </Button>
           <Button
             asChild
@@ -30,7 +30,10 @@ export function LandingClosingCta() {
             size="marketing"
             className="bg-background hover:bg-muted/60 dark:bg-background"
           >
-            <Link href="/sign-in">Masuk dengan Google</Link>
+            <Link href="/plans">Lihat paket</Link>
+          </Button>
+          <Button asChild variant="ghost" size="marketing" className="text-foreground">
+            <Link href="/demo">Coba demo</Link>
           </Button>
         </div>
       </div>

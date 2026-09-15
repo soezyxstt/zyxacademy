@@ -1,7 +1,10 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import Image from "next/image";
 import { MarketingPageHero } from "@/components/marketing-page-hero";
 import { SectionContainer } from "@/components/layout/section-container";
+import { SectionHeading } from "@/components/ui/section-heading";
+import { Button } from "@/components/ui/button";
 import { Reveal } from "@/components/ui/reveal";
 import { PageOrnaments } from "@/components/ui/page-ornaments";
 import { pageTitle } from "@/lib/site";
@@ -38,7 +41,13 @@ export default function TestimonialPage() {
  >
  <PageOrnaments variant="testimonial" />
 
- <div className="columns-1 gap-6 sm:columns-2 lg:columns-3">
+ <div className="relative z-10 mx-auto mb-10 max-w-2xl text-center">
+ <SectionHeading as="h2" id="testimonial-grid-heading" tier="secondary" className="text-foreground">
+ Cerita dari proses belajar
+ </SectionHeading>
+ </div>
+
+ <div className="relative z-10 columns-1 gap-6 sm:columns-2 lg:columns-3">
  {testimonialStories.map((story, idx) => {
  const accent = CARD_ACCENTS[idx % CARD_ACCENTS.length];
  return (
@@ -97,6 +106,27 @@ export default function TestimonialPage() {
  </figure>
  );
  })}
+ </div>
+ </SectionContainer>
+ </Reveal>
+
+ <Reveal>
+ <SectionContainer className="border-b border-border bg-background/40 py-16 text-center md:py-20">
+ <div className="mx-auto max-w-2xl space-y-4">
+ <SectionHeading as="h2" tier="secondary" className="text-foreground">
+ Lihat cara belajar di Zyx
+ </SectionHeading>
+ <p className="text-body-base text-muted-foreground">
+ Mulai dari materi dan latihan mandiri, lalu pilih pendampingan tambahan jika sesuai kebutuhanmu.
+ </p>
+ <div className="flex flex-wrap justify-center gap-3">
+ <Button asChild>
+ <Link href="/sign-up">Mulai gratis</Link>
+ </Button>
+ <Button asChild variant="outline">
+ <Link href="/plans">Lihat paket</Link>
+ </Button>
+ </div>
  </div>
  </SectionContainer>
  </Reveal>

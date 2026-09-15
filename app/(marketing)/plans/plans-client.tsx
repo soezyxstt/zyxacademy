@@ -82,7 +82,7 @@ export default function PlansClient() {
   };
 
   return (
-    <div className="flex flex-col min-h-screen">
+    <div className="flex min-h-screen flex-col">
       <Reveal>
         <MarketingPageHero
           className="py-8 md:py-10"
@@ -93,27 +93,17 @@ export default function PlansClient() {
         />
       </Reveal>
 
-      {/* Sticky Configurator Bar */}
-      <div className="sticky top-[52px] md:top-[56px] z-30 w-full border-y border-border bg-background/95 backdrop-blur-md py-3 shadow-xs animate-in fade-in duration-200">
+      <div className="sticky top-[52px] z-30 w-full border-y border-border bg-background/95 py-2 shadow-xs backdrop-blur-md animate-in fade-in duration-200 md:top-[56px] md:py-3">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-            
-            {/* Title / Description */}
-            <div className="text-center md:text-left">
-              <h2 className="font-heading text-body-base font-bold text-foreground">
-                Sesuaikan Rencana Belajar
-              </h2>
-              <p className="hidden md:block text-body-xs text-muted-foreground mt-0.5">
-                Sesuaikan anggota kelompok & mata kuliah secara real-time
-              </p>
-            </div>
-
-            {/* Stepper Controls & Subject Toggle */}
-            <div className="flex flex-wrap items-center justify-center md:justify-end gap-2.5">
-              
-              {/* Stepper 1: Persons */}
-              <div className="flex items-center gap-1.5 bg-muted/40 dark:bg-card border border-border/60 rounded-md px-2.5 py-1">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground px-1 select-none">
+          <p className="sr-only" aria-live="polite">
+            Konfigurasi harga: {persons} orang dan {courses} mata kuliah.
+          </p>
+          <div className="flex flex-wrap items-center justify-center gap-2 md:justify-end">
+            <div
+              aria-label="Jumlah anggota kelompok"
+              className="flex items-center gap-1 rounded-md border border-border/60 bg-muted/40 px-1.5 py-1 dark:bg-card"
+            >
+                <span className="px-1 text-body-xs font-semibold text-muted-foreground">
                   Grup
                 </span>
                 <Button
@@ -122,12 +112,12 @@ export default function PlansClient() {
                   onClick={handleDecrementPersons}
                   disabled={persons <= MIN_PERSONS}
                   aria-label="Kurangi jumlah orang"
-                  className="rounded-md size-7 bg-background"
+                  className="size-7 rounded-md bg-background"
                 >
                   <Minus className="size-3" />
                 </Button>
-                <span className="font-heading text-body-sm font-bold text-foreground min-w-[3.5rem] text-center">
-                  {persons} Orang
+                <span className="min-w-[3.75rem] text-center font-heading text-body-sm font-semibold text-foreground">
+                  {persons} orang
                 </span>
                 <Button
                   variant="outline"
@@ -135,15 +125,17 @@ export default function PlansClient() {
                   onClick={handleIncrementPersons}
                   disabled={persons >= MAX_PERSONS}
                   aria-label="Tambah jumlah orang"
-                  className="rounded-md size-7 bg-background"
+                  className="size-7 rounded-md bg-background"
                 >
                   <Plus className="size-3" />
                 </Button>
-              </div>
+            </div>
 
-              {/* Stepper 2: Courses */}
-              <div className="flex items-center gap-1.5 bg-muted/40 dark:bg-card border border-border/60 rounded-md px-2.5 py-1">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground px-1 select-none">
+            <div
+              aria-label="Jumlah mata kuliah"
+              className="flex items-center gap-1 rounded-md border border-border/60 bg-muted/40 px-1.5 py-1 dark:bg-card"
+            >
+                <span className="px-1 text-body-xs font-semibold text-muted-foreground">
                   Matkul
                 </span>
                 <Button
@@ -152,12 +144,12 @@ export default function PlansClient() {
                   onClick={handleDecrementCourses}
                   disabled={courses <= MIN_COURSES}
                   aria-label="Kurangi mata kuliah"
-                  className="rounded-md size-7 bg-background"
+                  className="size-7 rounded-md bg-background"
                 >
                   <Minus className="size-3" />
                 </Button>
-                <span className="font-heading text-body-sm font-bold text-foreground min-w-[4rem] text-center">
-                  {courses} Matkul
+                <span className="min-w-[3.75rem] text-center font-heading text-body-sm font-semibold text-foreground">
+                  {courses} matkul
                 </span>
                 <Button
                   variant="outline"
@@ -165,34 +157,35 @@ export default function PlansClient() {
                   onClick={handleIncrementCourses}
                   disabled={courses >= MAX_COURSES}
                   aria-label="Tambah mata kuliah"
-                  className="rounded-md size-7 bg-background"
+                  className="size-7 rounded-md bg-background"
                 >
                   <Plus className="size-3" />
                 </Button>
-              </div>
-
-              {/* Subject Toggle Button */}
-              <button
-                onClick={() => setShowSubjects(!showSubjects)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-body-xs font-semibold border transition-all ${
-                  showSubjects
-                    ? "bg-primary text-primary-foreground border-primary shadow-xs"
-                    : "bg-muted/80 hover:bg-muted text-foreground border-border/80"
-                }`}
-                title="Lihat daftar mata kuliah yang dicover"
-              >
-                <BookOpen className="size-3.5" />
-                <span>Mata Kuliah ({courses})</span>
-              </button>
-
             </div>
+
+            <button
+              type="button"
+              onClick={() => setShowSubjects((value) => !value)}
+              aria-expanded={showSubjects}
+              aria-controls="plans-subjects-panel"
+              className={`flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-body-sm font-semibold transition-all ${
+                showSubjects
+                  ? "border-primary bg-primary text-primary-foreground shadow-xs"
+                  : "border-border/80 bg-muted/80 text-foreground hover:bg-muted"
+              }`}
+            >
+              <BookOpen className="size-3.5" aria-hidden="true" />
+              <span>Daftar matkul ({courses})</span>
+            </button>
           </div>
         </div>
       </div>
 
-      {/* Covered Courses Panel (collapsible, scrolls naturally) */}
       {showSubjects && (
-        <div className="relative z-20 w-full border-b border-border bg-card p-4 shadow-inner animate-in fade-in slide-in-from-top-3 duration-200">
+        <div
+          id="plans-subjects-panel"
+          className="relative z-20 w-full border-b border-border bg-card p-4 shadow-inner animate-in fade-in slide-in-from-top-3 duration-200"
+        >
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">
@@ -298,11 +291,34 @@ export default function PlansClient() {
         <SectionContainer className="border-b border-border bg-muted/70 overflow-hidden py-6 md:py-8">
           <PageOrnaments variant="plans" />
           <PlanPromotion className="relative z-10 mb-4" />
-          <div className="relative z-10 grid gap-5 md:grid-cols-2 lg:grid-cols-3 items-stretch">
+          <div className="relative z-10 grid items-stretch gap-5 md:grid-cols-2 lg:grid-cols-3">
             {planTiers.map((tier) => {
               const isCustom = tier.key === "custom";
               const isFree = tier.key === "free";
-              const whatsAppUrl = getWhatsAppPlanUrl(tier.key, tier.name, persons, courses, selectedCoursesList, pricingPhase ?? "regular");
+              const whatsAppUrl = pricingPhase
+                ? getWhatsAppPlanUrl(tier.key, tier.name, persons, courses, selectedCoursesList, pricingPhase)
+                : null;
+              const planAction = isFree ? (
+                <Link href="/sign-up">Mulai dengan Free</Link>
+              ) : whatsAppUrl ? (
+                <Link
+                  href={whatsAppUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={(event) => {
+                    const refreshedHref = getWhatsAppPlanUrl(
+                      tier.key,
+                      tier.name,
+                      persons,
+                      courses,
+                      selectedCoursesList,
+                    );
+                    if (refreshedHref) event.currentTarget.href = refreshedHref;
+                  }}
+                >
+                  {isCustom ? "Tanya via WhatsApp" : "Tanya paket via WhatsApp"}
+                </Link>
+              ) : null;
 
               return (
                 <article
@@ -351,30 +367,24 @@ export default function PlansClient() {
                   </div>
 
                   <div className="mt-8">
-                    <Button
-                      asChild
-                      variant={tier.highlighted ? "default" : "outline"}
-                      size="marketing"
-                      className={`w-full group/btn transition-all duration-300 ${
-                        tier.highlighted 
-                          ? "bg-[var(--zx-accent)] text-white hover:bg-[var(--zx-accent)]/90 hover:shadow-lg hover:shadow-[var(--zx-accent)]/20" 
-                          : ""
-                      }`}
-                    >
-                      {isFree ? (
-                        <Link href="/sign-up">
-                          Daftar Sekarang
-                        </Link>
-                      ) : (
-                        <Link href={whatsAppUrl} target="_blank" rel="noopener noreferrer"
-                          onClick={(event) => {
-                            event.currentTarget.href = getWhatsAppPlanUrl(tier.key, tier.name, persons, courses, selectedCoursesList);
-                          }}
-                        >
-                          {isCustom ? "Hubungi Admin" : "Pilih Paket"}
-                        </Link>
-                      )}
-                    </Button>
+                    {planAction ? (
+                      <Button
+                        asChild
+                        variant={tier.highlighted ? "default" : "outline"}
+                        size="marketing"
+                        className={`w-full group/btn transition-all duration-300 ${
+                          tier.highlighted
+                            ? "bg-[var(--zx-accent)] text-white hover:bg-[var(--zx-accent)]/90 hover:shadow-lg hover:shadow-[var(--zx-accent)]/20"
+                            : ""
+                        }`}
+                      >
+                        {planAction}
+                      </Button>
+                    ) : (
+                      <Button type="button" variant="outline" size="marketing" className="w-full" disabled>
+                        {pricingPhase ? "Kontak belum tersedia" : "Memuat harga"}
+                      </Button>
+                    )}
                   </div>
                 </article>
               );

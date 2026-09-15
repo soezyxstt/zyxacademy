@@ -159,7 +159,7 @@ function FixtureContent({ state }: { state: string }) {
         createdAt: Date.now() - 3000,
         error: {
           code: "PROVIDER_UNAVAILABLE",
-          message: "Layanan Google Gemini sedang mengalami penurunan performa.",
+          message: "Layanan AI sedang mengalami penurunan performa.",
           retryable: true,
           timestamp: Date.now(),
         },

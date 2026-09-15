@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Bell, LogOut, User, LayoutDashboard, GraduationCap, ShieldCheck } from "lucide-react";
+import { LogOut, User, LayoutDashboard, GraduationCap, ShieldCheck } from "lucide-react";
 import { DropdownMenu } from "radix-ui";
 
 import { GoogleSignInButton } from "@/components/auth/google-sign-in-button";
@@ -89,16 +89,6 @@ export function NavProfileOrSignIn({
               </div>
             </Link>
           </SheetClose>
-          <SheetClose asChild>
-            <Link
-              href="/settings/notifications"
-              onClick={onNavigate}
-              className="flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-border bg-background text-body-sm font-medium text-foreground transition-colors hover:bg-muted/70"
-            >
-              <Bell className="size-4" aria-hidden />
-              Notification preferences
-            </Link>
-          </SheetClose>
           <Button
             type="button"
             variant="outline"
@@ -127,7 +117,7 @@ export function NavProfileOrSignIn({
               variant="ghost"
               className={cn(
                 "text-foreground gap-2 rounded-lg hover:bg-muted cursor-pointer",
-                "h-10 max-w-[11rem] shrink-0 xl:justify-start xl:gap-2 xl:px-2",
+                "h-10 w-10 max-w-[11rem] min-w-0 shrink-0 overflow-hidden xl:w-44 xl:justify-start xl:gap-2 xl:px-2",
                 "max-xl:size-10 max-xl:justify-center max-xl:border max-xl:border-border/60 max-xl:p-0 max-xl:shadow-none max-xl:hover:border-border max-xl:hover:bg-muted/80"
               )}
             >
@@ -146,8 +136,8 @@ export function NavProfileOrSignIn({
                   <User className="text-muted-foreground size-4" aria-hidden />
                 </span>
               )}
-              <span className="hidden text-body-sm font-medium xl:inline">
-                <span className="truncate">{label}</span>
+              <span className="hidden min-w-0 flex-1 overflow-hidden text-body-sm font-medium xl:flex">
+                <span className="block truncate">{label}</span>
               </span>
             </Button>
           </DropdownMenu.Trigger>
@@ -173,15 +163,6 @@ export function NavProfileOrSignIn({
                 <Link href="/dashboard" prefetch={true} onClick={onNavigate}>
                   <LayoutDashboard className="size-4 shrink-0 text-muted-foreground" aria-hidden />
                   <span>Dashboard Belajar</span>
-                </Link>
-              </DropdownMenu.Item>
-              <DropdownMenu.Item
-                asChild
-                className="hover:bg-accent hover:text-accent-foreground flex cursor-pointer items-center gap-2 rounded-lg px-2.5 py-2 text-body-sm outline-none"
-              >
-                <Link href="/settings/notifications" prefetch={true} onClick={onNavigate}>
-                  <Bell className="size-4 shrink-0 text-muted-foreground" aria-hidden />
-                  <span>Notification preferences</span>
                 </Link>
               </DropdownMenu.Item>
               {(userRole === "teacher" || userRole === "tutor" || userRole === "admin") && (

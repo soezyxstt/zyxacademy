@@ -133,9 +133,9 @@ export function OpsClient() {
       </div>
 
       <div className="divide-y divide-border">
-        {/* 1. Gemini Usage */}
+        {/* 1. AI usage */}
         <div className="py-8 first:pt-0 space-y-4">
-          <SectionHead title="Gemini Usage" status={geminiStatus} checkedAt={data.checkedAt} />
+          <SectionHead title="AI usage" status={geminiStatus} checkedAt={data.checkedAt} />
           <div className="flex flex-wrap gap-8">
             <Stat
               label="Model requests today"

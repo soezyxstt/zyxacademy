@@ -4,7 +4,7 @@ import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { chatSessions } from "@/db/schema";
 import { auth } from "@/lib/auth";
-import { isEnrolled } from "@/lib/course-utils";
+import { resolveCourseAccess } from "@/lib/student/course-access";
 import { zyraRuntimeEnv } from "@/lib/zyra/runtime-env";
 import {
   createZyraImageAttachment,
@@ -35,7 +35,12 @@ export async function POST(request: Request): Promise<NextResponse> {
     });
     const file = form.get("file");
     if (!parsed.success || !(file instanceof File)) return errorResponse("INVALID_ATTACHMENT_REQUEST", 400);
-    if (user.role !== "admin" && !(await isEnrolled(user.id, parsed.data.courseId))) {
+    const access = await resolveCourseAccess({
+      courseId: parsed.data.courseId,
+      userId: user.id,
+      roleHint: user.role,
+    });
+    if (!access.hasCourseAccess || (access.tier !== "enrolled" && access.tier !== "staff")) {
       return errorResponse("NOT_FOUND", 404);
     }
 

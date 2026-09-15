@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { generateContentWithFallback } from "@/lib/gemini";
-import { UsageBudgetService } from "@/lib/usage-budget-service";
+import { FREE_ALLOWANCE_IDEMPOTENCY_PREFIX, UsageBudgetService } from "@/lib/usage-budget-service";
 import { z } from "zod";
 import { Output } from "ai";
 import { repairJsonString } from "./ko-utils";
@@ -533,7 +533,13 @@ export class PromptExecutor {
     }
 
     // 8. Bounded Self-Repair Loop
-    const maxRepairs = contract.maxAttempts !== undefined ? Math.max(0, contract.maxAttempts - 1) : 1;
+    // A Free Zyra question has one allowance interaction. Do not start a
+    // second provider request for structured-output repair under that same
+    // request, because the repair path has its own lifecycle entry point.
+    const isFreeAllowanceRequest = options?.idempotencyKey?.startsWith(FREE_ALLOWANCE_IDEMPOTENCY_PREFIX) === true;
+    const maxRepairs = isFreeAllowanceRequest
+      ? 0
+      : contract.maxAttempts !== undefined ? Math.max(0, contract.maxAttempts - 1) : 1;
     if (maxRepairs <= 0) {
       if (allowanceLeaseId) {
         await UsageBudgetService.commit(allowanceLeaseId, {

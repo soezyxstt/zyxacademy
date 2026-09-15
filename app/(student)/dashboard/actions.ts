@@ -22,7 +22,9 @@ import { recordLearningEvent } from "@/lib/learning-events";
 import { inngest } from "@/lib/inngest";
 import { getSemesterEndDate } from "@/lib/utils";
 import { dualWriteEnrollment } from "@/lib/migrasi/repository-kompatibilitas";
-import { isStudentEnrolled, listStudentCourses, listStudentEnrollments, resolveStudentCourse } from "@/lib/student/course-catalog";
+import { listStudentEnrollments, resolveStudentCourse } from "@/lib/student/course-catalog";
+import { getStudentMaterialAccess, isFreeChapterScoped } from "@/lib/course-utils";
+import { resolveCourseAccess } from "@/lib/student/course-access";
 import { recordLearningEvidence } from "@/lib/pemahaman/evidence";
 
 async function requireUser() {
@@ -41,20 +43,6 @@ async function requireUser() {
  */
 export async function getStudentEnrollments() {
   const user = await requireUser();
-  const now = new Date();
-
-  if (process.env.NODE_ENV === "development" && user.role === "admin") {
-    const allCourses = await listStudentCourses();
-    return allCourses.map((c) => ({
-      id: c.id,
-      title: c.title,
-      category: c.category,
-      description: c.description,
-      enrolledAt: now,
-      expiresAt: new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000),
-    }));
-  }
-
   return listStudentEnrollments(user.id);
 }
 
@@ -178,6 +166,23 @@ export async function getMaterialsProgress() {
 export async function updateMaterialProgress(materialId: string, status: "in_progress" | "completed") {
   const user = await requireUser();
   const now = new Date();
+
+  const materialAccess = await getStudentMaterialAccess(user.id, materialId);
+  if (!materialAccess) {
+    throw new Error("MATERIAL_ACCESS_DENIED");
+  }
+  if (
+    materialAccess.access.tier === "free"
+    && materialAccess.contentKind === "other"
+  ) {
+    throw new Error("MATERIAL_UPGRADE_REQUIRED");
+  }
+  if (
+    materialAccess.access.tier === "free"
+    && !isFreeChapterScoped(materialAccess.chapterIds, materialAccess.access.freeChapterIds)
+  ) {
+    throw new Error("MATERIAL_UPGRADE_REQUIRED");
+  }
 
   // Find if progress record already exists
   const existing = await db.query.progress.findFirst({
@@ -311,11 +316,12 @@ export async function checkEnrollment(courseId: string): Promise<boolean> {
     return false;
   }
 
-  if (user.role === "admin") {
-    return true;
-  }
-
-  return isStudentEnrolled(user.id, courseId);
+  const access = await resolveCourseAccess({
+    courseId,
+    userId: user.id,
+    roleHint: (user as { role?: string | null }).role,
+  });
+  return access.hasCourseAccess && (access.tier === "enrolled" || access.tier === "staff");
 }
 
 /**

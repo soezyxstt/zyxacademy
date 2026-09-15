@@ -11,7 +11,7 @@ const lobbyAvatars = ["DA", "RF", "NS"];
 
 function LiveQuizVignette() {
  return (
- <DemoFrame tone="dark" title="Kuis Langsung" bodyClassName="p-4 text-center md:p-5">
+  <DemoFrame tone="dark" title="Kuis Langsung" bodyClassName="p-4 text-center md:p-5">
  <p className="text-[10px] font-bold uppercase tracking-wider text-white/50">Kode gabung</p>
  <p className="mt-1 font-heading text-h3 font-bold tracking-[0.18em] text-white">X4K2P9</p>
  <div className="mt-4 flex items-center justify-center gap-2">
@@ -30,7 +30,6 @@ function LiveQuizVignette() {
  </span>
  ))}
  </span>
- <span className="text-body-sm text-white/70">24 mahasiswa bergabung</span>
  </div>
  <span className="mt-5 inline-flex items-center gap-1.5 rounded-md bg-[var(--zx-accent)] px-4 py-2 text-body-sm font-bold text-white">
  <Play className="size-3.5" aria-hidden />
@@ -50,7 +49,7 @@ const cohortRows = [
 
 function AnalyticsVignette() {
  return (
- <DemoFrame tone="dark" title="Analitik Kohort · 200 mahasiswa" bodyClassName="p-4 md:p-5">
+  <DemoFrame tone="dark" title="Analitik Kohort" bodyClassName="p-4 md:p-5">
  <p className="text-body-sm font-semibold text-white">Konsep paling bermasalah:</p>
  <div className="mt-3 space-y-3">
  {cohortRows.map((row, index) => (
@@ -72,9 +71,6 @@ function AnalyticsVignette() {
  </div>
  ))}
  </div>
- <p className="mt-4 text-body-xs text-white/50">
- Klik konsep untuk membuat kuis remedial dari tag-nya.
- </p>
  </DemoFrame>
  );
 }
@@ -83,7 +79,7 @@ function AnalyticsVignette() {
 
 function DiktatVignette() {
  return (
- <DemoFrame tone="dark" title="Diktat" bodyClassName="p-4 md:p-5">
+  <DemoFrame tone="dark" title="Diktat" bodyClassName="p-4 md:p-5">
  <div className="flex items-start gap-3">
  <span className="flex size-11 shrink-0 items-center justify-center rounded-lg bg-status-error/20 text-status-error" aria-hidden>
  <FileText className="size-5" />
@@ -92,7 +88,7 @@ function DiktatVignette() {
  <p className="font-heading text-body-base font-semibold text-white">
  Diktat Kalkulus IA ; Bab 1-5
  </p>
- <p className="mt-1 text-body-xs text-white/60">Tersusun otomatis dari materi · 48 halaman</p>
+  <p className="mt-1 text-body-xs text-white/60">48 halaman</p>
  </div>
  </div>
  <div className="mt-4 space-y-1.5" aria-hidden>
@@ -113,17 +109,14 @@ const vignettes = [
  {
  id: "live",
  node: <LiveQuizVignette />,
- caption: "Kuis serentak ala game ; leaderboard langsung di layar kelas.",
  },
  {
  id: "analytics",
  node: <AnalyticsVignette />,
- caption: "Lihat kesulitan 200 mahasiswa dalam satu layar, bukan satu per satu.",
  },
  {
  id: "diktat",
  node: <DiktatVignette />,
- caption: "Modul belajar rapi, dikompilasi otomatis dari materi terbaru.",
  },
 ];
 
@@ -135,16 +128,15 @@ export function LandingForTutors() {
  Untuk tutor &amp; kelas
  </p>
  <SectionHeading as="h2" id="landing-tutors-heading" className="mt-3 text-white">
- Tahu siapa butuh bantuan, sebelum mereka bertanya.
+          Bantu kelas melihat konsep yang perlu dibahas.
  </SectionHeading>
  </div>
 
  <LandingVisible className="mt-14">
  <div className="landing-stagger-on-visible grid gap-8 md:grid-cols-3 md:gap-6 lg:gap-8 [&>*:nth-child(1)]:[animation-delay:0ms] [&>*:nth-child(2)]:[animation-delay:120ms] [&>*:nth-child(3)]:[animation-delay:240ms]">
  {vignettes.map((vignette) => (
- <div key={vignette.id} className="flex flex-col">
- <div className="flex-1">{vignette.node}</div>
- <p className="mt-4 text-body-sm text-white/60">{vignette.caption}</p>
+  <div key={vignette.id}>
+  {vignette.node}
  </div>
  ))}
  </div>

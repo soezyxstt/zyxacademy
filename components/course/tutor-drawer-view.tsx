@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
@@ -169,7 +170,16 @@ export function TutorDrawerView({
   const pathname = usePathname();
   const courseIdFromPath = pathname?.startsWith("/courses/") ? pathname.split("/")[2] : null;
   const caps = getTutorCapabilities(courseIdFromPath);
-  const imageInputEnabled = caps.imageInput && activeMode === "chat";
+  const [zyraAccessTier, setZyraAccessTier] = React.useState<"free" | "standard" | null>(null);
+  // Allow existing standard modes unless the server has explicitly identified
+  // this actor as Free. A temporary allowance-summary failure must not hide
+  // standard functionality for the rest of the drawer session.
+  const advancedModesEnabled = zyraAccessTier !== "free";
+  const imageInputEnabled = caps.imageInput && activeMode === "chat" && advancedModesEnabled;
+
+  React.useEffect(() => {
+    setZyraAccessTier(null);
+  }, [courseIdFromPath]);
 
   // Loading and response states
   const [loading, setLoading] = React.useState(false);
@@ -362,6 +372,7 @@ export function TutorDrawerView({
   React.useEffect(() => {
     if (!activeMode) return;
     if (activeMode === "chat") return;
+    if (!advancedModesEnabled) return;
     if (activeMode === "explain" && explainMode !== "content") return;
 
     async function loadData() {
@@ -395,11 +406,22 @@ export function TutorDrawerView({
     }
 
     loadData();
-  }, [activeMode, koId, questionId, userAnswer, explainMode]);
+  }, [activeMode, koId, questionId, userAnswer, explainMode, advancedModesEnabled]);
+
+  // Free accounts only receive the text chat lane. Reset a mode that may have
+  // been selected before the allowance tier finished loading, and keep the
+  // server-enforced tier aligned with the visible client experience.
+  React.useEffect(() => {
+    if (zyraAccessTier !== "free") return;
+    setData(null);
+    setErrors([]);
+    setActiveAction("none");
+    if (activeMode !== "chat") setActiveMode("chat");
+  }, [activeMode, setActiveMode, zyraAccessTier]);
 
   // Synchronize data results to chat messages history
   React.useEffect(() => {
-    if (!data) return;
+    if (!data || !advancedModesEnabled) return;
     if (savedDataRef.current === data) return;
 
     const courseId = pathname?.startsWith("/courses/") ? pathname.split("/")[2] : null;
@@ -464,7 +486,7 @@ export function TutorDrawerView({
         })), sessionId).catch(() => {});
       }
     }
-  }, [data, activeMode, pathname, sessionId]);
+  }, [data, activeMode, pathname, sessionId, advancedModesEnabled, zyraAccessTier]);
 
   // Resize Pointer Handlers
   const handlePointerDownResize = React.useCallback(
@@ -593,6 +615,7 @@ export function TutorDrawerView({
 
   // Flashcards launcher inside drawer
   const handleLaunchFlashcards = async (targetKoId: string) => {
+    if (!advancedModesEnabled) return;
     setLoading(true);
     try {
       const cards = await getFlashcardsForKOAction(targetKoId);
@@ -614,6 +637,7 @@ export function TutorDrawerView({
 
   // Practice Quiz launcher inside drawer
   const handleLaunchPracticeQuiz = async (targetKoId: string) => {
+    if (!advancedModesEnabled) return;
     setLoading(true);
     try {
       void generatePracticeQuizAction(targetKoId, "medium");
@@ -652,6 +676,11 @@ export function TutorDrawerView({
     const requestedAttachmentIds = [...attachmentIds];
     const requestedAttachments = [...readyAttachments];
 
+    if (zyraAccessTier === "free" && requestedAttachmentIds.length > 0) {
+      toast.error("Paket Free hanya mendukung pertanyaan teks.");
+      return;
+    }
+
     const studentMsg: ChatMessage = {
       id: `msg-${Date.now()}`,
       role: "student",
@@ -675,6 +704,9 @@ export function TutorDrawerView({
       : undefined;
 
     const aiMsgId = `msg-ai-${Date.now()}`;
+    const requestId = typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+      ? crypto.randomUUID()
+      : `zyra-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
     let accumulatedContent = "";
     let finalSources: any = undefined;
     let finalCanvasSpec: CanvasSpec | null = null;
@@ -696,6 +728,7 @@ export function TutorDrawerView({
           sessionId: activeSid || undefined,
           attachmentIds: requestedAttachmentIds,
           pathname,
+          requestId,
         }),
         signal: abortController.signal,
       });
@@ -925,7 +958,7 @@ export function TutorDrawerView({
                   <span>Diskusi</span>
                   {activeMode === "chat" && <Check className="size-3.5" />}
                 </button>
-                {caps.explain && (
+                {advancedModesEnabled && caps.explain && (
                   <button
                     type="button"
                     onClick={() => {
@@ -943,7 +976,7 @@ export function TutorDrawerView({
                     {activeMode === "explain" && <Check className="size-3.5" />}
                   </button>
                 )}
-                <button
+                {advancedModesEnabled && <button
                   type="button"
                   onClick={() => {
                     setActiveMode("mistake");
@@ -958,8 +991,8 @@ export function TutorDrawerView({
                 >
                   <span>Bedah Jawaban</span>
                   {activeMode === "mistake" && <Check className="size-3.5" />}
-                </button>
-                {caps.studyPlan && (
+                </button>}
+                {advancedModesEnabled && caps.studyPlan && (
                   <button
                     type="button"
                     onClick={() => {
@@ -976,6 +1009,19 @@ export function TutorDrawerView({
                     <span>Rencana Belajar</span>
                     {activeMode === "study-plan" && <Check className="size-3.5" />}
                   </button>
+                )}
+
+                {zyraAccessTier === "free" && (
+                  <div className="mt-2 border-t border-border/60 px-2 pt-2">
+                    <p className="text-body-xs text-muted-foreground">Fitur lanjutan tersedia di paket berbayar.</p>
+                    <Link
+                      href="/plans"
+                      className="mt-1 inline-flex items-center gap-1 text-body-xs font-semibold text-brand-primary hover:underline"
+                    >
+                      Buka fitur lengkap
+                      <ArrowRight className="size-3" />
+                    </Link>
+                  </div>
                 )}
 
                 <div className="border-t border-border/60 my-1 pt-1">
@@ -1221,7 +1267,15 @@ export function TutorDrawerView({
               </div>
 
               <div className="flex items-center gap-2">
-                <ZyraAllowanceSummary />
+                <ZyraAllowanceSummary courseId={courseIdFromPath} onAccessTierChange={setZyraAccessTier} />
+                {zyraAccessTier === "free" && (
+                  <Link
+                    href="/plans"
+                    className="shrink-0 text-body-xs font-semibold text-brand-primary hover:underline"
+                  >
+                    Buka fitur lengkap
+                  </Link>
+                )}
                 <Button
                   size="icon-xs"
                   onClick={() => handleSend()}
