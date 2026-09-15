@@ -75,10 +75,10 @@ jobs:
             const isStaging = targetEnv === 'staging';
             const mcpUrl = isStaging
               ? 'https://staging.zyxacademy.com/api/mcp/authoring'
-              : 'https://zyxacademy.com/api/mcp/authoring';
+              : 'https://www.zyxacademy.com/api/mcp/authoring';
             const homepageUrl = isStaging
               ? 'https://staging.zyxacademy.com/'
-              : 'https://zyxacademy.com/';
+              : 'https://www.zyxacademy.com/';
             const pluginId = isStaging
               ? 'zyx-authoring-mcp-staging'
               : 'zyx-authoring-mcp';
