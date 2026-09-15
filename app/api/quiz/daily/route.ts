@@ -14,6 +14,7 @@ import { randomUUID } from "crypto";
 import { db } from "@/db";
 import {
   aiQuestionBank,
+  bab,
   chapters,
   knowledgeObjects,
   quizTemplates,
@@ -102,16 +103,31 @@ function extractChapterScope(rules: SelectionRules): string[] | null {
   return [...new Set(normalized)];
 }
 
-function expandFreeChapterScope(access: CourseAccessResult, requested: readonly string[]): string[] {
+async function expandChapterScope(access: CourseAccessResult, requested: readonly string[]): Promise<string[]> {
   const requestedIds = new Set(requested);
-  return [
-    ...new Set(
-      access.freeChapters
-        .filter((chapter) => [chapter.id, chapter.canonicalId, chapter.legacyId].some((id) => id && requestedIds.has(id)))
-        .flatMap((chapter) => [chapter.id, chapter.canonicalId, chapter.legacyId])
-        .filter((id): id is string => Boolean(id)),
-    ),
-  ];
+  const aliases = access.freeChapters
+    .filter((chapter) => [chapter.id, chapter.canonicalId, chapter.legacyId].some((id) => id && requestedIds.has(id)))
+    .flatMap((chapter) => [chapter.id, chapter.canonicalId, chapter.legacyId])
+    .filter((id): id is string => Boolean(id));
+
+  if (access.tier !== "free" && access.canonicalCourseId && requested.length > 0) {
+    const canonicalRows = await db
+      .select({ id: bab.id, legacyId: bab.legacyChapterId })
+      .from(bab)
+      .where(
+        and(
+          eq(bab.mataKuliahId, access.canonicalCourseId),
+          eq(bab.status, "active"),
+          or(
+            inArray(bab.id, [...requestedIds]),
+            inArray(bab.legacyChapterId, [...requestedIds]),
+          ),
+        ),
+      );
+    aliases.push(...canonicalRows.flatMap((row) => [row.id, row.legacyId]).filter((id): id is string => Boolean(id)));
+  }
+
+  return [...new Set([...requested, ...aliases])];
 }
 
 async function resolveDailyTemplateAccess(
@@ -129,13 +145,16 @@ async function resolveDailyTemplateAccess(
   if (access.tier === "free") {
     if (template.visibility !== "free" || !requestedChapterIds) return null;
     if (!canAccessCourseContent(access, "quiz", requestedChapterIds)) return null;
-    const chapterIds = expandFreeChapterScope(access, requestedChapterIds);
+    const chapterIds = await expandChapterScope(access, requestedChapterIds);
     return chapterIds.length > 0 ? { access, rules, chapterIds } : null;
   }
 
   // Enrolled and staff users retain the compatibility course-wide behavior.
   // When a template declares a scope, bind question selection to it as well.
-  return { access, rules, chapterIds: requestedChapterIds ?? [] };
+  const chapterIds = requestedChapterIds
+    ? await expandChapterScope(access, requestedChapterIds)
+    : [];
+  return { access, rules, chapterIds };
 }
 
 function fixedQuestionIds(rules: SelectionRules): string[] {

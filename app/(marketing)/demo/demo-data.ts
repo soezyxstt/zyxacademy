@@ -166,7 +166,7 @@ async function buildCourseSummary(course: CanonicalCourse, chapter: typeof bab.$
     category: legacy?.category ?? "Umum",
     description: legacy?.description ?? null,
     chapterTitle: chapter.title,
-    chapterNumber: chapter.orderIndex + 1,
+    chapterNumber: chapter.orderIndex,
   };
 }
 
