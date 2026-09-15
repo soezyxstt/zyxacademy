@@ -7,7 +7,7 @@ import { headers } from "next/headers";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { recordLearningEvidence } from "@/lib/pemahaman/evidence";
-import { isStudentEnrolled } from "@/lib/student/course-catalog";
+import { getStudentCourseAccess, isFreeChapterScoped } from "@/lib/course-utils";
 
 const progressUpdateSchema = z.object({
   sectionId: z.string().min(1),
@@ -46,7 +46,7 @@ export async function PUT(req: NextRequest, { params }: RouteProps) {
 
     // Verify article existence
     const [articleRecord] = await db
-      .select({ id: artikel.id, version: artikel.version, courseId: artikel.mataKuliahId })
+      .select({ id: artikel.id, version: artikel.version, courseId: artikel.mataKuliahId, chapterId: artikel.babId })
       .from(artikel)
       .where(and(eq(artikel.status, "published"), or(eq(artikel.id, articleId), eq(artikel.slug, articleId))))
       .limit(1);
@@ -54,8 +54,12 @@ export async function PUT(req: NextRequest, { params }: RouteProps) {
     if (!articleRecord) {
       return NextResponse.json({ error: "Artikel tidak ditemukan." }, { status: 404 });
     }
-    if (!(await isStudentEnrolled(userId, articleRecord.courseId))) {
-      return NextResponse.json({ error: "Anda belum terdaftar di kelas ini." }, { status: 403 });
+    const access = await getStudentCourseAccess(userId, articleRecord.courseId);
+    if (!access) {
+      return NextResponse.json({ error: "Akses materi tidak tersedia." }, { status: 403 });
+    }
+    if (access.tier === "free" && !isFreeChapterScoped([articleRecord.chapterId].filter((id): id is string => Boolean(id)), access.freeChapterIds)) {
+      return NextResponse.json({ error: "Materi ini tersedia setelah aktivasi kelas." }, { status: 403 });
     }
 
     // Verify section belongs to article

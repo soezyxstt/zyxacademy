@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
-import { getDueFlashcards } from "@/lib/flashcard-progress.repository";
-import { submitFlashcardReviewTx, skipFlashcardTx } from "@/lib/flashcard-actions";
+import { getReviewQueue, submitFlashcardReviewTx, skipFlashcardTx } from "@/lib/flashcard-actions";
+import { getStudentCourseAccess } from "@/lib/course-utils";
 
 const GetQuerySchema = z.object({
   courseId: z.string().min(1),
@@ -37,11 +37,28 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const dueCards = await getDueFlashcards(session.user.id, parsed.data.courseId);
+    const access = await getStudentCourseAccess(session.user.id, parsed.data.courseId);
+    if (!access) {
+      return NextResponse.json({ error: "Akses flashcard ini belum tersedia." }, { status: 403 });
+    }
+    const queue = await getReviewQueue(session.user.id, parsed.data.courseId);
+    // Keep the authenticated API payload limited to learning content. Set,
+    // KO, chapter aliases, and generation metadata are server routing details,
+    // not fields a learner needs to render a card.
+    const dueCards = queue.map((item) => ({
+      id: item.card.id,
+      front: item.card.front,
+      back: item.card.back,
+      explanation: item.card.explanation ?? null,
+      progress: item.progress,
+    }));
     return NextResponse.json({ dueCards });
   } catch (error: any) {
     console.error("GET /api/student/flashcards error:", error);
-    return NextResponse.json({ error: error.message || "Failed to fetch due flashcards" }, { status: 500 });
+    if (error?.message === "FLASHCARD_ACCESS_DENIED" || error?.message === "FLASHCARD_NOT_AVAILABLE") {
+      return NextResponse.json({ error: "Akses flashcard ini memerlukan aktivasi kelas." }, { status: 403 });
+    }
+    return NextResponse.json({ error: "Flashcard tidak dapat dimuat saat ini." }, { status: 500 });
   }
 }
 
@@ -71,6 +88,12 @@ export async function POST(req: NextRequest) {
     }
   } catch (error: any) {
     console.error("POST /api/student/flashcards error:", error);
-    return NextResponse.json({ error: error.message || "Failed to process flashcard action" }, { status: 500 });
+    if (error?.message === "FLASHCARD_INPUT_INVALID") {
+      return NextResponse.json({ error: "Data review flashcard tidak valid." }, { status: 400 });
+    }
+    if (error?.message === "FLASHCARD_ACCESS_DENIED" || error?.message === "FLASHCARD_NOT_AVAILABLE") {
+      return NextResponse.json({ error: "Akses flashcard ini memerlukan aktivasi kelas." }, { status: 403 });
+    }
+    return NextResponse.json({ error: "Flashcard tidak dapat diproses saat ini." }, { status: 500 });
   }
 }

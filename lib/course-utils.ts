@@ -13,12 +13,18 @@ import {
   studentMaterialProgress,
   bab,
   diktatMateri,
+  artikel,
+  courseMaterials,
 } from "@/db/schema";
 import { eq, and, desc, notLike, inArray, ne } from "drizzle-orm";
 // Fixture imports removed
-import { storage } from "@/lib/storage";
 import { getCanonicalPublishedArticlesForCourse } from "@/lib/articles/structured-repository";
 import { isStudentEnrolled, resolveStudentCourse } from "@/lib/student/course-catalog";
+import {
+  hasChapterScopeWithin,
+  resolveCourseAccess,
+  type CourseAccessResult,
+} from "@/lib/student/course-access";
 
 /**
  * True when the user holds an active enrollment for the course. Access control
@@ -27,6 +33,228 @@ import { isStudentEnrolled, resolveStudentCourse } from "@/lib/student/course-ca
  */
 export async function isEnrolled(userId: string, courseId: string): Promise<boolean> {
   return isStudentEnrolled(userId, courseId);
+}
+
+export type StudentCourseAccessTier = "free" | "standard";
+
+export type StudentCourseAccess = {
+  courseId: string;
+  canonicalCourseId: string | null;
+  legacyCourseId: string | null;
+  tier: StudentCourseAccessTier;
+  isEnrolled: boolean;
+  /** IDs of the first two published chapters, including canonical and legacy aliases. */
+  freeChapterIds: string[];
+  /** Full server-resolved policy, retained for callers that need capabilities. */
+  policy: CourseAccessResult;
+};
+
+/**
+ * Resolves the student content lane and the immutable Free chapter scope.
+ *
+ * This is intentionally server-side and delegates course identity, enrollment,
+ * demo selection, and chapter scope to the central resolver. The compatibility
+ * shape is kept for existing student read models while the migration settles.
+ */
+export async function getStudentCourseAccess(
+  userId: string,
+  courseId: string,
+): Promise<StudentCourseAccess | null> {
+  const policy = await resolveCourseAccess({ courseId, userId, roleHint: "murid" });
+  if (!policy.isAuthenticated || !policy.hasCourseAccess || policy.tier === "anonymous") return null;
+
+  return {
+    courseId: policy.courseId ?? courseId,
+    canonicalCourseId: policy.canonicalCourseId,
+    legacyCourseId: policy.legacyCourseId,
+    tier: policy.tier === "free" ? "free" : "standard",
+    isEnrolled: policy.isEnrolled,
+    freeChapterIds: policy.freeChapterIds,
+    policy,
+  };
+}
+
+export function isFreeChapterScoped(
+  chapterIds: readonly (string | null | undefined)[] | null | undefined,
+  freeChapterIds: ReadonlySet<string> | readonly string[],
+): boolean {
+  return hasChapterScopeWithin(chapterIds, freeChapterIds instanceof Set ? [...freeChapterIds] : freeChapterIds);
+}
+
+export const FREE_QUIZ_CATEGORIES: ReadonlySet<string> = new Set([
+  "daily",
+  "weekly",
+  "chapter",
+]);
+
+function parseQuizSelectionRules(raw: unknown): Record<string, unknown> {
+  if (typeof raw === "string") {
+    try {
+      const parsed = JSON.parse(raw);
+      return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+        ? parsed as Record<string, unknown>
+        : {};
+    } catch {
+      return {};
+    }
+  }
+  return raw && typeof raw === "object" && !Array.isArray(raw)
+    ? raw as Record<string, unknown>
+    : {};
+}
+
+/** Reads the one explicit chapter-scope shape accepted by Free quizzes. */
+export function extractFreeQuizChapterScope(raw: unknown): string[] | null {
+  const rules = parseQuizSelectionRules(raw);
+  const keys = ["chapterId", "chapterIds", "chapters", "chapter_ids"];
+  const values = keys
+    .filter((key) => Object.prototype.hasOwnProperty.call(rules, key))
+    .map((key) => rules[key]);
+  if (values.length !== 1) return null;
+
+  const value = values[0];
+  const refs = typeof value === "string" ? [value] : Array.isArray(value) ? value : [];
+  if (refs.length < 1 || refs.length > 2 || refs.some((ref) => typeof ref !== "string")) return null;
+
+  const chapterIds = refs.map((ref) => ref.trim());
+  if (chapterIds.some((chapterId) => !chapterId)) return null;
+  return [...new Set(chapterIds)];
+}
+
+type FreeQuizTemplate = Pick<
+  typeof quizTemplates.$inferSelect,
+  "category" | "visibility" | "status" | "selectionRules"
+>;
+
+function normalizeChapterIds(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .filter((chapterId): chapterId is string => typeof chapterId === "string")
+    .map((chapterId) => chapterId.trim())
+    .filter(Boolean);
+}
+
+/**
+ * The shared Free quiz predicate used by course catalog, detail, and attempt
+ * boundaries. It is deliberately fail-closed for malformed or broad rules.
+ */
+export function isFreeQuizTemplate(
+  template: FreeQuizTemplate,
+  freeChapterIds: ReadonlySet<string> | readonly string[],
+): boolean {
+  if (template.status !== "published") return false;
+  if (template.visibility !== "free") return false;
+  if (!FREE_QUIZ_CATEGORIES.has(template.category)) return false;
+
+  const rules = parseQuizSelectionRules(template.selectionRules);
+  const assessmentTypes = [rules.assessmentType, rules.assessment_type]
+    .filter((value) => value !== undefined);
+  if (assessmentTypes.some((value) => value !== "quiz")) return false;
+
+  const chapterIds = extractFreeQuizChapterScope(rules);
+  return chapterIds !== null && hasChapterScopeWithin(chapterIds, freeChapterIds);
+}
+
+export type StudentMaterialAccess = {
+  access: StudentCourseAccess;
+  chapterIds: string[];
+  /** Free may read only Article and Diktat products, never generic PDFs. */
+  contentKind: "article" | "diktat" | "other";
+};
+
+/** Resolves a published material to its course and chapter scope for writes. */
+export async function getStudentMaterialAccess(
+  userId: string,
+  materialId: string,
+): Promise<StudentMaterialAccess | null> {
+  const [canonicalArticle] = await db
+    .select({ courseId: artikel.mataKuliahId, chapterId: artikel.babId })
+    .from(artikel)
+    .where(and(eq(artikel.id, materialId), eq(artikel.status, "published")))
+    .limit(1);
+  if (canonicalArticle) {
+    const access = await getStudentCourseAccess(userId, canonicalArticle.courseId);
+    return access
+      ? { access, chapterIds: canonicalArticle.chapterId ? [canonicalArticle.chapterId] : [], contentKind: "article" }
+      : null;
+  }
+
+  const [canonicalDiktat] = await db
+    .select({ courseId: diktatMateri.mataKuliahId, chapterId: diktatMateri.babId, legacyChapterId: bab.legacyChapterId })
+    .from(diktatMateri)
+    .leftJoin(bab, eq(diktatMateri.babId, bab.id))
+    .where(and(eq(diktatMateri.id, materialId), eq(diktatMateri.status, "published")))
+    .limit(1);
+  if (canonicalDiktat) {
+    const access = await getStudentCourseAccess(userId, canonicalDiktat.courseId);
+    return access
+      ? {
+          access,
+          chapterIds: [canonicalDiktat.chapterId, canonicalDiktat.legacyChapterId].filter((id): id is string => Boolean(id)),
+          contentKind: "diktat",
+        }
+      : null;
+  }
+
+  const [webMaterial] = await db
+    .select({ courseId: websiteMaterials.courseId, chapterId: websiteMaterials.chapterId })
+    .from(websiteMaterials)
+    .where(and(eq(websiteMaterials.id, materialId), eq(websiteMaterials.status, "published")))
+    .limit(1);
+  if (webMaterial) {
+    const access = await getStudentCourseAccess(userId, webMaterial.courseId);
+    return access ? { access, chapterIds: [webMaterial.chapterId], contentKind: "article" } : null;
+  }
+
+  const [legacyDiktat] = await db
+    .select({ courseId: diktats.courseId, chapterIds: diktats.chapterIds })
+    .from(diktats)
+    .where(and(eq(diktats.id, materialId), eq(diktats.status, "ready")))
+    .limit(1);
+  if (legacyDiktat) {
+    const access = await getStudentCourseAccess(userId, legacyDiktat.courseId);
+    return access
+      ? {
+          access,
+          chapterIds: Array.isArray(legacyDiktat.chapterIds) ? legacyDiktat.chapterIds : [],
+          contentKind: "diktat",
+        }
+      : null;
+  }
+
+  const [legacyMaterial] = await db
+    .select({ courseId: courseMaterials.courseId, chapterIds: courseMaterials.chapterIds })
+    .from(courseMaterials)
+    .where(eq(courseMaterials.id, materialId))
+    .limit(1);
+  if (legacyMaterial) {
+    const access = await getStudentCourseAccess(userId, legacyMaterial.courseId);
+    return access
+      ? {
+          access,
+          chapterIds: Array.isArray(legacyMaterial.chapterIds) ? legacyMaterial.chapterIds : [],
+          contentKind: "other",
+        }
+      : null;
+  }
+
+  const [aiMaterial] = await db
+    .select({ courseId: aiMaterialInstances.courseId, chapterIds: aiMaterialInstances.chapterIds })
+    .from(aiMaterialInstances)
+    .where(and(eq(aiMaterialInstances.id, materialId), notLike(aiMaterialInstances.title, "[DRAF]%")))
+    .limit(1);
+  if (aiMaterial) {
+    const access = await getStudentCourseAccess(userId, aiMaterial.courseId);
+    return access
+      ? {
+          access,
+          chapterIds: Array.isArray(aiMaterial.chapterIds) ? aiMaterial.chapterIds : [],
+          contentKind: "article",
+        }
+      : null;
+  }
+
+  return null;
 }
 
 export async function getCourse(id: string) {
@@ -86,14 +314,19 @@ export async function getCourseMaterials(courseId: string, studentId?: string, p
         .select({
           id: diktatMateri.id,
           title: diktatMateri.title,
+          fileKey: diktatMateri.fileKey,
           babId: diktatMateri.babId,
           legacyChapterId: bab.legacyChapterId,
           updatedAt: diktatMateri.updatedAt,
         })
         .from(diktatMateri)
         .innerJoin(bab, eq(diktatMateri.babId, bab.id))
-        .where(eq(bab.mataKuliahId, canonicalCourseId))
+        .where(and(eq(diktatMateri.mataKuliahId, canonicalCourseId), eq(diktatMateri.status, "published")))
     : [];
+
+  const studentAccess = studentId ? await getStudentCourseAccess(studentId, courseId) : null;
+  if (studentId && !studentAccess) return [];
+  const canDownloadDiktat = Boolean(studentAccess?.policy.capabilities.canDownloadDiktat);
 
   // User progress - bounded to course material IDs or preloaded set to eliminate full table scans (P1-10)
   let completedSet = new Set<string>();
@@ -145,6 +378,7 @@ export async function getCourseMaterials(courseId: string, studentId?: string, p
     completionPercent: completedSet.has(article.id) ? 100 : article.completionPercent,
     isPastYear: false,
     isPreview: false,
+    chapterIds: [article.chapterId, article.babId, article.legacyChapterId].filter((id): id is string => Boolean(id)),
   }));
 
   const mappedCanonicalDiktats = canonicalDiktats.map((diktat) => ({
@@ -159,10 +393,14 @@ export async function getCourseMaterials(courseId: string, studentId?: string, p
     completionPercent: completedSet.has(diktat.id) ? 100 : 0,
     isPastYear: false,
     isPreview: false,
+    url: diktat.fileKey
+      ? `/api/courses/${encodeURIComponent(courseId)}/diktats/${encodeURIComponent(diktat.id)}/pdf${canDownloadDiktat ? "?download=1" : ""}`
+      : undefined,
+    chapterIds: [diktat.babId, diktat.legacyChapterId].filter((id): id is string => Boolean(id)),
   }));
 
   const mappedDiktats = courseDiktats.filter((diktat) => {
-    const chapterIds = Array.isArray(diktat.chapterIds) ? diktat.chapterIds : [];
+    const chapterIds = normalizeChapterIds(diktat.chapterIds);
     return !chapterIds.some((chapterId) => canonicalDiktatChapterIds.has(chapterId));
   }).map((d) => ({
     id: d.id,
@@ -174,11 +412,14 @@ export async function getCourseMaterials(courseId: string, studentId?: string, p
     completed: completedSet.has(d.id),
     isPastYear: false,
     isPreview: true,
-    url: d.fileUrl ? storage.getUrl(d.fileUrl) : undefined,
+    url: d.fileUrl
+      ? `/api/courses/${encodeURIComponent(courseId)}/diktats/${encodeURIComponent(d.id)}/pdf${canDownloadDiktat ? "?download=1" : ""}`
+      : undefined,
+    chapterIds: normalizeChapterIds(d.chapterIds),
   }));
 
   const mappedDb = dbMaterials.filter((material) => {
-    const chapterIds = Array.isArray(material.chapterIds) ? material.chapterIds : [];
+    const chapterIds = normalizeChapterIds(material.chapterIds);
     return !chapterIds.some((chapterId) => canonicalChapterIds.has(chapterId));
   }).map((m) => ({
     id: m.id,
@@ -190,6 +431,7 @@ export async function getCourseMaterials(courseId: string, studentId?: string, p
     completed: completedSet.has(m.id),
     isPastYear: false,
     isPreview: true,
+    chapterIds: normalizeChapterIds(m.chapterIds),
   }));
 
   const mappedWeb = webMaterials.filter((material) => !canonicalChapterIds.has(material.chapterId)).map((m) => ({
@@ -203,9 +445,17 @@ export async function getCourseMaterials(courseId: string, studentId?: string, p
     completed: completedSet.has(m.id),
     isPastYear: false,
     isPreview: true,
+    chapterIds: m.chapterId ? [m.chapterId] : [],
   }));
 
-  return [...mappedCanonicalArticles, ...mappedCanonicalDiktats, ...mappedDiktats, ...mappedDb, ...mappedWeb];
+  const allMaterials = [...mappedCanonicalArticles, ...mappedCanonicalDiktats, ...mappedDiktats, ...mappedDb, ...mappedWeb];
+  if (studentAccess?.tier === "free") {
+    return allMaterials.filter((material) => {
+      const isFreeProduct = material.kind === "article" || material.docCategory === "diktat";
+      return isFreeProduct && isFreeChapterScoped(material.chapterIds, studentAccess.freeChapterIds);
+    });
+  }
+  return allMaterials;
 }
 
 export type ChapterOutlineItem = {
@@ -258,6 +508,15 @@ export async function getCourseChapterOutline(
 
   if (chapterRows.length === 0) return [];
 
+  const studentAccess = studentId ? await getStudentCourseAccess(studentId, courseId) : null;
+  if (studentId && !studentAccess) return [];
+  const visibleChapterRows = studentAccess?.tier === "free"
+    ? chapterRows.filter((chapter) => isFreeChapterScoped(
+        [chapter.id, "canonicalId" in chapter ? chapter.canonicalId : null],
+        studentAccess.freeChapterIds,
+      ))
+    : chapterRows;
+
   const canonicalArticles = await getCanonicalPublishedArticlesForCourse(courseId, studentId);
   const canonicalByChapter = new Map<string, (typeof canonicalArticles)[number]>();
   for (const article of canonicalArticles) {
@@ -305,7 +564,7 @@ export async function getCourseChapterOutline(
     }
   }
 
-  return chapterRows.map((c) => {
+  return visibleChapterRows.map((c) => {
     const legacyChapterId = c.canonicalId ? canonicalRows.find((chapter) => chapter.id === c.canonicalId)?.legacyChapterId : c.id;
     const canonicalArticle = canonicalByChapter.get(c.canonicalId ?? c.id) ?? (legacyChapterId ? canonicalByChapter.get(legacyChapterId) : undefined);
     const materialId = canonicalArticle?.id ?? materialByChapter.get(c.id) ?? null;
@@ -337,10 +596,10 @@ export async function getCourseChapterOutline(
   });
 }
 
-export async function getStudentVisibleCourseQuizzes(courseId: string) {
+export async function getStudentVisibleCourseQuizzes(courseId: string, studentId?: string) {
   const course = await resolveStudentCourse(courseId);
   const compatibilityCourseId = course?.legacyId ?? courseId;
-  return db
+  const templates = await db
     .select()
     .from(quizTemplates)
     .where(
@@ -351,16 +610,29 @@ export async function getStudentVisibleCourseQuizzes(courseId: string) {
       )
     )
     .orderBy(desc(quizTemplates.createdAt));
+  if (!studentId) return templates;
+  const access = await getStudentCourseAccess(studentId, courseId);
+  if (!access) return [];
+  if (access.tier !== "free") return templates;
+  return templates.filter((template) => isFreeQuizTemplate(template, access.freeChapterIds));
 }
 
-export async function getCourseQuizzes(courseId: string) {
+export async function getCourseQuizzes(courseId: string, studentId?: string) {
   const course = await resolveStudentCourse(courseId);
   const compatibilityCourseId = course?.legacyId ?? courseId;
-  const templates = await db
+  let templates = await db
     .select()
     .from(quizTemplates)
     .where(eq(quizTemplates.courseId, compatibilityCourseId))
     .orderBy(desc(quizTemplates.createdAt));
+
+  if (studentId) {
+    const access = await getStudentCourseAccess(studentId, courseId);
+    if (!access) return [];
+    if (access.tier === "free") {
+      templates = templates.filter((template) => isFreeQuizTemplate(template, access.freeChapterIds));
+    }
+  }
 
   const mappedQuizzes = templates.map((t) => ({
     id: t.id,
@@ -378,7 +650,11 @@ export async function getCourseQuizzes(courseId: string) {
   return mappedQuizzes;
 }
 
-export async function getCourseTryouts(courseId: string) {
+export async function getCourseTryouts(courseId: string, studentId?: string) {
+  if (studentId) {
+    const access = await getStudentCourseAccess(studentId, courseId);
+    if (!access || access.tier === "free") return [];
+  }
   const course = await resolveStudentCourse(courseId);
   const compatibilityCourseId = course?.legacyId ?? courseId;
   const dbTryouts = await db

@@ -29,7 +29,10 @@ export function proxy(request: NextRequest) {
   // 1. Unauthenticated users trying to access protected paths -> redirect to /sign-in
   if (isProtectedRoute && !sessionToken) {
     const signInUrl = new URL("/sign-in", request.url);
-    signInUrl.searchParams.set("next", pathname);
+    // Preserve the query string so OAuth can return the user to the exact
+    // filtered or paginated view they attempted to open. URLSearchParams
+    // encodes the local path as one query value and prevents parameter injection.
+    signInUrl.searchParams.set("next", `${pathname}${request.nextUrl.search}`);
     return NextResponse.redirect(signInUrl);
   }
 

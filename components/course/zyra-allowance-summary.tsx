@@ -5,31 +5,61 @@ import { CircleHelp, Gauge } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { ZyraAllowanceSummarySchema, type ZyraAllowanceSummary } from "@/lib/zyra/murid";
 
-export function ZyraAllowanceSummary({ refreshKey = 0 }: { refreshKey?: number }) {
-  const [summary, setSummary] = React.useState<ZyraAllowanceSummary | null>(null);
+type AllowanceSummaryView = ZyraAllowanceSummary & { accessTier: "free" | "standard" };
+
+export function ZyraAllowanceSummary({
+  refreshKey = 0,
+  courseId,
+  onAccessTierChange,
+}: {
+  refreshKey?: number;
+  courseId?: string | null;
+  onAccessTierChange?: (tier: "free" | "standard") => void;
+}) {
+  const [summary, setSummary] = React.useState<AllowanceSummaryView | null>(null);
   const [unavailable, setUnavailable] = React.useState(false);
 
   React.useEffect(() => {
+    setSummary(null);
+    setUnavailable(false);
+  }, [courseId]);
+
+  React.useEffect(() => {
     let cancelled = false;
-    fetch("/api/zyra/allowance", { cache: "no-store" })
+    const query = courseId ? `?courseId=${encodeURIComponent(courseId)}` : "";
+    fetch(`/api/zyra/allowance${query}`, { cache: "no-store" })
       .then(async (response) => {
         if (!response.ok) throw new Error("ALLOWANCE_UNAVAILABLE");
         const body = await response.json() as { summary?: unknown };
+        const raw = body.summary && typeof body.summary === "object"
+          ? body.summary as Record<string, unknown>
+          : null;
+        const rawAccessTier = raw?.accessTier === "free" ? "free" : "standard";
         const parsed = ZyraAllowanceSummarySchema.safeParse(body.summary);
-        if (!parsed.success) throw new Error("ALLOWANCE_INVALID");
-        if (!cancelled) setSummary(parsed.data);
+        const legacyParsed = parsed.success
+          ? parsed
+          : ZyraAllowanceSummarySchema.safeParse(raw ? (() => {
+              const { accessTier: _accessTier, ...legacy } = raw;
+              return legacy;
+            })() : body.summary);
+        if (!legacyParsed.success) throw new Error("ALLOWANCE_INVALID");
+        if (!cancelled) {
+          setSummary({ ...legacyParsed.data, accessTier: rawAccessTier });
+          onAccessTierChange?.(rawAccessTier);
+        }
       })
       .catch(() => {
         if (!cancelled) setUnavailable(true);
       });
     return () => { cancelled = true; };
-  }, [refreshKey]);
+  }, [courseId, onAccessTierChange, refreshKey]);
 
   if (unavailable || !summary) return null;
   const resetLabel = new Intl.DateTimeFormat("id-ID", {
     dateStyle: "short",
     timeStyle: "short",
   }).format(new Date(summary.nextResetAt));
+  const isFree = summary.accessTier === "free";
 
   return (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-border/60 bg-muted/20 px-5 py-2 text-body-xs text-muted-foreground">
@@ -37,7 +67,7 @@ export function ZyraAllowanceSummary({ refreshKey = 0 }: { refreshKey?: number }
         <Gauge className="size-3.5" aria-hidden="true" />
         {summary.providerTurnsRemaining} respons tersisa
       </span>
-      <span>Termasuk pertanyaan teks dan gambar</span>
+      <span>{isFree ? "1 pertanyaan teks per hari" : "Termasuk pertanyaan teks dan gambar"}</span>
       <span>{summary.totalInteractionsUsed} interaksi hari ini</span>
       <span>{summary.cacheSaves} jawaban dari cache</span>
       <Badge variant="outline" className="rounded-md px-1.5 py-0 text-[10px] font-normal">

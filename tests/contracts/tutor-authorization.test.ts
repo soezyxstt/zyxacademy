@@ -70,6 +70,7 @@ async function createTestDb() {
       code TEXT NOT NULL UNIQUE,
       title TEXT NOT NULL,
       status TEXT NOT NULL DEFAULT 'active',
+      is_demo INTEGER NOT NULL DEFAULT 0,
       legacy_course_id TEXT REFERENCES courses(id),
       created_at INTEGER NOT NULL,
       updated_at INTEGER NOT NULL

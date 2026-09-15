@@ -95,6 +95,141 @@ function dependencies(overrides: Partial<RequestLifecycleDependencies> = {}) {
 }
 
 describe("Plan 005 request lifecycle", () => {
+  it("waits for an in-flight duplicate instead of dispatching a second provider call", async () => {
+    let providerCalls = 0;
+    let releaseProvider!: () => void;
+    let providerStarted!: () => void;
+    const providerReady = new Promise<void>((resolve) => {
+      providerStarted = resolve;
+    });
+    const providerRelease = new Promise<void>((resolve) => {
+      releaseProvider = resolve;
+    });
+    const fixture = dependencies({
+      invokeProvider: async ({ modelId }) => {
+        providerCalls += 1;
+        providerStarted();
+        await providerRelease;
+        return result(modelId);
+      },
+    });
+    const lifecycle = new RequestLifecycle(fixture.dependencies);
+    const input = {
+      userId: "user-1",
+      feature: "plan005-free-duplicate",
+      idempotencyKey: "zyra-free:duplicate-in-flight",
+      parts: [{ type: "text" as const, text: "Explain" }],
+    };
+
+    const first = lifecycle.execute(input);
+    await providerReady;
+    const second = lifecycle.execute(input);
+    expect(providerCalls).toBe(1);
+
+    releaseProvider();
+    const [firstResult, secondResult] = await Promise.all([first, second]);
+    expect(secondResult).toEqual(firstResult);
+    expect(fixture.events.filter((event) => event === "allowance.reserve")).toHaveLength(1);
+  });
+
+  it("replays a completed idempotent result during the retry window", async () => {
+    let providerCalls = 0;
+    const fixture = dependencies({
+      invokeProvider: async ({ modelId }) => {
+        providerCalls += 1;
+        return result(modelId);
+      },
+    });
+    const lifecycle = new RequestLifecycle(fixture.dependencies);
+    const input = {
+      userId: "user-1",
+      courseId: "course-free",
+      feature: "plan005-free-completed-replay",
+      idempotencyKey: "zyra-free:duplicate-completed",
+      parts: [{ type: "text" as const, text: "Explain" }],
+    };
+
+    const first = await lifecycle.execute(input);
+    const second = await lifecycle.execute(input);
+
+    expect(second).toEqual(first);
+    expect(providerCalls).toBe(1);
+    expect(fixture.events.filter((event) => event === "allowance.reserve")).toHaveLength(1);
+  });
+
+  it("does not replay an idempotent result for a changed request payload", async () => {
+    let providerCalls = 0;
+    let reserveCalls = 0;
+    const base = dependencies();
+    const allowance = {
+      ...base.dependencies.allowance,
+      reserve: async () => {
+        reserveCalls += 1;
+        return reserveCalls === 1
+          ? { accepted: true as const, idempotent: false, lease: appLease(), remaining: { providerTurns: 19, totalInteractions: 59, premiumTurns: 2 } }
+          : { accepted: true as const, idempotent: true, lease: { ...appLease(), status: "committed" as const }, remaining: { providerTurns: 19, totalInteractions: 59, premiumTurns: 2 } };
+      },
+    } as RequestLifecycleDependencies["allowance"];
+    const fixture = dependencies({
+      allowance,
+      invokeProvider: async ({ modelId }) => {
+        providerCalls += 1;
+        return result(modelId);
+      },
+    });
+    const lifecycle = new RequestLifecycle(fixture.dependencies);
+    const baseInput = {
+      userId: "user-1",
+      courseId: "course-free",
+      feature: "plan005-free-payload-binding",
+      idempotencyKey: "zyra-free:payload-binding",
+      parts: [{ type: "text" as const, text: "Explain the first concept" }],
+    };
+
+    await lifecycle.execute(baseInput);
+    await expect(lifecycle.execute({
+      ...baseInput,
+      parts: [{ type: "text" as const, text: "Explain a different concept" }],
+    })).rejects.toMatchObject({
+      code: "IDEMPOTENCY_REPLAY_UNAVAILABLE",
+    });
+    expect(reserveCalls).toBe(2);
+    expect(providerCalls).toBe(1);
+  });
+
+  it("rejects an idempotent persisted lease when its provider result cannot be replayed", async () => {
+    const base = dependencies();
+    let providerCalls = 0;
+    const allowance = {
+      ...base.dependencies.allowance,
+      reserve: async () => ({
+        accepted: true as const,
+        idempotent: true,
+        lease: { ...appLease(), status: "committed" as const },
+        remaining: { providerTurns: 19, totalInteractions: 59, premiumTurns: 2 },
+      }),
+    } as RequestLifecycleDependencies["allowance"];
+    const fixture = dependencies({
+      allowance,
+      invokeProvider: async ({ modelId }) => {
+        providerCalls += 1;
+        return result(modelId);
+      },
+    });
+    const lifecycle = new RequestLifecycle(fixture.dependencies);
+
+    await expect(lifecycle.execute({
+      userId: "user-1",
+      feature: "plan005-free-duplicate-replay",
+      idempotencyKey: "zyra-free:duplicate-committed",
+      parts: [{ type: "text", text: "Explain" }],
+    })).rejects.toMatchObject({
+      code: "IDEMPOTENCY_REPLAY_UNAVAILABLE",
+      reason: "IDEMPOTENCY_REPLAY_UNAVAILABLE",
+    });
+    expect(providerCalls).toBe(0);
+  });
+
   it("falls back before dispatch while keeping one application allowance", async () => {
     const fixture = dependencies();
     const lifecycle = new RequestLifecycle(fixture.dependencies);

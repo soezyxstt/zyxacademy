@@ -2,6 +2,7 @@ import { and, eq, or } from "drizzle-orm";
 import { db } from "@/db";
 import { artikel, bab, diktatMateri, mataKuliah } from "@/db/schema";
 import { createMaterialCoverSvg } from "@/lib/material-cover";
+import { resolveCourseIdentity } from "@/lib/admin/course-identity";
 
 function displayTitle(rawTitle: string): string {
   const trimmed = rawTitle.replace(/^\[DRAF\]\s*/i, "").trim();
@@ -18,14 +19,19 @@ export async function GET(
   const { id: courseId, materialId } = await context.params;
   if (!courseId || !materialId) return new Response("Missing parameters", { status: 400 });
 
+  const identity = await resolveCourseIdentity(courseId);
+  if (!identity || identity.status !== "active" || !identity.canonicalId) {
+    return new Response("Course not found", { status: 404 });
+  }
+
   const [course] = await db
     .select({ id: mataKuliah.id, code: mataKuliah.code, title: mataKuliah.title })
     .from(mataKuliah)
-    .where(or(eq(mataKuliah.id, courseId), eq(mataKuliah.legacyCourseId, courseId)))
+    .where(and(eq(mataKuliah.id, identity.canonicalId), eq(mataKuliah.status, "active")))
     .limit(1);
   if (!course) return new Response("Course not found", { status: 404 });
 
-  const [article] = await db
+  const articleRows = await db
     .select({
       id: artikel.id,
       title: artikel.title,
@@ -41,9 +47,11 @@ export async function GET(
         or(eq(artikel.id, materialId), eq(artikel.slug, materialId)),
       ),
     )
-    .limit(1);
+    .limit(2);
+  if (articleRows.length > 1) return new Response("Material not found", { status: 404 });
+  const article = articleRows[0] ?? null;
 
-  const [diktat] = article
+  const diktatRows = article
     ? [null]
     : await db
         .select({
@@ -61,7 +69,9 @@ export async function GET(
             eq(diktatMateri.id, materialId),
           ),
         )
-        .limit(1);
+        .limit(2);
+  if (diktatRows.length > 1) return new Response("Material not found", { status: 404 });
+  const diktat = diktatRows[0] ?? null;
 
   const product = article ?? diktat;
   if (!product) return new Response("Material not found", { status: 404 });
@@ -70,9 +80,14 @@ export async function GET(
     ? await db
         .select({ title: bab.title })
         .from(bab)
-        .where(eq(bab.id, product.babId))
+        .where(and(
+          eq(bab.id, product.babId),
+          eq(bab.mataKuliahId, course.id),
+          eq(bab.status, "active"),
+        ))
         .limit(1)
     : [null];
+  if (product.babId && !chapter) return new Response("Material not found", { status: 404 });
 
   const etag = `\"${product.generationHash}-${product.version}\"`;
   if (request.headers.get("if-none-match") === etag) {

@@ -1,11 +1,11 @@
 import Link from "next/link";
 import {
   ArrowRight,
-  ArrowUpRight,
   BookOpen,
+  CheckCircle2,
   ClipboardList,
   Flame,
-  Layers,
+  LockKeyhole,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -17,7 +17,7 @@ import { DEFAULT_COURSES, DEFAULT_PERSONS } from "@/lib/pricing-constants";
 import { PKA_COURSE_ID } from "@/lib/pka-config";
 import { cn } from "@/lib/utils";
 
-interface CatalogCourse {
+export interface CatalogCourse {
   id: string;
   title: string;
   category: string;
@@ -25,6 +25,17 @@ interface CatalogCourse {
   materialsCount: number;
   quizzesCount: number;
   tryoutsCount: number;
+  freeChapters: Array<{
+    id: string;
+    title: string;
+    completed: boolean;
+    completionPercent: number;
+    materialId: string | null;
+  }>;
+  freeMaterialCount: number;
+  completedFreeMaterialCount: number;
+  freeQuizCount: number;
+  firstIncompleteMaterialId: string | null;
 }
 
 interface StudentOnboardingViewProps {
@@ -35,18 +46,18 @@ interface StudentOnboardingViewProps {
 const featureHighlights = [
   {
     icon: BookOpen,
-    title: "Diktat & Rangkuman",
-    desc: "Materi terstruktur per bab sesuai silabus TPB ITB.",
+    title: "Materi dua bab pertama",
+    desc: "Baca Artikel dan Diktat pada Bab 1 dan Bab 2 setiap mata kuliah.",
   },
   {
     icon: ClipboardList,
-    title: "Kuis & Tryout",
-    desc: "Latihan soal mandiri dengan kunci dan pembahasan bertahap.",
+    title: "Kuis dan Flashcard",
+    desc: "Latihan kuis dan ulasan Flashcard tersedia pada bab gratis.",
   },
   {
-    icon: Layers,
-    title: "Spaced Repetition",
-    desc: "Flashcard cerdas untuk mengingat rumus dan konsep kunci.",
+    icon: CheckCircle2,
+    title: "Progres tersimpan",
+    desc: "Lanjutkan belajar dari posisi terakhir setelah login.",
   },
 ];
 
@@ -61,20 +72,20 @@ export function StudentOnboardingView({
       <PageHeader
         title={
           <>
-            Halo,{" "}
-            <span className="bg-gradient-to-r from-brand-primary to-brand-secondary bg-clip-text text-transparent">
+            Mulai belajar,{" "}
+            <span className="text-brand-primary">
               {firstName}
             </span>
           </>
         }
         actions={
           <div className="flex flex-wrap items-center gap-2">
-            <Button asChild variant="outline" size="sm" className="rounded-lg text-body-xs">
-              <Link href="/plans">Lihat Paket</Link>
+            <Button asChild variant="outline" size="sm" className="rounded-lg text-body-sm">
+              <Link href="/plans">Lihat paket</Link>
             </Button>
-            <Button asChild size="sm" className="gap-1.5 rounded-lg text-body-xs">
+            <Button asChild size="sm" className="gap-1.5 rounded-lg text-body-sm">
               <Link href="/courses">
-                Jelajahi Course
+                Jelajahi semua course
                 <ArrowRight className="size-3.5" />
               </Link>
             </Button>
@@ -83,93 +94,133 @@ export function StudentOnboardingView({
       />
 
       <div className="grid gap-6 lg:grid-cols-12">
-        <div className="space-y-6 lg:col-span-7">
-          <section className="border-b border-border/70 pb-6">
-            <div className="mb-4 flex items-center justify-between">
-              <h2 className="flex items-center gap-2 font-heading text-body-base font-bold text-foreground">
-                <BookOpen className="size-4.5 text-brand-primary" />
-                Pilihan Kelas TPB ITB
-              </h2>
-              <Link
-                href="/courses"
-                className="flex items-center gap-0.5 text-body-xs font-bold text-brand-primary hover:underline"
-              >
-                Lihat Semua
-                <ArrowUpRight className="size-3.5" />
-              </Link>
+        <div className="space-y-6 lg:col-span-8">
+          <section className="rounded-xl border border-border bg-card p-4 sm:p-5">
+            <div className="mb-4 flex flex-wrap items-start justify-between gap-3 border-b border-border/60 pb-3">
+              <div>
+                <h2 className="flex items-center gap-2 font-heading text-body-base font-bold text-foreground">
+                  <BookOpen className="size-4.5 text-brand-primary" />
+                  Course untukmu
+                </h2>
+                <p className="mt-1 text-body-xs text-muted-foreground">
+                  Bab 1 dan Bab 2 gratis di setiap mata kuliah.
+                </p>
+              </div>
+              <span className="rounded-md bg-brand-primary/10 px-2 py-1 text-body-2xs font-semibold text-brand-primary">
+                Paket Free
+              </span>
             </div>
 
-            <div className="divide-y divide-border/60 border-y border-border">
-              {catalogCourses.map((c) => {
-                const isPka = c.id === PKA_COURSE_ID;
-                return (
-                  <Link
-                    key={c.id}
-                    href={`/courses/${c.id}`}
-                    className="group -mx-3 block rounded-xl px-3 py-3.5 transition-colors hover:bg-muted/30"
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0 flex-1">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className="inline-flex shrink-0 rounded-md bg-brand-primary/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-brand-primary ring-1 ring-brand-primary/20">
-                            {c.category}
-                          </span>
-                          {isPka && (
-                            <span className="inline-flex shrink-0 rounded-md bg-brand-secondary/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-brand-secondary ring-1 ring-brand-secondary/20">
-                              Maba ITB
-                            </span>
-                          )}
-                          <h3 className="truncate font-heading text-body-sm font-bold text-foreground transition-colors group-hover:text-brand-primary">
-                            {c.title}
-                          </h3>
-                        </div>
+            {catalogCourses.length > 0 ? (
+              <div className="space-y-3">
+                {catalogCourses.map((course) => {
+                  const totalMaterials = course.freeMaterialCount;
+                  const completedMaterials = course.completedFreeMaterialCount;
+                  const progressPercent = totalMaterials > 0
+                    ? Math.round((completedMaterials / totalMaterials) * 100)
+                    : 0;
+                  const nextHref = course.firstIncompleteMaterialId
+                    ? `/courses/${course.id}/material/${course.firstIncompleteMaterialId}`
+                    : `/courses/${course.id}`;
+                  const nextLabel = completedMaterials > 0 && completedMaterials < totalMaterials
+                    ? "Lanjutkan belajar"
+                    : "Mulai Bab 1";
 
-                        <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-body-xs text-muted-foreground">
-                          {isPka ? (
-                            <span className="flex items-center gap-1.5 font-medium text-brand-secondary">
-                              <Layers className="size-3.5" />
-                              Simulasi 3 stage x 3 mapel
+                  return (
+                    <article key={course.id} className="rounded-xl border border-border/70 bg-muted/15 p-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="rounded-md bg-brand-primary/10 px-2 py-0.5 text-body-2xs font-bold uppercase tracking-wider text-brand-primary">
+                              {course.category}
                             </span>
-                          ) : (
-                            <>
-                              <span>{c.materialsCount} bahan belajar</span>
-                              <span>•</span>
-                              <span>{c.quizzesCount} kuis & tryout</span>
-                            </>
-                          )}
+                            {course.id === PKA_COURSE_ID ? (
+                              <span className="rounded-md bg-brand-secondary/10 px-2 py-0.5 text-body-2xs font-bold text-brand-secondary">
+                                Maba ITB
+                              </span>
+                            ) : null}
+                            <h3 className="truncate font-heading text-body-sm font-bold text-foreground">
+                              {course.title}
+                            </h3>
+                          </div>
+                          <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-body-xs text-muted-foreground">
+                            <span>{course.freeChapters.length} bab gratis</span>
+                            <span>{course.freeMaterialCount} materi</span>
+                            <span>{course.freeQuizCount} kuis</span>
+                          </div>
                         </div>
+                        <Button asChild size="sm" className="shrink-0 rounded-lg text-body-sm">
+                          <Link href={nextHref}>
+                            {nextLabel}
+                            <ArrowRight className="ml-1.5 size-3.5" />
+                          </Link>
+                        </Button>
                       </div>
 
-                      <div className="flex size-7 shrink-0 items-center justify-center rounded-lg border border-border bg-background text-muted-foreground transition-all group-hover:border-brand-primary/40 group-hover:text-brand-primary">
-                        <ArrowRight className="size-3.5" />
+                      <div className="mt-4 flex items-center gap-3">
+                        <div className="h-1.5 flex-1 overflow-hidden rounded bg-muted">
+                          <div
+                            className="h-full rounded bg-brand-primary"
+                            style={{ width: `${progressPercent}%` }}
+                          />
+                        </div>
+                        <span className="text-body-xs font-semibold text-foreground">{progressPercent}%</span>
+                        <span className="text-body-xs text-muted-foreground">
+                          {completedMaterials}/{totalMaterials} materi
+                        </span>
                       </div>
-                    </div>
-                  </Link>
-                );
-              })}
-            </div>
+
+                      <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                        {course.freeChapters.length > 0 ? course.freeChapters.map((chapter, index) => (
+                          <div
+                            key={chapter.id}
+                            className="flex min-w-0 items-center gap-2 rounded-lg border border-border/60 bg-background px-3 py-2"
+                          >
+                            {chapter.completed ? (
+                              <CheckCircle2 className="size-4 shrink-0 text-status-success" aria-hidden="true" />
+                            ) : (
+                              <span className="flex size-4 shrink-0 items-center justify-center rounded-full border border-brand-primary/40 text-body-2xs font-semibold text-brand-primary">
+                                {index + 1}
+                              </span>
+                            )}
+                            <span className="truncate text-body-xs text-foreground">{chapter.title}</span>
+                            <span className="ml-auto shrink-0 rounded-md bg-status-success/10 px-1.5 py-0.5 text-body-2xs font-semibold text-status-success">
+                              Gratis
+                            </span>
+                          </div>
+                        )) : (
+                          <p className="text-body-xs text-muted-foreground">Materi bab gratis sedang disiapkan.</p>
+                        )}
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="rounded-xl border border-dashed border-border/70 bg-muted/15 px-4 py-8 text-center">
+                <BookOpen className="mx-auto size-7 text-muted-foreground/60" />
+                <p className="mt-2 text-body-sm font-semibold text-foreground">Belum ada course yang tersedia</p>
+                <p className="mt-1 text-body-xs text-muted-foreground">Kembali lagi setelah materi gratis dipublikasikan.</p>
+              </div>
+            )}
           </section>
 
           <section className="border-b border-border/70 pb-6">
             <h2 className="mb-4 flex items-center gap-2 font-heading text-body-base font-bold text-foreground">
-              <Flame className="size-4.5 fill-brand-secondary/10 text-brand-secondary" />
-              Fitur Belajar Terintegrasi
+              <Flame className="size-4.5 text-brand-primary" />
+              Yang tersedia di Free
             </h2>
 
             <div className="grid gap-3 sm:grid-cols-3">
-              {featureHighlights.map((feat) => {
-                const Icon = feat.icon;
+              {featureHighlights.map((feature) => {
+                const Icon = feature.icon;
                 return (
-                  <Card key={feat.title} className="p-3.5">
+                  <Card key={feature.title} className="p-3.5">
                     <div className="flex size-7 items-center justify-center rounded-lg bg-brand-primary/10 text-brand-primary">
                       <Icon className="size-4" />
                     </div>
-                    <h3 className="mt-2.5 font-heading text-body-xs font-bold text-foreground">
-                      {feat.title}
-                    </h3>
-                    <p className="mt-1 text-body-xs leading-snug text-muted-foreground">
-                      {feat.desc}
-                    </p>
+                    <h3 className="mt-2.5 font-heading text-body-xs font-bold text-foreground">{feature.title}</h3>
+                    <p className="mt-1 text-body-xs leading-snug text-muted-foreground">{feature.desc}</p>
                   </Card>
                 );
               })}
@@ -177,44 +228,39 @@ export function StudentOnboardingView({
           </section>
         </div>
 
-        <div className="space-y-6 lg:col-span-5">
+        <div className="space-y-6 lg:col-span-4">
           <Card className="p-4 sm:p-5">
-            <h2 className="flex items-center gap-2 font-heading text-body-sm font-bold text-foreground">
-              <span className="flex size-5 items-center justify-center rounded-full bg-brand-primary text-[10px] font-bold text-white">
-                1
-              </span>
-              Aktivasi Token Kelas
-            </h2>
-            <EnrollmentForm className="mt-3.5" />
+            <h2 className="font-heading text-body-sm font-bold text-foreground">Ingin akses lebih banyak?</h2>
+            <p className="mt-2 text-body-xs leading-relaxed text-muted-foreground">
+              Buka bab berikutnya, unduh Diktat, dan gunakan fitur belajar lanjutan dengan paket berbayar.
+            </p>
+            <Button asChild className="mt-4 w-full rounded-lg text-body-sm">
+              <Link href="/plans">
+                Lihat pilihan paket
+                <ArrowRight className="ml-1.5 size-4" />
+              </Link>
+            </Button>
           </Card>
 
           <Card className="p-4 sm:p-5">
-            <h2 className="flex items-center gap-2 font-heading text-body-sm font-bold text-foreground">
-              <span className="flex size-5 items-center justify-center rounded-full bg-brand-secondary text-[10px] font-bold text-white">
-                2
-              </span>
-              Paket Belajar Semester
-            </h2>
-
+            <h2 className="font-heading text-body-sm font-bold text-foreground">Paket belajar semester</h2>
             <PlanPromotion className="mb-3 mt-3.5" />
             <div className="space-y-2.5">
               {previewPlanTiers.map((tier) => (
                 <div
                   key={tier.key}
                   className={cn(
-                    "rounded-lg border border-border/60 bg-card/50 p-3 backdrop-blur-xs transition-colors",
-                    tier.highlighted && "border-brand-primary/40 bg-brand-primary/10"
+                    "rounded-lg border border-border/60 bg-card/50 p-3",
+                    tier.highlighted && "border-brand-primary/40 bg-brand-primary/10",
                   )}
                 >
                   <div className="flex items-center gap-2">
-                    <span className="font-heading text-body-xs font-bold text-foreground">
-                      {tier.name}
-                    </span>
-                    {tier.highlighted && (
-                      <span className="rounded-md bg-brand-primary/10 px-1.5 py-0.2 text-[10px] font-bold text-brand-primary">
+                    <span className="font-heading text-body-xs font-bold text-foreground">{tier.name}</span>
+                    {tier.highlighted ? (
+                      <span className="rounded-md bg-brand-primary/10 px-1.5 py-0.5 text-body-2xs font-bold text-brand-primary">
                         Populer
                       </span>
-                    )}
+                    ) : null}
                   </div>
                   <div className="mt-2">
                     <PlanPrice
@@ -224,19 +270,21 @@ export function StudentOnboardingView({
                       perPerson
                     />
                   </div>
-                  <p className="mt-1 line-clamp-1 text-body-xs text-muted-foreground">
-                    {tier.note}
-                  </p>
+                  <p className="mt-1 line-clamp-1 text-body-xs text-muted-foreground">{tier.note}</p>
                 </div>
               ))}
             </div>
-
-            <Button asChild variant="outline" size="sm" className="mt-4 w-full rounded-lg text-body-xs">
-              <Link href="/plans" className="flex items-center justify-center gap-1.5">
-                Bandingkan Semua Paket
-                <ArrowRight className="size-3.5" />
-              </Link>
+            <Button asChild variant="outline" size="sm" className="mt-4 w-full rounded-lg text-body-sm">
+              <Link href="/plans">Bandingkan semua paket</Link>
             </Button>
+          </Card>
+
+          <Card className="p-4 sm:p-5">
+            <h2 className="flex items-center gap-2 font-heading text-body-sm font-bold text-foreground">
+              <LockKeyhole className="size-4 text-muted-foreground" />
+              Sudah punya token kelas?
+            </h2>
+            <EnrollmentForm className="mt-3.5" />
           </Card>
         </div>
       </div>

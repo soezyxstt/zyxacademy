@@ -1587,6 +1587,7 @@ export const mataKuliah = sqliteTable(
   code: text("code").notNull(),
   title: text("title").notNull(),
   status: text("status").$type<"draft" | "active" | "archived">().default("active").notNull(),
+  isDemo: integer("is_demo", { mode: "boolean" }).default(false).notNull(),
   legacyCourseId: text("legacy_course_id").references(() => courses.id, { onDelete: "set null" }),
   createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
   updatedAt: integer("updated_at", { mode: "timestamp" })
@@ -1596,6 +1597,9 @@ export const mataKuliah = sqliteTable(
  },
  (table) => [
   uniqueIndex("mata_kuliah_code_idx").on(table.code),
+  uniqueIndex("mata_kuliah_single_demo_idx")
+    .on(table.isDemo)
+    .where(sql`${table.isDemo} = 1`),
   index("mata_kuliah_legacy_course_idx").on(table.legacyCourseId),
   check("mata_kuliah_status_check", sql`${table.status} IN ('draft', 'active', 'archived')`),
  ],
@@ -4109,6 +4113,7 @@ export const aiAllowanceLeases = sqliteTable(
       .notNull()
       .references(() => pengguna.id, { onDelete: "restrict" }),
     peran: text("peran").$type<"admin" | "tutor" | "murid">().notNull(),
+    accessTier: text("access_tier").$type<"standard" | "free">().default("standard").notNull(),
     feature: text("feature").notNull(),
     appDay: text("app_day").notNull(),
     units: integer("units").default(1).notNull(),
@@ -4131,11 +4136,18 @@ export const aiAllowanceLeases = sqliteTable(
   (table) => [
     uniqueIndex("ai_allowance_leases_idempotency_idx").on(table.idempotencyKey),
     index("ai_allowance_leases_user_day_idx").on(table.userId, table.appDay),
+    index("ai_allowance_leases_user_tier_feature_day_idx").on(
+      table.userId,
+      table.accessTier,
+      table.feature,
+      table.appDay,
+    ),
     index("ai_allowance_leases_user_status_idx").on(table.userId, table.status),
     index("ai_allowance_leases_control_plane_idx").on(table.controlPlaneLeaseId),
     index("ai_allowance_leases_run_idx").on(table.runId),
     check("ai_allowance_leases_units_check", sql`${table.units} >= 0`),
     check("ai_allowance_leases_interaction_units_check", sql`${table.interactionUnits} > 0`),
+    check("ai_allowance_leases_access_tier_check", sql`${table.accessTier} IN ('standard', 'free')`),
     check("ai_allowance_leases_status_check", sql`${table.status} IN ('reserved', 'dispatched', 'committed', 'refunded')`),
   ]
 );

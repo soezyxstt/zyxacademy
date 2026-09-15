@@ -31,6 +31,8 @@ type CourseDocumentsClientProps = {
   materials: CourseMaterial[];
   chapters: Chapter[];
   defaultTab?: string;
+  accessTier?: "free" | "standard";
+  lockedMaterialCount?: number;
 };
 
 const MAX_THUMBNAIL_RETRIES = 8;
@@ -313,6 +315,8 @@ export function CourseDocumentsClient({
   materials,
   chapters,
   defaultTab,
+  accessTier,
+  lockedMaterialCount = 0,
 }: CourseDocumentsClientProps) {
   const initialTab = normalizeTabKey(defaultTab);
   const [urlTab, setUrlTab] = useUrlTab("tab", "all", initialTab);
@@ -348,6 +352,16 @@ export function CourseDocumentsClient({
 
   return (
     <div className="space-y-3 font-sans">
+      {activeTab === "all" && accessTier === "free" && lockedMaterialCount > 0 ? (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-brand-primary/25 bg-brand-primary/5 px-3 py-2.5">
+          <div className="flex min-w-0 items-center gap-2 text-body-xs text-muted-foreground">
+            <span>Bab berikutnya dan materi tanpa bab tersedia setelah aktivasi kelas.</span>
+          </div>
+          <Link href="/plans" className="shrink-0 rounded-md border border-border bg-card px-2.5 py-1.5 text-body-sm font-semibold text-brand-primary hover:bg-muted">
+            Aktifkan akses
+          </Link>
+        </div>
+      ) : null}
       <Tabs value={activeTab} onValueChange={(value) => setUrlTab(normalizeTabKey(value))}>
         <TabsList className="max-w-full justify-start" aria-label="Kategori dokumen mata kuliah">
           {tabs.map((tab) => {
@@ -399,6 +413,8 @@ export function CourseDocumentsClient({
             materials={materials}
             chapters={chapters}
             defaultTab={activeTab}
+            accessTier={accessTier}
+            lockedMaterialCount={lockedMaterialCount}
           />
         </div>
       )}

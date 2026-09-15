@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 
 import { ClipboardList } from "lucide-react";
+import Link from "next/link";
 import { CoursePageShell } from "@/components/course/course-page-shell";
 import { pageTitle } from "@/lib/site";
-import { checkEnrollment } from "@/app/(student)/dashboard/actions";
 import { QuizListClient } from "./quiz-list-client";
 import { Reveal } from "@/components/ui/reveal";
 import { db } from "@/db";
@@ -11,11 +11,15 @@ import { studentQuizAttempts } from "@/db/schema";
 import { auth } from "@/lib/auth";
 import { eq } from "drizzle-orm";
 import { headers } from "next/headers";
-import { notFound } from "next/navigation";
-import { getCourse, getStudentVisibleCourseQuizzes } from "@/lib/course-utils";
+import { notFound, redirect } from "next/navigation";
+import { getCourse, getStudentCourseAccess, getStudentVisibleCourseQuizzes } from "@/lib/course-utils";
+import { cn } from "@/lib/utils";
+
+type QuizAccessFilter = "all" | "free" | "premium";
 
 type Props = {
   params: Promise<{ id: string }>;
+  searchParams?: Promise<{ access?: string | string[] }>;
 };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -30,17 +34,35 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
-export default async function CourseQuizListPage({ params }: Props) {
+export default async function CourseQuizListPage({ params, searchParams }: Props) {
   const { id } = await params;
+  const rawAccess = (await searchParams)?.access;
+  const requestedAccess = Array.isArray(rawAccess) ? rawAccess[0] : rawAccess;
+  const access: QuizAccessFilter = requestedAccess === "free" || requestedAccess === "premium"
+    ? requestedAccess
+    : "all";
+  
   const course = await getCourse(id);
 
   if (!course) notFound();
 
-  const isEnrolled = await checkEnrollment(id);
-  const templates = await getStudentVisibleCourseQuizzes(id);
-
+  // Retrieve previous attempts
   const session = await auth.api.getSession({ headers: await headers() });
   const studentId = session?.user?.id;
+  if (!studentId) {
+    redirect(`/sign-in?next=${encodeURIComponent(`/courses/${id}/quiz`)}`);
+  }
+  const studentAccess = studentId ? await getStudentCourseAccess(studentId, id) : null;
+
+  // The server-side catalog helper removes unscoped, mixed, and chapter 3+
+  // templates for authenticated Free users before they reach the client.
+  const templates = await getStudentVisibleCourseQuizzes(id, studentId);
+  const accessTier = !studentId
+    ? "anonymous" as const
+    : studentAccess
+      ? studentAccess.tier
+      : "anonymous" as const;
+  const isEnrolled = studentAccess?.tier === "standard";
   const attempts = studentId
     ? await db
         .select()
@@ -48,17 +70,58 @@ export default async function CourseQuizListPage({ params }: Props) {
         .where(eq(studentQuizAttempts.studentId, studentId))
     : [];
 
+  const filteredTemplates = templates.filter((template) => {
+    if (access === "free") return template.visibility === "free";
+    if (access === "premium") return template.visibility === "paid";
+    return true;
+  });
+  const freeEligibleTemplateIds = studentAccess?.tier === "free"
+    ? templates.map((template) => template.id)
+    : [];
+  const counts = {
+    all: templates.length,
+    free: templates.filter((template) => template.visibility === "free").length,
+    premium: templates.filter((template) => template.visibility === "paid").length,
+  };
+  const filters: Array<{ value: QuizAccessFilter; label: string }> = [
+    { value: "all", label: "Semua" },
+    { value: "free", label: "Gratis" },
+    { value: "premium", label: "Premium" },
+  ];
+
   return (
     <CoursePageShell
       title={`Kuis Latihan: ${course.title}`}
       description="Uji pemahaman materi Anda dengan kuis interaktif."
       icon={ClipboardList}
+      actions={(
+        <nav className="flex max-w-full items-center gap-1 overflow-x-auto" aria-label="Filter akses kuis">
+          {filters.map((filter) => (
+            <Link
+              key={filter.value}
+              href={filter.value === "all" ? `/courses/${id}/quiz` : `/courses/${id}/quiz?access=${filter.value}`}
+              className={cn(
+                "inline-flex shrink-0 items-center gap-1 rounded-md px-2.5 py-1.5 text-body-sm font-semibold transition-colors",
+                access === filter.value
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground",
+              )}
+              aria-current={access === filter.value ? "page" : undefined}
+            >
+              {filter.label}
+              <span className={cn("text-body-xs", access === filter.value && "text-primary-foreground/80")}>{counts[filter.value]}</span>
+            </Link>
+          ))}
+        </nav>
+      )}
     >
       <Reveal>
         <QuizListClient
           courseId={id}
           isEnrolled={isEnrolled}
-          templates={templates}
+          accessTier={accessTier}
+          freeEligibleTemplateIds={freeEligibleTemplateIds}
+          templates={filteredTemplates}
           attempts={attempts}
         />
       </Reveal>
