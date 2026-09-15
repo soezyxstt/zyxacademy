@@ -887,13 +887,18 @@ export function DocumentListClient({
                     </div>
                   ) : (
                     <div className="flex items-center gap-1.5 shrink-0" onClick={(e) => e.stopPropagation()}>
-                      {material.completed ? (
+                      {material.locked ? (
+                        <span className="inline-flex shrink-0 items-center gap-1 rounded-md bg-amber-500/10 px-1.5 py-0.5 text-body-2xs font-semibold text-amber-600 dark:text-amber-400 ring-1 ring-amber-500/20">
+                          <LockKeyhole className="size-2.5" />
+                          Terkunci
+                        </span>
+                      ) : material.completed ? (
                         <CheckCircle2
                           className="size-4 shrink-0 text-status-success"
                           aria-label="Selesai dipelajari"
                         />
                       ) : null}
-                      {material.url && allowDownload ? (
+                      {material.url && allowDownload && !material.locked ? (
                         <Button
                           type="button"
                           variant="ghost"
@@ -908,7 +913,7 @@ export function DocumentListClient({
                           </a>
                         </Button>
                       ) : (
-                        !material.completed && (
+                        !material.completed && !material.locked && (
                           <MoreVertical
                             className="size-3.5 shrink-0 text-muted-foreground/35 transition-colors group-hover:text-muted-foreground/70"
                             aria-hidden
@@ -959,7 +964,12 @@ export function DocumentListClient({
                     >
                       {material.title}
                     </span>
-                    {material.completed ? (
+                    {material.locked ? (
+                      <span className="inline-flex shrink-0 items-center gap-1 rounded-md bg-amber-500/10 px-1.5 py-0.5 text-body-2xs font-semibold text-amber-600 dark:text-amber-400 ring-1 ring-amber-500/20">
+                        <LockKeyhole className="size-2.5" />
+                        Terkunci
+                      </span>
+                    ) : material.completed ? (
                       <CheckCircle2 className="size-3.5 shrink-0 text-status-success" />
                     ) : null}
                   </div>

@@ -13,6 +13,7 @@ import {
   isFreeQuizTemplate,
 } from "@/lib/course-utils";
 import { CourseDocumentsClient } from "./course-documents-client";
+import { EnrollmentForm } from "@/components/enrollment-form";
 import { Reveal } from "@/components/ui/reveal";
 import { db } from "@/db";
 import { aiMaterialInstances, websiteMaterials, diktats, diktatMateri, bab, courseMaterials, progress, studentMaterialProgress, quizTemplates, studentQuizAttempts, exams } from "@/db/schema";
@@ -266,23 +267,40 @@ export default async function CourseMaterialListPage({ params, searchParams }: P
   });
 
   const allMaterials = [...mappedCanonical, ...mappedCanonicalDiktats, ...mappedDiktats, ...mappedDb, ...mappedWeb, ...mappedManual, ...mappedQuizzes, ...mappedTryouts];
-  const freeVisibleMaterials = studentId && !studentAccess
-    ? []
-    : isFreeAccess
-    ? allMaterials.filter((material) => {
-        const isAllowedKind = material.kind === "article" || material.docCategory === "diktat" || material.kind === "quiz";
-        return isAllowedKind && isFreeChapterScoped(material.chapterIds, freeChapterIds);
-      })
-    : allMaterials;
-  const lockedMaterialCount = isFreeAccess ? allMaterials.length - freeVisibleMaterials.length : 0;
+  const isEnrolled = studentAccess?.tier === "standard";
+  const materialsWithLockState = allMaterials.map((material) => {
+    // PDF materials (materi PDF, bank soal ITB / lembar soal tutorial / ujian) are free
+    const isFreeContent = material.kind === "pdf" && material.docCategory !== "diktat";
+    const locked = !isEnrolled && !isFreeContent;
+    return {
+      ...material,
+      locked,
+    };
+  });
+  const lockedMaterialCount = materialsWithLockState.filter((m) => m.locked).length;
 
   return (
     <CoursePageShell title={`Materi Belajar: ${course.title}`} description="Pelajari bahan belajar, ringkasan rumus, dan diktat kuliah." icon={FileText}>
       <Reveal>
+        {!isEnrolled && (
+          <div className="mb-6 rounded-lg border border-brand-secondary/25 bg-brand-secondary/5 p-4">
+            <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(280px,420px)] md:items-center">
+              <div>
+                <h3 className="font-heading text-body-base font-bold text-brand-secondary">
+                  Aktivasi token kelas
+                </h3>
+                <p className="mt-1 max-w-2xl text-body-sm text-muted-foreground">
+                  Berkas PDF materi dan latihan soal ITB dapat diakses gratis. Masukkan token kelas untuk membuka kuis interaktif, tryout, artikel lengkap, flashcard, dan diktat.
+                </p>
+              </div>
+              <EnrollmentForm className="w-full" />
+            </div>
+          </div>
+        )}
         <Suspense fallback={null}>
           <CourseDocumentsClient
             courseId={id}
-            materials={freeVisibleMaterials}
+            materials={materialsWithLockState}
             chapters={courseChapters}
             defaultTab={initialTab}
             accessTier={studentAccess?.tier}
