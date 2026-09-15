@@ -36,10 +36,20 @@ if (isRemoteTurso) {
         if (typeof nonWebpackReq !== "undefined") {
           return nonWebpackReq(["@", "libsql", "/", "client"].join("")).createClient;
         }
-        const req = createRequire(import.meta.url);
+        let req;
+        try {
+          req = createRequire(import.meta.url);
+        } catch {
+          req = createRequire(process.cwd() + "/package.json");
+        }
         return req(["@", "libsql", "/", "client"].join("")).createClient;
       } catch {
-        return createWebClient;
+        try {
+          const req = createRequire(process.cwd() + "/package.json");
+          return req(["@", "libsql", "/", "client"].join("")).createClient;
+        } catch {
+          return createWebClient;
+        }
       }
     };
 

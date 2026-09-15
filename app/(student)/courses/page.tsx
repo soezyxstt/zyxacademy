@@ -6,7 +6,6 @@ import { ApplicationPage } from "@/components/application-page";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { studentCardClass, studentInteractiveCardClass } from "@/components/course/course-surfaces";
-import { Reveal } from "@/components/ui/reveal";
 import { env } from "@/lib/env";
 import { pageTitle } from "@/lib/site";
 import {
@@ -59,8 +58,7 @@ export default async function CoursesPage() {
 
   return (
     <ApplicationPage className="pb-16">
-      <Reveal duration="duration-500">
-        <PageHeader
+      <PageHeader
           title="Katalog Course"
           icon={BookOpen}
           actions={
@@ -79,10 +77,8 @@ export default async function CoursesPage() {
             </div>
           }
         />
-      </Reveal>
 
-      <Reveal duration="duration-700">
-        {coursesWithStats.length > 0 ? (
+      {coursesWithStats.length > 0 ? (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {coursesWithStats.map((c) => {
               const isPka = c.id === PKA_COURSE_ID;
@@ -179,7 +175,6 @@ export default async function CoursesPage() {
           )}
           .
         </p>
-      </Reveal>
     </ApplicationPage>
   );
 }

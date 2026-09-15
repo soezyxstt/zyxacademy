@@ -18,7 +18,7 @@ describe("student courses layout, whatsapp contact, and material access contract
     expect(coursesPage).not.toContain("href='/feedback'");
 
     // Hubungi admin WhatsApp link check
-    const waLink = getWhatsAppAdminChatHref("Halo Admin Zyx");
+    const waLink = getWhatsAppAdminChatHref();
     expect(waLink).toMatch(/^https:\/\/wa\.me\/62\d+/);
   });
 

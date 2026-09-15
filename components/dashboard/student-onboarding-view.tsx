@@ -47,13 +47,13 @@ interface StudentOnboardingViewProps {
 const featureHighlights = [
   {
     icon: BookOpen,
-    title: "Materi dua bab pertama",
-    desc: "Baca Artikel dan Diktat pada Bab 1 dan Bab 2 setiap mata kuliah.",
+    title: "Dokumen dan soal PDF",
+    desc: "Akses berkas PDF materi kuliah dan arsip soal latihan secara gratis.",
   },
   {
     icon: ClipboardList,
-    title: "Kuis dan Flashcard",
-    desc: "Latihan kuis dan ulasan Flashcard tersedia pada bab gratis.",
+    title: "Kuis dan materi interaktif",
+    desc: "Aktivasi token kelas untuk membuka kuis, flashcard, dan artikel lengkap.",
   },
   {
     icon: CheckCircle2,
