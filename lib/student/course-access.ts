@@ -33,6 +33,7 @@ export type CourseAccessDenialReason =
 
 export type CourseAccessDbExecutor = {
   select: (...args: any[]) => any;
+  insert: (...args: any[]) => any;
 };
 
 export type CourseChapterAccess = {
@@ -343,18 +344,19 @@ async function resolveActor(
     };
   }
 
-  const [[identity], [knownAuthUser]] = await Promise.all([
+  const [[existingIdentity], [knownAuthUser]] = await Promise.all([
     client
       .select({ status: pengguna.status })
       .from(pengguna)
       .where(eq(pengguna.id, userId))
       .limit(1),
     client
-      .select({ id: authUser.id })
+      .select({ id: authUser.id, createdAt: authUser.createdAt, updatedAt: authUser.updatedAt })
       .from(authUser)
       .where(eq(authUser.id, userId))
       .limit(1),
   ]);
+  let identity = existingIdentity;
   if (identity?.status === "suspended") {
     return {
       role: null,
@@ -367,10 +369,34 @@ async function resolveActor(
     };
   }
 
-  // A session user that has no canonical identity is still a known legacy
-  // account and may use the Free student lane. An arbitrary caller supplied
-  // user ID is not an authenticated actor and must not receive that fallback.
-  if (!identity && !knownAuthUser) {
+  // Older Better Auth accounts can predate the canonical identity migration.
+  // Provision the identity before granting the Free lane so every downstream
+  // canonical write, including allowance leases, has a valid FK target.
+  if (!identity && knownAuthUser) {
+    try {
+      await client
+        .insert(pengguna)
+        .values({
+          id: userId,
+          status: "active",
+          createdAt: knownAuthUser.createdAt,
+          updatedAt: knownAuthUser.updatedAt,
+        })
+        .onConflictDoNothing();
+      const [provisionedIdentity] = await client
+        .select({ status: pengguna.status })
+        .from(pengguna)
+        .where(eq(pengguna.id, userId))
+        .limit(1);
+      identity = provisionedIdentity ?? null;
+    } catch {
+      identity = null;
+    }
+  }
+
+  // An arbitrary caller-supplied user ID, or a failed provisioning attempt,
+  // must not receive the authenticated Free fallback.
+  if (!identity) {
     return {
       role: null,
       roles: new Set(),
@@ -382,18 +408,16 @@ async function resolveActor(
     };
   }
 
-  const roleRows = identity
-    ? await client
-      .select({ code: peran.code })
-      .from(penggunaPeran)
-      .innerJoin(pengguna, eq(penggunaPeran.penggunaId, pengguna.id))
-      .innerJoin(peran, eq(penggunaPeran.peranId, peran.id))
-      .where(and(
-        eq(penggunaPeran.penggunaId, userId),
-        eq(pengguna.status, "active"),
-        inArray(peran.code, [...ROLE_CODES]),
-      ))
-    : [];
+  const roleRows = await client
+    .select({ code: peran.code })
+    .from(penggunaPeran)
+    .innerJoin(pengguna, eq(penggunaPeran.penggunaId, pengguna.id))
+    .innerJoin(peran, eq(penggunaPeran.peranId, peran.id))
+    .where(and(
+      eq(penggunaPeran.penggunaId, userId),
+      eq(pengguna.status, "active"),
+      inArray(peran.code, [...ROLE_CODES]),
+    ));
   const roles = new Set<CourseAccessRoleCode>(
     roleRows
       .map((row) => row.code)

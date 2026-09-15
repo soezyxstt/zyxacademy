@@ -125,7 +125,10 @@ export async function listStudentCourses(): Promise<StudentCourseRecord[]> {
   const projected = safeCanonicalRows.map((course) =>
     projectCanonicalCourse(course, course.legacyCourseId ? legacyById.get(course.legacyCourseId) : undefined),
   );
-  const representedLegacyIds = new Set(safeCanonicalRows.flatMap((course) => course.legacyCourseId ? [course.legacyCourseId] : []));
+  // Suppress every mapped legacy identity, including mappings that are
+  // archived, ambiguous, or otherwise excluded from the active projection.
+  // Otherwise an inactive canonical row can reappear as a public legacy card.
+  const representedLegacyIds = new Set(allCanonicalRows.flatMap((course) => course.legacyCourseId ? [course.legacyCourseId] : []));
 
   for (const legacy of legacyRows) {
     if (representedLegacyIds.has(legacy.id) || collidingAliasIds.has(legacy.id)) continue;

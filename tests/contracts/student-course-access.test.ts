@@ -1,6 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import { createClient } from "@libsql/client";
 import { drizzle } from "drizzle-orm/libsql";
+import { eq } from "drizzle-orm";
 import * as schema from "@/db/schema";
 import {
   canAccessCourseContent,
@@ -290,6 +291,50 @@ describe("student course access policy", () => {
       expect(access.scopedChapterIds).toEqual(["legacy-chapter-1", "legacy-chapter-2", "legacy-chapter-3"]);
       expect(canAccessCourseContent(access, "article", ["legacy-chapter-1"])).toBe(true);
       expect(canAccessCourseContent(access, "article", ["legacy-chapter-3"])).toBe(false);
+    } finally {
+      client.close();
+    }
+  });
+
+  it("provisions a canonical identity before granting Free access to a legacy auth account", async () => {
+    const { client, testDb } = await createTestDb();
+    try {
+      const now = new Date("2026-09-14T00:00:00.000Z");
+      await testDb.insert(schema.mataKuliah).values({
+        id: "mk-auth-only",
+        code: "AUTH-ONLY-101",
+        title: "Auth Only",
+        status: "active",
+        createdAt: now,
+        updatedAt: now,
+      });
+      await testDb.insert(schema.bab).values({
+        id: "bab-auth-only-1",
+        mataKuliahId: "mk-auth-only",
+        code: "01",
+        title: "Satu",
+        orderIndex: 1,
+        status: "active",
+        createdAt: now,
+        updatedAt: now,
+      });
+      await testDb.insert(schema.user).values({
+        id: "auth-only-user",
+        name: "Auth Only",
+        email: "auth-only@zyx.test",
+        createdAt: now,
+        updatedAt: now,
+        role: "student",
+      });
+
+      const access = await resolveCourseAccess({ courseId: "mk-auth-only", userId: "auth-only-user" }, testDb);
+      const [identity] = await testDb
+        .select({ id: schema.pengguna.id, status: schema.pengguna.status })
+        .from(schema.pengguna)
+        .where(eq(schema.pengguna.id, "auth-only-user"));
+
+      expect(access.tier).toBe("free");
+      expect(identity).toEqual({ id: "auth-only-user", status: "active" });
     } finally {
       client.close();
     }

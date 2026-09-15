@@ -157,7 +157,10 @@ export function resolveEffectiveRoleForActor(
 ): PeranCode | null {
   const role = effectiveRole(canonicalRoles);
   if (role || actor.identityStatus === "suspended") return role;
-  return actor.identityStatus === "active" || actor.hasAuthUser ? "murid" : null;
+  // Allowance leases reference pengguna.id. A Better Auth row alone is not a
+  // durable identity, so auth-only accounts must be provisioned by the course
+  // access boundary before this fallback can grant the murid lane.
+  return actor.identityStatus === "active" ? "murid" : null;
 }
 
 function toNumber(value: unknown): number {
@@ -303,9 +306,9 @@ async function activeRoles(executor: QueryExecutor, userId: string): Promise<Per
   const roles = normalizePeranCodes(rows.map((row) => row.code));
   if (roles.length > 0) return roles;
 
-  // Keep the allowance boundary aligned with course-access compatibility for
-  // authenticated accounts whose normalized role membership is still absent.
-  // Suspended identities and arbitrary IDs fail closed.
+  // Keep the allowance boundary aligned with the canonical persistence FK.
+  // Auth-only accounts are provisioned by course access before they can use
+  // this service; arbitrary IDs and suspended identities fail closed.
   const [[identity], [knownAuthUser]] = await Promise.all([
     executor
       .select({ status: pengguna.status })

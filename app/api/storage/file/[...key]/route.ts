@@ -113,7 +113,9 @@ export async function GET(
 
     const urlObj = new URL(req.url);
     const isDownload = urlObj.searchParams.get("download") === "1" || urlObj.searchParams.get("download") === "true";
-    if (isDownload && !(await canDownloadDiktat(normalizeStorageKey(key) ?? key))) {
+    // Authorize Diktat delivery before fetching the object. The disposition
+    // query only changes a browser hint and must never decide authorization.
+    if (!(await canDownloadDiktat(normalizeStorageKey(key) ?? key))) {
       return new Response("File not found", { status: 404 });
     }
 

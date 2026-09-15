@@ -14,9 +14,9 @@ describe("Plan 004 allowance role ownership", () => {
     expect(UsageBudgetService.resolveEffectiveRole(["assistant" as never])).toBeNull();
   });
 
-  it("matches course-access Free fallback for known accounts without normalized roles", () => {
+  it("requires a canonical identity before granting the allowance fallback", () => {
     expect(resolveEffectiveRoleForActor([], { identityStatus: "active", hasAuthUser: true })).toBe("murid");
-    expect(resolveEffectiveRoleForActor([], { identityStatus: null, hasAuthUser: true })).toBe("murid");
+    expect(resolveEffectiveRoleForActor([], { identityStatus: null, hasAuthUser: true })).toBeNull();
     expect(resolveEffectiveRoleForActor([], { identityStatus: "suspended", hasAuthUser: true })).toBeNull();
     expect(resolveEffectiveRoleForActor([], { identityStatus: null, hasAuthUser: false })).toBeNull();
   });
