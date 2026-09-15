@@ -4,7 +4,9 @@ Baca bersama [question-quality.md](question-quality.md). File ini menjelaskan ko
 
 ## Host setup
 
-Gunakan koneksi/environment yang dipilih operator. Endpoint `https://staging.zyxacademy.com/api/mcp/authoring` hanya untuk staging; jangan berpindah environment karena menyalin contoh ini. Verifikasi identitas environment dari koneksi sebelum staging.
+<!-- BEGIN:environment-connection -->
+Gunakan koneksi MCP `zyx-authoring-staging` untuk environment `staging` di endpoint `https://staging.zyxacademy.com/api/mcp/authoring`. Jangan gunakan koneksi Zyx dari environment lain. Verifikasi identitas koneksi sebelum melakukan staging.
+<!-- END:environment-connection -->
 
 Gunakan OAuth admin pada host yang mendukung. Host tanpa OAuth interaktif memakai connection token sesuai prosedur Zyx; jangan simpan credential/token di repository, artifact, atau config yang dikomit.
 
