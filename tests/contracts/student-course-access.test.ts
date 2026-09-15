@@ -340,6 +340,71 @@ describe("student course access policy", () => {
     }
   });
 
+  it("preserves a legacy staff role when provisioning the canonical identity", async () => {
+    const { client, testDb } = await createTestDb();
+    try {
+      const now = new Date("2026-09-14T00:00:00.000Z");
+      await testDb.insert(schema.courses).values({
+        id: "legacy-staff-course",
+        title: "Legacy Staff",
+        category: "Matematika",
+      });
+      await testDb.insert(schema.mataKuliah).values({
+        id: "mk-legacy-staff",
+        code: "LEGACY-STAFF-101",
+        title: "Legacy Staff",
+        status: "active",
+        legacyCourseId: "legacy-staff-course",
+        createdAt: now,
+        updatedAt: now,
+      });
+      await testDb.insert(schema.bab).values({
+        id: "bab-legacy-staff-1",
+        mataKuliahId: "mk-legacy-staff",
+        code: "01",
+        title: "Satu",
+        orderIndex: 1,
+        status: "active",
+        createdAt: now,
+        updatedAt: now,
+      });
+      await testDb.insert(schema.user).values([
+        {
+          id: "legacy-admin-user",
+          name: "Legacy Admin",
+          email: "legacy-admin@zyx.test",
+          createdAt: now,
+          updatedAt: now,
+          role: "admin",
+        },
+        {
+          id: "legacy-tutor-user",
+          name: "Legacy Tutor",
+          email: "legacy-tutor@zyx.test",
+          createdAt: now,
+          updatedAt: now,
+          role: "teacher",
+        },
+      ]);
+      await testDb.insert(schema.tutorCourses).values({
+        id: "legacy-tutor-assignment",
+        tutorId: "legacy-tutor-user",
+        courseId: "legacy-staff-course",
+        createdAt: now,
+      });
+
+      const admin = await resolveCourseAccess({ courseId: "mk-legacy-staff", userId: "legacy-admin-user" }, testDb);
+      expect(admin.tier).toBe("staff");
+      expect(admin.roles).toEqual(["admin"]);
+
+      const tutor = await resolveCourseAccess({ courseId: "mk-legacy-staff", userId: "legacy-tutor-user" }, testDb);
+      expect(tutor.tier).toBe("staff");
+      expect(tutor.roles).toEqual(["tutor"]);
+    } finally {
+      client.close();
+    }
+  });
+
   it("preserves canonical and legacy enrollment semantics and grants staff separately", async () => {
     const { client, testDb } = await createTestDb();
     try {

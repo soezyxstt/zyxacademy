@@ -20,6 +20,11 @@ export function ZyraAllowanceSummary({
   const [unavailable, setUnavailable] = React.useState(false);
 
   React.useEffect(() => {
+    setSummary(null);
+    setUnavailable(false);
+  }, [courseId]);
+
+  React.useEffect(() => {
     let cancelled = false;
     const query = courseId ? `?courseId=${encodeURIComponent(courseId)}` : "";
     fetch(`/api/zyra/allowance${query}`, { cache: "no-store" })

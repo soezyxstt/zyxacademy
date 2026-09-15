@@ -67,7 +67,7 @@ export function StudentOnboardingView({
         title={
           <>
             Mulai belajar,{" "}
-            <span className="bg-linear-to-r from-brand-primary to-brand-secondary bg-clip-text text-transparent">
+            <span className="text-brand-primary">
               {firstName}
             </span>
           </>

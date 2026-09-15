@@ -32,7 +32,7 @@ import {
 } from "@/lib/learner-profile";
 import { recordLearningEvent } from "@/lib/learning-events";
 import { USE_CASES } from "@/lib/ai-router";
-import { UsageBudgetService, type AllowanceAccessTier } from "@/lib/usage-budget-service";
+import { UsageBudgetService, type AllowanceAccessTier, type AllowanceReserveResult } from "@/lib/usage-budget-service";
 import { zyraRuntimeEnv } from "@/lib/zyra/runtime-env";
 import {
   evaluateAssessmentAssistancePolicy,
@@ -257,16 +257,15 @@ async function logCacheHit(
   feature: string,
   accessTier: AllowanceAccessTier = "standard",
   idempotencyKey?: string,
-): Promise<void> {
+): Promise<AllowanceReserveResult | null> {
   if (UsageBudgetService.isAllowanceEnabled()) {
-    await UsageBudgetService.recordCacheHit({
+    return UsageBudgetService.recordCacheHit({
       userId,
       idempotencyKey: idempotencyKey ?? `cache:${feature}:${randomUUID()}`,
       feature,
       model: "kv-cache",
       accessTier,
     });
-    return;
   }
 
   try {
@@ -282,6 +281,7 @@ async function logCacheHit(
   } catch {
  // observability only, never block the answer
  }
+  return null;
 }
 
 interface GroundedVars {
@@ -935,12 +935,26 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
         canvasSpec: isZyraCanvasFeatureEnabled() ? base.canvasSpec ?? null : null,
       };
       assertNoStudentTextInSharedCache(cacheKey, base, [studentId, sessionId ?? ""]);
-      await logCacheHit(
+      const cacheAllowance = await logCacheHit(
         studentId,
         "tutor_rag",
         accessTier,
         idempotencyKey ? `${idempotencyKey}:cache` : undefined,
       );
+      if (cacheAllowance && !cacheAllowance.accepted) {
+        const quotaExhausted = [
+          "PER_MINUTE_LIMIT",
+          "TOTAL_INTERACTION_LIMIT",
+          "PROVIDER_TURN_LIMIT",
+          "PREMIUM_LIMIT",
+        ].includes(cacheAllowance.reason);
+        budgetExhausted = quotaExhausted;
+        terminalFailure = quotaExhausted ? "quota_exhausted" : "provider_unavailable";
+        // Do not fall through to provider generation after a cache-hit
+        // allowance rejection. The cached bytes are an answer interaction too.
+        remoteCacheGateClosed = true;
+        base = null;
+      }
     } else {
       base = null;
     }

@@ -69,7 +69,8 @@ for (const route of routes) {
       return;
     }
 
-    await expect(page.getByText("Mode demo", { exact: true })).toBeVisible();
+    await expect(page.getByRole("navigation", { name: "Navigasi demo" })).toBeVisible();
+    await expect(page.getByText("Mode demo", { exact: true })).toHaveCount(0);
     expect(await page.locator("body").innerText()).not.toContain("correctIndices");
 
     if (route === "/demo/flashcards") {

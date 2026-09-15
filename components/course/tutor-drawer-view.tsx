@@ -177,6 +177,10 @@ export function TutorDrawerView({
   const advancedModesEnabled = zyraAccessTier !== "free";
   const imageInputEnabled = caps.imageInput && activeMode === "chat" && advancedModesEnabled;
 
+  React.useEffect(() => {
+    setZyraAccessTier(null);
+  }, [courseIdFromPath]);
+
   // Loading and response states
   const [loading, setLoading] = React.useState(false);
   const [errors, setErrors] = React.useState<string[]>([]);

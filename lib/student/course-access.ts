@@ -13,6 +13,7 @@ import {
   user as authUser,
 } from "@/db/schema";
 import { checkTutorCourseAccess } from "@/lib/auth/tutor-access";
+import { mapLegacyRole, membershipIdFor } from "@/lib/auth/peran";
 
 export type CourseAccessTier = "anonymous" | "free" | "enrolled" | "staff";
 export type CourseAccessRole = "admin" | "tutor" | "murid" | null;
@@ -351,7 +352,7 @@ async function resolveActor(
       .where(eq(pengguna.id, userId))
       .limit(1),
     client
-      .select({ id: authUser.id, createdAt: authUser.createdAt, updatedAt: authUser.updatedAt })
+      .select({ id: authUser.id, createdAt: authUser.createdAt, updatedAt: authUser.updatedAt, role: authUser.role })
       .from(authUser)
       .where(eq(authUser.id, userId))
       .limit(1),
@@ -374,6 +375,22 @@ async function resolveActor(
   // canonical write, including allowance leases, has a valid FK target.
   if (!identity && knownAuthUser) {
     try {
+      // The legacy role must be carried into the canonical membership during
+      // provisioning. Otherwise a legacy staff account becomes roleless after
+      // its first Free-course request and canonical guards deny it.
+      const legacyRole = mapLegacyRole(knownAuthUser.role ?? "student");
+      if (!legacyRole) throw new Error("Unsupported Better Auth role");
+      const [roleRecord] = await client
+        .select({ id: peran.id })
+        .from(peran)
+        .where(eq(peran.code, legacyRole))
+        .limit(1);
+      if (!roleRecord) throw new Error("Canonical role seed is unavailable");
+
+      // Keep these idempotent writes on the caller's executor. Some supported
+      // SQLite test and edge adapters do not preserve an in-memory schema
+      // across a transaction handle, while the conflict guards still make
+      // concurrent provisioning safe.
       await client
         .insert(pengguna)
         .values({
@@ -381,6 +398,17 @@ async function resolveActor(
           status: "active",
           createdAt: knownAuthUser.createdAt,
           updatedAt: knownAuthUser.updatedAt,
+        })
+        .onConflictDoNothing();
+      await client
+        .insert(penggunaPeran)
+        .values({
+          id: membershipIdFor(userId, legacyRole),
+          penggunaId: userId,
+          peranId: roleRecord.id,
+          source: "better_auth_user_create",
+          auditActorPenggunaId: null,
+          createdAt: knownAuthUser.createdAt,
         })
         .onConflictDoNothing();
       const [provisionedIdentity] = await client
