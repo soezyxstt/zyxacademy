@@ -21,7 +21,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "@/components/ui/toast";
-import { saveCourseMaterial } from "@/app/(admin)/admin/(academic)/courses/actions";
+import {
+  saveCourseMaterial,
+  standardizeDocumentTitleAction,
+} from "@/app/(admin)/admin/(academic)/courses/actions";
 import { BatchUploadDialog } from "@/components/admin/course-detail/batch-upload-dialog";
 import {
   LEVEL1_CATEGORIES,
@@ -81,6 +84,7 @@ export function AdminUploadDocumentDialog({
   const [selectedChapters, setSelectedChapters] = useState<Set<string>>(new Set());
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
+  const [isFormattingWithAi, setIsFormattingWithAi] = useState(false);
 
   const availableSubcategories = getSubcategoriesForLevel1(type);
 
@@ -91,9 +95,10 @@ export function AdminUploadDocumentDialog({
     setYear("");
     setSelectedChapters(new Set());
     setSelectedFile(null);
+    setIsFormattingWithAi(false);
   };
 
-  const handleFile = (file: File | null) => {
+  const handleFile = async (file: File | null) => {
     setSelectedFile(file);
     if (!file) return;
 
@@ -109,7 +114,7 @@ export function AdminUploadDocumentDialog({
       return;
     }
 
-    // Auto-detect metadata
+    // 1. Auto-detect metadata cepat berbasis heuristik lokal
     const metadata = detectMetadataFromFilename(file.name, chapters);
     const standardTitle = standardizeDocumentTitle(metadata.title || file.name);
     setTitle(standardTitle);
@@ -119,11 +124,73 @@ export function AdminUploadDocumentDialog({
     if (metadata.chapterIds.length > 0) {
       setSelectedChapters(new Set(metadata.chapterIds));
     }
+
+    // 2. Refine dengan Gemini AI di background untuk menyelaraskan pergeseran bab (Bab 0 vs Bab 1)
+    setIsFormattingWithAi(true);
+    try {
+      const result = await standardizeDocumentTitleAction({
+        filename: file.name,
+        courseId,
+        chapters,
+        currentValues: {
+          title: standardTitle,
+          category: metadata.category,
+          subcategory: metadata.subcategory,
+          year: metadata.year,
+        },
+      });
+
+      if (result) {
+        if (result.title) setTitle(result.title);
+        if (result.category) setType(result.category);
+        if (result.subcategory) setSubcategory(result.subcategory);
+        if (result.year) setYear(String(result.year));
+        if (result.chapterIds && result.chapterIds.length > 0) {
+          setSelectedChapters(new Set(result.chapterIds));
+        }
+      }
+    } catch (err) {
+      console.warn("AI background format fallback to heuristic:", err);
+    } finally {
+      setIsFormattingWithAi(false);
+    }
   };
 
-  const handleFormatTitle = () => {
-    if (!title.trim()) return;
-    setTitle(standardizeDocumentTitle(title));
+  const handleFormatTitle = async () => {
+    const targetName = selectedFile ? selectedFile.name : title.trim();
+    if (!targetName) return;
+
+    setIsFormattingWithAi(true);
+    try {
+      const result = await standardizeDocumentTitleAction({
+        filename: targetName,
+        courseId,
+        chapters,
+        currentValues: {
+          title: title.trim(),
+          category: type,
+          subcategory,
+          year: year ? parseInt(year, 10) : null,
+        },
+      });
+
+      if (result) {
+        if (result.title) setTitle(result.title);
+        if (result.category) setType(result.category);
+        if (result.subcategory) setSubcategory(result.subcategory);
+        if (result.year) setYear(String(result.year));
+        if (result.chapterIds && result.chapterIds.length > 0) {
+          setSelectedChapters(new Set(result.chapterIds));
+        }
+        toast.success("Format judul dan bab berhasil dirapikan dengan AI.");
+      }
+    } catch (err) {
+      console.error("AI format failed, fallback to local:", err);
+      setTitle(standardizeDocumentTitle(title));
+      toast.error("Gagal menggunakan AI, menggunakan format kapitalisasi standar.");
+    } finally {
+      setIsFormattingWithAi(false);
+    }
   };
 
   const toggleChapter = (chapterId: string) => {
@@ -327,15 +394,20 @@ export function AdminUploadDocumentDialog({
                 <Label className="text-body-sm font-semibold text-foreground">
                   Judul Tampilan
                 </Label>
-                {title.trim() ? (
+                {title.trim() || selectedFile ? (
                   <button
                     type="button"
                     onClick={handleFormatTitle}
-                    className="inline-flex items-center gap-1 text-body-xs text-brand-primary hover:underline cursor-pointer"
-                    title="Format kapitalisasi baku"
+                    disabled={isFormattingWithAi || loading}
+                    className="inline-flex items-center gap-1 text-body-xs text-brand-primary hover:underline cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                    title="Rapikan display name dan sinkronkan bab dengan Gemini AI"
                   >
-                    <Sparkles className="size-3" />
-                    Rapikan Format
+                    {isFormattingWithAi ? (
+                      <Loader2 className="size-3 animate-spin" />
+                    ) : (
+                      <Sparkles className="size-3" />
+                    )}
+                    <span>{isFormattingWithAi ? "Menganalisis..." : "Rapikan dengan AI"}</span>
                   </button>
                 ) : null}
               </div>

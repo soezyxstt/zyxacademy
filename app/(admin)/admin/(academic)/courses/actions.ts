@@ -28,6 +28,7 @@ import {
   isValidSubcategory,
   type CourseMaterialCategory,
   type CourseMaterialSubcategory,
+  type MaterialLevel1Category,
 } from "@/lib/course-materials";
 import {
   archiveChapterWithLegacyDeletion,
@@ -1074,4 +1075,44 @@ export async function getCourseNavContext(slugOrId: string): Promise<CourseNavCo
     title: canonicalCourse?.title ?? legacyCourse!.title,
     category,
   };
+}
+
+export async function standardizeDocumentTitleAction(input: {
+  filename: string;
+  courseId: string;
+  courseTitle?: string | null;
+  chapters: Array<{ id: string; title: string; orderIndex: number; description?: string | null }>;
+  currentValues?: {
+    title?: string;
+    category?: MaterialLevel1Category;
+    subcategory?: CourseMaterialSubcategory | null;
+    year?: number | null;
+  };
+}) {
+  const { user } = await assertAdmin();
+  const { standardizeDocumentMetadataWithAi } = await import(
+    "@/lib/academic/ai-document-standardizer"
+  );
+  return standardizeDocumentMetadataWithAi({
+    ...input,
+    courseCode: input.courseId,
+    userId: user.id,
+  });
+}
+
+export async function batchStandardizeDocumentsAction(input: {
+  files: Array<{ id: string; filename: string }>;
+  courseId: string;
+  courseTitle?: string | null;
+  chapters: Array<{ id: string; title: string; orderIndex: number; description?: string | null }>;
+}) {
+  const { user } = await assertAdmin();
+  const { batchStandardizeDocumentsWithAi } = await import(
+    "@/lib/academic/ai-document-standardizer"
+  );
+  return batchStandardizeDocumentsWithAi({
+    ...input,
+    courseCode: input.courseId,
+    userId: user.id,
+  });
 }
