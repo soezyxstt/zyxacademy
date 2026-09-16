@@ -101,7 +101,7 @@ The MCP lifecycle surface provides inventory inspection, maintenance, and review
 - `authoring.restage_idea_bundle` and `authoring.restage_product_bundle` replace staged drafts and reset prior reviews via lifecycle services (`authoring:stage`).
 - `authoring.discard_product_draft` deletes draft Product Bundles and their staging artifacts (`authoring:withdraw`).
 - `authoring.review_idea_bundle` and `authoring.review_product_bundle` record immutable review decisions (`authoring:review`).
-- `authoring.withdraw_product_bundle` executes audited, idempotent, destructive withdrawal of published Product Bundles (`authoring:withdraw`). Idea Bundle withdrawal is not implemented.
+- `authoring.withdraw_product_bundle` executes audited, idempotent, destructive withdrawal of published Product Bundles (`authoring:withdraw`). Published Idea Bundle withdrawal is available only in the authenticated admin review UI and is not exposed through MCP.
 
 Preserving the no-publication boundary: There is no `authoring:publish` scope and no publication tool. The instruction skills live under `plugins/zyx-authoring-mcp/skills/zyx-source-pack-mcp`, `plugins/zyx-authoring-mcp/skills/zyx-idea-bundle-mcp`, `plugins/zyx-authoring-mcp/skills/zyx-product-bundle-mcp`, and `plugins/zyx-authoring-mcp/skills/zyx-question-authoring-mcp`; they guide agents but MCP remains authoritative.
 

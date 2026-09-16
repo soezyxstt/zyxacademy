@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { and, eq, or } from "drizzle-orm";
+import { and, eq, inArray, or } from "drizzle-orm";
 import { db } from "@/db";
 import {
   asalIde,
@@ -27,6 +27,7 @@ import { parseIdeaBundle, serializeDeterministically, type ValidatedIdeaBundle }
 import { sha256Text } from "@/lib/bundle/validator";
 import { readSecureZip } from "@/lib/bundle/zip-reader";
 import { resolveBundleIdentity } from "@/lib/bundle/attribution";
+import { hasAdminAuthorization } from "@/lib/auth/admin-guards";
 import { dispatchVectorSync } from "@/lib/vector-sync-dispatch";
 
 export type IdeaBundlePublicationResult = {
@@ -42,6 +43,13 @@ export type IdeaBundlePublicationResult = {
     relations: number;
     learningSections: number;
   };
+  vectorJobCount: number;
+};
+
+export type IdeaBundleWithdrawalResult = {
+  importId: string;
+  withdrawn: boolean;
+  entityCount: number;
   vectorJobCount: number;
 };
 
@@ -474,6 +482,75 @@ export async function publishIdeaBundle(input: {
   if (courseLegacyId) {
     dispatchVectorSync(courseLegacyId);
   }
+  return result;
+}
+
+export async function withdrawIdeaBundle(input: { importId: string; withdrawnBy: string }): Promise<IdeaBundleWithdrawalResult> {
+  ensureFeatureEnabled();
+  const [actor] = await db.select({ role: user.role }).from(user).where(eq(user.id, input.withdrawnBy)).limit(1);
+  if (!actor || !(await hasAdminAuthorization(input.withdrawnBy, actor.role))) throw new Error("IDEA_BUNDLE_WITHDRAW_FORBIDDEN");
+  const snapshot = await getIdeaBundleImport(input.importId);
+  if (!snapshot) throw new Error("IDEA_BUNDLE_NOT_FOUND");
+  if (snapshot.status === "withdrawn") return { importId: input.importId, withdrawn: false, entityCount: 0, vectorJobCount: 0 };
+  if (snapshot.status !== "published") throw new Error("IDEA_BUNDLE_PUBLISHED_REQUIRED");
+  const bundle = await loadAndValidate(input.importId, snapshot.bundleId, snapshot.checksum);
+
+  let courseLegacyId: string | undefined;
+  const result = await db.transaction(async (tx) => {
+    const [row] = await tx.select().from(imporBundle).where(eq(imporBundle.id, input.importId)).limit(1);
+    if (!row || row.bundleType !== "idea") throw new Error("IDEA_BUNDLE_NOT_FOUND");
+    if (row.status !== "published") throw new Error("IDEA_BUNDLE_PUBLISHED_REQUIRED");
+    await requireIdentity(tx, input.withdrawnBy, "IDEA_BUNDLE_WITHDRAWER_NOT_FOUND");
+
+    const course = await resolveCourse(tx, bundle.manifest.courseId);
+    courseLegacyId = course.legacyId;
+    const now = new Date();
+    const sourceIds = bundle.entities.sourceMaterials.map((source) => source.id);
+    const ideaIds = bundle.entities.ideas.map((idea) => idea.id);
+    const relationIds = bundle.entities.relations.map((relation) => relation.id);
+    const sectionIds = bundle.entities.learningSections.map((section) => section.id);
+
+    if (sourceIds.length > 0) await tx.update(sumberMateri).set({ status: "withdrawn", updatedAt: now }).where(inArray(sumberMateri.id, sourceIds));
+    if (ideaIds.length > 0) await tx.update(ide).set({ status: "withdrawn", updatedAt: now }).where(inArray(ide.id, ideaIds));
+    if (relationIds.length > 0) await tx.update(relasiIde).set({ status: "withdrawn", updatedAt: now }).where(inArray(relasiIde.id, relationIds));
+    if (sectionIds.length > 0) await tx.update(bagianPembelajaran).set({ status: "withdrawn", updatedAt: now }).where(inArray(bagianPembelajaran.id, sectionIds));
+
+    const vectorJobs = [
+      ...bundle.entities.sourceChunks.filter((chunk) => chunk.embeddingEligible).map((chunk) => ({
+        id: deterministicId("vector-idea-source-withdraw", `${input.importId}:${chunk.id}:${chunk.sourceVersion}`),
+        courseId: course.legacyId,
+        koId: null,
+        action: "delete" as const,
+        namespace: "source_materials",
+        payload: { entityType: "source_material", entityId: chunk.id, version: chunk.sourceVersion, metadata: { entityId: chunk.id, version: chunk.sourceVersion } },
+      })),
+      ...bundle.entities.ideas.map((idea) => ({
+        id: deterministicId("vector-idea-withdraw", `${input.importId}:${idea.id}:${idea.version}`),
+        courseId: course.legacyId,
+        koId: null,
+        action: "delete" as const,
+        namespace: "canonical_ideas",
+        payload: { entityType: "idea", entityId: idea.id, version: idea.version, metadata: { entityId: idea.id, version: idea.version } },
+      })),
+    ];
+    for (const job of vectorJobs) await tx.insert(vectorSyncQueue).values(job).onConflictDoNothing();
+    await tx.update(publikasiBundle).set({ status: "withdrawn" }).where(and(eq(publikasiBundle.imporBundleId, input.importId), eq(publikasiBundle.status, "published")));
+    await tx.update(itemImporBundle).set({ status: "withdrawn" }).where(eq(itemImporBundle.imporBundleId, input.importId));
+    await tx.update(imporBundle).set({ status: "withdrawn", updatedAt: now }).where(eq(imporBundle.id, input.importId));
+    const entityCount = sourceIds.length + bundle.entities.sourceChunks.length + ideaIds.length + bundle.entities.provenance.length + relationIds.length + sectionIds.length;
+    await tx.insert(auditMutasi).values({
+      id: deterministicId("audit", `${input.importId}:withdrawn`),
+      actorId: input.withdrawnBy,
+      entityType: "idea_bundle",
+      entityId: input.importId,
+      action: "withdrawn",
+      beforeSnapshot: { status: "published" },
+      afterSnapshot: { status: "withdrawn", entityCount, vectorJobCount: vectorJobs.length },
+      correlationId: input.importId,
+    }).onConflictDoNothing();
+    return { importId: input.importId, withdrawn: true, entityCount, vectorJobCount: vectorJobs.length };
+  });
+  if (courseLegacyId) await dispatchVectorSync(courseLegacyId);
   return result;
 }
 

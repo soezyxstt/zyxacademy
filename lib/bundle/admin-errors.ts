@@ -44,6 +44,8 @@ const explanations: Record<string, string> = {
   IDEA_BUNDLE_VALIDATION_FAILED: "Validasi Idea Bundle belum terpenuhi. Periksa struktur dan bukti sumber.",
   IDEA_BUNDLE_PUBLISH_FAILED: "Gagal mempublikasikan Idea Bundle.",
   IDEA_BUNDLE_DISCARD_FAILED: "Gagal menghapus draf Idea Bundle.",
+  IDEA_BUNDLE_ARTIFACT_DELETE_FAILED: "ZIP Idea Bundle belum dapat dihapus. Coba hapus bundle kembali.",
+  IDEA_BUNDLE_WITHDRAW_FAILED: "Gagal menarik publikasi Idea Bundle.",
   IDEA_BUNDLE_LIST_FAILED: "Gagal memuat daftar Idea Bundle.",
   IDEA_BUNDLE_DETAIL_FAILED: "Gagal memuat detail Idea Bundle.",
   RUBRIC_CRITERION_DUPLICATE: "Terdapat kriteria review pedagogi yang duplikat.",

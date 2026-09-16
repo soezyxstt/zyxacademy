@@ -313,15 +313,6 @@ export function CoursesDashboard({ initialCourses }: Props) {
                   <h3 className="font-heading text-body-sm font-bold text-foreground group-hover:text-brand-primary transition-colors line-clamp-1">
                     {c.title}
                   </h3>
-                  {c.description ? (
-                    <p className="text-body-xs text-muted-foreground mt-0.5 line-clamp-2">
-                      {c.description}
-                    </p>
-                  ) : (
-                    <p className="text-body-xs text-muted-foreground/50 italic mt-0.5">
-                      Belum ada deskripsi mata kuliah.
-                    </p>
-                  )}
                 </div>
 
                 {/* Counters */}
@@ -397,11 +388,6 @@ export function CoursesDashboard({ initialCourses }: Props) {
                   </td>
                   <td className="px-3.5 py-2.5">
                     <p className="font-semibold text-foreground">{c.title}</p>
-                    {c.description && (
-                      <p className="text-body-xs text-muted-foreground truncate max-w-xs">
-                        {c.description}
-                      </p>
-                    )}
                   </td>
                   <td className="px-3.5 py-2.5">
                     <Badge variant="secondary" className="rounded-md text-[10px] font-medium px-1.5 py-0.5">

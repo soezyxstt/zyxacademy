@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   AlertTriangle,
   ArchiveX,
@@ -66,6 +67,7 @@ import styles from "./material-review-detail.module.css";
 type DetailProps = {
   detailId: string;
   courseLabels?: Record<string, string>;
+  backHref?: string;
 };
 
 type IdeaPreview = {
@@ -214,6 +216,7 @@ const statusLabels: Record<string, string> = {
   draft: "Draft",
   published: "Terbit",
   withdrawn: "Ditarik",
+  discarding: "Penghapusan tertunda",
 };
 
 const statusTones: Record<string, "muted" | "info" | "success" | "warning" | "error" | "brand"> = {
@@ -223,6 +226,7 @@ const statusTones: Record<string, "muted" | "info" | "success" | "warning" | "er
   draft: "info",
   published: "success",
   withdrawn: "muted",
+  discarding: "warning",
 };
 
 const knowledgeLabels: Record<string, string> = {
@@ -309,6 +313,28 @@ function displayLabel(value: string, labels: Record<string, string>) {
   return labels[value] ?? value.replaceAll("_", " ");
 }
 
+function shortIdeaCode(code: string): string {
+  return code.replace(/^[^-]+-/, "");
+}
+
+function ideaName(idea: IdeaPreview["ideas"][number] | undefined): string {
+  if (!idea) return "Idea tidak ditemukan";
+  const code = shortIdeaCode(idea.code);
+  if (!code) return idea.learningSection?.title ?? "Idea tanpa nama";
+  return code
+    .toLocaleLowerCase("id-ID")
+    .replaceAll("-", " ")
+    .replace(/\b\p{L}/gu, (letter) => letter.toLocaleUpperCase("id-ID"));
+}
+
+function readableSourceExcerpt(excerpt: string): string {
+  return excerpt
+    .replace(/<!--[\s\S]*?-->/g, "")
+    .replace(/^#{1,6}\s+/gm, "")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
 function DetailStatus({ status }: { status: string }) {
   return <StatusBadge tone={statusTones[status] ?? "muted"}>{statusLabels[status] ?? status}</StatusBadge>;
 }
@@ -321,13 +347,13 @@ function DetailLoading() {
 // Idea Bundle Review Detail (Compact & Space-Efficient)
 // ---------------------------------------------------------------------------
 
-export function IdeaBundleReviewDetail({ detailId, courseLabels = {} }: DetailProps) {
+export function IdeaBundleReviewDetail({ detailId, backHref }: DetailProps) {
+  const router = useRouter();
   const [payload, setPayload] = useState<IdeaDetailPayload | null>(null);
   const [draft, setDraft] = useState<IdeaDraft | null>(null);
   const [selectedIdeaId, setSelectedIdeaId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [evidenceOpen, setEvidenceOpen] = useState(false);
   const [statusFilter, setStatusFilter] = useState<"all" | "pending" | "approved" | "changes_requested">("all");
   const [ideaReviewNotes, setIdeaReviewNotes] = useState<Record<string, string>>({});
   const [reviewNote, setReviewNote] = useState("");
@@ -335,6 +361,7 @@ export function IdeaBundleReviewDetail({ detailId, courseLabels = {} }: DetailPr
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [confirmAction, setConfirmAction] = useState<"discard" | "withdraw" | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -431,10 +458,17 @@ export function IdeaBundleReviewDetail({ detailId, courseLabels = {} }: DetailPr
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ targetType: "idea", targetId: activeIdea.id, status, notes: ideaReviewNotes[activeIdea.id]?.trim() || undefined }),
       });
-      const result = await response.json() as { error?: string };
+      const result = await response.json() as { result?: IdeaDetailPayload["itemReviews"][number]; error?: string };
       if (!response.ok) throw new Error(result.error || "IDEA_ITEM_REVIEW_UPDATE_FAILED");
-      await load();
-      const nextPending = ideasList.slice(currentIndex + 1).find((idea) => !payload?.itemReviews.some((review) => review.targetId === idea.id && review.status !== "pending"));
+      if (!result.result) throw new Error("IDEA_ITEM_REVIEW_UPDATE_FAILED");
+      const nextReviews = [
+        ...payload!.itemReviews.filter((review) => review.targetId !== activeIdea.id),
+        result.result,
+      ];
+      setPayload((current) => current ? { ...current, itemReviews: nextReviews } : current);
+      const nextPending = ideasList
+        .slice(currentIndex + 1)
+        .find((idea) => (nextReviews.find((review) => review.targetId === idea.id)?.status ?? "pending") === "pending");
       if (nextPending) setSelectedIdeaId(nextPending.id);
     } catch (reviewError) {
       setError(explainBundleError(reviewError instanceof Error ? reviewError.message : "IDEA_ITEM_REVIEW_UPDATE_FAILED"));
@@ -450,27 +484,36 @@ export function IdeaBundleReviewDetail({ detailId, courseLabels = {} }: DetailPr
     }
   }
 
+  async function mutate(action: "discard" | "withdraw") {
+    if (!payload) return;
+    setSaving(true);
+    setError(null);
+    try {
+      const endpoint = action === "withdraw"
+        ? `/api/admin/bundles/idea/${encodeURIComponent(payload.bundle.id)}/withdraw`
+        : `/api/admin/bundles/idea/${encodeURIComponent(payload.bundle.id)}`;
+      const response = await fetch(endpoint, { method: action === "discard" ? "DELETE" : "POST" });
+      const result = await response.json() as { error?: string };
+      if (!response.ok) throw new Error(result.error || `IDEA_BUNDLE_${action.toUpperCase()}_FAILED`);
+      if (action === "discard") {
+        router.replace(backHref ?? "/admin/materials/review?section=idea");
+      } else {
+        setPayload((current) => current ? { ...current, bundle: { ...current.bundle, status: "withdrawn" } } : current);
+      }
+    } catch (mutationError) {
+      setError(explainBundleError(mutationError instanceof Error ? mutationError.message : "IDEA_BUNDLE_UPDATE_FAILED"));
+    } finally {
+      setSaving(false);
+    }
+  }
+
   if (loading) return <DetailLoading />;
   if (error && !payload) return <AdminErrorState message={error} onRetry={() => void load()} />;
   if (!payload) return <AdminEmptyState title="Artifact tidak ditemukan" description="Artifact mungkin sudah dihapus atau tidak dapat dibaca." />;
 
   return (
     <div className="space-y-4">
-      {/* Compact Meta Strip */}
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-card px-4 py-3 shadow-xs">
-        <div className="flex flex-wrap items-center gap-3 text-body-sm">
-          <span className="font-semibold text-foreground">{payload.bundle.courseId ? courseLabels[payload.bundle.courseId] ?? payload.bundle.courseId : "Belum terpetakan"}</span>
-          <span className="text-muted-foreground">·</span>
-          <span className="text-muted-foreground"><FormattedDate date={payload.bundle.createdAt} /></span>
-          <span className="text-muted-foreground">·</span>
-          <span className="font-medium text-foreground">{payload.preview.summary.ideaCount} Idea</span>
-          <span className="text-muted-foreground">·</span>
-          <span className="text-muted-foreground">{payload.preview.summary.sourceCount} sumber</span>
-        </div>
-        <DetailStatus status={payload.bundle.status} />
-      </div>
-
-      {/* Top Navigator Bar (Prev/Next Stepper, Quick Selector, Drawer) */}
+      {/* Top Navigator Bar */}
       <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border bg-muted/40 p-2 shadow-xs">
         <div className="flex items-center gap-1.5">
           <Button
@@ -498,22 +541,6 @@ export function IdeaBundleReviewDetail({ detailId, courseLabels = {} }: DetailPr
           >
             <ChevronRight className="size-4" />
           </Button>
-        </div>
-
-        {/* Quick Dropdown Selector */}
-        <div className="min-w-0 flex-1 max-w-md">
-          <Select value={activeIdea?.id ?? ""} onValueChange={(id) => { setSelectedIdeaId(id); setEditing(false); }}>
-            <SelectTrigger className="h-8 text-body-sm">
-              <SelectValue placeholder="Pilih Idea..." />
-            </SelectTrigger>
-            <SelectContent className="max-h-72">
-              {ideasList.map((idea, idx) => (
-                <SelectItem key={idea.id} value={idea.id} className="text-body-sm">
-                  <span className="font-semibold">{idea.code || `Idea ${idx + 1}`}</span>: {idea.canonicalStatement.slice(0, 50)}...
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
         </div>
 
         <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as typeof statusFilter)}>
@@ -559,7 +586,7 @@ export function IdeaBundleReviewDetail({ detailId, courseLabels = {} }: DetailPr
                   )}
                 >
                   <div className="flex items-center justify-between">
-                    <span className="font-semibold text-foreground">{idea.code || `Idea ${index + 1}`}</span>
+                    <span className="font-semibold text-foreground">{shortIdeaCode(idea.code) || `Idea ${index + 1}`}</span>
                     <Badge variant="outline" className="text-[10px]">{idea.provenance.length} sumber</Badge>
                   </div>
                   <p className="mt-1 line-clamp-2 text-muted-foreground"><MathText as="span">{idea.canonicalStatement}</MathText></p>
@@ -569,26 +596,16 @@ export function IdeaBundleReviewDetail({ detailId, courseLabels = {} }: DetailPr
           </SheetContent>
         </Sheet>
 
-        <Sheet open={evidenceOpen} onOpenChange={setEvidenceOpen}>
-          <SheetTrigger asChild><Button type="button" size="sm" variant="outline" className="h-8 gap-1.5 text-body-sm lg:hidden"><Info className="size-3.5" />Bukti</Button></SheetTrigger>
-          <SheetContent side="right" className="overflow-y-auto">
-            <SheetHeader><SheetTitle>Bukti dan relasi</SheetTitle></SheetHeader>
-            {activeIdea ? <div className="mt-4 space-y-4">
-              <div><p className="text-body-xs font-semibold text-muted-foreground">Bagian belajar</p><p className="mt-1 text-body-sm font-semibold">{activeIdea.learningSection?.title ?? "Belum dipetakan"}</p></div>
-              {activeIdea.provenance.map((proof) => <div key={proof.id} className="rounded-lg border border-border bg-muted/30 p-3"><p className="text-body-sm font-semibold">{proof.sourceTitle}</p><p className="mt-1 text-body-xs text-muted-foreground">{proof.excerpt}</p></div>)}
-            </div> : null}
-          </SheetContent>
-        </Sheet>
       </div>
 
       {/* 100% Width Canvas for Idea Content */}
       {activeIdea ? (
-        <div className={cn("grid items-start gap-5", payload.structuredReaderEnabled && "lg:grid-cols-[minmax(220px,0.75fr)_minmax(0,2fr)_minmax(240px,0.85fr)]")}>
+        <div className={cn("grid items-start gap-5", payload.structuredReaderEnabled && "lg:grid-cols-[minmax(240px,0.7fr)_minmax(0,2.3fr)]")}>
           {payload.structuredReaderEnabled ? <aside className="sticky top-4 hidden max-h-[calc(100vh-2rem)] space-y-3 overflow-y-auto lg:block">
             <SearchBar size="sm" value={searchQuery} onSearch={setSearchQuery} onClear={() => setSearchQuery("")} placeholder="Cari Idea" />
             {filteredIdeas.map((idea) => {
               const status = payload.itemReviews.find((review) => review.targetId === idea.id)?.status ?? "pending";
-              return <button key={idea.id} type="button" onClick={() => { setSelectedIdeaId(idea.id); setEditing(false); }} className={cn("w-full rounded-lg border p-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring", activeIdea.id === idea.id ? "border-primary bg-primary/5" : "border-border bg-card hover:bg-muted/50")}><div className="flex items-center justify-between gap-2"><span className="text-body-sm font-semibold">{idea.code}</span><StatusBadge tone={blockReviewTones[status]}>{blockReviewLabels[status]}</StatusBadge></div><p className="mt-1 line-clamp-2 text-body-xs text-muted-foreground"><MathText as="span">{idea.canonicalStatement}</MathText></p></button>;
+              return <button key={idea.id} type="button" aria-label={`${shortIdeaCode(idea.code)}, ${blockReviewLabels[status]}`} onClick={() => { setSelectedIdeaId(idea.id); setEditing(false); }} className={cn("w-full rounded-lg border p-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring", status === "approved" ? "border-status-success/50 bg-status-success/10 hover:bg-status-success/15" : status === "changes_requested" ? "border-status-warning/60 bg-status-warning/10 hover:bg-status-warning/15" : "border-border bg-card hover:bg-muted/50", activeIdea.id === idea.id && "ring-2 ring-primary ring-offset-1 ring-offset-background")}><span className="text-body-sm font-semibold">{shortIdeaCode(idea.code)}</span><p className="mt-1 line-clamp-2 text-body-xs text-muted-foreground"><MathText as="span">{idea.canonicalStatement}</MathText></p></button>;
             })}
           </aside> : null}
         <article key={activeIdea.id} className="space-y-6 rounded-xl border border-border bg-card p-5 shadow-xs sm:p-7">
@@ -599,11 +616,11 @@ export function IdeaBundleReviewDetail({ detailId, courseLabels = {} }: DetailPr
                 <Badge variant="outline" className="text-body-xs">{displayLabel(activeIdea.instructionalRole, roleLabels)}</Badge>
                 <span className="text-body-xs text-muted-foreground">Bab {activeIdea.chapterId}</span>
               </div>
-              <h3 className="mt-2 font-heading text-body-base font-bold text-foreground">{activeIdea.code || "Idea tanpa kode"}</h3>
+              <h3 className="mt-2 font-heading text-body-base font-bold text-foreground">{shortIdeaCode(activeIdea.code) || "Idea tanpa kode"}</h3>
             </div>
             <div className="flex items-center gap-2">
               <Badge variant="outline">{activeIdea.provenance.length} bukti sumber</Badge>
-              {!editing && payload.bundle.status !== "published" && (
+              {!editing && !["published", "withdrawn", "discarding"].includes(payload.bundle.status) && (
                 <Button type="button" size="sm" variant="outline" onClick={() => setEditing(true)} className="h-8 text-body-sm">Edit isi</Button>
               )}
             </div>
@@ -687,11 +704,11 @@ export function IdeaBundleReviewDetail({ detailId, courseLabels = {} }: DetailPr
               {activeIdea.provenance.length > 0 && (
                 <div className="space-y-2.5 border-t border-border pt-4">
                   <span className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">Bukti Sumber ({activeIdea.provenance.length})</span>
-                  <div className="grid gap-2 sm:grid-cols-2">
+                  <div className="grid gap-2">
                     {activeIdea.provenance.map((proof) => (
-                      <div key={proof.id} className="rounded-lg border border-border/80 bg-muted/20 p-3 space-y-1 text-body-xs">
-                        <p className="font-semibold text-foreground">{proof.sourceTitle}{proof.pageNumber ? ` · Hal. ${proof.pageNumber}` : ""}</p>
-                        <p className="text-muted-foreground leading-relaxed line-clamp-3">{proof.excerpt}</p>
+                      <div key={proof.id} className="space-y-1.5 rounded-lg border border-border/80 bg-muted/20 p-4">
+                        <p className="text-body-sm font-semibold text-foreground">{proof.sourceTitle}{proof.pageNumber ? ` · Hal. ${proof.pageNumber}` : ""}</p>
+                        <p className="whitespace-pre-wrap text-body-sm leading-relaxed text-muted-foreground">{readableSourceExcerpt(proof.excerpt)}</p>
                       </div>
                     ))}
                   </div>
@@ -699,14 +716,30 @@ export function IdeaBundleReviewDetail({ detailId, courseLabels = {} }: DetailPr
               )}
             </div>
           )}
+          {!["published", "withdrawn", "discarding"].includes(payload.bundle.status) ? (
+            <div className="space-y-3 border-t border-border pt-4">
+              <Textarea
+                value={ideaReviewNotes[activeIdea.id] ?? payload.itemReviews.find((review) => review.targetId === activeIdea.id)?.notes ?? ""}
+                onChange={(event) => setIdeaReviewNotes((current) => ({ ...current, [activeIdea.id]: event.target.value }))}
+                placeholder="Catatan review Idea"
+                className="min-h-20 text-body-sm"
+              />
+              <div className="flex flex-wrap gap-2">
+                <Button type="button" size="sm" disabled={saving} onClick={() => void saveIdeaItemReview("approved")} className="bg-status-success text-white hover:bg-status-success/90">
+                  <Check className="size-4" />Setujui dan lanjut
+                </Button>
+                <Button type="button" size="sm" disabled={saving} variant="outline" onClick={() => void saveIdeaItemReview("changes_requested")} className="border-status-warning text-status-warning">
+                  <AlertTriangle className="size-4" />Perlu perbaikan
+                </Button>
+                {(payload.itemReviews.find((review) => review.targetId === activeIdea.id)?.status ?? "pending") !== "pending" ? (
+                  <Button type="button" size="sm" disabled={saving} variant="ghost" onClick={() => void saveIdeaItemReview("pending")}>
+                    <RotateCcw className="size-4" />Batalkan status
+                  </Button>
+                ) : null}
+              </div>
+            </div>
+          ) : null}
         </article>
-          {payload.structuredReaderEnabled ? <aside className="sticky top-4 hidden space-y-4 rounded-xl border border-border bg-card p-4 lg:block">
-            <div><p className="text-body-xs font-semibold text-muted-foreground">Bagian belajar</p><p className="mt-1 text-body-sm font-semibold">{activeIdea.learningSection?.title ?? "Belum dipetakan"}</p></div>
-            <div><p className="text-body-xs font-semibold text-muted-foreground">Bukti sumber</p><div className="mt-2 space-y-2">{activeIdea.provenance.map((proof) => <div key={proof.id} className="rounded-lg border border-border bg-muted/30 p-2"><p className="text-body-xs font-semibold">{proof.sourceTitle}{proof.pageNumber ? `, hal. ${proof.pageNumber}` : ""}</p><p className="mt-1 line-clamp-4 text-body-xs text-muted-foreground">{proof.excerpt}</p></div>)}</div></div>
-            <div><p className="text-body-xs font-semibold text-muted-foreground">Relasi</p><div className="mt-2 space-y-1">{payload.preview.relations.filter((relation) => relation.sourceIdeaId === activeIdea.id || relation.targetIdeaId === activeIdea.id).map((relation) => <p key={relation.id} className="text-body-xs text-muted-foreground">{displayLabel(relation.relationType, relationLabels)} dengan {relation.sourceIdeaId === activeIdea.id ? relation.targetIdeaId : relation.sourceIdeaId}</p>)}</div></div>
-            <Textarea value={ideaReviewNotes[activeIdea.id] ?? payload.itemReviews.find((review) => review.targetId === activeIdea.id)?.notes ?? ""} onChange={(event) => setIdeaReviewNotes((current) => ({ ...current, [activeIdea.id]: event.target.value }))} placeholder="Catatan review Idea" className="min-h-24 text-body-sm" />
-            {payload.bundle.status !== "published" ? <div className="grid grid-cols-2 gap-2"><Button type="button" disabled={saving} onClick={() => void saveIdeaItemReview("approved")} className="bg-status-success text-white hover:bg-status-success/90"><Check className="mr-1 size-4" />Setujui</Button><Button type="button" disabled={saving} variant="outline" onClick={() => void saveIdeaItemReview("changes_requested")} className="border-status-warning text-status-warning"><AlertTriangle className="mr-1 size-4" />Perbaikan</Button></div> : null}
-          </aside> : null}
         </div>
       ) : (
         <AdminEmptyState title="Idea belum tersedia" description="Bundle ini tidak memiliki Idea." />
@@ -721,9 +754,9 @@ export function IdeaBundleReviewDetail({ detailId, courseLabels = {} }: DetailPr
           <div className="mt-3 divide-y divide-border">
             {payload.preview.relations.map((rel) => (
               <div key={rel.id} className="flex flex-wrap items-center justify-between gap-2 py-2 text-body-xs">
-                <span className="font-mono font-medium text-foreground">{rel.sourceIdeaId}</span>
+                <span className="font-medium text-foreground">{ideaName(ideasList.find((idea) => idea.id === rel.sourceIdeaId))}</span>
                 <Badge variant="outline">{displayLabel(rel.relationType, relationLabels)}</Badge>
-                <span className="font-mono font-medium text-foreground">{rel.targetIdeaId}</span>
+                <span className="font-medium text-foreground">{ideaName(ideasList.find((idea) => idea.id === rel.targetIdeaId))}</span>
               </div>
             ))}
           </div>
@@ -744,7 +777,8 @@ export function IdeaBundleReviewDetail({ detailId, courseLabels = {} }: DetailPr
           className="min-h-16 text-body-sm"
         />
         {error && <p className="text-body-xs text-status-error">{error}</p>}
-        <div className="flex flex-wrap gap-2 border-t border-border pt-3">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border pt-3">
+          <div className="flex flex-wrap gap-2">
           {payload.bundle.status === "validated" && (
             <>
               <Button type="button" size="sm" variant="outline" disabled={saving} onClick={() => void decide("approved")}>
@@ -763,8 +797,48 @@ export function IdeaBundleReviewDetail({ detailId, courseLabels = {} }: DetailPr
           {payload.bundle.status === "published" && (
             <span className="text-body-sm text-status-success font-medium">Telah dipublikasikan</span>
           )}
+          {payload.bundle.status === "withdrawn" && (
+            <span className="text-body-sm font-medium text-muted-foreground">Publikasi telah ditarik</span>
+          )}
+          {payload.bundle.status === "discarding" && (
+            <span className="text-body-sm font-medium text-status-warning">Penghapusan ZIP perlu dicoba lagi</span>
+          )}
+          </div>
+          {(["validated", "approved", "rejected", "published", "discarding"] as string[]).includes(payload.bundle.status) && (
+            <DropdownMenu.Root>
+              <DropdownMenu.Trigger asChild>
+                <Button type="button" size="sm" variant="outline" disabled={saving} aria-label="Aksi lainnya">
+                  <MoreHorizontal className="size-4" />Aksi lainnya
+                </Button>
+              </DropdownMenu.Trigger>
+              <DropdownMenu.Portal>
+                <DropdownMenu.Content align="end" sideOffset={6} className="z-50 min-w-44 rounded-lg border border-border bg-popover p-1 text-body-sm text-popover-foreground shadow-lg">
+                  {payload.bundle.status === "published" ? (
+                    <DropdownMenu.Item onSelect={() => setConfirmAction("withdraw")} className="flex cursor-pointer items-center gap-2 rounded-md px-2.5 py-2 text-status-error outline-none focus:bg-muted">
+                      <ArchiveX className="size-3.5" />Tarik publikasi
+                    </DropdownMenu.Item>
+                  ) : (
+                    <DropdownMenu.Item onSelect={() => setConfirmAction("discard")} className="flex cursor-pointer items-center gap-2 rounded-md px-2.5 py-2 text-status-error outline-none focus:bg-muted">
+                      <Trash2 className="size-3.5" />Hapus bundle
+                    </DropdownMenu.Item>
+                  )}
+                </DropdownMenu.Content>
+              </DropdownMenu.Portal>
+            </DropdownMenu.Root>
+          )}
         </div>
       </section>
+      <AdminConfirmDialog
+        open={confirmAction !== null}
+        onOpenChange={(open) => { if (!open) setConfirmAction(null); }}
+        title={confirmAction === "withdraw" ? "Tarik publikasi Idea Bundle" : "Hapus Idea Bundle"}
+        description={confirmAction === "withdraw" ? "Idea dan sumber dari bundle ini tidak lagi aktif. Riwayat dan audit tetap disimpan." : "Bundle staging dan ZIP akan dihapus permanen."}
+        confirmLabel={confirmAction === "withdraw" ? "Ya, Tarik Publikasi" : "Ya, Hapus Bundle"}
+        icon={confirmAction === "withdraw" ? ArchiveX : Trash2}
+        destructive
+        loading={saving}
+        onConfirm={() => { const action = confirmAction; setConfirmAction(null); if (action) void mutate(action); }}
+      />
     </div>
   );
 }

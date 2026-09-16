@@ -654,7 +654,7 @@ Ambiguous evidence is stored with explicit status and the schema check prevents 
 ### Bundle and audit tables
 
 ### impor_bundle
-Checksum-identified import record; public Product status is `draft`, `published`, or `withdrawn` (legacy Idea workflow statuses remain readable).
+Checksum-identified import record; public Product status is `draft`, `published`, or `withdrawn` (legacy Idea workflow statuses remain readable). Idea draft deletion uses the transient `discarding` status to block publication while artifact cleanup runs and to preserve a retryable record if storage deletion fails.
 * `id`, `bundleId`, `checksum`, `bundleType`
 * Optional legacy `courseId`, required `sourceUriOrKey`
 * `version`, `status` (default `received`), optional JSON `validationReport`
