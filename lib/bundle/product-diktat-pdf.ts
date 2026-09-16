@@ -6,6 +6,7 @@ import type { ProductEntity } from "./product-validator";
 
 export const PRODUCT_DIKTAT_RENDERER_VERSION = "zyx-diktat-worker-v1";
 export const PRODUCT_DIKTAT_PRINT_PROFILE = "a4-self-study-2-page-v1";
+const MAX_DIKTAT_IDEA_SUMMARIES = 6;
 
 function buildSelfContainedKatexCss(): string {
   const cssPath = path.resolve(process.cwd(), "node_modules/katex/dist/katex.min.css");
@@ -148,7 +149,7 @@ function formulaeFrom(source: ProductDiktatRenderSource): string[] {
 
 function ideaSummaries(source: ProductDiktatRenderSource): string[] {
   const blocks = articleBlocks(source.article);
-  return source.article.ideaLinks.map((link, index) => {
+  return source.article.ideaLinks.slice(0, MAX_DIKTAT_IDEA_SUMMARIES).map((link, index) => {
     const matching = blocks.find((block) => block.ideaIds.includes(link.id));
     return matching ? clippedMarkdown(matching.contentMarkdown, 300) : `Pokok gagasan ${index + 1} dirangkum dari artikel sumber.`;
   });
@@ -211,7 +212,7 @@ li { margin-bottom: 2.2mm; }
 <main class="page">
   <p class="eyebrow">Diktat belajar mandiri</p><h1>${title}</h1>
   <p class="lead">${inlineMarkup(diktatSummary)}</p>
-  <h2>Gagasan yang perlu dikuasai</h2><ol>${ideaHtml}</ol>
+  <h2>Gagasan inti</h2><ol>${ideaHtml}</ol>
   <h2>Rumus dan syarat</h2>${formulaHtml}
 </main>
 <main class="page">
