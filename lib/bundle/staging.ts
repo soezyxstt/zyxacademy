@@ -16,6 +16,7 @@ import { buildIdeaBundleKey } from "@/lib/storage/keys";
 import { parseIdeaBundle, type ValidatedIdeaBundle } from "@/lib/bundle/idea-bundle-v2";
 import { readSecureZip } from "@/lib/bundle/zip-reader";
 import { hasPeran } from "@/lib/auth/authorization";
+import { hasAdminAuthorization } from "@/lib/auth/admin-guards";
 import { checkTutorCourseAccess } from "@/lib/auth/tutor-access";
 
 export type IdeaBundleStageItem = {
@@ -95,9 +96,10 @@ async function uploadArtifact(input: IdeaBundleStageInput, key: string): Promise
   });
 }
 
-async function deleteArtifact(key: string): Promise<void> {
+async function deleteArtifact(key: string, required = false): Promise<void> {
   await storage.delete(key).catch((error) => {
     console.error("[idea-bundle] failed to delete staged artifact", { key, error });
+    if (required) throw new Error("IDEA_BUNDLE_ARTIFACT_DELETE_FAILED");
   });
 }
 
@@ -161,7 +163,7 @@ export async function stageIdeaBundle(input: IdeaBundleStageInput): Promise<Idea
 
   const importId = input.replaceImportId ?? stableId("impor-idea", `${input.bundleId}:${input.checksum}`);
   const previousSourceKey = previousIdeaBundleSourceKey(conflictingBundle, input.replaceImportId);
-  if (input.replaceImportId && (!conflictingBundle || conflictingBundle.status === "published")) throw new Error("IDEA_BUNDLE_REPLACE_FORBIDDEN");
+  if (input.replaceImportId && (!conflictingBundle || ["published", "withdrawn", "discarding"].includes(conflictingBundle.status))) throw new Error("IDEA_BUNDLE_REPLACE_FORBIDDEN");
   const sourceKey = buildIdeaBundleKey(input);
   await uploadArtifact(input, sourceKey);
 
@@ -169,6 +171,8 @@ export async function stageIdeaBundle(input: IdeaBundleStageInput): Promise<Idea
     await db.transaction(async (tx) => {
       const mutationAt = new Date();
       if (input.replaceImportId) {
+        const [current] = await tx.select({ status: imporBundle.status }).from(imporBundle).where(eq(imporBundle.id, importId)).limit(1);
+        if (!current || ["published", "withdrawn", "discarding"].includes(current.status)) throw new Error("IDEA_BUNDLE_REPLACE_FORBIDDEN");
         await tx.delete(reviewBundle).where(eq(reviewBundle.imporBundleId, importId));
         await tx.delete(itemImporBundle).where(eq(itemImporBundle.imporBundleId, importId));
         await tx.update(imporBundle).set({
@@ -396,30 +400,47 @@ export async function reviewIdeaBundle(input: {
 }
 
 export async function discardIdeaBundleDraft(input: { importId: string; actorId: string }): Promise<{ importId: string; discarded: boolean }> {
-  const row = await getIdeaBundleImport(input.importId);
-  if (!row) throw new Error("IDEA_BUNDLE_NOT_FOUND");
-  if (row.status === "published" || row.status === "withdrawn") throw new Error("IDEA_BUNDLE_DRAFT_REQUIRED");
+  const [actor] = await db.select({ role: user.role }).from(user).where(eq(user.id, input.actorId)).limit(1);
+  if (!actor || !(await hasAdminAuthorization(input.actorId, actor.role))) throw new Error("IDEA_BUNDLE_DISCARD_FORBIDDEN");
 
-  await db.transaction(async (tx) => {
-    const [actor] = await tx.select({ role: user.role }).from(user).where(eq(user.id, input.actorId)).limit(1);
-    if (!actor || actor.role !== "admin") throw new Error("IDEA_BUNDLE_DISCARD_FORBIDDEN");
-    await tx.delete(reviewItemBundle).where(eq(reviewItemBundle.imporBundleId, row.id));
-    await tx.delete(reviewBundle).where(eq(reviewBundle.imporBundleId, row.id));
-    await tx.delete(itemImporBundle).where(eq(itemImporBundle.imporBundleId, row.id));
-    await tx.delete(imporBundle).where(eq(imporBundle.id, row.id));
+  const prepared = await db.transaction(async (tx) => {
+    const [current] = await tx.select().from(imporBundle).where(eq(imporBundle.id, input.importId)).limit(1);
+    if (!current || current.bundleType !== "idea") throw new Error("IDEA_BUNDLE_NOT_FOUND");
+    if (current.status === "published" || current.status === "withdrawn") throw new Error("IDEA_BUNDLE_DRAFT_REQUIRED");
+    if (current.status !== "discarding") {
+      await tx.update(imporBundle).set({ status: "discarding", updatedAt: new Date() }).where(eq(imporBundle.id, current.id));
+    }
+    return {
+      id: current.id,
+      bundleId: current.bundleId,
+      checksum: current.checksum,
+      previousStatus: current.status,
+      sourceUriOrKey: current.sourceUriOrKey,
+    };
+  });
+
+  await deleteArtifact(prepared.sourceUriOrKey, true);
+  const discarded = await db.transaction(async (tx) => {
+    const [current] = await tx.select({ status: imporBundle.status }).from(imporBundle).where(eq(imporBundle.id, prepared.id)).limit(1);
+    if (!current) return false;
+    if (current.status !== "discarding") throw new Error("IDEA_BUNDLE_DRAFT_REQUIRED");
+    await tx.delete(reviewItemBundle).where(eq(reviewItemBundle.imporBundleId, prepared.id));
+    await tx.delete(reviewBundle).where(eq(reviewBundle.imporBundleId, prepared.id));
+    await tx.delete(itemImporBundle).where(eq(itemImporBundle.imporBundleId, prepared.id));
+    await tx.delete(imporBundle).where(eq(imporBundle.id, prepared.id));
     await tx.insert(auditMutasi).values({
-      id: stableId("audit", `${row.id}:discarded`),
+      id: stableId("audit", `${prepared.id}:discarded`),
       actorId: input.actorId,
       entityType: "idea_bundle",
-      entityId: row.id,
+      entityId: prepared.id,
       action: "draft_discarded",
-      beforeSnapshot: { status: row.status, bundleId: row.bundleId, checksum: row.checksum },
+      beforeSnapshot: { status: prepared.previousStatus, bundleId: prepared.bundleId, checksum: prepared.checksum },
       afterSnapshot: null,
-      correlationId: row.id,
+      correlationId: prepared.id,
     });
+    return true;
   });
-  await deleteArtifact(row.sourceUriOrKey);
-  return { importId: row.id, discarded: true };
+  return { importId: prepared.id, discarded };
 }
 
 export async function reconcileIdeaBundle(importId: string) {

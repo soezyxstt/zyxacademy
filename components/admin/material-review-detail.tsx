@@ -216,6 +216,7 @@ const statusLabels: Record<string, string> = {
   draft: "Draft",
   published: "Terbit",
   withdrawn: "Ditarik",
+  discarding: "Penghapusan tertunda",
 };
 
 const statusTones: Record<string, "muted" | "info" | "success" | "warning" | "error" | "brand"> = {
@@ -225,6 +226,7 @@ const statusTones: Record<string, "muted" | "info" | "success" | "warning" | "er
   draft: "info",
   published: "success",
   withdrawn: "muted",
+  discarding: "warning",
 };
 
 const knowledgeLabels: Record<string, string> = {
@@ -618,7 +620,7 @@ export function IdeaBundleReviewDetail({ detailId, backHref }: DetailProps) {
             </div>
             <div className="flex items-center gap-2">
               <Badge variant="outline">{activeIdea.provenance.length} bukti sumber</Badge>
-              {!editing && payload.bundle.status !== "published" && payload.bundle.status !== "withdrawn" && (
+              {!editing && !["published", "withdrawn", "discarding"].includes(payload.bundle.status) && (
                 <Button type="button" size="sm" variant="outline" onClick={() => setEditing(true)} className="h-8 text-body-sm">Edit isi</Button>
               )}
             </div>
@@ -714,7 +716,7 @@ export function IdeaBundleReviewDetail({ detailId, backHref }: DetailProps) {
               )}
             </div>
           )}
-          {payload.bundle.status !== "published" && payload.bundle.status !== "withdrawn" ? (
+          {!["published", "withdrawn", "discarding"].includes(payload.bundle.status) ? (
             <div className="space-y-3 border-t border-border pt-4">
               <Textarea
                 value={ideaReviewNotes[activeIdea.id] ?? payload.itemReviews.find((review) => review.targetId === activeIdea.id)?.notes ?? ""}
@@ -798,8 +800,11 @@ export function IdeaBundleReviewDetail({ detailId, backHref }: DetailProps) {
           {payload.bundle.status === "withdrawn" && (
             <span className="text-body-sm font-medium text-muted-foreground">Publikasi telah ditarik</span>
           )}
+          {payload.bundle.status === "discarding" && (
+            <span className="text-body-sm font-medium text-status-warning">Penghapusan ZIP perlu dicoba lagi</span>
+          )}
           </div>
-          {(["validated", "approved", "rejected", "published"] as string[]).includes(payload.bundle.status) && (
+          {(["validated", "approved", "rejected", "published", "discarding"] as string[]).includes(payload.bundle.status) && (
             <DropdownMenu.Root>
               <DropdownMenu.Trigger asChild>
                 <Button type="button" size="sm" variant="outline" disabled={saving} aria-label="Aksi lainnya">

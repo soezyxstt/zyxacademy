@@ -83,6 +83,18 @@ async function resolveCanonicalRoleAuthorization(
 }
 
 /**
+ * Resolves admin access for an explicit actor using canonical membership first.
+ * Legacy role fallback is retained only for identities not yet provisioned in
+ * the canonical authorization tables.
+ */
+export async function hasAdminAuthorization(
+  userId: string,
+  legacyRole?: string | null,
+): Promise<boolean> {
+  return resolveCanonicalRoleAuthorization(userId, legacyRole, ["admin"], "admin");
+}
+
+/**
  * Asserts that the current session user has the admin role via canonical
  * `pengguna_peran`. The legacy `user.role` projection is only used for users
  * without a canonical identity or membership.
@@ -98,12 +110,7 @@ export async function assertAdmin() {
     throw new Error("Unauthorized");
   }
 
-  const isAdmin = await resolveCanonicalRoleAuthorization(
-    user.id,
-    user.role,
-    ["admin"],
-    "admin",
-  );
+  const isAdmin = await hasAdminAuthorization(user.id, user.role);
   if (!isAdmin) {
     throw new Error("Forbidden, admin role required.");
   }

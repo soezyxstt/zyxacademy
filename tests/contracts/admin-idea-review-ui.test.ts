@@ -39,7 +39,9 @@ describe("Admin Idea review workspace contract", () => {
     expect(detailRoute).toContain("export async function DELETE");
     expect(detailRoute).toContain("discardIdeaBundleDraft");
     expect(withdrawRoute).toContain("withdrawIdeaBundle");
-    expect(withdrawRoute).toContain('session.user.role !== "admin"');
+    expect(detailRoute.slice(detailRoute.indexOf("export async function DELETE"))).toContain("await assertAdmin()");
+    expect(withdrawRoute).toContain("await assertAdmin()");
+    expect(withdrawRoute).not.toContain('session.user.role !== "admin"');
   });
 
   test("Idea lifecycle services retire published entities and remove draft records", () => {
@@ -49,9 +51,14 @@ describe("Admin Idea review workspace contract", () => {
     expect(publication).toContain('set({ status: "withdrawn", updatedAt: now })');
     expect(publication).toContain('action: "delete" as const');
     expect(publication).toContain('action: "withdrawn"');
+    expect(publication).toContain("hasAdminAuthorization(input.withdrawnBy, actor.role)");
     expect(staging).toContain("export async function discardIdeaBundleDraft");
+    expect(staging).toContain("hasAdminAuthorization(input.actorId, actor.role)");
+    expect(staging).toContain('set({ status: "discarding"');
+    expect(staging).toContain("await deleteArtifact(prepared.sourceUriOrKey, true)");
     expect(staging).toContain("tx.delete(reviewItemBundle)");
     expect(staging).toContain("tx.delete(imporBundle)");
-    expect(staging).toContain("await deleteArtifact(row.sourceUriOrKey)");
+    expect(staging.indexOf("await deleteArtifact(prepared.sourceUriOrKey, true)")).toBeLessThan(staging.indexOf("tx.delete(imporBundle)", staging.indexOf("export async function discardIdeaBundleDraft")));
+    expect(source("db/schema.ts")).toContain('"withdrawn" | "discarding"');
   });
 });

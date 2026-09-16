@@ -336,9 +336,10 @@ test.describe("Structured Article V3 visual acceptance", () => {
   test("Idea review layout, readable evidence, and fast approval", async ({ page }, testInfo) => {
     const errors = observeFailures(page);
     let detailReads = 0;
+    let servedIdeaPayload = ideaPayload;
     await page.route("**/api/admin/bundles/idea/visual-idea", (route) => {
       detailReads++;
-      return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(ideaPayload) });
+      return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(servedIdeaPayload) });
     });
     await page.route("**/api/admin/bundles/idea/visual-idea/item-reviews", (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ result: { id: "review-idea-2", targetType: "idea", targetId: "idea-ineq", status: "approved", notes: null } }) }));
     const response = await page.goto(`${ROUTE}?mode=idea`, { waitUntil: "domcontentloaded", timeout: 90_000 });
@@ -362,6 +363,13 @@ test.describe("Structured Article V3 visual acceptance", () => {
     await page.getByRole("menuitem", { name: "Hapus bundle" }).click();
     await expect(page.getByRole("dialog", { name: "Hapus Idea Bundle" })).toBeVisible();
     await capture(page, testInfo, "idea-review-discard-confirmation");
+    await page.getByRole("button", { name: "Batal" }).click();
+    servedIdeaPayload = { ...ideaPayload, bundle: { ...ideaPayload.bundle, status: "discarding" } };
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(page.getByText("Penghapusan ZIP perlu dicoba lagi")).toBeVisible();
+    await page.getByRole("button", { name: "Aksi lainnya" }).click();
+    await expect(page.getByRole("menuitem", { name: "Hapus bundle" })).toBeVisible();
+    await capture(page, testInfo, "idea-review-discard-retry");
     expect(errors).toEqual([]);
   });
 

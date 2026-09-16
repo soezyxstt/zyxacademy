@@ -27,6 +27,7 @@ import { parseIdeaBundle, serializeDeterministically, type ValidatedIdeaBundle }
 import { sha256Text } from "@/lib/bundle/validator";
 import { readSecureZip } from "@/lib/bundle/zip-reader";
 import { resolveBundleIdentity } from "@/lib/bundle/attribution";
+import { hasAdminAuthorization } from "@/lib/auth/admin-guards";
 import { dispatchVectorSync } from "@/lib/vector-sync-dispatch";
 
 export type IdeaBundlePublicationResult = {
@@ -486,6 +487,8 @@ export async function publishIdeaBundle(input: {
 
 export async function withdrawIdeaBundle(input: { importId: string; withdrawnBy: string }): Promise<IdeaBundleWithdrawalResult> {
   ensureFeatureEnabled();
+  const [actor] = await db.select({ role: user.role }).from(user).where(eq(user.id, input.withdrawnBy)).limit(1);
+  if (!actor || !(await hasAdminAuthorization(input.withdrawnBy, actor.role))) throw new Error("IDEA_BUNDLE_WITHDRAW_FORBIDDEN");
   const snapshot = await getIdeaBundleImport(input.importId);
   if (!snapshot) throw new Error("IDEA_BUNDLE_NOT_FOUND");
   if (snapshot.status === "withdrawn") return { importId: input.importId, withdrawn: false, entityCount: 0, vectorJobCount: 0 };
@@ -497,8 +500,6 @@ export async function withdrawIdeaBundle(input: { importId: string; withdrawnBy:
     const [row] = await tx.select().from(imporBundle).where(eq(imporBundle.id, input.importId)).limit(1);
     if (!row || row.bundleType !== "idea") throw new Error("IDEA_BUNDLE_NOT_FOUND");
     if (row.status !== "published") throw new Error("IDEA_BUNDLE_PUBLISHED_REQUIRED");
-    const [actor] = await tx.select({ role: user.role }).from(user).where(eq(user.id, input.withdrawnBy)).limit(1);
-    if (!actor || actor.role !== "admin") throw new Error("IDEA_BUNDLE_WITHDRAW_FORBIDDEN");
     await requireIdentity(tx, input.withdrawnBy, "IDEA_BUNDLE_WITHDRAWER_NOT_FOUND");
 
     const course = await resolveCourse(tx, bundle.manifest.courseId);

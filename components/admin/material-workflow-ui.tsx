@@ -30,6 +30,7 @@ const statusLabels: Record<string, string> = {
   draft: "Draft",
   published: "Terbit",
   withdrawn: "Ditarik",
+  discarding: "Penghapusan tertunda",
 };
 
 const statusTones: Record<string, "muted" | "info" | "success" | "warning" | "error" | "brand"> = {
@@ -39,6 +40,7 @@ const statusTones: Record<string, "muted" | "info" | "success" | "warning" | "er
   draft: "info",
   published: "success",
   withdrawn: "muted",
+  discarding: "warning",
 };
 
 const dateOptions: Intl.DateTimeFormatOptions = {

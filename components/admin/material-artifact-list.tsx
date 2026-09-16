@@ -30,6 +30,7 @@ const statusLabels: Record<string, string> = {
   staged: "Staged",
   published: "Terbit",
   withdrawn: "Ditarik",
+  discarding: "Penghapusan tertunda",
   archived: "Diarsipkan",
 };
 
