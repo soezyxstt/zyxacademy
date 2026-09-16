@@ -329,6 +329,7 @@ export function BatchUploadDialog({
         : null;
 
       let standardTitle = meta.title;
+      let cleanTopicForFilename = meta.title;
       if (
         meta.category === "materi" &&
         (meta.subcategory === "materi_dosen" || !meta.subcategory) &&
@@ -336,6 +337,7 @@ export function BatchUploadDialog({
       ) {
         const cleanChapTitle = primaryChap.title.replace(/^bab\s*\d+\s*[:\.-]?\s*/i, "");
         standardTitle = `Bab ${primaryChap.orderIndex}: ${standardizeDocumentTitle(cleanChapTitle)}`;
+        cleanTopicForFilename = cleanChapTitle;
       }
 
       const generatedName = generateFileName({
@@ -344,7 +346,7 @@ export function BatchUploadDialog({
         subcategory: meta.subcategory,
         chapterIndex: primaryChap?.orderIndex ?? meta.primaryChapterIndex,
         year: meta.year,
-        title: standardTitle,
+        title: cleanTopicForFilename,
       });
 
       return {
@@ -401,13 +403,15 @@ export function BatchUploadDialog({
                 ? sortedChapters.find((c) => c.id === updatedChapterIds[0])
                 : null;
 
+            const cleanTopicForFilename = res.title.replace(/^bab\s*\d+\s*[:\.-]?\s*/i, "");
+
             const updatedName = generateFileName({
               courseCode: courseId,
               category: res.category,
               subcategory: res.subcategory,
               chapterIndex: primaryChap?.orderIndex ?? res.matchedChapterOrderIndex,
               year: res.year,
-              title: res.title,
+              title: cleanTopicForFilename,
             });
 
             return {
@@ -787,7 +791,7 @@ export function BatchUploadDialog({
   );
 
   const startUpload = useCallback(async () => {
-    if (uploadRunning || ingestPhase !== "idle") return;
+    if (uploadRunning || isBatchFormattingAi || ingestPhase !== "idle") return;
 
     if (docs.length === 0) {
       toast.error("Tidak ada dokumen untuk diunggah.");
@@ -907,6 +911,7 @@ export function BatchUploadDialog({
     chapters.length,
     docs,
     ingestPhase,
+    isBatchFormattingAi,
     router,
     updateDoc,
     uploadRunning,
@@ -1413,6 +1418,7 @@ export function BatchUploadDialog({
                       className="h-9 px-4 rounded-lg text-body-sm font-semibold shadow-xs"
                       disabled={
                         uploadRunning ||
+                        isBatchFormattingAi ||
                         ingestPhase !== "idle" ||
                         !uploadableDocs.length ||
                         chapters.length === 0 ||

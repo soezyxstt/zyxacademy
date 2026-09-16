@@ -47,6 +47,7 @@ import {
 import {
   LEVEL1_CATEGORIES,
   getSubcategoriesForLevel1,
+  isValidSubcategory,
   type MaterialLevel1Category,
   type CourseMaterialSubcategory,
 } from "@/lib/course-materials";
@@ -287,7 +288,18 @@ export function AdminDocumentWorkspace({
     if (!pdfTitle.trim()) return;
     setFormattingPdfAi(true);
     try {
-      const fileName = material.url ? material.url.split("/").pop() || pdfTitle : pdfTitle;
+      let fileName = pdfTitle;
+      if (material.url) {
+        try {
+          const parsed = new URL(material.url, "https://local");
+          const leaf = parsed.pathname.split("/").filter(Boolean).pop();
+          if (leaf) fileName = decodeURIComponent(leaf);
+        } catch {
+          const rawLeaf = material.url.split("/").pop();
+          if (rawLeaf) fileName = decodeURIComponent(rawLeaf.split("?")[0]);
+        }
+      }
+
       const result = await standardizeDocumentTitleAction({
         filename: fileName,
         courseId: courseSlug,
@@ -301,8 +313,16 @@ export function AdminDocumentWorkspace({
       });
       if (result) {
         if (result.title) setPdfTitle(result.title);
+        const targetCategory = result.category || pdfType;
         if (result.category) setPdfType(result.category);
-        if (result.subcategory) setPdfSubcategory(result.subcategory);
+        if (result.subcategory && isValidSubcategory(targetCategory, result.subcategory)) {
+          setPdfSubcategory(result.subcategory as CourseMaterialSubcategory);
+        } else if (result.category && result.category !== pdfType) {
+          const validSubcats = getSubcategoriesForLevel1(result.category);
+          if (validSubcats.length > 0) {
+            setPdfSubcategory(validSubcats[0].value);
+          }
+        }
         if (result.chapterIds && result.chapterIds.length > 0) {
           setSelectedChapters(new Set(result.chapterIds));
         }

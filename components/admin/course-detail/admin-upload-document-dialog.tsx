@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
   Dialog,
@@ -29,6 +29,7 @@ import { BatchUploadDialog } from "@/components/admin/course-detail/batch-upload
 import {
   LEVEL1_CATEGORIES,
   getSubcategoriesForLevel1,
+  isValidSubcategory,
   type MaterialLevel1Category,
   type CourseMaterialSubcategory,
 } from "@/lib/course-materials";
@@ -85,10 +86,12 @@ export function AdminUploadDocumentDialog({
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
   const [isFormattingWithAi, setIsFormattingWithAi] = useState(false);
+  const formatRequestIdRef = useRef(0);
 
   const availableSubcategories = getSubcategoriesForLevel1(type);
 
   const resetForm = () => {
+    formatRequestIdRef.current += 1;
     setTitle("");
     setType("materi");
     setSubcategory("materi_dosen");
@@ -126,6 +129,7 @@ export function AdminUploadDocumentDialog({
     }
 
     // 2. Refine dengan Gemini AI di background untuk menyelaraskan pergeseran bab (Bab 0 vs Bab 1)
+    const requestId = ++formatRequestIdRef.current;
     setIsFormattingWithAi(true);
     try {
       const result = await standardizeDocumentTitleAction({
@@ -140,10 +144,20 @@ export function AdminUploadDocumentDialog({
         },
       });
 
+      if (requestId !== formatRequestIdRef.current) return;
+
       if (result) {
         if (result.title) setTitle(result.title);
+        const targetCategory = result.category || metadata.category;
         if (result.category) setType(result.category);
-        if (result.subcategory) setSubcategory(result.subcategory);
+        if (result.subcategory && isValidSubcategory(targetCategory, result.subcategory)) {
+          setSubcategory(result.subcategory as CourseMaterialSubcategory);
+        } else if (result.category && result.category !== metadata.category) {
+          const validSubcats = getSubcategoriesForLevel1(result.category);
+          if (validSubcats.length > 0) {
+            setSubcategory(validSubcats[0].value);
+          }
+        }
         if (result.year) setYear(String(result.year));
         if (result.chapterIds && result.chapterIds.length > 0) {
           setSelectedChapters(new Set(result.chapterIds));
@@ -152,14 +166,18 @@ export function AdminUploadDocumentDialog({
     } catch (err) {
       console.warn("AI background format fallback to heuristic:", err);
     } finally {
-      setIsFormattingWithAi(false);
+      if (requestId === formatRequestIdRef.current) {
+        setIsFormattingWithAi(false);
+      }
     }
   };
 
   const handleFormatTitle = async () => {
+    if (isFormattingWithAi) return;
     const targetName = selectedFile ? selectedFile.name : title.trim();
     if (!targetName) return;
 
+    const requestId = ++formatRequestIdRef.current;
     setIsFormattingWithAi(true);
     try {
       const result = await standardizeDocumentTitleAction({
@@ -174,10 +192,20 @@ export function AdminUploadDocumentDialog({
         },
       });
 
+      if (requestId !== formatRequestIdRef.current) return;
+
       if (result) {
         if (result.title) setTitle(result.title);
+        const targetCategory = result.category || type;
         if (result.category) setType(result.category);
-        if (result.subcategory) setSubcategory(result.subcategory);
+        if (result.subcategory && isValidSubcategory(targetCategory, result.subcategory)) {
+          setSubcategory(result.subcategory as CourseMaterialSubcategory);
+        } else if (result.category && result.category !== type) {
+          const validSubcats = getSubcategoriesForLevel1(result.category);
+          if (validSubcats.length > 0) {
+            setSubcategory(validSubcats[0].value);
+          }
+        }
         if (result.year) setYear(String(result.year));
         if (result.chapterIds && result.chapterIds.length > 0) {
           setSelectedChapters(new Set(result.chapterIds));
@@ -185,11 +213,15 @@ export function AdminUploadDocumentDialog({
         toast.success("Format judul dan bab berhasil dirapikan dengan AI.");
       }
     } catch (err) {
-      console.error("AI format failed, fallback to local:", err);
-      setTitle(standardizeDocumentTitle(title));
-      toast.error("Gagal menggunakan AI, menggunakan format kapitalisasi standar.");
+      if (requestId === formatRequestIdRef.current) {
+        console.error("AI format failed, fallback to local:", err);
+        setTitle(standardizeDocumentTitle(title));
+        toast.error("Gagal menggunakan AI, menggunakan format kapitalisasi standar.");
+      }
     } finally {
-      setIsFormattingWithAi(false);
+      if (requestId === formatRequestIdRef.current) {
+        setIsFormattingWithAi(false);
+      }
     }
   };
 
@@ -212,6 +244,10 @@ export function AdminUploadDocumentDialog({
 
   const handleUpload = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isFormattingWithAi) {
+      toast.error("Sedang merapikan format dokumen dengan AI, harap tunggu sebentar.");
+      return;
+    }
     const cleanTitle = standardizeDocumentTitle(title.trim());
 
     if (!cleanTitle) {
@@ -356,7 +392,7 @@ export function AdminUploadDocumentDialog({
                   accept="application/pdf"
                   className="sr-only"
                   onChange={(e) => handleFile(e.target.files?.[0] || null)}
-                  disabled={loading}
+                  disabled={loading || isFormattingWithAi}
                 />
               </label>
             ) : (
@@ -380,7 +416,7 @@ export function AdminUploadDocumentDialog({
                   size="icon"
                   className="size-8 text-muted-foreground hover:text-foreground shrink-0"
                   onClick={() => setSelectedFile(null)}
-                  disabled={loading}
+                  disabled={loading || isFormattingWithAi}
                   title="Ganti berkas"
                 >
                   <X className="size-4" />
@@ -552,7 +588,7 @@ export function AdminUploadDocumentDialog({
               </Button>
               <Button
                 type="submit"
-                disabled={loading || !title.trim() || selectedChapters.size === 0 || !selectedFile}
+                disabled={loading || isFormattingWithAi || !title.trim() || selectedChapters.size === 0 || !selectedFile}
                 className="gap-1.5 text-body-sm font-semibold rounded-lg"
               >
                 {loading ? <Loader2 className="size-4 animate-spin" /> : <Upload className="size-4" />}

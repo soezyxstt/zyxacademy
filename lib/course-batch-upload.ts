@@ -399,7 +399,12 @@ export function detectChaptersFromFilename(
       const tokens = cleanTitle
         .split(/[\s,–—\-_:]+/)
         .filter((w) => w.length >= 4 && !stopWords.has(w));
-      if (tokens.some((token) => new RegExp(`\\b${token}\\b`, "i").test(base))) {
+      if (
+        tokens.some((token) => {
+          const escaped = token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+          return new RegExp(`\\b${escaped}\\b`, "i").test(base);
+        })
+      ) {
         foundBySemantic = ch;
         break;
       }
@@ -414,10 +419,14 @@ export function detectChaptersFromFilename(
       .toLowerCase()
       .split(/[\s,–—\-_:]+/)
       .filter((w) => w.length >= 4 && !["dan", "atau", "pada", "untuk", "dengan", "dalam", "bab"].includes(w));
-    const numberOverlaps = numberChapTokens.some((token) => new RegExp(`\\b${token}\\b`, "i").test(base));
+    const numberOverlaps = numberChapTokens.some((token) => {
+      const escaped = token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      return new RegExp(`\\b${escaped}\\b`, "i").test(base);
+    });
     if (!numberOverlaps) {
       return [foundBySemantic.id];
     }
+    return [foundByNumber.id];
   }
 
   if (foundBySemantic) return [foundBySemantic.id];
