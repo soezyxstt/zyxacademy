@@ -74,7 +74,7 @@ async function resolveDiktatAuthorization(key: string): Promise<DiktatAuthorizat
     const candidates = storageKeyCandidates(key);
     const [canonicalRows, legacyRows] = await Promise.all([
       db
-        .select({ key: diktatMateri.fileKey, courseId: mataKuliah.id, source: "canonical" as const })
+        .select({ key: diktatMateri.fileKey, courseId: mataKuliah.id })
         .from(diktatMateri)
         .innerJoin(mataKuliah, eq(diktatMateri.mataKuliahId, mataKuliah.id))
         .where(and(
@@ -83,11 +83,14 @@ async function resolveDiktatAuthorization(key: string): Promise<DiktatAuthorizat
           inArray(diktatMateri.fileKey, candidates),
         )),
       db
-        .select({ key: diktats.fileUrl, courseId: diktats.courseId, source: "legacy" as const })
+        .select({ key: diktats.fileUrl, courseId: diktats.courseId })
         .from(diktats)
         .where(and(eq(diktats.status, "ready"), inArray(diktats.fileUrl, candidates))),
     ]);
-    const matches = [...canonicalRows, ...legacyRows].filter(
+    const matches = [
+      ...canonicalRows.map((row) => ({ ...row, source: "canonical" as const })),
+      ...legacyRows.map((row) => ({ ...row, source: "legacy" as const })),
+    ].filter(
       (row): row is { key: string; courseId: string; source: "canonical" | "legacy" } => normalizeStorageKey(row.key) === key,
     );
     if (matches.length === 0) return { matched: false, allowed: true };

@@ -30,8 +30,9 @@ function ActionCard({ card }: { card: CourseOverviewActionCard }) {
       )}
     >
       <div>
-        <div className="flex justify-end">
-          <span className="flex size-6 items-center justify-center rounded-md bg-brand-primary/10 text-brand-primary">
+        <div className="flex items-center justify-between">
+          <span className="sr-only">{card.tag}</span>
+          <span className="flex size-6 items-center justify-center rounded-md bg-brand-primary/10 text-brand-primary ml-auto">
             <Icon className="size-3.5" aria-hidden="true" />
           </span>
         </div>

@@ -10,6 +10,7 @@ import {
   ChevronRight,
   ClipboardList,
   FileText,
+  Lock,
 } from "lucide-react";
 import { DocumentListClient } from "./document-list-client";
 import {
@@ -189,16 +190,25 @@ function HierarchyDocumentCard({ material, courseId }: { material: CourseMateria
   const group = resolveTabGroup(material);
   const style = typeStyle[group];
   const itemHref = material.href ?? `/courses/${courseId}/material/${material.id}`;
+  const isLocked = Boolean(material.locked);
 
   return (
     <Link
       href={itemHref}
       className={cn(
         "group flex min-w-0 items-center gap-2.5 rounded-lg border border-border/50 border-l-2 bg-background p-2 text-left transition-colors hover:bg-muted/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
-        style.border
+        style.border,
+        isLocked && "opacity-90 hover:opacity-100"
       )}
     >
-      <CompactDocumentThumbnail material={material} icon={style.icon} iconClass={style.iconClass} />
+      <div className="relative shrink-0">
+        <CompactDocumentThumbnail material={material} icon={style.icon} iconClass={style.iconClass} />
+        {isLocked && (
+          <div className="absolute top-1 right-1 flex size-5 items-center justify-center rounded-md bg-background/90 text-amber-500 shadow-xs border border-border/50">
+            <Lock className="size-3" />
+          </div>
+        )}
+      </div>
 
       <div className="min-w-0 flex-1">
         <p className="line-clamp-2 text-body-sm font-semibold leading-snug text-foreground" title={material.title}>
@@ -209,13 +219,19 @@ function HierarchyDocumentCard({ material, courseId }: { material: CourseMateria
         </p>
       </div>
 
-      {material.completed ? (
+      {isLocked ? (
+        <span className="inline-flex shrink-0 items-center gap-1 rounded-md bg-amber-500/10 px-1.5 py-0.5 text-body-2xs font-semibold text-amber-600 dark:text-amber-400 ring-1 ring-amber-500/20">
+          <Lock className="size-3" />
+          Terkunci
+        </span>
+      ) : material.completed ? (
         <CheckCircle2 className="size-3.5 shrink-0 text-status-success" aria-label="Selesai dipelajari" />
-      ) : null}
-      <ChevronRight
-        className="size-3.5 shrink-0 text-muted-foreground/55 transition-transform group-hover:translate-x-0.5"
-        aria-hidden
-      />
+      ) : (
+        <ChevronRight
+          className="size-3.5 shrink-0 text-muted-foreground/55 transition-transform group-hover:translate-x-0.5"
+          aria-hidden
+        />
+      )}
     </Link>
   );
 }

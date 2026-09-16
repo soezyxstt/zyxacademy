@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 
-import { Brain } from "lucide-react";
+import { Brain, Lock } from "lucide-react";
 import { CoursePageShell } from "@/components/course/course-page-shell";
 import { studentCardClass } from "@/components/course/course-surfaces";
 import { pageTitle } from "@/lib/site";
@@ -39,7 +39,8 @@ export default async function CourseFlashcardPage({ params }: Props) {
     redirect(`/sign-in?next=${encodeURIComponent(`/courses/${id}/flashcard`)}`);
   }
   const access = studentId ? await getStudentCourseAccess(studentId, id) : null;
-  const canUseFlashcards = Boolean(access);
+  const isEnrolled = access?.tier === "standard";
+  const canUseFlashcards = isEnrolled;
 
   let queue: any[] = [];
   if (studentId && canUseFlashcards) {
@@ -59,11 +60,14 @@ export default async function CourseFlashcardPage({ params }: Props) {
       <Reveal>
         {!canUseFlashcards ? (
           <div className={studentCardClass("mx-auto max-w-2xl text-center")}>
+            <div className="mx-auto mb-3 flex size-11 items-center justify-center rounded-xl bg-amber-500/10 text-amber-500 ring-1 ring-amber-500/20">
+              <Lock className="size-5" />
+            </div>
             <h3 className="font-heading text-body-base font-bold text-foreground">
               Akses Terkunci
             </h3>
             <p className="mt-2 text-body-sm text-muted-foreground mb-6">
-              Masuk dan aktifkan akses belajar untuk mulai berlatih dengan flashcard.
+              Fitur flashcard spaced repetition memerlukan aktivasi token kelas atau paket aktif.
             </p>
             <EnrollmentForm className="mx-auto max-w-md text-left" />
           </div>

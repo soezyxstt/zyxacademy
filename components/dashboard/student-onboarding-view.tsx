@@ -5,6 +5,7 @@ import {
   CheckCircle2,
   ClipboardList,
   Flame,
+  GraduationCap,
   LockKeyhole,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -46,13 +47,13 @@ interface StudentOnboardingViewProps {
 const featureHighlights = [
   {
     icon: BookOpen,
-    title: "Materi dua bab pertama",
-    desc: "Baca Artikel dan Diktat pada Bab 1 dan Bab 2 setiap mata kuliah.",
+    title: "Dokumen dan soal PDF",
+    desc: "Akses berkas PDF materi kuliah dan arsip soal latihan secara gratis.",
   },
   {
     icon: ClipboardList,
-    title: "Kuis dan Flashcard",
-    desc: "Latihan kuis dan ulasan Flashcard tersedia pada bab gratis.",
+    title: "Kuis dan materi interaktif",
+    desc: "Aktivasi token kelas untuk membuka kuis, flashcard, dan artikel lengkap.",
   },
   {
     icon: CheckCircle2,
@@ -226,13 +227,67 @@ export function StudentOnboardingView({
               })}
             </div>
           </section>
+
+          <section className="space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/70 pb-3">
+              <h2 className="flex items-center gap-2 font-heading text-body-base font-bold text-foreground">
+                <GraduationCap className="size-4.5 text-brand-primary" />
+                Paket belajar semester
+              </h2>
+              <Button asChild variant="outline" size="sm" className="rounded-lg text-body-sm">
+                <Link href="/plans">Bandingkan semua paket</Link>
+              </Button>
+            </div>
+
+            <PlanPromotion className="mt-2" />
+
+            <div className="grid gap-3 sm:grid-cols-3">
+              {previewPlanTiers.map((tier) => (
+                <Card
+                  key={tier.key}
+                  className={cn(
+                    "p-4 flex flex-col justify-between",
+                    tier.highlighted && "border-brand-primary/40 bg-brand-primary/5",
+                  )}
+                >
+                  <div>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-heading text-body-sm font-bold text-foreground">{tier.name}</span>
+                      {tier.highlighted ? (
+                        <span className="rounded-md bg-brand-primary/10 px-1.5 py-0.5 text-body-2xs font-bold text-brand-primary">
+                          Populer
+                        </span>
+                      ) : null}
+                    </div>
+                    <div className="mt-2.5">
+                      <PlanPrice
+                        plan={tier.key}
+                        persons={DEFAULT_PERSONS}
+                        courses={DEFAULT_COURSES}
+                        perPerson
+                      />
+                    </div>
+                    <p className="mt-2 text-body-xs text-muted-foreground">{tier.note}</p>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          </section>
         </div>
 
         <div className="space-y-6 lg:col-span-4">
           <Card className="p-4 sm:p-5">
+            <h2 className="flex items-center gap-2 font-heading text-body-sm font-bold text-foreground">
+              <LockKeyhole className="size-4 text-muted-foreground" />
+              Sudah punya token kelas?
+            </h2>
+            <EnrollmentForm className="mt-3.5" />
+          </Card>
+
+          <Card className="p-4 sm:p-5">
             <h2 className="font-heading text-body-sm font-bold text-foreground">Ingin akses lebih banyak?</h2>
             <p className="mt-2 text-body-xs leading-relaxed text-muted-foreground">
-              Buka bab berikutnya, unduh Diktat, dan gunakan fitur belajar lanjutan dengan paket berbayar.
+              Buka kuis interaktif, tryout, artikel lengkap, flashcard, dan fitur belajar lanjutan dengan paket berbayar.
             </p>
             <Button asChild className="mt-4 w-full rounded-lg text-body-sm">
               <Link href="/plans">
@@ -240,51 +295,6 @@ export function StudentOnboardingView({
                 <ArrowRight className="ml-1.5 size-4" />
               </Link>
             </Button>
-          </Card>
-
-          <Card className="p-4 sm:p-5">
-            <h2 className="font-heading text-body-sm font-bold text-foreground">Paket belajar semester</h2>
-            <PlanPromotion className="mb-3 mt-3.5" />
-            <div className="space-y-2.5">
-              {previewPlanTiers.map((tier) => (
-                <div
-                  key={tier.key}
-                  className={cn(
-                    "rounded-lg border border-border/60 bg-card/50 p-3",
-                    tier.highlighted && "border-brand-primary/40 bg-brand-primary/10",
-                  )}
-                >
-                  <div className="flex items-center gap-2">
-                    <span className="font-heading text-body-xs font-bold text-foreground">{tier.name}</span>
-                    {tier.highlighted ? (
-                      <span className="rounded-md bg-brand-primary/10 px-1.5 py-0.5 text-body-2xs font-bold text-brand-primary">
-                        Populer
-                      </span>
-                    ) : null}
-                  </div>
-                  <div className="mt-2">
-                    <PlanPrice
-                      plan={tier.key}
-                      persons={DEFAULT_PERSONS}
-                      courses={DEFAULT_COURSES}
-                      perPerson
-                    />
-                  </div>
-                  <p className="mt-1 line-clamp-1 text-body-xs text-muted-foreground">{tier.note}</p>
-                </div>
-              ))}
-            </div>
-            <Button asChild variant="outline" size="sm" className="mt-4 w-full rounded-lg text-body-sm">
-              <Link href="/plans">Bandingkan semua paket</Link>
-            </Button>
-          </Card>
-
-          <Card className="p-4 sm:p-5">
-            <h2 className="flex items-center gap-2 font-heading text-body-sm font-bold text-foreground">
-              <LockKeyhole className="size-4 text-muted-foreground" />
-              Sudah punya token kelas?
-            </h2>
-            <EnrollmentForm className="mt-3.5" />
           </Card>
         </div>
       </div>

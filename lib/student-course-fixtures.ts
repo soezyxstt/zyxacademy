@@ -16,6 +16,8 @@ export type CourseMaterial = {
  subcategory?: string | null;
  year?: number | null;
  fileSize?: string;
+ /** Whether the material is locked for unenrolled students */
+ locked?: boolean;
  /** Custom navigation link (e.g. for interactive quizzes/tryouts) */
  href?: string;
  /** Article: plain text / markdown-ish paragraphs separated by \n\n */
