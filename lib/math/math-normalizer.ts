@@ -13,6 +13,17 @@ function normalizePlainTextSegment(text: string): string {
 
   let s = text;
 
+  // 0. Bare LaTeX limit expressions: \lim_{...} f(x) = L or \lim_{x \to c} f(x)
+  s = s.replace(
+    /(?<!\$)\\lim(?:_[a-zA-Z0-9]+|_{[^}]+})(?:\s*[fghP]\([a-zA-Z0-9^()+\-*/]+\)|\s*\([a-zA-Z0-9^()+\-*/\s]+\)|\s*[a-zA-Z0-9])?(?:\s*=\s*[-+*/a-zA-Z0-9]+)?(?!\$)/g,
+    (match) => ` $${match.trim()}$ `
+  );
+  // Bare LaTeX commands like \frac{...}{...}, \sqrt{...}, \mathbb{R}, etc.
+  s = s.replace(
+    /(?<!\$)\\(?:frac|dfrac|tfrac|sqrt|mathbb|mathcal|mathbf|mathrm|text|sum|int|iint|iiint|oint|prod|alpha|beta|gamma|varepsilon|zeta|eta|iota|kappa|lambda|mu|nu|xi|rho|tau|upsilon|phi|chi|psi|omega|Gamma|Delta|Theta|Lambda|Xi|Pi|Sigma|Upsilon|Phi|Psi|Omega|pm|mp|cdot|times|div|leq|geq|ne|neq|approx|equiv|in|notin|subset|subseteq|cap|cup|setminus|emptyset|infty|partial|nabla|forall|exists)\b(?:\{[^{}]*\}|\[[^\]]*\]|_[a-zA-Z0-9]+|_{[^{}]+}|\^[a-zA-Z0-9]+|\^{[^{}]+})*(?!\$)/g,
+    (match) => ` $${match.trim()}$ `
+  );
+
   // 1. Spelled out quadratic formula & variations
   s = s.replace(
     /x\s*=\s*\(\s*-b\s+(?:plus\s+atau\s+minus|\+-|\+\/-)\s+akar\s+D\s*\)\s*\/\s*\(\s*2a\s*\)/gi,
@@ -39,7 +50,27 @@ function normalizePlainTextSegment(text: string): string {
   s = s.replace(/(?<!\\)\bakar\s+D\b/gi, () => "$\\sqrt{D}$");
   s = s.replace(/(?<!\\)\bplus\s+atau\s+minus\b/gi, () => "$\\pm$");
 
-  // 4. Multi-term geometric equations (Circle, Ellipse, Hyperbola, Distance)
+  // 4. Rational function assignments: f(x) = (expr)/(expr)
+  s = s.replace(
+    /\b([fghP]\([a-zA-Z0-9]+\))\s*=\s*\(([^)]+)\)\s*\/\s*\(([^)]+)\)/g,
+    (_, fn, num, den) => ` $${fn} = \\frac{${num}}{${den}}$ `
+  );
+
+  // 5. Rational & reciprocal graphs: f(x) = 1/x, g(x) = 1/x^2
+  s = s.replace(/(?<!\\)\b([fghP]\([a-zA-Z0-9]+\)\s*=\s*)?1\/x\^2\b/g, (match, prefix) => {
+    return prefix ? `$${prefix}\\frac{1}{x^2}$` : "$\\frac{1}{x^2}$";
+  });
+  s = s.replace(/(?<!\\)\b([fghP]\([a-zA-Z0-9]+\)\s*=\s*)?1\/x\b/g, (match, prefix) => {
+    return prefix ? `$${prefix}\\frac{1}{x}$` : "$\\frac{1}{x}$";
+  });
+
+  // 6. Simple function assignments: f(x) = ax + b, f(x) = 2x - 3
+  s = s.replace(
+    /\b([fghP]\([a-zA-Z0-9]+\))\s*=\s*([a-zA-Z0-9]+(?:\s*[-+*/^]\s*[a-zA-Z0-9]+)+)(?=[,.;]|\s+(?:dan|atau|untuk|di|jika|maka|dengan)\b|$)/g,
+    (_, fn, rhs) => ` $${fn} = ${rhs.trim()}$ `
+  );
+
+  // 7. Multi-term geometric equations (Circle, Ellipse, Hyperbola, Distance)
   s = s.replace(
     /\(\s*x\s*-\s*p\s*\)\^2\s*\+\s*\(\s*y\s*-\s*q\s*\)\^2\s*=\s*r\^2/g,
     () => " $(x - p)^2 + (y - q)^2 = r^2$ "
@@ -57,7 +88,7 @@ function normalizePlainTextSegment(text: string): string {
     () => " $x^2 + y^2 = r^2$ "
   );
 
-  // 5. Pythagorean trigonometric identities
+  // 8. Pythagorean trigonometric identities
   s = s.replace(
     /sin\^2\(theta\)\s*\+\s*cos\^2\(theta\)\s*=\s*1/gi,
     () => " $\\sin^2\\theta + \\cos^2\\theta = 1$ "
@@ -75,41 +106,63 @@ function normalizePlainTextSegment(text: string): string {
     () => " $\\cos(2\\theta) = \\cos^2\\theta - \\sin^2\\theta$ "
   );
 
-  // 6. Theta formulas BEFORE individual theta (with negative lookbehind for backslash)
+  // 9. Theta formulas BEFORE individual theta
   s = s.replace(/(?<!\\)\btheta\s*=\s*s\/r\b/gi, () => "$\\theta = \\frac{s}{r}$");
   s = s.replace(/(?<!\\)\b([a-zA-Z]+)\(theta\)/gi, (_, fn) => `$\\${fn}(\\theta)$`);
   s = s.replace(/(?<!\\)\b(?:sudut\s+)?theta\b/gi, (match) => {
     return match.toLowerCase().startsWith("sudut") ? "sudut $\\theta$" : "$\\theta$";
   });
 
-  // 7. sqrt(...) expressions: sqrt(x), sqrt(x^2), sqrt((c - a)^2 + (d - b)^2), etc.
+  // 10. sqrt(...) expressions: sqrt(x), sqrt(x^2), sqrt((c - a)^2 + (d - b)^2), etc.
   s = s.replace(/(?<!\\)\bsqrt\(([^)]+)\)/g, (_, inner) => {
     return `$\\sqrt{${inner}}$`;
   });
 
-  // 8. Single-variable power equations like a^2=x, x^2=b (ensure not followed by ^2)
+  // 11. Single-variable power equations like a^2=x, x^2=b
   s = s.replace(/(?<!\\)\b([a-zA-Z])\^2\s*=\s*([a-zA-Z0-9]+)(?!\^)\b/g, (_, v, res) => {
     return `$${v}^2 = ${res}$`;
   });
   s = s.replace(/(?<!\\)\bD\s*=\s*b\^2\s*-\s*4ac\b/g, () => "$D = b^2 - 4ac$");
   s = s.replace(/(?<!\\)\b([a-zA-Z])\(r\)\s*=\s*0\b/g, (_, fn) => `$${fn}(r) = 0$`);
 
-  // 9. Simple polynomial expressions: ax^2 + bx + c
+  // 12. Simple polynomial expressions: ax^2 + bx + c
   s = s.replace(/(?<!\\)\bax\^2\s*\+\s*bx\s*\+\s*c\b/g, () => "$ax^2 + bx + c$");
 
-  // 10. Rational & reciprocal graphs: 1/x, 1/x^2
-  s = s.replace(/(?<!\\)\b(?:f\(x\)\s*=\s*)?1\/x\^2\b/g, (match) => {
-    return match.includes("=") ? "$f(x) = \\frac{1}{x^2}$" : "$\\frac{1}{x^2}$";
-  });
-  s = s.replace(/(?<!\\)\b(?:f\(x\)\s*=\s*)?1\/x\b/g, (match) => {
-    return match.includes("=") ? "$f(x) = \\frac{1}{x}$" : "$\\frac{1}{x}$";
-  });
-
-  // 11. Rational powers: x^(1/2), x^(1/3), x^(p/q), y = x^n
+  // 13. Rational powers: x^(1/2), x^(1/3), x^(p/q), y = x^n
   s = s.replace(/(?<!\\)\bx\^\(([0-9a-zA-Z]+)\/([0-9a-zA-Z]+)\)/g, (_, n, d) => `$x^{\\frac{${n}}{${d}}}$`);
   s = s.replace(/(?<!\\)\b([xy])\s*=\s*([a-zA-Z])\^([a-zA-Z0-9]+)\b/g, (_, l, b, p) => `$${l} = ${b}^{${p}}$`);
 
-  // 12. Inequalities: e.g. x >= 0, a >= 0, r > 0, k > 0, n >= 3, c > 1, p > 0, b != 0, -1 < x < 1, |x| > 1
+  // 14. Chain inequalities like 0 < |x - c| < delta or -delta < x - c < 0
+  s = s.replace(
+    /(?:-?(?:delta|epsilon|[0-9a-zA-Z]+))\s*(?:<|<=|\\le)\s*(?:\|[^|]+\||[-a-zA-Z0-9\s+]+?)\s*(?:<|<=|\\le)\s*(?:delta|epsilon|[0-9a-zA-Z]+)/g,
+    (match) => {
+      const tex = match.replace(/\bdelta\b/g, "\\delta").replace(/\bepsilon\b/g, "\\epsilon");
+      return ` $${tex.trim()}$ `;
+    }
+  );
+
+  // 15. Greek letter inequalities: epsilon > 0, delta > 0, delta = epsilon / a
+  s = s.replace(/\b(delta|epsilon)\s*(>=|<=|!=|>|<)\s*([0-9a-zA-Z]+)/g, (_, greek, op, val) => {
+    const texOp = op === ">=" ? "\\ge" : op === "<=" ? "\\le" : op === "!=" ? "\\ne" : op;
+    return ` $\\${greek} ${texOp} ${val}$ `;
+  });
+  s = s.replace(/\b(delta|epsilon)\s*=\s*(delta|epsilon)\s*\/\s*([0-9a-zA-Z]+)/g, (_, g1, g2, denom) => {
+    return ` $\\${g1} = \\frac{\\${g2}}{${denom}}$ `;
+  });
+
+  // 16. Standalone function evaluations: f(c), f(x), f(1), f(0), g(x)
+  s = s.replace(
+    /(?<![\\$a-zA-Z0-9])\b([fghP]\([a-zA-Z0-9+\\-]+\))(?![\\$a-zA-Z0-9])/g,
+    (match) => ` $${match}$ `
+  );
+
+  // 17. Single-variable assignments in sentences: di x=c, di x=1, x=0
+  s = s.replace(
+    /(?<![\\$a-zA-Z0-9])\b([a-zA-Z])\s*=\s*([a-zA-Z0-9]+)\b(?![\\$a-zA-Z0-9])/g,
+    (_, v, val) => ` $${v} = ${val}$ `
+  );
+
+  // 18. Inequalities: e.g. x >= 0, a >= 0, r > 0, k > 0, n >= 3, c > 1, p > 0, b != 0, -1 < x < 1, |x| > 1, x < c, x > c
   s = s.replace(
     /(?<!\\)\b(-?[0-9]+)\s*<\s*([a-zA-Z])\s*<\s*(-?[0-9]+)\b/g,
     (_, min, v, max) => `$${min} < ${v} < ${max}$`
@@ -117,27 +170,27 @@ function normalizePlainTextSegment(text: string): string {
   s = s.replace(
     /\|([a-zA-Z])\|\s*(>=|<=|>|<)\s*([0-9]+)\b/g,
     (_, v, op, val) => {
-      const texOp = op === ">=" ? "\\ge" : op === "<=" ? "\\le" : op;
+      const texOp = op === ">=" ? "\\ge" : op === "<=" ? "\\le" : op === "!=" ? "\\ne" : op;
       return `$|${v}| ${texOp} ${val}$`;
     }
   );
   s = s.replace(
-    /(?<!\\)\b([a-zA-Z](?:[0-9]+)?)\s*(>=|<=|!=|>|<)\s*(-?[0-9a-zA-Z]+)\b/g,
+    /(?<![\\$])\b([a-zA-Z](?:[0-9]+)?)\s*(>=|<=|!=|>|<)\s*(-?[0-9a-zA-Z]+)\b(?![\\$])/g,
     (_, v, op, val) => {
       const texOp =
         op === ">=" ? "\\ge" : op === "<=" ? "\\le" : op === "!=" ? "\\ne" : op;
-      return `$${v} ${texOp} ${val}$`;
+      return ` $${v} ${texOp} ${val}$ `;
     }
   );
 
-  // 13. Absolute values: |x| = x, |x| = -x, |-a| = |a|, |ab| = |a||b|, |a + b| <= |a| + |b|
+  // 19. Absolute values: |x| = x, |x| = -x, |-a| = |a|, |ab| = |a||b|, |a + b| <= |a| + |b|
   s = s.replace(/\|x\|\s*=\s*x\b/g, () => "$|x| = x$");
   s = s.replace(/\|x\|\s*=\s*-x\b/g, () => "$|x| = -x$");
   s = s.replace(/\|-a\|\s*=\s*\|a\|/g, () => "$|-a| = |a|$");
   s = s.replace(/\|ab\|\s*=\s*\|a\|\|b\|/g, () => "$|ab| = |a||b|$");
   s = s.replace(/\|a\s*\+\s*b\|\s*<=\s*\|a\|\s*\+\s*\|b\|/g, () => "$|a + b| \\le |a| + |b|$");
 
-  // 14. Double inequalities: |x| <= a <=> -a <= x <= a
+  // 20. Double inequalities: |x| <= a <=> -a <= x <= a
   s = s.replace(
     /\|x\|\s*<=\s*a\s*<=>\s*-a\s*<=\s*x\s*<=\s*a/g,
     () => "$|x| \\le a \\Leftrightarrow -a \\le x \\le a$"
@@ -147,15 +200,15 @@ function normalizePlainTextSegment(text: string): string {
     () => "$|x| \\ge a \\Leftrightarrow x \\le -a \\text{ atau } x \\ge a$"
   );
 
-  // 15. Logical equivalence <=> and implication =>
+  // 21. Logical equivalence <=> and implication =>
   s = s.replace(/\s*<=>\s*/g, () => " $\\Leftrightarrow$ ");
   s = s.replace(/\s*=>\s*/g, () => " $\\Rightarrow$ ");
 
-  // 16. Center point (p,q) and (0,0) in geometric equations
+  // 22. Center point (p,q) and (0,0) in geometric equations
   s = s.replace(/(?<!\\)\bpusat\s*\(\s*p\s*,\s*q\s*\)/gi, () => "pusat $(p,q)$");
   s = s.replace(/(?<!\\)\bpusat\s*\(\s*0\s*,\s*0\s*\)/gi, () => "pusat $(0,0)$");
 
-  // 17. Sets: HP = HP1 cap HP2
+  // 23. Sets: HP = HP1 cap HP2
   s = s.replace(/(?<!\\)\bHP\s*=\s*HP1\s*cap\s*HP2\b/g, () => "$\\text{HP} = \\text{HP}_1 \\cap \\text{HP}_2$");
 
   // Normalize duplicate spaces while preserving outer whitespace

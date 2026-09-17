@@ -26,6 +26,7 @@ import {
   standardizeDocumentTitleAction,
 } from "@/app/(admin)/admin/(academic)/courses/actions";
 import { BatchUploadDialog } from "@/components/admin/course-detail/batch-upload-dialog";
+import { uploadAdminPdfFile } from "@/lib/storage/admin-upload-client";
 import {
   LEVEL1_CATEGORIES,
   getSubcategoriesForLevel1,
@@ -285,21 +286,10 @@ export function AdminUploadDocumentDialog({
         title: cleanTitle,
       });
 
-      const uploadForm = new FormData();
-      uploadForm.append("file", selectedFile);
-      uploadForm.append("courseId", courseId);
-      uploadForm.append("filename", standardFilename);
-
-      const uploadResponse = await fetch("/api/admin/upload-pdf", {
-        method: "POST",
-        body: uploadForm,
+      const uploadData = await uploadAdminPdfFile(selectedFile, {
+        courseId,
+        filename: standardFilename,
       });
-      const uploadData = await uploadResponse.json().catch(() => null);
-
-      if (!uploadResponse.ok || typeof uploadData?.key !== "string") {
-        toast.error(uploadData?.error || "Gagal mengunggah berkas PDF.");
-        return;
-      }
 
       const res = await saveCourseMaterial(
         courseId,

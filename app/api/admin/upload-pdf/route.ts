@@ -10,6 +10,41 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
+  const contentType = req.headers.get("content-type") || "";
+
+  // 1. Handle JSON request for presigned direct R2 upload (bypasses Vercel 4.5MB payload limit)
+  if (contentType.includes("application/json")) {
+    const body = await req.json().catch(() => null);
+    const filename = body?.filename?.toString().trim() || "";
+    const courseId = body?.courseId?.toString().trim();
+
+    if (!filename || !filename.toLowerCase().endsWith(".pdf")) {
+      return NextResponse.json({ error: "Nama berkas PDF wajib diisi dan berakhiran .pdf" }, { status: 400 });
+    }
+
+    if (typeof storage.getSignedUrl !== "function") {
+      return NextResponse.json(
+        { error: "Penyimpanan aktif tidak mendukung unggahan presigned" },
+        { status: 501 }
+      );
+    }
+
+    const leaf = userFileLeaf(filename);
+    const storageKey = courseId
+      ? joinKey("courses", slugifySegment(courseId), "materials", leaf)
+      : joinKey(
+          "uploads",
+          String(new Date().getUTCFullYear()),
+          String(new Date().getUTCMonth() + 1).padStart(2, "0"),
+          leaf
+        );
+
+    const uploadUrl = await storage.getSignedUrl(storageKey, "put", "application/pdf", 3600);
+    const url = storage.getUrl(storageKey);
+
+    return NextResponse.json({ key: storageKey, uploadUrl, url }, { status: 200 });
+  }
+
   const formData = await req.formData();
   const file = formData.get('file') as File | null;
 

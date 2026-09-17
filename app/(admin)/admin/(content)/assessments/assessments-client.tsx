@@ -30,6 +30,7 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "@/components/ui/toast";
 import { AdminConfirmDialog } from "@/components/admin/confirm-dialog";
+import { uploadAdminPdfFile } from "@/lib/storage/admin-upload-client";
 import { RotateCcw } from "lucide-react";
 import { AdminTable, AdminTableHead } from "@/components/admin/table";
 import {
@@ -148,22 +149,14 @@ export function AssessmentsClient({ sources, courses, courseMap }: Props) {
     setPdfUploadState("uploading");
 
     try {
-      const fd = new FormData();
-      fd.append("file", file);
-      fd.append("courseId", form.courseId);
-
-      const res = await fetch("/api/admin/upload-pdf", { method: "POST", body: fd });
-      if (!res.ok) {
-        throw new Error("Gagal mengunggah file ke R2.");
-      }
-      const data = await res.json();
+      const data = await uploadAdminPdfFile(file, { courseId: form.courseId });
       setForm((prev) => ({ ...prev, pdfKey: data.key }));
       setPdfUploadState("done");
       toast.success("PDF berhasil diunggah.");
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
       setPdfUploadState("error");
-      toast.error("Gagal mengunggah PDF.");
+      toast.error(error?.message || "Gagal mengunggah PDF.");
     }
   };
 

@@ -330,6 +330,7 @@ function ideaName(idea: IdeaPreview["ideas"][number] | undefined): string {
 function readableSourceExcerpt(excerpt: string): string {
   return excerpt
     .replace(/<!--[\s\S]*?-->/g, "")
+    .replace(/^:::.*$/gm, "")
     .replace(/^#{1,6}\s+/gm, "")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
@@ -708,7 +709,9 @@ export function IdeaBundleReviewDetail({ detailId, backHref }: DetailProps) {
                     {activeIdea.provenance.map((proof) => (
                       <div key={proof.id} className="space-y-1.5 rounded-lg border border-border/80 bg-muted/20 p-4">
                         <p className="text-body-sm font-semibold text-foreground">{proof.sourceTitle}{proof.pageNumber ? ` · Hal. ${proof.pageNumber}` : ""}</p>
-                        <p className="whitespace-pre-wrap text-body-sm leading-relaxed text-muted-foreground">{readableSourceExcerpt(proof.excerpt)}</p>
+                        <div className="text-body-sm leading-relaxed text-muted-foreground">
+                          <MarkdownRenderer content={readableSourceExcerpt(proof.excerpt)} density="compact" />
+                        </div>
                       </div>
                     ))}
                   </div>

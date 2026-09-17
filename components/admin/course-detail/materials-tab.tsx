@@ -19,6 +19,7 @@ import {
   deleteCourseMaterial,
 } from "@/app/(admin)/admin/(academic)/courses/actions";
 import { BatchUploadDialog } from "@/components/admin/course-detail/batch-upload-dialog";
+import { uploadAdminPdfFile } from "@/lib/storage/admin-upload-client";
 import {
   AlertCircle,
   FileText,
@@ -256,23 +257,10 @@ export function MaterialsTab({
 
     setLoading(true);
     try {
-      const uploadForm = new FormData();
-      uploadForm.append("file", selectedFile);
-      uploadForm.append("courseId", courseId);
-      if (customFilename.trim()) {
-        uploadForm.append("filename", customFilename.trim());
-      }
-
-      const uploadResponse = await fetch("/api/admin/upload-pdf", {
-        method: "POST",
-        body: uploadForm,
+      const uploadData = await uploadAdminPdfFile(selectedFile, {
+        courseId,
+        filename: customFilename.trim() || undefined,
       });
-      const uploadData = await uploadResponse.json().catch(() => null);
-
-      if (!uploadResponse.ok || typeof uploadData?.key !== "string") {
-        toast.error(uploadData?.error || "Gagal mengunggah berkas PDF.");
-        return;
-      }
 
       const res = await saveCourseMaterial(
         courseId,
