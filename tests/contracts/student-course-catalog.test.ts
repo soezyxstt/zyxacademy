@@ -109,4 +109,31 @@ describe("student course catalog compatibility suppression", () => {
     await testDb.delete(schema.mataKuliah).where(eq(schema.mataKuliah.id, "legacy-canonical-id"));
     await testDb.delete(schema.courses).where(eq(schema.courses.id, "legacy-canonical-id"));
   });
+
+  test("does not suppress canonical course when legacyCourseId matches its own id", async () => {
+    const now = new Date("2026-09-14T00:00:00.000Z");
+    await testDb.insert(schema.courses).values({
+      id: "matematika-1",
+      title: "Matematika I",
+      category: "Matematika",
+      description: "Kelas persiapan ITB TPB",
+    });
+    await testDb.insert(schema.mataKuliah).values({
+      id: "matematika-1",
+      code: "legacy-matematika-1",
+      title: "Matematika I",
+      status: "active",
+      legacyCourseId: "matematika-1",
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    const courses = await listStudentCourses();
+    expect(courses).toHaveLength(1);
+    expect(courses[0].id).toBe("matematika-1");
+    expect(courses[0].title).toBe("Matematika I");
+
+    await testDb.delete(schema.mataKuliah).where(eq(schema.mataKuliah.id, "matematika-1"));
+    await testDb.delete(schema.courses).where(eq(schema.courses.id, "matematika-1"));
+  });
 });

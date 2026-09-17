@@ -288,13 +288,10 @@ export default async function CourseMaterialDetailPage({ params }: Props) {
   const canonicalArticle = await getCanonicalPublishedArticle(id, materialId, studentId);
   if (canonicalArticle && course) {
     const access = studentId ? await getStudentCourseAccess(studentId, id) : null;
-    const isAllowed = Boolean(access) && (
-      access?.tier !== "free"
-      || isFreeChapterScoped([canonicalArticle.chapterId].filter((chapterId): chapterId is string => Boolean(chapterId)), access.freeChapterIds)
-    );
-    if (!isAllowed) {
+    const isEnrolled = access?.tier === "standard";
+    if (!isEnrolled) {
       return (
-        <CoursePageShell title="Materi terkunci" description={`${course.title} · konten premium`} hideHeader>
+        <CoursePageShell title="Materi terkunci" description={`${course.title}, konten premium`} hideHeader>
           <div className="mb-4">
             <Button variant="ghost" size="sm" asChild className="gap-1.5 text-body-xs font-semibold text-muted-foreground hover:text-foreground">
               <Link href={`/courses/${id}/material`}>
@@ -333,26 +330,13 @@ export default async function CourseMaterialDetailPage({ params }: Props) {
   if (!course || !material) notFound();
 
   const access = studentId ? await getStudentCourseAccess(studentId, id) : null;
-  const isFreeMaterial = material.kind === "article"
-    || material.kind === "quiz"
-    || material.docCategory === "diktat";
-  const isAccessible = Boolean(access) && (
-    access?.tier !== "free"
-    || (
-      isFreeMaterial
-      && isFreeChapterScoped(
-        [
-          ...(material.chapterIds ?? []),
-          ...(material.chapterId ? [material.chapterId] : []),
-        ],
-        access.freeChapterIds,
-      )
-    )
-  );
+  const isEnrolled = access?.tier === "standard";
+  const isFreePdf = material.kind === "pdf" && material.docCategory !== "diktat";
+  const isAccessible = isEnrolled || isFreePdf;
 
   if (!isAccessible) {
     return (
-      <CoursePageShell title="Materi terkunci" description={`${course.title} · konten premium`} hideHeader>
+      <CoursePageShell title="Materi terkunci" description={`${course.title}, konten premium`} hideHeader>
         <div className="mb-4">
           <Button variant="ghost" size="sm" asChild className="gap-1.5 text-body-xs font-semibold text-muted-foreground hover:text-foreground">
             <Link href={`/courses/${id}/material`}>

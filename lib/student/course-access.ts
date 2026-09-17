@@ -362,7 +362,7 @@ async function resolveActor(
       .where(eq(authUser.id, userId))
       .limit(1),
   ]);
-  let identity = existingIdentity;
+  let identity: { status: "active" | "suspended" } | null | undefined = existingIdentity;
   if (identity?.status === "suspended") {
     return {
       role: null,

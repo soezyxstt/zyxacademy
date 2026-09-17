@@ -66,6 +66,7 @@ import { isZyraSelectionAskEnabled, normalizeZyraSelection } from "@/lib/zyra/mu
 import { formatReaderTocTitle } from "@/lib/materials/reader-toc";
 import { isLearnerReaderMode, type MaterialReaderMode } from "@/lib/materials/reader-mode";
 import type { CourseAccessTier } from "@/lib/student/course-access";
+import type { StudentCourseAccessTier } from "@/lib/course-utils";
 
 type MaterialViewerProps = {
   material: CourseMaterial;
@@ -74,7 +75,7 @@ type MaterialViewerProps = {
   /** P3 grounded-tutor feature flag, resolved on the server. */
   ragEnabled?: boolean;
   /** Free readers do not have access to the enrolled-only summary action. */
-  accessTier?: CourseAccessTier;
+  accessTier?: CourseAccessTier | StudentCourseAccessTier;
   /** EIF E3: course concept term index for the interactive material popover. */
   termIndex?: TermIndexEntry[];
   /** EIF E3: interactive material popover selection gate, defaults to true. */

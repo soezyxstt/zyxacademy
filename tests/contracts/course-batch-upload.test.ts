@@ -97,6 +97,16 @@ describe("filename heuristics", () => {
     expect(meta.chapterIds).toEqual(["ch-1"]);
     expect(meta.primaryChapterIndex).toBe(1);
   });
+
+  test("prefers more specific full chapter title over subset token", () => {
+    const chapters = [
+      { id: "ch-2", title: "Bab 2 Turunan", orderIndex: 2 },
+      { id: "ch-3", title: "Bab 3 Aplikasi Turunan", orderIndex: 3 },
+    ];
+    const meta = detectMetadataFromFilename("Bab 03-Aplikasi Turunan.pdf", chapters);
+    expect(meta.chapterIds).toEqual(["ch-3"]);
+    expect(meta.primaryChapterIndex).toBe(3);
+  });
 });
 
 describe("standard renaming engine", () => {

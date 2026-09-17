@@ -360,31 +360,95 @@ export function detectChaptersFromFilename(
   }
 
   // 2. Direct chapter patterns: "bab 0", "bab 1", "chapter 2", "ch 3", "modul 1", "tutorial 2", "kbf 1"
+  let foundByNumber: BatchChapterInfo | null = null;
   const pattern = /(?:bab|chapter|ch|modul|module|minggu|week|w|tutorial|tut|kbf|kuis|quiz)\s*[-_:]?\s*([0-9]+|[ivxlcdm]+)\b/i;
   const match = base.match(pattern);
   if (match) {
     const num = parseChapterNumber(match[1]);
     if (num !== null) {
-      const found = chapters.find(
+      foundByNumber = chapters.find(
         (c) =>
           c.orderIndex === num ||
           new RegExp(`\\bbab\\s*${num}\\b`, "i").test(c.title) ||
           new RegExp(`^${num}[\\.:\\s]`, "i").test(c.title)
-      );
-      if (found) return [found.id];
+      ) ?? null;
     }
   }
 
-  // 3. Fallback: Check if chapter title words appear in filename (e.g. "Pertaksamaan dan Fungsi", "Limit")
+  // 3. Fallback: Check if full chapter title words appear in filename (e.g. "Pertaksamaan dan Fungsi", "Limit")
+  let bestSemanticMatch: { chapter: BatchChapterInfo; length: number } | null = null;
   for (const ch of chapters) {
     const cleanTitle = ch.title
       .replace(/^bab\s*\d+\s*[:\.-]?\s*/i, "")
       .trim()
       .toLowerCase();
     if (cleanTitle.length >= 4 && base.includes(cleanTitle)) {
-      return [ch.id];
+      if (!bestSemanticMatch || cleanTitle.length > bestSemanticMatch.length) {
+        bestSemanticMatch = { chapter: ch, length: cleanTitle.length };
+      }
     }
   }
+  let foundBySemantic: BatchChapterInfo | null = bestSemanticMatch?.chapter ?? null;
+
+  // 4. Keyword token match: check significant chapter words (e.g. "limit", "turunan", "integral")
+  if (!foundBySemantic) {
+    const stopWords = new Set(["dan", "atau", "pada", "untuk", "dengan", "dalam", "bab", "part", "bagian", "materi"]);
+    let bestTokenMatch: { chapter: BatchChapterInfo; score: number } | null = null;
+    for (const ch of chapters) {
+      const cleanTitle = ch.title
+        .replace(/^bab\s*\d+\s*[:\.-]?\s*/i, "")
+        .trim()
+        .toLowerCase();
+      const tokens = cleanTitle
+        .split(/[\s,–—\-_:]+/)
+        .filter((w) => w.length >= 4 && !stopWords.has(w));
+      const matchedTokens = tokens.filter((token) => {
+        const escaped = token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        return new RegExp(`\\b${escaped}\\b`, "i").test(base);
+      });
+      if (matchedTokens.length > 0 && (!bestTokenMatch || matchedTokens.length > bestTokenMatch.score)) {
+        bestTokenMatch = { chapter: ch, score: matchedTokens.length };
+      }
+    }
+    foundBySemantic = bestTokenMatch?.chapter ?? null;
+  }
+
+  // Discrepancy resolver (e.g. campus Bab 0 vs Zyx Bab 1):
+  // If chapter found by number does NOT mention any of its keywords in the filename,
+  // or a more specific semantic full-title match exists, prefer the semantic match!
+  if (foundByNumber && foundBySemantic && foundByNumber.id !== foundBySemantic.id) {
+    const cleanSemanticTitle = foundBySemantic.title
+      .replace(/^bab\s*\d+\s*[:\.-]?\s*/i, "")
+      .trim()
+      .toLowerCase();
+    const cleanNumberTitle = foundByNumber.title
+      .replace(/^bab\s*\d+\s*[:\.-]?\s*/i, "")
+      .trim()
+      .toLowerCase();
+
+    if (
+      base.includes(cleanSemanticTitle) &&
+      (!base.includes(cleanNumberTitle) || cleanSemanticTitle.length > cleanNumberTitle.length)
+    ) {
+      return [foundBySemantic.id];
+    }
+
+    const numberChapTokens = foundByNumber.title
+      .toLowerCase()
+      .split(/[\s,–—\-_:]+/)
+      .filter((w) => w.length >= 4 && !["dan", "atau", "pada", "untuk", "dengan", "dalam", "bab"].includes(w));
+    const numberOverlaps = numberChapTokens.some((token) => {
+      const escaped = token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      return new RegExp(`\\b${escaped}\\b`, "i").test(base);
+    });
+    if (!numberOverlaps) {
+      return [foundBySemantic.id];
+    }
+    return [foundByNumber.id];
+  }
+
+  if (foundBySemantic) return [foundBySemantic.id];
+  if (foundByNumber) return [foundByNumber.id];
 
   return [];
 }

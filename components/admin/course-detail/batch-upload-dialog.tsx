@@ -43,10 +43,12 @@ import {
   List,
   Loader2,
   Plus,
+  Sparkles,
   Trash2,
   Upload,
   X,
 } from "lucide-react";
+import { batchStandardizeDocumentsAction } from "@/app/(admin)/admin/(academic)/courses/actions";
 import {
   LEVEL1_CATEGORIES,
   getSubcategoriesForLevel1,
@@ -61,6 +63,7 @@ import {
   detectMetadataFromFilename,
   formatBytes,
   generateFileName,
+  standardizeDocumentTitle,
   isHiddenOrSystemFile,
   isSupportedBatchFile,
   type BatchChapterInfo,
@@ -241,6 +244,7 @@ export function BatchUploadDialog({
   const [categoryDragOver, setCategoryDragOver] = useState<MaterialLevel1Category | null>(null);
   const [chapterDragOver, setChapterDragOver] = useState<string | null>(null);
   const [uploadRunning, setUploadRunning] = useState(false);
+  const [isBatchFormattingAi, setIsBatchFormattingAi] = useState(false);
   const [commitError, setCommitError] = useState<string | null>(null);
   const [summary, setSummary] = useState<UploadSummary | null>(null);
   const [preview, setPreview] = useState<PreviewState | null>(null);
@@ -284,6 +288,7 @@ export function BatchUploadDialog({
     setCategoryDragOver(null);
     setChapterDragOver(null);
     setUploadRunning(false);
+    setIsBatchFormattingAi(false);
     setCommitError(null);
     setSummary(null);
     draggingIdsRef.current = [];
@@ -323,13 +328,25 @@ export function BatchUploadDialog({
         ? sortedChapters.find((c) => c.id === meta.chapterIds[0])
         : null;
 
+      let standardTitle = meta.title;
+      let cleanTopicForFilename = meta.title;
+      if (
+        meta.category === "materi" &&
+        (meta.subcategory === "materi_dosen" || !meta.subcategory) &&
+        primaryChap
+      ) {
+        const cleanChapTitle = primaryChap.title.replace(/^bab\s*\d+\s*[:\.-]?\s*/i, "");
+        standardTitle = `Bab ${primaryChap.orderIndex}: ${standardizeDocumentTitle(cleanChapTitle)}`;
+        cleanTopicForFilename = cleanChapTitle;
+      }
+
       const generatedName = generateFileName({
         courseCode: courseId,
         category: meta.category,
         subcategory: meta.subcategory,
         chapterIndex: primaryChap?.orderIndex ?? meta.primaryChapterIndex,
         year: meta.year,
-        title: meta.title,
+        title: cleanTopicForFilename,
       });
 
       return {
@@ -346,13 +363,81 @@ export function BatchUploadDialog({
         category: meta.category,
         subcategory: meta.subcategory,
         year: meta.year,
-        title: meta.title,
+        title: standardTitle,
         generatedName,
         chapterIds: meta.chapterIds,
       };
     },
     [courseId, sortedChapters]
   );
+
+  const handleBatchFormatAi = useCallback(async () => {
+    if (docs.length === 0) return;
+    setIsBatchFormattingAi(true);
+
+    try {
+      const filesToFormat = docs.map((d) => ({
+        id: d.id,
+        filename: d.originalName,
+      }));
+
+      const results = await batchStandardizeDocumentsAction({
+        files: filesToFormat,
+        courseId,
+        courseTitle,
+        chapters: sortedChapters,
+      });
+
+      if (results && results.length > 0) {
+        const resultsMap = new Map(results.map((r) => [r.id, r]));
+
+        setDocs((prev) =>
+          prev.map((d) => {
+            const res = resultsMap.get(d.id);
+            if (!res) return d;
+
+            const updatedChapterIds =
+              res.chapterIds.length > 0 ? res.chapterIds : d.chapterIds;
+            const primaryChap =
+              updatedChapterIds.length === 1
+                ? sortedChapters.find((c) => c.id === updatedChapterIds[0])
+                : null;
+
+            const cleanTopicForFilename = res.title.replace(/^bab\s*\d+\s*[:\.-]?\s*/i, "");
+
+            const updatedName = renamedOverrideRef.current.has(d.id)
+              ? d.generatedName
+              : generateFileName({
+                  courseCode: courseId,
+                  category: res.category,
+                  subcategory: res.subcategory,
+                  chapterIndex: primaryChap?.orderIndex ?? res.matchedChapterOrderIndex,
+                  year: res.year,
+                  title: cleanTopicForFilename,
+                });
+
+            return {
+              ...d,
+              title: res.title,
+              category: res.category,
+              subcategory: res.subcategory,
+              year: res.year,
+              chapterIds: updatedChapterIds,
+              generatedName: updatedName,
+            };
+          })
+        );
+
+        toast.success(`${results.length} dokumen berhasil dirapikan format dan babnya dengan AI.`);
+      }
+    } catch (err) {
+      console.error("Batch AI format failed:", err);
+      toast.error("Gagal merapikan dengan AI. Format standar tetap dipertahankan.");
+    } finally {
+      setIsBatchFormattingAi(false);
+    }
+  }, [docs, courseId, courseTitle, sortedChapters]);
+
 
   const runHashAndDedup = useCallback(
     async (staged: StagedBatchDocument[]) => {
@@ -708,7 +793,7 @@ export function BatchUploadDialog({
   );
 
   const startUpload = useCallback(async () => {
-    if (uploadRunning || ingestPhase !== "idle") return;
+    if (uploadRunning || isBatchFormattingAi || ingestPhase !== "idle") return;
 
     if (docs.length === 0) {
       toast.error("Tidak ada dokumen untuk diunggah.");
@@ -828,6 +913,7 @@ export function BatchUploadDialog({
     chapters.length,
     docs,
     ingestPhase,
+    isBatchFormattingAi,
     router,
     updateDoc,
     uploadRunning,
@@ -1123,6 +1209,22 @@ export function BatchUploadDialog({
                       <Badge variant="secondary" className="rounded-md text-body-xs font-semibold bg-muted/60 border border-border text-foreground">
                         {docs.length} dokumen ({formatBytes(totalBytes)})
                       </Badge>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-8 px-2.5 rounded-lg text-body-sm font-medium gap-1.5 border-brand-primary/30 text-brand-primary hover:bg-brand-primary/10"
+                        disabled={isBatchFormattingAi || uploadRunning || docs.length === 0}
+                        onClick={() => void handleBatchFormatAi()}
+                        title="Rapikan display name dan petakan bab seluruh dokumen dengan Gemini AI"
+                      >
+                        {isBatchFormattingAi ? (
+                          <Loader2 className="size-3.5 animate-spin" />
+                        ) : (
+                          <Sparkles className="size-3.5" />
+                        )}
+                        <span>{isBatchFormattingAi ? "Merapikan AI..." : "Rapikan dengan AI"}</span>
+                      </Button>
                       {selection.size > 0 && (
                         <Button
                           type="button"
@@ -1269,6 +1371,22 @@ export function BatchUploadDialog({
                   </div>
 
                   <div className="flex items-center gap-2 ml-auto">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-8 px-2.5 rounded-lg text-body-sm font-medium gap-1.5 border-brand-primary/30 text-brand-primary hover:bg-brand-primary/10"
+                      disabled={isBatchFormattingAi || uploadRunning || docs.length === 0}
+                      onClick={() => void handleBatchFormatAi()}
+                      title="Rapikan display name dan petakan bab seluruh dokumen dengan Gemini AI"
+                    >
+                      {isBatchFormattingAi ? (
+                        <Loader2 className="size-3.5 animate-spin" />
+                      ) : (
+                        <Sparkles className="size-3.5" />
+                      )}
+                      <span>{isBatchFormattingAi ? "Merapikan AI..." : "Rapikan dengan AI"}</span>
+                    </Button>
                     <div className="flex items-center rounded-lg border border-border bg-muted/40 p-0.5">
                       <Button
                         type="button"
@@ -1302,6 +1420,7 @@ export function BatchUploadDialog({
                       className="h-9 px-4 rounded-lg text-body-sm font-semibold shadow-xs"
                       disabled={
                         uploadRunning ||
+                        isBatchFormattingAi ||
                         ingestPhase !== "idle" ||
                         !uploadableDocs.length ||
                         chapters.length === 0 ||

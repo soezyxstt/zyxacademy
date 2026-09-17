@@ -42,10 +42,12 @@ import {
   updateCourseMaterial,
   updateDocumentStatusAction,
   updateArticleContentAction,
+  standardizeDocumentTitleAction,
 } from "@/app/(admin)/admin/(academic)/courses/actions";
 import {
   LEVEL1_CATEGORIES,
   getSubcategoriesForLevel1,
+  isValidSubcategory,
   type MaterialLevel1Category,
   type CourseMaterialSubcategory,
 } from "@/lib/course-materials";
@@ -125,6 +127,9 @@ export function AdminDocumentWorkspace({
     const matched = chapters.find((c) => c.legacyChapterId === rawId);
     return matched ? matched.id : rawId;
   });
+
+  const [formattingPdfAi, setFormattingPdfAi] = useState(false);
+  const [formattingArticleAi, setFormattingArticleAi] = useState(false);
 
   // TOC sidebar and mobile sheet states for preview mode
   const [isTocOpen, setIsTocOpen] = useState(true);
@@ -276,6 +281,90 @@ export function AdminDocumentWorkspace({
       toast.error("Terjadi kesalahan saat menyimpan.");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleFormatPdfTitle = async () => {
+    if (!pdfTitle.trim()) return;
+    setFormattingPdfAi(true);
+    try {
+      let fileName = pdfTitle;
+      if (material.url) {
+        try {
+          const parsed = new URL(material.url, "https://local");
+          const leaf = parsed.pathname.split("/").filter(Boolean).pop();
+          if (leaf) fileName = decodeURIComponent(leaf);
+        } catch {
+          const rawLeaf = material.url.split("/").pop();
+          if (rawLeaf) fileName = decodeURIComponent(rawLeaf.split("?")[0]);
+        }
+      }
+
+      const result = await standardizeDocumentTitleAction({
+        filename: fileName,
+        courseId: courseSlug,
+        chapters,
+        currentValues: {
+          title: pdfTitle,
+          category: pdfType,
+          subcategory: pdfSubcategory,
+          year: pdfYear ? parseInt(pdfYear, 10) : null,
+        },
+      });
+      if (result) {
+        if (result.title) setPdfTitle(result.title);
+        const targetCategory = result.category || pdfType;
+        if (result.category) setPdfType(result.category);
+        if (result.subcategory && isValidSubcategory(targetCategory, result.subcategory)) {
+          setPdfSubcategory(result.subcategory as CourseMaterialSubcategory);
+        } else if (result.category && result.category !== pdfType) {
+          const validSubcats = getSubcategoriesForLevel1(result.category);
+          if (validSubcats.length > 0) {
+            setPdfSubcategory(validSubcats[0].value);
+          }
+        }
+        if (result.chapterIds && result.chapterIds.length > 0) {
+          setSelectedChapters(new Set(result.chapterIds));
+        }
+        if (result.year) setPdfYear(String(result.year));
+        toast.success("Format judul dan bab berhasil dirapikan dengan AI.");
+      }
+    } catch (err) {
+      console.error("AI format failed, fallback to local:", err);
+      setPdfTitle(standardizeDocumentTitle(pdfTitle));
+      toast.error("Gagal menggunakan AI, menggunakan format kapitalisasi standar.");
+    } finally {
+      setFormattingPdfAi(false);
+    }
+  };
+
+  const handleFormatArticleTitle = async () => {
+    if (!articleTitle.trim()) return;
+    setFormattingArticleAi(true);
+    try {
+      const result = await standardizeDocumentTitleAction({
+        filename: articleTitle,
+        courseId: courseSlug,
+        chapters,
+        currentValues: {
+          title: articleTitle,
+          category: "materi",
+          subcategory: "ebook",
+        },
+      });
+      if (result) {
+        if (result.title) setArticleTitle(result.title);
+        if (result.chapterIds && result.chapterIds.length > 0) {
+          setArticleBabId(result.chapterIds[0]);
+        }
+        toast.success("Format judul berhasil dirapikan dengan AI.");
+      }
+    } catch (err) {
+      console.error("AI format failed, fallback to local:", err);
+      setArticleTitle(standardizeDocumentTitle(articleTitle));
+      toast.error("Gagal menggunakan AI, menggunakan format kapitalisasi standar.");
+    } finally {
+      setFormattingArticleAi(false);
     }
   };
 
@@ -552,11 +641,17 @@ export function AdminDocumentWorkspace({
                       {pdfTitle.trim() ? (
                         <button
                           type="button"
-                          onClick={() => setPdfTitle(standardizeDocumentTitle(pdfTitle))}
-                          className="inline-flex items-center gap-1 text-body-xs text-brand-primary hover:underline cursor-pointer"
+                          onClick={handleFormatPdfTitle}
+                          disabled={formattingPdfAi || saving}
+                          className="inline-flex items-center gap-1 text-body-xs text-brand-primary hover:underline cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                          title="Rapikan display name dan bab dengan Gemini AI"
                         >
-                          <Sparkles className="size-3" />
-                          Rapikan Format
+                          {formattingPdfAi ? (
+                            <Loader2 className="size-3 animate-spin" />
+                          ) : (
+                            <Sparkles className="size-3" />
+                          )}
+                          <span>{formattingPdfAi ? "Menganalisis..." : "Rapikan dengan AI"}</span>
                         </button>
                       ) : null}
                     </div>
@@ -752,11 +847,17 @@ export function AdminDocumentWorkspace({
                       {articleTitle.trim() ? (
                         <button
                           type="button"
-                          onClick={() => setArticleTitle(standardizeDocumentTitle(articleTitle))}
-                          className="inline-flex items-center gap-1 text-body-xs text-brand-primary hover:underline cursor-pointer"
+                          onClick={handleFormatArticleTitle}
+                          disabled={formattingArticleAi || saving}
+                          className="inline-flex items-center gap-1 text-body-xs text-brand-primary hover:underline cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                          title="Rapikan judul dokumen dengan Gemini AI"
                         >
-                          <Sparkles className="size-3" />
-                          Rapikan Format
+                          {formattingArticleAi ? (
+                            <Loader2 className="size-3 animate-spin" />
+                          ) : (
+                            <Sparkles className="size-3" />
+                          )}
+                          <span>{formattingArticleAi ? "Menganalisis..." : "Rapikan dengan AI"}</span>
                         </button>
                       ) : null}
                     </div>

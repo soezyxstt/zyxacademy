@@ -73,6 +73,7 @@ export default async function CourseProductReviewDetailPage({ params }: Props) {
         lockedCourse={lockedCourse}
         backHref={`/admin/courses/${encodeURIComponent(identity.slug)}/review?tab=product`}
         backLabel={`Kembali ke Review ${identity.title}`}
+        hideHeader
       />
     </div>
   );

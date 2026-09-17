@@ -190,6 +190,8 @@ jobs:
           SECRET_VECTORIZE_WORKER_URL: ${{ secrets.VECTORIZE_WORKER_URL }}
           SECRET_VECTORIZE_WORKER_SECRET: ${{ secrets.VECTORIZE_WORKER_SECRET }}
           SECRET_RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          SECRET_DIKTAT_RENDERER_URL: ${{ secrets.DIKTAT_RENDERER_URL }}
+          SECRET_DIKTAT_RENDERER_SECRET: ${{ secrets.DIKTAT_RENDERER_SECRET }}
         run: |
           cat << EOF > .env.deploy
           DATABASE_URL=${SECRET_DATABASE_URL}
@@ -209,6 +211,8 @@ jobs:
           VECTORIZE_WORKER_URL=${SECRET_VECTORIZE_WORKER_URL}
           VECTORIZE_WORKER_SECRET=${SECRET_VECTORIZE_WORKER_SECRET}
           RESEND_API_KEY=${SECRET_RESEND_API_KEY}
+          DIKTAT_RENDERER_URL=${SECRET_DIKTAT_RENDERER_URL}
+          DIKTAT_RENDERER_SECRET=${SECRET_DIKTAT_RENDERER_SECRET}
           EOF
 
           grep -v '=$' .env.deploy > .env.deploy.filtered || true
@@ -247,13 +251,19 @@ jobs:
       - name: Automated Inngest App Sync
         if: steps.impact.outputs.should_deploy == 'true'
         env:
-          INNGEST_SIGNING_KEY: ${{ secrets.INNGEST_SIGNING_KEY }}
+          INNGEST_API_KEY: ${{ secrets.INNGEST_API_KEY }}
         run: |
-          if [ -n "$INNGEST_SIGNING_KEY" ]; then
+          # App ID matches the Inngest client id in jobs/client.ts (zyx-academy).
+          # Staging and production stay isolated via their Inngest environment
+          # API keys stored per GitHub Environment. Signing key is still used
+          # by the worker to verify requests, it is not used for sync.
+          if [ -n "$INNGEST_API_KEY" ]; then
             echo "Triggering automated Inngest App Sync for $APP_URL/api/inngest..."
-            RESPONSE=$(curl -s -w "\nHTTP_STATUS:%{http_code}" -X PUT "https://api.inngest.com/v1/apps?url=${APP_URL}/api/inngest" \
-              -H "Authorization: Bearer ${INNGEST_SIGNING_KEY}")
+            RESPONSE=$(curl -fsS -w "\nHTTP_STATUS:%{http_code}" -X POST "https://api.inngest.com/v2/apps/zyx-academy/syncs" \
+              -H "Authorization: Bearer ${INNGEST_API_KEY}" \
+              -H "Content-Type: application/json" \
+              -d "{\"url\": \"${APP_URL}/api/inngest\"}")
             echo "$RESPONSE"
           else
-            echo "INNGEST_SIGNING_KEY not provided, skipping automated sync."
+            echo "INNGEST_API_KEY not provided, skipping automated sync."
           fi

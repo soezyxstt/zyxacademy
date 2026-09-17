@@ -263,7 +263,7 @@ The lifecycle tool surface enables structured inspection, maintenance, and revie
 - **Inventory inspection**: `authoring.list_imports` and `authoring.get_import` return staged import records across Source, Idea, and Product bundles, entity inventories, validation reports, and review decisions while hiding private storage keys and internal reviewer identity IDs (`authoring:read`).
 - **Draft replacement and discard**: `authoring.restage_idea_bundle` and `authoring.restage_product_bundle` revalidate and replace staged bundles with matching bundle ID and run scope, resetting prior review state via existing lifecycle services (`authoring:stage`). `authoring.discard_product_draft` deletes draft Product Bundles and their staging artifacts (`authoring:withdraw`). Published or withdrawn bundles cannot be discarded.
 - **Review decisions**: `authoring.review_idea_bundle` and `authoring.review_product_bundle` record immutable review decisions (`approved` or `rejected`) with notes without publishing content (`authoring:review`).
-- **Product withdrawal**: `authoring.withdraw_product_bundle` provides an audited, idempotent, destructive lifecycle action that withdraws published Product Bundles, retires canonical projections, and queues vector deletion (`authoring:withdraw`). Idea Bundle withdrawal is not implemented.
+- **Withdrawal**: `authoring.withdraw_product_bundle` provides an audited, idempotent, destructive lifecycle action that withdraws published Product Bundles, retires canonical projections, and queues vector deletion (`authoring:withdraw`). Published Idea Bundles have the same audited canonical-status and vector-deletion boundary through the authenticated admin review UI, but no Idea withdrawal MCP tool is exposed.
 - **Question editing**: In `quiz_bank`, `assessment.list_ideas` and `assessment.get_idea` return published Ideas and relations. `question-bank-draft.v2` accepts zero or more Idea links per question with positive weights summing to one. `assessment.validate_quiz_draft` and `assessment.submit_quiz_draft` stage Zyx-original questions with `reviewStatus=generated`. The separate `reference_question_ingest` workflow is course-only, reads stored question and solution PDFs, requires at least one published same-course Idea link, and stages immutable historical-reference questions with direct attribution. `assessment.update_question` updates only Zyx-original questions in the locked chapter run scope. ITB examples and historical references are immutable; published and retired questions cannot be edited through these tools.
 
 Preserving the no-publication boundary: There is no `authoring:publish` scope and no publication tool. Publication remains restricted to the admin UI and backend publication services.
@@ -1155,9 +1155,9 @@ Browser / Client
 ### Architectural Principles
 
 1. **Vercel Remains Primary Web Tier**: Deno Deploy is never a second general backend. Deno Deploy exposes `/health`, `/api/inngest`, and protected `/internal/*` RPC endpoints via Hono. It does not serve SSR pages, handle user sessions, or duplicate Next.js routing.
-2. **Physical Inngest Entrypoint Split**:
-   - Vercel Web Tier: `app/api/inngest/route.ts` registers `webFunctions` from `@/jobs/web` (empty array for web runtime).
-   - Deno Compute Tier: `workers/deno-background/main.ts` registers `computeFunctions` from `@/jobs/compute` (executes all heavy workers).
+2. **Consolidated Inngest Entrypoint on Deno Deploy**:
+   - Deno Compute Tier: `workers/deno-background/main.ts` registers `computeFunctions` from `@/jobs/compute` and serves `/api/inngest` exclusively on Deno Deploy.
+   - Vercel Web Tier: Next.js route `app/api/inngest` and `@/jobs/web` have been removed because all Inngest webhook execution is delegated to Deno Deploy.
    - `jobs/index.ts` is permanently removed to prevent accidental bundler leakage between tiers.
 3. **Dedicated Compute RPC Endpoints**:
    - `POST /internal/pdf/pages`: Accepts `{ storageKey, pages }`, downloads PDF directly from R2 on Deno, parses text and page dimensions, and returns `{ totalPages, pages }`.

@@ -113,7 +113,9 @@ export async function listStudentCourses(): Promise<StudentCourseRecord[]> {
   );
   const collidingAliasIds = new Set(
     allCanonicalRows.flatMap((course) =>
-      course.legacyCourseId && canonicalIds.has(course.legacyCourseId)
+      course.legacyCourseId
+        && course.legacyCourseId !== course.id
+        && canonicalIds.has(course.legacyCourseId)
         ? [course.id, course.legacyCourseId]
         : [],
     ),

@@ -85,15 +85,15 @@ export default async function CourseOverviewPage({ params }: Props) {
       <CoursePageShell title={course.title} description={shortDescription} icon={BookOpen} maxWidth="7xl">
         <Reveal>
           {/* Enrollment banner (unenrolled only) */}
-          {!hasCourseAccess && (
+          {!isEnrolled && (
             <div className="mb-6 rounded-lg border border-brand-secondary/25 bg-brand-secondary/5 p-4">
               <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(280px,420px)] md:items-center">
                 <div>
                   <h3 className="font-heading text-body-base font-bold text-brand-secondary">
-                    Pratinjau gratis
+                    Aktivasi token kelas
                   </h3>
                   <p className="mt-1 max-w-2xl text-body-sm text-muted-foreground">
-                    Dokumen terbuka. Token membuka kuis premium, tryout, peringkat, dan riwayat nilai.
+                    Dokumen dan berkas PDF materi terbuka gratis. Masukkan token kelas untuk membuka kuis interaktif, tryout, artikel lengkap, flashcard, dan diktat.
                   </p>
                 </div>
                 <EnrollmentForm className="w-full" />

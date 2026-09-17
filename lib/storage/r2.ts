@@ -158,7 +158,8 @@ export class R2Provider implements StorageProvider {
     key: string,
     operation: "get" | "put",
     mimeType?: string,
-    expiresIn = 3600
+    expiresIn = 3600,
+    options?: { contentLength?: number }
   ): Promise<string> {
     if (operation === "get") {
       const command = new GetObjectCommand({
@@ -171,6 +172,7 @@ export class R2Provider implements StorageProvider {
         Bucket: this.bucket,
         Key: key,
         ContentType: mimeType,
+        ...(options?.contentLength != null ? { ContentLength: options.contentLength } : {}),
       });
       return getSignedUrl(this.s3, command, { expiresIn });
     }

@@ -82,6 +82,27 @@ describe("normalizeMathInText", () => {
     }
   });
 
+  it("normalizes calculus limits, formal definitions, and rational functions", () => {
+    const statements = [
+      "Nilai limit \\lim_{x\\to c} f(x) dan nilai fungsi f(c) adalah dua besaran yang sepenuhnya independen.",
+      "Limit dua sisi \\lim_{x\\to c} f(x) = L ada jika dan hanya jika limit kiri dan limit kanan keduanya ada dan sama.",
+      "Titik berlubang f(x) = (x^2-1)/(x-1) memiliki nilai di x=1 yang tidak terdefinisi.",
+      "Limit f(x) bernilai L jika untuk setiap epsilon > 0 terdapat delta > 0 sehingga 0 < |x - c| < delta.",
+      "Pada pembuktian limit f(x) = ax + b, nilai delta dapat dipilih sebagai delta = epsilon / a."
+    ];
+
+    for (const stmt of statements) {
+      const normalized = normalizeMathInText(stmt);
+      const math = normalized.match(/\$([^$]+)\$/g) || [];
+      expect(math.length).toBeGreaterThan(0);
+      expect(() => {
+        for (const m of math) {
+          katex.renderToString(m.slice(1, -1), { throwOnError: true });
+        }
+      }).not.toThrow();
+    }
+  });
+
   it("leaves plain text without math untouched", () => {
     const input = "Bilangan irasional adalah bilangan real yang bukan bilangan rasional.";
     const normalized = normalizeMathInText(input);
@@ -92,5 +113,32 @@ describe("normalizeMathInText", () => {
     const input = "Hitung $\\int_0^1 2x\\,dx$ untuk $x \\ge 0$.";
     const normalized = normalizeMathInText(input);
     expect(normalized).toBe("Hitung $\\int_0^1 2x\\,dx$ untuk $x \\ge 0$.");
+  });
+
+  it("normalizes nested LaTeX commands such as \\frac{1}{\\sqrt{x}} into a single expression", () => {
+    const input = "Perhatikan fungsi \\frac{1}{\\sqrt{x}} dan \\frac{\\sqrt{x} + 1}{\\sqrt{x} - 1} pada domain x > 0.";
+    const normalized = normalizeMathInText(input);
+
+    expect(normalized).toContain("\\frac{1}{\\sqrt{x}}");
+    expect(normalized).toContain("\\frac{\\sqrt{x} + 1}{\\sqrt{x} - 1}");
+
+    // KaTeX should render both without syntax errors
+    const math = normalized.match(/\$([^$]+)\$/g) || [];
+    expect(math.length).toBeGreaterThanOrEqual(2);
+    expect(() => {
+      for (const m of math) {
+        katex.renderToString(m.slice(1, -1), { throwOnError: true });
+      }
+    }).not.toThrow();
+  });
+
+  it("leaves incomplete or unbalanced nested commands unwrapped instead of wrapping partially", () => {
+    const input = "Rumus rusak \\frac{1}{\\sqrt{x tidak boleh memecah argumen.";
+    const normalized = normalizeMathInText(input);
+
+    // It should not wrap \frac{1} or \sqrt{x independently
+    expect(normalized).not.toContain("$\\frac{1}$");
+    expect(normalized).not.toContain("$\\sqrt{x");
+    expect(normalized).toBe(input);
   });
 });

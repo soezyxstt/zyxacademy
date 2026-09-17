@@ -1,8 +1,9 @@
 import { headers } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
+import { assertAdmin } from "@/lib/auth/admin-guards";
 import { previewIdeaBundle } from "@/lib/bundle/idea-preview";
-import { getIdeaBundleImport, listIdeaItemReviews, parseStagedIdeaBundle } from "@/lib/bundle/staging";
+import { discardIdeaBundleDraft, getIdeaBundleImport, listIdeaItemReviews, parseStagedIdeaBundle } from "@/lib/bundle/staging";
 import { createIdeaBundleDraft, finalizeIdeaBundleDraft, type IdeaBundleDraft } from "@/lib/bundle/idea-draft";
 import { serializeDeterministically } from "@/lib/bundle/idea-bundle-v2";
 import { sha256Text } from "@/lib/bundle/validator";
@@ -90,6 +91,19 @@ export async function PUT(request: NextRequest, context: { params: Promise<{ id:
   } catch (error) {
     const code = error instanceof Error ? error.message.split(":", 1)[0] : "IDEA_BUNDLE_UPDATE_FAILED";
     const status = code === "IDEA_BUNDLE_NOT_FOUND" ? 404 : 422;
+    return NextResponse.json({ error: code }, { status });
+  }
+}
+
+export async function DELETE(_request: NextRequest, context: { params: Promise<{ id: string }> }) {
+  try {
+    const { user } = await assertAdmin();
+    const { id } = await context.params;
+    return NextResponse.json({ result: await discardIdeaBundleDraft({ importId: id, actorId: user.id }) });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "IDEA_BUNDLE_DISCARD_FAILED";
+    const code = message === "Unauthorized" ? "Unauthorized" : message.startsWith("Forbidden") ? "Forbidden" : message.split(":", 1)[0];
+    const status = code === "Unauthorized" ? 401 : code === "Forbidden" || code.endsWith("FORBIDDEN") ? 403 : code === "IDEA_BUNDLE_NOT_FOUND" ? 404 : 422;
     return NextResponse.json({ error: code }, { status });
   }
 }

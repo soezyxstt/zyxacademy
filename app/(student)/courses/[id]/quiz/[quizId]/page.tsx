@@ -220,7 +220,7 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
 
   if (!isAccessible) {
     return (
-      <CoursePageShell title="Kuis terkunci" description={`${course.title} · kuis premium`} hideHeader>
+      <CoursePageShell title="Kuis terkunci" description={`${course.title}, kuis premium`} hideHeader>
         <Reveal>
           <div className="rounded-lg border border-border/70 bg-card/75 p-4 backdrop-blur-sm">
             <div className="flex items-start gap-3">

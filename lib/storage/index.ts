@@ -20,7 +20,8 @@ export interface StorageProvider {
     key: string,
     operation: "get" | "put",
     mimeType?: string,
-    expiresIn?: number
+    expiresIn?: number,
+    options?: { contentLength?: number }
   ): Promise<string>;
 
   rename?(key: string, newName: string): Promise<void>;

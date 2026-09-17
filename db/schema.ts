@@ -2753,7 +2753,7 @@ export const imporBundle = sqliteTable(
  courseId: text("course_id").references(() => courses.id, { onDelete: "restrict" }),
  sourceUriOrKey: text("source_uri_or_key").notNull(),
  version: integer("version").default(1).notNull(),
- status: text("status").$type<"received" | "validated" | "rejected" | "approved" | "draft" | "published" | "withdrawn">().default("received").notNull(),
+ status: text("status").$type<"received" | "validated" | "rejected" | "approved" | "draft" | "published" | "withdrawn" | "discarding">().default("received").notNull(),
  validationReport: text("validation_report", { mode: "json" }).$type<Record<string, unknown>>().$defaultFn(() => ({})).notNull(),
   requestedBy: text("requested_by").notNull().references(() => pengguna.id, { onDelete: "restrict" }),
   createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),

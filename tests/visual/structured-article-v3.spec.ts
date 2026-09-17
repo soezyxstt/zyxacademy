@@ -104,9 +104,9 @@ const ideaPayload = {
       { id: "learning-ineq", chapterId: "bab-1", parentSectionId: null, title: "Pertaksamaan", slug: "pertaksamaan", orderIndex: 1, learningObjective: "Menyelesaikan pertaksamaan.", primaryIdeaIds: ["idea-ineq"], supportingIdeaIds: ["idea-real"], sourceChunkIds: ["chunk-2"] },
     ],
     ideas: [
-      { id: "idea-real", code: "MA1-B1-001", chapterId: "bab-1", canonicalStatement: "Bilangan real dapat direpresentasikan pada garis bilangan dan sebagai desimal.", conciseExplanation: "Representasi desimal bilangan real dapat berhenti, berulang, atau tidak berulang tanpa akhir.", latex: "\\mathbb{R}", knowledgeKind: "definition", instructionalRole: "core", learningSection: { id: "learning-real", title: "Bilangan real", slug: "bilangan-real" }, provenance: [{ id: "prov-1", role: "supports", sourceTitle: "Bab 1: Pertaksamaan dan Fungsi", excerpt: "Bilangan real dapat digambarkan sebagai titik pada garis bilangan tanpa celah.", sectionLocator: "1.1 Bilangan real", pageNumber: 2, note: null }] },
-      { id: "idea-ineq", code: "MA1-B1-002", chapterId: "bab-1", canonicalStatement: "Perkalian atau pembagian pertaksamaan dengan bilangan negatif membalik arah tanda.", conciseExplanation: "Pembalikan tanda mempertahankan urutan nilai setelah refleksi terhadap nol.", latex: "a<b\\Rightarrow -a>-b", knowledgeKind: "principle", instructionalRole: "core", learningSection: { id: "learning-ineq", title: "Pertaksamaan", slug: "pertaksamaan" }, provenance: [{ id: "prov-2", role: "supports", sourceTitle: "Bab 1: Pertaksamaan dan Fungsi", excerpt: "Jika kedua ruas dikalikan bilangan negatif, tanda pertaksamaan harus dibalik.", sectionLocator: "1.2 Aturan operasi", pageNumber: 4, note: null }] },
-      { id: "idea-domain", code: "MA1-B1-003", chapterId: "bab-1", canonicalStatement: "Domain fungsi adalah himpunan input yang membuat aturan fungsi terdefinisi.", conciseExplanation: "Pembatas domain muncul dari operasi seperti pembagian dengan nol dan akar genap bilangan negatif.", latex: null, knowledgeKind: "definition", instructionalRole: "supporting", learningSection: { id: "learning-ineq", title: "Pertaksamaan", slug: "pertaksamaan" }, provenance: [{ id: "prov-3", role: "supports", sourceTitle: "Bab 1: Pertaksamaan dan Fungsi", excerpt: "Domain berisi semua nilai input yang menghasilkan nilai fungsi yang terdefinisi.", sectionLocator: "1.3 Fungsi", pageNumber: 7, note: null }] },
+      { id: "idea-real", code: "MAT1-BILANGAN-REAL", chapterId: "bab-1", canonicalStatement: "Bilangan real dapat direpresentasikan pada garis bilangan dan sebagai desimal.", conciseExplanation: "Representasi desimal bilangan real dapat berhenti, berulang, atau tidak berulang tanpa akhir.", latex: "\\mathbb{R}", knowledgeKind: "definition", instructionalRole: "core", learningSection: { id: "learning-real", title: "Bilangan real", slug: "bilangan-real" }, provenance: [{ id: "prov-1", role: "supports", sourceTitle: "Bab 1: Pertaksamaan dan Fungsi", excerpt: "<!-- source-unit: 1 -->\n## Halaman 002 MAT1101\nBilangan real dapat digambarkan sebagai titik pada garis bilangan tanpa celah.", sectionLocator: "1.1 Bilangan real", pageNumber: 2, note: null }] },
+      { id: "idea-ineq", code: "MAT1-PERTAKSAMAAN", chapterId: "bab-1", canonicalStatement: "Perkalian atau pembagian pertaksamaan dengan bilangan negatif membalik arah tanda.", conciseExplanation: "Pembalikan tanda mempertahankan urutan nilai setelah refleksi terhadap nol.", latex: "a<b\\Rightarrow -a>-b", knowledgeKind: "principle", instructionalRole: "core", learningSection: { id: "learning-ineq", title: "Pertaksamaan", slug: "pertaksamaan" }, provenance: [{ id: "prov-2", role: "supports", sourceTitle: "Bab 1: Pertaksamaan dan Fungsi", excerpt: "Jika kedua ruas dikalikan bilangan negatif, tanda pertaksamaan harus dibalik.", sectionLocator: "1.2 Aturan operasi", pageNumber: 4, note: null }] },
+      { id: "idea-domain", code: "MAT1-DOMAIN-FUNGSI", chapterId: "bab-1", canonicalStatement: "Domain fungsi adalah himpunan input yang membuat aturan fungsi terdefinisi.", conciseExplanation: "Pembatas domain muncul dari operasi seperti pembagian dengan nol dan akar genap bilangan negatif.", latex: null, knowledgeKind: "definition", instructionalRole: "enrichment", learningSection: { id: "learning-ineq", title: "Pertaksamaan", slug: "pertaksamaan" }, provenance: [{ id: "prov-3", role: "supports", sourceTitle: "Bab 1: Pertaksamaan dan Fungsi", excerpt: "Domain berisi semua nilai input yang menghasilkan nilai fungsi yang terdefinisi.", sectionLocator: "1.3 Fungsi", pageNumber: 7, note: null }] },
     ],
     relations: [
       { id: "rel-1", sourceIdeaId: "idea-real", targetIdeaId: "idea-ineq", relationType: "prerequisite", explanation: "Urutan bilangan real mendasari pertaksamaan." },
@@ -116,7 +116,7 @@ const ideaPayload = {
   draft: { ideas: [], provenance: [], relations: [] },
   itemReviews: [
     { id: "review-idea-1", targetType: "idea", targetId: "idea-real", status: "approved", notes: "Definisi jelas." },
-    { id: "review-idea-2", targetType: "idea", targetId: "idea-ineq", status: "changes_requested", notes: "Tambahkan contoh refleksi." },
+    { id: "review-idea-2", targetType: "idea", targetId: "idea-ineq", status: "pending", notes: null },
   ],
 };
 (ideaPayload.draft as { ideas: unknown[]; provenance: unknown[]; relations: unknown[] }).ideas = JSON.parse(JSON.stringify(ideaPayload.preview.ideas));
@@ -333,20 +333,43 @@ test.describe("Structured Article V3 visual acceptance", () => {
     expect(errors).toEqual([]);
   });
 
-  test("Idea split pane and mobile evidence", async ({ page }, testInfo) => {
+  test("Idea review layout, readable evidence, and fast approval", async ({ page }, testInfo) => {
     const errors = observeFailures(page);
-    await page.route("**/api/admin/bundles/idea/visual-idea", (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(ideaPayload) }));
+    let detailReads = 0;
+    let servedIdeaPayload = ideaPayload;
+    await page.route("**/api/admin/bundles/idea/visual-idea", (route) => {
+      detailReads++;
+      return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(servedIdeaPayload) });
+    });
+    await page.route("**/api/admin/bundles/idea/visual-idea/item-reviews", (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ result: { id: "review-idea-2", targetType: "idea", targetId: "idea-ineq", status: "approved", notes: null } }) }));
     const response = await page.goto(`${ROUTE}?mode=idea`, { waitUntil: "domcontentloaded", timeout: 90_000 });
     expect(response?.status()).toBeLessThan(400);
+    await expect(page.locator("[data-fixture-ready=true]")).toBeVisible();
     await expect(page.getByRole("heading", { name: "Review Source Pack + Idea" })).toBeVisible();
-    await expect(page.getByText("MA1-B1-001").first()).toBeVisible();
+    await expect(page.getByRole("article").getByText("Bilangan real dapat direpresentasikan pada garis bilangan dan sebagai desimal.", { exact: true })).toBeVisible();
+    await expect(page.getByText("source-unit")).toHaveCount(0);
+    await expect(page.getByText("Halaman 002 MAT1101")).toBeVisible();
+    await page.getByText("Hubungan Antar-Idea").click();
+    await expect(page.getByText("Bilangan Real", { exact: true }).last()).toBeVisible();
+    await expect(page.getByText("Pertaksamaan", { exact: true }).last()).toBeVisible();
     await capture(page, testInfo, "idea-review-split-pane");
-    const evidence = page.getByRole("button", { name: "Bukti" });
-    if (await evidence.isVisible()) {
-      await evidence.click();
-      await expect(page.getByRole("dialog")).toBeVisible();
-      await capture(page, testInfo, "idea-review-mobile-evidence");
-    }
+    await page.getByRole("button", { name: "Idea berikutnya" }).click();
+    const readsBeforeApproval = detailReads;
+    await page.getByRole("button", { name: "Setujui dan lanjut" }).click();
+    await expect(page.getByRole("article").getByText("Domain fungsi adalah himpunan input yang membuat aturan fungsi terdefinisi.", { exact: true })).toBeVisible();
+    expect(detailReads).toBe(readsBeforeApproval);
+    await capture(page, testInfo, "idea-review-fast-approval");
+    await page.getByRole("button", { name: "Aksi lainnya" }).click();
+    await page.getByRole("menuitem", { name: "Hapus bundle" }).click();
+    await expect(page.getByRole("dialog", { name: "Hapus Idea Bundle" })).toBeVisible();
+    await capture(page, testInfo, "idea-review-discard-confirmation");
+    await page.getByRole("button", { name: "Batal" }).click();
+    servedIdeaPayload = { ...ideaPayload, bundle: { ...ideaPayload.bundle, status: "discarding" } };
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(page.getByText("Penghapusan ZIP perlu dicoba lagi")).toBeVisible();
+    await page.getByRole("button", { name: "Aksi lainnya" }).click();
+    await expect(page.getByRole("menuitem", { name: "Hapus bundle" })).toBeVisible();
+    await capture(page, testInfo, "idea-review-discard-retry");
     expect(errors).toEqual([]);
   });
 

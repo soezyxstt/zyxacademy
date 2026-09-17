@@ -39,6 +39,7 @@ import {
 } from "@/components/ui/dialog";
 import { MarkdownRenderer } from "@/components/course/markdown-renderer";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { uploadAdminPdfFile } from "@/lib/storage/admin-upload-client";
 
 interface Instance {
   id: string;
@@ -237,23 +238,14 @@ export function MaterialInstancesClient({ instances, assessments, webMaterials, 
 
     setPdfUploadState("uploading");
     setPdfFileName(file.name);
-    const fd = new FormData();
-    fd.append("file", file);
-    fd.append("courseId", form.courseId);
 
     try {
-      const res = await fetch("/api/admin/upload-pdf", { method: "POST", body: fd });
-      const data = await res.json();
-      if (!res.ok) {
-        toast.error("Gagal mengunggah PDF: " + (data.error ?? "Unknown error"));
-        setPdfUploadState("error");
-        return;
-      }
+      const data = await uploadAdminPdfFile(file, { courseId: form.courseId });
       setPdfKey(data.key);
       setPdfUploadState("done");
       toast.success(`PDF '${file.name}' berhasil diunggah ke arsip.`);
-    } catch {
-      toast.error("Terjadi kesalahan saat mengunggah PDF.");
+    } catch (err: any) {
+      toast.error(err?.message || "Terjadi kesalahan saat mengunggah PDF.");
       setPdfUploadState("error");
     }
   };
