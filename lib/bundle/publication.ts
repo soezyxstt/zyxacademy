@@ -96,7 +96,7 @@ async function requireIdentity(tx: Parameters<Parameters<typeof db.transaction>[
   if (!row) throw new Error(code);
 }
 
-async function resolveCourse(tx: Parameters<Parameters<typeof db.transaction>[0]>[0], courseId: string): Promise<{ legacyId: string; targetId: string }> {
+async function resolveCourse(tx: Parameters<Parameters<typeof db.transaction>[0]>[0] | typeof db, courseId: string): Promise<{ legacyId: string; targetId: string }> {
   const [legacy] = await tx.select({ id: courses.id }).from(courses).where(eq(courses.id, courseId)).limit(1);
   const [target] = await tx
     .select({ id: mataKuliah.id, legacyCourseId: mataKuliah.legacyCourseId })
@@ -493,10 +493,9 @@ export async function withdrawIdeaBundle(input: { importId: string; withdrawnBy:
   if (!snapshot) throw new Error("IDEA_BUNDLE_NOT_FOUND");
   if (snapshot.status === "withdrawn") {
     const bundle = await loadAndValidate(input.importId, snapshot.bundleId, snapshot.checksum);
-    const [legacyCourse] = await db.select({ id: courses.id }).from(courses).where(eq(courses.id, bundle.manifest.courseId)).limit(1);
-    const courseLegacyId = legacyCourse?.id ?? bundle.manifest.courseId;
-    if (courseLegacyId) {
-      await dispatchVectorSync(courseLegacyId);
+    const course = await resolveCourse(db, bundle.manifest.courseId);
+    if (course.legacyId) {
+      await dispatchVectorSync(course.legacyId);
     }
     return { importId: input.importId, withdrawn: false, entityCount: 0, vectorJobCount: 0 };
   }

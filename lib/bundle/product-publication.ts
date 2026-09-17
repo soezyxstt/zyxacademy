@@ -50,7 +50,7 @@ import type { ProductDependency, ProductEntity } from "./product-validator";
 import { compileArticleProduct } from "@/lib/materials/compiler";
 import { assertProductSectionReviews, evaluateProductBundleQualityPolicy } from "./product-review-gate";
 
-type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
+type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0] | typeof db;
 type FailureStage = ProductEntity["productType"] | "outbox";
 type CanonicalProductVectorSpec = {
   namespace: CanonicalNamespace;
@@ -560,14 +560,18 @@ export async function publishProductBundle(input: { importId: string; publishedB
 
 export async function withdrawProductBundle(input: { importId: string; withdrawnBy: string }): Promise<{ importId: string; withdrawn: boolean; productCount: number; vectorJobCount: number }> {
   enabled();
+  const [actor] = await db.select({ role: user.role }).from(user).where(eq(user.id, input.withdrawnBy)).limit(1);
+  if (!actor || actor.role !== "admin") throw new Error("PRODUCT_BUNDLE_WITHDRAW_FORBIDDEN");
+  const [withdrawer] = await db.select({ id: pengguna.id }).from(pengguna).where(eq(pengguna.id, input.withdrawnBy)).limit(1);
+  if (!withdrawer) throw new Error(`PRODUCT_BUNDLE_WITHDRAWER_NOT_FOUND:${input.withdrawnBy}`);
+
   const snapshot = await getProductBundleImport(input.importId);
   if (!snapshot) throw new Error("PRODUCT_BUNDLE_NOT_FOUND");
   if (productBundleLifecycleStatus(snapshot.status) === "withdrawn") {
     const bundle = await parseStagedProductBundle(input.importId);
-    const [legacyCourse] = await db.select({ id: courses.id }).from(courses).where(eq(courses.id, bundle.manifest.courseId)).limit(1);
-    const courseLegacyId = legacyCourse?.id ?? bundle.manifest.courseId;
-    if (courseLegacyId) {
-      await dispatchVectorSync(courseLegacyId);
+    const course = await resolveCourse(db, bundle.manifest.courseId);
+    if (course.legacyId) {
+      await dispatchVectorSync(course.legacyId);
     }
     return { importId: input.importId, withdrawn: false, productCount: 0, vectorJobCount: 0 };
   }
@@ -578,8 +582,6 @@ export async function withdrawProductBundle(input: { importId: string; withdrawn
   const result = await db.transaction(async (tx) => {
     const [row] = await tx.select().from(imporBundle).where(eq(imporBundle.id, input.importId)).limit(1);
     if (!row || row.bundleType !== "product" || productBundleLifecycleStatus(row.status) !== "published") throw new Error("PRODUCT_BUNDLE_PUBLISHED_REQUIRED");
-    const [actor] = await tx.select({ role: user.role }).from(user).where(eq(user.id, input.withdrawnBy)).limit(1);
-    if (!actor || actor.role !== "admin") throw new Error("PRODUCT_BUNDLE_WITHDRAW_FORBIDDEN");
     await requireIdentity(tx, input.withdrawnBy, "PRODUCT_BUNDLE_WITHDRAWER_NOT_FOUND");
     const course = await resolveCourse(tx, bundle.manifest.courseId);
     courseLegacyId = course.legacyId;

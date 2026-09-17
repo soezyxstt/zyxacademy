@@ -1155,9 +1155,9 @@ Browser / Client
 ### Architectural Principles
 
 1. **Vercel Remains Primary Web Tier**: Deno Deploy is never a second general backend. Deno Deploy exposes `/health`, `/api/inngest`, and protected `/internal/*` RPC endpoints via Hono. It does not serve SSR pages, handle user sessions, or duplicate Next.js routing.
-2. **Physical Inngest Entrypoint Split**:
-   - Vercel Web Tier: `app/api/inngest/route.ts` registers `webFunctions` from `@/jobs/web` (empty array for web runtime).
-   - Deno Compute Tier: `workers/deno-background/main.ts` registers `computeFunctions` from `@/jobs/compute` (executes all heavy workers).
+2. **Consolidated Inngest Entrypoint on Deno Deploy**:
+   - Deno Compute Tier: `workers/deno-background/main.ts` registers `computeFunctions` from `@/jobs/compute` and serves `/api/inngest` exclusively on Deno Deploy.
+   - Vercel Web Tier: Next.js route `app/api/inngest` and `@/jobs/web` have been removed because all Inngest webhook execution is delegated to Deno Deploy.
    - `jobs/index.ts` is permanently removed to prevent accidental bundler leakage between tiers.
 3. **Dedicated Compute RPC Endpoints**:
    - `POST /internal/pdf/pages`: Accepts `{ storageKey, pages }`, downloads PDF directly from R2 on Deno, parses text and page dimensions, and returns `{ totalPages, pages }`.
