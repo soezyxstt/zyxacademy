@@ -257,13 +257,14 @@ jobs:
           # Staging and production stay isolated via their Inngest environment
           # API keys stored per GitHub Environment. Signing key is still used
           # by the worker to verify requests, it is not used for sync.
-          if [ -n "$INNGEST_API_KEY" ]; then
-            echo "Triggering automated Inngest App Sync for $APP_URL/api/inngest..."
-            RESPONSE=$(curl -fsS -w "\nHTTP_STATUS:%{http_code}" -X POST "https://api.inngest.com/v2/apps/zyx-academy/syncs" \
-              -H "Authorization: Bearer ${INNGEST_API_KEY}" \
-              -H "Content-Type: application/json" \
-              -d "{\"url\": \"${APP_URL}/api/inngest\"}")
-            echo "$RESPONSE"
-          else
-            echo "INNGEST_API_KEY not provided, skipping automated sync."
+          if [ -z "$INNGEST_API_KEY" ]; then
+            echo "Error: INNGEST_API_KEY is not configured. Inngest synchronization is required."
+            exit 1
           fi
+
+          echo "Triggering automated Inngest App Sync for $APP_URL/api/inngest..."
+          RESPONSE=$(curl -fsS -w "\nHTTP_STATUS:%{http_code}" -X POST "https://api.inngest.com/v2/apps/zyx-academy/syncs" \
+            -H "Authorization: Bearer ${INNGEST_API_KEY}" \
+            -H "Content-Type: application/json" \
+            -d "{\"url\": \"${APP_URL}/api/inngest\"}")
+          echo "$RESPONSE"
