@@ -562,7 +562,15 @@ export async function withdrawProductBundle(input: { importId: string; withdrawn
   enabled();
   const snapshot = await getProductBundleImport(input.importId);
   if (!snapshot) throw new Error("PRODUCT_BUNDLE_NOT_FOUND");
-  if (productBundleLifecycleStatus(snapshot.status) === "withdrawn") return { importId: input.importId, withdrawn: false, productCount: 0, vectorJobCount: 0 };
+  if (productBundleLifecycleStatus(snapshot.status) === "withdrawn") {
+    const bundle = await parseStagedProductBundle(input.importId);
+    const [legacyCourse] = await db.select({ id: courses.id }).from(courses).where(eq(courses.id, bundle.manifest.courseId)).limit(1);
+    const courseLegacyId = legacyCourse?.id ?? bundle.manifest.courseId;
+    if (courseLegacyId) {
+      await dispatchVectorSync(courseLegacyId);
+    }
+    return { importId: input.importId, withdrawn: false, productCount: 0, vectorJobCount: 0 };
+  }
   if (productBundleLifecycleStatus(snapshot.status) !== "published") throw new Error("PRODUCT_BUNDLE_PUBLISHED_REQUIRED");
   const bundle = await parseStagedProductBundle(input.importId);
 
@@ -621,7 +629,7 @@ export async function withdrawProductBundle(input: { importId: string; withdrawn
     return { importId: input.importId, withdrawn: true, productCount: productIds.length, vectorJobCount: vectorJobs.length };
   });
   if (courseLegacyId) {
-    dispatchVectorSync(courseLegacyId);
+    await dispatchVectorSync(courseLegacyId);
   }
   return result;
 }

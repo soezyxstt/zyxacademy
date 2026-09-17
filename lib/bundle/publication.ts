@@ -491,7 +491,15 @@ export async function withdrawIdeaBundle(input: { importId: string; withdrawnBy:
   if (!actor || !(await hasAdminAuthorization(input.withdrawnBy, actor.role))) throw new Error("IDEA_BUNDLE_WITHDRAW_FORBIDDEN");
   const snapshot = await getIdeaBundleImport(input.importId);
   if (!snapshot) throw new Error("IDEA_BUNDLE_NOT_FOUND");
-  if (snapshot.status === "withdrawn") return { importId: input.importId, withdrawn: false, entityCount: 0, vectorJobCount: 0 };
+  if (snapshot.status === "withdrawn") {
+    const bundle = await loadAndValidate(input.importId, snapshot.bundleId, snapshot.checksum);
+    const [legacyCourse] = await db.select({ id: courses.id }).from(courses).where(eq(courses.id, bundle.manifest.courseId)).limit(1);
+    const courseLegacyId = legacyCourse?.id ?? bundle.manifest.courseId;
+    if (courseLegacyId) {
+      await dispatchVectorSync(courseLegacyId);
+    }
+    return { importId: input.importId, withdrawn: false, entityCount: 0, vectorJobCount: 0 };
+  }
   if (snapshot.status !== "published") throw new Error("IDEA_BUNDLE_PUBLISHED_REQUIRED");
   const bundle = await loadAndValidate(input.importId, snapshot.bundleId, snapshot.checksum);
 
