@@ -12,14 +12,25 @@ export async function POST(req: NextRequest) {
 
   const contentType = req.headers.get("content-type") || "";
 
+  const MAX_SIZE_BYTES = 50 * 1024 * 1024; // 50 MB
+
   // 1. Handle JSON request for presigned direct R2 upload (bypasses Vercel 4.5MB payload limit)
   if (contentType.includes("application/json")) {
     const body = await req.json().catch(() => null);
     const filename = body?.filename?.toString().trim() || "";
     const courseId = body?.courseId?.toString().trim();
+    const size = typeof body?.size === "number" ? body.size : Number(body?.size);
 
     if (!filename || !filename.toLowerCase().endsWith(".pdf")) {
       return NextResponse.json({ error: "Nama berkas PDF wajib diisi dan berakhiran .pdf" }, { status: 400 });
+    }
+
+    if (!Number.isFinite(size) || size <= 0) {
+      return NextResponse.json({ error: "Ukuran berkas (size) wajib diisi dengan nilai valid" }, { status: 400 });
+    }
+
+    if (size > MAX_SIZE_BYTES) {
+      return NextResponse.json({ error: "Ukuran berkas melebihi batas 50 MB" }, { status: 413 });
     }
 
     if (typeof storage.getSignedUrl !== "function") {
@@ -39,7 +50,9 @@ export async function POST(req: NextRequest) {
           leaf
         );
 
-    const uploadUrl = await storage.getSignedUrl(storageKey, "put", "application/pdf", 3600);
+    const uploadUrl = await storage.getSignedUrl(storageKey, "put", "application/pdf", 3600, {
+      contentLength: size,
+    });
     const url = storage.getUrl(storageKey);
 
     return NextResponse.json({ key: storageKey, uploadUrl, url }, { status: 200 });
@@ -56,7 +69,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Only PDF files are accepted' }, { status: 400 });
   }
 
-  const MAX_SIZE_BYTES = 50 * 1024 * 1024; // 50 MB
   if (file.size > MAX_SIZE_BYTES) {
     return NextResponse.json({ error: 'File size exceeds 50 MB limit' }, { status: 413 });
   }

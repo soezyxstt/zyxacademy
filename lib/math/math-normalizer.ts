@@ -5,6 +5,215 @@
  * Preserves text that already contains explicit LaTeX delimiters ($...$, $$...$$, \(...\), \[...\]).
  */
 
+interface ParseCmdResult {
+  success: boolean;
+  endIndex: number;
+}
+
+function parseBalancedBraces(text: string, startIndex: number): { content: string; endIndex: number } | null {
+  if (text[startIndex] !== "{") return null;
+  let depth = 0;
+  for (let i = startIndex; i < text.length; i++) {
+    if (text[i] === "\\") {
+      i++;
+      continue;
+    }
+    if (text[i] === "{") depth++;
+    else if (text[i] === "}") {
+      depth--;
+      if (depth === 0) {
+        return { content: text.slice(startIndex, i + 1), endIndex: i + 1 };
+      }
+    }
+  }
+  return null;
+}
+
+function parseBalancedBrackets(text: string, startIndex: number): { content: string; endIndex: number } | null {
+  if (text[startIndex] !== "[") return null;
+  let depth = 0;
+  for (let i = startIndex; i < text.length; i++) {
+    if (text[i] === "\\") {
+      i++;
+      continue;
+    }
+    if (text[i] === "[") depth++;
+    else if (text[i] === "]") {
+      depth--;
+      if (depth === 0) {
+        return { content: text.slice(startIndex, i + 1), endIndex: i + 1 };
+      }
+    }
+  }
+  return null;
+}
+
+function parseScripts(text: string, startIndex: number): number | null {
+  let index = startIndex;
+  while (index < text.length) {
+    if (text[index] === "_" || text[index] === "^") {
+      index++;
+      if (index < text.length && text[index] === "{") {
+        const brace = parseBalancedBraces(text, index);
+        if (brace) {
+          index = brace.endIndex;
+        } else {
+          return null; // Unbalanced brace in script
+        }
+      } else if (index < text.length && /[a-zA-Z0-9]/.test(text[index])) {
+        index++;
+      } else {
+        break;
+      }
+    } else {
+      break;
+    }
+  }
+  return index;
+}
+
+const TWO_ARG_COMMANDS = new Set(["frac", "dfrac", "tfrac"]);
+const ONE_ARG_COMMANDS = new Set([
+  "sqrt",
+  "mathbb",
+  "mathcal",
+  "mathbf",
+  "mathrm",
+  "text",
+  "operatorname",
+]);
+const ZERO_ARG_COMMANDS = new Set([
+  "sum", "int", "iint", "iiint", "oint", "prod",
+  "alpha", "beta", "gamma", "varepsilon", "zeta", "eta", "iota", "kappa", "lambda", "mu", "nu", "xi", "rho", "tau", "upsilon", "phi", "chi", "psi", "omega",
+  "Gamma", "Delta", "Theta", "Lambda", "Xi", "Pi", "Sigma", "Upsilon", "Phi", "Psi", "Omega",
+  "pm", "mp", "cdot", "times", "div", "leq", "geq", "ne", "neq", "approx", "equiv",
+  "in", "notin", "subset", "subseteq", "cap", "cup", "setminus", "emptyset", "infty",
+  "partial", "nabla", "forall", "exists",
+]);
+
+function parseCommandExpression(text: string, cmd: string, cmdEnd: number): ParseCmdResult {
+  if (TWO_ARG_COMMANDS.has(cmd)) {
+    let pos = cmdEnd;
+    while (pos < text.length && /\s/.test(text[pos])) pos++;
+    if (pos >= text.length || text[pos] !== "{") {
+      return { success: false, endIndex: pos };
+    }
+    const arg1 = parseBalancedBraces(text, pos);
+    if (!arg1) {
+      return { success: false, endIndex: text.length };
+    }
+    pos = arg1.endIndex;
+    while (pos < text.length && /\s/.test(text[pos])) pos++;
+    if (pos >= text.length || text[pos] !== "{") {
+      return { success: false, endIndex: pos };
+    }
+    const arg2 = parseBalancedBraces(text, pos);
+    if (!arg2) {
+      return { success: false, endIndex: text.length };
+    }
+    pos = arg2.endIndex;
+    const afterScripts = parseScripts(text, pos);
+    if (afterScripts === null) {
+      return { success: false, endIndex: text.length };
+    }
+    return { success: true, endIndex: afterScripts };
+  }
+
+  if (cmd === "sqrt") {
+    let pos = cmdEnd;
+    while (pos < text.length && /\s/.test(text[pos])) pos++;
+    if (pos < text.length && text[pos] === "[") {
+      const opt = parseBalancedBrackets(text, pos);
+      if (!opt) return { success: false, endIndex: text.length };
+      pos = opt.endIndex;
+      while (pos < text.length && /\s/.test(text[pos])) pos++;
+    }
+    if (pos < text.length && text[pos] === "{") {
+      const arg = parseBalancedBraces(text, pos);
+      if (!arg) return { success: false, endIndex: text.length };
+      pos = arg.endIndex;
+    } else if (pos < text.length && /[a-zA-Z0-9]/.test(text[pos])) {
+      pos++;
+    } else {
+      return { success: false, endIndex: pos };
+    }
+    const afterScripts = parseScripts(text, pos);
+    if (afterScripts === null) return { success: false, endIndex: text.length };
+    return { success: true, endIndex: afterScripts };
+  }
+
+  if (ONE_ARG_COMMANDS.has(cmd)) {
+    let pos = cmdEnd;
+    while (pos < text.length && /\s/.test(text[pos])) pos++;
+    if (pos >= text.length || text[pos] !== "{") return { success: false, endIndex: pos };
+    const arg = parseBalancedBraces(text, pos);
+    if (!arg) return { success: false, endIndex: text.length };
+    const afterScripts = parseScripts(text, arg.endIndex);
+    if (afterScripts === null) return { success: false, endIndex: text.length };
+    return { success: true, endIndex: afterScripts };
+  }
+
+  if (ZERO_ARG_COMMANDS.has(cmd)) {
+    const afterScripts = parseScripts(text, cmdEnd);
+    if (afterScripts === null) return { success: false, endIndex: text.length };
+    return { success: true, endIndex: afterScripts };
+  }
+
+  return { success: false, endIndex: cmdEnd };
+}
+
+function normalizeBareLatexCommands(text: string): string {
+  let result = "";
+  let i = 0;
+
+  while (i < text.length) {
+    if (text[i] === "$") {
+      result += text[i];
+      i++;
+      continue;
+    }
+
+    if (text[i] === "\\" && i + 1 < text.length && /[a-zA-Z]/.test(text[i + 1])) {
+      if (i > 0 && text[i - 1] === "$") {
+        result += text[i];
+        i++;
+        continue;
+      }
+
+      const match = text.slice(i + 1).match(/^[a-zA-Z]+/);
+      if (match) {
+        const cmd = match[0];
+        const cmdEnd = i + 1 + cmd.length;
+
+        if (TWO_ARG_COMMANDS.has(cmd) || ONE_ARG_COMMANDS.has(cmd) || ZERO_ARG_COMMANDS.has(cmd)) {
+          const parsed = parseCommandExpression(text, cmd, cmdEnd);
+          if (parsed.success) {
+            const expr = text.slice(i, parsed.endIndex);
+            result += ` $${expr.trim()}$ `;
+            i = parsed.endIndex;
+            continue;
+          } else {
+            // Failed to capture required arguments or unbalanced braces.
+            // Leave complete expression unwrapped instead of wrapping nested commands independently.
+            let skipTo = parsed.endIndex;
+            if (skipTo <= i) {
+              skipTo = cmdEnd;
+            }
+            result += text.slice(i, skipTo);
+            i = skipTo;
+            continue;
+          }
+        }
+      }
+    }
+
+    result += text[i];
+    i++;
+  }
+
+  return result;
+}
+
 /**
  * Normalizes unwrapped mathematical expressions within a plain text segment into LaTeX ($...$).
  */
@@ -18,11 +227,8 @@ function normalizePlainTextSegment(text: string): string {
     /(?<!\$)\\lim(?:_[a-zA-Z0-9]+|_{[^}]+})(?:\s*[fghP]\([a-zA-Z0-9^()+\-*/]+\)|\s*\([a-zA-Z0-9^()+\-*/\s]+\)|\s*[a-zA-Z0-9])?(?:\s*=\s*[-+*/a-zA-Z0-9]+)?(?!\$)/g,
     (match) => ` $${match.trim()}$ `
   );
-  // Bare LaTeX commands like \frac{...}{...}, \sqrt{...}, \mathbb{R}, etc.
-  s = s.replace(
-    /(?<!\$)\\(?:frac|dfrac|tfrac|sqrt|mathbb|mathcal|mathbf|mathrm|text|sum|int|iint|iiint|oint|prod|alpha|beta|gamma|varepsilon|zeta|eta|iota|kappa|lambda|mu|nu|xi|rho|tau|upsilon|phi|chi|psi|omega|Gamma|Delta|Theta|Lambda|Xi|Pi|Sigma|Upsilon|Phi|Psi|Omega|pm|mp|cdot|times|div|leq|geq|ne|neq|approx|equiv|in|notin|subset|subseteq|cap|cup|setminus|emptyset|infty|partial|nabla|forall|exists)\b(?:\{[^{}]*\}|\[[^\]]*\]|_[a-zA-Z0-9]+|_{[^{}]+}|\^[a-zA-Z0-9]+|\^{[^{}]+})*(?!\$)/g,
-    (match) => ` $${match.trim()}$ `
-  );
+  // Bare LaTeX commands like \frac{...}{...}, \sqrt{...}, \mathbb{R}, etc., with balanced braces and nested command support
+  s = normalizeBareLatexCommands(s);
 
   // 1. Spelled out quadratic formula & variations
   s = s.replace(

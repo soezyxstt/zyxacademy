@@ -30,6 +30,7 @@ export async function uploadAdminPdfFile(
       body: JSON.stringify({
         filename: targetFilename,
         courseId: options?.courseId,
+        size: file.size,
       }),
     });
 
