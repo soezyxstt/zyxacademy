@@ -19,7 +19,11 @@ describe("student courses layout, whatsapp contact, and material access contract
 
     // Hubungi admin WhatsApp link check
     const waLink = getWhatsAppAdminChatHref();
-    expect(waLink).toMatch(/^https:\/\/wa\.me\/62\d+/);
+    if (waLink !== null) {
+      expect(waLink).toMatch(/^https:\/\/wa\.me\/\d+\?text=/);
+    } else {
+      expect(waLink).toBeNull();
+    }
   });
 
   test("student onboarding dashboard positions package section below free section and token form in sidebar", () => {

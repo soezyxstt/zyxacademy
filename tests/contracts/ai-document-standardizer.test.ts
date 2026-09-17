@@ -1,4 +1,5 @@
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it, spyOn } from "bun:test";
+import * as geminiModule from "@/lib/gemini";
 import {
   sanitizeStandardTitle,
   buildDeterministicFallback,
@@ -107,44 +108,71 @@ describe("AI Document Standardizer", () => {
 
   describe("standardizeDocumentMetadataWithAi", () => {
     it("handles fallback gracefully when offline or without real API call", async () => {
-      const result = await standardizeDocumentMetadataWithAi({
-        filename: "MA1101 Matematika 1A Bab 04-Integral tentu.pdf",
-        courseCode: "MA1101",
-        courseTitle: "Matematika 1A",
-        chapters: sampleChapters,
-      });
+      const spy = spyOn(geminiModule, "generateContentWithFallback").mockRejectedValueOnce(
+        new Error("API rate limit exceeded")
+      );
 
-      expect(result.title).toBeDefined();
-      expect(result.category).toBeDefined();
-      // Should not contain em-dash or en-dash
-      expect(result.title).not.toMatch(/[—–]/);
-      expect(result.title).not.toContain("!");
+      try {
+        const result = await standardizeDocumentMetadataWithAi({
+          filename: "MA1101 Matematika 1A Bab 04-Integral tentu.pdf",
+          courseCode: "MA1101",
+          courseTitle: "Matematika 1A",
+          chapters: sampleChapters,
+        });
+
+        expect(result.title).toBeDefined();
+        expect(result.category).toBeDefined();
+        // Should not contain em-dash or en-dash
+        expect(result.title).not.toMatch(/[—–]/);
+        expect(result.title).not.toContain("!");
+      } finally {
+        spy.mockRestore();
+      }
     });
   });
 
   describe("batchStandardizeDocumentsWithAi", () => {
     it("processes multiple staged files and returns structured items", async () => {
-      const files = [
-        { id: "f1", filename: "MA1101 Matematika 1A Bab 01-Limit.pdf" },
-        { id: "f2", filename: "MA1101 Matematika 1A Bab 02-Turunan.pdf" },
-        { id: "f3", filename: "MA1101 Matematika 1A Bab 03-Aplikasi Turunan.pdf" },
-        { id: "f4", filename: "MA1101 Matematika 1A Bab 04-Integral tentu.pdf" },
-        { id: "f5", filename: "MA1101 Matematika 1A Bab 05-Aplikasi Integral.pdf" },
+      const mockItems = [
+        { id: "f1", title: "Bab 1: Limit", category: "materi", subcategory: null, year: null, chapterIds: ["chap-1"], matchedChapterOrderIndex: 1, reasoning: "Limit" },
+        { id: "f2", title: "Bab 3: Turunan", category: "materi", subcategory: null, year: null, chapterIds: ["chap-3"], matchedChapterOrderIndex: 3, reasoning: "Turunan" },
+        { id: "f3", title: "Bab 4: Aplikasi Turunan", category: "materi", subcategory: null, year: null, chapterIds: ["chap-4"], matchedChapterOrderIndex: 4, reasoning: "Aplikasi Turunan" },
+        { id: "f4", title: "Bab 6: Integral Tentu", category: "materi", subcategory: null, year: null, chapterIds: ["chap-6"], matchedChapterOrderIndex: 6, reasoning: "Integral" },
+        { id: "f5", title: "Bab 7: Aplikasi Integral", category: "materi", subcategory: null, year: null, chapterIds: ["chap-7"], matchedChapterOrderIndex: 7, reasoning: "Aplikasi Integral" },
       ];
+      const spy = spyOn(geminiModule, "generateContentWithFallback").mockResolvedValueOnce({
+        response: { text: JSON.stringify({ items: mockItems }) },
+        model: "gemini-2.5-flash",
+        provider: "gemini",
+        finishReason: "STOP",
+        usage: { promptTokens: 10, responseTokens: 10, totalTokens: 20 },
+      } as any);
 
-      const results = await batchStandardizeDocumentsWithAi({
-        files,
-        courseCode: "MA1101",
-        courseTitle: "Matematika 1A",
-        chapters: sampleChapters,
-      });
+      try {
+        const files = [
+          { id: "f1", filename: "MA1101 Matematika 1A Bab 01-Limit.pdf" },
+          { id: "f2", filename: "MA1101 Matematika 1A Bab 02-Turunan.pdf" },
+          { id: "f3", filename: "MA1101 Matematika 1A Bab 03-Aplikasi Turunan.pdf" },
+          { id: "f4", filename: "MA1101 Matematika 1A Bab 04-Integral tentu.pdf" },
+          { id: "f5", filename: "MA1101 Matematika 1A Bab 05-Aplikasi Integral.pdf" },
+        ];
 
-      expect(results.length).toBe(5);
-      for (const res of results) {
-        expect(res.id).toBeDefined();
-        expect(res.title).toBeDefined();
-        expect(res.category).toBeDefined();
-        expect(res.title).not.toMatch(/[—–]/);
+        const results = await batchStandardizeDocumentsWithAi({
+          files,
+          courseCode: "MA1101",
+          courseTitle: "Matematika 1A",
+          chapters: sampleChapters,
+        });
+
+        expect(results.length).toBe(5);
+        for (const res of results) {
+          expect(res.id).toBeDefined();
+          expect(res.title).toBeDefined();
+          expect(res.category).toBeDefined();
+          expect(res.title).not.toMatch(/[—–]/);
+        }
+      } finally {
+        spy.mockRestore();
       }
     });
   });

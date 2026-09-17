@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import {
   AlertTriangle,
   ArchiveX,
@@ -68,6 +69,7 @@ type DetailProps = {
   detailId: string;
   courseLabels?: Record<string, string>;
   backHref?: string;
+  backLabel?: string;
 };
 
 type IdeaPreview = {
@@ -348,7 +350,7 @@ function DetailLoading() {
 // Idea Bundle Review Detail (Compact & Space-Efficient)
 // ---------------------------------------------------------------------------
 
-export function IdeaBundleReviewDetail({ detailId, backHref }: DetailProps) {
+export function IdeaBundleReviewDetail({ detailId, backHref, backLabel }: DetailProps) {
   const router = useRouter();
   const [payload, setPayload] = useState<IdeaDetailPayload | null>(null);
   const [draft, setDraft] = useState<IdeaDraft | null>(null);
@@ -467,9 +469,10 @@ export function IdeaBundleReviewDetail({ detailId, backHref }: DetailProps) {
         result.result,
       ];
       setPayload((current) => current ? { ...current, itemReviews: nextReviews } : current);
-      const nextPending = ideasList
-        .slice(currentIndex + 1)
-        .find((idea) => (nextReviews.find((review) => review.targetId === idea.id)?.status ?? "pending") === "pending");
+      const nextPending = [
+        ...ideasList.slice(currentIndex + 1),
+        ...ideasList.slice(0, currentIndex),
+      ].find((idea) => (nextReviews.find((review) => review.targetId === idea.id)?.status ?? "pending") === "pending");
       if (nextPending) setSelectedIdeaId(nextPending.id);
     } catch (reviewError) {
       setError(explainBundleError(reviewError instanceof Error ? reviewError.message : "IDEA_ITEM_REVIEW_UPDATE_FAILED"));
@@ -514,6 +517,22 @@ export function IdeaBundleReviewDetail({ detailId, backHref }: DetailProps) {
 
   return (
     <div className="space-y-4">
+      {backHref && (
+        <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            asChild
+            className="-ml-2 h-8 gap-1.5 text-body-sm text-muted-foreground hover:text-foreground"
+          >
+            <Link href={backHref}>
+              <ChevronLeft className="size-4" />
+              {backLabel ?? "Kembali ke daftar review"}
+            </Link>
+          </Button>
+        </div>
+      )}
+
       {/* Top Navigator Bar */}
       <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border bg-muted/40 p-2 shadow-xs">
         <div className="flex items-center gap-1.5">
@@ -2171,7 +2190,8 @@ function PedagogicReviewPanel({
   );
 }
 
-export function ProductBundleReviewDetail({ detailId, courseLabels = {} }: DetailProps) {
+export function ProductBundleReviewDetail({ detailId, courseLabels = {}, backHref, backLabel }: DetailProps) {
+  const router = useRouter();
   const [payload, setPayload] = useState<ProductDetailPayload | null>(null);
   const [draftProducts, setDraftProducts] = useState<ProductEntity[]>([]);
   const [activeType, setActiveType] = useUrlTab("productType", "all");
@@ -2255,6 +2275,10 @@ export function ProductBundleReviewDetail({ detailId, courseLabels = {} }: Detai
       const response = await fetch(endpoint, { method: action === "discard" ? "DELETE" : "POST" });
       const result = await response.json() as { error?: string };
       if (!response.ok) throw new Error(result.error || `PRODUCT_BUNDLE_${action.toUpperCase()}_FAILED`);
+      if (action === "discard") {
+        router.replace(backHref ?? "/admin/materials/review?section=product");
+        return;
+      }
       await load();
     } catch (mutationError) {
       setError(explainBundleError(mutationError instanceof Error ? mutationError.message : "PRODUCT_BUNDLE_UPDATE_FAILED"));
@@ -2390,6 +2414,22 @@ export function ProductBundleReviewDetail({ detailId, courseLabels = {} }: Detai
 
   return (
     <div className="space-y-4">
+      {backHref && (
+        <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            asChild
+            className="-ml-2 h-8 gap-1.5 text-body-sm text-muted-foreground hover:text-foreground"
+          >
+            <Link href={backHref}>
+              <ChevronLeft className="size-4" />
+              {backLabel ?? "Kembali ke daftar review"}
+            </Link>
+          </Button>
+        </div>
+      )}
+
       {/* Compact Meta Strip */}
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-card px-4 py-3 shadow-xs">
         <div className="flex flex-wrap items-center gap-3 text-body-sm">

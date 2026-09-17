@@ -405,14 +405,16 @@ export function BatchUploadDialog({
 
             const cleanTopicForFilename = res.title.replace(/^bab\s*\d+\s*[:\.-]?\s*/i, "");
 
-            const updatedName = generateFileName({
-              courseCode: courseId,
-              category: res.category,
-              subcategory: res.subcategory,
-              chapterIndex: primaryChap?.orderIndex ?? res.matchedChapterOrderIndex,
-              year: res.year,
-              title: cleanTopicForFilename,
-            });
+            const updatedName = renamedOverrideRef.current.has(d.id)
+              ? d.generatedName
+              : generateFileName({
+                  courseCode: courseId,
+                  category: res.category,
+                  subcategory: res.subcategory,
+                  chapterIndex: primaryChap?.orderIndex ?? res.matchedChapterOrderIndex,
+                  year: res.year,
+                  title: cleanTopicForFilename,
+                });
 
             return {
               ...d,

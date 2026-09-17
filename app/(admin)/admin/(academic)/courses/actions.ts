@@ -18,6 +18,7 @@ import {
   websiteMaterials,
 } from "@/db/schema";
 import { assertAdmin } from "@/lib/auth/admin-guards";
+import { z } from "zod";
 import { eq, asc, desc, inArray, and, or } from "drizzle-orm";
 import { randomUUID } from "crypto";
 import { storage } from "@/lib/storage";
@@ -1077,6 +1078,42 @@ export async function getCourseNavContext(slugOrId: string): Promise<CourseNavCo
   };
 }
 
+const ChapterInputSchema = z.object({
+  id: z.string().min(1, "ID bab tidak boleh kosong"),
+  title: z.string().min(1, "Judul bab tidak boleh kosong"),
+  orderIndex: z.number(),
+  description: z.string().nullable().optional(),
+});
+
+const StandardizeDocumentTitleSchema = z.object({
+  filename: z.string().min(1, "Nama berkas tidak boleh kosong"),
+  courseId: z.string().min(1, "ID mata kuliah tidak boleh kosong"),
+  courseTitle: z.string().nullable().optional(),
+  chapters: z.array(ChapterInputSchema).default([]),
+  currentValues: z
+    .object({
+      title: z.string().optional(),
+      category: z.string().optional(),
+      subcategory: z.string().nullable().optional(),
+      year: z.number().nullable().optional(),
+    })
+    .optional(),
+});
+
+const BatchStandardizeDocumentsSchema = z.object({
+  files: z
+    .array(
+      z.object({
+        id: z.string().min(1, "ID berkas tidak boleh kosong"),
+        filename: z.string().min(1, "Nama berkas tidak boleh kosong"),
+      })
+    )
+    .min(1, "Minimal satu berkas harus disediakan"),
+  courseId: z.string().min(1, "ID mata kuliah tidak boleh kosong"),
+  courseTitle: z.string().nullable().optional(),
+  chapters: z.array(ChapterInputSchema).default([]),
+});
+
 export async function standardizeDocumentTitleAction(input: {
   filename: string;
   courseId: string;
@@ -1090,12 +1127,25 @@ export async function standardizeDocumentTitleAction(input: {
   };
 }) {
   const { user } = await assertAdmin();
+  const parsed = StandardizeDocumentTitleSchema.safeParse(input);
+  if (!parsed.success) {
+    throw new Error(`Validasi gagal: ${parsed.error.issues.map((i) => i.message).join(", ")}`);
+  }
+  const valid = parsed.data;
   const { standardizeDocumentMetadataWithAi } = await import(
     "@/lib/academic/ai-document-standardizer"
   );
   return standardizeDocumentMetadataWithAi({
-    ...input,
-    courseCode: input.courseId,
+    ...valid,
+    currentValues: valid.currentValues
+      ? {
+          title: valid.currentValues.title,
+          category: valid.currentValues.category as MaterialLevel1Category | undefined,
+          subcategory: valid.currentValues.subcategory as CourseMaterialSubcategory | null | undefined,
+          year: valid.currentValues.year,
+        }
+      : undefined,
+    courseCode: valid.courseId,
     userId: user.id,
   });
 }
@@ -1107,12 +1157,17 @@ export async function batchStandardizeDocumentsAction(input: {
   chapters: Array<{ id: string; title: string; orderIndex: number; description?: string | null }>;
 }) {
   const { user } = await assertAdmin();
+  const parsed = BatchStandardizeDocumentsSchema.safeParse(input);
+  if (!parsed.success) {
+    throw new Error(`Validasi gagal: ${parsed.error.issues.map((i) => i.message).join(", ")}`);
+  }
+  const valid = parsed.data;
   const { batchStandardizeDocumentsWithAi } = await import(
     "@/lib/academic/ai-document-standardizer"
   );
   return batchStandardizeDocumentsWithAi({
-    ...input,
-    courseCode: input.courseId,
+    ...valid,
+    courseCode: valid.courseId,
     userId: user.id,
   });
 }

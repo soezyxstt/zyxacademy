@@ -376,21 +376,24 @@ export function detectChaptersFromFilename(
   }
 
   // 3. Fallback: Check if full chapter title words appear in filename (e.g. "Pertaksamaan dan Fungsi", "Limit")
-  let foundBySemantic: BatchChapterInfo | null = null;
+  let bestSemanticMatch: { chapter: BatchChapterInfo; length: number } | null = null;
   for (const ch of chapters) {
     const cleanTitle = ch.title
       .replace(/^bab\s*\d+\s*[:\.-]?\s*/i, "")
       .trim()
       .toLowerCase();
     if (cleanTitle.length >= 4 && base.includes(cleanTitle)) {
-      foundBySemantic = ch;
-      break;
+      if (!bestSemanticMatch || cleanTitle.length > bestSemanticMatch.length) {
+        bestSemanticMatch = { chapter: ch, length: cleanTitle.length };
+      }
     }
   }
+  let foundBySemantic: BatchChapterInfo | null = bestSemanticMatch?.chapter ?? null;
 
   // 4. Keyword token match: check significant chapter words (e.g. "limit", "turunan", "integral")
   if (!foundBySemantic) {
     const stopWords = new Set(["dan", "atau", "pada", "untuk", "dengan", "dalam", "bab", "part", "bagian", "materi"]);
+    let bestTokenMatch: { chapter: BatchChapterInfo; score: number } | null = null;
     for (const ch of chapters) {
       const cleanTitle = ch.title
         .replace(/^bab\s*\d+\s*[:\.-]?\s*/i, "")
@@ -399,22 +402,37 @@ export function detectChaptersFromFilename(
       const tokens = cleanTitle
         .split(/[\s,–—\-_:]+/)
         .filter((w) => w.length >= 4 && !stopWords.has(w));
-      if (
-        tokens.some((token) => {
-          const escaped = token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-          return new RegExp(`\\b${escaped}\\b`, "i").test(base);
-        })
-      ) {
-        foundBySemantic = ch;
-        break;
+      const matchedTokens = tokens.filter((token) => {
+        const escaped = token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        return new RegExp(`\\b${escaped}\\b`, "i").test(base);
+      });
+      if (matchedTokens.length > 0 && (!bestTokenMatch || matchedTokens.length > bestTokenMatch.score)) {
+        bestTokenMatch = { chapter: ch, score: matchedTokens.length };
       }
     }
+    foundBySemantic = bestTokenMatch?.chapter ?? null;
   }
 
   // Discrepancy resolver (e.g. campus Bab 0 vs Zyx Bab 1):
   // If chapter found by number does NOT mention any of its keywords in the filename,
-  // but another chapter matches semantically by topic name, prefer the semantic match!
+  // or a more specific semantic full-title match exists, prefer the semantic match!
   if (foundByNumber && foundBySemantic && foundByNumber.id !== foundBySemantic.id) {
+    const cleanSemanticTitle = foundBySemantic.title
+      .replace(/^bab\s*\d+\s*[:\.-]?\s*/i, "")
+      .trim()
+      .toLowerCase();
+    const cleanNumberTitle = foundByNumber.title
+      .replace(/^bab\s*\d+\s*[:\.-]?\s*/i, "")
+      .trim()
+      .toLowerCase();
+
+    if (
+      base.includes(cleanSemanticTitle) &&
+      (!base.includes(cleanNumberTitle) || cleanSemanticTitle.length > cleanNumberTitle.length)
+    ) {
+      return [foundBySemantic.id];
+    }
+
     const numberChapTokens = foundByNumber.title
       .toLowerCase()
       .split(/[\s,–—\-_:]+/)

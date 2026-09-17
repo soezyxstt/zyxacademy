@@ -326,6 +326,7 @@ export function AdminDocumentWorkspace({
         if (result.chapterIds && result.chapterIds.length > 0) {
           setSelectedChapters(new Set(result.chapterIds));
         }
+        if (result.year) setPdfYear(String(result.year));
         toast.success("Format judul dan bab berhasil dirapikan dengan AI.");
       }
     } catch (err) {

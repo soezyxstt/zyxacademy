@@ -242,11 +242,13 @@ export default async function CourseMaterialListPage({ params, searchParams }: P
     thumbnailUrl: m.thumbnailUrl ? storage.getUrl(m.thumbnailUrl) : undefined, chapterId: m.chapterId, chapterIds: m.chapterId ? [m.chapterId] : [], href: `/courses/${id}/material/${m.id}`,
   }));
 
-  const visibleCourseQuizzes = isFreeAccess
-    ? courseQuizzes.filter((quiz) => isFreeQuizTemplate(quiz, freeChapterIds))
-    : courseQuizzes;
+  const freeQuizIds = new Set(
+    courseQuizzes
+      .filter((quiz) => isFreeQuizTemplate(quiz, freeChapterIds))
+      .map((q) => q.id)
+  );
 
-  const mappedQuizzes = visibleCourseQuizzes.map((q) => {
+  const mappedQuizzes = courseQuizzes.map((q) => {
     let qCount = 10;
     let quizChapterIds: string[] = [];
     try {
@@ -254,7 +256,22 @@ export default async function CourseMaterialListPage({ params, searchParams }: P
       if (rules?.count) qCount = Number(rules.count);
       quizChapterIds = extractFreeQuizChapterScope(q.selectionRules) ?? [];
     } catch {}
-    return { id: q.id, courseId: id, title: q.title, kind: "quiz" as const, docCategory: "soal" as const, tabGroup: "bank_soal" as const, subcategory: "kuis", fileSize: `${qCount} Soal · Kuis Interaktif`, completed: completedQuizIds.has(q.id), isPastYear: false, isPreview: false, chapterIds: quizChapterIds, href: `/courses/${id}/quiz/${q.id}` };
+    const isFree = freeQuizIds.has(q.id);
+    return {
+      id: q.id,
+      courseId: id,
+      title: q.title,
+      kind: "quiz" as const,
+      docCategory: "soal" as const,
+      tabGroup: "bank_soal" as const,
+      subcategory: "kuis",
+      fileSize: `${qCount} Soal · Kuis Interaktif`,
+      completed: completedQuizIds.has(q.id),
+      isPastYear: false,
+      isPreview: isFree,
+      chapterIds: quizChapterIds,
+      href: `/courses/${id}/quiz/${q.id}`,
+    };
   });
 
   const mappedTryouts = courseTryouts.map((t) => {
@@ -269,8 +286,10 @@ export default async function CourseMaterialListPage({ params, searchParams }: P
   const allMaterials = [...mappedCanonical, ...mappedCanonicalDiktats, ...mappedDiktats, ...mappedDb, ...mappedWeb, ...mappedManual, ...mappedQuizzes, ...mappedTryouts];
   const isEnrolled = studentAccess?.tier === "standard";
   const materialsWithLockState = allMaterials.map((material) => {
-    // PDF materials (materi PDF, bank soal ITB / lembar soal tutorial / ujian) are free
-    const isFreeContent = material.kind === "pdf" && material.docCategory !== "diktat";
+    // PDF materials (materi PDF, bank soal ITB / lembar soal tutorial / ujian) and qualifying free quizzes are free
+    const isFreeContent =
+      (material.kind === "pdf" && material.docCategory !== "diktat") ||
+      (material.kind === "quiz" && freeQuizIds.has(material.id));
     const locked = !isEnrolled && !isFreeContent;
     return {
       ...material,
@@ -290,7 +309,7 @@ export default async function CourseMaterialListPage({ params, searchParams }: P
                   Aktivasi token kelas
                 </h3>
                 <p className="mt-1 max-w-2xl text-body-sm text-muted-foreground">
-                  Berkas PDF materi dan latihan soal ITB dapat diakses gratis. Masukkan token kelas untuk membuka kuis interaktif, tryout, artikel lengkap, flashcard, dan diktat.
+                  Berkas PDF materi, latihan soal ITB, dan kuis uji coba bab awal dapat diakses gratis. Masukkan token kelas untuk membuka seluruh kuis interaktif, tryout ujian, artikel lengkap, flashcard, dan diktat.
                 </p>
               </div>
               <EnrollmentForm className="w-full" />
