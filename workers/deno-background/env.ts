@@ -20,8 +20,12 @@ export const WorkerEnvSchema = z.object({
   // Inngest
   INNGEST_EVENT_KEY: optionalString,
   INNGEST_SIGNING_KEY: optionalString,
-  INNGEST_SERVE_ORIGIN: optionalUrl.default("https://zyx-background.deno.net"),
+  INNGEST_SERVE_ORIGIN: optionalUrl.default("https://zyx-background.soezyxst.deno.net"),
   INNGEST_SERVE_PATH: z.string().default("/api/inngest"),
+
+  // Diktat PDF renderer (Cloudflare Browser Run Quick Action Worker)
+  DIKTAT_RENDERER_URL: optionalUrl,
+  DIKTAT_RENDERER_SECRET: optionalString,
 
   // AI & Vector
   GEMINI_API_KEY: optionalString,

@@ -21,11 +21,11 @@ Background execution is handled by Deno Deploy, orchestrated via Inngest. Deploy
 
 - **Staging (`staging` branch)**:
   - App Name: `zyx-background-staging`
-  - URL: `https://zyx-background-staging.deno.dev`
+  - URL: `https://zyx-background-staging.soezyxst.deno.net`
   - GitHub Environment: `staging`
 - **Production (`main` branch)**:
   - App Name: `zyx-background`
-  - URL: `https://zyx-background.deno.dev`
+  - URL: `https://zyx-background.soezyxst.deno.net`
   - GitHub Environment: `production`
 
 ### Automated Pipeline Capabilities
@@ -35,8 +35,9 @@ The deployment workflow performs the following actions automatically on push (fi
 2. **Dynamic Provisioning**: Automatically provisions the Deno Deploy app via `deno deploy create` if it does not already exist.
 3. **Environment Sync**: Synchronizes all repository and environment secrets to Deno Deploy via `deno deploy env load --replace`.
 4. **Zero-downtime Deploy**: Runs `deno deploy --non-interactive --org soezyxst --app $APP_NAME --prod`.
-5. **Automated Healthcheck**: Polls `https://${APP_NAME}.deno.dev/health` to confirm database connectivity and runtime health.
-6. **Automated Inngest Sync**: Calls the Inngest Cloud API via `PUT https://api.inngest.com/v1/apps` with `INNGEST_SIGNING_KEY` to register all 16 background functions without manual dashboard steps.
+5. **Automated Healthcheck**: Polls `$APP_URL/health` to confirm database connectivity and runtime health.
+6. **Automated Inngest Sync**: Calls the Inngest Cloud API via `POST https://api.inngest.com/v2/apps/zyx-academy/syncs` with per-environment `INNGEST_API_KEY` and body `{"url": "$APP_URL/api/inngest"}` to register background functions without manual dashboard steps. `INNGEST_SIGNING_KEY` stays in the worker env for request verification and is not used for sync. Staging and production use separate Inngest environment keys so the shared app id `zyx-academy` does not overwrite the other environment.
+7. **Renderer env sync**: Synchronizes `DIKTAT_RENDERER_URL` and `DIKTAT_RENDERER_SECRET` to Deno Deploy alongside the other secrets. Set matching per-environment values in the `staging` and `production` GitHub Environments, sourced from the `zyx-diktat-renderer-staging` and `zyx-diktat-renderer` Workers.
 
 ## Staging overhaul execution
 
