@@ -557,6 +557,30 @@ export const enrollmentTokenCourses = sqliteTable(
 	]
 );
 
+// Discount Vouchers Table (Referral codes and discount vouchers for student plans)
+export const discountVouchers = sqliteTable(
+	"discount_vouchers",
+	{
+		id: text("id").primaryKey(),
+		code: text("code").notNull().unique(),
+		discountPercent: integer("discount_percent").notNull(),
+		maxQuota: integer("max_quota").default(1).notNull(),
+		usedQuota: integer("used_quota").default(0).notNull(),
+		expiresAt: integer("expires_at", { mode: "timestamp" }).notNull(),
+		isActive: integer("is_active", { mode: "boolean" }).default(true).notNull(),
+		description: text("description"),
+		createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+		updatedAt: integer("updated_at", { mode: "timestamp" })
+			.defaultNow()
+			.$onUpdate(() => /* @__PURE__ */ new Date())
+			.notNull(),
+	},
+	(table) => [
+		index("discount_vouchers_code_idx").on(table.code),
+		index("discount_vouchers_is_active_idx").on(table.isActive),
+	]
+);
+
 // Tutor Courses Table (Which courses a tutor can teach)
 export const tutorCourses = sqliteTable(
  "tutor_courses",
