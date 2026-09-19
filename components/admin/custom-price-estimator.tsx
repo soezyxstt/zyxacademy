@@ -1,10 +1,17 @@
-"use client";
-
-import { useMemo, useState } from "react";
-import { AlertCircle, BookOpen, CalendarDays, Calculator, Info, Users } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { AlertCircle, BookOpen, CalendarDays, Calculator, Info, Tag, Users, X } from "lucide-react";
 import { AdminSectionTitle } from "@/components/admin/section-title";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   CUSTOM_MEETING_STEP,
   CUSTOM_DEFAULT_MEETINGS,
@@ -14,6 +21,10 @@ import {
   formatPlanPrice,
   getCustomPlanPriceQuote,
 } from "@/lib/pricing-constants";
+import {
+  getActiveDiscountVouchers,
+  type ActiveDiscountVoucher,
+} from "@/app/(admin)/admin/pricing/actions";
 
 type QuantityKey = "meetings" | "courses" | "persons";
 type QuantityValues = Record<QuantityKey, string>;
@@ -37,8 +48,27 @@ function getQuantityError(value: string, label: string): string | undefined {
   return undefined;
 }
 
-export function CustomPriceEstimator() {
+export function CustomPriceEstimator({
+  initialVouchers,
+}: {
+  initialVouchers?: ActiveDiscountVoucher[];
+} = {}) {
   const [values, setValues] = useState<QuantityValues>(initialValues);
+  const [selectedVoucherCode, setSelectedVoucherCode] = useState<string>("none");
+  const [activeVouchers, setActiveVouchers] = useState<ActiveDiscountVoucher[]>(initialVouchers ?? []);
+
+  useEffect(() => {
+    if (!initialVouchers) {
+      getActiveDiscountVouchers().then((vouchers) => {
+        setActiveVouchers(vouchers);
+      });
+    }
+  }, [initialVouchers]);
+
+  const selectedVoucher = useMemo(() => {
+    if (selectedVoucherCode === "none") return null;
+    return activeVouchers.find((v) => v.code === selectedVoucherCode) ?? null;
+  }, [activeVouchers, selectedVoucherCode]);
 
   const quantities = useMemo(
     () => ({
@@ -79,8 +109,13 @@ export function CustomPriceEstimator() {
       return null;
     }
 
-    return getCustomPlanPriceQuote(quantities.meetings, quantities.persons, quantities.courses);
-  }, [errors, quantities]);
+    return getCustomPlanPriceQuote(
+      quantities.meetings,
+      quantities.persons,
+      quantities.courses,
+      selectedVoucher?.discountPercent
+    );
+  }, [errors, quantities, selectedVoucher]);
 
   const updateValue = (key: QuantityKey, value: string) => {
     setValues((current) => ({ ...current, [key]: value }));
@@ -167,6 +202,58 @@ export function CustomPriceEstimator() {
               {errors.persons ?? "Jumlah anggota yang berbagi paket."}
             </p>
           </div>
+
+          <div className="space-y-2 sm:col-span-3 xl:col-span-1 border-t border-border/70 pt-3">
+            <div className="flex items-center justify-between">
+              <Label htmlFor="custom-voucher" className="flex items-center gap-1.5">
+                <Tag className="size-3.5 text-brand-primary" aria-hidden />
+                Voucher / kode referal
+              </Label>
+              {selectedVoucher && (
+                <Button
+                  type="button"
+                  size="xs"
+                  variant="ghost"
+                  onClick={() => setSelectedVoucherCode("none")}
+                  className="h-5 px-1.5 text-body-2xs text-muted-foreground hover:text-foreground"
+                >
+                  Lepas voucher
+                </Button>
+              )}
+            </div>
+
+            <Select value={selectedVoucherCode} onValueChange={setSelectedVoucherCode}>
+              <SelectTrigger id="custom-voucher" className="w-full">
+                <SelectValue placeholder="Pilih voucher aktif" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">Tanpa voucher</SelectItem>
+                {activeVouchers.map((v) => (
+                  <SelectItem key={v.id} value={v.code}>
+                    {v.code} (Diskon {v.discountPercent}% - {v.remainingQuota} sisa)
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            {selectedVoucher ? (
+              <div className="flex items-center gap-1.5 text-body-2xs text-status-success font-medium">
+                <Badge
+                  variant="outline"
+                  className="border-status-success/30 bg-status-success/10 text-status-success text-body-2xs font-semibold"
+                >
+                  {selectedVoucher.code} (-{selectedVoucher.discountPercent}%)
+                </Badge>
+                <span>Potongan tambahan dari harga promo</span>
+              </div>
+            ) : (
+              <p className="text-body-2xs text-muted-foreground">
+                {activeVouchers.length > 0
+                  ? "Pilih voucher aktif untuk potongan tambahan setelah promo 40%."
+                  : "Belum ada voucher aktif. Buat di tab Kelola voucher."}
+              </p>
+            )}
+          </div>
         </div>
 
         <div className="mt-5 flex items-start gap-2 border-t border-border/70 pt-4">
@@ -237,6 +324,70 @@ export function CustomPriceEstimator() {
                 </div>
               </div>
             </div>
+
+            {quote.finalPrice !== undefined && (
+              <div
+                className="rounded-lg border border-status-success/30 bg-status-success/8 p-4 space-y-3"
+                data-voucher-applied
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-1.5">
+                    <Tag className="size-4 text-status-success" aria-hidden />
+                    <p className="text-body-xs font-semibold text-status-success">
+                      Harga akhir setelah voucher {selectedVoucher?.code}
+                    </p>
+                  </div>
+                  <Badge
+                    variant="outline"
+                    className="border-status-success/30 bg-status-success/15 font-bold text-status-success"
+                  >
+                    -{quote.voucherDiscountPercent}%
+                  </Badge>
+                </div>
+
+                <div className="flex flex-col sm:flex-row sm:items-baseline sm:justify-between gap-2">
+                  <div>
+                    <p
+                      className="font-heading text-h5 font-bold text-foreground"
+                      data-price-final={quote.finalPrice}
+                    >
+                      {formatPlanPrice(quote.finalPrice)}
+                    </p>
+                    <p className="mt-0.5 text-body-xs text-muted-foreground">
+                      Total pembayaran kelompok per semester
+                    </p>
+                  </div>
+                  <div className="sm:text-right">
+                    <p
+                      className="font-heading text-body-base font-bold text-foreground"
+                      data-price-final-per-person={quote.finalPricePerPerson}
+                    >
+                      {formatPlanPrice(quote.finalPricePerPerson!)}
+                      <span className="ml-1 font-sans text-body-xs font-normal text-muted-foreground">
+                        / semester
+                      </span>
+                    </p>
+                    <p className="mt-0.5 text-body-xs text-muted-foreground">Per orang</p>
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-1 border-t border-status-success/20 pt-2 text-body-xs text-muted-foreground">
+                  <div className="flex items-center justify-between">
+                    <span>Potongan voucher ({quote.voucherDiscountPercent}%):</span>
+                    <span className="font-semibold text-status-success">
+                      -{formatPlanPrice(quote.voucherDiscountAmount!)} (-
+                      {formatPlanPrice(quote.voucherDiscountAmountPerPerson!)} / orang)
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span>Total hemat (Promo 40% + Voucher):</span>
+                    <span className="font-semibold text-foreground">
+                      -{formatPlanPrice(quote.totalSavings!)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
 
             <div className="flex items-center justify-between gap-3 border-y border-border/70 py-3 text-body-sm">
               <span className="text-muted-foreground">Potongan {quote.discountPercent}%</span>

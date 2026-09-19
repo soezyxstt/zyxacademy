@@ -44,8 +44,23 @@ describe("custom plan price estimator", () => {
     );
   });
 
-  test("rejects non-positive quantities", () => {
-    expect(() => getCustomPlanPriceQuote(5, 0, 3)).toThrow(RangeError);
-    expect(() => getCustomPlanPriceQuote(5, 3, 0)).toThrow(RangeError);
+  test("applies additional voucher discount on top of the 40% promo price", () => {
+    const baseQuote = getCustomPlanPriceQuote(15, 3, 3);
+    const voucherQuote = getCustomPlanPriceQuote(15, 3, 3, 10);
+
+    expect(voucherQuote.afterDiscount).toBe(baseQuote.afterDiscount);
+    expect(voucherQuote.voucherDiscountPercent).toBe(10);
+    expect(voucherQuote.voucherDiscountAmount).toBe(Math.round(baseQuote.afterDiscount * 0.1));
+    expect(voucherQuote.finalPrice).toBe(baseQuote.afterDiscount - voucherQuote.voucherDiscountAmount!);
+    expect(voucherQuote.finalPricePerPerson).toBe(Math.round(voucherQuote.finalPrice! / 3));
+    expect(voucherQuote.voucherDiscountAmountPerPerson).toBe(Math.round(voucherQuote.voucherDiscountAmount! / 3));
+    expect(voucherQuote.totalSavings).toBe(baseQuote.discountAmount + voucherQuote.voucherDiscountAmount!);
+  });
+
+  test("rejects invalid voucher discount percentages", () => {
+    expect(() => getCustomPlanPriceQuote(15, 3, 3, 0)).toThrow(RangeError);
+    expect(() => getCustomPlanPriceQuote(15, 3, 3, 101)).toThrow(RangeError);
+    expect(() => getCustomPlanPriceQuote(15, 3, 3, -5)).toThrow(RangeError);
   });
 });
+

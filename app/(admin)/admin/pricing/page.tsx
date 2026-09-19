@@ -2,13 +2,16 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { Calculator } from "lucide-react";
 import { CustomPriceEstimator } from "@/components/admin/custom-price-estimator";
+import { TutorFeeEstimator } from "@/components/admin/tutor-fee-estimator";
+import { VoucherManagementTab } from "@/components/admin/voucher-management-tab";
 import { AdminPageHeader } from "@/components/admin/page-header";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { assertAdmin } from "@/lib/auth/admin-guards";
 import { pageTitle } from "@/lib/site";
 
 export const metadata: Metadata = {
-  title: pageTitle("Kalkulator harga custom"),
-  description: "Hitung perkiraan harga paket custom berdasarkan sesi, mata kuliah, dan anggota kelompok.",
+  title: pageTitle("Kalkulator harga & voucher"),
+  description: "Hitung harga paket murid, estimasi fee tutor, dan kelola voucher diskon.",
 };
 
 export default async function AdminPricingPage() {
@@ -19,13 +22,32 @@ export default async function AdminPricingPage() {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <AdminPageHeader
         icon={Calculator}
-        title="Kalkulator harga custom"
-        description="Hitung perkiraan harga paket custom berdasarkan kebutuhan kelompok."
+        title="Kalkulator harga & voucher"
       />
-      <CustomPriceEstimator />
+
+      <Tabs defaultValue="student-pricing" paramKey="tab" className="space-y-6">
+        <TabsList>
+          <TabsTrigger value="student-pricing">Harga paket murid</TabsTrigger>
+          <TabsTrigger value="tutor-fee">Fee tutor</TabsTrigger>
+          <TabsTrigger value="vouchers">Kelola voucher</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="student-pricing">
+          <CustomPriceEstimator />
+        </TabsContent>
+
+        <TabsContent value="tutor-fee">
+          <TutorFeeEstimator />
+        </TabsContent>
+
+        <TabsContent value="vouchers">
+          <VoucherManagementTab />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
+
