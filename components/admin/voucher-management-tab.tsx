@@ -61,6 +61,10 @@ export function VoucherManagementTab({
   const [deleteTarget, setDeleteTarget] = useState<DiscountVoucherItem | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
+  // Mutation error state
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
   const fetchVouchers = async () => {
     setLoading(true);
     setError(null);
@@ -81,13 +85,14 @@ export function VoucherManagementTab({
     e.preventDefault();
     setFormError(null);
     setFormSuccess(null);
+    setActionError(null);
 
     startTransition(async () => {
       const res = await createDiscountVoucher({
         code,
         discountPercent: Number(discountPercent),
         maxQuota: Number(maxQuota),
-        expiresAt: new Date(expiresAt).toISOString(),
+        expiresAt,
         description: description || undefined,
       });
 
@@ -108,24 +113,36 @@ export function VoucherManagementTab({
   };
 
   const handleToggleStatus = (voucher: DiscountVoucherItem) => {
+    setActionError(null);
+    setFormSuccess(null);
+
     startTransition(async () => {
       const res = await toggleDiscountVoucherStatus(voucher.id, !voucher.isActive);
       if (res.success) {
         fetchVouchers();
         onVouchersUpdated?.();
+      } else {
+        setActionError(res.error || "Gagal mengubah status voucher.");
       }
     });
   };
 
   const handleDeleteConfirm = async () => {
     if (!deleteTarget) return;
+    setDeleteError(null);
+    setActionError(null);
     setIsDeleting(true);
+
     const res = await deleteDiscountVoucher(deleteTarget.id);
     setIsDeleting(false);
-    setDeleteTarget(null);
+
     if (res.success) {
+      setDeleteTarget(null);
       fetchVouchers();
       onVouchersUpdated?.();
+    } else {
+      setDeleteError(res.error || "Gagal menghapus voucher.");
+      setActionError(res.error || "Gagal menghapus voucher.");
     }
   };
 
@@ -177,6 +194,13 @@ export function VoucherManagementTab({
         <div className="flex items-center gap-2 rounded-lg border border-status-success/30 bg-status-success/10 p-3 text-body-xs text-status-success">
           <CheckCircle2 className="size-4 shrink-0" />
           <span>{formSuccess}</span>
+        </div>
+      )}
+
+      {actionError && (
+        <div className="flex items-center gap-2 rounded-lg border border-status-error/30 bg-status-error/10 p-3 text-body-xs text-status-error">
+          <AlertCircle className="size-4 shrink-0" />
+          <span>{actionError}</span>
         </div>
       )}
 
@@ -444,13 +468,27 @@ export function VoucherManagementTab({
       <AdminConfirmDialog
         open={Boolean(deleteTarget)}
         onOpenChange={(open) => {
-          if (!open) setDeleteTarget(null);
+          if (!open) {
+            setDeleteTarget(null);
+            setDeleteError(null);
+          }
         }}
         title="Hapus voucher"
         description={
-          deleteTarget
-            ? `Apakah Anda yakin ingin menghapus voucher "${deleteTarget.code}"? Tindakan ini tidak dapat dibatalkan.`
-            : ""
+          deleteTarget ? (
+            <div className="space-y-2">
+              <p>
+                Apakah Anda yakin ingin menghapus voucher &quot;{deleteTarget.code}&quot;? Tindakan ini tidak dapat dibatalkan.
+              </p>
+              {deleteError && (
+                <p className="rounded-md border border-status-error/30 bg-status-error/10 p-2 text-body-xs font-medium text-status-error">
+                  {deleteError}
+                </p>
+              )}
+            </div>
+          ) : (
+            ""
+          )
         }
         confirmLabel="Ya, Hapus"
         cancelLabel="Batal"

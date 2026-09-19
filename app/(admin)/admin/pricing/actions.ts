@@ -6,7 +6,7 @@ import { and, desc, eq, gt, gte, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { discountVouchers } from "@/db/schema";
 import { assertAdmin } from "@/lib/auth/admin-guards";
-import { normalizeDate } from "@/lib/date-utils";
+import { calendarDateToJakartaInstant, isCalendarDate, normalizeDate } from "@/lib/date-utils";
 
 export type DiscountVoucherItem = {
   id: string;
@@ -33,7 +33,7 @@ export type CreateVoucherInput = {
   code: string;
   discountPercent: number;
   maxQuota: number;
-  expiresAt: string; // ISO or datetime-local
+  expiresAt: string; // ISO or YYYY-MM-DD
   description?: string;
 };
 
@@ -82,6 +82,8 @@ export async function getDiscountVouchers(): Promise<ActionResult<DiscountVouche
  */
 export async function getActiveDiscountVouchers(): Promise<ActiveDiscountVoucher[]> {
   try {
+    await assertAdmin();
+
     const now = new Date();
     const rows = await db
       .select()
@@ -141,7 +143,21 @@ export async function createDiscountVoucher(
       };
     }
 
-    const expiresAt = new Date(input.expiresAt);
+    let expiresAt: Date;
+    try {
+      const trimmedDate = input.expiresAt.trim();
+      if (isCalendarDate(trimmedDate)) {
+        expiresAt = calendarDateToJakartaInstant(trimmedDate, "23:59:59.999");
+      } else {
+        expiresAt = new Date(input.expiresAt);
+      }
+    } catch {
+      return {
+        success: false,
+        error: "Format tanggal kedaluwarsa tidak valid.",
+      };
+    }
+
     if (isNaN(expiresAt.getTime())) {
       return {
         success: false,
