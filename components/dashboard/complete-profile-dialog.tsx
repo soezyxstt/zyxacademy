@@ -24,7 +24,11 @@ interface CompleteProfileDialogProps {
     entryYear: boolean;
   };
 }
-
+ 
+/**
+ * Modal dialog prompting students on the dashboard to complete missing ITB academic profile fields.
+ * Includes session-based dismissal tracking to prevent repeated interruptions.
+ */
 export function CompleteProfileDialog({
   isProfileIncomplete,
   missingFields,

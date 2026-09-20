@@ -140,11 +140,17 @@ export const ITB_FACULTIES: ItbFaculty[] = [
   },
 ];
 
+/**
+ * Returns the list of valid academic majors and study programs for a specific ITB faculty code.
+ */
 export function getMajorsForFaculty(facultyCode: string): string[] {
   const faculty = ITB_FACULTIES.find((f) => f.code === facultyCode);
   return faculty ? faculty.majors : [];
 }
 
+/**
+ * Generates a descending range of valid student entry years based on the current calendar year.
+ */
 export function generateEntryYears(): number[] {
   const currentYear = new Date().getFullYear();
   const years: number[] = [];

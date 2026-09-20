@@ -29,6 +29,10 @@ interface ProfileEditFormProps {
   };
 }
 
+/**
+ * Interactive form component for editing student ITB academic profile details.
+ * Reactively cascades available major options when a faculty is chosen.
+ */
 export function ProfileEditForm({ user }: ProfileEditFormProps) {
   const router = useRouter();
   const [selectedFaculty, setSelectedFaculty] = useState(user.faculty || "");

@@ -56,4 +56,15 @@ describe("ITB Academic Data & TPB Logic", () => {
     // Senior student with declared major is not TPB
     expect(isTpbStudent(currentYear - 2, "Teknik Informatika")).toBe(false);
   });
+
+  it("validates that majors belong strictly to their respective faculty", () => {
+    const steiMajors = getMajorsForFaculty("STEI");
+    const fmipaMajors = getMajorsForFaculty("FMIPA");
+
+    expect(steiMajors.includes("Teknik Informatika")).toBe(true);
+    expect(fmipaMajors.includes("Teknik Informatika")).toBe(false);
+
+    expect(fmipaMajors.includes("Matematika")).toBe(true);
+    expect(steiMajors.includes("Matematika")).toBe(false);
+  });
 });

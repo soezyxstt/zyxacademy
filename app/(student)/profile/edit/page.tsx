@@ -17,6 +17,9 @@ export const metadata: Metadata = {
   description: "Lengkapi identitas akademis ITB Anda untuk personalisasi rekomendasi materi dan kelas.",
 };
 
+/**
+ * Server-rendered page allowing students to view and update their ITB academic profile.
+ */
 export default async function ProfileEditPage() {
   const h = await headers();
   const session = await auth.api.getSession({ headers: h });
