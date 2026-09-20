@@ -515,6 +515,174 @@ export const OPS_TOOL_DEFINITIONS: Record<string, OpsToolDefinition<any>> = {
     },
   }),
 
+  propose_batch_create_chapters: defineOpsTool({
+    name: "propose_batch_create_chapters",
+    description: ALL_OPS_AI_TOOL_SECURITY_REGISTRY.propose_batch_create_chapters.description,
+    security: ALL_OPS_AI_TOOL_SECURITY_REGISTRY.propose_batch_create_chapters,
+    inputSchema: z.object({
+      courseId: z.string().describe("ID atau slug mata kuliah (misal: 'fisika-dasar-1')"),
+      chapters: z.array(
+        z.object({
+          title: z.string().describe("Judul bab materi"),
+          orderIndex: z.number().optional().describe("Nomor urut bab"),
+          description: z.string().optional().describe("Deskripsi singkat bab"),
+        })
+      ).min(1).describe("Daftar bab materi yang akan dibuat"),
+    }),
+    execute: async ({ courseId, chapters }, context) => {
+      const cleanCourseId = String(courseId || "").trim().toLowerCase();
+      if (!cleanCourseId) {
+        return {
+          summary: "Gagal menyiapkan proposal: ID mata kuliah wajib disertakan.",
+          data: { error: "COURSE_ID_REQUIRED" },
+        };
+      }
+      if (!Array.isArray(chapters) || chapters.length === 0) {
+        return {
+          summary: "Gagal menyiapkan proposal: Daftar bab tidak boleh kosong.",
+          data: { error: "CHAPTERS_REQUIRED" },
+        };
+      }
+
+      const validChapters = chapters
+        .map((ch) => ({
+          title: String(ch.title || "").trim(),
+          orderIndex: typeof ch.orderIndex === "number" ? ch.orderIndex : undefined,
+          description: ch.description ? String(ch.description).trim() : undefined,
+        }))
+        .filter((ch) => Boolean(ch.title));
+
+      if (validChapters.length === 0) {
+        return {
+          summary: "Gagal menyiapkan proposal: Tidak ada bab dengan judul yang valid.",
+          data: { error: "VALID_CHAPTERS_REQUIRED" },
+        };
+      }
+
+      const runId = context?.runId ?? `run-${randomUUID()}`;
+      const stepId = context?.stepId ?? `step-${randomUUID()}`;
+
+      const chapterTitlesPreview = validChapters
+        .slice(0, 5)
+        .map((c, idx) => `${c.orderIndex ?? idx + 1}. ${c.title}`)
+        .join(", ");
+      const moreSuffix = validChapters.length > 5 ? `, dan ${validChapters.length - 5} bab lainnya` : "";
+
+      const preview: OpsAiProposalPreview = {
+        summary: `Pembuatan ${validChapters.length} bab materi untuk mata kuliah '${cleanCourseId}'`,
+        targetEntity: cleanCourseId,
+        fields: [
+          { label: "Mata Kuliah", value: cleanCourseId },
+          { label: "Jumlah Bab", value: `${validChapters.length} bab` },
+          { label: "Daftar Bab", value: `${chapterTitlesPreview}${moreSuffix}` },
+        ],
+      };
+
+      const { publicProposal } = await proposalStore.createProposal({
+        runId,
+        stepId,
+        type: "batch_create_chapters",
+        title: `Buat ${validChapters.length} Bab Materi Massal`,
+        description: `Membuat ${validChapters.length} bab materi baru untuk mata kuliah '${cleanCourseId}'.`,
+        preview,
+        payload: {
+          courseId: cleanCourseId,
+          chapters: validChapters,
+        },
+        preconditions: {
+          version: 1,
+          stateFingerprint: `course:${cleanCourseId}:chapters:${validChapters.length}`,
+        },
+        actorId: context?.actorId ?? (context?.callerRole === "admin" ? "admin" : undefined),
+      });
+
+      return {
+        summary: `Proposal pembuatan ${validChapters.length} bab materi telah disiapkan (ID: ${publicProposal.id}). Menunggu konfirmasi admin.`,
+        data: {
+          proposalId: publicProposal.id,
+          type: publicProposal.type,
+          preview: publicProposal.preview,
+        },
+        proposal: publicProposal,
+      };
+    },
+  }),
+
+  propose_bulk_update_materials: defineOpsTool({
+    name: "propose_bulk_update_materials",
+    description: ALL_OPS_AI_TOOL_SECURITY_REGISTRY.propose_bulk_update_materials.description,
+    security: ALL_OPS_AI_TOOL_SECURITY_REGISTRY.propose_bulk_update_materials,
+    inputSchema: z.object({
+      materialIds: z.array(z.string()).min(1).describe("Daftar ID berkas materi kuliah yang akan diubah"),
+      patch: z.object({
+        title: z.string().optional().describe("Judul berkas baru"),
+        type: z.enum(["materi", "soal", "pembahasan_soal", "materi_kelas", "contoh_soal"]).optional().describe("Tipe dokumen"),
+        subcategory: z.enum(["materi_dosen", "scl", "modul", "ebook", "kuis", "kbf", "tutorial", "uts", "uas", "lainnya"]).nullable().optional().describe("Subkategori dokumen"),
+        year: z.number().int().min(1900).max(2100).nullable().optional().describe("Tahun dokumen"),
+        chapterIds: z.array(z.string()).optional().describe("Daftar ID bab baru penugasan berkas"),
+        addChapterIds: z.array(z.string()).optional().describe("Daftar ID bab tambahan"),
+        removeChapterIds: z.array(z.string()).optional().describe("Daftar ID bab yang dilepas"),
+      }).describe("Perubahan metadata yang akan diterapkan"),
+    }),
+    execute: async ({ materialIds, patch }, context) => {
+      const cleanIds = Array.from(new Set((materialIds || []).map((id) => String(id).trim()).filter(Boolean)));
+      if (cleanIds.length === 0) {
+        return {
+          summary: "Gagal menyiapkan proposal: Setidaknya satu ID materi harus ditentukan.",
+          data: { error: "MATERIAL_IDS_REQUIRED" },
+        };
+      }
+
+      const runId = context?.runId ?? `run-${randomUUID()}`;
+      const stepId = context?.stepId ?? `step-${randomUUID()}`;
+
+      const changedFields: Array<{ label: string; value: string }> = [
+        { label: "Target Berkas", value: `${cleanIds.length} berkas (${cleanIds.slice(0, 3).join(", ")}${cleanIds.length > 3 ? "..." : ""})` },
+      ];
+      if (patch.title) changedFields.push({ label: "Judul Baru", value: patch.title });
+      if (patch.type) changedFields.push({ label: "Tipe Baru", value: patch.type });
+      if (patch.subcategory !== undefined) changedFields.push({ label: "Subkategori Baru", value: String(patch.subcategory ?? "null") });
+      if (patch.year !== undefined) changedFields.push({ label: "Tahun Baru", value: String(patch.year ?? "null") });
+      if (patch.addChapterIds?.length) changedFields.push({ label: "Tambah Bab", value: patch.addChapterIds.join(", ") });
+      if (patch.removeChapterIds?.length) changedFields.push({ label: "Hapus Bab", value: patch.removeChapterIds.join(", ") });
+      if (patch.chapterIds?.length) changedFields.push({ label: "Set Relasi Bab", value: patch.chapterIds.join(", ") });
+
+      const preview: OpsAiProposalPreview = {
+        summary: `Pembaruan metadata untuk ${cleanIds.length} berkas materi`,
+        targetEntity: cleanIds.join(", "),
+        fields: changedFields,
+      };
+
+      const { publicProposal } = await proposalStore.createProposal({
+        runId,
+        stepId,
+        type: "bulk_update_materials",
+        title: `Pembaruan Metadata ${cleanIds.length} Berkas Materi`,
+        description: `Menerapkan pembaruan metadata pada ${cleanIds.length} berkas materi kuliah.`,
+        preview,
+        payload: {
+          materialIds: cleanIds,
+          patch,
+        },
+        preconditions: {
+          version: 1,
+          stateFingerprint: `materials:${[...cleanIds].sort().join(",")}`,
+        },
+        actorId: context?.actorId ?? (context?.callerRole === "admin" ? "admin" : undefined),
+      });
+
+      return {
+        summary: `Proposal pembaruan metadata ${cleanIds.length} berkas materi telah disiapkan (ID: ${publicProposal.id}). Menunggu konfirmasi admin.`,
+        data: {
+          proposalId: publicProposal.id,
+          type: publicProposal.type,
+          preview: publicProposal.preview,
+        },
+        proposal: publicProposal,
+      };
+    },
+  }),
+
   // ─── 1. Academic & Curriculum ──────────────────────────────────────────────
   list_courses: defineOpsTool({
     name: "list_courses",
