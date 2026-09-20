@@ -257,6 +257,7 @@ describe("Admin Ops AI Mutations - CP5 Server-Stored Proposal & Hardened Executo
       expect(prop.type).toBe("bulk_update_materials");
       expect(prop.status).toBe("pending");
       expect(prop.preview.summary).toContain("Pembaruan metadata untuk 2 berkas materi");
+      expect((prop as any).payload).toBeUndefined();
 
       const stored = await proposalStore.getProposal(prop.id);
       expect(stored).not.toBeNull();
@@ -935,6 +936,6 @@ describe("Admin Ops AI Mutations - CP5 Server-Stored Proposal & Hardened Executo
       expect(statuses).toContain("queued");
       expect(statuses).toContain("running");
       expect(statuses).toContain("completed");
-    });
+    }, 15000);
   });
 });

@@ -545,9 +545,9 @@ export const OPS_TOOL_DEFINITIONS: Record<string, OpsToolDefinition<any>> = {
       }
 
       const validChapters = chapters
-        .map((ch, idx) => ({
+        .map((ch) => ({
           title: String(ch.title || "").trim(),
-          orderIndex: typeof ch.orderIndex === "number" ? ch.orderIndex : idx + 1,
+          orderIndex: typeof ch.orderIndex === "number" ? ch.orderIndex : undefined,
           description: ch.description ? String(ch.description).trim() : undefined,
         }))
         .filter((ch) => Boolean(ch.title));
@@ -564,7 +564,7 @@ export const OPS_TOOL_DEFINITIONS: Record<string, OpsToolDefinition<any>> = {
 
       const chapterTitlesPreview = validChapters
         .slice(0, 5)
-        .map((c) => `${c.orderIndex}. ${c.title}`)
+        .map((c, idx) => `${c.orderIndex ?? idx + 1}. ${c.title}`)
         .join(", ");
       const moreSuffix = validChapters.length > 5 ? `, dan ${validChapters.length - 5} bab lainnya` : "";
 
@@ -618,7 +618,7 @@ export const OPS_TOOL_DEFINITIONS: Record<string, OpsToolDefinition<any>> = {
         title: z.string().optional().describe("Judul berkas baru"),
         type: z.enum(["materi", "soal", "pembahasan_soal", "materi_kelas", "contoh_soal"]).optional().describe("Tipe dokumen"),
         subcategory: z.enum(["materi_dosen", "scl", "modul", "ebook", "kuis", "kbf", "tutorial", "uts", "uas", "lainnya"]).nullable().optional().describe("Subkategori dokumen"),
-        year: z.number().nullable().optional().describe("Tahun dokumen"),
+        year: z.number().int().min(1900).max(2100).nullable().optional().describe("Tahun dokumen"),
         chapterIds: z.array(z.string()).optional().describe("Daftar ID bab baru penugasan berkas"),
         addChapterIds: z.array(z.string()).optional().describe("Daftar ID bab tambahan"),
         removeChapterIds: z.array(z.string()).optional().describe("Daftar ID bab yang dilepas"),

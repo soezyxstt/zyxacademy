@@ -167,6 +167,9 @@ async function defaultCreateTokenPreconditionChecker(
   }
 }
 
+/**
+ * Server-side executor for confirmed batch chapter creation proposals.
+ */
 async function defaultBatchCreateChaptersExecutor(
   payload: BatchCreateChaptersInput,
   context: { actorId: string; proposalId: string }
@@ -188,6 +191,9 @@ async function defaultBatchCreateChaptersExecutor(
   }
 }
 
+/**
+ * Precondition checker verifying that the target course exists before chapter creation.
+ */
 async function defaultBatchCreateChaptersPreconditionChecker(
   proposal: ServerStoredProposal
 ): Promise<boolean> {
@@ -203,6 +209,9 @@ async function defaultBatchCreateChaptersPreconditionChecker(
   }
 }
 
+/**
+ * Server-side executor for confirmed bulk material metadata update proposals.
+ */
 async function defaultBulkUpdateMaterialsExecutor(
   payload: BulkUpdateMaterialsInput,
   context: { actorId: string; proposalId: string }
@@ -224,17 +233,22 @@ async function defaultBulkUpdateMaterialsExecutor(
   }
 }
 
+/**
+ * Precondition checker verifying that all referenced material IDs exist in the database.
+ */
 async function defaultBulkUpdateMaterialsPreconditionChecker(
   proposal: ServerStoredProposal
 ): Promise<boolean> {
   const materialIds = (proposal.payload as any)?.materialIds;
   if (!Array.isArray(materialIds) || materialIds.length === 0) return false;
+  const uniqueIds = Array.from(new Set(materialIds.map((id) => String(id).trim()).filter(Boolean)));
+  if (uniqueIds.length === 0) return false;
   try {
     const found = await db
       .select({ id: courseMaterials.id })
       .from(courseMaterials)
-      .where(inArray(courseMaterials.id, materialIds));
-    return found.length > 0;
+      .where(inArray(courseMaterials.id, uniqueIds));
+    return found.length === uniqueIds.length;
   } catch (err) {
     console.error("[OpsAi Proposal Precondition] Database check failed for materials:", err);
     return false;
