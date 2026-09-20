@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { headers } from "next/headers";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Mail, GraduationCap, CalendarDays, User2, ShieldCheck, ClipboardList } from "lucide-react";
+import { Mail, GraduationCap, CalendarDays, User2, ShieldCheck, ClipboardList, Edit3 } from "lucide-react";
 
 import { ShellPage } from "@/components/shell-page";
 import { pageTitle } from "@/lib/site";
@@ -27,6 +27,9 @@ export const metadata: Metadata = {
  description: "Profil akademis, statistik belajar, kelompok belajar, dan jadwal tutorial Anda di Zyx Academy.",
 };
 
+/**
+ * Server-rendered profile page displaying student user info, ITB academic data, course enrollments, and activity statistics.
+ */
 export default async function ProfilePage() {
  const h = await headers();
  const session = await auth.api.getSession({ headers: h });
@@ -127,6 +130,18 @@ export default async function ProfilePage() {
  console.error("Failed to fetch bookings:", err);
  }
 
+ let dbUser: any = null;
+ try {
+ const [row] = await db
+ .select()
+ .from(userTable)
+ .where(eq(userTable.id, user.id))
+ .limit(1);
+ dbUser = row;
+ } catch (err) {
+ console.error("Failed to fetch user profile:", err);
+ }
+
  return (
  <ShellPage title="Profil Saya">
  <div className="w-full pb-12">
@@ -171,8 +186,15 @@ export default async function ProfilePage() {
  Google Connected
  </span>
  <Link
- href="/profile/reflections"
+ href="/profile/edit"
  className="flex items-center gap-1.5 text-brand-primary font-semibold hover:underline shrink-0"
+ >
+ <Edit3 className="size-4 shrink-0" />
+ Edit profil
+ </Link>
+ <Link
+ href="/profile/reflections"
+ className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground font-medium hover:underline shrink-0"
  >
  <ClipboardList className="size-4 shrink-0" />
  Weekly reflections
@@ -300,6 +322,42 @@ export default async function ProfilePage() {
 
         {/* Right Side: Account details and groups */}
         <div className="lg:col-span-5 space-y-6">
+          {/* ITB Academic Profile */}
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-heading text-body-base font-bold text-foreground">
+                Profil Akademis ITB
+              </h3>
+              <Link
+                href="/profile/edit"
+                className="inline-flex items-center gap-1 text-body-xs font-semibold text-brand-primary hover:underline"
+              >
+                <Edit3 className="size-3.5" />
+                Edit profil
+              </Link>
+            </div>
+            <dl className="text-body-sm divide-y divide-border/40 border-t border-border/40 zebra-no-rows">
+              <div className="py-3 flex justify-between gap-4">
+                <dt className="text-muted-foreground">Fakultas / Sekolah</dt>
+                <dd className="font-semibold text-foreground text-right">
+                  {dbUser?.faculty || <span className="text-muted-foreground font-normal italic">Belum diisi</span>}
+                </dd>
+              </div>
+              <div className="py-3 flex justify-between gap-4">
+                <dt className="text-muted-foreground">Jurusan / Program Studi</dt>
+                <dd className="font-semibold text-foreground text-right">
+                  {dbUser?.major || <span className="text-muted-foreground font-normal italic">Belum diisi</span>}
+                </dd>
+              </div>
+              <div className="py-3 flex justify-between gap-4">
+                <dt className="text-muted-foreground">Tahun Masuk (Angkatan)</dt>
+                <dd className="font-semibold text-foreground text-right">
+                  {dbUser?.entryYear ? `${dbUser.entryYear}` : <span className="text-muted-foreground font-normal italic">Belum diisi</span>}
+                </dd>
+              </div>
+            </dl>
+          </div>
+
           {/* Google Identity info */}
           <div>
             <h3 className="font-heading text-body-base font-bold text-foreground mb-3">

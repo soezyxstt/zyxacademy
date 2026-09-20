@@ -49,12 +49,14 @@ import {
   flashcard as canonicalFlashcard,
   setFlashcard,
   mataKuliah,
+  user as userTable,
 } from "@/db/schema";
 import { eq, desc, and, sql } from "drizzle-orm";
 import { getReviewQueue } from "@/lib/flashcard-actions";
 import { WeeklyReflection } from "@/components/dashboard/weekly-reflection";
 import { getOrUpdateStreak } from "@/lib/streak-service";
 import { ActivateClassModal } from "@/components/dashboard/activate-class-modal";
+import { CompleteProfileDialog } from "@/components/dashboard/complete-profile-dialog";
 import { PageHeader } from "@/components/page-header";
 import { cn } from "@/lib/utils";
 import {
@@ -73,6 +75,9 @@ export const metadata: Metadata = {
     "Pantau progres belajar, materi, kuis, tryout ITB TPB; semua dalam satu ruang belajar personal.",
 };
 
+/**
+ * Server-rendered dashboard page displaying student course enrollments, learning progress, and academic prompts.
+ */
 export default async function DashboardPage() {
   const h = await headers();
   const session = await auth.api.getSession({ headers: h });
@@ -89,6 +94,38 @@ export default async function DashboardPage() {
 
   const isEnrolledInAny = enrollments.length > 0;
   const enrolledCourseIds = enrollments.map((e) => e.id);
+
+  let isProfileIncomplete = false;
+  let missingFields = { faculty: false, major: false, entryYear: false };
+
+  if (user?.id) {
+    const faculty = (user as any)?.faculty;
+    const major = (user as any)?.major;
+    const entryYear = (user as any)?.entryYear;
+
+    if (!faculty || !major || !entryYear) {
+      try {
+        const [dbUser] = await db
+          .select({
+            faculty: userTable.faculty,
+            major: userTable.major,
+            entryYear: userTable.entryYear,
+          })
+          .from(userTable)
+          .where(eq(userTable.id, user.id))
+          .limit(1);
+
+        missingFields = {
+          faculty: !dbUser?.faculty,
+          major: !dbUser?.major,
+          entryYear: !dbUser?.entryYear,
+        };
+        isProfileIncomplete = missingFields.faculty || missingFields.major || missingFields.entryYear;
+      } catch (error) {
+        console.error("[Dashboard] Failed to query academic profile fields:", error);
+      }
+    }
+  }
 
   // If not enrolled in any course, fetch catalog courses for onboarding preview
   let catalogCourses: CatalogCourse[] = [];
@@ -365,6 +402,10 @@ export default async function DashboardPage() {
 
   return (
     <ApplicationPage className="pb-16">
+      <CompleteProfileDialog
+        isProfileIncomplete={isProfileIncomplete}
+        missingFields={missingFields}
+      />
       {!isEnrolledInAny ? (
           <Reveal duration="duration-500">
             <StudentOnboardingView
