@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "@/components/ui/toast";
 import { Button } from "@/components/ui/button";
@@ -58,6 +58,9 @@ type QuizPlayerProps = {
   closeAtMs?: number;
 };
 
+/**
+ * Interactive student quiz player component with timer, navigation, file uploads, and submission handling.
+ */
 export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirectBasePath, initialAnswers, startedAtMs, closeAtMs }: QuizPlayerProps) {
   const router = useRouter();
   const { setSuppressPet } = useTutor();
@@ -87,6 +90,11 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
     }
     return initialAnswers ?? {};
   });
+
+  const answersRef = useRef(answers);
+  useEffect(() => {
+    answersRef.current = answers;
+  }, [answers]);
   
   // Flag state for "Ragu-ragu"
   const [flags, setFlags] = useState<Record<string, boolean>>(() => {
@@ -107,6 +115,9 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
   const [timeLeft, setTimeLeft] = useState<number>(durationSeconds);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const isSubmittedRef = useRef(false);
+  const submittingRef = useRef(false);
+  const activeUploadPromisesRef = useRef<Map<string, Promise<void>>>(new Map());
   const [showConfirmModal, setShowConfirmModal] = useState(false);
 
   // Cloudflare R2 upload state for essay attachments
@@ -130,9 +141,18 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
     return true;
   }, [answers]);
 
+  /**
+   * Uploads an essay file attachment for a question, tracking progress and updating attempt state.
+   */
   function uploadEssayAttachment(questionId: string, file: File) {
     setUploadingFile((prev) => ({ ...prev, [questionId]: file.name }));
     setUploadProgress((prev) => ({ ...prev, [questionId]: 0 }));
+
+    let finishUpload: () => void = () => {};
+    const uploadPromise = new Promise<void>((resolve) => {
+      finishUpload = resolve;
+    });
+    activeUploadPromisesRef.current.set(questionId, uploadPromise);
 
     const formData = new FormData();
     formData.append("file", file);
@@ -150,36 +170,52 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
       try {
         const data = JSON.parse(xhr.responseText);
         if (xhr.status >= 200 && xhr.status < 300 && data.success) {
-          setAnswers((prev) => {
-            const currentAns = prev[questionId];
-            const currentText = typeof currentAns === "string" ? currentAns : currentAns?.text || "";
-            const next = {
-              ...prev,
-              [questionId]: {
-                text: currentText,
-                fileName: data.fileName as string,
-                fileSize: data.fileSize as string,
-                fileKey: data.key as string,
-              },
-            };
-            window.localStorage.setItem(`zyx-quiz-answers-${attemptId}`, JSON.stringify(next));
-            return next;
-          });
+          if (isSubmittedRef.current || submittingRef.current) {
+            return;
+          }
+          const currentAns = answersRef.current[questionId];
+          const currentText = typeof currentAns === "string" ? currentAns : currentAns?.text || "";
+          const next = {
+            ...answersRef.current,
+            [questionId]: {
+              text: currentText,
+              fileName: data.fileName as string,
+              fileSize: data.fileSize as string,
+              fileKey: data.key as string,
+            },
+          };
+          answersRef.current = next;
+          setAnswers(next);
+          window.localStorage.setItem(`zyx-quiz-answers-${attemptId}`, JSON.stringify(next));
           toast.success(`Berkas ${file.name} berhasil diunggah.`);
         } else {
           toast.error(data.error || "Gagal mengunggah berkas.");
         }
       } catch {
         toast.error("Gagal mengunggah berkas.");
+      } finally {
+        activeUploadPromisesRef.current.delete(questionId);
+        finishUpload();
+        setUploadingFile((prev) => {
+          const copy = { ...prev };
+          delete copy[questionId];
+          return copy;
+        });
       }
+    });
+    xhr.addEventListener("error", () => {
+      toast.error("Gagal mengunggah berkas.");
+      activeUploadPromisesRef.current.delete(questionId);
+      finishUpload();
       setUploadingFile((prev) => {
         const copy = { ...prev };
         delete copy[questionId];
         return copy;
       });
     });
-    xhr.addEventListener("error", () => {
-      toast.error("Gagal mengunggah berkas.");
+    xhr.addEventListener("abort", () => {
+      activeUploadPromisesRef.current.delete(questionId);
+      finishUpload();
       setUploadingFile((prev) => {
         const copy = { ...prev };
         delete copy[questionId];
@@ -189,6 +225,9 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
     xhr.send(formData);
   }
 
+  /**
+   * Handles selecting a file from input and starting upload.
+   */
   function handleFileChange(questionId: string, e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
     if (f) {
@@ -197,6 +236,9 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
     }
   }
 
+  /**
+   * Deletes an uploaded attachment from server storage and removes it from local answer state.
+   */
   async function handleRemoveFile(questionId: string) {
     const currentAns = answers[questionId];
     const fileKey = typeof currentAns === "object" && currentAns !== null ? currentAns.fileKey : null;
@@ -230,6 +272,7 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
           fileKey: null,
         },
       };
+      answersRef.current = next;
       window.localStorage.setItem(`zyx-quiz-answers-${attemptId}`, JSON.stringify(next));
       return next;
     });
@@ -247,6 +290,9 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
     toast.info("Lampiran berkas dihapus.");
   }
 
+  /**
+   * Validates prerequisites before opening the submission confirmation dialog.
+   */
   const handleRequestSubmit = useCallback(() => {
     if (isSubmitted || submitting) return;
 
@@ -280,10 +326,19 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
     setQuestionTimeLeft(currentQuestionDuration);
   }, [index, currentQuestionDuration, perQuestionTimerEnabled]);
 
+  /**
+   * Submits the quiz attempt, optionally waiting for active uploads to finish on timeout.
+   */
   const handleSubmit = useCallback(async (isAutoSubmit = false) => {
-    if (isSubmitted || submitting) return;
+    if (isSubmittedRef.current || submittingRef.current) return;
 
-    if (Object.keys(uploadingFile).length > 0) {
+    if (isAutoSubmit && activeUploadPromisesRef.current.size > 0) {
+      // Wait for all in-flight uploads to settle before snapshotting answers
+      await Promise.race([
+        Promise.all(Array.from(activeUploadPromisesRef.current.values())),
+        new Promise((resolve) => setTimeout(resolve, 8000)),
+      ]);
+    } else if (Object.keys(uploadingFile).length > 0) {
       if (!isAutoSubmit) {
         toast.warning("Harap tunggu hingga proses unggah berkas selesai sebelum mengumpulkan kuis.");
         return;
@@ -300,14 +355,16 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
     }
 
     try {
+      submittingRef.current = true;
       setSubmitting(true);
       window.localStorage.removeItem(timerStorageKey);
       window.localStorage.removeItem(`zyx-quiz-answers-${attemptId}`);
       window.localStorage.removeItem(`zyx-quiz-flags-${attemptId}`);
 
-      // Transform answers to standard Record<string, any> format
+      // Read latest answers snapshot after active uploads finish
+      const latestAnswers = answersRef.current;
       const formattedAnswers: Record<string, any> = {};
-      for (const [qId, val] of Object.entries(answers)) {
+      for (const [qId, val] of Object.entries(latestAnswers)) {
         if (typeof val === "number") {
           formattedAnswers[qId] = [val];
         } else {
@@ -342,6 +399,7 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
         throw new Error(message);
       }
 
+      isSubmittedRef.current = true;
       setIsSubmitted(true);
       toast.success("Kuis berhasil dikumpulkan! Mengarahkan ke pembahasan...");
 
@@ -356,9 +414,10 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Gagal mengumpulkan kuis. Silakan coba kembali.";
       toast.error(message);
+      submittingRef.current = false;
       setSubmitting(false);
     }
-  }, [courseId, isSubmitted, submitting, router, timerStorageKey, attemptId, answers, durationSeconds, timeLeft, exam.id, exam.questions, getRedirectPath, redirectBasePath, requireAllAnswered, sorted, isQuestionAnswered]);
+  }, [courseId, router, timerStorageKey, attemptId, durationSeconds, timeLeft, exam.id, exam.questions, getRedirectPath, redirectBasePath, requireAllAnswered, sorted, isQuestionAnswered, uploadingFile]);
 
   // Per-question timer interval
   useEffect(() => {

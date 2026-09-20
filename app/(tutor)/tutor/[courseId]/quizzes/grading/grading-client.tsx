@@ -79,6 +79,9 @@ interface Props {
   pendingAttempts: PendingAttemptItem[];
 }
 
+/**
+ * Interactive client component for tutors to review, inspect attachments, and grade pending student quiz attempts.
+ */
 export function TutorQuizGradingClient({ courseId, pendingAttempts }: Props) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();

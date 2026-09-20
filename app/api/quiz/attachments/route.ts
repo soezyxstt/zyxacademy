@@ -2,10 +2,10 @@ import { NextResponse } from "next/server";
 import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
 import { db } from "@/db";
-import { studentQuizAttempts, quizTemplates } from "@/db/schema";
+import { studentQuizAttempts } from "@/db/schema";
 import { and, eq } from "drizzle-orm";
 import { storage } from "@/lib/storage";
-import { buildQuizAttachmentKey, INVALID_OBJECT_KEY } from "@/lib/storage/keys";
+import { buildQuizAttachmentKey, quizAttachmentPrefix, INVALID_OBJECT_KEY } from "@/lib/storage/keys";
 
 const MAX_SIZE_BYTES = 4 * 1024 * 1024; // 4 MB to stay below Vercel's 4.5 MB Function payload ceiling
 
@@ -17,11 +17,17 @@ const ALLOWED_TYPES: Record<string, string> = {
   ".webp": "image/webp",
 };
 
+/**
+ * Extracts lowercase file extension including the leading dot from a filename.
+ */
 function getExtension(filename: string): string {
   const idx = filename.lastIndexOf(".");
   return idx === -1 ? "" : filename.slice(idx).toLowerCase();
 }
 
+/**
+ * Handles uploading student essay attachments for in-progress quiz attempts.
+ */
 export async function POST(req: Request) {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session?.user?.id) {
@@ -120,6 +126,45 @@ export async function POST(req: Request) {
       },
     });
 
+    // Re-verify attempt is still in progress to prevent orphan uploads when attempt finishes during upload
+    const [freshAttempt] = await db
+      .select({
+        id: studentQuizAttempts.id,
+        status: studentQuizAttempts.status,
+        answersSnapshot: studentQuizAttempts.answersSnapshot,
+      })
+      .from(studentQuizAttempts)
+      .where(eq(studentQuizAttempts.id, attemptRecord.id))
+      .limit(1);
+
+    if (!freshAttempt || freshAttempt.status !== "in_progress") {
+      await storage.delete(key).catch(() => {});
+      return NextResponse.json(
+        { error: "Sesi kuis telah berakhir sebelum berkas selesai diunggah." },
+        { status: 403 }
+      );
+    }
+
+    const currentSnap = (freshAttempt.answersSnapshot as Record<string, any>) || {};
+    const attachments = {
+      ...(currentSnap._attachments || {}),
+      [result.key]: {
+        fileName: file.name,
+        size: result.size,
+        uploadedAt: new Date().toISOString(),
+      },
+    };
+
+    await db
+      .update(studentQuizAttempts)
+      .set({
+        answersSnapshot: {
+          ...currentSnap,
+          _attachments: attachments,
+        },
+      })
+      .where(eq(studentQuizAttempts.id, attemptRecord.id));
+
     return NextResponse.json({
       success: true,
       key: result.key,
@@ -140,6 +185,9 @@ export async function POST(req: Request) {
   }
 }
 
+/**
+ * Handles deleting a student's uploaded essay attachment from an in-progress quiz attempt.
+ */
 export async function DELETE(req: Request) {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session?.user?.id) {
@@ -164,6 +212,7 @@ export async function DELETE(req: Request) {
       id: studentQuizAttempts.id,
       templateId: studentQuizAttempts.templateId,
       status: studentQuizAttempts.status,
+      answersSnapshot: studentQuizAttempts.answersSnapshot,
     })
     .from(studentQuizAttempts)
     .where(
@@ -181,7 +230,7 @@ export async function DELETE(req: Request) {
     );
   }
 
-  const expectedPrefix = `quizzes/${attemptRecord.templateId}/attachments/`;
+  const expectedPrefix = quizAttachmentPrefix(attemptRecord.templateId);
   if (!fileKey.startsWith(expectedPrefix)) {
     return NextResponse.json(
       { error: "Kunci berkas tidak valid untuk sesi kuis ini." },
@@ -189,8 +238,28 @@ export async function DELETE(req: Request) {
     );
   }
 
+  const currentSnap = (attemptRecord.answersSnapshot as Record<string, any>) || {};
+  const attachments = (currentSnap._attachments as Record<string, any>) || {};
+  if (!attachments[fileKey]) {
+    return NextResponse.json(
+      { error: "Lampiran tidak ditemukan atau tidak memiliki hak akses." },
+      { status: 403 }
+    );
+  }
+
   try {
     await storage.delete(fileKey);
+    delete attachments[fileKey];
+    await db
+      .update(studentQuizAttempts)
+      .set({
+        answersSnapshot: {
+          ...currentSnap,
+          _attachments: attachments,
+        },
+      })
+      .where(eq(studentQuizAttempts.id, attemptRecord.id));
+
     return NextResponse.json({ success: true });
   } catch (err: any) {
     console.error("Quiz attachment delete error:", err);
@@ -200,3 +269,4 @@ export async function DELETE(req: Request) {
     );
   }
 }
+

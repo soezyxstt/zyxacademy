@@ -92,6 +92,9 @@ function safeResponseSnapshot(
   };
 }
 
+/**
+ * Evaluates if a submitted answer is deterministically correct for supported question types.
+ */
 export function checkDeterministicCorrectness(q: LegacyQuizQuestionSnapshot, submitted: unknown): boolean {
   const qType = q.question_type || q.questionType;
   if (qType === "short_answer" || (Array.isArray(q.acceptable_answers) && q.acceptable_answers.length > 0)) {

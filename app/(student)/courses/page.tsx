@@ -57,7 +57,7 @@ export default async function CoursesPage() {
   if (session?.user?.id) {
     studentMajor = (session.user as any)?.major ?? null;
     studentEntryYear = (session.user as any)?.entryYear ?? null;
-    if (!studentMajor) {
+    if (!studentMajor || !studentEntryYear) {
       const [dbUser] = await db
         .select({
           major: userTable.major,
@@ -68,8 +68,8 @@ export default async function CoursesPage() {
         .limit(1);
 
       if (dbUser) {
-        studentMajor = dbUser.major;
-        studentEntryYear = dbUser.entryYear;
+        studentMajor = studentMajor || dbUser.major;
+        studentEntryYear = studentEntryYear ?? dbUser.entryYear;
       }
     }
   }

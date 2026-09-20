@@ -53,6 +53,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
+/**
+ * Formats a duration in seconds into human-readable Indonesian minutes and seconds.
+ */
 function formatDuration(seconds: number | null) {
   if (seconds == null) return "-";
   const m = Math.floor(seconds / 60);
@@ -60,6 +63,9 @@ function formatDuration(seconds: number | null) {
   return m > 0 ? `${m} menit ${s} detik` : `${s} detik`;
 }
 
+/**
+ * Extracts display text strings from option structures.
+ */
 function publicOptionTexts(value: unknown): string[] {
   const options = Array.isArray(value)
     ? value
@@ -87,6 +93,9 @@ function publicOptionTexts(value: unknown): string[] {
     .filter((option): option is string => option !== null);
 }
 
+/**
+ * Server component page for taking a quiz or reviewing completed quiz attempts.
+ */
 export default async function CourseQuizTakePage({ params, searchParams }: Props) {
   const { id, quizId } = await params;
   const { attemptId, viewDiscussion } = await searchParams;

@@ -235,7 +235,7 @@ export default async function DashboardPage() {
     if (unenrolledMatching.length > 0) {
       recommendedUnenrolledCourses = await Promise.all(
         unenrolledMatching.slice(0, 4).map(async (c) => {
-          const materials = await getCourseMaterials(c.id, user.id);
+          const materials = await getCourseMaterials(c.id);
           return {
             id: c.id,
             title: c.title,

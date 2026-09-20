@@ -20,6 +20,7 @@ import { normalizeDate } from '@/lib/date-utils';
 import { serializeStudentQuizAttempt } from '@/lib/assessment-serialization';
 import { dualWriteQuizAttempt } from '@/lib/migrasi/repository-kompatibilitas';
 import { gradeStableOptionAnswer } from '@/lib/asesmen/attempt';
+import { quizAttachmentPrefix } from '@/lib/storage/keys';
 import {
   buildLegacyGradingPolicySnapshot,
   buildLegacyRenderedQuestionSnapshot,
@@ -216,13 +217,16 @@ export async function POST(req: NextRequest, { params }: Context) {
 
   const { answers, durationSeconds } = parsed.data;
 
-  // Validate that any attached fileKey belongs to this quiz template
-  const expectedAttachmentPrefix = `quizzes/${attempt.templateId}/attachments/`;
+  // Validate that any attached fileKey belongs to this quiz template and was registered by this attempt
+  const expectedAttachmentPrefix = quizAttachmentPrefix(attempt.templateId);
+  const currentSnap = (attempt.answersSnapshot as Record<string, any>) || {};
+  const registeredAttachments = (currentSnap._attachments as Record<string, any>) || {};
+
   for (const [qId, ansVal] of Object.entries(answers)) {
     if (ansVal && typeof ansVal === "object" && !Array.isArray(ansVal) && "fileKey" in ansVal) {
       const fileKey = (ansVal as { fileKey?: unknown }).fileKey;
       if (typeof fileKey === "string" && fileKey.trim().length > 0) {
-        if (!fileKey.startsWith(expectedAttachmentPrefix)) {
+        if (!fileKey.startsWith(expectedAttachmentPrefix) || !registeredAttachments[fileKey]) {
           return NextResponse.json(
             { error: `Kunci berkas lampiran tidak valid untuk soal ${qId}.` },
             { status: 400 },
@@ -234,6 +238,9 @@ export async function POST(req: NextRequest, { params }: Context) {
 
   const snapshot = attempt.questionsSnapshot as LegacyQuizQuestionSnapshot[];
 
+  /**
+   * Evaluates if a submitted answer is deterministically correct for supported question types.
+   */
   function checkAnswerCorrectness(q: any, submitted: any): boolean {
     const qType = q.question_type || q.questionType;
     if (qType === "short_answer" || (Array.isArray(q.acceptable_answers) && q.acceptable_answers.length > 0)) {
@@ -378,7 +385,10 @@ export async function POST(req: NextRequest, { params }: Context) {
         gradingStatus,
         score,
         durationSeconds: finalDurationSeconds,
-        answersSnapshot: answers as unknown as Record<string, unknown>,
+        answersSnapshot: {
+          ...answers,
+          _attachments: registeredAttachments,
+        } as unknown as Record<string, unknown>,
         submittedAt: now,
         strongAreas,
         weakAreas,
@@ -391,7 +401,10 @@ export async function POST(req: NextRequest, { params }: Context) {
       studentId: attempt.studentId,
       status: 'completed',
       questionsSnapshot: snapshot,
-      answersSnapshot: answers,
+      answersSnapshot: {
+        ...answers,
+        _attachments: registeredAttachments,
+      },
       startedAt: normalizeDate(attempt.startedAt),
       submittedAt: now,
     }, attempt.studentId);

@@ -244,6 +244,13 @@ export function buildExamAttachmentKey(params: {
 }
 
 /**
+ * Canonical prefix for quiz essay attachments: `quizzes/{slugifiedQuizId}/attachments/`.
+ */
+export function quizAttachmentPrefix(quizId: string): string {
+  return `quizzes/${slugifySegment(quizId, "quiz")}/attachments/`;
+}
+
+/**
  * Quiz essay attachment object key: `quizzes/{quizId}/attachments/{leaf}`.
  * Uploaded by students while answering an essay question; downloaded by the grading tutor.
  */
@@ -251,11 +258,7 @@ export function buildQuizAttachmentKey(params: {
   quizId: string;
   filename: string;
 }): string {
-  return joinKey(
-    "quizzes",
-    slugifySegment(params.quizId, "quiz"),
-    "attachments",
-    userFileLeaf(params.filename)
-  );
+  return `${quizAttachmentPrefix(params.quizId)}${userFileLeaf(params.filename)}`;
 }
+
 

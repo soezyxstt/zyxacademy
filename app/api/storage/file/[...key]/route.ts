@@ -6,7 +6,7 @@ import { diktatMateri, diktats, mataKuliah, studentQuizAttempts, quizTemplates }
 import { auth } from "@/lib/auth";
 import { resolveCourseIdentity } from "@/lib/admin/course-identity";
 import { resolveCourseAccess } from "@/lib/student/course-access";
-import { isProtectedProductDiktatPdfKey, leafFilename } from "@/lib/storage/keys";
+import { isProtectedProductDiktatPdfKey, leafFilename, quizAttachmentPrefix } from "@/lib/storage/keys";
 
 const bucket = process.env.R2_BUCKET || "zyx";
 const s3 = new S3Client({
@@ -130,15 +130,15 @@ type QuizAttachmentAuthorization = {
   allowed: boolean;
 };
 
+/**
+ * Resolves access authorization for quiz essay attachment keys.
+ * Ensures attachments are accessible only by the student who uploaded them, authorized tutors for the course, or admins.
+ */
 async function resolveQuizAttachmentAuthorization(key: string): Promise<QuizAttachmentAuthorization> {
   const isQuizAttachment = key.startsWith("quizzes/") && key.includes("/attachments/");
   if (!isQuizAttachment) return { matched: false, allowed: true };
 
   try {
-    const segments = key.split("/");
-    const quizId = segments[1];
-    if (!quizId) return { matched: true, allowed: false };
-
     const session = await auth.api.getSession({ headers: await nextHeaders() });
     if (!session?.user?.id) return { matched: true, allowed: false };
     const userId = session.user.id;
@@ -150,21 +150,17 @@ async function resolveQuizAttachmentAuthorization(key: string): Promise<QuizAtta
     const userAttempts = await db
       .select({
         id: studentQuizAttempts.id,
+        templateId: studentQuizAttempts.templateId,
         status: studentQuizAttempts.status,
         answersSnapshot: studentQuizAttempts.answersSnapshot,
       })
       .from(studentQuizAttempts)
-      .where(
-        and(
-          eq(studentQuizAttempts.templateId, quizId),
-          eq(studentQuizAttempts.studentId, userId),
-        )
-      );
+      .where(eq(studentQuizAttempts.studentId, userId));
 
     for (const att of userAttempts) {
-      if (att.status === "in_progress") {
-        return { matched: true, allowed: true };
-      }
+      const prefix = quizAttachmentPrefix(att.templateId);
+      if (!key.startsWith(prefix)) continue;
+
       const rawSnap = typeof att.answersSnapshot === "string" 
         ? att.answersSnapshot 
         : JSON.stringify(att.answersSnapshot ?? {});
@@ -174,16 +170,18 @@ async function resolveQuizAttachmentAuthorization(key: string): Promise<QuizAtta
     }
 
     // Check if user is an authorized tutor for the course of this quiz
-    const [template] = await db
-      .select({ courseId: quizTemplates.courseId })
-      .from(quizTemplates)
-      .where(eq(quizTemplates.id, quizId))
-      .limit(1);
+    const allTemplates = await db
+      .select({ id: quizTemplates.id, courseId: quizTemplates.courseId })
+      .from(quizTemplates);
 
-    if (template?.courseId) {
+    const matchedTemplate = allTemplates.find((t) =>
+      key.startsWith(quizAttachmentPrefix(t.id))
+    );
+
+    if (matchedTemplate?.courseId) {
       const { requireTutorCourseAccess } = await import("@/lib/auth/tutor-access");
       try {
-        await requireTutorCourseAccess(userId, template.courseId, { allowAdmin: true });
+        await requireTutorCourseAccess(userId, matchedTemplate.courseId, { allowAdmin: true });
         return { matched: true, allowed: true };
       } catch {
         // Not authorized as tutor for this course
