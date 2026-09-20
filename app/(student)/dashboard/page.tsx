@@ -13,6 +13,7 @@ import {
   Flame,
   History,
   Layers,
+  Sparkles,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { FormattedDate } from "@/components/ui/formatted-date";
@@ -68,6 +69,10 @@ import { listStudentCourses } from "@/lib/student/course-catalog";
 import { studentCardClass } from "@/components/course/course-surfaces";
 import { ApplicationPage } from "@/components/application-page";
 import { getCatalogCourseSummaries } from "@/lib/student/dashboard-read-model";
+import {
+  isCourseMatchingMajor,
+  getStudentTargetCategory,
+} from "@/lib/student/itb-academic-data";
 
 export const metadata: Metadata = {
   title: pageTitle("Dashboard Siswa"),
@@ -76,7 +81,7 @@ export const metadata: Metadata = {
 };
 
 /**
- * Server-rendered dashboard page displaying student course enrollments, learning progress, and academic prompts.
+ * Server-rendered dashboard page displaying student course enrollments, learning progress, recommendations, and academic prompts.
  */
 export default async function DashboardPage() {
   const h = await headers();
@@ -97,13 +102,12 @@ export default async function DashboardPage() {
 
   let isProfileIncomplete = false;
   let missingFields = { faculty: false, major: false, entryYear: false };
+  let studentFaculty = (user as any)?.faculty ?? null;
+  let studentMajor = (user as any)?.major ?? null;
+  let studentEntryYear = (user as any)?.entryYear ?? null;
 
   if (user?.id) {
-    const faculty = (user as any)?.faculty;
-    const major = (user as any)?.major;
-    const entryYear = (user as any)?.entryYear;
-
-    if (!faculty || !major || !entryYear) {
+    if (!studentFaculty || !studentMajor || !studentEntryYear) {
       try {
         const [dbUser] = await db
           .select({
@@ -115,10 +119,16 @@ export default async function DashboardPage() {
           .where(eq(userTable.id, user.id))
           .limit(1);
 
+        if (dbUser) {
+          studentFaculty = studentFaculty ?? dbUser.faculty;
+          studentMajor = studentMajor ?? dbUser.major;
+          studentEntryYear = studentEntryYear ?? dbUser.entryYear;
+        }
+
         missingFields = {
-          faculty: !dbUser?.faculty,
-          major: !dbUser?.major,
-          entryYear: !dbUser?.entryYear,
+          faculty: !studentFaculty,
+          major: !studentMajor,
+          entryYear: !studentEntryYear,
         };
         isProfileIncomplete = missingFields.faculty || missingFields.major || missingFields.entryYear;
       } catch (error) {
@@ -127,7 +137,9 @@ export default async function DashboardPage() {
     }
   }
 
-  // If not enrolled in any course, fetch catalog courses for onboarding preview
+  const studentTargetCategory = getStudentTargetCategory(studentMajor, studentEntryYear);
+
+  // If not enrolled in any course, fetch catalog courses for onboarding preview matching student's major
   let catalogCourses: CatalogCourse[] = [];
 
   if (!isEnrolledInAny && user?.id) {
@@ -140,7 +152,10 @@ export default async function DashboardPage() {
       "graph-test-course",
     ]);
     const activeCourses = dbCourses.filter(
-      (c) => !TEST_COURSE_IDS.has(c.id) && (c.id !== PKA_COURSE_ID || env.FEATURE_PKA === "1")
+      (c) =>
+        !TEST_COURSE_IDS.has(c.id) &&
+        (c.id !== PKA_COURSE_ID || env.FEATURE_PKA === "1") &&
+        isCourseMatchingMajor(c.category, studentMajor, studentEntryYear)
     );
 
     const summaries = await getCatalogCourseSummaries(activeCourses);
@@ -190,6 +205,46 @@ export default async function DashboardPage() {
     );
 
     catalogCourses = freeCourseDetails;
+  }
+
+  // If enrolled in courses, fetch recommended courses for the student's major that they haven't enrolled in
+  let recommendedUnenrolledCourses: Array<{
+    id: string;
+    title: string;
+    category: string;
+    materialsCount: number;
+  }> = [];
+
+  if (isEnrolledInAny && user?.id) {
+    const dbCourses = await listStudentCourses();
+    const TEST_COURSE_IDS = new Set([
+      "embed-test-course",
+      "miscon-test-course",
+      "remed-test-course",
+      "term-test-course",
+      "graph-test-course",
+    ]);
+    const unenrolledMatching = dbCourses.filter(
+      (c) =>
+        !TEST_COURSE_IDS.has(c.id) &&
+        !enrolledCourseIds.includes(c.id) &&
+        (c.id !== PKA_COURSE_ID || env.FEATURE_PKA === "1") &&
+        isCourseMatchingMajor(c.category, studentMajor, studentEntryYear)
+    );
+
+    if (unenrolledMatching.length > 0) {
+      recommendedUnenrolledCourses = await Promise.all(
+        unenrolledMatching.slice(0, 4).map(async (c) => {
+          const materials = await getCourseMaterials(c.id, user.id);
+          return {
+            id: c.id,
+            title: c.title,
+            category: c.category,
+            materialsCount: materials.length,
+          };
+        })
+      );
+    }
   }
 
   let streakInfo = null;
@@ -411,6 +466,7 @@ export default async function DashboardPage() {
             <StudentOnboardingView
               userName={userName}
               catalogCourses={catalogCourses}
+              studentTargetCategory={studentTargetCategory}
             />
           </Reveal>
         ) : (
@@ -618,6 +674,63 @@ export default async function DashboardPage() {
                       </div>
                     )}
                   </section>
+
+                  {/* Recommended Courses for Student Major */}
+                  {recommendedUnenrolledCourses.length > 0 && (
+                    <section className={studentCardClass()}>
+                      <div className="mb-4 flex items-center justify-between border-b border-border/40 pb-3">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Sparkles className="size-4.5 text-brand-primary" />
+                          <h2 className="font-heading text-body-base font-bold text-foreground">
+                            Rekomendasi mata kuliah
+                          </h2>
+                          {studentTargetCategory && (
+                            <span className="rounded-md bg-brand-primary/10 px-2 py-0.5 text-body-2xs font-bold uppercase tracking-wider text-brand-primary ring-1 ring-brand-primary/20">
+                              {studentTargetCategory === "TPB" ? "TPB" : studentTargetCategory}
+                            </span>
+                          )}
+                        </div>
+                        <Link
+                          href="/courses"
+                          className="text-body-xs font-bold text-brand-primary hover:underline flex items-center gap-0.5"
+                        >
+                          Lihat semua
+                          <ArrowUpRight className="size-3.5" />
+                        </Link>
+                      </div>
+
+                      <div className="space-y-2.5">
+                        {recommendedUnenrolledCourses.map((course) => (
+                          <div
+                            key={course.id}
+                            className="group rounded-xl border border-border/60 bg-muted/20 hover:bg-muted/40 hover:border-brand-primary/30 p-3.5 transition-all duration-200"
+                          >
+                            <Link
+                              href={`/courses/${course.id}`}
+                              className="flex items-center justify-between gap-3"
+                            >
+                              <div className="min-w-0 flex-1">
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <span className="inline-flex rounded-md bg-brand-primary/10 px-2 py-0.5 text-[10px] font-bold text-brand-primary uppercase tracking-wider ring-1 ring-brand-primary/20">
+                                    {course.category}
+                                  </span>
+                                  <span className="text-body-xs text-muted-foreground">
+                                    {course.materialsCount} materi
+                                  </span>
+                                </div>
+                                <h3 className="font-heading text-body-sm font-bold text-foreground group-hover:text-brand-primary transition-colors truncate mt-1.5">
+                                  {course.title}
+                                </h3>
+                              </div>
+                              <div className="flex size-7 items-center justify-center rounded-lg border border-border bg-background text-muted-foreground group-hover:text-brand-primary group-hover:border-brand-primary/30 transition-all shrink-0">
+                                <ArrowRight className="size-4" />
+                              </div>
+                            </Link>
+                          </div>
+                        ))}
+                      </div>
+                    </section>
+                  )}
                 </div>
 
                 {/* Right Column (Review, Mastery & Available Quizzes) - 5 cols */}
