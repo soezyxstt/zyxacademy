@@ -27,6 +27,9 @@ export const metadata: Metadata = {
  description: "Profil akademis, statistik belajar, kelompok belajar, dan jadwal tutorial Anda di Zyx Academy.",
 };
 
+/**
+ * Server-rendered profile page displaying student user info, ITB academic data, course enrollments, and activity statistics.
+ */
 export default async function ProfilePage() {
  const h = await headers();
  const session = await auth.api.getSession({ headers: h });

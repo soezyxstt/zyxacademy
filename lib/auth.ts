@@ -55,14 +55,17 @@ export const auth = betterAuth({
   faculty: {
   type: "string",
   required: false,
+  input: false,
   },
   major: {
   type: "string",
   required: false,
+  input: false,
   },
   entryYear: {
   type: "number",
   required: false,
+  input: false,
   },
     }
   },

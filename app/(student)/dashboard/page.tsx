@@ -81,7 +81,7 @@ export const metadata: Metadata = {
 };
 
 /**
- * Student personal learning dashboard displaying active classes, daily plan, review queues, and recommendations.
+ * Server-rendered dashboard page displaying student course enrollments, learning progress, recommendations, and academic prompts.
  */
 export default async function DashboardPage() {
   const h = await headers();
@@ -108,28 +108,32 @@ export default async function DashboardPage() {
 
   if (user?.id) {
     if (!studentFaculty || !studentMajor || !studentEntryYear) {
-      const [dbUser] = await db
-        .select({
-          faculty: userTable.faculty,
-          major: userTable.major,
-          entryYear: userTable.entryYear,
-        })
-        .from(userTable)
-        .where(eq(userTable.id, user.id))
-        .limit(1);
+      try {
+        const [dbUser] = await db
+          .select({
+            faculty: userTable.faculty,
+            major: userTable.major,
+            entryYear: userTable.entryYear,
+          })
+          .from(userTable)
+          .where(eq(userTable.id, user.id))
+          .limit(1);
 
-      if (dbUser) {
-        studentFaculty = studentFaculty ?? dbUser.faculty;
-        studentMajor = studentMajor ?? dbUser.major;
-        studentEntryYear = studentEntryYear ?? dbUser.entryYear;
+        if (dbUser) {
+          studentFaculty = studentFaculty ?? dbUser.faculty;
+          studentMajor = studentMajor ?? dbUser.major;
+          studentEntryYear = studentEntryYear ?? dbUser.entryYear;
+        }
+
+        missingFields = {
+          faculty: !studentFaculty,
+          major: !studentMajor,
+          entryYear: !studentEntryYear,
+        };
+        isProfileIncomplete = missingFields.faculty || missingFields.major || missingFields.entryYear;
+      } catch (error) {
+        console.error("[Dashboard] Failed to query academic profile fields:", error);
       }
-
-      missingFields = {
-        faculty: !studentFaculty,
-        major: !studentMajor,
-        entryYear: !studentEntryYear,
-      };
-      isProfileIncomplete = missingFields.faculty || missingFields.major || missingFields.entryYear;
     }
   }
 
