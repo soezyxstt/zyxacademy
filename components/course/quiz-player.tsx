@@ -150,19 +150,21 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
       try {
         const data = JSON.parse(xhr.responseText);
         if (xhr.status >= 200 && xhr.status < 300 && data.success) {
-          const currentAns = answers[questionId];
-          const currentText = typeof currentAns === "string" ? currentAns : currentAns?.text || "";
-          const next = {
-            ...answers,
-            [questionId]: {
-              text: currentText,
-              fileName: data.fileName as string,
-              fileSize: data.fileSize as string,
-              fileKey: data.key as string,
-            },
-          };
-          setAnswers(next);
-          window.localStorage.setItem(`zyx-quiz-answers-${attemptId}`, JSON.stringify(next));
+          setAnswers((prev) => {
+            const currentAns = prev[questionId];
+            const currentText = typeof currentAns === "string" ? currentAns : currentAns?.text || "";
+            const next = {
+              ...prev,
+              [questionId]: {
+                text: currentText,
+                fileName: data.fileName as string,
+                fileSize: data.fileSize as string,
+                fileKey: data.key as string,
+              },
+            };
+            window.localStorage.setItem(`zyx-quiz-answers-${attemptId}`, JSON.stringify(next));
+            return next;
+          });
           toast.success(`Berkas ${file.name} berhasil diunggah.`);
         } else {
           toast.error(data.error || "Gagal mengunggah berkas.");
@@ -195,20 +197,43 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
     }
   }
 
-  function handleRemoveFile(questionId: string) {
+  async function handleRemoveFile(questionId: string) {
     const currentAns = answers[questionId];
-    const currentText = typeof currentAns === "string" ? currentAns : currentAns?.text || "";
-    const next = {
-      ...answers,
-      [questionId]: {
-        text: currentText,
-        fileName: null,
-        fileSize: undefined,
-        fileKey: null,
-      },
-    };
-    setAnswers(next);
-    window.localStorage.setItem(`zyx-quiz-answers-${attemptId}`, JSON.stringify(next));
+    const fileKey = typeof currentAns === "object" && currentAns !== null ? currentAns.fileKey : null;
+
+    if (fileKey) {
+      try {
+        const res = await fetch("/api/quiz/attachments", {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ attemptId, fileKey }),
+        });
+        if (!res.ok) {
+          const errData = await res.json().catch(() => null);
+          throw new Error(errData?.error || "Gagal menghapus berkas dari server.");
+        }
+      } catch (err: any) {
+        toast.error(err?.message || "Gagal menghapus berkas.");
+        return;
+      }
+    }
+
+    setAnswers((prev) => {
+      const current = prev[questionId];
+      const currentText = typeof current === "string" ? current : current?.text || "";
+      const next = {
+        ...prev,
+        [questionId]: {
+          text: currentText,
+          fileName: null,
+          fileSize: undefined,
+          fileKey: null,
+        },
+      };
+      window.localStorage.setItem(`zyx-quiz-answers-${attemptId}`, JSON.stringify(next));
+      return next;
+    });
+
     setUploadProgress((prev) => {
       const copy = { ...prev };
       delete copy[questionId];
@@ -225,6 +250,11 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
   const handleRequestSubmit = useCallback(() => {
     if (isSubmitted || submitting) return;
 
+    if (Object.keys(uploadingFile).length > 0) {
+      toast.warning("Harap tunggu hingga proses unggah berkas selesai sebelum mengumpulkan kuis.");
+      return;
+    }
+
     if (requireAllAnswered) {
       const unansweredIndex = sorted.findIndex((question) => !isQuestionAnswered(question.id));
       if (unansweredIndex !== -1) {
@@ -235,7 +265,7 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
     }
 
     setShowConfirmModal(true);
-  }, [isSubmitted, submitting, requireAllAnswered, sorted, isQuestionAnswered]);
+  }, [isSubmitted, submitting, uploadingFile, requireAllAnswered, sorted, isQuestionAnswered]);
 
   // Per-question timer state
   const currentQuestionId = sorted[index]?.id;
@@ -252,6 +282,13 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
 
   const handleSubmit = useCallback(async (isAutoSubmit = false) => {
     if (isSubmitted || submitting) return;
+
+    if (Object.keys(uploadingFile).length > 0) {
+      if (!isAutoSubmit) {
+        toast.warning("Harap tunggu hingga proses unggah berkas selesai sebelum mengumpulkan kuis.");
+        return;
+      }
+    }
 
     if (requireAllAnswered && !isAutoSubmit) {
       const unansweredIndex = sorted.findIndex((question) => !isQuestionAnswered(question.id));
@@ -550,7 +587,7 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
                         />
                         <UploadCloud className="mb-2 size-7 text-muted-foreground" />
                         <p className="text-body-xs font-bold text-foreground">Klik atau Seret Berkas ke sini</p>
-                        <p className="mt-0.5 text-body-xs text-muted-foreground">Mendukung PDF, PNG, JPG, WebP (Maks. 10 MB)</p>
+                        <p className="mt-0.5 text-body-xs text-muted-foreground">Mendukung PDF, PNG, JPG, WebP (Maks. 4 MB)</p>
                       </div>
                     ) : null}
 

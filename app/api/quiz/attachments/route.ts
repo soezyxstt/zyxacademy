@@ -7,7 +7,7 @@ import { and, eq } from "drizzle-orm";
 import { storage } from "@/lib/storage";
 import { buildQuizAttachmentKey, INVALID_OBJECT_KEY } from "@/lib/storage/keys";
 
-const MAX_SIZE_BYTES = 10 * 1024 * 1024;
+const MAX_SIZE_BYTES = 4 * 1024 * 1024; // 4 MB to stay below Vercel's 4.5 MB Function payload ceiling
 
 const ALLOWED_TYPES: Record<string, string> = {
   ".pdf": "application/pdf",
@@ -32,7 +32,7 @@ export async function POST(req: Request) {
   const contentLength = Number(req.headers.get("content-length") || 0);
   if (contentLength > MAX_SIZE_BYTES + 64 * 1024) {
     return NextResponse.json(
-      { error: "Ukuran berkas melebihi batas 10MB." },
+      { error: "Ukuran berkas melebihi batas 4MB." },
       { status: 413 }
     );
   }
@@ -100,7 +100,7 @@ export async function POST(req: Request) {
 
   if (file.size > MAX_SIZE_BYTES) {
     return NextResponse.json(
-      { error: "Ukuran berkas melebihi batas 10MB." },
+      { error: "Ukuran berkas melebihi batas 4MB." },
       { status: 413 }
     );
   }
@@ -135,6 +135,67 @@ export async function POST(req: Request) {
     console.error("Quiz attachment upload error:", err);
     return NextResponse.json(
       { error: err?.message || "Gagal mengunggah berkas." },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE(req: Request) {
+  const session = await auth.api.getSession({ headers: await headers() });
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  const user = session.user;
+
+  let body: { attemptId?: string; fileKey?: string };
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: "Payload tidak valid." }, { status: 400 });
+  }
+
+  const { attemptId, fileKey } = body;
+  if (!attemptId || !fileKey) {
+    return NextResponse.json({ error: "attemptId dan fileKey wajib diisi." }, { status: 400 });
+  }
+
+  const [attemptRecord] = await db
+    .select({
+      id: studentQuizAttempts.id,
+      templateId: studentQuizAttempts.templateId,
+      status: studentQuizAttempts.status,
+    })
+    .from(studentQuizAttempts)
+    .where(
+      and(
+        eq(studentQuizAttempts.id, attemptId),
+        eq(studentQuizAttempts.studentId, user.id)
+      )
+    )
+    .limit(1);
+
+  if (!attemptRecord || attemptRecord.status !== "in_progress") {
+    return NextResponse.json(
+      { error: "Sesi kuis tidak aktif atau sudah dikumpulkan." },
+      { status: 403 }
+    );
+  }
+
+  const expectedPrefix = `quizzes/${attemptRecord.templateId}/attachments/`;
+  if (!fileKey.startsWith(expectedPrefix)) {
+    return NextResponse.json(
+      { error: "Kunci berkas tidak valid untuk sesi kuis ini." },
+      { status: 403 }
+    );
+  }
+
+  try {
+    await storage.delete(fileKey);
+    return NextResponse.json({ success: true });
+  } catch (err: any) {
+    console.error("Quiz attachment delete error:", err);
+    return NextResponse.json(
+      { error: err?.message || "Gagal menghapus berkas." },
       { status: 500 }
     );
   }

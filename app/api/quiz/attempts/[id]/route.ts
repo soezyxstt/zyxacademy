@@ -215,6 +215,23 @@ export async function POST(req: NextRequest, { params }: Context) {
  }
 
   const { answers, durationSeconds } = parsed.data;
+
+  // Validate that any attached fileKey belongs to this quiz template
+  const expectedAttachmentPrefix = `quizzes/${attempt.templateId}/attachments/`;
+  for (const [qId, ansVal] of Object.entries(answers)) {
+    if (ansVal && typeof ansVal === "object" && !Array.isArray(ansVal) && "fileKey" in ansVal) {
+      const fileKey = (ansVal as { fileKey?: unknown }).fileKey;
+      if (typeof fileKey === "string" && fileKey.trim().length > 0) {
+        if (!fileKey.startsWith(expectedAttachmentPrefix)) {
+          return NextResponse.json(
+            { error: `Kunci berkas lampiran tidak valid untuk soal ${qId}.` },
+            { status: 400 },
+          );
+        }
+      }
+    }
+  }
+
   const snapshot = attempt.questionsSnapshot as LegacyQuizQuestionSnapshot[];
 
   function checkAnswerCorrectness(q: any, submitted: any): boolean {
