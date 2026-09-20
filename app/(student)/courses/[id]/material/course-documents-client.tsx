@@ -236,6 +236,7 @@ function HierarchyDocumentCard({ material, courseId }: { material: CourseMateria
   );
 }
 
+/** Determines if a material is a question, quiz, tryout, or assessment asset. */
 function isSoalMaterial(material: CourseMaterial): boolean {
   if (material.kind === "quiz" || material.kind === "tryout") return true;
   if (material.docCategory === "soal" || material.docCategory === "solusi") return true;
@@ -245,6 +246,7 @@ function isSoalMaterial(material: CourseMaterial): boolean {
   return false;
 }
 
+/** Determines if a material belongs to the UTS subcategory or exam scope. */
 function isUtsMaterial(material: CourseMaterial): boolean {
   const sub = material.subcategory?.toLowerCase().trim();
   if (sub === "uts") return true;
@@ -252,6 +254,7 @@ function isUtsMaterial(material: CourseMaterial): boolean {
   return false;
 }
 
+/** Determines if a material belongs to the UAS subcategory or exam scope. */
 function isUasMaterial(material: CourseMaterial): boolean {
   const sub = material.subcategory?.toLowerCase().trim();
   if (sub === "uas") return true;
@@ -259,13 +262,19 @@ function isUasMaterial(material: CourseMaterial): boolean {
   return false;
 }
 
+/** Sorts materials placing dated materials first in descending order, then alphabetical by title. */
 function sortMaterials(items: CourseMaterial[]): CourseMaterial[] {
   return [...items].sort((a, b) => {
-    if (a.year && b.year && a.year !== b.year) return b.year - a.year;
+    if (a.year !== b.year) {
+      if (a.year == null) return 1;
+      if (b.year == null) return -1;
+      return b.year - a.year;
+    }
     return a.title.localeCompare(b.title, "id");
   });
 }
 
+/** Collapsible accordion row presenting a grouped document collection with uniform badge and title. */
 function CollapsibleDocumentSection({
   badge,
   title,
@@ -321,6 +330,7 @@ function CollapsibleDocumentSection({
   );
 }
 
+/** Renders the course documents client interface with tabbed views and structured collapsible sections. */
 export function CourseDocumentsClient({
   courseId,
   materials,
