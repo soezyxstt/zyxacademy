@@ -3,7 +3,7 @@ import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
 import { db } from "@/db";
 import { studentQuizAttempts } from "@/db/schema";
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { storage } from "@/lib/storage";
 import { buildQuizAttachmentKey, quizAttachmentPrefix, INVALID_OBJECT_KEY } from "@/lib/storage/keys";
 
@@ -126,44 +126,76 @@ export async function POST(req: Request) {
       },
     });
 
-    // Re-verify attempt is still in progress to prevent orphan uploads when attempt finishes during upload
-    const [freshAttempt] = await db
-      .select({
-        id: studentQuizAttempts.id,
-        status: studentQuizAttempts.status,
-        answersSnapshot: studentQuizAttempts.answersSnapshot,
-      })
-      .from(studentQuizAttempts)
-      .where(eq(studentQuizAttempts.id, attemptRecord.id))
-      .limit(1);
+    // Atomic compare-and-swap to register attachment snapshot and prevent race conditions
+    let registered = false;
+    for (let retry = 0; retry < 3; retry++) {
+      const [freshAttempt] = await db
+        .select({
+          id: studentQuizAttempts.id,
+          status: studentQuizAttempts.status,
+          answersSnapshot: studentQuizAttempts.answersSnapshot,
+        })
+        .from(studentQuizAttempts)
+        .where(
+          and(
+            eq(studentQuizAttempts.id, attemptRecord.id),
+            eq(studentQuizAttempts.status, "in_progress")
+          )
+        )
+        .limit(1);
 
-    if (!freshAttempt || freshAttempt.status !== "in_progress") {
-      await storage.delete(key).catch(() => {});
-      return NextResponse.json(
-        { error: "Sesi kuis telah berakhir sebelum berkas selesai diunggah." },
-        { status: 403 }
+      if (!freshAttempt || freshAttempt.status !== "in_progress") {
+        break;
+      }
+
+      const currentRawSnapshot = typeof freshAttempt.answersSnapshot === "string"
+        ? freshAttempt.answersSnapshot
+        : freshAttempt.answersSnapshot !== null
+        ? JSON.stringify(freshAttempt.answersSnapshot)
+        : null;
+
+      const currentSnap = (freshAttempt.answersSnapshot as Record<string, any>) || {};
+      const attachments = {
+        ...(currentSnap._attachments || {}),
+        [result.key]: {
+          fileName: file.name,
+          size: result.size,
+          uploadedAt: new Date().toISOString(),
+        },
+      };
+
+      const whereClause = and(
+        eq(studentQuizAttempts.id, attemptRecord.id),
+        eq(studentQuizAttempts.status, "in_progress"),
+        currentRawSnapshot === null
+          ? sql`${studentQuizAttempts.answersSnapshot} IS NULL`
+          : sql`${studentQuizAttempts.answersSnapshot} = ${currentRawSnapshot}`
       );
+
+      const updatedRows = await db
+        .update(studentQuizAttempts)
+        .set({
+          answersSnapshot: {
+            ...currentSnap,
+            _attachments: attachments,
+          },
+        })
+        .where(whereClause)
+        .returning({ id: studentQuizAttempts.id });
+
+      if (updatedRows.length > 0) {
+        registered = true;
+        break;
+      }
     }
 
-    const currentSnap = (freshAttempt.answersSnapshot as Record<string, any>) || {};
-    const attachments = {
-      ...(currentSnap._attachments || {}),
-      [result.key]: {
-        fileName: file.name,
-        size: result.size,
-        uploadedAt: new Date().toISOString(),
-      },
-    };
-
-    await db
-      .update(studentQuizAttempts)
-      .set({
-        answersSnapshot: {
-          ...currentSnap,
-          _attachments: attachments,
-        },
-      })
-      .where(eq(studentQuizAttempts.id, attemptRecord.id));
+    if (!registered) {
+      await storage.delete(key).catch(() => {});
+      return NextResponse.json(
+        { error: "Sesi kuis telah berakhir atau diperbarui sebelum berkas selesai didaftarkan." },
+        { status: 409 }
+      );
+    }
 
     return NextResponse.json({
       success: true,
@@ -207,50 +239,66 @@ export async function DELETE(req: Request) {
     return NextResponse.json({ error: "attemptId dan fileKey wajib diisi." }, { status: 400 });
   }
 
-  const [attemptRecord] = await db
-    .select({
-      id: studentQuizAttempts.id,
-      templateId: studentQuizAttempts.templateId,
-      status: studentQuizAttempts.status,
-      answersSnapshot: studentQuizAttempts.answersSnapshot,
-    })
-    .from(studentQuizAttempts)
-    .where(
-      and(
-        eq(studentQuizAttempts.id, attemptId),
-        eq(studentQuizAttempts.studentId, user.id)
+  let deletedRecord = false;
+  for (let retry = 0; retry < 3; retry++) {
+    const [attemptRecord] = await db
+      .select({
+        id: studentQuizAttempts.id,
+        templateId: studentQuizAttempts.templateId,
+        status: studentQuizAttempts.status,
+        answersSnapshot: studentQuizAttempts.answersSnapshot,
+      })
+      .from(studentQuizAttempts)
+      .where(
+        and(
+          eq(studentQuizAttempts.id, attemptId),
+          eq(studentQuizAttempts.studentId, user.id),
+          eq(studentQuizAttempts.status, "in_progress")
+        )
       )
-    )
-    .limit(1);
+      .limit(1);
 
-  if (!attemptRecord || attemptRecord.status !== "in_progress") {
-    return NextResponse.json(
-      { error: "Sesi kuis tidak aktif atau sudah dikumpulkan." },
-      { status: 403 }
-    );
-  }
+    if (!attemptRecord || attemptRecord.status !== "in_progress") {
+      return NextResponse.json(
+        { error: "Sesi kuis tidak aktif atau sudah dikumpulkan." },
+        { status: 403 }
+      );
+    }
 
-  const expectedPrefix = quizAttachmentPrefix(attemptRecord.templateId);
-  if (!fileKey.startsWith(expectedPrefix)) {
-    return NextResponse.json(
-      { error: "Kunci berkas tidak valid untuk sesi kuis ini." },
-      { status: 403 }
-    );
-  }
+    const expectedPrefix = quizAttachmentPrefix(attemptRecord.templateId);
+    if (!fileKey.startsWith(expectedPrefix)) {
+      return NextResponse.json(
+        { error: "Kunci berkas tidak valid untuk sesi kuis ini." },
+        { status: 403 }
+      );
+    }
 
-  const currentSnap = (attemptRecord.answersSnapshot as Record<string, any>) || {};
-  const attachments = (currentSnap._attachments as Record<string, any>) || {};
-  if (!attachments[fileKey]) {
-    return NextResponse.json(
-      { error: "Lampiran tidak ditemukan atau tidak memiliki hak akses." },
-      { status: 403 }
-    );
-  }
+    const currentSnap = (attemptRecord.answersSnapshot as Record<string, any>) || {};
+    const attachments = { ...((currentSnap._attachments as Record<string, any>) || {}) };
+    if (!attachments[fileKey]) {
+      return NextResponse.json(
+        { error: "Lampiran tidak ditemukan atau tidak memiliki hak akses." },
+        { status: 403 }
+      );
+    }
 
-  try {
-    await storage.delete(fileKey);
     delete attachments[fileKey];
-    await db
+
+    const currentRawSnapshot = typeof attemptRecord.answersSnapshot === "string"
+      ? attemptRecord.answersSnapshot
+      : attemptRecord.answersSnapshot !== null
+      ? JSON.stringify(attemptRecord.answersSnapshot)
+      : null;
+
+    const whereClause = and(
+      eq(studentQuizAttempts.id, attemptRecord.id),
+      eq(studentQuizAttempts.status, "in_progress"),
+      currentRawSnapshot === null
+        ? sql`${studentQuizAttempts.answersSnapshot} IS NULL`
+        : sql`${studentQuizAttempts.answersSnapshot} = ${currentRawSnapshot}`
+    );
+
+    const updatedRows = await db
       .update(studentQuizAttempts)
       .set({
         answersSnapshot: {
@@ -258,8 +306,24 @@ export async function DELETE(req: Request) {
           _attachments: attachments,
         },
       })
-      .where(eq(studentQuizAttempts.id, attemptRecord.id));
+      .where(whereClause)
+      .returning({ id: studentQuizAttempts.id });
 
+    if (updatedRows.length > 0) {
+      deletedRecord = true;
+      break;
+    }
+  }
+
+  if (!deletedRecord) {
+    return NextResponse.json(
+      { error: "Gagal menghapus lampiran karena sesi kuis telah berubah atau berakhir." },
+      { status: 409 }
+    );
+  }
+
+  try {
+    await storage.delete(fileKey);
     return NextResponse.json({ success: true });
   } catch (err: any) {
     console.error("Quiz attachment delete error:", err);
@@ -269,4 +333,5 @@ export async function DELETE(req: Request) {
     );
   }
 }
+
 
