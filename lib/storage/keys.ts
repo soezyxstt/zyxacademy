@@ -242,3 +242,20 @@ export function buildExamAttachmentKey(params: {
     userFileLeaf(params.filename)
   );
 }
+
+/**
+ * Quiz essay attachment object key: `quizzes/{quizId}/attachments/{leaf}`.
+ * Uploaded by students while answering an essay question; downloaded by the grading tutor.
+ */
+export function buildQuizAttachmentKey(params: {
+  quizId: string;
+  filename: string;
+}): string {
+  return joinKey(
+    "quizzes",
+    slugifySegment(params.quizId, "quiz"),
+    "attachments",
+    userFileLeaf(params.filename)
+  );
+}
+

@@ -2,7 +2,7 @@ import { S3Client, GetObjectCommand } from "@aws-sdk/client-s3";
 import { headers as nextHeaders } from "next/headers";
 import { and, eq, inArray, isNotNull } from "drizzle-orm";
 import { db } from "@/db";
-import { diktatMateri, diktats, mataKuliah } from "@/db/schema";
+import { diktatMateri, diktats, mataKuliah, studentQuizAttempts, quizTemplates } from "@/db/schema";
 import { auth } from "@/lib/auth";
 import { resolveCourseIdentity } from "@/lib/admin/course-identity";
 import { resolveCourseAccess } from "@/lib/student/course-access";
@@ -125,6 +125,77 @@ async function resolveDiktatAuthorization(key: string): Promise<DiktatAuthorizat
   }
 }
 
+type QuizAttachmentAuthorization = {
+  matched: boolean;
+  allowed: boolean;
+};
+
+async function resolveQuizAttachmentAuthorization(key: string): Promise<QuizAttachmentAuthorization> {
+  const isQuizAttachment = key.startsWith("quizzes/") && key.includes("/attachments/");
+  if (!isQuizAttachment) return { matched: false, allowed: true };
+
+  try {
+    const segments = key.split("/");
+    const quizId = segments[1];
+    if (!quizId) return { matched: true, allowed: false };
+
+    const session = await auth.api.getSession({ headers: await nextHeaders() });
+    if (!session?.user?.id) return { matched: true, allowed: false };
+    const userId = session.user.id;
+    const role = (session.user as { role?: string | null }).role;
+
+    if (role === "admin") return { matched: true, allowed: true };
+
+    // Check if current user is the student whose attempt contains this attachment
+    const userAttempts = await db
+      .select({
+        id: studentQuizAttempts.id,
+        status: studentQuizAttempts.status,
+        answersSnapshot: studentQuizAttempts.answersSnapshot,
+      })
+      .from(studentQuizAttempts)
+      .where(
+        and(
+          eq(studentQuizAttempts.templateId, quizId),
+          eq(studentQuizAttempts.studentId, userId),
+        )
+      );
+
+    for (const att of userAttempts) {
+      if (att.status === "in_progress") {
+        return { matched: true, allowed: true };
+      }
+      const rawSnap = typeof att.answersSnapshot === "string" 
+        ? att.answersSnapshot 
+        : JSON.stringify(att.answersSnapshot ?? {});
+      if (rawSnap.includes(key)) {
+        return { matched: true, allowed: true };
+      }
+    }
+
+    // Check if user is an authorized tutor for the course of this quiz
+    const [template] = await db
+      .select({ courseId: quizTemplates.courseId })
+      .from(quizTemplates)
+      .where(eq(quizTemplates.id, quizId))
+      .limit(1);
+
+    if (template?.courseId) {
+      const { requireTutorCourseAccess } = await import("@/lib/auth/tutor-access");
+      try {
+        await requireTutorCourseAccess(userId, template.courseId, { allowAdmin: true });
+        return { matched: true, allowed: true };
+      } catch {
+        // Not authorized as tutor for this course
+      }
+    }
+
+    return { matched: true, allowed: false };
+  } catch {
+    return { matched: true, allowed: false };
+  }
+}
+
 export async function GET(
   req: Request,
   { params }: { params: Promise<{ key: string[] }> }
@@ -150,6 +221,12 @@ export async function GET(
     // query only changes a browser hint and must never decide authorization.
     const diktatAuthorization = await resolveDiktatAuthorization(key);
     if (diktatAuthorization.matched && !diktatAuthorization.allowed) {
+      return new Response("File not found", { status: 404 });
+    }
+
+    // Authorize quiz attachment delivery before fetching the object
+    const quizAuthorization = await resolveQuizAttachmentAuthorization(key);
+    if (quizAuthorization.matched && !quizAuthorization.allowed) {
       return new Response("File not found", { status: 404 });
     }
 
@@ -183,9 +260,9 @@ export async function GET(
       headers.set("Content-Length", s3Res.ContentLength.toString());
     }
     
-    // Only Diktat delivery depends on the current session. Keep unrelated
+    // Only protected delivery depends on the current session. Keep unrelated
     // public storage objects on the cacheable response path.
-    if (diktatAuthorization.matched) {
+    if (diktatAuthorization.matched || quizAuthorization.matched) {
       headers.set("Cache-Control", "private, no-store");
     }
 

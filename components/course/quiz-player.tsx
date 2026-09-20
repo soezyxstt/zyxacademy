@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "@/components/ui/toast";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { Flag, Timer, Clock, BookOpen, AlertCircle, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
+import { Flag, Timer, Clock, BookOpen, AlertCircle, ChevronLeft, ChevronRight, Loader2, UploadCloud, FileText, Trash2 } from "lucide-react";
 import { MarkdownRenderer } from "@/components/course/markdown-renderer";
 import { quizOptionClasses, quizOptionLetterClasses } from "@/components/course/quiz-option-styles";
 import { QuestionSourceCitation } from "@/components/course/question-source-citation";
@@ -109,6 +109,10 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
   const [submitting, setSubmitting] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
 
+  // Cloudflare R2 upload state for essay attachments
+  const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
+  const [uploadingFile, setUploadingFile] = useState<Record<string, string>>({});
+
   const sorted = useMemo(
     () => [...exam.questions].sort((a, b) => a.order - b.order),
     [exam.questions],
@@ -118,11 +122,138 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
     const val = answers[questionId];
     if (val === undefined || val === null) return false;
     if (typeof val === "string") return val.trim().length > 0;
+    if (typeof val === "object") {
+      const textDone = typeof val.text === "string" && val.text.trim().length > 0;
+      const fileDone = Boolean(val.fileName || val.fileKey);
+      return textDone || fileDone;
+    }
     return true;
   }, [answers]);
 
+  function uploadEssayAttachment(questionId: string, file: File) {
+    setUploadingFile((prev) => ({ ...prev, [questionId]: file.name }));
+    setUploadProgress((prev) => ({ ...prev, [questionId]: 0 }));
+
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("attemptId", attemptId);
+
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", "/api/quiz/attachments");
+    xhr.upload.addEventListener("progress", (ev) => {
+      if (ev.lengthComputable) {
+        const pct = Math.round((ev.loaded / ev.total) * 100);
+        setUploadProgress((prev) => ({ ...prev, [questionId]: pct }));
+      }
+    });
+    xhr.addEventListener("load", () => {
+      try {
+        const data = JSON.parse(xhr.responseText);
+        if (xhr.status >= 200 && xhr.status < 300 && data.success) {
+          setAnswers((prev) => {
+            const currentAns = prev[questionId];
+            const currentText = typeof currentAns === "string" ? currentAns : currentAns?.text || "";
+            const next = {
+              ...prev,
+              [questionId]: {
+                text: currentText,
+                fileName: data.fileName as string,
+                fileSize: data.fileSize as string,
+                fileKey: data.key as string,
+              },
+            };
+            window.localStorage.setItem(`zyx-quiz-answers-${attemptId}`, JSON.stringify(next));
+            return next;
+          });
+          toast.success(`Berkas ${file.name} berhasil diunggah.`);
+        } else {
+          toast.error(data.error || "Gagal mengunggah berkas.");
+        }
+      } catch {
+        toast.error("Gagal mengunggah berkas.");
+      }
+      setUploadingFile((prev) => {
+        const copy = { ...prev };
+        delete copy[questionId];
+        return copy;
+      });
+    });
+    xhr.addEventListener("error", () => {
+      toast.error("Gagal mengunggah berkas.");
+      setUploadingFile((prev) => {
+        const copy = { ...prev };
+        delete copy[questionId];
+        return copy;
+      });
+    });
+    xhr.send(formData);
+  }
+
+  function handleFileChange(questionId: string, e: React.ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0];
+    if (f) {
+      uploadEssayAttachment(questionId, f);
+      e.target.value = "";
+    }
+  }
+
+  async function handleRemoveFile(questionId: string) {
+    const currentAns = answers[questionId];
+    const fileKey = typeof currentAns === "object" && currentAns !== null ? currentAns.fileKey : null;
+
+    if (fileKey) {
+      try {
+        const res = await fetch("/api/quiz/attachments", {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ attemptId, fileKey }),
+        });
+        if (!res.ok) {
+          const errData = await res.json().catch(() => null);
+          throw new Error(errData?.error || "Gagal menghapus berkas dari server.");
+        }
+      } catch (err: any) {
+        toast.error(err?.message || "Gagal menghapus berkas.");
+        return;
+      }
+    }
+
+    setAnswers((prev) => {
+      const current = prev[questionId];
+      const currentText = typeof current === "string" ? current : current?.text || "";
+      const next = {
+        ...prev,
+        [questionId]: {
+          text: currentText,
+          fileName: null,
+          fileSize: undefined,
+          fileKey: null,
+        },
+      };
+      window.localStorage.setItem(`zyx-quiz-answers-${attemptId}`, JSON.stringify(next));
+      return next;
+    });
+
+    setUploadProgress((prev) => {
+      const copy = { ...prev };
+      delete copy[questionId];
+      return copy;
+    });
+    setUploadingFile((prev) => {
+      const copy = { ...prev };
+      delete copy[questionId];
+      return copy;
+    });
+    toast.info("Lampiran berkas dihapus.");
+  }
+
   const handleRequestSubmit = useCallback(() => {
     if (isSubmitted || submitting) return;
+
+    if (Object.keys(uploadingFile).length > 0) {
+      toast.warning("Harap tunggu hingga proses unggah berkas selesai sebelum mengumpulkan kuis.");
+      return;
+    }
 
     if (requireAllAnswered) {
       const unansweredIndex = sorted.findIndex((question) => !isQuestionAnswered(question.id));
@@ -134,7 +265,7 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
     }
 
     setShowConfirmModal(true);
-  }, [isSubmitted, submitting, requireAllAnswered, sorted, isQuestionAnswered]);
+  }, [isSubmitted, submitting, uploadingFile, requireAllAnswered, sorted, isQuestionAnswered]);
 
   // Per-question timer state
   const currentQuestionId = sorted[index]?.id;
@@ -151,6 +282,13 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
 
   const handleSubmit = useCallback(async (isAutoSubmit = false) => {
     if (isSubmitted || submitting) return;
+
+    if (Object.keys(uploadingFile).length > 0) {
+      if (!isAutoSubmit) {
+        toast.warning("Harap tunggu hingga proses unggah berkas selesai sebelum mengumpulkan kuis.");
+        return;
+      }
+    }
 
     if (requireAllAnswered && !isAutoSubmit) {
       const unansweredIndex = sorted.findIndex((question) => !isQuestionAnswered(question.id));
@@ -180,7 +318,7 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
       // Mark all unanswered questions as empty
       for (const question of exam.questions) {
         if (formattedAnswers[question.id] === undefined) {
-          formattedAnswers[question.id] = question.type === "short_answer" || question.type === "essay" ? "" : [];
+          formattedAnswers[question.id] = question.type === "short_answer" ? "" : question.type === "essay" ? { text: "", fileName: null, fileKey: null } : [];
         }
       }
 
@@ -399,36 +537,105 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
 
           {/* Options Display / Short Answer / Essay Input */}
           {q.type === "short_answer" || q.type === "essay" ? (
-            <div className="mt-4 md:mt-5 space-y-3">
-              <label className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground block">
+            <div className="mt-4 space-y-3 md:mt-5">
+              <label className="block text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">
                 {q.type === "short_answer" ? "Ketik Jawaban Singkat Anda:" : "Tuliskan Jawaban Essay Anda:"}
               </label>
               {q.type === "short_answer" ? (
                 <input
                   type="text"
                   disabled={submitting || isSubmitted}
-                  value={typeof ans === "string" ? ans : ""}
+                  value={typeof ans === "string" ? ans : ans?.text || ""}
                   onChange={(e) => {
                     const next = { ...answers, [q.id]: e.target.value };
                     setAnswers(next);
                     window.localStorage.setItem(`zyx-quiz-answers-${attemptId}`, JSON.stringify(next));
                   }}
                   placeholder="Ketik jawaban singkat di sini..."
-                  className="w-full rounded-lg border border-border bg-background p-3 text-body-sm font-medium hover:border-border focus:border-brand-primary focus:ring-1 focus:ring-brand-primary/30 focus:outline-none transition-all"
+                  className="w-full rounded-lg border border-border bg-background p-3 text-body-sm font-medium transition-all hover:border-border focus:border-brand-primary focus:ring-1 focus:ring-brand-primary/30 focus:outline-none"
                 />
               ) : (
-                <textarea
-                  rows={5}
-                  disabled={submitting || isSubmitted}
-                  value={typeof ans === "string" ? ans : ""}
-                  onChange={(e) => {
-                    const next = { ...answers, [q.id]: e.target.value };
-                    setAnswers(next);
-                    window.localStorage.setItem(`zyx-quiz-answers-${attemptId}`, JSON.stringify(next));
-                  }}
-                  placeholder="Tuliskan jawaban essay Anda selengkap mungkin..."
-                  className="w-full rounded-lg border border-border bg-background p-3 text-body-sm font-medium hover:border-border focus:border-brand-primary focus:ring-1 focus:ring-brand-primary/30 focus:outline-none transition-all font-sans"
-                />
+                <div className="space-y-4">
+                  <textarea
+                    rows={6}
+                    disabled={submitting || isSubmitted}
+                    value={typeof ans === "string" ? ans : ans?.text || ""}
+                    onChange={(e) => {
+                      const currentObj = typeof ans === "object" && ans !== null ? ans : {};
+                      const next = { ...answers, [q.id]: { ...currentObj, text: e.target.value } };
+                      setAnswers(next);
+                      window.localStorage.setItem(`zyx-quiz-answers-${attemptId}`, JSON.stringify(next));
+                    }}
+                    placeholder="Tuliskan jawaban essay Anda selengkap mungkin..."
+                    className="w-full rounded-lg border border-border bg-background p-3 font-sans text-body-sm font-medium leading-relaxed transition-all hover:border-border focus:border-brand-primary focus:ring-1 focus:ring-brand-primary/30 focus:outline-none"
+                  />
+
+                  {/* Cloudflare R2 file uploader widget for Essay */}
+                  <div className="space-y-2.5 pt-1">
+                    <span className="block text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                      Unggah Lampiran Berkas (PDF / Gambar Coretan):
+                    </span>
+
+                    {!ans?.fileName && !uploadingFile[q.id] ? (
+                      <div className="relative flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-border bg-muted/10 p-5 text-center transition-all hover:border-brand-primary/40 hover:bg-muted/20">
+                        <input
+                          type="file"
+                          accept=".pdf,image/*"
+                          disabled={submitting || isSubmitted}
+                          onChange={(e) => handleFileChange(q.id, e)}
+                          className="absolute inset-0 size-full cursor-pointer opacity-0 disabled:cursor-not-allowed"
+                        />
+                        <UploadCloud className="mb-2 size-7 text-muted-foreground" />
+                        <p className="text-body-xs font-bold text-foreground">Klik atau Seret Berkas ke sini</p>
+                        <p className="mt-0.5 text-body-xs text-muted-foreground">Mendukung PDF, PNG, JPG, WebP (Maks. 4 MB)</p>
+                      </div>
+                    ) : null}
+
+                    {/* Upload progress */}
+                    {uploadingFile[q.id] && (uploadProgress[q.id] ?? 0) < 100 ? (
+                      <div className="animate-pulse space-y-2 rounded-xl border border-brand-secondary/35 bg-brand-secondary/5 p-3.5">
+                        <div className="flex justify-between text-body-xs font-semibold text-brand-secondary">
+                          <span className="max-w-[200px] truncate">Mengunggah: {uploadingFile[q.id]}</span>
+                          <span>{uploadProgress[q.id]}%</span>
+                        </div>
+                        <div className="h-1.5 w-full overflow-hidden rounded-md bg-muted">
+                          <div
+                            className="h-full rounded-md bg-brand-secondary transition-all"
+                            style={{ width: `${uploadProgress[q.id]}%` }}
+                          />
+                        </div>
+                        <p className="text-body-xs text-muted-foreground">Menyimpan langsung ke Cloudflare R2...</p>
+                      </div>
+                    ) : null}
+
+                    {/* Upload completed display */}
+                    {ans?.fileName && (
+                      <div className="flex items-center justify-between gap-3 rounded-xl border border-status-success/35 bg-status-success/5 p-3.5">
+                        <div className="flex min-w-0 items-center gap-3">
+                          <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-status-success/15 text-status-success">
+                            <FileText className="size-5" />
+                          </span>
+                          <div className="min-w-0">
+                            <p className="max-w-[200px] truncate text-body-xs font-bold text-foreground md:max-w-xs">{ans.fileName}</p>
+                            <p className="text-body-2xs text-muted-foreground">{ans.fileSize || "PDF / Gambar"} • Cloudflare R2</p>
+                          </div>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="xs"
+                          disabled={submitting || isSubmitted}
+                          onClick={() => handleRemoveFile(q.id)}
+                          className="shrink-0 text-muted-foreground hover:bg-status-error/10 hover:text-status-error"
+                          title="Hapus lampiran"
+                        >
+                          <Trash2 className="size-4" />
+                          <span className="sr-only">Hapus lampiran</span>
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                </div>
               )}
             </div>
           ) : (
