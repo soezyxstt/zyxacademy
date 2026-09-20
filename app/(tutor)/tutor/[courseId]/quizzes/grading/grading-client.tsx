@@ -11,6 +11,7 @@ import {
   CheckSquare,
   Clock,
   Loader2,
+  Download,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -47,6 +48,9 @@ interface QuestionDetail {
   acceptableAnswers?: string[];
   submittedAnswer: unknown;
   submittedText: string;
+  fileName?: string | null;
+  fileKey?: string | null;
+  fileSize?: string | null;
   isDeterministicCorrect: boolean;
   currentScore: number | null;
   currentStatus: string;
@@ -336,6 +340,42 @@ export function TutorQuizGradingClient({ courseId, pendingAttempts }: Props) {
                     )}
                   </div>
                 </div>
+
+                {/* R2 uploaded attachment if present */}
+                {q.fileName && (
+                  <div className="flex items-center justify-between gap-3 rounded-lg border border-border/80 bg-card p-3">
+                    <div className="flex min-w-0 items-center gap-2.5">
+                      <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-status-success/10 text-status-success">
+                        <FileText className="size-4" />
+                      </span>
+                      <div className="min-w-0">
+                        <p className="max-w-[200px] truncate text-body-xs font-bold text-foreground md:max-w-xs">{q.fileName}</p>
+                        <p className="text-body-2xs text-muted-foreground">{q.fileSize || "PDF / Gambar"} • Cloudflare R2</p>
+                      </div>
+                    </div>
+                    {q.fileKey ? (
+                      <Button
+                        variant="outline"
+                        size="xs"
+                        asChild
+                        className="gap-1 rounded-md border-border/80 text-muted-foreground hover:text-foreground"
+                      >
+                        <a
+                          href={`/api/storage/file/${q.fileKey.split("/").map(encodeURIComponent).join("/")}?download=1`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          <Download className="size-3.5" />
+                          Unduh Berkas
+                        </a>
+                      </Button>
+                    ) : (
+                      <span className="shrink-0 text-body-xs italic text-muted-foreground">
+                        Berkas tidak tersedia
+                      </span>
+                    )}
+                  </div>
+                )}
 
                 {q.isFreeResponse && input && (
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-4 pt-3 border-t border-border/60">

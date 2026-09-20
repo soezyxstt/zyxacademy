@@ -144,10 +144,23 @@ export async function GET(_req: NextRequest, { params }: Context) {
   return NextResponse.json(serializeStudentQuizAttempt(rawPayload));
 }
 
+const AnswerValueSchema = z.union([
+  z.number(),
+  z.string(),
+  z.array(z.number()),
+  z.array(z.string()),
+  z.object({
+    text: z.string().optional().default(""),
+    fileName: z.string().nullable().optional(),
+    fileSize: z.string().optional(),
+    fileKey: z.string().nullable().optional(),
+  }),
+]);
+
 const SubmitSchema = z.object({
   answers: z.record(
     z.string(),
-    z.union([z.array(z.number()), z.string(), z.array(z.string()), z.number()])
+    AnswerValueSchema
   ),
   durationSeconds: z.number().int().min(0).optional(),
 });
@@ -208,7 +221,14 @@ export async function POST(req: NextRequest, { params }: Context) {
     const qType = q.question_type || q.questionType;
     if (qType === "short_answer" || (Array.isArray(q.acceptable_answers) && q.acceptable_answers.length > 0)) {
       const acceptable = Array.isArray(q.acceptable_answers) ? q.acceptable_answers : [];
-      const text = typeof submitted === "string" ? submitted : Array.isArray(submitted) ? String(submitted[0] ?? "") : "";
+      let text = "";
+      if (typeof submitted === "string") {
+        text = submitted;
+      } else if (submitted && typeof submitted === "object" && "text" in submitted && typeof submitted.text === "string") {
+        text = submitted.text;
+      } else if (Array.isArray(submitted)) {
+        text = String(submitted[0] ?? "");
+      }
       const trimmed = text.trim().toLowerCase();
       return trimmed.length > 0 && acceptable.some((ans: string) => ans.trim().toLowerCase() === trimmed);
     }
