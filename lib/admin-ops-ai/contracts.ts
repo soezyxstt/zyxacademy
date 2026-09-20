@@ -94,6 +94,8 @@ export const OpsAiActionProposalTypeSchema = z.enum([
   "create_token",
   "navigate_page",
   "trigger_job",
+  "batch_create_chapters",
+  "bulk_update_materials",
 ]);
 export type OpsAiActionProposalType = z.infer<typeof OpsAiActionProposalTypeSchema>;
 
@@ -340,6 +342,24 @@ export const OPS_AI_TOOL_SECURITY_REGISTRY: Record<string, OpsAiToolSecurityClas
     requiresHumanConfirmation: true,
     allowsMutation: false,
     description: "Siapkan kartu proposal pembuatan token aktivasi; mutasi ditunda hingga konfirmasi admin.",
+  },
+  propose_batch_create_chapters: {
+    name: "propose_batch_create_chapters",
+    toolClass: "proposal-only",
+    isModelCallable: true,
+    requiredRole: "admin",
+    requiresHumanConfirmation: true,
+    allowsMutation: false,
+    description: "Siapkan kartu proposal pembuatan banyak bab materi sekaligus dari silabus atau daftar teks; mutasi ditunda hingga konfirmasi admin.",
+  },
+  propose_bulk_update_materials: {
+    name: "propose_bulk_update_materials",
+    toolClass: "proposal-only",
+    isModelCallable: true,
+    requiredRole: "admin",
+    requiresHumanConfirmation: true,
+    allowsMutation: false,
+    description: "Siapkan kartu proposal pembaruan metadata berkas materi kuliah; mutasi ditunda hingga konfirmasi admin.",
   },
   execute_confirmed_proposal: {
     name: "execute_confirmed_proposal",

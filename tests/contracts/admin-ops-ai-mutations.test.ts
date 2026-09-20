@@ -204,6 +204,65 @@ describe("Admin Ops AI Mutations - CP5 Server-Stored Proposal & Hardened Executo
       expect(stored?.actorId).toBe("admin-actor-42");
       expect(stored?.id).toBe(publicProposal.id);
     });
+
+    it("creates batch_create_chapters proposal with browser parameter isolation", async () => {
+      const toolResult = await executeOpsAiTool(
+        "propose_batch_create_chapters",
+        {
+          courseId: "kalkulus-1",
+          chapters: [
+            { title: "Bab 1 Limit dan Kontinuitas", orderIndex: 1 },
+            { title: "Bab 2 Turunan Fungsi", orderIndex: 2 },
+          ],
+        },
+        { actorId: "admin-academic-1", callerRole: "admin" }
+      );
+
+      expect(toolResult.summary).toContain("Proposal pembuatan 2 bab materi telah disiapkan");
+      expect(toolResult.proposal).toBeDefined();
+
+      const prop = toolResult.proposal!;
+      expect(prop.type).toBe("batch_create_chapters");
+      expect(prop.status).toBe("pending");
+      expect(prop.preview.summary).toContain("Pembuatan 2 bab materi untuk mata kuliah 'kalkulus-1'");
+      expect(prop.preview.fields?.some((f) => f.label === "Jumlah Bab" && f.value === "2 bab")).toBe(true);
+
+      // Verify browser isolation: payload not on public proposal
+      expect((prop as any).payload).toBeUndefined();
+
+      // Verify stored server payload
+      const stored = await proposalStore.getProposal(prop.id);
+      expect(stored).not.toBeNull();
+      expect((stored?.payload as any)?.courseId).toBe("kalkulus-1");
+      expect((stored?.payload as any)?.chapters?.length).toBe(2);
+    });
+
+    it("creates bulk_update_materials proposal with browser parameter isolation", async () => {
+      const toolResult = await executeOpsAiTool(
+        "propose_bulk_update_materials",
+        {
+          materialIds: ["mat-1", "mat-2"],
+          patch: {
+            year: 2025,
+            subcategory: "modul",
+          },
+        },
+        { actorId: "admin-academic-1", callerRole: "admin" }
+      );
+
+      expect(toolResult.summary).toContain("Proposal pembaruan metadata 2 berkas materi telah disiapkan");
+      expect(toolResult.proposal).toBeDefined();
+
+      const prop = toolResult.proposal!;
+      expect(prop.type).toBe("bulk_update_materials");
+      expect(prop.status).toBe("pending");
+      expect(prop.preview.summary).toContain("Pembaruan metadata untuk 2 berkas materi");
+
+      const stored = await proposalStore.getProposal(prop.id);
+      expect(stored).not.toBeNull();
+      expect((stored?.payload as any)?.materialIds).toEqual(["mat-1", "mat-2"]);
+      expect((stored?.payload as any)?.patch?.year).toBe(2025);
+    });
   });
 
   // ==========================================================================
