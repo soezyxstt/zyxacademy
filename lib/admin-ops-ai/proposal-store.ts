@@ -13,9 +13,15 @@ import {
   type ZyraProposalDbStatus,
 } from "./contracts";
 import { db } from "@/db";
-import { auditMutasi, courses, zyraProposals } from "@/db/schema";
+import { auditMutasi, courses, mataKuliah, courseMaterials, zyraProposals } from "@/db/schema";
 import { inArray, eq, and, gt } from "drizzle-orm";
 import { generateEnrollmentToken } from "@/app/(admin)/admin/(academic)/tokens/actions";
+import {
+  executeBatchCreateChapters,
+  type BatchCreateChaptersInput,
+  executeBulkUpdateMaterials,
+  type BulkUpdateMaterialsInput,
+} from "./domain-academic";
 
 // ============================================================================
 // 1. Types & Interfaces
@@ -161,6 +167,94 @@ async function defaultCreateTokenPreconditionChecker(
   }
 }
 
+/**
+ * Server-side executor for confirmed batch chapter creation proposals.
+ */
+async function defaultBatchCreateChaptersExecutor(
+  payload: BatchCreateChaptersInput,
+  context: { actorId: string; proposalId: string }
+): Promise<{ success: boolean; result?: Record<string, unknown>; error?: string }> {
+  try {
+    const res = await executeBatchCreateChapters(payload, context.actorId);
+    return {
+      success: true,
+      result: {
+        ...res.data,
+        message: res.summary,
+      },
+    };
+  } catch (err: any) {
+    return {
+      success: false,
+      error: err?.message || "Gagal membuat bab materi",
+    };
+  }
+}
+
+/**
+ * Precondition checker verifying that the target course exists before chapter creation.
+ */
+async function defaultBatchCreateChaptersPreconditionChecker(
+  proposal: ServerStoredProposal
+): Promise<boolean> {
+  const courseId = String((proposal.payload as any)?.courseId || "").trim().toLowerCase();
+  if (!courseId) return false;
+  try {
+    const existing = await db.query.courses.findFirst({ where: eq(courses.id, courseId) });
+    const existingMk = await db.query.mataKuliah.findFirst({ where: eq(mataKuliah.id, courseId) });
+    return Boolean(existing || existingMk);
+  } catch (err) {
+    console.error("[OpsAi Proposal Precondition] Database check failed for course:", err);
+    return false;
+  }
+}
+
+/**
+ * Server-side executor for confirmed bulk material metadata update proposals.
+ */
+async function defaultBulkUpdateMaterialsExecutor(
+  payload: BulkUpdateMaterialsInput,
+  context: { actorId: string; proposalId: string }
+): Promise<{ success: boolean; result?: Record<string, unknown>; error?: string }> {
+  try {
+    const res = await executeBulkUpdateMaterials(payload, context.actorId);
+    return {
+      success: true,
+      result: {
+        ...res.data,
+        message: res.summary,
+      },
+    };
+  } catch (err: any) {
+    return {
+      success: false,
+      error: err?.message || "Gagal memperbarui metadata materi",
+    };
+  }
+}
+
+/**
+ * Precondition checker verifying that all referenced material IDs exist in the database.
+ */
+async function defaultBulkUpdateMaterialsPreconditionChecker(
+  proposal: ServerStoredProposal
+): Promise<boolean> {
+  const materialIds = (proposal.payload as any)?.materialIds;
+  if (!Array.isArray(materialIds) || materialIds.length === 0) return false;
+  const uniqueIds = Array.from(new Set(materialIds.map((id) => String(id).trim()).filter(Boolean)));
+  if (uniqueIds.length === 0) return false;
+  try {
+    const found = await db
+      .select({ id: courseMaterials.id })
+      .from(courseMaterials)
+      .where(inArray(courseMaterials.id, uniqueIds));
+    return found.length === uniqueIds.length;
+  } catch (err) {
+    console.error("[OpsAi Proposal Precondition] Database check failed for materials:", err);
+    return false;
+  }
+}
+
 // ============================================================================
 // 4. OpsAiProposalStore Implementation
 // ============================================================================
@@ -178,6 +272,10 @@ export class OpsAiProposalStore {
   private initDefaults(): void {
     this.preconditionCheckers.set("create_token", defaultCreateTokenPreconditionChecker);
     this.actionExecutors.set("create_token", defaultCreateTokenExecutor);
+    this.preconditionCheckers.set("batch_create_chapters", defaultBatchCreateChaptersPreconditionChecker);
+    this.actionExecutors.set("batch_create_chapters", defaultBatchCreateChaptersExecutor);
+    this.preconditionCheckers.set("bulk_update_materials", defaultBulkUpdateMaterialsPreconditionChecker);
+    this.actionExecutors.set("bulk_update_materials", defaultBulkUpdateMaterialsExecutor);
   }
 
   /**
@@ -279,7 +377,7 @@ export class OpsAiProposalStore {
         actorId: input.actorId || "admin",
         role: "admin",
         proposalType: input.type,
-        courseId: (input.payload as any)?.courseIds?.[0] || null,
+        courseId: (input.payload as any)?.courseId || (input.payload as any)?.courseIds?.[0] || null,
         scope: {
           title: input.title,
           description: input.description,

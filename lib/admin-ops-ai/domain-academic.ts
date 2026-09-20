@@ -304,6 +304,10 @@ export interface BatchCreateChaptersInput {
   }>;
 }
 
+/**
+ * Creates multiple chapters in a single atomic database transaction.
+ * Pre-validates all chapter payloads and ensures all-or-nothing rollback on failure.
+ */
 export async function executeBatchCreateChapters(input: BatchCreateChaptersInput, actorId?: string) {
   const cleanCourseId = input.courseId.trim().toLowerCase();
   if (!cleanCourseId) throw new Error("ID Mata Kuliah wajib diisi.");
@@ -311,62 +315,75 @@ export async function executeBatchCreateChapters(input: BatchCreateChaptersInput
     throw new Error("Daftar bab yang ingin dibuat tidak boleh kosong.");
   }
 
-  // Check course exists
-  const existing = await db.query.courses.findFirst({ where: eq(courses.id, cleanCourseId) });
-  const existingMk = await db.query.mataKuliah.findFirst({ where: eq(mataKuliah.id, cleanCourseId) });
-  if (!existing && !existingMk) {
-    throw new Error(`Mata kuliah '${cleanCourseId}' tidak ditemukan.`);
-  }
-
-  // Get current max orderIndex
-  const currentChapters = await db.select({ orderIndex: bab.orderIndex }).from(bab).where(eq(bab.mataKuliahId, cleanCourseId));
-  let highestOrder = currentChapters.reduce((max, c) => Math.max(max, c.orderIndex ?? 0), 0);
-
-  const createdChapters: Array<{ id: string; title: string; orderIndex: number }> = [];
-
-  for (let i = 0; i < input.chapters.length; i++) {
-    const ch = input.chapters[i];
-    const cleanTitle = ch.title.trim();
-    if (!cleanTitle) continue;
-
-    highestOrder++;
-    const orderIndex = ch.orderIndex ?? highestOrder;
-    const chapterId = `ch-${cleanCourseId}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
-
-    try {
-      const created = await saveChapterWithCanonicalProjection({
-        courseId: cleanCourseId,
-        title: cleanTitle,
-        orderIndex,
-        description: ch.description?.trim() || null,
-        actorId: await resolvePenggunaActorId(actorId),
-      });
-      createdChapters.push({ id: created.id, title: cleanTitle, orderIndex });
-    } catch (err: any) {
-      await db.insert(chapters).values({
-        id: chapterId,
-        courseId: cleanCourseId,
-        title: cleanTitle,
-        orderIndex,
-        description: ch.description?.trim() || null,
-      });
-      await db.insert(bab).values({
-        id: chapterId,
-        mataKuliahId: cleanCourseId,
-        code: `legacy-${chapterId}`,
-        title: cleanTitle,
-        orderIndex,
-        status: "active",
-        legacyChapterId: chapterId,
-      }).onConflictDoNothing();
-      createdChapters.push({ id: chapterId, title: cleanTitle, orderIndex });
+  // Pre-validate all chapters
+  const validChapters = input.chapters.map((ch, idx) => {
+    const cleanTitle = ch.title?.trim();
+    if (!cleanTitle) {
+      throw new Error(`Bab pada indeks ${idx + 1} memiliki judul kosong.`);
     }
-  }
+    return {
+      title: cleanTitle,
+      orderIndex: typeof ch.orderIndex === "number" ? ch.orderIndex : undefined,
+      description: ch.description?.trim() || null,
+    };
+  });
 
-  return {
-    summary: `Berhasil membuat ${createdChapters.length} bab materi untuk mata kuliah '${cleanCourseId}'.`,
-    data: { courseId: cleanCourseId, createdCount: createdChapters.length, chapters: createdChapters },
-  };
+  const resolvedActorId = await resolvePenggunaActorId(actorId);
+
+  return await db.transaction(async (tx) => {
+    // Check course exists
+    const existing = await tx.query.courses.findFirst({ where: eq(courses.id, cleanCourseId) });
+    const existingMk = await tx.query.mataKuliah.findFirst({ where: eq(mataKuliah.id, cleanCourseId) });
+    if (!existing && !existingMk) {
+      throw new Error(`Mata kuliah '${cleanCourseId}' tidak ditemukan.`);
+    }
+
+    // Get current max orderIndex
+    const currentChapters = await tx.select({ orderIndex: bab.orderIndex }).from(bab).where(eq(bab.mataKuliahId, cleanCourseId));
+    let highestOrder = currentChapters.reduce((max, c) => Math.max(max, c.orderIndex ?? 0), 0);
+
+    const createdChapters: Array<{ id: string; title: string; orderIndex: number }> = [];
+
+    for (const ch of validChapters) {
+      highestOrder++;
+      const orderIndex = ch.orderIndex ?? highestOrder;
+      const chapterId = `ch-${cleanCourseId}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
+
+      try {
+        const created = await saveChapterWithCanonicalProjection({
+          courseId: cleanCourseId,
+          title: ch.title,
+          orderIndex,
+          description: ch.description,
+          actorId: resolvedActorId,
+        }, tx);
+        createdChapters.push({ id: created.id, title: ch.title, orderIndex });
+      } catch (err: any) {
+        await tx.insert(chapters).values({
+          id: chapterId,
+          courseId: cleanCourseId,
+          title: ch.title,
+          orderIndex,
+          description: ch.description,
+        });
+        await tx.insert(bab).values({
+          id: chapterId,
+          mataKuliahId: cleanCourseId,
+          code: `legacy-${chapterId}`,
+          title: ch.title,
+          orderIndex,
+          status: "active",
+          legacyChapterId: chapterId,
+        }).onConflictDoNothing();
+        createdChapters.push({ id: chapterId, title: ch.title, orderIndex });
+      }
+    }
+
+    return {
+      summary: `Berhasil membuat ${createdChapters.length} bab materi untuk mata kuliah '${cleanCourseId}'.`,
+      data: { courseId: cleanCourseId, createdCount: createdChapters.length, chapters: createdChapters },
+    };
+  });
 }
 
 export interface UpdateChapterInput {
@@ -512,6 +529,10 @@ export interface BulkUpdateMaterialsInput {
   };
 }
 
+/**
+ * Bulk updates metadata for multiple course materials within a database transaction.
+ * Requires all targeted material IDs to exist, rejecting partial targets.
+ */
 export async function executeBulkUpdateMaterials(input: BulkUpdateMaterialsInput, _actorId?: string) {
   if (!input.materialIds || !Array.isArray(input.materialIds) || input.materialIds.length === 0) {
     throw new Error("Daftar ID materi wajib diisi.");
@@ -536,6 +557,11 @@ export async function executeBulkUpdateMaterials(input: BulkUpdateMaterialsInput
 
   const foundIds = new Set(existingList.map((m) => m.id));
   const missingIds = cleanIds.filter((id) => !foundIds.has(id));
+  if (missingIds.length > 0) {
+    throw new Error(
+      `Sebagian berkas materi tidak ditemukan (${missingIds.length} berkas: ${missingIds.join(", ")}). Seluruh target harus valid sebelum pembaruan dapat diterapkan.`
+    );
+  }
 
   const { patch } = input;
   const cleanTitle = patch.title !== undefined ? patch.title.trim() : undefined;

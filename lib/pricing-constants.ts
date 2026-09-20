@@ -125,6 +125,12 @@ export type CustomPlanPriceQuote = {
   discountAmount: number;
   discountAmountPerPerson: number;
   discountPercent: number;
+  voucherDiscountPercent?: number;
+  voucherDiscountAmount?: number;
+  voucherDiscountAmountPerPerson?: number;
+  finalPrice?: number;
+  finalPricePerPerson?: number;
+  totalSavings?: number;
 };
 
 /**
@@ -135,6 +141,7 @@ export function getCustomPlanPriceQuote(
   meetings: number,
   persons: number,
   courses: number,
+  voucherDiscountPercent?: number,
 ): CustomPlanPriceQuote {
   const quantities = [meetings, persons, courses];
   if (!quantities.every((value) => Number.isInteger(value) && value > 0)) {
@@ -143,24 +150,134 @@ export function getCustomPlanPriceQuote(
   if (meetings < CUSTOM_MIN_MEETINGS || meetings % CUSTOM_MEETING_STEP !== 0) {
     throw new RangeError(`Jumlah pertemuan harus kelipatan ${CUSTOM_MEETING_STEP}.`);
   }
+  if (voucherDiscountPercent !== undefined) {
+    if (!Number.isInteger(voucherDiscountPercent) || voucherDiscountPercent < 1 || voucherDiscountPercent > 100) {
+      throw new RangeError("Persentase diskon voucher harus berupa bilangan bulat antara 1 dan 100.");
+    }
+  }
 
   const platformComponent = getPlatformCost(250, courses, persons);
   const tutorialComponent = getTutorialCost(meetings, 155, persons);
   const afterDiscount = roundPlanTotal(platformComponent + tutorialComponent, persons);
-  const beforeDiscount = Math.ceil(afterDiscount * 100 / (100 - INTRO_DISCOUNT_PERCENT));
+  const beforeDiscount = Math.ceil((afterDiscount * 100) / (100 - INTRO_DISCOUNT_PERCENT));
   const beforeDiscountPerPerson = Math.round(beforeDiscount / persons);
   const afterDiscountPerPerson = Math.round(afterDiscount / persons);
+  const discountAmount = beforeDiscount - afterDiscount;
+  const discountAmountPerPerson = beforeDiscountPerPerson - afterDiscountPerPerson;
+
+  let voucherDiscountAmount: number | undefined;
+  let voucherDiscountAmountPerPerson: number | undefined;
+  let finalPrice: number | undefined;
+  let finalPricePerPerson: number | undefined;
+  let totalSavings: number | undefined;
+
+  if (voucherDiscountPercent !== undefined && voucherDiscountPercent > 0) {
+    voucherDiscountAmount = Math.round(afterDiscount * (voucherDiscountPercent / 100));
+    finalPrice = Math.max(0, afterDiscount - voucherDiscountAmount);
+    finalPricePerPerson = Math.round(finalPrice / persons);
+    voucherDiscountAmountPerPerson = Math.round(voucherDiscountAmount / persons);
+    totalSavings = discountAmount + voucherDiscountAmount;
+  }
 
   return {
     beforeDiscount,
     beforeDiscountPerPerson,
     afterDiscount,
     afterDiscountPerPerson,
-    discountAmount: beforeDiscount - afterDiscount,
-    discountAmountPerPerson: beforeDiscountPerPerson - afterDiscountPerPerson,
+    discountAmount,
+    discountAmountPerPerson,
     discountPercent: INTRO_DISCOUNT_PERCENT,
+    voucherDiscountPercent,
+    voucherDiscountAmount,
+    voucherDiscountAmountPerPerson,
+    finalPrice,
+    finalPricePerPerson,
+    totalSavings,
   };
 }
+
+export const TUTOR_FEE_SHARE_PERCENT = 70;
+export const MANAGEMENT_FEE_SHARE_PERCENT = 30;
+
+export type TutorFeeQuoteTier = {
+  packagePrice: number;
+  tutorialPool: number;
+  tutorFeeTotal: number;
+  managementFeeTotal: number;
+  tutorFeePerMeeting: number;
+  managementFeePerMeeting: number;
+  tutorFeePerPersonPerMeeting: number;
+};
+
+export type TutorFeeQuote = {
+  meetings: number;
+  persons: number;
+  courses: number;
+  platformCost: number;
+  introductory: TutorFeeQuoteTier;
+  regular: TutorFeeQuoteTier;
+  custom?: TutorFeeQuoteTier;
+};
+
+function buildTutorFeeQuoteTier(
+  packagePrice: number,
+  platformCost: number,
+  meetings: number,
+  persons: number,
+): TutorFeeQuoteTier {
+  const tutorialPool = Math.max(0, packagePrice - platformCost);
+  const tutorFeeTotal = Math.round(tutorialPool * (TUTOR_FEE_SHARE_PERCENT / 100));
+  const managementFeeTotal = tutorialPool - tutorFeeTotal;
+  const tutorFeePerMeeting = Math.round(tutorFeeTotal / meetings);
+  const managementFeePerMeeting = Math.round(managementFeeTotal / meetings);
+  const tutorFeePerPersonPerMeeting = Math.round(tutorFeePerMeeting / persons);
+
+  return {
+    packagePrice,
+    tutorialPool,
+    tutorFeeTotal,
+    managementFeeTotal,
+    tutorFeePerMeeting,
+    managementFeePerMeeting,
+    tutorFeePerPersonPerMeeting,
+  };
+}
+
+export function getTutorFeeQuote(
+  meetings: number,
+  persons: number,
+  courses: number,
+  customPackagePrice?: number,
+): TutorFeeQuote {
+  const quantities = [meetings, persons, courses];
+  if (!quantities.every((value) => Number.isInteger(value) && value > 0)) {
+    throw new RangeError("Jumlah pertemuan, mata kuliah, dan anggota harus berupa bilangan bulat positif.");
+  }
+  if (customPackagePrice !== undefined) {
+    if (!Number.isInteger(customPackagePrice) || customPackagePrice <= 0) {
+      throw new RangeError("Harga paket kustom harus berupa bilangan bulat positif.");
+    }
+  }
+
+  const platformCost = getPlatformCost(250, courses, persons);
+  const tutorialComponent = getTutorialCost(meetings, 155, persons);
+  const afterDiscount = roundPlanTotal(platformCost + tutorialComponent, persons);
+  const beforeDiscount = Math.ceil((afterDiscount * 100) / (100 - INTRO_DISCOUNT_PERCENT));
+
+  return {
+    meetings,
+    persons,
+    courses,
+    platformCost,
+    introductory: buildTutorFeeQuoteTier(afterDiscount, platformCost, meetings, persons),
+    regular: buildTutorFeeQuoteTier(beforeDiscount, platformCost, meetings, persons),
+    custom:
+      customPackagePrice !== undefined
+        ? buildTutorFeeQuoteTier(customPackagePrice, platformCost, meetings, persons)
+        : undefined,
+  };
+}
+
 
 export function getPlanPriceQuote(
   plan: PlanKey,

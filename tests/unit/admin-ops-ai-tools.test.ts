@@ -3,8 +3,8 @@ import { executeToolCall } from "@/lib/admin-ops-ai/tools";
 import { executeOpsAiTool } from "@/lib/admin-ops-ai/runtime-tools";
 import { introspectDbSchema } from "@/lib/admin-ops-ai/schema-introspection";
 import { db } from "@/db";
-import { courseMaterials } from "@/db/schema";
-import { inArray } from "drizzle-orm";
+import { courseMaterials, chapters } from "@/db/schema";
+import { inArray, eq } from "drizzle-orm";
 
 describe("Zyx Ops AI Tools & Schema Introspection", () => {
   it("introspects known tables in database schema", async () => {
@@ -164,6 +164,55 @@ describe("Zyx Ops AI - Expanded Autonomous & Query Tools", () => {
       expect(checkList.find((m) => m.id === matId1)?.chapterIds).toContain("ch-3");
       expect(checkList.find((m) => m.id === matId2)?.year).toBe(2024);
       expect(checkList.find((m) => m.id === matId2)?.chapterIds).toContain("ch-3");
+    });
+
+    it("rolls back all chapters if chapter creation fails on an invalid item", async () => {
+      const beforeChapters = await db.select().from(chapters).where(eq(chapters.courseId, sharedCourseId));
+
+      await expect(
+        executeOpsAiTool(
+          "batch_create_chapters",
+          {
+            courseId: sharedCourseId,
+            chapters: [
+              { title: "Bab Valid Transaksi" },
+              { title: "" }, // Invalid title causing failure
+            ],
+          },
+          adminContext
+        )
+      ).rejects.toThrow("Bab pada indeks 2 memiliki judul kosong");
+
+      const afterChapters = await db.select().from(chapters).where(eq(chapters.courseId, sharedCourseId));
+      expect(afterChapters.length).toBe(beforeChapters.length);
+      expect(afterChapters.some((c) => c.title === "Bab Valid Transaksi")).toBe(false);
+    });
+
+    it("rejects bulk updating materials when some IDs are missing", async () => {
+      const matIdValid = `mat-valid-${Date.now()}`;
+      await db.insert(courseMaterials).values({
+        id: matIdValid,
+        courseId: sharedCourseId,
+        title: "Materi Valid Pra-Uji",
+        type: "materi",
+        year: 2020,
+        fileUrl: "courses/test/valid.pdf",
+        chapterIds: ["ch-1"],
+      });
+
+      await expect(
+        executeOpsAiTool(
+          "bulk_update_materials",
+          {
+            materialIds: [matIdValid, "mat-non-existent-999"],
+            patch: { year: 2026 },
+          },
+          adminContext
+        )
+      ).rejects.toThrow("Sebagian berkas materi tidak ditemukan");
+
+      const [checked] = await db.select().from(courseMaterials).where(eq(courseMaterials.id, matIdValid));
+      expect(checked.year).toBe(2020);
     });
   });
 

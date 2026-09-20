@@ -202,11 +202,14 @@ export function getCalendarMonthLabel(value: CalendarDate, locale = "id-ID"): st
 
 /**
  * Normalizes a value that may be a SQLite epoch-second integer into a JS Date.
+ * Preserves Date instances directly so valid far-future dates are not corrupted.
+ * Divides by 1000 only for raw integer values whose year exceeds 3000.
  */
 export function normalizeDate(value: Date | string | number): Date {
+  if (value instanceof Date) return value;
   const d = new Date(value);
   if (isNaN(d.getTime())) return d;
-  return d.getFullYear() > 3000 ? new Date(d.getTime() / 1000) : d;
+  return typeof value === "number" && d.getFullYear() > 3000 ? new Date(d.getTime() / 1000) : d;
 }
 
 /* ────────────────────────────────────────────────────────────────────────────

@@ -236,14 +236,55 @@ function HierarchyDocumentCard({ material, courseId }: { material: CourseMateria
   );
 }
 
-function ChapterDocuments({
-  chapter,
+/** Determines if a material is a question, quiz, tryout, or assessment asset. */
+function isSoalMaterial(material: CourseMaterial): boolean {
+  if (material.kind === "quiz" || material.kind === "tryout") return true;
+  if (material.docCategory === "soal" || material.docCategory === "solusi") return true;
+  if (material.tabGroup === "bank_soal") return true;
+  const sub = material.subcategory?.toLowerCase().trim();
+  if (sub && ["kuis", "kbf", "tutorial", "tryout"].includes(sub)) return true;
+  return false;
+}
+
+/** Determines if a material belongs to the UTS subcategory or exam scope. */
+function isUtsMaterial(material: CourseMaterial): boolean {
+  const sub = material.subcategory?.toLowerCase().trim();
+  if (sub === "uts") return true;
+  if (isSoalMaterial(material) && /\b(uts)\b/i.test(material.title)) return true;
+  return false;
+}
+
+/** Determines if a material belongs to the UAS subcategory or exam scope. */
+function isUasMaterial(material: CourseMaterial): boolean {
+  const sub = material.subcategory?.toLowerCase().trim();
+  if (sub === "uas") return true;
+  if (isSoalMaterial(material) && /\b(uas)\b/i.test(material.title)) return true;
+  return false;
+}
+
+/** Sorts materials placing dated materials first in descending order, then alphabetical by title. */
+function sortMaterials(items: CourseMaterial[]): CourseMaterial[] {
+  return [...items].sort((a, b) => {
+    if (a.year !== b.year) {
+      if (a.year == null) return 1;
+      if (b.year == null) return -1;
+      return b.year - a.year;
+    }
+    return a.title.localeCompare(b.title, "id");
+  });
+}
+
+/** Collapsible accordion row presenting a grouped document collection with uniform badge and title. */
+function CollapsibleDocumentSection({
+  badge,
+  title,
   materials,
   courseId,
   open,
   onOpenChange,
 }: {
-  chapter: Pick<Chapter, "title" | "orderIndex">;
+  badge: string;
+  title: string;
   materials: CourseMaterial[];
   courseId: string;
   open: boolean;
@@ -261,11 +302,11 @@ function ChapterDocuments({
         disabled={!hasDocuments}
         className="group flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors hover:bg-muted/30 disabled:cursor-default disabled:hover:bg-transparent sm:px-3.5"
       >
-        <span className="w-12 shrink-0 text-body-xs font-semibold text-muted-foreground">
-          Bab {chapter.orderIndex}
+        <span className="w-14 shrink-0 text-body-xs font-semibold text-muted-foreground sm:w-16">
+          {badge}
         </span>
-        <span className="min-w-0 flex-1 truncate text-body-sm font-semibold text-foreground" title={chapter.title}>
-          {chapter.title}
+        <span className="min-w-0 flex-1 truncate text-body-sm font-semibold text-foreground" title={title}>
+          {title}
         </span>
         <span className="shrink-0 text-body-xs text-muted-foreground">{materials.length} dokumen</span>
         <ChevronDown
@@ -289,43 +330,7 @@ function ChapterDocuments({
   );
 }
 
-function UnassignedDocuments({
-  materials,
-  courseId,
-  open,
-  onOpenChange,
-}: {
-  materials: CourseMaterial[];
-  courseId: string;
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-}) {
-  if (materials.length === 0) return null;
-
-  return (
-    <Collapsible open={open} onOpenChange={onOpenChange} className="border-b border-border/45 last:border-b-0">
-      <CollapsibleTrigger className="group flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors hover:bg-muted/30 sm:px-3.5">
-        <span className="w-12 shrink-0 text-body-xs font-semibold text-muted-foreground">Lainnya</span>
-        <span className="min-w-0 flex-1 truncate text-body-sm font-semibold text-foreground">
-          Dokumen tanpa bab
-        </span>
-        <span className="shrink-0 text-body-xs text-muted-foreground">{materials.length} dokumen</span>
-        <ChevronDown
-          className="size-4 shrink-0 text-muted-foreground transition-transform duration-150 group-data-[state=open]:rotate-180"
-          aria-hidden
-        />
-      </CollapsibleTrigger>
-      <CollapsibleContent>
-        <div className="grid grid-cols-1 gap-2 border-t border-border/35 bg-muted/10 p-2 sm:grid-cols-2 lg:grid-cols-3">
-          {materials.map((material) => (
-            <HierarchyDocumentCard key={material.id} material={material} courseId={courseId} />
-          ))}
-        </div>
-      </CollapsibleContent>
-    </Collapsible>
-  );
-}
-
+/** Renders the course documents client interface with tabbed views and structured collapsible sections. */
 export function CourseDocumentsClient({
   courseId,
   materials,
@@ -338,33 +343,81 @@ export function CourseDocumentsClient({
   const [urlTab, setUrlTab] = useUrlTab("tab", "all", initialTab);
   const activeTab = normalizeTabKey(urlTab);
 
-  const chapterGroups = useMemo(
-    () =>
-      chapters.map((chapter) => ({
-        chapter,
-        materials: materials.filter((material) => materialChapterIds(material).includes(chapter.id)),
-      })),
-    [chapters, materials]
-  );
-
-  const firstPopulatedChapterId = useMemo(
-    () => chapterGroups.find(({ materials: chapterMaterials }) => chapterMaterials.length > 0)?.chapter.id,
-    [chapterGroups]
-  );
-
   const knownChapterIds = useMemo(() => new Set(chapters.map((chapter) => chapter.id)), [chapters]);
-  const unassignedMaterials = useMemo(
-    () =>
-      materials.filter((material) => {
-        const ids = materialChapterIds(material);
-        return ids.length === 0 || !ids.some((id) => knownChapterIds.has(id));
-      }),
-    [knownChapterIds, materials]
-  );
 
-  const [openSection, setOpenSection] = useState<string | null>(() =>
-    firstPopulatedChapterId ? `chapter:${firstPopulatedChapterId}` : unassignedMaterials.length > 0 ? "unassigned" : null
-  );
+  const {
+    chapterGroups,
+    utsMaterials,
+    uasMaterials,
+    soalLainnyaMaterials,
+    lainLainMaterials,
+  } = useMemo(() => {
+    const uts: CourseMaterial[] = [];
+    const uas: CourseMaterial[] = [];
+    const soalLainnya: CourseMaterial[] = [];
+    const lainLain: CourseMaterial[] = [];
+
+    const chapterMaterialMap = new Map<string, CourseMaterial[]>();
+    for (const chapter of chapters) {
+      chapterMaterialMap.set(chapter.id, []);
+    }
+
+    for (const material of materials) {
+      if (isUtsMaterial(material)) {
+        uts.push(material);
+        continue;
+      }
+      if (isUasMaterial(material)) {
+        uas.push(material);
+        continue;
+      }
+      if (isSoalMaterial(material)) {
+        soalLainnya.push(material);
+        continue;
+      }
+
+      // Non-soal materials: check one-to-one relationship with chapters
+      const rawIds = materialChapterIds(material);
+      const validChapterIds = Array.from(
+        new Set(rawIds.filter((id) => knownChapterIds.has(id)))
+      );
+
+      if (validChapterIds.length === 1) {
+        const list = chapterMaterialMap.get(validChapterIds[0]);
+        if (list) {
+          list.push(material);
+        } else {
+          lainLain.push(material);
+        }
+      } else {
+        // One-to-many (>1 chapters) or 0 chapters (unassigned/general)
+        lainLain.push(material);
+      }
+    }
+
+    return {
+      chapterGroups: chapters.map((chapter) => ({
+        chapter,
+        materials: sortMaterials(chapterMaterialMap.get(chapter.id) ?? []),
+      })),
+      utsMaterials: sortMaterials(uts),
+      uasMaterials: sortMaterials(uas),
+      soalLainnyaMaterials: sortMaterials(soalLainnya),
+      lainLainMaterials: sortMaterials(lainLain),
+    };
+  }, [chapters, knownChapterIds, materials]);
+
+  const firstPopulatedSectionKey = useMemo(() => {
+    const firstChapter = chapterGroups.find(({ materials: chMats }) => chMats.length > 0);
+    if (firstChapter) return `chapter:${firstChapter.chapter.id}`;
+    if (utsMaterials.length > 0) return "special:uts";
+    if (uasMaterials.length > 0) return "special:uas";
+    if (soalLainnyaMaterials.length > 0) return "special:soal_lainnya";
+    if (lainLainMaterials.length > 0) return "special:lain_lain";
+    return null;
+  }, [chapterGroups, utsMaterials.length, uasMaterials.length, soalLainnyaMaterials.length, lainLainMaterials.length]);
+
+  const [openSection, setOpenSection] = useState<string | null>(firstPopulatedSectionKey);
 
   return (
     <div className="space-y-3 font-sans">
@@ -398,9 +451,10 @@ export function CourseDocumentsClient({
             {chapterGroups.map(({ chapter, materials: chapterMaterials }) => {
               const sectionKey = `chapter:${chapter.id}`;
               return (
-                <ChapterDocuments
+                <CollapsibleDocumentSection
                   key={chapter.id}
-                  chapter={chapter}
+                  badge={`Bab ${chapter.orderIndex}`}
+                  title={chapter.title}
                   materials={chapterMaterials}
                   courseId={courseId}
                   open={openSection === sectionKey}
@@ -408,11 +462,37 @@ export function CourseDocumentsClient({
                 />
               );
             })}
-            <UnassignedDocuments
-              materials={unassignedMaterials}
+            <CollapsibleDocumentSection
+              badge="UTS"
+              title="Ujian Tengah Semester"
+              materials={utsMaterials}
               courseId={courseId}
-              open={openSection === "unassigned"}
-              onOpenChange={(nextOpen) => setOpenSection(nextOpen ? "unassigned" : null)}
+              open={openSection === "special:uts"}
+              onOpenChange={(nextOpen) => setOpenSection(nextOpen ? "special:uts" : null)}
+            />
+            <CollapsibleDocumentSection
+              badge="UAS"
+              title="Ujian Akhir Semester"
+              materials={uasMaterials}
+              courseId={courseId}
+              open={openSection === "special:uas"}
+              onOpenChange={(nextOpen) => setOpenSection(nextOpen ? "special:uas" : null)}
+            />
+            <CollapsibleDocumentSection
+              badge="Soal"
+              title="Soal lainnya"
+              materials={soalLainnyaMaterials}
+              courseId={courseId}
+              open={openSection === "special:soal_lainnya"}
+              onOpenChange={(nextOpen) => setOpenSection(nextOpen ? "special:soal_lainnya" : null)}
+            />
+            <CollapsibleDocumentSection
+              badge="Lainnya"
+              title="Lain-lain"
+              materials={lainLainMaterials}
+              courseId={courseId}
+              open={openSection === "special:lain_lain"}
+              onOpenChange={(nextOpen) => setOpenSection(nextOpen ? "special:lain_lain" : null)}
             />
           </div>
         ) : (
