@@ -75,6 +75,9 @@ export const metadata: Metadata = {
     "Pantau progres belajar, materi, kuis, tryout ITB TPB; semua dalam satu ruang belajar personal.",
 };
 
+/**
+ * Server-rendered dashboard page displaying student course enrollments, learning progress, and academic prompts.
+ */
 export default async function DashboardPage() {
   const h = await headers();
   const session = await auth.api.getSession({ headers: h });
@@ -101,22 +104,26 @@ export default async function DashboardPage() {
     const entryYear = (user as any)?.entryYear;
 
     if (!faculty || !major || !entryYear) {
-      const [dbUser] = await db
-        .select({
-          faculty: userTable.faculty,
-          major: userTable.major,
-          entryYear: userTable.entryYear,
-        })
-        .from(userTable)
-        .where(eq(userTable.id, user.id))
-        .limit(1);
+      try {
+        const [dbUser] = await db
+          .select({
+            faculty: userTable.faculty,
+            major: userTable.major,
+            entryYear: userTable.entryYear,
+          })
+          .from(userTable)
+          .where(eq(userTable.id, user.id))
+          .limit(1);
 
-      missingFields = {
-        faculty: !dbUser?.faculty,
-        major: !dbUser?.major,
-        entryYear: !dbUser?.entryYear,
-      };
-      isProfileIncomplete = missingFields.faculty || missingFields.major || missingFields.entryYear;
+        missingFields = {
+          faculty: !dbUser?.faculty,
+          major: !dbUser?.major,
+          entryYear: !dbUser?.entryYear,
+        };
+        isProfileIncomplete = missingFields.faculty || missingFields.major || missingFields.entryYear;
+      } catch (error) {
+        console.error("[Dashboard] Failed to query academic profile fields:", error);
+      }
     }
   }
 

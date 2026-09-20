@@ -48,12 +48,7 @@ export function ProfileEditForm({ user }: ProfileEditFormProps) {
 
   const handleFacultyChange = (newFaculty: string) => {
     setSelectedFaculty(newFaculty);
-    const majors = getMajorsForFaculty(newFaculty);
-    if (majors.length > 0) {
-      setSelectedMajor(majors[0]);
-    } else {
-      setSelectedMajor("");
-    }
+    setSelectedMajor("");
   };
 
   useEffect(() => {
