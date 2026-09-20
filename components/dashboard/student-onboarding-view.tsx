@@ -42,6 +42,7 @@ export interface CatalogCourse {
 interface StudentOnboardingViewProps {
   userName: string;
   catalogCourses: CatalogCourse[];
+  studentTargetCategory?: string | null;
 }
 
 const featureHighlights = [
@@ -62,9 +63,13 @@ const featureHighlights = [
   },
 ];
 
+/**
+ * Onboarding preview view displayed on the student dashboard before enrolling in classes.
+ */
 export function StudentOnboardingView({
   userName,
   catalogCourses,
+  studentTargetCategory,
 }: StudentOnboardingViewProps) {
   const firstName = userName.split(" ")[0];
 
@@ -99,10 +104,17 @@ export function StudentOnboardingView({
           <section className="rounded-xl border border-border bg-card p-4 sm:p-5">
             <div className="mb-4 flex flex-wrap items-start justify-between gap-3 border-b border-border/60 pb-3">
               <div>
-                <h2 className="flex items-center gap-2 font-heading text-body-base font-bold text-foreground">
-                  <BookOpen className="size-4.5 text-brand-primary" />
-                  Course untukmu
-                </h2>
+                <div className="flex flex-wrap items-center gap-2">
+                  <h2 className="flex items-center gap-2 font-heading text-body-base font-bold text-foreground">
+                    <BookOpen className="size-4.5 text-brand-primary" />
+                    Course untukmu
+                  </h2>
+                  {studentTargetCategory && (
+                    <span className="rounded-md bg-brand-primary/10 px-2 py-0.5 text-body-2xs font-bold uppercase tracking-wider text-brand-primary ring-1 ring-brand-primary/20">
+                      {studentTargetCategory === "TPB" ? "Rekomendasi TPB" : `Rekomendasi ${studentTargetCategory}`}
+                    </span>
+                  )}
+                </div>
                 <p className="mt-1 text-body-xs text-muted-foreground">
                   Bab 1 dan Bab 2 gratis di setiap mata kuliah.
                 </p>
@@ -200,8 +212,19 @@ export function StudentOnboardingView({
             ) : (
               <div className="rounded-xl border border-dashed border-border/70 bg-muted/15 px-4 py-8 text-center">
                 <BookOpen className="mx-auto size-7 text-muted-foreground/60" />
-                <p className="mt-2 text-body-sm font-semibold text-foreground">Belum ada course yang tersedia</p>
-                <p className="mt-1 text-body-xs text-muted-foreground">Kembali lagi setelah materi gratis dipublikasikan.</p>
+                <p className="mt-2 text-body-sm font-semibold text-foreground">
+                  {studentTargetCategory
+                    ? `Belum ada course untuk ${studentTargetCategory}`
+                    : "Belum ada course yang tersedia"}
+                </p>
+                <p className="mt-1 text-body-xs text-muted-foreground">
+                  {studentTargetCategory
+                    ? "Mata kuliah untuk jurusan Anda akan segera tersedia. Anda juga dapat menjelajahi seluruh mata kuliah di katalog."
+                    : "Kembali lagi setelah materi gratis dipublikasikan."}
+                </p>
+                <Button asChild size="sm" variant="outline" className="mt-3 rounded-lg text-body-sm">
+                  <Link href="/courses">Lihat semua course di katalog</Link>
+                </Button>
               </div>
             )}
           </section>

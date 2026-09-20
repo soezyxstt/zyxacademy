@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
-import { Lock, ChevronRight, Calendar, Award, Clock, AlertTriangle, ArrowLeft, CheckCircle2, XCircle } from "lucide-react";
+import { Lock, ChevronRight, Calendar, Award, Clock, AlertTriangle, ArrowLeft, CheckCircle2, XCircle, FileText, Download } from "lucide-react";
 import { CoursePageShell } from "@/components/course/course-page-shell";
 import { QuizPlayer } from "@/components/course/quiz-player";
 import { EnrollmentForm } from "@/components/enrollment-form";
@@ -53,6 +53,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
+/**
+ * Formats a duration in seconds into human-readable Indonesian minutes and seconds.
+ */
 function formatDuration(seconds: number | null) {
   if (seconds == null) return "-";
   const m = Math.floor(seconds / 60);
@@ -60,6 +63,9 @@ function formatDuration(seconds: number | null) {
   return m > 0 ? `${m} menit ${s} detik` : `${s} detik`;
 }
 
+/**
+ * Extracts display text strings from option structures.
+ */
 function publicOptionTexts(value: unknown): string[] {
   const options = Array.isArray(value)
     ? value
@@ -87,6 +93,9 @@ function publicOptionTexts(value: unknown): string[] {
     .filter((option): option is string => option !== null);
 }
 
+/**
+ * Server component page for taking a quiz or reviewing completed quiz attempts.
+ */
 export default async function CourseQuizTakePage({ params, searchParams }: Props) {
   const { id, quizId } = await params;
   const { attemptId, viewDiscussion } = await searchParams;
@@ -624,15 +633,33 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
 
                   const correctIndices = q.correct_indices ?? (q as any).correctIndices ?? [];
 
+                  const submittedText = typeof rawSubmitted === "string"
+                    ? rawSubmitted
+                    : rawSubmitted && typeof rawSubmitted === "object" && "text" in rawSubmitted && typeof rawSubmitted.text === "string"
+                    ? rawSubmitted.text
+                    : Array.isArray(rawSubmitted)
+                    ? String(rawSubmitted[0] ?? "")
+                    : "";
+
+                  const submittedFileKey = rawSubmitted && typeof rawSubmitted === "object" && "fileKey" in rawSubmitted && typeof rawSubmitted.fileKey === "string"
+                    ? rawSubmitted.fileKey
+                    : null;
+
+                  const submittedFileName = rawSubmitted && typeof rawSubmitted === "object" && "fileName" in rawSubmitted && typeof rawSubmitted.fileName === "string"
+                    ? rawSubmitted.fileName
+                    : null;
+
+                  const submittedFileSize = rawSubmitted && typeof rawSubmitted === "object" && "fileSize" in rawSubmitted && typeof rawSubmitted.fileSize === "string"
+                    ? rawSubmitted.fileSize
+                    : null;
+
                   let isCorrect = false;
                   if (qType === "short_answer" || (Array.isArray((q as any).acceptable_answers) && (q as any).acceptable_answers.length > 0)) {
                     const acceptable = (q as any).acceptable_answers || [];
-                    const text = typeof rawSubmitted === "string" ? rawSubmitted : Array.isArray(rawSubmitted) ? String(rawSubmitted[0] ?? "") : "";
-                    const trimmed = text.trim().toLowerCase();
+                    const trimmed = submittedText.trim().toLowerCase();
                     isCorrect = trimmed.length > 0 && acceptable.some((ans: string) => ans.trim().toLowerCase() === trimmed);
                   } else if (qType === "essay") {
-                    const text = typeof rawSubmitted === "string" ? rawSubmitted : Array.isArray(rawSubmitted) ? String(rawSubmitted[0] ?? "") : "";
-                    isCorrect = text.trim().length > 0;
+                    isCorrect = submittedText.trim().length > 0 || Boolean(submittedFileKey);
                   } else if (qType === "multiple_choice" || !qType) {
                     const firstIdx = studentSelected[0];
                     isCorrect = firstIdx !== undefined && correctIndices.includes(firstIdx);
@@ -642,18 +669,28 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
                       studentSelected.every((val: number) => correctIndices.includes(val));
                   }
 
+                  const isEssayPending = qType === "essay" && targetAttempt?.gradingStatus === "pending";
+
                   return (
                     <div
                       key={q.id}
                       className={cn(
                         "rounded-xl border border-border/80 bg-card p-5 shadow-2xs transition-all relative overflow-hidden",
-                        isCorrect ? "border-status-success/30 bg-status-success/5" : "border-status-error/20 bg-status-error/5"
+                        isEssayPending
+                          ? "border-brand-secondary/30 bg-brand-secondary/5"
+                          : isCorrect
+                          ? "border-status-success/30 bg-status-success/5"
+                          : "border-status-error/20 bg-status-error/5"
                       )}
                     >
                       <div
                         className={cn(
                           "absolute top-0 left-0 w-1 h-full",
-                          isCorrect ? "bg-status-success" : "bg-status-error"
+                          isEssayPending
+                            ? "bg-brand-secondary"
+                            : isCorrect
+                            ? "bg-status-success"
+                            : "bg-status-error"
                         )}
                       />
 
@@ -661,7 +698,11 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
                         <div className="flex items-start gap-2.5">
                           <span className={cn(
                             "flex size-7 shrink-0 items-center justify-center rounded-lg text-body-sm font-bold text-white shadow-xs",
-                            isCorrect ? "bg-status-success" : "bg-status-error"
+                            isEssayPending
+                              ? "bg-brand-secondary"
+                              : isCorrect
+                              ? "bg-status-success"
+                              : "bg-status-error"
                           )}>
                             {idx + 1}
                           </span>
@@ -675,12 +716,22 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
                               )}>
                                 {q.difficulty}
                               </span>
-                              {isCorrect ? (
+                              {qType === "essay" ? (
+                                isEssayPending ? (
+                                  <span className="inline-flex items-center gap-0.5 text-body-xs text-brand-secondary font-semibold">
+                                    <Clock className="size-3.5" /> Menunggu Koreksi
+                                  </span>
+                                ) : (
                                   <span className="inline-flex items-center gap-0.5 text-body-xs text-status-success font-semibold">
+                                    <CheckCircle2 className="size-3.5" /> Telah Dinilai
+                                  </span>
+                                )
+                              ) : isCorrect ? (
+                                <span className="inline-flex items-center gap-0.5 text-body-xs text-status-success font-semibold">
                                   <CheckCircle2 className="size-3.5" /> Benar
                                 </span>
                               ) : (
-                                  <span className="inline-flex items-center gap-0.5 text-body-xs text-status-error font-semibold">
+                                <span className="inline-flex items-center gap-0.5 text-body-xs text-status-error font-semibold">
                                   <XCircle className="size-3.5" /> Salah
                                 </span>
                               )}
@@ -692,45 +743,118 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
                         </div>
                       </div>
 
-                      {/* Options list */}
-                      <ul className="mt-4 pl-9 space-y-2">
-                        {q.options.map((opt, i) => {
-                          const isStudentChoice = studentSelected.includes(i);
-                          const isCorrectChoice = correctIndices.includes(i);
-
-                          return (
-                            <li
-                              key={i}
-                              className={cn(
-                                "flex items-center gap-3 rounded-lg border px-4 py-2.5 text-body-sm font-medium leading-normal",
-                                isStudentChoice && isCorrectChoice
-                                  ? "border-status-success bg-status-success/10 text-status-success"
-                                  : isStudentChoice && !isCorrectChoice
-                                  ? "border-status-error bg-status-error/10 text-status-error"
-                                  : !isStudentChoice && isCorrectChoice
-                                  ? "border-status-success/50 border-dashed bg-status-success/5 text-foreground"
-                                  : "border-border bg-background/50 text-muted-foreground"
-                              )}
-                            >
-                              <span className={cn(
-                                "flex size-6 shrink-0 items-center justify-center rounded-full text-body-xs font-bold font-sans",
-                                isStudentChoice && isCorrectChoice
-                                  ? "bg-status-success text-white"
-                                  : isStudentChoice && !isCorrectChoice
-                                  ? "bg-status-error text-white"
-                                  : isCorrectChoice
-                                  ? "border border-status-success text-status-success"
-                                  : "bg-muted text-muted-foreground"
-                              )}>
-                                {String.fromCharCode(65 + i)}
+                      {/* Content rendering depending on question type */}
+                      {qType === "short_answer" ? (
+                        <div className="mt-4 pl-9 space-y-2.5">
+                          <div className="rounded-lg border border-border bg-background/60 p-3">
+                            <span className="text-body-2xs font-semibold uppercase tracking-wider text-muted-foreground block mb-1">
+                              Jawaban Anda:
+                            </span>
+                            <p className="text-body-sm font-medium text-foreground">
+                              {submittedText.trim() || <span className="text-muted-foreground italic">(Tidak menjawab)</span>}
+                            </p>
+                          </div>
+                          {(q as any).acceptable_answers && (q as any).acceptable_answers.length > 0 && (
+                            <div className="rounded-lg border border-status-success/30 bg-status-success/5 p-3">
+                              <span className="text-body-2xs font-semibold uppercase tracking-wider text-status-success block mb-1">
+                                Kunci Jawaban yang Diterima:
                               </span>
-                              <div className="flex-1">
-                                <MarkdownRenderer content={opt} className="space-y-3" />
+                              <p className="text-body-sm font-medium text-foreground">
+                                {(q as any).acceptable_answers.join(" / ")}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      ) : qType === "essay" ? (
+                        <div className="mt-4 pl-9 space-y-3">
+                          <div className="rounded-lg border border-border bg-background/60 p-3.5">
+                            <span className="text-body-2xs font-semibold uppercase tracking-wider text-muted-foreground block mb-1">
+                              Jawaban Esai Anda:
+                            </span>
+                            <p className="text-body-sm font-medium text-foreground whitespace-pre-wrap leading-relaxed">
+                              {submittedText.trim() || <span className="text-muted-foreground italic">(Tidak menuliskan esai teks)</span>}
+                            </p>
+                          </div>
+
+                          {submittedFileName && (
+                            <div className="flex items-center justify-between gap-3 rounded-lg border border-border/80 bg-card p-3">
+                              <div className="flex min-w-0 items-center gap-2.5">
+                                <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-status-success/10 text-status-success">
+                                  <FileText className="size-4" />
+                                </span>
+                                <div className="min-w-0">
+                                  <p className="max-w-[200px] truncate text-body-xs font-bold text-foreground md:max-w-xs">{submittedFileName}</p>
+                                  <p className="text-body-2xs text-muted-foreground">{submittedFileSize || "PDF / Gambar"} • Cloudflare R2</p>
+                                </div>
                               </div>
-                            </li>
-                          );
-                        })}
-                      </ul>
+                              {submittedFileKey ? (
+                                <Button
+                                  variant="outline"
+                                  size="xs"
+                                  asChild
+                                  className="gap-1 rounded-md border-border/80 text-muted-foreground hover:text-foreground"
+                                >
+                                  <a
+                                    href={`/api/storage/file/${submittedFileKey.split("/").map(encodeURIComponent).join("/")}?download=1`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                  >
+                                    <Download className="size-3.5" />
+                                    Unduh Lampiran
+                                  </a>
+                                </Button>
+                              ) : null}
+                            </div>
+                          )}
+
+                          {isEssayPending ? (
+                            <div className="flex items-center gap-2 rounded-lg border border-brand-secondary/30 bg-brand-secondary/5 p-3 text-body-xs text-brand-secondary">
+                              <Clock className="size-4 shrink-0" />
+                              <span>Jawaban esai ini sedang menunggu koreksi dan penilaian oleh tutor.</span>
+                            </div>
+                          ) : null}
+                        </div>
+                      ) : (
+                        /* Options list for Multiple Choice */
+                        <ul className="mt-4 pl-9 space-y-2">
+                          {q.options.map((opt, i) => {
+                            const isStudentChoice = studentSelected.includes(i);
+                            const isCorrectChoice = correctIndices.includes(i);
+
+                            return (
+                              <li
+                                key={i}
+                                className={cn(
+                                  "flex items-center gap-3 rounded-lg border px-4 py-2.5 text-body-sm font-medium leading-normal",
+                                  isStudentChoice && isCorrectChoice
+                                    ? "border-status-success bg-status-success/10 text-status-success"
+                                    : isStudentChoice && !isCorrectChoice
+                                    ? "border-status-error bg-status-error/10 text-status-error"
+                                    : !isStudentChoice && isCorrectChoice
+                                    ? "border-status-success/50 border-dashed bg-status-success/5 text-foreground"
+                                    : "border-border bg-background/50 text-muted-foreground"
+                                )}
+                              >
+                                <span className={cn(
+                                  "flex size-6 shrink-0 items-center justify-center rounded-full text-body-xs font-bold font-sans",
+                                  isStudentChoice && isCorrectChoice
+                                    ? "bg-status-success text-white"
+                                    : isStudentChoice && !isCorrectChoice
+                                    ? "bg-status-error text-white"
+                                    : isCorrectChoice
+                                    ? "border border-status-success text-status-success"
+                                    : "bg-muted text-muted-foreground"
+                                )}>
+                                  {String.fromCharCode(65 + i)}
+                                </span>
+                                <div className="flex-1">
+                                  <MarkdownRenderer content={opt} className="space-y-3" />
+                                </div>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      )}
 
                       {/* Explanation box */}
                       {q.explanation && (

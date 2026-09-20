@@ -92,6 +92,9 @@ function safeResponseSnapshot(
   };
 }
 
+/**
+ * Evaluates if a submitted answer is deterministically correct for supported question types.
+ */
 export function checkDeterministicCorrectness(q: LegacyQuizQuestionSnapshot, submitted: unknown): boolean {
   const qType = q.question_type || q.questionType;
   if (qType === "short_answer" || (Array.isArray(q.acceptable_answers) && q.acceptable_answers.length > 0)) {
@@ -692,8 +695,18 @@ export async function getQuizAttemptDetailsForGrading(
     const isDeterministicCorrect = checkDeterministicCorrectness(q, submitted);
 
     let submittedText = "";
+    let fileName: string | null = null;
+    let fileKey: string | null = null;
+    let fileSize: string | null = null;
+
     if (typeof submitted === "string") {
       submittedText = submitted;
+    } else if (submitted && typeof submitted === "object" && !Array.isArray(submitted)) {
+      const subObj = submitted as Record<string, unknown>;
+      submittedText = typeof subObj.text === "string" ? subObj.text : "";
+      fileName = typeof subObj.fileName === "string" ? subObj.fileName : null;
+      fileKey = typeof subObj.fileKey === "string" ? subObj.fileKey : null;
+      fileSize = typeof subObj.fileSize === "string" ? subObj.fileSize : null;
     } else if (Array.isArray(submitted)) {
       if (qType === "multiple_choice" || qType === "multiple_choices") {
         const opts = Array.isArray(q.options) ? q.options : [];
@@ -721,6 +734,9 @@ export async function getQuizAttemptDetailsForGrading(
       acceptableAnswers: q.acceptable_answers,
       submittedAnswer: submitted,
       submittedText,
+      fileName,
+      fileKey,
+      fileSize,
       isDeterministicCorrect,
       currentScore: existing?.score !== null && existing?.score !== undefined ? Math.round(existing.score * 100) : null,
       currentStatus: existing?.status ?? (qType === "essay" ? "needs_review" : isDeterministicCorrect ? "correct" : "incorrect"),

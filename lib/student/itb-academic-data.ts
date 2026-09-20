@@ -174,3 +174,75 @@ export function isTpbStudent(entryYear?: number | null, major?: string | null): 
   }
   return false;
 }
+
+/**
+ * Normalizes an academic category string for comparison.
+ */
+function normalizeCategory(value: string): string {
+  return value.trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+/**
+ * Returns the target course category matching the student's academic profile.
+ * - If student is in TPB, returns "TPB".
+ * - If student has a specific major (e.g. "Teknik Mesin"), returns that major name.
+ * - If no major is provided, returns null.
+ */
+export function getStudentTargetCategory(
+  major?: string | null,
+  entryYear?: number | null
+): string | null {
+  if (!major || !major.trim()) return null;
+  if (isTpbStudent(entryYear, major)) {
+    return "TPB";
+  }
+  return major.trim();
+}
+
+/**
+ * Known alias map between ITB major naming and courses category enum if minor differences exist.
+ */
+const MAJOR_CATEGORY_ALIASES: Record<string, string> = {
+  "manajemen rekayasa industri": "manajemen rekayasa",
+  "rekayasa dan pengelolaan sumber daya air": "teknik dan pengelolaan sumber daya air",
+  "rekayasa tata kelola air terpadu": "teknik dan pengelolaan sumber daya air",
+};
+
+/**
+ * Checks whether a course category matches the student's academic profile.
+ * - If student profile major is not set, returns true (fallback to all courses).
+ * - If student is TPB, only courses with category "TPB" match.
+ * - If student is in a specific major (e.g. "Teknik Mesin"), only courses with category "Teknik Mesin" match.
+ */
+export function isCourseMatchingMajor(
+  courseCategory: string,
+  studentMajor?: string | null,
+  studentEntryYear?: number | null
+): boolean {
+  if (!studentMajor || !studentMajor.trim()) {
+    return true;
+  }
+
+  const targetCategory = getStudentTargetCategory(studentMajor, studentEntryYear);
+  if (!targetCategory) {
+    return true;
+  }
+
+  const normCourseCat = normalizeCategory(courseCategory);
+  const normTarget = normalizeCategory(targetCategory);
+
+  if (normTarget === "tpb") {
+    return normCourseCat === "tpb";
+  }
+
+  if (normCourseCat === normTarget) {
+    return true;
+  }
+
+  const alias = MAJOR_CATEGORY_ALIASES[normTarget];
+  if (alias && normCourseCat === alias) {
+    return true;
+  }
+
+  return false;
+}

@@ -20,6 +20,7 @@ import { normalizeDate } from '@/lib/date-utils';
 import { serializeStudentQuizAttempt } from '@/lib/assessment-serialization';
 import { dualWriteQuizAttempt } from '@/lib/migrasi/repository-kompatibilitas';
 import { gradeStableOptionAnswer } from '@/lib/asesmen/attempt';
+import { quizAttachmentPrefix } from '@/lib/storage/keys';
 import {
   buildLegacyGradingPolicySnapshot,
   buildLegacyRenderedQuestionSnapshot,
@@ -144,10 +145,23 @@ export async function GET(_req: NextRequest, { params }: Context) {
   return NextResponse.json(serializeStudentQuizAttempt(rawPayload));
 }
 
+const AnswerValueSchema = z.union([
+  z.number(),
+  z.string(),
+  z.array(z.number()),
+  z.array(z.string()),
+  z.object({
+    text: z.string().optional().default(""),
+    fileName: z.string().nullable().optional(),
+    fileSize: z.string().optional(),
+    fileKey: z.string().nullable().optional(),
+  }),
+]);
+
 const SubmitSchema = z.object({
   answers: z.record(
     z.string(),
-    z.union([z.array(z.number()), z.string(), z.array(z.string()), z.number()])
+    AnswerValueSchema
   ),
   durationSeconds: z.number().int().min(0).optional(),
 });
@@ -202,13 +216,43 @@ export async function POST(req: NextRequest, { params }: Context) {
  }
 
   const { answers, durationSeconds } = parsed.data;
+
+  // Validate that any attached fileKey belongs to this quiz template and was registered by this attempt
+  const expectedAttachmentPrefix = quizAttachmentPrefix(attempt.templateId);
+  const currentSnap = (attempt.answersSnapshot as Record<string, any>) || {};
+  const registeredAttachments = (currentSnap._attachments as Record<string, any>) || {};
+
+  for (const [qId, ansVal] of Object.entries(answers)) {
+    if (ansVal && typeof ansVal === "object" && !Array.isArray(ansVal) && "fileKey" in ansVal) {
+      const fileKey = (ansVal as { fileKey?: unknown }).fileKey;
+      if (typeof fileKey === "string" && fileKey.trim().length > 0) {
+        if (!fileKey.startsWith(expectedAttachmentPrefix) || !registeredAttachments[fileKey]) {
+          return NextResponse.json(
+            { error: `Kunci berkas lampiran tidak valid untuk soal ${qId}.` },
+            { status: 400 },
+          );
+        }
+      }
+    }
+  }
+
   const snapshot = attempt.questionsSnapshot as LegacyQuizQuestionSnapshot[];
 
+  /**
+   * Evaluates if a submitted answer is deterministically correct for supported question types.
+   */
   function checkAnswerCorrectness(q: any, submitted: any): boolean {
     const qType = q.question_type || q.questionType;
     if (qType === "short_answer" || (Array.isArray(q.acceptable_answers) && q.acceptable_answers.length > 0)) {
       const acceptable = Array.isArray(q.acceptable_answers) ? q.acceptable_answers : [];
-      const text = typeof submitted === "string" ? submitted : Array.isArray(submitted) ? String(submitted[0] ?? "") : "";
+      let text = "";
+      if (typeof submitted === "string") {
+        text = submitted;
+      } else if (submitted && typeof submitted === "object" && "text" in submitted && typeof submitted.text === "string") {
+        text = submitted.text;
+      } else if (Array.isArray(submitted)) {
+        text = String(submitted[0] ?? "");
+      }
       const trimmed = text.trim().toLowerCase();
       return trimmed.length > 0 && acceptable.some((ans: string) => ans.trim().toLowerCase() === trimmed);
     }
@@ -341,7 +385,10 @@ export async function POST(req: NextRequest, { params }: Context) {
         gradingStatus,
         score,
         durationSeconds: finalDurationSeconds,
-        answersSnapshot: answers as unknown as Record<string, unknown>,
+        answersSnapshot: {
+          ...answers,
+          _attachments: registeredAttachments,
+        } as unknown as Record<string, unknown>,
         submittedAt: now,
         strongAreas,
         weakAreas,
@@ -354,7 +401,10 @@ export async function POST(req: NextRequest, { params }: Context) {
       studentId: attempt.studentId,
       status: 'completed',
       questionsSnapshot: snapshot,
-      answersSnapshot: answers,
+      answersSnapshot: {
+        ...answers,
+        _attachments: registeredAttachments,
+      },
       startedAt: normalizeDate(attempt.startedAt),
       submittedAt: now,
     }, attempt.studentId);
