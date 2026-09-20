@@ -14,7 +14,10 @@ import { db } from "@/db";
 import { user as userTable } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { allowedCategories } from "@/app/(admin)/admin/(academic)/courses/constants";
-import { getStudentTargetCategory } from "@/lib/student/itb-academic-data";
+import {
+  getStudentTargetCategory,
+  isCourseMatchingMajor,
+} from "@/lib/student/itb-academic-data";
 import {
   getCourseMaterials,
   getCourseQuizzes,
@@ -29,6 +32,9 @@ export const metadata: Metadata = {
   description: "Katalog course Zyx Academy, enrollment diaktifkan oleh admin sesuai paket.",
 };
 
+/**
+ * Normalizes course category string to a consistent display title from the predefined category catalog.
+ */
 function formatCategoryName(raw: string): string {
   const trimmed = raw.trim();
   if (trimmed.toUpperCase() === "TPB") return "TPB";
@@ -40,6 +46,9 @@ function formatCategoryName(raw: string): string {
   return trimmed.charAt(0).toUpperCase() + trimmed.slice(1);
 }
 
+/**
+ * Server component page for browsing course catalog grouped by academic major.
+ */
 export default async function CoursesPage() {
   const session = await auth.api.getSession({ headers: await headers() });
   let studentMajor: string | null = null;
@@ -110,7 +119,10 @@ export default async function CoursesPage() {
 
   const groups: CourseGroup[] = Array.from(groupsMap.entries()).map(([jurusan, items]) => ({
     jurusan,
-    isStudentMajor: normTarget ? jurusan.toLowerCase() === normTarget.toLowerCase() : false,
+    isStudentMajor: Boolean(
+      studentTargetCategory &&
+      isCourseMatchingMajor(jurusan, studentMajor, studentEntryYear)
+    ),
     courses: items,
   }));
 

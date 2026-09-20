@@ -80,6 +80,9 @@ export const metadata: Metadata = {
     "Pantau progres belajar, materi, kuis, tryout ITB TPB; semua dalam satu ruang belajar personal.",
 };
 
+/**
+ * Student personal learning dashboard displaying active classes, daily plan, review queues, and recommendations.
+ */
 export default async function DashboardPage() {
   const h = await headers();
   const session = await auth.api.getSession({ headers: h });
@@ -208,7 +211,7 @@ export default async function DashboardPage() {
     materialsCount: number;
   }> = [];
 
-  if (isEnrolledInAny && user?.id && studentMajor) {
+  if (isEnrolledInAny && user?.id) {
     const dbCourses = await listStudentCourses();
     const TEST_COURSE_IDS = new Set([
       "embed-test-course",

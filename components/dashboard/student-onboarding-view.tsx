@@ -63,6 +63,9 @@ const featureHighlights = [
   },
 ];
 
+/**
+ * Onboarding preview view displayed on the student dashboard before enrolling in classes.
+ */
 export function StudentOnboardingView({
   userName,
   catalogCourses,

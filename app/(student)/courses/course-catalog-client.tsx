@@ -27,6 +27,9 @@ interface CourseCatalogClientProps {
   studentTargetCategory?: string | null;
 }
 
+/**
+ * Converts a major name into a URL-friendly slug for tab addresses.
+ */
 function slugifyJurusan(jurusan: string): string {
   return jurusan
     .toLowerCase()
@@ -35,6 +38,9 @@ function slugifyJurusan(jurusan: string): string {
     .replace(/\s+/g, "-");
 }
 
+/**
+ * Interactive client component that groups and renders courses by academic major with tab navigation.
+ */
 export function CourseCatalogClient({
   groups,
   studentTargetCategory,
@@ -59,11 +65,11 @@ export function CourseCatalogClient({
                 <span className="rounded-md bg-brand-secondary/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-brand-secondary ring-1 ring-brand-secondary/20">
                   Maba ITB
                 </span>
-              ) : (
+              ) : c.category.trim().toLowerCase() === "tpb" ? (
                 <span className="rounded-md border border-border/60 bg-muted/40 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
                   ITB TPB
                 </span>
-              )}
+              ) : null}
             </div>
             <span className="flex size-7 items-center justify-center rounded-lg border border-border/60 bg-background/50 text-muted-foreground transition-all duration-200 group-hover:border-brand-primary/30 group-hover:bg-brand-primary/10 group-hover:text-brand-primary shrink-0">
               <ArrowRight className="size-3.5 transition-transform duration-200 group-hover:translate-x-0.5" />
@@ -74,7 +80,7 @@ export function CourseCatalogClient({
             {c.title}
           </h3>
           <p className="mt-1.5 line-clamp-2 text-body-xs leading-relaxed text-muted-foreground">
-            {c.description || "Kelas persiapan dan modul terstruktur ITB TPB."}
+            {c.description || `Kelas persiapan dan modul terstruktur untuk ${c.category}.`}
           </p>
         </div>
 
