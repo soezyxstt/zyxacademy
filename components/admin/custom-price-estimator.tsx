@@ -58,12 +58,27 @@ export function CustomPriceEstimator({
   const [values, setValues] = useState<QuantityValues>(initialValues);
   const [selectedVoucherCode, setSelectedVoucherCode] = useState<string>("none");
   const [activeVouchers, setActiveVouchers] = useState<ActiveDiscountVoucher[]>(initialVouchers ?? []);
+  const [isLoadingVouchers, setIsLoadingVouchers] = useState<boolean>(!initialVouchers);
+  const [voucherError, setVoucherError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!initialVouchers) {
-      getActiveDiscountVouchers().then((vouchers) => {
-        setActiveVouchers(vouchers);
-      });
+      setIsLoadingVouchers(true);
+      setVoucherError(null);
+      getActiveDiscountVouchers()
+        .then((res) => {
+          if (res.success && res.data) {
+            setActiveVouchers(res.data);
+          } else {
+            setVoucherError(res.error ?? "Gagal memuat voucher aktif.");
+          }
+        })
+        .catch((err) => {
+          setVoucherError(err instanceof Error ? err.message : "Gagal memuat voucher aktif.");
+        })
+        .finally(() => {
+          setIsLoadingVouchers(false);
+        });
     }
   }, [initialVouchers]);
 
@@ -248,6 +263,14 @@ export function CustomPriceEstimator({
                 </Badge>
                 <span>Potongan tambahan dari harga promo</span>
               </div>
+            ) : voucherError ? (
+              <p className="text-body-2xs text-destructive" role="alert">
+                {voucherError}
+              </p>
+            ) : isLoadingVouchers ? (
+              <p className="text-body-2xs text-muted-foreground">
+                Memuat voucher aktif...
+              </p>
             ) : (
               <p className="text-body-2xs text-muted-foreground">
                 {activeVouchers.length > 0

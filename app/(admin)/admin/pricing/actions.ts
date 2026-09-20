@@ -44,6 +44,19 @@ export type ActionResult<T = void> = {
 };
 
 /**
+ * Maps catch-block errors to safe user-facing error messages while preserving
+ * explicit unauthorized/forbidden admin guard messages.
+ */
+function toSafeActionError(error: unknown, fallbackMessage: string): string {
+  if (error instanceof Error) {
+    if (error.message === "Unauthorized" || error.message.includes("admin role required")) {
+      return error.message;
+    }
+  }
+  return fallbackMessage;
+}
+
+/**
  * Fetch all discount vouchers for admin management
  */
 export async function getDiscountVouchers(): Promise<ActionResult<DiscountVoucherItem[]>> {
@@ -70,9 +83,10 @@ export async function getDiscountVouchers(): Promise<ActionResult<DiscountVouche
       })),
     };
   } catch (error) {
+    console.error("[getDiscountVouchers]", error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Gagal memuat daftar voucher.",
+      error: toSafeActionError(error, "Gagal memuat daftar voucher."),
     };
   }
 }
@@ -80,7 +94,7 @@ export async function getDiscountVouchers(): Promise<ActionResult<DiscountVouche
 /**
  * Fetch active vouchers that can be applied to student custom plans
  */
-export async function getActiveDiscountVouchers(): Promise<ActiveDiscountVoucher[]> {
+export async function getActiveDiscountVouchers(): Promise<ActionResult<ActiveDiscountVoucher[]>> {
   try {
     await assertAdmin();
 
@@ -97,16 +111,23 @@ export async function getActiveDiscountVouchers(): Promise<ActiveDiscountVoucher
       )
       .orderBy(desc(discountVouchers.discountPercent));
 
-    return rows.map((v) => ({
-      id: v.id,
-      code: v.code,
-      discountPercent: v.discountPercent,
-      remainingQuota: Math.max(0, v.maxQuota - v.usedQuota),
-      expiresAt: normalizeDate(v.expiresAt),
-      description: v.description,
-    }));
-  } catch {
-    return [];
+    return {
+      success: true,
+      data: rows.map((v) => ({
+        id: v.id,
+        code: v.code,
+        discountPercent: v.discountPercent,
+        remainingQuota: Math.max(0, v.maxQuota - v.usedQuota),
+        expiresAt: normalizeDate(v.expiresAt),
+        description: v.description,
+      })),
+    };
+  } catch (error) {
+    console.error("[getActiveDiscountVouchers]", error);
+    return {
+      success: false,
+      error: toSafeActionError(error, "Gagal memuat voucher aktif."),
+    };
   }
 }
 
@@ -217,9 +238,10 @@ export async function createDiscountVoucher(
       },
     };
   } catch (error) {
+    console.error("[createDiscountVoucher]", error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Gagal membuat voucher baru.",
+      error: toSafeActionError(error, "Gagal membuat voucher baru."),
     };
   }
 }
@@ -242,9 +264,10 @@ export async function toggleDiscountVoucherStatus(
     revalidatePath("/admin/pricing");
     return { success: true };
   } catch (error) {
+    console.error("[toggleDiscountVoucherStatus]", error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Gagal mengubah status voucher.",
+      error: toSafeActionError(error, "Gagal mengubah status voucher."),
     };
   }
 }
@@ -261,9 +284,10 @@ export async function deleteDiscountVoucher(id: string): Promise<ActionResult> {
     revalidatePath("/admin/pricing");
     return { success: true };
   } catch (error) {
+    console.error("[deleteDiscountVoucher]", error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Gagal menghapus voucher.",
+      error: toSafeActionError(error, "Gagal menghapus voucher."),
     };
   }
 }

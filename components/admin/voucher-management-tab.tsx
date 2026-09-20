@@ -476,16 +476,16 @@ export function VoucherManagementTab({
         title="Hapus voucher"
         description={
           deleteTarget ? (
-            <div className="space-y-2">
-              <p>
+            <span className="block space-y-2">
+              <span className="block">
                 Apakah Anda yakin ingin menghapus voucher &quot;{deleteTarget.code}&quot;? Tindakan ini tidak dapat dibatalkan.
-              </p>
+              </span>
               {deleteError && (
-                <p className="rounded-md border border-status-error/30 bg-status-error/10 p-2 text-body-xs font-medium text-status-error">
+                <span className="block rounded-md border border-status-error/30 bg-status-error/10 p-2 text-body-xs font-medium text-status-error">
                   {deleteError}
-                </p>
+                </span>
               )}
-            </div>
+            </span>
           ) : (
             ""
           )
