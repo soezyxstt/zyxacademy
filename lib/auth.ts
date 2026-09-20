@@ -41,19 +41,31 @@ export const auth = betterAuth({
  },
  },
  // We map the database user fields to better-auth
- user: {
- additionalFields: {
- role: {
- type: "string",
- required: false,
- defaultValue: "student", // Defaults to student as per your schema
- },
- lastActivityAt: {
- type: "date",
- required: false,
- }
-   }
- },
+  user: {
+  additionalFields: {
+  role: {
+  type: "string",
+  required: false,
+  defaultValue: "student", // Defaults to student as per your schema
+  },
+  lastActivityAt: {
+  type: "date",
+  required: false,
+  },
+  faculty: {
+  type: "string",
+  required: false,
+  },
+  major: {
+  type: "string",
+  required: false,
+  },
+  entryYear: {
+  type: "number",
+  required: false,
+  },
+    }
+  },
  databaseHooks: {
   user: {
    create: {
