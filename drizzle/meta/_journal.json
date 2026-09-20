@@ -666,6 +666,13 @@
       "when": 1789795736605,
       "tag": "0094_premium_zaran",
       "breakpoints": true
+    },
+    {
+      "idx": 95,
+      "version": "6",
+      "when": 1789915233020,
+      "tag": "0095_new_mojo",
+      "breakpoints": true
     }
   ]
 }

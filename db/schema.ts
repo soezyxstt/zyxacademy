@@ -28,6 +28,9 @@ export const user = sqliteTable("user", {
  .notNull(),
  role: text("role").$type<"admin" | "teacher" | "student">().default("student"),
  lastActivityAt: integer("last_activity_at", { mode: "timestamp" }),
+ faculty: text("faculty"),
+ major: text("major"),
+ entryYear: integer("entry_year"),
 });
 
 /** User-controlled optional email categories. Essential transactional email bypasses this table. */
