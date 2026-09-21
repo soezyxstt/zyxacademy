@@ -513,7 +513,7 @@ function canonicalBatchForRun(run: ReturnType<typeof readMcpRunToken>, draft: No
   return {
     courseId: run.courseId,
     chapterId: run.chapterId,
-    reviewStatus: "generated" as const,
+    reviewStatus: "published" as const,
     items: draft.items.map((item) => ({
       questionId: questionIdForRun(run.runId, item.externalId),
       question: item.question,

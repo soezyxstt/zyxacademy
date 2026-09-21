@@ -271,7 +271,7 @@ export function QuizForm({
     async function loadQuestions() {
       setLoadingQuestions(true);
       try {
-        const res = await fetch(`/api/admin/questions?courseId=${courseId}&reviewStatus=published&limit=500`);
+        const res = await fetch(`/api/admin/questions?courseId=${courseId}&limit=500`);
         if (res.ok && active) {
           const data = await res.json();
           setCourseQuestions(data || []);

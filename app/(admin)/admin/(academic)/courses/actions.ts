@@ -19,7 +19,7 @@ import {
 } from "@/db/schema";
 import { assertAdmin } from "@/lib/auth/admin-guards";
 import { z } from "zod";
-import { eq, asc, desc, inArray, and, or } from "drizzle-orm";
+import { eq, asc, desc, inArray, and, or, sql } from "drizzle-orm";
 import { randomUUID } from "crypto";
 import { storage } from "@/lib/storage";
 import { isSafeKey, joinKey, slugifySegment } from "@/lib/storage/keys";
@@ -365,9 +365,13 @@ export async function getCourseDetailData(courseId: string) {
     db
       .select()
       .from(aiQuestionBank)
-      .where(or(eq(aiQuestionBank.courseId, canonicalCourseId), eq(aiQuestionBank.courseId, legacyCourseId)))
-      .orderBy(desc(aiQuestionBank.createdAt))
-      .limit(100),
+      .where(
+        and(
+          or(eq(aiQuestionBank.courseId, canonicalCourseId), eq(aiQuestionBank.courseId, legacyCourseId)),
+          sql`${aiQuestionBank.status} != 'retired'`
+        )
+      )
+      .orderBy(sql`(CASE WHEN ${aiQuestionBank.createdAt} > 10000000000 THEN ${aiQuestionBank.createdAt} / 1000 ELSE ${aiQuestionBank.createdAt} END) DESC`),
   ]);
 
   // Map chapters from canonical bab if available, preserving legacy descriptions

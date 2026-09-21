@@ -64,12 +64,15 @@ export async function GET(req: NextRequest) {
   if (search) {
     conditions.push(sql`${aiQuestionBank.prompt} LIKE ${`%${search}%`}`);
   }
+  if (!reviewStatus) {
+    conditions.push(sql`${aiQuestionBank.status} != 'retired'`);
+  }
 
   const questions = await db
     .select()
     .from(aiQuestionBank)
     .where(conditions.length > 0 ? and(...conditions) : undefined)
-    .orderBy(desc(aiQuestionBank.createdAt))
+    .orderBy(sql`(CASE WHEN ${aiQuestionBank.createdAt} > 10000000000 THEN ${aiQuestionBank.createdAt} / 1000 ELSE ${aiQuestionBank.createdAt} END) DESC`)
     .limit(limit)
     .offset(offset);
 
