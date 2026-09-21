@@ -444,6 +444,19 @@ export async function publishIdeaBundle(input: {
       : [];
     const existingSectionById = new Map(existingSections.map((s) => [s.id, s]));
 
+    const existingSectionIdeas = sectionIds.length > 0
+      ? await tx.select().from(bagianPembelajaranIde).where(inArray(bagianPembelajaranIde.bagianPembelajaranId, sectionIds))
+      : [];
+    const existingIdeasBySectionId = new Map<string, Map<string, "primary" | "supporting">>();
+    for (const row of existingSectionIdeas) {
+      let map = existingIdeasBySectionId.get(row.bagianPembelajaranId);
+      if (!map) {
+        map = new Map();
+        existingIdeasBySectionId.set(row.bagianPembelajaranId, map);
+      }
+      map.set(row.ideId, row.role);
+    }
+
     const pendingSections = new Map(bundle.entities.learningSections.map((section) => [section.id, section]));
     const insertedSectionIds = new Set<string>();
     const sectionIdeaRows: Array<{ id: string; bagianPembelajaranId: string; ideId: string; role: "primary" | "supporting" }> = [];
@@ -473,21 +486,38 @@ export async function publishIdeaBundle(input: {
         if (!assertEqualFields(existing as Record<string, unknown> | undefined, sectionPayload, "IDEA_BUNDLE_LEARNING_SECTION_CONFLICT")) {
           passSectionsToInsert.push(sectionPayload);
         }
+
+        const expectedIdeas = new Map<string, "primary" | "supporting">();
         for (const ideaId of section.primaryIdeaIds) {
-          sectionIdeaRows.push({
-            id: deterministicId("bagian-ide", `${section.id}:${ideaId}`),
-            bagianPembelajaranId: section.id,
-            ideId: ideaId,
-            role: "primary",
-          });
+          expectedIdeas.set(ideaId, "primary");
         }
         for (const ideaId of section.supportingIdeaIds) {
-          sectionIdeaRows.push({
-            id: deterministicId("bagian-ide", `${section.id}:${ideaId}`),
-            bagianPembelajaranId: section.id,
-            ideId: ideaId,
-            role: "supporting",
-          });
+          expectedIdeas.set(ideaId, "supporting");
+        }
+
+        if (existing) {
+          const currentIdeas = existingIdeasBySectionId.get(section.id) ?? new Map<string, "primary" | "supporting">();
+          let matchesIdeas = currentIdeas.size === expectedIdeas.size;
+          if (matchesIdeas) {
+            for (const [ideaId, role] of expectedIdeas) {
+              if (currentIdeas.get(ideaId) !== role) {
+                matchesIdeas = false;
+                break;
+              }
+            }
+          }
+          if (!matchesIdeas) {
+            throw new Error("IDEA_BUNDLE_LEARNING_SECTION_CONFLICT");
+          }
+        } else {
+          for (const [ideaId, role] of expectedIdeas) {
+            sectionIdeaRows.push({
+              id: deterministicId("bagian-ide", `${section.id}:${ideaId}`),
+              bagianPembelajaranId: section.id,
+              ideId: ideaId,
+              role,
+            });
+          }
         }
         pendingSections.delete(section.id);
         insertedSectionIds.add(section.id);
@@ -499,7 +529,7 @@ export async function publishIdeaBundle(input: {
       }
     }
     if (sectionIdeaRows.length > 0) {
-      await tx.insert(bagianPembelajaranIde).values(sectionIdeaRows).onConflictDoNothing();
+      await tx.insert(bagianPembelajaranIde).values(sectionIdeaRows);
     }
     maybeInjectFailure(input.testFailureAfter, "learning_sections");
 

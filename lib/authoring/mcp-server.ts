@@ -1780,7 +1780,7 @@ function registerReferenceQuestionTools(server: McpServer, principal: McpPrincip
 
   (server as any).registerTool("assessment.submit_reference_draft", {
     title: "Submit historical reference draft",
-    description: "Menyimpan soal historis sebagai canonical draft dan projection kompatibilitas untuk review admin. Tool ini tidak mempublikasikan soal.",
+    description: "Menyimpan soal historis sebagai canonical record published beserta projection kompatibilitas. Soal langsung dapat dipakai untuk kuis.",
     inputSchema: {
       runToken: z.string().min(1),
       draftJson: z.string().min(1).max(8 * 1024 * 1024),

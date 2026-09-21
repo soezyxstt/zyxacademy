@@ -65,6 +65,7 @@ interface Props {
   questions: HistoricalQuestion[];
   courses: Course[];
   courseMap: Record<string, string>;
+  canonicalCourseMap?: Record<string, string>;
 }
 
 const statusTone: Record<ReviewStatus, "muted" | "info" | "success" | "warning" | "error"> = {
@@ -145,7 +146,7 @@ function reviewActionFor(question: HistoricalQuestion): { status: ReviewActionSt
  *
  * @param props - Component properties containing questions list, courses, and course map.
  */
-export function HistoricalQuestionsClient({ questions, courses, courseMap }: Props) {
+export function HistoricalQuestionsClient({ questions, courses, courseMap, canonicalCourseMap }: Props) {
   const router = useRouter();
   const [searchTerm, setSearchTerm] = useState("");
   const [filterCourse, setFilterCourse] = useState("all");
@@ -170,15 +171,18 @@ export function HistoricalQuestionsClient({ questions, courses, courseMap }: Pro
         .join(" ")
         .toLowerCase();
       const matchSearch = !normalizedSearch || searchableText.includes(normalizedSearch);
+      const resolveCourse = (id: string | null | undefined) => {
+        if (!id) return "";
+        return canonicalCourseMap?.[id] ?? id;
+      };
       const matchCourse =
         filterCourse === "all" ||
-        question.courseId === filterCourse ||
-        (Boolean(courseMap[question.courseId]) && courseMap[question.courseId] === courseMap[filterCourse]);
+        resolveCourse(question.courseId) === resolveCourse(filterCourse);
       const matchCategory = filterCategory === "all" || question.sourceCategory === filterCategory;
       const matchDifficulty = filterDifficulty === "all" || question.difficulty === filterDifficulty;
       return matchSearch && matchCourse && matchCategory && matchDifficulty;
     });
-  }, [courseMap, filterCategory, filterCourse, filterDifficulty, localQuestions, searchTerm]);
+  }, [canonicalCourseMap, courseMap, filterCategory, filterCourse, filterDifficulty, localQuestions, searchTerm]);
 
   const reviewableQuestions = filteredQuestions.filter((question) => reviewActionFor(question));
   const allReviewableSelected = reviewableQuestions.length > 0 && reviewableQuestions.every((question) => selected.has(question.id));

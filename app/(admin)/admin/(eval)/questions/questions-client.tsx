@@ -90,6 +90,7 @@ interface Props {
   questions: Question[];
   courses: Course[];
   courseMap: Record<string, string>;
+  canonicalCourseMap?: Record<string, string>;
   authoringCourses: AuthoringCourse[];
   authoringChapters: AuthoringChapter[];
   authoringIdeas: AuthoringIdea[];
@@ -163,7 +164,7 @@ function hasValidIdeaWeights(links: IdeaLink[]): boolean {
  *
  * @param props - Component properties containing questions list, courses, chapters, and ideas.
  */
-export function QuestionBankClient({ questions, courses, courseMap, authoringCourses, authoringChapters, authoringIdeas }: Props) {
+export function QuestionBankClient({ questions, courses, courseMap, canonicalCourseMap, authoringCourses, authoringChapters, authoringIdeas }: Props) {
   const router = useRouter();
 
   const chaptersForCourse = (courseId: string) => authoringChapters.filter((chapter) => chapter.mataKuliahId === courseId);
@@ -249,10 +250,11 @@ export function QuestionBankClient({ questions, courses, courseMap, authoringCou
       }
       if (filterStatus !== "all" && q.reviewStatus !== filterStatus) return false;
       if (filterCourse !== "all") {
-        const matchesDirect = q.courseId === filterCourse;
-        const matchesTitle = Boolean(courseMap[q.courseId]) && courseMap[q.courseId] === courseMap[filterCourse];
-        const matchesCanonical = canonicalCourseForLegacy(q.courseId) === canonicalCourseForLegacy(filterCourse);
-        if (!matchesDirect && !matchesTitle && !matchesCanonical) return false;
+        const resolveCourseId = (id: string | null | undefined) => {
+          if (!id) return "";
+          return canonicalCourseMap?.[id] ?? canonicalCourseForLegacy(id) ?? id;
+        };
+        if (resolveCourseId(q.courseId) !== resolveCourseId(filterCourse)) return false;
       }
       if (filterOrigin !== "all" && q.origin !== filterOrigin) return false;
       if (filterQuestionType !== "all" && q.questionType !== filterQuestionType) return false;
@@ -260,7 +262,7 @@ export function QuestionBankClient({ questions, courses, courseMap, authoringCou
 
       return true;
     });
-  }, [localQuestions, searchQuery, filterStatus, filterCourse, filterOrigin, filterQuestionType, filterDifficulty, courseMap, authoringCourses]);
+  }, [localQuestions, searchQuery, filterStatus, filterCourse, filterOrigin, filterQuestionType, filterDifficulty, courseMap, authoringCourses, canonicalCourseMap]);
 
   const [pageSize, setPageSize] = useState(10);
   const [currentPage, setCurrentPage] = useState(1);

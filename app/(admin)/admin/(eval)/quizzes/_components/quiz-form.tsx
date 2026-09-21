@@ -267,6 +267,7 @@ export function QuizForm({
   const [typeFilter, setTypeFilter] = useState<string>("all");
   const [originFilter, setOriginFilter] = useState<string>("all");
   const [tagFilter, setTagFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
   const [onlySelectedFilter, setOnlySelectedFilter] = useState(false);
 
   // Fetch Questions for the selected course
@@ -391,6 +392,11 @@ export function QuizForm({
         }
       }
 
+      // Status filter
+      if (statusFilter !== "all" && q.reviewStatus !== statusFilter) {
+        return false;
+      }
+
       return true;
     });
   }, [
@@ -402,6 +408,7 @@ export function QuizForm({
     typeFilter,
     originFilter,
     tagFilter,
+    statusFilter,
   ]);
 
   // Toggle Single Question Selection
@@ -1416,6 +1423,21 @@ export function QuizForm({
                       </SelectContent>
                     </Select>
                   </div>
+
+                  {/* Status Select */}
+                  <div className="w-full sm:w-auto shrink-0">
+                    <Select value={statusFilter} onValueChange={setStatusFilter}>
+                      <SelectTrigger className="h-9 w-full sm:w-[130px] rounded-lg border-border text-body-xs">
+                        <SelectValue placeholder="Semua Status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Semua Status</SelectItem>
+                        <SelectItem value="published">Published</SelectItem>
+                        <SelectItem value="generated">Draft</SelectItem>
+                        <SelectItem value="flagged">Ditandai</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
 
                 {/* Bulk Selection Sub-bar */}
@@ -1545,6 +1567,20 @@ export function QuizForm({
                               {q.origin === "itb_example" && (
                                 <Badge variant="outline" className="rounded-md text-[10px] border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400 px-1.5 py-0.5">
                                   Contoh ITB
+                                </Badge>
+                              )}
+
+                              {q.reviewStatus && q.reviewStatus !== "published" && (
+                                <Badge
+                                  variant="outline"
+                                  className={cn(
+                                    "rounded-md text-[10px] uppercase px-1.5 py-0.5",
+                                    q.reviewStatus === "flagged"
+                                      ? "border-status-error/30 bg-status-error/10 text-status-error"
+                                      : "border-muted-foreground/30 bg-muted text-muted-foreground"
+                                  )}
+                                >
+                                  {q.reviewStatus === "flagged" ? "Ditandai" : "Draft"}
                                 </Badge>
                               )}
 

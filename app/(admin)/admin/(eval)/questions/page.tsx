@@ -91,8 +91,6 @@ export default async function AIQuestionsPage() {
     historicalRows,
     authoringChapters,
     authoringIdeas,
-    canonicalLinkRows,
-    historicalSolutions,
   ] = await Promise.all([
     // All active and compatibility questions in aiQuestionBank
     db
@@ -162,7 +160,7 @@ export default async function AIQuestionsPage() {
       .leftJoin(assessmentSources, eq(soal.assessmentSourceId, assessmentSources.id))
       .leftJoin(aiQuestionBank, eq(aiQuestionBank.id, soal.id))
       .where(eq(soal.origin, "historical_reference"))
-      .orderBy(desc(soal.createdAt)),
+      .orderBy(sql`(CASE WHEN ${soal.createdAt} > 10000000000 THEN ${soal.createdAt} / 1000 ELSE ${soal.createdAt} END) DESC`),
     // Chapters
     db
       .select({ id: bab.id, mataKuliahId: bab.mataKuliahId, code: bab.code, title: bab.title, orderIndex: bab.orderIndex })
@@ -175,26 +173,26 @@ export default async function AIQuestionsPage() {
       .from(ide)
       .where(eq(ide.status, "published"))
       .orderBy(asc(ide.code)),
-    // Idea links
-    db
-      .select({ questionId: soalIde.soalId, ideaId: soalIde.ideId, weight: soalIde.weight, role: soalIde.role })
-      .from(soalIde),
-    // Solutions
-    db
-      .select({ soalId: pembahasanSoal.soalId, content: pembahasanSoal.content, version: pembahasanSoal.version })
-      .from(pembahasanSoal)
-      .orderBy(desc(pembahasanSoal.version)),
   ]);
 
-  // Build unified course map and filter list
+  // Build unified course map and canonical ID resolver
   const courseMap: Record<string, string> = {};
+  const canonicalCourseMap: Record<string, string> = {};
   for (const c of legacyCoursesList) {
     courseMap[c.id] = c.title;
+    canonicalCourseMap[c.id] = c.id;
   }
   for (const mk of authoringCourses) {
     courseMap[mk.id] = mk.title;
-    if (mk.legacyCourseId) courseMap[mk.legacyCourseId] = mk.title;
-    if (mk.code) courseMap[mk.code] = mk.title;
+    canonicalCourseMap[mk.id] = mk.id;
+    if (mk.legacyCourseId) {
+      courseMap[mk.legacyCourseId] = mk.title;
+      canonicalCourseMap[mk.legacyCourseId] = mk.id;
+    }
+    if (mk.code) {
+      courseMap[mk.code] = mk.title;
+      canonicalCourseMap[mk.code] = mk.id;
+    }
   }
 
   const existingCourseIds = new Set<string>();
@@ -213,6 +211,35 @@ export default async function AIQuestionsPage() {
       allCourses.push({ id: c.id, title: c.title });
     }
   }
+
+  // Distinct set of IDs for all active (non-historical) questions from BOTH tables:
+  const activeQuestionIds = new Set<string>();
+  for (const q of rawAiQuestions) {
+    if (q.origin !== "historical_reference") activeQuestionIds.add(q.id);
+  }
+  for (const q of canonicalQuestionsAll) {
+    if (q.origin !== "historical_reference") activeQuestionIds.add(q.id);
+  }
+
+  const historicalIds = historicalRows.map((q) => q.id);
+  const renderedQuestionIds = Array.from(new Set([...activeQuestionIds, ...historicalIds]));
+
+  // Scope idea links and solution text only to questions rendered on this page
+  const [canonicalLinkRows, historicalSolutions] = await Promise.all([
+    renderedQuestionIds.length > 0
+      ? db
+          .select({ questionId: soalIde.soalId, ideaId: soalIde.ideId, weight: soalIde.weight, role: soalIde.role })
+          .from(soalIde)
+          .where(inArray(soalIde.soalId, renderedQuestionIds))
+      : Promise.resolve([]),
+    historicalIds.length > 0
+      ? db
+          .select({ soalId: pembahasanSoal.soalId, content: pembahasanSoal.content, version: pembahasanSoal.version })
+          .from(pembahasanSoal)
+          .where(inArray(pembahasanSoal.soalId, historicalIds))
+          .orderBy(desc(pembahasanSoal.version))
+      : Promise.resolve([]),
+  ]);
 
   const latestHistoricalSolution = new Map<string, string>();
   for (const solution of historicalSolutions) {
@@ -238,15 +265,6 @@ export default async function AIQuestionsPage() {
 
   const canonicalQuestionMap = new Map(canonicalQuestionsAll.map((q) => [q.id, q]));
   const aiQuestionMap = new Map(rawAiQuestions.map((q) => [q.id, q]));
-
-  // Distinct set of IDs for all active (non-historical) questions from BOTH tables:
-  const activeQuestionIds = new Set<string>();
-  for (const q of rawAiQuestions) {
-    if (q.origin !== "historical_reference") activeQuestionIds.add(q.id);
-  }
-  for (const q of canonicalQuestionsAll) {
-    if (q.origin !== "historical_reference") activeQuestionIds.add(q.id);
-  }
 
   const questions = Array.from(activeQuestionIds).map((id) => {
     const ai = aiQuestionMap.get(id);
@@ -317,6 +335,7 @@ export default async function AIQuestionsPage() {
             questions={questions}
             courses={allCourses}
             courseMap={courseMap}
+            canonicalCourseMap={canonicalCourseMap}
             authoringCourses={authoringCourses}
             authoringChapters={authoringChapters}
             authoringIdeas={authoringIdeas}
@@ -328,6 +347,7 @@ export default async function AIQuestionsPage() {
             questions={historicalQuestions}
             courses={allCourses}
             courseMap={courseMap}
+            canonicalCourseMap={canonicalCourseMap}
           />
         </TabsContent>
       </Tabs>

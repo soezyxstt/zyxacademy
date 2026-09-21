@@ -880,7 +880,7 @@ export async function createHistoricalQuestionBatch(input: HistoricalQuestionBat
         if (!sameQuestion) fail("HISTORICAL_QUESTION_CONFLICT", `Soal ${question.questionNumber} sudah ada dengan isi berbeda.`);
       }
       if (existing) {
-        results.push({ id: existing.id, canonicalCourseId: context.canonicalCourseId, legacyCourseId: context.legacyCourseId, chapterId: null, version: existing.version, reviewStatus: "published", created: false, unchanged: true });
+        results.push({ id: existing.id, canonicalCourseId: context.canonicalCourseId, legacyCourseId: context.legacyCourseId, chapterId: null, version: existing.version, reviewStatus: existing.status === "published" ? "published" : existing.status === "retired" ? "retired" : "generated", created: false, unchanged: true });
         continue;
       }
 
