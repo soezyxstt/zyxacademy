@@ -70,6 +70,10 @@ async function storedCourseId(courseId: string): Promise<string> {
   throw new Error(`PRODUCT_BUNDLE_COURSE_NOT_FOUND:${courseId}`);
 }
 
+/**
+ * Stages a validated Product Bundle, enforcing early identity validation,
+ * course association, artifact upload, and draft item recording.
+ */
 export async function stageProductBundle(input: ProductStageInput) {
   enabled();
   const [uploader] = await db.select({ id: pengguna.id }).from(pengguna).where(eq(pengguna.id, input.requestedBy)).limit(1);

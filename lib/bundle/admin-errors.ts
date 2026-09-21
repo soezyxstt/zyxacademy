@@ -85,6 +85,10 @@ const explanations: Record<string, string> = {
   PRODUCT_BUNDLE_PUBLISHED_RECORD_MISSING: "Catatan publikasi bundle tidak ditemukan.",
 };
 
+/**
+ * Translates internal bundle validation and publication error codes
+ * into human-friendly sentence-case Indonesian error messages.
+ */
 export function explainBundleError(value: string): string {
   const codes = value.split(/[,\s:]+/).filter(Boolean);
   const messages = [...new Set(codes.map((code) => explanations[code]).filter(Boolean))];

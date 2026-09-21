@@ -401,6 +401,10 @@ async function insertBlueprint(tx: Tx, product: Extract<ProductEntity, { product
   } else await tx.insert(blueprintAsesmen).values(values);
 }
 
+/**
+ * Publishes a staged Product Bundle, inserting all validated product entities,
+ * verifying traceability to published Ideas, and enqueueing vector sync jobs.
+ */
 export async function publishProductBundle(input: { importId: string; publishedBy: string; testFailureAfter?: FailureStage }): Promise<{ publicationId: string; importId: string; published: boolean; productCount: number; vectorJobCount: number }> {
   enabled();
   const snapshot = await getProductBundleImport(input.importId);
@@ -410,7 +414,7 @@ export async function publishProductBundle(input: { importId: string; publishedB
     if (!publication) throw new Error("PRODUCT_BUNDLE_PUBLISHED_RECORD_MISSING");
     return { publicationId: publication.id, importId: input.importId, published: false, productCount: 0, vectorJobCount: 0 };
   }
-  if (productBundleLifecycleStatus(snapshot.status) !== "draft") throw new Error("PRODUCT_BUNDLE_DRAFT_REQUIRED");
+  if (snapshot.status !== "draft") throw new Error("PRODUCT_BUNDLE_DRAFT_REQUIRED");
   const bundle = await parseStagedProductBundle(input.importId);
   if (bundle.publicationBlocked) throw new Error("PRODUCT_BUNDLE_DEPENDENCY_NEEDS_REVIEW");
   let courseLegacyId: string | undefined;
@@ -422,7 +426,7 @@ export async function publishProductBundle(input: { importId: string; publishedB
       if (!publication) throw new Error("PRODUCT_BUNDLE_PUBLISHED_RECORD_MISSING");
       return { publicationId: publication.id, importId: input.importId, published: false, productCount: 0, vectorJobCount: 0 };
     }
-    if (productBundleLifecycleStatus(row.status) !== "draft") throw new Error("PRODUCT_BUNDLE_DRAFT_REQUIRED");
+    if (row.status !== "draft") throw new Error("PRODUCT_BUNDLE_DRAFT_REQUIRED");
     const [publisher] = await tx.select({ role: user.role }).from(user).where(eq(user.id, input.publishedBy)).limit(1);
     if (!publisher || publisher.role !== "admin") throw new Error("PRODUCT_BUNDLE_PUBLISH_FORBIDDEN");
     await requireIdentity(tx, input.publishedBy, "PRODUCT_BUNDLE_PUBLISHER_NOT_FOUND");

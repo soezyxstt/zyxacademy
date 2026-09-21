@@ -105,6 +105,10 @@ async function deleteArtifact(key: string, required = false): Promise<void> {
   });
 }
 
+/**
+ * Stages an Idea Bundle by validating identity requirements, checking course mapping,
+ * uploading the artifact ZIP to storage, and persisting item records.
+ */
 export async function stageIdeaBundle(input: IdeaBundleStageInput): Promise<IdeaBundleStageResult> {
   ensureFeatureEnabled();
   assertSha256(input.checksum, "bundle");

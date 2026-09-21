@@ -79,6 +79,10 @@ function sourceUri(bundleKey: string, contentPath: string): string {
   return `${bundleKey}#${encodeURIComponent(contentPath)}`;
 }
 
+/**
+ * Compares fields between an existing database record and the expected payload,
+ * optionally skipping non-semantic or dynamic fields (such as storage URIs or creator attribution).
+ */
 function assertEqualFields(
   existing: Record<string, unknown> | undefined,
   expected: Record<string, unknown>,
@@ -151,6 +155,10 @@ async function loadAndValidate(importId: string, expectedBundleId: string, expec
   return bundle;
 }
 
+/**
+ * Publishes an approved Idea Bundle, verifying manifest signatures,
+ * deduplicating shared entities, and persisting canonical learning atoms.
+ */
 export async function publishIdeaBundle(input: {
   importId: string;
   publishedBy: string;
