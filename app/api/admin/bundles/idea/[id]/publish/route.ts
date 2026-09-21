@@ -1,6 +1,7 @@
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
+import { explainBundleError } from "@/lib/bundle/admin-errors";
 import { publishIdeaBundle } from "@/lib/bundle/publication";
 
 export const runtime = "nodejs";
@@ -15,6 +16,6 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
   } catch (error) {
     const code = error instanceof Error ? error.message.split(":", 1)[0] : "IDEA_BUNDLE_PUBLISH_FAILED";
     const status = code.endsWith("FORBIDDEN") ? 403 : code === "IDEA_BUNDLE_NOT_FOUND" ? 404 : 422;
-    return NextResponse.json({ error: code }, { status });
+    return NextResponse.json({ error: explainBundleError(code), code }, { status });
   }
 }

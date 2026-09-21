@@ -793,8 +793,16 @@ export function workflowContract(runToken: string) {
     rules,
     outputs: workflow.key === "idea_product"
       ? {
-        ideaBundle: { schemaVersion: "idea-bundle.v3", compatibleReadVersions: ["idea-bundle.v2", "idea-bundle.v3"], validationTool: "authoring.validate_idea_bundle", reviewRequired: true },
+        ideaBundle: {
+          schemaVersion: "idea-bundle.v3",
+          compatibleReadVersions: ["idea-bundle.v2", "idea-bundle.v3"],
+          validationTool: "authoring.validate_idea_bundle",
+          reviewRequired: true,
+          attribution: { creatorId: "$UPLOADER", curatorId: "$APPROVING_REVIEWER" },
+          creatorRule: "Generator Idea Bundle wajib selalu menghasilkan creatorId: '$UPLOADER', bukan ID placeholder eksternal.",
+        },
         productBundle: productBundleV3Contract(),
+
       }
       : workflow.key === "quiz_bank" ? {
         quizDraft: {

@@ -32,6 +32,8 @@ Sebelum mulai, wajib baca:
 5. Setiap Idea wajib source-grounded, punya provenance primer, dan tepat satu primary learning section.
 6. Relation hanya dibuat jika maknanya dapat dijelaskan; `related` bukan default untuk semua Idea yang berdekatan.
 7. MCP hijau tidak menggantikan split/merge preflight.
+8. Generator Idea Bundle wajib selalu menghasilkan `creatorId: "$UPLOADER"`, bukan ID placeholder eksternal.
+
 
 ## Hasil yang dipakai tahap berikutnya
 

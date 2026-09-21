@@ -69,6 +69,20 @@ const explanations: Record<string, string> = {
   PEDAGOGIC_REVIEW_MISSING: "Review pedagogi 8-kriteria belum lengkap dicatat.",
   PEDAGOGIC_REVIEW_REJECTED: "Review pedagogi berstatus ditolak.",
   PEDAGOGIC_REVIEW_CHANGES_REQUESTED: "Review pedagogi membutuhkan revisi sebelum materi dapat diterbitkan.",
+  IDEA_BUNDLE_CREATOR_NOT_FOUND: "Atribusi creator belum dapat dipetakan.",
+  PRODUCT_BUNDLE_CREATOR_NOT_FOUND: "Atribusi creator belum dapat dipetakan.",
+  IDEA_BUNDLE_CURATOR_NOT_FOUND: "Atribusi kurator belum dapat dipetakan.",
+  PRODUCT_BUNDLE_CURATOR_NOT_FOUND: "Atribusi kurator belum dapat dipetakan.",
+  IDEA_BUNDLE_CREATOR_UNKNOWN: "Identitas creator dalam bundle tidak dikenal atau belum terdaftar.",
+  PRODUCT_BUNDLE_CREATOR_UNKNOWN: "Identitas creator dalam bundle tidak dikenal atau belum terdaftar.",
+  IDEA_BUNDLE_CURATOR_UNKNOWN: "Identitas kurator dalam bundle tidak dikenal atau belum terdaftar.",
+  PRODUCT_BUNDLE_CURATOR_UNKNOWN: "Identitas kurator dalam bundle tidak dikenal atau belum terdaftar.",
+  IDEA_BUNDLE_UPLOADER_NOT_FOUND: "Akun pengunggah bundle tidak ditemukan.",
+  PRODUCT_BUNDLE_UPLOADER_NOT_FOUND: "Akun pengunggah bundle tidak ditemukan.",
+  IDEA_BUNDLE_ALREADY_PUBLISHED: "Bundle ini sudah terbit sebelumnya.",
+  PRODUCT_BUNDLE_ALREADY_PUBLISHED: "Bundle ini sudah terbit sebelumnya.",
+  IDEA_BUNDLE_PUBLISHED_RECORD_MISSING: "Catatan publikasi bundle tidak ditemukan.",
+  PRODUCT_BUNDLE_PUBLISHED_RECORD_MISSING: "Catatan publikasi bundle tidak ditemukan.",
 };
 
 export function explainBundleError(value: string): string {

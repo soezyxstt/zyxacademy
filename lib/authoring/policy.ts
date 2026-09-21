@@ -65,8 +65,9 @@ export const EXTERNAL_AUTHORING_WORKFLOW = {
   attribution: {
     uploader: "$UPLOADER",
     approvingReviewer: "$APPROVING_REVIEWER",
-    guidance: "Use the sentinels for creatorId and curatorId when the external agent must not receive private Zyx identity IDs.",
+    guidance: "Generator Idea Bundle wajib selalu menghasilkan $UPLOADER untuk creatorId dan $APPROVING_REVIEWER untuk curatorId, bukan ID placeholder eksternal.",
   },
+
   deterministicHashes: {
     algorithm: "SHA-256 over UTF-8 bytes, lowercase hexadecimal",
     entitySerialization: "Recursively sort object keys. Preserve array order. Serialize as compact JSON.",
