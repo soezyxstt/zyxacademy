@@ -15,6 +15,7 @@ import {
 import { asc, desc, eq, inArray, sql } from "drizzle-orm";
 import { assertTutorOrAdmin } from "@/lib/auth/admin-guards";
 import { canonicalQuestionStatus } from "@/lib/question-authoring-contract";
+import { normalizeDate } from "@/lib/date-utils";
 import { QuestionBankClient } from "./questions-client";
 import { HistoricalQuestionsClient } from "./historical-questions-client";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -30,6 +31,12 @@ export const metadata: Metadata = {
 type CanonicalQuestionStatus = "draft" | "in_review" | "published" | "retired";
 type ReviewStatus = "generated" | "reviewed" | "published" | "flagged" | "retired";
 
+/**
+ * Maps canonical question lifecycle status to compatibility review status.
+ *
+ * @param status The canonical question status string.
+ * @returns The corresponding review status used in compatibility layers.
+ */
 function reviewStatusFromCanonical(status: CanonicalQuestionStatus): ReviewStatus {
   switch (status) {
     case "in_review":
@@ -43,23 +50,36 @@ function reviewStatusFromCanonical(status: CanonicalQuestionStatus): ReviewStatu
   }
 }
 
+/**
+ * Normalizes options and correct index offsets from canonical options snapshots.
+ *
+ * @param optionsSnapshot Raw JSON snapshot from the canonical soal table.
+ * @returns Structured option strings and zero-based correct index positions.
+ */
 function extractOptionsAndCorrect(optionsSnapshot: unknown): { options: string[]; correctIndices: number[] } {
   if (!Array.isArray(optionsSnapshot)) return { options: [], correctIndices: [] };
   const options: string[] = [];
   const correctIndices: number[] = [];
-  optionsSnapshot.forEach((opt, idx) => {
+  optionsSnapshot.forEach((opt) => {
     if (typeof opt === "string") {
       options.push(opt);
     } else if (opt && typeof opt === "object" && "text" in opt) {
+      const optionIndex = options.length;
       options.push(String(opt.text));
       if ("isCorrect" in opt && opt.isCorrect === true) {
-        correctIndices.push(idx);
+        correctIndices.push(optionIndex);
       }
     }
   });
   return { options, correctIndices };
 }
 
+/**
+ * Server page component for the universal admin question bank studio.
+ *
+ * Fetches canonical and compatibility question entries across active courses,
+ * prepares facets, and mounts the active and historical evaluation views.
+ */
 export default async function AIQuestionsPage() {
   await assertTutorOrAdmin();
 
@@ -232,13 +252,14 @@ export default async function AIQuestionsPage() {
     const ai = aiQuestionMap.get(id);
     const canonical = canonicalQuestionMap.get(id);
 
-    const { options: canonicalOptions, correctIndices: canonicalCorrect } = canonical
-      ? extractOptionsAndCorrect(canonical.optionsSnapshot)
+    const hasCanonicalOptions = Array.isArray(canonical?.optionsSnapshot) && (canonical.optionsSnapshot as unknown[]).length > 0;
+    const { options: canonicalOptions, correctIndices: canonicalCorrect } = hasCanonicalOptions
+      ? extractOptionsAndCorrect(canonical?.optionsSnapshot)
       : { options: [], correctIndices: [] };
 
     const prompt = canonical?.prompt ?? ai?.prompt ?? "";
-    const options = ai?.options ?? canonicalOptions;
-    const correctIndices = ai?.correctIndices ?? canonicalCorrect;
+    const options = (hasCanonicalOptions ? canonicalOptions : ai?.options) ?? [];
+    const correctIndices = (hasCanonicalOptions ? canonicalCorrect : ai?.correctIndices) ?? [];
     const courseId = canonical?.mataKuliahId ?? ai?.courseId ?? "";
     const reviewStatus = ai?.reviewStatus ?? (canonical ? reviewStatusFromCanonical(canonical.canonicalStatus) : "generated");
     const canonicalStatus = canonical?.canonicalStatus ?? (ai ? canonicalQuestionStatus(ai.reviewStatus) : "draft");
@@ -266,7 +287,7 @@ export default async function AIQuestionsPage() {
       reasoningPattern: canonical?.reasoningPattern ?? null,
       ideaLinks: canonicalIdeaLinks.get(id) ?? [],
     };
-  });
+  }).sort((a, b) => normalizeDate(b.createdAt).getTime() - normalizeDate(a.createdAt).getTime());
 
   return (
     <div className="space-y-8">

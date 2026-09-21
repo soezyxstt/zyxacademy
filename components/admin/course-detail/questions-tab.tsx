@@ -67,6 +67,12 @@ type Props = {
   initialQuestions: QuestionItem[];
 };
 
+/**
+ * Tab component for course-level question management and inspection.
+ *
+ * Displays course question catalog with origin sub-tabs (Zyx original vs historical reference),
+ * search filtering, difficulty selection, accessible pagination, and safe deletion.
+ */
 export function QuestionsTab({
   courseId,
   courseTitle,
@@ -103,8 +109,9 @@ export function QuestionsTab({
       if (difficultyFilter !== "all" && q.difficulty !== difficultyFilter) return false;
 
       // Search filter
-      if (!search.trim()) return true;
-      const term = search.toLowerCase();
+      const trimmed = search.trim();
+      if (!trimmed) return true;
+      const term = trimmed.toLowerCase();
       const matchPrompt = q.prompt.toLowerCase().includes(term);
       const matchExpl = q.explanation ? q.explanation.toLowerCase().includes(term) : false;
       const matchSource = q.sourceEventName ? q.sourceEventName.toLowerCase().includes(term) : false;
@@ -302,24 +309,26 @@ export function QuestionsTab({
                       <DifficultyBadge difficulty={q.difficulty} />
                     </div>
 
-                    <div className="flex items-center gap-1">
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="size-8 p-0 text-muted-foreground hover:text-status-error"
-                              onClick={() => setDeletingQuestion(q)}
-                              aria-label="Hapus Soal"
-                            >
-                              <Trash2 className="size-4" />
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent>Hapus Soal</TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    </div>
+                    {q.origin === "zyx_original" && (
+                      <div className="flex items-center gap-1">
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="size-8 p-0 text-muted-foreground hover:text-status-error"
+                                onClick={() => setDeletingQuestion(q)}
+                                aria-label="Hapus Soal"
+                              >
+                                <Trash2 className="size-4" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Hapus Soal</TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </div>
+                    )}
                   </div>
 
                   {/* Question Prompt */}
@@ -371,7 +380,10 @@ export function QuestionsTab({
 
         {/* Pagination Bar */}
         {totalPages > 1 && (
-          <div className="flex items-center justify-between pt-3 border-t border-border/60">
+          <nav
+            aria-label="Navigasi halaman bank soal"
+            className="flex items-center justify-between pt-3 border-t border-border/60"
+          >
             <p className="text-body-xs text-muted-foreground">
               Halaman {validPage} dari {totalPages}
             </p>
@@ -382,6 +394,7 @@ export function QuestionsTab({
                 className="h-8 px-2.5 text-body-xs rounded-lg"
                 disabled={validPage <= 1}
                 onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                aria-label="Halaman sebelumnya"
               >
                 <ChevronLeft className="size-3.5 mr-1" />
                 Sebelumnya
@@ -405,6 +418,8 @@ export function QuestionsTab({
                       size="sm"
                       className="size-8 p-0 text-body-xs rounded-lg"
                       onClick={() => setCurrentPage(pageNum)}
+                      aria-current={validPage === pageNum ? "page" : undefined}
+                      aria-label={`Halaman ${pageNum}`}
                     >
                       {pageNum}
                     </Button>
@@ -417,12 +432,13 @@ export function QuestionsTab({
                 className="h-8 px-2.5 text-body-xs rounded-lg"
                 disabled={validPage >= totalPages}
                 onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                aria-label="Halaman berikutnya"
               >
                 Berikutnya
                 <ChevronRight className="size-3.5 ml-1" />
               </Button>
             </div>
-          </div>
+          </nav>
         )}
       </div>
 

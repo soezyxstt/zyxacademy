@@ -102,6 +102,12 @@ export interface QuizFormProps {
   pageTitle?: string;
 }
 
+/**
+ * Quiz authoring and edit form component with specific picker and distribution modes.
+ *
+ * Handles quiz schedule parameters, passing scores, per-question timers,
+ * and paginated retrieval of active course questions for specific picker selection.
+ */
 export function QuizForm({
   initialData,
   courses,
@@ -271,10 +277,20 @@ export function QuizForm({
     async function loadQuestions() {
       setLoadingQuestions(true);
       try {
-        const res = await fetch(`/api/admin/questions?courseId=${courseId}&limit=500`);
-        if (res.ok && active) {
-          const data = await res.json();
-          setCourseQuestions(data || []);
+        const allQuestions: QuestionBankItem[] = [];
+        let offset = 0;
+        const pageSize = 500;
+        while (active) {
+          const res = await fetch(`/api/admin/questions?courseId=${encodeURIComponent(courseId)}&limit=${pageSize}&offset=${offset}`);
+          if (!res.ok) break;
+          const data = (await res.json()) as QuestionBankItem[];
+          if (!Array.isArray(data) || data.length === 0) break;
+          allQuestions.push(...data);
+          if (data.length < pageSize) break;
+          offset += pageSize;
+        }
+        if (active) {
+          setCourseQuestions(allQuestions);
         }
       } catch (err) {
         console.error("Gagal memuat bank soal kelas:", err);

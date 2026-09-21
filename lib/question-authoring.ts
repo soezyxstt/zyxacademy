@@ -728,6 +728,12 @@ function historicalSourceHash(input: HistoricalSourcePersistenceInput): string {
     .digest("hex");
 }
 
+/**
+ * Ingests and directly publishes a batch of historical reference questions.
+ *
+ * @param input - Contains the draft questions, resolved source metadata, course, and creator.
+ * @returns Array of persistence results with canonical IDs and publication status.
+ */
 export async function createHistoricalQuestionBatch(input: HistoricalQuestionBatchInput): Promise<PersistResult[]> {
   const draft = referenceQuestionDraftSchema.parse(input.draft);
   return db.transaction(async (tx) => {
@@ -874,7 +880,7 @@ export async function createHistoricalQuestionBatch(input: HistoricalQuestionBat
         if (!sameQuestion) fail("HISTORICAL_QUESTION_CONFLICT", `Soal ${question.questionNumber} sudah ada dengan isi berbeda.`);
       }
       if (existing) {
-        results.push({ id: existing.id, canonicalCourseId: context.canonicalCourseId, legacyCourseId: context.legacyCourseId, chapterId: null, version: existing.version, reviewStatus: "generated", created: false, unchanged: true });
+        results.push({ id: existing.id, canonicalCourseId: context.canonicalCourseId, legacyCourseId: context.legacyCourseId, chapterId: null, version: existing.version, reviewStatus: "published", created: false, unchanged: true });
         continue;
       }
 
@@ -979,13 +985,13 @@ export async function createHistoricalQuestionBatch(input: HistoricalQuestionBat
         actorId: input.creatorId,
         entityType: "question",
         entityId: canonicalId,
-        action: "created_draft",
+        action: "published",
         beforeSnapshot: null,
         afterSnapshot: { origin: "historical_reference", assessmentSourceId: assessmentSource.id, questionNumber: question.questionNumber, answerProvenance: question.answerProvenance, solutionProvenance: question.solutionProvenance, quizEligible: question.quizEligible },
         correlationId: assessmentSource.id,
         createdAt: now,
       });
-      results.push({ id: canonicalId, canonicalCourseId: context.canonicalCourseId, legacyCourseId: context.legacyCourseId, chapterId: null, version: 1, reviewStatus: "generated", created: true, unchanged: false });
+      results.push({ id: canonicalId, canonicalCourseId: context.canonicalCourseId, legacyCourseId: context.legacyCourseId, chapterId: null, version: 1, reviewStatus: "published", created: true, unchanged: false });
     }
     return results;
   });

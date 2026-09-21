@@ -23,6 +23,12 @@ import { and, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
 import { questionAuthoringInputSchema, canonicalQuestionStatus } from '@/lib/question-authoring-contract';
 import { createCanonicalQuestion, QuestionAuthoringError } from '@/lib/question-authoring';
 
+/**
+ * Handles GET requests to retrieve paginated question bank records with optional filters.
+ *
+ * @param req - Incoming Next.js request with query parameters (courseId, reviewStatus, difficulty, origin, search, limit, offset).
+ * @returns JSON response with questions list, total count, limit, and offset.
+ */
 export async function GET(req: NextRequest) {
   const session = await auth.api.getSession({ headers: await headers() });
   const isAuthorized =

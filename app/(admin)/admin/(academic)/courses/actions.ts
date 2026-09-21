@@ -301,6 +301,12 @@ export async function setDemoCourse(courseId: string, enabled: boolean) {
 // Detailed Course Hub Server Action
 // ─────────────────────────────────────────────────────────────────────────────
 
+/**
+ * Retrieves full course detail data including chapters, materials, quiz templates, and active question bank records.
+ *
+ * @param courseId - The course identifier (canonical or legacy).
+ * @returns The structured course detail dataset, or null if the course does not exist.
+ */
 export async function getCourseDetailData(courseId: string) {
   await assertAdmin();
 

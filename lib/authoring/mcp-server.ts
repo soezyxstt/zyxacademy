@@ -509,6 +509,13 @@ function questionIdForRun(runId: string, externalId: string): string {
   return `mcp-q-${sha256Text(`${runId}:${externalId}`).slice(0, 32)}`;
 }
 
+/**
+ * Constructs a canonical question batch input with published review status from an active run token and normalized draft.
+ *
+ * @param run - The validated MCP run token containing courseId and chapterId.
+ * @param draft - The normalized question bank draft.
+ * @returns Canonical batch payload ready for persistence.
+ */
 function canonicalBatchForRun(run: ReturnType<typeof readMcpRunToken>, draft: NormalizedQuestionBankDraft) {
   return {
     courseId: run.courseId,
@@ -1796,10 +1803,10 @@ function registerReferenceQuestionTools(server: McpServer, principal: McpPrincip
       ok: true,
       valid: true,
       staged: true,
-      status: "generated",
+      status: "published",
       questionCount: results.length,
-      questions: results.map((result, index) => ({ localId: parsed.data.questions[index]?.localId, version: result.version, status: "generated", unchanged: result.unchanged })),
-      next: "admin_review",
+      questions: results.map((result, index) => ({ localId: parsed.data.questions[index]?.localId, version: result.version, status: result.reviewStatus, unchanged: result.unchanged })),
+      next: "ready_for_quiz",
     };
   }));
 
