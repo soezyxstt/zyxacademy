@@ -19,6 +19,9 @@ entities/learning-sections.json
 
 Manifest dan entity memakai deterministic SHA-256. Stable IDs opaque; jangan turunkan ID dari label, slug, filename, atau chapter title. Setiap Idea muncul tepat sekali di `primaryIdeaIds`; supporting membership boleh berulang. Section slug unik/stabil, sibling order unik, parent acyclic, hierarchy depth maksimal tiga.
 
+Generator wajib selalu menghasilkan `creatorId: "$UPLOADER"` pada `manifest.json`, `entities/source-materials.json`, dan `entities/ideas.json`, bukan ID placeholder eksternal. Bila `curatorId` disertakan, gunakan `"$APPROVING_REVIEWER"`.
+
+
 ## Bukti sebelum packaging
 
 Simpan tabel fragment-ke-Idea/bukti pendukung dari decomposition guide di luar ZIP. Tabel harus mencakup isi bermakna termasuk contoh, soal dan solusi sumber tanpa menjadikannya produk asesmen.

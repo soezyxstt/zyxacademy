@@ -509,11 +509,18 @@ function questionIdForRun(runId: string, externalId: string): string {
   return `mcp-q-${sha256Text(`${runId}:${externalId}`).slice(0, 32)}`;
 }
 
+/**
+ * Constructs a canonical question batch input with published review status from an active run token and normalized draft.
+ *
+ * @param run - The validated MCP run token containing courseId and chapterId.
+ * @param draft - The normalized question bank draft.
+ * @returns Canonical batch payload ready for persistence.
+ */
 function canonicalBatchForRun(run: ReturnType<typeof readMcpRunToken>, draft: NormalizedQuestionBankDraft) {
   return {
     courseId: run.courseId,
     chapterId: run.chapterId,
-    reviewStatus: "generated" as const,
+    reviewStatus: "published" as const,
     items: draft.items.map((item) => ({
       questionId: questionIdForRun(run.runId, item.externalId),
       question: item.question,
@@ -1735,6 +1742,12 @@ function referenceDraftSourceInput(
   };
 }
 
+/**
+ * Registers MCP tool endpoints for validating, submitting, and querying historical reference questions.
+ *
+ * @param server - The active McpServer instance.
+ * @param principal - Authenticated principal with lifecycle authoring scopes.
+ */
 function registerReferenceQuestionTools(server: McpServer, principal: McpPrincipal): void {
   (server as any).registerTool("assessment.validate_reference_draft", {
     title: "Validate historical reference draft",
@@ -1767,7 +1780,7 @@ function registerReferenceQuestionTools(server: McpServer, principal: McpPrincip
 
   (server as any).registerTool("assessment.submit_reference_draft", {
     title: "Submit historical reference draft",
-    description: "Menyimpan soal historis sebagai canonical draft dan projection kompatibilitas untuk review admin. Tool ini tidak mempublikasikan soal.",
+    description: "Menyimpan soal historis sebagai canonical record published beserta projection kompatibilitas. Soal langsung dapat dipakai untuk kuis.",
     inputSchema: {
       runToken: z.string().min(1),
       draftJson: z.string().min(1).max(8 * 1024 * 1024),
@@ -1796,10 +1809,10 @@ function registerReferenceQuestionTools(server: McpServer, principal: McpPrincip
       ok: true,
       valid: true,
       staged: true,
-      status: "generated",
+      status: "published",
       questionCount: results.length,
-      questions: results.map((result, index) => ({ localId: parsed.data.questions[index]?.localId, version: result.version, status: "generated", unchanged: result.unchanged })),
-      next: "admin_review",
+      questions: results.map((result, index) => ({ localId: parsed.data.questions[index]?.localId, version: result.version, status: result.reviewStatus, unchanged: result.unchanged })),
+      next: "ready_for_quiz",
     };
   }));
 

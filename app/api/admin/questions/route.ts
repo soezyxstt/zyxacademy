@@ -23,6 +23,12 @@ import { and, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
 import { questionAuthoringInputSchema, canonicalQuestionStatus } from '@/lib/question-authoring-contract';
 import { createCanonicalQuestion, QuestionAuthoringError } from '@/lib/question-authoring';
 
+/**
+ * Handles GET requests to retrieve paginated question bank records with optional filters.
+ *
+ * @param req - Incoming Next.js request with query parameters (courseId, reviewStatus, difficulty, origin, search, limit, offset).
+ * @returns JSON response with questions list, total count, limit, and offset.
+ */
 export async function GET(req: NextRequest) {
   const session = await auth.api.getSession({ headers: await headers() });
   const isAuthorized =
@@ -64,12 +70,15 @@ export async function GET(req: NextRequest) {
   if (search) {
     conditions.push(sql`${aiQuestionBank.prompt} LIKE ${`%${search}%`}`);
   }
+  if (!reviewStatus) {
+    conditions.push(sql`${aiQuestionBank.status} != 'retired'`);
+  }
 
   const questions = await db
     .select()
     .from(aiQuestionBank)
     .where(conditions.length > 0 ? and(...conditions) : undefined)
-    .orderBy(desc(aiQuestionBank.createdAt))
+    .orderBy(sql`(CASE WHEN ${aiQuestionBank.createdAt} > 10000000000 THEN ${aiQuestionBank.createdAt} / 1000 ELSE ${aiQuestionBank.createdAt} END) DESC`)
     .limit(limit)
     .offset(offset);
 
@@ -81,6 +90,12 @@ const BulkUpdateSchema = z.object({
  reviewStatus: z.enum(['generated', 'reviewed', 'published', 'flagged', 'retired']),
 });
 
+/**
+ * Handles PUT requests for bulk status updates on question bank records.
+ *
+ * @param req - Incoming Next.js request with question IDs and target reviewStatus.
+ * @returns JSON response confirming update count or validation failure.
+ */
 export async function PUT(req: NextRequest) {
  const session = await auth.api.getSession({ headers: await headers() });
  const isAuthorized =
@@ -240,6 +255,12 @@ export async function PUT(req: NextRequest) {
   return NextResponse.json({ updated: ids.length });
 }
 
+/**
+ * Handles POST requests to create a single canonical question record.
+ *
+ * @param req - Incoming Next.js request with question authoring payload.
+ * @returns JSON response containing the created question identifiers and review status.
+ */
 export async function POST(req: NextRequest) {
   const session = await auth.api.getSession({ headers: await headers() });
   const isAuthorized =

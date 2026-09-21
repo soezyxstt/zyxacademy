@@ -10,11 +10,13 @@ import {
   reviewBundle,
   reviewItemBundle,
   user,
+  pengguna,
 } from "@/db/schema";
 import { storage } from "@/lib/storage";
 import { buildIdeaBundleKey } from "@/lib/storage/keys";
 import { parseIdeaBundle, type ValidatedIdeaBundle } from "@/lib/bundle/idea-bundle-v2";
 import { readSecureZip } from "@/lib/bundle/zip-reader";
+import { isBundleIdentitySentinelOrPlaceholder } from "@/lib/bundle/attribution";
 import { hasPeran } from "@/lib/auth/authorization";
 import { hasAdminAuthorization } from "@/lib/auth/admin-guards";
 import { checkTutorCourseAccess } from "@/lib/auth/tutor-access";
@@ -103,11 +105,51 @@ async function deleteArtifact(key: string, required = false): Promise<void> {
   });
 }
 
+/**
+ * Stages an Idea Bundle by validating identity requirements, checking course mapping,
+ * uploading the artifact ZIP to storage, and persisting item records.
+ */
 export async function stageIdeaBundle(input: IdeaBundleStageInput): Promise<IdeaBundleStageResult> {
   ensureFeatureEnabled();
   assertSha256(input.checksum, "bundle");
   if (!input.validationReport.valid) throw new Error("IDEA_BUNDLE_VALIDATION_FAILED");
   if (input.items.length === 0) throw new Error("IDEA_BUNDLE_EMPTY");
+
+  const [uploader] = await db.select({ id: pengguna.id }).from(pengguna).where(eq(pengguna.id, input.requestedBy)).limit(1);
+  if (!uploader) throw new Error("IDEA_BUNDLE_UPLOADER_NOT_FOUND");
+
+  const bundle = parseIdeaBundle(readSecureZip(input.bytes));
+  const creatorIdsToCheck = new Set<string>();
+  const curatorIdsToCheck = new Set<string>();
+
+  if (!isBundleIdentitySentinelOrPlaceholder(bundle.manifest.creatorId)) {
+    creatorIdsToCheck.add(bundle.manifest.creatorId);
+  }
+  if (bundle.manifest.curatorId && !isBundleIdentitySentinelOrPlaceholder(bundle.manifest.curatorId)) {
+    curatorIdsToCheck.add(bundle.manifest.curatorId);
+  }
+  for (const source of bundle.entities.sourceMaterials) {
+    if (!isBundleIdentitySentinelOrPlaceholder(source.creatorId)) {
+      creatorIdsToCheck.add(source.creatorId);
+    }
+  }
+  for (const idea of bundle.entities.ideas) {
+    if (!isBundleIdentitySentinelOrPlaceholder(idea.creatorId)) {
+      creatorIdsToCheck.add(idea.creatorId);
+    }
+    if (idea.curatorId && !isBundleIdentitySentinelOrPlaceholder(idea.curatorId)) {
+      curatorIdsToCheck.add(idea.curatorId);
+    }
+  }
+
+  for (const creatorId of creatorIdsToCheck) {
+    const [row] = await db.select({ id: pengguna.id }).from(pengguna).where(eq(pengguna.id, creatorId)).limit(1);
+    if (!row) throw new Error(`IDEA_BUNDLE_CREATOR_UNKNOWN:${creatorId}`);
+  }
+  for (const curatorId of curatorIdsToCheck) {
+    const [row] = await db.select({ id: pengguna.id }).from(pengguna).where(eq(pengguna.id, curatorId)).limit(1);
+    if (!row) throw new Error(`IDEA_BUNDLE_CURATOR_UNKNOWN:${curatorId}`);
+  }
 
   const [legacyCourse] = await db.select({ id: courses.id }).from(courses).where(eq(courses.id, input.courseId)).limit(1);
   const [targetCourse] = await db
