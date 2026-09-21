@@ -90,6 +90,12 @@ const BulkUpdateSchema = z.object({
  reviewStatus: z.enum(['generated', 'reviewed', 'published', 'flagged', 'retired']),
 });
 
+/**
+ * Handles PUT requests for bulk status updates on question bank records.
+ *
+ * @param req - Incoming Next.js request with question IDs and target reviewStatus.
+ * @returns JSON response confirming update count or validation failure.
+ */
 export async function PUT(req: NextRequest) {
  const session = await auth.api.getSession({ headers: await headers() });
  const isAuthorized =
@@ -249,6 +255,12 @@ export async function PUT(req: NextRequest) {
   return NextResponse.json({ updated: ids.length });
 }
 
+/**
+ * Handles POST requests to create a single canonical question record.
+ *
+ * @param req - Incoming Next.js request with question authoring payload.
+ * @returns JSON response containing the created question identifiers and review status.
+ */
 export async function POST(req: NextRequest) {
   const session = await auth.api.getSession({ headers: await headers() });
   const isAuthorized =

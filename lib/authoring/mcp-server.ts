@@ -1742,6 +1742,12 @@ function referenceDraftSourceInput(
   };
 }
 
+/**
+ * Registers MCP tool endpoints for validating, submitting, and querying historical reference questions.
+ *
+ * @param server - The active McpServer instance.
+ * @param principal - Authenticated principal with lifecycle authoring scopes.
+ */
 function registerReferenceQuestionTools(server: McpServer, principal: McpPrincipal): void {
   (server as any).registerTool("assessment.validate_reference_draft", {
     title: "Validate historical reference draft",

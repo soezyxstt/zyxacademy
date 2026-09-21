@@ -101,6 +101,12 @@ const provenanceLabel: Record<NonNullable<HistoricalQuestion["answerProvenance"]
   unavailable: "Belum tersedia",
 };
 
+/**
+ * Normalizes raw option values from JSON or arrays into structured HistoricalOption items.
+ *
+ * @param value - The raw option payload from database or API.
+ * @returns An array of normalized HistoricalOption objects.
+ */
 function normalizeOptions(value: unknown): HistoricalOption[] {
   if (!Array.isArray(value)) return [];
   return value.flatMap((option) => {
@@ -114,6 +120,12 @@ function normalizeOptions(value: unknown): HistoricalOption[] {
   });
 }
 
+/**
+ * Determines the next recommended review action and label based on question status and quiz eligibility.
+ *
+ * @param question - The historical question item to inspect.
+ * @returns The target review action status and display label, or null if no transition applies.
+ */
 function reviewActionFor(question: HistoricalQuestion): { status: ReviewActionStatus; label: string } | null {
   if (question.reviewStatus === "generated" || question.reviewStatus === "flagged") {
     return { status: "reviewed", label: "Tandai ditinjau" };
@@ -126,6 +138,13 @@ function reviewActionFor(question: HistoricalQuestion): { status: ReviewActionSt
   return null;
 }
 
+/**
+ * Interactive client studio component for managing historical reference questions.
+ *
+ * Provides responsive filtering, paginated viewing, detail inspection, and status transitions.
+ *
+ * @param props - Component properties containing questions list, courses, and course map.
+ */
 export function HistoricalQuestionsClient({ questions, courses, courseMap }: Props) {
   const router = useRouter();
   const [searchTerm, setSearchTerm] = useState("");

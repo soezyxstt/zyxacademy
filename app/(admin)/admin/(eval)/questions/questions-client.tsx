@@ -112,11 +112,25 @@ const cognitiveLevelLabel: Record<CognitiveLevel, string> = {
   create: "Mencipta",
 };
 
+/**
+ * Determines the target review status from the form submit button.
+ *
+ * @param event - The form submission event containing the submitter button.
+ * @returns 'published' if the submit button value is published, otherwise 'generated'.
+ */
 function reviewStatusFromSubmit(event: React.FormEvent<HTMLFormElement>): ReviewStatus {
   const submitter = (event.nativeEvent as SubmitEvent).submitter as HTMLButtonElement | null;
   return submitter?.value === "published" ? "published" : "generated";
 }
 
+/**
+ * Recomputes equal distribution weights across selected Idea links when an Idea is toggled.
+ *
+ * @param current - Currently linked Ideas.
+ * @param ideaId - The identifier of the Idea being added or removed.
+ * @param checked - Whether the Idea should be selected.
+ * @returns Updated array of IdeaLink items with normalized weights.
+ */
 function rebalanceIdeaLinks(current: IdeaLink[], ideaId: string, checked: boolean): IdeaLink[] {
   const existing = new Map(current.map((link) => [link.ideaId, link]));
   if (checked) existing.set(ideaId, { ideaId, weight: 1, role: current.length === 0 ? "primary" : "supporting" });
@@ -131,10 +145,24 @@ function rebalanceIdeaLinks(current: IdeaLink[], ideaId: string, checked: boolea
   }));
 }
 
+/**
+ * Validates that the sum of Idea link weights equals 1.0 (100%) within a small epsilon.
+ *
+ * @param links - Array of Idea links to validate.
+ * @returns True if links are empty or their weights sum to 1.0.
+ */
 function hasValidIdeaWeights(links: IdeaLink[]): boolean {
   return links.length === 0 || Math.abs(links.reduce((sum, link) => sum + link.weight, 0) - 1) <= 0.000001;
 }
 
+/**
+ * Interactive client studio component for universal question bank operations.
+ *
+ * Supports single creation, bulk markdown import, faceted filtering, KaTeX preview,
+ * multi-question selection, status updates, and deletion.
+ *
+ * @param props - Component properties containing questions list, courses, chapters, and ideas.
+ */
 export function QuestionBankClient({ questions, courses, courseMap, authoringCourses, authoringChapters, authoringIdeas }: Props) {
   const router = useRouter();
 

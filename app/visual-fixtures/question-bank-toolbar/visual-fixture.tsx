@@ -57,6 +57,11 @@ const historicalQuestions = [
   },
 ];
 
+/**
+ * Visual regression test fixture rendering the question bank studio layout with mock questions.
+ *
+ * @param props - Contains the initial active tab (ai-generated or historical).
+ */
 export function QuestionBankToolbarVisualFixture({ initialTab }: { initialTab: "ai-generated" | "historical" }) {
   return (
     <main className="min-h-screen bg-background p-4 text-foreground sm:p-8">
