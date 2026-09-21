@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { CheckSquare, Square, ChevronDown, ChevronUp, Plus, Edit2, Trash2, Upload, ChevronLeft, ChevronRight } from "lucide-react";
@@ -220,25 +220,41 @@ export function QuestionBankClient({ questions, courses, courseMap, authoringCou
         if (!searchableText.includes(normalizedSearch)) return false;
       }
       if (filterStatus !== "all" && q.reviewStatus !== filterStatus) return false;
-      if (filterCourse !== "all" && q.courseId !== filterCourse) return false;
+      if (filterCourse !== "all") {
+        const matchesDirect = q.courseId === filterCourse;
+        const matchesTitle = Boolean(courseMap[q.courseId]) && courseMap[q.courseId] === courseMap[filterCourse];
+        const matchesCanonical = canonicalCourseForLegacy(q.courseId) === canonicalCourseForLegacy(filterCourse);
+        if (!matchesDirect && !matchesTitle && !matchesCanonical) return false;
+      }
       if (filterOrigin !== "all" && q.origin !== filterOrigin) return false;
       if (filterQuestionType !== "all" && q.questionType !== filterQuestionType) return false;
       if (filterDifficulty !== "all" && q.difficulty !== filterDifficulty) return false;
 
       return true;
     });
-  }, [localQuestions, searchQuery, filterStatus, filterCourse, filterOrigin, filterQuestionType, filterDifficulty, courseMap]);
+  }, [localQuestions, searchQuery, filterStatus, filterCourse, filterOrigin, filterQuestionType, filterDifficulty, courseMap, authoringCourses]);
 
-  const PAGE_SIZE = 20;
+  const [pageSize, setPageSize] = useState(10);
   const [currentPage, setCurrentPage] = useState(1);
+  const tableRef = useRef<HTMLDivElement>(null);
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const safeCurrentPage = Math.min(currentPage, totalPages);
 
   const paginatedQuestions = useMemo(() => {
-    const start = (safeCurrentPage - 1) * PAGE_SIZE;
-    return filtered.slice(start, start + PAGE_SIZE);
-  }, [filtered, safeCurrentPage]);
+    const start = (safeCurrentPage - 1) * pageSize;
+    return filtered.slice(start, start + pageSize);
+  }, [filtered, safeCurrentPage, pageSize]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, filterStatus, filterCourse, filterOrigin, filterQuestionType, filterDifficulty, pageSize]);
+
+  const goToPage = (page: number) => {
+    const target = Math.max(1, Math.min(totalPages, page));
+    setCurrentPage(target);
+    tableRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
 
   const activeFilterCount = [filterStatus, filterCourse, filterOrigin, filterQuestionType, filterDifficulty]
     .filter((value) => value !== "all").length;
@@ -582,9 +598,9 @@ export function QuestionBankClient({ questions, courses, courseMap, authoringCou
   };
 
   return (
-    <div className="space-y-6 font-sans">
+    <div className="w-full space-y-6 font-sans">
       {/* Search, filters, and actions */}
-      <div className="flex min-w-0 flex-wrap items-center gap-2 lg:flex-nowrap">
+      <div className="flex w-full min-w-0 flex-wrap items-center gap-2">
         <SearchBar
           size="sm"
           placeholder="Cari isi soal, tag, sumber..."
@@ -698,7 +714,7 @@ export function QuestionBankClient({ questions, courses, courseMap, authoringCou
         </TooltipProvider>
       </div>
 
-      <div className="space-y-6 lg:col-span-2 lg:col-start-1 lg:row-start-2">
+      <div ref={tableRef} className="w-full space-y-6">
         {/* Bulk actions - Floating Overlay */}
         {selected.size > 0 && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 flex items-center gap-4 rounded-xl border border-border/80 bg-background/90 backdrop-blur-md px-5 py-3.5 shadow-xl min-w-[320px] max-w-[90vw] animate-in slide-in-from-bottom-4 duration-300">
@@ -722,8 +738,8 @@ export function QuestionBankClient({ questions, courses, courseMap, authoringCou
         )}
 
       {/* Question list */}
-      <AdminTable>
-        <div className="flex items-center justify-between gap-3 border-b border-border bg-muted/50 px-4 py-3">
+      <AdminTable className="w-full">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-muted/50 px-4 py-3">
           <div className="flex items-center gap-3">
             <button
               type="button"
@@ -741,11 +757,59 @@ export function QuestionBankClient({ questions, courses, courseMap, authoringCou
               Daftar soal ({filtered.length})
             </span>
           </div>
-          {totalPages > 1 && (
-            <span className="text-body-xs text-muted-foreground">
-              Halaman {safeCurrentPage} dari {totalPages}
-            </span>
-          )}
+
+          <div className="flex items-center gap-3 ml-auto flex-wrap">
+            <div className="flex items-center gap-1.5 text-body-xs text-muted-foreground">
+              <span className="hidden sm:inline">Per halaman:</span>
+              <Select
+                value={String(pageSize)}
+                onValueChange={(value) => {
+                  setPageSize(Number(value));
+                  setCurrentPage(1);
+                }}
+              >
+                <SelectTrigger aria-label="Jumlah soal per halaman" className="h-7 w-[68px] rounded-md text-body-xs px-2">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="10">10</SelectItem>
+                  <SelectItem value="20">20</SelectItem>
+                  <SelectItem value="50">50</SelectItem>
+                  <SelectItem value="100">100</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {totalPages > 1 && (
+              <div className="flex items-center gap-1">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="size-7 p-0 rounded-md"
+                  disabled={safeCurrentPage <= 1}
+                  onClick={() => goToPage(safeCurrentPage - 1)}
+                  aria-label="Halaman sebelumnya"
+                >
+                  <ChevronLeft className="size-3.5" />
+                </Button>
+                <span className="text-body-xs font-semibold px-1.5 tabular-nums text-muted-foreground">
+                  {safeCurrentPage} / {totalPages}
+                </span>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="size-7 p-0 rounded-md"
+                  disabled={safeCurrentPage >= totalPages}
+                  onClick={() => goToPage(safeCurrentPage + 1)}
+                  aria-label="Halaman berikutnya"
+                >
+                  <ChevronRight className="size-3.5" />
+                </Button>
+              </div>
+            )}
+          </div>
         </div>
 
         {filtered.length === 0 ? (
@@ -769,7 +833,7 @@ export function QuestionBankClient({ questions, courses, courseMap, authoringCou
         {totalPages > 1 && (
           <div className="flex items-center justify-between border-t border-border bg-muted/30 px-4 py-3 text-body-sm">
             <span className="text-body-xs text-muted-foreground">
-              Menampilkan {(safeCurrentPage - 1) * PAGE_SIZE + 1} - {Math.min(safeCurrentPage * PAGE_SIZE, filtered.length)} dari {filtered.length} soal
+              Menampilkan {(safeCurrentPage - 1) * pageSize + 1} - {Math.min(safeCurrentPage * pageSize, filtered.length)} dari {filtered.length} soal
             </span>
             <div className="flex items-center gap-1.5">
               <Button
@@ -778,12 +842,12 @@ export function QuestionBankClient({ questions, courses, courseMap, authoringCou
                 size="sm"
                 className="size-8 p-0 rounded-lg"
                 disabled={safeCurrentPage <= 1}
-                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                onClick={() => goToPage(safeCurrentPage - 1)}
                 aria-label="Halaman sebelumnya"
               >
                 <ChevronLeft className="size-4" />
               </Button>
-              <span className="text-body-xs font-semibold px-2">
+              <span className="text-body-xs font-semibold px-2 tabular-nums">
                 {safeCurrentPage} / {totalPages}
               </span>
               <Button
@@ -792,7 +856,7 @@ export function QuestionBankClient({ questions, courses, courseMap, authoringCou
                 size="sm"
                 className="size-8 p-0 rounded-lg"
                 disabled={safeCurrentPage >= totalPages}
-                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                onClick={() => goToPage(safeCurrentPage + 1)}
                 aria-label="Halaman berikutnya"
               >
                 <ChevronRight className="size-4" />
@@ -801,6 +865,7 @@ export function QuestionBankClient({ questions, courses, courseMap, authoringCou
           </div>
         )}
       </AdminTable>
+      </div>
 
       {/* CREATE DIALOG */}
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
@@ -1283,7 +1348,6 @@ export function QuestionBankClient({ questions, courses, courseMap, authoringCou
           </form>
         </DialogContent>
       </Dialog>
-      </div>
     </div>
   );
 }

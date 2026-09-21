@@ -65,16 +65,13 @@ export function QuestionBankToolbarVisualFixture({ initialTab }: { initialTab: "
         <Tabs
           defaultValue={initialTab}
           syncUrl={false}
-          className="grid grid-cols-1 items-center gap-x-2 gap-y-4 lg:grid-cols-[auto_minmax(0,1fr)] lg:grid-rows-[auto_auto]"
+          className="w-full space-y-6"
         >
-          <TabsList className="relative z-10 col-start-1 row-start-1 justify-self-start">
+          <TabsList>
             <TabsTrigger value="ai-generated">Bank soal aktif</TabsTrigger>
             <TabsTrigger value="historical">Referensi historis</TabsTrigger>
           </TabsList>
-          <TabsContent
-            value="ai-generated"
-            className="mt-0 lg:col-span-2 lg:row-span-2 lg:col-start-1 lg:row-start-1 lg:grid lg:grid-cols-subgrid lg:grid-rows-subgrid"
-          >
+          <TabsContent value="ai-generated" className="w-full space-y-6">
             <QuestionBankClient
               questions={questions}
               courses={courses}
@@ -84,10 +81,7 @@ export function QuestionBankToolbarVisualFixture({ initialTab }: { initialTab: "
               authoringIdeas={[]}
             />
           </TabsContent>
-          <TabsContent
-            value="historical"
-            className="mt-0 lg:col-span-2 lg:row-span-2 lg:col-start-1 lg:row-start-1 lg:grid lg:grid-cols-subgrid lg:grid-rows-subgrid"
-          >
+          <TabsContent value="historical" className="w-full space-y-6">
             <HistoricalQuestionsClient questions={historicalQuestions} courses={courses} courseMap={courseMap} />
           </TabsContent>
         </Tabs>
