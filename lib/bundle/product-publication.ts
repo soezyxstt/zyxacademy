@@ -401,6 +401,10 @@ async function insertBlueprint(tx: Tx, product: Extract<ProductEntity, { product
   } else await tx.insert(blueprintAsesmen).values(values);
 }
 
+/**
+ * Publishes a staged Product Bundle, inserting all validated product entities,
+ * verifying traceability to published Ideas, and enqueueing vector sync jobs.
+ */
 export async function publishProductBundle(input: { importId: string; publishedBy: string; testFailureAfter?: FailureStage }): Promise<{ publicationId: string; importId: string; published: boolean; productCount: number; vectorJobCount: number }> {
   enabled();
   const snapshot = await getProductBundleImport(input.importId);
@@ -410,13 +414,19 @@ export async function publishProductBundle(input: { importId: string; publishedB
     if (!publication) throw new Error("PRODUCT_BUNDLE_PUBLISHED_RECORD_MISSING");
     return { publicationId: publication.id, importId: input.importId, published: false, productCount: 0, vectorJobCount: 0 };
   }
-  if (productBundleLifecycleStatus(snapshot.status) !== "draft") throw new Error("PRODUCT_BUNDLE_DRAFT_REQUIRED");
+  if (snapshot.status !== "draft") throw new Error("PRODUCT_BUNDLE_DRAFT_REQUIRED");
   const bundle = await parseStagedProductBundle(input.importId);
   if (bundle.publicationBlocked) throw new Error("PRODUCT_BUNDLE_DEPENDENCY_NEEDS_REVIEW");
   let courseLegacyId: string | undefined;
   const result = await db.transaction(async (tx) => {
     const [row] = await tx.select().from(imporBundle).where(eq(imporBundle.id, input.importId)).limit(1);
-    if (!row || row.bundleType !== "product" || productBundleLifecycleStatus(row.status) !== "draft") throw new Error("PRODUCT_BUNDLE_DRAFT_REQUIRED");
+    if (!row || row.bundleType !== "product") throw new Error("PRODUCT_BUNDLE_NOT_FOUND");
+    if (row.status === "published") {
+      const [publication] = await tx.select({ id: publikasiBundle.id }).from(publikasiBundle).where(and(eq(publikasiBundle.imporBundleId, input.importId), eq(publikasiBundle.status, "published"))).limit(1);
+      if (!publication) throw new Error("PRODUCT_BUNDLE_PUBLISHED_RECORD_MISSING");
+      return { publicationId: publication.id, importId: input.importId, published: false, productCount: 0, vectorJobCount: 0 };
+    }
+    if (row.status !== "draft") throw new Error("PRODUCT_BUNDLE_DRAFT_REQUIRED");
     const [publisher] = await tx.select({ role: user.role }).from(user).where(eq(user.id, input.publishedBy)).limit(1);
     if (!publisher || publisher.role !== "admin") throw new Error("PRODUCT_BUNDLE_PUBLISH_FORBIDDEN");
     await requireIdentity(tx, input.publishedBy, "PRODUCT_BUNDLE_PUBLISHER_NOT_FOUND");
@@ -456,6 +466,12 @@ export async function publishProductBundle(input: { importId: string; publishedB
     courseLegacyId = course.legacyId;
     const now = new Date();
     const attribution = { uploaderId: row.requestedBy, approvingReviewerId: review.reviewerId };
+    const manifestCreatorId = resolveBundleIdentity(bundle.manifest.creatorId, attribution);
+    await requireIdentity(tx, manifestCreatorId, "PRODUCT_BUNDLE_CREATOR_NOT_FOUND");
+    if (bundle.manifest.curatorId) {
+      const manifestCuratorId = resolveBundleIdentity(bundle.manifest.curatorId, attribution);
+      await requireIdentity(tx, manifestCuratorId, "PRODUCT_BUNDLE_CURATOR_NOT_FOUND");
+    }
     const products = bundle.products.map((product) => ({
       ...product,
       creatorId: resolveBundleIdentity(product.creatorId, attribution),

@@ -12,9 +12,11 @@ import {
   reviewItemBundle,
   reviewPedagogiBundle,
   user,
+  pengguna,
 } from "@/db/schema";
 import { storage } from "@/lib/storage";
 import { buildProductBundleKey } from "@/lib/storage/keys";
+import { isBundleIdentitySentinelOrPlaceholder } from "./attribution";
 import { productEntityHash, parseProductBundleZip } from "./product-bundle-v2";
 import { deterministicProductSerialization, type ProductDependency } from "./product-validator";
 import { type ProductBundleValidation } from "./product-validator";
@@ -68,8 +70,42 @@ async function storedCourseId(courseId: string): Promise<string> {
   throw new Error(`PRODUCT_BUNDLE_COURSE_NOT_FOUND:${courseId}`);
 }
 
+/**
+ * Stages a validated Product Bundle, enforcing early identity validation,
+ * course association, artifact upload, and draft item recording.
+ */
 export async function stageProductBundle(input: ProductStageInput) {
   enabled();
+  const [uploader] = await db.select({ id: pengguna.id }).from(pengguna).where(eq(pengguna.id, input.requestedBy)).limit(1);
+  if (!uploader) throw new Error("PRODUCT_BUNDLE_UPLOADER_NOT_FOUND");
+
+  const creatorIdsToCheck = new Set<string>();
+  const curatorIdsToCheck = new Set<string>();
+
+  if (!isBundleIdentitySentinelOrPlaceholder(input.bundle.manifest.creatorId)) {
+    creatorIdsToCheck.add(input.bundle.manifest.creatorId);
+  }
+  if (input.bundle.manifest.curatorId && !isBundleIdentitySentinelOrPlaceholder(input.bundle.manifest.curatorId)) {
+    curatorIdsToCheck.add(input.bundle.manifest.curatorId);
+  }
+  for (const product of input.bundle.products) {
+    if (!isBundleIdentitySentinelOrPlaceholder(product.creatorId)) {
+      creatorIdsToCheck.add(product.creatorId);
+    }
+    if (product.curatorId && !isBundleIdentitySentinelOrPlaceholder(product.curatorId)) {
+      curatorIdsToCheck.add(product.curatorId);
+    }
+  }
+
+  for (const creatorId of creatorIdsToCheck) {
+    const [row] = await db.select({ id: pengguna.id }).from(pengguna).where(eq(pengguna.id, creatorId)).limit(1);
+    if (!row) throw new Error(`PRODUCT_BUNDLE_CREATOR_UNKNOWN:${creatorId}`);
+  }
+  for (const curatorId of curatorIdsToCheck) {
+    const [row] = await db.select({ id: pengguna.id }).from(pengguna).where(eq(pengguna.id, curatorId)).limit(1);
+    if (!row) throw new Error(`PRODUCT_BUNDLE_CURATOR_UNKNOWN:${curatorId}`);
+  }
+
   const schemaVersion = input.bundle.manifest.schemaVersion === "product-bundle.v3" ? 3 : 2;
   const legacyCourseId = await storedCourseId(input.courseId);
   const [same] = await db.select().from(imporBundle).where(and(eq(imporBundle.bundleId, input.bundleId), eq(imporBundle.checksum, input.checksum))).limit(1);
