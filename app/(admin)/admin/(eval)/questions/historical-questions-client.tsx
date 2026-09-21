@@ -1,11 +1,13 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
   Check,
   CheckCircle2,
   CheckSquare,
+  ChevronLeft,
+  ChevronRight,
   Eye,
   EyeOff,
   Flag,
@@ -99,6 +101,12 @@ const provenanceLabel: Record<NonNullable<HistoricalQuestion["answerProvenance"]
   unavailable: "Belum tersedia",
 };
 
+/**
+ * Normalizes raw option values from JSON or arrays into structured HistoricalOption items.
+ *
+ * @param value - The raw option payload from database or API.
+ * @returns An array of normalized HistoricalOption objects.
+ */
 function normalizeOptions(value: unknown): HistoricalOption[] {
   if (!Array.isArray(value)) return [];
   return value.flatMap((option) => {
@@ -112,6 +120,12 @@ function normalizeOptions(value: unknown): HistoricalOption[] {
   });
 }
 
+/**
+ * Determines the next recommended review action and label based on question status and quiz eligibility.
+ *
+ * @param question - The historical question item to inspect.
+ * @returns The target review action status and display label, or null if no transition applies.
+ */
 function reviewActionFor(question: HistoricalQuestion): { status: ReviewActionStatus; label: string } | null {
   if (question.reviewStatus === "generated" || question.reviewStatus === "flagged") {
     return { status: "reviewed", label: "Tandai ditinjau" };
@@ -124,6 +138,13 @@ function reviewActionFor(question: HistoricalQuestion): { status: ReviewActionSt
   return null;
 }
 
+/**
+ * Interactive client studio component for managing historical reference questions.
+ *
+ * Provides responsive filtering, paginated viewing, detail inspection, and status transitions.
+ *
+ * @param props - Component properties containing questions list, courses, and course map.
+ */
 export function HistoricalQuestionsClient({ questions, courses, courseMap }: Props) {
   const router = useRouter();
   const [searchTerm, setSearchTerm] = useState("");
@@ -149,7 +170,10 @@ export function HistoricalQuestionsClient({ questions, courses, courseMap }: Pro
         .join(" ")
         .toLowerCase();
       const matchSearch = !normalizedSearch || searchableText.includes(normalizedSearch);
-      const matchCourse = filterCourse === "all" || question.courseId === filterCourse;
+      const matchCourse =
+        filterCourse === "all" ||
+        question.courseId === filterCourse ||
+        (Boolean(courseMap[question.courseId]) && courseMap[question.courseId] === courseMap[filterCourse]);
       const matchCategory = filterCategory === "all" || question.sourceCategory === filterCategory;
       const matchDifficulty = filterDifficulty === "all" || question.difficulty === filterDifficulty;
       return matchSearch && matchCourse && matchCategory && matchDifficulty;
@@ -226,6 +250,28 @@ export function HistoricalQuestionsClient({ questions, courses, courseMap }: Pro
     }
   }
 
+  const [pageSize, setPageSize] = useState(10);
+  const [currentPage, setCurrentPage] = useState(1);
+  const tableRef = useRef<HTMLDivElement>(null);
+
+  const totalPages = Math.max(1, Math.ceil(filteredQuestions.length / pageSize));
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+
+  const paginatedQuestions = useMemo(() => {
+    const start = (safeCurrentPage - 1) * pageSize;
+    return filteredQuestions.slice(start, start + pageSize);
+  }, [filteredQuestions, safeCurrentPage, pageSize]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, filterCourse, filterCategory, filterDifficulty, pageSize]);
+
+  const goToPage = (page: number) => {
+    const target = Math.max(1, Math.min(totalPages, page));
+    setCurrentPage(target);
+    tableRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
   const activeFilterCount = [filterCourse, filterCategory, filterDifficulty]
     .filter((value) => value !== "all").length;
 
@@ -235,11 +281,12 @@ export function HistoricalQuestionsClient({ questions, courses, courseMap }: Pro
     setFilterCategory("all");
     setFilterDifficulty("all");
     setSelected(new Set());
+    setCurrentPage(1);
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex min-w-0 flex-wrap items-center gap-2 lg:flex-nowrap">
+    <div className="w-full space-y-6">
+      <div className="flex w-full min-w-0 flex-wrap items-center gap-2">
         <SearchBar
           size="sm"
           placeholder="Cari isi soal atau sumber..."
@@ -311,7 +358,67 @@ export function HistoricalQuestionsClient({ questions, courses, courseMap }: Pro
       ) : null}
 
 
-      <AdminTable>
+      <div ref={tableRef} className="w-full space-y-6">
+      <AdminTable className="w-full">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-muted/50 px-4 py-3">
+          <span className="text-body-xs font-semibold text-muted-foreground">
+            Daftar soal ({filteredQuestions.length})
+          </span>
+
+          <div className="flex items-center gap-3 ml-auto flex-wrap">
+            <div className="flex items-center gap-1.5 text-body-xs text-muted-foreground">
+              <span className="hidden sm:inline">Per halaman:</span>
+              <Select
+                value={String(pageSize)}
+                onValueChange={(value) => {
+                  setPageSize(Number(value));
+                  setCurrentPage(1);
+                }}
+              >
+                <SelectTrigger aria-label="Jumlah soal per halaman" className="h-7 w-[68px] rounded-md text-body-xs px-2">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="10">10</SelectItem>
+                  <SelectItem value="20">20</SelectItem>
+                  <SelectItem value="50">50</SelectItem>
+                  <SelectItem value="100">100</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {totalPages > 1 && (
+              <div className="flex items-center gap-1">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="size-7 p-0 rounded-md"
+                  disabled={safeCurrentPage <= 1}
+                  onClick={() => goToPage(safeCurrentPage - 1)}
+                  aria-label="Halaman sebelumnya"
+                >
+                  <ChevronLeft className="size-3.5" />
+                </Button>
+                <span className="text-body-xs font-semibold px-1.5 tabular-nums text-muted-foreground">
+                  {safeCurrentPage} / {totalPages}
+                </span>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="size-7 p-0 rounded-md"
+                  disabled={safeCurrentPage >= totalPages}
+                  onClick={() => goToPage(safeCurrentPage + 1)}
+                  aria-label="Halaman berikutnya"
+                >
+                  <ChevronRight className="size-3.5" />
+                </Button>
+              </div>
+            )}
+          </div>
+        </div>
+
         {filteredQuestions.length === 0 ? (
           <AdminEmptyState compact title="Tidak ada soal referensi historis yang cocok dengan filter." />
         ) : (
@@ -332,7 +439,7 @@ export function HistoricalQuestionsClient({ questions, courses, courseMap }: Pro
                 </tr>
               </AdminTableHead>
               <tbody>
-                {filteredQuestions.map((question) => {
+                {paginatedQuestions.map((question) => {
                   const isExpanded = expandedId === question.id;
                   const reviewAction = reviewActionFor(question);
                   const textExcerpt = question.questionMarkdown.length > 140
@@ -386,7 +493,43 @@ export function HistoricalQuestionsClient({ questions, courses, courseMap }: Pro
             </table>
           </div>
         )}
+
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between border-t border-border bg-muted/30 px-4 py-3 text-body-sm">
+            <span className="text-body-xs text-muted-foreground">
+              Menampilkan {(safeCurrentPage - 1) * pageSize + 1} - {Math.min(safeCurrentPage * pageSize, filteredQuestions.length)} dari {filteredQuestions.length} soal
+            </span>
+            <div className="flex items-center gap-1.5">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="size-8 p-0 rounded-lg"
+                disabled={safeCurrentPage <= 1}
+                onClick={() => goToPage(safeCurrentPage - 1)}
+                aria-label="Halaman sebelumnya"
+              >
+                <ChevronLeft className="size-4" />
+              </Button>
+              <span className="text-body-xs font-semibold px-2 tabular-nums">
+                {safeCurrentPage} / {totalPages}
+              </span>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="size-8 p-0 rounded-lg"
+                disabled={safeCurrentPage >= totalPages}
+                onClick={() => goToPage(safeCurrentPage + 1)}
+                aria-label="Halaman berikutnya"
+              >
+                <ChevronRight className="size-4" />
+              </Button>
+            </div>
+          </div>
+        )}
       </AdminTable>
+      </div>
 
       {filteredQuestions.map((question) => {
         if (expandedId !== question.id) return null;
