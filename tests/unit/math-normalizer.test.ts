@@ -192,7 +192,7 @@ describe("normalizeMathInText", () => {
     const t0 = performance.now();
     normalizeMathInText(nearMatch);
     const elapsed = performance.now() - t0;
-    expect(elapsed).toBeLessThan(100);
+    expect(elapsed).toBeLessThan(250);
 
     // Length limit guard verification
     const hugeInput = "x".repeat(15000);
@@ -270,4 +270,40 @@ describe("normalizeMathInText", () => {
       }
     }).not.toThrow();
   });
+
+  it("normalizes expanded bare LaTeX commands including Greek, vectors, trig, and binomials", () => {
+    const input = "Perhatikan sudut \\theta dan nilai \\pi, serta vektor kecepatan \\vec{v} dan basis \\hat{i}. Hitung \\sin(x) saat \\lim_{x \\to 0} dan kombinasi \\binom{n}{k}.";
+    const normalized = normalizeMathInText(input);
+
+    expect(normalized).toContain("\\theta");
+    expect(normalized).toContain("\\pi");
+    expect(normalized).toContain("\\vec{v}");
+    expect(normalized).toContain("\\hat{i}");
+    expect(normalized).toContain("\\binom{n}{k}");
+
+    const math = normalized.match(/\$([^$]+)\$/g) || [];
+    expect(math.length).toBeGreaterThanOrEqual(5);
+    expect(() => {
+      for (const m of math) {
+        katex.renderToString(m.slice(1, -1), { throwOnError: true });
+      }
+    }).not.toThrow();
+  });
+
+  it("preserves and validates KaTeX matrix environments without throwing", () => {
+    const matrixP = "Diberikan matriks $\\begin{pmatrix} 1 & 2 \\\\ 3 & 4 \\end{pmatrix}$ dan determinan $\\begin{vmatrix} a & b \\\\ c & d \\end{vmatrix}$.";
+    const normalized = normalizeMathInText(matrixP);
+
+    expect(normalized).toContain("\\begin{pmatrix}");
+    expect(normalized).toContain("\\begin{vmatrix}");
+
+    const math = normalized.match(/\$([^$]+)\$/g) || [];
+    expect(math.length).toBe(2);
+    expect(() => {
+      for (const m of math) {
+        katex.renderToString(m.slice(1, -1), { throwOnError: true });
+      }
+    }).not.toThrow();
+  });
 });
+

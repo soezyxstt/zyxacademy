@@ -12,16 +12,28 @@ export function preRenderMathInText(text: string): string {
 
  const mathBlocks: { type: string; eq: string; placeholder: string }[] = [];
 
- // 1. Temporarily extract block equations ($$ ... $$) and replace with safe placeholder
- let processedText = text.replace(/\$\$\s*([\s\S]*?)\s*\$\$/g, (_, eq) => {
+ // 1. Temporarily extract block equations ($$ ... $$ and \[ ... \]) and replace with safe placeholder
+ let processedText = text
+ .replace(/\\\[\s*([\s\S]*?)\s*\\\]/g, (_, eq) => {
+ const placeholder = `%%BLOCKMATH${mathBlocks.length}%%`;
+ mathBlocks.push({ type: "block", eq: eq.trim(), placeholder });
+ return placeholder;
+ })
+ .replace(/\$\$\s*([\s\S]*?)\s*\$\$/g, (_, eq) => {
  const placeholder = `%%BLOCKMATH${mathBlocks.length}%%`;
  mathBlocks.push({ type: "block", eq: eq.trim(), placeholder });
  return placeholder;
  });
 
- // 2. Temporarily extract inline equations ($ ... $) and replace with safe placeholder
+ // 2. Temporarily extract inline equations ($ ... $ and \( ... \)) and replace with safe placeholder
  // We ignore numeric strings like "$100"
- processedText = processedText.replace(/\$([^\$]+?)\$/g, (orig, eq) => {
+ processedText = processedText
+ .replace(/\\\(\s*([\s\S]*?)\s*\\\)/g, (_, eq) => {
+ const placeholder = `%%INLINEMATH${mathBlocks.length}%%`;
+ mathBlocks.push({ type: "inline", eq: eq.trim(), placeholder });
+ return placeholder;
+ })
+ .replace(/\$([^\$]+?)\$/g, (orig, eq) => {
  const trimmed = eq.trim();
  if (!trimmed || trimmed.match(/^\d+(\.\d+)?$/) || (trimmed.length === 1 && trimmed.match(/[0-9]/))) {
  return orig;

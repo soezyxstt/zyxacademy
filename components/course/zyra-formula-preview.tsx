@@ -16,10 +16,38 @@ interface ZyraFormulaPreviewProps {
  */
 function containsMathSyntax(text: string): boolean {
   if (!text) return false;
-  // Checks for $, \, ^, _, or common LaTeX commands
-  return /\$|\\(?:frac|sqrt|int|sum|lim|sin|cos|tan|log|ln|alpha|beta|theta|pi|pm|le|ge|ne)|\^|\_/.test(
-    text
-  );
+  // Checks for $, \, ^, _, common LaTeX commands, or math symbols
+  return /\$|\\(?:[a-zA-Z]+)|\^|\_|[√π≤≥≠θ±∓∞∫∬∂Σ∏→∈∉⊂⊆∪∩∅⇒⇔°αβγδελμφωΩ]/.test(text);
+}
+
+function normalizeUnicodeMath(expr: string): string {
+  return expr
+    .replace(/√\s*\(?([^)\s]+)\)?/g, "\\sqrt{$1}")
+    .replace(/√/g, "\\sqrt{}")
+    .replace(/π/g, "\\pi ")
+    .replace(/≤/g, "\\le ")
+    .replace(/≥/g, "\\ge ")
+    .replace(/≠/g, "\\ne ")
+    .replace(/θ/g, "\\theta ")
+    .replace(/±/g, "\\pm ")
+    .replace(/∓/g, "\\mp ")
+    .replace(/∞/g, "\\infty ")
+    .replace(/∫/g, "\\int ")
+    .replace(/∬/g, "\\iint ")
+    .replace(/∂/g, "\\partial ")
+    .replace(/Σ/g, "\\sum ")
+    .replace(/∏/g, "\\prod ")
+    .replace(/→/g, "\\to ")
+    .replace(/∈/g, "\\in ")
+    .replace(/∉/g, "\\notin ")
+    .replace(/⊂/g, "\\subset ")
+    .replace(/⊆/g, "\\subseteq ")
+    .replace(/∪/g, "\\cup ")
+    .replace(/∩/g, "\\cap ")
+    .replace(/∅/g, "\\emptyset ")
+    .replace(/⇒/g, "\\Rightarrow ")
+    .replace(/⇔/g, "\\Leftrightarrow ")
+    .replace(/°/g, "^\\circ ");
 }
 
 /**
@@ -39,6 +67,8 @@ export function ZyraFormulaPreview({ input, className }: ZyraFormulaPreviewProps
     } else if (mathExpr.startsWith("$") && mathExpr.endsWith("$")) {
       mathExpr = mathExpr.slice(1, -1).trim();
     }
+
+    mathExpr = normalizeUnicodeMath(mathExpr);
 
     try {
       return katex.renderToString(mathExpr, {

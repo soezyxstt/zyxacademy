@@ -248,10 +248,10 @@ async function main() {
       difficulty: "medium" as const,
       questionType: "multiple_choice" as const,
       tags: ["integral", "substitusi"],
-      prompt: "Berapakah hasil dari $\\int 2x e^{x^2} dx$?",
+      prompt: "Berapakah hasil dari $\\int 2x e^{x^2}\\,\\mathrm{d}x$?",
       options: ["$e^{x^2} + C$", "$2e^{x^2} + C$", "$e^x + C$", "$x^2 e^x + C$"],
       correctIndices: [0], // "e^(x^2) + C"
-      explanation: "Misalkan $u = x^2$, maka $du = 2x dx$. Integral menjadi $\\int e^u du = e^u + C = e^{x^2} + C$.",
+      explanation: "Misalkan $u = x^2$, maka $\\mathrm{d}u = 2x\\,\\mathrm{d}x$. Integral menjadi $\\int e^u\\,\\mathrm{d}u = e^u + C = e^{x^2} + C$.",
       reviewStatus: "published" as const,
       qualityScore: 0.98,
       useCount: 0,
@@ -310,7 +310,7 @@ async function main() {
       difficulty: "hard" as const,
       questionType: "multiple_choice" as const,
       tags: ["integral", "parsial"],
-      prompt: "Hasil dari $\\int x \\ln(x) dx$ adalah...",
+      prompt: "Hasil dari $\\int x \\ln(x)\\,\\mathrm{d}x$ adalah...",
       options: [
         "$\\frac{x^2}{2} \\ln(x) - \\frac{x^2}{4} + C$",
         "$x^2 \\ln(x) - x^2 + C$",
@@ -318,7 +318,7 @@ async function main() {
         "$\\frac{\\ln(x)}{2} - x^2 + C$"
       ],
       correctIndices: [0], // "(x^2/2) * ln(x) - x^2/4 + C"
-      explanation: "Menggunakan integral parsial: $u = \\ln(x) \\Rightarrow du = \\frac{1}{x} dx$ dan $dv = x dx \\Rightarrow v = \\frac{x^2}{2}$. Hasilnya $uv - \\int v du = \\frac{x^2}{2} \\ln(x) - \\int \\frac{x}{2} dx = \\frac{x^2}{2} \\ln(x) - \\frac{x^2}{4} + C$.",
+      explanation: "Menggunakan integral parsial: $u = \\ln(x) \\Rightarrow \\mathrm{d}u = \\frac{1}{x}\\,\\mathrm{d}x$ dan $\\mathrm{d}v = x\\,\\mathrm{d}x \\Rightarrow v = \\frac{x^2}{2}$. Hasilnya $uv - \\int v\\,\\mathrm{d}u = \\frac{x^2}{2} \\ln(x) - \\int \\frac{x}{2}\\,\\mathrm{d}x = \\frac{x^2}{2} \\ln(x) - \\frac{x^2}{4} + C$.",
       reviewStatus: "published" as const,
       qualityScore: 1.0,
       useCount: 0,

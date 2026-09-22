@@ -79,12 +79,17 @@ export function scientificTextToLatex(input: string): string {
 
   // 3. Greek letter shortcuts (case-insensitive for named symbols if standalone)
   const greekLetters = [
-    "alpha", "beta", "gamma", "delta", "epsilon", "theta", "lambda", "mu",
-    "pi", "rho", "sigma", "tau", "phi", "omega", "Omega", "Delta"
+    "alpha", "beta", "gamma", "delta", "epsilon", "zeta", "eta", "theta",
+    "iota", "kappa", "lambda", "mu", "nu", "xi", "pi", "rho", "sigma",
+    "tau", "upsilon", "phi", "chi", "psi", "omega",
+    "Gamma", "Delta", "Theta", "Lambda", "Xi", "Pi", "Sigma", "Upsilon", "Phi", "Psi", "Omega"
   ];
+  const uppercaseGreek = new Set([
+    "Gamma", "Delta", "Theta", "Lambda", "Xi", "Pi", "Sigma", "Upsilon", "Phi", "Psi", "Omega"
+  ]);
   for (const g of greekLetters) {
     const regex = new RegExp(`(?<![\\\\a-zA-Z])${g}(?![a-zA-Z])`, "g");
-    const replacement = g === "Omega" || g === "Delta" ? `\\${g}` : `\\${g.toLowerCase()}`;
+    const replacement = uppercaseGreek.has(g) ? `\\${g}` : `\\${g.toLowerCase()}`;
     s = s.replace(regex, replacement);
   }
 
@@ -120,6 +125,28 @@ export function scientificTextToLatex(input: string): string {
     return `^{${inner}}`;
   });
 
+  // 11. Scientific physical units formatting with \text{} so units render upright in KaTeX
+  s = s.replace(
+    /(?<=(?:\d|\}))\s*(nm|cm|mm|km|m\/s\^2|m\/s2|m\/s|Hz|kHz|MHz|GHz|kJ|J|eV|mol|kg|rad)(?:(-?\d+)|\^(-?\d+))?(?![a-zA-Z0-9_{^])/g,
+    (_, unit, p1, p2) => {
+      const pow = p1 || p2;
+      if (pow) {
+        return ` \\text{ ${unit}}^{${pow}}`;
+      }
+      return ` \\text{ ${unit}}`;
+    }
+  );
+  s = s.replace(
+    /(?<=(?:\d|\}))\s+(m|s|g)(?:(-?\d+)|\^(-?\d+))?(?![a-zA-Z0-9_{^])/g,
+    (_, unit, p1, p2) => {
+      const pow = p1 || p2;
+      if (pow) {
+        return ` \\text{ ${unit}}^{${pow}}`;
+      }
+      return ` \\text{ ${unit}}`;
+    }
+  );
+
   // Clean duplicate spaces
   s = s.replace(/\s{2,}/g, " ").trim();
 
@@ -147,13 +174,20 @@ export function canonicalizeScientificAnswer(raw: string): string {
        .replace(/\\pi|π/g, "π")
        .replace(/\\theta|θ/g, "θ")
        .replace(/\\lambda|λ/g, "λ")
+       .replace(/\\alpha|α/g, "α")
+       .replace(/\\beta|β/g, "β")
+       .replace(/\\gamma|γ/g, "γ")
+       .replace(/\\delta|δ/g, "δ")
+       .replace(/\\omega|ω/g, "ω")
+       .replace(/\\sigma|σ/g, "σ")
+       .replace(/\\mu|μ/g, "μ")
        .replace(/\\rightarrow|->|→/g, "→")
        .replace(/\\rightleftharpoons|<=>|⇌/g, "⇌");
 
   // Remove LaTeX wrappers like \text{}, \mathrm{}, \mathbf{}
-  s = s.replace(/\\text\{([^}]+)\}/g, "$1")
-       .replace(/\\mathrm\{([^}]+)\}/g, "$1")
-       .replace(/\\mathbf\{([^}]+)\}/g, "$1");
+  s = s.replace(/\\text\{\s*([^}]+)\s*\}/g, "$1")
+       .replace(/\\mathrm\{\s*([^}]+)\s*\}/g, "$1")
+       .replace(/\\mathbf\{\s*([^}]+)\s*\}/g, "$1");
 
   // Remove unnecessary outer curly braces from powers and scripts: ^{2} -> ^2
   s = s.replace(/\^{([a-z0-9+-]+)}/g, "^$1");

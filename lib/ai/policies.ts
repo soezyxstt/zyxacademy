@@ -34,9 +34,9 @@ export const POLICY_LANGUAGE_ID: PolicyFragment = {
 
 export const POLICY_MATH_LATEX: PolicyFragment = {
   id: 'math-notation',
-  version: '1.0',
+  version: '1.1',
   category: 'student',
-  content: `Format all mathematical expressions using standard LaTeX notation. Use single dollar signs ($...$) for inline math and double dollar signs ($$...$$) for block display math. Ensure valid LaTeX syntax without unescaped characters.`,
+  content: `Format all mathematical expressions using standard LaTeX notation. Use single dollar signs ($...$) for inline math and double dollar signs ($$...$$) for block display math. Write differentials using thin-spaced upright roman notation (e.g. \\,\\mathrm{d}x instead of dx). Wrap units with \\text{} (e.g. 10^{-3}\\text{ m/s}). Ensure valid LaTeX syntax without unescaped characters.`,
 };
 
 export const POLICY_ASSESSMENT_HELP: PolicyFragment = {
