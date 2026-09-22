@@ -605,6 +605,9 @@ export type SortableQuizTemplate = {
   createdAt?: Date | string | number | null;
 };
 
+/**
+ * Normalizes text for case, punctuation, and whitespace insensitive quiz comparison.
+ */
 function normalizeForQuizSorting(text: string): string {
   return text
     .toLowerCase()
@@ -615,11 +618,17 @@ function normalizeForQuizSorting(text: string): string {
     .trim();
 }
 
+/**
+ * Extracts the 1-based quiz sequence number from titles like "Kuis 1" or "Quiz 2".
+ */
 function extractQuizNumber(title: string): number {
   const match = title.match(/\b(?:kuis|quiz)\s*(\d+)\b/i);
   return match ? parseInt(match[1], 10) : 9999;
 }
 
+/**
+ * Extracts the 1-based chapter number from titles like "Bab 1" or "Chapter 2".
+ */
 function extractChapterNumberFromTitle(title: string): number | null {
   const match = title.match(/\b(?:bab|chapter)\s*(\d+)\b/i);
   return match ? parseInt(match[1], 10) : null;
@@ -712,6 +721,9 @@ export async function sortQuizTemplatesByChapter<T extends SortableQuizTemplate>
   const sortedChaptersForMatching = [...chapterList].sort(
     (a, b) => b.normalizedTitle.length - a.normalizedTitle.length,
   );
+
+  // Chapters sorted by orderIndex for 1-based "Bab X" positional resolution
+  const chapterListByOrder = [...chapterList].sort((a, b) => a.orderIndex - b.orderIndex);
 
   // 2. Query cakupanAsesmen for explicit quiz-to-bab mappings
   const templateIds = templates.map((t) => t.id);
@@ -819,8 +831,9 @@ export async function sortQuizTemplatesByChapter<T extends SortableQuizTemplate>
 
     // E. Title regex matching for "Bab X" / "Chapter X"
     const parsedChapterNumber = extractChapterNumberFromTitle(template.title);
-    if (parsedChapterNumber !== null) {
-      return parsedChapterNumber;
+    if (parsedChapterNumber !== null && parsedChapterNumber >= 1) {
+      const chapter = chapterListByOrder[parsedChapterNumber - 1];
+      return chapter ? chapter.orderIndex : 9999;
     }
 
     // F. Fallback for unscoped / general quizzes (placed at the end)

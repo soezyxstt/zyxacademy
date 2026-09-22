@@ -166,4 +166,16 @@ describe("sortQuizTemplatesByChapter", () => {
       "Kuis 10 - Struktur Atom",
     ]);
   });
+
+  it("maps Bab X title pattern to the 1-based chapter position in the outline", async () => {
+    const inputQuizzes = [
+      { id: "q-b4", title: "Latihan Bab 4", createdAt: new Date("2026-09-22T01:00:00Z") },
+      { id: "q-b2", title: "Latihan Bab 2", createdAt: new Date("2026-09-22T02:00:00Z") },
+      { id: "q-b1", title: "Latihan Bab 1", createdAt: new Date("2026-09-22T03:00:00Z") },
+      { id: "q-b99", title: "Latihan Bab 99", createdAt: new Date("2026-09-22T04:00:00Z") },
+    ];
+
+    const sorted = await sortQuizTemplatesByChapter(inputQuizzes, TEST_COURSE_ID);
+    expect(sorted.map((q) => q.id)).toEqual(["q-b1", "q-b2", "q-b4", "q-b99"]);
+  });
 });
