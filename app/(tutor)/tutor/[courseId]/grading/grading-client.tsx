@@ -168,10 +168,15 @@ export function GradingClient({ courseId, initialSubmissions }: Props) {
                     <div className="pl-9 space-y-2">
                       <div className="bg-muted/20 border border-border/60 rounded-xl p-3.5 text-body-sm">
                         <span className="text-[10px] font-semibold text-muted-foreground block uppercase">Jawaban Siswa:</span>
-                        <p className="font-semibold text-foreground mt-0.5">{ans?.text || "-"}</p>
+                        <p className="font-semibold text-foreground mt-0.5">
+                          <MathText as="span">{ans?.text || "-"}</MathText>
+                        </p>
                       </div>
                       <p className="text-body-xs text-muted-foreground">
-                        Kunci Jawaban Benar: <span className="font-semibold text-foreground">{(q.acceptableAnswers || []).join(" / ")}</span>
+                        Kunci Jawaban Benar:{" "}
+                        <span className="font-semibold text-foreground">
+                          <MathText as="span">{(q.acceptableAnswers || []).join(" / ")}</MathText>
+                        </span>
                       </p>
                     </div>
                   )}

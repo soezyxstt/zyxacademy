@@ -17,6 +17,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { ScientificInput } from "@/components/ui/scientific-input";
 
 import { submitTryoutAction } from "@/app/actions/tutor-management";
 
@@ -344,12 +345,10 @@ export function TryoutForm({ courseId, exam }: TryoutFormProps) {
                 <span className="mb-2 block text-body-xs font-semibold text-muted-foreground uppercase">
                   Isikan Jawaban Singkat Anda:
                 </span>
-                <input
-                  type="text"
+                <ScientificInput
                   value={ans.text}
-                  onChange={(e) => setAnswerFor(q.id, { ...ans, text: e.target.value })}
-                  className="w-full rounded-2xl border border-input bg-background px-4 py-3.5 text-body-sm text-foreground shadow-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-                  placeholder="Tulis angka atau kata kunci jawaban..."
+                  onChange={(val) => setAnswerFor(q.id, { ...ans, text: val })}
+                  placeholder="Tulis angka, simbol, atau kata kunci jawaban..."
                 />
               </label>
             </div>

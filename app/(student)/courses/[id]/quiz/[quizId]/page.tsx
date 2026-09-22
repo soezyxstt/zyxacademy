@@ -15,6 +15,7 @@ import { headers } from "next/headers";
 import { Button } from "@/components/ui/button";
 import { QuizStartButton } from "./quiz-start-button";
 import { MarkdownRenderer } from "@/components/course/markdown-renderer";
+import { MathText } from "@/components/course/math-text";
 import { cn } from "@/lib/utils";
 import { FormattedDate } from "@/components/ui/formatted-date";
 import { MistakeFeedbackButton } from "@/components/pka/mistake-feedback-button";
@@ -750,18 +751,22 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
                             <span className="text-body-2xs font-semibold uppercase tracking-wider text-muted-foreground block mb-1">
                               Jawaban Anda:
                             </span>
-                            <p className="text-body-sm font-medium text-foreground">
-                              {submittedText.trim() || <span className="text-muted-foreground italic">(Tidak menjawab)</span>}
-                            </p>
+                            <div className="text-body-sm font-medium text-foreground">
+                              {submittedText.trim() ? (
+                                <MathText as="span">{submittedText.trim()}</MathText>
+                              ) : (
+                                <span className="text-muted-foreground italic">(Tidak menjawab)</span>
+                              )}
+                            </div>
                           </div>
                           {(q as any).acceptable_answers && (q as any).acceptable_answers.length > 0 && (
                             <div className="rounded-lg border border-status-success/30 bg-status-success/5 p-3">
                               <span className="text-body-2xs font-semibold uppercase tracking-wider text-status-success block mb-1">
                                 Kunci Jawaban yang Diterima:
                               </span>
-                              <p className="text-body-sm font-medium text-foreground">
-                                {(q as any).acceptable_answers.join(" / ")}
-                              </p>
+                              <div className="text-body-sm font-medium text-foreground">
+                                <MathText as="span">{(q as any).acceptable_answers.join(" / ")}</MathText>
+                              </div>
                             </div>
                           )}
                         </div>

@@ -1636,7 +1636,7 @@ function QuestionRow({
               <div className="flex flex-wrap gap-2">
                 {acceptableAnswers.map((ans: string, idx: number) => (
                   <span key={idx} className="rounded-md bg-background px-2.5 py-1 border border-status-success/30 font-mono text-body-sm font-semibold text-foreground">
-                    {ans}
+                    <MathText as="span">{ans}</MathText>
                   </span>
                 ))}
               </div>
