@@ -98,7 +98,11 @@ function parseInline(text: string): ReactNode[] {
 
   const flushText = () => {
     if (textAccumulator) {
-      result.push(<span key={`txt-${index}-${result.length}`}>{textAccumulator}</span>);
+      result.push(
+        <MathText key={`txt-${index}-${result.length}`} as="span">
+          {textAccumulator}
+        </MathText>
+      );
       textAccumulator = "";
     }
   };

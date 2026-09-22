@@ -18,6 +18,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { ScientificInput } from "@/components/ui/scientific-input";
 
 type QuizPlayerProps = {
   courseId: string;
@@ -601,17 +602,15 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
                 {q.type === "short_answer" ? "Ketik Jawaban Singkat Anda:" : "Tuliskan Jawaban Essay Anda:"}
               </label>
               {q.type === "short_answer" ? (
-                <input
-                  type="text"
+                <ScientificInput
                   disabled={submitting || isSubmitted}
                   value={typeof ans === "string" ? ans : ans?.text || ""}
-                  onChange={(e) => {
-                    const next = { ...answers, [q.id]: e.target.value };
+                  onChange={(val) => {
+                    const next = { ...answers, [q.id]: val };
                     setAnswers(next);
                     window.localStorage.setItem(`zyx-quiz-answers-${attemptId}`, JSON.stringify(next));
                   }}
                   placeholder="Ketik jawaban singkat di sini..."
-                  className="w-full rounded-lg border border-border bg-background p-3 text-body-sm font-medium transition-all hover:border-border focus:border-brand-primary focus:ring-1 focus:ring-brand-primary/30 focus:outline-none"
                 />
               ) : (
                 <div className="space-y-4">
