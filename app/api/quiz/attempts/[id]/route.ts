@@ -360,7 +360,7 @@ export async function POST(req: NextRequest, { params }: Context) {
   const now = new Date();
   const startedMs = normalizeDate(attempt.startedAt).getTime();
   const elapsedSeconds = Math.max(0, Math.floor((now.getTime() - startedMs) / 1000));
-  let finalDurationSeconds = durationSeconds !== undefined ? Math.min(durationSeconds, elapsedSeconds) : elapsedSeconds;
+  let finalDurationSeconds = elapsedSeconds;
   if (templateMeta?.timeLimitSeconds != null) {
     finalDurationSeconds = Math.min(finalDurationSeconds, templateMeta.timeLimitSeconds);
   }
