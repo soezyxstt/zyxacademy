@@ -6,7 +6,6 @@ import Link from "next/link";
 import { Check, HelpCircle, X, Lock, Video, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { MathText } from "@/components/course/math-text";
-import { ZyraMark } from "@/components/course/zyra-mark";
 import { getYoutubeEmbedUrl } from "@/lib/youtube";
 import { useTutor } from "@/components/course/tutor-drawer";
 import type { SubmissionReviewFixture, SubmissionListItem } from "@/lib/student-course-fixtures";
@@ -123,7 +122,6 @@ export function ReviewClient({ listItem, review }: ReviewClientProps) {
                       onClick={() => openMistake(item.questionId, item.userAnswer || "")}
                       className="text-body-xs font-semibold flex items-center gap-1.5 border-brand-primary/30 text-brand-primary hover:bg-brand-primary/5 rounded-lg h-9"
                     >
-                      <ZyraMark className="size-4" />
                       Tanya Zyra: Analisis Kesalahan
                     </Button>
                   </div>
@@ -133,10 +131,7 @@ export function ReviewClient({ listItem, review }: ReviewClientProps) {
               {/* Zyra-Generated Discussion and Explanation Section */}
               {hasExplanation && (
                 <div className="mt-6 border-t border-border/80 pt-6 space-y-4">
-                  <div className="flex items-center gap-2 text-brand-primary">
-                    <ZyraMark className="size-4" />
-                    <h4 className="font-heading text-body-xs font-bold uppercase tracking-wider">Pembahasan Soal oleh Zyra</h4>
-                  </div>
+                  <h4 className="font-heading text-body-xs font-bold uppercase tracking-wider text-foreground">Pembahasan</h4>
 
                   {/* Text-based explanation */}
                   {item.explanationText && (

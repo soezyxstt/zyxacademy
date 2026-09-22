@@ -28,6 +28,7 @@ import {
 import { requestIdeaMasteryRecompute } from "@/lib/pemahaman/evidence";
 import { answerToStableOptionIds, gradeStableOptionAnswer } from "@/lib/asesmen/attempt";
 import { normalizeDate } from "@/lib/date-utils";
+import { isShortAnswerCorrect } from "@/lib/quiz/short-answer";
 
 export const TUTOR_QUIZ_GRADING_ERRORS = {
   UNAUTHORIZED: "Unauthorized: Silakan masuk terlebih dahulu.",
@@ -98,10 +99,7 @@ function safeResponseSnapshot(
 export function checkDeterministicCorrectness(q: LegacyQuizQuestionSnapshot, submitted: unknown): boolean {
   const qType = q.question_type || q.questionType;
   if (qType === "short_answer" || (Array.isArray(q.acceptable_answers) && q.acceptable_answers.length > 0)) {
-    const acceptable = Array.isArray(q.acceptable_answers) ? q.acceptable_answers : [];
-    const text = typeof submitted === "string" ? submitted : Array.isArray(submitted) ? String(submitted[0] ?? "") : "";
-    const trimmed = text.trim().toLowerCase();
-    return trimmed.length > 0 && acceptable.some((ans: string) => ans.trim().toLowerCase() === trimmed);
+    return isShortAnswerCorrect(submitted, q.acceptable_answers);
   }
   if (qType === "essay") {
     return false;

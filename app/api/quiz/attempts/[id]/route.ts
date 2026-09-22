@@ -21,6 +21,7 @@ import { serializeStudentQuizAttempt } from '@/lib/assessment-serialization';
 import { dualWriteQuizAttempt } from '@/lib/migrasi/repository-kompatibilitas';
 import { gradeStableOptionAnswer } from '@/lib/asesmen/attempt';
 import { quizAttachmentPrefix } from '@/lib/storage/keys';
+import { isShortAnswerCorrect } from '@/lib/quiz/short-answer';
 import {
   buildLegacyGradingPolicySnapshot,
   buildLegacyRenderedQuestionSnapshot,
@@ -244,17 +245,7 @@ export async function POST(req: NextRequest, { params }: Context) {
   function checkAnswerCorrectness(q: any, submitted: any): boolean {
     const qType = q.question_type || q.questionType;
     if (qType === "short_answer" || (Array.isArray(q.acceptable_answers) && q.acceptable_answers.length > 0)) {
-      const acceptable = Array.isArray(q.acceptable_answers) ? q.acceptable_answers : [];
-      let text = "";
-      if (typeof submitted === "string") {
-        text = submitted;
-      } else if (submitted && typeof submitted === "object" && "text" in submitted && typeof submitted.text === "string") {
-        text = submitted.text;
-      } else if (Array.isArray(submitted)) {
-        text = String(submitted[0] ?? "");
-      }
-      const trimmed = text.trim().toLowerCase();
-      return trimmed.length > 0 && acceptable.some((ans: string) => ans.trim().toLowerCase() === trimmed);
+      return isShortAnswerCorrect(submitted, q.acceptable_answers);
     }
     if (qType === "essay") {
       return false;

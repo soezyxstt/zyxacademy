@@ -58,7 +58,6 @@ import {
 import { ZyraAllowanceSummary } from "@/components/course/zyra-allowance-summary";
 import { ZyraMathPalette } from "@/components/course/zyra-math-palette";
 import { ZyraFormulaPreview } from "@/components/course/zyra-formula-preview";
-import { ZyraMark } from "@/components/course/zyra-mark";
 import { useSwipe } from "@/hooks/use-swipe";
 import { LearningCanvasRenderer } from "@/components/course/learning-canvas/learning-canvas-renderer";
 import type { CanvasSpec } from "@/lib/zyra/canvas";

@@ -2,7 +2,6 @@
 
 import { Button } from "@/components/ui/button";
 import { useTutor } from "@/components/course/tutor-drawer";
-import { ZyraMark } from "@/components/course/zyra-mark";
 
 /**
  * Per-question trigger on the PKA stage review: opens Zyra in mistake mode
@@ -25,7 +24,6 @@ export function MistakeFeedbackButton({
       className="rounded-lg"
       onClick={() => openMistake(questionId, selectedAnswer)}
     >
-      <ZyraMark className="mr-1.5 size-4 text-brand-primary" />
       Tanya Zyra soal ini
     </Button>
   );

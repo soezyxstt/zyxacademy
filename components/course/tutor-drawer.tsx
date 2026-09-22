@@ -3,7 +3,7 @@
 import * as React from "react";
 import dynamic from "next/dynamic";
 import { usePathname } from "next/navigation";
-import { ZyraMark } from "@/components/course/zyra-mark";
+import { MessageSquareText } from "lucide-react";
 import { ZyraFloatingPet } from "@/components/course/zyra-floating-pet";
 import { getTutorCapabilities } from "@/lib/tutor-capabilities";
 import type { TutorMode } from "./tutor-drawer-view";
@@ -193,7 +193,7 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
               title="Tanya Zyra"
               className="group fixed bottom-6 right-6 z-40 flex size-14 items-center justify-center rounded-full bg-brand-primary text-white shadow-lg shadow-brand-primary/30 transition-all hover:scale-105 hover:bg-brand-primary/95 active:scale-95 md:bottom-8 md:right-8"
             >
-              <ZyraMark className="size-7 transition-transform duration-150 group-hover:scale-105" />
+              <MessageSquareText className="size-6 transition-transform duration-150 group-hover:scale-105" />
               <span className="pointer-events-none absolute right-full mr-3 hidden whitespace-nowrap rounded-lg bg-foreground px-2.5 py-1.5 text-body-xs font-semibold text-background opacity-0 shadow-md transition-opacity group-hover:opacity-100 md:block">
                 Tanya Zyra
               </span>

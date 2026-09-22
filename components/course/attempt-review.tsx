@@ -12,12 +12,13 @@ import {
  Layers,
  ListChecks,
  BookOpen,
+ Check,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { MathText } from "@/components/course/math-text";
 import { cn } from "@/lib/utils";
 import { MistakeFeedbackButton } from "@/components/pka/mistake-feedback-button";
-import { ZyraMark } from "@/components/course/zyra-mark";
+import { isShortAnswerCorrect, deduplicateAcceptableAnswers } from "@/lib/quiz/short-answer";
 import { QuestionSourceCitation } from "@/components/course/question-source-citation";
 
 interface QuestionSnapshot {
@@ -81,9 +82,7 @@ function checkReviewAnswerCorrectness(q: any, submitted: any): boolean {
   const qType = q.question_type || q.questionType || q.type;
   if (qType === "short_answer" || (Array.isArray(q.acceptable_answers) && q.acceptable_answers.length > 0) || (Array.isArray(q.acceptableAnswers) && q.acceptableAnswers.length > 0)) {
     const acceptable = Array.isArray(q.acceptable_answers) ? q.acceptable_answers : Array.isArray(q.acceptableAnswers) ? q.acceptableAnswers : [];
-    const text = typeof submitted === "string" ? submitted : Array.isArray(submitted) ? String(submitted[0] ?? "") : "";
-    const trimmed = text.trim().toLowerCase();
-    return trimmed.length > 0 && acceptable.some((ans: string) => ans.trim().toLowerCase() === trimmed);
+    return isShortAnswerCorrect(submitted, acceptable);
   }
   if (qType === "essay") {
     const text = typeof submitted === "string" ? submitted : Array.isArray(submitted) ? String(submitted[0] ?? "") : "";
@@ -331,9 +330,11 @@ export function AttemptReview({ attemptId }: { attemptId: string }) {
  }
 
  let correctLabel = "";
+ let acceptableArray: string[] = [];
  if (qType === "short_answer") {
    const acc = (q as any).acceptable_answers || (q as any).acceptableAnswers || [];
-   correctLabel = Array.isArray(acc) ? acc.join(", ") : "";
+   acceptableArray = Array.isArray(acc) ? deduplicateAcceptableAnswers(acc) : [];
+   correctLabel = acceptableArray.join(", ");
  } else if (qType === "essay") {
    correctLabel = (q as any).explanation || "Jawaban Uraian / Rubrik";
  } else {
@@ -363,15 +364,34 @@ export function AttemptReview({ attemptId }: { attemptId: string }) {
  </div>
 
  {/* Answers */}
- <div className="mt-4 space-y-1 pl-4 border-l-2 border-muted text-body-sm">
-  <p>
-  <span className="text-muted-foreground">Jawaban Anda: </span>
-  <MathText className="font-medium" as="span">{submittedLabel || "-"}</MathText>
-  </p>
-  <p>
-  <span className="text-muted-foreground">Jawaban Benar: </span>
-  <MathText className="text-status-success font-semibold" as="span">{correctLabel}</MathText>
-  </p>
+ <div className="mt-4 space-y-1.5 pl-4 border-l-2 border-muted text-body-sm">
+ <p>
+ <span className="text-muted-foreground">Jawaban Anda: </span>
+ <MathText className="font-medium" as="span">{submittedLabel || "-"}</MathText>
+ </p>
+ {qType === "short_answer" && acceptableArray.length > 0 ? (
+ <div className="pt-1">
+ <span className="text-muted-foreground block mb-1 text-body-xs font-semibold uppercase tracking-wider text-status-success">
+ Kunci Jawaban yang Diterima{acceptableArray.length > 1 ? ` (${acceptableArray.length} variasi format)` : ""}:
+ </span>
+ <div className="flex flex-wrap gap-1.5">
+ {acceptableArray.map((ans, aIdx) => (
+ <span
+ key={aIdx}
+ className="inline-flex items-center gap-1 rounded-md border border-status-success/25 bg-background px-2.5 py-1 text-body-xs font-medium text-foreground shadow-2xs"
+ >
+ <Check className="size-3 text-status-success shrink-0" />
+ <MathText as="span">{ans}</MathText>
+ </span>
+ ))}
+ </div>
+ </div>
+ ) : (
+ <p>
+ <span className="text-muted-foreground">Jawaban Benar: </span>
+ <MathText className="text-status-success font-semibold" as="span">{correctLabel}</MathText>
+ </p>
+ )}
  </div>
 
  {/* Mistake feedback */}
@@ -385,8 +405,7 @@ export function AttemptReview({ attemptId }: { attemptId: string }) {
  onClick={() => toggleFeedback(idx)}
  className="text-body-sm font-medium flex items-center gap-2 text-brand-primary hover:bg-transparent hover:text-brand-primary/80 p-0 h-auto"
  >
- <ZyraMark className="size-4" />
- <span className="font-heading font-bold uppercase tracking-wider text-body-xs">Analisis Kesalahan oleh Zyra</span>
+ <span className="font-heading font-bold uppercase tracking-wider text-body-xs">Analisis Kesalahan</span>
  <ChevronDown
  className={cn(
  "size-4 transition-transform duration-200 text-muted-foreground",
@@ -434,7 +453,6 @@ export function AttemptReview({ attemptId }: { attemptId: string }) {
  ) : isFeedbackPending ? (
  <div className="flex items-center gap-2 text-body-sm text-brand-primary mt-2 font-medium">
  <Loader2 className="animate-spin size-3.5" />
- <ZyraMark className="size-3.5" />
  <span>Zyra sedang menganalisis kesalahan...</span>
  </div>
  ) : isFeedbackTimeout ? (
