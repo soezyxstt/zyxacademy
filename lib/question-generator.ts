@@ -70,7 +70,7 @@ Format and structural constraints:
 - You must output EXACTLY 4 options with stable IDs opt_0, opt_1, opt_2, opt_3.
 - Exactly one option must have "isCorrect": true.
 - Do not output position-dependent text (like 'Option A' or 'All of the above').
-- All mathematical formulas, scientific notations, units, variables, and chemical equations in "prompt", "options" text, and "explanation" MUST be formatted in LaTeX using $ for inline (e.g. $1{,}215 \\times 10^{-7}\\text{ m}$, $\\text{Mg}_{(g)} \\to \\text{Mg}^+_{(g)} + \\text{e}^-$) and $$ for display blocks.
+- All mathematical formulas, scientific notations, units, variables, and chemical equations in "prompt", "options" text, and "explanation" MUST be formatted in LaTeX using $ for inline (e.g. $1{,}215 \\times 10^{-7}\\text{ m}$, $\\int 2x\\,\\mathrm{d}x$, $\\text{Mg}_{(g)} \\to \\text{Mg}^+_{(g)} + \\text{e}^-$) and $$ for display blocks.
 - Output raw, parseable JSON text only.`;
 }
 
