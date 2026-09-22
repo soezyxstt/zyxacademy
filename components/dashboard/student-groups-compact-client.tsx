@@ -40,6 +40,7 @@ type StudentGroup = {
   frequencyLabel: string;
   totalQuotaSessions: number;
   usedQuotaSessions: number;
+  remainingQuota?: number;
   weeklyQuotaSessions: number;
   weeklyUsedSessions: number;
   weeklyRemainingQuota: number;
@@ -187,9 +188,9 @@ export function StudentGroupsCompactClient({ initialGroups }: Props) {
     );
   }
 
-  const weeklyPercent = Math.min(
+  const totalPercent = Math.min(
     100,
-    Math.round((activeGroup.weeklyUsedSessions / Math.max(1, activeGroup.weeklyQuotaSessions)) * 100)
+    Math.round((activeGroup.usedQuotaSessions / Math.max(1, activeGroup.totalQuotaSessions)) * 100)
   );
 
   return (
@@ -242,17 +243,17 @@ export function StudentGroupsCompactClient({ initialGroups }: Props) {
         <div className="py-4">
           <div className="flex items-end justify-between gap-4">
             <div>
-              <p className="text-body-xs text-muted-foreground">Minggu ini</p>
+              <p className="text-body-xs text-muted-foreground">Kuota paket</p>
               <p className="font-heading text-h5 font-bold text-foreground">
-                {activeGroup.weeklyUsedSessions}
+                {activeGroup.usedQuotaSessions}
                 <span className="ml-1 text-body-sm font-normal text-muted-foreground">
-                  / {activeGroup.weeklyQuotaSessions} sesi
+                  / {activeGroup.totalQuotaSessions} sesi
                 </span>
               </p>
             </div>
             <p className="text-right text-body-xs text-muted-foreground">
               <span className="block font-heading text-h5 font-bold text-brand-primary">
-                {activeGroup.weeklyRemainingQuota}
+                {activeGroup.remainingQuota ?? Math.max(0, activeGroup.totalQuotaSessions - activeGroup.usedQuotaSessions)}
               </span>
               tersisa
             </p>
@@ -260,14 +261,14 @@ export function StudentGroupsCompactClient({ initialGroups }: Props) {
           <div
             className="mt-3 h-2 overflow-hidden rounded-full bg-muted"
             role="progressbar"
-            aria-valuenow={weeklyPercent}
+            aria-valuenow={totalPercent}
             aria-valuemin={0}
             aria-valuemax={100}
           >
-            <div className="h-full rounded-full bg-brand-primary transition-all" style={{ width: `${weeklyPercent}%` }} />
+            <div className="h-full rounded-full bg-brand-primary transition-all" style={{ width: `${totalPercent}%` }} />
           </div>
           <div className="mt-2 flex flex-wrap justify-between gap-2 text-body-xs text-muted-foreground">
-            <span>Total semester: {activeGroup.usedQuotaSessions}/{activeGroup.totalQuotaSessions} sesi</span>
+            <span>Minggu ini: {activeGroup.weeklyUsedSessions} sesi</span>
             <span>{activeGroup.frequencyLabel}</span>
           </div>
         </div>

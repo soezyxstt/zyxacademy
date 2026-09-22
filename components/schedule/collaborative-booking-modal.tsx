@@ -228,7 +228,14 @@ export function CollaborativeBookingModal({
               {groups.length > 1 ? (
                 <Select value={selectedGroupId} onValueChange={(value) => { setSelectedGroupId(value); setSelectedCourseId(""); }}>
                   <SelectTrigger id="booking-group" className="h-9 text-body-sm"><SelectValue placeholder="Pilih kelompok" /></SelectTrigger>
-                  <SelectContent>{groups.map((group) => <SelectItem key={group.id} value={group.id}>{group.name} ({group.weeklyUsedSessions ?? 0}/{group.weeklyQuotaSessions ?? 2} sesi pekan ini)</SelectItem>)}</SelectContent>
+                  <SelectContent>{groups.map((group) => {
+                    const remaining = Math.max(0, (group.totalQuotaSessions || 15) - (group.usedQuotaSessions || 0));
+                    return (
+                      <SelectItem key={group.id} value={group.id}>
+                        {group.name} (Sisa {remaining} sesi paket)
+                      </SelectItem>
+                    );
+                  })}</SelectContent>
                 </Select>
               ) : (
                 <div className="rounded-md border border-border bg-muted/20 px-3 py-2 text-body-sm text-foreground">{activeGroup?.name || "Kelompok belum tersedia"}</div>

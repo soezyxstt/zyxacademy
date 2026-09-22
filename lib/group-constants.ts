@@ -7,25 +7,25 @@ export const PACKAGE_PRESETS: Record<
   reguler_15: {
     name: "Paket Reguler (15 Sesi)",
     quota: 15,
-    weeklySessions: 1,
-    frequencyLabel: "1x seminggu",
+    weeklySessions: 15,
+    frequencyLabel: "Fleksibel",
   },
   intensif_30: {
     name: "Paket Intensif (30 Sesi)",
     quota: 30,
-    weeklySessions: 2,
-    frequencyLabel: "2x seminggu",
+    weeklySessions: 30,
+    frequencyLabel: "Fleksibel",
   },
   super_intensif_45: {
     name: "Paket Super Intensif (45 Sesi)",
     quota: 45,
-    weeklySessions: 3,
-    frequencyLabel: "3x seminggu",
+    weeklySessions: 45,
+    frequencyLabel: "Fleksibel",
   },
   custom: {
     name: "Paket Kustom",
     quota: 15,
-    weeklySessions: 2,
-    frequencyLabel: "Kustom",
+    weeklySessions: 15,
+    frequencyLabel: "Fleksibel",
   },
 };

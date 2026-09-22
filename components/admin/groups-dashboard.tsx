@@ -1193,14 +1193,14 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
               {/* Quota Summary Box */}
               <div className="p-4 rounded-xl border border-border bg-muted/20 space-y-3">
                 <div className="flex items-center justify-between text-body-sm font-semibold">
-                  <span className="text-foreground">Kuota Mingguan</span>
+                  <span className="text-foreground">Aktivitas Minggu Ini</span>
                   <span className="text-brand-primary font-bold">
-                    {detailGroup.weeklyUsedSessions ?? 0} / {detailGroup.weeklyQuotaSessions ?? 2} Sesi Minggu Ini
+                    {detailGroup.weeklyUsedSessions ?? 0} Sesi
                   </span>
                 </div>
                 <div className="flex items-center justify-between text-body-xs text-muted-foreground">
                   <span>Total terlaksana: {detailGroup.usedQuotaSessions} dari {detailGroup.totalQuotaSessions} sesi paket</span>
-                  <span>Frekuensi: {PACKAGE_PRESETS[detailGroup.packageType as PackageType]?.frequencyLabel || "1x seminggu"}</span>
+                  <span>Frekuensi: {PACKAGE_PRESETS[detailGroup.packageType as PackageType]?.frequencyLabel || "Fleksibel"}</span>
                 </div>
                 {detailGroup.weeklyStats && detailGroup.weeklyStats.length > 0 && (
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 border-t border-border/60">
