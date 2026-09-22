@@ -66,6 +66,9 @@ export async function getEnrollmentTokens() {
   }));
 }
 
+/**
+ * Configuration options for token meeting quota and group tier.
+ */
 export type TokenQuotaOptions = {
   totalQuotaSessions?: number;
   weeklyQuotaSessions?: number;
@@ -73,7 +76,14 @@ export type TokenQuotaOptions = {
 };
 
 /**
- * Generate a new enrollment token for multiple courses, capacity, and session quota
+ * Generate a new enrollment token for multiple courses, group capacity, and meeting quota.
+ * Validates that capacity is an integer between 1 and 1000 and quotas are non-negative integers.
+ *
+ * @param courseIds - List of course IDs to associate with the token and group.
+ * @param capacity - Maximum number of students that can redeem this token (1–1000).
+ * @param quotaConfig - Preset name, numeric total quota, or structured quota options.
+ * @param weeklyQuotaArg - Optional weekly sessions limit when quotaConfig is a number.
+ * @returns Result object containing the generated token and group ID, or an error message.
  */
 export async function generateEnrollmentToken(
   courseIds: string[],
@@ -87,12 +97,8 @@ export async function generateEnrollmentToken(
     return { success: false, error: "Silakan pilih setidaknya satu course" };
   }
 
-  if (capacity < 1) {
-    return { success: false, error: "Kapasitas kelompok minimal 1 orang" };
-  }
-
-  if (capacity > 1000) {
-    return { success: false, error: "Kapasitas kelompok maksimal 1000 orang" };
+  if (typeof capacity !== "number" || !Number.isInteger(capacity) || capacity < 1 || capacity > 1000) {
+    return { success: false, error: "Kapasitas kelompok harus bilangan bulat antara 1 dan 1000 orang" };
   }
 
   // Parse quota configuration
@@ -101,18 +107,26 @@ export async function generateEnrollmentToken(
   let packageType: PackageType = "reguler_15";
 
   if (typeof quotaConfig === "number") {
-    totalQuota = Math.max(0, quotaConfig);
-    weeklyQuota = typeof weeklyQuotaArg === "number" ? Math.max(0, weeklyQuotaArg) : (totalQuota === 0 ? 0 : 1);
+    totalQuota = quotaConfig;
+    weeklyQuota = typeof weeklyQuotaArg === "number" ? weeklyQuotaArg : (totalQuota === 0 ? 0 : 1);
     packageType = "custom";
   } else if (typeof quotaConfig === "object" && quotaConfig !== null) {
-    totalQuota = Math.max(0, quotaConfig.totalQuotaSessions ?? 15);
-    weeklyQuota = Math.max(0, quotaConfig.weeklyQuotaSessions ?? (totalQuota === 0 ? 0 : 1));
-    packageType = quotaConfig.packageType ?? "custom";
+    totalQuota = quotaConfig.totalQuotaSessions ?? 15;
+    weeklyQuota = quotaConfig.weeklyQuotaSessions ?? (totalQuota === 0 ? 0 : 1);
+    packageType = "custom";
   } else if (typeof quotaConfig === "string") {
     packageType = quotaConfig;
     const preset = PACKAGE_PRESETS[packageType] || PACKAGE_PRESETS.reguler_15;
     totalQuota = preset.quota;
     weeklyQuota = preset.weeklySessions;
+  }
+
+  if (typeof totalQuota !== "number" || !Number.isInteger(totalQuota) || totalQuota < 0) {
+    return { success: false, error: "Total kuota pertemuan harus bilangan bulat minimal 0" };
+  }
+
+  if (typeof weeklyQuota !== "number" || !Number.isInteger(weeklyQuota) || weeklyQuota < 0) {
+    return { success: false, error: "Batas sesi per minggu harus bilangan bulat minimal 0" };
   }
 
   // Resolve matching package name and tier

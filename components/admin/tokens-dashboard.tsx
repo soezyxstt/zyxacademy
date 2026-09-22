@@ -58,6 +58,10 @@ type Props = {
   coursesList: CourseOption[];
 };
 
+/**
+ * Dashboard for administrative management of class enrollment tokens,
+ * supporting flexible session quota and custom group capacity.
+ */
 export function TokensDashboard({ initialTokens, coursesList }: Props) {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
@@ -271,12 +275,17 @@ export function TokensDashboard({ initialTokens, coursesList }: Props) {
                         step={1}
                         value={totalQuota}
                         onChange={(e) => {
-                          const val = Math.max(0, parseInt(e.target.value, 10) || 0);
+                          const raw = e.target.value;
+                          const parsed = parseInt(raw, 10);
+                          const hasNumber = raw !== "" && !Number.isNaN(parsed);
+                          const val = hasNumber ? Math.max(0, parsed) : 0;
                           setTotalQuota(val);
-                          if (val === 0) {
-                            setWeeklyQuota(0);
-                          } else if (weeklyQuota === 0) {
-                            setWeeklyQuota(1);
+                          if (hasNumber) {
+                            if (val === 0) {
+                              setWeeklyQuota(0);
+                            } else if (weeklyQuota === 0) {
+                              setWeeklyQuota(1);
+                            }
                           }
                         }}
                         className="h-10 text-body-sm pr-12"
@@ -299,8 +308,10 @@ export function TokensDashboard({ initialTokens, coursesList }: Props) {
                         step={1}
                         value={weeklyQuota}
                         onChange={(e) => {
-                          const val = Math.max(0, parseInt(e.target.value, 10) || 0);
-                          setWeeklyQuota(val);
+                          const raw = e.target.value;
+                          const parsed = parseInt(raw, 10);
+                          const hasNumber = raw !== "" && !Number.isNaN(parsed);
+                          setWeeklyQuota(hasNumber ? Math.max(0, parsed) : 0);
                         }}
                         className="h-10 text-body-sm pr-20"
                         placeholder="1"
@@ -358,8 +369,10 @@ export function TokensDashboard({ initialTokens, coursesList }: Props) {
                       step={1}
                       value={capacity}
                       onChange={(e) => {
-                        const val = Math.max(1, parseInt(e.target.value, 10) || 1);
-                        setCapacity(val);
+                        const raw = e.target.value;
+                        const parsed = parseInt(raw, 10);
+                        const hasNumber = raw !== "" && !Number.isNaN(parsed);
+                        setCapacity(hasNumber ? Math.max(1, parsed) : 1);
                       }}
                       className="h-10 text-body-sm pr-16"
                       placeholder="1"
