@@ -843,7 +843,7 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
                 <Input
                   type="number"
                   min={1}
-                  max={7}
+                  max={100}
                   value={formWeeklyQuota}
                   onChange={(e) => setFormWeeklyQuota(parseInt(e.target.value, 10) || 1)}
                   aria-label="Kuota sesi per minggu kelompok"
@@ -1056,7 +1056,7 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
                 <Input
                   type="number"
                   min={1}
-                  max={7}
+                  max={100}
                   value={formWeeklyQuota}
                   onChange={(e) => setFormWeeklyQuota(parseInt(e.target.value, 10) || 1)}
                   aria-label="Kuota sesi per minggu kelompok"
