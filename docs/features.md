@@ -332,7 +332,7 @@ The standalone Admin material editor is retired. Existing website material remai
 - The total time limit (`quizTemplates.timeLimitSeconds`) is the authoritative session cap. When it reaches zero the player auto-submits the attempt.
 - Per-question timers (`selectionRules.perQuestionTimerEnabled`, `perQuestionTimers`, `defaultQuestionTimerSeconds`) are pacing aids only. Expiry advances to the next question and never force-submits the quiz while total time remains; revisiting a question restarts its allowance.
 - Coherence validation (`lib/asesmen/quiz-timing.ts`): when both timers are active, the sum of per-question allowances must equal the total limit. The admin quiz form blocks save with an error toast, and POST/PATCH `/api/quiz/templates` reject mismatched payloads with 400.
-- Late submission guard: POST `/api/quiz/attempts/[id]` rejects submissions that arrive more than 120 seconds after the total deadline with status 403 and code `QUIZ_TIME_EXPIRED`. Attempts without a total limit are unaffected.
+- Submissions on or after session deadline: POST `/api/quiz/attempts/[id]` accepts timeout and late submissions, auto-grades the answers, marks the attempt as completed, and caps the recorded duration at `timeLimitSeconds`. Attempts without a total limit are unaffected.
 
 ### Assessment Integrity V2
 - `lib/asesmen/blueprint.ts` compiles quiz and tryout blueprints with exact largest-remainder dimension allocation, explicit chapter scope, reproducible seeds, and publication eligibility checks.

@@ -241,7 +241,10 @@ export default async function PkaStagePage({ params, searchParams }: Props) {
             sourceReferenceId: q.sourceReferenceId,
           }),
         ),
-        settings: { timeLimitMinutes: template.timeLimitSeconds ? Math.round(template.timeLimitSeconds / 60) : 15 },
+        settings: {
+          timeLimitSeconds: template.timeLimitSeconds ?? undefined,
+          timeLimitMinutes: template.timeLimitSeconds ? Math.round(template.timeLimitSeconds / 60) : 15,
+        },
       };
 
       return (
