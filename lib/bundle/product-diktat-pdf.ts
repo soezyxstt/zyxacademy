@@ -168,6 +168,24 @@ export const ZYX_MAIN_LOGO_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBo
   <path d="M1548 389.927L1826.91 0H2181.08L1725.09 637.5L2181.08 1275H1826.91L1584.83 936.551C1624.06 852.061 1646.88 746.292 1646.88 613.889C1646.88 330.556 1729.52 188.89 1782.64 153.473C1617.37 218.403 1594.99 445.66 1555.38 546.007C1531.12 607.48 1494.6 674.317 1441.95 736.797L914.931 0H1269.1L1548 389.927Z" fill="#FF6B35"/>
 </svg>`;
 
+const WATERMARK_CSS = `
+.diktat-watermark {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) rotate(-25deg);
+  width: 360px;
+  max-width: 65%;
+  opacity: 0.045;
+  pointer-events: none;
+  z-index: 0;
+}
+.diktat-watermark svg { width: 100%; height: auto; display: block; }
+`;
+
+/**
+ * Compiles a two-page product bundle diktat into printable HTML.
+ */
 export function compileProductDiktatHtml(source: ProductDiktatRenderSource): string {
   if (
     source.diktat.sourceArticleId !== source.article.id ||
@@ -194,21 +212,10 @@ export function compileProductDiktatHtml(source: ProductDiktatRenderSource): str
   return `<!doctype html>
 <html lang="id"><head><meta charset="utf-8"><title>${title}</title>
 <style>${KATEX_CSS}
+${WATERMARK_CSS}
 @page { size: A4; margin: 14mm 15mm 14mm; }
 * { box-sizing: border-box; }
 body { margin: 0; color: #172033; font-family: "DejaVu Sans", Arial, sans-serif; font-size: 10.2pt; line-height: 1.43; }
-.diktat-watermark {
-  position: fixed;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%) rotate(-25deg);
-  width: 360px;
-  max-width: 65%;
-  opacity: 0.045;
-  pointer-events: none;
-  z-index: 0;
-}
-.diktat-watermark svg { width: 100%; height: auto; display: block; }
 .page { break-after: page; min-height: 254mm; position: relative; z-index: 1; }
 .page:last-child { break-after: auto; }
 .eyebrow { color: #b94c16; font-size: 8.5pt; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
@@ -242,17 +249,21 @@ li { margin-bottom: 2.2mm; }
 </main></body></html>`;
 }
 
+/**
+ * Parses canonical Markdown text into semantic HTML with KaTeX equations,
+ * styled pedagogical cards, tables, and formatted lists.
+ */
 export function parseCanonicalDiktatMarkdownToHtml(markdown: string, documentTitle: string): string {
   const mathMap = new Map<string, string>();
   let tokenCounter = 0;
 
   function storeMath(latex: string, displayMode: boolean): string {
-    const id = `__ZYXMATH_${tokenCounter++}__`;
+    const id = `%%ZYXMATH${tokenCounter++}%%`;
     let rendered = "";
     try {
       rendered = katex.renderToString(latex.trim(), {
         displayMode,
-        throwOnError: false,
+        throwOnError: true,
         output: "html",
       });
       if (displayMode) {
@@ -282,7 +293,7 @@ export function parseCanonicalDiktatMarkdownToHtml(markdown: string, documentTit
     });
 
   function formatInline(str: string): string {
-    return str
+    return escapeHtml(str)
       .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
       .replace(/__([^_]+)__/g, "<strong>$1</strong>")
       .replace(/(?<!\*)\*([^*]+)\*(?!\*)/g, "<em>$1</em>")
@@ -543,6 +554,10 @@ export function parseCanonicalDiktatMarkdownToHtml(markdown: string, documentTit
   return htmlResult;
 }
 
+/**
+ * Compiles canonical diktat markdown and metadata into a complete, printable HTML document
+ * with watermark, running header, running footer, and KaTeX fonts.
+ */
 export function compileCanonicalDiktatHtml(title: string, markdown: string): string {
   const safeTitle = escapeHtml(title);
   const renderedContent = parseCanonicalDiktatMarkdownToHtml(markdown, title);
@@ -550,6 +565,7 @@ export function compileCanonicalDiktatHtml(title: string, markdown: string): str
   return `<!doctype html>
 <html lang="id"><head><meta charset="utf-8"><title>${safeTitle}</title>
 <style>${KATEX_CSS}
+${WATERMARK_CSS}
 @page {
   size: A4;
   margin: 22mm 15mm 18mm 15mm;
@@ -563,24 +579,6 @@ body {
   font-size: 9.5pt;
   line-height: 1.55;
   background: #ffffff;
-}
-
-/* Watermark (Repeated on every page via fixed positioning) */
-.diktat-watermark {
-  position: fixed;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%) rotate(-25deg);
-  width: 360px;
-  max-width: 65%;
-  opacity: 0.045;
-  pointer-events: none;
-  z-index: 0;
-}
-.diktat-watermark svg {
-  width: 100%;
-  height: auto;
-  display: block;
 }
 
 /* Running Header & Footer (Repeated on every page) */

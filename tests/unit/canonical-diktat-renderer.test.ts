@@ -107,4 +107,20 @@ Koreksi: Tanda dari $(x-2)$ bergantung pada $x$. Perkalian silang variabel dilar
     expect(html).toContain("box-misconception");
     expect(html).toContain("box-correction");
   });
+
+  it("escapes raw HTML in markdown content while preserving math formatting", () => {
+    const markdownWithHtml = "Berikut teks dengan `<script>alert('xss')</script>` dan formula $x = 1$.";
+    const html = compileCanonicalDiktatHtml("Uji XSS", markdownWithHtml);
+    expect(html).not.toContain("<script>");
+    expect(html).toContain("&lt;script&gt;");
+    expect(html).toContain("katex");
+  });
+
+  it("handles malformed math formulas safely with katex-error fallback without crashing", () => {
+    const markdownWithBrokenMath = "Formula salah $$\\frac{invalid}{$$ tetap aman.";
+    const html = compileCanonicalDiktatHtml("Uji Math Error", markdownWithBrokenMath);
+    expect(html).toContain("katex-error");
+    expect(html).toContain("invalid");
+  });
 });
+
