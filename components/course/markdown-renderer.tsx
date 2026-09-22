@@ -19,6 +19,7 @@ import { compileMarkdown } from "@/lib/markdown-compiler";
 import { ASTBlock } from "@/lib/ast-validator";
 import { compileSafeExpression, normalizeLegacyGraphExpression } from "@/lib/zyra/canvas";
 import { MathText } from "@/components/course/math-text";
+import { normalizeMathInText } from "@/lib/math/math-normalizer";
 
 const ChartRenderer = dynamic(
   () => import("@/components/course/markdown/chart-renderer").then((m) => m.ChartRenderer),
@@ -92,6 +93,7 @@ function renderMath(value: string, displayMode: boolean): string {
 // --- Inline Parser ---
 
 function parseInline(text: string): ReactNode[] {
+  const normalizedText = normalizeMathInText(text);
   const result: ReactNode[] = [];
   let index = 0;
   let textAccumulator = "";
@@ -103,8 +105,8 @@ function parseInline(text: string): ReactNode[] {
     }
   };
 
-  while (index < text.length) {
-    const remaining = text.slice(index);
+  while (index < normalizedText.length) {
+    const remaining = normalizedText.slice(index);
 
     // 1. Math Block (e.g. $$...$$ or \[...\])
     let mathBlockMatch = remaining.match(/^`?\$\$([\s\S]+?)\$\$`?/) || remaining.match(/^`?\\\[([\s\S]+?)\\\]`?/);

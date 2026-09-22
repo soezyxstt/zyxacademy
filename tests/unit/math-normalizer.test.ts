@@ -141,4 +141,97 @@ describe("normalizeMathInText", () => {
     expect(normalized).not.toContain("$\\sqrt{x");
     expect(normalized).toBe(input);
   });
+
+  it("normalizes chemical reactions with phases, ions, and electrons", () => {
+    const reactions = [
+      "X(g)→X+(g)+e-",
+      "X(g)+e- → X-(g)",
+      "X-(g)→X(g)+e-",
+      "X+(g)+e- → X(g)",
+      "Ionisasi pertama adalah pelepasan satu elektron dari atom netral gas: Mg(g)→Mg+(g)+e-."
+    ];
+
+    for (const rxn of reactions) {
+      const normalized = normalizeMathInText(rxn);
+      const math = normalized.match(/\$([^$]+)\$/g) || [];
+      expect(math.length).toBeGreaterThanOrEqual(1);
+      expect(() => {
+        for (const m of math) {
+          katex.renderToString(m.slice(1, -1), { throwOnError: true });
+        }
+      }).not.toThrow();
+    }
+  });
+
+  it("normalizes atomic ions, quantum levels, and Rydberg constant in questions", () => {
+    const input = "Untuk ion He+ (Z=2), hitung panjang gelombang foton saat elektron berpindah dari n2=4 ke n1=2. Gunakan R=1,097 × 10^7 m-1.";
+    const normalized = normalizeMathInText(input);
+
+    expect(normalized).toContain("\\text{He}^{+}");
+    expect(normalized).toContain("n_2 = 4");
+    expect(normalized).toContain("n_1 = 2");
+    expect(normalized).toContain("10^{7}");
+    expect(normalized).toContain("\\text{ m}^{-1}");
+
+    const math = normalized.match(/\$([^$]+)\$/g) || [];
+    expect(math.length).toBeGreaterThanOrEqual(4);
+    expect(() => {
+      for (const m of math) {
+        katex.renderToString(m.slice(1, -1), { throwOnError: true });
+      }
+    }).not.toThrow();
+  });
+
+  it("normalizes frequency, speed of light, and scientific powers in questions", () => {
+    const input = "Cahaya memiliki frekuensi 5,00 × 10^14 Hz. Dengan c=3,00 × 10^8 m/s, tentukan panjang gelombangnya dalam nm.";
+    const normalized = normalizeMathInText(input);
+
+    expect(normalized).toContain("10^{14}");
+    expect(normalized).toContain("10^{8}");
+    expect(normalized).toContain("\\text{ Hz}");
+    expect(normalized).toContain("\\text{ m/s}");
+
+    const math = normalized.match(/\$([^$]+)\$/g) || [];
+    expect(math.length).toBeGreaterThanOrEqual(2);
+    expect(() => {
+      for (const m of math) {
+        katex.renderToString(m.slice(1, -1), { throwOnError: true });
+      }
+    }).not.toThrow();
+  });
+
+  it("normalizes acceptable answer options with scientific powers and units", () => {
+    const input = "121,5 nm / 121.5 nm / 1,215 × 10^-7 m / 1.215 × 10^-7 m";
+    const normalized = normalizeMathInText(input);
+
+    expect(normalized).toContain("121{,}5\\text{ nm}");
+    expect(normalized).toContain("10^{-7}");
+
+    const math = normalized.match(/\$([^$]+)\$/g) || [];
+    expect(math.length).toBeGreaterThanOrEqual(4);
+    expect(() => {
+      for (const m of math) {
+        katex.renderToString(m.slice(1, -1), { throwOnError: true });
+      }
+    }).not.toThrow();
+  });
+
+  it("normalizes Rydberg derivation and explanation text", () => {
+    const input = "Gunakan 1/lambda=RZ^2(1/n1^2-1/n2^2)=1,097 ×10^7 ×4 x(1/4-1/16). Hasilnya lambda sekitar 1,215 ×10^-7 m=121,5 nm.";
+    const normalized = normalizeMathInText(input);
+
+    expect(normalized).toContain("\\frac{1}{\\lambda}");
+    expect(normalized).toContain("n_1^2");
+    expect(normalized).toContain("n_2^2");
+    expect(normalized).toContain("\\lambda");
+    expect(normalized).toContain("10^{-7}");
+
+    const math = normalized.match(/\$([^$]+)\$/g) || [];
+    expect(math.length).toBeGreaterThanOrEqual(3);
+    expect(() => {
+      for (const m of math) {
+        katex.renderToString(m.slice(1, -1), { throwOnError: true });
+      }
+    }).not.toThrow();
+  });
 });

@@ -167,10 +167,20 @@ function normalizeBareLatexCommands(text: string): string {
   let i = 0;
 
   while (i < text.length) {
-    if (text[i] === "$") {
-      result += text[i];
-      i++;
-      continue;
+    if (text.startsWith("$$", i)) {
+      const closeIdx = text.indexOf("$$", i + 2);
+      if (closeIdx !== -1) {
+        result += text.slice(i, closeIdx + 2);
+        i = closeIdx + 2;
+        continue;
+      }
+    } else if (text[i] === "$") {
+      const closeIdx = text.indexOf("$", i + 1);
+      if (closeIdx !== -1) {
+        result += text.slice(i, closeIdx + 1);
+        i = closeIdx + 1;
+        continue;
+      }
     }
 
     if (text[i] === "\\" && i + 1 < text.length && /[a-zA-Z]/.test(text[i + 1])) {
@@ -214,6 +224,48 @@ function normalizeBareLatexCommands(text: string): string {
   return result;
 }
 
+function formatChemicalTerm(term: string): string {
+  const t = term.trim();
+  if (t === "e-") return "\\text{e}^-";
+
+  const phaseMatch = t.match(/^([A-Za-z]+)(\d*[+-])?\s*\((g|s|l|aq)\)$/);
+  if (phaseMatch) {
+    const [, element, charge, phase] = phaseMatch;
+    const el = `\\text{${element}}`;
+    const ch = charge ? `^{${charge}}` : "";
+    const ph = `_{(${phase})}`;
+    return `${el}${ch}${ph}`;
+  }
+
+  const ionMatch = t.match(/^([A-Za-z]+)(\d*[+-])$/);
+  if (ionMatch) {
+    const [, element, charge] = ionMatch;
+    return `\\text{${element}}^{${charge}}`;
+  }
+
+  if (/^[A-Z][a-z]?$/.test(t)) {
+    return `\\text{${t}}`;
+  }
+
+  return t;
+}
+
+function parseAndFormatChemicalSide(side: string): string {
+  const termRegex = /([A-Za-z]+(?:\d*[+-])?(?:\((?:g|s|l|aq)\))?|e-)/g;
+  const matches = [...side.matchAll(termRegex)].map((m) => m[0]);
+  return matches.map(formatChemicalTerm).join(" + ");
+}
+
+function formatUnit(unit: string): string {
+  const u = unit.trim();
+  if (!u) return "";
+  const powMatch = u.match(/^([a-zA-Z/]+)(-?\d+)$/);
+  if (powMatch) {
+    return `\\text{ ${powMatch[1]}}^{${powMatch[2]}}`;
+  }
+  return `\\text{ ${u}}`;
+}
+
 /**
  * Normalizes unwrapped mathematical expressions within a plain text segment into LaTeX ($...$).
  */
@@ -221,6 +273,103 @@ function normalizePlainTextSegment(text: string): string {
   if (!text || !text.trim()) return text;
 
   let s = text;
+
+  // 0a. Chemical reaction equations in text or options:
+  // e.g. "X(g)→X+(g)+e-", "X(g)+e- → X-(g)", "Mg(g)→Mg+(g)+e-", "Mg(g) -> Mg+(g) + e-"
+  s = s.replace(
+    /(?:[A-Za-z]+(?:\d*[+-])?(?:\((?:g|s|l|aq)\))?|e-)(?:\s*\+\s*(?:[A-Za-z]+(?:\d*[+-])?(?:\((?:g|s|l|aq)\))?|e-))*\s*(?:→|->|<=>|<->)\s*(?:[A-Za-z]+(?:\d*[+-])?(?:\((?:g|s|l|aq)\))?|e-)(?:\s*\+\s*(?:[A-Za-z]+(?:\d*[+-])?(?:\((?:g|s|l|aq)\))?|e-))*/g,
+    (match) => {
+      const arrowMatch = match.match(/\s*(?:→|->|<=>|<->)\s*/);
+      if (!arrowMatch || arrowMatch.index === undefined) return match;
+      const arrow = arrowMatch[0];
+      const leftRaw = match.slice(0, arrowMatch.index);
+      const rightRaw = match.slice(arrowMatch.index + arrow.length);
+
+      const left = parseAndFormatChemicalSide(leftRaw);
+      const right = parseAndFormatChemicalSide(rightRaw);
+      return ` $${left} \\rightarrow ${right}$ `;
+    }
+  );
+
+  // 0b. Standalone chemical ions: e.g. "ion He+", "ion Mg2+", "spesi X+"
+  s = s.replace(
+    /(?<![\\$a-zA-Z0-9])\b(He|Li|Be|Na|Mg|Al|K|Ca|Sc|Ti|V|Cr|Mn|Fe|Co|Ni|Cu|Zn|Ga|Rb|Sr|Ag|Cd|In|Sn|Cs|Ba|Tl|Pb|Bi|NH4|H3O|H|X|F|Cl|Br|I|O|S|N|P|OH|NO3|SO4|CO3|PO4)(\d?[+-])(?!\()/g,
+    (_, element, charge) => ` $\\text{${element}}^{${charge}}$ `
+  );
+  s = s.replace(/(?<![\\$a-zA-Z0-9])\be-(?![\\$a-zA-Z0-9])/g, () => ` $\\text{e}^-$ `);
+
+  // 0c. Rydberg formula and full equation chains:
+  // e.g. "1/lambda=RZ^2(1/n1^2-1/n2^2)=1,097 ×10^7 ×4 x(1/4-1/16)"
+  s = s.replace(
+    /1\/lambda\s*=\s*R\s*Z\^2\s*\(\s*1\/n1\^2\s*-\s*1\/n2\^2\s*\)\s*=\s*(\d+(?:[.,]\d+)?)\s*(?:×|x|\*)\s*10\^([-+]?\d+)\s*(?:×|x|\*)\s*(\d+)\s*(?:×|x|\*)\s*\(\s*(\d+)\/(\d+)\s*-\s*(\d+)\/(\d+)\s*\)/gi,
+    (_, rVal, rExp, mult, f1n, f1d, f2n, f2d) => {
+      const rFormatted = rVal.replace(",", "{,}");
+      return ` $\\frac{1}{\\lambda} = R Z^2 \\left( \\frac{1}{n_1^2} - \\frac{1}{n_2^2} \\right) = ${rFormatted} \\times 10^{${rExp}} \\times ${mult} \\times \\left( \\frac{${f1n}}{${f1d}} - \\frac{${f2n}}{${f2d}} \\right)$ `;
+    }
+  );
+  s = s.replace(
+    /1\/lambda\s*=\s*R\s*Z\^2\s*\(\s*1\/n1\^2\s*-\s*1\/n2\^2\s*\)/gi,
+    () => " $\\frac{1}{\\lambda} = R Z^2 \\left( \\frac{1}{n_1^2} - \\frac{1}{n_2^2} \\right)$ "
+  );
+  s = s.replace(/(?<![\\$a-zA-Z])1\/lambda\b/gi, () => "$\\frac{1}{\\lambda}$");
+  s = s.replace(/(?<![\\$a-zA-Z])\blambda\b(?![\\$a-zA-Z])/gi, () => "$\\lambda$");
+
+  // 0d. Scientific notation, assignments, and units:
+  // e.g. "1,215 ×10^-7 m=121,5 nm"
+  s = s.replace(
+    /(\d+(?:[.,]\d+)?)\s*(?:×|x|\*)\s*10\^([-+]?\d+)\s*([a-zA-Z/]+(?:-?\d+)?)\s*=\s*(\d+(?:[.,]\d+)?)\s*([a-zA-Z]+)/g,
+    (_, n1, p1, u1, n2, u2) => {
+      const num1 = n1.replace(",", "{,}");
+      const num2 = n2.replace(",", "{,}");
+      const unit1 = formatUnit(u1);
+      const unit2 = formatUnit(u2);
+      return ` $${num1} \\times 10^{${p1}}${unit1} = ${num2}${unit2}$ `;
+    }
+  );
+  // Variable assignments: e.g. "R=1,097 × 10^7 m-1", "c=3,00 × 10^8 m/s"
+  s = s.replace(
+    /(?<![\\$a-zA-Z0-9])\b([a-zA-Z])\s*=\s*(\d+(?:[.,]\d+)?)\s*(?:×|x|\*)\s*10\^([-+]?\d+)(?:\s*([a-zA-Z/]+(?:-?\d+)?))?/g,
+    (_, v, num, p, u) => {
+      const n = num.replace(",", "{,}");
+      const unit = u ? formatUnit(u) : "";
+      return ` $${v} = ${n} \\times 10^{${p}}${unit}$ `;
+    }
+  );
+  // Standalone scientific notation: e.g. "5,00 × 10^14 Hz", "1,215 × 10^-7 m"
+  s = s.replace(
+    /(?<![\\$a-zA-Z0-9])(\d+(?:[.,]\d+)?)\s*(?:×|x|\*)\s*10\^([-+]?\d+)(?:\s*([a-zA-Z/]+(?:-?\d+)?))?(?![\\$a-zA-Z0-9])/g,
+    (_, num, p, u) => {
+      const n = num.replace(",", "{,}");
+      const unit = u ? formatUnit(u) : "";
+      return ` $${n} \\times 10^{${p}}${unit}$ `;
+    }
+  );
+  // Standalone powers of 10: "10^7", "10^14", "10^-7"
+  s = s.replace(
+    /(?<![\\$a-zA-Z0-9])10\^([-+]?\d+)(?![\\$a-zA-Z0-9])/g,
+    (_, p) => ` $10^{${p}}$ `
+  );
+
+  // 0e. Quantum subscripts & variable subscripts:
+  // e.g. "n2=4", "n1=2", "n1^2", "n2^2", "RZ^2"
+  s = s.replace(
+    /(?<![\\$a-zA-Z0-9])\b([a-zA-Z])(\d+)\s*=\s*([0-9a-zA-Z]+)\b(?![\\$a-zA-Z0-9])/g,
+    (_, v, sub, val) => ` $${v}_${sub} = ${val}$ `
+  );
+  s = s.replace(
+    /(?<![\\$a-zA-Z0-9])\b([a-zA-Z])(\d+)\^(\d+)\b(?![\\$a-zA-Z0-9])/g,
+    (_, v, sub, pow) => ` $${v}_${sub}^{${pow}}$ `
+  );
+  s = s.replace(/(?<![\\$a-zA-Z0-9])\bRZ\^2\b(?![\\$a-zA-Z0-9])/g, () => " $R Z^2$ ");
+
+  // 0f. Number with units (e.g. "121,5 nm", "121.5 nm"):
+  s = s.replace(
+    /(?<![\\$a-zA-Z0-9])(\d+(?:[.,]\d+)?)\s*(nm|m|cm|mm|km|s|ms|Hz|kHz|MHz|GHz|J|kJ|eV|mol|kg|g)(?![\\$a-zA-Z0-9])/g,
+    (_, n, u) => {
+      const num = n.replace(",", "{,}");
+      return ` $${num}\\text{ ${u}}$ `;
+    }
+  );
 
   // 0. Bare LaTeX limit expressions: \lim_{...} f(x) = L or \lim_{x \to c} f(x)
   s = s.replace(
@@ -432,12 +581,12 @@ function normalizePlainTextSegment(text: string): string {
 export function normalizeMathInText(input: string | null | undefined): string {
   if (!input) return "";
 
-  // If the input doesn't contain any delimiters, normalize directly
-  if (!input.includes("$") && !input.includes("\\[") && !input.includes("\\(")) {
+  // If the input doesn't contain any delimiters or backticks, normalize directly
+  if (!input.includes("$") && !input.includes("\\[") && !input.includes("\\(") && !input.includes("`")) {
     return normalizePlainTextSegment(input);
   }
 
-  // Tokenize around existing math delimiters to ensure we don't double-process already-delimited math
+  // Tokenize around existing math delimiters and backticks to ensure we don't double-process already-delimited math
   const tokens: string[] = [];
   let cursor = 0;
 
@@ -446,6 +595,7 @@ export function normalizeMathInText(input: string | null | undefined): string {
     const startsInlineDollar = input[cursor] === "$" && !startsDisplayDollar;
     const startsDisplayBracket = input.startsWith("\\[", cursor);
     const startsInlineParen = input.startsWith("\\(", cursor);
+    const startsBacktick = input[cursor] === "`";
 
     if (startsDisplayDollar || startsInlineDollar || startsDisplayBracket || startsInlineParen) {
       const open = startsDisplayDollar ? "$$" : startsInlineDollar ? "$" : startsDisplayBracket ? "\\[" : "\\(";
@@ -458,6 +608,16 @@ export function normalizeMathInText(input: string | null | undefined): string {
         }
         tokens.push(input.slice(cursor, closeIdx + close.length));
         const rest = input.slice(closeIdx + close.length);
+        return tokens.join("") + normalizeMathInText(rest);
+      }
+    } else if (startsBacktick) {
+      const closeIdx = input.indexOf("`", cursor + 1);
+      if (closeIdx !== -1) {
+        if (cursor > 0) {
+          tokens.push(normalizePlainTextSegment(input.slice(0, cursor)));
+        }
+        tokens.push(input.slice(cursor, closeIdx + 1));
+        const rest = input.slice(closeIdx + 1);
         return tokens.join("") + normalizeMathInText(rest);
       }
     }
