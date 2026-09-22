@@ -8,12 +8,30 @@ import { generateAndSavePdfThumbnailCompute } from "@/lib/compute/pdf-thumbnail"
 
 function extractStorageKey(value?: string | null): string | null {
   if (!value) return null;
-  if (!value.startsWith("http://") && !value.startsWith("https://")) return value;
-  if (value.includes("/api/storage/file/")) return value.split("/api/storage/file/").pop() || null;
-  if (value.includes("/f/")) return value.split("/f/").pop() || null;
-  const publicBase = process.env.R2_PUBLIC_URL?.replace(/\/$/, "");
-  if (publicBase && value.startsWith(`${publicBase}/`)) return value.slice(publicBase.length + 1);
-  return null;
+  const raw = value.trim().split(/[?#]/, 1)[0];
+  if (!raw) return null;
+  let candidate = raw;
+  const relativeMarker = ["/api/storage/file/", "/f/"].find((marker) => raw.startsWith(marker));
+  if (relativeMarker) {
+    candidate = raw.slice(relativeMarker.length);
+  } else if (!/^https?:\/\//i.test(raw)) {
+    candidate = raw.replace(/^\/+/, "");
+  }
+  try {
+    if (/^https?:\/\//i.test(raw)) {
+      const url = new URL(raw);
+      const marker = ["/api/storage/file/", "/f/"].find((item) => url.pathname.includes(item));
+      if (marker) candidate = url.pathname.split(marker).pop() || "";
+      else {
+        const publicBase = process.env.R2_PUBLIC_URL?.replace(/\/$/, "");
+        if (!publicBase || !raw.startsWith(`${publicBase}/`)) return null;
+        candidate = url.pathname.slice(new URL(publicBase).pathname.replace(/\/$/, "").length + 1);
+      }
+    }
+    return decodeURIComponent(candidate).replace(/^\/+/, "") || null;
+  } catch {
+    return null;
+  }
 }
 
 export const pdfThumbnailWorker = inngest.createFunction(

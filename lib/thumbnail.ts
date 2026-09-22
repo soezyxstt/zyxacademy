@@ -18,7 +18,7 @@ export async function generateAndSavePdfThumbnail(params: {
   const sourceVersion = params.fileKey;
   await inngest
     .send({
-      id: `thumbnail-course-material-${params.materialId}-${encodeURIComponent(sourceVersion).slice(-96)}`,
+      id: `thumbnail-course_material-${params.materialId}-${encodeURIComponent(sourceVersion).slice(-96)}`,
       name: "pdf/thumbnail.requested",
       data: {
         materialId: params.materialId,

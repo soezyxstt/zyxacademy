@@ -206,14 +206,15 @@ export async function executeDiktatPDFGeneration(
       })
       .where(eq(diktats.id, diktatId));
 
-    // Enqueue thumbnail generation in background with sourceVersion
-    const sourceVersion = diktat.generationHash || "v1";
+    // Enqueue thumbnail generation in background with the stored file key as
+    // sourceVersion so the worker can reject stale events after overwrites.
     await inngest.send({
-      id: `thumbnail-${diktat.id}-${sourceVersion}`,
+      id: `thumbnail-diktat-${diktat.id}-${encodeURIComponent(fileUrl).slice(-96)}`,
       name: "pdf/thumbnail.requested",
       data: {
         materialId: diktat.id,
         sourceType: "diktat",
+        sourceVersion: fileUrl,
       },
     }).catch((inngestErr) => {
       console.warn(`[diktat-pdf] Failed to enqueue thumbnail for ${diktatId}:`, inngestErr);

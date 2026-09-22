@@ -8,6 +8,7 @@ import { courseMaterials } from "@/db/schema";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
 import { storage } from "@/lib/storage";
+import { inngest } from "@/lib/inngest";
 import {
   isValidSubcategory,
   normalizeLevel1Category,
@@ -141,6 +142,7 @@ export async function POST(req: NextRequest) {
   let created = 0;
   let updated = 0;
   const replacedKeys = new Set<string>();
+  const thumbnailTargets: Array<{ materialId: string; fileKey: string }> = [];
 
   await db.transaction(async (tx) => {
     for (const item of items) {
@@ -167,14 +169,17 @@ export async function POST(req: NextRequest) {
             year: item.year ?? null,
             fileUrl: item.key,
             checksum: item.checksum ?? null,
+            thumbnailUrl: null,
             ...(itemChapterIds.length > 0 ? { chapterIds: itemChapterIds } : {}),
             updatedAt: new Date(),
           })
           .where(eq(courseMaterials.id, item.targetId));
+        thumbnailTargets.push({ materialId: item.targetId, fileKey: item.key });
         updated += 1;
       } else {
+        const materialId = randomUUID();
         await tx.insert(courseMaterials).values({
-          id: randomUUID(),
+          id: materialId,
           courseId,
           title: item.title,
           type,
@@ -184,6 +189,7 @@ export async function POST(req: NextRequest) {
           checksum: item.checksum ?? null,
           chapterIds: itemChapterIds,
         });
+        thumbnailTargets.push({ materialId, fileKey: item.key });
         created += 1;
       }
     }
@@ -194,6 +200,24 @@ export async function POST(req: NextRequest) {
     await storage.delete(key).catch((err) => {
       console.error("Failed to clean up overwritten course material:", err);
     });
+  }
+
+  // Enqueue thumbnail renders after commit so the worker always finds the row.
+  // A queue failure must not fail the commit; on-demand thumbnail GET requeues.
+  for (const target of thumbnailTargets) {
+    await inngest
+      .send({
+        id: `thumbnail-course_material-${target.materialId}-${encodeURIComponent(target.fileKey).slice(-96)}`,
+        name: "pdf/thumbnail.requested",
+        data: {
+          materialId: target.materialId,
+          sourceType: "course_material" as const,
+          sourceVersion: target.fileKey,
+        },
+      })
+      .catch((err) => {
+        console.warn(`[BatchCommit] Failed to enqueue thumbnail for ${target.materialId}:`, err);
+      });
   }
 
   revalidatePath("/admin/courses");
