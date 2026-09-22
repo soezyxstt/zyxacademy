@@ -48,30 +48,6 @@ function parseBalancedBrackets(text: string, startIndex: number): { content: str
   return null;
 }
 
-function parseScripts(text: string, startIndex: number): number | null {
-  let index = startIndex;
-  while (index < text.length) {
-    if (text[index] === "_" || text[index] === "^") {
-      index++;
-      if (index < text.length && text[index] === "{") {
-        const brace = parseBalancedBraces(text, index);
-        if (brace) {
-          index = brace.endIndex;
-        } else {
-          return null; // Unbalanced brace in script
-        }
-      } else if (index < text.length && /[a-zA-Z0-9]/.test(text[index])) {
-        index++;
-      } else {
-        break;
-      }
-    } else {
-      break;
-    }
-  }
-  return index;
-}
-
 const TWO_ARG_COMMANDS = new Set(["frac", "dfrac", "tfrac", "binom"]);
 const ONE_ARG_COMMANDS = new Set([
   "sqrt",
@@ -99,6 +75,44 @@ const ZERO_ARG_COMMANDS = new Set([
   "hbar", "circ", "leftrightarrow", "rightarrow", "leftarrow", "uparrow", "downarrow",
   "Rightarrow", "Leftarrow", "Leftrightarrow", "quad", "qquad",
 ]);
+
+function parseScripts(text: string, startIndex: number): number | null {
+  let index = startIndex;
+  while (index < text.length) {
+    if (text[index] === "_" || text[index] === "^") {
+      const markerPos = index;
+      index++;
+      if (index < text.length && text[index] === "{") {
+        const brace = parseBalancedBraces(text, index);
+        if (brace) {
+          index = brace.endIndex;
+        } else {
+          return null; // Unbalanced brace in script
+        }
+      } else if (index < text.length && /[a-zA-Z0-9]/.test(text[index])) {
+        index++;
+      } else if (
+        index < text.length &&
+        text[index] === "\\" &&
+        index + 1 < text.length &&
+        /[a-zA-Z]/.test(text[index + 1])
+      ) {
+        const cmdMatch = text.slice(index + 1).match(/^[a-zA-Z]+/);
+        if (cmdMatch && ZERO_ARG_COMMANDS.has(cmdMatch[0])) {
+          index = index + 1 + cmdMatch[0].length;
+        } else {
+          return null;
+        }
+      } else {
+        // No valid script operand following '_' or '^', return position prior to this marker
+        return markerPos;
+      }
+    } else {
+      break;
+    }
+  }
+  return index;
+}
 
 function parseCommandExpression(text: string, cmd: string, cmdEnd: number): ParseCmdResult {
   if (TWO_ARG_COMMANDS.has(cmd)) {

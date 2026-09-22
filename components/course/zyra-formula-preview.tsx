@@ -22,7 +22,8 @@ function containsMathSyntax(text: string): boolean {
 
 function normalizeUnicodeMath(expr: string): string {
   return expr
-    .replace(/√\s*\(?([^)\s]+)\)?/g, "\\sqrt{$1}")
+    .replace(/√\s*\(\s*([^()]*)\s*\)/g, "\\sqrt{$1}")
+    .replace(/√\s*([^\s()]+)/g, "\\sqrt{$1}")
     .replace(/√/g, "\\sqrt{}")
     .replace(/π/g, "\\pi ")
     .replace(/≤/g, "\\le ")

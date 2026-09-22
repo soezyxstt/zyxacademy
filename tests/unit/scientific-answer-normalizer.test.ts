@@ -39,6 +39,11 @@ describe("scientific-answer-normalizer", () => {
       const res = scientificTextToLatex("sqrt(x) + x^2 - 1/2");
       expect(res).toContain("\\sqrt{x}");
       expect(res).toContain("x^2");
+
+      const resUnicode = scientificTextToLatex("√(x + 1) + √2");
+      expect(resUnicode).toContain("\\sqrt{x + 1}");
+      expect(resUnicode).toContain("\\sqrt{2}");
+      expect(() => katex.renderToString(resUnicode, { throwOnError: true })).not.toThrow();
     });
 
     it("converts Greek letters and degrees", () => {

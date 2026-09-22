@@ -73,7 +73,9 @@ export function scientificTextToLatex(input: string): string {
        .replace(/\bplus minus\b/gi, " \\pm ");
 
   // 2. Roots & common function shortcuts
-  s = s.replace(/\bakar\s*([0-9a-zA-Z]+)/gi, "\\sqrt{$1}")
+  s = s.replace(/√\s*\(\s*([^()]*)\s*\)/g, "\\sqrt{$1}")
+       .replace(/√\s*([^\s()]+)/g, "\\sqrt{$1}")
+       .replace(/\bakar\s*([0-9a-zA-Z]+)/gi, "\\sqrt{$1}")
        .replace(/sqrt\(([^)]+)\)/g, "\\sqrt{$1}")
        .replace(/akar\(([^)]+)\)/gi, "\\sqrt{$1}");
 

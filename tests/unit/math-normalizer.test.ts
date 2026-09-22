@@ -305,5 +305,27 @@ describe("normalizeMathInText", () => {
       }
     }).not.toThrow();
   });
+
+  it("handles command-token script operands such as \\vec{v}_\\theta and rejects trailing dangling script markers", () => {
+    const input = "Vektor kecepatan sudut \\vec{v}_\\theta memiliki komponen radial \\vec{v}_r.";
+    const normalized = normalizeMathInText(input);
+
+    expect(normalized).toContain("$\\vec{v}_\\theta$");
+    expect(normalized).toContain("$\\vec{v}_r$");
+
+    const math = normalized.match(/\$([^$]+)\$/g) || [];
+    expect(math.length).toBe(2);
+    expect(() => {
+      for (const m of math) {
+        katex.renderToString(m.slice(1, -1), { throwOnError: true });
+      }
+    }).not.toThrow();
+
+    // Verify dangling underscore does not get absorbed into broken math
+    const dangling = "Vektor rusak \\vec{v}_ tanpa subskrip.";
+    const normalizedDangling = normalizeMathInText(dangling);
+    expect(normalizedDangling).toContain("$\\vec{v}$");
+    expect(normalizedDangling).not.toContain("$\\vec{v}_$");
+  });
 });
 
