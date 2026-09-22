@@ -3,18 +3,8 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { courseMaterials, diktats } from "@/db/schema";
 import { storage } from "@/lib/storage";
-import { buildCourseThumbnailKey } from "@/lib/storage/keys";
+import { buildCourseThumbnailKey, extractStorageKey } from "@/lib/storage/keys";
 import { generateAndSavePdfThumbnailCompute } from "@/lib/compute/pdf-thumbnail";
-
-function extractStorageKey(value?: string | null): string | null {
-  if (!value) return null;
-  if (!value.startsWith("http://") && !value.startsWith("https://")) return value;
-  if (value.includes("/api/storage/file/")) return value.split("/api/storage/file/").pop() || null;
-  if (value.includes("/f/")) return value.split("/f/").pop() || null;
-  const publicBase = process.env.R2_PUBLIC_URL?.replace(/\/$/, "");
-  if (publicBase && value.startsWith(`${publicBase}/`)) return value.slice(publicBase.length + 1);
-  return null;
-}
 
 export const pdfThumbnailWorker = inngest.createFunction(
   {

@@ -3,39 +3,11 @@ import { db } from "@/db";
 import { courseMaterials, diktats } from "@/db/schema";
 import { resolveCourseIdentity } from "@/lib/admin/course-identity";
 import { storage } from "@/lib/storage";
-import { buildCourseThumbnailKey } from "@/lib/storage/keys";
+import { buildCourseThumbnailKey, extractStorageKey } from "@/lib/storage/keys";
 import { inngest } from "@/lib/inngest";
 
 const THUMBNAIL_POLL_ATTEMPTS = 4;
 const THUMBNAIL_POLL_INTERVAL_MS = 500;
-
-function extractStorageKey(value?: string | null): string | null {
-  if (!value) return null;
-  const raw = value.trim().split(/[?#]/, 1)[0];
-  if (!raw) return null;
-  let candidate = raw;
-  const relativeMarker = ["/api/storage/file/", "/f/"].find((marker) => raw.startsWith(marker));
-  if (relativeMarker) {
-    candidate = raw.slice(relativeMarker.length);
-  } else if (!/^https?:\/\//i.test(raw)) {
-    candidate = raw.replace(/^\/+/, "");
-  }
-  try {
-    if (/^https?:\/\//i.test(raw)) {
-      const url = new URL(raw);
-      const marker = ["/api/storage/file/", "/f/"].find((item) => url.pathname.includes(item));
-      if (marker) candidate = url.pathname.split(marker).pop() || "";
-      else {
-        const publicBase = process.env.R2_PUBLIC_URL?.replace(/\/$/, "");
-        if (!publicBase || !raw.startsWith(`${publicBase}/`)) return null;
-        candidate = url.pathname.slice(new URL(publicBase).pathname.replace(/\/$/, "").length + 1);
-      }
-    }
-    return decodeURIComponent(candidate).replace(/^\/+/, "") || null;
-  } catch {
-    return null;
-  }
-}
 
 async function findStoredThumbnail(courseIds: readonly string[], materialId: string): Promise<string | null> {
   for (const courseId of [...new Set(courseIds)]) {
