@@ -231,9 +231,9 @@ function normalizeBareLatexCommands(text: string): string {
  */
 function formatChemicalFormula(formula: string): string {
   if (!formula) return "";
-  // Polyatomic groups in parens: e.g. (OH)2 -> (\text{OH})_2, (NH4)2 -> (\text{NH}_4)_2
+  // Polyatomic groups in parens: e.g. (OH)2 -> (\text{OH})_2, (NH4)2 -> (\text{NH}_4)_2, Al2(SO4)3 -> \text{Al}_2(\text{SO}_4)_3
   if (formula.includes("(") && formula.includes(")")) {
-    return formula.replace(/([A-Za-z]+)?\(([^)]+)\)(\d*)/g, (_, prefix, inner, sub) => {
+    return formula.replace(/([A-Za-z0-9]+)?\(([^)]+)\)(\d*)/g, (_, prefix, inner, sub) => {
       const p = prefix ? formatChemicalFormula(prefix) : "";
       const inside = formatChemicalFormula(inner);
       const s = sub ? `_${sub}` : "";
@@ -310,7 +310,7 @@ function formatChemicalTerm(term: string): string {
  * Parses and formats one side of a chemical equation (reactants or products).
  */
 function parseAndFormatChemicalSide(side: string): string {
-  const termRegex = /(?:(?:\d+\/\d+|\d*\.?\d+)\s*)?(?:e-|(?:[A-Za-z0-9]+|\([A-Z][A-Za-z0-9]*\))+(?:\^?[0-9]*[+-])?(?:\s*\((?:g|s|l|aq)\))?)/g;
+  const termRegex = /(?:(?:\d+\/\d+|\d*\.?\d+)\s*)?(?:e-|(?:[A-Z][a-z]?\d*|\([A-Z][A-Za-z0-9]*\)\d*)+(?:\^?[0-9]*[+-])?(?:\s*\((?:g|s|l|aq)\))?)/g;
   const matches = [...side.matchAll(termRegex)].map((m) => m[0].trim());
   return matches.map(formatChemicalTerm).join(" + ");
 }
@@ -339,7 +339,7 @@ function normalizePlainTextSegment(text: string): string {
 
   // 0a. Chemical reaction equations in text or options:
   // e.g. "2H2(g) + O2(g) -> 2H2O(l)", "Fe3+ + 3e- -> Fe", "N2(g) + 3H2(g) <=> 2NH3(g)"
-  const termPattern = "(?:(?:\\d+\\/\\d+|\\d*\\.?\\d+)\\s*)?(?:e-|(?:[A-Za-z0-9]+|\\([A-Z][A-Za-z0-9]*\\))+(?:\\^?[0-9]*[+-])?(?:\\s*\\((?:g|s|l|aq)\\))?)";
+  const termPattern = "(?:(?:\\d+\\/\\d+|\\d*\\.?\\d+)\\s*)?(?:e-|(?:[A-Z][a-z]?\\d*|\\([A-Z][A-Za-z0-9]*\\)\\d*)+(?:\\^?[0-9]*[+-])?(?:\\s*\\((?:g|s|l|aq)\\))?)";
   const sidePattern = `${termPattern}(?:\\s*\\+\\s*${termPattern})*`;
   const reactionRegex = new RegExp(`(${sidePattern})\\s*(→|->|<=>|<->)\\s*(${sidePattern})`, "g");
 
@@ -638,12 +638,17 @@ function normalizePlainTextSegment(text: string): string {
   return s;
 }
 
+const MAX_MATH_INPUT_LENGTH = 10000;
+
 /**
  * Main export: normalizes mixed prose so that all mathematical expressions are properly
  * delimited for KaTeX parsing while leaving pre-existing math segments untouched.
  */
 export function normalizeMathInText(input: string | null | undefined): string {
   if (!input) return "";
+  if (input.length > MAX_MATH_INPUT_LENGTH) {
+    return input;
+  }
 
   // If the input doesn't contain any delimiters or backticks, normalize directly
   if (!input.includes("$") && !input.includes("\\[") && !input.includes("\\(") && !input.includes("`")) {
