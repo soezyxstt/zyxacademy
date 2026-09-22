@@ -34,10 +34,18 @@ The deployment workflow performs the following actions automatically on push (fi
 1. **Pre-deploy Verification**: Runs `worker:deno:audit` (dependency tree guard) and `worker:deno:check` (typecheck).
 2. **Dynamic Provisioning**: Automatically provisions the Deno Deploy app via `deno deploy create` if it does not already exist.
 3. **Environment Sync**: Synchronizes all repository and environment secrets to Deno Deploy via `deno deploy env load --replace`.
-4. **Zero-downtime Deploy**: Runs `deno deploy --non-interactive --org soezyxst --app $APP_NAME --prod`.
+4. **Zero-downtime Deploy**: Runs `deno run -A jsr:@deno/deploy@0.0.9904 --non-interactive --org soezyxst --app $APP_NAME --prod` with a 10 minute step timeout. The CLI version is pinned so CI never floats to an untested release.
 5. **Automated Healthcheck**: Polls `$APP_URL/health` to confirm database connectivity and runtime health.
 6. **Automated Inngest Sync**: Calls the Inngest Cloud API via `POST https://api.inngest.com/v2/apps/zyx-academy/syncs` with per-environment `INNGEST_API_KEY` and body `{"url": "$APP_URL/api/inngest"}` to register background functions without manual dashboard steps. `INNGEST_SIGNING_KEY` stays in the worker env for request verification and is not used for sync. Staging and production use separate Inngest environment keys so the shared app id `zyx-academy` does not overwrite the other environment.
 7. **Renderer env sync**: Synchronizes `DIKTAT_RENDERER_URL` and `DIKTAT_RENDERER_SECRET` to Deno Deploy alongside the other secrets. Set matching per-environment values in the `staging` and `production` GitHub Environments, sourced from the `zyx-diktat-renderer-staging` and `zyx-diktat-renderer` Workers.
+
+### Deno Deploy upload manifest
+
+The root `deno.json` `deploy.exclude` list keeps unrelated areas (`app/`, `components/`, `tests/`, `drizzle/`, `public/`, `scripts/`, sibling workers, lockfiles) out of the diffsync upload. The worker only needs its import graph (`workers/deno-background`, `jobs/`, `db/`, `lib/`, `prompts/`) plus root configs. Before adding a new top-level area to the repository, confirm no worker-graph file imports it with `deno run -A scripts/audit-worker-dependencies.ts --list`; before excluding an area, confirm the same command lists zero files under it.
+
+### Diffsync handshake failure signature
+
+If the deploy step prints a revision URL but fails 2 to 3 seconds later with `Top-level await promise never resolved` and never prints `Loaded previously uploaded files`, the CLI never received the server's `missing_hashes` while the server kept waiting for the upload (`Awaiting for N files`, then `Build cancelled`). This is a production-app handshake stall, not a code regression: audit, typecheck, and env sync all pass first, and the same commit deploys cleanly to staging. On failure the workflow now prints manifest stats (tracked file count, bytes, largest files, graph size). Open the revision in the Deno dashboard, check for a wedged `building` revision blocking the queue, and compare the app build config against `zyx-background-staging`.
 
 ## Staging overhaul execution
 

@@ -122,18 +122,34 @@ export class R2Provider implements StorageProvider {
         Key: key,
       });
       const response = await this.s3.send(command);
-      if (!response.Body) throw new Error("R2 object has no body");
+      if (!response.Body) throw new Error(`R2_DOWNLOAD_FAILED:${key}`);
       return response.Body.transformToByteArray();
-    } catch {
-      if (!this.publicUrl) throw new Error("R2_DOWNLOAD_FAILED");
+    } catch (s3Error: any) {
+      const hasEndpoint = Boolean(process.env.R2_ENDPOINT);
+      const hasAccessKey = Boolean(process.env.R2_ACCESS_KEY_ID);
+      const hasPublicUrl = Boolean(this.publicUrl);
+      console.error("[R2Provider.download] S3 GetObject failed:", {
+        key,
+        bucket: this.bucket,
+        hasEndpoint,
+        hasAccessKey,
+        hasPublicUrl,
+        code: s3Error?.name ?? s3Error?.Code,
+        status: s3Error?.$metadata?.httpStatusCode,
+        message: s3Error?.message,
+      });
+
+      if (!this.publicUrl) {
+        throw new Error(`R2_DOWNLOAD_FAILED:${key}`, { cause: s3Error });
+      }
 
       try {
         const publicKey = key.split("/").map(encodeURIComponent).join("/");
         const response = await fetch(`${this.publicUrl.replace(/\/+$/, "")}/${publicKey}`, { cache: "no-store" });
-        if (!response.ok) throw new Error("R2_DOWNLOAD_FAILED");
+        if (!response.ok) throw new Error(`R2_DOWNLOAD_FAILED:${key}:public:${response.status}`);
         return new Uint8Array(await response.arrayBuffer());
-      } catch {
-        throw new Error("R2_DOWNLOAD_FAILED");
+      } catch (publicError: any) {
+        throw new Error(`R2_DOWNLOAD_FAILED:${key}`, { cause: publicError ?? s3Error });
       }
     }
   }

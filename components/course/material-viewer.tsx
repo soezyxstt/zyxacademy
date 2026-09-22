@@ -59,7 +59,6 @@ import { ArticleReadingCanvas } from "@/components/course/article-reading-canvas
 import { MarkdownRenderer } from "@/components/course/markdown-renderer";
 import { MathText } from "@/components/course/math-text";
 import { useTutor } from "@/components/course/tutor-drawer";
-import { ZyraMark } from "@/components/course/zyra-mark";
 import { TermPopover } from "@/components/course/term-popover";
 import { matchTerm, type TermIndexEntry } from "@/lib/term-match";
 import { isZyraSelectionAskEnabled, normalizeZyraSelection } from "@/lib/zyra/murid";
@@ -1298,7 +1297,6 @@ export function MaterialViewer({
               runTutorExplain(selectedText);
             }}
           >
-            <ZyraMark className="size-4" />
             Tanya Zyra
           </Button>
         )}

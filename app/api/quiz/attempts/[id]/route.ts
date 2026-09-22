@@ -21,6 +21,7 @@ import { serializeStudentQuizAttempt } from '@/lib/assessment-serialization';
 import { dualWriteQuizAttempt } from '@/lib/migrasi/repository-kompatibilitas';
 import { gradeStableOptionAnswer } from '@/lib/asesmen/attempt';
 import { quizAttachmentPrefix } from '@/lib/storage/keys';
+import { isShortAnswerCorrect } from '@/lib/quiz/short-answer';
 import {
   buildLegacyGradingPolicySnapshot,
   buildLegacyRenderedQuestionSnapshot,
@@ -194,21 +195,6 @@ export async function POST(req: NextRequest, { params }: Context) {
     .where(eq(quizTemplates.id, attempt.templateId))
     .limit(1);
 
-  if (templateMeta?.timeLimitSeconds != null) {
-    const startedMs = normalizeDate(attempt.startedAt).getTime();
-    const expiryGraceSeconds = 120;
-    const expiresAtMs = startedMs + (templateMeta.timeLimitSeconds + expiryGraceSeconds) * 1000;
-    if (Date.now() > expiresAtMs) {
-      return NextResponse.json(
-        {
-          error: 'Waktu pengerjaan kuis telah berakhir. Jawaban tidak dapat dikumpulkan.',
-          code: 'QUIZ_TIME_EXPIRED',
-        },
-        { status: 403 },
-      );
-    }
-  }
-
  const body = await req.json();
  const parsed = SubmitSchema.safeParse(body);
  if (!parsed.success) {
@@ -244,17 +230,7 @@ export async function POST(req: NextRequest, { params }: Context) {
   function checkAnswerCorrectness(q: any, submitted: any): boolean {
     const qType = q.question_type || q.questionType;
     if (qType === "short_answer" || (Array.isArray(q.acceptable_answers) && q.acceptable_answers.length > 0)) {
-      const acceptable = Array.isArray(q.acceptable_answers) ? q.acceptable_answers : [];
-      let text = "";
-      if (typeof submitted === "string") {
-        text = submitted;
-      } else if (submitted && typeof submitted === "object" && "text" in submitted && typeof submitted.text === "string") {
-        text = submitted.text;
-      } else if (Array.isArray(submitted)) {
-        text = String(submitted[0] ?? "");
-      }
-      const trimmed = text.trim().toLowerCase();
-      return trimmed.length > 0 && acceptable.some((ans: string) => ans.trim().toLowerCase() === trimmed);
+      return isShortAnswerCorrect(submitted, q.acceptable_answers);
     }
     if (qType === "essay") {
       return false;
@@ -375,7 +351,10 @@ export async function POST(req: NextRequest, { params }: Context) {
   const now = new Date();
   const startedMs = normalizeDate(attempt.startedAt).getTime();
   const elapsedSeconds = Math.max(0, Math.floor((now.getTime() - startedMs) / 1000));
-  const finalDurationSeconds = durationSeconds !== undefined ? Math.min(durationSeconds, elapsedSeconds) : elapsedSeconds;
+  let finalDurationSeconds = elapsedSeconds;
+  if (templateMeta?.timeLimitSeconds != null) {
+    finalDurationSeconds = Math.min(finalDurationSeconds, templateMeta.timeLimitSeconds);
+  }
 
   await db.transaction(async (tx) => {
     await tx

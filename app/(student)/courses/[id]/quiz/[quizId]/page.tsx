@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
-import { Lock, ChevronRight, Calendar, Award, Clock, AlertTriangle, ArrowLeft, CheckCircle2, XCircle, FileText, Download } from "lucide-react";
+import { Lock, ChevronRight, Calendar, Award, Clock, AlertTriangle, ArrowLeft, CheckCircle2, XCircle, FileText, Download, Check } from "lucide-react";
 import { CoursePageShell } from "@/components/course/course-page-shell";
 import { QuizPlayer } from "@/components/course/quiz-player";
 import { EnrollmentForm } from "@/components/enrollment-form";
@@ -20,7 +20,7 @@ import { cn } from "@/lib/utils";
 import { FormattedDate } from "@/components/ui/formatted-date";
 import { MistakeFeedbackButton } from "@/components/pka/mistake-feedback-button";
 import { normalizeDate } from "@/lib/date-utils";
-import { ZyraMark } from "@/components/course/zyra-mark";
+import { isShortAnswerCorrect, deduplicateAcceptableAnswers } from "@/lib/quiz/short-answer";
 import { QuestionSourceCitation } from "@/components/course/question-source-citation";
 import { extractFreeQuizChapterScope, getCourse, isFreeQuizTemplate } from "@/lib/course-utils";
 import { resolveCourseAccess } from "@/lib/student/course-access";
@@ -402,6 +402,7 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
       type: "quiz" as const,
       status: "published" as const,
       settings: {
+        timeLimitSeconds: template.timeLimitSeconds ?? undefined,
         timeLimitMinutes: template.timeLimitSeconds ? Math.round(template.timeLimitSeconds / 60) : 15,
         maxAttempts: template.maxAttempts ?? undefined,
         canGoBack: parsedRules?.canGoBack ?? true,
@@ -583,7 +584,6 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
               {targetAttempt && (
                 <Button asChild size="sm" className="rounded-md bg-brand-primary text-white hover:bg-brand-primary/90 font-semibold shadow-xs">
                   <Link href={`/courses/${id}/quiz/${quizId}/summary/${targetAttempt.id}`}>
-                    <ZyraMark className="mr-1.5 size-4" />
                     Lihat Diagnosis & Rencana Belajar
                   </Link>
                 </Button>
@@ -656,9 +656,7 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
 
                   let isCorrect = false;
                   if (qType === "short_answer" || (Array.isArray((q as any).acceptable_answers) && (q as any).acceptable_answers.length > 0)) {
-                    const acceptable = (q as any).acceptable_answers || [];
-                    const trimmed = submittedText.trim().toLowerCase();
-                    isCorrect = trimmed.length > 0 && acceptable.some((ans: string) => ans.trim().toLowerCase() === trimmed);
+                    isCorrect = isShortAnswerCorrect(submittedText, (q as any).acceptable_answers);
                   } else if (qType === "essay") {
                     isCorrect = submittedText.trim().length > 0 || Boolean(submittedFileKey);
                   } else if (qType === "multiple_choice" || !qType) {
@@ -759,16 +757,28 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
                               )}
                             </div>
                           </div>
-                          {(q as any).acceptable_answers && (q as any).acceptable_answers.length > 0 && (
-                            <div className="rounded-lg border border-status-success/30 bg-status-success/5 p-3">
-                              <span className="text-body-2xs font-semibold uppercase tracking-wider text-status-success block mb-1">
-                                Kunci Jawaban yang Diterima:
-                              </span>
-                              <div className="text-body-sm font-medium text-foreground">
-                                <MathText as="span">{(q as any).acceptable_answers.join(" / ")}</MathText>
+                          {Array.isArray((q as any).acceptable_answers) && (q as any).acceptable_answers.length > 0 && (() => {
+                            const displayAnswers = deduplicateAcceptableAnswers((q as any).acceptable_answers);
+                            if (displayAnswers.length === 0) return null;
+                            return (
+                              <div className="rounded-lg border border-status-success/30 bg-status-success/5 p-3 space-y-2">
+                                <span className="text-body-2xs font-semibold uppercase tracking-wider text-status-success block">
+                                  Kunci Jawaban yang Diterima{displayAnswers.length > 1 ? ` (${displayAnswers.length} variasi format)` : ""}:
+                                </span>
+                                <div className="flex flex-wrap gap-2 pt-0.5">
+                                  {displayAnswers.map((ans, aIdx) => (
+                                    <div
+                                      key={aIdx}
+                                      className="inline-flex items-center gap-1.5 rounded-md border border-status-success/25 bg-background/80 px-2.5 py-1 text-body-sm font-medium text-foreground shadow-2xs"
+                                    >
+                                      <Check className="size-3.5 text-status-success shrink-0" />
+                                      <MathText as="span">{ans}</MathText>
+                                    </div>
+                                  ))}
+                                </div>
                               </div>
-                            </div>
-                          )}
+                            );
+                          })()}
                         </div>
                       ) : qType === "essay" ? (
                         <div className="mt-4 pl-9 space-y-3">
@@ -864,10 +874,7 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
                       {/* Explanation box */}
                       {q.explanation && (
                         <div className="mt-4 ml-9 space-y-3 border-t border-border/80 pt-4">
-                          <div className="flex items-center gap-2 text-brand-primary">
-                            <ZyraMark className="size-4" />
-                            <h4 className="font-heading text-body-xs font-bold uppercase tracking-wider">Pembahasan Soal oleh Zyra</h4>
-                          </div>
+                          <h4 className="font-heading text-body-xs font-bold uppercase tracking-wider text-foreground">Pembahasan</h4>
                           <div className="text-body-sm text-muted-foreground leading-relaxed">
                             <MarkdownRenderer content={q.explanation} className="space-y-3" />
                           </div>
@@ -969,10 +976,7 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
 
                       {q.explanation && (
                         <div className="mt-4 ml-9 space-y-3 border-t border-border/80 pt-4">
-                          <div className="flex items-center gap-2 text-brand-primary">
-                            <ZyraMark className="size-4" />
-                            <h4 className="font-heading text-body-xs font-bold uppercase tracking-wider">Pembahasan Soal oleh Zyra</h4>
-                          </div>
+                          <h4 className="font-heading text-body-xs font-bold uppercase tracking-wider text-foreground">Pembahasan</h4>
                           <div className="text-body-sm text-muted-foreground leading-relaxed">
                             <MarkdownRenderer content={q.explanation} className="space-y-3" />
                           </div>
