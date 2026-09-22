@@ -462,31 +462,7 @@ export async function collaborativeBookSlot(
         };
       }
 
-      // 8. Verify target week weekly quota under write lock
-      const { startIso, endIso } = getIsoWeekRange(sessionDateIso);
-      const groupQuotaRows = await tx
-        .select({ weeklyQuotaSessions: groups.weeklyQuotaSessions })
-        .from(groups)
-        .where(eq(groups.id, groupId))
-        .limit(1);
-      const weeklyQuota = groupQuotaRows[0]?.weeklyQuotaSessions || 2;
-
-      const weekCountRows = await tx
-        .select({ value: sql<number>`count(*)` })
-        .from(bookings)
-        .where(
-          and(
-            eq(bookings.groupId, groupId),
-            gte(bookings.sessionDate, startIso),
-            lte(bookings.sessionDate, endIso),
-            countsTowardGroupWeeklyQuota()
-          )
-        );
-      const weekBookingCount = Number(weekCountRows[0]?.value ?? 0);
-
-      if (weekBookingCount >= weeklyQuota) {
-        throw new Error("WEEKLY_QUOTA_EXCEEDED");
-      }
+      // 8. Weekly quota restriction removed: groups may book multiple sessions per week up to their total package quota.
 
       // 9. Verify FCFS immediately before the insert. The UNIQUE(slotId)
       // constraint remains the final race guard for concurrent transactions.
@@ -779,32 +755,7 @@ export async function collaborativeMoveSlot(
         return { success: false, error: "Slot baru sudah diambil oleh kelompok lain" };
       }
 
-      // 7.5 Verify target week weekly quota under write lock (excluding moving booking)
-      const { startIso, endIso } = getIsoWeekRange(newTargetDateIso);
-      const groupQuotaRows = await tx
-        .select({ weeklyQuotaSessions: groups.weeklyQuotaSessions })
-        .from(groups)
-        .where(eq(groups.id, booking.groupId))
-        .limit(1);
-      const weeklyQuota = groupQuotaRows[0]?.weeklyQuotaSessions || 2;
-
-      const weekCountRows = await tx
-        .select({ value: sql<number>`count(*)` })
-        .from(bookings)
-        .where(
-          and(
-            eq(bookings.groupId, booking.groupId),
-            ne(bookings.id, bookingId),
-            gte(bookings.sessionDate, startIso),
-            lte(bookings.sessionDate, endIso),
-            countsTowardGroupWeeklyQuota()
-          )
-        );
-      const targetWeekBookingCount = Number(weekCountRows[0]?.value ?? 0);
-
-      if (targetWeekBookingCount >= weeklyQuota) {
-        throw new Error("WEEKLY_QUOTA_EXCEEDED");
-      }
+      // 7.5 Weekly quota restriction removed: groups may move bookings freely into any target week within package quota.
 
       const now = new Date();
 
