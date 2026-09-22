@@ -49,6 +49,10 @@ export async function getEnrollmentTokens() {
       ? {
           id: t.group.id,
           name: t.group.name,
+          packageType: t.group.packageType,
+          packageName: t.group.packageName,
+          totalQuotaSessions: t.group.totalQuotaSessions,
+          weeklyQuotaSessions: t.group.weeklyQuotaSessions,
           members: t.group.members.map((m) => ({
             userId: m.userId,
             joinedAt: m.joinedAt,
@@ -62,13 +66,20 @@ export async function getEnrollmentTokens() {
   }));
 }
 
+export type TokenQuotaOptions = {
+  totalQuotaSessions?: number;
+  weeklyQuotaSessions?: number;
+  packageType?: PackageType;
+};
+
 /**
- * Generate a new enrollment token for multiple courses and group size capacity
+ * Generate a new enrollment token for multiple courses, capacity, and session quota
  */
 export async function generateEnrollmentToken(
   courseIds: string[],
   capacity: number,
-  packageType: PackageType = "reguler_15"
+  quotaConfig: PackageType | number | TokenQuotaOptions = "reguler_15",
+  weeklyQuotaArg?: number
 ) {
   await assertAdmin();
 
@@ -76,8 +87,48 @@ export async function generateEnrollmentToken(
     return { success: false, error: "Silakan pilih setidaknya satu course" };
   }
 
-  if (capacity < 1 || capacity > 5) {
-    return { success: false, error: "Kapasitas kelompok harus di antara 1 dan 5 orang" };
+  if (capacity < 1) {
+    return { success: false, error: "Kapasitas kelompok minimal 1 orang" };
+  }
+
+  if (capacity > 1000) {
+    return { success: false, error: "Kapasitas kelompok maksimal 1000 orang" };
+  }
+
+  // Parse quota configuration
+  let totalQuota = 15;
+  let weeklyQuota = 1;
+  let packageType: PackageType = "reguler_15";
+
+  if (typeof quotaConfig === "number") {
+    totalQuota = Math.max(0, quotaConfig);
+    weeklyQuota = typeof weeklyQuotaArg === "number" ? Math.max(0, weeklyQuotaArg) : (totalQuota === 0 ? 0 : 1);
+    packageType = "custom";
+  } else if (typeof quotaConfig === "object" && quotaConfig !== null) {
+    totalQuota = Math.max(0, quotaConfig.totalQuotaSessions ?? 15);
+    weeklyQuota = Math.max(0, quotaConfig.weeklyQuotaSessions ?? (totalQuota === 0 ? 0 : 1));
+    packageType = quotaConfig.packageType ?? "custom";
+  } else if (typeof quotaConfig === "string") {
+    packageType = quotaConfig;
+    const preset = PACKAGE_PRESETS[packageType] || PACKAGE_PRESETS.reguler_15;
+    totalQuota = preset.quota;
+    weeklyQuota = preset.weeklySessions;
+  }
+
+  // Resolve matching package name and tier
+  let packageName = `Paket Kustom (${totalQuota} Sesi)`;
+  if (totalQuota === 15 && weeklyQuota === 1) {
+    packageType = "reguler_15";
+    packageName = PACKAGE_PRESETS.reguler_15.name;
+  } else if (totalQuota === 30 && weeklyQuota === 2) {
+    packageType = "intensif_30";
+    packageName = PACKAGE_PRESETS.intensif_30.name;
+  } else if (totalQuota === 45 && weeklyQuota === 3) {
+    packageType = "super_intensif_45";
+    packageName = PACKAGE_PRESETS.super_intensif_45.name;
+  } else if (totalQuota === 0) {
+    packageType = "custom";
+    packageName = "Tanpa Kuota Pertemuan (0 Sesi)";
   }
 
   // Verify all courses exist
@@ -93,8 +144,6 @@ export async function generateEnrollmentToken(
   // Calculate semester end date
   const expiresAt = getSemesterEndDate(now);
 
-  const preset = PACKAGE_PRESETS[packageType] || PACKAGE_PRESETS.reguler_15;
-
   // Generate unique 8 alphanumeric characters
   const unique8 = randomUUID().split("-")[0].toUpperCase();
   
@@ -102,16 +151,16 @@ export async function generateEnrollmentToken(
   const token = `Zyx-${unique8}-${capacity}-${courseIds.length}`;
 
   try {
+    const groupId = randomUUID();
     await db.transaction(async (tx) => {
       // 1. Create a dedicated group with package configuration
-      const groupId = randomUUID();
       await tx.insert(groups).values({
         id: groupId,
         name: `Kelompok Token ${token}`,
         packageType,
-        packageName: preset.name,
-        totalQuotaSessions: preset.quota,
-        weeklyQuotaSessions: preset.weeklySessions,
+        packageName,
+        totalQuotaSessions: totalQuota,
+        weeklyQuotaSessions: weeklyQuota,
         usedQuotaSessions: 0,
         academicYear: "2026/2027",
         semester: "Ganjil",
@@ -151,7 +200,7 @@ export async function generateEnrollmentToken(
     revalidatePath("/admin/tokens");
     revalidatePath("/admin/groups");
     revalidatePath("/dashboard/groups");
-    return { success: true, token };
+    return { success: true, token, groupId };
   } catch (err: any) {
     console.error("Failed to generate enrollment token:", err);
     return { success: false, error: "Gagal membuat token" };
