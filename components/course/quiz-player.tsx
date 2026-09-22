@@ -37,6 +37,7 @@ type QuizPlayerProps = {
     }>;
     settings?: {
       timeLimitMinutes?: number;
+      timeLimitSeconds?: number;
       canGoBack?: boolean;
       requireAllAnswered?: boolean;
       perQuestionTimerEnabled?: boolean;
@@ -65,7 +66,8 @@ type QuizPlayerProps = {
 export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirectBasePath, initialAnswers, startedAtMs, closeAtMs }: QuizPlayerProps) {
   const router = useRouter();
   const { setSuppressPet } = useTutor();
-  const durationSeconds = (exam.settings?.timeLimitMinutes ?? 15) * 60;
+  const durationSeconds =
+    exam.settings?.timeLimitSeconds ?? (exam.settings?.timeLimitMinutes ?? 15) * 60;
   const timerStorageKey = useMemo(() => `zyx-quiz-timer-deadline-${attemptId}`, [attemptId]);
 
   useEffect(() => {
@@ -358,9 +360,6 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
     try {
       submittingRef.current = true;
       setSubmitting(true);
-      window.localStorage.removeItem(timerStorageKey);
-      window.localStorage.removeItem(`zyx-quiz-answers-${attemptId}`);
-      window.localStorage.removeItem(`zyx-quiz-flags-${attemptId}`);
 
       // Read latest answers snapshot after active uploads finish
       const latestAnswers = answersRef.current;
@@ -402,6 +401,9 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
 
       isSubmittedRef.current = true;
       setIsSubmitted(true);
+      window.localStorage.removeItem(timerStorageKey);
+      window.localStorage.removeItem(`zyx-quiz-answers-${attemptId}`);
+      window.localStorage.removeItem(`zyx-quiz-flags-${attemptId}`);
       toast.success("Kuis berhasil dikumpulkan! Mengarahkan ke pembahasan...");
 
       // Navigate to the review screen for this attempt

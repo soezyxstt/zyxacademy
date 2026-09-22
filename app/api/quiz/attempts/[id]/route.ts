@@ -194,21 +194,6 @@ export async function POST(req: NextRequest, { params }: Context) {
     .where(eq(quizTemplates.id, attempt.templateId))
     .limit(1);
 
-  if (templateMeta?.timeLimitSeconds != null) {
-    const startedMs = normalizeDate(attempt.startedAt).getTime();
-    const expiryGraceSeconds = 120;
-    const expiresAtMs = startedMs + (templateMeta.timeLimitSeconds + expiryGraceSeconds) * 1000;
-    if (Date.now() > expiresAtMs) {
-      return NextResponse.json(
-        {
-          error: 'Waktu pengerjaan kuis telah berakhir. Jawaban tidak dapat dikumpulkan.',
-          code: 'QUIZ_TIME_EXPIRED',
-        },
-        { status: 403 },
-      );
-    }
-  }
-
  const body = await req.json();
  const parsed = SubmitSchema.safeParse(body);
  if (!parsed.success) {
@@ -375,7 +360,10 @@ export async function POST(req: NextRequest, { params }: Context) {
   const now = new Date();
   const startedMs = normalizeDate(attempt.startedAt).getTime();
   const elapsedSeconds = Math.max(0, Math.floor((now.getTime() - startedMs) / 1000));
-  const finalDurationSeconds = durationSeconds !== undefined ? Math.min(durationSeconds, elapsedSeconds) : elapsedSeconds;
+  let finalDurationSeconds = elapsedSeconds;
+  if (templateMeta?.timeLimitSeconds != null) {
+    finalDurationSeconds = Math.min(finalDurationSeconds, templateMeta.timeLimitSeconds);
+  }
 
   await db.transaction(async (tx) => {
     await tx

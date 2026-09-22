@@ -402,6 +402,7 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
       type: "quiz" as const,
       status: "published" as const,
       settings: {
+        timeLimitSeconds: template.timeLimitSeconds ?? undefined,
         timeLimitMinutes: template.timeLimitSeconds ? Math.round(template.timeLimitSeconds / 60) : 15,
         maxAttempts: template.maxAttempts ?? undefined,
         canGoBack: parsedRules?.canGoBack ?? true,
