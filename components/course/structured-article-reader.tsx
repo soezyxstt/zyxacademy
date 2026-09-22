@@ -42,7 +42,6 @@ import {
 import { cn } from "@/lib/utils";
 import { MarkdownRenderer } from "@/components/course/markdown-renderer";
 import { useTutor } from "@/components/course/tutor-drawer";
-import { ZyraMark } from "@/components/course/zyra-mark";
 import { isZyraSelectionAskEnabled, normalizeZyraSelection } from "@/lib/zyra/murid";
 import {
   type PublicArticleReadModel,
@@ -1282,7 +1281,6 @@ export function StructuredArticleReader({
                 handleAskZyra();
               }}
             >
-              <ZyraMark className="size-4" />
               Tanya Zyra
             </Button>
             <button

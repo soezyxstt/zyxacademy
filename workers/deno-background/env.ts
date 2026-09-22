@@ -40,6 +40,7 @@ export const WorkerEnvSchema = z.object({
   // Storage
   R2_ENDPOINT: optionalUrl,
   R2_BUCKET: optionalString,
+  R2_PUBLIC_URL: optionalString,
   R2_ACCESS_KEY_ID: optionalString,
   R2_SECRET_ACCESS_KEY: optionalString,
 

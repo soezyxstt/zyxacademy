@@ -18,7 +18,7 @@ import { quizOptionClasses, quizOptionLetterClasses } from "@/components/course/
 import { MistakeFeedbackButton } from "@/components/pka/mistake-feedback-button";
 import { Reveal } from "@/components/ui/reveal";
 import { QuestionSourceCitation } from "@/components/course/question-source-citation";
-import { ZyraMark } from "@/components/course/zyra-mark";
+import { isShortAnswerCorrect } from "@/lib/quiz/short-answer";
 
 import { normalizeDate } from "@/lib/date-utils";
 
@@ -146,10 +146,7 @@ export default async function PkaStagePage({ params, searchParams }: Props) {
 
                   let isCorrect = false;
                   if (qType === "short_answer" || (Array.isArray((q as any).acceptable_answers) && (q as any).acceptable_answers.length > 0)) {
-                    const acceptable = (q as any).acceptable_answers || [];
-                    const text = typeof rawSel === "string" ? rawSel : Array.isArray(rawSel) ? String(rawSel[0] ?? "") : "";
-                    const trimmed = text.trim().toLowerCase();
-                    isCorrect = trimmed.length > 0 && acceptable.some((ans: string) => ans.trim().toLowerCase() === trimmed);
+                    isCorrect = isShortAnswerCorrect(rawSel, (q as any).acceptable_answers);
                   } else if (qType === "essay") {
                     const text = typeof rawSel === "string" ? rawSel : Array.isArray(rawSel) ? String(rawSel[0] ?? "") : "";
                     isCorrect = text.trim().length > 0;
@@ -184,10 +181,7 @@ export default async function PkaStagePage({ params, searchParams }: Props) {
                       </ul>
                       {q.explanation && (
                         <div className="mt-4 ml-9 space-y-3 border-t border-border/80 pt-4">
-                          <div className="flex items-center gap-2 text-brand-primary">
-                            <ZyraMark className="size-4" />
-                            <h4 className="font-heading text-body-xs font-bold uppercase tracking-wider">Pembahasan Soal oleh Zyra</h4>
-                          </div>
+                          <h4 className="font-heading text-body-xs font-bold uppercase tracking-wider text-foreground">Pembahasan</h4>
                           <div className="text-body-sm text-muted-foreground leading-relaxed">
                             <MarkdownRenderer content={q.explanation} className="space-y-3" />
                           </div>

@@ -2,7 +2,30 @@
   "deploy": {
     "org": "soezyxst",
     "app": "zyx-background",
-    "entrypoint": "workers/deno-background/main.ts"
+    "entrypoint": "workers/deno-background/main.ts",
+    // Upload manifest scope. The worker only needs its import graph (workers/deno-background,
+    // jobs, db, lib, prompts) plus root configs, so large unrelated areas are excluded to keep
+    // diffsync uploads small and reliable. Verify with scripts/audit-worker-dependencies.ts --list
+    // before adding a new top-level area here.
+    "exclude": [
+      "./.github/**",
+      "./android/**",
+      "./app/**",
+      "./components/**",
+      "./docs/**",
+      "./drizzle/**",
+      "./plans/**",
+      "./plugins/**",
+      "./public/**",
+      "./scripts/**",
+      "./tests/**",
+      "./workers/diktat-renderer/**",
+      "./workers/realtime/**",
+      "./workers/vector-api/**",
+      "./workers/zyra-control-plane/**",
+      "./bun.lock",
+      "./package-lock.json"
+    ]
   },
   "unstable": [
     "sloppy-imports"

@@ -35,7 +35,12 @@ function canonicalClientDefaults(options: CanonicalVectorClientOptions) {
   const baseUrl = options.baseUrl ?? zyraRuntimeEnv.VECTORIZE_WORKER_URL;
   const sharedSecret = options.sharedSecret ?? zyraRuntimeEnv.VECTORIZE_SHARED_SECRET;
   if (!baseUrl || !sharedSecret) {
-    throw new Error("VECTORIZE_WORKER_URL and VECTORIZE_SHARED_SECRET must be set for canonical-content-v2");
+    const missing = [!baseUrl ? "VECTORIZE_WORKER_URL" : null, !sharedSecret ? "VECTORIZE_SHARED_SECRET" : null]
+      .filter(Boolean)
+      .join(", ");
+    throw new Error(
+      `VECTORIZE_WORKER_URL and VECTORIZE_SHARED_SECRET must be set for canonical-content-v2 (missing: ${missing})`
+    );
   }
   return {
     baseUrl: baseUrl.replace(/\/$/, ""),

@@ -13,7 +13,6 @@ import { Loader2, BookOpen, Lightbulb, FlaskConical, TriangleAlert, ListChecks }
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { MathText } from "@/components/course/math-text";
-import { ZyraMark } from "@/components/course/zyra-mark";
 import { getConceptPopover, type ConceptPopoverData } from "@/lib/learning-context-actions";
 
 type Tab = "explain" | "analogy" | "example" | "mistake";
@@ -64,8 +63,8 @@ export function TermPopover({
     return (
       <div className="p-3 space-y-2">
         <p className="text-body-sm text-muted-foreground">Konsep tidak ditemukan.</p>
-        <Button size="sm" variant="outline" onClick={onAskTutor} className="gap-1.5">
-          <ZyraMark className="size-3.5" /> Tanya Zyra
+        <Button size="sm" variant="outline" onClick={onAskTutor}>
+          Tanya Zyra
         </Button>
       </div>
     );
@@ -132,8 +131,8 @@ export function TermPopover({
             <BookOpen className="size-3.5" /> Tinjau
           </Link>
         </Button>
-        <Button size="sm" variant="ghost" onClick={onAskTutor} className="ml-auto gap-1.5">
-          <ZyraMark className="size-3.5" /> Tanya Zyra
+        <Button size="sm" variant="ghost" onClick={onAskTutor} className="ml-auto">
+          Tanya Zyra
         </Button>
       </div>
     </div>
