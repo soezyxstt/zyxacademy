@@ -164,6 +164,7 @@ export function StudentSidebar({
     if (targetCourseId === activeCourseId) return;
 
     if (pathname === "/dashboard/schedule") {
+      setCourseIdFromSchedule(targetCourseId);
       router.push(`/dashboard/schedule?course=${targetCourseId}`);
       return;
     }
@@ -174,7 +175,12 @@ export function StudentSidebar({
         const rest = pathname.slice(currentBase.length);
         const segment = rest.split("/").filter(Boolean)[0];
         const commonSegments = ["material", "quiz", "flashcard", "leaderboard", "progress"];
-        if (segment && commonSegments.includes(segment)) {
+        const normalCourseSegments = ["tryout", "my-results"];
+        if (
+          segment &&
+          (commonSegments.includes(segment) ||
+            (targetCourseId !== PKA_COURSE_ID && normalCourseSegments.includes(segment)))
+        ) {
           router.push(`/courses/${targetCourseId}/${segment}`);
           return;
         }
