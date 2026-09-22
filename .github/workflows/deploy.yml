@@ -161,7 +161,7 @@ jobs:
         env:
           DENO_DEPLOY_TOKEN: ${{ secrets.DENO_DEPLOY_TOKEN }}
         run: |
-          deno run -A jsr:@deno/deploy create --non-interactive \
+          deno run -A jsr:@deno/deploy@0.0.9904 create --non-interactive \
             --org soezyxst \
             --app $APP_NAME \
             --source local \
@@ -176,6 +176,7 @@ jobs:
         env:
           DENO_DEPLOY_TOKEN: ${{ secrets.DENO_DEPLOY_TOKEN }}
           SECRET_DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          SECRET_TURSO_CONNECTION_URL: ${{ secrets.TURSO_CONNECTION_URL }}
           SECRET_TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}
           SECRET_INNGEST_EVENT_KEY: ${{ secrets.INNGEST_EVENT_KEY }}
           SECRET_INNGEST_SIGNING_KEY: ${{ secrets.INNGEST_SIGNING_KEY }}
@@ -184,17 +185,31 @@ jobs:
           SECRET_GEMINI_API_KEY_3: ${{ secrets.GEMINI_API_KEY_3 }}
           SECRET_GEMINI_API_KEY_4: ${{ secrets.GEMINI_API_KEY_4 }}
           SECRET_CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
-          SECRET_CF_R2_ACCESS_KEY_ID: ${{ secrets.CF_R2_ACCESS_KEY_ID }}
-          SECRET_CF_R2_SECRET_ACCESS_KEY: ${{ secrets.CF_R2_SECRET_ACCESS_KEY }}
-          SECRET_CF_R2_BUCKET: ${{ secrets.CF_R2_BUCKET }}
+          SECRET_CF_AI_GATEWAY_URL: ${{ secrets.CF_AI_GATEWAY_URL }}
+          SECRET_CF_AI_GATEWAY_TOKEN: ${{ secrets.CF_AI_GATEWAY_TOKEN }}
+          SECRET_R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+          SECRET_R2_BUCKET: ${{ secrets.R2_BUCKET }}
+          SECRET_R2_PUBLIC_URL: ${{ secrets.R2_PUBLIC_URL }}
+          SECRET_R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          SECRET_R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          SECRET_LEGACY_CF_R2_BUCKET: ${{ secrets.CF_R2_BUCKET }}
+          SECRET_LEGACY_CF_R2_ACCESS_KEY_ID: ${{ secrets.CF_R2_ACCESS_KEY_ID }}
+          SECRET_LEGACY_CF_R2_SECRET_ACCESS_KEY: ${{ secrets.CF_R2_SECRET_ACCESS_KEY }}
           SECRET_VECTORIZE_WORKER_URL: ${{ secrets.VECTORIZE_WORKER_URL }}
-          SECRET_VECTORIZE_WORKER_SECRET: ${{ secrets.VECTORIZE_WORKER_SECRET }}
+          SECRET_VECTORIZE_SHARED_SECRET: ${{ secrets.VECTORIZE_SHARED_SECRET }}
+          SECRET_LEGACY_VECTORIZE_WORKER_SECRET: ${{ secrets.VECTORIZE_WORKER_SECRET }}
+          SECRET_COMPUTE_SERVICE_SECRET: ${{ secrets.COMPUTE_SERVICE_SECRET }}
           SECRET_RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
           SECRET_DIKTAT_RENDERER_URL: ${{ secrets.DIKTAT_RENDERER_URL }}
           SECRET_DIKTAT_RENDERER_SECRET: ${{ secrets.DIKTAT_RENDERER_SECRET }}
         run: |
+          R2_BUCKET_RESOLVED="${SECRET_R2_BUCKET:-$SECRET_LEGACY_CF_R2_BUCKET}"
+          R2_ACCESS_KEY_ID_RESOLVED="${SECRET_R2_ACCESS_KEY_ID:-$SECRET_LEGACY_CF_R2_ACCESS_KEY_ID}"
+          R2_SECRET_ACCESS_KEY_RESOLVED="${SECRET_R2_SECRET_ACCESS_KEY:-$SECRET_LEGACY_CF_R2_SECRET_ACCESS_KEY}"
+          VECTORIZE_SHARED_SECRET_RESOLVED="${SECRET_VECTORIZE_SHARED_SECRET:-$SECRET_LEGACY_VECTORIZE_WORKER_SECRET}"
           cat << EOF > .env.deploy
           DATABASE_URL=${SECRET_DATABASE_URL}
+          TURSO_CONNECTION_URL=${SECRET_TURSO_CONNECTION_URL}
           TURSO_AUTH_TOKEN=${SECRET_TURSO_AUTH_TOKEN}
           INNGEST_EVENT_KEY=${SECRET_INNGEST_EVENT_KEY}
           INNGEST_SIGNING_KEY=${SECRET_INNGEST_SIGNING_KEY}
@@ -205,11 +220,16 @@ jobs:
           GEMINI_API_KEY_3=${SECRET_GEMINI_API_KEY_3}
           GEMINI_API_KEY_4=${SECRET_GEMINI_API_KEY_4}
           CF_ACCOUNT_ID=${SECRET_CF_ACCOUNT_ID}
-          CF_R2_ACCESS_KEY_ID=${SECRET_CF_R2_ACCESS_KEY_ID}
-          CF_R2_SECRET_ACCESS_KEY=${SECRET_CF_R2_SECRET_ACCESS_KEY}
-          CF_R2_BUCKET=${SECRET_CF_R2_BUCKET}
+          CF_AI_GATEWAY_URL=${SECRET_CF_AI_GATEWAY_URL}
+          CF_AI_GATEWAY_TOKEN=${SECRET_CF_AI_GATEWAY_TOKEN}
+          R2_ENDPOINT=${SECRET_R2_ENDPOINT}
+          R2_BUCKET=${R2_BUCKET_RESOLVED}
+          R2_PUBLIC_URL=${SECRET_R2_PUBLIC_URL}
+          R2_ACCESS_KEY_ID=${R2_ACCESS_KEY_ID_RESOLVED}
+          R2_SECRET_ACCESS_KEY=${R2_SECRET_ACCESS_KEY_RESOLVED}
           VECTORIZE_WORKER_URL=${SECRET_VECTORIZE_WORKER_URL}
-          VECTORIZE_WORKER_SECRET=${SECRET_VECTORIZE_WORKER_SECRET}
+          VECTORIZE_SHARED_SECRET=${VECTORIZE_SHARED_SECRET_RESOLVED}
+          COMPUTE_SERVICE_SECRET=${SECRET_COMPUTE_SERVICE_SECRET}
           RESEND_API_KEY=${SECRET_RESEND_API_KEY}
           DIKTAT_RENDERER_URL=${SECRET_DIKTAT_RENDERER_URL}
           DIKTAT_RENDERER_SECRET=${SECRET_DIKTAT_RENDERER_SECRET}
@@ -218,7 +238,7 @@ jobs:
           grep -v '=$' .env.deploy > .env.deploy.filtered || true
 
           if [ -s .env.deploy.filtered ]; then
-            deno run -A jsr:@deno/deploy env load --replace .env.deploy.filtered --org soezyxst --app $APP_NAME --non-interactive
+            deno run -A jsr:@deno/deploy@0.0.9904 env load --replace .env.deploy.filtered --org soezyxst --app $APP_NAME --non-interactive
             echo "Environment variables successfully synced to $APP_NAME."
           else
             echo "No secrets found in repository/environment to sync."
@@ -227,10 +247,26 @@ jobs:
 
       - name: Deploy Worker to Deno Deploy
         if: steps.impact.outputs.should_deploy == 'true'
+        timeout-minutes: 10
         env:
           DENO_DEPLOY_TOKEN: ${{ secrets.DENO_DEPLOY_TOKEN }}
         run: |
-          deno run -A jsr:@deno/deploy --non-interactive --org soezyxst --app $APP_NAME --prod
+          deno run -A jsr:@deno/deploy@0.0.9904 --non-interactive --org soezyxst --app $APP_NAME --prod
+
+      - name: Deploy Handshake Diagnostics (on failure)
+        if: failure()
+        shell: bash
+        run: |
+          echo "Deploy step failed. Collecting upload manifest diagnostics."
+          echo "Tracked files: $(git ls-files | wc -l)"
+          echo "Tracked bytes: $(git ls-files -z | xargs -0 wc -c 2>/dev/null | tail -n 1)"
+          echo "Largest tracked files:"
+          git ls-files -z | xargs -0 du -b 2>/dev/null | sort -rn | head -n 20
+          echo "Worker import graph size:"
+          deno run -A scripts/audit-worker-dependencies.ts --list 2>/dev/null | tail -n 3 || true
+          echo "If the log above shows a revision URL but no 'Loaded previously uploaded files',"
+          echo "the CLI never received missing_hashes from the server. Open the revision in the"
+          echo "Deno dashboard and check whether the build is stuck at 'Awaiting for N files'."
 
       - name: Verify Worker Health Check
         if: steps.impact.outputs.should_deploy == 'true'
