@@ -24,6 +24,40 @@ Sebelum menulis, wajib baca:
 - Jangan menyimpan credential, run token, sourcePackToken, atau fileKey pada laporan/checkpoint. Gunakan label/checksum non-secret dan ambil token fresh saat resume.
 - Setelah revisi, ulangi pemeriksaan item terdampak dan pemeriksaan lintas-artifact, lalu validasi payload final. Jika issue yang sama tetap muncul setelah dua perbaikan terarah, hentikan retry, simpan hasil parsial, dan laporkan issue serta bukti yang dibutuhkan. Jangan mengganti ID atau mengurangi isi untuk memaksa lolos.
 
+## Standar authoring multi-agent wajib
+
+Setiap pembuatan atau revisi Product Bundle wajib memakai minimal tiga subagent dengan peran yang berbeda. Satu agent tidak boleh membuat, mengkritik, dan menyetujui hasilnya sendiri.
+
+1. **Creator** menyusun atau memperbaiki isi berdasarkan Source Pack, Idea published, contract, dan matriks derivasi.
+2. **Critic** mengaudit akurasi konsep, urutan penjelasan, provenance, kelengkapan tujuan, kualitas contoh, batas berlaku, cek formatif, dan kepatuhan contract. Critic harus menunjuk section atau block yang bermasalah, bukan hanya memberi skor umum.
+3. **Student POV** membaca hasil seperti mahasiswa yang belum membuka sumber lain. Peran ini memeriksa apakah istilah, simbol, langkah, contoh, transisi, dan retrieval check benar-benar dapat diikuti tanpa menebak.
+
+Ketiga peran harus dijalankan oleh subagent terpisah dan menghasilkan catatan kerja yang disimpan di luar ZIP. Catatan minimal memuat versi artifact yang dibaca, temuan, lokasi bukti, status `PASS`/`FAIL`/`NOT_APPLICABLE`, dan disposition creator. Laporan tanpa lokasi bukti tidak cukup untuk menutup temuan.
+
+### Pembagian creator per section
+
+Pembuatan tidak boleh default ke satu creator untuk seluruh bab. Bila Product Bundle memiliki lebih dari satu section, bagi section menjadi beberapa lane creator berdasarkan jumlah section dan beban materi. Setiap lane memiliki section ID yang tidak tumpang tindih, kontrak dan aturan provenance yang sama, serta mengembalikan hasil yang dapat digabungkan.
+
+- Gunakan beberapa creator lane ketika jumlah section atau panjang materi membenarkannya. Jangan memecah satu konsep lintas-section tanpa menetapkan owner dan dependency yang jelas.
+- Setelah semua lane selesai, creator utama atau orchestrator wajib melakukan merge, audit lintas-section, audit dependency, dan audit konsistensi istilah. Hasil lane yang belum melalui audit gabungan belum boleh divalidasi atau distage.
+- Critic dan Student POV wajib membaca hasil setelah merge. Mereka boleh melakukan review per-lane lebih awal, tetapi review per-lane tidak menggantikan review artifact gabungan.
+- Jika host tidak dapat menjalankan subagent atau paralelisasi yang diwajibkan, berhenti dan laporkan keterbatasan tersebut. Jangan membuat laporan peran fiktif atau menganggap self-review sebagai pengganti.
+
+### Loop perbaikan sebelum submit
+
+Minimal satu loop lengkap wajib selesai: creator menyusun, critic dan Student POV membaca, creator memperbaiki, lalu critic dan Student POV membaca ulang versi terbaru. Ulangi loop bila masih ada issue blocking atau warning substantif. Sebelum staging, semua temuan harus memiliki disposition yang dapat diverifikasi, dan versi yang distage harus sama dengan versi yang terakhir dibaca oleh critic dan Student POV.
+
+## Blok pedagogi bersifat kondisional
+
+Article bukan template yang harus mengisi semua jenis block pada setiap section. Block inti untuk menjelaskan konsep dan melakukan retrieval tetap dipertahankan, tetapi block tambahan hanya dibuat bila ada kebutuhan pedagogi yang terbukti.
+
+- **Worked example** hanya dibuat bila tujuan mengharuskan prosedur, pemilihan strategi, penerapan rumus, atau verifikasi yang lebih mudah dipahami melalui kasus konkret. Contoh harus memiliki masalah yang jelas, langkah beralasan, dan verifikasi. Jangan membuat contoh kosong atau contoh hanya untuk memenuhi checklist.
+- **Misconception atau limit** hanya dibuat bila ada miskonsepsi yang dapat diprediksi, kondisi batas yang berisiko disalahgunakan, ambiguitas simbol, konflik sumber yang perlu dijelaskan, atau kesalahan yang kemungkinan besar menghambat tujuan belajar. Jangan menambahkan bagian miskonsepsi secara rutin pada semua section.
+- Contoh atau miskonsepsi boleh dihilangkan seluruhnya dari section bila tidak diperlukan. Keputusan tersebut harus dicatat di matriks authoring dengan alasan singkat dan bukti, bukan ditampilkan sebagai disclaimer kepada mahasiswa.
+- `application`, visual, dan block tambahan lain mengikuti prinsip yang sama. Jangan menambah block karena bentuk template, target jumlah kata, atau keinginan agar semua section terlihat identik.
+- Bila block opsional dihilangkan, perbarui `explanationBlockIds`, `formativeCheckBlockIds`, `supportBlockIds`, urutan block, dan referensi pedagogy agar tidak menunjuk ID yang tidak ada.
+- Diktat diturunkan dari Article yang sudah final. Contoh kilat, jebakan, dan batas hanya dipertahankan bila benar-benar membantu review dan sudah diajarkan di Article. Diktat tidak boleh menghidupkan kembali contoh atau miskonsepsi yang sengaja tidak relevan di Article.
+
 ## Invariant yang tidak boleh dilanggar
 
 1. **Artikel adalah satu-satunya bacaan utama mahasiswa untuk belajar isi bab.** Asumsikan mahasiswa tidak membuka Source Pack, Idea Bundle, PDF dosen, Diktat, atau flashcard ketika pertama kali belajar.
@@ -55,14 +89,14 @@ Jika sumber salah/konflik, simpan bukti dan laporkan blocker. Jangan menyalin ke
 
 ### Artikel
 
-Artikel harus cukup untuk mahasiswa rata-rata mencapai tujuan belajar bab tanpa membaca sumber lain. Setiap topic wajib menyediakan, bila relevan:
+Artikel harus cukup untuk mahasiswa rata-rata mencapai tujuan belajar bab tanpa membaca sumber lain. Setiap topic wajib menyediakan komponen berikut sesuai kebutuhan tujuan. Jangan mengisi daftar ini secara mekanis:
 
 - prasyarat dan bantuan singkat;
 - tujuan yang dapat diamati;
 - intuisi sebelum formalitas;
 - definisi/aturan/rumus beserta arti simbol dan kondisi penggunaan;
-- contoh bertahap dengan alasan setiap langkah dan verifikasi;
-- miskonsepsi/batas berlaku yang penting;
+- contoh bertahap dengan alasan setiap langkah dan verifikasi bila prosedur atau kasus konkret memang diperlukan;
+- miskonsepsi/batas berlaku hanya bila ada risiko salah paham atau kondisi penting yang perlu ditegaskan;
 - representasi atau visual bila membantu pemahaman;
 - cek formatif dengan jawaban dan pembahasan.
 
@@ -92,16 +126,19 @@ Cek formatif adalah interaksi belajar di dalam Artikel, bukan row soal, attempt,
 
 1. Kunci course, chapter, Source Pack checksum, contract checksum, Idea versions/hashes, dan source references.
 2. Buat peta internal `ideaId -> nama konsep mahasiswa`; ID hanya untuk struktur, bukan prose.
-3. Sebelum drafting, buat rencana per topic: tujuan, prasyarat, urutan intuisi→formal, kondisi/batas, representasi/visual, worked example, cek formatif, jawaban, pembahasan, dan miskonsepsi yang relevan.
-4. Tulis Artikel V3 lebih dulu. Gunakan payload typed dari contract terbaru (`sections[]`, section pedagogy, blocks, worked example, formative check, visual). Jangan menaruh metadata JSON di Markdown.
-5. Jalankan self-contained audit: baca setiap topic seolah mahasiswa tidak memiliki sumber lain. Bila penjelasan memerlukan fakta di luar Artikel, perbaiki Artikel.
-6. Setelah Artikel lengkap, turunkan Diktat dari Artikel. Jangan mengambil fakta baru langsung dari Source Pack untuk “melengkapi” Diktat; jika fakta itu memang wajib, masukkan ke Artikel terlebih dahulu.
-7. Setelah Artikel lengkap, buat flashcard dari target recall yang sudah ada di Artikel dan jalankan preflight `flashcard-guide.md`.
-8. Jalankan preflight penuh `editorial-guide.md`. Zero internal-ID leak, ketuntasan tujuan, source grounding, cek dengan pembahasan, Diktat-as-review, dan flashcard-as-recall adalah blocking author issues.
-9. Package **hanya** `manifest.json`, `entities/products.json`, dan `entities/dependencies.json`, seluruh entry regular mode `0644`.
-10. Panggil `authoring.validate_product_bundle`.
-11. Revisi semua blocking issue dan warning substantif. Setelah setiap revisi, ulangi author preflight; jangan hanya mengejar validator.
-12. Panggil `authoring.submit_product_bundle` hanya bila MCP valid, author preflight lulus, dan operator telah mengizinkan staging.
+3. Bagi section menjadi creator lane yang tidak tumpang tindih. Jalankan creator, critic, dan Student POV sebagai subagent terpisah sesuai standar multi-agent di atas.
+4. Sebelum drafting, buat rencana per topic: tujuan, prasyarat, urutan intuisi→formal, kondisi/batas, kandidat representasi/visual, kandidat worked example, cek formatif, jawaban, pembahasan, dan kandidat miskonsepsi. Tandai setiap block tambahan sebagai `REQUIRED`, `OPTIONAL`, atau `NOT_APPLICABLE` dengan alasan dan bukti.
+5. Tulis Artikel V3 lebih dulu. Gunakan payload typed dari contract terbaru (`sections[]`, section pedagogy, blocks, worked example, formative check, visual). Jangan menaruh metadata JSON di Markdown. Jangan membuat worked example atau misconception block hanya karena section lain memilikinya.
+6. Jalankan self-contained audit: baca setiap topic seolah mahasiswa tidak memiliki sumber lain. Bila penjelasan memerlukan fakta di luar Artikel, perbaiki Artikel.
+7. Jalankan loop creator → critic → Student POV → creator revision → critic reread → Student POV reread. Jangan lanjut ke staging bila versi final belum dibaca ulang oleh dua peran review tersebut.
+8. Setelah Artikel lengkap dan loop kualitas selesai, turunkan Diktat dari Artikel. Jangan mengambil fakta baru langsung dari Source Pack untuk “melengkapi” Diktat; jika fakta itu memang wajib, masukkan ke Artikel terlebih dahulu.
+9. Setelah Artikel lengkap, buat flashcard dari target recall yang sudah ada di Artikel dan jalankan preflight `flashcard-guide.md`.
+10. Jalankan preflight penuh `editorial-guide.md`. Zero internal-ID leak, ketuntasan tujuan, source grounding, cek dengan pembahasan, Diktat-as-review, flashcard-as-recall, dan disposition untuk block opsional adalah blocking author issues.
+11. Package **hanya** `manifest.json`, `entities/products.json`, dan `entities/dependencies.json`, seluruh entry regular mode `0644`.
+12. Panggil `authoring.validate_product_bundle`.
+13. Revisi semua blocking issue dan warning substantif. Setelah setiap revisi, ulangi author preflight, review critic, review Student POV, dan pemeriksaan lintas-section; jangan hanya mengejar validator.
+14. Jika sudah ada import draft dengan bundle ID yang sama, gunakan `authoring.restage_product_bundle` untuk menggantinya. Jangan membuat duplicate import hanya karena artifact berubah.
+15. Panggil `authoring.submit_product_bundle` hanya bila MCP valid, author preflight lulus, loop tiga peran selesai, dan operator telah mengizinkan staging.
 
 ## Larangan konten learner-facing
 
@@ -134,4 +171,4 @@ Berhenti dan laporkan blocker jika:
 
 ## Selesai
 
-Laporkan bundle ID, checksum, contract checksum, jumlah `article`/`diktat`/`flashcard_set`/`flashcard`, dependency status, hasil author preflight, hasil MCP validation, estimasi belajar per topic, hasil ID-leak scan, hasil flashcard preflight, status PDF bila benar-benar dirender, dan staging status. Bedakan dengan jelas author preflight, MCP validation, review admin, bukti PDF, dan publication readiness.
+Laporkan bundle ID, checksum, contract checksum, jumlah `article`/`diktat`/`flashcard_set`/`flashcard`, dependency status, pembagian creator lane dan section owner, bukti tiga peran reviewer, jumlah loop revisi, keputusan block `OPTIONAL`/`NOT_APPLICABLE`, hasil author preflight, hasil MCP validation, estimasi belajar per topic, hasil ID-leak scan, hasil flashcard preflight, status PDF bila benar-benar dirender, dan staging status. Bedakan dengan jelas author preflight, MCP validation, review admin, bukti PDF, dan publication readiness.
