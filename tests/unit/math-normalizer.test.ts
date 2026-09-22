@@ -148,7 +148,8 @@ describe("normalizeMathInText", () => {
       "X(g)+e- → X-(g)",
       "X-(g)→X(g)+e-",
       "X+(g)+e- → X(g)",
-      "Ionisasi pertama adalah pelepasan satu elektron dari atom netral gas: Mg(g)→Mg+(g)+e-."
+      "Ionisasi pertama adalah pelepasan satu elektron dari atom netral gas: Mg(g)→Mg+(g)+e-.",
+      "NH4+(aq) <=> NH3(aq) + H+(aq)"
     ];
 
     for (const rxn of reactions) {
@@ -161,6 +162,14 @@ describe("normalizeMathInText", () => {
         }
       }).not.toThrow();
     }
+
+    const reversibleNorm = normalizeMathInText("NH4+(aq) <=> NH3(aq) + H+(aq)");
+    expect(reversibleNorm).toContain("\\rightleftharpoons");
+    expect(reversibleNorm).toContain("{\\text{NH}_4}^{+}");
+
+    const unclosedBacktick = "Variabel `x=1 tanpa tutup";
+    const unclosedNorm = normalizeMathInText(unclosedBacktick);
+    expect(unclosedNorm).toBe(unclosedBacktick);
   });
 
   it("normalizes atomic ions, quantum levels, and Rydberg constant in questions", () => {

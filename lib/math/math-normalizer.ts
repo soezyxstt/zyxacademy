@@ -224,38 +224,75 @@ function normalizeBareLatexCommands(text: string): string {
   return result;
 }
 
+/**
+ * Converts numbers in a chemical formula into LaTeX subscripts while preserving element symbols.
+ * Example: "NH4" -> "\\text{NH}_4", "H2O" -> "\\text{H}_2\\text{O}"
+ */
+function formatChemicalFormula(formula: string): string {
+  if (!/\d/.test(formula)) {
+    return `\\text{${formula}}`;
+  }
+  return formula.replace(/([A-Za-z]+)(\d+)/g, (_, el, sub) => `\\text{${el}}_${sub}`);
+}
+
+/**
+ * Formats a single chemical term into LaTeX with proper molecular subscripts, terminal ion charges, and phases.
+ * Example: "NH4+(aq)" -> "{\\text{NH}_4}^{+}_{(aq)}", "Mg(g)" -> "\\text{Mg}_{(g)}", "e-" -> "\\text{e}^-"
+ */
 function formatChemicalTerm(term: string): string {
   const t = term.trim();
   if (t === "e-") return "\\text{e}^-";
 
-  const phaseMatch = t.match(/^([A-Za-z]+)(\d*[+-])?\s*\((g|s|l|aq)\)$/);
+  let body = t;
+  let phase = "";
+
+  // 1. Check phase indicator at end: (g), (s), (l), (aq)
+  const phaseMatch = body.match(/\s*\((g|s|l|aq)\)$/);
   if (phaseMatch) {
-    const [, element, charge, phase] = phaseMatch;
-    const el = `\\text{${element}}`;
-    const ch = charge ? `^{${charge}}` : "";
-    const ph = `_{(${phase})}`;
-    return `${el}${ch}${ph}`;
+    phase = `_{(${phaseMatch[1]})}`;
+    body = body.slice(0, phaseMatch.index).trim();
   }
 
-  const ionMatch = t.match(/^([A-Za-z]+)(\d*[+-])$/);
-  if (ionMatch) {
-    const [, element, charge] = ionMatch;
-    return `\\text{${element}}^{${charge}}`;
+  // 2. Extract charge:
+  let charge = "";
+  const caretChargeMatch = body.match(/\^([0-9+-]+)$/);
+  if (caretChargeMatch) {
+    charge = `^{${caretChargeMatch[1]}}`;
+    body = body.slice(0, caretChargeMatch.index).trim();
+  } else {
+    // Monoatomic ion with multi-charge: e.g. Ca2+, Fe3+, Al3+, O2-
+    const monoMultiMatch = body.match(/^([A-Z][a-z]?)(\d+[+-])$/);
+    if (monoMultiMatch) {
+      charge = `^{${monoMultiMatch[2]}}`;
+      body = monoMultiMatch[1];
+    } else {
+      // Single sign charge: e.g. NH4+, H3O+, Mg+, X+, X-, Cl-
+      const singleSignMatch = body.match(/([+-])$/);
+      if (singleSignMatch) {
+        charge = `^{${singleSignMatch[1]}}`;
+        body = body.slice(0, singleSignMatch.index).trim();
+      }
+    }
   }
 
-  if (/^[A-Z][a-z]?$/.test(t)) {
-    return `\\text{${t}}`;
-  }
-
-  return t;
+  const formattedBody = formatChemicalFormula(body);
+  const base = formattedBody.includes("_") ? `{${formattedBody}}` : formattedBody;
+  return `${base}${charge}${phase}`;
 }
 
+/**
+ * Parses and formats one side of a chemical equation (reactants or products).
+ */
 function parseAndFormatChemicalSide(side: string): string {
   const termRegex = /([A-Za-z]+(?:\d*[+-])?(?:\((?:g|s|l|aq)\))?|e-)/g;
   const matches = [...side.matchAll(termRegex)].map((m) => m[0]);
   return matches.map(formatChemicalTerm).join(" + ");
 }
 
+/**
+ * Formats a measurement unit string with optional exponent into LaTeX notation.
+ * Example: "m-1" -> "\\text{ m}^{-1}", "m/s" -> "\\text{ m/s}"
+ */
 function formatUnit(unit: string): string {
   const u = unit.trim();
   if (!u) return "";
@@ -281,13 +318,15 @@ function normalizePlainTextSegment(text: string): string {
     (match) => {
       const arrowMatch = match.match(/\s*(?:→|->|<=>|<->)\s*/);
       if (!arrowMatch || arrowMatch.index === undefined) return match;
-      const arrow = arrowMatch[0];
+      const arrow = arrowMatch[0].trim();
       const leftRaw = match.slice(0, arrowMatch.index);
-      const rightRaw = match.slice(arrowMatch.index + arrow.length);
+      const rightRaw = match.slice(arrowMatch.index + arrowMatch[0].length);
 
       const left = parseAndFormatChemicalSide(leftRaw);
       const right = parseAndFormatChemicalSide(rightRaw);
-      return ` $${left} \\rightarrow ${right}$ `;
+      const latexArrow =
+        arrow === "<=>" || arrow === "<->" ? "\\rightleftharpoons" : "\\rightarrow";
+      return ` $${left} ${latexArrow} ${right}$ `;
     }
   );
 
@@ -612,14 +651,19 @@ export function normalizeMathInText(input: string | null | undefined): string {
       }
     } else if (startsBacktick) {
       const closeIdx = input.indexOf("`", cursor + 1);
-      if (closeIdx !== -1) {
+      if (closeIdx === -1) {
         if (cursor > 0) {
           tokens.push(normalizePlainTextSegment(input.slice(0, cursor)));
         }
-        tokens.push(input.slice(cursor, closeIdx + 1));
-        const rest = input.slice(closeIdx + 1);
-        return tokens.join("") + normalizeMathInText(rest);
+        tokens.push(input.slice(cursor));
+        return tokens.join("");
       }
+      if (cursor > 0) {
+        tokens.push(normalizePlainTextSegment(input.slice(0, cursor)));
+      }
+      tokens.push(input.slice(cursor, closeIdx + 1));
+      const rest = input.slice(closeIdx + 1);
+      return tokens.join("") + normalizeMathInText(rest);
     }
 
     cursor++;
