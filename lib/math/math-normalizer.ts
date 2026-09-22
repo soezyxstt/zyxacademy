@@ -225,28 +225,54 @@ function normalizeBareLatexCommands(text: string): string {
 }
 
 /**
- * Converts numbers in a chemical formula into LaTeX subscripts while preserving element symbols.
- * Example: "NH4" -> "\\text{NH}_4", "H2O" -> "\\text{H}_2\\text{O}"
+ * Converts numbers in a chemical formula into LaTeX subscripts while preserving element symbols
+ * and polyatomic groups in parentheses.
+ * Example: "NH4" -> "\\text{NH}_4", "Ca(OH)2" -> "{\\text{Ca}(\\text{OH})_2}"
  */
 function formatChemicalFormula(formula: string): string {
+  if (!formula) return "";
+  // Polyatomic groups in parens: e.g. (OH)2 -> (\text{OH})_2, (NH4)2 -> (\text{NH}_4)_2
+  if (formula.includes("(") && formula.includes(")")) {
+    return formula.replace(/([A-Za-z]+)?\(([^)]+)\)(\d*)/g, (_, prefix, inner, sub) => {
+      const p = prefix ? formatChemicalFormula(prefix) : "";
+      const inside = formatChemicalFormula(inner);
+      const s = sub ? `_${sub}` : "";
+      return `${p}(${inside})${s}`;
+    });
+  }
+
   if (!/\d/.test(formula)) {
     return `\\text{${formula}}`;
   }
-  return formula.replace(/([A-Za-z]+)(\d+)/g, (_, el, sub) => `\\text{${el}}_${sub}`);
+  let res = formula.replace(/([A-Za-z]+)(\d+)/g, (_, el, sub) => `\\text{${el}}_${sub}`);
+  res = res.replace(/_(\d+)([A-Za-z]+)/g, (_, sub, tail) => `_${sub}\\text{${tail}}`);
+  return res;
 }
 
 /**
- * Formats a single chemical term into LaTeX with proper molecular subscripts, terminal ion charges, and phases.
- * Example: "NH4+(aq)" -> "{\\text{NH}_4}^{+}_{(aq)}", "Mg(g)" -> "\\text{Mg}_{(g)}", "e-" -> "\\text{e}^-"
+ * Formats a single chemical term into LaTeX with optional stoichiometric coefficient,
+ * molecular subscripts, terminal ion charges, and phases.
+ * Example: "2H2(g)" -> "2 {\\text{H}_2}_{(g)}", "3e-" -> "3 \\text{e}^-", "Ca(OH)2(aq)" -> "{\\text{Ca}(\\text{OH})_2}_{(aq)}"
  */
 function formatChemicalTerm(term: string): string {
   const t = term.trim();
   if (t === "e-") return "\\text{e}^-";
 
+  let coeff = "";
   let body = t;
-  let phase = "";
+  const coeffMatch = body.match(/^(\d+\/\d+|\d*\.?\d+)\s*(.+)$/);
+  if (coeffMatch) {
+    const rawCoeff = coeffMatch[1];
+    coeff = rawCoeff.includes("/")
+      ? `\\frac{${rawCoeff.split("/")[0]}}{${rawCoeff.split("/")[1]}} `
+      : `${rawCoeff} `;
+    body = coeffMatch[2].trim();
+  }
+
+  if (body === "e-") return `${coeff}\\text{e}^-`;
 
   // 1. Check phase indicator at end: (g), (s), (l), (aq)
+  let phase = "";
   const phaseMatch = body.match(/\s*\((g|s|l|aq)\)$/);
   if (phaseMatch) {
     phase = `_{(${phaseMatch[1]})}`;
@@ -277,15 +303,15 @@ function formatChemicalTerm(term: string): string {
 
   const formattedBody = formatChemicalFormula(body);
   const base = formattedBody.includes("_") ? `{${formattedBody}}` : formattedBody;
-  return `${base}${charge}${phase}`;
+  return `${coeff}${base}${charge}${phase}`;
 }
 
 /**
  * Parses and formats one side of a chemical equation (reactants or products).
  */
 function parseAndFormatChemicalSide(side: string): string {
-  const termRegex = /([A-Za-z]+(?:\d*[+-])?(?:\((?:g|s|l|aq)\))?|e-)/g;
-  const matches = [...side.matchAll(termRegex)].map((m) => m[0]);
+  const termRegex = /(?:(?:\d+\/\d+|\d*\.?\d+)\s*)?(?:e-|(?:[A-Za-z0-9]+|\([A-Z][A-Za-z0-9]*\))+(?:\^?[0-9]*[+-])?(?:\s*\((?:g|s|l|aq)\))?)/g;
+  const matches = [...side.matchAll(termRegex)].map((m) => m[0].trim());
   return matches.map(formatChemicalTerm).join(" + ");
 }
 
@@ -312,16 +338,15 @@ function normalizePlainTextSegment(text: string): string {
   let s = text;
 
   // 0a. Chemical reaction equations in text or options:
-  // e.g. "X(g)→X+(g)+e-", "X(g)+e- → X-(g)", "Mg(g)→Mg+(g)+e-", "Mg(g) -> Mg+(g) + e-"
-  s = s.replace(
-    /(?:[A-Za-z]+(?:\d*[+-])?(?:\((?:g|s|l|aq)\))?|e-)(?:\s*\+\s*(?:[A-Za-z]+(?:\d*[+-])?(?:\((?:g|s|l|aq)\))?|e-))*\s*(?:→|->|<=>|<->)\s*(?:[A-Za-z]+(?:\d*[+-])?(?:\((?:g|s|l|aq)\))?|e-)(?:\s*\+\s*(?:[A-Za-z]+(?:\d*[+-])?(?:\((?:g|s|l|aq)\))?|e-))*/g,
-    (match) => {
-      const arrowMatch = match.match(/\s*(?:→|->|<=>|<->)\s*/);
-      if (!arrowMatch || arrowMatch.index === undefined) return match;
-      const arrow = arrowMatch[0].trim();
-      const leftRaw = match.slice(0, arrowMatch.index);
-      const rightRaw = match.slice(arrowMatch.index + arrowMatch[0].length);
+  // e.g. "2H2(g) + O2(g) -> 2H2O(l)", "Fe3+ + 3e- -> Fe", "N2(g) + 3H2(g) <=> 2NH3(g)"
+  const termPattern = "(?:(?:\\d+\\/\\d+|\\d*\\.?\\d+)\\s*)?(?:e-|(?:[A-Za-z0-9]+|\\([A-Z][A-Za-z0-9]*\\))+(?:\\^?[0-9]*[+-])?(?:\\s*\\((?:g|s|l|aq)\\))?)";
+  const sidePattern = `${termPattern}(?:\\s*\\+\\s*${termPattern})*`;
+  const reactionRegex = new RegExp(`(${sidePattern})\\s*(→|->|<=>|<->)\\s*(${sidePattern})`, "g");
 
+  s = s.replace(
+    reactionRegex,
+    (_, leftRaw, arrowRaw, rightRaw) => {
+      const arrow = arrowRaw.trim();
       const left = parseAndFormatChemicalSide(leftRaw);
       const right = parseAndFormatChemicalSide(rightRaw);
       const latexArrow =

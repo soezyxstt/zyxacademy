@@ -149,7 +149,12 @@ describe("normalizeMathInText", () => {
       "X-(g)→X(g)+e-",
       "X+(g)+e- → X(g)",
       "Ionisasi pertama adalah pelepasan satu elektron dari atom netral gas: Mg(g)→Mg+(g)+e-.",
-      "NH4+(aq) <=> NH3(aq) + H+(aq)"
+      "NH4+(aq) <=> NH3(aq) + H+(aq)",
+      "2H2(g) + O2(g) -> 2H2O(l)",
+      "Fe3+ + 3e- -> Fe",
+      "2Al(s) + 3Cu2+(aq) -> 2Al3+(aq) + 3Cu(s)",
+      "Ca(OH)2(aq) + 2HCl(aq) -> CaCl2(aq) + 2H2O(l)",
+      "N2(g) + 3H2(g) <=> 2NH3(g)"
     ];
 
     for (const rxn of reactions) {
@@ -166,6 +171,13 @@ describe("normalizeMathInText", () => {
     const reversibleNorm = normalizeMathInText("NH4+(aq) <=> NH3(aq) + H+(aq)");
     expect(reversibleNorm).toContain("\\rightleftharpoons");
     expect(reversibleNorm).toContain("{\\text{NH}_4}^{+}");
+
+    const stoichNorm = normalizeMathInText("2H2(g) + O2(g) -> 2H2O(l)");
+    expect(stoichNorm).toContain("2 {\\text{H}_2}_{(g)}");
+    expect(stoichNorm).toContain("2 {\\text{H}_2\\text{O}}_{(l)}");
+
+    const polyNorm = normalizeMathInText("Ca(OH)2(aq) + 2HCl(aq) -> CaCl2(aq) + 2H2O(l)");
+    expect(polyNorm).toContain("{\\text{Ca}(\\text{OH})_2}_{(aq)}");
 
     const unclosedBacktick = "Variabel `x=1 tanpa tutup";
     const unclosedNorm = normalizeMathInText(unclosedBacktick);
