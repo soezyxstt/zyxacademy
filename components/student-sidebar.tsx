@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
   BookOpen,
+  Check,
   ChevronDown,
   ChevronRight,
   LayoutDashboard,
@@ -33,6 +34,14 @@ import { cn } from "@/lib/utils";
 import { SidebarShell, NavItem } from "@/components/sidebar-shell";
 import { StreakCalendarStrip } from "@/components/dashboard/streak-calendar-strip";
 import { SidebarTooltip } from "@/components/sidebar-shell";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
 
 type StudentEnrollment = Awaited<ReturnType<typeof getStudentEnrollments>>[number];
 
@@ -130,6 +139,51 @@ export function StudentSidebar({
       .catch(() => {});
   }, [session?.user?.id, pathname]);
 
+  const coursesToDisplay = useMemo(() => {
+    const list: Array<{ id: string; title: string }> = [];
+    const seen = new Set<string>();
+
+    for (const course of enrolledCourses) {
+      if (!seen.has(course.id)) {
+        seen.add(course.id);
+        list.push({ id: course.id, title: course.title });
+      }
+    }
+
+    if (activeCourseId && !seen.has(activeCourseId)) {
+      list.unshift({
+        id: activeCourseId,
+        title: activeCourseMetadata?.title ?? "Mata Kuliah Aktif",
+      });
+    }
+
+    return list;
+  }, [enrolledCourses, activeCourseId, activeCourseMetadata]);
+
+  const handleSelectCourse = (targetCourseId: string) => {
+    if (targetCourseId === activeCourseId) return;
+
+    if (pathname === "/dashboard/schedule") {
+      router.push(`/dashboard/schedule?course=${targetCourseId}`);
+      return;
+    }
+
+    if (courseIdFromPath) {
+      const currentBase = `/courses/${courseIdFromPath}`;
+      if (pathname.startsWith(currentBase)) {
+        const rest = pathname.slice(currentBase.length);
+        const segment = rest.split("/").filter(Boolean)[0];
+        const commonSegments = ["material", "quiz", "flashcard", "leaderboard", "progress"];
+        if (segment && commonSegments.includes(segment)) {
+          router.push(`/courses/${targetCourseId}/${segment}`);
+          return;
+        }
+      }
+    }
+
+    router.push(`/courses/${targetCourseId}`);
+  };
+
   const topSection = (c: boolean) => {
     if (streakCurrent === null) return null;
     if (c) {
@@ -155,7 +209,6 @@ export function StudentSidebar({
       const base = `/courses/${activeCourseId}`;
       const isPka = activeCourseId === PKA_COURSE_ID;
       const courseTitle = activeCourseMetadata?.title ?? "Memuat mata kuliah…";
-      const courseCategory = activeCourseMetadata?.category ?? "Kelas";
 
       const primaryItems: Array<{
         href: string;
@@ -227,21 +280,82 @@ export function StudentSidebar({
             </Link>
           </SidebarTooltip>
 
-          {!c && (
-            <div className="rounded-xl border border-border/60 bg-muted/30 p-3 mb-4 text-left">
-              <div className="flex items-center gap-2">
-                <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-brand-primary/10 text-brand-primary">
-                  <BookOpen className="size-4" />
-                </span>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-body-xs font-bold text-foreground font-heading leading-tight">
-                    {courseTitle}
-                  </p>
-                  <p className="truncate text-[10px] text-muted-foreground uppercase tracking-widest font-semibold mt-0.5">
-                    {courseCategory}
-                  </p>
-                </div>
-              </div>
+          {c ? (
+            <div className="mb-2 flex w-full justify-center">
+              <DropdownMenu>
+                <SidebarTooltip label={`Ganti mata kuliah: ${courseTitle}`} collapsed={c}>
+                  <DropdownMenuTrigger asChild>
+                    <button
+                      type="button"
+                      aria-label={`Ganti mata kuliah: ${courseTitle}`}
+                      className="flex size-10 items-center justify-center rounded-xl text-foreground hover:bg-muted/60 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-pointer"
+                    >
+                      <BookOpen className="size-4" />
+                    </button>
+                  </DropdownMenuTrigger>
+                </SidebarTooltip>
+                <DropdownMenuContent align="start" side="right" sideOffset={8} className="w-64 min-w-56 p-1">
+                  <DropdownMenuLabel>Ganti mata kuliah</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <div className="max-h-64 overflow-y-auto space-y-0.5">
+                    {coursesToDisplay.map((course) => {
+                      const isCurrent = course.id === activeCourseId;
+                      return (
+                        <DropdownMenuItem
+                          key={course.id}
+                          onSelect={() => handleSelectCourse(course.id)}
+                          className={cn(
+                            "flex items-center justify-between gap-2 cursor-pointer text-body-sm",
+                            isCurrent && "font-semibold bg-brand-primary/10 text-brand-primary"
+                          )}
+                        >
+                          <span className="truncate">{course.title}</span>
+                          {isCurrent && <Check className="size-4 shrink-0 text-brand-primary" />}
+                        </DropdownMenuItem>
+                      );
+                    })}
+                  </div>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          ) : (
+            <div className="mb-3">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    type="button"
+                    aria-label={`Ganti mata kuliah: ${courseTitle}`}
+                    className="group flex w-full items-center justify-between gap-2 rounded-xl border border-border/60 bg-muted/30 px-3 py-2 text-left transition-colors hover:bg-muted/60 hover:border-border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-pointer"
+                  >
+                    <span className="truncate text-body-sm font-semibold text-foreground font-heading leading-tight">
+                      {courseTitle}
+                    </span>
+                    <ChevronDown className="size-4 shrink-0 text-muted-foreground transition-transform duration-200 group-data-[state=open]:rotate-180" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" sideOffset={4} className="w-64 min-w-56 p-1">
+                  <DropdownMenuLabel>Ganti mata kuliah</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <div className="max-h-64 overflow-y-auto space-y-0.5">
+                    {coursesToDisplay.map((course) => {
+                      const isCurrent = course.id === activeCourseId;
+                      return (
+                        <DropdownMenuItem
+                          key={course.id}
+                          onSelect={() => handleSelectCourse(course.id)}
+                          className={cn(
+                            "flex items-center justify-between gap-2 cursor-pointer text-body-sm",
+                            isCurrent && "font-semibold bg-brand-primary/10 text-brand-primary"
+                          )}
+                        >
+                          <span className="truncate">{course.title}</span>
+                          {isCurrent && <Check className="size-4 shrink-0 text-brand-primary" />}
+                        </DropdownMenuItem>
+                      );
+                    })}
+                  </div>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           )}
 

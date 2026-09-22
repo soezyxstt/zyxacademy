@@ -2,7 +2,7 @@
 
 import { useState, useEffect, Suspense, useMemo } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 
 import {
   LayoutDashboard,
@@ -40,6 +40,9 @@ import {
   ArrowLeft,
   Layers,
   Calculator,
+  Check,
+  ChevronDown,
+  Search,
 } from "lucide-react";
 import {
   SidebarShell,
@@ -48,11 +51,19 @@ import {
   NavCollapsible,
   SidebarTooltip,
 } from "@/components/sidebar-shell";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
 import { useSession } from "@/lib/auth-client";
 import { toast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
 import { OpsAiTrigger } from "@/components/admin/ops-ai/ops-ai-trigger";
-import { getCourseNavContext } from "@/app/(admin)/admin/(academic)/courses/actions";
+import { getCourseNavContext, getCourses } from "@/app/(admin)/admin/(academic)/courses/actions";
 
 export function parseAdminCourseSlug(pathname: string): string | null {
   if (!pathname.startsWith("/admin/courses/")) return null;
@@ -162,6 +173,7 @@ const ALL_ADMIN_TABS: AdminTabDef[] = [
 
 function AdminSidebarInner() {
   const pathname = usePathname();
+  const router = useRouter();
   const { data: session } = useSession();
   const userId = session?.user?.id;
 
@@ -172,6 +184,75 @@ function AdminSidebarInner() {
     isLoading: boolean;
     isNotFound: boolean;
   } | null>(null);
+
+  const [adminCourses, setAdminCourses] = useState<Array<{ id: string; title: string }>>([]);
+  const [courseFilter, setCourseFilter] = useState("");
+
+  useEffect(() => {
+    if (!courseSlug) return;
+    let cancelled = false;
+    getCourses()
+      .then((res) => {
+        if (!cancelled && Array.isArray(res)) {
+          setAdminCourses(res.map((c) => ({ id: c.id, title: c.title })));
+        }
+      })
+      .catch(console.error);
+    return () => {
+      cancelled = true;
+    };
+  }, [courseSlug]);
+
+  const filteredAdminCourses = useMemo(() => {
+    const list: Array<{ id: string; title: string }> = [];
+    const seen = new Set<string>();
+
+    for (const c of adminCourses) {
+      if (!seen.has(c.id)) {
+        seen.add(c.id);
+        list.push({ id: c.id, title: c.title });
+      }
+    }
+
+    if (courseSlug && !seen.has(courseSlug)) {
+      list.unshift({
+        id: courseSlug,
+        title: courseNav?.data?.title || courseSlug,
+      });
+    }
+
+    if (!courseFilter.trim()) {
+      return list;
+    }
+    const q = courseFilter.toLowerCase();
+    return list.filter(
+      (c) => c.title.toLowerCase().includes(q) || c.id.toLowerCase().includes(q)
+    );
+  }, [adminCourses, courseSlug, courseNav?.data?.title, courseFilter]);
+
+  const switchAdminCourse = (targetSlug: string) => {
+    if (targetSlug === courseSlug) return;
+    const parts = pathname.split("/").filter(Boolean);
+    if (parts.length >= 3 && parts[0] === "admin" && parts[1] === "courses") {
+      const subpage = parts[3];
+      const standardSubpages = [
+        "documents",
+        "quizzes",
+        "questions",
+        "flashcards",
+        "results",
+        "leaderboard",
+        "analytics",
+        "review",
+        "settings",
+      ];
+      if (subpage && standardSubpages.includes(subpage)) {
+        router.push(`/admin/courses/${encodeURIComponent(targetSlug)}/${subpage}`);
+        return;
+      }
+    }
+    router.push(`/admin/courses/${encodeURIComponent(targetSlug)}`);
+  };
 
   const [archivedTabs, setArchivedTabs] = useState<string[]>(DEFAULT_ARCHIVED);
   const [pinnedTabs, setPinnedTabs] = useState<string[]>([]);
@@ -374,40 +455,143 @@ function AdminSidebarInner() {
             </Link>
           </SidebarTooltip>
 
-          {/* Course title & category card */}
-          {!c && (
-            <div className="rounded-xl border border-border/60 bg-muted/30 p-3 mb-3 text-left">
-              <div className="flex items-center gap-2">
-                <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-brand-primary/10 text-brand-primary">
-                  <GraduationCap className="size-4" />
-                </span>
-                <div className="min-w-0 flex-1">
-                  {courseNav?.isLoading ? (
-                    <div className="space-y-1 py-0.5">
-                      <div className="h-3.5 w-28 animate-pulse rounded bg-muted-foreground/20" />
-                      <div className="h-2.5 w-16 animate-pulse rounded bg-muted-foreground/20" />
+          {c ? (
+            <div className="mb-2 flex w-full justify-center">
+              <DropdownMenu>
+                <SidebarTooltip
+                  label={`Pilih mata kuliah: ${courseNav?.data?.title || courseSlug}`}
+                  collapsed={c}
+                >
+                  <DropdownMenuTrigger asChild>
+                    <button
+                      type="button"
+                      aria-label={`Pilih mata kuliah: ${courseNav?.data?.title || courseSlug}`}
+                      className="flex size-10 items-center justify-center rounded-xl text-foreground hover:bg-muted/60 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-pointer"
+                    >
+                      <GraduationCap className="size-4" />
+                    </button>
+                  </DropdownMenuTrigger>
+                </SidebarTooltip>
+                <DropdownMenuContent align="start" side="right" sideOffset={8} className="w-64 min-w-56 p-1">
+                  <DropdownMenuLabel>Pilih mata kuliah</DropdownMenuLabel>
+                  {adminCourses.length > 5 && (
+                    <div className="px-2 pb-1.5 pt-0.5">
+                      <div className="relative flex items-center">
+                        <Search className="absolute left-2 size-3.5 text-muted-foreground" />
+                        <input
+                          type="text"
+                          placeholder="Cari mata kuliah..."
+                          value={courseFilter}
+                          onChange={(e) => setCourseFilter(e.target.value)}
+                          className="w-full rounded-lg border border-border/60 bg-muted/40 py-1 pl-7 pr-2 text-body-xs text-foreground placeholder:text-muted-foreground focus:border-brand-primary focus:outline-none"
+                        />
+                      </div>
                     </div>
-                  ) : courseNav?.isNotFound ? (
-                    <>
-                      <p className="truncate text-body-xs font-bold text-destructive font-heading leading-tight">
-                        Mata Kuliah Tidak Ditemukan
-                      </p>
-                      <p className="truncate text-[10px] text-muted-foreground uppercase tracking-widest font-semibold mt-0.5">
-                        {courseSlug}
-                      </p>
-                    </>
-                  ) : (
-                    <>
-                      <p className="truncate text-body-xs font-bold text-foreground font-heading leading-tight">
-                        {courseNav?.data?.title || courseSlug}
-                      </p>
-                      <p className="truncate text-[10px] text-muted-foreground uppercase tracking-widest font-semibold mt-0.5">
-                        {courseNav?.data?.category || "Mata Kuliah"}
-                      </p>
-                    </>
                   )}
-                </div>
-              </div>
+                  <DropdownMenuSeparator />
+                  <div className="max-h-64 overflow-y-auto space-y-0.5">
+                    {filteredAdminCourses.length === 0 ? (
+                      <div className="px-2 py-3 text-center text-body-xs text-muted-foreground">
+                        Mata kuliah tidak ditemukan
+                      </div>
+                    ) : (
+                      filteredAdminCourses.map((course) => {
+                        const isCurrent =
+                          course.id === courseSlug ||
+                          course.id === courseNav?.data?.slug;
+                        return (
+                          <DropdownMenuItem
+                            key={course.id}
+                            onSelect={() => switchAdminCourse(course.id)}
+                            className={cn(
+                              "flex items-center justify-between gap-2 cursor-pointer text-body-sm",
+                              isCurrent && "font-semibold bg-brand-primary/10 text-brand-primary"
+                            )}
+                          >
+                            <span className="truncate">{course.title}</span>
+                            {isCurrent && <Check className="size-4 shrink-0 text-brand-primary" />}
+                          </DropdownMenuItem>
+                        );
+                      })
+                    )}
+                  </div>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          ) : courseNav?.isLoading ? (
+            <div className="flex w-full items-center justify-between gap-2 rounded-xl border border-border/60 bg-muted/30 px-3 py-2.5 mb-3">
+              <div className="h-3.5 w-32 animate-pulse rounded bg-muted-foreground/20" />
+              <ChevronDown className="size-4 shrink-0 text-muted-foreground/40" />
+            </div>
+          ) : courseNav?.isNotFound ? (
+            <div className="rounded-xl border border-destructive/40 bg-destructive/10 p-3 mb-3 text-left">
+              <p className="truncate text-body-xs font-bold text-destructive font-heading leading-tight">
+                Mata Kuliah Tidak Ditemukan
+              </p>
+              <p className="truncate text-[10px] text-muted-foreground uppercase tracking-widest font-semibold mt-0.5">
+                {courseSlug}
+              </p>
+            </div>
+          ) : (
+            <div className="mb-3">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    type="button"
+                    aria-label={`Pilih mata kuliah: ${courseNav?.data?.title || courseSlug}`}
+                    className="group flex w-full items-center justify-between gap-2 rounded-xl border border-border/60 bg-muted/30 px-3 py-2 text-left transition-colors hover:bg-muted/60 hover:border-border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-pointer"
+                  >
+                    <span className="truncate text-body-sm font-semibold text-foreground font-heading leading-tight">
+                      {courseNav?.data?.title || courseSlug}
+                    </span>
+                    <ChevronDown className="size-4 shrink-0 text-muted-foreground transition-transform duration-200 group-data-[state=open]:rotate-180" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" sideOffset={4} className="w-64 min-w-56 p-1">
+                  <DropdownMenuLabel>Pilih mata kuliah</DropdownMenuLabel>
+                  {adminCourses.length > 5 && (
+                    <div className="px-2 pb-1.5 pt-0.5">
+                      <div className="relative flex items-center">
+                        <Search className="absolute left-2 size-3.5 text-muted-foreground" />
+                        <input
+                          type="text"
+                          placeholder="Cari mata kuliah..."
+                          value={courseFilter}
+                          onChange={(e) => setCourseFilter(e.target.value)}
+                          className="w-full rounded-lg border border-border/60 bg-muted/40 py-1 pl-7 pr-2 text-body-xs text-foreground placeholder:text-muted-foreground focus:border-brand-primary focus:outline-none"
+                        />
+                      </div>
+                    </div>
+                  )}
+                  <DropdownMenuSeparator />
+                  <div className="max-h-64 overflow-y-auto space-y-0.5">
+                    {filteredAdminCourses.length === 0 ? (
+                      <div className="px-2 py-3 text-center text-body-xs text-muted-foreground">
+                        Mata kuliah tidak ditemukan
+                      </div>
+                    ) : (
+                      filteredAdminCourses.map((course) => {
+                        const isCurrent =
+                          course.id === courseSlug ||
+                          course.id === courseNav?.data?.slug;
+                        return (
+                          <DropdownMenuItem
+                            key={course.id}
+                            onSelect={() => switchAdminCourse(course.id)}
+                            className={cn(
+                              "flex items-center justify-between gap-2 cursor-pointer text-body-sm",
+                              isCurrent && "font-semibold bg-brand-primary/10 text-brand-primary"
+                            )}
+                          >
+                            <span className="truncate">{course.title}</span>
+                            {isCurrent && <Check className="size-4 shrink-0 text-brand-primary" />}
+                          </DropdownMenuItem>
+                        );
+                      })
+                    )}
+                  </div>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           )}
 
