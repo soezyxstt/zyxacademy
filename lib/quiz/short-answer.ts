@@ -43,9 +43,10 @@ export function normalizeShortAnswer(input: unknown): string {
   s = s.replace(/\\{2,}/g, "\\");
 
   // 3. Normalize arrows before stripping other LaTeX commands
+  // Reversible arrows must run before one-way arrows to prevent partial matches (e.g. <->)
+  s = s.replace(/\\rightleftharpoons\b|<=>|<->/g, "⇌");
   s = s.replace(/\\longrightarrow\b|\\rightarrow\b|\\to\b|-->|->/g, "→");
   s = s.replace(/\\longleftarrow\b|\\leftarrow\b|<--|<-/g, "←");
-  s = s.replace(/\\rightleftharpoons\b|<=>|<->/g, "⇌");
 
   // 4. Strip LaTeX wrapper commands (\text{...}, \mathrm{...}, \mathbf{...})
   s = s.replace(/\\(?:text|mathrm|mathbf|mathit|textbf|textrm)\{([^}]*)\}/g, "$1");
@@ -105,8 +106,8 @@ export function normalizeShortAnswer(input: unknown): string {
   // 15. Normalize multiple spaces to single space
   s = s.replace(/\s+/g, " ").trim();
 
-  // 16. Strip trailing sentence periods if not part of a decimal number
-  s = s.replace(/(?<!\d)\.+$/, "").trim();
+  // 16. Strip trailing periods unconditionally (including numeric inputs like "5.")
+  s = s.replace(/\.+$/, "").trim();
 
   return s;
 }
@@ -127,6 +128,8 @@ export function isShortAnswerCorrect(
     ? submitted
     : Array.isArray(submitted)
     ? String(submitted[0] ?? "")
+    : submitted !== null && typeof submitted === "object" && "text" in submitted && typeof (submitted as { text?: unknown }).text === "string"
+    ? (submitted as { text: string }).text
     : submitted !== null && submitted !== undefined
     ? String(submitted)
     : "";

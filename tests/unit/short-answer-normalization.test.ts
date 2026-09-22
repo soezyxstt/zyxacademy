@@ -57,10 +57,21 @@ describe("Short Answer Normalization and Evaluation", () => {
     expect(isShortAnswerCorrect("$x = 5$", ["x = 5"])).toBe(true);
   });
 
-  it("handles Indonesian decimal comma versus dot for numbers", () => {
+  it("handles Indonesian decimal comma versus dot for numbers and trailing dots", () => {
     expect(isShortAnswerCorrect("12,5", ["12.5"])).toBe(true);
     expect(isShortAnswerCorrect("3,14", ["3.14"])).toBe(true);
     expect(isShortAnswerCorrect("0,05 mol", ["0.05 mol"])).toBe(true);
+    expect(isShortAnswerCorrect("5.", ["5"])).toBe(true);
+  });
+
+  it("handles reversible arrows without partial match corruption", () => {
+    expect(isShortAnswerCorrect("N2 + 3H2 <-> 2NH3", ["N2 + 3H2 \\rightleftharpoons 2NH3"])).toBe(true);
+    expect(isShortAnswerCorrect("N2 + 3H2 <=> 2NH3", ["N2 + 3H2 <-> 2NH3"])).toBe(true);
+  });
+
+  it("handles structured object submissions with text field", () => {
+    expect(isShortAnswerCorrect({ text: "Mg (g) -> Mg (g)^+ + e^-" }, ["Mg_{(g)} -> Mg_{(g)}^+ + e^-"])).toBe(true);
+    expect(isShortAnswerCorrect({ text: "5." }, ["5"])).toBe(true);
   });
 
   it("handles plain text terms with case-insensitivity and trailing punctuation", () => {
