@@ -5,6 +5,7 @@ import { resolveCourseIdentity } from "@/lib/admin/course-identity";
 import { storage } from "@/lib/storage";
 import { buildCourseThumbnailKey, extractStorageKey } from "@/lib/storage/keys";
 import { inngest } from "@/lib/inngest";
+import { buildThumbnailEventId, newThumbnailAttemptId } from "@/lib/thumbnail";
 
 const THUMBNAIL_POLL_ATTEMPTS = 4;
 const THUMBNAIL_POLL_INTERVAL_MS = 500;
@@ -139,7 +140,12 @@ export async function GET(
     const sourceType = resolvedManual ? "course_material" as const : "diktat" as const;
     const sourceVersion = fileKey;
     await inngest.send({
-      id: `thumbnail-${sourceType}-${target.id}-${encodeURIComponent(sourceVersion).slice(-96)}`,
+      id: buildThumbnailEventId({
+        materialId: target.id,
+        sourceType,
+        sourceVersion,
+        attemptId: newThumbnailAttemptId(),
+      }),
       name: "pdf/thumbnail.requested",
       data: { materialId: target.id, sourceType, sourceVersion },
     });

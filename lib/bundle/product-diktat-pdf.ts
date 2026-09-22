@@ -883,7 +883,7 @@ li {
   border-radius: 3px;
   text-transform: uppercase;
   letter-spacing: 0.03em;
-  shrink: 0;
+  flex-shrink: 0;
   white-space: nowrap;
 }
 

@@ -42,17 +42,51 @@ describe("extractStorageKey", () => {
 });
 
 describe("buildThumbnailEventId", () => {
-  it("uses one deterministic format across dispatch paths", () => {
-    expect(
-      buildThumbnailEventId({
-        materialId: "mat-1",
-        sourceType: "course_material",
-        sourceVersion: "courses/ma1101/materials/doc.pdf",
-      }),
-    ).toBe("thumbnail-course_material-mat-1-courses%2Fma1101%2Fmaterials%2Fdoc.pdf");
-    expect(
-      buildThumbnailEventId({ materialId: "dk-1", sourceType: "diktat", sourceVersion: "courses/fi1101/diktats/d.pdf" }),
-    ).toBe("thumbnail-diktat-dk-1-courses%2Ffi1101%2Fdiktats%2Fd.pdf");
+  it("uses one deterministic hash across dispatch paths", () => {
+    const first = buildThumbnailEventId({
+      materialId: "mat-1",
+      sourceType: "course_material",
+      sourceVersion: "courses/ma1101/materials/doc.pdf",
+    });
+    const second = buildThumbnailEventId({
+      materialId: "mat-1",
+      sourceType: "course_material",
+      sourceVersion: "courses/ma1101/materials/doc.pdf",
+    });
+    expect(first).toBe(second);
+    expect(first.startsWith("thumbnail-")).toBe(true);
+    expect(first).toHaveLength("thumbnail-".length + 64);
+  });
+
+  it("hashes the complete source version instead of truncating the suffix", () => {
+    const prefix = "courses/c/materials/";
+    const padding = "a".repeat(92);
+    const first = buildThumbnailEventId({
+      materialId: "mat-1",
+      sourceType: "course_material",
+      sourceVersion: `${prefix}a${padding}.pdf`,
+    });
+    const second = buildThumbnailEventId({
+      materialId: "mat-1",
+      sourceType: "course_material",
+      sourceVersion: `${prefix}b${padding}.pdf`,
+    });
+    expect(first).not.toBe(second);
+  });
+
+  it("produces a fresh id for each recovery attempt but reuses one id across sender retries", () => {
+    const request = {
+      materialId: "mat-1",
+      sourceType: "course_material" as const,
+      sourceVersion: "courses/ma1101/materials/doc.pdf",
+    };
+    const initial = buildThumbnailEventId(request);
+    const retryOne = buildThumbnailEventId({ ...request, attemptId: "attempt-1" });
+    const retryOneAgain = buildThumbnailEventId({ ...request, attemptId: "attempt-1" });
+    const retryTwo = buildThumbnailEventId({ ...request, attemptId: "attempt-2" });
+    expect(retryOne).toBe(retryOneAgain);
+    expect(retryOne).not.toBe(initial);
+    expect(retryTwo).not.toBe(retryOne);
   });
 });
 
@@ -81,15 +115,20 @@ describe("enqueuePdfThumbnail", () => {
 
   it("retries transient failures and then succeeds", async () => {
     let calls = 0;
+    const seenIds: string[] = [];
     await enqueuePdfThumbnail(request, {
       attempts: 3,
       retryDelayMs: 0,
-      sender: async () => {
+      attemptId: "attempt-1",
+      sender: async (event) => {
         calls += 1;
+        seenIds.push(event.id);
         if (calls < 3) throw new Error("INNGEST_DOWN");
       },
     });
     expect(calls).toBe(3);
+    expect(new Set(seenIds).size).toBe(1);
+    expect(seenIds[0]).toBe(buildThumbnailEventId({ ...request, attemptId: "attempt-1" }));
   });
 
   it("never throws after exhausting attempts", async () => {

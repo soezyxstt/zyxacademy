@@ -1,3 +1,4 @@
+import { createHash, randomUUID } from "node:crypto";
 import { inngest } from "@/lib/inngest";
 
 export type PdfThumbnailSourceType = "course_material" | "diktat";
@@ -16,12 +17,22 @@ type ThumbnailEventSender = (event: {
 }) => Promise<unknown>;
 
 /**
- * Builds the deterministic idempotency id for a thumbnail request.
- * Every dispatch path must use this so retries and requeues collapse
- * onto the same Inngest event.
+ * Builds the idempotency id for a thumbnail request.
+ * The complete sourceType, materialId, and sourceVersion are hashed so two
+ * different long keys with the same suffix cannot collapse onto one event.
+ * Pass a fresh attemptId for each explicit recovery requeue; omit it for the
+ * initial dispatch so retries of one sender operation share one id.
  */
-export function buildThumbnailEventId(params: PdfThumbnailRequest): string {
-  return `thumbnail-${params.sourceType}-${params.materialId}-${encodeURIComponent(params.sourceVersion).slice(-96)}`;
+export function buildThumbnailEventId(params: PdfThumbnailRequest & { attemptId?: string }): string {
+  const fingerprint = createHash("sha256")
+    .update(JSON.stringify([params.sourceType, params.materialId, params.sourceVersion, params.attemptId ?? "initial"]))
+    .digest("hex");
+  return `thumbnail-${fingerprint}`;
+}
+
+/** Returns a fresh token for one explicit thumbnail recovery requeue. */
+export function newThumbnailAttemptId(): string {
+  return randomUUID();
 }
 
 /**
@@ -38,13 +49,15 @@ export async function enqueuePdfThumbnail(
     attempts?: number;
     retryDelayMs?: number;
     sender?: ThumbnailEventSender;
+    attemptId?: string;
   },
 ): Promise<void> {
   const attempts = Math.max(1, options?.attempts ?? 3);
   const retryDelayMs = options?.retryDelayMs ?? 150;
   const sender = options?.sender ?? ((event) => inngest.send(event));
+  const attemptId = options?.attemptId;
   const event = {
-    id: buildThumbnailEventId(params),
+    id: buildThumbnailEventId(attemptId ? { ...params, attemptId } : params),
     name: "pdf/thumbnail.requested" as const,
     data: params,
   };

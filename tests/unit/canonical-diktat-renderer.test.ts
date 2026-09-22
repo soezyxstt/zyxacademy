@@ -1,5 +1,8 @@
 import { describe, expect, it } from "bun:test";
-import { compileCanonicalDiktatHtml } from "@/lib/bundle/product-diktat-pdf";
+import {
+  compileCanonicalDiktatHtml,
+  parseCanonicalDiktatMarkdownToHtml,
+} from "@/lib/bundle/product-diktat-pdf";
 
 describe("compileCanonicalDiktatHtml", () => {
   const sampleMarkdown = `# Pertaksamaan dan Fungsi
@@ -54,9 +57,10 @@ Koreksi: Tanda dari $(x-2)$ bergantung pada $x$. Perkalian silang variabel dilar
     // Verify path 1 and path 2 from main SVG logo
     expect(html).toContain("M820.486 0L1043.32");
     expect(html).toContain("M1548 389.927L1826.91");
-    // Verify colors
-    expect(html).toContain("#002B49");
-    expect(html).toContain("#FF6B35");
+    // Verify colors inside the watermark fragment so static CSS cannot mask a missing logo
+    const watermark = html.match(/<div class="diktat-watermark"[^>]*>([\s\S]*?)<\/div>/)?.[1] ?? "";
+    expect(watermark).toContain("#002B49");
+    expect(watermark).toContain("#FF6B35");
   });
 
   it("renders running header and footer on every page", () => {
@@ -92,20 +96,20 @@ Koreksi: Tanda dari $(x-2)$ bergantung pada $x$. Perkalian silang variabel dilar
   });
 
   it("renders KaTeX math equations properly", () => {
-    const html = compileCanonicalDiktatHtml("Pertaksamaan dan Fungsi - Review Cepat", sampleMarkdown);
-    expect(html).toContain("katex");
-    expect(html).toContain("katex-display");
-    expect(html).not.toContain("PRODUCT_DIKTAT_FORMULA_RENDER_ERROR");
+    const content = parseCanonicalDiktatMarkdownToHtml(sampleMarkdown, "Pertaksamaan dan Fungsi - Review Cepat");
+    expect(content).toContain('class="formula-display"');
+    expect(content).toContain("katex-display");
+    expect(content).not.toContain("katex-error");
   });
 
   it("wraps pedagogical sections into structured cards", () => {
-    const html = compileCanonicalDiktatHtml("Pertaksamaan dan Fungsi - Review Cepat", sampleMarkdown);
-    expect(html).toContain("card-formula");
-    expect(html).toContain("card-trap");
-    expect(html).toContain("card-example");
-    expect(html).toContain("card-steps");
-    expect(html).toContain("box-misconception");
-    expect(html).toContain("box-correction");
+    const content = parseCanonicalDiktatMarkdownToHtml(sampleMarkdown, "Pertaksamaan dan Fungsi - Review Cepat");
+    expect(content).toContain("card-formula");
+    expect(content).toContain("card-trap");
+    expect(content).toContain("card-example");
+    expect(content).toContain("card-steps");
+    expect(content).toContain("box-misconception");
+    expect(content).toContain("box-correction");
   });
 
   it("escapes raw HTML in markdown content while preserving math formatting", () => {

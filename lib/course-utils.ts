@@ -704,6 +704,7 @@ export async function sortQuizTemplatesByChapter<T extends SortableQuizTemplate>
     chapterList.push(item);
   }
 
+  const hasCanonicalOutline = canonicalBabs.length > 0;
   for (const ch of legacyChapters) {
     if (!chapterById.has(ch.id)) {
       const norm = normalizeForQuizSorting(ch.title);
@@ -713,7 +714,8 @@ export async function sortQuizTemplatesByChapter<T extends SortableQuizTemplate>
         normalizedTitle: norm,
       };
       chapterById.set(ch.id, item);
-      chapterList.push(item);
+      // Mirror getCourseChapterOutline: the canonical outline wins when present.
+      if (!hasCanonicalOutline) chapterList.push(item);
     }
   }
 
