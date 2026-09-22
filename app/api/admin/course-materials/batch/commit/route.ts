@@ -8,7 +8,7 @@ import { courseMaterials } from "@/db/schema";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
 import { storage } from "@/lib/storage";
-import { inngest } from "@/lib/inngest";
+import { enqueuePdfThumbnail } from "@/lib/thumbnail";
 import {
   isValidSubcategory,
   normalizeLevel1Category,
@@ -203,22 +203,17 @@ export async function POST(req: NextRequest) {
   }
 
   // Enqueue thumbnail renders after commit so the worker always finds the row.
-  // A queue failure must not fail the commit; on-demand thumbnail GET requeues.
-  for (const target of thumbnailTargets) {
-    await inngest
-      .send({
-        id: `thumbnail-course_material-${target.materialId}-${encodeURIComponent(target.fileKey).slice(-96)}`,
-        name: "pdf/thumbnail.requested",
-        data: {
-          materialId: target.materialId,
-          sourceType: "course_material" as const,
-          sourceVersion: target.fileKey,
-        },
-      })
-      .catch((err) => {
-        console.warn(`[BatchCommit] Failed to enqueue thumbnail for ${target.materialId}:`, err);
-      });
-  }
+  // Relayed concurrently with bounded retries; a queue failure only logs and
+  // never fails the commit, while the on-demand thumbnail GET requeues.
+  await Promise.all(
+    thumbnailTargets.map((target) =>
+      enqueuePdfThumbnail({
+        materialId: target.materialId,
+        sourceType: "course_material",
+        sourceVersion: target.fileKey,
+      }),
+    ),
+  );
 
   revalidatePath("/admin/courses");
   revalidatePath(`/admin/courses/${courseId}`);

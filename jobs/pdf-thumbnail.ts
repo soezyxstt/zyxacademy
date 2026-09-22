@@ -3,36 +3,8 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { courseMaterials, diktats } from "@/db/schema";
 import { storage } from "@/lib/storage";
-import { buildCourseThumbnailKey } from "@/lib/storage/keys";
+import { buildCourseThumbnailKey, extractStorageKey } from "@/lib/storage/keys";
 import { generateAndSavePdfThumbnailCompute } from "@/lib/compute/pdf-thumbnail";
-
-function extractStorageKey(value?: string | null): string | null {
-  if (!value) return null;
-  const raw = value.trim().split(/[?#]/, 1)[0];
-  if (!raw) return null;
-  let candidate = raw;
-  const relativeMarker = ["/api/storage/file/", "/f/"].find((marker) => raw.startsWith(marker));
-  if (relativeMarker) {
-    candidate = raw.slice(relativeMarker.length);
-  } else if (!/^https?:\/\//i.test(raw)) {
-    candidate = raw.replace(/^\/+/, "");
-  }
-  try {
-    if (/^https?:\/\//i.test(raw)) {
-      const url = new URL(raw);
-      const marker = ["/api/storage/file/", "/f/"].find((item) => url.pathname.includes(item));
-      if (marker) candidate = url.pathname.split(marker).pop() || "";
-      else {
-        const publicBase = process.env.R2_PUBLIC_URL?.replace(/\/$/, "");
-        if (!publicBase || !raw.startsWith(`${publicBase}/`)) return null;
-        candidate = url.pathname.slice(new URL(publicBase).pathname.replace(/\/$/, "").length + 1);
-      }
-    }
-    return decodeURIComponent(candidate).replace(/^\/+/, "") || null;
-  } catch {
-    return null;
-  }
-}
 
 export const pdfThumbnailWorker = inngest.createFunction(
   {

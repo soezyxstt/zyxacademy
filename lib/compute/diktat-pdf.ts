@@ -10,7 +10,7 @@ import { eq, and, inArray } from "drizzle-orm";
 import { storage } from "@/lib/storage";
 import { canPublishDiktat } from "@/lib/diktat/audit-contracts";
 import { joinKey, slugifySegment } from "@/lib/storage/keys";
-import { inngest } from "@/lib/inngest";
+import { enqueuePdfThumbnail } from "@/lib/thumbnail";
 
 /**
  * Extracts the unique file key from an UploadThing CDN URL.
@@ -208,16 +208,10 @@ export async function executeDiktatPDFGeneration(
 
     // Enqueue thumbnail generation in background with the stored file key as
     // sourceVersion so the worker can reject stale events after overwrites.
-    await inngest.send({
-      id: `thumbnail-diktat-${diktat.id}-${encodeURIComponent(fileUrl).slice(-96)}`,
-      name: "pdf/thumbnail.requested",
-      data: {
-        materialId: diktat.id,
-        sourceType: "diktat",
-        sourceVersion: fileUrl,
-      },
-    }).catch((inngestErr) => {
-      console.warn(`[diktat-pdf] Failed to enqueue thumbnail for ${diktatId}:`, inngestErr);
+    await enqueuePdfThumbnail({
+      materialId: diktat.id,
+      sourceType: "diktat",
+      sourceVersion: fileUrl,
     });
 
     return { success: true, fileUrl };

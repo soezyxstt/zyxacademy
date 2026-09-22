@@ -211,6 +211,43 @@ export function buildCourseThumbnailKey(params: {
 }
 
 /**
+ * Normalizes a stored `fileUrl` value into an R2 object key.
+ *
+ * Accepts raw keys, relative storage proxy paths (`/api/storage/file/`,
+ * `/f/`), and absolute URLs (storage proxy or `R2_PUBLIC_URL`). Query
+ * strings, hashes, and leading slashes are stripped. Returns null when the
+ * value cannot be mapped to an object key. Shared by the thumbnail read
+ * route and the thumbnail worker so both sides resolve the same key.
+ */
+export function extractStorageKey(value?: string | null): string | null {
+  if (!value) return null;
+  const raw = value.trim().split(/[?#]/, 1)[0];
+  if (!raw) return null;
+  let candidate = raw;
+  const relativeMarker = ["/api/storage/file/", "/f/"].find((marker) => raw.startsWith(marker));
+  if (relativeMarker) {
+    candidate = raw.slice(relativeMarker.length);
+  } else if (!/^https?:\/\//i.test(raw)) {
+    candidate = raw.replace(/^\/+/, "");
+  }
+  try {
+    if (/^https?:\/\//i.test(raw)) {
+      const url = new URL(raw);
+      const marker = ["/api/storage/file/", "/f/"].find((item) => url.pathname.includes(item));
+      if (marker) candidate = url.pathname.split(marker).pop() || "";
+      else {
+        const publicBase = process.env.R2_PUBLIC_URL?.replace(/\/$/, "");
+        if (!publicBase || !raw.startsWith(`${publicBase}/`)) return null;
+        candidate = url.pathname.slice(new URL(publicBase).pathname.replace(/\/$/, "").length + 1);
+      }
+    }
+    return decodeURIComponent(candidate).replace(/^\/+/, "") || null;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Schedule session attachment object key: `schedules/{bookingId}/{type}/{leaf}`.
  * type is either 'pre_session' (student questions/materials) or 'post_session' (tutor notes/handouts).
  */
