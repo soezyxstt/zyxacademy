@@ -15,8 +15,10 @@ import {
   diktatMateri,
   artikel,
   courseMaterials,
+  cakupanAsesmen,
+  soal,
 } from "@/db/schema";
-import { eq, and, desc, notLike, inArray, ne } from "drizzle-orm";
+import { eq, and, desc, asc, notLike, inArray, ne, or } from "drizzle-orm";
 // Fixture imports removed
 import { getCanonicalPublishedArticlesForCourse } from "@/lib/articles/structured-repository";
 import { isStudentEnrolled, resolveStudentCourse } from "@/lib/student/course-catalog";
@@ -596,6 +598,275 @@ export async function getCourseChapterOutline(
   });
 }
 
+export type SortableQuizTemplate = {
+  id: string;
+  title: string;
+  selectionRules?: unknown;
+  createdAt?: Date | string | number | null;
+};
+
+/**
+ * Normalizes text for case, punctuation, and whitespace insensitive quiz comparison.
+ */
+function normalizeForQuizSorting(text: string): string {
+  return text
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/**
+ * Extracts the 1-based quiz sequence number from titles like "Kuis 1" or "Quiz 2".
+ */
+function extractQuizNumber(title: string): number {
+  const match = title.match(/\b(?:kuis|quiz)\s*(\d+)\b/i);
+  return match ? parseInt(match[1], 10) : 9999;
+}
+
+/**
+ * Extracts the 1-based chapter number from titles like "Bab 1" or "Chapter 2".
+ */
+function extractChapterNumberFromTitle(title: string): number | null {
+  const match = title.match(/\b(?:bab|chapter)\s*(\d+)\b/i);
+  return match ? parseInt(match[1], 10) : null;
+}
+
+/**
+ * Sorts quiz templates deterministically according to the course chapter outline:
+ * 1. Chapter order index ascending (Bab 1 before Bab 2, etc.)
+ * 2. Intra-chapter quiz number ascending (Kuis 1 before Kuis 2)
+ * 3. Title alphabetical comparison
+ * 4. Created date ascending
+ */
+export async function sortQuizTemplatesByChapter<T extends SortableQuizTemplate>(
+  templates: T[],
+  courseId: string,
+): Promise<T[]> {
+  if (templates.length <= 1) return templates;
+
+  const course = await resolveStudentCourse(courseId);
+  const canonicalCourseId = course?.canonicalId;
+  const legacyCourseId = course?.legacyId ?? courseId;
+
+  // 1. Fetch all chapters for the course
+  const [canonicalBabs, legacyChapters] = await Promise.all([
+    canonicalCourseId
+      ? db
+          .select({
+            id: bab.id,
+            legacyChapterId: bab.legacyChapterId,
+            title: bab.title,
+            orderIndex: bab.orderIndex,
+          })
+          .from(bab)
+          .where(and(eq(bab.mataKuliahId, canonicalCourseId), eq(bab.status, "active")))
+          .orderBy(asc(bab.orderIndex))
+      : Promise.resolve([]),
+    db
+      .select({
+        id: chaptersTable.id,
+        title: chaptersTable.title,
+        orderIndex: chaptersTable.orderIndex,
+      })
+      .from(chaptersTable)
+      .where(
+        or(
+          eq(chaptersTable.courseId, legacyCourseId),
+          canonicalCourseId ? eq(chaptersTable.courseId, canonicalCourseId) : undefined,
+        ),
+      )
+      .orderBy(asc(chaptersTable.orderIndex)),
+  ]);
+
+  type ChapterLookup = {
+    orderIndex: number;
+    title: string;
+    normalizedTitle: string;
+  };
+
+  const chapterById = new Map<string, ChapterLookup>();
+  const chapterList: ChapterLookup[] = [];
+
+  for (const b of canonicalBabs) {
+    const norm = normalizeForQuizSorting(b.title);
+    const item: ChapterLookup = {
+      orderIndex: b.orderIndex,
+      title: b.title,
+      normalizedTitle: norm,
+    };
+    chapterById.set(b.id, item);
+    if (b.legacyChapterId) {
+      chapterById.set(b.legacyChapterId, item);
+    }
+    chapterList.push(item);
+  }
+
+  for (const ch of legacyChapters) {
+    if (!chapterById.has(ch.id)) {
+      const norm = normalizeForQuizSorting(ch.title);
+      const item: ChapterLookup = {
+        orderIndex: ch.orderIndex,
+        title: ch.title,
+        normalizedTitle: norm,
+      };
+      chapterById.set(ch.id, item);
+      chapterList.push(item);
+    }
+  }
+
+  // Sort chapter list by longest normalized title first for greedy title matching
+  const sortedChaptersForMatching = [...chapterList].sort(
+    (a, b) => b.normalizedTitle.length - a.normalizedTitle.length,
+  );
+
+  // Chapters sorted by orderIndex for 1-based "Bab X" positional resolution
+  const chapterListByOrder = [...chapterList].sort((a, b) => a.orderIndex - b.orderIndex);
+
+  // 2. Query cakupanAsesmen for explicit quiz-to-bab mappings
+  const templateIds = templates.map((t) => t.id);
+  const cakupanRows = templateIds.length > 0
+    ? await db
+        .select({
+          asesmenId: cakupanAsesmen.asesmenId,
+          babId: cakupanAsesmen.babId,
+        })
+        .from(cakupanAsesmen)
+        .where(inArray(cakupanAsesmen.asesmenId, templateIds))
+    : [];
+
+  const cakupanMap = new Map<string, string>();
+  for (const row of cakupanRows) {
+    if (!cakupanMap.has(row.asesmenId)) {
+      cakupanMap.set(row.asesmenId, row.babId);
+    }
+  }
+
+  // 3. Collect fixedQuestionIds to check questions in `soal` table
+  const allFixedQuestionIds = new Set<string>();
+  for (const t of templates) {
+    const rules = parseQuizSelectionRules(t.selectionRules);
+    const fixedIds = (rules.fixedQuestionIds ?? rules.fixed_question_ids) as unknown;
+    if (Array.isArray(fixedIds)) {
+      for (const id of fixedIds) {
+        if (typeof id === "string" && id.trim()) {
+          allFixedQuestionIds.add(id.trim());
+        }
+      }
+    }
+  }
+
+  const soalBabMap = new Map<string, string>();
+  if (allFixedQuestionIds.size > 0) {
+    const soalRows = await db
+      .select({ id: soal.id, babId: soal.babId })
+      .from(soal)
+      .where(inArray(soal.id, Array.from(allFixedQuestionIds)));
+    for (const s of soalRows) {
+      if (s.babId) soalBabMap.set(s.id, s.babId);
+    }
+  }
+
+  function resolveQuizChapterOrder(template: T): number {
+    // A. Direct canonical coverage
+    const cakupanBabId = cakupanMap.get(template.id);
+    if (cakupanBabId && chapterById.has(cakupanBabId)) {
+      return chapterById.get(cakupanBabId)!.orderIndex;
+    }
+
+    // B. Explicit selection rules (chapterId, chapterIds, chapters, chapter_ids)
+    const rules = parseQuizSelectionRules(template.selectionRules);
+    const ruleRefs = [
+      rules.chapterId,
+      rules.chapter_id,
+      rules.chapterIds,
+      rules.chapter_ids,
+      rules.chapters,
+    ];
+    for (const ref of ruleRefs) {
+      if (typeof ref === "string" && chapterById.has(ref.trim())) {
+        return chapterById.get(ref.trim())!.orderIndex;
+      }
+      if (Array.isArray(ref)) {
+        for (const item of ref) {
+          if (typeof item === "string" && chapterById.has(item.trim())) {
+            return chapterById.get(item.trim())!.orderIndex;
+          }
+        }
+      }
+    }
+
+    // C. Check fixed question associations in `soal` table
+    const fixedIds = (rules.fixedQuestionIds ?? rules.fixed_question_ids) as unknown;
+    if (Array.isArray(fixedIds)) {
+      for (const qid of fixedIds) {
+        if (typeof qid === "string") {
+          const bId = soalBabMap.get(qid.trim());
+          if (bId && chapterById.has(bId)) {
+            return chapterById.get(bId)!.orderIndex;
+          }
+        }
+      }
+    }
+
+    // D. Title matching against course chapters (greedy longest match)
+    const normTitle = normalizeForQuizSorting(template.title);
+    for (const ch of sortedChaptersForMatching) {
+      if (ch.normalizedTitle.length >= 3) {
+        if (normTitle.includes(ch.normalizedTitle)) {
+          return ch.orderIndex;
+        }
+        // Substring / word overlap for compound titles (e.g. "Unsur Senyawa dan Tabel Periodik")
+        const chWords = ch.normalizedTitle.split(" ").filter((w) => w.length > 3);
+        if (chWords.length >= 2) {
+          const matchedWords = chWords.filter((w) => normTitle.includes(w));
+          if (matchedWords.length >= Math.ceil(chWords.length * 0.75)) {
+            return ch.orderIndex;
+          }
+        }
+      }
+    }
+
+    // E. Title regex matching for "Bab X" / "Chapter X"
+    const parsedChapterNumber = extractChapterNumberFromTitle(template.title);
+    if (parsedChapterNumber !== null && parsedChapterNumber >= 1) {
+      const chapter = chapterListByOrder[parsedChapterNumber - 1];
+      return chapter ? chapter.orderIndex : 9999;
+    }
+
+    // F. Fallback for unscoped / general quizzes (placed at the end)
+    return 9999;
+  }
+
+  return [...templates].sort((a, b) => {
+    const chA = resolveQuizChapterOrder(a);
+    const chB = resolveQuizChapterOrder(b);
+    if (chA !== chB) {
+      return chA - chB;
+    }
+
+    // Within same chapter: sort by quiz number ("Kuis 1" before "Kuis 2")
+    const qNumA = extractQuizNumber(a.title);
+    const qNumB = extractQuizNumber(b.title);
+    if (qNumA !== qNumB) {
+      return qNumA - qNumB;
+    }
+
+    // Secondary: natural alphabetical sort on title
+    const titleComp = a.title.localeCompare(b.title, undefined, { numeric: true, sensitivity: "base" });
+    if (titleComp !== 0) {
+      return titleComp;
+    }
+
+    // Tertiary: creation date ascending (earlier created first)
+    const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+    const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+    return timeA - timeB;
+  });
+}
+
 export async function getStudentVisibleCourseQuizzes(courseId: string, studentId?: string) {
   const course = await resolveStudentCourse(courseId);
   const compatibilityCourseId = course?.legacyId ?? courseId;
@@ -610,11 +881,12 @@ export async function getStudentVisibleCourseQuizzes(courseId: string, studentId
       )
     )
     .orderBy(desc(quizTemplates.createdAt));
-  if (!studentId) return templates;
+  const sortedTemplates = await sortQuizTemplatesByChapter(templates, courseId);
+  if (!studentId) return sortedTemplates;
   const access = await getStudentCourseAccess(studentId, courseId);
   if (!access) return [];
-  if (access.tier !== "free") return templates;
-  return templates.filter((template) => isFreeQuizTemplate(template, access.freeChapterIds));
+  if (access.tier !== "free") return sortedTemplates;
+  return sortedTemplates.filter((template) => isFreeQuizTemplate(template, access.freeChapterIds));
 }
 
 export async function getCourseQuizzes(courseId: string, studentId?: string) {
@@ -625,6 +897,8 @@ export async function getCourseQuizzes(courseId: string, studentId?: string) {
     .from(quizTemplates)
     .where(eq(quizTemplates.courseId, compatibilityCourseId))
     .orderBy(desc(quizTemplates.createdAt));
+
+  templates = await sortQuizTemplatesByChapter(templates, courseId);
 
   if (studentId) {
     const access = await getStudentCourseAccess(studentId, courseId);
