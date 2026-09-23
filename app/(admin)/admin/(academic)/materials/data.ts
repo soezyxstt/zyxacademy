@@ -48,6 +48,14 @@ function formatChapterLabel(title: string, orderIndex: number, code?: string | n
   return cleanCode ? `${cleanCode} · ${trimmedTitle}` : trimmedTitle;
 }
 
+function chunkArray<T>(items: T[], size: number): T[][] {
+  const chunks: T[][] = [];
+  for (let i = 0; i < items.length; i += size) {
+    chunks.push(items.slice(i, i + size));
+  }
+  return chunks;
+}
+
 function extractReportChapterId(report: Record<string, unknown> | null | undefined): string | null {
   if (!report) return null;
   if (typeof report.chapterId === "string" && report.chapterId.trim()) return report.chapterId.trim();
@@ -105,14 +113,19 @@ export async function loadMaterialWorkspaceData(options?: { courseIds?: string[]
   const resolvedChapterByImportId: Record<string, { chapterId?: string; title?: string }> = {};
 
   if (allImportIds.length > 0) {
-    const itemRows = await db
-      .select({
-        imporBundleId: itemImporBundle.imporBundleId,
-        entityType: itemImporBundle.entityType,
-        entityId: itemImporBundle.entityId,
-      })
-      .from(itemImporBundle)
-      .where(inArray(itemImporBundle.imporBundleId, allImportIds));
+    const itemBatches = await Promise.all(
+      chunkArray(allImportIds, 100).map((batch) =>
+        db
+          .select({
+            imporBundleId: itemImporBundle.imporBundleId,
+            entityType: itemImporBundle.entityType,
+            entityId: itemImporBundle.entityId,
+          })
+          .from(itemImporBundle)
+          .where(inArray(itemImporBundle.imporBundleId, batch))
+      )
+    );
+    const itemRows = itemBatches.flat();
 
     const sectionItems = itemRows.filter((i) => i.entityType === "learning_section");
     const ideaItems = itemRows.filter((i) => i.entityType === "idea");
@@ -120,11 +133,16 @@ export async function loadMaterialWorkspaceData(options?: { courseIds?: string[]
     const diktatItems = itemRows.filter((i) => i.entityType === "diktat");
 
     if (sectionItems.length > 0) {
-      const sectionIds = [...new Set(sectionItems.map((i) => i.entityId))].slice(0, 100);
-      const sections = await db
-        .select({ id: bagianPembelajaran.id, babId: bagianPembelajaran.babId, title: bagianPembelajaran.title })
-        .from(bagianPembelajaran)
-        .where(inArray(bagianPembelajaran.id, sectionIds));
+      const sectionIds = [...new Set(sectionItems.map((i) => i.entityId))];
+      const sectionBatches = await Promise.all(
+        chunkArray(sectionIds, 100).map((batch) =>
+          db
+            .select({ id: bagianPembelajaran.id, babId: bagianPembelajaran.babId, title: bagianPembelajaran.title })
+            .from(bagianPembelajaran)
+            .where(inArray(bagianPembelajaran.id, batch))
+        )
+      );
+      const sections = sectionBatches.flat();
       const sectionMap = new Map(sections.map((s) => [s.id, s]));
       for (const item of sectionItems) {
         const sec = sectionMap.get(item.entityId);
@@ -135,11 +153,16 @@ export async function loadMaterialWorkspaceData(options?: { courseIds?: string[]
     }
 
     if (ideaItems.length > 0) {
-      const ideaIds = [...new Set(ideaItems.map((i) => i.entityId))].slice(0, 100);
-      const ideas = await db
-        .select({ id: ide.id, babId: ide.babId })
-        .from(ide)
-        .where(inArray(ide.id, ideaIds));
+      const ideaIds = [...new Set(ideaItems.map((i) => i.entityId))];
+      const ideaBatches = await Promise.all(
+        chunkArray(ideaIds, 100).map((batch) =>
+          db
+            .select({ id: ide.id, babId: ide.babId })
+            .from(ide)
+            .where(inArray(ide.id, batch))
+        )
+      );
+      const ideas = ideaBatches.flat();
       const ideaMap = new Map(ideas.map((i) => [i.id, i.babId]));
       for (const item of ideaItems) {
         const babId = ideaMap.get(item.entityId);
@@ -150,11 +173,16 @@ export async function loadMaterialWorkspaceData(options?: { courseIds?: string[]
     }
 
     if (articleItems.length > 0) {
-      const articleIds = [...new Set(articleItems.map((i) => i.entityId))].slice(0, 50);
-      const articles = await db
-        .select({ id: artikel.id, babId: artikel.babId, title: artikel.title })
-        .from(artikel)
-        .where(inArray(artikel.id, articleIds));
+      const articleIds = [...new Set(articleItems.map((i) => i.entityId))];
+      const articleBatches = await Promise.all(
+        chunkArray(articleIds, 100).map((batch) =>
+          db
+            .select({ id: artikel.id, babId: artikel.babId, title: artikel.title })
+            .from(artikel)
+            .where(inArray(artikel.id, batch))
+        )
+      );
+      const articles = articleBatches.flat();
       const articleMap = new Map(articles.map((a) => [a.id, a]));
       for (const item of articleItems) {
         const art = articleMap.get(item.entityId);
@@ -165,11 +193,16 @@ export async function loadMaterialWorkspaceData(options?: { courseIds?: string[]
     }
 
     if (diktatItems.length > 0) {
-      const diktatIds = [...new Set(diktatItems.map((i) => i.entityId))].slice(0, 50);
-      const diktats = await db
-        .select({ id: diktatMateri.id, babId: diktatMateri.babId, title: diktatMateri.title })
-        .from(diktatMateri)
-        .where(inArray(diktatMateri.id, diktatIds));
+      const diktatIds = [...new Set(diktatItems.map((i) => i.entityId))];
+      const diktatBatches = await Promise.all(
+        chunkArray(diktatIds, 100).map((batch) =>
+          db
+            .select({ id: diktatMateri.id, babId: diktatMateri.babId, title: diktatMateri.title })
+            .from(diktatMateri)
+            .where(inArray(diktatMateri.id, batch))
+        )
+      );
+      const diktats = diktatBatches.flat();
       const diktatMap = new Map(diktats.map((d) => [d.id, d]));
       for (const item of diktatItems) {
         const dik = diktatMap.get(item.entityId);
