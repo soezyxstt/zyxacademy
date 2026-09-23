@@ -131,18 +131,19 @@ export async function generateEnrollmentToken(
 
   // Resolve matching package name and tier
   let packageName = `Paket Kustom (${totalQuota} Sesi)`;
-  if (totalQuota === 15 && weeklyQuota === 1) {
+  if (totalQuota === 15 && (weeklyQuota === 1 || weeklyQuota === 15)) {
     packageType = "reguler_15";
     packageName = PACKAGE_PRESETS.reguler_15.name;
-  } else if (totalQuota === 30 && weeklyQuota === 2) {
+  } else if (totalQuota === 30 && (weeklyQuota === 2 || weeklyQuota === 30)) {
     packageType = "intensif_30";
     packageName = PACKAGE_PRESETS.intensif_30.name;
-  } else if (totalQuota === 45 && weeklyQuota === 3) {
+  } else if (totalQuota === 45 && (weeklyQuota === 3 || weeklyQuota === 45)) {
     packageType = "super_intensif_45";
     packageName = PACKAGE_PRESETS.super_intensif_45.name;
   } else if (totalQuota === 0) {
     packageType = "custom";
     packageName = "Tanpa Kuota Pertemuan (0 Sesi)";
+    weeklyQuota = 0;
   }
 
   // Verify all courses exist
