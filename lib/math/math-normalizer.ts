@@ -48,10 +48,39 @@ function parseBalancedBrackets(text: string, startIndex: number): { content: str
   return null;
 }
 
+const TWO_ARG_COMMANDS = new Set(["frac", "dfrac", "tfrac", "binom"]);
+const ONE_ARG_COMMANDS = new Set([
+  "sqrt",
+  "mathbb",
+  "mathcal",
+  "mathbf",
+  "mathrm",
+  "text",
+  "operatorname",
+  "vec",
+  "hat",
+  "dot",
+  "ddot",
+  "overline",
+  "bar",
+]);
+const ZERO_ARG_COMMANDS = new Set([
+  "sum", "int", "iint", "iiint", "oint", "prod",
+  "alpha", "beta", "gamma", "delta", "epsilon", "varepsilon", "zeta", "eta", "theta", "iota", "kappa", "lambda", "mu", "nu", "xi", "pi", "rho", "sigma", "tau", "upsilon", "phi", "chi", "psi", "omega",
+  "Gamma", "Delta", "Theta", "Lambda", "Xi", "Pi", "Sigma", "Upsilon", "Phi", "Psi", "Omega",
+  "pm", "mp", "cdot", "times", "div", "leq", "geq", "ne", "neq", "approx", "equiv",
+  "in", "notin", "subset", "subseteq", "cap", "cup", "setminus", "emptyset", "infty",
+  "partial", "nabla", "forall", "exists",
+  "lim", "to", "sin", "cos", "tan", "arcsin", "arccos", "arctan", "log", "ln", "exp",
+  "hbar", "circ", "leftrightarrow", "rightarrow", "leftarrow", "uparrow", "downarrow",
+  "Rightarrow", "Leftarrow", "Leftrightarrow", "quad", "qquad",
+]);
+
 function parseScripts(text: string, startIndex: number): number | null {
   let index = startIndex;
   while (index < text.length) {
     if (text[index] === "_" || text[index] === "^") {
+      const markerPos = index;
       index++;
       if (index < text.length && text[index] === "{") {
         const brace = parseBalancedBraces(text, index);
@@ -62,8 +91,21 @@ function parseScripts(text: string, startIndex: number): number | null {
         }
       } else if (index < text.length && /[a-zA-Z0-9]/.test(text[index])) {
         index++;
+      } else if (
+        index < text.length &&
+        text[index] === "\\" &&
+        index + 1 < text.length &&
+        /[a-zA-Z]/.test(text[index + 1])
+      ) {
+        const cmdMatch = text.slice(index + 1).match(/^[a-zA-Z]+/);
+        if (cmdMatch && ZERO_ARG_COMMANDS.has(cmdMatch[0])) {
+          index = index + 1 + cmdMatch[0].length;
+        } else {
+          return null;
+        }
       } else {
-        break;
+        // No valid script operand following '_' or '^', return position prior to this marker
+        return markerPos;
       }
     } else {
       break;
@@ -71,25 +113,6 @@ function parseScripts(text: string, startIndex: number): number | null {
   }
   return index;
 }
-
-const TWO_ARG_COMMANDS = new Set(["frac", "dfrac", "tfrac"]);
-const ONE_ARG_COMMANDS = new Set([
-  "sqrt",
-  "mathbb",
-  "mathcal",
-  "mathbf",
-  "mathrm",
-  "text",
-  "operatorname",
-]);
-const ZERO_ARG_COMMANDS = new Set([
-  "sum", "int", "iint", "iiint", "oint", "prod",
-  "alpha", "beta", "gamma", "varepsilon", "zeta", "eta", "iota", "kappa", "lambda", "mu", "nu", "xi", "rho", "tau", "upsilon", "phi", "chi", "psi", "omega",
-  "Gamma", "Delta", "Theta", "Lambda", "Xi", "Pi", "Sigma", "Upsilon", "Phi", "Psi", "Omega",
-  "pm", "mp", "cdot", "times", "div", "leq", "geq", "ne", "neq", "approx", "equiv",
-  "in", "notin", "subset", "subseteq", "cap", "cup", "setminus", "emptyset", "infty",
-  "partial", "nabla", "forall", "exists",
-]);
 
 function parseCommandExpression(text: string, cmd: string, cmdEnd: number): ParseCmdResult {
   if (TWO_ARG_COMMANDS.has(cmd)) {
@@ -113,9 +136,7 @@ function parseCommandExpression(text: string, cmd: string, cmdEnd: number): Pars
     }
     pos = arg2.endIndex;
     const afterScripts = parseScripts(text, pos);
-    if (afterScripts === null) {
-      return { success: false, endIndex: text.length };
-    }
+    if (afterScripts === null) return { success: false, endIndex: text.length };
     return { success: true, endIndex: afterScripts };
   }
 
@@ -145,10 +166,17 @@ function parseCommandExpression(text: string, cmd: string, cmdEnd: number): Pars
   if (ONE_ARG_COMMANDS.has(cmd)) {
     let pos = cmdEnd;
     while (pos < text.length && /\s/.test(text[pos])) pos++;
-    if (pos >= text.length || text[pos] !== "{") return { success: false, endIndex: pos };
-    const arg = parseBalancedBraces(text, pos);
-    if (!arg) return { success: false, endIndex: text.length };
-    const afterScripts = parseScripts(text, arg.endIndex);
+    if (pos >= text.length) return { success: false, endIndex: pos };
+    if (text[pos] === "{") {
+      const arg = parseBalancedBraces(text, pos);
+      if (!arg) return { success: false, endIndex: text.length };
+      pos = arg.endIndex;
+    } else if (/[a-zA-Z0-9]/.test(text[pos])) {
+      pos++;
+    } else {
+      return { success: false, endIndex: pos };
+    }
+    const afterScripts = parseScripts(text, pos);
     if (afterScripts === null) return { success: false, endIndex: text.length };
     return { success: true, endIndex: afterScripts };
   }

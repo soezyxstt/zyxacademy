@@ -1549,7 +1549,10 @@ export function MaterialViewer({
                           </div>
 
                           <div className="w-full">
-                            <MarkdownRenderer content={section.content} density="default" />
+                            <MarkdownRenderer
+                              content={section.content}
+                              density={material.docCategory === "diktat" ? "compact" : "default"}
+                            />
                           </div>
                         </section>
 
@@ -1568,7 +1571,10 @@ export function MaterialViewer({
                   })
                 ) : (
                   <div className="w-full">
-                    <MarkdownRenderer content={material.body || ""} density="default" />
+                    <MarkdownRenderer
+                      content={material.body || ""}
+                      density={material.docCategory === "diktat" ? "compact" : "default"}
+                    />
                   </div>
                 )}
 

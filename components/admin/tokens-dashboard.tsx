@@ -110,18 +110,18 @@ export function TokensDashboard({ initialTokens, coursesList }: Props) {
       return;
     }
 
-    if (capacity < 1) {
-      toast.error("Kapasitas kelompok minimal 1 orang");
+    if (typeof capacity !== "number" || !Number.isInteger(capacity) || capacity < 1) {
+      toast.error("Kapasitas kelompok harus bilangan bulat minimal 1 orang");
       return;
     }
 
-    if (totalQuota < 0) {
-      toast.error("Kuota pertemuan minimal 0 sesi");
+    if (typeof totalQuota !== "number" || !Number.isInteger(totalQuota) || totalQuota < 0) {
+      toast.error("Kuota pertemuan harus bilangan bulat minimal 0 sesi");
       return;
     }
 
-    if (weeklyQuota < 0) {
-      toast.error("Batas sesi per minggu minimal 0");
+    if (typeof weeklyQuota !== "number" || !Number.isInteger(weeklyQuota) || weeklyQuota < 0) {
+      toast.error("Batas sesi per minggu harus bilangan bulat minimal 0");
       return;
     }
 
@@ -276,9 +276,9 @@ export function TokensDashboard({ initialTokens, coursesList }: Props) {
                         value={totalQuota}
                         onChange={(e) => {
                           const raw = e.target.value;
-                          const parsed = parseInt(raw, 10);
+                          const parsed = Number(raw);
                           const hasNumber = raw !== "" && !Number.isNaN(parsed);
-                          const val = hasNumber ? Math.max(0, parsed) : 0;
+                          const val = hasNumber ? Math.max(0, Math.floor(parsed)) : 0;
                           setTotalQuota(val);
                           if (hasNumber) {
                             if (val === 0) {
@@ -309,9 +309,9 @@ export function TokensDashboard({ initialTokens, coursesList }: Props) {
                         value={weeklyQuota}
                         onChange={(e) => {
                           const raw = e.target.value;
-                          const parsed = parseInt(raw, 10);
+                          const parsed = Number(raw);
                           const hasNumber = raw !== "" && !Number.isNaN(parsed);
-                          setWeeklyQuota(hasNumber ? Math.max(0, parsed) : 0);
+                          setWeeklyQuota(hasNumber ? Math.max(0, Math.floor(parsed)) : 0);
                         }}
                         className="h-10 text-body-sm pr-20"
                         placeholder="1"
@@ -370,9 +370,9 @@ export function TokensDashboard({ initialTokens, coursesList }: Props) {
                       value={capacity}
                       onChange={(e) => {
                         const raw = e.target.value;
-                        const parsed = parseInt(raw, 10);
+                        const parsed = Number(raw);
                         const hasNumber = raw !== "" && !Number.isNaN(parsed);
-                        setCapacity(hasNumber ? Math.max(1, parsed) : 1);
+                        setCapacity(hasNumber ? Math.max(1, Math.floor(parsed)) : 1);
                       }}
                       className="h-10 text-body-sm pr-16"
                       placeholder="1"

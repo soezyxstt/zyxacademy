@@ -3,39 +3,12 @@ import { db } from "@/db";
 import { courseMaterials, diktats } from "@/db/schema";
 import { resolveCourseIdentity } from "@/lib/admin/course-identity";
 import { storage } from "@/lib/storage";
-import { buildCourseThumbnailKey } from "@/lib/storage/keys";
+import { buildCourseThumbnailKey, extractStorageKey } from "@/lib/storage/keys";
 import { inngest } from "@/lib/inngest";
+import { buildThumbnailEventId, newThumbnailAttemptId } from "@/lib/thumbnail";
 
 const THUMBNAIL_POLL_ATTEMPTS = 4;
 const THUMBNAIL_POLL_INTERVAL_MS = 500;
-
-function extractStorageKey(value?: string | null): string | null {
-  if (!value) return null;
-  const raw = value.trim().split(/[?#]/, 1)[0];
-  if (!raw) return null;
-  let candidate = raw;
-  const relativeMarker = ["/api/storage/file/", "/f/"].find((marker) => raw.startsWith(marker));
-  if (relativeMarker) {
-    candidate = raw.slice(relativeMarker.length);
-  } else if (!/^https?:\/\//i.test(raw)) {
-    candidate = raw.replace(/^\/+/, "");
-  }
-  try {
-    if (/^https?:\/\//i.test(raw)) {
-      const url = new URL(raw);
-      const marker = ["/api/storage/file/", "/f/"].find((item) => url.pathname.includes(item));
-      if (marker) candidate = url.pathname.split(marker).pop() || "";
-      else {
-        const publicBase = process.env.R2_PUBLIC_URL?.replace(/\/$/, "");
-        if (!publicBase || !raw.startsWith(`${publicBase}/`)) return null;
-        candidate = url.pathname.slice(new URL(publicBase).pathname.replace(/\/$/, "").length + 1);
-      }
-    }
-    return decodeURIComponent(candidate).replace(/^\/+/, "") || null;
-  } catch {
-    return null;
-  }
-}
 
 async function findStoredThumbnail(courseIds: readonly string[], materialId: string): Promise<string | null> {
   for (const courseId of [...new Set(courseIds)]) {
@@ -167,7 +140,12 @@ export async function GET(
     const sourceType = resolvedManual ? "course_material" as const : "diktat" as const;
     const sourceVersion = fileKey;
     await inngest.send({
-      id: `thumbnail-${sourceType}-${target.id}-${encodeURIComponent(sourceVersion).slice(-96)}`,
+      id: buildThumbnailEventId({
+        materialId: target.id,
+        sourceType,
+        sourceVersion,
+        attemptId: newThumbnailAttemptId(),
+      }),
       name: "pdf/thumbnail.requested",
       data: { materialId: target.id, sourceType, sourceVersion },
     });

@@ -728,15 +728,6 @@ export async function saveCourseMaterial(
   try {
     const materialId = randomUUID();
 
-    const thumbnailKey = await generateAndSavePdfThumbnail({
-      courseSlug: cleanCourseId,
-      materialId,
-      fileKey: cleanFileKey,
-    }).catch((err) => {
-      console.warn(`[saveCourseMaterial] Failed to generate thumbnail for ${materialId}:`, err);
-      return null;
-    });
-
     await db.insert(courseMaterials).values({
       id: materialId,
       courseId: cleanCourseId,
@@ -745,8 +736,19 @@ export async function saveCourseMaterial(
       subcategory: cleanSubcategory,
       year: cleanYear,
       fileUrl: cleanFileKey,
-      thumbnailUrl: thumbnailKey,
+      thumbnailUrl: null,
       chapterIds,
+    });
+
+    // Enqueue after the row exists so the thumbnail worker never observes
+    // MATERIAL_NOT_READY. Thumbnail failure must not block the document row.
+    await generateAndSavePdfThumbnail({
+      courseSlug: cleanCourseId,
+      materialId,
+      fileKey: cleanFileKey,
+    }).catch((err) => {
+      console.warn(`[saveCourseMaterial] Failed to enqueue thumbnail for ${materialId}:`, err);
+      return null;
     });
 
     // Dual-write projection to canonical sumberMateri

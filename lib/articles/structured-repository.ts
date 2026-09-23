@@ -184,6 +184,7 @@ export async function getCanonicalPublishedArticle(
     const parsedBlocks = blocks.map((b) => {
       let workedExamplePayload: unknown = undefined;
       let formativeCheckPayload: unknown = undefined;
+      let visualIds: unknown = undefined;
       let cleanContent = b.content;
       const payloadMatch = b.content.match(/<!--__ZYX_V3_BLOCK_PAYLOAD__:([A-Za-z0-9_-]+)-->/);
       if (payloadMatch) {
@@ -191,6 +192,7 @@ export async function getCanonicalPublishedArticle(
           const parsed = JSON.parse(Buffer.from(payloadMatch[1], "base64url").toString("utf8"));
           workedExamplePayload = parsed.workedExamplePayload;
           formativeCheckPayload = parsed.formativeCheckPayload;
+          visualIds = parsed.visualIds;
           cleanContent = b.content.replace(/<!--__ZYX_V3_BLOCK_PAYLOAD__:[A-Za-z0-9_-]+-->/, "").trim();
         } catch {
           // Fallback to undefined payloads
@@ -201,6 +203,7 @@ export async function getCanonicalPublishedArticle(
         content: cleanContent,
         workedExamplePayload,
         formativeCheckPayload,
+        visualIds,
       };
     });
 

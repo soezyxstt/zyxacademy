@@ -8,6 +8,7 @@ import { courseMaterials } from "@/db/schema";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
 import { storage } from "@/lib/storage";
+import { enqueuePdfThumbnail } from "@/lib/thumbnail";
 import {
   isValidSubcategory,
   normalizeLevel1Category,
@@ -141,6 +142,7 @@ export async function POST(req: NextRequest) {
   let created = 0;
   let updated = 0;
   const replacedKeys = new Set<string>();
+  const thumbnailTargets: Array<{ materialId: string; fileKey: string }> = [];
 
   await db.transaction(async (tx) => {
     for (const item of items) {
@@ -167,14 +169,17 @@ export async function POST(req: NextRequest) {
             year: item.year ?? null,
             fileUrl: item.key,
             checksum: item.checksum ?? null,
+            thumbnailUrl: null,
             ...(itemChapterIds.length > 0 ? { chapterIds: itemChapterIds } : {}),
             updatedAt: new Date(),
           })
           .where(eq(courseMaterials.id, item.targetId));
+        thumbnailTargets.push({ materialId: item.targetId, fileKey: item.key });
         updated += 1;
       } else {
+        const materialId = randomUUID();
         await tx.insert(courseMaterials).values({
-          id: randomUUID(),
+          id: materialId,
           courseId,
           title: item.title,
           type,
@@ -184,6 +189,7 @@ export async function POST(req: NextRequest) {
           checksum: item.checksum ?? null,
           chapterIds: itemChapterIds,
         });
+        thumbnailTargets.push({ materialId, fileKey: item.key });
         created += 1;
       }
     }
@@ -195,6 +201,19 @@ export async function POST(req: NextRequest) {
       console.error("Failed to clean up overwritten course material:", err);
     });
   }
+
+  // Enqueue thumbnail renders after commit so the worker always finds the row.
+  // Relayed concurrently with bounded retries; a queue failure only logs and
+  // never fails the commit, while the on-demand thumbnail GET requeues.
+  await Promise.all(
+    thumbnailTargets.map((target) =>
+      enqueuePdfThumbnail({
+        materialId: target.materialId,
+        sourceType: "course_material",
+        sourceVersion: target.fileKey,
+      }),
+    ),
+  );
 
   revalidatePath("/admin/courses");
   revalidatePath(`/admin/courses/${courseId}`);

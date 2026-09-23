@@ -16,12 +16,12 @@ import {
   PanelRight,
   Search,
   X,
-  Lightbulb,
   AlertTriangle,
   HelpCircle,
   Brain,
   Calculator,
-  Sparkles,
+  Sigma,
+  BookOpenCheck,
   Layers,
   BookmarkCheck,
   Award,
@@ -88,7 +88,7 @@ function getBlockMetadata(blockType: string): BlockMetadata {
     case "prior_knowledge_activation":
       return {
         label: "Aktivasi Pengetahuan Awal",
-        icon: Lightbulb,
+        icon: BookOpenCheck,
         containerClass: "border-l-4 border-l-primary/60 border-t border-r border-b border-border/60 bg-primary/[0.03]",
         badgeClass: "text-primary bg-primary/10",
       };
@@ -109,7 +109,7 @@ function getBlockMetadata(blockType: string): BlockMetadata {
     case "analogy":
       return {
         label: "Analogi dan Intuisi",
-        icon: Sparkles,
+        icon: Sigma,
         containerClass: "border-l-4 border-l-status-warning/70 border-t border-r border-b border-border/70 bg-card",
         badgeClass: "text-status-warning bg-status-warning/10",
       };
@@ -171,6 +171,17 @@ function getBlockMetadata(blockType: string): BlockMetadata {
         badgeClass: "text-muted-foreground bg-muted",
       };
   }
+}
+
+function BlockVisuals({ visuals }: { visuals?: PublicSectionReadModel["visuals"] }) {
+  if (!visuals || visuals.length === 0) return null;
+  return (
+    <div className="space-y-4 pt-2">
+      {visuals.map((visual) => (
+        <ProductLearningVisual key={visual.id} spec={visual} />
+      ))}
+    </div>
+  );
 }
 
 export function StructuredArticleSectionContent({
@@ -256,6 +267,7 @@ export function StructuredArticleSectionContent({
                   content={block.content}
                   workedExample={block.workedExample}
                 />
+                <BlockVisuals visuals={block.visuals} />
               </div>
             );
           }
@@ -281,6 +293,7 @@ export function StructuredArticleSectionContent({
                     blockId: block.id,
                   }}
                 />
+                <BlockVisuals visuals={block.visuals} />
               </div>
             );
           }
@@ -299,7 +312,11 @@ export function StructuredArticleSectionContent({
               <div
                 key={block.id || blockIndex}
                 id={block.id ? `block-${block.id}` : undefined}
-                className="space-y-3 py-1 scroll-mt-24"
+                className={cn(
+                  "space-y-3 py-1 scroll-mt-24",
+                  block.blockType === "mathematical_representation" &&
+                    "rounded-lg border border-primary/20 bg-primary/[0.025] px-4 py-3",
+                )}
               >
                 {displayTitle &&
                 displayTitle !== section.title &&
@@ -310,9 +327,16 @@ export function StructuredArticleSectionContent({
                     {displayTitle}
                   </h3>
                 ) : null}
+                {block.blockType === "mathematical_representation" ? (
+                  <div className="flex items-center gap-2 text-body-xs font-bold uppercase tracking-wider text-primary">
+                    <Calculator className="size-3.5" aria-hidden="true" />
+                    <span>Rumus dan syarat</span>
+                  </div>
+                ) : null}
                 <div className="text-body-base leading-relaxed text-foreground">
                   <MarkdownRenderer content={block.content} density="default" />
                 </div>
+                <BlockVisuals visuals={block.visuals} />
               </div>
             );
           }
@@ -352,6 +376,7 @@ export function StructuredArticleSectionContent({
               <div className="text-body-base leading-relaxed text-foreground">
                 <MarkdownRenderer content={block.content} density="compact" />
               </div>
+              <BlockVisuals visuals={block.visuals} />
             </div>
           );
         })}

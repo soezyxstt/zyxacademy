@@ -67,6 +67,7 @@ export const articleBlockSchema = z
     claimRefs: z.array(z.string().min(1)).optional(),
     internalLinks: z.array(z.object({ href: z.string().min(1), targetExists: z.boolean() }).strict()).optional(),
     assets: z.array(z.object({ id: z.string().min(1), available: z.boolean() }).strict()).optional(),
+    visualIds: z.array(z.string().min(1)).max(8).optional(),
     applicability: z
       .discriminatedUnion("status", [
         z.object({ status: z.literal("applicable") }).strict(),

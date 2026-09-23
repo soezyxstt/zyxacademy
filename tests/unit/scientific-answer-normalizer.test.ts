@@ -39,6 +39,11 @@ describe("scientific-answer-normalizer", () => {
       const res = scientificTextToLatex("sqrt(x) + x^2 - 1/2");
       expect(res).toContain("\\sqrt{x}");
       expect(res).toContain("x^2");
+
+      const resUnicode = scientificTextToLatex("√(x + 1) + √2");
+      expect(resUnicode).toContain("\\sqrt{x + 1}");
+      expect(resUnicode).toContain("\\sqrt{2}");
+      expect(() => katex.renderToString(resUnicode, { throwOnError: true })).not.toThrow();
     });
 
     it("converts Greek letters and degrees", () => {
@@ -48,9 +53,31 @@ describe("scientific-answer-normalizer", () => {
       expect(() => katex.renderToString(res, { throwOnError: true })).not.toThrow();
     });
 
-    it("converts powers of 10 and scientific notation", () => {
+    it("converts powers of 10 and scientific notation with upright units", () => {
       const res = scientificTextToLatex("1.5 * 10^-3 m/s");
       expect(res).toContain("10^{-3}");
+      expect(res).toContain("\\text{ m/s}");
+      expect(() => katex.renderToString(res, { throwOnError: true })).not.toThrow();
+
+      const resKg = scientificTextToLatex("50 kg");
+      expect(resKg).toContain("\\text{ kg}");
+      expect(() => katex.renderToString(resKg, { throwOnError: true })).not.toThrow();
+
+      const resNm = scientificTextToLatex("121.5 nm");
+      expect(resNm).toContain("\\text{ nm}");
+      expect(() => katex.renderToString(resNm, { throwOnError: true })).not.toThrow();
+    });
+
+    it("converts complete set of Greek letters including uppercase", () => {
+      const res = scientificTextToLatex("psi + chi = kappa");
+      expect(res).toContain("\\psi");
+      expect(res).toContain("\\chi");
+      expect(res).toContain("\\kappa");
+
+      const resUpper = scientificTextToLatex("Gamma + Psi");
+      expect(resUpper).toContain("\\Gamma");
+      expect(resUpper).toContain("\\Psi");
+      expect(() => katex.renderToString(resUpper, { throwOnError: true })).not.toThrow();
     });
 
     it("converts chemical reactions and auto-subscripts", () => {

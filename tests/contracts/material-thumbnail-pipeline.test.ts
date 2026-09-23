@@ -24,6 +24,20 @@ describe("PDF thumbnail compute boundary", () => {
     expect(compatibility).not.toContain('import("pdf-parse")');
   });
 
+  test("upload flows relay through the shared enqueue helper with retries", () => {
+    const single = source("app/(admin)/admin/(academic)/courses/actions.ts");
+    const batch = source("app/api/admin/course-materials/batch/commit/route.ts");
+    const diktat = source("lib/compute/diktat-pdf.ts");
+    const helper = source("lib/thumbnail.ts");
+    expect(single).toContain("generateAndSavePdfThumbnail({");
+    expect(batch).toContain("enqueuePdfThumbnail({");
+    expect(batch).not.toContain("inngest.send(");
+    expect(diktat).toContain("enqueuePdfThumbnail({");
+    expect(diktat).not.toContain("inngest.send(");
+    expect(helper).toContain("buildThumbnailEventId");
+    expect(helper).toContain("attempts");
+  });
+
   test("compute registry contains the PDF thumbnail worker", () => {
     const compute = source("jobs/compute.ts");
     expect(compute).toContain('import { pdfThumbnailWorker } from "./pdf-thumbnail"');

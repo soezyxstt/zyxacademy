@@ -3,15 +3,99 @@
 import React, { useState, useId, useMemo, useCallback } from "react";
 import { RotateCcw, Table as TableIcon, LineChart } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import type { PublicVisualSpec } from "@/lib/articles/structured-read-model";
+import dynamic from "next/dynamic";
+import type {
+  PublicEpsilonDeltaGraphSpec,
+  PublicLearningCanvasVisualSpec,
+  PublicVisualSpec,
+} from "@/lib/articles/structured-read-model";
 import { evaluateVisualFunction } from "@/lib/materials/visual-contract";
+
+const LazyLearningCanvasRenderer = dynamic(
+  () => import("@/components/course/learning-canvas/learning-canvas-renderer").then((module) => module.LearningCanvasRenderer),
+  {
+    ssr: false,
+    loading: () => <p className="p-4 text-body-sm text-muted-foreground">Memuat grafik interaktif...</p>,
+  },
+);
 
 export interface ProductLearningVisualProps {
   spec: PublicVisualSpec;
   className?: string;
 }
 
-export function ProductLearningVisual({ spec, className }: ProductLearningVisualProps) {
+function CanvasFallback({ spec }: { spec: PublicLearningCanvasVisualSpec }) {
+  return (
+    <div className="space-y-3 rounded-lg border border-border bg-muted/20 p-3">
+      <p className="text-body-sm text-muted-foreground">{spec.canvas.fallback.summary}</p>
+      <div className="overflow-x-auto rounded-md border border-border bg-card">
+        <table className="w-full border-collapse text-body-xs">
+          <caption className="sr-only">{spec.canvas.altText}</caption>
+          <thead>
+            <tr className="border-b border-border bg-muted/40 text-left">
+              {spec.canvas.fallback.columns.map((column) => (
+                <th key={column.id} className="px-2 py-1.5 font-semibold text-foreground">{column.label}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {spec.canvas.fallback.rows.map((row, rowIndex) => (
+              <tr key={rowIndex} className="border-b border-border/60 last:border-b-0">
+                {spec.canvas.fallback.columns.map((column, columnIndex) => (
+                  <td key={column.id} className="px-2 py-1 font-mono text-foreground">{row[columnIndex] ?? ""}</td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function LearningCanvasVisual({ spec, className }: { spec: PublicLearningCanvasVisualSpec; className?: string }) {
+  const [isVisible, setIsVisible] = useState(false);
+  const containerRef = React.useRef<HTMLDivElement | null>(null);
+
+  React.useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    if (!spec.interactive) {
+      setIsVisible(true);
+      return;
+    }
+    if (typeof IntersectionObserver === "undefined") {
+      setIsVisible(true);
+      return;
+    }
+    const observer = new IntersectionObserver(([entry]) => {
+      if (entry?.isIntersecting) {
+        setIsVisible(true);
+        observer.disconnect();
+      }
+    }, { rootMargin: "240px" });
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, [spec.interactive]);
+
+  return (
+    <figure ref={containerRef} className={`rounded-lg border border-border bg-card p-4 space-y-3 ${className ?? ""}`}>
+      <div className="flex items-start gap-2 border-b border-border pb-3">
+        <LineChart className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden="true" />
+        <div>
+          <h3 className="font-heading text-body-sm font-bold text-foreground">{spec.label}</h3>
+          <p className="mt-1 text-body-xs text-muted-foreground">{spec.description}</p>
+        </div>
+      </div>
+      {isVisible ? <LazyLearningCanvasRenderer spec={spec.canvas} /> : <CanvasFallback spec={spec} />}
+      {!isVisible && spec.interactive ? (
+        <p className="text-body-xs text-muted-foreground">Grafik interaktif akan aktif saat bagian ini masuk ke layar. Tabel di atas adalah ringkasan statisnya.</p>
+      ) : null}
+    </figure>
+  );
+}
+
+function EpsilonDeltaVisual({ spec, className }: { spec: PublicEpsilonDeltaGraphSpec; className?: string }) {
   const titleId = useId();
   const descId = useId();
   const clipId = useId().replace(/:/g, "");
@@ -452,4 +536,11 @@ export function ProductLearningVisual({ spec, className }: ProductLearningVisual
       )}
     </figure>
   );
+}
+
+export function ProductLearningVisual({ spec, className }: ProductLearningVisualProps) {
+  if (spec.kind === "learning_canvas") {
+    return <LearningCanvasVisual spec={spec} className={className} />;
+  }
+  return <EpsilonDeltaVisual spec={spec} className={className} />;
 }

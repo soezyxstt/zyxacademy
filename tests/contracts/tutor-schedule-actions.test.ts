@@ -2697,7 +2697,7 @@ describe("Tutor Schedule Action Contracts", () => {
    * 7. collaborativeMoveSlot
    * ──────────────────────────────────────────────────────────────────────── */
   describe("collaborativeMoveSlot", () => {
-    it("rejects collaborative move into a full target week (cross-week weekly quota exceeded)", async () => {
+    it("allows collaborative move into another week now that weekly usage is not checked", async () => {
       const { testDb } = await createTestDb();
       const { now } = await seedQuotaFixture(testDb, { weekly: 1, total: 15, used: 2 });
 
@@ -2709,7 +2709,7 @@ describe("Tutor Schedule Action Contracts", () => {
         status: "scheduled",
       }, now);
 
-      // Target week 2026-W37 already full on Friday 2026-09-11 in slot-c (quota = 1)
+      // Target week 2026-W37 already has a booking on Friday 2026-09-11 in slot-c
       await seedFixtureBooking(testDb, {
         id: "bk-std-tgt-full",
         slotId: "slot-c",
@@ -2729,12 +2729,11 @@ describe("Tutor Schedule Action Contracts", () => {
         },
       );
 
-      expect(res.success).toBe(false);
-      expect(res.reason).toBe("WEEKLY_QUOTA_EXCEEDED");
+      expect(res.success).toBe(true);
 
       const bookingRow = await testDb.select().from(schema.bookings).where(eq(schema.bookings.id, "bk-std-move-orig"));
-      expect(bookingRow[0].slotId).toBe("slot-a");
-      expect(bookingRow[0].sessionDate).toBe("2026-08-31");
+      expect(bookingRow[0].slotId).toBe("slot-b");
+      expect(bookingRow[0].sessionDate).toBe("2026-09-09");
     });
 
     it("allows collaborative move within the same full week", async () => {
@@ -2815,7 +2814,7 @@ describe("Tutor Schedule Action Contracts", () => {
       expect(bookingRow[0].sessionDate).toBe("2026-09-09");
     });
 
-    it("rejects collaborative move into a target week with post-lock unrefunded cancellation", async () => {
+    it("allows collaborative move into a target week with post-lock unrefunded cancellation", async () => {
       const { testDb } = await createTestDb();
       const { now } = await seedQuotaFixture(testDb, { weekly: 1, total: 15, used: 2 });
 
@@ -2846,12 +2845,11 @@ describe("Tutor Schedule Action Contracts", () => {
         },
       );
 
-      expect(res.success).toBe(false);
-      expect(res.reason).toBe("WEEKLY_QUOTA_EXCEEDED");
+      expect(res.success).toBe(true);
 
       const bookingRow = await testDb.select().from(schema.bookings).where(eq(schema.bookings.id, "bk-std-orig-hangus"));
-      expect(bookingRow[0].slotId).toBe("slot-a");
-      expect(bookingRow[0].sessionDate).toBe("2026-08-31");
+      expect(bookingRow[0].slotId).toBe("slot-b");
+      expect(bookingRow[0].sessionDate).toBe("2026-09-09");
     });
   });
 

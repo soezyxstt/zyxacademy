@@ -98,3 +98,20 @@ describe("computeWeeklySessionStats", () => {
     expect(stats.every((s) => s.booked === 0 && s.attended === 0 && s.missed === 0)).toBe(true);
   });
 });
+
+describe("PACKAGE_PRESETS flexible scheduling", () => {
+  test("reguler_15 allows flexible meeting frequency without weekly limitation", async () => {
+    const { PACKAGE_PRESETS } = await import("@/lib/group-constants");
+    expect(PACKAGE_PRESETS.reguler_15.quota).toBe(15);
+    expect(PACKAGE_PRESETS.reguler_15.frequencyLabel).toBe("Fleksibel");
+    expect(PACKAGE_PRESETS.reguler_15.weeklySessions).toBeGreaterThanOrEqual(15);
+  });
+
+  test("all package presets support flexible scheduling", async () => {
+    const { PACKAGE_PRESETS } = await import("@/lib/group-constants");
+    for (const [key, preset] of Object.entries(PACKAGE_PRESETS)) {
+      expect(preset.frequencyLabel).toBe("Fleksibel");
+      expect(preset.weeklySessions).toBeGreaterThanOrEqual(preset.quota);
+    }
+  });
+});

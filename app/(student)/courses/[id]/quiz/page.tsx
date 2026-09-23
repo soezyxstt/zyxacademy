@@ -56,6 +56,7 @@ export default async function CourseQuizListPage({ params, searchParams }: Props
 
   // The server-side catalog helper removes unscoped, mixed, and chapter 3+
   // templates for authenticated Free users before they reach the client.
+  // Calls getStudentVisibleCourseQuizzes(id) with studentId scoping.
   const templates = await getStudentVisibleCourseQuizzes(id, studentId);
   const accessTier = !studentId
     ? "anonymous" as const

@@ -280,21 +280,21 @@ export function StudentGroupsClient({ initialGroups }: Props) {
             <div className="flex items-center justify-between">
               <div>
                 <span className="text-body-xs font-semibold text-muted-foreground block">
-                  Sesi Minggu Ini
+                  Kuota Sesi Paket
                 </span>
                 <span className="font-heading text-h4 font-bold text-foreground">
-                  {activeGroup.weeklyUsedSessions}{" "}
+                  {activeGroup.usedQuotaSessions}{" "}
                   <span className="text-body-base font-normal text-muted-foreground">
-                    / {activeGroup.weeklyQuotaSessions} Sesi Dipesan
+                    / {activeGroup.totalQuotaSessions} Sesi Terpakai
                   </span>
                 </span>
               </div>
               <div className="text-right">
                 <span className="text-body-xs font-semibold text-muted-foreground block">
-                  Sisa Minggu Ini
+                  Sisa Kuota
                 </span>
                 <span className="font-heading text-h4 font-bold text-brand-primary">
-                  {activeGroup.weeklyRemainingQuota}{" "}
+                  {activeGroup.remainingQuota}{" "}
                   <span className="text-body-xs font-normal text-muted-foreground">Sesi</span>
                 </span>
               </div>
@@ -307,7 +307,7 @@ export function StudentGroupsClient({ initialGroups }: Props) {
                 role="progressbar"
                 aria-valuenow={Math.min(
                   100,
-                  Math.round((activeGroup.weeklyUsedSessions / Math.max(1, activeGroup.weeklyQuotaSessions)) * 100)
+                  Math.round((activeGroup.usedQuotaSessions / Math.max(1, activeGroup.totalQuotaSessions)) * 100)
                 )}
                 aria-valuemin={0}
                 aria-valuemax={100}
@@ -315,13 +315,13 @@ export function StudentGroupsClient({ initialGroups }: Props) {
                 <div
                   className="h-full bg-brand-primary rounded-full transition-all duration-500"
                   style={{
-                    width: `${Math.min(100, (activeGroup.weeklyUsedSessions / Math.max(1, activeGroup.weeklyQuotaSessions)) * 100)}%`,
+                    width: `${Math.min(100, (activeGroup.usedQuotaSessions / Math.max(1, activeGroup.totalQuotaSessions)) * 100)}%`,
                   }}
                 />
               </div>
               <div className="flex items-center justify-between text-body-xs text-muted-foreground">
-                <span>Kuota mingguan mengikuti paket kelompok</span>
-                <span>Target: {activeGroup.frequencyLabel}</span>
+                <span>Jadwal sesi fleksibel</span>
+                <span>Minggu ini: {activeGroup.weeklyUsedSessions} sesi dijadwalkan</span>
               </div>
             </div>
 

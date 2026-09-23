@@ -591,20 +591,7 @@ export async function executeAdminAssignTutorialSession(
         throw new Error(eligibility.reason ?? "GROUP_NOT_ELIGIBLE");
       }
 
-      const weeklyCount = await tx
-        .select({ value: sql<number>`count(*)` })
-        .from(bookings)
-        .where(
-          and(
-            eq(bookings.groupId, groupId),
-            gte(bookings.sessionDate, getTutorialWeekRange(slot.sessionDate).startIso),
-            lte(bookings.sessionDate, getTutorialWeekRange(slot.sessionDate).endIso),
-            countsTowardGroupWeeklyQuota(),
-          ),
-        );
-      if (Number(weeklyCount[0]?.value ?? 0) >= eligibility.weeklyQuotaSessions) {
-        throw new Error("WEEKLY_QUOTA_EXCEEDED");
-      }
+      // Weekly quota restriction removed: groups may book multiple sessions per week up to their total package quota.
 
       const quotaClaim = await tx
         .update(groups)
