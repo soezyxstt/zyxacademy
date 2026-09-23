@@ -66,6 +66,8 @@ Untuk topic matematika, perlakukan keterbacaan rumus sebagai kebutuhan utama, bu
 - Setiap rumus harus segera diikuti struktur singkat untuk `Simbol`, `Syarat berlaku`, dan `Makna atau arah baca`. Satu paragraf tidak boleh memuat beberapa keputusan matematis yang berbeda hanya demi menghemat block.
 - Jangan mengulang rumus yang sama di setiap kalimat penjelasan. Penjelasan menerangkan asal, arti, atau keputusan pemakaian rumus di bawah rumus; jangan membuat mahasiswa menebak bagian mana yang harus diprioritaskan.
 - Critic dan Student POV wajib menandai formula yang hanya muncul di prose, raw LaTeX yang tidak ter-render, simbol tanpa definisi, syarat yang hilang, dan paragraf yang mencampur rumus dengan terlalu banyak yapping.
+- Ini adalah gate machine-checkable, bukan sekadar preferensi editorial: setiap blok `mathematical_representation` harus berisi satu atau beberapa display math yang berdiri sendiri, tanpa kalimat pada baris yang sama atau sesudah penutup delimiter. `Simbol`, `Syarat berlaku`, dan `Makna` harus berada pada blok verbal terpisah. MCP harus mengembalikan issue blocking untuk formula-prosa campuran, delimiter tidak seimbang, raw LaTeX, atau bagian topic yang melewati batas prose.
+- Untuk Article V3, prose learner-facing di luar blok rumus harus ringkas dan terukur. Jangan mengisi target kata dengan bullet berulang, alasan generik, atau `application` yang tidak mengubah keputusan belajar. Quality report harus melaporkan prose words per topic, formula block count, mixed formula block count, dan typed visual count.
 - Jangan menambah field formula, symbol, atau condition yang belum didukung contract aktif. Bila typed formula belum tersedia, gunakan Markdown yang didukung renderer dengan display math terpisah dan catat keterbatasannya.
 
 Diktat adalah lembar review untuk kuis atau ujian, bukan salinan Artikel.
@@ -82,6 +84,7 @@ Penekanan boleh muncul di tengah kalimat, tetapi harus memakai token yang typed 
 - Gunakan allowlist semantic token seperti `remember`, `avoid`, `caution`, `definition`, dan `formula` hanya jika kontrak/runtime mendukungnya. Token harus menghasilkan label atau ikon serta warna semantic, agar makna tidak bergantung pada warna saja dan tetap terbaca pada light mode, dark mode, print, dan pembaca keyboard.
 - `Sparkles`, ikon spark, dan ikon AI-glow dilarang pada learner-facing Product Bundle. Pilih ikon akademik yang sesuai fungsi, misalnya `Sigma`, `BookOpenCheck`, `GraduationCap`, `ListChecks`, `Info`, atau `TriangleAlert`.
 - Audit seluruh Article dan Diktat untuk token yang tidak dikenal, warna tanpa label, kontras buruk, dan ikon spark sebelum validation. Jika contract aktif belum mendukung inline emphasis, jangan menyelundupkan HTML ke Markdown; tandai sebagai gap implementasi dan gunakan struktur block yang aman.
+- Admin review dan learner reader harus merender visual yang sama dari registry Article. Preview tidak boleh membuat read model parsial yang membuang `section.visuals`, `block.visuals`, atau `visualRequirement`; parity ini wajib diuji sebelum staging.
 
 ## Rubrik keputusan visual typed
 
@@ -92,6 +95,7 @@ Visual adalah alat belajar, bukan kewajiban dekoratif.
 - Function, transform, dan conic graph harus memiliki caption, label sumbu atau unit bila relevan, domain/range terbatas, legenda, dan static fallback berupa tabel atau deskripsi formula. Untuk before/after transformation, kurva asal harus `dashed` dan kurva hasil harus `solid` dengan label yang jelas.
 - Interaktif hanya jika tindakan mahasiswa mengungkap hubungan yang penting. Setiap slider/drag harus memiliki id, label, min, max, step, default, binding ke persamaan, serta satu kalimat tentang apa yang berubah. Batasi kontrol dan sample count sesuai contract, mulai dari state yang bermakna, dan uji keyboard. Grafik yang tidak memperoleh insight dari interaksi harus static.
 - 2D adalah default. 3D hanya boleh dipakai setelah renderer typed yang dibatasi dan static fallback PDF tersedia. Sampling grafik adalah penjelasan, bukan bukti analitik.
+- Contract aktif saat ini mendukung `epsilon_delta_graph` dan `learning_canvas` dengan renderer aplikasi yang dibatasi. Jangan menyatakan grafik tersedia hanya karena registry lolos schema: validator harus memeriksa ref section/block, kontrol, line style before/after, static fallback, dan capability contract yang sedang live. Jika contract remote belum memuat `learning_canvas`, hentikan staging dan sinkronkan MCP terlebih dahulu.
 - Renderer client harus lazy-load, memoized, bounded, mount saat mendekati viewport, tidak mengirim state slider ke server, dan selalu memiliki fallback text/table untuk PDF, no-JS, offline, dan aksesibilitas.
 
 ## Invariant yang tidak boleh dilanggar

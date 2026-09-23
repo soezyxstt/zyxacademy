@@ -8,6 +8,7 @@ import {
   useRef,
   useState,
   type Dispatch,
+  type KeyboardEvent as ReactKeyboardEvent,
   type MouseEvent as ReactMouseEvent,
   type PointerEvent as ReactPointerEvent,
   type SetStateAction,
@@ -123,6 +124,18 @@ function useInteractiveViewport(defaultView: Viewport) {
 
   const resetView = useCallback(() => {
     setView({ ...defaultViewRef.current });
+  }, []);
+
+  const nudge = useCallback((xFraction: number, yFraction: number) => {
+    setView((current) => translated(
+      current,
+      finiteSpan(current.xMin, current.xMax) * xFraction,
+      finiteSpan(current.yMin, current.yMax) * yFraction,
+    ));
+  }, []);
+
+  const zoomBy = useCallback((factor: number) => {
+    setView((current) => anchoredZoom(current, factor, 0.5, 0.5));
   }, []);
 
   const svgScale = useCallback(() => {
@@ -247,6 +260,8 @@ function useInteractiveViewport(defaultView: Viewport) {
     view,
     isDragging,
     resetView,
+    nudge,
+    zoomBy,
     bind: {
       ref: svgRef,
       className: cn(
@@ -549,7 +564,7 @@ function FunctionPlot({ spec }: { spec: FunctionPlotCanvas }) {
   const [hoverData, setHoverData] = useState<{ x: number; y: number; px: number; py: number } | null>(null);
 
   const defaultView = useMemo(() => fitFunctionViewport(spec), [spec]);
-  const { view, isDragging, resetView, bind } = useInteractiveViewport(defaultView);
+  const { view, isDragging, resetView, nudge, zoomBy, bind } = useInteractiveViewport(defaultView);
 
   const sampledSpec = useMemo(
     () => ({
@@ -656,6 +671,20 @@ function FunctionPlot({ spec }: { spec: FunctionPlotCanvas }) {
 
   const hasPlottableCurve = evaluated.some((series) => series.points.some((point) => point.y !== null));
 
+  const handlePlotKeyDown = useCallback((event: ReactKeyboardEvent<SVGSVGElement>) => {
+    if (event.ctrlKey || event.metaKey || event.altKey) return;
+    if (event.key === "ArrowLeft" || event.key === "ArrowRight" || event.key === "ArrowUp" || event.key === "ArrowDown" || event.key === "+" || event.key === "=" || event.key === "-" || event.key === "0") {
+      event.preventDefault();
+    }
+    if (event.key === "ArrowLeft") nudge(-0.1, 0);
+    else if (event.key === "ArrowRight") nudge(0.1, 0);
+    else if (event.key === "ArrowUp") nudge(0, 0.1);
+    else if (event.key === "ArrowDown") nudge(0, -0.1);
+    else if (event.key === "+" || event.key === "=") zoomBy(0.8);
+    else if (event.key === "-") zoomBy(1.25);
+    else if (event.key === "0") resetView();
+  }, [nudge, resetView, zoomBy]);
+
   const resetAll = useCallback(() => {
     setValues(valuesForSpec(spec));
     setExpressions(Object.fromEntries(spec.series.map((s) => [s.id, s.expression])));
@@ -714,9 +743,12 @@ function FunctionPlot({ spec }: { spec: FunctionPlotCanvas }) {
           {...bind}
           viewBox={`0 0 ${SVG_W} ${SVG_H}`}
           role="img"
-          aria-label={`${spec.altText} Seret untuk menggeser, scroll untuk memperbesar, klik dua kali untuk mengatur ulang.`}
+          tabIndex={0}
+          aria-keyshortcuts="ArrowLeft ArrowRight ArrowUp ArrowDown Plus = Minus 0"
+          aria-label={`${spec.altText} Seret untuk menggeser, scroll untuk memperbesar, klik dua kali untuk mengatur ulang. Dengan keyboard, gunakan tombol panah untuk menggeser, Plus atau sama dengan untuk memperbesar, Minus untuk memperkecil, dan 0 untuk mengatur ulang.`}
           onMouseMove={handleHoverMove}
           onMouseLeave={() => setHoverData(null)}
+          onKeyDown={handlePlotKeyDown}
         >
           <rect x="0" y="0" width={SVG_W} height={SVG_H} fill={BG} />
 
