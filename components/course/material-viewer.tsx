@@ -615,13 +615,14 @@ export function MaterialViewer({
     }
   }, []);
 
-  // Lock body scroll and set viewport properties when MaterialViewer is active
+  // Lock body scroll and set viewport properties when MaterialViewer is active in learner mode
   useEffect(() => {
+    if (!learnerMode) return;
     document.documentElement.classList.add("material-viewer-locked");
     return () => {
       document.documentElement.classList.remove("material-viewer-locked");
     };
-  }, []);
+  }, [learnerMode]);
 
   // Navigation hooks
   const searchParams = useSearchParams();
@@ -1634,45 +1635,47 @@ export function MaterialViewer({
   return (
     <div className="flex flex-col h-full w-full overflow-hidden bg-background font-sans">
       {/* Sticky Topbar */}
-      <div className="h-10 w-full border-b border-border bg-background/80 backdrop-blur-sm flex items-center justify-between px-4 shrink-0">
-        <div className="absolute bottom-0 left-0 h-1 bg-primary transition-all duration-300 ease-out" style={{ width: `${progressPercent}%` }} />
-        
-        <div className="flex items-center gap-2">
-          <Button
-            variant="ghost"
-            size="sm"
-            asChild
-            className="h-7 px-2 text-body-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-muted"
-          >
-            <Link href={backHref ?? `/courses/${material.courseId}/material`} aria-label="Kembali ke daftar materi">
-              <ArrowLeft className="size-3.5 mr-1" />
-              <span>Kembali</span>
-            </Link>
-          </Button>
-          <span className="text-border">|</span>
-          <span className="text-body-xs text-muted-foreground font-mono font-semibold">
-            {progressPercent}%
-          </span>
-        </div>
-
-        <div className="flex items-center gap-2">
-          {learnerMode && accessTier !== "free" && ragEnabled && chapterId && (
-            <ChapterSummarySheet chapterId={chapterId} chapterTitle={material.title} />
-          )}
-          {learnerMode && (
+      {!hideHeader && learnerMode && (
+        <div className="h-10 w-full border-b border-border bg-background/80 backdrop-blur-sm flex items-center justify-between px-4 shrink-0">
+          <div className="absolute bottom-0 left-0 h-1 bg-primary transition-all duration-300 ease-out" style={{ width: `${progressPercent}%` }} />
+          
+          <div className="flex items-center gap-2">
             <Button
-              variant="outline"
+              variant="ghost"
               size="sm"
-              onClick={markDone}
-              disabled={done}
-              className="h-7 text-body-sm font-semibold flex items-center gap-1.5 rounded-md interactive"
+              asChild
+              className="h-7 px-2 text-body-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-muted"
             >
-              <CheckCircle2 className={cn("size-3.5", done ? "text-status-success fill-status-success/10" : "text-muted-foreground")} />
-              <span>{done ? "Selesai" : "Tandai Selesai"}</span>
+              <Link href={backHref ?? `/courses/${material.courseId}/material`} aria-label="Kembali ke daftar materi">
+                <ArrowLeft className="size-3.5 mr-1" />
+                <span>Kembali</span>
+              </Link>
             </Button>
-          )}
+            <span className="text-border">|</span>
+            <span className="text-body-xs text-muted-foreground font-mono font-semibold">
+              {progressPercent}%
+            </span>
+          </div>
+
+          <div className="flex items-center gap-2">
+            {learnerMode && accessTier !== "free" && ragEnabled && chapterId && (
+              <ChapterSummarySheet chapterId={chapterId} chapterTitle={material.title} />
+            )}
+            {learnerMode && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={markDone}
+                disabled={done}
+                className="h-7 text-body-sm font-semibold flex items-center gap-1.5 rounded-md interactive"
+              >
+                <CheckCircle2 className={cn("size-3.5", done ? "text-status-success fill-status-success/10" : "text-muted-foreground")} />
+                <span>{done ? "Selesai" : "Tandai Selesai"}</span>
+              </Button>
+            )}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Main Material Display container */}
       <div className="flex-1 min-h-0 w-full relative overflow-hidden flex flex-col bg-background">
@@ -2301,7 +2304,7 @@ export function MaterialViewer({
                 <p className="hidden sm:block text-body-xs text-muted-foreground mb-2 shrink-0">
                   Pratinjau PDF bawaan browser di bawah ini. Gunakan tombol unduh atau buka berkas jika pratinjau tidak termuat.
                 </p>
-                <div className="flex-1 w-full overflow-hidden border border-border bg-[#333] dark:bg-black-3 rounded-xl sm:rounded-2xl relative shadow-md">
+                <div className="flex-1 w-full overflow-hidden border border-border bg-[#333] dark:bg-black-3 rounded-xl sm:rounded-2xl relative shadow-md min-h-[500px]">
                   <iframe
                     title={material.title}
                     src={material.url}

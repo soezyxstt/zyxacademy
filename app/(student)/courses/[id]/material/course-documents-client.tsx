@@ -3,16 +3,36 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   BookOpen,
+  BookOpenCheck,
   CheckCircle2,
   ChevronDown,
   ChevronRight,
   ClipboardList,
+  ExternalLink,
+  Eye,
   FileText,
   Lock,
+  MoreVertical,
+  Pencil,
+  Plus,
+  Trash2,
 } from "lucide-react";
 import { DocumentListClient } from "./document-list-client";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
+import { AdminUploadDocumentDialog } from "@/components/admin/course-detail/admin-upload-document-dialog";
+import { AdminConfirmDialog } from "@/components/admin/confirm-dialog";
+import { deleteCourseMaterial } from "@/app/(admin)/admin/(academic)/courses/actions";
+import { toast } from "@/components/ui/toast";
 import {
   Collapsible,
   CollapsibleContent,
@@ -29,11 +49,15 @@ type TabKey = "all" | "materi" | "diktat" | "bank_soal" | "pdf";
 
 type CourseDocumentsClientProps = {
   courseId: string;
+  courseSlug?: string;
+  courseTitle?: string;
   materials: CourseMaterial[];
   chapters: Chapter[];
   defaultTab?: string;
   accessTier?: "free" | "standard";
   lockedMaterialCount?: number;
+  forcePageNavigation?: boolean;
+  isAdmin?: boolean;
 };
 
 const MAX_THUMBNAIL_RETRIES = 8;
@@ -186,10 +210,25 @@ function CompactDocumentThumbnail({
   );
 }
 
-function HierarchyDocumentCard({ material, courseId }: { material: CourseMaterial; courseId: string }) {
+function HierarchyDocumentCard({
+  material,
+  courseId,
+  courseSlug,
+  isAdmin,
+  onDelete,
+}: {
+  material: CourseMaterial;
+  courseId: string;
+  courseSlug?: string;
+  isAdmin?: boolean;
+  onDelete?: (m: CourseMaterial) => void;
+}) {
   const group = resolveTabGroup(material);
   const style = typeStyle[group];
-  const itemHref = material.href ?? `/courses/${courseId}/material/${material.id}`;
+  const itemHref =
+    isAdmin && courseSlug
+      ? `/admin/courses/${encodeURIComponent(courseSlug)}/documents/${material.id}`
+      : material.href ?? `/courses/${courseId}/material/${material.id}`;
   const isLocked = Boolean(material.locked);
 
   return (
@@ -219,7 +258,74 @@ function HierarchyDocumentCard({ material, courseId }: { material: CourseMateria
         </p>
       </div>
 
-      {isLocked ? (
+      {isAdmin ? (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="size-7 rounded-md text-muted-foreground hover:text-foreground shrink-0"
+              aria-label="Aksi dokumen"
+              onClick={(e: React.MouseEvent) => {
+                e.preventDefault();
+                e.stopPropagation();
+              }}
+            >
+              <MoreVertical className="size-3.5" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-48">
+            <DropdownMenuItem asChild>
+              <Link href={`${itemHref}?mode=edit`}>
+                <Pencil className="size-3.5 mr-2" />
+                Edit Dokumen
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <Link href={itemHref}>
+                <Eye className="size-3.5 mr-2" />
+                Pratinjau
+              </Link>
+            </DropdownMenuItem>
+            {material.url ? (
+              <DropdownMenuItem asChild>
+                <a href={material.url} target="_blank" rel="noopener noreferrer">
+                  <ExternalLink className="size-3.5 mr-2" />
+                  Buka Berkas PDF
+                </a>
+              </DropdownMenuItem>
+            ) : null}
+            {material.source === "legacy-pdf" || material.kind === "pdf" ? (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  className="text-destructive focus:text-destructive"
+                  onClick={(e: React.MouseEvent) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    onDelete?.(material);
+                  }}
+                >
+                  <Trash2 className="size-3.5 mr-2" />
+                  Hapus Dokumen
+                </DropdownMenuItem>
+              </>
+            ) : null}
+            {material.source === "canonical-article" || material.source === "canonical-diktat" ? (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem asChild>
+                  <Link href={`/admin/courses/${encodeURIComponent(courseSlug || courseId)}/review?tab=product`}>
+                    <BookOpenCheck className="size-3.5 mr-2" />
+                    Kelola Review
+                  </Link>
+                </DropdownMenuItem>
+              </>
+            ) : null}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      ) : isLocked ? (
         <span className="inline-flex shrink-0 items-center gap-1 rounded-md bg-amber-500/10 px-1.5 py-0.5 text-body-2xs font-semibold text-amber-600 dark:text-amber-400 ring-1 ring-amber-500/20">
           <Lock className="size-3" />
           Terkunci
@@ -280,6 +386,9 @@ function CollapsibleDocumentSection({
   title,
   materials,
   courseId,
+  courseSlug,
+  isAdmin,
+  onDelete,
   open,
   onOpenChange,
 }: {
@@ -287,6 +396,9 @@ function CollapsibleDocumentSection({
   title: string;
   materials: CourseMaterial[];
   courseId: string;
+  courseSlug?: string;
+  isAdmin?: boolean;
+  onDelete?: (m: CourseMaterial) => void;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
@@ -321,7 +433,14 @@ function CollapsibleDocumentSection({
         <CollapsibleContent>
           <div className="grid grid-cols-1 gap-2 border-t border-border/35 bg-muted/10 p-2 sm:grid-cols-2 lg:grid-cols-3">
             {materials.map((material) => (
-              <HierarchyDocumentCard key={material.id} material={material} courseId={courseId} />
+              <HierarchyDocumentCard
+                key={material.id}
+                material={material}
+                courseId={courseId}
+                courseSlug={courseSlug}
+                isAdmin={isAdmin}
+                onDelete={onDelete}
+              />
             ))}
           </div>
         </CollapsibleContent>
@@ -333,12 +452,40 @@ function CollapsibleDocumentSection({
 /** Renders the course documents client interface with tabbed views and structured collapsible sections. */
 export function CourseDocumentsClient({
   courseId,
+  courseSlug,
+  courseTitle,
   materials,
   chapters,
   defaultTab,
   accessTier,
   lockedMaterialCount = 0,
+  forcePageNavigation = false,
+  isAdmin = false,
 }: CourseDocumentsClientProps) {
+  const router = useRouter();
+  const [deleteTarget, setDeleteTarget] = useState<CourseMaterial | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [uploadOpen, setUploadOpen] = useState(false);
+
+  const handleDeleteConfirm = async () => {
+    if (!deleteTarget) return;
+    setIsDeleting(true);
+    try {
+      const res = await deleteCourseMaterial(deleteTarget.id);
+      if (res.success) {
+        toast.success("Dokumen berhasil dihapus.");
+        setDeleteTarget(null);
+        router.refresh();
+      } else {
+        toast.error(res.error || "Gagal menghapus dokumen.");
+      }
+    } catch {
+      toast.error("Terjadi kesalahan jaringan.");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   const initialTab = normalizeTabKey(defaultTab);
   const [urlTab, setUrlTab] = useUrlTab("tab", "all", initialTab);
   const activeTab = normalizeTabKey(urlTab);
@@ -431,19 +578,35 @@ export function CourseDocumentsClient({
           </Link>
         </div>
       ) : null}
-      <Tabs value={activeTab} onValueChange={(value) => setUrlTab(normalizeTabKey(value))}>
-        <TabsList className="max-w-full justify-start" aria-label="Kategori dokumen mata kuliah">
-          {tabs.map((tab) => {
-            const Icon = tab.icon;
-            return (
-              <TabsTrigger key={tab.key} value={tab.key}>
-                <Icon className="size-3.5 shrink-0" />
-                <span>{tab.label}</span>
-              </TabsTrigger>
-            );
-          })}
-        </TabsList>
-      </Tabs>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <Tabs value={activeTab} onValueChange={(value) => setUrlTab(normalizeTabKey(value))}>
+          <TabsList className="max-w-full justify-start" aria-label="Kategori dokumen mata kuliah">
+            {tabs.map((tab) => {
+              const Icon = tab.icon;
+              return (
+                <TabsTrigger key={tab.key} value={tab.key}>
+                  <Icon className="size-3.5 shrink-0" />
+                  <span>{tab.label}</span>
+                </TabsTrigger>
+              );
+            })}
+          </TabsList>
+        </Tabs>
+
+        {isAdmin ? (
+          <Button
+            type="button"
+            size="icon"
+            variant="default"
+            className="size-8 rounded-lg shrink-0 cursor-pointer shadow-xs"
+            onClick={() => setUploadOpen(true)}
+            aria-label="Unggah dokumen PDF"
+            title="Unggah dokumen PDF"
+          >
+            <Plus className="size-4" />
+          </Button>
+        ) : null}
+      </div>
 
       {activeTab === "all" ? (
         materials.length > 0 ? (
@@ -457,6 +620,9 @@ export function CourseDocumentsClient({
                   title={chapter.title}
                   materials={chapterMaterials}
                   courseId={courseId}
+                  courseSlug={courseSlug}
+                  isAdmin={isAdmin}
+                  onDelete={setDeleteTarget}
                   open={openSection === sectionKey}
                   onOpenChange={(nextOpen) => setOpenSection(nextOpen ? sectionKey : null)}
                 />
@@ -467,6 +633,9 @@ export function CourseDocumentsClient({
               title="Ujian Tengah Semester"
               materials={utsMaterials}
               courseId={courseId}
+              courseSlug={courseSlug}
+              isAdmin={isAdmin}
+              onDelete={setDeleteTarget}
               open={openSection === "special:uts"}
               onOpenChange={(nextOpen) => setOpenSection(nextOpen ? "special:uts" : null)}
             />
@@ -475,6 +644,9 @@ export function CourseDocumentsClient({
               title="Ujian Akhir Semester"
               materials={uasMaterials}
               courseId={courseId}
+              courseSlug={courseSlug}
+              isAdmin={isAdmin}
+              onDelete={setDeleteTarget}
               open={openSection === "special:uas"}
               onOpenChange={(nextOpen) => setOpenSection(nextOpen ? "special:uas" : null)}
             />
@@ -483,6 +655,9 @@ export function CourseDocumentsClient({
               title="Soal lainnya"
               materials={soalLainnyaMaterials}
               courseId={courseId}
+              courseSlug={courseSlug}
+              isAdmin={isAdmin}
+              onDelete={setDeleteTarget}
               open={openSection === "special:soal_lainnya"}
               onOpenChange={(nextOpen) => setOpenSection(nextOpen ? "special:soal_lainnya" : null)}
             />
@@ -491,6 +666,9 @@ export function CourseDocumentsClient({
               title="Lain-lain"
               materials={lainLainMaterials}
               courseId={courseId}
+              courseSlug={courseSlug}
+              isAdmin={isAdmin}
+              onDelete={setDeleteTarget}
               open={openSection === "special:lain_lain"}
               onOpenChange={(nextOpen) => setOpenSection(nextOpen ? "special:lain_lain" : null)}
             />
@@ -506,14 +684,41 @@ export function CourseDocumentsClient({
         <div className="[&_[data-slot=tabs-list]]:hidden">
           <DocumentListClient
             courseId={courseId}
+            courseSlug={courseSlug}
+            courseTitle={courseTitle}
             materials={materials}
             chapters={chapters}
             defaultTab={activeTab}
             accessTier={accessTier}
             lockedMaterialCount={lockedMaterialCount}
+            forcePageNavigation={forcePageNavigation}
+            isAdmin={isAdmin}
           />
         </div>
       )}
+
+      {isAdmin ? (
+        <>
+          <AdminUploadDocumentDialog
+            open={uploadOpen}
+            onOpenChange={setUploadOpen}
+            courseId={courseId}
+            courseTitle={courseTitle || "Mata Kuliah"}
+            chapters={chapters}
+          />
+          {deleteTarget ? (
+            <AdminConfirmDialog
+              open={Boolean(deleteTarget)}
+              onOpenChange={(open: boolean) => !open && setDeleteTarget(null)}
+              title="Hapus Dokumen"
+              description={`Dokumen "${deleteTarget.title}" akan dihapus secara permanen.`}
+              confirmLabel="Hapus"
+              loading={isDeleting}
+              onConfirm={handleDeleteConfirm}
+            />
+          ) : null}
+        </>
+      ) : null}
     </div>
   );
 }

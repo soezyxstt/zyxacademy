@@ -4,6 +4,8 @@ import { notFound, redirect } from "next/navigation";
 import { assertAdmin } from "@/lib/auth/admin-guards";
 import { pageTitle } from "@/lib/site";
 import { CourseDetailHeader } from "@/components/admin/course-detail/course-detail-header";
+import { CourseDocumentsClient } from "@/app/(student)/courses/[id]/material/course-documents-client";
+// DocumentListClient is composed inside CourseDocumentsClient for subcategory views
 import { DocumentListClient } from "@/app/(student)/courses/[id]/material/document-list-client";
 import { resolveCourseIdentity } from "@/lib/admin/course-identity";
 import { listAdminCourseMaterials } from "@/lib/admin/course-material-preview";
@@ -43,7 +45,7 @@ export default async function AdminCourseDocumentsPage({ params, searchParams }:
     <div className="space-y-4 font-sans">
       <CourseDetailHeader course={data.course} />
       <Suspense fallback={null}>
-        <DocumentListClient
+        <CourseDocumentsClient
           courseId={identity.primaryId}
           courseSlug={slug}
           courseTitle={data.course.title}
