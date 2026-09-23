@@ -148,6 +148,29 @@ describe("Article V3 quality contract", () => {
     expect(warning?.severity).toBe("warning");
   });
 
+  it("rejects raw LaTeX commands and unmatched bracket math across overview and summary", () => {
+    const article = validV3Article();
+    const overview = article.sections.find((section) => section.kind === "overview")!;
+    overview.blocks[0].content = "Gunakan \\alpha pada definisi.";
+    const summary = article.sections.find((section) => section.kind === "summary")!;
+    summary.blocks[0].content = "Rumus akhir: \\[x = 1";
+
+    const result = evaluateArticleQuality(article);
+    const issueCodes = result.issues.map((entry) => entry.code);
+    expect(issueCodes).toContain("ARTICLE_RAW_LATEX_UNWRAPPED");
+    expect(issueCodes).toContain("ARTICLE_INVALID_MATH");
+  });
+
+  it("accepts bracket-delimited display math when it is balanced", () => {
+    const article = validV3Article();
+    const topic = article.sections.find((section) => section.kind === "topic")!;
+    topic.blocks[0].content = "\\[x = 1\\]";
+
+    const result = evaluateArticleQuality(article);
+    expect(result.issues.map((entry) => entry.code)).not.toContain("ARTICLE_INVALID_MATH");
+    expect(result.issues.map((entry) => entry.code)).not.toContain("ARTICLE_RAW_LATEX_UNWRAPPED");
+  });
+
   it("rejects missing overview or summary section in V3", () => {
     const noOverview = validV3Article();
     noOverview.sections = noOverview.sections.filter((s) => s.kind !== "overview");

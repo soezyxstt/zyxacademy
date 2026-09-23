@@ -12,6 +12,7 @@ const MAX_DIKTAT_LEARNING_BLOCKS = 3;
 const MAX_DIKTAT_LEARNING_BLOCK_CHARS = 240;
 const MAX_DIKTAT_FORMULAS = 8;
 const MAX_DIKTAT_VISUALS = 2;
+const MATH_PATTERN = /\$\$([\s\S]+?)\$\$|\\\[([\s\S]+?)\\\]|\$([^$\n]+?)\$/g;
 
 function buildSelfContainedKatexCss(): string {
   const cssPath = path.resolve(process.cwd(), "node_modules/katex/dist/katex.min.css");
@@ -87,7 +88,7 @@ function clipped(value: string, max = 420): string {
 function clippedMarkdown(value: string, max = 420): string {
   const formulas: string[] = [];
   const tokenized = value.replace(
-    /\$\$([\s\S]+?)\$\$|\$([^$\n]+?)\$/g,
+    MATH_PATTERN,
     (match) => `ZYXFORMULA${formulas.push(match) - 1}END`,
   );
   return clipped(tokenized, max).replace(
@@ -142,8 +143,9 @@ function renderMath(latex: string, displayMode: boolean): string {
 
 function inlineMarkup(value: string): string {
   const math: string[] = [];
-  const tokenized = value.replace(/\$\$([\s\S]+?)\$\$|\$([^$\n]+?)\$/g, (_match, block, inline) => {
-    const index = math.push(renderMath(block ?? inline, Boolean(block))) - 1;
+  const tokenized = value.replace(MATH_PATTERN, (_match, block, bracketBlock, inline) => {
+    const display = block !== undefined || bracketBlock !== undefined;
+    const index = math.push(renderMath(block ?? bracketBlock ?? inline, display)) - 1;
     return `ZYXMATH${index}END`;
   });
   let html = escapeHtml(tokenized);
@@ -173,12 +175,12 @@ function formulaeFrom(source: ProductDiktatRenderSource): string[] {
   const found: Array<{ formula: string; display: boolean; order: number }> = [];
   let order = 0;
   for (const value of values) {
-    for (const match of value.matchAll(/\$\$([\s\S]+?)\$\$|\$([^$\n]+?)\$/g)) {
-      const formula = (match[1] ?? match[2] ?? "").trim();
+    for (const match of value.matchAll(MATH_PATTERN)) {
+      const formula = (match[1] ?? match[2] ?? match[3] ?? "").trim();
       const isStandaloneArrow = /^(?:\\to|\\rightarrow|\\Rightarrow)$/.test(formula);
       const isMeaningful = /[=<>]|\\(?:lim|det|begin|neq|to|Rightarrow)/.test(formula);
       if (isMeaningful && !isStandaloneArrow && !found.some((entry) => entry.formula === formula)) {
-        found.push({ formula, display: Boolean(match[1]), order: order++ });
+        found.push({ formula, display: match[1] !== undefined || match[2] !== undefined, order: order++ });
       }
     }
   }

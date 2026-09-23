@@ -1105,22 +1105,29 @@ function StructuredArticleProductView({
     estimatedReadingMinutes: Math.max(1, Math.round(selected.blocks.reduce((total, block) => total + block.contentMarkdown.trim().split(/\s+/).length, 0) / 200)),
     orderIndex: selected.orderIndex,
     parentSectionId: selected.parentSectionId ?? null,
-    blocks: [...selected.blocks].sort((a, b) => a.orderIndex - b.orderIndex).map((block) => {
-      const visuals = (block.visualIds ?? [])
-        .map((visualId) => visualMap.get(visualId))
-        .filter((visual): visual is NonNullable<ReturnType<typeof sanitizeVisualSpec>> => Boolean(visual));
-      return {
-        id: block.id,
-        blockKey: block.id,
-        blockType: block.blockType,
-        title: block.title ?? null,
-        orderIndex: block.orderIndex,
-        content: block.contentMarkdown,
-        workedExample: sanitizeWorkedExample(block.workedExamplePayload),
-        formativeCheck: sanitizeFormativeCheck(block.formativeCheckPayload),
-        visuals: visuals.length > 0 ? visuals : undefined,
-      };
-    }),
+    blocks: (() => {
+      const renderedVisualIds = new Set<string>();
+      return [...selected.blocks].sort((a, b) => a.orderIndex - b.orderIndex).map((block) => {
+        const visuals = (block.visualIds ?? [])
+          .map((visualId) => visualMap.get(visualId))
+          .filter((visual): visual is NonNullable<ReturnType<typeof sanitizeVisualSpec>> => {
+            if (!visual || renderedVisualIds.has(visual.id)) return false;
+            renderedVisualIds.add(visual.id);
+            return true;
+          });
+        return {
+          id: block.id,
+          blockKey: block.id,
+          blockType: block.blockType,
+          title: block.title ?? null,
+          orderIndex: block.orderIndex,
+          content: block.contentMarkdown,
+          workedExample: sanitizeWorkedExample(block.workedExamplePayload),
+          formativeCheck: sanitizeFormativeCheck(block.formativeCheckPayload),
+          visuals: visuals.length > 0 ? visuals : undefined,
+        };
+      });
+    })(),
     pedagogy: selected.pedagogy
       ? {
           timeEstimate: {
@@ -1133,11 +1140,17 @@ function StructuredArticleProductView({
           visualRequirement: selected.pedagogy.visualRequirement,
         }
       : undefined,
-    visuals: selected.pedagogy?.visualRequirement.status === "required"
-      ? selected.pedagogy.visualRequirement.visualIds
+    visuals: (() => {
+      if (selected.pedagogy?.visualRequirement.status !== "required") return undefined;
+      const blockVisualIds = new Set(selected.blocks.flatMap((block) => block.visualIds ?? []));
+      const sectionVisuals = selected.pedagogy.visualRequirement.visualIds
         .map((visualId) => visualMap.get(visualId))
-        .filter((visual): visual is NonNullable<ReturnType<typeof sanitizeVisualSpec>> => Boolean(visual))
-      : undefined,
+        .filter((visual): visual is NonNullable<ReturnType<typeof sanitizeVisualSpec>> => {
+          if (!visual) return false;
+          return !blockVisualIds.has(visual.id);
+        });
+      return sectionVisuals.length > 0 ? sectionVisuals : undefined;
+    })(),
   } : null;
 
   useEffect(() => {

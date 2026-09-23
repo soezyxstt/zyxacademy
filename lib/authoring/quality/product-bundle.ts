@@ -1,5 +1,8 @@
 import type { ProductEntity } from "@/lib/bundle/product-validator";
-import { finishQualityReport, qualityIssue, type AuthoringQualityReport } from "./types";
+import { finishQualityReport, qualityIssue, type AuthoringQualityIssue, type AuthoringQualityReport } from "./types";
+
+type ArticleProduct = Extract<ProductEntity, { productType: "article" }>;
+type ArticleSection = ArticleProduct["sections"][number];
 
 type ArticleQualityMetrics = {
   wordCount: number;
@@ -16,7 +19,7 @@ type ArticleQualityMetrics = {
   formulaBlocks: number;
   mixedFormulaBlocks: number;
   proseWords: number;
-  sections: Array<{ id: string; kind: "overview" | "topic" | "summary"; wordCount: number; estimatedReadingMinutes: number; explanationBlocks: number; retrievalBlocks: number }>;
+  sections: Array<{ id: string; kind: "overview" | "topic" | "summary"; wordCount: number; proseWords: number; estimatedReadingMinutes: number; explanationBlocks: number; retrievalBlocks: number }>;
 };
 
 type DiktatQualityMetrics = {
@@ -69,7 +72,16 @@ function visualCount(value: string): number {
 }
 
 function formulaCount(value: string): number {
-  return countMatches(value, /\$\$[\s\S]+?\$\$|(?<!\\)\$[^$\n]+?(?<!\\)\$/g);
+  return countMatches(value, /\$\$[\s\S]+?\$\$|\\\[[\s\S]+?\\\]|(?<!\\)\$[^$\n]+?(?<!\\)\$/g);
+}
+
+function hasBalancedMath(value: string): boolean {
+  const display = value.match(/\$\$/g)?.length ?? 0;
+  const inline = value.replace(/\$\$/g, "").match(/(?<!\\)\$/g)?.length ?? 0;
+  const bracketOpen = value.match(/(?<!\\)\\\[/g)?.length ?? 0;
+  const bracketClose = value.match(/(?<!\\)\\\]/g)?.length ?? 0;
+  if (display % 2 !== 0 || inline % 2 !== 0 || bracketOpen !== bracketClose) return false;
+  return !value.includes("$$ $$") && !value.includes("\\[\\]");
 }
 
 function isDisplayMathOnly(value: string): boolean {
@@ -96,10 +108,41 @@ function hasUnwrappedLatex(value: string): boolean {
     .replace(/\$\$[\s\S]*?\$\$/g, " ")
     .replace(/\\\[[\s\S]*?\\\]/g, " ")
     .replace(/(?<!\\)\$[^$\n]+?(?<!\\)\$/g, " ");
-  return /\\(?:frac|sqrt|text|Delta|pi|le|ge|ne|in|notin|sum|prod|to|pm|sin|cos|tan|mathbb|mathrm|circ|ldots)\b/.test(prose);
+  return /(?<!\\)\\[A-Za-z]+\*?/.test(prose);
 }
 
-function articleMetrics(article: Extract<ProductEntity, { productType: "article" }>): ArticleQualityMetrics {
+function addSectionMathQualityIssues(issues: AuthoringQualityIssue[], articleId: string, section: ArticleSection): void {
+  for (const formulaBlock of section.blocks.filter((block) => block.blockType === "mathematical_representation")) {
+    if (!isDisplayMathOnly(formulaBlock.contentMarkdown)) {
+      issues.push(qualityIssue(
+        "ARTICLE_FORMULA_PROSE_MIXED",
+        `Blok rumus ${formulaBlock.id} harus berisi display math saja; simbol, syarat, dan makna ditulis pada blok penjelasan terpisah.`,
+        "blocking",
+        { entity: `${articleId}:${section.id}:${formulaBlock.id}`, expected: "standalone display math", observed: formulaBlock.contentMarkdown.slice(0, 120) },
+      ));
+    }
+  }
+  for (const block of section.blocks) {
+    if (hasUnwrappedLatex(block.contentMarkdown)) {
+      issues.push(qualityIssue(
+        "ARTICLE_RAW_LATEX_UNWRAPPED",
+        `Blok ${block.id} memuat perintah LaTeX di luar delimiter math; bungkus simbol dengan inline math atau pindahkan ke blok display.`,
+        "blocking",
+        { entity: `${articleId}:${section.id}:${block.id}`, expected: "delimited math", observed: block.contentMarkdown.slice(0, 120) },
+      ));
+    }
+    if (!hasBalancedMath(block.contentMarkdown)) {
+      issues.push(qualityIssue(
+        "ARTICLE_INVALID_MATH",
+        `Blok ${block.id} memiliki delimiter matematika yang tidak berpasangan.`,
+        "blocking",
+        { entity: `${articleId}:${section.id}:${block.id}`, expected: "balanced math delimiters", observed: block.contentMarkdown.slice(0, 120) },
+      ));
+    }
+  }
+}
+
+function articleMetrics(article: ArticleProduct): ArticleQualityMetrics {
   const ideaIds = article.ideaLinks.map((link) => link.id);
   const credit = new Map(ideaIds.map((id) => [id, 0]));
   const articleSections = article.sections ?? [];
@@ -110,6 +153,7 @@ function articleMetrics(article: Extract<ProductEntity, { productType: "article"
       id: section.id,
       kind: section.kind,
       wordCount: words(text),
+      proseWords: proseWords(text),
       estimatedReadingMinutes: Math.max(1, Math.ceil(words(text) / 200)),
       explanationBlocks: section.blocks.filter((block) => block.blockType === "explanation").length,
       retrievalBlocks: section.blocks.filter((block) => block.blockType === "retrieval_prompt" || block.blockType === "retrieval_close").length,
@@ -161,8 +205,22 @@ function diktatMetrics(diktat: Extract<ProductEntity, { productType: "diktat" }>
   };
 }
 
+function renderedDiktatVisualCount(article: ArticleProduct): number {
+  const referencedIds = new Set<string>();
+  for (const section of article.sections) {
+    for (const block of section.blocks) {
+      for (const visualId of block.visualIds ?? []) referencedIds.add(visualId);
+    }
+    const requirement = section.pedagogy?.visualRequirement;
+    if (requirement?.status === "required") {
+      for (const visualId of requirement.visualIds) referencedIds.add(visualId);
+    }
+  }
+  return (article.visuals ?? []).filter((visual) => referencedIds.has(visual.id)).slice(0, 2).length;
+}
+
 export function evaluateProductBundleQuality(data: { products: readonly ProductEntity[] }): ProductBundleQualityReport {
-  const issues = [];
+  const issues: AuthoringQualityIssue[] = [];
   const articles = data.products.filter((product): product is Extract<ProductEntity, { productType: "article" }> => product.productType === "article");
   const diktats = data.products.filter((product): product is Extract<ProductEntity, { productType: "diktat" }> => product.productType === "diktat");
   const articleReports: Array<ArticleQualityMetrics & { id: string }> = [];
@@ -187,6 +245,7 @@ export function evaluateProductBundleQuality(data: { products: readonly ProductE
             ));
           }
         }
+        addSectionMathQualityIssues(issues, article.id, section);
       }
       const topicMetrics = metrics.sections.filter((section) => section.kind === "topic");
       for (const section of topicMetrics) {
@@ -194,54 +253,31 @@ export function evaluateProductBundleQuality(data: { products: readonly ProductE
         if (section.explanationBlocks === 0) issues.push(qualityIssue("ARTICLE_TOPIC_EXPLANATION_MISSING", `Bagian ${section.id} belum memiliki penjelasan inti.`, "blocking", { entity: `${article.id}:${section.id}`, expected: 1, observed: 0 }));
         if (section.retrievalBlocks === 0) issues.push(qualityIssue("ARTICLE_TOPIC_CHECK_MISSING", `Bagian ${section.id} belum memiliki pemeriksaan pemahaman.`, "blocking", { entity: `${article.id}:${section.id}`, expected: 1, observed: 0 }));
 
-        const sourceSection = article.sections?.find((candidate) => candidate.id === section.id);
-        if (sourceSection) {
-          const formulaBlocks = sourceSection.blocks.filter((block) => block.blockType === "mathematical_representation");
-          for (const formulaBlock of formulaBlocks) {
-            if (!isDisplayMathOnly(formulaBlock.contentMarkdown)) {
-              issues.push(qualityIssue(
-                "ARTICLE_FORMULA_PROSE_MIXED",
-                `Blok rumus ${formulaBlock.id} harus berisi display math saja; simbol, syarat, dan makna ditulis pada blok penjelasan terpisah.`,
-                "blocking",
-                { entity: `${article.id}:${section.id}:${formulaBlock.id}`, expected: "standalone display math", observed: formulaBlock.contentMarkdown.slice(0, 120) },
-              ));
-            }
-          }
-          for (const block of sourceSection.blocks) {
-            if (hasUnwrappedLatex(block.contentMarkdown)) {
-              issues.push(qualityIssue(
-                "ARTICLE_RAW_LATEX_UNWRAPPED",
-                `Blok ${block.id} memuat perintah LaTeX di luar delimiter math; bungkus simbol dengan inline math atau pindahkan ke blok display.`,
-                "blocking",
-                { entity: `${article.id}:${section.id}:${block.id}`, expected: "delimited math", observed: block.contentMarkdown.slice(0, 120) },
-              ));
-            }
-          }
-          const sectionProseWords = sourceSection.blocks
-            .filter((block) => block.blockType !== "mathematical_representation")
-            .reduce((sum, block) => sum + proseWords(block.contentMarkdown), 0);
-          if (sectionProseWords > 700) {
+        if (section.proseWords > 700) {
             issues.push(qualityIssue(
               "ARTICLE_TOPIC_PROSE_DENSITY_HIGH",
-              `Bagian ${section.id} terlalu padat prose (${sectionProseWords} kata di luar blok rumus); ringkas kalimat dan prioritaskan notasi, simbol, serta syarat.`,
+              `Bagian ${section.id} terlalu padat prose (${section.proseWords} kata di luar blok rumus); ringkas kalimat dan prioritaskan notasi, simbol, serta syarat.`,
               "blocking",
-              { entity: `${article.id}:${section.id}`, expected: 700, observed: sectionProseWords },
+              { entity: `${article.id}:${section.id}`, expected: 700, observed: section.proseWords },
             ));
-          } else if (sectionProseWords > 520) {
+        } else if (section.proseWords > 520) {
             issues.push(qualityIssue(
               "ARTICLE_TOPIC_PROSE_DENSITY_WARNING",
-              `Bagian ${section.id} mendekati batas kepadatan prose (${sectionProseWords} kata); periksa apakah setiap kalimat diperlukan.`,
+              `Bagian ${section.id} mendekati batas kepadatan prose (${section.proseWords} kata); periksa apakah setiap kalimat diperlukan.`,
               "warning",
-              { entity: `${article.id}:${section.id}`, expected: 520, observed: sectionProseWords },
+              { entity: `${article.id}:${section.id}`, expected: 520, observed: section.proseWords },
             ));
-          }
+        }
+        const sourceSection = article.sections?.find((candidate) => candidate.id === section.id);
+        if (sourceSection) {
           for (const block of sourceSection.blocks.filter((candidate) => candidate.blockType === "application")) {
-            if (proseWords(block.contentMarkdown) > 90) {
+            const applicationWords = proseWords(block.contentMarkdown);
+            if (applicationWords > 90) {
               issues.push(qualityIssue(
                 "ARTICLE_OPTIONAL_APPLICATION_TOO_LONG",
                 `Blok aplikasi ${block.id} melebihi 90 kata; pertahankan hanya kaitan yang membantu keputusan belajar.`,
                 "blocking",
-                { entity: `${article.id}:${section.id}:${block.id}`, expected: 90, observed: proseWords(block.contentMarkdown) },
+                { entity: `${article.id}:${section.id}:${block.id}`, expected: 90, observed: applicationWords },
               ));
             }
           }
@@ -281,9 +317,9 @@ export function evaluateProductBundleQuality(data: { products: readonly ProductE
     }
     const metrics: DiktatQualityMetrics = {
       ...rawMetrics,
-      // A typed Article visual is rendered as a bounded static fallback in the
-      // Diktat PDF even when the Markdown itself has no inline image marker.
-      visuals: rawMetrics.visuals + (article.visuals?.length ?? 0),
+      // Keep this count aligned with product-diktat-pdf.ts: only typed visuals
+      // referenced by Article blocks or required section pedagogy are emitted.
+      visuals: renderedDiktatVisualCount(article),
     };
     const articleIdeaIds = new Set(article.ideaLinks.map((link) => link.id));
     const diktatIdeaIds = new Set(diktat.ideaLinks.map((link) => link.id));
@@ -306,9 +342,9 @@ export function evaluateProductBundleQuality(data: { products: readonly ProductE
     if (metrics.wordCount > 2200) issues.push(qualityIssue("DIKTAT_WORD_BUDGET_EXCEEDED", `Diktat ${diktat.id} exceeds the early warning budget of 2,200 words before A4 rendering.`, "blocking", { entity: diktat.id, expected: 2200, observed: metrics.wordCount }));
     const thresholds = {
       headings: Math.max(1, Math.min(8, article.sections?.filter((section) => section.kind === "topic").length || 1)),
-      examples: Math.min(articleReport.workedExamples, 2),
-      visuals: Math.min(articleReport.visuals, 2),
-      traps: Math.min(articleReport.misconceptions, 2),
+      // Worked examples and misconceptions are conditional review aids. They
+      // are not required merely because the Article happens to contain them.
+      visuals: Math.min(metrics.visuals, 2),
       retrievals: articleReport.retrievalPrompts > 0 ? 1 : 0,
       formulas: Math.min(articleReport.formulas, 8),
     };

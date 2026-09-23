@@ -181,7 +181,7 @@ Struktur padat yang disarankan:
 Diktat berisi pengingat dan keputusan ringkas, bukan pengajaran pertama: hapus uraian pengantar, analogi panjang, derivasi lengkap, dan contoh yang tidak mengubah keputusan, tetapi pertahankan syarat kebenaran dan seluruh Idea scope. Jika Diktat hanya dapat dipadatkan dengan membuang konsep penting, berhenti untuk keputusan scope; jangan mengecilkan font atau menghapus reasoning penting.
 
 Target 2 sampai 4 halaman hanya sah dari PDF render nyata, dengan batas atas 4 halaman sebagai hard gate. Klaim PDF ready memerlukan checksum Diktat, versi renderer, profil cetak, page count, dan inspeksi setiap halaman. Render gagal/stale, di luar 2 sampai 4 halaman, glyph rusak, formula mentah, clipping, atau halaman kosong memblokir readiness. Jangan menghapus formula atau mengecilkan font untuk mengejar halaman.
-Diktat boleh memiliki topic tanpa contoh atau jebakan. Jangan menambah satu blok `contoh`, `miskonsepsi`, atau `aplikasi` per topic demi simetri; simpan hanya keputusan yang mengubah jawaban atau mencegah salah pakai rumus.
+Diktat boleh memiliki topic tanpa contoh atau jebakan. Quality gate tidak mewajibkan `contoh` atau `miskonsepsi` hanya karena blok tersebut ada di Article; masukkan keduanya hanya jika Diktat memiliki keputusan review yang terdokumentasi dan relevan, misalnya kesalahan tanda yang mengubah jawaban atau langkah hitung yang wajib diingat.
 
 ## 12. Flashcard sebagai alat ingatan
 

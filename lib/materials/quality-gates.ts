@@ -48,12 +48,14 @@ function addFormativeCheckQualityIssue(issues: QualityGateIssue[], block: { id: 
 function hasBalancedMath(value: string): boolean {
   const display = value.match(/\$\$/g)?.length ?? 0;
   const inline = value.replace(/\$\$/g, "").match(/(?<!\\)\$/g)?.length ?? 0;
-  if (display % 2 !== 0 || inline % 2 !== 0) return false;
-  return !value.includes("$$ $$");
+  const bracketOpen = value.match(/(?<!\\)\\\[/g)?.length ?? 0;
+  const bracketClose = value.match(/(?<!\\)\\\]/g)?.length ?? 0;
+  if (display % 2 !== 0 || inline % 2 !== 0 || bracketOpen !== bracketClose) return false;
+  return !value.includes("$$ $$") && !value.includes("\\[\\]");
 }
 
 function isFormulaBearing(block: { blockType: ArticleBlockType; content: string }): boolean {
-  return block.blockType === "mathematical_representation" || /\$\$|(?<!\\)\$[^$]+\$/u.test(block.content);
+  return block.blockType === "mathematical_representation" || /\$\$|(?<!\\)\$[^$]+\$|\\\[[\s\S]+?\\\]/u.test(block.content);
 }
 
 function isStandaloneDisplayMath(value: string): boolean {
@@ -79,7 +81,7 @@ function hasUnwrappedLatex(value: string): boolean {
     .replace(/\$\$[\s\S]*?\$\$/g, " ")
     .replace(/\\\[[\s\S]*?\\\]/g, " ")
     .replace(/(?<!\\)\$[^$\n]+?(?<!\\)\$/g, " ");
-  return /\\(?:frac|sqrt|text|Delta|pi|le|ge|ne|in|notin|sum|prod|to|pm|sin|cos|tan|mathbb|mathrm|circ|ldots)\b/.test(prose);
+  return /(?<!\\)\\[A-Za-z]+\*?/.test(prose);
 }
 
 function countSatisfiedRequirements(article: ArticleDocument): { satisfied: number; total: number } {

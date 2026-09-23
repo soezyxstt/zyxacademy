@@ -672,6 +672,7 @@ function FunctionPlot({ spec }: { spec: FunctionPlotCanvas }) {
   const hasPlottableCurve = evaluated.some((series) => series.points.some((point) => point.y !== null));
 
   const handlePlotKeyDown = useCallback((event: ReactKeyboardEvent<SVGSVGElement>) => {
+    if (event.ctrlKey || event.metaKey || event.altKey) return;
     if (event.key === "ArrowLeft" || event.key === "ArrowRight" || event.key === "ArrowUp" || event.key === "ArrowDown" || event.key === "+" || event.key === "=" || event.key === "-" || event.key === "0") {
       event.preventDefault();
     }
@@ -743,8 +744,8 @@ function FunctionPlot({ spec }: { spec: FunctionPlotCanvas }) {
           viewBox={`0 0 ${SVG_W} ${SVG_H}`}
           role="img"
           tabIndex={0}
-          aria-keyshortcuts="ArrowLeft ArrowRight ArrowUp ArrowDown + - 0"
-          aria-label={`${spec.altText} Seret untuk menggeser, scroll untuk memperbesar, klik dua kali untuk mengatur ulang.`}
+          aria-keyshortcuts="ArrowLeft ArrowRight ArrowUp ArrowDown Plus = Minus 0"
+          aria-label={`${spec.altText} Seret untuk menggeser, scroll untuk memperbesar, klik dua kali untuk mengatur ulang. Dengan keyboard, gunakan tombol panah untuk menggeser, Plus atau sama dengan untuk memperbesar, Minus untuk memperkecil, dan 0 untuk mengatur ulang.`}
           onMouseMove={handleHoverMove}
           onMouseLeave={() => setHoverData(null)}
           onKeyDown={handlePlotKeyDown}
