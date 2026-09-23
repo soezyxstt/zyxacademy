@@ -37,6 +37,9 @@ export type IdeaBundleValidationReport = {
   relationCount: number;
   warnings: string[];
   quality?: Record<string, unknown>;
+  chapterId?: string | null;
+  chapterTitle?: string | null;
+  bundleTitle?: string | null;
 };
 
 export type IdeaBundleStageInput = {
@@ -210,6 +213,14 @@ export async function stageIdeaBundle(input: IdeaBundleStageInput): Promise<Idea
   await uploadArtifact(input, sourceKey);
 
   try {
+    const firstChapterId = (input.validationReport as any).chapterId ?? bundle.entities.ideas[0]?.chapterId ?? bundle.entities.learningSections[0]?.chapterId ?? bundle.entities.sourceMaterials[0]?.chapterId ?? null;
+    const firstTitle = (input.validationReport as any).bundleTitle ?? bundle.entities.learningSections[0]?.title ?? null;
+    const mergedValidationReport = {
+      ...input.validationReport,
+      chapterId: firstChapterId,
+      bundleTitle: firstTitle,
+    };
+
     await db.transaction(async (tx) => {
       const mutationAt = new Date();
       if (input.replaceImportId) {
@@ -225,7 +236,7 @@ export async function stageIdeaBundle(input: IdeaBundleStageInput): Promise<Idea
           version: input.schemaVersion,
           status: "validated",
           requestedBy: input.requestedBy,
-          validationReport: input.validationReport,
+          validationReport: mergedValidationReport,
           updatedAt: mutationAt,
         }).where(eq(imporBundle.id, importId));
       } else {
@@ -239,7 +250,7 @@ export async function stageIdeaBundle(input: IdeaBundleStageInput): Promise<Idea
           version: input.schemaVersion,
           status: "validated",
           requestedBy: input.requestedBy,
-          validationReport: input.validationReport,
+          validationReport: mergedValidationReport,
         });
       }
       await tx.insert(itemImporBundle).values(input.items.map((item) => ({
