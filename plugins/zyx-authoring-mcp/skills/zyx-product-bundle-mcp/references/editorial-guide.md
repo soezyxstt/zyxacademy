@@ -96,6 +96,7 @@ Untuk topik yang memakai persamaan, urutan default adalah orientasi singkat, dis
 - Setelah rumus, tulis daftar atau tabel pendek `Simbol`, `Syarat berlaku`, dan `Makna/arah baca`. Jangan mengulang persamaan lengkap pada setiap bullet.
 - Jika formula perlu contoh, contoh berada setelah simbol dan kondisi. Jika tidak ada keputusan prosedural yang perlu ditunjukkan, jangan menambah worked example.
 - Critic dan Student POV harus dapat menunjuk rumus, simbol, dan syarat tanpa membaca ulang satu paragraf campuran. Formula yang hanya muncul sebagai inline prose adalah temuan yang harus diperbaiki.
+- Gate keras: `mathematical_representation` hanya boleh berisi display math berdiri sendiri. Blok itu tidak boleh mengandung kalimat penjelasan setelah delimiter; `Simbol`, `Syarat berlaku`, dan `Makna` harus dapat dipindai sebagai baris atau blok terpisah. Topic dengan prose di luar formula lebih dari 700 kata harus ditolak oleh quality policy, bukan sekadar diberi saran.
 
 ### 6.2 Penekanan semantik dan ikon
 
@@ -180,6 +181,7 @@ Struktur padat yang disarankan:
 Diktat berisi pengingat dan keputusan ringkas, bukan pengajaran pertama: hapus uraian pengantar, analogi panjang, derivasi lengkap, dan contoh yang tidak mengubah keputusan, tetapi pertahankan syarat kebenaran dan seluruh Idea scope. Jika Diktat hanya dapat dipadatkan dengan membuang konsep penting, berhenti untuk keputusan scope; jangan mengecilkan font atau menghapus reasoning penting.
 
 Target 2 sampai 4 halaman hanya sah dari PDF render nyata, dengan batas atas 4 halaman sebagai hard gate. Klaim PDF ready memerlukan checksum Diktat, versi renderer, profil cetak, page count, dan inspeksi setiap halaman. Render gagal/stale, di luar 2 sampai 4 halaman, glyph rusak, formula mentah, clipping, atau halaman kosong memblokir readiness. Jangan menghapus formula atau mengecilkan font untuk mengejar halaman.
+Diktat boleh memiliki topic tanpa contoh atau jebakan. Quality gate tidak mewajibkan `contoh` atau `miskonsepsi` hanya karena blok tersebut ada di Article; masukkan keduanya hanya jika Diktat memiliki keputusan review yang terdokumentasi dan relevan, misalnya kesalahan tanda yang mengubah jawaban atau langkah hitung yang wajib diingat.
 
 ## 12. Flashcard sebagai alat ingatan
 

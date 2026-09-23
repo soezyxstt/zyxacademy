@@ -540,6 +540,7 @@ describe("PB-CP3 Authoring MCP Contract and Quality Parity", () => {
 
       // Typed visual specifications
       expect(pbContract.typedVisuals.supportedKinds).toContain("epsilon_delta_graph");
+      expect(pbContract.typedVisuals.supportedKinds).toContain("learning_canvas");
       expect(pbContract.typedVisuals.securityRestrictions).toContain("No executable JavaScript");
 
       // Review rubric (8 criteria)

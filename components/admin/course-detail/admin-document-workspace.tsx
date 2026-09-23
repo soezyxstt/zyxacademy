@@ -574,14 +574,16 @@ export function AdminDocumentWorkspace({
               onToggleMobileSheet={setIsMobileSheetOpen}
             />
           ) : (
-            <MaterialViewer
-              material={material}
-              chapterId={material.chapterId}
-              course={{ title: courseTitle }}
-              mode="admin-preview"
-              backHref={documentsHref}
-              hideHeader={true}
-            />
+            <div className="flex-1 flex flex-col min-h-[calc(100vh-53px)]">
+              <MaterialViewer
+                material={material}
+                chapterId={material.chapterId}
+                course={{ title: courseTitle }}
+                mode="admin-preview"
+                backHref={documentsHref}
+                hideHeader={true}
+              />
+            </div>
           )
         ) : (
           /* Edit Mode */

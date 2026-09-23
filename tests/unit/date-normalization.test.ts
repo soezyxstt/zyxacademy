@@ -36,4 +36,17 @@ describe("normalizeDate", () => {
     const fromString = normalizeDate(isoString);
     expect(fromString.toISOString()).toBe(isoString);
   });
+
+  test("recovers Date instances and ISO strings with year > 10000 from leaked epoch ms multiplication", () => {
+    // 58690 year date like in bundle upload bug
+    const dateYear58690 = new Date("+058690-03-31T20:00:00.000Z");
+    const normalized = normalizeDate(dateYear58690);
+    expect(normalized.getFullYear()).toBeLessThan(3000);
+    expect(normalized.getFullYear()).toBe(2026);
+
+    const stringYear58690 = "+058690-03-31T20:00:00.000Z";
+    const fromString = normalizeDate(stringYear58690);
+    expect(fromString.getFullYear()).toBeLessThan(3000);
+    expect(fromString.getFullYear()).toBe(2026);
+  });
 });

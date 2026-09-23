@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { ArrowRight, Check, Eye, FileArchive } from "lucide-react";
+import { ArrowRight, BookOpen, Check, Eye, FileArchive } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { FormattedDate } from "@/components/ui/formatted-date";
@@ -11,6 +11,9 @@ export type MaterialBundleRow = {
   bundleId: string;
   checksum: string;
   courseId: string | null;
+  chapterId?: string | null;
+  chapterLabel?: string | null;
+  bundleTitle?: string | null;
   requestedBy?: string;
   status: string;
   validationReport: Record<string, unknown>;
@@ -151,20 +154,26 @@ export function MaterialArtifactCard({
   row,
   kind,
   courseLabel,
+  chapterLabel: chapterLabelProp,
   authorLabel,
   onInspect,
   loading = false,
+  showCourse = true,
 }: {
   row: MaterialBundleRow;
   kind: "idea" | "product";
   courseLabel?: string;
+  chapterLabel?: string;
   authorLabel?: string;
   onInspect: () => void;
   loading?: boolean;
+  showCourse?: boolean;
 }) {
   const label = kind === "idea" ? "Source Pack + Idea" : "Product";
   const statusLabel = statusLabels[row.status] ?? row.status;
   const tone = statusTones[row.status] ?? "muted";
+  const resolvedChapterLabel = chapterLabelProp ?? row.chapterLabel ?? null;
+  const cardTitle = row.bundleTitle || resolvedChapterLabel || courseLabel || "Mata kuliah belum terpetakan";
 
   return (
     <article className="grid gap-4 px-4 py-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
@@ -175,10 +184,21 @@ export function MaterialArtifactCard({
             {label}
           </Badge>
           <StatusBadge tone={tone}>{statusLabel}</StatusBadge>
+          {resolvedChapterLabel && (
+            <Badge variant="secondary" className="gap-1.5 text-body-xs font-medium">
+              <BookOpen className="size-3" aria-hidden />
+              {resolvedChapterLabel}
+            </Badge>
+          )}
         </div>
         <h3 className="truncate font-heading text-body-base font-semibold text-foreground">
-          {courseLabel ?? "Mata kuliah belum terpetakan"}
+          {cardTitle}
         </h3>
+        {showCourse && courseLabel && cardTitle !== courseLabel && (
+          <p className="text-body-xs font-medium text-muted-foreground">
+            {courseLabel}
+          </p>
+        )}
         <p className="text-body-sm text-muted-foreground">
           Diupload <FormattedDate date={row.createdAt} options={dateOptions} />
         </p>

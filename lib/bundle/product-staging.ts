@@ -62,6 +62,27 @@ function hashDependency(dependency: ProductDependency): string {
   return createHash("sha256").update(deterministicProductSerialization(dependency), "utf8").digest("hex");
 }
 
+function extractBundleMeta(products: Array<Record<string, unknown>>): { chapterId: string | null; bundleTitle: string | null } {
+  let chapterId: string | null = null;
+  let bundleTitle: string | null = null;
+
+  for (const product of products) {
+    if (!chapterId) {
+      if (typeof product.chapterId === "string") {
+        chapterId = product.chapterId;
+      } else if (Array.isArray(product.chapterIds) && typeof product.chapterIds[0] === "string") {
+        chapterId = product.chapterIds[0];
+      }
+    }
+    if (!bundleTitle && typeof product.title === "string") {
+      bundleTitle = product.title;
+    }
+    if (chapterId && bundleTitle) break;
+  }
+
+  return { chapterId, bundleTitle };
+}
+
 async function storedCourseId(courseId: string): Promise<string> {
   const [legacy] = await db.select({ id: courses.id }).from(courses).where(eq(courses.id, courseId)).limit(1);
   if (legacy) return legacy.id;
@@ -176,9 +197,33 @@ export async function stageProductBundle(input: ProductStageInput) {
             .where(eq(buktiPdfBundle.imporBundleId, conflict.id));
         }
 
-        await tx.update(imporBundle).set({ checksum: input.checksum, courseId: legacyCourseId, sourceUriOrKey: sourceKey, version: schemaVersion, status: "draft", requestedBy: input.requestedBy, validationReport: { valid: true, publicationBlocked: input.bundle.publicationBlocked, issues: input.bundle.issues, productCount: input.bundle.products.length, dependencyCount: input.bundle.dependencies.length, quality: input.qualityReport ?? null }, updatedAt: new Date() }).where(eq(imporBundle.id, conflict.id));
+        const { chapterId: firstChapterId, bundleTitle: firstTitle } = extractBundleMeta(input.bundle.products as unknown as Array<Record<string, unknown>>);
+        const validationReportData = {
+          valid: true,
+          publicationBlocked: input.bundle.publicationBlocked,
+          issues: input.bundle.issues,
+          productCount: input.bundle.products.length,
+          dependencyCount: input.bundle.dependencies.length,
+          chapterId: firstChapterId,
+          bundleTitle: firstTitle,
+          quality: input.qualityReport ?? null,
+        };
+
+        await tx.update(imporBundle).set({ checksum: input.checksum, courseId: legacyCourseId, sourceUriOrKey: sourceKey, version: schemaVersion, status: "draft", requestedBy: input.requestedBy, validationReport: validationReportData, updatedAt: new Date() }).where(eq(imporBundle.id, conflict.id));
       } else {
-        await tx.insert(imporBundle).values({ id: targetImportId, bundleId: input.bundleId, checksum: input.checksum, bundleType: "product", courseId: legacyCourseId, sourceUriOrKey: sourceKey, version: schemaVersion, status: "draft", requestedBy: input.requestedBy, validationReport: { valid: true, publicationBlocked: input.bundle.publicationBlocked, issues: input.bundle.issues, productCount: input.bundle.products.length, dependencyCount: input.bundle.dependencies.length, quality: input.qualityReport ?? null } });
+        const { chapterId: firstChapterId, bundleTitle: firstTitle } = extractBundleMeta(input.bundle.products as unknown as Array<Record<string, unknown>>);
+        const validationReportData = {
+          valid: true,
+          publicationBlocked: input.bundle.publicationBlocked,
+          issues: input.bundle.issues,
+          productCount: input.bundle.products.length,
+          dependencyCount: input.bundle.dependencies.length,
+          chapterId: firstChapterId,
+          bundleTitle: firstTitle,
+          quality: input.qualityReport ?? null,
+        };
+
+        await tx.insert(imporBundle).values({ id: targetImportId, bundleId: input.bundleId, checksum: input.checksum, bundleType: "product", courseId: legacyCourseId, sourceUriOrKey: sourceKey, version: schemaVersion, status: "draft", requestedBy: input.requestedBy, validationReport: validationReportData });
       }
       await tx.insert(itemImporBundle).values(items.map((item) => ({ id: stableId("impor-product-item", `${targetImportId}:${item.entityType}:${item.entityId}:${item.entityVersion}`), imporBundleId: targetImportId, entityType: item.entityType, entityId: item.entityId, entityVersion: item.entityVersion, entityHash: item.entityHash, status: "draft" as const })));
       if (preservedItemReviews.length > 0) await tx.insert(reviewItemBundle).values(preservedItemReviews);

@@ -48,6 +48,7 @@ import { StructuredArticleSectionContent } from "@/components/course/structured-
 import { FormativeCheckEndpointProvider } from "@/components/course/formative-check-endpoint-context";
 import {
   computeDeterministicSectionNumbering,
+  sanitizeVisualSpec,
   sanitizeFormativeCheck,
   sanitizeWorkedExample,
   type PublicSectionReadModel,
@@ -1088,6 +1089,12 @@ function StructuredArticleProductView({
   const selected = sections.find((section) => section.id === selectedSectionId) ?? sections[0];
   const reviews = itemReviews.filter((review) => review.productId === product.id && review.targetType === "article_section");
   const review = selected ? reviews.find((entry) => entry.targetId === selected.id) : undefined;
+  const visualMap = useMemo(() => {
+    const entries = (product.visuals ?? [])
+      .map((visual) => sanitizeVisualSpec(visual))
+      .filter((visual): visual is NonNullable<ReturnType<typeof sanitizeVisualSpec>> => Boolean(visual));
+    return new Map(entries.map((visual) => [visual.id, visual]));
+  }, [product.visuals]);
   const publicSection: PublicSectionReadModel | null = selected ? {
     id: selected.id,
     slug: selected.slug,
@@ -1098,16 +1105,52 @@ function StructuredArticleProductView({
     estimatedReadingMinutes: Math.max(1, Math.round(selected.blocks.reduce((total, block) => total + block.contentMarkdown.trim().split(/\s+/).length, 0) / 200)),
     orderIndex: selected.orderIndex,
     parentSectionId: selected.parentSectionId ?? null,
-    blocks: [...selected.blocks].sort((a, b) => a.orderIndex - b.orderIndex).map((block) => ({
-      id: block.id,
-      blockKey: block.id,
-      blockType: block.blockType,
-      title: block.title ?? null,
-      orderIndex: block.orderIndex,
-      content: block.contentMarkdown,
-      workedExample: sanitizeWorkedExample(block.workedExamplePayload),
-      formativeCheck: sanitizeFormativeCheck(block.formativeCheckPayload),
-    })),
+    blocks: (() => {
+      const renderedVisualIds = new Set<string>();
+      return [...selected.blocks].sort((a, b) => a.orderIndex - b.orderIndex).map((block) => {
+        const visuals = (block.visualIds ?? [])
+          .map((visualId) => visualMap.get(visualId))
+          .filter((visual): visual is NonNullable<ReturnType<typeof sanitizeVisualSpec>> => {
+            if (!visual || renderedVisualIds.has(visual.id)) return false;
+            renderedVisualIds.add(visual.id);
+            return true;
+          });
+        return {
+          id: block.id,
+          blockKey: block.id,
+          blockType: block.blockType,
+          title: block.title ?? null,
+          orderIndex: block.orderIndex,
+          content: block.contentMarkdown,
+          workedExample: sanitizeWorkedExample(block.workedExamplePayload),
+          formativeCheck: sanitizeFormativeCheck(block.formativeCheckPayload),
+          visuals: visuals.length > 0 ? visuals : undefined,
+        };
+      });
+    })(),
+    pedagogy: selected.pedagogy
+      ? {
+          timeEstimate: {
+            ...selected.pedagogy.timeEstimate,
+            totalMinutes:
+              selected.pedagogy.timeEstimate.readingMinutes +
+              selected.pedagogy.timeEstimate.examplesMinutes +
+              selected.pedagogy.timeEstimate.practiceMinutes,
+          },
+          visualRequirement: selected.pedagogy.visualRequirement,
+        }
+      : undefined,
+    visuals: (() => {
+      if (selected.pedagogy?.visualRequirement.status !== "required") return undefined;
+      const blockVisualIds = new Set(selected.blocks.flatMap((block) => block.visualIds ?? []));
+      const sectionVisuals = selected.pedagogy.visualRequirement.visualIds
+        .map((visualId) => visualMap.get(visualId))
+        .filter((visual): visual is NonNullable<ReturnType<typeof sanitizeVisualSpec>> => {
+          if (!visual) return false;
+          return !blockVisualIds.has(visual.id);
+        });
+      return sectionVisuals.length > 0 ? sectionVisuals : undefined;
+    })(),
   } : null;
 
   useEffect(() => {

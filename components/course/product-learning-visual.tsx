@@ -54,6 +54,8 @@ function CanvasFallback({ spec }: { spec: PublicLearningCanvasVisualSpec }) {
 }
 
 function LearningCanvasVisual({ spec, className }: { spec: PublicLearningCanvasVisualSpec; className?: string }) {
+  const titleId = useId();
+  const descriptionId = useId();
   const [isVisible, setIsVisible] = useState(false);
   const containerRef = React.useRef<HTMLDivElement | null>(null);
 
@@ -79,12 +81,18 @@ function LearningCanvasVisual({ spec, className }: { spec: PublicLearningCanvasV
   }, [spec.interactive]);
 
   return (
-    <figure ref={containerRef} className={`rounded-lg border border-border bg-card p-4 space-y-3 ${className ?? ""}`}>
+    <figure
+      id={spec.id}
+      ref={containerRef}
+      aria-labelledby={titleId}
+      aria-describedby={descriptionId}
+      className={`rounded-lg border border-border bg-card p-4 space-y-3 ${className ?? ""}`}
+    >
       <div className="flex items-start gap-2 border-b border-border pb-3">
         <LineChart className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden="true" />
         <div>
-          <h3 className="font-heading text-body-sm font-bold text-foreground">{spec.label}</h3>
-          <p className="mt-1 text-body-xs text-muted-foreground">{spec.description}</p>
+          <h3 id={titleId} className="font-heading text-body-sm font-bold text-foreground">{spec.label}</h3>
+          <p id={descriptionId} className="mt-1 text-body-xs text-muted-foreground">{spec.description}</p>
         </div>
       </div>
       {isVisible ? <LazyLearningCanvasRenderer spec={spec.canvas} /> : <CanvasFallback spec={spec} />}
@@ -184,6 +192,7 @@ function EpsilonDeltaVisual({ spec, className }: { spec: PublicEpsilonDeltaGraph
 
   return (
     <figure
+      id={spec.id}
       role="region"
       aria-labelledby={titleId}
       aria-describedby={descId}

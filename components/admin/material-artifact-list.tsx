@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Upload, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SearchBar } from "@/components/ui/search-bar";
@@ -16,6 +16,7 @@ type Props = {
   rows: MaterialBundleRow[];
   kind: "idea" | "product";
   courseLabels?: Record<string, string>;
+  chapterLabels?: Record<string, string>;
   authorLabels?: Record<string, string>;
   onInspect: (id: string) => void;
   onUpload: () => void;
@@ -34,11 +35,20 @@ const statusLabels: Record<string, string> = {
   archived: "Diarsipkan",
 };
 
-function rowText(row: MaterialBundleRow, courseLabels: Record<string, string>, authorLabels: Record<string, string>): string {
+function rowText(
+  row: MaterialBundleRow,
+  courseLabels: Record<string, string>,
+  authorLabels: Record<string, string>,
+  chapterLabels: Record<string, string>,
+): string {
   return [
     row.id,
     row.bundleId,
     row.courseId,
+    row.chapterId,
+    row.chapterLabel,
+    row.bundleTitle,
+    chapterLabels[row.chapterId ?? ""] ?? "",
     courseLabels[row.courseId ?? ""] ?? "",
     authorLabels[row.requestedBy ?? ""] ?? "",
     statusLabels[row.status] ?? row.status,
@@ -49,6 +59,7 @@ export function MaterialArtifactList({
   rows,
   kind,
   courseLabels = {},
+  chapterLabels = {},
   authorLabels = {},
   onInspect,
   onUpload,
@@ -57,32 +68,55 @@ export function MaterialArtifactList({
 }: Props) {
   const [query, setQuery] = useState("");
   const [courseFilter, setCourseFilter] = useState("all");
+  const [chapterFilter, setChapterFilter] = useState("all");
   const [authorFilter, setAuthorFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
 
   const courseOptions = useMemo(() => Array.from(new Set(rows.map((row) => row.courseId).filter(Boolean) as string[])), [rows]);
+  const chapterOptions = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const row of rows) {
+      if (row.chapterId) {
+        const label = chapterLabels[row.chapterId] ?? row.chapterLabel ?? row.chapterId;
+        map.set(row.chapterId, label);
+      }
+    }
+    return Array.from(map.entries()).map(([id, label]) => ({ id, label }));
+  }, [rows, chapterLabels]);
   const authorOptions = useMemo(() => Array.from(new Set(rows.map((row) => row.requestedBy).filter(Boolean) as string[])), [rows]);
   const statusOptions = useMemo(() => Array.from(new Set(rows.map((row) => row.status))), [rows]);
+
+  const isSelectedChapterAvailable = chapterOptions.some((ch) => ch.id === chapterFilter);
+  const effectiveChapterFilter = chapterFilter !== "all" && isSelectedChapterAvailable ? chapterFilter : "all";
+
+  useEffect(() => {
+    if (chapterFilter !== "all" && !isSelectedChapterAvailable) {
+      setChapterFilter("all");
+    }
+  }, [chapterFilter, isSelectedChapterAvailable]);
+
   const needle = query.trim().toLowerCase();
   const visibleRows = rows.filter((row) => (
     (courseFilter === "all" || row.courseId === courseFilter) &&
+    (effectiveChapterFilter === "all" || row.chapterId === effectiveChapterFilter) &&
     (authorFilter === "all" || row.requestedBy === authorFilter) &&
     (statusFilter === "all" || row.status === statusFilter) &&
-    (!needle || rowText(row, courseLabels, authorLabels).includes(needle))
+    (!needle || rowText(row, courseLabels, authorLabels, chapterLabels).includes(needle))
   ));
-  const hasFilters = Boolean(needle || courseFilter !== "all" || authorFilter !== "all" || statusFilter !== "all");
+  const hasFilters = Boolean(needle || courseFilter !== "all" || effectiveChapterFilter !== "all" || authorFilter !== "all" || statusFilter !== "all");
   const label = kind === "idea" ? "Source Pack + Idea" : "Product";
 
   function resetFilters() {
     setQuery("");
     setCourseFilter("all");
+    setChapterFilter("all");
     setAuthorFilter("all");
     setStatusFilter("all");
   }
 
   return (
     <section className="space-y-4">
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <SearchBar
           size="sm"
           value={query}
@@ -90,7 +124,7 @@ export function MaterialArtifactList({
           onClear={() => setQuery("")}
           placeholder={`Cari ${label.toLowerCase()}...`}
           aria-label={`Cari ${label}`}
-          containerClassName="flex-1 min-w-0"
+          containerClassName="flex-1 min-w-[140px]"
         />
         {!lockedCourse && (
           <Select value={courseFilter} onValueChange={setCourseFilter}>
@@ -100,6 +134,17 @@ export function MaterialArtifactList({
             <SelectContent>
               <SelectItem value="all">Semua mata kuliah</SelectItem>
               {courseOptions.map((courseId) => <SelectItem key={courseId} value={courseId}>{courseLabels[courseId] ?? courseId}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        )}
+        {(chapterOptions.length > 0 || chapterFilter !== "all") && (
+          <Select value={effectiveChapterFilter} onValueChange={setChapterFilter}>
+            <SelectTrigger className="w-[140px] sm:w-[170px] h-9 text-body-sm rounded-lg shrink-0" aria-label="Filter bab">
+              <SelectValue placeholder="Semua bab" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Semua bab</SelectItem>
+              {chapterOptions.map((ch) => <SelectItem key={ch.id} value={ch.id}>{ch.label}</SelectItem>)}
             </SelectContent>
           </Select>
         )}
@@ -156,9 +201,11 @@ export function MaterialArtifactList({
             row={item}
             kind={kind}
             courseLabel={item.courseId ? courseLabels[item.courseId] : undefined}
+            chapterLabel={item.chapterId ? (chapterLabels[item.chapterId] ?? item.chapterLabel ?? undefined) : item.chapterLabel ?? undefined}
             authorLabel={item.requestedBy ? authorLabels[item.requestedBy] : undefined}
             onInspect={() => onInspect(item.id)}
             loading={loading}
+            showCourse={!lockedCourse}
           />
         ))}
       </AdminTable>

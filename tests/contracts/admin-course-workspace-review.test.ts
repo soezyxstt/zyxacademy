@@ -1,8 +1,12 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test, mock } from "bun:test";
 import { existsSync, readFileSync } from "node:fs";
-import { parseAdminCourseSlug, getAdminCourseNavItems } from "@/components/admin-sidebar";
-import { getRouteTitle } from "@/components/mobile-navbar";
-import { matchesCourseIdentity, type ResolvedCourseIdentity } from "@/lib/admin/course-identity";
+
+mock.module("server-only", () => ({}));
+
+const { parseAdminCourseSlug, getAdminCourseNavItems } = await import("@/components/admin-sidebar");
+const { getRouteTitle } = await import("@/components/mobile-navbar");
+const { matchesCourseIdentity } = await import("@/lib/admin/course-identity");
+import type { ResolvedCourseIdentity } from "@/lib/admin/course-identity";
 
 function source(path: string): string {
   return readFileSync(path, "utf8");

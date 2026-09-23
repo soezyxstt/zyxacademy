@@ -206,9 +206,17 @@ export function getCalendarMonthLabel(value: CalendarDate, locale = "id-ID"): st
  * Divides by 1000 only for raw integer values whose year exceeds 3000.
  */
 export function normalizeDate(value: Date | string | number): Date {
-  if (value instanceof Date) return value;
+  if (value instanceof Date) {
+    if (!isNaN(value.getTime()) && value.getFullYear() > 10000) {
+      return new Date(value.getTime() / 1000);
+    }
+    return value;
+  }
   const d = new Date(value);
   if (isNaN(d.getTime())) return d;
+  if (d.getFullYear() > 10000) {
+    return new Date(d.getTime() / 1000);
+  }
   return typeof value === "number" && d.getFullYear() > 3000 ? new Date(d.getTime() / 1000) : d;
 }
 
