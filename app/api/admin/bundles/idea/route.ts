@@ -114,6 +114,8 @@ export async function POST(request: NextRequest) {
         entityCount: items.length,
         sourceCount: bundle.entities.sourceMaterials.length,
         relationCount: bundle.entities.relations.length,
+        chapterId: bundle.entities.ideas[0]?.chapterId ?? bundle.entities.learningSections[0]?.chapterId ?? null,
+        bundleTitle: bundle.entities.learningSections[0]?.title ?? null,
         warnings: [],
       },
       filename: file.name || "idea-bundle-v2.zip",
