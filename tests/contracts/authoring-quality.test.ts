@@ -65,4 +65,38 @@ describe("canonical authoring quality gates", () => {
     expect(report.valid).toBe(false);
     expect(report.issues.map((issue) => issue.code)).toContain("ARTICLE_TOO_SHALLOW");
   });
+
+  test("keeps a valid 900-word sectioned Article compatible with the Diktat ratio gate", () => {
+    const ideaId = "idea-sectioned-1";
+    const explanation = Array.from({ length: 850 }, (_, index) => `penjelasan${index}`).join(" ");
+    const retrieval = `Cek ingatan ${Array.from({ length: 48 }, (_, index) => `cek${index}`).join(" ")}`;
+    const article = {
+      id: "article-sectioned-900",
+      productType: "article",
+      ideaLinks: [{ id: ideaId }],
+      blocks: [],
+      sections: [{
+        id: "section-1",
+        kind: "topic",
+        blocks: [
+          { id: "explanation-1", blockType: "explanation", contentMarkdown: explanation, ideaIds: [ideaId] },
+          { id: "retrieval-1", blockType: "retrieval_prompt", contentMarkdown: retrieval, ideaIds: [ideaId] },
+        ],
+      }],
+    } as unknown as ProductEntity;
+    const diktat = {
+      id: "diktat-sectioned-900",
+      productType: "diktat",
+      sourceArticleId: article.id,
+      ideaLinks: [{ id: ideaId }],
+      contentMarkdown: `# Ringkasan\nCek ingatan ${Array.from({ length: 402 }, (_, index) => `ringkas${index}`).join(" ")}`,
+    } as unknown as ProductEntity;
+
+    const report = evaluateProductBundleQuality({ products: [article, diktat] });
+    const issueCodes = report.issues.map((issue) => issue.code);
+    expect(report.valid).toBe(true);
+    expect(issueCodes).not.toContain("DIKTAT_TOO_THIN");
+    expect(issueCodes).not.toContain("DIKTAT_COMPRESSION_RATIO_HIGH");
+    expect(report.metrics.diktats[0]?.compressionRatio).toBe(0.45);
+  });
 });

@@ -10,6 +10,8 @@ const MAX_DIKTAT_SUMMARY_CHARS = 360;
 const MAX_DIKTAT_IDEA_SUMMARY_CHARS = 220;
 const MAX_DIKTAT_LEARNING_BLOCKS = 3;
 const MAX_DIKTAT_LEARNING_BLOCK_CHARS = 240;
+const MAX_DIKTAT_FORMULAS = 8;
+const MAX_DIKTAT_VISUALS = 2;
 
 function buildSelfContainedKatexCss(): string {
   const cssPath = path.resolve(process.cwd(), "node_modules/katex/dist/katex.min.css");
@@ -182,6 +184,7 @@ function formulaeFrom(source: ProductDiktatRenderSource): string[] {
   }
   return found
     .sort((left, right) => Number(right.display) - Number(left.display) || left.order - right.order)
+    .slice(0, MAX_DIKTAT_FORMULAS)
     .map((entry) => entry.formula);
 }
 
@@ -217,7 +220,9 @@ function referencedVisuals(source: ProductDiktatRenderSource) {
       for (const visualId of requirement.visualIds) referencedIds.add(visualId);
     }
   }
-  return (source.article.visuals ?? []).filter((visual) => referencedIds.has(visual.id));
+  return (source.article.visuals ?? [])
+    .filter((visual) => referencedIds.has(visual.id))
+    .slice(0, MAX_DIKTAT_VISUALS);
 }
 
 function renderStaticVisualFallback(visual: NonNullable<ArticleProduct["visuals"]>[number]): string {

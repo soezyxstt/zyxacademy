@@ -194,7 +194,13 @@ export function evaluateProductBundleQuality(data: { products: readonly ProductE
     const diktatIdeaIds = new Set(diktat.ideaLinks.map((link) => link.id));
     const missingIdeas = [...articleIdeaIds].filter((id) => !diktatIdeaIds.has(id));
     if (missingIdeas.length > 0 || diktatIdeaIds.size !== articleIdeaIds.size) issues.push(qualityIssue("DIKTAT_IDEA_COVERAGE_INCOMPLETE", `Diktat ${diktat.id} does not cover the exact Article Idea set.`, "blocking", { entity: diktat.id, expected: [...articleIdeaIds], observed: [...diktatIdeaIds] }));
-    const minimumWords = Math.max(900, Math.min(1500, Math.ceil(articleReport.wordCount * 0.12)));
+    // The compression gate is a hard ceiling, so a sectioned Article must not
+    // require a Diktat longer than that ceiling merely because it is short.
+    const ratioCompatibleMinimum = Math.max(1, Math.floor(articleReport.wordCount * 0.45));
+    const minimumWords = Math.min(
+      Math.max(900, Math.min(1500, Math.ceil(articleReport.wordCount * 0.12))),
+      ratioCompatibleMinimum,
+    );
     const ratio = articleReport.wordCount > 0 ? metrics.wordCount / articleReport.wordCount : 0;
     if (metrics.wordCount < minimumWords) issues.push(qualityIssue("DIKTAT_TOO_THIN", `Diktat ${diktat.id} is too short for its source Article.`, "blocking", { entity: diktat.id, expected: minimumWords, observed: metrics.wordCount }));
     if (ratio > 0.45) issues.push(qualityIssue("DIKTAT_COMPRESSION_RATIO_HIGH", `Diktat ${diktat.id} uses more than 45% of the Article word count; review for yapping and repeated prose.`, ratio > 0.6 ? "blocking" : "warning", { entity: diktat.id, expected: 0.45, observed: Number(ratio.toFixed(3)) }));

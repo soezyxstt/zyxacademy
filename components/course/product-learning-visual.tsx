@@ -59,7 +59,11 @@ function LearningCanvasVisual({ spec, className }: { spec: PublicLearningCanvasV
 
   React.useEffect(() => {
     const container = containerRef.current;
-    if (!container || !spec.interactive) return;
+    if (!container) return;
+    if (!spec.interactive) {
+      setIsVisible(true);
+      return;
+    }
     if (typeof IntersectionObserver === "undefined") {
       setIsVisible(true);
       return;

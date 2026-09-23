@@ -13,8 +13,8 @@ Source Pack adalah bukti asli. Idea mengikat pengetahuan dan provenance. Artikel
 Satu baris untuk setiap tujuan yang dapat diamati:
 
 | Tujuan | Primary Idea dan source locator | Prasyarat yang harus dijelaskan | Block penjelasan | Formula, simbol, dan kondisi | Contoh dan alasan relevansi | Visual/emphasis, fallback, dan alasan | Cek, jawaban, pembahasan | Hasil |
-|---|---|---|---|---|---|---|
-| Menentukan kapan aturan berlaku | ID dan excerpt internal yang benar-benar dibaca | Istilah/kondisi yang dipakai | Lokasi section/block setelah ditulis | Kasus berlaku dan tidak berlaku bila kondisi menentukan keputusan | Cek keputusan beserta alasannya | PASS/FAIL |
+|---|---|---|---|---|---|---|---|---|
+| Menentukan kapan aturan berlaku | ID dan excerpt internal yang benar-benar dibaca | Istilah/kondisi yang dipakai | Lokasi section/block setelah ditulis | Kasus berlaku dan tidak berlaku bila kondisi menentukan keputusan | - | - | Cek keputusan beserta alasannya | PASS/FAIL |
 
 Jangan memakai “memahami topik” sebagai tujuan tanpa keluaran yang dapat diperiksa. Gunakan keluaran seperti menjelaskan hubungan, memilih metode beserta alasan, menghitung beserta kondisi, atau membedakan dua kasus.
 
@@ -52,7 +52,7 @@ Jangan memperbaiki gap hanya dengan menambahkan link atau menyisipkan penjelasan
 Setelah Artikel lulus, susun tabel berikut untuk setiap item Diktat:
 
 | Item Diktat | Lokasi Artikel + kutipan pendukung singkat | Aksi kompresi | Fungsi review | Kondisi yang dipertahankan | Dampak page budget | Bukti render | Hasil |
-|---|---|---|---|---|
+|---|---|---|---|---|---|---|---|
 | Ringkasan konsep/rumus/prosedur/jebakan/cek | Section/block aktual, bukan hanya Idea ID | Dipadatkan, digabung, atau dihapus dengan alasan | Mengingat konsep, memilih aturan, atau mengecek kesalahan | Domain, asumsi, pengecualian yang memengaruhi kebenaran | Perkiraan kepadatan, bukan pengganti page count | Hash, renderer/profile, page count, inspeksi halaman | PASS/FAIL |
 
 “Penting” berarti termasuk primary Idea scope, diperlukan untuk mencapai tujuan, atau menentukan kapan jawaban/metode benar. Seluruh Idea scope harus tetap terwakili; kurangi pengulangan dan uraian pengantar, bukan cakupan atau syarat kebenaran. Jangan memaksakan formula/prosedur pada bab yang tidak memilikinya.
