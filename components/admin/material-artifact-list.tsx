@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Upload, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SearchBar } from "@/components/ui/search-bar";
@@ -85,15 +85,25 @@ export function MaterialArtifactList({
   }, [rows, chapterLabels]);
   const authorOptions = useMemo(() => Array.from(new Set(rows.map((row) => row.requestedBy).filter(Boolean) as string[])), [rows]);
   const statusOptions = useMemo(() => Array.from(new Set(rows.map((row) => row.status))), [rows]);
+
+  const isSelectedChapterAvailable = chapterOptions.some((ch) => ch.id === chapterFilter);
+  const effectiveChapterFilter = chapterFilter !== "all" && isSelectedChapterAvailable ? chapterFilter : "all";
+
+  useEffect(() => {
+    if (chapterFilter !== "all" && !isSelectedChapterAvailable) {
+      setChapterFilter("all");
+    }
+  }, [chapterFilter, isSelectedChapterAvailable]);
+
   const needle = query.trim().toLowerCase();
   const visibleRows = rows.filter((row) => (
     (courseFilter === "all" || row.courseId === courseFilter) &&
-    (chapterFilter === "all" || row.chapterId === chapterFilter) &&
+    (effectiveChapterFilter === "all" || row.chapterId === effectiveChapterFilter) &&
     (authorFilter === "all" || row.requestedBy === authorFilter) &&
     (statusFilter === "all" || row.status === statusFilter) &&
     (!needle || rowText(row, courseLabels, authorLabels, chapterLabels).includes(needle))
   ));
-  const hasFilters = Boolean(needle || courseFilter !== "all" || chapterFilter !== "all" || authorFilter !== "all" || statusFilter !== "all");
+  const hasFilters = Boolean(needle || courseFilter !== "all" || effectiveChapterFilter !== "all" || authorFilter !== "all" || statusFilter !== "all");
   const label = kind === "idea" ? "Source Pack + Idea" : "Product";
 
   function resetFilters() {
@@ -106,7 +116,7 @@ export function MaterialArtifactList({
 
   return (
     <section className="space-y-4">
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <SearchBar
           size="sm"
           value={query}
@@ -114,7 +124,7 @@ export function MaterialArtifactList({
           onClear={() => setQuery("")}
           placeholder={`Cari ${label.toLowerCase()}...`}
           aria-label={`Cari ${label}`}
-          containerClassName="flex-1 min-w-0"
+          containerClassName="flex-1 min-w-[140px]"
         />
         {!lockedCourse && (
           <Select value={courseFilter} onValueChange={setCourseFilter}>
@@ -127,8 +137,8 @@ export function MaterialArtifactList({
             </SelectContent>
           </Select>
         )}
-        {chapterOptions.length > 0 && (
-          <Select value={chapterFilter} onValueChange={setChapterFilter}>
+        {(chapterOptions.length > 0 || chapterFilter !== "all") && (
+          <Select value={effectiveChapterFilter} onValueChange={setChapterFilter}>
             <SelectTrigger className="w-[140px] sm:w-[170px] h-9 text-body-sm rounded-lg shrink-0" aria-label="Filter bab">
               <SelectValue placeholder="Semua bab" />
             </SelectTrigger>
