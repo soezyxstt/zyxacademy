@@ -66,7 +66,7 @@ describe("canonical authoring quality gates", () => {
     expect(report.issues.map((issue) => issue.code)).toContain("ARTICLE_TOO_SHALLOW");
   });
 
-  test("keeps a valid 900-word sectioned Article compatible with the Diktat ratio gate", () => {
+  test("rejects a sectioned Article whose prose density defeats formula-first reading", () => {
     const ideaId = "idea-sectioned-1";
     const explanation = Array.from({ length: 850 }, (_, index) => `penjelasan${index}`).join(" ");
     const retrieval = `Cek ingatan ${Array.from({ length: 48 }, (_, index) => `cek${index}`).join(" ")}`;
@@ -94,7 +94,8 @@ describe("canonical authoring quality gates", () => {
 
     const report = evaluateProductBundleQuality({ products: [article, diktat] });
     const issueCodes = report.issues.map((issue) => issue.code);
-    expect(report.valid).toBe(true);
+    expect(report.valid).toBe(false);
+    expect(issueCodes).toContain("ARTICLE_TOPIC_PROSE_DENSITY_HIGH");
     expect(issueCodes).not.toContain("DIKTAT_TOO_THIN");
     expect(issueCodes).not.toContain("DIKTAT_COMPRESSION_RATIO_HIGH");
     expect(report.metrics.diktats[0]?.compressionRatio).toBe(0.45);

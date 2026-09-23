@@ -25,7 +25,7 @@ import {
   Layers,
   BookmarkCheck,
   Award,
-  Zap,
+  FileText,
   AlignLeft,
   Menu,
   Maximize2,
@@ -130,7 +130,7 @@ function getBlockMetadata(blockType: string): BlockMetadata {
     case "application":
       return {
         label: "Aplikasi dan Penerapan",
-        icon: Zap,
+        icon: FileText,
         containerClass: "border-l-4 border-l-primary/60 border-t border-r border-b border-border/70 bg-card",
         badgeClass: "text-primary bg-primary/10",
       };
