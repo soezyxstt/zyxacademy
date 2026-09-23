@@ -58,6 +58,42 @@ Article bukan template yang harus mengisi semua jenis block pada setiap section.
 - Bila block opsional dihilangkan, perbarui `explanationBlockIds`, `formativeCheckBlockIds`, `supportBlockIds`, urutan block, dan referensi pedagogy agar tidak menunjuk ID yang tidak ada.
 - Diktat diturunkan dari Article yang sudah final. Contoh kilat, jebakan, dan batas hanya dipertahankan bila benar-benar membantu review dan sudah diajarkan di Article. Diktat tidak boleh menghidupkan kembali contoh atau miskonsepsi yang sengaja tidak relevan di Article.
 
+## Formula-first dan Diktat yang benar-benar ringkas
+
+Untuk topic matematika, perlakukan keterbacaan rumus sebagai kebutuhan utama, bukan hiasan di dalam paragraf.
+
+- Setelah orientasi singkat, letakkan `mathematical_representation` sebagai fokus. Tulis satu relasi inti dalam display math terpisah (`$$...$$`), bukan rumus yang diselipkan ke bullet panjang.
+- Setiap rumus harus segera diikuti struktur singkat untuk `Simbol`, `Syarat berlaku`, dan `Makna atau arah baca`. Satu paragraf tidak boleh memuat beberapa keputusan matematis yang berbeda hanya demi menghemat block.
+- Jangan mengulang rumus yang sama di setiap kalimat penjelasan. Penjelasan menerangkan asal, arti, atau keputusan pemakaian rumus di bawah rumus; jangan membuat mahasiswa menebak bagian mana yang harus diprioritaskan.
+- Critic dan Student POV wajib menandai formula yang hanya muncul di prose, raw LaTeX yang tidak ter-render, simbol tanpa definisi, syarat yang hilang, dan paragraf yang mencampur rumus dengan terlalu banyak yapping.
+- Jangan menambah field formula, symbol, atau condition yang belum didukung contract aktif. Bila typed formula belum tersedia, gunakan Markdown yang didukung renderer dengan display math terpisah dan catat keterbatasannya.
+
+Diktat adalah lembar review untuk kuis atau ujian, bukan salinan Artikel.
+
+- Turunkan Diktat secara selektif per topic: formula/definisi, simbol dan syarat, langkah keputusan, jebakan yang benar-benar berisiko, serta cue recall. Pertahankan seluruh cakupan Idea dan kondisi kebenaran, tetapi hapus pembukaan berulang, analogi panjang, derivasi lengkap, dan worked example panjang yang sudah diajarkan di Artikel.
+- Contoh hanya dipertahankan bila tanpa contoh singkat mahasiswa akan salah memilih metode. Miskonsepsi hanya dipertahankan bila kesalahan itu mengubah jawaban atau syarat berlaku. Jangan membuat satu ringkasan prose untuk setiap Idea secara mekanis.
+- Target lunak adalah lembar formula yang padat. Target keras adalah hasil render A4 nyata tidak lebih dari 4 halaman. Status `VERIFIED` hanya boleh dilaporkan setelah artifact dengan hash yang sama dirender, page count terukur, dan setiap halaman diperiksa. Status `NOT_RENDERED`, stale, glyph rusak, formula mentah, clipping, halaman kosong, atau page count di luar contract 2 sampai 4 adalah `BLOCKED`.
+- Jangan mengecilkan font, menghapus formula, atau membuang syarat penting untuk mengejar page count. Jika scope tidak muat, laporkan konflik dan revisi seleksi isi atau layout melalui loop reviewer.
+
+## Penekanan semantik dan kebijakan ikon
+
+Penekanan boleh muncul di tengah kalimat, tetapi harus memakai token yang typed dan diizinkan renderer, bukan raw HTML, inline CSS, emoji, atau instruksi tersembunyi.
+
+- Gunakan allowlist semantic token seperti `remember`, `avoid`, `caution`, `definition`, dan `formula` hanya jika kontrak/runtime mendukungnya. Token harus menghasilkan label atau ikon serta warna semantic, agar makna tidak bergantung pada warna saja dan tetap terbaca pada light mode, dark mode, print, dan pembaca keyboard.
+- `Sparkles`, ikon spark, dan ikon AI-glow dilarang pada learner-facing Product Bundle. Pilih ikon akademik yang sesuai fungsi, misalnya `Sigma`, `BookOpenCheck`, `GraduationCap`, `ListChecks`, `Info`, atau `TriangleAlert`.
+- Audit seluruh Article dan Diktat untuk token yang tidak dikenal, warna tanpa label, kontras buruk, dan ikon spark sebelum validation. Jika contract aktif belum mendukung inline emphasis, jangan menyelundupkan HTML ke Markdown; tandai sebagai gap implementasi dan gunakan struktur block yang aman.
+
+## Rubrik keputusan visual typed
+
+Visual adalah alat belajar, bukan kewajiban dekoratif.
+
+- Tandai visual `REQUIRED` hanya bila relasi ruang, bentuk, perbandingan, perubahan, atau transformasi sulit dipahami dari teks dan rumus saja. Jika tidak, gunakan `NOT_APPLICABLE` dengan alasan singkat dan bukti di matriks authoring.
+- Gunakan kontrak visual typed yang aktif dan evaluator aman. Jangan memakai iframe Desmos/layanan remote, raw SVG/HTML/JS, expression evaluator bebas, atau payload yang membuat server/client mengeksekusi kode.
+- Function, transform, dan conic graph harus memiliki caption, label sumbu atau unit bila relevan, domain/range terbatas, legenda, dan static fallback berupa tabel atau deskripsi formula. Untuk before/after transformation, kurva asal harus `dashed` dan kurva hasil harus `solid` dengan label yang jelas.
+- Interaktif hanya jika tindakan mahasiswa mengungkap hubungan yang penting. Setiap slider/drag harus memiliki id, label, min, max, step, default, binding ke persamaan, serta satu kalimat tentang apa yang berubah. Batasi kontrol dan sample count sesuai contract, mulai dari state yang bermakna, dan uji keyboard. Grafik yang tidak memperoleh insight dari interaksi harus static.
+- 2D adalah default. 3D hanya boleh dipakai setelah renderer typed yang dibatasi dan static fallback PDF tersedia. Sampling grafik adalah penjelasan, bukan bukti analitik.
+- Renderer client harus lazy-load, memoized, bounded, mount saat mendekati viewport, tidak mengirim state slider ke server, dan selalu memiliki fallback text/table untuk PDF, no-JS, offline, dan aksesibilitas.
+
 ## Invariant yang tidak boleh dilanggar
 
 1. **Artikel adalah satu-satunya bacaan utama mahasiswa untuk belajar isi bab.** Asumsikan mahasiswa tidak membuka Source Pack, Idea Bundle, PDF dosen, Diktat, atau flashcard ketika pertama kali belajar.
@@ -128,17 +164,18 @@ Cek formatif adalah interaksi belajar di dalam Artikel, bukan row soal, attempt,
 2. Buat peta internal `ideaId -> nama konsep mahasiswa`; ID hanya untuk struktur, bukan prose.
 3. Bagi section menjadi creator lane yang tidak tumpang tindih. Jalankan creator, critic, dan Student POV sebagai subagent terpisah sesuai standar multi-agent di atas.
 4. Sebelum drafting, buat rencana per topic: tujuan, prasyarat, urutan intuisi→formal, kondisi/batas, kandidat representasi/visual, kandidat worked example, cek formatif, jawaban, pembahasan, dan kandidat miskonsepsi. Tandai setiap block tambahan sebagai `REQUIRED`, `OPTIONAL`, atau `NOT_APPLICABLE` dengan alasan dan bukti.
-5. Tulis Artikel V3 lebih dulu. Gunakan payload typed dari contract terbaru (`sections[]`, section pedagogy, blocks, worked example, formative check, visual). Jangan menaruh metadata JSON di Markdown. Jangan membuat worked example atau misconception block hanya karena section lain memilikinya.
-6. Jalankan self-contained audit: baca setiap topic seolah mahasiswa tidak memiliki sumber lain. Bila penjelasan memerlukan fakta di luar Artikel, perbaiki Artikel.
-7. Jalankan loop creator → critic → Student POV → creator revision → critic reread → Student POV reread. Jangan lanjut ke staging bila versi final belum dibaca ulang oleh dua peran review tersebut.
-8. Setelah Artikel lengkap dan loop kualitas selesai, turunkan Diktat dari Artikel. Jangan mengambil fakta baru langsung dari Source Pack untuk “melengkapi” Diktat; jika fakta itu memang wajib, masukkan ke Artikel terlebih dahulu.
-9. Setelah Artikel lengkap, buat flashcard dari target recall yang sudah ada di Artikel dan jalankan preflight `flashcard-guide.md`.
-10. Jalankan preflight penuh `editorial-guide.md`. Zero internal-ID leak, ketuntasan tujuan, source grounding, cek dengan pembahasan, Diktat-as-review, flashcard-as-recall, dan disposition untuk block opsional adalah blocking author issues.
-11. Package **hanya** `manifest.json`, `entities/products.json`, dan `entities/dependencies.json`, seluruh entry regular mode `0644`.
-12. Panggil `authoring.validate_product_bundle`.
-13. Revisi semua blocking issue dan warning substantif. Setelah setiap revisi, ulangi author preflight, review critic, review Student POV, dan pemeriksaan lintas-section; jangan hanya mengejar validator.
-14. Jika sudah ada import draft dengan bundle ID yang sama, gunakan `authoring.restage_product_bundle` untuk menggantinya. Jangan membuat duplicate import hanya karena artifact berubah.
-15. Panggil `authoring.submit_product_bundle` hanya bila MCP valid, author preflight lulus, loop tiga peran selesai, dan operator telah mengizinkan staging.
+5. Sebelum menulis visual atau emphasis, cek capability contract dan renderer aktif. Rencanakan `presentationMode`, formula/symbol/condition map, semantic token yang diperlukan, keputusan visual, static fallback, kontrol interaktif, dan ikon akademik. Jangan mengirim field yang belum didukung.
+6. Tulis Artikel V3 lebih dulu. Gunakan payload typed dari contract terbaru (`sections[]`, section pedagogy, blocks, worked example, formative check, visual). Tempatkan visual melalui referensi typed pada block/section, bukan JSON metadata di Markdown. Jangan membuat worked example atau misconception block hanya karena section lain memilikinya.
+7. Jalankan self-contained audit: baca setiap topic seolah mahasiswa tidak memiliki sumber lain. Bila penjelasan memerlukan fakta di luar Artikel, perbaiki Artikel.
+8. Jalankan loop creator → critic → Student POV → creator revision → critic reread → Student POV reread. Jangan lanjut ke staging bila versi final belum dibaca ulang oleh dua peran review tersebut.
+9. Setelah Artikel lengkap dan loop kualitas selesai, turunkan Diktat dari Artikel. Jangan mengambil fakta baru langsung dari Source Pack untuk “melengkapi” Diktat; jika fakta itu memang wajib, masukkan ke Artikel terlebih dahulu.
+10. Setelah Artikel lengkap, buat flashcard dari target recall yang sudah ada di Artikel dan jalankan preflight `flashcard-guide.md`.
+11. Jalankan preflight penuh `editorial-guide.md`. Selain gate lama, buktikan formula/prose separation, symbol/condition coverage, semantic token allowlist, icon scan, visual interaction/fallback, dan Diktat PDF evidence.
+12. Package **hanya** `manifest.json`, `entities/products.json`, dan `entities/dependencies.json`, seluruh entry regular mode `0644`.
+13. Panggil `authoring.validate_product_bundle`.
+14. Revisi semua blocking issue dan warning substantif. Setelah setiap revisi, ulangi author preflight, review critic, review Student POV, dan pemeriksaan lintas-section; jangan hanya mengejar validator.
+15. Jika sudah ada import draft dengan bundle ID yang sama, gunakan `authoring.restage_product_bundle` untuk menggantinya. Jangan membuat duplicate import hanya karena artifact berubah.
+16. Panggil `authoring.submit_product_bundle` hanya bila MCP valid, author preflight lulus, loop tiga peran selesai, dan operator telah mengizinkan staging.
 
 ## Larangan konten learner-facing
 

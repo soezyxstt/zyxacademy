@@ -6,7 +6,12 @@ import type { ProductEntity } from "./product-validator";
 
 export const PRODUCT_DIKTAT_RENDERER_VERSION = "zyx-diktat-worker-v1";
 export const PRODUCT_DIKTAT_PRINT_PROFILE = "a4-self-study-2-page-v1";
-const MAX_DIKTAT_IDEA_SUMMARIES = 6;
+const MAX_DIKTAT_SUMMARY_CHARS = 360;
+const MAX_DIKTAT_IDEA_SUMMARY_CHARS = 220;
+const MAX_DIKTAT_LEARNING_BLOCKS = 3;
+const MAX_DIKTAT_LEARNING_BLOCK_CHARS = 240;
+const MAX_DIKTAT_FORMULAS = 8;
+const MAX_DIKTAT_VISUALS = 2;
 
 function buildSelfContainedKatexCss(): string {
   const cssPath = path.resolve(process.cwd(), "node_modules/katex/dist/katex.min.css");
@@ -91,6 +96,37 @@ function clippedMarkdown(value: string, max = 420): string {
   );
 }
 
+const SEMANTIC_EMPHASIS_LABELS = {
+  remember: "Ingat",
+  avoid: "Hindari",
+  caution: "Hati-hati",
+  definition: "Definisi",
+  formula: "Rumus",
+} as const;
+
+function applySemanticEmphasis(html: string): string {
+  return html.replace(
+    /\[\[emphasis:(remember|avoid|caution|definition|formula)\]\]([\s\S]*?)\[\[\/emphasis\]\]/gi,
+    (_match, tone: keyof typeof SEMANTIC_EMPHASIS_LABELS, content: string) =>
+      `<span class="semantic-emphasis semantic-${tone.toLowerCase()}"><span class="semantic-label">${SEMANTIC_EMPHASIS_LABELS[tone.toLowerCase() as keyof typeof SEMANTIC_EMPHASIS_LABELS]}</span>${content}</span>`,
+  );
+}
+
+/**
+ * Keep a Diktat snippet useful as a revision aid rather than copying an
+ * Article paragraph verbatim. Headings, list markers, and blank lines carry
+ * structure in the Article but add noise when the snippet is printed in the
+ * compact two-page Diktat layout.
+ */
+function conciseMarkdown(value: string, max: number): string {
+  const body = value
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line && !/^#{1,6}\s+/.test(line) && !/^```/.test(line))
+    .join(" ");
+  return clippedMarkdown(body, max);
+}
+
 function renderMath(latex: string, displayMode: boolean): string {
   try {
     return katex.renderToString(latex.trim(), {
@@ -112,6 +148,7 @@ function inlineMarkup(value: string): string {
   });
   let html = escapeHtml(tokenized);
   html = html.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+  html = applySemanticEmphasis(html);
   return html.replace(/ZYXMATH(\d+)END/g, (_match, index) => math[Number(index)] ?? "");
 }
 
@@ -133,34 +170,73 @@ function formulaeFrom(source: ProductDiktatRenderSource): string[] {
     source.diktat.contentMarkdown,
     ...articleBlocks(source.article).map((block) => block.contentMarkdown),
   ];
-  const found: string[] = [];
+  const found: Array<{ formula: string; display: boolean; order: number }> = [];
+  let order = 0;
   for (const value of values) {
     for (const match of value.matchAll(/\$\$([\s\S]+?)\$\$|\$([^$\n]+?)\$/g)) {
       const formula = (match[1] ?? match[2] ?? "").trim();
       const isStandaloneArrow = /^(?:\\to|\\rightarrow|\\Rightarrow)$/.test(formula);
       const isMeaningful = /[=<>]|\\(?:lim|det|begin|neq|to|Rightarrow)/.test(formula);
-      if (isMeaningful && !isStandaloneArrow && !found.includes(formula)) {
-        found.push(formula);
+      if (isMeaningful && !isStandaloneArrow && !found.some((entry) => entry.formula === formula)) {
+        found.push({ formula, display: Boolean(match[1]), order: order++ });
       }
     }
   }
-  return found.slice(0, 6);
+  return found
+    .sort((left, right) => Number(right.display) - Number(left.display) || left.order - right.order)
+    .slice(0, MAX_DIKTAT_FORMULAS)
+    .map((entry) => entry.formula);
 }
 
 function ideaSummaries(source: ProductDiktatRenderSource): string[] {
   const blocks = articleBlocks(source.article);
-  return source.article.ideaLinks.slice(0, MAX_DIKTAT_IDEA_SUMMARIES).map((link, index) => {
+  return source.article.ideaLinks.map((link, index) => {
     const matching = blocks.find((block) => block.ideaIds.includes(link.id));
-    return matching ? clippedMarkdown(matching.contentMarkdown, 300) : `Pokok gagasan ${index + 1} dirangkum dari artikel sumber.`;
+    return matching
+      ? conciseMarkdown(matching.contentMarkdown, MAX_DIKTAT_IDEA_SUMMARY_CHARS)
+      : `Pokok gagasan ${index + 1} dirangkum dari artikel sumber.`;
   });
 }
 
 function selectedLearningBlocks(source: ProductDiktatRenderSource): string[] {
-  const priority = new Set(["worked_example", "formative_check", "misconception", "summary", "retrieval_close"]);
+  // A Diktat is a quick-reference sheet. Keep only high-signal checks and
+  // traps, with worked examples as a fallback when no shorter block exists.
+  const priority = ["misconception", "summary", "retrieval_close", "formative_check", "worked_example"];
   return articleBlocks(source.article)
-    .filter((block) => priority.has(block.blockType))
-    .slice(0, 5)
-    .map((block) => clippedMarkdown(block.contentMarkdown, 360));
+    .filter((block) => priority.includes(block.blockType))
+    .sort((left, right) => priority.indexOf(left.blockType) - priority.indexOf(right.blockType) || left.orderIndex - right.orderIndex)
+    .slice(0, MAX_DIKTAT_LEARNING_BLOCKS)
+    .map((block) => conciseMarkdown(block.contentMarkdown, MAX_DIKTAT_LEARNING_BLOCK_CHARS));
+}
+
+function referencedVisuals(source: ProductDiktatRenderSource) {
+  const referencedIds = new Set<string>();
+  for (const section of source.article.sections) {
+    for (const block of section.blocks) {
+      for (const visualId of block.visualIds ?? []) referencedIds.add(visualId);
+    }
+    const requirement = section.pedagogy?.visualRequirement;
+    if (requirement?.status === "required") {
+      for (const visualId of requirement.visualIds) referencedIds.add(visualId);
+    }
+  }
+  return (source.article.visuals ?? [])
+    .filter((visual) => referencedIds.has(visual.id))
+    .slice(0, MAX_DIKTAT_VISUALS);
+}
+
+function renderStaticVisualFallback(visual: NonNullable<ArticleProduct["visuals"]>[number]): string {
+  const title = `<h3>${escapeHtml(visual.label)}</h3><p class="muted">${escapeHtml(visual.description)}</p>`;
+  if (visual.kind === "learning_canvas") {
+    const fallback = visual.canvas.fallback;
+    const headers = fallback.columns.map((column) => column.label);
+    return `<figure class="visual-fallback"><figcaption>${title}<p class="muted">${escapeHtml(fallback.summary)}</p></figcaption><div class="visual-table"><table><thead><tr>${headers.map((header) => `<th>${escapeHtml(header)}</th>`).join("")}</tr></thead><tbody>${fallback.rows.map((row) => `<tr>${row.map((cell) => `<td>${escapeHtml(String(cell))}</td>`).join("")}</tr>`).join("")}</tbody></table></div></figure>`;
+  }
+  const fallback = visual.staticFallback;
+  if (fallback.type === "table") {
+    return `<figure class="visual-fallback"><figcaption>${title}<p class="muted">${escapeHtml(fallback.summary)}</p></figcaption><div class="visual-table"><table><thead><tr>${fallback.headers.map((header) => `<th>${escapeHtml(header)}</th>`).join("")}</tr></thead><tbody>${fallback.rows.map((row) => `<tr>${row.map((cell) => `<td>${escapeHtml(String(cell))}</td>`).join("")}</tr>`).join("")}</tbody></table></div></figure>`;
+  }
+  return `<figure class="visual-fallback"><figcaption>${title}<p>${escapeHtml(fallback.summary)}</p></figcaption><p>${escapeHtml(fallback.content)}</p></figure>`;
 }
 
 export const ZYX_MAIN_LOGO_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2182 1275" fill="none">
@@ -197,8 +273,9 @@ export function compileProductDiktatHtml(source: ProductDiktatRenderSource): str
 
   const ideas = ideaSummaries(source);
   const formulas = formulaeFrom(source);
+  const visuals = referencedVisuals(source);
   const learningBlocks = selectedLearningBlocks(source);
-  const diktatSummary = clippedMarkdown(source.diktat.contentMarkdown, 650);
+  const diktatSummary = conciseMarkdown(source.diktat.contentMarkdown, MAX_DIKTAT_SUMMARY_CHARS);
   const title = escapeHtml(source.diktat.title);
 
   const ideaHtml = ideas.map((idea, index) => `<li><strong>Pokok gagasan ${index + 1}.</strong> ${inlineMarkup(idea)}</li>`).join("");
@@ -208,6 +285,9 @@ export function compileProductDiktatHtml(source: ProductDiktatRenderSource): str
   const learningHtml = learningBlocks.length > 0
     ? learningBlocks.map((block, index) => `<section class="learning"><h3>Langkah ${index + 1}</h3><p>${inlineMarkup(block)}</p></section>`).join("")
     : `<section class="learning"><h3>Uji pemahaman</h3><p>Tuliskan kembali gagasan utama bab ini, lalu jelaskan syarat penerapannya dengan kata-kata sendiri.</p></section>`;
+  const visualHtml = visuals.length > 0
+    ? `<h2>Visual pendukung</h2>${visuals.map(renderStaticVisualFallback).join("")}`
+    : "";
 
   return `<!doctype html>
 <html lang="id"><head><meta charset="utf-8"><title>${title}</title>
@@ -227,7 +307,21 @@ ol, ul { margin: 0 0 4mm; padding-left: 6mm; }
 li { margin-bottom: 2.2mm; }
 .lead { color: #374151; font-size: 11pt; }
 .formula { background: #f5f7fa; border-left: 3px solid #e66b2c; margin: 3mm 0; padding: 3mm; text-align: center; break-inside: avoid; }
+.semantic-emphasis { border-bottom: 1px solid currentColor; border-radius: 2px; padding: 0 2px; font-weight: 600; }
+.semantic-label { font-size: 7pt; font-weight: 700; letter-spacing: .04em; margin-right: 3px; text-transform: uppercase; }
+.semantic-remember { background: #ecfdf3; color: #166534; }
+.semantic-avoid { background: #fff1f2; color: #9f1239; }
+.semantic-caution { background: #fffbeb; color: #92400e; }
+.semantic-definition { background: #eff6ff; color: #1d4ed8; }
+.semantic-formula { background: #f5f3ff; color: #6d28d9; }
 .learning { border-bottom: 1px solid #d9dee8; margin-bottom: 3mm; padding-bottom: 3mm; break-inside: avoid; }
+.visual-fallback { border: 1px solid #d9dee8; margin: 3mm 0; padding: 3mm; break-inside: avoid; }
+.visual-fallback h3 { margin-bottom: 1mm; }
+.visual-fallback p { margin-bottom: 1.5mm; }
+.visual-table { overflow: hidden; }
+.visual-table table { border-collapse: collapse; font-size: 8.5pt; width: 100%; }
+.visual-table th, .visual-table td { border: 1px solid #d9dee8; padding: 1.5mm 2mm; text-align: left; }
+.visual-table th { background: #f5f7fa; font-weight: 700; }
 .muted, .footer { color: #667085; font-size: 8.5pt; }
 .footer { margin-top: 8mm; }
 .katex-display { margin: 0; overflow: visible; }
@@ -236,15 +330,14 @@ li { margin-bottom: 2.2mm; }
 <div class="diktat-watermark" aria-hidden="true">${ZYX_MAIN_LOGO_SVG}</div>
 <main class="page">
   <p class="eyebrow">Diktat belajar mandiri</p><h1>${title}</h1>
-  <p class="lead">${inlineMarkup(diktatSummary)}</p>
+  <h2>Rumus utama</h2>${formulaHtml}
+  ${visualHtml}
   <h2>Gagasan inti</h2><ol>${ideaHtml}</ol>
-  <h2>Rumus dan syarat</h2>${formulaHtml}
+  <p class="lead">${inlineMarkup(diktatSummary)}</p>
 </main>
 <main class="page">
   <p class="eyebrow">Latihan pemahaman</p><h1>${title}</h1>
   ${learningHtml}
-  <h2>Ringkasan belajar</h2>
-  <p>Hubungkan setiap rumus dengan syarat berlakunya. Periksa kembali langkah penyelesaian dan jelaskan alasan di balik setiap transformasi.</p>
   <p class="footer">Dihasilkan dari Artikel yang telah ditautkan dan sumber akademik terverifikasi. Informasi lineage teknis disimpan terpisah sebagai bukti publikasi.</p>
 </main></body></html>`;
 }
@@ -293,12 +386,13 @@ export function parseCanonicalDiktatMarkdownToHtml(markdown: string, documentTit
     });
 
   function formatInline(str: string): string {
-    return escapeHtml(str)
+    const html = escapeHtml(str)
       .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
       .replace(/__([^_]+)__/g, "<strong>$1</strong>")
       .replace(/(?<!\*)\*([^*]+)\*(?!\*)/g, "<em>$1</em>")
       .replace(/(?<!_)_([^_]+)_(?!_)/g, "<em>$1</em>")
       .replace(/`([^`]+)`/g, '<code class="inline-code">$1</code>');
+    return applySemanticEmphasis(html);
   }
 
   function detectCardClass(title: string): string {
@@ -932,6 +1026,13 @@ li {
   break-inside: avoid;
   page-break-inside: avoid;
 }
+.semantic-emphasis { border-bottom: 1px solid currentColor; border-radius: 2px; padding: 0 2px; font-weight: 600; }
+.semantic-label { font-size: 7pt; font-weight: 700; letter-spacing: .04em; margin-right: 3px; text-transform: uppercase; }
+.semantic-remember { background: #ecfdf3; color: #166534; }
+.semantic-avoid { background: #fff1f2; color: #9f1239; }
+.semantic-caution { background: #fffbeb; color: #92400e; }
+.semantic-definition { background: #eff6ff; color: #1d4ed8; }
+.semantic-formula { background: #f5f3ff; color: #6d28d9; }
 .katex-display {
   margin: 0;
   overflow: visible;

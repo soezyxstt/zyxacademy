@@ -439,6 +439,19 @@ function SeriesLegend({
             >
               {series.label.length <= 2 ? series.label : `f${idx + 1}`}
             </span>
+            <span
+              aria-hidden
+              className="h-px w-7 shrink-0"
+              style={{
+                backgroundColor: idx === 0 ? GRAPH_BLUE : GRAPH_SECONDARY,
+                borderTop:
+                  series.lineStyle === "dashed"
+                    ? `2px dashed ${idx === 0 ? GRAPH_BLUE : GRAPH_SECONDARY}`
+                    : series.lineStyle === "dotted"
+                      ? `2px dotted ${idx === 0 ? GRAPH_BLUE : GRAPH_SECONDARY}`
+                      : undefined,
+              }}
+            />
             <code className="min-w-0 max-w-full truncate font-mono text-body-sm font-semibold tracking-tight text-foreground">
               {`y = ${latexFormatted}`}
             </code>
@@ -720,6 +733,7 @@ function FunctionPlot({ spec }: { spec: FunctionPlotCanvas }) {
               fill="none"
               stroke={idx === 0 ? GRAPH_BLUE : GRAPH_SECONDARY}
               strokeWidth={3}
+              strokeDasharray={spec.series[idx]?.lineStyle === "dashed" ? "8 6" : spec.series[idx]?.lineStyle === "dotted" ? "2 5" : undefined}
               strokeLinecap="round"
               strokeLinejoin="round"
               clipPath={`url(#plot-clip-${uid})`}

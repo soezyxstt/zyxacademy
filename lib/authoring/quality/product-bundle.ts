@@ -7,6 +7,7 @@ type ArticleQualityMetrics = {
   effectiveWords: Record<string, number>;
   implicitMultiIdeaBlocks: number;
   workedExamples: number;
+  misconceptions: number;
   analogies: number;
   retrievalPrompts: number;
   visuals: number;
@@ -101,6 +102,7 @@ function articleMetrics(article: Extract<ProductEntity, { productType: "article"
     effectiveWords: Object.fromEntries([...credit].map(([id, count]) => [id, Math.round(count)])),
     implicitMultiIdeaBlocks,
     workedExamples: parsedBlocks.filter((block) => block.block.blockType === "worked_example").length,
+    misconceptions: parsedBlocks.filter((block) => block.block.blockType === "misconception").length,
     analogies: parsedBlocks.filter((block) => block.block.blockType === "analogy").length,
     retrievalPrompts: parsedBlocks.filter((block) => block.block.blockType === "retrieval_prompt").length,
     visuals: visualCount(text),
@@ -192,16 +194,24 @@ export function evaluateProductBundleQuality(data: { products: readonly ProductE
     const diktatIdeaIds = new Set(diktat.ideaLinks.map((link) => link.id));
     const missingIdeas = [...articleIdeaIds].filter((id) => !diktatIdeaIds.has(id));
     if (missingIdeas.length > 0 || diktatIdeaIds.size !== articleIdeaIds.size) issues.push(qualityIssue("DIKTAT_IDEA_COVERAGE_INCOMPLETE", `Diktat ${diktat.id} does not cover the exact Article Idea set.`, "blocking", { entity: diktat.id, expected: [...articleIdeaIds], observed: [...diktatIdeaIds] }));
-    const minimumWords = Math.max(1200, articleIdeaIds.size * 35, Math.ceil(articleReport.wordCount * 0.12));
+    // The compression gate is a hard ceiling, so a sectioned Article must not
+    // require a Diktat longer than that ceiling merely because it is short.
+    const ratioCompatibleMinimum = Math.max(1, Math.floor(articleReport.wordCount * 0.45));
+    const minimumWords = Math.min(
+      Math.max(900, Math.min(1500, Math.ceil(articleReport.wordCount * 0.12))),
+      ratioCompatibleMinimum,
+    );
     const ratio = articleReport.wordCount > 0 ? metrics.wordCount / articleReport.wordCount : 0;
     if (metrics.wordCount < minimumWords) issues.push(qualityIssue("DIKTAT_TOO_THIN", `Diktat ${diktat.id} is too short for its source Article.`, "blocking", { entity: diktat.id, expected: minimumWords, observed: metrics.wordCount }));
+    if (ratio > 0.45) issues.push(qualityIssue("DIKTAT_COMPRESSION_RATIO_HIGH", `Diktat ${diktat.id} uses more than 45% of the Article word count; review for yapping and repeated prose.`, ratio > 0.6 ? "blocking" : "warning", { entity: diktat.id, expected: 0.45, observed: Number(ratio.toFixed(3)) }));
+    if (metrics.wordCount > 2200) issues.push(qualityIssue("DIKTAT_WORD_BUDGET_EXCEEDED", `Diktat ${diktat.id} exceeds the early warning budget of 2,200 words before A4 rendering.`, "blocking", { entity: diktat.id, expected: 2200, observed: metrics.wordCount }));
     const thresholds = {
-      headings: Math.max(4, Math.ceil(articleIdeaIds.size / 8)),
-      examples: Math.max(2, Math.ceil(articleIdeaIds.size / 6)),
-      visuals: Math.max(1, Math.ceil(articleIdeaIds.size / 10)),
-      traps: Math.max(2, Math.ceil(articleIdeaIds.size / 8)),
-      retrievals: Math.max(2, Math.ceil(articleIdeaIds.size / 8)),
-      formulas: Math.max(3, Math.ceil(articleIdeaIds.size / 6)),
+      headings: Math.max(1, Math.min(8, article.sections?.filter((section) => section.kind === "topic").length || 1)),
+      examples: Math.min(articleReport.workedExamples, 2),
+      visuals: Math.min(articleReport.visuals, 2),
+      traps: Math.min(articleReport.misconceptions, 2),
+      retrievals: articleReport.retrievalPrompts > 0 ? 1 : 0,
+      formulas: Math.min(articleReport.formulas, 8),
     };
     for (const [metric, minimum] of Object.entries(thresholds)) {
       const observed = metrics[metric as keyof typeof thresholds];

@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import {
   epsilonDeltaGraphSpecSchema,
+  learningCanvasVisualSpecSchema,
   visualNumericBoundsSchema,
   visualSpecSchema,
   visualTableFallbackSchema,
@@ -357,6 +358,67 @@ describe("visual contract specification", () => {
     test("parses through visualSpecSchema union", () => {
       const parsed = visualSpecSchema.parse(LIMIT_EPSILON_DELTA_GRAPH);
       expect(parsed.kind).toBe("epsilon_delta_graph");
+    });
+
+    test("accepts a bounded interactive function plot with a static fallback", () => {
+      const parsed = learningCanvasVisualSpecSchema.parse({
+        id: "visual-line-shift",
+        kind: "learning_canvas",
+        label: "Pergeseran garis",
+        description: "Geser k untuk membandingkan garis awal dan hasil.",
+        interactive: true,
+        canvas: {
+          version: "zyra-learning-canvas-v1",
+          type: "function_plot",
+          title: "Garis sebelum dan sesudah digeser",
+          purpose: "Menghubungkan nilai k dengan perubahan grafik.",
+          variables: [{ id: "k", label: "Pergeseran horizontal", min: -3, max: 3, defaultValue: 1 }],
+          controls: [{ variableId: "k", label: "Nilai k", min: -3, max: 3, step: 1, presets: [-1, 0, 1] }],
+          claimRefs: ["claim-line-shift"],
+          altText: "Garis awal putus-putus dan garis hasil penuh.",
+          fallback: {
+            summary: "Nilai contoh garis sebelum dan sesudah pergeseran.",
+            columns: [{ id: "state", label: "Keadaan" }, { id: "formula", label: "Rumus" }],
+            rows: [["awal", "y=x"], ["hasil", "y=(x-k)" ]],
+          },
+          domain: { min: -4, max: 4, sampleCount: 32 },
+          series: [
+            { id: "source", label: "Awal", expression: "x", lineStyle: "dashed", role: "reference" },
+            { id: "shifted", label: "Hasil", expression: "x-k", lineStyle: "solid", role: "primary" },
+          ],
+        },
+      });
+      expect(parsed.canvas.type).toBe("function_plot");
+      if (parsed.canvas.type === "function_plot") {
+        expect(parsed.canvas.series[0]?.lineStyle).toBe("dashed");
+        expect(parsed.canvas.controls[0]?.variableId).toBe("k");
+      }
+    });
+
+    test("rejects executable markup in a Learning Canvas payload", () => {
+      expect(() => learningCanvasVisualSpecSchema.parse({
+        id: "visual-hostile",
+        kind: "learning_canvas",
+        label: "Grafik",
+        description: "<iframe src='https://example.com'></iframe>",
+        interactive: false,
+        canvas: {
+          version: "zyra-learning-canvas-v1",
+          type: "table",
+          title: "Tabel",
+          purpose: "Tabel sederhana.",
+          variables: [],
+          controls: [],
+          claimRefs: [],
+          altText: "Tabel nilai.",
+          fallback: {
+            summary: "Ringkasan tabel.",
+            columns: [{ id: "x", label: "x" }],
+            rows: [["1"]],
+          },
+          rows: [["1"]],
+        },
+      })).toThrow("Forbidden executable or markup pattern detected");
     });
   });
 });

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { CanvasSpecSchema, type CanvasSpec } from "@/lib/zyra/canvas";
 
 export const constantFunctionSchema = z.object({
   kind: z.literal("constant"),
@@ -210,10 +211,48 @@ export const epsilonDeltaGraphSpecSchema = z
   });
 export type EpsilonDeltaGraphSpec = z.infer<typeof epsilonDeltaGraphSpecSchema>;
 
+/**
+ * Product Bundle adapter for the application-owned Learning Canvas contract.
+ * The adapter keeps product identity and learner-facing copy separate from the
+ * bounded canvas payload so Article and PDF consumers can choose their own
+ * renderer without accepting model-authored HTML, SVG, or JavaScript.
+ */
+export const learningCanvasVisualSpecSchema = z
+  .object({
+    id: z.string().trim().min(1),
+    kind: z.literal("learning_canvas"),
+    label: z.string().trim().min(1),
+    description: z.string().trim().min(1),
+    interactive: z.boolean().default(true),
+    canvas: CanvasSpecSchema,
+  })
+  .strict()
+  .superRefine((spec, ctx) => {
+    const secCheck = inspectPayloadSecurity(spec);
+    if (!secCheck.safe) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: secCheck.reason ?? "Security check failed for visual payload",
+      });
+    }
+
+    if (spec.interactive && spec.canvas.type !== "function_plot" && spec.canvas.type !== "derivation") {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `Interactive Product Canvas is not supported for ${spec.canvas.type}`,
+        path: ["interactive"],
+      });
+    }
+  });
+export type LearningCanvasVisualSpec = z.infer<typeof learningCanvasVisualSpecSchema>;
+
 export const visualSpecSchema = z.discriminatedUnion("kind", [
   epsilonDeltaGraphSpecSchema,
+  learningCanvasVisualSpecSchema,
 ]);
 export type VisualSpec = z.infer<typeof visualSpecSchema>;
+
+export type ProductCanvasSpec = CanvasSpec;
 
 export function evaluateVisualFunction(model: VisualFunctionModel, x: number): number {
   switch (model.kind) {

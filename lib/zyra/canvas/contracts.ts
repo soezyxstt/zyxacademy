@@ -87,6 +87,8 @@ export const FunctionPlotCanvasSchema = CanvasBaseSchema.extend({
     label: LabelSchema,
     expression: z.string().trim().min(1).max(180),
     unit: UnitSchema.nullable().optional(),
+    lineStyle: z.enum(["solid", "dashed", "dotted"]).default("solid"),
+    role: z.enum(["primary", "reference"]).default("primary"),
   }).strict()).min(1).max(6),
 }).strict();
 export type FunctionPlotCanvas = z.infer<typeof FunctionPlotCanvasSchema>;

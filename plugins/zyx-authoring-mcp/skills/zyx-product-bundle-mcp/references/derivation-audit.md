@@ -12,13 +12,15 @@ Source Pack adalah bukti asli. Idea mengikat pengetahuan dan provenance. Artikel
 
 Satu baris untuk setiap tujuan yang dapat diamati:
 
-| Tujuan | Primary Idea dan source locator | Prasyarat yang harus dijelaskan | Block penjelasan | Contoh dan alasan relevansi | Cek, jawaban, pembahasan | Hasil |
-|---|---|---|---|---|---|---|
-| Menentukan kapan aturan berlaku | ID dan excerpt internal yang benar-benar dibaca | Istilah/kondisi yang dipakai | Lokasi section/block setelah ditulis | Kasus berlaku dan tidak berlaku bila kondisi menentukan keputusan | Cek keputusan beserta alasannya | PASS/FAIL |
+| Tujuan | Primary Idea dan source locator | Prasyarat yang harus dijelaskan | Block penjelasan | Formula, simbol, dan kondisi | Contoh dan alasan relevansi | Visual/emphasis, fallback, dan alasan | Cek, jawaban, pembahasan | Hasil |
+|---|---|---|---|---|---|---|---|---|
+| Menentukan kapan aturan berlaku | ID dan excerpt internal yang benar-benar dibaca | Istilah/kondisi yang dipakai | Lokasi section/block setelah ditulis | Kasus berlaku dan tidak berlaku bila kondisi menentukan keputusan | - | - | Cek keputusan beserta alasannya | PASS/FAIL |
 
 Jangan memakai “memahami topik” sebagai tujuan tanpa keluaran yang dapat diperiksa. Gunakan keluaran seperti menjelaskan hubungan, memilih metode beserta alasan, menghitung beserta kondisi, atau membedakan dua kasus.
 
 Semua primary Idea scope harus memiliki baris. Satu tujuan boleh mencakup beberapa Idea yang memang diperlukan, tetapi setiap Idea harus diajarkan eksplisit di topic utamanya. Judul, `ideaLinks`, atau penyebutan nama konsep saja tidak memenuhi coverage.
+
+Untuk tujuan matematika, kolom formula harus menunjuk display math dan penjelasan simbol atau kondisi yang menyertainya. Formula yang hanya muncul di tengah prose panjang adalah `FAIL`, meskipun string LaTeX-nya valid. Catat kandidat emphasis dengan token typed yang diizinkan, bukan warna atau HTML buatan author.
 
 ## 3. Putuskan elemen kondisional
 
@@ -35,6 +37,8 @@ Gunakan aturan berikut untuk setiap topic. Simpan alasan bila tidak berlaku, lal
 
 Tujuan, penjelasan inti, provenance, serta cek dengan jawaban dan pembahasan selalu wajib. Jangan memberi `NOT_APPLICABLE` pada empat hal itu. Graph sampling bukan pembuktian analitik. Contoh pedagogis baru boleh memakai data hipotetis yang dinyatakan jelas dan dihitung dari aturan source-grounded; jangan mengklaimnya sebagai data/soal asli sumber.
 
+Visual interaktif wajib mencatat variabel/control id, rentang, step, default, binding, alasan interaksi, dan uji keyboard. Grafik transformasi wajib membedakan kurva acuan `dashed` dan kurva hasil `solid`. Setiap visual memiliki fallback static untuk PDF/no-JS. Jika renderer atau contract belum mendukung kebutuhan itu, statusnya `NOT_APPLICABLE` atau `BLOCKED`, bukan payload bebas.
+
 ## 4. Audit pembaca Artikel saja
 
 Baca urut dari overview sampai summary tanpa membuka sumber. Untuk setiap cek, selesaikan dengan hanya informasi pada Artikel. Catat block yang menyediakan setiap konsep dan kondisi penyelesaian.
@@ -47,15 +51,15 @@ Jangan memperbaiki gap hanya dengan menambahkan link atau menyisipkan penjelasan
 
 Setelah Artikel lulus, susun tabel berikut untuk setiap item Diktat:
 
-| Item Diktat | Lokasi Artikel + kutipan pendukung singkat | Fungsi review | Kondisi yang dipertahankan | Hasil |
-|---|---|---|---|---|
-| Ringkasan konsep/rumus/prosedur/jebakan/cek | Section/block aktual, bukan hanya Idea ID | Mengingat konsep, memilih aturan, atau mengecek kesalahan | Domain, asumsi, pengecualian yang memengaruhi kebenaran | PASS/FAIL |
+| Item Diktat | Lokasi Artikel + kutipan pendukung singkat | Aksi kompresi | Fungsi review | Kondisi yang dipertahankan | Dampak page budget | Bukti render | Hasil |
+|---|---|---|---|---|---|---|---|
+| Ringkasan konsep/rumus/prosedur/jebakan/cek | Section/block aktual, bukan hanya Idea ID | Dipadatkan, digabung, atau dihapus dengan alasan | Mengingat konsep, memilih aturan, atau mengecek kesalahan | Domain, asumsi, pengecualian yang memengaruhi kebenaran | Perkiraan kepadatan, bukan pengganti page count | Hash, renderer/profile, page count, inspeksi halaman | PASS/FAIL |
 
 “Penting” berarti termasuk primary Idea scope, diperlukan untuk mencapai tujuan, atau menentukan kapan jawaban/metode benar. Seluruh Idea scope harus tetap terwakili; kurangi pengulangan dan uraian pengantar, bukan cakupan atau syarat kebenaran. Jangan memaksakan formula/prosedur pada bab yang tidak memilikinya.
 
 Urutan kerja: petakan konsep, pilih intisari tiap topic, ringkas rumus dengan kondisi, tampilkan langkah keputusan, pilih contoh kilat dari Artikel, rangkum jebakan yang sudah dijelaskan, lalu buat retrieval check beserta jawaban ringkas untuk self-review. Contoh kilat merujuk solusi yang sudah diajarkan; jangan menyembunyikan cara baru di contoh Diktat.
 
-Diktat lulus jika tiap item punya evidence Artikel dan membantu review cepat setelah belajar. Panjang teks bukan satu-satunya ukuran: buang pembukaan berulang, analogi panjang, dan derivasi lengkap yang sudah ada di Artikel; pertahankan langkah keputusan dan batas penggunaan. Jika pemadatan tetap tidak cukup untuk PDF 2 sampai 4 halaman, laporkan konflik scope. Jangan menghapus Idea atau mengecilkan font untuk mengejar halaman.
+Diktat lulus jika tiap item punya evidence Artikel dan membantu review cepat setelah belajar. Buang pembukaan berulang, analogi panjang, derivasi lengkap, dan contoh yang tidak mengubah keputusan; pertahankan langkah keputusan dan batas penggunaan. Jika pemadatan tetap tidak cukup untuk PDF 2 sampai 4 halaman, laporkan konflik scope. Jangan menghapus Idea, formula, atau syarat kebenaran, dan jangan mengecilkan font untuk mengejar halaman.
 
 Contoh dengan asumsi Artikel telah mengajarkan pembagian ketaksamaan:
 

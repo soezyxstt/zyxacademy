@@ -87,6 +87,7 @@ export const productArticleV3BlockSchema = z.object({
   contentMarkdown: z.string().min(1),
   ideaIds: z.array(id).min(1),
   sourceRefs: z.array(productSourceRefSchema).min(1),
+  visualIds: z.array(id).max(8).optional(),
   workedExamplePayload: workedExamplePayloadSchema.optional(),
   formativeCheckPayload: formativeCheckPayloadSchema.optional(),
 }).strict();
@@ -346,6 +347,7 @@ export function parseProductBundle(input: SecureZipArchive | ProductBundleFiles)
           }
 
           const productSourceMap = new Map(product.sourceRefs.map((s) => [s.sourceId, s]));
+          const availableVisualIds = (product.visuals ?? []).map((v) => v.id);
           for (const s of product.sections) {
             for (const ideaId of s.ideaIds) {
               if (!productIdeaIds.has(ideaId)) {
@@ -374,6 +376,17 @@ export function parseProductBundle(input: SecureZipArchive | ProductBundleFiles)
                 }
               }
 
+              if (b.visualIds) {
+                if (new Set(b.visualIds).size !== b.visualIds.length) {
+                  return { success: false, issues: [issue("PRODUCT_BLOCK_VISUAL_DUPLICATE", `block ${b.id} contains duplicate visual references`)] };
+                }
+                for (const visualId of b.visualIds) {
+                  if (!availableVisualIds.includes(visualId)) {
+                    return { success: false, issues: [issue("PRODUCT_BLOCK_VISUAL_REFERENCE_INVALID", `block ${b.id} references unknown visual ${visualId}`)] };
+                  }
+                }
+              }
+
               if (b.workedExamplePayload && b.blockType !== "worked_example") {
                 return { success: false, issues: [issue("PRODUCT_BLOCK_PAYLOAD_MISMATCH", `block ${b.id} has workedExamplePayload but blockType is ${b.blockType}`)] };
               }
@@ -391,7 +404,6 @@ export function parseProductBundle(input: SecureZipArchive | ProductBundleFiles)
           }
 
           const allSectionIds = product.sections.map((sec) => sec.id);
-          const availableVisualIds = (product.visuals ?? []).map((v) => v.id);
           for (const s of product.sections) {
             if (s.pedagogy) {
               const pedResult = validateSectionPedagogyReferences({
