@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "@/components/ui/toast";
 import { Copy, Trash2, KeyRound, Check, RefreshCw, User, Users, ShieldCheck, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { SearchBar } from "@/components/ui/search-bar";
 import { AdminStatStrip, AdminStatStripItem } from "@/components/admin/stat-card";
 import { AdminConfirmDialog } from "@/components/admin/confirm-dialog";
@@ -32,6 +33,10 @@ type TokenRow = {
   group: {
     id: string;
     name: string;
+    packageType?: string;
+    packageName?: string;
+    totalQuotaSessions?: number;
+    weeklyQuotaSessions?: number;
     members: {
       userId: string;
       joinedAt: Date;
@@ -53,6 +58,10 @@ type Props = {
   coursesList: CourseOption[];
 };
 
+/**
+ * Dashboard for administrative management of class enrollment tokens,
+ * supporting flexible session quota and custom group capacity.
+ */
 export function TokensDashboard({ initialTokens, coursesList }: Props) {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
@@ -60,7 +69,8 @@ export function TokensDashboard({ initialTokens, coursesList }: Props) {
     coursesList[0] ? [coursesList[0].id] : []
   );
   const [capacity, setCapacity] = useState<number>(3);
-  const [packageType, setPackageType] = useState<"reguler_15" | "intensif_30" | "super_intensif_45">("reguler_15");
+  const [totalQuota, setTotalQuota] = useState<number>(15);
+  const [weeklyQuota, setWeeklyQuota] = useState<number>(1);
   const [loading, setLoading] = useState(false);
   const [copiedTokenId, setCopiedTokenId] = useState<string | null>(null);
   const [pendingDelete, setPendingDelete] = useState<{ id: string; token: string } | null>(null);
@@ -100,14 +110,33 @@ export function TokensDashboard({ initialTokens, coursesList }: Props) {
       return;
     }
 
+    if (typeof capacity !== "number" || !Number.isInteger(capacity) || capacity < 1) {
+      toast.error("Kapasitas kelompok harus bilangan bulat minimal 1 orang");
+      return;
+    }
+
+    if (typeof totalQuota !== "number" || !Number.isInteger(totalQuota) || totalQuota < 0) {
+      toast.error("Kuota pertemuan harus bilangan bulat minimal 0 sesi");
+      return;
+    }
+
+    if (typeof weeklyQuota !== "number" || !Number.isInteger(weeklyQuota) || weeklyQuota < 0) {
+      toast.error("Batas sesi per minggu harus bilangan bulat minimal 0");
+      return;
+    }
+
     setLoading(true);
     try {
-      const res = await generateEnrollmentToken(selectedCourseIds, capacity, packageType);
+      const res = await generateEnrollmentToken(selectedCourseIds, capacity, {
+        totalQuotaSessions: totalQuota,
+        weeklyQuotaSessions: weeklyQuota,
+      });
       if (res.success) {
         toast.success(`Token berhasil dibuat: ${res.token}`);
         setSelectedCourseIds(coursesList[0] ? [coursesList[0].id] : []);
         setCapacity(3);
-        setPackageType("reguler_15");
+        setTotalQuota(15);
+        setWeeklyQuota(1);
         router.refresh();
       } else {
         toast.error(res.error || "Gagal membuat token");
@@ -230,57 +259,147 @@ export function TokensDashboard({ initialTokens, coursesList }: Props) {
               )}
             </div>
 
-            {/* Group Size & Package Selection */}
-            <div className="space-y-4">
+            {/* Group Size & Quota Configuration */}
+            <div className="space-y-5">
+              {/* Quota Settings */}
               <div className="space-y-2">
-                <label className="text-body-xs font-semibold text-muted-foreground block">
-                  Paket Kuota Pertemuan Semester
-                </label>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <label className="text-body-sm font-semibold text-foreground block">
+                      Kuota Pertemuan (Sesi)
+                    </label>
+                    <div className="relative">
+                      <Input
+                        type="number"
+                        min={0}
+                        step={1}
+                        value={totalQuota}
+                        onChange={(e) => {
+                          const raw = e.target.value;
+                          const parsed = Number(raw);
+                          const hasNumber = raw !== "" && !Number.isNaN(parsed);
+                          const val = hasNumber ? Math.max(0, Math.floor(parsed)) : 0;
+                          setTotalQuota(val);
+                          if (hasNumber) {
+                            if (val === 0) {
+                              setWeeklyQuota(0);
+                            } else if (weeklyQuota === 0) {
+                              setWeeklyQuota(1);
+                            }
+                          }
+                        }}
+                        className="h-10 text-body-sm pr-12"
+                        placeholder="15"
+                      />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-body-xs text-muted-foreground pointer-events-none">
+                        Sesi
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-body-sm font-semibold text-foreground block">
+                      Batas Sesi per Minggu
+                    </label>
+                    <div className="relative">
+                      <Input
+                        type="number"
+                        min={0}
+                        step={1}
+                        value={weeklyQuota}
+                        onChange={(e) => {
+                          const raw = e.target.value;
+                          const parsed = Number(raw);
+                          const hasNumber = raw !== "" && !Number.isNaN(parsed);
+                          setWeeklyQuota(hasNumber ? Math.max(0, Math.floor(parsed)) : 0);
+                        }}
+                        className="h-10 text-body-sm pr-20"
+                        placeholder="1"
+                      />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-body-xs text-muted-foreground pointer-events-none">
+                        x / minggu
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Quick Presets for Quota */}
+                <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                  <span className="text-body-xs text-muted-foreground mr-1">Pilihan cepat:</span>
                   {[
-                    { id: "reguler_15" as const, label: "15 Sesi", sub: "1x / minggu" },
-                    { id: "intensif_30" as const, label: "30 Sesi", sub: "2x / minggu" },
-                    { id: "super_intensif_45" as const, label: "45 Sesi", sub: "3x / minggu" },
-                  ].map((p) => {
-                    const isActive = packageType === p.id;
+                    { total: 0, weekly: 0, label: "0 Sesi" },
+                    { total: 5, weekly: 1, label: "5 Sesi" },
+                    { total: 10, weekly: 1, label: "10 Sesi" },
+                    { total: 15, weekly: 1, label: "15 Sesi" },
+                    { total: 30, weekly: 2, label: "30 Sesi" },
+                    { total: 45, weekly: 3, label: "45 Sesi" },
+                  ].map((preset) => {
+                    const isSelected = totalQuota === preset.total && weeklyQuota === preset.weekly;
                     return (
                       <button
-                        key={p.id}
+                        key={preset.total}
                         type="button"
-                        onClick={() => setPackageType(p.id)}
-                        className={`flex flex-col items-center justify-center p-2.5 rounded-lg border text-left transition-all ${
-                          isActive
-                            ? "border-brand-primary bg-brand-primary/10 text-brand-primary font-semibold"
+                        onClick={() => {
+                          setTotalQuota(preset.total);
+                          setWeeklyQuota(preset.weekly);
+                        }}
+                        className={`px-2.5 py-1 rounded-md border text-body-xs font-medium transition-colors ${
+                          isSelected
+                            ? "border-brand-primary bg-brand-primary/10 text-brand-primary"
                             : "border-border bg-card text-muted-foreground hover:bg-muted/40 hover:text-foreground"
                         }`}
                       >
-                        <span className="text-body-sm font-bold">{p.label}</span>
-                        <span className="text-[10px] text-muted-foreground">{p.sub}</span>
+                        {preset.label}
                       </button>
                     );
                   })}
                 </div>
               </div>
 
+              {/* Capacity Settings */}
               <div className="space-y-2">
-                <label className="text-body-xs font-semibold text-muted-foreground block">
-                  Kapasitas Kelompok (Jumlah Orang)
-                </label>
-                <div className="flex flex-wrap gap-2">
-                  {[1, 2, 3, 4, 5].map((num) => {
-                    const isActive = capacity === num;
+                <div className="space-y-1.5">
+                  <label className="text-body-sm font-semibold text-foreground block">
+                    Kapasitas Kelompok (Jumlah Orang)
+                  </label>
+                  <div className="relative max-w-xs">
+                    <Input
+                      type="number"
+                      min={1}
+                      step={1}
+                      value={capacity}
+                      onChange={(e) => {
+                        const raw = e.target.value;
+                        const parsed = Number(raw);
+                        const hasNumber = raw !== "" && !Number.isNaN(parsed);
+                        setCapacity(hasNumber ? Math.max(1, Math.floor(parsed)) : 1);
+                      }}
+                      className="h-10 text-body-sm pr-16"
+                      placeholder="1"
+                    />
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-body-xs text-muted-foreground pointer-events-none">
+                      Orang
+                    </span>
+                  </div>
+                </div>
+
+                {/* Quick Presets for Capacity */}
+                <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                  <span className="text-body-xs text-muted-foreground mr-1">Pilihan cepat:</span>
+                  {[1, 2, 3, 4, 5, 10].map((num) => {
+                    const isSelected = capacity === num;
                     return (
                       <button
                         key={num}
                         type="button"
                         onClick={() => setCapacity(num)}
-                        className={`flex items-center gap-1.5 px-4 py-2.5 rounded-md border text-body-sm font-semibold transition-all ${
-                          isActive
-                            ? "border-brand-primary bg-brand-primary text-white shadow-sm shadow-brand-primary/20"
+                        className={`flex items-center gap-1 px-2.5 py-1 rounded-md border text-body-xs font-medium transition-colors ${
+                          isSelected
+                            ? "border-brand-primary bg-brand-primary/10 text-brand-primary"
                             : "border-border bg-card text-muted-foreground hover:bg-muted/40 hover:text-foreground"
                         }`}
                       >
-                        {num === 1 ? <User className="size-4" /> : <Users className="size-4" />}
+                        {num === 1 ? <User className="size-3" /> : <Users className="size-3" />}
                         <span>{num} Orang</span>
                       </button>
                     );
@@ -392,10 +511,17 @@ export function TokensDashboard({ initialTokens, coursesList }: Props) {
                         </div>
                       </td>
                       <td className="px-6 py-4">
-                        <span className="inline-flex items-center gap-1 text-body-xs font-medium text-foreground bg-muted/60 px-2.5 py-1 rounded-md border border-border">
-                          <Users className="size-3 text-muted-foreground" />
-                          {t.capacity} Orang
-                        </span>
+                        <div className="flex flex-col gap-1">
+                          <span className="inline-flex items-center gap-1 text-body-xs font-medium text-foreground bg-muted/60 px-2.5 py-1 rounded-md border border-border w-fit">
+                            <Users className="size-3 text-muted-foreground" />
+                            {t.capacity} Orang
+                          </span>
+                          {t.group && typeof t.group.totalQuotaSessions === "number" && (
+                            <span className="text-[11px] text-muted-foreground">
+                              {t.group.totalQuotaSessions} sesi ({t.group.weeklyQuotaSessions ?? 0}x/minggu)
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex flex-wrap gap-1.5 max-w-xs">
