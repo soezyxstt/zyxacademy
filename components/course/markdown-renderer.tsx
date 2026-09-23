@@ -4,7 +4,7 @@ import React, { useState, useEffect, type ReactNode } from "react";
 import katex from "katex";
 import { 
   Info, 
-  Lightbulb, 
+  BookOpenCheck,
   AlertTriangle, 
   AlertOctagon, 
   AlertCircle,
@@ -80,6 +80,35 @@ const katexOptions = {
   trust: false,
 };
 
+const semanticEmphasis = {
+  remember: {
+    label: "Ingat",
+    className: "border-status-success/60 bg-status-success/10 text-status-success dark:text-emerald-300",
+  },
+  avoid: {
+    label: "Hindari",
+    className: "border-status-error/60 bg-status-error/10 text-status-error dark:text-rose-300",
+  },
+  caution: {
+    label: "Hati-hati",
+    className: "border-status-warning/70 bg-status-warning/10 text-status-warning dark:text-amber-300",
+  },
+  definition: {
+    label: "Definisi",
+    className: "border-primary/60 bg-primary/10 text-primary",
+  },
+  formula: {
+    label: "Rumus",
+    className: "border-brand-secondary/60 bg-brand-secondary/10 text-brand-secondary",
+  },
+} as const;
+
+type SemanticEmphasisTone = keyof typeof semanticEmphasis;
+
+function isStandaloneMathBlock(content: string): boolean {
+  return /^\s*(?:\$\$[\s\S]+?\$\$|\\\[[\s\S]+?\\\])\s*$/.test(content);
+}
+
 function renderMath(value: string, displayMode: boolean): string {
   try {
     return katex.renderToString(value, { ...katexOptions, displayMode });
@@ -109,6 +138,32 @@ function parseInline(text: string): ReactNode[] {
 
   while (index < text.length) {
     const remaining = text.slice(index);
+
+    // Typed inline emphasis. This is intentionally allowlisted and rendered
+    // as text, so author content cannot inject HTML or CSS. Example:
+    // [[emphasis:remember]]syarat domain[[/emphasis]]
+    const emphasisMatch = remaining.match(/^\[\[emphasis:(remember|avoid|caution|definition|formula)\]\]([\s\S]*?)\[\[\/emphasis\]\]/i);
+    if (emphasisMatch) {
+      flushText();
+      const tone = emphasisMatch[1].toLowerCase() as SemanticEmphasisTone;
+      const config = semanticEmphasis[tone];
+      result.push(
+        <span
+          key={`emphasis-${index}`}
+          className={cn("inline rounded-md border-b-2 px-1 py-0.5 align-baseline font-medium", config.className)}
+          data-semantic-emphasis={tone}
+          role="note"
+        >
+          <span className="mr-1 font-heading text-body-2xs font-bold uppercase tracking-wide" aria-hidden="true">
+            {config.label}
+          </span>
+          <span className="sr-only">{config.label}: </span>
+          {parseInline(emphasisMatch[2])}
+        </span>,
+      );
+      index += emphasisMatch[0].length;
+      continue;
+    }
 
     // 1. Math Block (e.g. $$...$$ or \[...\])
     let mathBlockMatch = remaining.match(/^`?\$\$([\s\S]+?)\$\$`?/) || remaining.match(/^`?\\\[([\s\S]+?)\\\]`?/);
@@ -375,7 +430,7 @@ function AlertCallout({
     },
     tip: {
       border: "border-status-success/25 bg-status-success/5 text-emerald-950 dark:text-emerald-50",
-      icon: <Lightbulb className="size-5 text-status-success shrink-0 mt-0.5" />,
+      icon: <BookOpenCheck className="size-5 text-status-success shrink-0 mt-0.5" />,
       label: "Tips & Trik",
       labelColor: "text-status-success dark:text-emerald-400",
     },
@@ -752,6 +807,20 @@ function ASTBlockRenderer({ block, density }: { block: ASTBlock; density?: Markd
 
   switch (block.type) {
     case "p":
+      if (isStandaloneMathBlock(block.content)) {
+        return (
+          <div
+            className={cn(
+              "formula-focus overflow-x-auto rounded-lg border-l-4 border-primary bg-primary/[0.04] px-4 py-3 text-center",
+              isCompact ? "my-2" : "my-4",
+            )}
+            data-content-kind="formula"
+            aria-label="Rumus utama"
+          >
+            {renderRichText(block.content)}
+          </div>
+        );
+      }
       return (
         <p className="text-body-base leading-relaxed">
           {renderRichText(block.content)}

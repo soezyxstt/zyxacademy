@@ -9,7 +9,6 @@ import {
   Brain,
   CheckCircle2,
   Clock,
-  Lightbulb,
   Loader2,
   RefreshCw,
   Target,
@@ -341,7 +340,7 @@ export function QuizAnalyticsView({ attemptId, courseId }: QuizAnalyticsViewProp
         {diagnosis?.error_patterns && diagnosis.error_patterns.length > 0 && (
           <div className="rounded-xl border border-border/80 bg-card/70 p-5 space-y-4">
             <h4 className="font-heading text-body-sm font-bold text-foreground flex items-center gap-2">
-              <Lightbulb className="size-5 text-brand-secondary" /> Analisis Pola Kesalahan (Error Pattern Detection)
+              <BarChart3 className="size-5 text-brand-secondary" /> Analisis Pola Kesalahan (Error Pattern Detection)
             </h4>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {diagnosis.error_patterns.map((errItem, idx) => (

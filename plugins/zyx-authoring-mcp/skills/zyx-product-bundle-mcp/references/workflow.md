@@ -64,9 +64,12 @@ Author preflight tetap wajib dan harus memeriksa hal yang tidak cukup dijamin sc
 
 1. Gunakan run `idea_product` dengan scope yang sama dan published Idea context yang fresh. Catat run ID, contract checksum, Source Pack checksum, Idea versions/hashes, dan intended Product checksum.
 2. Jika Source Pack belum tersedia, selesaikan prasyarat melalui `$zyx-source-pack-mcp` dari stored PDFs dalam scope yang diminta; jangan mulai Product atau membuat Idea baru secara diam-diam. Bila Idea belum published, simpan checkpoint dan laporkan prasyarat tersebut.
-3. Rencanakan setiap topic sebelum menulis: prerequisite, objective, sequence, representation/visual, example, formative check, answer, explanation, misconception/boundary.
-4. Bangun **Artikel lebih dulu sampai self-contained**.
-5. Turunkan Diktat dari Artikel yang sudah lengkap; jangan menambah fakta baru.
+3. Rencanakan setiap topic sebelum menulis: prerequisite, objective, sequence, formula/symbol/condition, representation/visual, example bila benar-benar membantu, formative check, answer, explanation, misconception/boundary.
+   - Untuk matematika, pisahkan blok rumus display dari penjelasan. Tulis definisi simbol dan syarat tepat di bawahnya; jangan menjejalkan rumus dan prosa panjang dalam satu kalimat.
+   - Putuskan visual dengan bukti kebutuhan. Gunakan `learning_canvas` hanya untuk relasi yang lebih mudah dipahami lewat grafik/diagram daripada teks; plot pergeseran harus menandai kurva sumber dan hasil dengan style garis berbeda.
+   - Interaktivitas harus menjawab pertanyaan belajar tertentu. Expose hanya variabel yang relevan melalui `controls` typed dengan rentang, step, default, keyboard support, dan fallback statis. Jangan membuat iframe Desmos, HTML/SVG/JS mentah, atau grafik interaktif dekoratif. Tipe 3D belum boleh dipakai tanpa renderer typed dan fallback PDF yang sudah tersedia.
+4. Bangun **Artikel lebih dulu sampai self-contained**. Gunakan emphasis typed (`remember`, `avoid`, `caution`, `definition`, `formula`) hanya untuk hal yang benar-benar perlu difokuskan; jangan memakai ikon spark/sparkles.
+5. Turunkan Diktat dari Artikel yang sudah lengkap; jangan menambah fakta baru. Diktat harus formula-first, padat untuk review, dan maksimal 4 halaman A4 pada render nyata. Jangan menghapus rumus, syarat, Idea, atau batas kebenaran secara diam-diam untuk mengejar page budget; jika konflik, laporkan dan revisi sumber/struktur.
 6. Buat flashcard hanya dari recall target yang sudah ada di Artikel; jalankan `flashcard-guide.md`.
 7. Jalankan author preflight `editorial-guide.md` dan flashcard preflight.
 8. Panggil `authoring.validate_product_bundle` (`authoring:read`).

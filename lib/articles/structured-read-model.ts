@@ -1,7 +1,9 @@
 import {
   inspectPayloadSecurity,
   epsilonDeltaGraphSpecSchema,
+  learningCanvasVisualSpecSchema,
 } from "@/lib/materials/visual-contract";
+import type { CanvasSpec } from "@/lib/zyra/canvas";
 import {
   formativeCheckPayloadSchema,
   type FormativeCheckEvaluation,
@@ -69,7 +71,16 @@ export interface PublicEpsilonDeltaGraphSpec {
     | { kind: "quadratic"; a: number; b: number; c: number };
 }
 
-export type PublicVisualSpec = PublicEpsilonDeltaGraphSpec;
+export interface PublicLearningCanvasVisualSpec {
+  id: string;
+  kind: "learning_canvas";
+  label: string;
+  description: string;
+  interactive: boolean;
+  canvas: CanvasSpec;
+}
+
+export type PublicVisualSpec = PublicEpsilonDeltaGraphSpec | PublicLearningCanvasVisualSpec;
 
 export interface PublicLearningTimeEstimate {
   readingMinutes: number;
@@ -94,6 +105,7 @@ export interface PublicBlockReadModel {
   title: string | null;
   orderIndex: number;
   content: string;
+  visuals?: PublicVisualSpec[];
   workedExample?: PublicWorkedExamplePayload | null;
   formativeCheck?: PublicFormativeCheckPayload | null;
 }
@@ -424,16 +436,31 @@ export function sanitizeFormativeCheck(payload: unknown): PublicFormativeCheckPa
 }
 
 /**
- * Sanitizes a visual specification. Accepts only validated epsilon_delta_graph specs.
+ * Sanitizes a visual specification. Only the legacy epsilon graph and the
+ * application-owned bounded Learning Canvas are exposed to learners.
  */
 export function sanitizeVisualSpec(payload: unknown): PublicVisualSpec | null {
   if (!payload || typeof payload !== "object") return null;
   const p = payload as Record<string, unknown>;
-  if (p.kind !== "epsilon_delta_graph") return null;
 
   const secCheck = inspectPayloadSecurity(payload);
   if (!secCheck.safe) return null;
 
+  if (p.kind === "learning_canvas") {
+    const parsedCanvas = learningCanvasVisualSpecSchema.safeParse(payload);
+    if (!parsedCanvas.success) return null;
+    const data = parsedCanvas.data;
+    return {
+      id: data.id,
+      kind: "learning_canvas",
+      label: data.label,
+      description: data.description,
+      interactive: data.interactive,
+      canvas: data.canvas,
+    };
+  }
+
+  if (p.kind !== "epsilon_delta_graph") return null;
   const parsed = epsilonDeltaGraphSpecSchema.safeParse(payload);
   if (!parsed.success) return null;
 
@@ -503,6 +530,7 @@ export function buildPublicArticleReadModel(
     status?: string;
     workedExamplePayload?: unknown;
     formativeCheckPayload?: unknown;
+    visualIds?: unknown;
     [key: string]: unknown;
   }>,
   rawProgress?: Array<{
@@ -537,6 +565,13 @@ export function buildPublicArticleReadModel(
   const validBlocks = (rawBlocks || [])
     .filter((b) => !b.status || b.status === "published")
     .sort((a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0) || a.id.localeCompare(b.id));
+  const rawVisualIdsByBlock = new Map<string, string[]>();
+  for (const block of validBlocks) {
+    const ids = Array.isArray(block.visualIds)
+      ? block.visualIds.filter((id): id is string => typeof id === "string")
+      : [];
+    rawVisualIdsByBlock.set(block.id, ids);
+  }
 
   // Group blocks by section, sanitizing worked examples and formative checks
   const blocksBySection = new Map<string, PublicBlockReadModel[]>();
@@ -573,6 +608,14 @@ export function buildPublicArticleReadModel(
     }
   }
   const visualMap = new Map(sanitizedArticleVisuals.map((v) => [v.id, v]));
+  for (const sectionBlocks of blocksBySection.values()) {
+    for (const block of sectionBlocks) {
+      const visuals = (rawVisualIdsByBlock.get(block.id) ?? [])
+        .map((id) => visualMap.get(id))
+        .filter((visual): visual is PublicVisualSpec => Boolean(visual));
+      if (visuals.length > 0) block.visuals = visuals;
+    }
+  }
 
   // Build public sections
   const publicSections: PublicSectionReadModel[] = validSections.map((s, idx) => {

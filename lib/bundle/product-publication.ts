@@ -247,10 +247,11 @@ async function insertArticle(tx: Tx, product: Extract<ProductEntity, { productTy
       for (const block of section.blocks) {
         const blockId = id("artikel-block", `${articleId}:${block.id}`);
         let blockContent = block.contentMarkdown;
-        if (block.workedExamplePayload || block.formativeCheckPayload) {
+        if (block.workedExamplePayload || block.formativeCheckPayload || block.visualIds?.length) {
           const payloadMeta: Record<string, unknown> = {};
           if (block.workedExamplePayload) payloadMeta.workedExamplePayload = block.workedExamplePayload;
           if (block.formativeCheckPayload) payloadMeta.formativeCheckPayload = block.formativeCheckPayload;
+          if (block.visualIds?.length) payloadMeta.visualIds = block.visualIds;
           blockContent = `${block.contentMarkdown}\n\n<!--__ZYX_V3_BLOCK_PAYLOAD__:${Buffer.from(JSON.stringify(payloadMeta)).toString("base64url")}-->`;
         }
         await tx.insert(blokArtikel).values({

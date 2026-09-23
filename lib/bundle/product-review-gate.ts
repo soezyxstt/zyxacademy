@@ -170,6 +170,28 @@ export async function evaluateProductBundleQualityPolicy(
               remediation: "formativeCheckPayload is only allowed on retrieval_prompt or retrieval_close blocks",
             });
           }
+          if (block.visualIds) {
+            if (new Set(block.visualIds).size !== block.visualIds.length) {
+              issues.push({
+                code: "PRODUCT_BLOCK_VISUAL_DUPLICATE",
+                severity: "blocking",
+                target: { targetType: "block", targetId: block.id },
+                reason: `block ${block.id} contains duplicate visual references`,
+                remediation: "Keep each visual reference at most once per block",
+              });
+            }
+            for (const visualId of block.visualIds) {
+              if (!availableVisualIds.includes(visualId)) {
+                issues.push({
+                  code: "PRODUCT_BLOCK_VISUAL_REFERENCE_INVALID",
+                  severity: "blocking",
+                  target: { targetType: "block", targetId: block.id },
+                  reason: `block ${block.id} references unknown visual ${visualId}`,
+                  remediation: "Reference a visual ID from the article visual registry",
+                });
+              }
+            }
+          }
           if (block.workedExamplePayload) {
             const parsed = workedExamplePayloadSchema.safeParse(block.workedExamplePayload);
             if (!parsed.success) {

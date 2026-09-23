@@ -395,6 +395,7 @@ export function compileArticleProduct(
           content: blockInput.contentMarkdown,
           ideaIds: [...blockInput.ideaIds].sort(),
           sourceRefs: [...blockInput.sourceRefs].sort((left, right) => left.sourceId.localeCompare(right.sourceId)),
+          visualIds: blockInput.visualIds ? [...new Set(blockInput.visualIds)] : undefined,
           learningPurpose: `Mengembangkan pemahaman untuk ${blockType}.`,
           generationHash: product.generationHash,
           reviewerState: defaultReviewerState,

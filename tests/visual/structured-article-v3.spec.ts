@@ -6,6 +6,7 @@ const HASH_B = "b".repeat(64);
 
 async function stabilize(page: Page) {
   await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.waitForLoadState("networkidle");
   await page.waitForTimeout(250);
   await page.addStyleTag({ content: "*,*::before,*::after{animation:none!important;transition:none!important}nextjs-portal{display:none!important}" });
   await page.evaluate(async () => document.fonts.ready);
@@ -221,7 +222,8 @@ test.describe("Structured Article V3 visual acceptance", () => {
     expect(response?.status()).toBeLessThan(400);
     await expect(page.getByRole("heading", { name: "Bilangan real dan representasi desimal" })).toBeVisible();
     await expect(page.locator(".katex").first()).toBeVisible();
-    await expect(page.getByRole("table")).toBeVisible();
+    await expect(page.locator("table").filter({ hasText: "Rasional" })).toBeVisible();
+    await expect(page.locator('[data-semantic-emphasis="remember"]')).toBeVisible();
     await capture(page, testInfo, "student-reader-callouts-formula-table");
 
     const mobileToc = page.getByRole("button", { name: "Daftar Isi" });
@@ -230,18 +232,19 @@ test.describe("Structured Article V3 visual acceptance", () => {
     await expect(search).toBeVisible();
     await capture(page, testInfo, "student-reader-search-empty");
     await search.fill("pertaksamaan");
-    await expect(page.getByText(/Hasil Pencarian/)).toBeVisible();
+    await expect(page.locator("p:visible").filter({ hasText: /Hasil Pencarian/ }).first()).toBeVisible();
     await capture(page, testInfo, "student-reader-search-filled");
     expect(errors).toEqual([]);
   });
 
-  test("self study reader visual, example, formative answer, focus, and mobile navigation", async ({ page }, testInfo) => {
+  test("self study reader visual, formula emphasis, canvas, focus, and mobile navigation", async ({ page }, testInfo) => {
     const errors = observeFailures(page);
     await page.route("**/api/student/articles/visual-article/progress", (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ maxReadPercent: 50, completed: false, timeSpentSeconds: 120 }) }));
     const response = await page.goto(`${ROUTE}?mode=student&section=aturan-pertaksamaan`, { waitUntil: "domcontentloaded", timeout: 90_000 });
     expect(response?.status()).toBeLessThan(400);
     await expect(page.getByRole("heading", { name: "Aturan operasi pertaksamaan" })).toBeVisible();
     await expect(page.getByRole("region", { name: "Grafik epsilon delta untuk fungsi linear" })).toBeVisible();
+    await expect(page.getByText("Grafik garis sebelum dan sesudah digeser")).toBeVisible();
     await expect(page.getByText("Verifikasi dan Pemeriksaan Solusi")).toBeVisible();
     await capture(page, testInfo, "self-study-normal-example-answer-closed-visual-default");
 
@@ -251,12 +254,15 @@ test.describe("Structured Article V3 visual acceptance", () => {
     await capture(page, testInfo, "self-study-visual-changed");
 
     await page.getByRole("button", { name: "Tampilkan tabel nilai" }).click();
-    await expect(page.getByRole("table")).toBeVisible();
+    await expect(page.getByRole("table", { name: /Contoh pasangan jarak/ })).toBeVisible();
     await capture(page, testInfo, "self-study-visual-fallback");
 
-    await page.getByRole("button", { name: /Buka Jawaban/ }).click();
-    await expect(page.getByText("Penjelasan / Pembahasan")).toBeVisible();
-    await capture(page, testInfo, "self-study-answer-open");
+    await page.getByText("Grafik garis sebelum dan sesudah digeser").scrollIntoViewIfNeeded();
+    const shiftSlider = page.getByRole("slider", { name: "Ubah nilai Nilai k" });
+    await expect(shiftSlider).toBeVisible();
+    await shiftSlider.fill("2");
+    await expect(page.getByText("Pergeseran horizontal garis")).toBeVisible();
+    await capture(page, testInfo, "self-study-learning-canvas-shifted");
 
     const focusButton = page.getByRole("button", { name: "Masuk mode fokus" });
     await focusButton.focus();

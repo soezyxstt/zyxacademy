@@ -3,8 +3,36 @@
 import { IdeaBundleReviewDetail, ProductBundleReviewDetail } from "@/components/admin/material-review-detail";
 import { StructuredArticleReader } from "@/components/course/structured-article-reader";
 import { TutorProvider } from "@/components/course/tutor-drawer";
-import type { PublicArticleReadModel } from "@/lib/articles/structured-read-model";
+import type { PublicArticleReadModel, PublicLearningCanvasVisualSpec } from "@/lib/articles/structured-read-model";
 import { useEffect, useState } from "react";
+
+const lineShiftVisual: PublicLearningCanvasVisualSpec = {
+  id: "visual-line-shift",
+  kind: "learning_canvas" as const,
+  label: "Grafik garis sebelum dan sesudah digeser",
+  description: "Geser nilai k untuk melihat garis hasil berpindah, sementara garis awal tetap menjadi pembanding.",
+  interactive: true,
+  canvas: {
+    version: "zyra-learning-canvas-v1" as const,
+    type: "function_plot" as const,
+    title: "Pergeseran horizontal garis",
+    purpose: "Menghubungkan nilai k dengan perubahan posisi grafik.",
+    variables: [{ id: "k", label: "Pergeseran k", min: -2, max: 2, defaultValue: 1 }],
+    controls: [{ variableId: "k", label: "Nilai k", min: -2, max: 2, step: 1, presets: [-1, 0, 1] }],
+    claimRefs: [],
+    altText: "Garis awal putus-putus dan garis hasil penuh.",
+    fallback: {
+      summary: "Ringkasan nilai grafik sebelum dan sesudah pergeseran.",
+      columns: [{ id: "keadaan", label: "Keadaan" }, { id: "rumus", label: "Rumus" }],
+      rows: [["awal", "y=x"], ["hasil", "y=(x-k)"]],
+    },
+    domain: { min: -4, max: 4, sampleCount: 48 },
+    series: [
+      { id: "source", label: "Awal", expression: "x", lineStyle: "dashed", role: "reference" },
+      { id: "shifted", label: "Hasil", expression: "x-k", lineStyle: "solid", role: "primary" },
+    ],
+  },
+};
 
 const sourceArticle: PublicArticleReadModel = {
   id: "visual-article",
@@ -52,7 +80,7 @@ const sourceArticle: PublicArticleReadModel = {
       orderIndex: 1,
       parentSectionId: null,
       blocks: [
-        { id: "real-1", blockKey: "real-1", blockType: "explanation", title: "Ide inti", orderIndex: 0, content: "Bilangan real mencakup bilangan rasional dan irasional. Setiap bilangan real dapat ditempatkan pada tepat satu titik di garis bilangan. Representasi desimalnya dapat berhenti, berulang, atau berlanjut tanpa pola berulang." },
+        { id: "real-1", blockKey: "real-1", blockType: "explanation", title: "Ide inti", orderIndex: 0, content: "Bilangan real mencakup bilangan rasional dan irasional. Setiap bilangan real dapat ditempatkan pada tepat satu titik di garis bilangan. [[emphasis:remember]]Ingat: representasi desimal dapat berhenti, berulang, atau berlanjut tanpa pola berulang.[[/emphasis]]" },
         { id: "real-2", blockKey: "real-2", blockType: "mathematical_representation", title: "Representasi matematis", orderIndex: 1, content: "$$\\mathbb{R}=\\mathbb{Q}\\cup(\\mathbb{R}\\setminus\\mathbb{Q})$$\n\n| Bilangan | Representasi | Jenis |\n|---|---|---|\n| $\\frac{1}{4}$ | $0{,}25$ | Rasional berhenti |\n| $\\frac{1}{3}$ | $0{,}333\\ldots$ | Rasional berulang |\n| $\\sqrt{2}$ | $1{,}414213\\ldots$ | Irasional |" },
         { id: "real-3", blockKey: "real-3", blockType: "misconception", title: "Jangan terjebak", orderIndex: 2, content: "Bilangan $0{,}999\\ldots$ bukan bilangan yang sedikit lebih kecil dari 1. Keduanya menyatakan titik yang sama: $0{,}999\\ldots=1$." },
         {
@@ -77,7 +105,7 @@ const sourceArticle: PublicArticleReadModel = {
       learningTimeEstimate: { readingMinutes: 6, examplesMinutes: 5, practiceMinutes: 4, totalMinutes: 15 },
       orderIndex: 2,
       parentSectionId: null,
-      visuals: [
+        visuals: [
         {
           id: "visual-epsilon-delta",
           kind: "epsilon_delta_graph",
@@ -96,7 +124,8 @@ const sourceArticle: PublicArticleReadModel = {
             rows: [[1.5, 0.5, 2.5, 0.5], [1.9, 0.1, 2.9, 0.1], [2.1, 0.1, 3.1, 0.1], [2.5, 0.5, 3.5, 0.5]],
           },
         },
-      ],
+        lineShiftVisual,
+        ],
       blocks: [
         { id: "ineq-1", blockKey: "ineq-1", blockType: "explanation", title: "Menjaga himpunan solusi", orderIndex: 0, content: "Operasi pada kedua ruas harus mempertahankan semua nilai yang memenuhi pertaksamaan semula. Penjumlahan dengan nilai yang sama mempertahankan urutan, sedangkan perkalian dengan bilangan negatif membalik urutan pada garis bilangan." },
         {

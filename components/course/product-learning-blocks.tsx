@@ -3,16 +3,15 @@
 import React, { useState } from "react";
 import {
   BookOpen,
+  BookOpenCheck,
   Brain,
   CheckCircle2,
   ChevronDown,
   ChevronUp,
   Clock,
   HelpCircle,
-  Lightbulb,
   Loader2,
   RotateCcw,
-  Sparkles,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -94,7 +93,7 @@ export function ProductWorkedExample({
             {/* Distinct Reason Block: Do not collapse into generic prose */}
             <div className="ml-7 rounded-md border-l-2 border-primary/40 bg-primary/5 p-2.5 text-body-xs space-y-1">
               <div className="flex items-center gap-1.5 font-bold uppercase tracking-wider text-primary">
-                <Sparkles className="size-3 shrink-0" />
+                <BookOpenCheck className="size-3 shrink-0" />
                 <span>Landasan Bernalar / Alasan</span>
               </div>
               <p className="text-foreground/90 leading-relaxed">{step.reason}</p>
@@ -436,7 +435,7 @@ export function ProductFormativeCheck({
         <div className="space-y-2 rounded-lg border border-primary/30 bg-primary/5 p-3.5">
           {hintIndex > 0 ? <p className="text-body-sm text-foreground">{hints[hintIndex - 1]}</p> : null}
           <Button type="button" variant="outline" size="sm" onClick={() => setHintIndex((current) => Math.min(current + 1, hints.length))} className="gap-1.5 text-body-sm">
-            <Lightbulb className="size-3.5" />
+            <BookOpenCheck className="size-3.5" />
             {hintIndex === 0 ? "Tampilkan petunjuk" : "Petunjuk berikutnya"}
           </Button>
         </div>

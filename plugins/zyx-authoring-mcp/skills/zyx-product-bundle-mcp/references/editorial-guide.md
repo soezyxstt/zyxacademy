@@ -88,6 +88,27 @@ Gunakan block sesuai fungsi:
 
 Formula harus menjelaskan simbol, asumsi, kondisi berlaku, dan interpretasi hasil. Visual harus membawa informasi serta memiliki fallback teks.
 
+### 6.1 Formula-first untuk topik matematika
+
+Untuk topik yang memakai persamaan, urutan default adalah orientasi singkat, display math, lalu penjelasan terstruktur. Jangan membuat mahasiswa mencari rumus di dalam paragraf panjang.
+
+- Satu `mathematical_representation` sebaiknya memusatkan satu relasi atau satu keputusan utama. Tulis `$$...$$` pada baris sendiri agar renderer dapat memberi fokus visual.
+- Setelah rumus, tulis daftar atau tabel pendek `Simbol`, `Syarat berlaku`, dan `Makna/arah baca`. Jangan mengulang persamaan lengkap pada setiap bullet.
+- Jika formula perlu contoh, contoh berada setelah simbol dan kondisi. Jika tidak ada keputusan prosedural yang perlu ditunjukkan, jangan menambah worked example.
+- Critic dan Student POV harus dapat menunjuk rumus, simbol, dan syarat tanpa membaca ulang satu paragraf campuran. Formula yang hanya muncul sebagai inline prose adalah temuan yang harus diperbaiki.
+
+### 6.2 Penekanan semantik dan ikon
+
+Inline emphasis boleh dipakai untuk satu frasa yang perlu diingat, dihindari, atau diwaspadai. Gunakan hanya token yang diizinkan renderer, misalnya `remember`, `avoid`, `caution`, `definition`, dan `formula`. Token harus memiliki label atau ikon selain warna dan tetap terbaca pada mode gelap serta hasil cetak. Jangan menulis raw HTML, inline CSS, emoji, atau token baru yang belum ada di contract.
+
+Jangan gunakan `Sparkles`, spark, atau ikon AI-glow pada produk learner-facing. Pilih ikon akademik yang menyampaikan fungsi, misalnya `Sigma`, `BookOpenCheck`, `GraduationCap`, `ListChecks`, `Info`, atau `TriangleAlert`.
+
+### 6.3 Visual typed dan interaksi
+
+Visual wajib diputuskan secara eksplisit. `REQUIRED` berarti relasi bentuk, ruang, transformasi, atau perbandingan memang sulit dipahami dari teks dan formula; selain itu catat `NOT_APPLICABLE` beserta alasan. Gunakan typed visual contract dan evaluator aman. Jangan memakai iframe Desmos, remote embed, raw SVG/HTML/JS, atau expression bebas.
+
+Untuk grafik before/after, kurva acuan harus bergaya `dashed`, kurva hasil `solid`, dengan legenda dan caption. Slider hanya dibuat jika perubahan variabel mengungkap konsep; setiap kontrol perlu id, label, batas, step, default, binding, dan penjelasan singkat. Batasi sample count dan jumlah kontrol sesuai contract. Setiap visual wajib punya fallback tabel atau teks yang tetap berguna di PDF, no-JS, offline, dan aksesibilitas. Grafik 3D ditunda jika renderer typed dan fallback statis belum tersedia.
+
 ## 7. Alur baca Artikel
 
 Tulis setiap topic sebagai unit belajar mandiri:
@@ -145,7 +166,7 @@ Jangan mengganti alasan dengan label seperti “analisis” atau “bukti”. Ja
 
 ## 11. Diktat sebagai review
 
-Diktat diturunkan **setelah Artikel lengkap** dan tidak menambah fakta baru. Pertahankan seluruh Idea penting, formula dan kondisi, langkah cepat, contoh kilat, jebakan, serta retrieval check yang relevan.
+Diktat diturunkan **setelah Artikel lengkap** dan tidak menambah fakta baru. Pertahankan seluruh Idea penting, formula dan kondisi, langkah cepat, contoh kilat, jebakan, serta retrieval check yang relevan, tetapi jangan menyalin setiap blok Artikel.
 
 Struktur padat yang disarankan:
 
@@ -153,13 +174,12 @@ Struktur padat yang disarankan:
 - intisari;
 - formula + kondisi;
 - langkah cepat/prosedur;
-- contoh kilat;
-- jebakan/miskonsepsi;
-- cek ingatan.
+- jebakan yang mengubah jawaban;
+- satu cek ingatan akhir bila berguna.
 
-Diktat berisi pengingat dan keputusan ringkas, bukan pengajaran pertama: hapus uraian pengantar dan derivasi panjang yang sudah diajarkan, tetapi pertahankan syarat kebenaran dan seluruh Idea scope. Jika Diktat hanya dapat dipadatkan dengan membuang konsep penting, berhenti untuk keputusan scope; jangan mengecilkan font atau menghapus reasoning penting.
+Diktat berisi pengingat dan keputusan ringkas, bukan pengajaran pertama: hapus uraian pengantar, analogi panjang, derivasi lengkap, dan contoh yang tidak mengubah keputusan, tetapi pertahankan syarat kebenaran dan seluruh Idea scope. Jika Diktat hanya dapat dipadatkan dengan membuang konsep penting, berhenti untuk keputusan scope; jangan mengecilkan font atau menghapus reasoning penting.
 
-Target 2 sampai 4 halaman hanya sah dari PDF render nyata. Klaim PDF ready memerlukan checksum Diktat, versi renderer, profil cetak, page count, dan inspeksi halaman. Render gagal/stale, di luar 2 sampai 4 halaman, glyph rusak, formula mentah, clipping, atau halaman kosong memblokir readiness.
+Target 2 sampai 4 halaman hanya sah dari PDF render nyata, dengan batas atas 4 halaman sebagai hard gate. Klaim PDF ready memerlukan checksum Diktat, versi renderer, profil cetak, page count, dan inspeksi setiap halaman. Render gagal/stale, di luar 2 sampai 4 halaman, glyph rusak, formula mentah, clipping, atau halaman kosong memblokir readiness. Jangan menghapus formula atau mengecilkan font untuk mengejar halaman.
 
 ## 12. Flashcard sebagai alat ingatan
 
@@ -198,7 +218,7 @@ Sebelum validation dan setelah setiap revisi:
 3. setiap Idea punya tepat satu topic utama dan source trace lengkap;
 4. setiap tujuan memiliki explanation dan understanding check dengan jawaban+pembahasan;
 5. Article lulus self-contained gate;
-6. formula, kondisi, tabel, visual fallback, dan semantic callout benar;
+6. formula dipisahkan dari prose panjang, simbol dan kondisi lengkap, visual fallback serta semantic callout typed benar;
 7. worked example menjelaskan alasan langkah;
 8. evaluator cek sesuai `checkKind`, hints maksimal tiga, tidak membocorkan kunci;
 9. filler dan block tak relevan dihapus;
@@ -206,5 +226,7 @@ Sebelum validation dan setelah setiap revisi:
 11. Diktat tidak menambah fakta dan tetap review ringkas;
 12. flashcard lulus `flashcard-guide.md` dan tidak menambah fakta;
 13. estimasi belajar dihitung setelah konten tuntas.
+
+Tambahkan bukti berikut pada laporan author: hasil scan formula/prose separation, semantic token allowlist dan kontras light/dark, icon scan tanpa spark, keputusan visual dan fallback, uji keyboard untuk kontrol interaktif, serta status PDF `NOT_RENDERED`, `BLOCKED`, atau `VERIFIED` dengan checksum dan page count.
 
 Panggil `authoring.validate_product_bundle` hanya setelah preflight lulus. Setelah revisi, ulangi preflight dan anggap review/PDF evidence lama stale sampai checksum/fingerprint kembali cocok.

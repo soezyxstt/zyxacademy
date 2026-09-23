@@ -9,7 +9,7 @@
  */
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Loader2, BookOpen, Lightbulb, FlaskConical, TriangleAlert, ListChecks } from "lucide-react";
+import { Loader2, BookOpen, BookOpenCheck, FlaskConical, TriangleAlert, ListChecks } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { MathText } from "@/components/course/math-text";
@@ -72,7 +72,7 @@ export function TermPopover({
 
   const tabs = ([
     { id: "explain", label: "Penjelasan", icon: BookOpen, available: !!data.quickExplain },
-    { id: "analogy", label: "Analogi", icon: Lightbulb, available: !!data.analogy },
+    { id: "analogy", label: "Analogi", icon: BookOpenCheck, available: !!data.analogy },
     { id: "example", label: "Contoh", icon: FlaskConical, available: !!data.example },
     { id: "mistake", label: "Kesalahan umum", icon: TriangleAlert, available: !!data.commonMistake },
   ] as Array<{ id: Tab; label: string; icon: typeof BookOpen; available: boolean }>).filter((t) => t.available);
