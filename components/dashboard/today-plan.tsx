@@ -80,13 +80,13 @@ export function TodayPlan({ firstName }: { firstName: string }) {
 
       {total > 0 && (
         <section className={studentCardClass("mt-4 sm:mt-6")}>
-          <div className="mb-4 flex items-center justify-between border-b border-border/40 pb-3">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-2 border-b border-border/40 pb-3">
             <h2 className="flex items-center gap-2 font-heading text-body-base font-bold text-foreground">
               <CalendarCheck className="size-4.5 text-brand-primary" />
               Rencana belajar hari ini
             </h2>
             {!loading && (
-              <span className="rounded-md bg-brand-primary/10 px-2.5 py-1 text-body-xs font-semibold text-brand-primary">
+              <span className="rounded-md bg-brand-primary/10 px-2.5 py-1 text-body-xs font-semibold text-brand-primary shrink-0">
                 {doneCount} dari {total} selesai
               </span>
             )}

@@ -13,7 +13,7 @@ type TabsProps = React.ComponentProps<typeof TabsPrimitive.Root> & {
 };
 
 const tabListClassName =
-  "inline-flex h-auto max-w-full flex-nowrap items-center gap-1 overflow-x-auto overscroll-x-contain rounded-xl border border-border bg-muted/40 p-1 text-muted-foreground [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:flex-wrap sm:overflow-visible";
+  "inline-flex h-auto min-w-0 max-w-full flex-nowrap items-center gap-1 overflow-x-auto overscroll-x-contain touch-pan-x rounded-xl border border-border bg-muted/40 p-1 text-muted-foreground [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:flex-wrap sm:overflow-visible";
 const tabTriggerClassName =
   "interactive inline-flex shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-1.5 text-body-xs font-semibold text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
 const tabTriggerActiveClassName = "bg-card text-foreground shadow-xs";
@@ -54,7 +54,7 @@ function TabsInner({
       value={activeValue}
       onValueChange={handleValueChange}
       defaultValue={syncUrl && defaultValue ? undefined : defaultValue}
-      className={cn(className)}
+      className={cn("max-w-full min-w-0", className)}
       {...props}
     />
   );
@@ -62,15 +62,15 @@ function TabsInner({
 
 function Tabs({ paramKey, syncUrl, ...props }: TabsProps) {
   if (syncUrl === false) {
-    return <TabsPrimitive.Root {...props} className={cn(props.className)} />;
+    return <TabsPrimitive.Root {...props} className={cn("max-w-full min-w-0", props.className)} />;
   }
 
   if (props.value !== undefined && props.onValueChange !== undefined) {
-    return <TabsPrimitive.Root {...props} className={cn(props.className)} />;
+    return <TabsPrimitive.Root {...props} className={cn("max-w-full min-w-0", props.className)} />;
   }
 
   return (
-    <React.Suspense fallback={<TabsPrimitive.Root {...props} className={cn(props.className)} />}>
+    <React.Suspense fallback={<TabsPrimitive.Root {...props} className={cn("max-w-full min-w-0", props.className)} />}>
       <TabsInner {...props} paramKey={paramKey} syncUrl={syncUrl} />
     </React.Suspense>
   );
@@ -94,7 +94,7 @@ function TabsTrigger({ className, ...props }: React.ComponentProps<typeof TabsPr
 }
 
 function TabsContent({ className, ...props }: React.ComponentProps<typeof TabsPrimitive.Content>) {
-  return <TabsPrimitive.Content className={cn("mt-4 outline-hidden", className)} {...props} />;
+  return <TabsPrimitive.Content className={cn("mt-4 min-w-0 outline-hidden", className)} {...props} />;
 }
 
 type TabNavItem = {

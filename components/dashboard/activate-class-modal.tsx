@@ -22,7 +22,7 @@ export function ActivateClassModal() {
         <Button
           variant="outline"
           size="sm"
-          className="rounded-md gap-1.5 h-8 text-body-xs font-semibold hover:bg-muted/70 transition-colors"
+          className="rounded-md gap-1.5 h-8 text-body-xs font-semibold hover:bg-muted/70 transition-colors shrink-0"
         >
           <KeyRound className="size-3.5" />
           Aktivasi Kelas

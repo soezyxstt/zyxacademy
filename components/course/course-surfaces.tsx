@@ -3,7 +3,7 @@ import { cn } from "@/lib/utils";
 /** Base / static student card (dashboard panels, calendar panels, static lists) */
 export function studentCardClass(className?: string) {
   return cn(
-    "rounded-2xl border border-border/70 bg-card/70 p-6 shadow-xs backdrop-blur-md",
+    "rounded-2xl border border-border/70 bg-card/70 p-4 sm:p-6 shadow-xs backdrop-blur-md min-w-0",
     className,
   );
 }

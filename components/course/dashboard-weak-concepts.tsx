@@ -48,7 +48,7 @@ export function DashboardWeakConcepts({
     <div className={cn("text-left", className)}>
       {/* Clean Accessible Header */}
       {showHeader && (
-        <div className="mb-4 flex items-center justify-between border-b border-border/40 pb-3">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-2 border-b border-border/40 pb-3">
           <h2 className="font-heading text-body-base font-bold text-foreground flex items-center gap-2">
             <Target className="size-4.5 text-brand-primary" />
             Peta penguasaan ({courseTitle})
@@ -65,18 +65,18 @@ export function DashboardWeakConcepts({
           {/* Skeleton Preview of Mastery concept bars */}
           <div className="space-y-3 opacity-30 select-none pointer-events-none">
             <div className="flex flex-col gap-1.5">
-              <div className="flex items-center justify-between text-body-xs font-semibold text-foreground">
-                <span>Konsep Aljabar Limit</span>
-                <span className="font-mono text-body-xs">75%</span>
+              <div className="flex items-center justify-between gap-2 text-body-xs font-semibold text-foreground">
+                <span className="truncate">Konsep Aljabar Limit</span>
+                <span className="font-mono text-body-xs shrink-0">75%</span>
               </div>
               <div className="h-2 w-full overflow-hidden rounded-md bg-muted">
                 <div className="h-full w-3/4 rounded-md bg-brand-primary" />
               </div>
             </div>
             <div className="flex flex-col gap-1.5">
-              <div className="flex items-center justify-between text-body-xs font-semibold text-foreground">
-                <span>Kekontinuan Fungsi</span>
-                <span className="font-mono text-body-xs">40%</span>
+              <div className="flex items-center justify-between gap-2 text-body-xs font-semibold text-foreground">
+                <span className="truncate">Kekontinuan Fungsi</span>
+                <span className="font-mono text-body-xs shrink-0">40%</span>
               </div>
               <div className="h-2 w-full overflow-hidden rounded-md bg-muted">
                 <div className="h-full w-2/5 rounded-md bg-brand-secondary" />
