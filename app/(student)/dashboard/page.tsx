@@ -633,7 +633,7 @@ export default async function DashboardPage() {
                               >
                                 <div className="min-w-0 flex-1">
                                   <div className="flex flex-wrap items-center gap-2">
-                                    <span className="inline-flex rounded-md border border-border/50 bg-muted/40 px-2 py-0.5 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider shrink-0">
+                                    <span className="inline-flex max-w-full break-words rounded-md border border-border/50 bg-muted/40 px-2 py-0.5 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider shrink-0">
                                       {doc.courseTitle}
                                     </span>
                                     <span className="text-body-xs text-muted-foreground capitalize">
