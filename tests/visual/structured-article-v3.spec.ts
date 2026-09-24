@@ -244,8 +244,8 @@ test.describe("Structured Article V3 visual acceptance", () => {
     expect(response?.status()).toBeLessThan(400);
     await expect(page.getByRole("heading", { name: "Aturan operasi pertaksamaan" })).toBeVisible();
     await expect(page.getByRole("region", { name: "Grafik epsilon delta untuk fungsi linear" })).toBeVisible();
-    await expect(page.getByText("Grafik garis sebelum dan sesudah digeser")).toBeVisible();
-    await expect(page.getByText("Verifikasi dan Pemeriksaan Solusi")).toBeVisible();
+    await expect(page.getByRole("figure", { name: "Geser dan skala grafik" })).toBeVisible();
+    await expect(page.getByText("Verifikasi", { exact: true })).toBeVisible();
     await capture(page, testInfo, "self-study-normal-example-answer-closed-visual-default");
 
     const slider = page.getByRole("slider", { name: "Toleransi epsilon" });
@@ -257,11 +257,13 @@ test.describe("Structured Article V3 visual acceptance", () => {
     await expect(page.getByRole("table", { name: /Contoh pasangan jarak/ })).toBeVisible();
     await capture(page, testInfo, "self-study-visual-fallback");
 
-    await page.getByText("Grafik garis sebelum dan sesudah digeser").scrollIntoViewIfNeeded();
-    const shiftSlider = page.getByRole("slider", { name: "Ubah nilai Nilai k" });
+    await page.getByRole("figure", { name: "Geser dan skala grafik" }).scrollIntoViewIfNeeded();
+    const shiftSlider = page.getByRole("slider", { name: "Ubah nilai Geser" });
     await expect(shiftSlider).toBeVisible();
     await shiftSlider.fill("2");
-    await expect(page.getByText("Pergeseran horizontal garis")).toBeVisible();
+    await page.getByRole("slider", { name: "Ubah nilai Vertikal" }).fill("0.5");
+    await page.getByRole("slider", { name: "Ubah nilai Horizontal" }).fill("2");
+    await expect(page.getByRole("region", { name: "Geser dan skala grafik" })).toBeVisible();
     await capture(page, testInfo, "self-study-learning-canvas-shifted");
 
     const focusButton = page.getByRole("button", { name: "Masuk mode fokus" });

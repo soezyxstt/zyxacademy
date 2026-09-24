@@ -1150,16 +1150,17 @@ function ChemistryReaction({ spec }: { spec: ChemistryCanvas }) {
   );
 }
 
-export function LearningCanvasRenderer({ spec }: { spec: CanvasSpec }) {
+export function LearningCanvasRenderer({ spec, embedded = false }: { spec: CanvasSpec; embedded?: boolean }) {
   const titleId = useId();
+  const compactPlot = embedded && spec.type === "function_plot";
   return (
-    <section aria-labelledby={titleId} className="my-6 w-full min-w-0 space-y-4 rounded-xl border border-border bg-card p-4 md:p-5">
-      <div>
+    <section aria-labelledby={compactPlot ? undefined : titleId} aria-label={compactPlot ? spec.title : undefined} className={compactPlot ? "w-full min-w-0" : "my-6 w-full min-w-0 space-y-4 rounded-xl border border-border bg-card p-4 md:p-5"}>
+      {!compactPlot ? <div>
         <h3 id={titleId} className="font-heading text-body-base font-semibold text-foreground">
           {spec.title}
         </h3>
         <p className="mt-1 text-body-sm text-muted-foreground">{spec.purpose}</p>
-      </div>
+      </div> : null}
       {spec.type === "function_plot" ? (
         <FunctionPlot spec={spec} />
       ) : spec.type === "data_plot" ? (

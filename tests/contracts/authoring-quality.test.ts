@@ -172,4 +172,74 @@ describe("canonical authoring quality gates", () => {
     expect(issueCodes).not.toContain("DIKTAT_TRAPS_COVERAGE_LOW");
     expect(report.metrics.diktats[0]?.visuals).toBe(0);
   });
+
+  test("flags repeated prose, crowded formulas, and missing section visuals", () => {
+    const repeated = "Kurva awal menjadi pembanding agar arah dan besar perubahan terlihat jelas oleh mahasiswa.";
+    const article = {
+      id: "article-transform",
+      productType: "article",
+      ideaLinks: [{ id: "idea-transform" }],
+      blocks: [],
+      sections: [{
+        id: "section-transform",
+        kind: "topic",
+        title: "Transformasi grafik fungsi",
+        blocks: [
+          { id: "explain", blockType: "explanation", contentMarkdown: repeated, ideaIds: ["idea-transform"] },
+          { id: "formula", blockType: "mathematical_representation", contentMarkdown: "$$f(x)+k, f(x-k), cf(x)$$", ideaIds: ["idea-transform"] },
+          { id: "repeat", blockType: "worked_example", contentMarkdown: `${repeated}\n\nLangkah: lakukan perubahan. Verifikasi: uji hasil.`, ideaIds: ["idea-transform"], workedExamplePayload: { steps: [{ stepIndex: 0, label: "Terapkan", explanation: "Ubah rumus.", reason: "Geser kurva." }], verification: "Uji titik pada kurva hasil." } },
+          { id: "check", blockType: "retrieval_prompt", contentMarkdown: "Apa perubahan kurvanya?", ideaIds: ["idea-transform"] },
+        ],
+      }],
+    } as unknown as ProductEntity;
+    const codes = evaluateProductBundleQuality({ products: [article] }).issues.map((issue) => issue.code);
+    expect(codes).toContain("ARTICLE_REPEATED_PASSAGE");
+    expect(codes).toContain("ARTICLE_FORMULA_CROWDED");
+    expect(codes).toContain("ARTICLE_VISUAL_OPPORTUNITY_MISSING");
+    expect(codes).toContain("ARTICLE_VERIFICATION_REPEATED");
+    expect(codes).toContain("ARTICLE_STEPS_REPEATED");
+  });
+
+  test("keeps set commas and inequalities out of false quality warnings", () => {
+    const article = {
+      id: "article-sets",
+      productType: "article",
+      ideaLinks: [{ id: "idea-sets" }],
+      blocks: [],
+      sections: [{
+        id: "section-sets",
+        kind: "topic",
+        title: "Himpunan bilangan",
+        blocks: [
+          { id: "formula", blockType: "mathematical_representation", contentMarkdown: "$$\\mathbb{N}=\\{1,2,3,\\ldots\\}\\subset\\mathbb{Z}$$", ideaIds: ["idea-sets"] },
+          { id: "explain", blockType: "explanation", contentMarkdown: `${"Untuk x<1 atau x>3, periksa batas pada garis bilangan. ".repeat(16)}`, ideaIds: ["idea-sets"] },
+          { id: "check", blockType: "retrieval_prompt", contentMarkdown: "Di mana nilai x berada?", ideaIds: ["idea-sets"] },
+        ],
+      }],
+    } as unknown as ProductEntity;
+    const report = evaluateProductBundleQuality({ products: [article] });
+    expect(report.issues.map((issue) => issue.code)).not.toContain("ARTICLE_FORMULA_CROWDED");
+    expect(report.metrics.articles[0]?.sections[0]?.wordCount).toBeGreaterThan(150);
+  });
+
+  test("accepts a short list of separate display formulas", () => {
+    const article = {
+      id: "article-formula-list",
+      productType: "article",
+      ideaLinks: [{ id: "idea-formula-list" }],
+      blocks: [],
+      sections: [{
+        id: "section-formula-list",
+        kind: "topic",
+        blocks: [
+          { id: "formula-list", blockType: "mathematical_representation", contentMarkdown: "- $$f(x)+k$$\n- $$f(x-k)$$", ideaIds: ["idea-formula-list"] },
+          { id: "explanation", blockType: "explanation", contentMarkdown: "Perubahan di luar dan di dalam argumen menggeser grafik pada arah berbeda.", ideaIds: ["idea-formula-list"] },
+          { id: "retrieval", blockType: "retrieval_prompt", contentMarkdown: "Ke mana grafik bergeser?", ideaIds: ["idea-formula-list"] },
+        ],
+      }],
+    } as unknown as ProductEntity;
+    const codes = evaluateProductBundleQuality({ products: [article] }).issues.map((issue) => issue.code);
+    expect(codes).not.toContain("ARTICLE_FORMULA_PROSE_MIXED");
+    expect(codes).not.toContain("ARTICLE_INVALID_MATH");
+  });
 });

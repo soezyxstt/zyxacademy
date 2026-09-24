@@ -9,6 +9,7 @@ import type {
 import { compileArticleProduct } from "@/lib/materials/compiler";
 import { articleDocumentSchema } from "@/lib/materials/article-contract";
 import { evaluateArticleQuality } from "@/lib/materials/quality-gates";
+import { evaluateProductBundleQuality } from "@/lib/authoring/quality/product-bundle";
 import {
   validateSectionPedagogyReferences,
   workedExamplePayloadSchema,
@@ -94,6 +95,23 @@ export async function evaluateProductBundleQualityPolicy(
   if (article) {
     const isV3 = Boolean(article.sections && article.sections.length > 0);
     if (isV3) {
+      const presentationCodes = new Set([
+        "ARTICLE_VISUAL_OPPORTUNITY_MISSING",
+        "ARTICLE_FORMULA_CROWDED",
+        "ARTICLE_REPEATED_PASSAGE",
+        "ARTICLE_VERIFICATION_REPEATED",
+        "ARTICLE_STEPS_REPEATED",
+      ]);
+      for (const finding of evaluateProductBundleQuality({ products: [article] }).issues) {
+        if (!presentationCodes.has(finding.code)) continue;
+        issues.push({
+          code: finding.code,
+          severity: "warning",
+          target: { targetType: "section", targetId: finding.entity?.split(":")[1] ?? article.id },
+          reason: finding.message,
+          remediation: "Periksa bagian ini secara editorial, rapikan pengulangan atau rumus, dan tambahkan visual bila membantu tujuan belajar.",
+        });
+      }
       const allSectionIds = article.sections.map((s) => s.id);
       const availableVisualIds = (article.visuals ?? []).map((v) => v.id);
 

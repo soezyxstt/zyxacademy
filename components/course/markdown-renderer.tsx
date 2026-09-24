@@ -91,7 +91,7 @@ const semanticEmphasis = {
   },
   caution: {
     label: "Hati-hati",
-    className: "border-status-warning/70 bg-status-warning/10 text-status-warning dark:text-amber-300",
+    className: "border-status-warning/70 bg-status-warning/10 text-foreground",
   },
   definition: {
     label: "Definisi",
@@ -147,6 +147,7 @@ function parseInline(text: string): ReactNode[] {
       flushText();
       const tone = emphasisMatch[1].toLowerCase() as SemanticEmphasisTone;
       const config = semanticEmphasis[tone];
+      const emphasizedText = emphasisMatch[2].replace(new RegExp(`^\\s*${config.label}\\s*[:.!-]?\\s*`, "i"), "");
       result.push(
         <span
           key={`emphasis-${index}`}
@@ -158,7 +159,7 @@ function parseInline(text: string): ReactNode[] {
             {config.label}
           </span>
           <span className="sr-only">{config.label}: </span>
-          {parseInline(emphasisMatch[2])}
+          {parseInline(emphasizedText)}
         </span>,
       );
       index += emphasisMatch[0].length;
