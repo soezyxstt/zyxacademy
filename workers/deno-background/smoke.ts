@@ -109,6 +109,22 @@ async function main() {
     })
   );
 
+  // 6. PDF.js Worker Resolution
+  results.push(
+    await runCheck("PDF.js Worker Resolution", async () => {
+      const { getPdfWorkerSrc } = await import("@/lib/compute/pdf-worker");
+      const workerSrc = await getPdfWorkerSrc();
+      if (!workerSrc || (!workerSrc.startsWith("file:") && !workerSrc.startsWith("data:"))) {
+        throw new Error("PDF.js worker source is invalid");
+      }
+      if (workerSrc.startsWith("file:")) {
+        // @ts-ignore Deno global is present at runtime
+        await Deno.stat(new URL(workerSrc));
+      }
+      return `PDF.js worker source resolved (${workerSrc.startsWith("data:") ? "data-url" : "file-url"})`;
+    })
+  );
+
 
   console.log("Results:");
   let hasFailure = false;

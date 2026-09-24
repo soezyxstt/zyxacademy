@@ -1,7 +1,6 @@
 import { createHash } from "node:crypto";
-import path from "node:path";
-import { pathToFileURL } from "node:url";
 import { eq } from "drizzle-orm";
+import { setupPdfWorker } from "./pdf-worker";
 import { db } from "@/db";
 import { buktiPdfBundle, imporBundle, user } from "@/db/schema";
 import { storage, type StorageProvider } from "@/lib/storage";
@@ -26,7 +25,7 @@ type DiktatProduct = Extract<ProductEntity, { productType: "diktat" }>;
 
 export async function inspectProductDiktatPdf(bytes: Uint8Array): Promise<InspectedPdf> {
   const { PDFParse } = await import("pdf-parse");
-  PDFParse.setWorker(pathToFileURL(path.resolve(process.cwd(), "node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs")).href);
+  await setupPdfWorker(PDFParse);
   const parser = new PDFParse({ data: bytes });
   try {
     const info = await parser.getInfo();

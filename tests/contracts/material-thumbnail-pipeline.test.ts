@@ -52,6 +52,20 @@ describe("PDF thumbnail compute boundary", () => {
     expect(list).toContain("retry=${retryAttempt}");
     expect(list).toContain("handleThumbnailError");
   });
+
+  test("pdf thumbnail compute does not hardcode cwd node_modules worker path", () => {
+    const compute = source("lib/compute/pdf-thumbnail.ts");
+    expect(compute).not.toContain("node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs");
+    expect(compute).toContain("setupPdfWorker");
+  });
+
+  test("getPdfWorkerSrc resolves a valid worker source across environments", async () => {
+    const { getPdfWorkerSrc } = await import("@/lib/compute/pdf-worker");
+    const workerSrc = await getPdfWorkerSrc();
+    expect(typeof workerSrc).toBe("string");
+    expect(workerSrc?.length).toBeGreaterThan(0);
+    expect(workerSrc?.startsWith("file:") || workerSrc?.startsWith("data:")).toBe(true);
+  });
 });
 
 describe("canonical material covers", () => {
