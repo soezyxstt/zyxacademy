@@ -24,6 +24,7 @@ const pedagogicReviewRequestSchema = z
   })
   .strict();
 
+/** Validates and records an authorized review decision for a draft Product Bundle. */
 export async function POST(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   const session = await auth.api.getSession({ headers: await headers() });
   const isAuthorized =

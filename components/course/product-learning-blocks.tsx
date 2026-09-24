@@ -34,6 +34,7 @@ export interface ProductWorkedExampleProps {
   className?: string;
 }
 
+/** Presents a worked example and its verification in the course article. */
 export function ProductWorkedExample({
   title,
   content,

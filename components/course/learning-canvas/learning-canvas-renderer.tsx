@@ -430,6 +430,7 @@ function GridLayer({
   );
 }
 
+/** Renders accessible controls for showing or hiding each plotted series. */
 function SeriesLegend({
   spec,
   expressions,
@@ -568,6 +569,7 @@ function VariableControls({
   );
 }
 
+/** Renders an interactive function plot with editable formulas and series visibility. */
 function FunctionPlot({ spec }: { spec: FunctionPlotCanvas }) {
   const uid = useId().replace(/:/g, "");
   const [values, setValues] = useState(() => valuesForSpec(spec));

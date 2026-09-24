@@ -1028,6 +1028,7 @@ function ArticleBlockInspector({
 // Dedicated Product Renderers (Article, Diktat, Flashcard, Question, etc.)
 // ---------------------------------------------------------------------------
 
+/** Renders article sections with their individual review controls and progress. */
 function StructuredArticleProductView({
   product,
   bundleId,
@@ -1128,6 +1129,7 @@ function StructuredArticleProductView({
     setNotes(review?.notes ?? "");
   }, [review?.notes, selected?.id]);
 
+  /** Saves the selected section's review and advances to the next pending section. */
   async function saveSectionReview(status: ProductBlockReview["status"]) {
     if (!selected || bundleStatus !== "draft" || reviewLocked) return;
     setSaving(true);
@@ -1623,6 +1625,7 @@ function LegacyArticleProductView({
   );
 }
 
+/** Selects the structured or legacy article review view for the bundle. */
 export function ArticleProductView(props: Parameters<typeof LegacyArticleProductView>[0] & { structuredEnabled?: boolean }) {
   if (props.structuredEnabled && props.product.sections.length > 0) {
     return <StructuredArticleProductView product={props.product} bundleId={props.bundleId} bundleStatus={props.bundleStatus} reviewLocked={props.reviewLocked ?? false} itemReviews={props.blockReviews ?? []} onReviewChange={props.onBlockReviewChange} />;
@@ -2033,12 +2036,14 @@ type ConfirmActionState =
   | { type: "withdraw" }
   | null;
 
+/** Shows PDF and content readiness, including blocking publication issues. */
 function BundleReadinessPanel({ payload, onRefresh }: { payload: ProductDetailPayload; onRefresh: () => Promise<void> }) {
   const [pdfBusy, setPdfBusy] = useState(false);
   const [pdfRequestFailed, setPdfRequestFailed] = useState(false);
   const pdf = payload.pdfStatus ?? { status: "pending" as const };
   const freshness = payload.revisionFreshness;
 
+  /** Queues a PDF render and refreshes the displayed readiness state. */
   const requestPdf = async () => {
     setPdfBusy(true);
     setPdfRequestFailed(false);
@@ -2098,6 +2103,7 @@ function BundleReadinessPanel({ payload, onRefresh }: { payload: ProductDetailPa
     </section>
   );
 }
+/** Loads the Product Bundle and coordinates product, section, and bundle review. */
 export function ProductBundleReviewDetail({ detailId, courseLabels = {}, backHref, backLabel }: DetailProps) {
   const router = useRouter();
   const [payload, setPayload] = useState<ProductDetailPayload | null>(null);
@@ -2144,6 +2150,7 @@ export function ProductBundleReviewDetail({ detailId, courseLabels = {}, backHre
 
   useEffect(() => { void load(); }, [load]);
 
+  /** Submits a bundle decision with the reviewer's reason when supplied. */
   async function decide(decision: "approved" | "rejected" | "changes_requested") {
     if (!payload) return;
     setSaving(true);

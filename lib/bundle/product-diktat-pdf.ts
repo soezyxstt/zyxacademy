@@ -37,6 +37,7 @@ export interface InspectedPdf {
   text: string;
 }
 
+/** Escapes authored text before inserting it into printable HTML. */
 function escapeHtml(value: string): string {
   return value
     .replaceAll("&", "&amp;")
@@ -54,6 +55,7 @@ const SEMANTIC_EMPHASIS_LABELS = {
   formula: "Rumus",
 } as const;
 
+/** Replaces semantic emphasis markers with labeled, print-ready HTML spans. */
 function applySemanticEmphasis(html: string): string {
   return html.replace(
     /\[\[emphasis:(remember|avoid|caution|definition|formula)\]\]([\s\S]*?)\[\[\/emphasis\]\]/gi,
@@ -143,6 +145,7 @@ li { margin-bottom: .8mm; padding-left: .5mm; }
 <main class="diktat"><header class="diktat-header"><span class="eyebrow">Diktat</span><h1>${title}</h1></header><div class="diktat-content">${content}</div></main></body></html>`;
 }
 
+/** Removes the leading Markdown title already printed in the document header. */
 function withoutRepeatedDocumentHeading(markdown: string): string {
   return markdown.replace(/^\s*#\s+[^\r\n]+\r?\n/, "").trimStart();
 }

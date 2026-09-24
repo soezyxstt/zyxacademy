@@ -1994,6 +1994,7 @@ function registerReferenceQuestionTools(server: McpServer, principal: McpPrincip
   }));
 }
 
+/** Registers bundle import, review, and publication lifecycle MCP tools. */
 function registerLifecycleTools(server: McpServer, principal: McpPrincipal): void {
   (server as any).registerTool("authoring.list_imports", {
     title: "List staged bundle imports",

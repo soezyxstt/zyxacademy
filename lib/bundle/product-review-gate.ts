@@ -63,6 +63,7 @@ export interface ProductBundleEvaluationInput {
   manifest?: ProductBundleManifest;
 }
 
+/** Evaluates content, review, and PDF evidence against publication requirements. */
 export async function evaluateProductBundleQualityPolicy(
   input: ProductBundleEvaluationInput | readonly ProductEntity[],
   context: ProductBundleEvaluationContext = {},

@@ -54,8 +54,7 @@ export interface ExecutePedagogicReviewResult {
  * Invariants:
  * - Enforces tutor/admin authorization.
  * - Requires staged bundle to be in draft state (draft review NEVER publishes).
- * - Verifies policy version matches current QUALITY_POLICY_VERSION.
- * - Verifies content fingerprint matches staged content.
+ * - Verifies policy version and content fingerprint when supplied.
  * - Verifies expectedRevision if supplied.
  * - Validates supplied legacy rubric criteria and content anchors when present.
  * - Persists immutable review into reviewPedagogiBundle.

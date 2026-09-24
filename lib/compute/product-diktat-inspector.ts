@@ -55,6 +55,7 @@ export function productDiktatFailureCode(error: unknown): SafeFailureCode {
 }
 
 
+/** Renders and stores PDF evidence, marking only transient failures as retryable. */
 export async function generateProductDiktatPdfEvidence(input: {
   importId: string;
   requestedBy: string;

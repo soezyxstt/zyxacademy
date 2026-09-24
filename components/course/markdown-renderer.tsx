@@ -105,10 +105,12 @@ const semanticEmphasis = {
 
 type SemanticEmphasisTone = keyof typeof semanticEmphasis;
 
+/** Detects a block containing only a display math expression. */
 function isStandaloneMathBlock(content: string): boolean {
   return /^\s*(?:\$\$[\s\S]+?\$\$|\\\[[\s\S]+?\\\])\s*$/.test(content);
 }
 
+/** Removes display math delimiters so a formula can be rendered on its own row. */
 function standaloneMathSource(content: string): string {
   const trimmed = content.trim();
   return trimmed.slice(2, -2);
@@ -125,6 +127,7 @@ function renderMath(value: string, displayMode: boolean): string {
 
 // --- Inline Parser ---
 
+/** Converts inline Markdown tokens into text, math, and emphasis nodes. */
 function parseInline(text: string): ReactNode[] {
   const result: ReactNode[] = [];
   let index = 0;
@@ -808,6 +811,7 @@ function parseMermaidToDiagramData(content: string) {
   };
 }
 
+/** Renders a parsed Markdown block, including standalone formulas and formula lists. */
 function ASTBlockRenderer({ block, density }: { block: ASTBlock; density?: MarkdownDensity }) {
   const isCompact = density === "compact";
 
