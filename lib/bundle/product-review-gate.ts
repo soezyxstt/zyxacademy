@@ -77,6 +77,7 @@ export async function evaluateProductBundleQualityPolicy(
     : bundleInput?.bundle?.dependencies ?? bundleInput?.dependencies ?? [];
 
   const issues: DiagnosticIssue[] = [];
+  const findingIdentity = new Map<DiagnosticIssue, string>();
 
   const article = products.find((p) => p.productType === "article") as
     | Extract<ProductEntity, { productType: "article" }>
@@ -104,13 +105,17 @@ export async function evaluateProductBundleQualityPolicy(
       ]);
       for (const finding of evaluateProductBundleQuality({ products: [article] }).issues) {
         if (!presentationCodes.has(finding.code)) continue;
-        issues.push({
+        const warning: DiagnosticIssue = {
           code: finding.code,
           severity: "warning",
           target: { targetType: "section", targetId: finding.entity?.split(":")[1] ?? article.id },
           reason: finding.message,
           remediation: "Periksa bagian ini secara editorial, rapikan pengulangan atau rumus, dan tambahkan visual bila membantu tujuan belajar.",
-        });
+        };
+        issues.push(warning);
+        if (finding.code === "ARTICLE_FORMULA_CROWDED" && finding.entity) {
+          findingIdentity.set(warning, finding.entity);
+        }
       }
       const allSectionIds = article.sections.map((s) => s.id);
       const availableVisualIds = (article.visuals ?? []).map((v) => v.id);
@@ -610,7 +615,7 @@ export async function evaluateProductBundleQualityPolicy(
 
   const uniqueIssues = [
     ...new Map(
-      issues.map((item) => [`${item.code}:${item.target.targetType}:${item.target.targetId}`, item]),
+      issues.map((item) => [`${item.code}:${item.target.targetType}:${item.target.targetId}:${findingIdentity.get(item) ?? ""}`, item]),
     ).values(),
   ];
 

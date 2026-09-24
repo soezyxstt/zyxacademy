@@ -151,8 +151,8 @@ function normalizedPassages(value: string): string[] {
 }
 
 function crowdedFormula(value: string): boolean {
-  return [...value.matchAll(/\$\$([\s\S]+?)\$\$/g)].some((match) => {
-    const expression = (match[1] ?? "").replace(/\\\{[\s\S]*?\\\}/g, "");
+  return [...value.matchAll(/\$\$([\s\S]+?)\$\$|\\\[([\s\S]+?)\\\]/g)].some((match) => {
+    const expression = (match[1] ?? match[2] ?? "").replace(/\\\{[\s\S]*?\\\}/g, "");
     return !/\\begin\{(?:aligned|align|array|cases)\}/.test(expression)
       && (expression.match(/[,;]/g)?.length ?? 0) >= 2;
   });

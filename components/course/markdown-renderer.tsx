@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, type ReactNode } from "react";
+import React, { useState, type ReactNode } from "react";
 import katex from "katex";
 import { 
   Info, 
@@ -147,7 +147,7 @@ function parseInline(text: string): ReactNode[] {
       flushText();
       const tone = emphasisMatch[1].toLowerCase() as SemanticEmphasisTone;
       const config = semanticEmphasis[tone];
-      const emphasizedText = emphasisMatch[2].replace(new RegExp(`^\\s*${config.label}\\s*[:.!-]?\\s*`, "i"), "");
+      const emphasizedText = emphasisMatch[2].replace(new RegExp(`^\\s*${config.label}(?=\\s|[:.!-]|$)\\s*[:.!-]?\\s*`, "i"), "");
       result.push(
         <span
           key={`emphasis-${index}`}

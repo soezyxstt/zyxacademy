@@ -258,12 +258,21 @@ test.describe("Structured Article V3 visual acceptance", () => {
     await capture(page, testInfo, "self-study-visual-fallback");
 
     await page.getByRole("figure", { name: "Geser dan skala grafik" }).scrollIntoViewIfNeeded();
+    const graph = page.getByRole("region", { name: "Geser dan skala grafik" });
+    const plottedCurve = graph.locator("svg path").nth(1);
+    let previousCurve = await plottedCurve.getAttribute("d");
+    expect(previousCurve).toBeTruthy();
     const shiftSlider = page.getByRole("slider", { name: "Ubah nilai Geser" });
     await expect(shiftSlider).toBeVisible();
     await shiftSlider.fill("2");
+    await expect(plottedCurve).not.toHaveAttribute("d", previousCurve!);
+    previousCurve = await plottedCurve.getAttribute("d");
     await page.getByRole("slider", { name: "Ubah nilai Vertikal" }).fill("0.5");
+    await expect(plottedCurve).not.toHaveAttribute("d", previousCurve!);
+    previousCurve = await plottedCurve.getAttribute("d");
     await page.getByRole("slider", { name: "Ubah nilai Horizontal" }).fill("2");
-    await expect(page.getByRole("region", { name: "Geser dan skala grafik" })).toBeVisible();
+    await expect(plottedCurve).not.toHaveAttribute("d", previousCurve!);
+    await expect(graph).toBeVisible();
     await capture(page, testInfo, "self-study-learning-canvas-shifted");
 
     const focusButton = page.getByRole("button", { name: "Masuk mode fokus" });

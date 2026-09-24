@@ -58,9 +58,8 @@ import { ProductDraftEditor } from "@/components/admin/product-draft-editor";
 import {
   PEDAGOGIC_CRITERION_IDS,
   QUALITY_POLICY_VERSION,
-  type PedagogicCriterionId,
-  type PedagogicRubricItem,
-} from "@/lib/materials/quality-policy";
+} from "@/lib/materials/quality-policy-constants";
+import type { PedagogicCriterionId, PedagogicRubricItem } from "@/lib/materials/quality-policy";
 import type { ProductPreview } from "@/lib/bundle/product-preview";
 import type { ProductDependency, ProductEntity } from "@/lib/bundle/product-validator";
 import { cn } from "@/lib/utils";

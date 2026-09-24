@@ -200,6 +200,20 @@ describe("canonical authoring quality gates", () => {
     expect(codes).toContain("ARTICLE_STEPS_REPEATED");
   });
 
+  test("flags crowded bracket-delimited display math", () => {
+    const article = {
+      id: "article-bracket-formula",
+      productType: "article",
+      ideaLinks: [{ id: "idea-formula" }],
+      blocks: [],
+      sections: [{ id: "section-formula", kind: "topic", title: "Rumus fungsi", blocks: [
+        { id: "formula", blockType: "mathematical_representation", contentMarkdown: "\\[f(x), g(x), h(x)\\]", ideaIds: ["idea-formula"] },
+      ] }],
+    } as unknown as ProductEntity;
+    const codes = evaluateProductBundleQuality({ products: [article] }).issues.map((issue) => issue.code);
+    expect(codes).toContain("ARTICLE_FORMULA_CROWDED");
+  });
+
   test("keeps set commas and inequalities out of false quality warnings", () => {
     const article = {
       id: "article-sets",

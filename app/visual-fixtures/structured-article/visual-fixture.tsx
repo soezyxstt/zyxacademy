@@ -10,7 +10,7 @@ const lineShiftVisual: PublicLearningCanvasVisualSpec = {
   id: "visual-line-shift",
   kind: "learning_canvas" as const,
   label: "Geser dan skala grafik",
-  description: "Bandingkan pergeseran serta kontraksi vertikal dan horizontal.",
+  description: "Bandingkan pergeseran serta perubahan skala vertikal dan horizontal.",
   interactive: true,
   canvas: {
     version: "zyra-learning-canvas-v1" as const,

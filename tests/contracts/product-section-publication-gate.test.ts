@@ -29,4 +29,27 @@ describe("Product V3 section publication gate", () => {
     const report = await evaluateProductBundleQualityPolicy([article], { pedagogicReview: null, pdfEvidence: [] });
     expect(report.issues.map((issue) => issue.code)).toContain("ARTICLE_VISUAL_OPPORTUNITY_MISSING");
   });
+
+  it("keeps crowded-formula warnings from separate blocks in one section", async () => {
+    const article = {
+      id: "article-formulas",
+      productType: "article",
+      ideaLinks: [{ id: "idea-1" }],
+      blocks: [],
+      sections: [{
+        id: "section-formulas",
+        kind: "topic",
+        title: "Fungsi",
+        ideaIds: ["idea-1"],
+        blocks: [
+          { id: "formula-a", blockType: "mathematical_representation", contentMarkdown: "$$f(x),g(x),h(x)$$", ideaIds: ["idea-1"] },
+          { id: "formula-b", blockType: "mathematical_representation", contentMarkdown: "$$p(x),q(x),r(x)$$", ideaIds: ["idea-1"] },
+        ],
+      }],
+    } as unknown as ProductEntity;
+    const report = await evaluateProductBundleQualityPolicy([article], { pedagogicReview: null, pdfEvidence: [] });
+    const formulaWarnings = report.issues.filter((issue) => issue.code === "ARTICLE_FORMULA_CROWDED");
+    expect(formulaWarnings).toHaveLength(2);
+    expect(formulaWarnings.every((issue) => issue.target.targetType === "section" && issue.target.targetId === "section-formulas")).toBe(true);
+  });
 });
