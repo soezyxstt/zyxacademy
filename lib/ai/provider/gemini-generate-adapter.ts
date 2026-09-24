@@ -25,6 +25,9 @@ const LEGACY_CONFIG_KEYS = [
   "systemInstruction",
 ] as const;
 
+/**
+ * Constructs the generateContent configuration with thinking level and timeout boundaries.
+ */
 function buildLegacyConfig(
   request: ProviderGenerateRequest,
   thinking: ModelThinkingPolicy,
@@ -39,8 +42,9 @@ function buildLegacyConfig(
   }
 
   const configuredOutput = source.maxOutputTokens;
-  const requestedOutput = typeof configuredOutput === "number" ? configuredOutput : 0;
-  config.maxOutputTokens = Math.max(outputFloor, requestedOutput);
+  if (typeof configuredOutput === "number") {
+    config.maxOutputTokens = Math.max(outputFloor, configuredOutput);
+  }
 
   if (thinking.kind === "level" && thinking.level) {
     config.thinkingConfig = { thinkingLevel: thinking.level };
@@ -58,6 +62,9 @@ function toSdkParts(parts: ReturnType<typeof normalizeInputParts>): Part[] {
   });
 }
 
+/**
+ * Creates an adapter for standard Gemini generateContent SDK models.
+ */
 export function createGeminiGenerateAdapter(client: GeminiGenerateClient) {
   return {
     async generate(request: ProviderGenerateRequest): Promise<ProviderGenerationResult> {

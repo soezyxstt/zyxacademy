@@ -8,6 +8,7 @@ import type { ArticleDocument } from "@/lib/materials/article-contract";
 import type { ProductEntity } from "@/lib/bundle/product-validator";
 import {
   compileProductDiktatHtml,
+  parseCanonicalDiktatMarkdownToHtml,
   PRODUCT_DIKTAT_PRINT_PROFILE,
   canDownloadProductDiktat,
 } from "@/lib/bundle/product-diktat-pdf";
@@ -70,6 +71,17 @@ function articleProduct(document: ArticleDocument): Extract<ProductEntity, { pro
   };
 }
 
+function generateDiktatContent(formula: string): string {
+  return [
+    `# Diktat Mandiri\n\nRingkasan mandiri dengan rumus utama $$${formula}$$ beserta syarat penerapannya secara komprehensif.`,
+    `### Konsep Dasar dan Formulasi Formal\n\nKonsep ini menjabarkan hubungan analitis antara peubah bebas dan peubah terikat dalam ruang keadaan terdefinisi. Berdasarkan relasi kanonik, setiap perubahan kecil pada parameter mematuhi invariant utama:\n\n- Persamaan pengatur: $$${formula}$$.\n- Batas nilai kekonvergenan ditentukan oleh kestabilan lokal dari matriks transisi terkait.\n- Evaluasi galat asimptotik menunjukkan pengurangan bertahap pada setiap siklus komputasi.`,
+    `### Analisis Kondisi Batas dan Kestabilan\n\nKondisi singularitas dihindari dengan menetapkan batas keteraturan pada domain operasi. Jika determinan sistem bernilai tak-nol, eksistensi dan ketunggalan solusi dijamin pada seluruh interval yang ditinjau.\n\nContoh kasus batas menunjukkan bahwa deviasi linier tidak memicu instabilitas tak terkontrol.`,
+    `### Prosedur Komputasi Terstruktur\n\nLangkah-langkah evaluasi numerik disusun sebagai berikut:\n\n1. Inisialisasi peubah keadaan awal sesuai batas toleransi.\n2. Hitung nilai residu terhadap formula utama $$${formula}$$.\n3. Terapkan koreksi terarah hingga kriteria henti terpenuhi.\n4. Verifikasi kestabilan akhir untuk memastikan akurasi hasil kalkulasi.`,
+    `### Penerapan Praktis dan Diskusi Kasus\n\nDalam konteks terapan, pendekatan ini meminimalkan overhead komputasi tanpa mengurangi ketelitian analitik. Validasi numerik mengonfirmasi bahwa nilai estimasi berada di dalam ambang batas toleransi yang dipersyaratkan.`,
+    `### Latihan Mandiri dan Evaluasi Reflektif\n\nDiskusikan pengaruh variasi parameter terhadap spektrum nilai eigen sistem. Bagaimana penyesuaian bobot dapat memulihkan performa nominal pada rezim transien?`,
+  ].join("\n\n");
+}
+
 function diktatProduct(article: Extract<ProductEntity, { productType: "article" }>, formula: string): Extract<ProductEntity, { productType: "diktat" }> {
   return {
     id: `diktat-${article.id}`,
@@ -85,7 +97,7 @@ function diktatProduct(article: Extract<ProductEntity, { productType: "article" 
     sourceHash: article.sourceHash,
     generationHash: HASH,
     creatorId: "fixture-author",
-    contentMarkdown: `Ringkasan mandiri dengan rumus utama $$${formula}$$ beserta syarat penerapannya.`,
+    contentMarkdown: generateDiktatContent(formula),
     sourceArticleId: article.id,
     sourceArticleVersion: article.version,
     sourceArticleHash: article.generationHash,
@@ -141,7 +153,7 @@ describe("CP5 Product Bundle Diktat PDF", () => {
   ] as const;
 
   for (const [fixture, formula] of fixtures) {
-    test(`renders a real two-page PDF for ${fixture.id}`, async () => {
+    test(`renders an authored PDF for ${fixture.id}`, async () => {
       const article = articleProduct(fixture);
       const diktat = diktatProduct(article, formula);
       const html = compileProductDiktatHtml({ article, diktat });
@@ -150,8 +162,10 @@ describe("CP5 Product Bundle Diktat PDF", () => {
       const bytes = await realPdf(html);
       assert.equal(new TextDecoder().decode(bytes.slice(0, 5)), "%PDF-");
       const inspected = await inspectProductDiktatPdf(bytes);
-      assert.equal(inspected.pageCount, 2);
-      assert.match(inspected.text, /Pokok gagasan 1/);
+      assert.ok(inspected.pageCount >= 2 && inspected.pageCount <= 4, `Expected pageCount between 2 and 4, got ${inspected.pageCount}`);
+      assert.match(inspected.text, /Ringkasan mandiri/);
+      assert.doesNotMatch(inspected.text, /Pokok gagasan/);
+      assert.match(inspected.text, /zyxacademy.com/);
       assert.doesNotMatch(inspected.text, new RegExp(article.ideaLinks[0].id));
       assert.doesNotMatch(inspected.text, /\[object Object\]/);
       await savePdfPages(article.id, bytes);
@@ -165,7 +179,22 @@ describe("CP5 Product Bundle Diktat PDF", () => {
   });
 
   test("uses an explicit reproducible print profile", () => {
-    assert.equal(PRODUCT_DIKTAT_PRINT_PROFILE, "a4-self-study-2-page-v1");
+    assert.equal(PRODUCT_DIKTAT_PRINT_PROFILE, "a4-self-study-compact-v2");
+  });
+
+  test("separates formula rows from symbol bullets and removes the repeated heading", () => {
+    const article = articleProduct(LIMIT_ARTICLE_FIXTURE);
+    const diktat = {
+      ...diktatProduct(article, "x=1"),
+      contentMarkdown: "# Diktat ringkas Matematika I Bab 1\n\n### Bilangan real\n\n- $$x=1$$\n- $$y=2$$\n\n- $x$: input.\n- $y$: output.",
+    };
+    const html = compileProductDiktatHtml({ article, diktat });
+    assert.doesNotMatch(html, /<h1 class="section-h1">Diktat ringkas/);
+    assert.match(html, /class="formula-list"/);
+    assert.match(html, /<ul class="diktat-list">/);
+    assert.match(html, /href="https:\/\/zyxacademy.com"/);
+    const parsed = parseCanonicalDiktatMarkdownToHtml(diktat.contentMarkdown, diktat.title);
+    assert.match(parsed, /class="formula-list"/);
   });
 
   test("allows only admin preview or an enrolled student download", () => {

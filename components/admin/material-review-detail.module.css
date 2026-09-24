@@ -10,6 +10,56 @@
   display: none;
 }
 
+.structuredArticle {
+  max-width: 85ch;
+}
+
+.sectionReview {
+  margin-inline: auto;
+  width: 100%;
+  max-width: 85ch;
+  border-top: 1px solid var(--border);
+  padding-top: 1rem;
+}
+
+.bundleReadiness {
+  border-block: 1px solid var(--border);
+  padding-block: 0.75rem;
+}
+
+.bundleNavigator {
+  min-width: 0;
+}
+
+.bundleSelectorTrigger {
+  flex: 1 1 22rem;
+  width: auto;
+  max-width: min(100%, 32rem);
+}
+
+.bundleSelectorContent {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.bundleSelectorLabel {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.productHeader {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.productTitle {
+  overflow-wrap: anywhere;
+}
+
 @media (min-width: 640px) {
   .mobileInspector {
     display: none;

@@ -9,7 +9,7 @@ import {
 
 describe("pdf artifact evidence contract", () => {
   test("maintains static enum of safe failure codes", () => {
-    expect(SAFE_FAILURE_CODES).toHaveLength(8);
+    expect(SAFE_FAILURE_CODES).toHaveLength(11);
     expect(SAFE_FAILURE_CODES).toEqual([
       "RENDER_TIMEOUT",
       "RENDER_UNAVAILABLE",
@@ -19,6 +19,9 @@ describe("pdf artifact evidence contract", () => {
       "STORAGE_UNAVAILABLE",
       "INVALID_SOURCE_MARKDOWN",
       "PAGE_BUDGET_EXCEEDED",
+      "RENDERER_CONFIG_MISSING",
+      "RENDERER_REJECTED",
+      "INVALID_PDF_OUTPUT",
     ]);
   });
 

@@ -1994,6 +1994,7 @@ function registerReferenceQuestionTools(server: McpServer, principal: McpPrincip
   }));
 }
 
+/** Registers bundle import, review, and publication lifecycle MCP tools. */
 function registerLifecycleTools(server: McpServer, principal: McpPrincipal): void {
   (server as any).registerTool("authoring.list_imports", {
     title: "List staged bundle imports",
@@ -2131,17 +2132,18 @@ function registerLifecycleTools(server: McpServer, principal: McpPrincipal): voi
 
   (server as any).registerTool("authoring.review_product_bundle", {
     title: "Review Product Bundle",
-    description: "Mencatat keputusan review pedagogi 8-kriteria immutable untuk Product Bundle draft tanpa mempublikasikannya.",
+    description: "Mencatat keputusan review Product Bundle draft tanpa mempublikasikannya.",
     inputSchema: {
       importId: z.string().trim().min(1),
       runToken: z.string().min(1).optional(),
       decision: z.enum(["approved", "rejected", "changes_requested"]),
-      policyVersion: z.string().trim().min(1),
-      contentFingerprint: z.string().trim().min(1),
-      criteria: z.array(pedagogicRubricItemSchema),
+      policyVersion: z.string().trim().min(1).optional(),
+      contentFingerprint: z.string().trim().min(1).optional(),
+      criteria: z.array(pedagogicRubricItemSchema).optional(),
       exceptions: z.array(pedagogicExceptionSchema).default([]),
       expectedRevision: z.union([z.string(), z.number()]).optional(),
       notes: z.string().trim().max(4000).optional(),
+      reason: z.string().trim().max(4000).optional(),
     },
     annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: false },
   }, async (input: any) => safeTool(async () => {
@@ -2165,6 +2167,7 @@ function registerLifecycleTools(server: McpServer, principal: McpPrincipal): voi
       exceptions: input.exceptions,
       expectedRevision: input.expectedRevision,
       notes: input.notes,
+      reason: input.reason,
     });
 
     return {

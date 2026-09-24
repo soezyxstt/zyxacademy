@@ -13,6 +13,9 @@ export const SAFE_FAILURE_CODES = [
   "STORAGE_UNAVAILABLE",
   "INVALID_SOURCE_MARKDOWN",
   "PAGE_BUDGET_EXCEEDED",
+  "RENDERER_CONFIG_MISSING",
+  "RENDERER_REJECTED",
+  "INVALID_PDF_OUTPUT",
 ] as const;
 export const safeFailureCodeSchema = z.enum(SAFE_FAILURE_CODES);
 export type SafeFailureCode = z.infer<typeof safeFailureCodeSchema>;

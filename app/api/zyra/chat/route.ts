@@ -37,6 +37,10 @@ function requestKey(value: unknown): string {
     : randomUUID();
 }
 
+/**
+ * Handles streaming chat interactions with Zyra tutor assistant.
+ * Enforces course access, daily allowances, and streams server-sent events.
+ */
 export async function POST(req: Request) {
   let h: Headers;
   try {
@@ -179,7 +183,11 @@ export async function POST(req: Request) {
           if (res.budgetExhausted) {
             fullAnswer = "Zyra tidak dapat menjawab pertanyaan baru hari ini (batas harian tercapai). Silakan coba lagi besok, atau gunakan buku teks dan kartu hafalan untuk belajar mandiri.";
           } else if (res.failureCode === "provider_unavailable") {
-            fullAnswer = "Gambar dan pertanyaanmu sudah diterima, tetapi layanan AI sedang mengalami kendala sementara. Silakan coba kirim ulang beberapa saat lagi.";
+            fullAnswer = attachmentIds.length > 0
+              ? normalizedQuestion
+                ? "Gambar dan pertanyaanmu sudah diterima, tetapi layanan AI sedang mengalami kendala sementara. Silakan coba kirim ulang beberapa saat lagi."
+                : "Gambarmu sudah diterima, tetapi layanan AI sedang mengalami kendala sementara. Silakan coba kirim ulang beberapa saat lagi."
+              : "Pertanyaanmu sudah diterima, tetapi layanan AI sedang mengalami kendala sementara. Silakan coba kirim ulang beberapa saat lagi.";
           } else if (!res.answer) {
             fullAnswer = "Maaf, terjadi gangguan saat memproses jawaban. Silakan coba lagi dalam beberapa saat.";
           } else {
