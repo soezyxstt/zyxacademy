@@ -34,6 +34,7 @@ export interface ProductWorkedExampleProps {
   className?: string;
 }
 
+/** Presents a worked example and its verification in the course article. */
 export function ProductWorkedExample({
   title,
   content,
@@ -94,15 +95,10 @@ export function ProductWorkedExample({
 
       {/* Solution Verification */}
       {workedExample.verification ? (
-        <div className="flex items-start gap-2 border-t border-border pt-3">
+        <div className="flex items-start gap-2 border-t border-border pt-3 text-body-sm">
           <CheckCircle2 className="size-4 shrink-0 text-status-success mt-0.5" />
-          <div className="space-y-1">
-            <h4 className="text-body-xs font-bold uppercase tracking-wider text-status-success">
-              Verifikasi
-            </h4>
-            <p className="text-body-xs text-foreground leading-relaxed">
-              {workedExample.verification}
-            </p>
+          <div className="min-w-0 leading-relaxed text-foreground">
+            <MarkdownRenderer content={workedExample.verification} density="compact" />
           </div>
         </div>
       ) : null}
