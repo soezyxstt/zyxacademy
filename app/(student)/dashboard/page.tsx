@@ -521,10 +521,10 @@ export default async function DashboardPage() {
               </Reveal>
             )}
 
-            <Reveal duration="duration-700">
-              <div className="grid gap-6 lg:grid-cols-12">
+            <Reveal duration="duration-700" className="w-full min-w-0">
+              <div className="grid gap-6 lg:grid-cols-12 w-full min-w-0">
                 {/* Left Column (Primary learning track) - 7 cols */}
-                <div className="space-y-6 lg:col-span-7">
+                <div className="space-y-6 lg:col-span-7 min-w-0">
                   {/* Classes list Section */}
                   <section className={studentCardClass()}>
                     <div className="mb-5 flex flex-wrap items-center justify-between gap-2 border-b border-border/40 pb-3">
@@ -532,11 +532,11 @@ export default async function DashboardPage() {
                         <GraduationCap className="size-4.5 text-brand-primary" />
                         Kelas aktif
                       </h2>
-                      <div className="flex items-center gap-2.5">
+                      <div className="flex flex-wrap items-center gap-2 sm:gap-2.5">
                         <ActivateClassModal />
                         <Link
                           href="/courses"
-                          className="text-body-xs font-bold text-brand-primary hover:underline flex items-center gap-0.5"
+                          className="text-body-xs font-bold text-brand-primary hover:underline flex items-center gap-0.5 shrink-0"
                         >
                           Lihat semua
                           <ArrowUpRight className="size-3.5" />
@@ -572,19 +572,19 @@ export default async function DashboardPage() {
                                 </div>
 
                                 {/* Sleek inline progress */}
-                                <div className="mt-3 flex items-center gap-3 max-w-md">
-                                  <div className="h-1.5 w-28 overflow-hidden rounded bg-muted">
+                                <div className="mt-3 flex flex-wrap items-center gap-2 sm:gap-3 max-w-md">
+                                  <div className="h-1.5 w-20 sm:w-28 shrink-0 overflow-hidden rounded bg-muted">
                                     <div
                                       className="h-full bg-brand-primary transition-all duration-300 rounded"
                                       style={{ width: `${progressPct}%` }}
                                     />
                                   </div>
-                                  <span className="text-body-xs font-semibold text-foreground">{progressPct}%</span>
+                                  <span className="text-body-xs font-semibold text-foreground shrink-0">{progressPct}%</span>
                                   <span className="text-body-xs text-muted-foreground">({doneCount} dari {materials.length} materi)</span>
                                 </div>
 
                                 {nextConcepts[course.id] && (
-                                  <div className="mt-2.5 text-body-xs font-medium text-muted-foreground">
+                                  <div className="mt-2.5 text-body-xs font-medium text-muted-foreground break-words min-w-0">
                                     Langkah selanjutnya:{" "}
                                     <span className="text-brand-primary font-semibold group-hover:underline">
                                       <MathText as="span">{nextConcepts[course.id]}</MathText>
@@ -606,13 +606,13 @@ export default async function DashboardPage() {
 
                   {/* Documents In Progress */}
                   <section className={studentCardClass()}>
-                    <div className="mb-4 flex items-center justify-between border-b border-border/40 pb-3">
+                    <div className="mb-4 flex flex-wrap items-center justify-between gap-2 border-b border-border/40 pb-3">
                       <h2 className="font-heading text-body-base font-bold text-foreground flex items-center gap-2">
                         <Bookmark className="size-4.5 text-brand-primary" />
                         Materi terbuka (belum selesai)
                       </h2>
                       {inProgressDocuments.length > 0 && (
-                        <span className="text-body-xs font-semibold bg-muted px-2 py-0.5 rounded-md text-muted-foreground">
+                        <span className="text-body-xs font-semibold bg-muted px-2 py-0.5 rounded-md text-muted-foreground shrink-0">
                           {inProgressDocuments.length} materi
                         </span>
                       )}
@@ -629,29 +629,29 @@ export default async function DashboardPage() {
                             >
                               <Link
                                 href={`/courses/${doc.courseId}/material/${doc.id}${doc.lastSectionId ? `?section=${encodeURIComponent(doc.lastSectionId)}` : ""}`}
-                                className="flex items-center justify-between gap-4"
+                                className="flex items-center justify-between gap-3 sm:gap-4 min-w-0"
                               >
                                 <div className="min-w-0 flex-1">
                                   <div className="flex flex-wrap items-center gap-2">
-                                    <span className="inline-flex rounded-md border border-border/50 bg-muted/40 px-2 py-0.5 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+                                    <span className="inline-flex max-w-full break-words rounded-md border border-border/50 bg-muted/40 px-2 py-0.5 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider shrink-0">
                                       {doc.courseTitle}
                                     </span>
                                     <span className="text-body-xs text-muted-foreground capitalize">
                                       ({doc.kind})
                                     </span>
                                   </div>
-                                  <h3 className="font-heading text-body-sm font-bold text-foreground group-hover:text-brand-primary transition-colors mt-2 truncate">
+                                  <h3 className="font-heading text-body-sm font-bold text-foreground group-hover:text-brand-primary transition-colors mt-2 truncate min-w-0">
                                     {doc.title}
                                   </h3>
                                   {/* Completion Progress Bar */}
-                                  <div className="mt-2.5 flex items-center gap-3 max-w-xs">
-                                    <div className="h-1.5 w-24 overflow-hidden rounded bg-muted">
+                                  <div className="mt-2.5 flex flex-wrap items-center gap-2 sm:gap-3 max-w-xs">
+                                    <div className="h-1.5 w-20 sm:w-24 shrink-0 overflow-hidden rounded bg-muted">
                                       <div
                                         className="h-full bg-brand-primary transition-all duration-300 rounded"
                                         style={{ width: `${doc.completionPercent}%` }}
                                       />
                                     </div>
-                                    <span className="text-body-xs font-semibold text-foreground">{doc.completionPercent}%</span>
+                                    <span className="text-body-xs font-semibold text-foreground shrink-0">{doc.completionPercent}%</span>
                                     {doc.lastSectionId && (
                                       <span className="max-w-[120px] truncate text-body-xs text-muted-foreground">, {doc.lastSectionId}</span>
                                     )}
@@ -678,21 +678,21 @@ export default async function DashboardPage() {
                   {/* Recommended Courses for Student Major */}
                   {recommendedUnenrolledCourses.length > 0 && (
                     <section className={studentCardClass()}>
-                      <div className="mb-4 flex items-center justify-between border-b border-border/40 pb-3">
+                      <div className="mb-4 flex flex-wrap items-center justify-between gap-2 border-b border-border/40 pb-3">
                         <div className="flex flex-wrap items-center gap-2">
                           <Sparkles className="size-4.5 text-brand-primary" />
                           <h2 className="font-heading text-body-base font-bold text-foreground">
                             Rekomendasi mata kuliah
                           </h2>
                           {studentTargetCategory && (
-                            <span className="rounded-md bg-brand-primary/10 px-2 py-0.5 text-body-2xs font-bold uppercase tracking-wider text-brand-primary ring-1 ring-brand-primary/20">
+                            <span className="rounded-md bg-brand-primary/10 px-2 py-0.5 text-body-2xs font-bold uppercase tracking-wider text-brand-primary ring-1 ring-brand-primary/20 shrink-0">
                               {studentTargetCategory === "TPB" ? "TPB" : studentTargetCategory}
                             </span>
                           )}
                         </div>
                         <Link
                           href="/courses"
-                          className="text-body-xs font-bold text-brand-primary hover:underline flex items-center gap-0.5"
+                          className="text-body-xs font-bold text-brand-primary hover:underline flex items-center gap-0.5 shrink-0"
                         >
                           Lihat semua
                           <ArrowUpRight className="size-3.5" />
@@ -734,16 +734,16 @@ export default async function DashboardPage() {
                 </div>
 
                 {/* Right Column (Review, Mastery & Available Quizzes) - 5 cols */}
-                <div className="space-y-6 lg:col-span-5">
+                <div className="space-y-6 lg:col-span-5 min-w-0">
                   {/* Status Spaced Repetition */}
                   <section className={studentCardClass()}>
-                    <div className="mb-4 flex items-center justify-between border-b border-border/40 pb-3">
+                    <div className="mb-4 flex flex-wrap items-center justify-between gap-2 border-b border-border/40 pb-3">
                       <h2 className="font-heading text-body-base font-bold text-foreground flex items-center gap-2">
                         <Layers className="size-4.5 text-brand-primary" />
                         Spaced repetition
                       </h2>
                       <span className={cn(
-                        "text-body-xs font-semibold px-2 py-0.5 rounded-md",
+                        "text-body-xs font-semibold px-2 py-0.5 rounded-md shrink-0",
                         totalDueFlashcards > 0
                           ? "bg-brand-secondary/15 text-brand-secondary"
                           : "bg-status-success/15 text-status-success"
@@ -786,13 +786,13 @@ export default async function DashboardPage() {
 
                   {/* Quizzes and Tryouts */}
                   <section className={studentCardClass()}>
-                    <div className="mb-4 flex items-center justify-between border-b border-border/40 pb-3">
+                    <div className="mb-4 flex flex-wrap items-center justify-between gap-2 border-b border-border/40 pb-3">
                       <h2 className="font-heading text-body-base font-bold text-foreground flex items-center gap-2">
                         <ClipboardList className="size-4.5 text-brand-primary" />
                         Kuis & tryout tersedia
                       </h2>
                       {availableExams.length > 0 && (
-                        <span className="text-body-xs font-semibold bg-muted px-2 py-0.5 rounded-md text-muted-foreground">
+                        <span className="text-body-xs font-semibold bg-muted px-2 py-0.5 rounded-md text-muted-foreground shrink-0">
                           {availableExams.length} ujian
                         </span>
                       )}
@@ -807,13 +807,13 @@ export default async function DashboardPage() {
                           >
                             <Link
                               href={`/courses/${exam.courseId}/${exam.type}/${exam.id}`}
-                              className="flex items-center justify-between gap-3"
+                              className="flex items-center justify-between gap-3 min-w-0"
                             >
                               <div className="min-w-0 flex-1">
-                                <h4 className="font-heading text-body-sm font-bold text-foreground group-hover:text-brand-primary transition-colors truncate">
+                                <h4 className="font-heading text-body-sm font-bold text-foreground group-hover:text-brand-primary transition-colors truncate min-w-0">
                                   {exam.title}
                                 </h4>
-                                <p className="text-body-xs text-muted-foreground mt-0.5 flex items-center gap-1.5">
+                                <p className="text-body-xs text-muted-foreground mt-0.5 flex items-center gap-1.5 truncate">
                                   <span className="font-semibold text-brand-primary truncate max-w-[120px]">{exam.courseTitle}</span>
                                   <span className="text-border-strong">,</span>
                                   <span className="capitalize shrink-0">{exam.type}</span>
@@ -849,7 +849,7 @@ export default async function DashboardPage() {
 
                   {/* Recent Activity */}
                   <section className={studentCardClass()}>
-                    <div className="mb-4 flex items-center justify-between border-b border-border/40 pb-3">
+                    <div className="mb-4 flex flex-wrap items-center justify-between gap-2 border-b border-border/40 pb-3">
                       <h2 className="font-heading text-body-base font-bold text-foreground flex items-center gap-2">
                         <History className="size-4.5 text-brand-primary" />
                         Aktivitas ulasan terbaru
