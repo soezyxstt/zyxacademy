@@ -277,6 +277,49 @@ describe("Quiz Assembly Contract & MCP Tools", () => {
         ],
       });
     }
+
+    // Seed soal non-published (draft)
+    await client.execute({
+      sql: `INSERT OR IGNORE INTO soal (id, mata_kuliah_id, bab_id, question_type, prompt, options_snapshot, origin, status, difficulty, cognitive_level, reasoning_pattern, generation_hash, creator_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      args: [
+        "soal-ht-draft",
+        testCanonicalCourseId,
+        "bab-01-intro",
+        "multiple_choice",
+        "Soal Masih Draft",
+        JSON.stringify(["A", "B"]),
+        "zyx_original",
+        "draft",
+        "easy",
+        "remember",
+        "recall",
+        "hash-draft",
+        adminId,
+      ],
+    });
+
+    // Seed soal historical reference yang belum quiz-eligible
+    await client.execute({
+      sql: `INSERT OR IGNORE INTO soal (id, mata_kuliah_id, bab_id, question_type, prompt, options_snapshot, origin, quiz_eligible, status, difficulty, cognitive_level, reasoning_pattern, generation_hash, creator_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      args: [
+        "soal-ht-hist-ineligible",
+        testCanonicalCourseId,
+        "bab-01-intro",
+        "multiple_choice",
+        "Soal Historical Belum Eligible",
+        JSON.stringify(["A", "B"]),
+        "historical_reference",
+        0,
+        "published",
+        "hard",
+        "analyze",
+        "multi_step",
+        "hash-hist",
+        adminId,
+      ],
+    });
   });
 
   it("berhasil membuat kuis dengan kumpulan questionIds (quiz.create)", async () => {
@@ -323,7 +366,7 @@ describe("Quiz Assembly Contract & MCP Tools", () => {
   });
 
   it("gagal membuat kuis jika ada questionId yang tidak ditemukan", async () => {
-    expect(
+    await expect(
       createQuizWithQuestions(
         {
           courseKey: testCourseId,
@@ -336,7 +379,7 @@ describe("Quiz Assembly Contract & MCP Tools", () => {
   });
 
   it("gagal membuat kuis jika daftar questionIds kosong", async () => {
-    expect(
+    await expect(
       createQuizWithQuestions(
         {
           courseKey: testCourseId,
@@ -346,6 +389,32 @@ describe("Quiz Assembly Contract & MCP Tools", () => {
         adminId,
       ),
     ).rejects.toThrow("QUIZ_ASSEMBLY_EMPTY_QUESTIONS");
+  });
+
+  it("gagal membuat kuis jika soal belum berstatus published", async () => {
+    await expect(
+      createQuizWithQuestions(
+        {
+          courseKey: testCourseId,
+          title: "Kuis Draft Question",
+          questionIds: ["soal-ht-draft"],
+        },
+        adminId,
+      ),
+    ).rejects.toThrow("QUIZ_ASSEMBLY_QUESTION_NOT_PUBLISHED");
+  });
+
+  it("gagal membuat kuis jika soal historical_reference belum quiz-eligible", async () => {
+    await expect(
+      createQuizWithQuestions(
+        {
+          courseKey: testCourseId,
+          title: "Kuis Ineligible Historical",
+          questionIds: ["soal-ht-hist-ineligible"],
+        },
+        adminId,
+      ),
+    ).rejects.toThrow("QUIZ_ASSEMBLY_QUESTION_NOT_ELIGIBLE");
   });
 
   it("berhasil mengambil detail kuis beserta ringkasan soalnya (quiz.get)", async () => {
@@ -429,10 +498,11 @@ describe("Quiz Assembly Contract & MCP Tools", () => {
     expect(detail.questions.map((q) => q.id)).toEqual(newQuestionIds);
   });
 
-  it("mcp server mendaftarkan semua tool quiz.*", () => {
+  it("mcp server mendaftarkan semua tool quiz.* dan handler dapat dieksekusi", async () => {
     const principal: McpPrincipal = {
-      user: { id: adminId, name: "Admin Test", email: "admin@zyx.id", role: "admin" },
-      roles: ["admin"],
+      userId: adminId,
+      actorId: adminId,
+      sessionId: "session-test-01",
       scopes: ["authoring:read", "authoring:stage"],
       authMethod: "session",
     };
@@ -448,5 +518,19 @@ describe("Quiz Assembly Contract & MCP Tools", () => {
     expect(tools["quiz.list"]).toBeDefined();
     expect(tools["quiz.update"]).toBeDefined();
     expect(tools["quiz.set_questions"]).toBeDefined();
+
+    // Eksekusi write handler quiz.create untuk memverifikasi actorId diteruskan dengan benar
+    const createTool = tools["quiz.create"];
+    const res = await createTool.handler({
+      courseKey: testCourseId,
+      title: "Kuis via MCP Handler",
+      questionIds: ["soal-ht-1", "soal-ht-2"],
+      timeLimitSeconds: 1500,
+    });
+    expect(res).toBeDefined();
+    expect(res.isError).toBeUndefined();
+    expect(res.structuredContent.ok).toBe(true);
+    expect(res.structuredContent.title).toBe("Kuis via MCP Handler");
+    expect(res.structuredContent.questionCount).toBe(2);
   });
 });

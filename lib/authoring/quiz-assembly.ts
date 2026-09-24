@@ -1,6 +1,11 @@
 import { and, desc, eq, inArray, or, sql } from "drizzle-orm";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { db } from "@/db";
+
+function stableId(prefix: string, raw: string): string {
+  const digest = createHash("sha256").update(`${prefix}:${raw}`).digest("hex").slice(0, 24);
+  return `${prefix}-${digest}`;
+}
 import {
   asesmen,
   auditMutasi,
@@ -143,6 +148,8 @@ async function validateAndFetchQuestions(questionIds: string[], canonicalCourseI
       cognitiveLevel: soal.cognitiveLevel,
       questionType: soal.questionType,
       optionsSnapshot: soal.optionsSnapshot,
+      origin: soal.origin,
+      quizEligible: soal.quizEligible,
       version: soal.version,
       generationHash: soal.generationHash,
       status: soal.status,
@@ -163,6 +170,24 @@ async function validateAndFetchQuestions(questionIds: string[], canonicalCourseI
   if (courseMismatches.length > 0) {
     throw new Error(
       `QUIZ_ASSEMBLY_QUESTION_COURSE_MISMATCH: Soal '${courseMismatches[0].id}' terdaftar di mata kuliah '${courseMismatches[0].mataKuliahId}', bukan '${canonicalCourseId}'.`,
+    );
+  }
+
+  // Hanya soal berstatus published yang diizinkan untuk perakitan kuis
+  const unPublished = rows.filter((r) => r.status !== "published");
+  if (unPublished.length > 0) {
+    throw new Error(
+      `QUIZ_ASSEMBLY_QUESTION_NOT_PUBLISHED: Soal '${unPublished[0].id}' berstatus '${unPublished[0].status}'. Hanya soal berstatus 'published' yang dapat dimasukkan ke kuis.`,
+    );
+  }
+
+  // Soal referensi historis wajib bertanda quiz-eligible
+  const ineligibleRef = rows.filter(
+    (r) => r.origin === "historical_reference" && !r.quizEligible,
+  );
+  if (ineligibleRef.length > 0) {
+    throw new Error(
+      `QUIZ_ASSEMBLY_QUESTION_NOT_ELIGIBLE: Soal referensi historis '${ineligibleRef[0].id}' belum ditandai quiz-eligible.`,
     );
   }
 
@@ -350,10 +375,16 @@ export async function listQuizzes(filter: ListQuizzesInput) {
     };
   });
 
+  const [countRow] = await db
+    .select({ total: sql<number>`count(*)` })
+    .from(quizTemplates)
+    .where(and(...conditions));
+  const total = Number(countRow?.total ?? 0);
+
   return {
     ok: true,
     courseKey: filter.courseKey,
-    total: items.length,
+    total,
     quizzes: items,
   };
 }
@@ -441,7 +472,7 @@ export async function setQuizQuestions(
       await tx
         .insert(itemAsesmen)
         .values({
-          id: `item-${trimmed.slice(0, 12)}-${q.id.slice(0, 12)}`,
+          id: stableId("item", `${trimmed}:${q.id}`),
           asesmenId: trimmed,
           soalId: q.id,
           orderIndex,
@@ -453,8 +484,7 @@ export async function setQuizQuestions(
           contentVersion: q.version ?? 1,
           generationHash: q.generationHash ?? `hash-${q.id}`,
           createdAt: now,
-        })
-        .onConflictDoNothing();
+        });
     }
 
     await tx

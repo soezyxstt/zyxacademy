@@ -2938,7 +2938,7 @@ function registerQuizAssemblyTools(server: McpServer, principal: McpPrincipal): 
     annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
   }, async (input: any) => safeTool(async () => {
     requireMcpScope(principal, "authoring:stage");
-    return createQuizWithQuestions(input, principal.user.id);
+    return createQuizWithQuestions(input, principal.actorId);
   }));
 
   (server as any).registerTool("quiz.get", {
@@ -2986,7 +2986,7 @@ function registerQuizAssemblyTools(server: McpServer, principal: McpPrincipal): 
     annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
   }, async (input: any) => safeTool(async () => {
     requireMcpScope(principal, "authoring:stage");
-    return updateQuizMeta(input, principal.user.id);
+    return updateQuizMeta(input, principal.actorId);
   }));
 
   (server as any).registerTool("quiz.set_questions", {
@@ -2999,7 +2999,7 @@ function registerQuizAssemblyTools(server: McpServer, principal: McpPrincipal): 
     annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
   }, async ({ quizId, questionIds }: { quizId: string; questionIds: string[] }) => safeTool(async () => {
     requireMcpScope(principal, "authoring:stage");
-    return setQuizQuestions(quizId, questionIds, principal.user.id);
+    return setQuizQuestions(quizId, questionIds, principal.actorId);
   }));
 }
 
