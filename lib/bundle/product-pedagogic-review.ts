@@ -26,12 +26,13 @@ export interface ExecutePedagogicReviewInput {
   importId: string;
   reviewerId: string;
   decision: "approved" | "rejected" | "changes_requested";
-  policyVersion: string;
-  contentFingerprint: string;
-  criteria: PedagogicRubricItem[];
+  policyVersion?: string;
+  contentFingerprint?: string;
+  criteria?: PedagogicRubricItem[];
   exceptions?: PedagogicException[];
   expectedRevision?: string | number | null;
   notes?: string | null;
+  reason?: string | null;
 }
 
 export interface ExecutePedagogicReviewResult {
@@ -47,7 +48,7 @@ export interface ExecutePedagogicReviewResult {
 }
 
 /**
- * Execute and persist an 8-criterion pedagogic review for a draft Product Bundle.
+ * Execute and persist a bundle decision for a draft Product Bundle.
  * Shared between the MCP tool and Admin API route to guarantee semantic parity.
  *
  * Invariants:
@@ -56,7 +57,7 @@ export interface ExecutePedagogicReviewResult {
  * - Verifies policy version matches current QUALITY_POLICY_VERSION.
  * - Verifies content fingerprint matches staged content.
  * - Verifies expectedRevision if supplied.
- * - Validates all 8 criteria and ensures referenced content anchors exist.
+ * - Validates supplied legacy rubric criteria and content anchors when present.
  * - Persists immutable review into reviewPedagogiBundle.
  */
 export async function executePedagogicReview(
@@ -93,29 +94,10 @@ export async function executePedagogicReview(
     }
   }
 
-  if (input.policyVersion !== QUALITY_POLICY_VERSION) {
+  if (input.policyVersion && input.policyVersion !== QUALITY_POLICY_VERSION) {
     throw new Error(
       `POLICY_VERSION_MISMATCH:Review policy version '${input.policyVersion}' does not match current '${QUALITY_POLICY_VERSION}'`,
     );
-  }
-
-  const rubricDecision: PedagogicReviewDecision = {
-    imporBundleId: input.importId,
-    reviewerId: input.reviewerId,
-    policyVersion: input.policyVersion,
-    contentFingerprint: input.contentFingerprint,
-    status: input.decision,
-    criteria: input.criteria,
-    exceptions: input.exceptions ?? [],
-    notes: input.notes ?? undefined,
-  };
-
-  const rubricValidation = validatePedagogicRubricDecision(rubricDecision);
-  if (!rubricValidation.valid) {
-    const firstIssue = rubricValidation.issues[0];
-    const err = new Error(`${firstIssue.code}:${firstIssue.reason}`);
-    (err as unknown as { issues: unknown }).issues = rubricValidation.issues;
-    throw err;
   }
 
   const stagedBundle = await parseStagedProductBundle(input.importId);
@@ -128,10 +110,35 @@ export async function executePedagogicReview(
     diktat: diktat ? (diktat as unknown as Record<string, unknown>) : undefined,
   });
 
-  if (input.contentFingerprint !== freshFingerprint) {
+  if (input.contentFingerprint && input.contentFingerprint !== freshFingerprint) {
     throw new Error(
       `FINGERPRINT_MISMATCH:Supplied content fingerprint '${input.contentFingerprint}' does not match staged content '${freshFingerprint}'`,
     );
+  }
+
+  const reviewNotes = input.reason ?? input.notes ?? null;
+  if (input.decision !== "approved" && !reviewNotes?.trim()) {
+    throw new Error("PRODUCT_BUNDLE_REVIEW_REASON_REQUIRED");
+  }
+  const criteria = input.criteria ?? [];
+  if (criteria.length > 0) {
+    const rubricDecision: PedagogicReviewDecision = {
+      imporBundleId: input.importId,
+      reviewerId: input.reviewerId,
+      policyVersion: QUALITY_POLICY_VERSION,
+      contentFingerprint: freshFingerprint,
+      status: input.decision,
+      criteria,
+      exceptions: input.exceptions ?? [],
+      notes: reviewNotes ?? undefined,
+    };
+    const rubricValidation = validatePedagogicRubricDecision(rubricDecision);
+    if (!rubricValidation.valid) {
+      const firstIssue = rubricValidation.issues[0];
+      const err = new Error(`${firstIssue.code}:${firstIssue.reason}`);
+      (err as unknown as { issues: unknown }).issues = rubricValidation.issues;
+      throw err;
+    }
   }
 
   const validDocIds = new Set(stagedBundle.products.map((p) => p.id));
@@ -142,7 +149,7 @@ export async function executePedagogicReview(
   ]);
   const validVisualIds = new Set((article.visuals ?? []).map((v) => v.id));
 
-  for (const crit of input.criteria) {
+  for (const crit of criteria) {
     for (const anchor of crit.contentAnchors) {
       let anchorFound = false;
       if (anchor.targetType === "document") anchorFound = validDocIds.has(anchor.targetId);
@@ -172,9 +179,9 @@ export async function executePedagogicReview(
       contentFingerprint: freshFingerprint,
       policyVersion: QUALITY_POLICY_VERSION,
       status: input.decision,
-      rubric: { criteria: input.criteria },
+      rubric: { criteria },
       exceptions: input.exceptions ?? [],
-      notes: input.notes ?? null,
+      notes: reviewNotes,
       createdAt: now,
     })
     .onConflictDoUpdate({
@@ -186,9 +193,9 @@ export async function executePedagogicReview(
       ],
       set: {
         status: input.decision,
-        rubric: { criteria: input.criteria },
+        rubric: { criteria },
         exceptions: input.exceptions ?? [],
-        notes: input.notes ?? null,
+        notes: reviewNotes,
         createdAt: now,
       },
     });
@@ -200,7 +207,7 @@ export async function executePedagogicReview(
     decision: input.decision,
     policyVersion: QUALITY_POLICY_VERSION,
     contentFingerprint: freshFingerprint,
-    criteriaCount: input.criteria.length,
+    criteriaCount: criteria.length,
     exceptionsCount: (input.exceptions ?? []).length,
     createdAt: now.toISOString(),
   };

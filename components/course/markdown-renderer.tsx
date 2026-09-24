@@ -91,7 +91,7 @@ const semanticEmphasis = {
   },
   caution: {
     label: "Hati-hati",
-    className: "border-status-warning/70 bg-status-warning/10 text-foreground",
+    className: "text-foreground",
   },
   definition: {
     label: "Definisi",
@@ -107,6 +107,11 @@ type SemanticEmphasisTone = keyof typeof semanticEmphasis;
 
 function isStandaloneMathBlock(content: string): boolean {
   return /^\s*(?:\$\$[\s\S]+?\$\$|\\\[[\s\S]+?\\\])\s*$/.test(content);
+}
+
+function standaloneMathSource(content: string): string {
+  const trimmed = content.trim();
+  return trimmed.slice(2, -2);
 }
 
 function renderMath(value: string, displayMode: boolean): string {
@@ -151,11 +156,11 @@ function parseInline(text: string): ReactNode[] {
       result.push(
         <span
           key={`emphasis-${index}`}
-          className={cn("inline rounded-md border-b-2 px-1 py-0.5 align-baseline font-medium", config.className)}
+          className={cn("inline align-baseline", config.className)}
           data-semantic-emphasis={tone}
           role="note"
         >
-          <span className="mr-1 font-heading text-body-2xs font-bold uppercase tracking-wide" aria-hidden="true">
+          <span className="mr-1 font-heading text-body-sm font-semibold" aria-hidden="true">
             {config.label}
           </span>
           <span className="sr-only">{config.label}: </span>
@@ -181,7 +186,7 @@ function parseInline(text: string): ReactNode[] {
       result.push(
         <span
           key={`mathblk-${index}`}
-          className="my-2 block max-w-full overflow-x-auto no-scrollbar py-1 text-left"
+          className="my-2 block max-w-full overflow-x-auto no-scrollbar py-1 text-left [&_.katex-display]:my-0 [&_.katex-display]:text-left"
           dangerouslySetInnerHTML={{ __html: renderMath(content, true) }}
         />
       );
@@ -812,13 +817,13 @@ function ASTBlockRenderer({ block, density }: { block: ASTBlock; density?: Markd
         return (
           <div
             className={cn(
-              "formula-focus overflow-x-auto rounded-lg border-l-4 border-primary bg-primary/[0.04] px-4 py-3 text-center",
+              "formula-focus max-w-full overflow-x-auto no-scrollbar rounded-lg border-l-4 border-primary bg-primary/[0.04] px-4 py-3 text-left [&_.katex-display]:my-0 [&_.katex-display]:text-left",
               isCompact ? "my-2" : "my-4",
             )}
             data-content-kind="formula"
             aria-label="Rumus utama"
           >
-            {renderRichText(block.content)}
+            <span dangerouslySetInnerHTML={{ __html: renderMath(standaloneMathSource(block.content), true) }} />
           </div>
         );
       }
@@ -858,18 +863,37 @@ function ASTBlockRenderer({ block, density }: { block: ASTBlock; density?: Markd
 
     case "list": {
       const isOrdered = block.items?.[0]?.ordered || false;
+      const isFormulaList = !isOrdered && Boolean(block.items?.length) && block.items!.every((item) => isStandaloneMathBlock(item.text));
+      if (isFormulaList) {
+        return (
+          <div className={cn("grid gap-2 border-l-2 border-border pl-4", isCompact ? "my-3" : "my-5")} data-content-kind="formula-list">
+            {block.items?.map((item, itemIdx) => (
+              <div
+                key={itemIdx}
+                className="max-w-full overflow-x-auto no-scrollbar text-left [&_.katex-display]:my-0 [&_.katex-display]:text-left"
+                dangerouslySetInnerHTML={{ __html: renderMath(standaloneMathSource(item.text), true) }}
+              />
+            ))}
+          </div>
+        );
+      }
       const ListTag = isOrdered ? "ol" : "ul";
       return (
         <ListTag
           className={cn(
-            isCompact ? "my-2.5 pl-5 space-y-1" : "my-4 pl-6 space-y-1.5",
+            isCompact ? "my-2.5 pl-8 space-y-1" : "my-4 pl-9 space-y-1.5",
             "leading-relaxed text-body-base",
             isOrdered ? "list-decimal" : "list-disc"
           )}
         >
           {block.items?.map((item: any, itemIdx: number) => (
-            <li key={itemIdx} className="pl-1">
-              {renderRichText(item.text)}
+            <li key={itemIdx} className="pl-2 marker:text-muted-foreground">
+              {isStandaloneMathBlock(item.text) ? (
+                <span
+                  className="block max-w-full overflow-x-auto no-scrollbar [&_.katex-display]:my-0 [&_.katex-display]:text-left"
+                  dangerouslySetInnerHTML={{ __html: renderMath(standaloneMathSource(item.text), true) }}
+                />
+              ) : renderRichText(item.text)}
             </li>
           ))}
         </ListTag>

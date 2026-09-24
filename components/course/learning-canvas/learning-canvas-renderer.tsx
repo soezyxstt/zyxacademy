@@ -433,44 +433,58 @@ function GridLayer({
 function SeriesLegend({
   spec,
   expressions,
+  visibleSeriesIds,
+  onToggleSeries,
 }: {
   spec: FunctionPlotCanvas;
   expressions: Record<string, string>;
+  visibleSeriesIds: Set<string>;
+  onToggleSeries: (seriesId: string) => void;
 }) {
+  const legendId = useId().replace(/:/g, "");
   return (
-    <div className="flex flex-wrap items-center gap-2 min-w-0">
+    <div role="group" aria-label="Fungsi pada grafik" className="flex min-w-0 flex-wrap items-center gap-2">
       {spec.series.map((series, idx) => {
         const rawExpr = expressions[series.id] ?? series.expression;
         const latexFormatted = safeExpressionToLatex(
           rawExpr,
           ["x", ...spec.variables.map((v) => v.id)],
         );
+        const isVisible = visibleSeriesIds.has(series.id);
+        const color = idx === 0 ? GRAPH_BLUE : GRAPH_SECONDARY;
         return (
-          <div key={series.id} className="inline-flex items-center gap-2 min-w-0">
+          <button
+            key={series.id}
+            type="button"
+            aria-label={`${isVisible ? "Sembunyikan" : "Tampilkan"} ${series.label}`}
+            aria-describedby={`graph-equation-${legendId}-${idx}`}
+            aria-pressed={isVisible}
+            onClick={() => onToggleSeries(series.id)}
+            className="inline-flex min-w-0 max-w-full items-center gap-2 rounded-md border border-transparent px-1.5 py-1 text-left text-body-sm text-foreground transition-colors hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
             <span
-              className="inline-flex h-6 min-w-6 shrink-0 items-center justify-center rounded border border-transparent px-1.5 text-body-xs font-bold text-white shadow-xs"
-              style={{ backgroundColor: idx === 0 ? GRAPH_BLUE : GRAPH_SECONDARY }}
+              className={cn(
+                "inline-flex h-6 min-w-6 shrink-0 items-center justify-center rounded border border-transparent px-1.5 text-body-xs font-bold text-white shadow-xs",
+                !isVisible && "opacity-50",
+              )}
+              style={{ backgroundColor: color }}
               aria-hidden
             >
               {series.label.length <= 2 ? series.label : `f${idx + 1}`}
             </span>
             <span
               aria-hidden
-              className="h-px w-7 shrink-0"
+              className={cn("h-0 w-7 shrink-0", !isVisible && "opacity-40")}
               style={{
-                backgroundColor: idx === 0 ? GRAPH_BLUE : GRAPH_SECONDARY,
-                borderTop:
-                  series.lineStyle === "dashed"
-                    ? `2px dashed ${idx === 0 ? GRAPH_BLUE : GRAPH_SECONDARY}`
-                    : series.lineStyle === "dotted"
-                      ? `2px dotted ${idx === 0 ? GRAPH_BLUE : GRAPH_SECONDARY}`
-                      : undefined,
+                borderTop: `2px ${series.lineStyle === "dashed" ? "dashed" : series.lineStyle === "dotted" ? "dotted" : "solid"} ${color}`,
               }}
             />
-            <code className="min-w-0 max-w-full truncate font-mono text-body-sm font-semibold tracking-tight text-foreground">
-              {`y = ${latexFormatted}`}
-            </code>
-          </div>
+            <span id={`graph-equation-${legendId}-${idx}`} className="min-w-0 max-w-full">
+              <MathText as="span" className={cn("text-body-sm font-semibold tracking-tight text-foreground", !isVisible && "opacity-60")}>
+                {`y = \\(${latexFormatted}\\)`}
+              </MathText>
+            </span>
+          </button>
         );
       })}
     </div>
@@ -560,8 +574,18 @@ function FunctionPlot({ spec }: { spec: FunctionPlotCanvas }) {
   const [expressions, setExpressions] = useState<Record<string, string>>(() => (
     Object.fromEntries(spec.series.map((series) => [series.id, series.expression]))
   ));
+  const [visibleSeriesIds, setVisibleSeriesIds] = useState<Set<string>>(() => (
+    new Set(spec.series.map((series) => series.id))
+  ));
   const [showFormulaInput, setShowFormulaInput] = useState(false);
-  const [hoverData, setHoverData] = useState<{ x: number; y: number; px: number; py: number } | null>(null);
+  const [hoverData, setHoverData] = useState<{
+    label: string;
+    color: string;
+    x: number;
+    y: number;
+    px: number;
+    py: number;
+  } | null>(null);
 
   const defaultView = useMemo(() => fitFunctionViewport(spec), [spec]);
   const { view, isDragging, resetView, nudge, zoomBy, bind } = useInteractiveViewport(defaultView);
@@ -585,7 +609,7 @@ function FunctionPlot({ spec }: { spec: FunctionPlotCanvas }) {
   const mapY = useCallback((y: number) => PAD_T + ((view.yMax - y) / (view.yMax - view.yMin)) * PLOT_H, [view.yMin, view.yMax]);
 
   const seriesPaths = useMemo(() => {
-    return evaluated.map((series) => {
+    return evaluated.map((series, idx) => {
       let path = "";
       let started = false;
       const points = series.points;
@@ -606,12 +630,18 @@ function FunctionPlot({ spec }: { spec: FunctionPlotCanvas }) {
           path += ` L ${px.toFixed(1)} ${py.toFixed(1)}`;
         }
       }
-      return { id: series.id, path };
+      return {
+        id: series.id,
+        path,
+        color: idx === 0 ? GRAPH_BLUE : GRAPH_SECONDARY,
+        visible: visibleSeriesIds.has(series.id),
+      };
     });
-  }, [evaluated, mapX, mapY, view.yMin, view.yMax]);
+  }, [evaluated, mapX, mapY, view.yMin, view.yMax, visibleSeriesIds]);
 
   const roots = useMemo(() => {
     return evaluated.flatMap((series, seriesIndex) => {
+      if (!visibleSeriesIds.has(series.id)) return [];
       const result: Array<{ id: string; x: number; color: string }> = [];
       for (let i = 1; i < series.points.length; i += 1) {
         const prev = series.points[i - 1];
@@ -631,45 +661,77 @@ function FunctionPlot({ spec }: { spec: FunctionPlotCanvas }) {
       }
       return result;
     });
-  }, [evaluated, view.xMin, view.xMax, view.yMin, view.yMax]);
+  }, [evaluated, visibleSeriesIds, view.xMin, view.xMax, view.yMin, view.yMax]);
 
   const handleHoverMove = (e: ReactMouseEvent<SVGSVGElement>) => {
     if (isDragging) return;
     const svg = e.currentTarget;
     const rect = svg.getBoundingClientRect();
-    if (rect.width === 0) return;
+    if (rect.width === 0 || rect.height === 0) return;
     const px = ((e.clientX - rect.left) / rect.width) * SVG_W;
-    if (px < PAD_L || px > PAD_L + PLOT_W) {
+    const py = ((e.clientY - rect.top) / rect.height) * SVG_H;
+    if (px < PAD_L || px > PAD_L + PLOT_W || py < PAD_T || py > PAD_T + PLOT_H) {
       setHoverData(null);
       return;
     }
-    const curX = view.xMin + ((px - PAD_L) / PLOT_W) * (view.xMax - view.xMin);
-    const activeSeries = evaluated.find((s) => s.points.some((p) => p.y !== null));
-    if (!activeSeries) {
-      setHoverData(null);
-      return;
-    }
-    let closestPoint = activeSeries.points[0];
-    let minDist = Infinity;
-    for (const pt of activeSeries.points) {
-      if (pt.y !== null && Math.abs(pt.x - curX) < minDist) {
-        minDist = Math.abs(pt.x - curX);
-        closestPoint = pt;
+    let closest: {
+      label: string;
+      color: string;
+      x: number;
+      y: number;
+      px: number;
+      py: number;
+      distanceSquared: number;
+    } | null = null;
+    const ySpan = finiteSpan(view.yMin, view.yMax);
+    for (let seriesIndex = 0; seriesIndex < evaluated.length; seriesIndex += 1) {
+      const series = evaluated[seriesIndex];
+      if (!series || !visibleSeriesIds.has(series.id)) continue;
+      for (const point of series.points) {
+        if (point.y === null || !Number.isFinite(point.y)) continue;
+        const pointPx = mapX(point.x);
+        const pointPy = mapY(clamp(point.y, view.yMin - ySpan, view.yMax + ySpan));
+        const dx = pointPx - px;
+        const dy = pointPy - py;
+        const distanceSquared = dx * dx + dy * dy;
+        if (!closest || distanceSquared < closest.distanceSquared) {
+          closest = {
+            label: series.label,
+            color: seriesIndex === 0 ? GRAPH_BLUE : GRAPH_SECONDARY,
+            x: point.x,
+            y: point.y,
+            px: pointPx,
+            py: pointPy,
+            distanceSquared,
+          };
+        }
       }
     }
-    if (closestPoint && closestPoint.y !== null) {
+    if (closest && closest.distanceSquared <= 24 * 24) {
       setHoverData({
-        x: closestPoint.x,
-        y: closestPoint.y,
-        px: mapX(closestPoint.x),
-        py: mapY(closestPoint.y),
+        label: closest.label,
+        color: closest.color,
+        x: closest.x,
+        y: closest.y,
+        px: closest.px,
+        py: closest.py,
       });
       return;
     }
     setHoverData(null);
   };
 
-  const hasPlottableCurve = evaluated.some((series) => series.points.some((point) => point.y !== null));
+  const hasPlottableCurve = evaluated.some((series) => visibleSeriesIds.has(series.id) && series.points.some((point) => point.y !== null));
+
+  const toggleSeries = useCallback((seriesId: string) => {
+    setVisibleSeriesIds((current) => {
+      const next = new Set(current);
+      if (next.has(seriesId)) next.delete(seriesId);
+      else next.add(seriesId);
+      return next;
+    });
+    setHoverData(null);
+  }, []);
 
   const handlePlotKeyDown = useCallback((event: ReactKeyboardEvent<SVGSVGElement>) => {
     if (event.ctrlKey || event.metaKey || event.altKey) return;
@@ -688,13 +750,20 @@ function FunctionPlot({ spec }: { spec: FunctionPlotCanvas }) {
   const resetAll = useCallback(() => {
     setValues(valuesForSpec(spec));
     setExpressions(Object.fromEntries(spec.series.map((s) => [s.id, s.expression])));
+    setVisibleSeriesIds(new Set(spec.series.map((series) => series.id)));
+    setHoverData(null);
     resetView();
   }, [spec, resetView]);
 
   return (
     <div className="relative mx-auto w-full max-w-full overflow-hidden rounded-xl border border-border bg-card shadow-md ring-1 ring-black/5">
       <div className="flex max-w-full min-w-0 flex-wrap items-center justify-between gap-x-2 gap-y-1.5 border-b border-border bg-muted/40 px-3.5 py-2.5">
-        <SeriesLegend spec={spec} expressions={expressions} />
+        <SeriesLegend
+          spec={spec}
+          expressions={expressions}
+          visibleSeriesIds={visibleSeriesIds}
+          onToggleSeries={toggleSeries}
+        />
         <div className="flex shrink-0 items-center gap-3">
           <button
             type="button"
@@ -741,9 +810,11 @@ function FunctionPlot({ spec }: { spec: FunctionPlotCanvas }) {
       <div className="relative w-full bg-card overflow-hidden select-none">
         <svg
           {...bind}
+          className="block h-auto w-full touch-none"
           viewBox={`0 0 ${SVG_W} ${SVG_H}`}
           role="img"
           tabIndex={0}
+          aria-describedby={hoverData ? `graph-tooltip-${uid}` : undefined}
           aria-keyshortcuts="ArrowLeft ArrowRight ArrowUp ArrowDown Plus = Minus 0"
           aria-label={`${spec.altText} Seret untuk menggeser, scroll untuk memperbesar, klik dua kali untuk mengatur ulang. Dengan keyboard, gunakan tombol panah untuk menggeser, Plus atau sama dengan untuk memperbesar, Minus untuk memperkecil, dan 0 untuk mengatur ulang.`}
           onMouseMove={handleHoverMove}
@@ -761,13 +832,15 @@ function FunctionPlot({ spec }: { spec: FunctionPlotCanvas }) {
           {seriesPaths.map((series, idx) => (
             <path
               key={series.id}
+              data-series-id={series.id}
               d={series.path}
               fill="none"
-              stroke={idx === 0 ? GRAPH_BLUE : GRAPH_SECONDARY}
+              stroke={series.color}
               strokeWidth={3}
               strokeDasharray={spec.series[idx]?.lineStyle === "dashed" ? "8 6" : spec.series[idx]?.lineStyle === "dotted" ? "2 5" : undefined}
               strokeLinecap="round"
               strokeLinejoin="round"
+              display={series.visible ? undefined : "none"}
               clipPath={`url(#plot-clip-${uid})`}
             />
           ))}
@@ -809,7 +882,7 @@ function FunctionPlot({ spec }: { spec: FunctionPlotCanvas }) {
                 cx={hoverData.px}
                 cy={hoverData.py}
                 r={5}
-                fill={GRAPH_BLUE}
+                fill={hoverData.color}
                 stroke="var(--color-card)"
                 strokeWidth={2}
               />
@@ -819,13 +892,24 @@ function FunctionPlot({ spec }: { spec: FunctionPlotCanvas }) {
 
         {!hasPlottableCurve && (
           <div className="absolute inset-x-6 bottom-3 rounded-lg border border-status-warning/30 bg-background/95 p-2.5 text-left text-body-xs text-foreground shadow-sm">
-            Grafik belum dapat digambar pada tampilan ini. Coba geser atau atur ulang tampilan, atau periksa kembali rumusnya.
+            {visibleSeriesIds.size === 0
+              ? "Tidak ada fungsi yang ditampilkan. Aktifkan fungsi di atas untuk melihat kurvanya."
+              : "Grafik belum dapat digambar pada tampilan ini. Coba geser atau atur ulang tampilan, atau periksa kembali rumusnya."}
           </div>
         )}
 
         {hoverData && (
-          <div className="pointer-events-none absolute right-3 top-3 rounded-md border border-border bg-popover/90 px-2.5 py-1 text-body-xs font-mono font-medium text-popover-foreground shadow-sm backdrop-blur-xs">
-            x: {formatNum(hoverData.x)}, y: {formatNum(hoverData.y)}
+          <div
+            id={`graph-tooltip-${uid}`}
+            role="tooltip"
+            className="pointer-events-none absolute z-10 w-max max-w-[calc(100%-1.5rem)] rounded-md border border-border bg-popover/95 px-2.5 py-1.5 text-body-xs text-popover-foreground shadow-sm backdrop-blur-xs"
+            style={{
+              left: `clamp(0.75rem, ${((hoverData.px / SVG_W) * 100).toFixed(2)}%, calc(100% - 12rem))`,
+              top: `clamp(0.75rem, calc(${((hoverData.py / SVG_H) * 100).toFixed(2)}% - 3.25rem), calc(100% - 3rem))`,
+            }}
+          >
+            <span className="block font-semibold" style={{ color: hoverData.color }}>{hoverData.label}</span>
+            <span className="font-mono">x: {formatNum(hoverData.x)}, y: {formatNum(hoverData.y)}</span>
           </div>
         )}
       </div>
@@ -837,34 +921,6 @@ function FunctionPlot({ spec }: { spec: FunctionPlotCanvas }) {
         onResetAll={resetAll}
       />
 
-      <div className="border-t border-border bg-muted/10 px-4 py-3">
-        <details className="text-body-sm group">
-          <summary className="cursor-pointer font-medium text-muted-foreground hover:text-foreground transition-colors select-none">
-            Lihat ringkasan tabel data grafik
-          </summary>
-          <div className="mt-3 overflow-x-auto">
-            <table className="w-full border-collapse text-body-sm">
-              <caption className="sr-only">{spec.altText}</caption>
-              <thead>
-                <tr className="border-b border-border text-left">
-                  <th className="px-2 py-1 font-semibold">Fungsi</th>
-                  <th className="px-2 py-1 font-semibold">Rentang x</th>
-                  <th className="px-2 py-1 font-semibold">Jumlah titik</th>
-                </tr>
-              </thead>
-              <tbody>
-                {evaluated.map((series) => (
-                  <tr key={series.id} className="border-b border-border/60">
-                    <td className="px-2 py-1 font-mono">{series.label}</td>
-                    <td className="px-2 py-1 font-mono">{formatTick(view.xMin, 0.01)} sampai {formatTick(view.xMax, 0.01)}</td>
-                    <td className="px-2 py-1">{series.points.filter((point) => point.y !== null).length}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </details>
-      </div>
     </div>
   );
 }

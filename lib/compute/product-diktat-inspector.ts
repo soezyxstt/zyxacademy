@@ -109,7 +109,9 @@ export async function generateProductDiktatPdfEvidence(input: {
   } catch (error) {
     const failureCode = productDiktatFailureCode(error);
     await db.update(buktiPdfBundle).set({ status: "failed", storageKey: null, pageCount: null, failureCode, updatedAt: new Date() }).where(eq(buktiPdfBundle.id, id));
-    if (input.throwOnFailure) throw new Error("PRODUCT_DIKTAT_RENDER_RETRYABLE");
+    if (input.throwOnFailure && ["RENDER_UNAVAILABLE", "RENDER_TIMEOUT", "STORAGE_UNAVAILABLE"].includes(failureCode)) {
+      throw new Error(`PRODUCT_DIKTAT_RENDER_RETRYABLE:${failureCode}`, { cause: error });
+    }
     return { evidenceId: id, status: "failed", failureCode };
   }
 }

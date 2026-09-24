@@ -5,14 +5,7 @@ import type { ProductEntity } from "./product-validator";
 
 
 export const PRODUCT_DIKTAT_RENDERER_VERSION = "zyx-diktat-worker-v1";
-export const PRODUCT_DIKTAT_PRINT_PROFILE = "a4-self-study-2-page-v1";
-const MAX_DIKTAT_SUMMARY_CHARS = 360;
-const MAX_DIKTAT_IDEA_SUMMARY_CHARS = 220;
-const MAX_DIKTAT_LEARNING_BLOCKS = 3;
-const MAX_DIKTAT_LEARNING_BLOCK_CHARS = 240;
-const MAX_DIKTAT_FORMULAS = 8;
-const MAX_DIKTAT_VISUALS = 2;
-const MATH_PATTERN = /\$\$([\s\S]+?)\$\$|\\\[([\s\S]+?)\\\]|\$([^$\n]+?)\$/g;
+export const PRODUCT_DIKTAT_PRINT_PROFILE = "a4-self-study-compact-v2";
 
 function buildSelfContainedKatexCss(): string {
   const cssPath = path.resolve(process.cwd(), "node_modules/katex/dist/katex.min.css");
@@ -53,50 +46,6 @@ function escapeHtml(value: string): string {
     .replaceAll("'", "&#039;");
 }
 
-function plain(value: string): string {
-  return value
-    .replaceAll("\\n", " ")
-    .replace(/```[\s\S]*?```/g, " ")
-    .replace(/[#*_>`~]/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-function clipped(value: string, max = 420): string {
-  const text = plain(value);
-  if (text.length <= max) return text;
-  const candidate = text.slice(0, max);
-  const sentenceEnd = Math.max(
-    candidate.lastIndexOf(". "),
-    candidate.lastIndexOf("? "),
-    candidate.lastIndexOf("! "),
-  );
-  if (sentenceEnd >= Math.floor(max * 0.55)) {
-    return candidate
-      .slice(0, sentenceEnd + 1)
-      .trimEnd()
-      .replace(/\s+\d+\.$/, "");
-  }
-  const wordEnd = candidate.lastIndexOf(" ");
-  const prefix = candidate
-    .slice(0, Math.max(wordEnd, 1))
-    .trimEnd()
-    .replace(/[\s([{:;,-]+$/, "");
-  return `${prefix}...`;
-}
-
-function clippedMarkdown(value: string, max = 420): string {
-  const formulas: string[] = [];
-  const tokenized = value.replace(
-    MATH_PATTERN,
-    (match) => `ZYXFORMULA${formulas.push(match) - 1}END`,
-  );
-  return clipped(tokenized, max).replace(
-    /ZYXFORMULA(\d+)END/g,
-    (_match, index) => formulas[Number(index)] ?? "",
-  );
-}
-
 const SEMANTIC_EMPHASIS_LABELS = {
   remember: "Ingat",
   avoid: "Hindari",
@@ -108,143 +57,20 @@ const SEMANTIC_EMPHASIS_LABELS = {
 function applySemanticEmphasis(html: string): string {
   return html.replace(
     /\[\[emphasis:(remember|avoid|caution|definition|formula)\]\]([\s\S]*?)\[\[\/emphasis\]\]/gi,
-    (_match, tone: keyof typeof SEMANTIC_EMPHASIS_LABELS, content: string) =>
-      `<span class="semantic-emphasis semantic-${tone.toLowerCase()}"><span class="semantic-label">${SEMANTIC_EMPHASIS_LABELS[tone.toLowerCase() as keyof typeof SEMANTIC_EMPHASIS_LABELS]}</span>${content}</span>`,
+    (_match, tone: keyof typeof SEMANTIC_EMPHASIS_LABELS, content: string) => {
+      const label = SEMANTIC_EMPHASIS_LABELS[tone.toLowerCase() as keyof typeof SEMANTIC_EMPHASIS_LABELS];
+      const withoutDuplicateLabel = content.replace(new RegExp(`^${label}:?\\s*`, "i"), "");
+      return `<span class="semantic-emphasis semantic-${tone.toLowerCase()}"><span class="semantic-label">${label}</span>${withoutDuplicateLabel}</span>`;
+    },
   );
-}
-
-/**
- * Keep a Diktat snippet useful as a revision aid rather than copying an
- * Article paragraph verbatim. Headings, list markers, and blank lines carry
- * structure in the Article but add noise when the snippet is printed in the
- * compact two-page Diktat layout.
- */
-function conciseMarkdown(value: string, max: number): string {
-  const body = value
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter((line) => line && !/^#{1,6}\s+/.test(line) && !/^```/.test(line))
-    .join(" ");
-  return clippedMarkdown(body, max);
-}
-
-function renderMath(latex: string, displayMode: boolean): string {
-  try {
-    return katex.renderToString(latex.trim(), {
-      displayMode,
-      throwOnError: true,
-      output: "html",
-      strict: "error",
-    });
-  } catch {
-    throw new Error("PRODUCT_DIKTAT_FORMULA_RENDER_ERROR");
-  }
-}
-
-function inlineMarkup(value: string): string {
-  const math: string[] = [];
-  const tokenized = value.replace(MATH_PATTERN, (_match, block, bracketBlock, inline) => {
-    const display = block !== undefined || bracketBlock !== undefined;
-    const index = math.push(renderMath(block ?? bracketBlock ?? inline, display)) - 1;
-    return `ZYXMATH${index}END`;
-  });
-  let html = escapeHtml(tokenized);
-  html = html.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
-  html = applySemanticEmphasis(html);
-  return html.replace(/ZYXMATH(\d+)END/g, (_match, index) => math[Number(index)] ?? "");
-}
-
-function articleBlocks(article: ArticleProduct) {
-  if (article.sections.length > 0) {
-    return article.sections
-      .slice()
-      .sort((a, b) => a.orderIndex - b.orderIndex)
-      .flatMap((section) => section.blocks.slice().sort((a, b) => a.orderIndex - b.orderIndex));
-  }
-  return article.blocks
-    .slice()
-    .sort((a, b) => a.orderIndex - b.orderIndex)
-    .map((block) => ({ ...block, contentMarkdown: block.content, ideaIds: article.ideaLinks.map((link) => link.id) }));
-}
-
-function formulaeFrom(source: ProductDiktatRenderSource): string[] {
-  const values = [
-    source.diktat.contentMarkdown,
-    ...articleBlocks(source.article).map((block) => block.contentMarkdown),
-  ];
-  const found: Array<{ formula: string; display: boolean; order: number }> = [];
-  let order = 0;
-  for (const value of values) {
-    for (const match of value.matchAll(MATH_PATTERN)) {
-      const formula = (match[1] ?? match[2] ?? match[3] ?? "").trim();
-      const isStandaloneArrow = /^(?:\\to|\\rightarrow|\\Rightarrow)$/.test(formula);
-      const isMeaningful = /[=<>]|\\(?:lim|det|begin|neq|to|Rightarrow)/.test(formula);
-      if (isMeaningful && !isStandaloneArrow && !found.some((entry) => entry.formula === formula)) {
-        found.push({ formula, display: match[1] !== undefined || match[2] !== undefined, order: order++ });
-      }
-    }
-  }
-  return found
-    .sort((left, right) => Number(right.display) - Number(left.display) || left.order - right.order)
-    .slice(0, MAX_DIKTAT_FORMULAS)
-    .map((entry) => entry.formula);
-}
-
-function ideaSummaries(source: ProductDiktatRenderSource): string[] {
-  const blocks = articleBlocks(source.article);
-  return source.article.ideaLinks.map((link, index) => {
-    const matching = blocks.find((block) => block.ideaIds.includes(link.id));
-    return matching
-      ? conciseMarkdown(matching.contentMarkdown, MAX_DIKTAT_IDEA_SUMMARY_CHARS)
-      : `Pokok gagasan ${index + 1} dirangkum dari artikel sumber.`;
-  });
-}
-
-function selectedLearningBlocks(source: ProductDiktatRenderSource): string[] {
-  // A Diktat is a quick-reference sheet. Keep only high-signal checks and
-  // traps, with worked examples as a fallback when no shorter block exists.
-  const priority = ["misconception", "summary", "retrieval_close", "formative_check", "worked_example"];
-  return articleBlocks(source.article)
-    .filter((block) => priority.includes(block.blockType))
-    .sort((left, right) => priority.indexOf(left.blockType) - priority.indexOf(right.blockType) || left.orderIndex - right.orderIndex)
-    .slice(0, MAX_DIKTAT_LEARNING_BLOCKS)
-    .map((block) => conciseMarkdown(block.contentMarkdown, MAX_DIKTAT_LEARNING_BLOCK_CHARS));
-}
-
-function referencedVisuals(source: ProductDiktatRenderSource) {
-  const referencedIds = new Set<string>();
-  for (const section of source.article.sections) {
-    for (const block of section.blocks) {
-      for (const visualId of block.visualIds ?? []) referencedIds.add(visualId);
-    }
-    const requirement = section.pedagogy?.visualRequirement;
-    if (requirement?.status === "required") {
-      for (const visualId of requirement.visualIds) referencedIds.add(visualId);
-    }
-  }
-  return (source.article.visuals ?? [])
-    .filter((visual) => referencedIds.has(visual.id))
-    .slice(0, MAX_DIKTAT_VISUALS);
-}
-
-function renderStaticVisualFallback(visual: NonNullable<ArticleProduct["visuals"]>[number]): string {
-  const title = `<h3>${escapeHtml(visual.label)}</h3><p class="muted">${escapeHtml(visual.description)}</p>`;
-  if (visual.kind === "learning_canvas") {
-    const fallback = visual.canvas.fallback;
-    const headers = fallback.columns.map((column) => column.label);
-    return `<figure class="visual-fallback"><figcaption>${title}<p class="muted">${escapeHtml(fallback.summary)}</p></figcaption><div class="visual-table"><table><thead><tr>${headers.map((header) => `<th>${escapeHtml(header)}</th>`).join("")}</tr></thead><tbody>${fallback.rows.map((row) => `<tr>${row.map((cell) => `<td>${escapeHtml(String(cell))}</td>`).join("")}</tr>`).join("")}</tbody></table></div></figure>`;
-  }
-  const fallback = visual.staticFallback;
-  if (fallback.type === "table") {
-    return `<figure class="visual-fallback"><figcaption>${title}<p class="muted">${escapeHtml(fallback.summary)}</p></figcaption><div class="visual-table"><table><thead><tr>${fallback.headers.map((header) => `<th>${escapeHtml(header)}</th>`).join("")}</tr></thead><tbody>${fallback.rows.map((row) => `<tr>${row.map((cell) => `<td>${escapeHtml(String(cell))}</td>`).join("")}</tr>`).join("")}</tbody></table></div></figure>`;
-  }
-  return `<figure class="visual-fallback"><figcaption>${title}<p>${escapeHtml(fallback.summary)}</p></figcaption><p>${escapeHtml(fallback.content)}</p></figure>`;
 }
 
 export const ZYX_MAIN_LOGO_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2182 1275" fill="none">
   <path d="M820.486 0L1043.32 311.527L561.052 985.764H785.07C1218.92 985.764 1414.6 741.149 1490.45 548.958C1530.06 448.611 1614.41 218.403 1779.69 153.473C1726.56 188.889 1645.61 253.821 1596.7 619.792C1511.51 1257.29 1018.23 1275 675.869 1275H0L705.095 289.236H0V0H820.486Z" fill="#002B49"/>
   <path d="M1548 389.927L1826.91 0H2181.08L1725.09 637.5L2181.08 1275H1826.91L1584.83 936.551C1624.06 852.061 1646.88 746.292 1646.88 613.889C1646.88 330.556 1729.52 188.89 1782.64 153.473C1617.37 218.403 1594.99 445.66 1555.38 546.007C1531.12 607.48 1494.6 674.317 1441.95 736.797L914.931 0H1269.1L1548 389.927Z" fill="#FF6B35"/>
 </svg>`;
+
+const DIKTAT_CONTACT_FOOTER_HTML = `<span>Instagram: zyx_academy</span><span>Email: zyxforbusiness@gmail.com</span><span>WhatsApp: 0851 9475 4224</span><a href="https://zyxacademy.com">zyxacademy.com</a>`;
 
 const WATERMARK_CSS = `
 .diktat-watermark {
@@ -261,9 +87,7 @@ const WATERMARK_CSS = `
 .diktat-watermark svg { width: 100%; height: auto; display: block; }
 `;
 
-/**
- * Compiles a two-page product bundle diktat into printable HTML.
- */
+/** Compiles the authored Diktat into a compact print layout. */
 export function compileProductDiktatHtml(source: ProductDiktatRenderSource): string {
   if (
     source.diktat.sourceArticleId !== source.article.id ||
@@ -273,75 +97,54 @@ export function compileProductDiktatHtml(source: ProductDiktatRenderSource): str
     throw new Error("PRODUCT_DIKTAT_LINEAGE_MISMATCH");
   }
 
-  const ideas = ideaSummaries(source);
-  const formulas = formulaeFrom(source);
-  const visuals = referencedVisuals(source);
-  const learningBlocks = selectedLearningBlocks(source);
-  const diktatSummary = conciseMarkdown(source.diktat.contentMarkdown, MAX_DIKTAT_SUMMARY_CHARS);
   const title = escapeHtml(source.diktat.title);
-
-  const ideaHtml = ideas.map((idea, index) => `<li><strong>Pokok gagasan ${index + 1}.</strong> ${inlineMarkup(idea)}</li>`).join("");
-  const formulaHtml = formulas.length > 0
-    ? formulas.map((formula) => `<div class="formula">${renderMath(formula, true)}</div>`).join("")
-    : `<p class="muted">Bab ini tidak memerlukan rumus khusus.</p>`;
-  const learningHtml = learningBlocks.length > 0
-    ? learningBlocks.map((block, index) => `<section class="learning"><h3>Langkah ${index + 1}</h3><p>${inlineMarkup(block)}</p></section>`).join("")
-    : `<section class="learning"><h3>Uji pemahaman</h3><p>Tuliskan kembali gagasan utama bab ini, lalu jelaskan syarat penerapannya dengan kata-kata sendiri.</p></section>`;
-  const visualHtml = visuals.length > 0
-    ? `<h2>Visual pendukung</h2>${visuals.map(renderStaticVisualFallback).join("")}`
-    : "";
+  const content = parseCanonicalDiktatMarkdownToHtml(withoutRepeatedDocumentHeading(source.diktat.contentMarkdown), source.diktat.title);
 
   return `<!doctype html>
 <html lang="id"><head><meta charset="utf-8"><title>${title}</title>
 <style>${KATEX_CSS}
 ${WATERMARK_CSS}
-@page { size: A4; margin: 14mm 15mm 14mm; }
+@page { size: A4; margin: 9mm 12mm 9mm; }
 * { box-sizing: border-box; }
-body { margin: 0; color: #172033; font-family: "DejaVu Sans", Arial, sans-serif; font-size: 10.2pt; line-height: 1.43; }
-.page { break-after: page; min-height: 254mm; position: relative; z-index: 1; }
-.page:last-child { break-after: auto; }
-.eyebrow { color: #b94c16; font-size: 8.5pt; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
-h1 { color: #111827; font-size: 23pt; line-height: 1.15; margin: 8mm 0 5mm; }
-h2 { border-bottom: 1.5px solid #172033; font-size: 14pt; margin: 7mm 0 3mm; padding-bottom: 2mm; }
-h3 { font-size: 10.5pt; margin: 0 0 1.5mm; }
-p { margin: 0 0 3mm; }
-ol, ul { margin: 0 0 4mm; padding-left: 6mm; }
-li { margin-bottom: 2.2mm; }
-.lead { color: #374151; font-size: 11pt; }
-.formula { background: #f5f7fa; border-left: 3px solid #e66b2c; margin: 3mm 0; padding: 3mm; text-align: center; break-inside: avoid; }
-.semantic-emphasis { border-bottom: 1px solid currentColor; border-radius: 2px; padding: 0 2px; font-weight: 600; }
-.semantic-label { font-size: 7pt; font-weight: 700; letter-spacing: .04em; margin-right: 3px; text-transform: uppercase; }
-.semantic-remember { background: #ecfdf3; color: #166534; }
-.semantic-avoid { background: #fff1f2; color: #9f1239; }
-.semantic-caution { background: #fffbeb; color: #92400e; }
-.semantic-definition { background: #eff6ff; color: #1d4ed8; }
-.semantic-formula { background: #f5f3ff; color: #6d28d9; }
-.learning { border-bottom: 1px solid #d9dee8; margin-bottom: 3mm; padding-bottom: 3mm; break-inside: avoid; }
-.visual-fallback { border: 1px solid #d9dee8; margin: 3mm 0; padding: 3mm; break-inside: avoid; }
-.visual-fallback h3 { margin-bottom: 1mm; }
-.visual-fallback p { margin-bottom: 1.5mm; }
-.visual-table { overflow: hidden; }
-.visual-table table { border-collapse: collapse; font-size: 8.5pt; width: 100%; }
-.visual-table th, .visual-table td { border: 1px solid #d9dee8; padding: 1.5mm 2mm; text-align: left; }
-.visual-table th { background: #f5f7fa; font-weight: 700; }
-.muted, .footer { color: #667085; font-size: 8.5pt; }
-.footer { margin-top: 8mm; }
-.katex-display { margin: 0; overflow: visible; }
-.katex { font-family: "DejaVu Serif", serif; }
+body { margin: 0; color: #172033; font-family: Arial, sans-serif; font-size: 8.4pt; line-height: 1.32; }
+.diktat { position: relative; z-index: 1; }
+.diktat-header { border-bottom: 1px solid #b9c5d2; margin-bottom: 3mm; padding-bottom: 2mm; }
+.eyebrow { color: #b94c16; font-size: 7pt; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; }
+h1 { color: #172033; font-size: 15pt; line-height: 1.2; margin: 1mm 0 0; }
+.diktat-content { column-count: 2; column-gap: 7mm; }
+.section-h1, .section-h2 { color: #172033; font-size: 10pt; line-height: 1.2; margin: 3mm 0 1mm; break-after: avoid; }
+.section-h3, .section-h4 { font-size: 8.7pt; margin: 2mm 0 .7mm; break-after: avoid; }
+p { margin: 0 0 1.4mm; }
+ol, ul { margin: 0 0 1.6mm; padding-left: 5.5mm; }
+li { margin-bottom: .8mm; padding-left: .5mm; }
+.pedagogical-card { display: contents; }
+.formula-display { margin: 1mm 0 1.2mm; text-align: left; break-inside: avoid; }
+.katex-display { margin: 0; overflow: visible; text-align: left; }
+.formula-list { display: grid; gap: .6mm; margin: 1.4mm 0 2mm; padding-left: 1mm; }
+.formula-item { min-width: 0; }
+.formula-item .formula-display { display: block; margin: 0; }
+.katex { font-size: .92em; }
+.semantic-emphasis { font-weight: 600; }
+.semantic-label { font-weight: 700; margin-right: 3px; }
+.semantic-caution { color: inherit; }
+.diktat-divider { border: 0; border-top: 1px solid #d9dee8; margin: 2mm 0; }
+.table-container { break-inside: avoid; margin: 1.5mm 0; }
+.diktat-table { width: 100%; border-collapse: collapse; font-size: 7.5pt; }
+.diktat-table th, .diktat-table td { border: 1px solid #d9dee8; padding: 1mm; }
+.misconception-grid { margin: 1.5mm 0; }
+.label-wrong, .label-correct, .solution-header, .example-badge, .step-badge { font-weight: 700; }
+.example-header, .solution-header { margin: 1.5mm 0 .5mm; }
+.inline-code { font-family: monospace; }
+.diktat-contact-footer { position: fixed; z-index: 2; bottom: 0; left: 0; right: 0; min-height: 5.5mm; display: flex; align-items: center; justify-content: space-between; gap: 2mm; border: 1px solid #334b78; border-radius: 8mm; padding: 1mm 2.5mm; color: #334b78; background: #fff; font-size: 7pt; font-weight: 700; white-space: nowrap; }
+.diktat-contact-footer a { color: inherit; text-decoration: underline; }
 </style></head><body>
 <div class="diktat-watermark" aria-hidden="true">${ZYX_MAIN_LOGO_SVG}</div>
-<main class="page">
-  <p class="eyebrow">Diktat belajar mandiri</p><h1>${title}</h1>
-  <h2>Rumus utama</h2>${formulaHtml}
-  ${visualHtml}
-  <h2>Gagasan inti</h2><ol>${ideaHtml}</ol>
-  <p class="lead">${inlineMarkup(diktatSummary)}</p>
-</main>
-<main class="page">
-  <p class="eyebrow">Latihan pemahaman</p><h1>${title}</h1>
-  ${learningHtml}
-  <p class="footer">Dihasilkan dari Artikel yang telah ditautkan dan sumber akademik terverifikasi. Informasi lineage teknis disimpan terpisah sebagai bukti publikasi.</p>
-</main></body></html>`;
+<footer class="diktat-contact-footer">${DIKTAT_CONTACT_FOOTER_HTML}</footer>
+<main class="diktat"><header class="diktat-header"><span class="eyebrow">Diktat</span><h1>${title}</h1></header><div class="diktat-content">${content}</div></main></body></html>`;
+}
+
+function withoutRepeatedDocumentHeading(markdown: string): string {
+  return markdown.replace(/^\s*#\s+[^\r\n]+\r?\n/, "").trimStart();
 }
 
 /**
@@ -383,7 +186,7 @@ export function parseCanonicalDiktatMarkdownToHtml(markdown: string, documentTit
     .replace(/\\\(\s*([\s\S]*?)\s*\\\)/g, (_m, eq) => storeMath(eq, false))
     .replace(/\$([^\$\n]+?)\$/g, (orig, eq) => {
       const trimmed = eq.trim();
-      if (!trimmed || /^\d+(\.\d+)?$/.test(trimmed)) return orig;
+      if (!trimmed) return orig;
       return storeMath(trimmed, false);
     });
 
@@ -545,8 +348,10 @@ export function parseCanonicalDiktatMarkdownToHtml(markdown: string, documentTit
     // Unordered List (- or *)
     if (trimmed.match(/^[-*]\s+/)) {
       const items: string[] = [];
+      const rawItems: string[] = [];
       while (i < lines.length && lines[i].trim().match(/^[-*]\s+/)) {
         const itemContent = lines[i].trim().replace(/^[-*]\s+/, "");
+        rawItems.push(itemContent);
         const stepMatch = itemContent.match(/^Langkah\s*(\d+):?\s*(.*)/i);
         if (stepMatch) {
           items.push(
@@ -557,7 +362,11 @@ export function parseCanonicalDiktatMarkdownToHtml(markdown: string, documentTit
         }
         i++;
       }
-      out.push(`<ul class="diktat-list">${items.join("\n")}</ul>`);
+      if (rawItems.every((item) => mathMap.has(item) && mathMap.get(item)?.startsWith('<div class="formula-display">'))) {
+        out.push(`<div class="formula-list">${rawItems.map((item) => `<div class="formula-item">${item}</div>`).join("\n")}</div>`);
+      } else {
+        out.push(`<ul class="diktat-list">${items.join("\n")}</ul>`);
+      }
       continue;
     }
 
@@ -656,7 +465,7 @@ export function parseCanonicalDiktatMarkdownToHtml(markdown: string, documentTit
  */
 export function compileCanonicalDiktatHtml(title: string, markdown: string): string {
   const safeTitle = escapeHtml(title);
-  const renderedContent = parseCanonicalDiktatMarkdownToHtml(markdown, title);
+  const renderedContent = parseCanonicalDiktatMarkdownToHtml(withoutRepeatedDocumentHeading(markdown), title);
 
   return `<!doctype html>
 <html lang="id"><head><meta charset="utf-8"><title>${safeTitle}</title>
@@ -841,6 +650,19 @@ li {
 }
 .diktat-list {
   list-style-type: disc;
+}
+.diktat-running-footer a { color: inherit; text-decoration: underline; }
+.formula-list {
+  display: grid;
+  gap: 2mm;
+  margin: 2mm 0 4mm;
+}
+.formula-item .formula-display {
+  margin: 0;
+  text-align: left;
+}
+.formula-item .katex-display {
+  text-align: left;
 }
 .diktat-ordered-list {
   list-style-type: decimal;
@@ -1083,9 +905,8 @@ blockquote {
 </header>
 
 <!-- Running Footer (Repeated on every page) -->
-<footer class="diktat-running-footer" aria-hidden="true">
-  <div class="running-footer-left">Diterbitkan oleh Zyx Academy · Dokumen Belajar Mandiri Mahasiswa</div>
-  <div class="running-footer-right">Hak Cipta Dilindungi</div>
+<footer class="diktat-running-footer">
+  ${DIKTAT_CONTACT_FOOTER_HTML}
 </footer>
 
 <main class="diktat-container">

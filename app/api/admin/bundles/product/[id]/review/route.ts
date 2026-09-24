@@ -14,12 +14,13 @@ export const runtime = "nodejs";
 const pedagogicReviewRequestSchema = z
   .object({
     decision: z.enum(["approved", "rejected", "changes_requested"]),
-    policyVersion: z.string().trim().min(1),
-    contentFingerprint: z.string().trim().min(1),
-    criteria: z.array(pedagogicRubricItemSchema),
+    policyVersion: z.string().trim().min(1).optional(),
+    contentFingerprint: z.string().trim().min(1).optional(),
+    criteria: z.array(pedagogicRubricItemSchema).optional(),
     exceptions: z.array(pedagogicExceptionSchema).default([]),
     expectedRevision: z.union([z.string(), z.number()]).optional(),
     notes: z.string().trim().max(4000).optional(),
+    reason: z.string().trim().max(4000).optional(),
   })
   .strict();
 

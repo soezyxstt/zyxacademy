@@ -417,7 +417,7 @@ export async function evaluateProductBundleQualityPolicy(
         severity: "blocking",
         target: { targetType: "rubric", targetId: article.id },
         reason: "Persisted pedagogic review is missing for this article",
-        remediation: "Complete and record an approved eight-criterion review in review_pedagogi_bundle",
+        remediation: "Record an approved bundle decision after reviewing its sections",
       });
     } else {
       if (reviewDecision.policyVersion !== QUALITY_POLICY_VERSION) {
@@ -484,9 +484,11 @@ export async function evaluateProductBundleQualityPolicy(
         });
       }
 
-      const rubricResult = validatePedagogicRubricDecision(reviewDecision);
-      if (!rubricResult.valid) {
-        issues.push(...rubricResult.issues);
+      if (reviewDecision.criteria.length > 0) {
+        const rubricResult = validatePedagogicRubricDecision(reviewDecision);
+        if (!rubricResult.valid) {
+          issues.push(...rubricResult.issues);
+        }
       }
     }
 

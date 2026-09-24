@@ -8,6 +8,7 @@ import type { ArticleDocument } from "@/lib/materials/article-contract";
 import type { ProductEntity } from "@/lib/bundle/product-validator";
 import {
   compileProductDiktatHtml,
+  parseCanonicalDiktatMarkdownToHtml,
   PRODUCT_DIKTAT_PRINT_PROFILE,
   canDownloadProductDiktat,
 } from "@/lib/bundle/product-diktat-pdf";
@@ -141,7 +142,7 @@ describe("CP5 Product Bundle Diktat PDF", () => {
   ] as const;
 
   for (const [fixture, formula] of fixtures) {
-    test(`renders a real two-page PDF for ${fixture.id}`, async () => {
+    test(`renders an authored PDF for ${fixture.id}`, async () => {
       const article = articleProduct(fixture);
       const diktat = diktatProduct(article, formula);
       const html = compileProductDiktatHtml({ article, diktat });
@@ -150,8 +151,10 @@ describe("CP5 Product Bundle Diktat PDF", () => {
       const bytes = await realPdf(html);
       assert.equal(new TextDecoder().decode(bytes.slice(0, 5)), "%PDF-");
       const inspected = await inspectProductDiktatPdf(bytes);
-      assert.equal(inspected.pageCount, 2);
-      assert.match(inspected.text, /Pokok gagasan 1/);
+      assert.equal(inspected.pageCount, 1);
+      assert.match(inspected.text, /Ringkasan mandiri/);
+      assert.doesNotMatch(inspected.text, /Pokok gagasan/);
+      assert.match(inspected.text, /zyxacademy.com/);
       assert.doesNotMatch(inspected.text, new RegExp(article.ideaLinks[0].id));
       assert.doesNotMatch(inspected.text, /\[object Object\]/);
       await savePdfPages(article.id, bytes);
@@ -165,7 +168,22 @@ describe("CP5 Product Bundle Diktat PDF", () => {
   });
 
   test("uses an explicit reproducible print profile", () => {
-    assert.equal(PRODUCT_DIKTAT_PRINT_PROFILE, "a4-self-study-2-page-v1");
+    assert.equal(PRODUCT_DIKTAT_PRINT_PROFILE, "a4-self-study-compact-v2");
+  });
+
+  test("separates formula rows from symbol bullets and removes the repeated heading", () => {
+    const article = articleProduct(LIMIT_ARTICLE_FIXTURE);
+    const diktat = {
+      ...diktatProduct(article, "x=1"),
+      contentMarkdown: "# Diktat ringkas Matematika I Bab 1\n\n### Bilangan real\n\n- $$x=1$$\n- $$y=2$$\n\n- $x$: input.\n- $y$: output.",
+    };
+    const html = compileProductDiktatHtml({ article, diktat });
+    assert.doesNotMatch(html, /<h1 class="section-h1">Diktat ringkas/);
+    assert.match(html, /class="formula-list"/);
+    assert.match(html, /<ul class="diktat-list">/);
+    assert.match(html, /href="https:\/\/zyxacademy.com"/);
+    const parsed = parseCanonicalDiktatMarkdownToHtml(diktat.contentMarkdown, diktat.title);
+    assert.match(parsed, /class="formula-list"/);
   });
 
   test("allows only admin preview or an enrolled student download", () => {

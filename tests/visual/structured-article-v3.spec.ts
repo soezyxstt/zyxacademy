@@ -275,6 +275,37 @@ test.describe("Structured Article V3 visual acceptance", () => {
     await expect(graph).toBeVisible();
     await capture(page, testInfo, "self-study-learning-canvas-shifted");
 
+    await graph.getByRole("button", { name: "Ubah rumus" }).click();
+    await graph.getByRole("textbox", { name: "Formula Awal" }).fill("1/x");
+    const hideSource = graph.getByRole("button", { name: "Sembunyikan Awal" });
+    await expect(hideSource.locator(".mfrac")).toBeVisible();
+    await hideSource.click();
+    await expect(graph.locator('path[data-series-id="source"]')).toHaveCSS("display", "none");
+    await graph.getByRole("button", { name: "Sembunyikan Hasil" }).click();
+    await expect(graph.locator('path[data-series-id="shifted"]')).toHaveCSS("display", "none");
+    await expect(graph.getByText("Tidak ada fungsi yang ditampilkan.")).toBeVisible();
+
+    await graph.getByRole("button", { name: "Tampilkan Hasil" }).click();
+    const resultCurve = graph.locator('path[data-series-id="shifted"]');
+    const curvePoint = await resultCurve.evaluate((node) => {
+      const path = node as SVGPathElement;
+      const svg = path.ownerSVGElement!;
+      const totalLength = path.getTotalLength();
+      const point = Array.from({ length: 201 }, (_, index) => path.getPointAtLength((totalLength * index) / 200))
+        .find((candidate) => candidate.x > 70 && candidate.x < 530 && candidate.y > 40 && candidate.y < 270);
+      if (!point) throw new Error("Expected an interior point on the visible curve");
+      const rect = svg.getBoundingClientRect();
+      return { x: rect.left + (point.x / 600) * rect.width, y: rect.top + (point.y / 312) * rect.height };
+    });
+    await page.mouse.move(curvePoint.x, curvePoint.y);
+    const graphTooltip = graph.getByRole("tooltip");
+    await expect(graphTooltip).toContainText("Hasil");
+    await expect(graphTooltip).toContainText("x:");
+    await expect(graphTooltip).toContainText("y:");
+    await graph.getByRole("button", { name: "Tampilkan Awal" }).click();
+    await graph.getByRole("button", { name: "Reset visual" }).click();
+    await graph.getByRole("button", { name: "Sembunyikan edit rumus" }).click();
+
     const focusButton = page.getByRole("button", { name: "Masuk mode fokus" });
     await focusButton.focus();
     await page.keyboard.press("Enter");

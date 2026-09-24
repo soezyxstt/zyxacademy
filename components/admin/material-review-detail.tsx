@@ -18,10 +18,8 @@ import {
   Lightbulb,
   ListFilter,
   Loader2,
-  MessageSquareText,
   MoreHorizontal,
   RotateCcw,
-  ShieldAlert,
   Trash2,
   X
 } from "lucide-react";
@@ -55,11 +53,7 @@ import {
 } from "@/lib/articles/structured-read-model";
 import { explainBundleError } from "@/lib/bundle/admin-errors";
 import { ProductDraftEditor } from "@/components/admin/product-draft-editor";
-import {
-  PEDAGOGIC_CRITERION_IDS,
-  QUALITY_POLICY_VERSION,
-} from "@/lib/materials/quality-policy-constants";
-import type { PedagogicCriterionId, PedagogicRubricItem } from "@/lib/materials/quality-policy";
+import type { PedagogicCriterionId } from "@/lib/materials/quality-policy";
 import type { ProductPreview } from "@/lib/bundle/product-preview";
 import type { ProductDependency, ProductEntity } from "@/lib/bundle/product-validator";
 import { cn } from "@/lib/utils";
@@ -982,25 +976,6 @@ function ArticleBlockInspector({
         </div>
       )}
 
-      {/* Idea Traceability */}
-      <div className="space-y-1.5">
-        <div className="flex items-center justify-between">
-          <span className="text-body-xs font-semibold text-foreground">Idea terkait</span>
-          <Badge variant="outline" className="text-body-xs">{ideaIds.length}</Badge>
-        </div>
-        {ideaIds.length > 0 ? (
-          <div className="flex flex-wrap gap-1">
-            {ideaIds.map((id) => (
-              <span key={id} className="rounded bg-muted px-1.5 py-0.5 font-mono text-body-xs text-foreground">
-                {id}
-              </span>
-            ))}
-          </div>
-        ) : (
-          <p className="text-body-xs text-muted-foreground">Tidak ada relasi Idea spesifik.</p>
-        )}
-      </div>
-
       {/* Source References & Excerpts */}
       <div className="space-y-1.5">
         <div className="flex items-center justify-between">
@@ -1060,7 +1035,6 @@ function StructuredArticleProductView({
   reviewLocked,
   itemReviews,
   onReviewChange,
-  dependencies,
 }: {
   product: Extract<ProductEntity, { productType: "article" }>;
   bundleId: string;
@@ -1068,12 +1042,10 @@ function StructuredArticleProductView({
   reviewLocked: boolean;
   itemReviews: ProductBlockReview[];
   onReviewChange?: (review: ProductBlockReview) => void;
-  dependencies: ProductDependency[];
 }) {
   const sections = useMemo(() => [...product.sections].sort((a, b) => a.orderIndex - b.orderIndex), [product.sections]);
   const [selectedSectionId, setSelectedSectionId] = useState(sections[0]?.id ?? "");
   const [mobileQueueOpen, setMobileQueueOpen] = useState(false);
-  const [mobileEvidenceOpen, setMobileEvidenceOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [notes, setNotes] = useState("");
   const [reviewError, setReviewError] = useState<string | null>(null);
@@ -1183,10 +1155,7 @@ function StructuredArticleProductView({
 
   const queue = (
     <div className="space-y-2">
-      <div className="flex items-center justify-between">
-        <h3 className="font-heading text-body-sm font-bold">Bagian artikel</h3>
-        <Badge variant="outline" className="text-body-xs">{reviews.filter((entry) => entry.status === "approved").length}/{sections.length}</Badge>
-      </div>
+      <h3 className="font-heading text-body-sm font-bold">Bagian artikel</h3>
       {sections.map((section) => {
         const sectionReview = reviews.find((entry) => entry.targetId === section.id);
         return (
@@ -1200,65 +1169,82 @@ function StructuredArticleProductView({
               <span>{numbering.get(section.id)}</span>
               <StatusBadge tone={blockReviewTones[sectionReview?.status ?? "pending"]}>{blockReviewLabels[sectionReview?.status ?? "pending"]}</StatusBadge>
             </div>
-            <p className="mt-1 text-body-sm font-semibold text-foreground">{section.title}</p>
+            <p className="mt-1 truncate text-body-sm font-semibold text-foreground" title={section.title}>{section.title}</p>
           </button>
         );
       })}
     </div>
   );
 
-  const evidence = selected ? (
-    <div className="space-y-4">
-      <h3 className="font-heading text-body-sm font-bold">Keterlacakan</h3>
-      <div>
-        <p className="text-body-xs font-semibold text-muted-foreground">Idea tercakup</p>
-        <div className="mt-2 flex flex-wrap gap-1">{selected.ideaIds.map((id) => <Badge key={id} variant="outline" className="text-body-xs">{id}</Badge>)}</div>
-      </div>
-      <div>
-        <p className="text-body-xs font-semibold text-muted-foreground">Sumber</p>
-        <div className="mt-2 space-y-2">{selected.sourceRefs.map((source) => <div key={`${source.sourceId}-${source.version}`} className="rounded-lg border border-border bg-muted/30 p-2 text-body-xs"><p className="font-semibold">{source.sourceId}, v{source.version}</p><p className="mt-1 text-muted-foreground">{source.excerptIds.join(", ")}</p></div>)}</div>
-      </div>
-      <div>
-        <p className="text-body-xs font-semibold text-muted-foreground">Dependensi</p>
-        <p className="mt-1 text-body-xs text-muted-foreground">{dependencies.filter((dependency) => dependency.downstreamEntityId === product.id).length} dependensi artikel</p>
-      </div>
-      <Textarea value={notes} onChange={(event) => setNotes(event.target.value)} placeholder="Catatan review bagian" className="min-h-24 text-body-sm" />
-      {reviewError ? <p className="text-body-xs text-status-error">{reviewError}</p> : null}
-      {bundleStatus === "draft" && !reviewLocked ? <div className="grid grid-cols-2 gap-2"><Button type="button" disabled={saving} onClick={() => void saveSectionReview("approved")} className="bg-status-success text-white hover:bg-status-success/90"><Check className="mr-1 size-4" />Setujui</Button><Button type="button" disabled={saving} variant="outline" onClick={() => void saveSectionReview("changes_requested")} className="border-status-warning text-status-warning"><AlertTriangle className="mr-1 size-4" />Perbaikan</Button></div> : null}
-    </div>
-  ) : null;
-
   return (
-    <div className="space-y-3">
-      <div className="flex gap-2 lg:hidden"><Button type="button" variant="outline" onClick={() => setMobileQueueOpen(true)}><ListFilter className="mr-1 size-4" />Daftar bagian</Button><Button type="button" variant="outline" onClick={() => setMobileEvidenceOpen(true)}><Info className="mr-1 size-4" />Keterlacakan</Button></div>
-      <div className="grid gap-5 lg:grid-cols-[minmax(220px,0.75fr)_minmax(0,2fr)_minmax(240px,0.85fr)]">
-        <aside className="hidden lg:block">{queue}</aside>
-        <article className="mx-auto w-full max-w-[75ch] space-y-6">
-          {publicSection ? (
-            <FormativeCheckEndpointProvider
-              endpointBase={bundleStatus === "draft"
-                ? `/api/admin/bundles/product/${encodeURIComponent(bundleId)}/formative-check`
-                : "/api/materials/formative-check"}
-            >
-              <StructuredArticleSectionContent
-                section={publicSection}
-                articleId={product.id}
-                articleVersion={product.version}
-                showProgress={false}
-              />
-            </FormativeCheckEndpointProvider>
-          ) : (
-            <AdminEmptyState
-              icon={BookOpen}
-              title="Artikel belum memiliki bagian"
-              description="Tambahkan section V3 melalui authoring."
-            />
-          )}
-        </article>
-        <aside className="hidden rounded-xl border border-border bg-card p-4 lg:block">{evidence}</aside>
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <Button type="button" variant="outline" onClick={() => setMobileQueueOpen(true)}>
+          <ListFilter className="mr-1 size-4" />Daftar bagian
+        </Button>
+        <Badge variant="outline" className="text-body-xs">
+          {reviews.filter((entry) => entry.status === "approved").length}/{sections.length} bagian disetujui
+        </Badge>
       </div>
+      <article className={cn(styles.structuredArticle, "mx-auto w-full space-y-6")}>
+        {publicSection ? (
+          <FormativeCheckEndpointProvider
+            endpointBase={bundleStatus === "draft"
+              ? `/api/admin/bundles/product/${encodeURIComponent(bundleId)}/formative-check`
+              : "/api/materials/formative-check"}
+          >
+            <StructuredArticleSectionContent
+              section={publicSection}
+              articleId={product.id}
+              articleVersion={product.version}
+              showProgress={false}
+            />
+          </FormativeCheckEndpointProvider>
+        ) : (
+          <AdminEmptyState
+            icon={BookOpen}
+            title="Artikel belum memiliki bagian"
+            description="Tambahkan section V3 melalui authoring."
+          />
+        )}
+      </article>
+      {selected ? (
+        <section className={cn(styles.sectionReview, "space-y-3")} aria-label={`Review bagian ${selected.title}`}>
+          <div className="flex flex-wrap items-start justify-between gap-2">
+            <div className="min-w-0">
+              <h3 className="font-heading text-body-sm font-bold text-foreground">Review bagian</h3>
+              <p className="mt-0.5 break-words text-body-xs text-muted-foreground">{selected.title}</p>
+            </div>
+            <StatusBadge tone={blockReviewTones[review?.status ?? "pending"]}>
+              {blockReviewLabels[review?.status ?? "pending"]}
+            </StatusBadge>
+          </div>
+          {bundleStatus === "draft" && !reviewLocked ? (
+            <>
+              <Label htmlFor={`section-review-notes-${selected.id}`} className="text-body-sm font-semibold">Catatan review</Label>
+              <Textarea
+                id={`section-review-notes-${selected.id}`}
+                value={notes}
+                onChange={(event) => setNotes(event.target.value)}
+                placeholder="Catatan untuk bagian ini"
+                className="min-h-20 text-body-sm"
+              />
+              {reviewError ? <p className="text-body-xs text-status-error">{reviewError}</p> : null}
+              <div className="flex flex-wrap gap-2">
+                <Button type="button" disabled={saving} onClick={() => void saveSectionReview("approved")} className="bg-status-success text-white hover:bg-status-success/90">
+                  <Check className="mr-1 size-4" />Setujui bagian
+                </Button>
+                <Button type="button" disabled={saving} variant="outline" onClick={() => void saveSectionReview("changes_requested")} className="border-status-warning text-status-warning">
+                  <AlertTriangle className="mr-1 size-4" />Minta perbaikan
+                </Button>
+              </div>
+            </>
+          ) : review?.notes ? (
+            <p className="whitespace-pre-wrap text-body-sm text-muted-foreground">{review.notes}</p>
+          ) : null}
+        </section>
+      ) : null}
       <Sheet open={mobileQueueOpen} onOpenChange={setMobileQueueOpen}><SheetContent side="left" className="overflow-y-auto"><SheetHeader><SheetTitle>Daftar bagian</SheetTitle></SheetHeader><div className="mt-4">{queue}</div></SheetContent></Sheet>
-      <Sheet open={mobileEvidenceOpen} onOpenChange={setMobileEvidenceOpen}><SheetContent side="right" className="overflow-y-auto"><SheetHeader><SheetTitle>Keterlacakan</SheetTitle></SheetHeader><div className="mt-4">{evidence}</div></SheetContent></Sheet>
     </div>
   );
 }
@@ -1639,7 +1625,7 @@ function LegacyArticleProductView({
 
 export function ArticleProductView(props: Parameters<typeof LegacyArticleProductView>[0] & { structuredEnabled?: boolean }) {
   if (props.structuredEnabled && props.product.sections.length > 0) {
-    return <StructuredArticleProductView product={props.product} bundleId={props.bundleId} bundleStatus={props.bundleStatus} reviewLocked={props.reviewLocked ?? false} itemReviews={props.blockReviews ?? []} onReviewChange={props.onBlockReviewChange} dependencies={props.dependencies ?? []} />;
+    return <StructuredArticleProductView product={props.product} bundleId={props.bundleId} bundleStatus={props.bundleStatus} reviewLocked={props.reviewLocked ?? false} itemReviews={props.blockReviews ?? []} onReviewChange={props.onBlockReviewChange} />;
   }
   return <LegacyArticleProductView {...props} />;
 }
@@ -2047,84 +2033,11 @@ type ConfirmActionState =
   | { type: "withdraw" }
   | null;
 
-const pedagogicCriterionLabels: Record<PedagogicCriterionId, string> = {
-  concept_accuracy: "Akurasi konsep",
-  prerequisite_completeness: "Kelengkapan prasyarat",
-  explanation_sequence: "Urutan penjelasan",
-  symbol_and_condition_clarity: "Kejelasan simbol dan kondisi",
-  example_reasoning: "Penalaran contoh",
-  representation_or_visual: "Representasi atau visual",
-  misconceptions_and_limits: "Miskonsepsi dan batas berlaku",
-  formative_check_and_explanation: "Cek formatif dan pembahasan",
-};
-
-type ReviewSubmission = {
-  decision: "approved" | "rejected" | "changes_requested";
-  criteria: PedagogicRubricItem[];
-};
-
-function PedagogicReviewPanel({
-  payload,
-  saving,
-  onSubmit,
-  onRefresh,
-}: {
-  payload: ProductDetailPayload;
-  saving: boolean;
-  onSubmit: (submission: ReviewSubmission) => void;
-  onRefresh: () => Promise<void>;
-}) {
+function BundleReadinessPanel({ payload, onRefresh }: { payload: ProductDetailPayload; onRefresh: () => Promise<void> }) {
   const [pdfBusy, setPdfBusy] = useState(false);
   const [pdfRequestFailed, setPdfRequestFailed] = useState(false);
-  const article = payload.draft.products.find((product) => product.productType === "article");
-  const anchorOptions = useMemo(() => {
-    if (!article || article.productType !== "article") return [];
-    return [
-      { targetType: "document" as const, targetId: article.id, label: `Artikel: ${article.title}` },
-      ...article.sections.flatMap((section) => [
-        { targetType: "section" as const, targetId: section.id, label: `Bagian: ${section.title}` },
-        ...section.blocks.map((block) => ({
-          targetType: "block" as const,
-          targetId: block.id,
-          label: `Blok: ${block.title || block.id}`,
-        })),
-      ]),
-      ...(article.visuals ?? []).map((visual) => ({
-        targetType: "visual" as const,
-        targetId: visual.id,
-        label: `Visual: ${visual.label}`,
-      })),
-    ];
-  }, [article]);
-
-  const [criteria, setCriteria] = useState<PedagogicRubricItem[]>([]);
-
-  useEffect(() => {
-    const existing = payload.pedagogicReview?.criteria;
-    setCriteria(
-      PEDAGOGIC_CRITERION_IDS.map((criterionId) => {
-        const saved = existing?.find((item) => item.criterionId === criterionId);
-        return saved ?? {
-          criterionId,
-          status: "needs_revision" as const,
-          contentAnchors: anchorOptions[0]
-            ? [{ targetType: anchorOptions[0].targetType, targetId: anchorOptions[0].targetId }]
-            : [],
-          reason: "",
-        };
-      }),
-    );
-  }, [payload.pedagogicReview?.criteria, payload.pedagogicReview?.id, payload.revisionFreshness?.currentFingerprint, anchorOptions]);
-
-  const updateCriterion = (criterionId: PedagogicCriterionId, update: Partial<PedagogicRubricItem>) => {
-    setCriteria((current) => current.map((item) => item.criterionId === criterionId ? { ...item, ...update } : item));
-  };
-  const complete = criteria.length === PEDAGOGIC_CRITERION_IDS.length && criteria.every(
-    (item) => item.reason.trim() && item.contentAnchors.length > 0,
-  );
-  const allMet = complete && criteria.every((item) => item.status === "met");
-  const freshness = payload.revisionFreshness?.completenessState ?? "incomplete";
   const pdf = payload.pdfStatus ?? { status: "pending" as const };
+  const freshness = payload.revisionFreshness;
 
   const requestPdf = async () => {
     setPdfBusy(true);
@@ -2136,102 +2049,55 @@ function PedagogicReviewPanel({
         return;
       }
       await onRefresh();
+    } catch {
+      setPdfRequestFailed(true);
     } finally {
       setPdfBusy(false);
     }
   };
 
   return (
-    <section className="space-y-4 rounded-xl border border-border bg-card p-4 shadow-xs sm:p-5" aria-labelledby="pedagogic-review-title">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h2 id="pedagogic-review-title" className="font-heading text-body-base font-bold text-foreground">Review pedagogi</h2>
-          <p className="mt-1 text-body-xs text-muted-foreground">Nilai delapan kriteria dan tautkan setiap keputusan ke bukti konten.</p>
+    <section className={cn(styles.bundleReadiness, "space-y-2")} aria-label="Status konten dan PDF">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <StatusBadge tone={pdf.status === "ready" ? "success" : pdf.status === "failed" ? "error" : "warning"}>
+            PDF {pdf.status === "ready" ? `siap${pdf.pageCount ? `, ${pdf.pageCount} halaman` : ""}` : pdf.status === "failed" ? "gagal" : pdf.status === "stale" ? "perlu dirender ulang" : "menunggu"}
+          </StatusBadge>
+          {freshness ? (
+            <StatusBadge tone={freshness.isFresh ? "success" : freshness.completenessState === "stale" ? "error" : "warning"}>
+              {freshness.isFresh ? "Konten mutakhir" : "Review konten perlu diperbarui"}
+            </StatusBadge>
+          ) : null}
+          {payload.qualityEvaluation ? (
+            <StatusBadge tone={payload.qualityEvaluation.publicationReady ? "success" : "warning"}>
+              {payload.qualityEvaluation.publicationReady ? "Pemeriksaan konten lolos" : "Periksa kualitas konten"}
+            </StatusBadge>
+          ) : null}
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Badge variant="outline" className={cn("text-body-xs", freshness === "complete" ? "text-status-success" : freshness === "stale" ? "text-status-error" : "text-status-warning")}>
-            {freshness === "complete" ? "Review lengkap" : freshness === "stale" ? "Review kedaluwarsa" : "Review belum lengkap"}
-          </Badge>
-          <Badge variant="outline" className={cn("text-body-xs", pdf.status === "ready" ? "text-status-success" : pdf.status === "failed" ? "text-status-error" : "text-status-warning")}>
-            PDF {pdf.status === "ready" ? `siap${pdf.pageCount ? `, ${pdf.pageCount} halaman` : ""}` : pdf.status === "failed" ? "gagal" : "menunggu"}
-          </Badge>
-          {pdf.status === "ready" ? (
-            <Button asChild type="button" size="sm" variant="outline">
-              <a href={`/api/admin/bundles/product/${encodeURIComponent(payload.bundle.id)}/pdf`} target="_blank" rel="noreferrer">Pratinjau PDF</a>
-            </Button>
-          ) : (
-            <Button type="button" size="sm" variant="outline" disabled={pdfBusy} onClick={() => void requestPdf()}>
-              {pdfBusy ? "Mengantrekan..." : pdf.status === "failed" ? "Coba render lagi" : "Render PDF"}
-            </Button>
-          )}
-        </div>
+        {pdf.status === "ready" ? (
+          <Button asChild type="button" size="sm" variant="outline">
+            <a href={`/api/admin/bundles/product/${encodeURIComponent(payload.bundle.id)}/pdf`} target="_blank" rel="noreferrer">Lihat PDF</a>
+          </Button>
+        ) : (
+          <Button type="button" size="sm" variant="outline" disabled={pdfBusy} onClick={() => void requestPdf()}>
+            {pdfBusy ? "Mengantrekan..." : pdf.status === "failed" || pdf.status === "stale" ? "Render ulang PDF" : "Render PDF"}
+          </Button>
+        )}
       </div>
-
-      {pdfRequestFailed && (
-        <div className="rounded-lg border border-status-error/30 bg-status-error/5 p-3 text-body-xs text-status-error">
-          PDF belum dapat diproses. Periksa layanan renderer, lalu coba lagi.
-        </div>
-      )}
-
-      {(payload.blockingIssues?.length ?? 0) > 0 && (
-        <div className="rounded-lg border border-status-error/30 bg-status-error/5 p-3">
-          <div className="flex items-center gap-2 text-body-sm font-semibold text-status-error"><ShieldAlert className="size-4" />Penghambat publikasi</div>
-          <ul className="mt-2 space-y-1.5 text-body-xs text-foreground">
+      {pdfRequestFailed ? <p className="text-body-xs text-status-error">PDF belum dapat diproses. Periksa layanan renderer, lalu coba lagi.</p> : null}
+      {(payload.blockingIssues?.length ?? 0) > 0 ? (
+        <div className="space-y-1 border-t border-status-error/30 pt-2">
+          <p className="text-body-xs font-semibold text-status-error">Penghambat publikasi</p>
+          <ul className="space-y-1 text-body-xs text-foreground">
             {payload.blockingIssues?.map((issue) => (
               <li key={`${issue.code}:${issue.target.targetId}`}>{issue.reason}{issue.remediation ? ` ${issue.remediation}` : ""}</li>
             ))}
           </ul>
         </div>
-      )}
-
-      <div className="divide-y divide-border rounded-lg border border-border">
-        {criteria.map((item, index) => {
-          const anchor = item.contentAnchors[0];
-          const anchorValue = anchor ? `${anchor.targetType}|${anchor.targetId}` : "";
-          return (
-            <div key={item.criterionId} className="grid gap-3 p-3 lg:grid-cols-[minmax(180px,0.8fr)_160px_minmax(220px,1fr)_minmax(220px,1.2fr)] lg:items-start">
-              <Label className="pt-2 text-body-sm font-semibold">{index + 1}. {pedagogicCriterionLabels[item.criterionId]}</Label>
-              <Select value={item.status} onValueChange={(status: PedagogicRubricItem["status"]) => updateCriterion(item.criterionId, { status })}>
-                <SelectTrigger className="h-9 text-body-sm" aria-label={`Status ${pedagogicCriterionLabels[item.criterionId]}`}><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="met">Terpenuhi</SelectItem>
-                  <SelectItem value="needs_revision">Perlu revisi</SelectItem>
-                  <SelectItem value="not_met">Tidak terpenuhi</SelectItem>
-                </SelectContent>
-              </Select>
-              <Select value={anchorValue} onValueChange={(value) => {
-                const separator = value.indexOf("|");
-                updateCriterion(item.criterionId, { contentAnchors: [{ targetType: value.slice(0, separator) as PedagogicRubricItem["contentAnchors"][number]["targetType"], targetId: value.slice(separator + 1) }] });
-              }}>
-                <SelectTrigger className="h-9 text-body-sm" aria-label={`Bukti ${pedagogicCriterionLabels[item.criterionId]}`}><SelectValue placeholder="Pilih bukti konten" /></SelectTrigger>
-                <SelectContent className="max-h-72">
-                  {anchorOptions.map((option) => <SelectItem key={`${option.targetType}:${option.targetId}`} value={`${option.targetType}|${option.targetId}`}>{option.label}</SelectItem>)}
-                </SelectContent>
-              </Select>
-              <Input
-                value={item.reason}
-                onChange={(event) => updateCriterion(item.criterionId, { reason: event.target.value })}
-                placeholder="Alasan penilaian"
-                aria-label={`Alasan ${pedagogicCriterionLabels[item.criterionId]}`}
-                className="h-9 text-body-sm"
-              />
-            </div>
-          );
-        })}
-      </div>
-
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-body-xs text-muted-foreground">{complete ? `${criteria.filter((item) => item.status === "met").length} dari 8 kriteria terpenuhi.` : "Lengkapi alasan dan bukti untuk seluruh kriteria."}</p>
-        <div className="flex flex-wrap gap-2">
-          <Button type="button" size="sm" variant="outline" disabled={saving || !complete} onClick={() => onSubmit({ decision: "changes_requested", criteria })}>Minta revisi</Button>
-          <Button type="button" size="sm" variant="destructive" disabled={saving || !complete} onClick={() => onSubmit({ decision: "rejected", criteria })}>Tolak</Button>
-          <Button type="button" size="sm" disabled={saving || !allMet} onClick={() => onSubmit({ decision: "approved", criteria })}><Check className="size-3.5" />Setujui</Button>
-        </div>
-      </div>
+      ) : null}
     </section>
   );
 }
-
 export function ProductBundleReviewDetail({ detailId, courseLabels = {}, backHref, backLabel }: DetailProps) {
   const router = useRouter();
   const [payload, setPayload] = useState<ProductDetailPayload | null>(null);
@@ -2240,7 +2106,6 @@ export function ProductBundleReviewDetail({ detailId, courseLabels = {}, backHre
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [reviewNoteOpen, setReviewNoteOpen] = useState(false);
   const [reviewNote, setReviewNote] = useState("");
   const [reviewDecision, setReviewDecision] = useState<"approved" | "rejected" | "changes_requested" | null>(null);
   const [editing, setEditing] = useState(false);
@@ -2261,15 +2126,15 @@ export function ProductBundleReviewDetail({ detailId, courseLabels = {}, backHre
       setDraftProducts(nextPayload.draft?.products ?? []);
       setEditing(false);
       setSelectedProductId((current) => nextPayload.previews.some((preview) => preview.id === current) ? current : nextPayload.previews[0]?.id ?? null);
-      const existingReview = nextPayload.pedagogicReview;
+      const existingReviewStatus = nextPayload.bundle.currentReview?.status ?? nextPayload.pedagogicReview?.status;
       setReviewDecision(
-        existingReview?.status === "approved" ||
-        existingReview?.status === "rejected" ||
-        existingReview?.status === "changes_requested"
-          ? existingReview.status
+        existingReviewStatus === "approved" ||
+        existingReviewStatus === "rejected" ||
+        existingReviewStatus === "changes_requested"
+          ? existingReviewStatus
           : null
       );
-      setReviewNote(existingReview?.notes ?? "");
+      setReviewNote(nextPayload.bundle.currentReview?.notes ?? nextPayload.pedagogicReview?.notes ?? "");
     } catch (loadError) {
       setError(explainBundleError(loadError instanceof Error ? loadError.message : "PRODUCT_BUNDLE_DETAIL_FAILED"));
     } finally {
@@ -2279,7 +2144,7 @@ export function ProductBundleReviewDetail({ detailId, courseLabels = {}, backHre
 
   useEffect(() => { void load(); }, [load]);
 
-  async function decide({ decision, criteria }: ReviewSubmission) {
+  async function decide(decision: "approved" | "rejected" | "changes_requested") {
     if (!payload) return;
     setSaving(true);
     setError(null);
@@ -2289,18 +2154,13 @@ export function ProductBundleReviewDetail({ detailId, courseLabels = {}, backHre
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           decision,
-          policyVersion: payload.revisionFreshness?.policyVersion ?? QUALITY_POLICY_VERSION,
-          contentFingerprint: payload.revisionFreshness?.currentFingerprint ?? payload.qualityEvaluation?.contentFingerprint,
-          expectedRevision: payload.bundle.checksum,
-          criteria,
-          exceptions: [],
-          notes: reviewNote || undefined,
+          reason: reviewNote.trim() || undefined,
         }),
       });
       const result = await response.json() as { error?: string };
       if (!response.ok) throw new Error(result.error || "PRODUCT_BUNDLE_REVIEW_FAILED");
-      setReviewDecision(decision);
       await load();
+      setReviewDecision(decision);
     } catch (reviewError) {
       setError(explainBundleError(reviewError instanceof Error ? reviewError.message : "PRODUCT_BUNDLE_REVIEW_FAILED"));
     } finally {
@@ -2484,7 +2344,7 @@ export function ProductBundleReviewDetail({ detailId, courseLabels = {}, backHre
         <DetailStatus status={payload.bundle.status} />
       </div>
 
-      {/* Tabs & Compact Navigator Header (No Select dropdown, Stepper + Searchable Sheet naming active product) */}
+      {/* Tabs & compact product navigator */}
       <Tabs value={activeType} onValueChange={handleTypeTabChange}>
         <div className="space-y-2.5">
           <TabsList>
@@ -2497,7 +2357,7 @@ export function ProductBundleReviewDetail({ detailId, courseLabels = {}, backHre
           </TabsList>
 
           {/* Stepper + Active Product Searchable Sheet Toolbar */}
-          <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border bg-muted/40 p-2 shadow-xs">
+          <div className={cn(styles.bundleNavigator, "flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border bg-muted/40 p-2 shadow-xs")}>
             <div className="flex items-center gap-1.5">
               <Button
                 type="button"
@@ -2529,10 +2389,10 @@ export function ProductBundleReviewDetail({ detailId, courseLabels = {}, backHre
             {/* Searchable Sheet Trigger with Active Product Name */}
             <Sheet open={drawerOpen} onOpenChange={setDrawerOpen}>
               <SheetTrigger asChild>
-                <Button type="button" size="sm" variant="outline" className="h-8 min-w-0 max-w-xs sm:max-w-md gap-1.5 text-body-sm justify-between">
-                  <div className="flex items-center gap-1.5 truncate">
+                <Button type="button" size="sm" variant="outline" className={cn(styles.bundleSelectorTrigger, "h-8 min-w-0 gap-1.5 text-body-sm justify-between")}>
+                  <div className={cn(styles.bundleSelectorContent, "flex items-center gap-1.5")}>
                     <ListFilter className="size-3.5 shrink-0 text-muted-foreground" />
-                    <span className="truncate">{activePreview ? (activePreview.title || activePreview.id) : "Pilih bagian"}</span>
+                    <span className={styles.bundleSelectorLabel}>{activePreview ? (activePreview.title || activePreview.id) : "Pilih bagian"}</span>
                   </div>
                   <Badge variant="outline" className="ml-1 text-body-xs shrink-0 font-normal">
                     {visiblePreviews.length}
@@ -2581,9 +2441,9 @@ export function ProductBundleReviewDetail({ detailId, courseLabels = {}, backHre
           {activePreview ? (
             <article key={activePreview.id} className="rounded-xl border border-border bg-card p-5 sm:p-7 shadow-xs space-y-5">
               {!isStudentArticlePreview && <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border pb-3">
-                <div>
+                <div className={cn(styles.productHeader, "min-w-0 flex-1")}>
                   <Badge variant="secondary" className="text-body-xs font-semibold">{productLabels[activePreview.productType] ?? activePreview.productType}</Badge>
-                  <h3 className="mt-1.5 font-heading text-body-base font-bold text-foreground">{activePreview.title || "Bagian tanpa judul"}</h3>
+                  <h3 className={cn(styles.productTitle, "mt-1.5 font-heading text-body-base font-bold text-foreground")}>{activePreview.title || "Bagian tanpa judul"}</h3>
                   <span className="text-body-xs text-muted-foreground font-mono">ID: {activePreview.id} · Versi {activePreview.version}</span>
                 </div>
                 {!editing && payload.bundle.status === "draft" && (
@@ -2649,14 +2509,6 @@ export function ProductBundleReviewDetail({ detailId, courseLabels = {}, backHre
                     <AssessmentBlueprintProductView product={activeDraftProduct} />
                   )}
 
-                  {!isStudentArticlePreview && activePreview.traceability.ideaIds.length > 0 && (
-                    <div className="border-t border-border pt-3 text-body-xs text-muted-foreground flex flex-wrap gap-2">
-                      <span className="font-semibold text-foreground">Idea terkait:</span>
-                      {activePreview.traceability.ideaIds.map((id) => (
-                        <span key={id} className="font-mono">{id}</span>
-                      ))}
-                    </div>
-                  )}
                 </div>
               ) : (
                 <div className="space-y-3">
@@ -2675,9 +2527,7 @@ export function ProductBundleReviewDetail({ detailId, courseLabels = {}, backHre
         </TabsContent>
       </Tabs>
 
-      {payload.bundle.status === "draft" && (
-        <PedagogicReviewPanel payload={payload} saving={saving} onSubmit={(submission) => void decide(submission)} onRefresh={load} />
-      )}
+      {payload.bundle.status === "draft" && <BundleReadinessPanel payload={payload} onRefresh={load} />}
 
       {/* Review Actions Sticky Footer */}
       <section className="sticky bottom-0 z-50 rounded-xl border border-border bg-card p-3 shadow-lg space-y-2 md:static md:z-auto md:p-4 md:space-y-3">
@@ -2703,17 +2553,16 @@ export function ProductBundleReviewDetail({ detailId, courseLabels = {}, backHre
           </div>
         )}
 
-        {/* Review Notes: Collapsed on Mobile, Visible on Desktop */}
-        <div className="hidden md:block space-y-1.5">
+        <div className="space-y-1.5">
           <div className="flex items-center justify-between">
-            <Label htmlFor="product-review-note" className="text-body-sm font-semibold">Catatan Review</Label>
-            <span className="text-body-xs text-muted-foreground">Disimpan bersama keputusan</span>
+            <Label htmlFor="product-review-note" className="text-body-sm font-semibold">Alasan keputusan</Label>
+            <span className="text-body-xs text-muted-foreground">Wajib untuk revisi atau penolakan</span>
           </div>
           <Textarea
             id="product-review-note"
             value={reviewNote}
             onChange={(event) => setReviewNote(event.target.value)}
-            placeholder="Tulis catatan review jika perlu..."
+            placeholder="Tulis alasan jika meminta revisi atau menolak"
             className="min-h-16 text-body-sm bg-background"
           />
         </div>
@@ -2723,6 +2572,19 @@ export function ProductBundleReviewDetail({ detailId, courseLabels = {}, backHre
         {/* Action Buttons */}
         <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border pt-2 md:pt-3">
           <div className="flex flex-wrap gap-2">
+            {payload.bundle.status === "draft" && (
+              <>
+                <Button type="button" size="sm" variant="outline" disabled={saving || !reviewNote.trim()} onClick={() => void decide("changes_requested")}>
+                  Minta revisi
+                </Button>
+                <Button type="button" size="sm" variant="destructive" disabled={saving || !reviewNote.trim()} onClick={() => void decide("rejected")}>
+                  Tolak
+                </Button>
+                <Button type="button" size="sm" disabled={saving} onClick={() => void decide("approved")}>
+                  <Check className="size-3.5" />Setujui bundle
+                </Button>
+              </>
+            )}
             {payload.bundle.status === "draft" && reviewDecision === "approved" && (
               <Button
                 type="button"
@@ -2742,35 +2604,6 @@ export function ProductBundleReviewDetail({ detailId, courseLabels = {}, backHre
             {payload.bundle.status === "published" && (
               <span className="text-body-sm text-status-success font-medium self-center">Telah dipublikasikan</span>
             )}
-            <Sheet open={reviewNoteOpen} onOpenChange={setReviewNoteOpen}>
-              <SheetTrigger asChild>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  className="md:hidden px-2.5"
-                  aria-label={reviewNote ? "Ubah catatan review" : "Tambah catatan review"}
-                >
-                  <MessageSquareText className="size-3.5" />
-                </Button>
-              </SheetTrigger>
-              <SheetContent side="bottom" className="p-4">
-                <SheetHeader className="text-left">
-                  <SheetTitle className="text-body-base">Catatan review bundle</SheetTitle>
-                </SheetHeader>
-                <div className="space-y-3 pt-3">
-                  <Textarea
-                    value={reviewNote}
-                    onChange={(event) => setReviewNote(event.target.value)}
-                    placeholder="Tulis catatan review jika perlu..."
-                    className="min-h-28 text-body-sm bg-background"
-                  />
-                  <Button type="button" size="sm" onClick={() => setReviewNoteOpen(false)}>
-                    Selesai
-                  </Button>
-                </div>
-              </SheetContent>
-            </Sheet>
           </div>
           {(payload.bundle.status === "draft" || payload.bundle.status === "published") && (
             <DropdownMenu.Root>
