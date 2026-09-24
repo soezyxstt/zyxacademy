@@ -88,12 +88,13 @@ Gunakan block sesuai fungsi:
 
 Formula harus menjelaskan simbol, asumsi, kondisi berlaku, dan interpretasi hasil. Visual harus membawa informasi serta memiliki fallback teks.
 
-### 6.1 Formula-first untuk topik matematika
+### 6.1 Rumus yang bisa dibaca
 
 Untuk topik yang memakai persamaan, urutan default adalah orientasi singkat, display math, lalu penjelasan terstruktur. Jangan membuat mahasiswa mencari rumus di dalam paragraf panjang.
 
-- Satu `mathematical_representation` sebaiknya memusatkan satu relasi atau satu keputusan utama. Tulis `$$...$$` pada baris sendiri agar renderer dapat memberi fokus visual.
-- Setelah rumus, tulis daftar atau tabel pendek `Simbol`, `Syarat berlaku`, dan `Makna/arah baca`. Jangan mengulang persamaan lengkap pada setiap bullet.
+- Satu `mathematical_representation` memusatkan satu relasi atau satu keputusan utama. Tulis `$$...$$` pada baris sendiri. Jika ada beberapa transformasi, gunakan daftar pendek, tabel, atau `aligned` dengan satu relasi per baris. Jangan menyatukan banyak rumus dengan koma.
+- Jelaskan simbol dan syarat tepat setelah rumus, langsung dalam bullet atau tabel kecil. Jangan buat subjudul `Simbol`, `Syarat`, `Makna`, atau `Rumus dan syarat` bila hanya mengulang label blok. `Makna` ditulis hanya ketika menambah pemahaman yang belum tampak dari rumus atau grafik.
+- Untuk transformasi fungsi, urutkan intuisi, grafik awal dan hasil, perubahan parameter, baru aturan ringkas. Tunjukkan geser, skala horizontal, dan skala vertikal bila ketiganya termasuk tujuan; jangan berhenti pada satu slider geser. Pada grafik fungsi sederhana, bandingkan ekspresi acuan `x^2` dengan ekspresi hasil `a*(c*(x-h))^2+k` memakai kontrol `a`, `c`, `h`, dan `k` sesuai batas contract. Nilai `0<a<1` memperkecil tinggi grafik, sedangkan `c>1` memperkecil lebar grafik. Periksa kembali arah dan faktor skala dengan titik acuan serta fallback tabel sebelum submit.
 - Jika formula perlu contoh, contoh berada setelah simbol dan kondisi. Jika tidak ada keputusan prosedural yang perlu ditunjukkan, jangan menambah worked example.
 - Critic dan Student POV harus dapat menunjuk rumus, simbol, dan syarat tanpa membaca ulang satu paragraf campuran. Formula yang hanya muncul sebagai inline prose adalah temuan yang harus diperbaiki.
 - Gate keras: `mathematical_representation` hanya boleh berisi display math berdiri sendiri. Blok itu tidak boleh mengandung kalimat penjelasan setelah delimiter; `Simbol`, `Syarat berlaku`, dan `Makna` harus dapat dipindai sebagai baris atau blok terpisah. Topic dengan prose di luar formula lebih dari 700 kata harus ditolak oleh quality policy, bukan sekadar diberi saran.
@@ -109,6 +110,8 @@ Jangan gunakan `Sparkles`, spark, atau ikon AI-glow pada produk learner-facing. 
 Visual wajib diputuskan secara eksplisit. `REQUIRED` berarti relasi bentuk, ruang, transformasi, atau perbandingan memang sulit dipahami dari teks dan formula; selain itu catat `NOT_APPLICABLE` beserta alasan. Gunakan typed visual contract dan evaluator aman. Jangan memakai iframe Desmos, remote embed, raw SVG/HTML/JS, atau expression bebas.
 
 Untuk grafik before/after, kurva acuan harus bergaya `dashed`, kurva hasil `solid`, dengan legenda dan caption. Slider hanya dibuat jika perubahan variabel mengungkap konsep; setiap kontrol perlu id, label, batas, step, default, binding, dan penjelasan singkat. Batasi sample count dan jumlah kontrol sesuai contract. Setiap visual wajib punya fallback tabel atau teks yang tetap berguna di PDF, no-JS, offline, dan aksesibilitas. Grafik 3D ditunda jika renderer typed dan fallback statis belum tersedia.
+
+Audit visual per learning section, terutama garis lurus, lingkaran, elips, hiperbola, domain dan range, transformasi, dan trigonometri. Pakai grafik ketika bentuk, batas, atau perubahan lebih cepat dipahami lewat gambar. Hubungkan visual ke blok yang memperkenalkan konsep itu. Jika visual tidak relevan, catat alasan pedagogis yang spesifik; satu grafik pada satu bagian tidak menggantikan kebutuhan visual bagian lain. Deskripsi visual hanya menjelaskan tindakan atau temuan yang tidak tampak dari grafik; jangan menarasikan ulang judul, legenda, dan kurva.
 
 ## 7. Alur baca Artikel
 
@@ -164,6 +167,14 @@ Worked example harus:
 5. memeriksa hasil, satuan, domain, atau kewajaran bila relevan.
 
 Jangan mengganti alasan dengan label seperti “analisis” atau “bukti”. Jangan memakai contoh semu yang hanya menyalin formula tanpa keputusan.
+
+Sebelum final, baca `contentMarkdown`, setiap `steps[].explanation`, `steps[].reason`, dan `verification` sebagai satu alur. Tulis masalah sekali, proses sekali, dan verifikasi sekali. Jangan mengulang langkah atau verifikasi di prosa pengantar lalu di payload. Jika alasan sudah jelas pada kalimat langkah, pendekkan `reason` menjadi alasan yang belum disebut; jangan memakai alasan generik seperti “gunakan rumus yang dikenal”.
+
+## 10.1 Bahasa dan penyuntingan akhir
+
+Gunakan bahasa Indonesia yang akrab bagi mahasiswa: kalimat pendek, satu gagasan per paragraf, dan pertanyaan konkret sebelum istilah formal. Ganti judul generik `Penjelasan inti` dengan `Teori` atau pertanyaan spesifik yang menjelaskan isi bagian. Jangan menambah cerita, aplikasi, atau kalimat penutup yang tidak membantu keputusan belajar.
+
+Cari pengulangan antarjudul, badge, callout, isi blok, grafik, langkah contoh, dan cek. Untuk miskonsepsi, tulis kesalahan dan koreksinya satu kali; jangan mengetik `Hati-hati` di dalam token `[[emphasis:caution]]`, karena renderer sudah memberi label itu. Gunakan warna untuk fungsi yang konsisten, bukan sebagai dekorasi.
 
 ## 11. Diktat sebagai review
 

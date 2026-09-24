@@ -66,7 +66,7 @@ Every document in this repository has one of the following explicit statuses:
 
 | Document | Category | Status | Updated / Date | Purpose and Scope |
 |---|---|---|---|---|
-| [README.md](README.md) | Index | `ACTIVE` | 2026-09-16 | Master documentation index, hierarchy map, course workspace compatibility status, marketing improvement plan, and lifecycle status ledger. |
+| [README.md](README.md) | Index | `ACTIVE` | 2026-09-24 | Master documentation index, hierarchy map, course workspace compatibility status, marketing improvement plan, and lifecycle status ledger. |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Core Architecture | `ACTIVE` | 2026-09-16 | Core platform architecture, canonical-first student reads, fail-closed public demo read boundary, historical reference authoring, Product Bundle V3 boundaries, course workspace hierarchy, reader modes, compatibility redirects, Idea Bundle withdrawal, and manual browser authoring retirement. |
 | [DATABASE.md](DATABASE.md) | Core Database | `ACTIVE` | Current | Database topology (Turso remote, SQLite local), Drizzle workflows, and driver adapters. |
 | [DB_SCHEMA.md](DB_SCHEMA.md) | Core Database | `ACTIVE` | 2026-09-16 | Comprehensive schema catalog including the singleton public demo marker, tutorial scheduling lifecycle, dated tutor slots, normalized booking resources, historical assessment provenance, question reference links, retryable Idea Bundle cleanup, Product Bundle pedagogic review, and PDF evidence. |
@@ -79,7 +79,7 @@ Every document in this repository has one of the following explicit statuses:
 | [bundle/idea-bundle-v2.md](bundle/idea-bundle-v2.md) | Bundle Contract | `TRANSITIONAL / LEGACY` | Current | Read and rollback submission contract for Idea Bundle V2. |
 | [bundle/idea-bundle-v3.md](bundle/idea-bundle-v3.md) | Bundle Contract | `ACTIVE` | 2026-08-31 | Learning section hierarchy, Idea membership, validation, editing, and MCP transition contract. |
 | [bundle/product-bundle-v2.md](bundle/product-bundle-v2.md) | Bundle Contract | `TRANSITIONAL / LEGACY` | Current | Read compatibility and Article block review adapter for Product Bundle V2. |
-| [bundle/product-bundle-v3.md](bundle/product-bundle-v3.md) | Bundle Contract | `ACTIVE` | 2026-09-06 | Structured self-study Article, review Diktat, typed pedagogy and visuals, revision-bound review/PDF evidence, publication, and student reads. |
+| [bundle/product-bundle-v3.md](bundle/product-bundle-v3.md) | Bundle Contract | `ACTIVE` | 2026-09-24 | Structured self-study Article, review Diktat, typed pedagogy and visuals, editorial presentation warnings, revision-bound review/PDF evidence, publication, and student reads. |
 | [operations/production-readiness-checklist.md](operations/production-readiness-checklist.md) | Operations | `ACTIVE` | Current | Pre-deployment gates, quality criteria, and staging validation checklist. |
 | [operations/zyra-ops-runbooks.md](operations/zyra-ops-runbooks.md) | Operations | `ACTIVE` | 2026-09-02 | Operational runbooks, health metrics, alert responses, and Admin Ops AI v2 operational procedures (Vectorize sync, rollback without flag, provider mitigation, proposal retention). |
 | [operations/visual-audit-capture.md](operations/visual-audit-capture.md) | Operations | `ACTIVE` | Current | Safe procedure for capturing staging visual audits and screenshots. |

@@ -57,9 +57,6 @@ export function ProductWorkedExample({
             {title || "Contoh dan Pembahasan Bertahap"}
           </h3>
         </div>
-        <span className="rounded-md px-2 py-0.5 text-body-xs font-semibold uppercase tracking-wider text-status-success bg-status-success/10">
-          Contoh
-        </span>
       </div>
 
       {/* Problem Prompt */}
@@ -70,11 +67,11 @@ export function ProductWorkedExample({
       ) : null}
 
       {/* Steps List */}
-      <div className="space-y-3 pt-1">
+      <ol className="space-y-3 pt-1">
         {workedExample.steps.map((step) => (
-          <div
+          <li
             key={step.stepIndex}
-            className="rounded-lg border border-border/70 bg-muted/20 p-3.5 sm:p-4 space-y-2.5"
+            className="space-y-1.5 border-l-2 border-border pl-3"
           >
             <div className="flex items-center gap-2">
               <span className="flex size-5 shrink-0 items-center justify-center rounded bg-primary/10 font-mono text-body-xs font-bold text-primary">
@@ -90,25 +87,18 @@ export function ProductWorkedExample({
               <MarkdownRenderer content={step.explanation} density="compact" />
             </div>
 
-            {/* Distinct Reason Block: Do not collapse into generic prose */}
-            <div className="ml-7 rounded-md border-l-2 border-primary/40 bg-primary/5 p-2.5 text-body-xs space-y-1">
-              <div className="flex items-center gap-1.5 font-bold uppercase tracking-wider text-primary">
-                <BookOpenCheck className="size-3 shrink-0" />
-                <span>Landasan Bernalar / Alasan</span>
-              </div>
-              <p className="text-foreground/90 leading-relaxed">{step.reason}</p>
-            </div>
-          </div>
+            <p className="pl-7 text-body-xs leading-relaxed text-muted-foreground">{step.reason}</p>
+          </li>
         ))}
-      </div>
+      </ol>
 
       {/* Solution Verification */}
       {workedExample.verification ? (
-        <div className="rounded-lg border border-status-success/40 bg-status-success/10 p-3.5 sm:p-4 flex items-start gap-3">
+        <div className="flex items-start gap-2 border-t border-border pt-3">
           <CheckCircle2 className="size-4 shrink-0 text-status-success mt-0.5" />
           <div className="space-y-1">
             <h4 className="text-body-xs font-bold uppercase tracking-wider text-status-success">
-              Verifikasi dan Pemeriksaan Solusi
+              Verifikasi
             </h4>
             <p className="text-body-xs text-foreground leading-relaxed">
               {workedExample.verification}

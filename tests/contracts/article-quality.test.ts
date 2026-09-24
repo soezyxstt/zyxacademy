@@ -132,6 +132,15 @@ describe("Article V3 quality contract", () => {
     expect(result.metrics.shortTopicWarning).toBeDefined();
   });
 
+  it("accepts separate display formulas as a Markdown list", () => {
+    const article = validV3Article();
+    const formula = block("b-top-3", "mathematical_representation", ["idea-1"], "- $$f(x)+k$$\n- $$f(x-k)$$");
+    article.sections[1].blocks.push(formula);
+    article.blocks.push(formula);
+    const codes = evaluateArticleQuality(article).issues.map((entry) => entry.code);
+    expect(codes).not.toContain("ARTICLE_FORMULA_PROSE_MIXED");
+  });
+
   it("reports reveal-only free-response checks as warnings without blocking V3", () => {
     const article = validV3Article();
     const topic = article.sections.find((section) => section.kind === "topic")!;

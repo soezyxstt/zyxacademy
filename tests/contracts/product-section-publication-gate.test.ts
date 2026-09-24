@@ -1,5 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { assertProductSectionReviews } from "@/lib/bundle/product-review-gate";
+import { assertProductSectionReviews, evaluateProductBundleQualityPolicy } from "@/lib/bundle/product-review-gate";
+import type { ProductEntity } from "@/lib/bundle/product-validator";
 
 const approved = (reviewerId: string, targetId: string) => ({ reviewerId, targetType: "article_section", targetId, status: "approved" });
 
@@ -15,5 +16,40 @@ describe("Product V3 section publication gate", () => {
 
   it("ignores block reviews and approvals from another reviewer", () => {
     expect(() => assertProductSectionReviews({ requiredSectionIds: ["topic"], reviewerId: "admin-a", reviews: [{ reviewerId: "admin-a", targetType: "article_block", targetId: "topic", status: "approved" }, approved("admin-b", "topic")] })).toThrow("PRODUCT_BUNDLE_SECTION_APPROVAL_REQUIRED");
+  });
+
+  it("includes presentation warnings in the MCP quality policy report", async () => {
+    const article = {
+      id: "article-visual-warning",
+      productType: "article",
+      ideaLinks: [{ id: "idea-1" }],
+      blocks: [],
+      sections: [{ id: "section-graph", kind: "topic", title: "Grafik fungsi", ideaIds: ["idea-1"], blocks: [{ id: "block-1", blockType: "explanation", contentMarkdown: "Perhatikan bentuk kurva.", ideaIds: ["idea-1"] }] }],
+    } as unknown as ProductEntity;
+    const report = await evaluateProductBundleQualityPolicy([article], { pedagogicReview: null, pdfEvidence: [] });
+    expect(report.issues.map((issue) => issue.code)).toContain("ARTICLE_VISUAL_OPPORTUNITY_MISSING");
+  });
+
+  it("keeps crowded-formula warnings from separate blocks in one section", async () => {
+    const article = {
+      id: "article-formulas",
+      productType: "article",
+      ideaLinks: [{ id: "idea-1" }],
+      blocks: [],
+      sections: [{
+        id: "section-formulas",
+        kind: "topic",
+        title: "Fungsi",
+        ideaIds: ["idea-1"],
+        blocks: [
+          { id: "formula-a", blockType: "mathematical_representation", contentMarkdown: "$$f(x),g(x),h(x)$$", ideaIds: ["idea-1"] },
+          { id: "formula-b", blockType: "mathematical_representation", contentMarkdown: "$$p(x),q(x),r(x)$$", ideaIds: ["idea-1"] },
+        ],
+      }],
+    } as unknown as ProductEntity;
+    const report = await evaluateProductBundleQualityPolicy([article], { pedagogicReview: null, pdfEvidence: [] });
+    const formulaWarnings = report.issues.filter((issue) => issue.code === "ARTICLE_FORMULA_CROWDED");
+    expect(formulaWarnings).toHaveLength(2);
+    expect(formulaWarnings.every((issue) => issue.target.targetType === "section" && issue.target.targetId === "section-formulas")).toBe(true);
   });
 });

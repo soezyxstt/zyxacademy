@@ -40,7 +40,7 @@ export type ProductBundleQualityReport = AuthoringQualityReport<{
 }>;
 
 function words(value: string): number {
-  return String(value).replace(/```[\s\S]*?```/g, " ").replace(/<[^>]+>/g, " ").match(/[\p{L}\p{N}]+(?:[-'][\p{L}\p{N}]+)*/gu)?.length ?? 0;
+  return String(value).replace(/```[\s\S]*?```/g, " ").replace(/<\/?[A-Za-z][A-Za-z0-9\s='"/-]*>/g, " ").match(/[\p{L}\p{N}]+(?:[-'][\p{L}\p{N}]+)*/gu)?.length ?? 0;
 }
 
 function countMatches(value: string, pattern: RegExp): number {
@@ -90,6 +90,7 @@ function isDisplayMathOnly(value: string): boolean {
   const withoutMath = trimmed
     .replace(/\$\$[\s\S]*?\$\$/g, "")
     .replace(/\\\[[\s\S]*?\\\]/g, "")
+    .replace(/^\s*(?:[-*+]\s*|\d+\.\s*)/gm, "")
     .trim();
   return withoutMath.length === 0 && /\$\$[\s\S]*?\$\$|\\\[[\s\S]*?\\\]/.test(trimmed);
 }
@@ -140,6 +141,21 @@ function addSectionMathQualityIssues(issues: AuthoringQualityIssue[], articleId:
       ));
     }
   }
+}
+
+function normalizedPassages(value: string): string[] {
+  return value
+    .split(/\n\s*\n|(?<=[.!?])\s+(?=[A-ZÀ-Ý])/u)
+    .map((part) => part.replace(/\$\$?[\s\S]*?\$\$?/g, " ").replace(/[*_#>`]/g, " ").replace(/\s+/g, " ").trim().toLocaleLowerCase("id"))
+    .filter((part) => part.length >= 70);
+}
+
+function crowdedFormula(value: string): boolean {
+  return [...value.matchAll(/\$\$([\s\S]+?)\$\$|\\\[([\s\S]+?)\\\]/g)].some((match) => {
+    const expression = (match[1] ?? match[2] ?? "").replace(/\\\{[\s\S]*?\\\}/g, "");
+    return !/\\begin\{(?:aligned|align|array|cases)\}/.test(expression)
+      && (expression.match(/[,;]/g)?.length ?? 0) >= 2;
+  });
 }
 
 function articleMetrics(article: ArticleProduct): ArticleQualityMetrics {
@@ -230,7 +246,30 @@ export function evaluateProductBundleQuality(data: { products: readonly ProductE
     const metrics = articleMetrics(article);
     if ((article.sections?.length ?? 0) > 0) {
       for (const section of article.sections ?? []) {
+        const seenPassages = new Map<string, string>();
+        const visualIds = new Set(section.blocks.flatMap((block) => block.visualIds ?? []));
+        if (/grafik|garis lurus|lingkaran|elips|hiperbola|trigonometri|domain dan range|transformasi fungsi/i.test(section.title ?? "") && visualIds.size === 0) {
+          issues.push(qualityIssue("ARTICLE_VISUAL_OPPORTUNITY_MISSING", `Bagian ${section.id} membahas bentuk atau perubahan fungsi tanpa visual terhubung; periksa kebutuhan grafik.`, "warning", { entity: `${article.id}:${section.id}`, expected: "visual terhubung atau alasan pedagogis", observed: 0 }));
+        }
         for (const block of section.blocks) {
+          if (crowdedFormula(block.contentMarkdown)) {
+            issues.push(qualityIssue("ARTICLE_FORMULA_CROWDED", `Rumus pada blok ${block.id} memuat beberapa relasi yang dipisahkan koma; pecah menjadi daftar atau baris sejajar.`, "warning", { entity: `${article.id}:${section.id}:${block.id}` }));
+          }
+          if (block.workedExamplePayload?.verification && (/\bverifikasi\s*:/i.test(block.contentMarkdown) || block.workedExamplePayload.steps.some((step) => /\bverifikasi\b/i.test(step.label)))) {
+            issues.push(qualityIssue("ARTICLE_VERIFICATION_REPEATED", `Contoh ${block.id} menempatkan verifikasi di lebih dari satu lokasi.`, "warning", { entity: `${article.id}:${section.id}:${block.id}` }));
+          }
+          if (block.workedExamplePayload?.steps.length && /\blangkah\s*:/i.test(block.contentMarkdown)) {
+            issues.push(qualityIssue("ARTICLE_STEPS_REPEATED", `Contoh ${block.id} memuat langkah di prosa pengantar dan payload bertahap.`, "warning", { entity: `${article.id}:${section.id}:${block.id}` }));
+          }
+          const passages = [block.contentMarkdown, ...(block.workedExamplePayload?.steps.flatMap((step) => [step.explanation, step.reason]) ?? []), block.workedExamplePayload?.verification ?? ""];
+          for (const passage of passages.flatMap(normalizedPassages)) {
+            const firstBlock = seenPassages.get(passage);
+            if (firstBlock) {
+              issues.push(qualityIssue("ARTICLE_REPEATED_PASSAGE", `Bagian ${section.id} mengulang penjelasan yang sudah muncul pada ${firstBlock}.`, "warning", { entity: `${article.id}:${section.id}:${block.id}`, observed: passage.slice(0, 120) }));
+            } else {
+              seenPassages.set(passage, block.id);
+            }
+          }
           const payload = block.formativeCheckPayload;
           if (
             payload
