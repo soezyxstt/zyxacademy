@@ -11,7 +11,17 @@ let cachedWorkerSrc: string | null = null;
 export async function getPdfWorkerSrc(): Promise<string | null> {
   if (cachedWorkerSrc) return cachedWorkerSrc;
 
-  // 1. Try resolving through module require resolution (works in Node, Bun, and Deno)
+  // 1. Try bundled base64 data URL from pdf-parse/worker (matches installed pdf-parse version, zero filesystem dependencies)
+  try {
+    const { getData } = await import("pdf-parse/worker");
+    const dataUrl = typeof getData === "function" ? getData() : null;
+    if (dataUrl && typeof dataUrl === "string") {
+      cachedWorkerSrc = dataUrl;
+      return cachedWorkerSrc;
+    }
+  } catch {}
+
+  // 2. Try module require resolution (Node/Bun/Deno filesystem fallback)
   try {
     const { createRequire } = await import("node:module");
     const req = createRequire(import.meta.url);
@@ -22,21 +32,11 @@ export async function getPdfWorkerSrc(): Promise<string | null> {
     }
   } catch {}
 
-  // 2. Try process.cwd() fallback
+  // 3. Try process.cwd() fallback
   try {
     const cwdCandidate = path.resolve(process.cwd(), "node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs");
     if (fs.existsSync(cwdCandidate)) {
       cachedWorkerSrc = pathToFileURL(cwdCandidate).href;
-      return cachedWorkerSrc;
-    }
-  } catch {}
-
-  // 3. Try bundled base64 data URL from pdf-parse/worker (works in serverless / container without flat node_modules)
-  try {
-    const { getData } = await import("pdf-parse/worker");
-    const dataUrl = typeof getData === "function" ? getData() : null;
-    if (dataUrl && typeof dataUrl === "string") {
-      cachedWorkerSrc = dataUrl;
       return cachedWorkerSrc;
     }
   } catch {}
