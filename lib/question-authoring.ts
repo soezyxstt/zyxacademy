@@ -29,6 +29,7 @@ import {
 } from "@/lib/question-authoring-contract";
 import { validateExtractedQuestion, type ExtractedQuestion } from "@/lib/question-markdown";
 import { referenceQuestionDraftSchema, type ReferenceQuestion, type ReferenceQuestionDraft, type ReferenceSourceMetadata, toQuestionIdeaLinks } from "@/lib/authoring/reference-question-draft";
+import { offloadBase64ImagesToR2, offloadQuestionItemImages } from "@/lib/question-images";
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -533,12 +534,18 @@ type PreparedBatch = {
 async function prepareBatch(input: Omit<QuestionAuthoringBatchInput, "creatorId"> | QuestionAuthoringBatchInput): Promise<PreparedBatch> {
   if (input.items.length === 0) fail("QUESTION_AUTHORING_EMPTY_BATCH", "Tidak ada soal untuk disimpan.");
   const base = questionAuthoringInputSchema.pick({ courseId: true, chapterId: true, reviewStatus: true }).parse(input);
-  const items = await Promise.all(input.items.map(async (item, index) => ({
-    question: await prepareQuestion(item.question, index + 1),
-    ideaLinks: questionAuthoringInputSchema.shape.ideaLinks.parse(item.ideaLinks ?? []),
-    referenceLinks: item.referenceLinks ? item.referenceLinks.map((link) => questionReferenceLinkSchema.parse(link)) : [],
-    ...(item.questionId ? { questionId: item.questionId.trim() } : {}),
-  })));
+  const items = await Promise.all(input.items.map(async (item, index) => {
+    const offloadedQuestion = await offloadQuestionItemImages(item.question, {
+      courseSlug: base.courseId,
+      questionIdentifier: item.questionId || `q-${index + 1}`,
+    });
+    return {
+      question: await prepareQuestion(offloadedQuestion, index + 1),
+      ideaLinks: questionAuthoringInputSchema.shape.ideaLinks.parse(item.ideaLinks ?? []),
+      referenceLinks: item.referenceLinks ? item.referenceLinks.map((link) => questionReferenceLinkSchema.parse(link)) : [],
+      ...(item.questionId ? { questionId: item.questionId.trim() } : {}),
+    };
+  }));
   if (items.some((item) => item.questionId === "")) fail("QUESTION_AUTHORING_ID_INVALID", "ID soal tidak boleh kosong.");
   const explicitIds = items.flatMap((item) => item.questionId ? [item.questionId] : []);
   if (new Set(explicitIds).size !== explicitIds.length) fail("QUESTION_AUTHORING_DUPLICATE_ID", "ID soal dalam satu batch harus unik.");
@@ -815,7 +822,15 @@ export async function createHistoricalQuestionBatch(input: HistoricalQuestionBat
     if (!assessmentSource) fail("HISTORICAL_SOURCE_PERSIST_FAILED", "Assessment source historis gagal disimpan.");
 
     const results: PersistResult[] = [];
-    for (const question of draft.questions) {
+    const processedQuestions = await Promise.all(
+      draft.questions.map((question) =>
+        offloadQuestionItemImages(question, {
+          courseSlug: context.canonicalCourseId,
+          questionIdentifier: question.questionNumber,
+        })
+      )
+    );
+    for (const question of processedQuestions) {
       const sourceEventName = historicalEventName(draft, question.questionNumber);
       const questionIdentity = `${assessmentSource.id}:${question.questionNumber}:${question.part ?? ""}`;
       const canonicalId = `soal-ref-${createHash("sha256").update(questionIdentity, "utf8").digest("hex").slice(0, 32)}`;
@@ -885,7 +900,13 @@ export async function createHistoricalQuestionBatch(input: HistoricalQuestionBat
       }
 
       const optionsSnapshot = historicalQuestionOptions(question);
-      const explanation = getHistoricalSolutionContent(input.source, question);
+      const rawExplanation = getHistoricalSolutionContent(input.source, question);
+      const explanation = rawExplanation
+        ? await offloadBase64ImagesToR2(rawExplanation, {
+            courseSlug: context.canonicalCourseId,
+            questionIdentifier: `${question.questionNumber}-solution`,
+          })
+        : null;
       await tx.insert(soal).values({
         id: canonicalId,
         mataKuliahId: context.canonicalCourseId,

@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import katex from "katex";
 import { cn } from "@/lib/utils";
 import { normalizeMathInText } from "@/lib/math/math-normalizer";
+import { QuestionImage } from "@/components/course/question-image";
 
 type Segment =
   | { type: "text"; value: string }
@@ -20,6 +21,49 @@ const katexOptions = {
   strict: false,
   trust: false,
 };
+
+const IMAGE_MARKDOWN_REGEX = /!\[(.*?)\]\(((?:data:image\/[a-zA-Z0-9.+_-]+;base64,[A-Za-z0-9+/=\s]+)|(?:https?:\/\/[^\s)]+)|\/api\/storage\/[^\s)]+|[^\s)]+)\)/g;
+
+function renderTextWithImages(text: string, keyPrefix: string | number): ReactNode {
+  if (!text.includes("![")) {
+    return <span key={keyPrefix}>{text}</span>;
+  }
+
+  const parts: ReactNode[] = [];
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+  const regex = new RegExp(IMAGE_MARKDOWN_REGEX);
+
+  while ((match = regex.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      parts.push(
+        <span key={`${keyPrefix}-txt-${lastIndex}`}>
+          {text.slice(lastIndex, match.index)}
+        </span>
+      );
+    }
+    const alt = match[1] || "";
+    const src = match[2] || "";
+    parts.push(
+      <QuestionImage
+        key={`${keyPrefix}-img-${match.index}`}
+        src={src}
+        alt={alt}
+      />
+    );
+    lastIndex = regex.lastIndex;
+  }
+
+  if (lastIndex < text.length) {
+    parts.push(
+      <span key={`${keyPrefix}-txt-${lastIndex}`}>
+        {text.slice(lastIndex)}
+      </span>
+    );
+  }
+
+  return <span key={keyPrefix}>{parts}</span>;
+}
 
 function isEscaped(input: string, index: number) {
   let slashCount = 0;
@@ -85,7 +129,7 @@ export function MathText({ children, className, as = "span", bareMath = false }:
   return (
     <Component className={cn("math-text", className)}>
       {segments.map((segment, index): ReactNode => {
-        if (segment.type === "text") return <span key={index}>{segment.value}</span>;
+        if (segment.type === "text") return renderTextWithImages(segment.value, index);
 
         return (
           <span

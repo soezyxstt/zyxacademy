@@ -109,6 +109,24 @@ export function buildFormStorageKey(params: {
   );
 }
 
+export function buildQuestionAssetKey(input: {
+  courseSlug: string;
+  questionIdentifier?: string | null;
+  hash: string;
+  extension?: string;
+}): string {
+  const ext = (input.extension || "png").replace(/^\./, "").toLowerCase();
+  const folder = input.questionIdentifier ? `question-${slugifySegment(input.questionIdentifier, "item")}` : "general";
+  return joinKey(
+    "courses",
+    slugifySegment(input.courseSlug, "course"),
+    "questions",
+    folder,
+    `${input.hash.slice(0, 16)}.${ext}`,
+  );
+}
+
+
 export function buildIdeaBundleKey(input: {
   runId: string;
   bundleId: string;
