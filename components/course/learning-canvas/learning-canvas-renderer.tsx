@@ -812,7 +812,7 @@ function FunctionPlot({ spec }: { spec: FunctionPlotCanvas }) {
       <div className="relative w-full bg-card overflow-hidden select-none">
         <svg
           {...bind}
-          className="block h-auto w-full touch-none"
+          className={cn(bind.className, "block h-auto w-full")}
           viewBox={`0 0 ${SVG_W} ${SVG_H}`}
           role="img"
           tabIndex={0}
@@ -923,13 +923,14 @@ function FunctionPlot({ spec }: { spec: FunctionPlotCanvas }) {
         onResetAll={resetAll}
       />
 
+      <FallbackTable spec={spec} className="rounded-none border-0 border-t" />
     </div>
   );
 }
 
-function FallbackTable({ spec }: { spec: CanvasSpec }) {
+function FallbackTable({ spec, className }: { spec: CanvasSpec; className?: string }) {
   return (
-    <div className="space-y-3 rounded-xl border border-border bg-card p-4">
+    <div className={cn("space-y-3 rounded-xl border border-border bg-card p-4", className)}>
       <p className="text-body-sm text-muted-foreground">{spec.fallback.summary}</p>
       <div className="overflow-x-auto">
         <table className="w-full border-collapse text-body-sm">

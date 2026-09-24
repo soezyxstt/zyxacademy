@@ -2162,6 +2162,8 @@ export function ProductBundleReviewDetail({ detailId, courseLabels = {}, backHre
         body: JSON.stringify({
           decision,
           reason: reviewNote.trim() || undefined,
+          expectedRevision: payload.bundle.checksum,
+          contentFingerprint: payload.revisionFreshness?.currentFingerprint,
         }),
       });
       const result = await response.json() as { error?: string };

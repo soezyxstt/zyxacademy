@@ -106,7 +106,7 @@ export function compileProductDiktatHtml(source: ProductDiktatRenderSource): str
 <html lang="id"><head><meta charset="utf-8"><title>${title}</title>
 <style>${KATEX_CSS}
 ${WATERMARK_CSS}
-@page { size: A4; margin: 9mm 12mm 9mm; }
+@page { size: A4; margin: 9mm 12mm 15mm; }
 * { box-sizing: border-box; }
 body { margin: 0; color: #172033; font-family: Arial, sans-serif; font-size: 8.4pt; line-height: 1.32; }
 .diktat { position: relative; z-index: 1; }
@@ -137,7 +137,7 @@ li { margin-bottom: .8mm; padding-left: .5mm; }
 .label-wrong, .label-correct, .solution-header, .example-badge, .step-badge { font-weight: 700; }
 .example-header, .solution-header { margin: 1.5mm 0 .5mm; }
 .inline-code { font-family: monospace; }
-.diktat-contact-footer { position: fixed; z-index: 2; bottom: 0; left: 0; right: 0; min-height: 5.5mm; display: flex; align-items: center; justify-content: space-between; gap: 2mm; border: 1px solid #334b78; border-radius: 8mm; padding: 1mm 2.5mm; color: #334b78; background: #fff; font-size: 7pt; font-weight: 700; white-space: nowrap; }
+.diktat-contact-footer { position: fixed; z-index: 2; bottom: -11mm; left: 0; right: 0; min-height: 5.5mm; display: flex; align-items: center; justify-content: space-between; gap: 2mm; border: 1px solid #334b78; border-radius: 8mm; padding: 1mm 2.5mm; color: #334b78; background: #fff; font-size: 7pt; font-weight: 700; white-space: nowrap; }
 .diktat-contact-footer a { color: inherit; text-decoration: underline; }
 </style></head><body>
 <div class="diktat-watermark" aria-hidden="true">${ZYX_MAIN_LOGO_SVG}</div>
@@ -936,15 +936,22 @@ export async function renderProductDiktatPdf(
   const rendererUrl = process.env.DIKTAT_RENDERER_URL;
   const rendererSecret = process.env.DIKTAT_RENDERER_SECRET;
   if (!rendererUrl || !rendererSecret) {
-    throw new Error("PRODUCT_DIKTAT_RENDERER_UNAVAILABLE");
+    throw new Error("PRODUCT_DIKTAT_RENDERER_CONFIG_MISSING");
   }
-  const response = await (options.fetchImpl ?? fetch)(`${rendererUrl}/render`, {
-    method: "POST",
-    headers: { Authorization: `Bearer ${rendererSecret}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ html, printProfile: PRODUCT_DIKTAT_PRINT_PROFILE }),
-    signal: AbortSignal.timeout(options.timeoutMs ?? 45_000),
-  });
-  if (!response.ok) throw new Error("PRODUCT_DIKTAT_RENDERER_FAILED");
+  let response: Response;
+  try {
+    response = await (options.fetchImpl ?? fetch)(`${rendererUrl}/render`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${rendererSecret}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ html, printProfile: PRODUCT_DIKTAT_PRINT_PROFILE }),
+      signal: AbortSignal.timeout(options.timeoutMs ?? 45_000),
+    });
+  } catch (error) {
+    if (error instanceof Error && error.name === "TimeoutError") throw error;
+    throw new Error("PRODUCT_DIKTAT_RENDERER_UNAVAILABLE", { cause: error });
+  }
+  if (response.status >= 500) throw new Error("PRODUCT_DIKTAT_RENDERER_UNAVAILABLE");
+  if (!response.ok) throw new Error(`PRODUCT_DIKTAT_RENDERER_REJECTED:${response.status}`);
   const bytes = new Uint8Array(await response.arrayBuffer());
   if (bytes.byteLength < 1000 || new TextDecoder().decode(bytes.slice(0, 5)) !== "%PDF-") {
     throw new Error("PRODUCT_DIKTAT_RENDERER_INVALID_PDF");

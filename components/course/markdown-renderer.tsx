@@ -107,7 +107,16 @@ type SemanticEmphasisTone = keyof typeof semanticEmphasis;
 
 /** Detects a block containing only a display math expression. */
 function isStandaloneMathBlock(content: string): boolean {
-  return /^\s*(?:\$\$[\s\S]+?\$\$|\\\[[\s\S]+?\\\])\s*$/.test(content);
+  const trimmed = content.trim();
+  if (trimmed.startsWith("$$") && trimmed.endsWith("$$") && trimmed.length > 4) {
+    const inner = trimmed.slice(2, -2);
+    return inner.trim().length > 0 && !inner.includes("$$") && !inner.includes("\\[") && !inner.includes("\\]");
+  }
+  if (trimmed.startsWith("\\[") && trimmed.endsWith("\\]") && trimmed.length > 4) {
+    const inner = trimmed.slice(2, -2);
+    return inner.trim().length > 0 && !inner.includes("$$") && !inner.includes("\\[") && !inner.includes("\\]");
+  }
+  return false;
 }
 
 /** Removes display math delimiters so a formula can be rendered on its own row. */

@@ -115,8 +115,8 @@ export async function executePedagogicReview(
     );
   }
 
-  const reviewNotes = input.reason ?? input.notes ?? null;
-  if (input.decision !== "approved" && !reviewNotes?.trim()) {
+  const reviewNotes = input.reason?.trim() || input.notes?.trim() || null;
+  if (input.decision !== "approved" && !reviewNotes) {
     throw new Error("PRODUCT_BUNDLE_REVIEW_REASON_REQUIRED");
   }
   const criteria = input.criteria ?? [];

@@ -48,6 +48,9 @@ export function productDiktatFailureCode(error: unknown): SafeFailureCode {
   const message = error instanceof Error ? error.message : "";
   if (message.includes("FORMULA")) return "FORMULA_RENDER_ERROR";
   if (message.includes("TIMEOUT") || (error instanceof Error && error.name === "TimeoutError")) return "RENDER_TIMEOUT";
+  if (message.includes("RENDERER_CONFIG_MISSING")) return "RENDERER_CONFIG_MISSING";
+  if (message.includes("RENDERER_REJECTED")) return "RENDERER_REJECTED";
+  if (message.includes("RENDERER_INVALID_PDF")) return "INVALID_PDF_OUTPUT";
   if (message.includes("RENDERER")) return "RENDER_UNAVAILABLE";
   if (message.includes("PAGE")) return "PAGE_BUDGET_EXCEEDED";
   if (message.includes("STORAGE")) return "STORAGE_UNAVAILABLE";
