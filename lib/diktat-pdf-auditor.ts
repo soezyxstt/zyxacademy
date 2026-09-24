@@ -17,11 +17,8 @@ export async function auditRenderedPDF(
   let extractedText = "";
   try {
     const { PDFParse } = await import("pdf-parse");
-    const path = await import("path");
-    const { pathToFileURL } = await import("url");
-    
-    const workerPath = path.resolve(process.cwd(), "node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs");
-    PDFParse.setWorker(pathToFileURL(workerPath).href);
+    const { setupPdfWorker } = await import("@/lib/compute/pdf-worker");
+    await setupPdfWorker(PDFParse);
 
     const parser = new PDFParse({ data: new Uint8Array(pdfBuffer) });
     const result = await parser.getText();

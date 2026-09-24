@@ -1,5 +1,4 @@
-import path from "node:path";
-import { pathToFileURL } from "node:url";
+import { setupPdfWorker } from "./pdf-worker";
 
 export const AUTHORING_MCP_PDF_PAGE_WIDTH = 1280;
 
@@ -20,8 +19,7 @@ export function classifyStoredPdfError(error: unknown): "AUTHORING_MCP_SOURCE_PD
 
 export async function parseStoredPdfPages(bytes: Uint8Array, pages: number[]): Promise<{ totalPages: number; pages: SourceFilePage[] }> {
   const { PDFParse } = await import("pdf-parse");
-  const workerPath = path.resolve(process.cwd(), "node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs");
-  PDFParse.setWorker(pathToFileURL(workerPath).href);
+  await setupPdfWorker(PDFParse);
   const parser = new PDFParse({ data: bytes });
   try {
     const info = await parser.getInfo();

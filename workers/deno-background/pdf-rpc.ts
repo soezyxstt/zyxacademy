@@ -1,10 +1,9 @@
 import type { Context } from "hono";
-import path from "node:path";
-import { pathToFileURL } from "node:url";
 import { createHash } from "node:crypto";
 import { storage } from "@/lib/storage";
 import { isSafeKey } from "@/lib/storage/keys";
 import { ingestMcpSourcePack } from "@/lib/authoring/mcp-workflows";
+import { setupPdfWorker } from "@/lib/compute/pdf-worker";
 
 const MAX_PDF_BYTES = 50 * 1024 * 1024;
 const MAX_PAGES_PER_REQUEST = 4;
@@ -63,8 +62,7 @@ export async function handlePdfPagesRpc(c: Context) {
     }
 
     const { PDFParse } = await import("pdf-parse");
-    const workerPath = path.resolve(process.cwd(), "node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs");
-    PDFParse.setWorker(pathToFileURL(workerPath).href);
+    await setupPdfWorker(PDFParse);
     const parser = new PDFParse({ data: bytes });
 
     try {
