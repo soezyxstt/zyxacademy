@@ -39,8 +39,9 @@ function buildLegacyConfig(
   }
 
   const configuredOutput = source.maxOutputTokens;
-  const requestedOutput = typeof configuredOutput === "number" ? configuredOutput : 0;
-  config.maxOutputTokens = Math.max(outputFloor, requestedOutput);
+  if (typeof configuredOutput === "number") {
+    config.maxOutputTokens = Math.max(outputFloor, configuredOutput);
+  }
 
   if (thinking.kind === "level" && thinking.level) {
     config.thinkingConfig = { thinkingLevel: thinking.level };

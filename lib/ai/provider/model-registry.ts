@@ -348,7 +348,10 @@ export function getTpmLimit(modelId: string): number {
 }
 
 export function getProjectAliases(input: Partial<Record<`GEMINI_PROJECT_ALIAS_${1 | 2 | 3 | 4}`, string>> = {}): readonly string[] {
-  const aliases = [1, 2, 3, 4].map((index) => input[`GEMINI_PROJECT_ALIAS_${index as 1 | 2 | 3 | 4}`] ?? `gemini-project-${index}`);
+  const aliases = [1, 2, 3, 4].map((index) => {
+    const raw = input[`GEMINI_PROJECT_ALIAS_${index as 1 | 2 | 3 | 4}`];
+    return raw && raw.trim().length > 0 ? raw.trim() : `gemini-project-${index}`;
+  });
   if (new Set(aliases).size !== aliases.length) {
     throw new Error("GEMINI_PROJECT_ALIASES_MUST_BE_DISTINCT");
   }

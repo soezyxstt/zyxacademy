@@ -17,6 +17,7 @@ export interface SystemPrompt<TVars> {
   systemInstruction: string;
   userPrompt: (vars: TVars) => string;
   responseSchema?: any;
+  structuredOutputMode?: "native-only" | "legacy-fallback";
 }
 
 export type ExecutionOutcome =
@@ -112,6 +113,7 @@ export class PromptExecutor {
         responseSchema: params.prompt.responseSchema,
         useCase: params.useCase,
         maxAttempts: params.maxAttempts,
+        structuredOutputMode: params.prompt.structuredOutputMode ?? params.structuredOutputMode ?? "legacy-fallback",
       };
     } else {
       return {
