@@ -69,6 +69,13 @@ import {
 } from "@/lib/authoring/mcp-workflows";
 import { requireMcpScope, type McpPrincipal } from "@/lib/authoring/mcp-auth";
 import {
+  createQuizWithQuestions,
+  getQuizDetail,
+  listQuizzes,
+  updateQuizMeta,
+  setQuizQuestions,
+} from "@/lib/authoring/quiz-assembly";
+import {
   listStoredSourceFiles,
   listStoredReferenceFiles,
   getStoredReferenceSourceFile,
@@ -2905,6 +2912,97 @@ function registerAssessmentAnalysisTools(server: McpServer, principal: McpPrinci
   }));
 }
 
+function registerQuizAssemblyTools(server: McpServer, principal: McpPrincipal): void {
+  (server as any).registerTool("quiz.create", {
+    title: "Create Quiz",
+    description: "Membuat entitas kuis utuh pada mata kuliah tertentu dengan judul, durasi, dan daftar butir soal (fixedQuestionIds).",
+    inputSchema: {
+      courseKey: z.string().trim().min(1),
+      title: z.string().trim().min(1).max(255),
+      questionIds: z.array(z.string().trim().min(1)).min(1),
+      chapterKey: z.string().trim().min(1).optional(),
+      category: z.enum(["chapter", "weekly", "daily", "simulation", "premium"]).default("chapter"),
+      timeLimitSeconds: z.number().int().min(60).optional(),
+      maxAttempts: z.number().int().min(1).nullable().optional(),
+      visibility: z.enum(["free", "paid"]).default("free"),
+      status: z.enum(["draft", "published"]).default("draft"),
+      manualStatus: z.enum(["open", "closed", "scheduled"]).default("scheduled"),
+      showDiscussion: z.boolean().default(true),
+      shuffleQuestions: z.boolean().default(false),
+      shuffleOptions: z.boolean().default(false),
+      canGoBack: z.boolean().default(true),
+      requireAllAnswered: z.boolean().default(false),
+      passingScore: z.number().min(0).max(100).default(70),
+      runToken: z.string().min(1).optional(),
+    },
+    annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
+  }, async (input: any) => safeTool(async () => {
+    requireMcpScope(principal, "authoring:stage");
+    return createQuizWithQuestions(input, principal.actorId);
+  }));
+
+  (server as any).registerTool("quiz.get", {
+    title: "Get Quiz Details",
+    description: "Mengambil detail konfigurasi kuis beserta daftar soal yang terpasang.",
+    inputSchema: {
+      quizId: z.string().trim().min(1),
+    },
+    annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
+  }, async ({ quizId }: { quizId: string }) => safeTool(async () => {
+    requireMcpScope(principal, "authoring:read");
+    return getQuizDetail(quizId);
+  }));
+
+  (server as any).registerTool("quiz.list", {
+    title: "List Quizzes",
+    description: "Melihat daftar kuis yang terdaftar pada suatu mata kuliah.",
+    inputSchema: {
+      courseKey: z.string().trim().min(1),
+      category: z.enum(["chapter", "weekly", "daily", "simulation", "premium"]).optional(),
+      status: z.enum(["draft", "published"]).optional(),
+      limit: z.number().int().min(1).max(100).default(20),
+      offset: z.number().int().min(0).default(0),
+    },
+    annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
+  }, async (input: any) => safeTool(async () => {
+    requireMcpScope(principal, "authoring:read");
+    return listQuizzes(input);
+  }));
+
+  (server as any).registerTool("quiz.update", {
+    title: "Update Quiz Metadata",
+    description: "Memperbarui metadata kuis (judul, kategori, durasi, status, visibilitas).",
+    inputSchema: {
+      quizId: z.string().trim().min(1),
+      title: z.string().trim().min(1).max(255).optional(),
+      category: z.enum(["chapter", "weekly", "daily", "simulation", "premium"]).optional(),
+      timeLimitSeconds: z.number().int().min(60).nullable().optional(),
+      maxAttempts: z.number().int().min(1).nullable().optional(),
+      status: z.enum(["draft", "published"]).optional(),
+      visibility: z.enum(["free", "paid"]).optional(),
+      manualStatus: z.enum(["open", "closed", "scheduled"]).optional(),
+      showDiscussion: z.boolean().optional(),
+    },
+    annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
+  }, async (input: any) => safeTool(async () => {
+    requireMcpScope(principal, "authoring:stage");
+    return updateQuizMeta(input, principal.actorId);
+  }));
+
+  (server as any).registerTool("quiz.set_questions", {
+    title: "Set Quiz Questions",
+    description: "Mengganti atau mengatur ulang daftar butir soal (fixedQuestionIds) pada kuis dan menyinkronkan item_asesmen.",
+    inputSchema: {
+      quizId: z.string().trim().min(1),
+      questionIds: z.array(z.string().trim().min(1)).min(1),
+    },
+    annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
+  }, async ({ quizId, questionIds }: { quizId: string; questionIds: string[] }) => safeTool(async () => {
+    requireMcpScope(principal, "authoring:stage");
+    return setQuizQuestions(quizId, questionIds, principal.actorId);
+  }));
+}
+
 export function createAuthoringMcpServer(principal: McpPrincipal): McpServer {
   const server = new McpServer({ name: "zyx-authoring", version: "1.0.0" }, { capabilities: { tools: {} } });
   registerWorkflowTools(server, principal);
@@ -2914,5 +3012,6 @@ export function createAuthoringMcpServer(principal: McpPrincipal): McpServer {
   registerKnowledgeTools(server, principal);
   registerAnalysisTools(server, principal);
   registerAssessmentAnalysisTools(server, principal);
+  registerQuizAssemblyTools(server, principal);
   return server;
 }
