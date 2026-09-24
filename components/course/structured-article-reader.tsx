@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import Link from "next/link";
-import { useSearchParams, useRouter, usePathname } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import {
   ArrowLeft,
   BookOpen,
@@ -10,7 +10,6 @@ import {
   Circle,
   Clock,
   Compass,
-  ChevronLeft,
   ChevronRight,
   PanelRightClose,
   PanelRight,
@@ -300,7 +299,11 @@ export function StructuredArticleSectionContent({
 
           const meta = getBlockMetadata(block.blockType);
           const Icon = meta.icon;
-          const displayTitle = block.title || meta.label;
+          const genericFormulaTitle = block.blockType === "mathematical_representation" && block.title === "Rumus dan syarat";
+          const genericSymbolTitle = block.blockType === "verbal_representation" && block.title === "Simbol, syarat, dan makna";
+          const displayTitle = genericFormulaTitle || genericSymbolTitle
+            ? null
+            : block.title === "Penjelasan inti" ? "Teori" : block.title || meta.label;
 
           const isCoreDocument =
             block.blockType === "explanation" ||
@@ -314,8 +317,7 @@ export function StructuredArticleSectionContent({
                 id={block.id ? `block-${block.id}` : undefined}
                 className={cn(
                   "space-y-3 py-1 scroll-mt-24",
-                  block.blockType === "mathematical_representation" &&
-                    "rounded-lg border border-primary/20 bg-primary/[0.025] px-4 py-3",
+                  block.blockType === "mathematical_representation" && "space-y-2",
                 )}
               >
                 {displayTitle &&
@@ -326,12 +328,6 @@ export function StructuredArticleSectionContent({
                   <h3 className="font-heading text-h5 font-bold tracking-tight text-foreground pt-3">
                     {displayTitle}
                   </h3>
-                ) : null}
-                {block.blockType === "mathematical_representation" ? (
-                  <div className="flex items-center gap-2 text-body-xs font-bold uppercase tracking-wider text-primary">
-                    <Calculator className="size-3.5" aria-hidden="true" />
-                    <span>Rumus dan syarat</span>
-                  </div>
                 ) : null}
                 <div className="text-body-base leading-relaxed text-foreground">
                   <MarkdownRenderer content={block.content} density="default" />
@@ -350,7 +346,7 @@ export function StructuredArticleSectionContent({
                 meta.containerClass,
               )}
             >
-              <div className="flex items-center justify-between gap-2 border-b border-border/60 pb-2.5">
+              <div className="flex items-center gap-2 border-b border-border/60 pb-2.5">
                 <div className="flex items-center gap-2">
                   <span
                     className={cn(
@@ -364,14 +360,6 @@ export function StructuredArticleSectionContent({
                     {displayTitle}
                   </h3>
                 </div>
-                <span
-                  className={cn(
-                    "rounded-md px-2 py-0.5 text-body-xs font-semibold uppercase tracking-wider",
-                    meta.badgeClass,
-                  )}
-                >
-                  {meta.label}
-                </span>
               </div>
               <div className="text-body-base leading-relaxed text-foreground">
                 <MarkdownRenderer content={block.content} density="compact" />
@@ -398,7 +386,6 @@ export function StructuredArticleReader({
   const learnerMode = isLearnerReaderMode(mode);
   const searchParams = useSearchParams();
   const router = useRouter();
-  const pathname = usePathname();
 
   // Active section resolution
   const requestedSlug = searchParams.get("section");
@@ -406,7 +393,9 @@ export function StructuredArticleReader({
     () => requestedSlug || article.progress?.lastSectionSlug || article.sections[0]?.slug || "",
   );
   const activeSectionSlugRef = useRef(activeSectionSlug);
-  activeSectionSlugRef.current = activeSectionSlug;
+  useEffect(() => {
+    activeSectionSlugRef.current = activeSectionSlug;
+  }, [activeSectionSlug]);
 
   const activeSection = useMemo(() => {
     return (

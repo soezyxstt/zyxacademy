@@ -64,6 +64,7 @@ function isStandaloneDisplayMath(value: string): boolean {
   const remainder = trimmed
     .replace(/\$\$[\s\S]*?\$\$/g, "")
     .replace(/\\\[[\s\S]*?\\\]/g, "")
+    .replace(/^\s*(?:[-*+]\s*|\d+\.\s*)/gm, "")
     .trim();
   return remainder.length === 0 && /\$\$[\s\S]*?\$\$|\\\[[\s\S]*?\\\]/.test(trimmed);
 }

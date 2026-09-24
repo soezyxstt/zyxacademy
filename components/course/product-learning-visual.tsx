@@ -54,8 +54,6 @@ function CanvasFallback({ spec }: { spec: PublicLearningCanvasVisualSpec }) {
 }
 
 function LearningCanvasVisual({ spec, className }: { spec: PublicLearningCanvasVisualSpec; className?: string }) {
-  const titleId = useId();
-  const descriptionId = useId();
   const [isVisible, setIsVisible] = useState(false);
   const containerRef = React.useRef<HTMLDivElement | null>(null);
 
@@ -81,23 +79,10 @@ function LearningCanvasVisual({ spec, className }: { spec: PublicLearningCanvasV
   }, [spec.interactive]);
 
   return (
-    <figure
-      id={spec.id}
-      ref={containerRef}
-      aria-labelledby={titleId}
-      aria-describedby={descriptionId}
-      className={`rounded-lg border border-border bg-card p-4 space-y-3 ${className ?? ""}`}
-    >
-      <div className="flex items-start gap-2 border-b border-border pb-3">
-        <LineChart className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden="true" />
-        <div>
-          <h3 id={titleId} className="font-heading text-body-sm font-bold text-foreground">{spec.label}</h3>
-          <p id={descriptionId} className="mt-1 text-body-xs text-muted-foreground">{spec.description}</p>
-        </div>
-      </div>
-      {isVisible ? <LazyLearningCanvasRenderer spec={spec.canvas} /> : <CanvasFallback spec={spec} />}
+    <figure id={spec.id} ref={containerRef} aria-label={spec.label} className={`space-y-2 ${className ?? ""}`}>
+      {isVisible ? <LazyLearningCanvasRenderer spec={spec.canvas} embedded /> : <CanvasFallback spec={spec} />}
       {!isVisible && spec.interactive ? (
-        <p className="text-body-xs text-muted-foreground">Grafik interaktif akan aktif saat bagian ini masuk ke layar. Tabel di atas adalah ringkasan statisnya.</p>
+        <p className="sr-only">{spec.description}</p>
       ) : null}
     </figure>
   );

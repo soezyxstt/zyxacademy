@@ -19,6 +19,8 @@ Each block stores `contentMarkdown`, `blockType`, optional title, Idea IDs, and 
 - Formative checks are learning interactions only. `checkKind` supports `multiple_choice`, `short_answer`, `numeric_answer`, and `conceptual_explanation`. An optional typed `evaluation` uses `choice`, `text_exact`, `numeric`, or `ai_rubric` respectively. Without `evaluation`, the published check remains readable and reveal-only.
 - `feedbackPolicy` is optional and may contain up to three progressive hints plus `allowRetry`. Evaluation and reveal routes authorize the published Article version and course enrollment, and never write attempts, grades, mastery, or assessment rows.
 - Required visuals use typed, non-executable payloads. A mathematically sampled graph is explanatory evidence only and never replaces an analytic proof.
+- MCP quality reports warn when a graph-relevant section has no linked visual, when one display formula joins multiple relations with commas, or when explanatory passages, worked-example steps, and verification repeat within a section. These warnings require editorial review; they do not prove a visual is always necessary or automatically rewrite content.
+- Display formulas may use a short Markdown list with one relation per item. The quality count preserves mathematical inequalities such as `x<1` and does not mistake commas inside set notation for a crowded formula.
 
 ## Review, edit, and publication
 

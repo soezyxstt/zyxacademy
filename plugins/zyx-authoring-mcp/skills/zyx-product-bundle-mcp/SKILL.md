@@ -62,8 +62,8 @@ Article bukan template yang harus mengisi semua jenis block pada setiap section.
 
 Untuk topic matematika, perlakukan keterbacaan rumus sebagai kebutuhan utama, bukan hiasan di dalam paragraf.
 
-- Setelah orientasi singkat, letakkan `mathematical_representation` sebagai fokus. Tulis satu relasi inti dalam display math terpisah (`$$...$$`), bukan rumus yang diselipkan ke bullet panjang.
-- Setiap rumus harus segera diikuti struktur singkat untuk `Simbol`, `Syarat berlaku`, dan `Makna atau arah baca`. Satu paragraf tidak boleh memuat beberapa keputusan matematis yang berbeda hanya demi menghemat block.
+- Setelah orientasi singkat, letakkan `mathematical_representation` sebagai fokus. Tulis tiap relasi dalam display math terpisah (`$$...$$`), dengan daftar pendek bila ada beberapa rumus terkait.
+- Ikuti rumus dengan bullet simbol dan syarat yang benar-benar diperlukan, tanpa subjudul berulang. Tambahkan makna hanya jika rumus atau grafik belum menjelaskannya. Satu paragraf tidak boleh memuat beberapa keputusan matematis yang berbeda hanya demi menghemat block.
 - Jangan mengulang rumus yang sama di setiap kalimat penjelasan. Penjelasan menerangkan asal, arti, atau keputusan pemakaian rumus di bawah rumus; jangan membuat mahasiswa menebak bagian mana yang harus diprioritaskan.
 - Critic dan Student POV wajib menandai formula yang hanya muncul di prose, raw LaTeX yang tidak ter-render, simbol tanpa definisi, syarat yang hilang, dan paragraf yang mencampur rumus dengan terlalu banyak yapping.
 - Ini adalah gate machine-checkable, bukan sekadar preferensi editorial: setiap blok `mathematical_representation` harus berisi satu atau beberapa display math yang berdiri sendiri, tanpa kalimat pada baris yang sama atau sesudah penutup delimiter. `Simbol`, `Syarat berlaku`, dan `Makna` harus berada pada blok verbal terpisah. MCP harus mengembalikan issue blocking untuk formula-prosa campuran, delimiter tidak seimbang, raw LaTeX, atau bagian topic yang melewati batas prose.
@@ -174,7 +174,7 @@ Cek formatif adalah interaksi belajar di dalam Artikel, bukan row soal, attempt,
 8. Jalankan loop creator → critic → Student POV → creator revision → critic reread → Student POV reread. Jangan lanjut ke staging bila versi final belum dibaca ulang oleh dua peran review tersebut.
 9. Setelah Artikel lengkap dan loop kualitas selesai, turunkan Diktat dari Artikel. Jangan mengambil fakta baru langsung dari Source Pack untuk “melengkapi” Diktat; jika fakta itu memang wajib, masukkan ke Artikel terlebih dahulu.
 10. Setelah Artikel lengkap, buat flashcard dari target recall yang sudah ada di Artikel dan jalankan preflight `flashcard-guide.md`.
-11. Jalankan preflight penuh `editorial-guide.md`. Selain gate lama, buktikan formula/prose separation, symbol/condition coverage, semantic token allowlist, icon scan, visual interaction/fallback, dan Diktat PDF evidence.
+11. Jalankan preflight penuh `editorial-guide.md`. Selain gate lama, buktikan rumus terpisah per relasi, simbol dan syarat tanpa subjudul berulang, tidak ada pengulangan antara prosa dan payload contoh, bahasa mahasiswa yang ringkas, keputusan grafik per section termasuk skala horizontal dan vertikal bila relevan, semantic token allowlist, icon scan, visual interaction/fallback, dan Diktat PDF evidence.
 12. Package **hanya** `manifest.json`, `entities/products.json`, dan `entities/dependencies.json`, seluruh entry regular mode `0644`.
 13. Panggil `authoring.validate_product_bundle`.
 14. Revisi semua blocking issue dan warning substantif. Setelah setiap revisi, ulangi author preflight, review critic, review Student POV, dan pemeriksaan lintas-section; jangan hanya mengejar validator.
