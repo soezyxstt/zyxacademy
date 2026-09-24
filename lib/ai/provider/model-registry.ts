@@ -347,6 +347,9 @@ export function getTpmLimit(modelId: string): number {
   return getModelEntry(modelId).limits.perProjectTpm;
 }
 
+/**
+ * Resolves distinct provider project aliases with fallback defaults for missing or blank entries.
+ */
 export function getProjectAliases(input: Partial<Record<`GEMINI_PROJECT_ALIAS_${1 | 2 | 3 | 4}`, string>> = {}): readonly string[] {
   const aliases = [1, 2, 3, 4].map((index) => {
     const raw = input[`GEMINI_PROJECT_ALIAS_${index as 1 | 2 | 3 | 4}`];

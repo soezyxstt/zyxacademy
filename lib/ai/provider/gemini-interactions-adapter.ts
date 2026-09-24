@@ -59,6 +59,9 @@ function toInteractionInput(parts: ReturnType<typeof normalizeInputParts>): Inte
   });
 }
 
+/**
+ * Creates an adapter for Gemini Interactions API models.
+ */
 export function createGeminiInteractionsAdapter(client: GeminiInteractionsClient) {
   return {
     async generate(request: ProviderGenerateRequest): Promise<ProviderGenerationResult> {

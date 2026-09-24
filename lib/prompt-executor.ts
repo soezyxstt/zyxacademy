@@ -49,6 +49,9 @@ export function resetStructuredOutputMetrics(): void {
   globalStructuredOutputMetrics.structured_output_fallback_failed = 0;
 }
 
+/**
+ * Determines whether prompt executor or provider router owns allowance reservation.
+ */
 export function promptExecutorOwnsAllowance(allowanceEnabled: boolean, providerRouterEnabled: boolean): boolean {
   return allowanceEnabled && !providerRouterEnabled;
 }
