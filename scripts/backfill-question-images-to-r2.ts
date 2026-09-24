@@ -93,12 +93,22 @@ async function run() {
         })
         .where(eq(soal.id, q.id));
 
+      const optionsForAiBank = Array.isArray(offloaded.options)
+        ? offloaded.options.map((opt: unknown) => {
+            if (typeof opt === "string") return opt;
+            if (opt && typeof opt === "object" && "text" in opt && typeof (opt as { text: unknown }).text === "string") {
+              return (opt as { text: string }).text;
+            }
+            return String(opt ?? "");
+          })
+        : [];
+
       // Mirror to aiQuestionBank if present
       await db
         .update(aiQuestionBank)
         .set({
           prompt: offloaded.prompt,
-          options: offloaded.options as any,
+          options: optionsForAiBank,
         })
         .where(eq(aiQuestionBank.id, q.id));
 
@@ -153,6 +163,14 @@ async function run() {
           updatedAt: new Date(),
         })
         .where(eq(pembahasanSoal.id, sol.id));
+
+      // Mirror explanation to aiQuestionBank if present
+      await db
+        .update(aiQuestionBank)
+        .set({
+          explanation: offloadedContent,
+        })
+        .where(eq(aiQuestionBank.id, sol.soalId));
 
       totalSolutionsSavedBytes += Math.max(0, savedBytes);
       solutionsUpdated++;

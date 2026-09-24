@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { AlertCircle, ZoomIn } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 
 type QuestionImageProps = {
   src: string;
@@ -22,6 +22,10 @@ export function QuestionImage({ src, alt, className }: QuestionImageProps) {
 
   // Clean data URIs that might contain accidental whitespace/newlines
   const cleanSrc = src.startsWith("data:image/") ? src.replace(/\s+/g, "") : src;
+
+  useEffect(() => {
+    setHasError(false);
+  }, [cleanSrc]);
 
   if (hasError) {
     return (
@@ -70,6 +74,9 @@ export function QuestionImage({ src, alt, className }: QuestionImageProps) {
 
       <Dialog open={isZoomOpen} onOpenChange={setIsZoomOpen}>
         <DialogContent className="max-w-4xl p-2 sm:p-4 bg-card border-border overflow-hidden">
+          <DialogTitle className="sr-only">
+            {alt && alt.trim() ? alt.trim() : "Diagram soal diperbesar"}
+          </DialogTitle>
           <div className="flex flex-col items-center justify-center p-2">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
