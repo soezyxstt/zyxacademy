@@ -59,6 +59,9 @@ function toInteractionInput(parts: ReturnType<typeof normalizeInputParts>): Inte
   });
 }
 
+/**
+ * Creates an adapter for Gemini Interactions API models.
+ */
 export function createGeminiInteractionsAdapter(client: GeminiInteractionsClient) {
   return {
     async generate(request: ProviderGenerateRequest): Promise<ProviderGenerationResult> {
@@ -70,14 +73,14 @@ export function createGeminiInteractionsAdapter(client: GeminiInteractionsClient
       const parts = normalizeInputParts(request.parts, entry);
       const source = request.config ?? {};
       const configuredOutput = source.maxOutputTokens;
-      const requestedOutput = typeof configuredOutput === "number" ? configuredOutput : 0;
+      const requestedOutput = typeof configuredOutput === "number" ? Math.max(entry.outputFloor, configuredOutput) : undefined;
       const responseModalities = toInteractionResponseModalities(source.responseModalities);
       const input: Interactions.CreateModelInteractionParamsNonStreaming = {
         model: entry.id,
         input: toInteractionInput(parts),
         stream: false,
         generation_config: {
-          max_output_tokens: Math.max(entry.outputFloor, requestedOutput),
+          ...(typeof requestedOutput === "number" ? { max_output_tokens: requestedOutput } : {}),
           ...(entry.thinking.kind === "level" && entry.thinking.level
             ? { thinking_level: entry.thinking.level }
             : {}),

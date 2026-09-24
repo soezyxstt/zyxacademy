@@ -17,6 +17,7 @@ export interface SystemPrompt<TVars> {
   systemInstruction: string;
   userPrompt: (vars: TVars) => string;
   responseSchema?: any;
+  structuredOutputMode?: "native-only" | "legacy-fallback";
 }
 
 export type ExecutionOutcome =
@@ -48,6 +49,9 @@ export function resetStructuredOutputMetrics(): void {
   globalStructuredOutputMetrics.structured_output_fallback_failed = 0;
 }
 
+/**
+ * Determines whether prompt executor or provider router owns allowance reservation.
+ */
 export function promptExecutorOwnsAllowance(allowanceEnabled: boolean, providerRouterEnabled: boolean): boolean {
   return allowanceEnabled && !providerRouterEnabled;
 }
@@ -112,6 +116,7 @@ export class PromptExecutor {
         responseSchema: params.prompt.responseSchema,
         useCase: params.useCase,
         maxAttempts: params.maxAttempts,
+        structuredOutputMode: params.prompt.structuredOutputMode ?? params.structuredOutputMode ?? "legacy-fallback",
       };
     } else {
       return {
