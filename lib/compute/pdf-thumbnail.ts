@@ -1,9 +1,8 @@
-import path from "node:path";
-import { pathToFileURL } from "node:url";
 // @ts-ignore -- Deno worker dependency is resolved through deno.json; web builds never load this module.
 import * as canvas from "@napi-rs/canvas";
 import { buildCourseThumbnailKey } from "@/lib/storage/keys";
 import { storage } from "@/lib/storage";
+import { setupPdfWorker } from "./pdf-worker";
 
 function installPdfCanvasGlobals() {
   const globals = globalThis as unknown as Record<string, unknown>;
@@ -29,8 +28,7 @@ export async function renderPdfFirstPagePng(bytes: Uint8Array): Promise<Buffer> 
     if (!bytes.byteLength) throw new Error("PDF_BYTES_EMPTY");
     installPdfCanvasGlobals();
     const { PDFParse } = await import("pdf-parse");
-    const workerPath = path.resolve(process.cwd(), "node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs");
-    PDFParse.setWorker(pathToFileURL(workerPath).href);
+    await setupPdfWorker(PDFParse);
     const pdfParser = new PDFParse({ data: bytes });
     parser = pdfParser;
     const result = await pdfParser.getScreenshot({
@@ -67,6 +65,6 @@ export async function generateAndSavePdfThumbnailCompute(params: {
     return thumbnailKey;
   } catch (error) {
     console.error(`[ThumbnailCompute] Failed for ${params.courseSlug}/${params.materialId}:`, error);
-    return null;
+    throw error;
   }
 }
