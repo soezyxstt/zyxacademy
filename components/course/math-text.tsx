@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import katex from "katex";
 import { cn } from "@/lib/utils";
 import { normalizeMathInText } from "@/lib/math/math-normalizer";
+import { QuestionImage } from "@/components/course/question-image";
 
 type Segment =
   | { type: "text"; value: string }
@@ -20,6 +21,8 @@ const katexOptions = {
   strict: false,
   trust: false,
 };
+
+const IMAGE_MARKDOWN_REGEX = /!\[(.*?)\]\(((?:data:image\/[a-zA-Z0-9.+_-]+;base64,[A-Za-z0-9+/=\s]+)|(?:https?:\/\/[^\s)]+)|\/api\/storage\/[^\s)]+|[^\s)]+)\)/g;
 
 function isEscaped(input: string, index: number) {
   let slashCount = 0;
@@ -75,30 +78,79 @@ function renderMath(value: string, displayMode: boolean) {
   return katex.renderToString(value, { ...katexOptions, displayMode });
 }
 
+function renderMathSegments(text: string, bareMath = false): ReactNode[] {
+  const normalized = bareMath ? text : normalizeMathInText(text);
+  const mathReadyText = bareMath && normalized.trim() ? `$$${normalized.trim()}$$` : normalized;
+  const segments = parseMathText(mathReadyText);
+
+  return segments.map((segment, index): ReactNode => {
+    if (segment.type === "text") return <span key={index}>{segment.value}</span>;
+
+    return (
+      <span
+        key={index}
+        className={cn(
+          segment.display
+            ? "my-3 block overflow-x-auto overflow-y-hidden py-1"
+            : "inline",
+        )}
+        dangerouslySetInnerHTML={{ __html: renderMath(segment.value, segment.display) }}
+      />
+    );
+  });
+}
+
 export function MathText({ children, className, as = "span", bareMath = false }: MathTextProps) {
   const rawText = children ?? "";
-  const normalized = bareMath ? rawText : normalizeMathInText(rawText);
-  const text = bareMath && normalized.trim() ? `$$${normalized.trim()}$$` : normalized;
-  const segments = parseMathText(text);
   const Component = as;
 
-  return (
-    <Component className={cn("math-text", className)}>
-      {segments.map((segment, index): ReactNode => {
-        if (segment.type === "text") return <span key={index}>{segment.value}</span>;
+  if (!rawText.includes("![")) {
+    return (
+      <Component className={cn("math-text", className)}>
+        {renderMathSegments(rawText, bareMath)}
+      </Component>
+    );
+  }
 
-        return (
-          <span
-            key={index}
-            className={cn(
-              segment.display
-                ? "my-3 block overflow-x-auto overflow-y-hidden py-1"
-                : "inline",
-            )}
-            dangerouslySetInnerHTML={{ __html: renderMath(segment.value, segment.display) }}
-          />
+  // Split content by markdown images so QuestionImage is rendered as a block sibling outside inline/paragraph tags
+  const parts: ReactNode[] = [];
+  const regex = new RegExp(IMAGE_MARKDOWN_REGEX);
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+
+  while ((match = regex.exec(rawText)) !== null) {
+    if (match.index > lastIndex) {
+      const textChunk = rawText.slice(lastIndex, match.index);
+      if (textChunk) {
+        parts.push(
+          <Component key={`chunk-${lastIndex}`} className={cn("math-text", className)}>
+            {renderMathSegments(textChunk, bareMath)}
+          </Component>
         );
-      })}
-    </Component>
-  );
+      }
+    }
+    const alt = match[1] || "";
+    const src = match[2] || "";
+    parts.push(
+      <QuestionImage
+        key={`img-${match.index}`}
+        src={src}
+        alt={alt}
+      />
+    );
+    lastIndex = regex.lastIndex;
+  }
+
+  if (lastIndex < rawText.length) {
+    const trailingChunk = rawText.slice(lastIndex);
+    if (trailingChunk) {
+      parts.push(
+        <Component key={`chunk-${lastIndex}`} className={cn("math-text", className)}>
+          {renderMathSegments(trailingChunk, bareMath)}
+        </Component>
+      );
+    }
+  }
+
+  return <>{parts}</>;
 }

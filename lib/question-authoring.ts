@@ -29,6 +29,7 @@ import {
 } from "@/lib/question-authoring-contract";
 import { validateExtractedQuestion, type ExtractedQuestion } from "@/lib/question-markdown";
 import { referenceQuestionDraftSchema, type ReferenceQuestion, type ReferenceQuestionDraft, type ReferenceSourceMetadata, toQuestionIdeaLinks } from "@/lib/authoring/reference-question-draft";
+import { offloadBase64ImagesToR2, offloadQuestionItemImages } from "@/lib/question-images";
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -173,8 +174,8 @@ async function requireCreator(tx: Tx, creatorId: string): Promise<void> {
   if (!identity || identity.status !== "active") fail("QUESTION_AUTHORING_CREATOR_NOT_FOUND", "Identitas pembuat soal tidak aktif.");
 }
 
-async function resolveContext(tx: Tx, courseId: string, chapterId: string | null | undefined): Promise<AuthoringContext> {
-  const [course] = await tx
+async function resolveContext(dbOrTx: Tx | typeof db, courseId: string, chapterId: string | null | undefined): Promise<AuthoringContext> {
+  const [course] = await dbOrTx
     .select({ id: mataKuliah.id, legacyCourseId: mataKuliah.legacyCourseId, status: mataKuliah.status })
     .from(mataKuliah)
     .where(or(eq(mataKuliah.id, courseId), eq(mataKuliah.legacyCourseId, courseId)))
@@ -182,13 +183,13 @@ async function resolveContext(tx: Tx, courseId: string, chapterId: string | null
   if (!course || course.status !== "active") fail("QUESTION_AUTHORING_COURSE_NOT_FOUND", "Mata kuliah canonical tidak ditemukan atau belum aktif.");
   if (!course.legacyCourseId) fail("QUESTION_AUTHORING_LEGACY_COURSE_MAPPING_MISSING", "Mata kuliah belum memiliki pemetaan ke course lama.");
 
-  const [legacyCourse] = await tx.select({ id: courses.id }).from(courses).where(eq(courses.id, course.legacyCourseId)).limit(1);
+  const [legacyCourse] = await dbOrTx.select({ id: courses.id }).from(courses).where(eq(courses.id, course.legacyCourseId)).limit(1);
   if (!legacyCourse) fail("QUESTION_AUTHORING_LEGACY_COURSE_NOT_FOUND", "Course kompatibilitas tidak ditemukan.");
 
   let resolvedChapterId: string | null = null;
   let legacyChapterId: string | null = null;
   if (chapterId) {
-    const [chapter] = await tx
+    const [chapter] = await dbOrTx
       .select({ id: bab.id, legacyChapterId: bab.legacyChapterId, courseId: bab.mataKuliahId, status: bab.status })
       .from(bab)
       .where(or(eq(bab.id, chapterId), eq(bab.legacyChapterId, chapterId)))
@@ -513,10 +514,14 @@ async function prepareQuestion(input: QuestionAuthoringQuestion, index: number):
 
 export async function createCanonicalQuestion(input: QuestionAuthoringInput, creatorId: string): Promise<PersistResult> {
   const parsed = questionAuthoringInputSchema.parse(input);
-  const question = await prepareQuestion(parsed, 1);
+  const context = await resolveContext(db, parsed.courseId, parsed.chapterId);
+  const offloadedQuestion = await offloadQuestionItemImages(parsed, {
+    courseSlug: context.canonicalCourseId,
+    questionIdentifier: "canonical",
+  });
+  const question = await prepareQuestion(offloadedQuestion, 1);
   return db.transaction(async (tx) => {
     await requireCreator(tx, creatorId);
-    const context = await resolveContext(tx, parsed.courseId, parsed.chapterId);
     await validateIdeaLinks(tx, context, parsed.ideaLinks);
     await validateKnowledgeObject(tx, context, question.knowledgeObjectId);
     return persistQuestionWithLinks(tx, context, question, parsed.ideaLinks, [], creatorId, parsed.reviewStatus);
@@ -575,11 +580,24 @@ export async function validateCanonicalQuestionBatch(input: Omit<QuestionAuthori
 
 export async function createCanonicalQuestionBatch(input: QuestionAuthoringBatchInput): Promise<PersistResult[]> {
   const prepared = await prepareBatch(input);
+  const context = await resolveContext(db, prepared.courseId, prepared.chapterId);
+
+  // Offload images outside the write transaction using resolved canonical course ID
+  const offloadedItems = await Promise.all(
+    prepared.items.map(async (item, index) => {
+      const offloadedQuestion = await offloadQuestionItemImages(item.question, {
+        courseSlug: context.canonicalCourseId,
+        questionIdentifier: item.questionId || `q-${index + 1}`,
+      });
+      return { ...item, question: offloadedQuestion };
+    })
+  );
+
   return db.transaction(async (tx) => {
     await requireCreator(tx, input.creatorId);
-    const context = await validatePreparedBatch(tx, prepared);
+    await validatePreparedBatch(tx, { ...prepared, items: offloadedItems });
     const results: PersistResult[] = [];
-    for (const item of prepared.items) {
+    for (const item of offloadedItems) {
       results.push(await persistQuestionWithLinks(
         tx,
         context,
@@ -636,10 +654,14 @@ async function persistQuestionWithLinks(
 
 export async function updateCanonicalQuestion(input: QuestionAuthoringInput, creatorId: string, questionId: string): Promise<PersistResult> {
   const parsed = questionAuthoringInputSchema.parse(input);
-  const question = await prepareQuestion(parsed, 1);
+  const context = await resolveContext(db, parsed.courseId, parsed.chapterId);
+  const offloadedQuestion = await offloadQuestionItemImages(parsed, {
+    courseSlug: context.canonicalCourseId,
+    questionIdentifier: questionId,
+  });
+  const question = await prepareQuestion(offloadedQuestion, 1);
   return db.transaction(async (tx) => {
     await requireCreator(tx, creatorId);
-    const context = await resolveContext(tx, parsed.courseId, parsed.chapterId);
     await validateIdeaLinks(tx, context, parsed.ideaLinks);
     await validateKnowledgeObject(tx, context, question.knowledgeObjectId);
     return persistQuestionWithLinks(tx, context, question, parsed.ideaLinks, [], creatorId, parsed.reviewStatus, questionId);
@@ -736,27 +758,45 @@ function historicalSourceHash(input: HistoricalSourcePersistenceInput): string {
  */
 export async function createHistoricalQuestionBatch(input: HistoricalQuestionBatchInput): Promise<PersistResult[]> {
   const draft = referenceQuestionDraftSchema.parse(input.draft);
+  if (input.source.sourceMetadata.category !== "soal") fail("HISTORICAL_SOURCE_CATEGORY_INVALID", "Source utama harus berada pada kategori soal.");
+  if (input.source.solutionMetadata && input.source.solutionMetadata.category !== "pembahasan_soal") fail("HISTORICAL_SOLUTION_CATEGORY_INVALID", "Source pembahasan harus berada pada kategori pembahasan_soal.");
+  if (!input.source.sourceDocumentId) fail("HISTORICAL_SOURCE_DOCUMENT_REQUIRED", "Source document wajib tersedia.");
+  if (input.source.sourceMetadata.fileKey !== input.source.sourceFileKey) fail("HISTORICAL_SOURCE_FILE_MISMATCH", "Source file key tidak cocok dengan metadata source yang di-resolve.");
+  if (input.source.sourceMetadata.title !== draft.source.title) fail("HISTORICAL_SOURCE_TITLE_MISMATCH", "Judul source tidak cocok dengan metadata source yang di-resolve.");
+  if (input.source.solutionFileKey && !input.source.solutionMetadata) fail("HISTORICAL_SOLUTION_FILE_NOT_FOUND", "Metadata source pembahasan wajib tersedia saat solutionFileKey dipakai.");
+  if (!input.source.solutionFileKey && input.source.solutionMetadata) fail("HISTORICAL_SOLUTION_METADATA_UNEXPECTED", "Metadata source pembahasan tidak boleh ada tanpa solutionFileKey.");
+  if (input.source.solutionMetadata && input.source.solutionMetadata.fileKey !== input.source.solutionFileKey) fail("HISTORICAL_SOLUTION_FILE_MISMATCH", "Solution file key tidak cocok dengan metadata source pembahasan yang di-resolve.");
+  if (input.source.sourceMetadata.pageCount !== undefined && input.source.sourceMetadata.pageCount !== null && (!Number.isInteger(input.source.sourceMetadata.pageCount) || input.source.sourceMetadata.pageCount < 1)) {
+    fail("HISTORICAL_SOURCE_PAGE_COUNT_INVALID", "Jumlah halaman source harus berupa bilangan bulat positif.");
+  }
+  if (input.source.solutionMetadata?.pageCount !== undefined && input.source.solutionMetadata.pageCount !== null && (!Number.isInteger(input.source.solutionMetadata.pageCount) || input.source.solutionMetadata.pageCount < 1)) {
+    fail("HISTORICAL_SOLUTION_PAGE_COUNT_INVALID", "Jumlah halaman source pembahasan harus berupa bilangan bulat positif.");
+  }
+  if (input.source.sourceMetadata.pageCount !== undefined && input.source.sourceMetadata.pageCount !== null) {
+    const pageCount = input.source.sourceMetadata.pageCount;
+    if (draft.questions.some((question) => question.page > pageCount)) fail("HISTORICAL_PAGE_OUT_OF_RANGE", "Salah satu nomor halaman soal melebihi jumlah halaman source.");
+  }
+
+  const context = await resolveContext(db, input.courseId, null);
+  const processedQuestions = await Promise.all(
+    draft.questions.map(async (question) => {
+      const offloadedQuestion = await offloadQuestionItemImages(question, {
+        courseSlug: context.canonicalCourseId,
+        questionIdentifier: question.questionNumber,
+      });
+      const rawExplanation = getHistoricalSolutionContent(input.source, question);
+      const explanation = rawExplanation
+        ? await offloadBase64ImagesToR2(rawExplanation, {
+            courseSlug: context.canonicalCourseId,
+            questionIdentifier: `${question.questionNumber}-solution`,
+          })
+        : null;
+      return { question: offloadedQuestion, explanation };
+    })
+  );
+
   return db.transaction(async (tx) => {
     await requireCreator(tx, input.creatorId);
-    const context = await resolveContext(tx, input.courseId, null);
-    if (input.source.sourceMetadata.category !== "soal") fail("HISTORICAL_SOURCE_CATEGORY_INVALID", "Source utama harus berada pada kategori soal.");
-    if (input.source.solutionMetadata && input.source.solutionMetadata.category !== "pembahasan_soal") fail("HISTORICAL_SOLUTION_CATEGORY_INVALID", "Source pembahasan harus berada pada kategori pembahasan_soal.");
-    if (!input.source.sourceDocumentId) fail("HISTORICAL_SOURCE_DOCUMENT_REQUIRED", "Source document wajib tersedia.");
-    if (input.source.sourceMetadata.fileKey !== input.source.sourceFileKey) fail("HISTORICAL_SOURCE_FILE_MISMATCH", "Source file key tidak cocok dengan metadata source yang di-resolve.");
-    if (input.source.sourceMetadata.title !== draft.source.title) fail("HISTORICAL_SOURCE_TITLE_MISMATCH", "Judul source tidak cocok dengan metadata source yang di-resolve.");
-    if (input.source.solutionFileKey && !input.source.solutionMetadata) fail("HISTORICAL_SOLUTION_FILE_NOT_FOUND", "Metadata source pembahasan wajib tersedia saat solutionFileKey dipakai.");
-    if (!input.source.solutionFileKey && input.source.solutionMetadata) fail("HISTORICAL_SOLUTION_METADATA_UNEXPECTED", "Metadata source pembahasan tidak boleh ada tanpa solutionFileKey.");
-    if (input.source.solutionMetadata && input.source.solutionMetadata.fileKey !== input.source.solutionFileKey) fail("HISTORICAL_SOLUTION_FILE_MISMATCH", "Solution file key tidak cocok dengan metadata source pembahasan yang di-resolve.");
-    if (input.source.sourceMetadata.pageCount !== undefined && input.source.sourceMetadata.pageCount !== null && (!Number.isInteger(input.source.sourceMetadata.pageCount) || input.source.sourceMetadata.pageCount < 1)) {
-      fail("HISTORICAL_SOURCE_PAGE_COUNT_INVALID", "Jumlah halaman source harus berupa bilangan bulat positif.");
-    }
-    if (input.source.solutionMetadata?.pageCount !== undefined && input.source.solutionMetadata.pageCount !== null && (!Number.isInteger(input.source.solutionMetadata.pageCount) || input.source.solutionMetadata.pageCount < 1)) {
-      fail("HISTORICAL_SOLUTION_PAGE_COUNT_INVALID", "Jumlah halaman source pembahasan harus berupa bilangan bulat positif.");
-    }
-    if (input.source.sourceMetadata.pageCount !== undefined && input.source.sourceMetadata.pageCount !== null) {
-      const pageCount = input.source.sourceMetadata.pageCount;
-      if (draft.questions.some((question) => question.page > pageCount)) fail("HISTORICAL_PAGE_OUT_OF_RANGE", "Salah satu nomor halaman soal melebihi jumlah halaman source.");
-    }
 
     const sourceHash = historicalSourceHash(input.source);
     let [assessmentSource] = await tx
@@ -815,7 +855,7 @@ export async function createHistoricalQuestionBatch(input: HistoricalQuestionBat
     if (!assessmentSource) fail("HISTORICAL_SOURCE_PERSIST_FAILED", "Assessment source historis gagal disimpan.");
 
     const results: PersistResult[] = [];
-    for (const question of draft.questions) {
+    for (const { question, explanation } of processedQuestions) {
       const sourceEventName = historicalEventName(draft, question.questionNumber);
       const questionIdentity = `${assessmentSource.id}:${question.questionNumber}:${question.part ?? ""}`;
       const canonicalId = `soal-ref-${createHash("sha256").update(questionIdentity, "utf8").digest("hex").slice(0, 32)}`;
@@ -885,7 +925,6 @@ export async function createHistoricalQuestionBatch(input: HistoricalQuestionBat
       }
 
       const optionsSnapshot = historicalQuestionOptions(question);
-      const explanation = getHistoricalSolutionContent(input.source, question);
       await tx.insert(soal).values({
         id: canonicalId,
         mataKuliahId: context.canonicalCourseId,
