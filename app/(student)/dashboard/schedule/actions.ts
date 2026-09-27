@@ -99,7 +99,7 @@ export async function getScheduleData(weekOffset = 0) {
   const anchorDate = daysFrom(weekOffset * 7, nowJakarta);
 
   const weekInfo = getWeekScheduleDays(anchorDate);
-  const isWeekLocked = isTutorialWeekLocked(weekInfo.days[0].dateIso);
+  const isWeekLocked = false;
   const { startIso: viewWeekStart, endIso: viewWeekEnd } = getIsoWeekRange(
     weekInfo.days[0].dateIso,
   );
@@ -413,24 +413,6 @@ export async function collaborativeBookSlot(
         };
       }
 
-      // 5. Enforce the canonical lifecycle inside the same transaction as the
-      // booking decision. The client date is not used as the source here.
-      const bookingNow = options?.now ?? new Date();
-      const bookingPhase = getTutorialWeekPhase(sessionDateIso, bookingNow);
-      if (!canStudentBook(sessionDateIso, bookingNow)) {
-        return {
-          success: false,
-          error:
-            bookingPhase === "locked"
-              ? "Jadwal untuk minggu ini sudah terkunci (Sabtu 23:59 WIB). Silakan pilih minggu berikutnya."
-              : "Pemesanan untuk minggu ini belum dibuka.",
-          reason:
-            bookingPhase === "locked"
-              ? "BOOKING_LOCKED"
-              : "BOOKING_WINDOW_NOT_OPEN",
-        };
-      }
-
       // 6. Verify canonical tutor course assignment inside transaction (TOCTOU guard)
       const tutorAssignment = await checkCanonicalTutorAssignment(
         slot.tutorId,
@@ -683,14 +665,7 @@ export async function collaborativeMoveSlot(
         };
       }
 
-      // 3. Verify lock status
-      if (booking.sessionDate && isTutorialWeekLocked(booking.sessionDate, moveNow)) {
-        return {
-          success: false,
-          error:
-            "Jadwal ini sudah terkunci (Sabtu 23:59 WIB). Silakan ajukan permohonan Reschedule untuk ditinjau tutor.",
-        };
-      }
+
 
       // 4. Verify new slot
       const newSlot = await tx.query.tutorSlots.findFirst({
@@ -720,13 +695,6 @@ export async function collaborativeMoveSlot(
         };
       }
 
-      if (isTutorialWeekLocked(newSlot.sessionDate, moveNow)) {
-        return {
-          success: false,
-          error: "Slot tujuan sudah terkunci. Pilih slot pada minggu yang belum terkunci.",
-          reason: "BOOKING_LOCKED",
-        };
-      }
 
       // 5. Validate new slot duration (exact 90m)
       const durationCheck = validateSlotDuration(newSlot.startTime, newSlot.endTime);
@@ -902,13 +870,6 @@ export async function collaborativeCancelSlot(bookingId: string) {
         };
       }
 
-      if (booking.sessionDate && isTutorialWeekLocked(booking.sessionDate, new Date())) {
-        return {
-          success: false,
-          error:
-            "Jadwal ini sudah terkunci. Pembatalan pasca-lock wajib diajukan melalui tiket pembatalan.",
-        };
-      }
 
       const now = new Date();
       const requestId = randomUUID();
@@ -953,9 +914,9 @@ export async function collaborativeCancelSlot(bookingId: string) {
           groupId: booking.groupId,
           actorId: currentUser.id,
           action: CANCELLED_QUOTA_REFUND_LOG_ACTION,
-          summary: `Kuota paket dikembalikan satu sesi untuk pembatalan pra-kunci (${booking.sessionDate ?? "tanpa tanggal"}).`,
+          summary: `Kuota paket dikembalikan satu sesi untuk pembatalan (${booking.sessionDate ?? "tanpa tanggal"}).`,
           metadata: {
-            marker: "prelock_cancel_quota_refund",
+            marker: "cancel_quota_refund",
             bookingId,
             groupId: booking.groupId,
             refundedSessions: 1,
@@ -971,7 +932,7 @@ export async function collaborativeCancelSlot(bookingId: string) {
         groupId: booking.groupId,
         actorId: currentUser.id,
         action: "BOOKING_CANCELLED",
-        summary: `Pembatalan pra-kunci sesi tutorial oleh ${currentUser.name || "Murid"}.`,
+        summary: `Pembatalan sesi tutorial oleh ${currentUser.name || "Murid"}.`,
         metadata: {
           sessionDate: booking.sessionDate,
         },

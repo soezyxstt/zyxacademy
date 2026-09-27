@@ -333,29 +333,7 @@ export async function executeAddTutorSlot(
     };
   }
 
-  const availabilityNow = options?.now ?? new Date();
-  if (!canTutorCreateAvailability(sessionDateIso, availabilityNow)) {
-    await recordTutorMutationAudit({
-      actorId: authContext.userId,
-      actorRoles: authContext.roles,
-      courseId: courseIdForAudit,
-      entityType: "tutor_slot",
-      entityId: "new_slot",
-      entityVersion: 1,
-      action: "tutor.slot.create",
-      outcome: "rejected",
-      requestId,
-      reason: "TUTOR_AVAILABILITY_DEADLINE_PASSED",
-      before: null,
-      after: { ...input },
-    }, client);
 
-    return {
-      success: false,
-      error: "Perubahan ketersediaan tutor untuk minggu ini sudah ditutup.",
-      reason: "TUTOR_AVAILABILITY_DEADLINE_PASSED",
-    };
-  }
 
   const mode = input.mode ?? "online";
   if (mode === "offline" && (!input.location || input.location.trim().length === 0)) {
@@ -382,7 +360,7 @@ export async function executeAddTutorSlot(
   }
 
   const slotId = randomUUID();
-  const now = availabilityNow;
+  const now = options?.now ?? new Date();
 
   try {
     await client.transaction(async (tx) => {
@@ -837,16 +815,6 @@ export async function copyTutorAvailabilityFromPreviousWeek(
   const sourceRange = getTutorialWeekRange(addTutorialDays(targetRange.startIso, -7));
   const now = options?.now ?? new Date();
 
-  if (!canTutorCreateAvailability(targetRange.startIso, now)) {
-    return {
-      success: false,
-      createdCount: 0,
-      skippedCount: 0,
-      conflicts: [],
-      error: "Perubahan ketersediaan tutor untuk minggu tujuan sudah ditutup.",
-      reason: "TUTOR_AVAILABILITY_DEADLINE_PASSED",
-    };
-  }
 
   try {
     return await client.transaction(async (tx) => {

@@ -3060,7 +3060,7 @@ describe("Tutor Schedule Action Contracts", () => {
       expect(bookingRows).toEqual([{ sessionDate: "2026-09-02" }]);
     });
 
-    it("rejects booking after the target week's Saturday lock", async () => {
+    it("allows booking without Saturday lock restrictions", async () => {
       const { testDb } = await createTestDb();
       await seedQuotaFixture(testDb, { weekly: 2, total: 15, used: 0 });
       await setFixtureSlotDate(testDb, "slot-a", "2026-08-31");
@@ -3077,9 +3077,9 @@ describe("Tutor Schedule Action Contracts", () => {
         },
       );
 
-      expect(result.success).toBe(false);
-      expect(result.reason).toBe("BOOKING_LOCKED");
-      expect(await testDb.select().from(schema.bookings)).toHaveLength(0);
+      expect(result.success).toBe(true);
+      expect(result.bookingId).toBeDefined();
+      expect(await testDb.select().from(schema.bookings)).toHaveLength(1);
     });
   });
 });

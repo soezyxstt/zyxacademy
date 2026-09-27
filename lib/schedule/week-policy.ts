@@ -68,55 +68,44 @@ export function getBookingLockAt(targetDate: TutorialDateInput): Date {
 }
 
 export function getTutorialWeekPhase(
-  targetDate: TutorialDateInput,
+  _targetDate: TutorialDateInput,
   now: Date = new Date(),
 ): TutorialWeekPhase {
   if (!(now instanceof Date) || Number.isNaN(now.getTime())) {
     throw new RangeError("INVALID_NOW");
   }
 
-  const openAt = getAvailabilityOpenAt(targetDate).getTime();
-  const tutorDeadline = getTutorAvailabilityDeadline(targetDate).getTime();
-  const bookingLock = getBookingLockAt(targetDate).getTime();
-  const nowMs = now.getTime();
-
-  if (nowMs < openAt) return "before_open";
-  if (nowMs < tutorDeadline) return "availability_open";
-  if (nowMs <= bookingLock) return "booking_open";
-  return "locked";
+  return "booking_open";
 }
 
 /**
- * Tutors may publish availability for any future tutorial week. A target week
- * becomes immutable only when its own Friday 18:00 WIB availability deadline
- * passes.
+ * Tutors may publish availability at any time without locking restrictions.
  */
 export function canTutorCreateAvailability(
-  targetDate: TutorialDateInput,
-  now: Date = new Date(),
+  _targetDate?: TutorialDateInput,
+  _now: Date = new Date(),
 ): boolean {
-  const phase = getTutorialWeekPhase(targetDate, now);
-  return phase === "before_open" || phase === "availability_open";
+  return true;
 }
 
 export function canTutorDeleteAvailability(
-  targetDate: TutorialDateInput,
-  now: Date = new Date(),
+  _targetDate?: TutorialDateInput,
+  _now: Date = new Date(),
 ): boolean {
-  return canTutorCreateAvailability(targetDate, now);
+  return true;
 }
 
 export function canStudentBook(
-  targetDate: TutorialDateInput,
-  now: Date = new Date(),
+  _targetDate?: TutorialDateInput,
+  _now: Date = new Date(),
 ): boolean {
-  const phase = getTutorialWeekPhase(targetDate, now);
-  return phase === "availability_open" || phase === "booking_open";
+  return true;
 }
 
 export function isTutorialWeekLocked(
-  targetDate: TutorialDateInput,
-  now: Date = new Date(),
+  _targetDate?: TutorialDateInput,
+  _now: Date = new Date(),
 ): boolean {
-  return getTutorialWeekPhase(targetDate, now) === "locked";
+  return false;
 }
+

@@ -91,7 +91,7 @@ export async function getAdminScheduleData(rawWeekOffset = 0) {
   const weekRange = getTutorialWeekRange(weekInfo.days[0].dateIso);
   const rangeStart = isoRangeStart(weekRange.startIso);
   const rangeEnd = new Date(isoRangeStart(addTutorialDays(weekRange.endIso, 1)).getTime() - 1);
-  const isWeekLocked = isTutorialWeekLocked(weekRange.startIso, new Date());
+  const isWeekLocked = false;
 
   const [allTutors, allCourses, allGroups, allSlots, allBookings, allAcademicSchedules, legacyRows] =
     await Promise.all([
