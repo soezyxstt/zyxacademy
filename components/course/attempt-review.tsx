@@ -13,6 +13,8 @@ import {
  ListChecks,
  BookOpen,
  Check,
+ CheckSquare,
+ CircleDot,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { MathText } from "@/components/course/math-text";
@@ -346,7 +348,20 @@ export function AttemptReview({ attemptId }: { attemptId: string }) {
  <div key={q.id} className="py-6 first:pt-0">
  <div className="flex items-start justify-between gap-4">
  <div>
- <span className="text-body-sm font-semibold text-muted-foreground">Soal {idx + 1}</span>
+  <div className="flex items-center gap-2">
+   <span className="text-body-sm font-semibold text-muted-foreground">Soal {idx + 1}</span>
+   {qType === "multiple_choices" ? (
+    <span className="inline-flex items-center gap-1 rounded-md border border-brand-secondary/35 bg-brand-secondary/10 px-2 py-0.5 text-body-2xs font-bold text-brand-secondary">
+     <CheckSquare className="size-3" />
+     Pilihan Jamak
+    </span>
+   ) : qType === "multiple_choice" ? (
+    <span className="inline-flex items-center gap-1 rounded-md border border-border/80 bg-muted/40 px-2 py-0.5 text-body-2xs font-medium text-muted-foreground">
+     <CircleDot className="size-3" />
+     Pilihan Tunggal
+    </span>
+   ) : null}
+  </div>
  <div className="mt-2 text-body-base font-medium text-foreground">
  <MathText>{q.prompt}</MathText>
  </div>
