@@ -411,11 +411,10 @@ export function getWeeklyLockCutoff(targetSessionDate: Date | string): Date {
 }
 
 /** Checks whether the target tutorial week is past its booking lock instant. */
-export function isSessionLocked(targetSessionDate: Date | string, customNow?: Date): boolean {
-  const cutoff = getWeeklyLockCutoff(targetSessionDate);
-  const now = customNow || new Date();
-  return now.getTime() > cutoff.getTime();
+export function isSessionLocked(_targetSessionDate?: Date | string, _customNow?: Date): boolean {
+  return false;
 }
+
 
 /** Generates seven stable calendar dates for the Monday-Sunday target week. */
 export function getWeekScheduleDays(anchorDate?: Date | string): {

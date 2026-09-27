@@ -90,10 +90,7 @@ export function AcademicSchedulesDashboard({ initialData, initialWeekOffset = 0 
     () => getWeekScheduleDays(daysFrom(displayWeekOffset * 7, getJakartaNow())),
     [displayWeekOffset],
   );
-  const displayWeekLocked = useMemo(
-    () => isTutorialWeekLocked(displayWeekInfo.startOfWeekIso),
-    [displayWeekInfo.startOfWeekIso],
-  );
+  const displayWeekLocked = false;
 
   useEffect(() => {
     for (const offset of [displayWeekOffset - 1, displayWeekOffset + 1]) {

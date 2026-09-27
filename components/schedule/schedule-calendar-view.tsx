@@ -8,7 +8,6 @@ import {
   ChevronLeft,
   ChevronRight,
   Info,
-  Lock,
   MapPin,
   SlidersHorizontal,
   Trash2,
@@ -368,9 +367,8 @@ function EventCard({
         )}
         {event.subtitle ? <p className={cn("break-words leading-tight text-current/75", compact ? "text-[9px]" : "text-[10px]")}>{event.subtitle}</p> : null}
         {!compact && event.meta ? <p className="break-words text-[10px] leading-tight text-current/65">{event.meta}</p> : null}
-        {!compact && (event.mode || event.location || event.locked) ? (
+        {!compact && (event.mode || event.location) ? (
           <div className="mt-auto flex flex-wrap items-center gap-x-1.5 gap-y-0.5 pt-0.5 text-[9px] font-medium text-current/75">
-            {event.locked ? <span className="inline-flex items-center gap-1"><Lock className="size-2.5" /> Terkunci</span> : null}
             {event.mode === "online" ? <span className="inline-flex items-center gap-1"><Video className="size-2.5" /> Online</span> : null}
             {event.mode === "offline" ? <span className="inline-flex items-center gap-1"><MapPin className="size-2.5" /> Offline</span> : null}
             {event.location ? <span className="break-words">{event.location}</span> : null}
@@ -459,7 +457,7 @@ export function ScheduleCalendarView({
         mode: slot.mode,
         location: slot.location,
         tutorId: slot.tutorId || slot.tutor?.id || null,
-        locked: isWeekLocked || dateIso < today,
+        locked: dateIso < today,
         source: slot,
       });
     }
@@ -620,7 +618,7 @@ export function ScheduleCalendarView({
                 <p className="flex items-center gap-2"><span className="size-2.5 rounded-sm bg-emerald-500" /> Slot tersedia</p>
                 <p className="flex items-center gap-2"><span className="size-2.5 rounded-sm bg-indigo-500" /> Sesi terjadwal</p>
                 <p className="flex items-center gap-2"><span className="size-2.5 rounded-sm bg-amber-500" /> Jadwal akademik / ujian</p>
-                <p className="flex items-center gap-2"><span className="size-2.5 rounded-sm bg-zinc-500" /> Lewat atau terkunci</p>
+                <p className="flex items-center gap-2"><span className="size-2.5 rounded-sm bg-zinc-500" /> Selesai atau lewat</p>
               </div>
             </PopoverContent>
           </Popover>
@@ -729,7 +727,7 @@ export function ScheduleCalendarView({
                 {visibleDays.map((day) => {
                   const dayIso = day.dateIso as CalendarDate;
                   const dayEvents = layoutEvents(filteredEvents.filter((event) => !event.allDay && event.dateIso === dayIso && event.endMinutes > START_MINUTES && event.startMinutes < END_MINUTES));
-                  const canCreate = Boolean(onCreateScheduleDirect) && (role === "admin" || role === "teacher") && dayIso >= today && !isWeekLocked;
+                  const canCreate = Boolean(onCreateScheduleDirect) && (role === "admin" || role === "teacher") && dayIso >= today;
                   return (
                     <div key={dayIso} className={cn("relative border-r border-border/60", day.isToday && "bg-brand-primary/[0.02]") }>
                       {HOURS.map((hour) => (
@@ -784,11 +782,6 @@ export function ScheduleCalendarView({
         </div>
       )}
 
-      {isWeekLocked && viewMode !== "month" ? (
-        <p className="flex items-center gap-1.5 px-1 text-[10px] text-muted-foreground">
-          <Lock className="size-3" /> Booking pekan ini telah melewati batas Sabtu 23:59 WIB.
-        </p>
-      ) : null}
     </div>
   );
 }

@@ -34,47 +34,43 @@ describe("Tutorial week policy", () => {
     expect(getBookingLockAt(targetWeek).toISOString()).toBe("2026-08-22T16:59:59.999Z");
   });
 
-  it("lets tutors publish future availability but still enforces the target deadline", () => {
-    expect(getTutorialWeekPhase(targetWeek, beforeOpen)).toBe("before_open");
+  it("lets tutors publish and delete availability without deadline lock", () => {
     expect(canTutorCreateAvailability(targetWeek, beforeOpen)).toBe(true);
     expect(canTutorDeleteAvailability(targetWeek, beforeOpen)).toBe(true);
-    expect(getTutorialWeekPhase(targetWeek, openingInstant)).toBe("availability_open");
+    expect(canTutorCreateAvailability(targetWeek, openingInstant)).toBe(true);
+    expect(canTutorDeleteAvailability(targetWeek, openingInstant)).toBe(true);
     expect(canTutorCreateAvailability(targetWeek, fridayBeforeDeadline)).toBe(true);
     expect(canTutorDeleteAvailability(targetWeek, fridayBeforeDeadline)).toBe(true);
-    expect(getTutorialWeekPhase(targetWeek, deadlineInstant)).toBe("booking_open");
-    expect(canTutorCreateAvailability(targetWeek, deadlineInstant)).toBe(false);
-    expect(canTutorDeleteAvailability(targetWeek, deadlineInstant)).toBe(false);
+    expect(canTutorCreateAvailability(targetWeek, deadlineInstant)).toBe(true);
+    expect(canTutorDeleteAvailability(targetWeek, deadlineInstant)).toBe(true);
     expect(canStudentBook(targetWeek, fridayNight)).toBe(true);
     expect(canStudentBook(targetWeek, saturdayBeforeLock)).toBe(true);
     expect(canStudentBook(targetWeek, lockInstant)).toBe(true);
-    expect(getTutorialWeekPhase(targetWeek, afterLock)).toBe("locked");
-    expect(isTutorialWeekLocked(targetWeek, afterLock)).toBe(true);
-    expect(canStudentBook(targetWeek, afterLock)).toBe(false);
+    expect(isTutorialWeekLocked(targetWeek, afterLock)).toBe(false);
+    expect(canStudentBook(targetWeek, afterLock)).toBe(true);
   });
 
   it("keeps 14-20 September editable and bookable on Thursday 10 September", () => {
     const now = new Date("2026-09-10T00:17:00.000+07:00");
 
-    expect(getTutorialWeekPhase("2026-09-14", now)).toBe("availability_open");
     expect(canTutorCreateAvailability("2026-09-14", now)).toBe(true);
     expect(canStudentBook("2026-09-14", now)).toBe(true);
     expect(isTutorialWeekLocked("2026-09-14", now)).toBe(false);
   });
 
-  it("allows availability for 21 September while keeping booking closed that early", () => {
+  it("allows availability and booking for 21 September without locking", () => {
     const now = new Date("2026-09-10T00:17:00.000+07:00");
 
-    expect(getTutorialWeekPhase("2026-09-21", now)).toBe("before_open");
     expect(canTutorCreateAvailability("2026-09-21", now)).toBe(true);
-    expect(canStudentBook("2026-09-21", now)).toBe(false);
+    expect(canStudentBook("2026-09-21", now)).toBe(true);
     expect(isTutorialWeekLocked("2026-09-21", now)).toBe(false);
   });
 
-  it("locks 14-20 September only after Saturday 12 September ends", () => {
+  it("never locks 14-20 September even after Saturday 12 September ends", () => {
     const beforeLock = new Date("2026-09-12T23:59:59.998+07:00");
     const afterLock = new Date("2026-09-13T00:00:00.000+07:00");
 
     expect(isTutorialWeekLocked("2026-09-14", beforeLock)).toBe(false);
-    expect(isTutorialWeekLocked("2026-09-14", afterLock)).toBe(true);
+    expect(isTutorialWeekLocked("2026-09-14", afterLock)).toBe(false);
   });
 });

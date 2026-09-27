@@ -64,14 +64,6 @@ export async function addTutorSlotWithNotesAction(
   });
 
   if (!result.success) {
-    if (result.reason === "WEEK_CLOSED") {
-      return {
-        ...result,
-        error: input.sessionDate
-          ? `Perubahan slot untuk pekan yang memuat ${input.sessionDate} sudah ditutup pada Jumat 18:00 WIB.`
-          : "Perubahan slot untuk pekan tersebut sudah ditutup pada Jumat 18:00 WIB.",
-      };
-    }
     return result;
   }
 
