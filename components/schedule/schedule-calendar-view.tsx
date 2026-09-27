@@ -200,6 +200,9 @@ function eventAccent(event: CalendarEvent): string {
   return "bg-brand-primary";
 }
 
+/**
+ * Calculates horizontal lanes for overlapping events within the calendar column.
+ */
 function layoutEvents(events: CalendarEvent[]): PositionedEvent[] {
   const sorted = [...events].sort((a, b) => a.startMinutes - b.startMinutes || a.endMinutes - b.endMinutes);
   const result: PositionedEvent[] = [];
@@ -235,6 +238,9 @@ function layoutEvents(events: CalendarEvent[]): PositionedEvent[] {
   return result;
 }
 
+/**
+ * Renders a compact month picker popover for jumping between calendar dates.
+ */
 function MonthPicker({
   value,
   viewMode,
@@ -312,6 +318,9 @@ function MonthPicker({
   );
 }
 
+/**
+ * Renders an individual event card in the schedule calendar.
+ */
 function EventCard({
   event,
   compact = false,
@@ -379,6 +388,9 @@ function EventCard({
   );
 }
 
+/**
+ * Interactive calendar view for academic schedules, tutor availability, and group tutorial sessions.
+ */
 export function ScheduleCalendarView({
   role,
   adminMode = "all",
@@ -789,6 +801,9 @@ export function ScheduleCalendarView({
   );
 }
 
+/**
+ * Renders the month-level overview grid with interactive date selection and event indicators.
+ */
 function MonthView({
   activeDate,
   events,

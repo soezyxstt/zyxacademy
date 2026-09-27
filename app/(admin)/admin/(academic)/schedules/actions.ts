@@ -870,6 +870,9 @@ export async function adminCancelTutorialSession(input: { bookingId: string; rea
   return executeAdminCancelTutorialSession(input);
 }
 
+/**
+ * Deletes a tutor availability slot with an administrative override reason.
+ */
 export async function adminDeleteTutorAvailability(input: AdminDeleteTutorAvailabilityInput) {
   return executeAdminDeleteTutorAvailability(input);
 }
