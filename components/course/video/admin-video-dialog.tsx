@@ -67,6 +67,9 @@ type FrameCandidate = {
   blob: Blob;
 };
 
+/**
+ * Modal dialog for uploading and editing course videos with YouTube-style thumbnail selection.
+ */
 export function AdminVideoDialog({
   open,
   onOpenChange,
@@ -288,8 +291,8 @@ export function AdminVideoDialog({
 
     setLoading(true);
     try {
-      let finalVideoUrl = video?.videoUrl || "";
-      let finalThumbnailUrl = video?.thumbnailUrl || null;
+      let finalVideoUrl = video?.videoKey || video?.videoUrl || "";
+      let finalThumbnailUrl = video?.thumbnailKey || video?.thumbnailUrl || null;
       let finalDuration = videoDuration || video?.duration || null;
       let finalFileSize = videoFile?.size || video?.fileSize || null;
 

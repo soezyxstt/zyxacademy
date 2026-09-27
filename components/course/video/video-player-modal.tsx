@@ -20,6 +20,9 @@ type VideoPlayerModalProps = {
   onSelectVideo?: (v: VideoItem) => void;
 };
 
+/**
+ * Modal video player dialog with playlist queue navigation and video metadata.
+ */
 export function VideoPlayerModal({
   video,
   playlist,

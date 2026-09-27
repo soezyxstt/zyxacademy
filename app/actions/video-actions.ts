@@ -15,8 +15,12 @@ import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
 import { resolveCourseIdentity } from "@/lib/admin/course-identity";
 import { requireTutorCourseAccess } from "@/lib/auth/tutor-access";
+import { resolveCourseAccess } from "@/lib/student/course-access";
 import { storage } from "@/lib/storage";
 
+/**
+ * Representation of a video playlist with its contained videos.
+ */
 export type VideoPlaylistItem = {
   id: string;
   courseId: string;
@@ -28,6 +32,9 @@ export type VideoPlaylistItem = {
   videos: VideoItem[];
 };
 
+/**
+ * Representation of a video item within a playlist.
+ */
 export type VideoItem = {
   id: string;
   courseId: string;
@@ -38,6 +45,8 @@ export type VideoItem = {
   description: string | null;
   videoUrl: string;
   thumbnailUrl: string | null;
+  videoKey?: string | null;
+  thumbnailKey?: string | null;
   duration: number | null;
   fileSize: number | null;
   orderIndex: number;
@@ -51,6 +60,7 @@ async function assertVideoManagerPermission(courseId: string): Promise<{
   courseId: string;
   courseSlug: string;
   isAdmin: boolean;
+  validCourseIds: string[];
 }> {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session?.user) {
@@ -60,6 +70,7 @@ async function assertVideoManagerPermission(courseId: string): Promise<{
   const identity = await resolveCourseIdentity(courseId);
   const primaryId = identity?.primaryId || courseId;
   const courseSlug = identity?.slug || courseId;
+  const validCourseIds = identity ? identity.allIds : [primaryId];
 
   if (session.user.role === "admin") {
     return {
@@ -67,6 +78,7 @@ async function assertVideoManagerPermission(courseId: string): Promise<{
       courseId: primaryId,
       courseSlug,
       isAdmin: true,
+      validCourseIds,
     };
   }
 
@@ -77,6 +89,7 @@ async function assertVideoManagerPermission(courseId: string): Promise<{
       courseId: primaryId,
       courseSlug,
       isAdmin: false,
+      validCourseIds,
     };
   } catch {
     throw new Error("Akses ditolak: Anda bukan pengajar untuk mata kuliah ini");
@@ -103,10 +116,26 @@ function revalidateVideoPaths(courseId: string, courseSlug?: string) {
 
 /**
  * Fetches all video playlists and their videos for a course.
+ * Requires a valid session and caller entitlement (enrolled student or course manager/staff).
  */
 export async function getCourseVideosData(courseSlugOrId: string) {
+  const session = await auth.api.getSession({ headers: await headers() });
+  if (!session?.user) {
+    return null;
+  }
+
   const identity = await resolveCourseIdentity(courseSlugOrId);
   if (!identity) {
+    return null;
+  }
+
+  const access = await resolveCourseAccess({
+    courseId: identity.primaryId,
+    userId: session.user.id,
+    roleHint: (session.user as { role?: string | null }).role,
+  });
+
+  if (!access.isEnrolled && access.tier !== "staff") {
     return null;
   }
 
@@ -153,6 +182,8 @@ export async function getCourseVideosData(courseSlugOrId: string) {
     description: v.description,
     videoUrl: v.videoUrl ? storage.getUrl(v.videoUrl) : "",
     thumbnailUrl: v.thumbnailUrl ? storage.getUrl(v.thumbnailUrl) : null,
+    videoKey: v.videoUrl || null,
+    thumbnailKey: v.thumbnailUrl || null,
     duration: v.duration,
     fileSize: v.fileSize,
     orderIndex: v.orderIndex,
@@ -287,18 +318,30 @@ export async function deleteVideoPlaylistAction(playlistId: string) {
     const playlist = rows[0];
     const authInfo = await assertVideoManagerPermission(playlist.courseId);
 
-    // Delete associated videos first
+    // Delete associated videos first, scoped to this course
     const videos = await db
       .select({ id: courseVideos.id, videoUrl: courseVideos.videoUrl, thumbnailUrl: courseVideos.thumbnailUrl })
       .from(courseVideos)
-      .where(eq(courseVideos.playlistId, playlistId));
+      .where(
+        and(
+          eq(courseVideos.playlistId, playlistId),
+          inArray(courseVideos.courseId, authInfo.validCourseIds)
+        )
+      );
 
     for (const v of videos) {
       if (v.videoUrl) await storage.delete(v.videoUrl).catch(() => {});
       if (v.thumbnailUrl) await storage.delete(v.thumbnailUrl).catch(() => {});
     }
 
-    await db.delete(courseVideos).where(eq(courseVideos.playlistId, playlistId));
+    await db
+      .delete(courseVideos)
+      .where(
+        and(
+          eq(courseVideos.playlistId, playlistId),
+          inArray(courseVideos.courseId, authInfo.validCourseIds)
+        )
+      );
     await db.delete(courseVideoPlaylists).where(eq(courseVideoPlaylists.id, playlistId));
 
     revalidateVideoPaths(authInfo.courseId, authInfo.courseSlug);
@@ -337,6 +380,20 @@ export async function saveCourseVideoAction(input: {
       return { success: false, error: "Berkas video wajib diunggah" };
     }
 
+    // Verify playlist belongs to this course
+    const playlist = await db
+      .select({ id: courseVideoPlaylists.id, courseId: courseVideoPlaylists.courseId })
+      .from(courseVideoPlaylists)
+      .where(eq(courseVideoPlaylists.id, input.playlistId))
+      .limit(1);
+
+    if (playlist.length === 0) {
+      return { success: false, error: "Playlist tidak ditemukan" };
+    }
+    if (!authInfo.validCourseIds.includes(playlist[0].courseId)) {
+      return { success: false, error: "Playlist bukan bagian dari mata kuliah ini" };
+    }
+
     if (input.id) {
       // Update existing
       const existing = await db
@@ -347,6 +404,10 @@ export async function saveCourseVideoAction(input: {
 
       if (existing.length === 0) {
         return { success: false, error: "Video tidak ditemukan" };
+      }
+
+      if (!authInfo.validCourseIds.includes(existing[0].courseId)) {
+        return { success: false, error: "Video bukan bagian dari mata kuliah ini" };
       }
 
       await db
@@ -413,6 +474,9 @@ export async function deleteCourseVideoAction(videoId: string) {
 
     const video = rows[0];
     const authInfo = await assertVideoManagerPermission(video.courseId);
+    if (!authInfo.validCourseIds.includes(video.courseId)) {
+      return { success: false, error: "Akses ditolak untuk video ini" };
+    }
 
     if (video.videoUrl) await storage.delete(video.videoUrl).catch(() => {});
     if (video.thumbnailUrl) await storage.delete(video.thumbnailUrl).catch(() => {});

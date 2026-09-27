@@ -64,6 +64,9 @@ type CourseVideosClientProps = {
   canManage?: boolean;
 };
 
+/**
+ * Client component presenting course video playlists as collapsible accordion sections.
+ */
 export function CourseVideosClient({
   courseId,
   courseSlug: _courseSlug,

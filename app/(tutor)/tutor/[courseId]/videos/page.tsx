@@ -15,6 +15,9 @@ type Props = {
   params: Promise<{ courseId: string }>;
 };
 
+/**
+ * Generates page metadata for the tutor course video management page.
+ */
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { courseId } = await params;
   return {
@@ -23,6 +26,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
+/**
+ * Tutor course video management page rendering playlist controls and video upload tools.
+ */
 export default async function TutorCourseVideosPage({ params }: Props) {
   const { courseId } = await params;
   const session = await auth.api.getSession({ headers: await headers() });

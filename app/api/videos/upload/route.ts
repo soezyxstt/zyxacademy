@@ -12,8 +12,22 @@ import { resolveCourseIdentity } from "@/lib/admin/course-identity";
 const MAX_VIDEO_SIZE_BYTES = 100 * 1024 * 1024; // 100 MB
 const MAX_THUMBNAIL_SIZE_BYTES = 5 * 1024 * 1024; // 5 MB
 
-const ALLOWED_VIDEO_EXTENSIONS = [".mp4", ".webm", ".mov", ".mkv", ".m4v"];
-const ALLOWED_IMAGE_EXTENSIONS = [".jpg", ".jpeg", ".png", ".webp"];
+export const ALLOWED_VIDEO_EXTENSIONS = [".mp4", ".webm", ".mov", ".mkv", ".m4v"] as const;
+export const ALLOWED_IMAGE_EXTENSIONS = [".jpg", ".jpeg", ".png", ".webp"] as const;
+
+export const ALLOWED_VIDEO_MIME_TYPES = [
+  "video/mp4",
+  "video/webm",
+  "video/quicktime",
+  "video/x-matroska",
+  "video/x-m4v",
+] as const;
+
+export const ALLOWED_IMAGE_MIME_TYPES = [
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+] as const;
 
 async function verifyVideoUploaderAccess(
   userId: string,
@@ -35,6 +49,9 @@ async function verifyVideoUploaderAccess(
   }
 }
 
+/**
+ * Handles course video and thumbnail uploads via presigned direct-to-R2 URLs or multipart form data.
+ */
 export async function POST(req: NextRequest) {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session?.user) {
@@ -49,7 +66,7 @@ export async function POST(req: NextRequest) {
     const filename = body?.filename?.toString().trim() || "";
     const courseId = body?.courseId?.toString().trim() || "";
     const fileType = body?.fileType === "thumbnail" ? "thumbnail" : "video";
-    const mimeType = body?.mimeType?.toString().trim() || (fileType === "thumbnail" ? "image/jpeg" : "video/mp4");
+    const requestedMime = (body?.mimeType?.toString() || "").trim().toLowerCase();
     const size = typeof body?.size === "number" ? body.size : Number(body?.size);
 
     if (!courseId) {
@@ -63,6 +80,15 @@ export async function POST(req: NextRequest) {
     );
     if (!allowed) {
       return NextResponse.json({ error: "Akses ditolak" }, { status: 403 });
+    }
+
+    const allowedMimes = fileType === "thumbnail" ? ALLOWED_IMAGE_MIME_TYPES : ALLOWED_VIDEO_MIME_TYPES;
+    const normalizedMimeType = (allowedMimes as readonly string[]).find((m) => m === requestedMime);
+    if (!normalizedMimeType) {
+      return NextResponse.json(
+        { error: "Tipe MIME berkas tidak didukung atau tidak sesuai" },
+        { status: 400 }
+      );
     }
 
     const lowerFilename = filename.toLowerCase();
@@ -112,7 +138,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const uploadUrl = await storage.getSignedUrl(storageKey, "put", mimeType, 3600, {
+    const uploadUrl = await storage.getSignedUrl(storageKey, "put", normalizedMimeType, 3600, {
       contentLength: size,
     });
     const url = storage.getUrl(storageKey);
@@ -142,11 +168,21 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Akses ditolak" }, { status: 403 });
   }
 
+  const fileMime = (file.type || "").trim().toLowerCase();
+  const allowedMimes = fileType === "thumbnail" ? ALLOWED_IMAGE_MIME_TYPES : ALLOWED_VIDEO_MIME_TYPES;
+  const matchedMime = (allowedMimes as readonly string[]).find((m) => m === fileMime);
+  if (!matchedMime) {
+    return NextResponse.json(
+      { error: "Tipe MIME berkas tidak didukung atau tidak sesuai" },
+      { status: 400 }
+    );
+  }
+
   const lowerName = file.name.toLowerCase();
 
   if (fileType === "video") {
     const hasValidExt = ALLOWED_VIDEO_EXTENSIONS.some((ext) => lowerName.endsWith(ext));
-    if (!hasValidExt && !file.type.startsWith("video/")) {
+    if (!hasValidExt) {
       return NextResponse.json({ error: "Format berkas harus video (MP4, WebM, MOV, MKV)" }, { status: 400 });
     }
     if (file.size > MAX_VIDEO_SIZE_BYTES) {
@@ -154,7 +190,7 @@ export async function POST(req: NextRequest) {
     }
   } else {
     const hasValidExt = ALLOWED_IMAGE_EXTENSIONS.some((ext) => lowerName.endsWith(ext));
-    if (!hasValidExt && !file.type.startsWith("image/")) {
+    if (!hasValidExt) {
       return NextResponse.json({ error: "Format thumbnail harus gambar (JPG, PNG, WebP)" }, { status: 400 });
     }
     if (file.size > MAX_THUMBNAIL_SIZE_BYTES) {
@@ -168,7 +204,7 @@ export async function POST(req: NextRequest) {
       : buildCourseVideoKey({ courseSlug: slug, filename: file.name });
 
   const leaf = storageKey.split("/").pop() || file.name;
-  const mime = file.type || (fileType === "thumbnail" ? "image/jpeg" : "video/mp4");
+  const mime = matchedMime;
 
   const { key, url } = await storage.upload(file, leaf, mime, {
     key: storageKey,

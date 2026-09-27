@@ -10,14 +10,20 @@ import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
 import { Reveal } from "@/components/ui/reveal";
 
+import { resolveCourseIdentity } from "@/lib/admin/course-identity";
+import { resolveCourseAccess } from "@/lib/student/course-access";
+
 type Props = {
   params: Promise<{ id: string }>;
 };
 
+/**
+ * Generates page metadata for the student course video page using resolved course identity.
+ */
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params;
-  const data = await getCourseVideosData(id);
-  const title = data?.course?.title || "Video";
+  const identity = await resolveCourseIdentity(id);
+  const title = identity?.title || "Video";
 
   return {
     title: pageTitle(`${title} - Video`),
@@ -25,12 +31,25 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
+/**
+ * Student course video page rendering playlists and videos for enrolled learners.
+ */
 export default async function StudentCourseVideosPage({ params }: Props) {
   const { id } = await params;
 
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session?.user) {
     redirect(`/sign-in?next=${encodeURIComponent(`/courses/${id}/video`)}`);
+  }
+
+  const access = await resolveCourseAccess({
+    courseId: id,
+    userId: session.user.id,
+    roleHint: (session.user as { role?: string | null }).role,
+  });
+
+  if (!access.isEnrolled && access.tier !== "staff") {
+    notFound();
   }
 
   const data = await getCourseVideosData(id);

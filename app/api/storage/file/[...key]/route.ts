@@ -194,6 +194,45 @@ async function resolveQuizAttachmentAuthorization(key: string): Promise<QuizAtta
   }
 }
 
+type CourseVideoAuthorization = {
+  matched: boolean;
+  allowed: boolean;
+};
+
+/**
+ * Resolves access authorization for course video keys.
+ * Ensures course videos can only be streamed or downloaded by enrolled students, assigned tutors, or admins.
+ */
+async function resolveCourseVideoAuthorization(key: string): Promise<CourseVideoAuthorization> {
+  const isVideoFile = key.startsWith("courses/") && key.includes("/videos/") && !key.includes("/videos/thumbnails/");
+  if (!isVideoFile) return { matched: false, allowed: true };
+
+  try {
+    const parts = key.split("/");
+    const courseSlug = parts[1];
+    if (!courseSlug) return { matched: true, allowed: false };
+
+    const session = await auth.api.getSession({ headers: await nextHeaders() });
+    if (!session?.user?.id) return { matched: true, allowed: false };
+
+    const access = await resolveCourseAccess({
+      courseId: courseSlug,
+      userId: session.user.id,
+      roleHint: (session.user as { role?: string | null }).role,
+    });
+
+    return {
+      matched: true,
+      allowed: access.isEnrolled || access.tier === "staff",
+    };
+  } catch {
+    return { matched: true, allowed: false };
+  }
+}
+
+/**
+ * Handles object retrieval and streaming from Cloudflare R2 storage proxy.
+ */
 export async function GET(
   req: Request,
   { params }: { params: Promise<{ key: string[] }> }
@@ -225,6 +264,12 @@ export async function GET(
     // Authorize quiz attachment delivery before fetching the object
     const quizAuthorization = await resolveQuizAttachmentAuthorization(key);
     if (quizAuthorization.matched && !quizAuthorization.allowed) {
+      return new Response("File not found", { status: 404 });
+    }
+
+    // Authorize course video delivery before fetching the object
+    const videoAuthorization = await resolveCourseVideoAuthorization(key);
+    if (videoAuthorization.matched && !videoAuthorization.allowed) {
       return new Response("File not found", { status: 404 });
     }
 

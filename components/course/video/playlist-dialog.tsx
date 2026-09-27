@@ -28,6 +28,9 @@ type PlaylistDialogProps = {
   onSuccess?: (newPlaylistId?: string) => void;
 };
 
+/**
+ * Modal dialog for creating and editing video playlists.
+ */
 export function PlaylistDialog({
   open,
   onOpenChange,

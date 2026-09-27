@@ -9,12 +9,15 @@ import { ApplicationPage } from "@/components/application-page";
 import { FileText } from "lucide-react";
 import { db } from "@/db";
 import { aiMaterialInstances, aiMaterialInstanceSections, aiMaterialInstanceChunks } from "@/db/schema";
-import { eq, inArray, desc } from "drizzle-orm";
+import { eq, inArray, desc, asc } from "drizzle-orm";
 import { MaterialsClient } from "./materials-client";
 import { resolveCourseIdentity } from "@/lib/admin/course-identity";
 
 type Props = { params: Promise<{ courseId: string }> };
 
+/**
+ * Generates page metadata for the tutor course materials page.
+ */
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { courseId } = await params;
   return {
@@ -23,6 +26,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
+/**
+ * Tutor course materials management page rendering document list and editor.
+ */
 export default async function TutorMaterialsPage({ params }: Props) {
   const { courseId } = await params;
   const session = await auth.api.getSession({ headers: await headers() });
@@ -52,6 +58,7 @@ export default async function TutorMaterialsPage({ params }: Props) {
         .select()
         .from(aiMaterialInstanceSections)
         .where(inArray(aiMaterialInstanceSections.materialInstanceId, materialIds))
+        .orderBy(asc(aiMaterialInstanceSections.orderIndex))
     : [];
 
   const sectionIds = sections.map((s) => s.id);
@@ -61,6 +68,7 @@ export default async function TutorMaterialsPage({ params }: Props) {
         .select()
         .from(aiMaterialInstanceChunks)
         .where(inArray(aiMaterialInstanceChunks.sectionId, sectionIds))
+        .orderBy(asc(aiMaterialInstanceChunks.orderIndex))
     : [];
 
   const chunksBySection = new Map<string, typeof chunks>();
@@ -101,7 +109,7 @@ export default async function TutorMaterialsPage({ params }: Props) {
         backHref={`/tutor/${courseId}`}
         backLabel="Kembali ke Ringkasan Kelas"
       />
-      <MaterialsClient courseId={identity.primaryId} initialMaterials={materials} />
+      <MaterialsClient courseId={identity.legacyId || identity.primaryId} initialMaterials={materials} />
     </ApplicationPage>
   );
 }

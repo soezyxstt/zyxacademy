@@ -29,6 +29,32 @@ describe("Course Video Playlists Contract", () => {
     });
   });
 
+  describe("Upload Validation Allowlist Contract", () => {
+    test("video and image allowlists strictly define permitted types", async () => {
+      const {
+        ALLOWED_VIDEO_EXTENSIONS,
+        ALLOWED_IMAGE_EXTENSIONS,
+        ALLOWED_VIDEO_MIME_TYPES,
+        ALLOWED_IMAGE_MIME_TYPES,
+      } = await import("@/app/api/videos/upload/route");
+
+      expect(ALLOWED_VIDEO_EXTENSIONS).toContain(".mp4");
+      expect(ALLOWED_VIDEO_EXTENSIONS).toContain(".webm");
+      expect(ALLOWED_VIDEO_MIME_TYPES).toContain("video/mp4");
+      expect(ALLOWED_VIDEO_MIME_TYPES).toContain("video/webm");
+
+      expect(ALLOWED_IMAGE_EXTENSIONS).toContain(".jpg");
+      expect(ALLOWED_IMAGE_EXTENSIONS).toContain(".png");
+      expect(ALLOWED_IMAGE_MIME_TYPES).toContain("image/jpeg");
+      expect(ALLOWED_IMAGE_MIME_TYPES).toContain("image/png");
+
+      // Verify dangerous executable or active web MIME types are excluded
+      expect(ALLOWED_VIDEO_MIME_TYPES as readonly string[]).not.toContain("text/html");
+      expect(ALLOWED_VIDEO_MIME_TYPES as readonly string[]).not.toContain("application/javascript");
+      expect(ALLOWED_IMAGE_MIME_TYPES as readonly string[]).not.toContain("text/html");
+    });
+  });
+
   describe("Admin Navigation Contract", () => {
     test("Video is placed immediately under Dokumen in admin course nav", () => {
       const items = getAdminCourseNavItems("kalkulus-1");

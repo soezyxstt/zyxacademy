@@ -16,6 +16,9 @@ export const metadata: Metadata = {
   description: "Kelola playlist dan video pembelajaran mata kuliah.",
 };
 
+/**
+ * Admin course video management page providing playlist authoring and video uploading.
+ */
 export default async function AdminCourseVideosPage({ params }: Props) {
   try {
     await assertAdmin();
