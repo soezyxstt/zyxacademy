@@ -57,6 +57,12 @@ function isHttpUrl(value: string) {
   }
 }
 
+/**
+ * Modal dialog enabling students to reserve a collaborative tutorial slot
+ * with their study group, course selection, and optional pre-session materials.
+ *
+ * @param props - Component props controlling modal visibility, active slot, and study groups.
+ */
 export function CollaborativeBookingModal({
   open,
   onOpenChange,

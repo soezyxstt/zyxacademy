@@ -72,6 +72,12 @@ function formatDateTime(value: string) {
   }).format(new Date(value));
 }
 
+/**
+ * Renders the compact student study group view with tabbed navigation,
+ * package quota progress, membership details, and join token actions.
+ *
+ * @param props - Component props containing initial student groups.
+ */
 export function StudentGroupsCompactClient({ initialGroups }: Props) {
   const router = useRouter();
   const defaultGroupId = initialGroups[0]?.id ?? "";

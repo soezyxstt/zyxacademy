@@ -328,6 +328,17 @@ export interface CollaborativeBookSlotResult {
   reason?: string;
 }
 
+/**
+ * Books an available tutorial slot for a student study group and course,
+ * atomically enforcing package quota reservation, group eligibility, and FCFS locks.
+ *
+ * @param slotId - The ID of the tutor slot to book.
+ * @param courseId - The course ID or legacy course identifier.
+ * @param groupId - The study group ID booking the session.
+ * @param targetDateIso - Expected session date in YYYY-MM-DD format.
+ * @param options - Additional options including topic, notes, actor, and executor.
+ * @returns Object indicating success with bookingId or failure with error reason.
+ */
 export async function collaborativeBookSlot(
   slotId: string,
   courseId: string,
@@ -436,14 +447,21 @@ export async function collaborativeBookSlot(
       );
 
       if (!groupEligibility.isEligible) {
-        let errorMsg = groupEligibility.reason ?? "Kelompok belajar tidak aktif atau belum terdaftar pada mata kuliah ini";
-        if (groupEligibility.reason === "GROUP_NO_MEETING_QUOTA") {
-          errorMsg = "Kelompok ini tidak memiliki kuota pertemuan tutorial (paket belajar mandiri).";
-        }
         return {
           success: false,
-          error: errorMsg,
+          error:
+            groupEligibility.reason ??
+            "Kelompok belajar tidak aktif atau belum terdaftar pada mata kuliah ini",
           reason: groupEligibility.reason,
+        };
+      }
+
+      // Verify that the group has meeting quota allocated (reject self-study zero-quota groups)
+      if (groupEligibility.totalQuotaSessions <= 0) {
+        return {
+          success: false,
+          error: "Kelompok ini tidak memiliki kuota pertemuan tutorial (paket belajar mandiri).",
+          reason: "GROUP_NO_MEETING_QUOTA",
         };
       }
 

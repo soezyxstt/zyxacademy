@@ -100,6 +100,12 @@ type Props = {
   initialGroups: StudentGroup[];
 };
 
+/**
+ * Renders the full student study group management dashboard,
+ * including meeting quota progress, course list, member roster, and session history.
+ *
+ * @param props - Component props containing initial student study groups.
+ */
 export function StudentGroupsClient({ initialGroups }: Props) {
   const router = useRouter();
   const [selectedGroupIndex, setSelectedGroupIndex] = useState(0);
@@ -543,24 +549,28 @@ export function StudentGroupsClient({ initialGroups }: Props) {
             <Clock className="size-5 text-brand-primary" />
             Riwayat Pertemuan & Jadwal Kelompok
           </h3>
-          <Link
-            href="/dashboard/schedule"
-            className="text-body-xs font-semibold text-brand-primary hover:underline flex items-center gap-1"
-          >
-            <span>Buka Kalender Jadwal</span>
-            <ChevronRight className="size-3.5" />
-          </Link>
+          {activeGroup.totalQuotaSessions > 0 ? (
+            <Link
+              href="/dashboard/schedule"
+              className="text-body-xs font-semibold text-brand-primary hover:underline flex items-center gap-1"
+            >
+              <span>Buka Kalender Jadwal</span>
+              <ChevronRight className="size-3.5" />
+            </Link>
+          ) : null}
         </div>
 
         {activeGroup.recentBookings.length === 0 ? (
           <div className="p-8 text-center text-muted-foreground text-body-sm space-y-2">
             <p>Belum ada sesi tutorial yang dijadwalkan untuk kelompok ini.</p>
-            <Link href="/dashboard/schedule">
-              <Button variant="outline" size="sm" className="rounded-lg gap-1.5 mt-2">
-                <CalendarRange className="size-3.5" />
-                <span>Pilih Jadwal Tutor</span>
-              </Button>
-            </Link>
+            {activeGroup.totalQuotaSessions > 0 ? (
+              <Link href="/dashboard/schedule">
+                <Button variant="outline" size="sm" className="rounded-lg gap-1.5 mt-2">
+                  <CalendarRange className="size-3.5" />
+                  <span>Pilih Jadwal Tutor</span>
+                </Button>
+              </Link>
+            ) : null}
           </div>
         ) : (
           <div className="overflow-x-auto">

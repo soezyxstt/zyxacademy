@@ -29,7 +29,10 @@ async function requireUser() {
 }
 
 /**
- * Get study group(s) data for the current authenticated student
+ * Retrieves study group data for the authenticated student, including course associations,
+ * weekly meeting counts, total package quotas, group members, and recent bookings.
+ *
+ * @returns Array of resolved study group records for the current user.
  */
 export async function getStudentStudyGroups() {
   const currentUser = await requireUser();
