@@ -107,9 +107,11 @@ export async function getStudentStudyGroups() {
     // 2. Quota & Session Stats
     const bookingCount = g.bookings?.length || 0;
     const effectiveUsed = Math.max(g.usedQuotaSessions || 0, bookingCount);
-    const totalQuota = g.totalQuotaSessions || 15;
+    const totalQuota = g.totalQuotaSessions ?? 15;
     const remainingQuota = Math.max(0, totalQuota - effectiveUsed);
-    const usedPercentage = Math.min(100, Math.round((effectiveUsed / totalQuota) * 100));
+    const usedPercentage = totalQuota > 0
+      ? Math.min(100, Math.round((effectiveUsed / totalQuota) * 100))
+      : 0;
 
     // Weekly quota (derived from bookings in the current Jakarta week)
     const { startIso: weekStartIso, endIso: weekEndIso } = getIsoWeekRange(getJakartaNow());

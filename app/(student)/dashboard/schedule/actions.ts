@@ -436,11 +436,14 @@ export async function collaborativeBookSlot(
       );
 
       if (!groupEligibility.isEligible) {
+        let errorMsg = groupEligibility.reason ?? "Kelompok belajar tidak aktif atau belum terdaftar pada mata kuliah ini";
+        if (groupEligibility.reason === "GROUP_NO_MEETING_QUOTA") {
+          errorMsg = "Kelompok ini tidak memiliki kuota pertemuan tutorial (paket belajar mandiri).";
+        }
         return {
           success: false,
-          error:
-            groupEligibility.reason ??
-            "Kelompok belajar tidak aktif atau belum terdaftar pada mata kuliah ini",
+          error: errorMsg,
+          reason: groupEligibility.reason,
         };
       }
 

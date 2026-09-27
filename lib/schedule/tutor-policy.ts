@@ -986,6 +986,22 @@ export async function checkActiveGroupCourseEligibility(
     };
   }
 
+  if (group.totalQuotaSessions <= 0) {
+    return {
+      isEligible: false,
+      groupId: group.id,
+      groupName: group.name,
+      courseId: courseRes.canonicalCourseId,
+      legacyCourseId: courseRes.legacyCourseId,
+      representative: null,
+      membersCount: 0,
+      weeklyQuotaSessions: group.weeklyQuotaSessions,
+      totalQuotaSessions: group.totalQuotaSessions,
+      usedQuotaSessions: group.usedQuotaSessions,
+      reason: "GROUP_NO_MEETING_QUOTA",
+    };
+  }
+
   // 3. Check group course association
   const courseIdsToCheck = [
     courseRes.canonicalCourseId,

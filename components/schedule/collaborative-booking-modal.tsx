@@ -229,17 +229,27 @@ export function CollaborativeBookingModal({
                 <Select value={selectedGroupId} onValueChange={(value) => { setSelectedGroupId(value); setSelectedCourseId(""); }}>
                   <SelectTrigger id="booking-group" className="h-9 text-body-sm"><SelectValue placeholder="Pilih kelompok" /></SelectTrigger>
                   <SelectContent>{groups.map((group) => {
-                    const remaining = Math.max(0, (group.totalQuotaSessions || 15) - (group.usedQuotaSessions || 0));
+                    const totalQuota = group.totalQuotaSessions ?? 15;
+                    const remaining = Math.max(0, totalQuota - (group.usedQuotaSessions || 0));
+                    const isZeroQuota = totalQuota === 0;
                     return (
-                      <SelectItem key={group.id} value={group.id}>
-                        {group.name} (Sisa {remaining} sesi paket)
+                      <SelectItem key={group.id} value={group.id} disabled={isZeroQuota || remaining === 0}>
+                        {group.name} {isZeroQuota ? "(Tanpa kuota pertemuan)" : `(Sisa ${remaining} sesi paket)`}
                       </SelectItem>
                     );
                   })}</SelectContent>
                 </Select>
               ) : (
-                <div className="rounded-md border border-border bg-muted/20 px-3 py-2 text-body-sm text-foreground">{activeGroup?.name || "Kelompok belum tersedia"}</div>
+                <div className="rounded-md border border-border bg-muted/20 px-3 py-2 text-body-sm text-foreground">
+                  {activeGroup?.name || "Kelompok belum tersedia"}
+                  {(activeGroup?.totalQuotaSessions ?? 15) === 0 ? " (Tanpa kuota pertemuan)" : ""}
+                </div>
               )}
+              {activeGroup && (activeGroup.totalQuotaSessions ?? 15) === 0 ? (
+                <p className="text-body-xs text-destructive">
+                  Kelompok ini adalah paket belajar mandiri tanpa kuota pertemuan tutorial.
+                </p>
+              ) : null}
             </div>
 
             <div className="space-y-2">
@@ -299,7 +309,7 @@ export function CollaborativeBookingModal({
 
         <DialogFooter className="gap-2 pt-2">
           <Button type="button" variant="outline" disabled={loading} onClick={() => onOpenChange(false)} className="text-body-sm">Batal</Button>
-          <Button type="button" disabled={loading || !selectedCourseId} onClick={handleBook} className="bg-brand-primary text-white hover:bg-brand-primary/90 text-body-sm">
+          <Button type="button" disabled={loading || !selectedCourseId || (activeGroup?.totalQuotaSessions ?? 15) <= 0} onClick={handleBook} className="bg-brand-primary text-white hover:bg-brand-primary/90 text-body-sm">
             {loading ? <><Loader2 className="size-4 animate-spin" /> Memesan...</> : <><Link2 className="size-4" /> Konfirmasi booking</>}
           </Button>
         </DialogFooter>
