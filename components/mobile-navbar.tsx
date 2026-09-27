@@ -18,6 +18,7 @@ export function getRouteTitle(
     if (match && match[1]) {
       const subpath = match[2] || "";
       if (subpath.startsWith("/documents")) return "Dokumen";
+      if (subpath.startsWith("/videos")) return "Video";
       if (subpath.startsWith("/quizzes")) return "Kuis";
       if (subpath.startsWith("/questions")) return "Soal";
       if (subpath.startsWith("/flashcards")) return "Flashcard";
@@ -66,13 +67,21 @@ export function getRouteTitle(
 
   if (pathname === "/tutor") return "Panel Pengajar";
   if (pathname.startsWith("/tutor/schedule")) return "Jadwal Mengajar";
-  if (pathname.startsWith("/tutor")) return "Panel Pengajar";
+  if (pathname.startsWith("/tutor")) {
+    if (pathname.includes("/videos")) return "Video";
+    if (pathname.includes("/materials")) return "Dokumen";
+    return "Panel Pengajar";
+  }
 
   if (pathname === "/dashboard/schedule") return "Jadwal Belajar";
   if (pathname.startsWith("/dashboard/groups")) return "Kelompok Belajar";
   if (pathname === "/dashboard") return "Dashboard Siswa";
   if (pathname.startsWith("/courses/tutorial-pka")) return "Tutorial PKA";
-  if (pathname.startsWith("/courses")) return "Kelas";
+  if (pathname.startsWith("/courses")) {
+    if (pathname.includes("/video")) return "Video";
+    if (pathname.includes("/material")) return "Dokumen";
+    return "Kelas";
+  }
   if (pathname.startsWith("/leaderboard")) return "Papan Peringkat";
   if (pathname.startsWith("/calendar")) return "Kalender";
   if (pathname.startsWith("/feedback")) return "Umpan Balik";
