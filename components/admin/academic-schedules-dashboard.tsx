@@ -79,7 +79,7 @@ export function AcademicSchedulesDashboard({ initialData, initialWeekOffset = 0 
   const router = useRouter();
   const data = initialData;
   const [activeTab, setActiveTab] = useUrlTab("tab", "calendar");
-  const [calendarMode, setCalendarMode] = useUrlTab("calendarMode", "academic");
+  const [calendarMode, setCalendarMode] = useUrlTab("calendarMode", "all");
   const [displayWeekOffset, setDisplayWeekOffset] = useState(initialWeekOffset);
 
   useEffect(() => {
@@ -514,12 +514,13 @@ export function AcademicSchedulesDashboard({ initialData, initialWeekOffset = 0 
 
         {activeTab === "calendar" ? (
           <Select value={calendarMode} onValueChange={setCalendarMode}>
-            <SelectTrigger className="h-9 w-[140px] shrink-0 rounded-lg text-body-sm font-semibold">
+            <SelectTrigger className="h-9 w-[150px] shrink-0 rounded-lg text-body-sm font-semibold">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="academic">Akademik</SelectItem>
+              <SelectItem value="all">Semua Jadwal</SelectItem>
               <SelectItem value="tutorial">Tutorial</SelectItem>
+              <SelectItem value="academic">Akademik</SelectItem>
             </SelectContent>
           </Select>
         ) : null}
@@ -529,16 +530,33 @@ export function AcademicSchedulesDashboard({ initialData, initialWeekOffset = 0 
           <span className="hidden sm:inline">Otomasi Meet</span>
         </Button>
 
-        {activeTab === "calendar" && calendarMode === "tutorial" ? (
-          <Button size="sm" onClick={openAvailabilityDialog} className="h-9 shrink-0 gap-1.5 rounded-lg text-body-sm font-semibold"><Plus className="size-3.5" />Tambah availability</Button>
-        ) : (
-          <Button size="sm" onClick={handleOpenCreate} className="h-9 shrink-0 gap-1.5 rounded-lg text-body-sm font-semibold"><Plus className="size-3.5" />Buat jadwal</Button>
+        {activeTab === "calendar" && (calendarMode === "tutorial" || calendarMode === "all") && (
+          <Button
+            variant={calendarMode === "all" ? "outline" : "default"}
+            size="sm"
+            onClick={openAvailabilityDialog}
+            className="h-9 shrink-0 gap-1.5 rounded-lg text-body-sm font-semibold"
+          >
+            <Plus className="size-3.5" />
+            <span className={calendarMode === "all" ? "hidden sm:inline" : undefined}>Tambah</span> availability
+          </Button>
+        )}
+
+        {(activeTab === "academic" || (activeTab === "calendar" && (calendarMode === "academic" || calendarMode === "all"))) && (
+          <Button
+            size="sm"
+            onClick={handleOpenCreate}
+            className="h-9 shrink-0 gap-1.5 rounded-lg text-body-sm font-semibold"
+          >
+            <Plus className="size-3.5" />
+            Buat jadwal
+          </Button>
         )}
       </div>
 
       {activeTab === "calendar" && (
         <div className="space-y-3">
-          {calendarMode === "tutorial" && (
+          {(calendarMode === "tutorial" || calendarMode === "all") && (
             <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-card px-3 py-2 text-body-xs">
               <span className="text-muted-foreground">Coverage tutorial untuk pekan yang sedang dilihat.</span>
               <div className="flex items-center gap-2">
@@ -552,7 +570,7 @@ export function AcademicSchedulesDashboard({ initialData, initialWeekOffset = 0 
           <div className={calendarStyles.root}>
             <ScheduleCalendarView
               role="admin"
-              adminMode={calendarMode === "tutorial" ? "tutorial" : "academic"}
+              adminMode={calendarMode as "all" | "tutorial" | "academic"}
               currentUserId=""
               weekInfo={displayWeekInfo}
               isWeekLocked={displayWeekLocked}
@@ -564,9 +582,9 @@ export function AcademicSchedulesDashboard({ initialData, initialWeekOffset = 0 
               slots={data.slots}
               bookings={data.bookings}
               academicSchedules={data.academicSchedules}
-              onCreateScheduleDirect={calendarMode === "academic" ? handleCreateDirect : undefined}
-              onAssignTutorialSlot={calendarMode === "tutorial" ? openAssignmentDialog : undefined}
-              onOpenSessionDetail={calendarMode === "tutorial" ? setSelectedSessionDetail : undefined}
+              onCreateScheduleDirect={calendarMode === "academic" || calendarMode === "all" ? handleCreateDirect : undefined}
+              onAssignTutorialSlot={calendarMode === "tutorial" || calendarMode === "all" ? openAssignmentDialog : undefined}
+              onOpenSessionDetail={calendarMode === "tutorial" || calendarMode === "all" ? setSelectedSessionDetail : undefined}
               onEditSchedule={handleOpenEdit}
               onDeleteSchedule={setPendingDeleteSchedule}
               onOpenAuditLog={setSelectedAuditBooking}

@@ -134,7 +134,13 @@ export async function getAdminScheduleData(rawWeekOffset = 0) {
           lte(tutorSlots.sessionDate, weekRange.endIso),
         ),
         with: {
-          tutor: true,
+          tutor: {
+            with: {
+              tutorCourses: {
+                with: { course: true },
+              },
+            },
+          },
           booking: {
             with: {
               group: true,
@@ -862,6 +868,10 @@ export async function adminMoveTutorialSession(input: AdminMoveTutorialSessionIn
 
 export async function adminCancelTutorialSession(input: { bookingId: string; reason: string }) {
   return executeAdminCancelTutorialSession(input);
+}
+
+export async function adminDeleteTutorAvailability(input: AdminDeleteTutorAvailabilityInput) {
+  return executeAdminDeleteTutorAvailability(input);
 }
 
 export async function updateTutorCourses(targetTutorId: string, courseIds: string[]) {

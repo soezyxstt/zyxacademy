@@ -49,7 +49,7 @@ const DAY_LABELS = ["MIN", "SEN", "SEL", "RAB", "KAM", "JUM", "SAB"];
 
 export type ScheduleCalendarProps = {
   role: "student" | "teacher" | "admin";
-  adminMode?: "academic" | "tutorial";
+  adminMode?: "all" | "academic" | "tutorial";
   currentUserId: string;
   weekInfo: {
     startOfWeekIso: string;
@@ -381,7 +381,7 @@ function EventCard({
 
 export function ScheduleCalendarView({
   role,
-  adminMode = "academic",
+  adminMode = "all",
   weekInfo,
   isWeekLocked,
   weekOffset,
@@ -452,7 +452,7 @@ export function ScheduleCalendarView({
         startMinutes,
         endMinutes,
         title: `${minutesToTime(startMinutes)}-${minutesToTime(endMinutes)}`,
-        subtitle: tutorName,
+        subtitle: `Tutor: ${tutorName}`,
         meta: slot.notes || null,
         mode: slot.mode,
         location: slot.location,
@@ -467,6 +467,9 @@ export function ScheduleCalendarView({
       if (!dateIso) continue;
       const startMinutes = timeToMinutes(booking.startTime || booking.slot?.startTime);
       const endMinutes = Math.max(startMinutes + 30, timeToMinutes(booking.endTime || booking.slot?.endTime));
+      const groupName = booking.group?.name || booking.groupName;
+      const tutorName = booking.slot?.tutor?.name || booking.tutor?.name;
+      const subtitle = [groupName, tutorName ? `Tutor: ${tutorName}` : null].filter(Boolean).join(" • ") || null;
       result.push({
         id: `booking-${booking.id}`,
         kind: "booking",
@@ -474,7 +477,7 @@ export function ScheduleCalendarView({
         startMinutes,
         endMinutes,
         title: booking.course?.title || booking.courseTitle || booking.topic || "Sesi tutorial",
-        subtitle: booking.group?.name || booking.groupName || booking.slot?.tutor?.name || null,
+        subtitle,
         meta: booking.topic || booking.preSessionNotes || null,
         mode: booking.mode || booking.slot?.mode,
         location: booking.location || booking.slot?.location,
@@ -555,7 +558,7 @@ export function ScheduleCalendarView({
   const openEvent = (event: CalendarEvent) => {
     if (event.kind === "availability") {
       if (role === "student" && !event.locked) onSelectSlotToBook?.(event.source, event.dateIso);
-      else if (role === "admin" && adminMode === "tutorial") onAssignTutorialSlot?.(event.source);
+      else if (role === "admin") onAssignTutorialSlot?.(event.source);
       return;
     }
     if (event.kind === "academic") {
@@ -757,7 +760,7 @@ export function ScheduleCalendarView({
                         const laneWidth = 100 / event.laneCount;
                         const left = event.lane * laneWidth;
                         const opening = event.kind === "availability"
-                          ? role === "student" ? !event.locked : role === "admin" && adminMode === "tutorial"
+                          ? role === "student" ? !event.locked : role === "admin"
                           : true;
                         return (
                           <div
@@ -768,7 +771,7 @@ export function ScheduleCalendarView({
                             <EventCard
                               event={event}
                               onOpen={opening ? () => openEvent(event) : undefined}
-                              onDeleteSlot={(role === "teacher" || (role === "admin" && adminMode === "tutorial")) ? onDeleteSlot : undefined}
+                              onDeleteSlot={(role === "teacher" || (role === "admin" && (adminMode === "tutorial" || adminMode === "all"))) ? onDeleteSlot : undefined}
                             />
                           </div>
                         );
