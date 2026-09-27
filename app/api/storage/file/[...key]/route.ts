@@ -228,9 +228,12 @@ export async function GET(
       return new Response("File not found", { status: 404 });
     }
 
+    const rangeHeader = req.headers.get("range");
+
     const command = new GetObjectCommand({
       Bucket: bucket,
       Key: key,
+      Range: rangeHeader || undefined,
     });
 
     const s3Res = await s3.send(command);
@@ -257,6 +260,11 @@ export async function GET(
     if (s3Res.ContentLength) {
       headers.set("Content-Length", s3Res.ContentLength.toString());
     }
+
+    headers.set("Accept-Ranges", "bytes");
+    if (s3Res.ContentRange) {
+      headers.set("Content-Range", s3Res.ContentRange);
+    }
     
     // Only protected delivery depends on the current session. Keep unrelated
     // public storage objects on the cacheable response path.
@@ -275,7 +283,10 @@ export async function GET(
     headers.set("Access-Control-Allow-Origin", "*");
     headers.set("Access-Control-Allow-Methods", "GET, HEAD, OPTIONS");
 
+    const statusCode = s3Res.ContentRange || s3Res.$metadata?.httpStatusCode === 206 ? 206 : 200;
+
     return new Response(webStream, {
+      status: statusCode,
       headers,
     });
   } catch (err: any) {

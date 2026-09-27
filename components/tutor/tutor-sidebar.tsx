@@ -7,6 +7,8 @@ import {
   CheckSquare,
   ClipboardCheck,
   ClipboardList,
+  FileText,
+  Video,
   GraduationCap,
   LayoutDashboard,
   Radio,
@@ -108,6 +110,20 @@ export function TutorSidebar({ assignedCourses = [] }: TutorSidebarProps) {
             icon={LayoutDashboard}
             label="Ringkasan"
             active={pathname === `/tutor/${courseId}`}
+            collapsed={collapsed}
+          />
+          <NavItem
+            href={`/tutor/${courseId}/materials`}
+            icon={FileText}
+            label="Dokumen"
+            active={pathname === `/tutor/${courseId}/materials` || pathname.startsWith(`/tutor/${courseId}/materials/`)}
+            collapsed={collapsed}
+          />
+          <NavItem
+            href={`/tutor/${courseId}/videos`}
+            icon={Video}
+            label="Video"
+            active={pathname === `/tutor/${courseId}/videos` || pathname.startsWith(`/tutor/${courseId}/videos/`)}
             collapsed={collapsed}
           />
           <NavItem

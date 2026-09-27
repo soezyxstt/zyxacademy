@@ -15,6 +15,7 @@ import {
   ArrowLeft,
   Compass,
   FileText,
+  Video,
   Brain,
   ClipboardList,
   GraduationCap,
@@ -232,6 +233,7 @@ export function StudentSidebar({
         : [
             { href: base, icon: LayoutDashboard, label: "Ringkasan", exact: true },
             { href: `${base}/material`, icon: FileText, label: "Dokumen" },
+            { href: `${base}/video`, icon: Video, label: "Video" },
             { href: `${base}/quiz`, icon: ClipboardList, label: "Kuis" },
             {
               href: `/dashboard/schedule?course=${activeCourseId}`,
