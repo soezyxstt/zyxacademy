@@ -111,15 +111,16 @@ export function checkDeterministicCorrectness(q: LegacyQuizQuestionSnapshot, sub
     : [];
   const correct = Array.isArray(q.correct_indices) ? q.correct_indices : [];
   if (correct.length === 0) return false;
+  const isMultiple = qType === "multiple_choices" || correct.length > 1;
   if (Array.isArray(q.stable_option_ids)) {
     return gradeStableOptionAnswer({
       stableOptionIds: q.stable_option_ids,
       correctIndices: correct,
       submitted,
-      questionType: qType,
+      questionType: isMultiple ? "multiple_choices" : qType,
     });
   }
-  if (qType === "multiple_choice") {
+  if (!isMultiple && (qType === "multiple_choice" || !qType)) {
     const firstIdx = indices[0];
     return firstIdx !== undefined && correct.includes(firstIdx);
   }

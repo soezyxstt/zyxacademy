@@ -5,9 +5,9 @@ import { useRouter } from "next/navigation";
 import { toast } from "@/components/ui/toast";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { Flag, Timer, Clock, BookOpen, AlertCircle, ChevronLeft, ChevronRight, Loader2, UploadCloud, FileText, Trash2 } from "lucide-react";
+import { Flag, Timer, Clock, BookOpen, AlertCircle, ChevronLeft, ChevronRight, Loader2, UploadCloud, FileText, Trash2, Check, CheckSquare, CircleDot } from "lucide-react";
 import { MarkdownRenderer } from "@/components/course/markdown-renderer";
-import { quizOptionClasses, quizOptionLetterClasses } from "@/components/course/quiz-option-styles";
+import { quizOptionClasses, quizOptionLetterClasses, quizOptionIndicatorClasses } from "@/components/course/quiz-option-styles";
 import { QuestionSourceCitation } from "@/components/course/question-source-citation";
 import { useTutor } from "@/components/course/tutor-drawer";
 import {
@@ -59,6 +59,13 @@ type QuizPlayerProps = {
   /** Absolute closing timestamp in ms (e.g. quiz window closes at 20:00). Timer will not exceed this. */
   closeAtMs?: number;
 };
+
+/**
+ * Checks whether a question allows selecting multiple answers (multi-select / multiple choices).
+ */
+function isMultipleChoiceQuestion(type?: string): boolean {
+  return type === "multiple_choices" || type === "multi_select" || type === "checkbox";
+}
 
 /**
  * Interactive student quiz player component with timer, navigation, file uploads, and submission handling.
@@ -132,9 +139,14 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
     [exam.questions],
   );
 
+  /**
+   * Checks whether a specific question has an existing valid answer from the student.
+   */
   const isQuestionAnswered = useCallback((questionId: string) => {
     const val = answers[questionId];
     if (val === undefined || val === null) return false;
+    if (Array.isArray(val)) return val.length > 0;
+    if (typeof val === "number") return true;
     if (typeof val === "string") return val.trim().length > 0;
     if (typeof val === "object") {
       const textDone = typeof val.text === "string" && val.text.trim().length > 0;
@@ -509,13 +521,39 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
   const flaggedCount = sorted.filter((question) => flags[question.id]).length;
   const progress = sorted.length > 0 ? (answeredCount / sorted.length) * 100 : 0;
 
-  function selectOption(qId: string, optionIndex: number) {
+  /**
+   * Updates answer state for an option, supporting multi-select toggle or single-choice assignment.
+   */
+  function selectOption(qId: string, optionIndex: number, isMultiple: boolean) {
     if (isSubmitted || submitting) return;
-    const next = { ...answers, [qId]: optionIndex };
+
+    let nextValue: any;
+    if (isMultiple) {
+      const current = answers[qId];
+      let currentIndices: number[] = [];
+      if (Array.isArray(current)) {
+        currentIndices = current.filter((x): x is number => typeof x === "number");
+      } else if (typeof current === "number") {
+        currentIndices = [current];
+      }
+
+      if (currentIndices.includes(optionIndex)) {
+        nextValue = currentIndices.filter((idx) => idx !== optionIndex);
+      } else {
+        nextValue = [...currentIndices, optionIndex].sort((a, b) => a - b);
+      }
+    } else {
+      nextValue = optionIndex;
+    }
+
+    const next = { ...answers, [qId]: nextValue };
     setAnswers(next);
     window.localStorage.setItem(`zyx-quiz-answers-${attemptId}`, JSON.stringify(next));
   }
 
+  /**
+   * Toggles the doubt/flag status for a specific question.
+   */
   function toggleFlag(qId: string) {
     if (isSubmitted || submitting) return;
     const next = { ...flags, [qId]: !flags[qId] };
@@ -523,10 +561,16 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
     window.localStorage.setItem(`zyx-quiz-flags-${attemptId}`, JSON.stringify(next));
   }
 
+  /**
+   * Navigates to the next question in the sequence.
+   */
   function goNext() {
     if (index < sorted.length - 1) setIndex((i) => i + 1);
   }
 
+  /**
+   * Navigates to the previous question in the sequence.
+   */
   function goPrev() {
     if (index > 0) setIndex((i) => i - 1);
   }
@@ -540,6 +584,14 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
   }
 
   const ans = answers[q.id];
+  const isMultiple = Boolean(
+    q && (
+      isMultipleChoiceQuestion(q.type) ||
+      (q as any).question_type === "multiple_choices" ||
+      (q as any).questionType === "multiple_choices" ||
+      Boolean((q as any).multiple)
+    )
+  );
   const currentFlagged = !!flags[q.id];
 
   return (
@@ -699,30 +751,96 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
               )}
             </div>
           ) : (
-            <ul className="mt-4 space-y-2 md:mt-5 md:space-y-2.5">
-              {q.options.map((opt, i) => {
-                const selected = ans === i;
-                return (
-                  <li key={i}>
-                    <button
-                      type="button"
-                      disabled={submitting || isSubmitted}
-                      onClick={() => selectOption(q.id, i)}
-                      className={quizOptionClasses(selected ? "selected" : "idle")}
-                    >
-                      <span
-                        className={quizOptionLetterClasses(selected ? "selected" : "idle")}
-                      >
-                        {String.fromCharCode(65 + i)}
+            <div className="mt-4 space-y-3 md:mt-5">
+              {/* Type indicator banner / info */}
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/60 pb-2.5">
+                <div className="flex items-center gap-2">
+                  {isMultiple ? (
+                    <>
+                      <span className="inline-flex items-center gap-1.5 rounded-md border border-brand-secondary/35 bg-brand-secondary/10 px-2 py-0.5 text-body-xs font-bold text-brand-secondary">
+                        <CheckSquare className="size-3.5" />
+                        Pilihan Jamak
                       </span>
-                      <div className="text-foreground leading-normal flex-1">
-                        <MarkdownRenderer content={opt} className="space-y-3" />
-                      </div>
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
+                      <span className="text-body-xs font-medium text-muted-foreground">
+                        Pilih semua jawaban yang benar
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <span className="inline-flex items-center gap-1.5 rounded-md border border-border/80 bg-muted/40 px-2 py-0.5 text-body-xs font-medium text-muted-foreground">
+                        <CircleDot className="size-3.5" />
+                        Pilihan Tunggal
+                      </span>
+                      <span className="text-body-xs text-muted-foreground">
+                        Pilih 1 jawaban
+                      </span>
+                    </>
+                  )}
+                </div>
+                {isMultiple && Array.isArray(ans) && ans.length > 0 ? (
+                  <span className="text-body-xs font-semibold text-brand-secondary">
+                    {ans.length} dipilih
+                  </span>
+                ) : null}
+              </div>
+
+              {/* Options List */}
+              <ul
+                role={isMultiple ? "group" : "radiogroup"}
+                aria-label={isMultiple ? "Pilihan jawaban (dapat memilih lebih dari satu)" : "Pilihan jawaban (pilih satu)"}
+                className="space-y-2 md:space-y-2.5"
+              >
+                {q.options.map((opt, i) => {
+                  const selected = isMultiple
+                    ? Array.isArray(ans)
+                      ? ans.includes(i)
+                      : ans === i
+                    : ans === i || (Array.isArray(ans) && ans.length === 1 && ans[0] === i);
+
+                  return (
+                    <li key={i}>
+                      <button
+                        type="button"
+                        role={isMultiple ? "checkbox" : "radio"}
+                        aria-checked={selected}
+                        disabled={submitting || isSubmitted}
+                        onClick={() => selectOption(q.id, i, isMultiple)}
+                        className={quizOptionClasses(selected ? "selected" : "idle")}
+                      >
+                        {/* Circle (Radio) vs Boxie (Checkbox) Option Indicator */}
+                        <span
+                          aria-hidden="true"
+                          className={quizOptionIndicatorClasses(
+                            isMultiple ? "multiple" : "single",
+                            selected ? "selected" : "idle",
+                          )}
+                        >
+                          {isMultiple ? (
+                            selected ? <Check className="size-3 md:size-3.5 stroke-[3] text-white" /> : null
+                          ) : (
+                            selected ? <span className="size-1.5 md:size-2 rounded-full bg-white" /> : null
+                          )}
+                        </span>
+
+                        {/* Letter Badge */}
+                        <span
+                          className={quizOptionLetterClasses(
+                            selected ? "selected" : "idle",
+                            isMultiple ? "rounded-md" : "rounded-full",
+                          )}
+                        >
+                          {String.fromCharCode(65 + i)}
+                        </span>
+
+                        <div className="flex-1 leading-normal text-foreground">
+                          <MarkdownRenderer content={opt} className="space-y-3" />
+                        </div>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
           )}
 
           {/* Flagging Option Widget inside Card */}

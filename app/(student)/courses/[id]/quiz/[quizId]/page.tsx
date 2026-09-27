@@ -418,26 +418,39 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
         prompt: string;
         question_type?: string;
         options: string[];
+        correct_indices?: number[];
         origin?: "zyx_original" | "historical_reference" | "itb_example";
         sourceEventName?: string | null;
         sourceReferenceId?: string | null;
-      }>).map((q, idx) => ({
-        id: q.id,
-        order: idx + 1,
-        type: (q.question_type as any) || "multiple_choice",
-        prompt: q.prompt,
-        options: publicOptionTexts(q.options),
-        origin: q.origin,
-        sourceEventName: q.sourceEventName,
-        sourceReferenceId: q.sourceReferenceId,
-      })),
+      }>).map((q, idx) => {
+        const isMultiple = q.question_type === "multiple_choices" || (Array.isArray(q.correct_indices) && q.correct_indices.length > 1);
+        return {
+          id: q.id,
+          order: idx + 1,
+          type: isMultiple ? "multiple_choices" : ((q.question_type as any) || "multiple_choice"),
+          prompt: q.prompt,
+          options: publicOptionTexts(q.options),
+          origin: q.origin,
+          sourceEventName: q.sourceEventName,
+          sourceReferenceId: q.sourceReferenceId,
+        };
+      }),
     };
 
     const initialAnswers: Record<string, any> = {};
     if (targetAttempt.answersSnapshot && typeof targetAttempt.answersSnapshot === "object") {
+      const qSnapshot = (targetAttempt.questionsSnapshot as any[]) || [];
       for (const [qId, sel] of Object.entries(targetAttempt.answersSnapshot as Record<string, any>)) {
-        if (Array.isArray(sel) && sel.length > 0 && typeof sel[0] === "number") {
-          initialAnswers[qId] = sel[0];
+        if (Array.isArray(sel)) {
+          const qObj = qSnapshot.find((x) => x.id === qId);
+          const isMultiple = qObj?.question_type === "multiple_choices" || (Array.isArray(qObj?.correct_indices) && qObj.correct_indices.length > 1);
+          if (isMultiple) {
+            initialAnswers[qId] = sel.filter((item) => typeof item === "number");
+          } else if (sel.length > 0 && typeof sel[0] === "number") {
+            initialAnswers[qId] = sel[0];
+          } else {
+            initialAnswers[qId] = sel;
+          }
         } else {
           initialAnswers[qId] = sel;
         }
@@ -654,12 +667,13 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
                     ? rawSubmitted.fileSize
                     : null;
 
+                  const isMultiple = qType === "multiple_choices" || correctIndices.length > 1;
                   let isCorrect = false;
                   if (qType === "short_answer" || (Array.isArray((q as any).acceptable_answers) && (q as any).acceptable_answers.length > 0)) {
                     isCorrect = isShortAnswerCorrect(submittedText, (q as any).acceptable_answers);
                   } else if (qType === "essay") {
                     isCorrect = submittedText.trim().length > 0 || Boolean(submittedFileKey);
-                  } else if (qType === "multiple_choice" || !qType) {
+                  } else if (!isMultiple && (qType === "multiple_choice" || !qType)) {
                     const firstIdx = studentSelected[0];
                     isCorrect = firstIdx !== undefined && correctIndices.includes(firstIdx);
                   } else {

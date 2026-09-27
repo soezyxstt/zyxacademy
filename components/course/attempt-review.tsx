@@ -13,6 +13,8 @@ import {
  ListChecks,
  BookOpen,
  Check,
+ CheckSquare,
+ CircleDot,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { MathText } from "@/components/course/math-text";
@@ -77,6 +79,10 @@ const KIND_ICON = {
  module: BookOpen,
 };
 
+/**
+ * Determines whether a submitted student answer is correct during review,
+ * correctly handling short-answer, essay, single-choice, and multi-choice questions.
+ */
 function checkReviewAnswerCorrectness(q: any, submitted: any): boolean {
   if (!q) return false;
   const qType = q.question_type || q.questionType || q.type;
@@ -91,7 +97,8 @@ function checkReviewAnswerCorrectness(q: any, submitted: any): boolean {
   const indices = Array.isArray(submitted) ? submitted : [];
   const correct = Array.isArray(q.correct_indices) ? q.correct_indices : Array.isArray(q.correctIndices) ? q.correctIndices : [];
   if (correct.length === 0) return false;
-  if (qType === "multiple_choice" || !qType) {
+  const isMultiple = qType === "multiple_choices" || correct.length > 1;
+  if (!isMultiple && (qType === "multiple_choice" || !qType)) {
     const firstIdx = indices[0];
     return firstIdx !== undefined && correct.includes(firstIdx);
   }
@@ -342,11 +349,26 @@ export function AttemptReview({ attemptId }: { attemptId: string }) {
    correctLabel = correctArr.map((i: number) => q.options?.[i] ?? `Opsi ${i}`).join(", ");
  }
 
+ const isQuestionMultiple = qType === "multiple_choices" || (Array.isArray(q.correct_indices) && q.correct_indices.length > 1) || (Array.isArray((q as any).correctIndices) && (q as any).correctIndices.length > 1);
+
  return (
  <div key={q.id} className="py-6 first:pt-0">
  <div className="flex items-start justify-between gap-4">
  <div>
- <span className="text-body-sm font-semibold text-muted-foreground">Soal {idx + 1}</span>
+  <div className="flex items-center gap-2">
+   <span className="text-body-sm font-semibold text-muted-foreground">Soal {idx + 1}</span>
+   {isQuestionMultiple ? (
+    <span className="inline-flex items-center gap-1 rounded-md border border-brand-secondary/35 bg-brand-secondary/10 px-2 py-0.5 text-body-2xs font-bold text-brand-secondary">
+     <CheckSquare className="size-3" />
+     Pilihan Jamak
+    </span>
+   ) : qType === "multiple_choice" || (!qType && !isQuestionMultiple) ? (
+    <span className="inline-flex items-center gap-1 rounded-md border border-border/80 bg-muted/40 px-2 py-0.5 text-body-2xs font-medium text-muted-foreground">
+     <CircleDot className="size-3" />
+     Pilihan Tunggal
+    </span>
+   ) : null}
+  </div>
  <div className="mt-2 text-body-base font-medium text-foreground">
  <MathText>{q.prompt}</MathText>
  </div>
