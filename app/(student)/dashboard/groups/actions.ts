@@ -29,7 +29,10 @@ async function requireUser() {
 }
 
 /**
- * Get study group(s) data for the current authenticated student
+ * Retrieves study group data for the authenticated student, including course associations,
+ * weekly meeting counts, total package quotas, group members, and recent bookings.
+ *
+ * @returns Array of resolved study group records for the current user.
  */
 export async function getStudentStudyGroups() {
   const currentUser = await requireUser();
@@ -107,9 +110,11 @@ export async function getStudentStudyGroups() {
     // 2. Quota & Session Stats
     const bookingCount = g.bookings?.length || 0;
     const effectiveUsed = Math.max(g.usedQuotaSessions || 0, bookingCount);
-    const totalQuota = g.totalQuotaSessions || 15;
+    const totalQuota = g.totalQuotaSessions ?? 15;
     const remainingQuota = Math.max(0, totalQuota - effectiveUsed);
-    const usedPercentage = Math.min(100, Math.round((effectiveUsed / totalQuota) * 100));
+    const usedPercentage = totalQuota > 0
+      ? Math.min(100, Math.round((effectiveUsed / totalQuota) * 100))
+      : 0;
 
     // Weekly quota (derived from bookings in the current Jakarta week)
     const { startIso: weekStartIso, endIso: weekEndIso } = getIsoWeekRange(getJakartaNow());
