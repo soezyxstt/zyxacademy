@@ -60,6 +60,9 @@ type QuizPlayerProps = {
   closeAtMs?: number;
 };
 
+/**
+ * Checks whether a question allows selecting multiple answers (multi-select / multiple choices).
+ */
 function isMultipleChoiceQuestion(type?: string): boolean {
   return type === "multiple_choices" || type === "multi_select" || type === "checkbox";
 }
@@ -136,6 +139,9 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
     [exam.questions],
   );
 
+  /**
+   * Checks whether a specific question has an existing valid answer from the student.
+   */
   const isQuestionAnswered = useCallback((questionId: string) => {
     const val = answers[questionId];
     if (val === undefined || val === null) return false;
@@ -515,6 +521,9 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
   const flaggedCount = sorted.filter((question) => flags[question.id]).length;
   const progress = sorted.length > 0 ? (answeredCount / sorted.length) * 100 : 0;
 
+  /**
+   * Updates answer state for an option, supporting multi-select toggle or single-choice assignment.
+   */
   function selectOption(qId: string, optionIndex: number, isMultiple: boolean) {
     if (isSubmitted || submitting) return;
 
@@ -542,6 +551,9 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
     window.localStorage.setItem(`zyx-quiz-answers-${attemptId}`, JSON.stringify(next));
   }
 
+  /**
+   * Toggles the doubt/flag status for a specific question.
+   */
   function toggleFlag(qId: string) {
     if (isSubmitted || submitting) return;
     const next = { ...flags, [qId]: !flags[qId] };
@@ -549,10 +561,16 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
     window.localStorage.setItem(`zyx-quiz-flags-${attemptId}`, JSON.stringify(next));
   }
 
+  /**
+   * Navigates to the next question in the sequence.
+   */
   function goNext() {
     if (index < sorted.length - 1) setIndex((i) => i + 1);
   }
 
+  /**
+   * Navigates to the previous question in the sequence.
+   */
   function goPrev() {
     if (index > 0) setIndex((i) => i - 1);
   }

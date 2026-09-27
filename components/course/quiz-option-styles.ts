@@ -34,6 +34,9 @@ const letterStateClasses: Record<QuizOptionState, string> = {
   wrong: "bg-status-error text-white",
 };
 
+/**
+ * Returns class names for styling option letter badges (A, B, C...) based on state.
+ */
 export function quizOptionLetterClasses(state: QuizOptionState, className?: string) {
   return cn(
     "flex size-6 shrink-0 items-center justify-center rounded-md text-body-xs font-bold transition-colors md:size-7",
@@ -42,6 +45,9 @@ export function quizOptionLetterClasses(state: QuizOptionState, className?: stri
   );
 }
 
+/**
+ * Returns class names for styling choice indicator controls (circle radio vs boxie checkbox) based on state.
+ */
 export function quizOptionIndicatorClasses(
   control: QuizChoiceControl,
   state: QuizOptionState,

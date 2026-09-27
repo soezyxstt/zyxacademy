@@ -144,13 +144,14 @@ export default async function PkaStagePage({ params, searchParams }: Props) {
                     : [];
                   const correct = q.correct_indices ?? (q as any).correctIndices ?? [];
 
+                  const isMultiple = qType === "multiple_choices" || correct.length > 1;
                   let isCorrect = false;
                   if (qType === "short_answer" || (Array.isArray((q as any).acceptable_answers) && (q as any).acceptable_answers.length > 0)) {
                     isCorrect = isShortAnswerCorrect(rawSel, (q as any).acceptable_answers);
                   } else if (qType === "essay") {
                     const text = typeof rawSel === "string" ? rawSel : Array.isArray(rawSel) ? String(rawSel[0] ?? "") : "";
                     isCorrect = text.trim().length > 0;
-                  } else if (qType === "multiple_choice" || !qType) {
+                  } else if (!isMultiple && (qType === "multiple_choice" || !qType)) {
                     const firstIdx = selected[0];
                     isCorrect = firstIdx !== undefined && correct.includes(firstIdx);
                   } else {

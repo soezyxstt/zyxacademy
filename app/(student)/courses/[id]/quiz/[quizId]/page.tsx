@@ -667,12 +667,13 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
                     ? rawSubmitted.fileSize
                     : null;
 
+                  const isMultiple = qType === "multiple_choices" || correctIndices.length > 1;
                   let isCorrect = false;
                   if (qType === "short_answer" || (Array.isArray((q as any).acceptable_answers) && (q as any).acceptable_answers.length > 0)) {
                     isCorrect = isShortAnswerCorrect(submittedText, (q as any).acceptable_answers);
                   } else if (qType === "essay") {
                     isCorrect = submittedText.trim().length > 0 || Boolean(submittedFileKey);
-                  } else if (qType === "multiple_choice" || !qType) {
+                  } else if (!isMultiple && (qType === "multiple_choice" || !qType)) {
                     const firstIdx = studentSelected[0];
                     isCorrect = firstIdx !== undefined && correctIndices.includes(firstIdx);
                   } else {
