@@ -35,6 +35,8 @@ export async function inspectProductDiktatPdf(bytes: Uint8Array): Promise<Inspec
       throw new Error("PRODUCT_DIKTAT_PDF_CONTENT_INVALID");
     }
     return { pageCount: info.total, text };
+  } catch (error) {
+    throw new Error("PRODUCT_DIKTAT_PDF_CONTENT_INSPECTION_FAILED", { cause: error });
   } finally {
     await parser.destroy();
   }
@@ -51,7 +53,12 @@ export function productDiktatFailureCode(error: unknown): SafeFailureCode {
   if (message.includes("RENDERER_CONFIG_MISSING")) return "RENDERER_CONFIG_MISSING";
   if (message.includes("RENDERER_REJECTED")) return "RENDERER_REJECTED";
   if (message.includes("RENDERER_INVALID_PDF")) return "INVALID_PDF_OUTPUT";
-  if (message.includes("PDF_INSPECTION_FAILED")) return "INVALID_PDF_OUTPUT";
+  if (message.includes("PDF_INSPECTION_FAILED")) {
+    const cause = error instanceof Error ? error.cause : undefined;
+    return cause instanceof Error && cause.message === "PRODUCT_DIKTAT_PDF_CONTENT_INSPECTION_FAILED"
+      ? "INVALID_PDF_OUTPUT"
+      : "RENDER_UNAVAILABLE";
+  }
   if (message.includes("RENDERER")) return "RENDER_UNAVAILABLE";
   if (message.includes("PAGE")) return "PAGE_BUDGET_EXCEEDED";
   if (message.includes("STORAGE")) return "STORAGE_UNAVAILABLE";
