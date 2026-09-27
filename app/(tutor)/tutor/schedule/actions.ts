@@ -28,6 +28,7 @@ import {
   recordTutorMutationAudit,
 } from "@/lib/audit/mutasi";
 import { getIsoWeekRange } from "@/lib/schedule-lock";
+import { getJakartaCalendarDate } from "@/lib/date-utils";
 import {
   addTutorialDays,
   canTutorCreateAvailability,
@@ -206,6 +207,7 @@ export async function executeAddTutorSlot(
   const client = (options?.executor ?? db) as typeof db;
   const courseIdForAudit = options?.courseId?.trim() || "global";
   const sessionDateIso = typeof input.sessionDate === "string" ? input.sessionDate.trim() : "";
+  const now = options?.now ?? new Date();
 
   // A slot without a concrete date is a legacy record, not a new bookable
   // availability row.
@@ -309,6 +311,29 @@ export async function executeAddTutorSlot(
     };
   }
 
+  if (sessionDateIso < getJakartaCalendarDate(now)) {
+    await recordTutorMutationAudit({
+      actorId: authContext.userId,
+      actorRoles: authContext.roles,
+      courseId: courseIdForAudit,
+      entityType: "tutor_slot",
+      entityId: "new_slot",
+      entityVersion: 1,
+      action: "tutor.slot.create",
+      outcome: "rejected",
+      requestId,
+      reason: "SESSION_DATE_IN_PAST",
+      before: null,
+      after: { ...input },
+    }, client);
+
+    return {
+      success: false,
+      error: "Tanggal sesi tidak boleh sebelum hari ini.",
+      reason: "SESSION_DATE_IN_PAST",
+    };
+  }
+
   // 4. Validate mode, lifecycle, and offline location.
   if (input.mode !== undefined && input.mode !== "online" && input.mode !== "offline") {
     await recordTutorMutationAudit({
@@ -360,7 +385,6 @@ export async function executeAddTutorSlot(
   }
 
   const slotId = randomUUID();
-  const now = options?.now ?? new Date();
 
   try {
     await client.transaction(async (tx) => {

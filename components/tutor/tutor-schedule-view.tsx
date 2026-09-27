@@ -52,8 +52,8 @@ import {
   INDONESIAN_DAYS,
   type IndonesianDay,
   getWeekScheduleDays,
+  getJakartaCalendarDate,
   getJakartaNow,
-  formatIsoDateUtc,
   parseDateInput,
   daysFrom,
 } from "@/lib/date-utils";
@@ -168,7 +168,7 @@ export function TutorScheduleView({
   const [isMoveSessionOpen, setIsMoveSessionOpen] = useState(false);
   const [isDecideTicketOpen, setIsDecideTicketOpen] = useState(false);
 
-  const [newSlotDate, setNewSlotDate] = useState(() => formatIsoDateUtc(getJakartaNow()));
+  const [newSlotDate, setNewSlotDate] = useState(() => getJakartaCalendarDate());
   const [newSlotStart, setNewSlotStart] = useState("09:00");
   const [newSlotEnd, setNewSlotEnd] = useState("10:30");
   const [newSlotMode, setNewSlotMode] = useState<"online" | "offline">("online");
@@ -414,7 +414,8 @@ export function TutorScheduleView({
   };
 
   const openAddSlotDialog = () => {
-    setNewSlotDate(weekInfo.days[0].dateIso);
+    const todayIso = getJakartaCalendarDate();
+    setNewSlotDate(weekInfo.days[0].dateIso < todayIso ? todayIso : weekInfo.days[0].dateIso);
     setNewSlotStart("09:00");
     setNewSlotEnd("10:30");
     setNewSlotNotes("");
@@ -725,7 +726,7 @@ export function TutorScheduleView({
                 id="tutor-slot-date"
                 type="date"
                 value={newSlotDate}
-                min={formatIsoDateUtc(getJakartaNow())}
+                min={getJakartaCalendarDate()}
                 onChange={(e) => setNewSlotDate(e.target.value)}
                 className="h-9 text-body-sm"
               />
