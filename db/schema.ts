@@ -3706,10 +3706,68 @@ export const courseMaterials = sqliteTable(
 	]
 );
 
+// 12.1. course_video_playlists
+export const courseVideoPlaylists = sqliteTable(
+	"course_video_playlists",
+	{
+		id: text("id").primaryKey(),
+		courseId: text("course_id")
+			.notNull()
+			.references(() => courses.id, { onDelete: "cascade" }),
+		title: text("title").notNull(),
+		description: text("description"),
+		orderIndex: integer("order_index").notNull().default(0),
+		createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+		updatedAt: integer("updated_at", { mode: "timestamp" })
+			.defaultNow()
+			.$onUpdate(() => new Date())
+			.notNull(),
+	},
+	(table) => [
+		index("idx_course_video_playlists_course").on(table.courseId),
+	]
+);
+
+// 12.2. course_videos
+export const courseVideos = sqliteTable(
+	"course_videos",
+	{
+		id: text("id").primaryKey(),
+		courseId: text("course_id")
+			.notNull()
+			.references(() => courses.id, { onDelete: "cascade" }),
+		playlistId: text("playlist_id")
+			.notNull()
+			.references(() => courseVideoPlaylists.id, { onDelete: "cascade" }),
+		chapterId: text("chapter_id")
+			.references(() => chapters.id, { onDelete: "set null" }),
+		title: text("title").notNull(),
+		description: text("description"),
+		videoUrl: text("video_url").notNull(),
+		thumbnailUrl: text("thumbnail_url"),
+		duration: integer("duration"),
+		fileSize: integer("file_size"),
+		orderIndex: integer("order_index").notNull().default(0),
+		uploadedBy: text("uploaded_by").references(() => user.id, { onDelete: "set null" }),
+		createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+		updatedAt: integer("updated_at", { mode: "timestamp" })
+			.defaultNow()
+			.$onUpdate(() => new Date())
+			.notNull(),
+	},
+	(table) => [
+		index("idx_course_videos_course").on(table.courseId),
+		index("idx_course_videos_playlist").on(table.playlistId),
+		index("idx_course_videos_chapter").on(table.chapterId),
+	]
+);
+
 // ─── Relations ────────────────────────────────────────────────────────────────
 
 export const coursesRelations = relations(courses, ({ one, many }) => ({
 	courseMaterials: many(courseMaterials),
+	videoPlaylists: many(courseVideoPlaylists),
+	videos: many(courseVideos),
 	assessmentSources: many(assessmentSources),
 	groupCourses: many(groupCourses),
 	enrollments: many(enrollments),
@@ -3720,6 +3778,33 @@ export const coursesRelations = relations(courses, ({ one, many }) => ({
 	coursePolicy: one(coursePolicies, {
 		fields: [courses.id],
 		references: [coursePolicies.courseId],
+	}),
+}));
+
+export const courseVideoPlaylistsRelations = relations(courseVideoPlaylists, ({ one, many }) => ({
+	course: one(courses, {
+		fields: [courseVideoPlaylists.courseId],
+		references: [courses.id],
+	}),
+	videos: many(courseVideos),
+}));
+
+export const courseVideosRelations = relations(courseVideos, ({ one }) => ({
+	course: one(courses, {
+		fields: [courseVideos.courseId],
+		references: [courses.id],
+	}),
+	playlist: one(courseVideoPlaylists, {
+		fields: [courseVideos.playlistId],
+		references: [courseVideoPlaylists.id],
+	}),
+	chapter: one(chapters, {
+		fields: [courseVideos.chapterId],
+		references: [chapters.id],
+	}),
+	uploader: one(user, {
+		fields: [courseVideos.uploadedBy],
+		references: [user.id],
 	}),
 }));
 
@@ -3896,6 +3981,7 @@ export const chaptersRelations = relations(chapters, ({ one, many }) => ({
  websiteMaterials: many(websiteMaterials),
  flashcardSets: many(flashcardSets),
  progressions: many(studentChapterProgress),
+ videos: many(courseVideos),
 }));
 
 export const studentChapterProgressRelations = relations(studentChapterProgress, ({ one }) => ({

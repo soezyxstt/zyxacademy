@@ -100,6 +100,12 @@ type Props = {
   initialGroups: StudentGroup[];
 };
 
+/**
+ * Renders the full student study group management dashboard,
+ * including meeting quota progress, course list, member roster, and session history.
+ *
+ * @param props - Component props containing initial student study groups.
+ */
 export function StudentGroupsClient({ initialGroups }: Props) {
   const router = useRouter();
   const [selectedGroupIndex, setSelectedGroupIndex] = useState(0);
@@ -265,73 +271,84 @@ export function StudentGroupsClient({ initialGroups }: Props) {
           </div>
 
           {/* Quick Schedule Button */}
-          <Link href="/dashboard/schedule">
-            <Button className="h-10 rounded-lg gap-2 bg-brand-primary text-white hover:bg-brand-primary/95 shadow-sm shadow-brand-primary/20">
-              <CalendarRange className="size-4" />
-              <span>Jadwalkan Sesi Tutorial</span>
-            </Button>
-          </Link>
+          {activeGroup.totalQuotaSessions > 0 ? (
+            <Link href="/dashboard/schedule">
+              <Button className="h-10 rounded-lg gap-2 bg-brand-primary text-white hover:bg-brand-primary/95 shadow-sm shadow-brand-primary/20">
+                <CalendarRange className="size-4" />
+                <span>Jadwalkan Sesi Tutorial</span>
+              </Button>
+            </Link>
+          ) : null}
         </div>
 
         {/* Quota Progress Grid */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {/* Progress Gauge */}
-          <div className="md:col-span-2 space-y-4 p-5 rounded-xl border border-border bg-muted/20">
-            <div className="flex items-center justify-between">
-              <div>
-                <span className="text-body-xs font-semibold text-muted-foreground block">
-                  Kuota Sesi Paket
-                </span>
-                <span className="font-heading text-h4 font-bold text-foreground">
-                  {activeGroup.usedQuotaSessions}{" "}
-                  <span className="text-body-base font-normal text-muted-foreground">
-                    / {activeGroup.totalQuotaSessions} Sesi Terpakai
+          {activeGroup.totalQuotaSessions > 0 ? (
+            <div className="md:col-span-2 space-y-4 p-5 rounded-xl border border-border bg-muted/20">
+              <div className="flex items-center justify-between">
+                <div>
+                  <span className="text-body-xs font-semibold text-muted-foreground block">
+                    Kuota Sesi Paket
                   </span>
-                </span>
+                  <span className="font-heading text-h4 font-bold text-foreground">
+                    {activeGroup.usedQuotaSessions}{" "}
+                    <span className="text-body-base font-normal text-muted-foreground">
+                      / {activeGroup.totalQuotaSessions} Sesi Terpakai
+                    </span>
+                  </span>
+                </div>
+                <div className="text-right">
+                  <span className="text-body-xs font-semibold text-muted-foreground block">
+                    Sisa Kuota
+                  </span>
+                  <span className="font-heading text-h4 font-bold text-brand-primary">
+                    {activeGroup.remainingQuota}{" "}
+                    <span className="text-body-xs font-normal text-muted-foreground">Sesi</span>
+                  </span>
+                </div>
               </div>
-              <div className="text-right">
-                <span className="text-body-xs font-semibold text-muted-foreground block">
-                  Sisa Kuota
-                </span>
-                <span className="font-heading text-h4 font-bold text-brand-primary">
-                  {activeGroup.remainingQuota}{" "}
-                  <span className="text-body-xs font-normal text-muted-foreground">Sesi</span>
-                </span>
-              </div>
-            </div>
 
-            {/* Progress Bar */}
-            <div className="space-y-1.5">
-              <div
-                className="w-full bg-muted rounded-full h-3 overflow-hidden"
-                role="progressbar"
-                aria-valuenow={Math.min(
-                  100,
-                  Math.round((activeGroup.usedQuotaSessions / Math.max(1, activeGroup.totalQuotaSessions)) * 100)
-                )}
-                aria-valuemin={0}
-                aria-valuemax={100}
-              >
+              {/* Progress Bar */}
+              <div className="space-y-1.5">
                 <div
-                  className="h-full bg-brand-primary rounded-full transition-all duration-500"
-                  style={{
-                    width: `${Math.min(100, (activeGroup.usedQuotaSessions / Math.max(1, activeGroup.totalQuotaSessions)) * 100)}%`,
-                  }}
-                />
+                  className="w-full bg-muted rounded-full h-3 overflow-hidden"
+                  role="progressbar"
+                  aria-valuenow={Math.min(
+                    100,
+                    Math.round((activeGroup.usedQuotaSessions / Math.max(1, activeGroup.totalQuotaSessions)) * 100)
+                  )}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                >
+                  <div
+                    className="h-full bg-brand-primary rounded-full transition-all duration-500"
+                    style={{
+                      width: `${Math.min(100, (activeGroup.usedQuotaSessions / Math.max(1, activeGroup.totalQuotaSessions)) * 100)}%`,
+                    }}
+                  />
+                </div>
+                <div className="flex items-center justify-between text-body-xs text-muted-foreground">
+                  <span>Jadwal sesi fleksibel</span>
+                  <span>Minggu ini: {activeGroup.weeklyUsedSessions} sesi dijadwalkan</span>
+                </div>
               </div>
-              <div className="flex items-center justify-between text-body-xs text-muted-foreground">
-                <span>Jadwal sesi fleksibel</span>
-                <span>Minggu ini: {activeGroup.weeklyUsedSessions} sesi dijadwalkan</span>
-              </div>
-            </div>
 
-            <p className="text-body-xs text-muted-foreground flex items-center gap-1.5 pt-1 border-t border-border/50">
-              <Activity className="size-3.5 text-brand-primary shrink-0" />
-              <span>
-                Total {activeGroup.usedQuotaSessions} sesi terlaksana dari paket {activeGroup.totalQuotaSessions} sesi.
-              </span>
-            </p>
-          </div>
+              <p className="text-body-xs text-muted-foreground flex items-center gap-1.5 pt-1 border-t border-border/50">
+                <Activity className="size-3.5 text-brand-primary shrink-0" />
+                <span>
+                  Total {activeGroup.usedQuotaSessions} sesi terlaksana dari paket {activeGroup.totalQuotaSessions} sesi.
+                </span>
+              </p>
+            </div>
+          ) : (
+            <div className="md:col-span-2 space-y-2 p-5 rounded-xl border border-border bg-muted/20 flex flex-col justify-center">
+              <span className="font-heading text-body-base font-bold text-foreground">Paket belajar mandiri</span>
+              <p className="text-body-xs text-muted-foreground">
+                Kelompok ini tidak mencakup kuota sesi tutorial tatap muka. Akses materi dan kuis tetap aktif.
+              </p>
+            </div>
+          )}
 
           {/* Period & Info Card */}
           <div className="space-y-3 p-5 rounded-xl border border-border bg-muted/10 flex flex-col justify-between">
@@ -532,24 +549,28 @@ export function StudentGroupsClient({ initialGroups }: Props) {
             <Clock className="size-5 text-brand-primary" />
             Riwayat Pertemuan & Jadwal Kelompok
           </h3>
-          <Link
-            href="/dashboard/schedule"
-            className="text-body-xs font-semibold text-brand-primary hover:underline flex items-center gap-1"
-          >
-            <span>Buka Kalender Jadwal</span>
-            <ChevronRight className="size-3.5" />
-          </Link>
+          {activeGroup.totalQuotaSessions > 0 ? (
+            <Link
+              href="/dashboard/schedule"
+              className="text-body-xs font-semibold text-brand-primary hover:underline flex items-center gap-1"
+            >
+              <span>Buka Kalender Jadwal</span>
+              <ChevronRight className="size-3.5" />
+            </Link>
+          ) : null}
         </div>
 
         {activeGroup.recentBookings.length === 0 ? (
           <div className="p-8 text-center text-muted-foreground text-body-sm space-y-2">
             <p>Belum ada sesi tutorial yang dijadwalkan untuk kelompok ini.</p>
-            <Link href="/dashboard/schedule">
-              <Button variant="outline" size="sm" className="rounded-lg gap-1.5 mt-2">
-                <CalendarRange className="size-3.5" />
-                <span>Pilih Jadwal Tutor</span>
-              </Button>
-            </Link>
+            {activeGroup.totalQuotaSessions > 0 ? (
+              <Link href="/dashboard/schedule">
+                <Button variant="outline" size="sm" className="rounded-lg gap-1.5 mt-2">
+                  <CalendarRange className="size-3.5" />
+                  <span>Pilih Jadwal Tutor</span>
+                </Button>
+              </Link>
+            ) : null}
           </div>
         ) : (
           <div className="overflow-x-auto">

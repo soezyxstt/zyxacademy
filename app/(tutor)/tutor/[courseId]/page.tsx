@@ -16,7 +16,7 @@ import { ApplicationPage } from "@/components/application-page";
 import { Button } from "@/components/ui/button";
 import { pageTitle } from "@/lib/site";
 import { ZyraProposalPanel } from "@/components/zyra/zyra-proposal-panel";
-import { CheckSquare, ClipboardList, Radio, Users } from "lucide-react";
+import { CheckSquare, ClipboardList, Radio, Users, Video } from "lucide-react";
 
 import { db } from "@/db";
 import { mataKuliah } from "@/db/schema";
@@ -103,6 +103,12 @@ export default async function TutorCoursePage({ params }: Props) {
             divider={false}
           />
           <div className="mt-4 flex flex-wrap items-center gap-2">
+            <Button variant="outline" size="sm" asChild className="h-8 rounded-lg">
+              <Link href={`/tutor/${courseId}/videos`}>
+                <Video className="size-4 mr-1.5" />
+                Kelola Video
+              </Link>
+            </Button>
             <Button variant="outline" size="sm" asChild className="h-8 rounded-lg">
               <Link href={`/tutor/${courseId}/quizzes`}>
                 <ClipboardList className="size-4 mr-1.5" />

@@ -892,7 +892,13 @@ export interface GroupCourseEligibilityResult {
 }
 
 /**
- * Checks if a study group is active and eligible to schedule sessions for a course.
+ * Checks if a study group is active and eligible to schedule sessions for a course,
+ * validating group status, course enrollment, member candidate representative, and meeting quotas.
+ *
+ * @param groupId - The ID of the study group to validate.
+ * @param courseIdentifier - The course ID, code, or legacy course identifier.
+ * @param executor - Optional database client or transaction executor.
+ * @returns Object containing eligibility flag, representative, member count, quotas, and failure reason.
  */
 export async function checkActiveGroupCourseEligibility(
   groupId: string,

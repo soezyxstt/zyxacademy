@@ -50,6 +50,7 @@ import {
   adminAssignTutorialSession,
   adminMoveTutorialSession,
   adminCancelTutorialSession,
+  adminDeleteTutorAvailability,
   updateTutorCourses,
 } from "@/app/(admin)/admin/(academic)/schedules/actions";
 import { daysFrom, formatIsoDate, getJakartaNow, getWeekScheduleDays } from "@/lib/date-utils";
@@ -75,11 +76,14 @@ function scheduleTypeLabel(type: string) {
   return "Akademik";
 }
 
+/**
+ * Dashboard for managing academic schedules, tutor availability, and group tutorial sessions.
+ */
 export function AcademicSchedulesDashboard({ initialData, initialWeekOffset = 0 }: Props) {
   const router = useRouter();
   const data = initialData;
   const [activeTab, setActiveTab] = useUrlTab("tab", "calendar");
-  const [calendarMode, setCalendarMode] = useUrlTab("calendarMode", "academic");
+  const [calendarMode, setCalendarMode] = useUrlTab("calendarMode", "all");
   const [displayWeekOffset, setDisplayWeekOffset] = useState(initialWeekOffset);
 
   useEffect(() => {
@@ -147,6 +151,10 @@ export function AcademicSchedulesDashboard({ initialData, initialWeekOffset = 0 
   const [editingTutor, setEditingTutor] = useState<any | null>(null);
   const [certSelectedIds, setCertSelectedIds] = useState<string[]>([]);
   const [certSaving, setCertSaving] = useState(false);
+
+  const [pendingDeleteSlot, setPendingDeleteSlot] = useState<any | null>(null);
+  const [deleteSlotReason, setDeleteSlotReason] = useState("");
+  const [deleteSlotLoading, setDeleteSlotLoading] = useState(false);
 
   const pendingTickets = data.tickets.filter((ticket: any) => ticket.status === "pending").length;
 
@@ -282,6 +290,35 @@ export function AcademicSchedulesDashboard({ initialData, initialWeekOffset = 0 
       toast.error("Terjadi kesalahan koneksi");
     } finally {
       setCancelLoading(false);
+    }
+  };
+
+  const openDeleteSlotDialog = (slotId: string) => {
+    const slot = data.slots.find((s: any) => s.id === slotId) || { id: slotId };
+    setPendingDeleteSlot(slot);
+    setDeleteSlotReason("");
+  };
+
+  const handleDeleteSlotSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!pendingDeleteSlot) return;
+    setDeleteSlotLoading(true);
+    try {
+      const result = await adminDeleteTutorAvailability({
+        slotId: pendingDeleteSlot.id,
+        reason: deleteSlotReason,
+      });
+      if (result.success) {
+        toast.success("Availability tutor berhasil dihapus");
+        setPendingDeleteSlot(null);
+        router.refresh();
+      } else {
+        toast.error(result.error || "Gagal menghapus availability");
+      }
+    } catch {
+      toast.error("Terjadi kesalahan koneksi");
+    } finally {
+      setDeleteSlotLoading(false);
     }
   };
 
@@ -514,12 +551,13 @@ export function AcademicSchedulesDashboard({ initialData, initialWeekOffset = 0 
 
         {activeTab === "calendar" ? (
           <Select value={calendarMode} onValueChange={setCalendarMode}>
-            <SelectTrigger className="h-9 w-[140px] shrink-0 rounded-lg text-body-sm font-semibold">
+            <SelectTrigger className="h-9 w-[150px] shrink-0 rounded-lg text-body-sm font-semibold">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="academic">Akademik</SelectItem>
+              <SelectItem value="all">Semua Jadwal</SelectItem>
               <SelectItem value="tutorial">Tutorial</SelectItem>
+              <SelectItem value="academic">Akademik</SelectItem>
             </SelectContent>
           </Select>
         ) : null}
@@ -529,16 +567,33 @@ export function AcademicSchedulesDashboard({ initialData, initialWeekOffset = 0 
           <span className="hidden sm:inline">Otomasi Meet</span>
         </Button>
 
-        {activeTab === "calendar" && calendarMode === "tutorial" ? (
-          <Button size="sm" onClick={openAvailabilityDialog} className="h-9 shrink-0 gap-1.5 rounded-lg text-body-sm font-semibold"><Plus className="size-3.5" />Tambah availability</Button>
-        ) : (
-          <Button size="sm" onClick={handleOpenCreate} className="h-9 shrink-0 gap-1.5 rounded-lg text-body-sm font-semibold"><Plus className="size-3.5" />Buat jadwal</Button>
+        {activeTab === "calendar" && (calendarMode === "tutorial" || calendarMode === "all") && (
+          <Button
+            variant={calendarMode === "all" ? "outline" : "default"}
+            size="sm"
+            onClick={openAvailabilityDialog}
+            className="h-9 shrink-0 gap-1.5 rounded-lg text-body-sm font-semibold"
+          >
+            <Plus className="size-3.5" />
+            <span className={calendarMode === "all" ? "hidden sm:inline" : undefined}>Tambah</span> availability
+          </Button>
+        )}
+
+        {(activeTab === "academic" || (activeTab === "calendar" && (calendarMode === "academic" || calendarMode === "all"))) && (
+          <Button
+            size="sm"
+            onClick={handleOpenCreate}
+            className="h-9 shrink-0 gap-1.5 rounded-lg text-body-sm font-semibold"
+          >
+            <Plus className="size-3.5" />
+            Buat jadwal
+          </Button>
         )}
       </div>
 
       {activeTab === "calendar" && (
         <div className="space-y-3">
-          {calendarMode === "tutorial" && (
+          {(calendarMode === "tutorial" || calendarMode === "all") && (
             <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-card px-3 py-2 text-body-xs">
               <span className="text-muted-foreground">Coverage tutorial untuk pekan yang sedang dilihat.</span>
               <div className="flex items-center gap-2">
@@ -552,7 +607,7 @@ export function AcademicSchedulesDashboard({ initialData, initialWeekOffset = 0 
           <div className={calendarStyles.root}>
             <ScheduleCalendarView
               role="admin"
-              adminMode={calendarMode === "tutorial" ? "tutorial" : "academic"}
+              adminMode={calendarMode as "all" | "tutorial" | "academic"}
               currentUserId=""
               weekInfo={displayWeekInfo}
               isWeekLocked={displayWeekLocked}
@@ -564,9 +619,10 @@ export function AcademicSchedulesDashboard({ initialData, initialWeekOffset = 0 
               slots={data.slots}
               bookings={data.bookings}
               academicSchedules={data.academicSchedules}
-              onCreateScheduleDirect={calendarMode === "academic" ? handleCreateDirect : undefined}
-              onAssignTutorialSlot={calendarMode === "tutorial" ? openAssignmentDialog : undefined}
-              onOpenSessionDetail={calendarMode === "tutorial" ? setSelectedSessionDetail : undefined}
+              onCreateScheduleDirect={calendarMode === "academic" || calendarMode === "all" ? handleCreateDirect : undefined}
+              onAssignTutorialSlot={calendarMode === "tutorial" || calendarMode === "all" ? openAssignmentDialog : undefined}
+              onOpenSessionDetail={calendarMode === "tutorial" || calendarMode === "all" ? setSelectedSessionDetail : undefined}
+              onDeleteSlot={calendarMode === "tutorial" || calendarMode === "all" ? openDeleteSlotDialog : undefined}
               onEditSchedule={handleOpenEdit}
               onDeleteSchedule={setPendingDeleteSchedule}
               onOpenAuditLog={setSelectedAuditBooking}
@@ -709,6 +765,42 @@ export function AcademicSchedulesDashboard({ initialData, initialWeekOffset = 0 
             })}
           </div>
           <DialogFooter><DialogClose asChild><Button variant="outline" type="button" disabled={certSaving}>Batal</Button></DialogClose><Button type="button" disabled={certSaving} isLoading={certSaving} onClick={handleSaveCerts}>Simpan Sertifikasi</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={Boolean(pendingDeleteSlot)} onOpenChange={(open) => !open && setPendingDeleteSlot(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Hapus availability tutor</DialogTitle>
+            <DialogDescription>Penghapusan slot availability oleh admin memerlukan alasan override.</DialogDescription>
+          </DialogHeader>
+          {pendingDeleteSlot ? (
+            <form onSubmit={handleDeleteSlotSubmit} className="space-y-4">
+              {pendingDeleteSlot.sessionDate ? (
+                <div className="rounded-lg border bg-muted/20 p-3 text-body-xs">
+                  {pendingDeleteSlot.sessionDate} · {pendingDeleteSlot.startTime} - {pendingDeleteSlot.endTime} · {pendingDeleteSlot.tutor?.name || "Tutor"}
+                </div>
+              ) : null}
+              <div className="space-y-1.5">
+                <label className="text-body-xs font-semibold">Alasan override</label>
+                <Textarea
+                  value={deleteSlotReason}
+                  onChange={(event) => setDeleteSlotReason(event.target.value)}
+                  required
+                  rows={3}
+                  placeholder="Contoh: Permintaan tutor atau penyesuaian jadwal operasional"
+                />
+              </div>
+              <DialogFooter className="gap-2 pt-2">
+                <DialogClose asChild>
+                  <Button type="button" variant="outline" disabled={deleteSlotLoading}>Batal</Button>
+                </DialogClose>
+                <Button type="submit" isLoading={deleteSlotLoading} disabled={deleteSlotLoading} className="bg-status-error text-white hover:bg-status-error/90">
+                  Hapus availability
+                </Button>
+              </DialogFooter>
+            </form>
+          ) : null}
         </DialogContent>
       </Dialog>
     </div>

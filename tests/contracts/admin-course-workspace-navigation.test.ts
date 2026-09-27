@@ -1,7 +1,10 @@
-import { describe, expect, test } from "bun:test";
-import { parseAdminCourseSlug, getAdminCourseNavItems } from "@/components/admin-sidebar";
-import { getRouteTitle } from "@/components/mobile-navbar";
-import { getCourseNavContext } from "@/app/(admin)/admin/(academic)/courses/actions";
+import { describe, expect, test, mock } from "bun:test";
+
+mock.module("server-only", () => ({}));
+
+const { parseAdminCourseSlug, getAdminCourseNavItems } = await import("@/components/admin-sidebar");
+const { getRouteTitle } = await import("@/components/mobile-navbar");
+const { getCourseNavContext } = await import("@/app/(admin)/admin/(academic)/courses/actions");
 
 describe("Admin Course Workspace Navigation & Mobile Route Titles Contract", () => {
   describe("Pathname parsing contract (parseAdminCourseSlug)", () => {
@@ -42,11 +45,12 @@ describe("Admin Course Workspace Navigation & Mobile Route Titles Contract", () 
     const slug = "kalkulus-1";
     const items = getAdminCourseNavItems(slug);
 
-    test("returns exactly ten items in the prescribed order", () => {
-      expect(items).toHaveLength(10);
+    test("returns exactly eleven items in the prescribed order", () => {
+      expect(items).toHaveLength(11);
       expect(items.map((i) => i.label)).toEqual([
         "Bab",
         "Dokumen",
+        "Video",
         "Kuis",
         "Soal",
         "Flashcard",
@@ -63,10 +67,16 @@ describe("Admin Course Workspace Navigation & Mobile Route Titles Contract", () 
       expect(docItem?.label).toBe("Dokumen");
     });
 
+    test("uses Video as exact Indonesian label for videos item", () => {
+      const videoItem = items.find((i) => i.id === "videos");
+      expect(videoItem?.label).toBe("Video");
+    });
+
     test("constructs exact paths with the course slug", () => {
       expect(items.map((i) => i.href)).toEqual([
         `/admin/courses/${slug}`,
         `/admin/courses/${slug}/documents`,
+        `/admin/courses/${slug}/videos`,
         `/admin/courses/${slug}/quizzes`,
         `/admin/courses/${slug}/questions`,
         `/admin/courses/${slug}/flashcards`,
@@ -106,15 +116,20 @@ describe("Admin Course Workspace Navigation & Mobile Route Titles Contract", () 
       expect(isItemActive(items[0], docsPath)).toBe(false);
       expect(isItemActive(items[1], docsPath)).toBe(true);
 
+      // Videos route: only Video is active
+      const videosPath = `/admin/courses/${slug}/videos`;
+      expect(isItemActive(items[0], videosPath)).toBe(false);
+      expect(isItemActive(items[2], videosPath)).toBe(true);
+
       // Quizzes nested route (/quizzes/new): Kuis is active, others not
       const newQuizPath = `/admin/courses/${slug}/quizzes/new`;
       expect(isItemActive(items[0], newQuizPath)).toBe(false);
-      expect(isItemActive(items[2], newQuizPath)).toBe(true);
+      expect(isItemActive(items[3], newQuizPath)).toBe(true);
 
       // Settings route: only Settings is active
       const settingsPath = `/admin/courses/${slug}/settings`;
-      expect(isItemActive(items[9], settingsPath)).toBe(true);
-      expect(items.slice(0, 9).every((i) => !isItemActive(i, settingsPath))).toBe(true);
+      expect(isItemActive(items[10], settingsPath)).toBe(true);
+      expect(items.slice(0, 10).every((i) => !isItemActive(i, settingsPath))).toBe(true);
     });
   });
 
@@ -140,11 +155,12 @@ describe("Admin Course Workspace Navigation & Mobile Route Titles Contract", () 
       expect(getRouteTitle("/admin/courses/")).toBe("Mata Kuliah");
     });
 
-    test("resolves mobile route titles for all ten contextual course routes", () => {
+    test("resolves mobile route titles for all eleven contextual course routes", () => {
       const slug = "aljabar-linear";
       expect(getRouteTitle(`/admin/courses/${slug}`)).toBe("Bab");
       expect(getRouteTitle(`/admin/courses/${slug}/`)).toBe("Bab");
       expect(getRouteTitle(`/admin/courses/${slug}/documents`)).toBe("Dokumen");
+      expect(getRouteTitle(`/admin/courses/${slug}/videos`)).toBe("Video");
       expect(getRouteTitle(`/admin/courses/${slug}/quizzes`)).toBe("Kuis");
       expect(getRouteTitle(`/admin/courses/${slug}/quizzes/new`)).toBe("Kuis");
       expect(getRouteTitle(`/admin/courses/${slug}/questions`)).toBe("Soal");

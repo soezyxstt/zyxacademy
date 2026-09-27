@@ -72,6 +72,12 @@ function formatDateTime(value: string) {
   }).format(new Date(value));
 }
 
+/**
+ * Renders the compact student study group view with tabbed navigation,
+ * package quota progress, membership details, and join token actions.
+ *
+ * @param props - Component props containing initial student groups.
+ */
 export function StudentGroupsCompactClient({ initialGroups }: Props) {
   const router = useRouter();
   const defaultGroupId = initialGroups[0]?.id ?? "";
@@ -232,46 +238,57 @@ export function StudentGroupsCompactClient({ initialGroups }: Props) {
             </div>
           </div>
 
-          <Button asChild size="sm" className="shrink-0 gap-1.5">
-            <Link href="/dashboard/schedule">
-              <CalendarRange className="size-3.5" />
-              Jadwalkan sesi
-            </Link>
-          </Button>
+          {activeGroup.totalQuotaSessions > 0 ? (
+            <Button asChild size="sm" className="shrink-0 gap-1.5">
+              <Link href="/dashboard/schedule">
+                <CalendarRange className="size-3.5" />
+                Jadwalkan sesi
+              </Link>
+            </Button>
+          ) : null}
         </div>
 
-        <div className="py-4">
-          <div className="flex items-end justify-between gap-4">
-            <div>
-              <p className="text-body-xs text-muted-foreground">Kuota paket</p>
-              <p className="font-heading text-h5 font-bold text-foreground">
-                {activeGroup.usedQuotaSessions}
-                <span className="ml-1 text-body-sm font-normal text-muted-foreground">
-                  / {activeGroup.totalQuotaSessions} sesi
+        {activeGroup.totalQuotaSessions > 0 ? (
+          <div className="py-4">
+            <div className="flex items-end justify-between gap-4">
+              <div>
+                <p className="text-body-xs text-muted-foreground">Kuota paket</p>
+                <p className="font-heading text-h5 font-bold text-foreground">
+                  {activeGroup.usedQuotaSessions}
+                  <span className="ml-1 text-body-sm font-normal text-muted-foreground">
+                    / {activeGroup.totalQuotaSessions} sesi
+                  </span>
+                </p>
+              </div>
+              <p className="text-right text-body-xs text-muted-foreground">
+                <span className="block font-heading text-h5 font-bold text-brand-primary">
+                  {activeGroup.remainingQuota ?? Math.max(0, activeGroup.totalQuotaSessions - activeGroup.usedQuotaSessions)}
                 </span>
+                tersisa
               </p>
             </div>
-            <p className="text-right text-body-xs text-muted-foreground">
-              <span className="block font-heading text-h5 font-bold text-brand-primary">
-                {activeGroup.remainingQuota ?? Math.max(0, activeGroup.totalQuotaSessions - activeGroup.usedQuotaSessions)}
-              </span>
-              tersisa
-            </p>
+            <div
+              className="mt-3 h-2 overflow-hidden rounded-full bg-muted"
+              role="progressbar"
+              aria-valuenow={totalPercent}
+              aria-valuemin={0}
+              aria-valuemax={100}
+            >
+              <div className="h-full rounded-full bg-brand-primary transition-all" style={{ width: `${totalPercent}%` }} />
+            </div>
+            <div className="mt-2 flex flex-wrap justify-between gap-2 text-body-xs text-muted-foreground">
+              <span>Minggu ini: {activeGroup.weeklyUsedSessions} sesi</span>
+              <span>{activeGroup.frequencyLabel}</span>
+            </div>
           </div>
-          <div
-            className="mt-3 h-2 overflow-hidden rounded-full bg-muted"
-            role="progressbar"
-            aria-valuenow={totalPercent}
-            aria-valuemin={0}
-            aria-valuemax={100}
-          >
-            <div className="h-full rounded-full bg-brand-primary transition-all" style={{ width: `${totalPercent}%` }} />
+        ) : (
+          <div className="py-4">
+            <div className="rounded-lg border border-border/60 bg-muted/20 px-3.5 py-3 text-body-xs text-muted-foreground">
+              <p className="font-semibold text-foreground">Paket belajar mandiri</p>
+              <p className="mt-0.5">Kelompok ini tidak mencakup kuota sesi tutorial tatap muka. Akses materi dan kuis tetap aktif.</p>
+            </div>
           </div>
-          <div className="mt-2 flex flex-wrap justify-between gap-2 text-body-xs text-muted-foreground">
-            <span>Minggu ini: {activeGroup.weeklyUsedSessions} sesi</span>
-            <span>{activeGroup.frequencyLabel}</span>
-          </div>
-        </div>
+        )}
 
         <div className="grid border-t border-border/50 sm:grid-cols-2">
           <div className="py-4 sm:pr-5">

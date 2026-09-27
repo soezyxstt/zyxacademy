@@ -316,4 +316,36 @@ export function buildQuizAttachmentKey(params: {
   return `${quizAttachmentPrefix(params.quizId)}${userFileLeaf(params.filename)}`;
 }
 
+/**
+ * Course video object key: `courses/{courseSlug}/videos/{leaf}`.
+ */
+export function buildCourseVideoKey(params: {
+  courseSlug: string;
+  filename: string;
+}): string {
+  return joinKey(
+    "courses",
+    slugifySegment(params.courseSlug, "course"),
+    "videos",
+    userFileLeaf(params.filename),
+  );
+}
+
+/**
+ * Course video thumbnail object key: `courses/{courseSlug}/videos/thumbnails/{leaf}`.
+ */
+export function buildCourseVideoThumbnailKey(params: {
+  courseSlug: string;
+  filename: string;
+}): string {
+  return joinKey(
+    "courses",
+    slugifySegment(params.courseSlug, "course"),
+    "videos",
+    "thumbnails",
+    userFileLeaf(params.filename),
+  );
+}
+
+
 
