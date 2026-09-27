@@ -168,10 +168,10 @@ export function RescheduleTicketModal({
         <DialogHeader>
           <DialogTitle className="font-heading text-body-base font-bold flex items-center gap-2">
             <MessageSquare className="size-5 text-brand-primary" />
-            Permohonan Reschedule & Pembatalan Pasca-Lock
+            Permohonan Reschedule & Pembatalan
           </DialogTitle>
           <DialogDescription className="text-body-xs text-muted-foreground">
-            Karena jadwal telah terkunci (Sabtu 23:59 WIB), perubahan wajib disepakati bersama tutor melalui ruang diskusi terpadu.
+            Perubahan jadwal dapat diajukan untuk disepakati bersama tutor melalui ruang diskusi terpadu.
           </DialogDescription>
         </DialogHeader>
 

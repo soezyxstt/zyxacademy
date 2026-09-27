@@ -28,6 +28,7 @@ import {
   recordTutorMutationAudit,
 } from "@/lib/audit/mutasi";
 import { getIsoWeekRange } from "@/lib/schedule-lock";
+import { getJakartaCalendarDate } from "@/lib/date-utils";
 import {
   addTutorialDays,
   canTutorCreateAvailability,
@@ -206,6 +207,7 @@ export async function executeAddTutorSlot(
   const client = (options?.executor ?? db) as typeof db;
   const courseIdForAudit = options?.courseId?.trim() || "global";
   const sessionDateIso = typeof input.sessionDate === "string" ? input.sessionDate.trim() : "";
+  const now = options?.now ?? new Date();
 
   // A slot without a concrete date is a legacy record, not a new bookable
   // availability row.
@@ -309,6 +311,29 @@ export async function executeAddTutorSlot(
     };
   }
 
+  if (sessionDateIso < getJakartaCalendarDate(now)) {
+    await recordTutorMutationAudit({
+      actorId: authContext.userId,
+      actorRoles: authContext.roles,
+      courseId: courseIdForAudit,
+      entityType: "tutor_slot",
+      entityId: "new_slot",
+      entityVersion: 1,
+      action: "tutor.slot.create",
+      outcome: "rejected",
+      requestId,
+      reason: "SESSION_DATE_IN_PAST",
+      before: null,
+      after: { ...input },
+    }, client);
+
+    return {
+      success: false,
+      error: "Tanggal sesi tidak boleh sebelum hari ini.",
+      reason: "SESSION_DATE_IN_PAST",
+    };
+  }
+
   // 4. Validate mode, lifecycle, and offline location.
   if (input.mode !== undefined && input.mode !== "online" && input.mode !== "offline") {
     await recordTutorMutationAudit({
@@ -333,29 +358,7 @@ export async function executeAddTutorSlot(
     };
   }
 
-  const availabilityNow = options?.now ?? new Date();
-  if (!canTutorCreateAvailability(sessionDateIso, availabilityNow)) {
-    await recordTutorMutationAudit({
-      actorId: authContext.userId,
-      actorRoles: authContext.roles,
-      courseId: courseIdForAudit,
-      entityType: "tutor_slot",
-      entityId: "new_slot",
-      entityVersion: 1,
-      action: "tutor.slot.create",
-      outcome: "rejected",
-      requestId,
-      reason: "TUTOR_AVAILABILITY_DEADLINE_PASSED",
-      before: null,
-      after: { ...input },
-    }, client);
 
-    return {
-      success: false,
-      error: "Perubahan ketersediaan tutor untuk minggu ini sudah ditutup.",
-      reason: "TUTOR_AVAILABILITY_DEADLINE_PASSED",
-    };
-  }
 
   const mode = input.mode ?? "online";
   if (mode === "offline" && (!input.location || input.location.trim().length === 0)) {
@@ -382,7 +385,6 @@ export async function executeAddTutorSlot(
   }
 
   const slotId = randomUUID();
-  const now = availabilityNow;
 
   try {
     await client.transaction(async (tx) => {
@@ -837,16 +839,6 @@ export async function copyTutorAvailabilityFromPreviousWeek(
   const sourceRange = getTutorialWeekRange(addTutorialDays(targetRange.startIso, -7));
   const now = options?.now ?? new Date();
 
-  if (!canTutorCreateAvailability(targetRange.startIso, now)) {
-    return {
-      success: false,
-      createdCount: 0,
-      skippedCount: 0,
-      conflicts: [],
-      error: "Perubahan ketersediaan tutor untuk minggu tujuan sudah ditutup.",
-      reason: "TUTOR_AVAILABILITY_DEADLINE_PASSED",
-    };
-  }
 
   try {
     return await client.transaction(async (tx) => {

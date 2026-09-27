@@ -40,7 +40,10 @@ async function createTestDb() {
       created_at INTEGER NOT NULL,
       updated_at INTEGER NOT NULL,
       role TEXT DEFAULT 'student',
-      last_activity_at INTEGER
+      last_activity_at INTEGER,
+      faculty TEXT,
+      major TEXT,
+      entry_year INTEGER
     );
   `);
 
@@ -438,6 +441,44 @@ describe("Tutor Schedule Action Contracts", () => {
    * 1. executeAddTutorSlot
    * ──────────────────────────────────────────────────────────────────────── */
   describe("executeAddTutorSlot", () => {
+    it("rejects yesterday in Jakarta and allows today", async () => {
+      const { testDb } = await createTestDb();
+      await seedTutorIdentity(testDb);
+      const options = {
+        actorId: "tutor-1",
+        executor: testDb,
+        now: new Date("2026-09-13T17:01:00.000Z"),
+      };
+
+      const yesterday = await executeAddTutorSlot(
+        {
+          dayOfWeek: "Minggu",
+          sessionDate: "2026-09-13",
+          startTime: "09:00",
+          endTime: "10:30",
+        },
+        options,
+      );
+      expect(yesterday.success).toBe(false);
+      expect(yesterday.reason).toBe("SESSION_DATE_IN_PAST");
+      expect(await testDb.select().from(schema.tutorSlots)).toHaveLength(0);
+
+      const today = await executeAddTutorSlot(
+        {
+          dayOfWeek: "Senin",
+          sessionDate: "2026-09-14",
+          startTime: "09:00",
+          endTime: "10:30",
+        },
+        options,
+      );
+      expect(today.success).toBe(true);
+      expect(await testDb.select().from(schema.tutorSlots)).toHaveLength(1);
+
+      const audits = await testDb.select().from(schema.auditMutasi);
+      expect(audits.map((audit) => audit.outcome)).toEqual(["rejected", "success"]);
+    });
+
     it("successfully creates a 90-minute slot and records mutation audit", async () => {
       const { testDb } = await createTestDb();
       const now = new Date();
@@ -3060,7 +3101,7 @@ describe("Tutor Schedule Action Contracts", () => {
       expect(bookingRows).toEqual([{ sessionDate: "2026-09-02" }]);
     });
 
-    it("rejects booking after the target week's Saturday lock", async () => {
+    it("allows booking without Saturday lock restrictions", async () => {
       const { testDb } = await createTestDb();
       await seedQuotaFixture(testDb, { weekly: 2, total: 15, used: 0 });
       await setFixtureSlotDate(testDb, "slot-a", "2026-08-31");
@@ -3077,9 +3118,9 @@ describe("Tutor Schedule Action Contracts", () => {
         },
       );
 
-      expect(result.success).toBe(false);
-      expect(result.reason).toBe("BOOKING_LOCKED");
-      expect(await testDb.select().from(schema.bookings)).toHaveLength(0);
+      expect(result.success).toBe(true);
+      expect(result.bookingId).toBeDefined();
+      expect(await testDb.select().from(schema.bookings)).toHaveLength(1);
     });
   });
 });

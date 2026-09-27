@@ -52,12 +52,12 @@ describe("Schedule Date Utilities Contract", () => {
     expect(cutoff.toISOString()).toBe("2026-08-22T16:59:59.999Z");
   });
 
-  test("isSessionLocked verifies the exact instant correctly", () => {
+  test("isSessionLocked returns false since lock system is removed", () => {
     const sessionDate = "2026-08-24";
     const cutoff = getWeeklyLockCutoff(sessionDate);
     expect(isSessionLocked(sessionDate, new Date(cutoff.getTime() - 1))).toBe(false);
     expect(isSessionLocked(sessionDate, cutoff)).toBe(false);
-    expect(isSessionLocked(sessionDate, new Date(cutoff.getTime() + 1))).toBe(true);
+    expect(isSessionLocked(sessionDate, new Date(cutoff.getTime() + 1))).toBe(false);
   });
 
   test("getWeekScheduleDays preserves Monday-Sunday date identity", () => {

@@ -52,8 +52,8 @@ import {
   INDONESIAN_DAYS,
   type IndonesianDay,
   getWeekScheduleDays,
+  getJakartaCalendarDate,
   getJakartaNow,
-  formatIsoDateUtc,
   parseDateInput,
   daysFrom,
 } from "@/lib/date-utils";
@@ -153,9 +153,7 @@ export function TutorScheduleView({
     return getWeekScheduleDays(anchorDate);
   }, [anchorDate]);
 
-  const isWeekLocked = useMemo(() => {
-    return isTutorialWeekLocked(weekInfo.days[0].dateIso);
-  }, [weekInfo]);
+  const isWeekLocked = false;
 
   useEffect(() => {
     for (const offset of [weekOffset - 1, weekOffset + 1]) {
@@ -170,7 +168,7 @@ export function TutorScheduleView({
   const [isMoveSessionOpen, setIsMoveSessionOpen] = useState(false);
   const [isDecideTicketOpen, setIsDecideTicketOpen] = useState(false);
 
-  const [newSlotDate, setNewSlotDate] = useState(() => formatIsoDateUtc(getJakartaNow()));
+  const [newSlotDate, setNewSlotDate] = useState(() => getJakartaCalendarDate());
   const [newSlotStart, setNewSlotStart] = useState("09:00");
   const [newSlotEnd, setNewSlotEnd] = useState("10:30");
   const [newSlotMode, setNewSlotMode] = useState<"online" | "offline">("online");
@@ -181,10 +179,7 @@ export function TutorScheduleView({
     () => getIndonesianWeekdayFromDate(newSlotDate),
     [newSlotDate],
   );
-  const canEditSelectedSlotDate = useMemo(
-    () => Boolean(newSlotDate) && canTutorCreateAvailability(newSlotDate),
-    [newSlotDate],
-  );
+  const canEditSelectedSlotDate = true;
 
   const [movingBooking, setMovingBooking] = useState<OwnedBookingItem | null>(null);
   const [targetMoveSlotId, setTargetMoveSlotId] = useState<string>("");
@@ -344,7 +339,7 @@ export function TutorScheduleView({
         if (res.movedDirectly) {
           toast.success("Sesi berhasil dipindahkan.");
         } else {
-          toast.info("Jadwal terkunci. Permohonan reschedule berhasil diajukan sebagai tiket.");
+          toast.info("Permohonan reschedule berhasil diajukan sebagai tiket.");
         }
         router.refresh();
       } else {
@@ -419,8 +414,8 @@ export function TutorScheduleView({
   };
 
   const openAddSlotDialog = () => {
-    const nextWeekMonday = getWeekScheduleDays(daysFrom(7, getJakartaNow())).days[0].dateIso;
-    setNewSlotDate(canTutorCreateAvailability(weekInfo.days[0].dateIso) ? weekInfo.days[0].dateIso : nextWeekMonday);
+    const todayIso = getJakartaCalendarDate();
+    setNewSlotDate(weekInfo.days[0].dateIso < todayIso ? todayIso : weekInfo.days[0].dateIso);
     setNewSlotStart("09:00");
     setNewSlotEnd("10:30");
     setNewSlotNotes("");
@@ -441,7 +436,6 @@ export function TutorScheduleView({
             <span><strong className="text-foreground">{openedSlotCount}</strong> dibuka</span>
             <span><strong className="text-foreground">{filledSlotCount}</strong> terisi</span>
             <span><strong className="text-foreground">{availableSlotCount}</strong> tersedia</span>
-            <span className="hidden sm:inline">Edit tutor ditutup Jumat 18:00 WIB · Booking dikunci Sabtu 23:59 WIB</span>
           </div>
         </div>
         <div className="flex shrink-0 flex-wrap items-center gap-2">
@@ -567,7 +561,7 @@ export function TutorScheduleView({
                     </div>
                     <div className="flex shrink-0 items-center gap-2">
                       {isBooked ? (
-                        <Button variant="outline" size="sm" disabled className="h-8 rounded-lg text-body-sm opacity-60">Terkunci</Button>
+                        <Button variant="outline" size="sm" disabled className="h-8 rounded-lg text-body-sm opacity-60">Terisi</Button>
                       ) : (
                         <Button variant="ghost" size="sm" disabled={isPending} onClick={() => handleDeleteSlot(slot.id)} className="h-8 rounded-lg text-body-sm text-status-error hover:bg-status-error/10 hover:text-status-error">
                           <Trash2 className="mr-1.5 size-4" />Hapus
@@ -732,13 +726,10 @@ export function TutorScheduleView({
                 id="tutor-slot-date"
                 type="date"
                 value={newSlotDate}
-                min={formatIsoDateUtc(getJakartaNow())}
+                min={getJakartaCalendarDate()}
                 onChange={(e) => setNewSlotDate(e.target.value)}
                 className="h-9 text-body-sm"
               />
-              {!canEditSelectedSlotDate && newSlotDate ? (
-                <p className="text-body-xs text-status-error">Batas perubahan slot untuk pekan tanggal ini sudah lewat.</p>
-              ) : null}
             </div>
             <div className="grid grid-cols-2 gap-2">
               <div className="space-y-1">
@@ -777,7 +768,7 @@ export function TutorScheduleView({
           </div>
           <DialogFooter>
             <Button variant="outline" size="sm" disabled={isPending} onClick={() => setIsAddSlotOpen(false)} className="h-9 rounded-lg text-body-sm">Batal</Button>
-            <Button size="sm" isLoading={isPending} disabled={!canEditSelectedSlotDate || !newSlotStart} onClick={handleAddSlot} className="h-9 rounded-lg bg-brand-primary text-body-sm text-white hover:bg-brand-primary/90">Simpan Slot</Button>
+            <Button size="sm" isLoading={isPending} disabled={!newSlotStart} onClick={handleAddSlot} className="h-9 rounded-lg bg-brand-primary text-body-sm text-white hover:bg-brand-primary/90">Simpan Slot</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -786,7 +777,7 @@ export function TutorScheduleView({
         <DialogContent className="sm:max-w-[450px]">
           <DialogHeader>
             <DialogTitle className="font-heading text-body-base font-bold">Pindahkan Jadwal Sesi</DialogTitle>
-            <DialogDescription className="text-body-xs">Pilih slot ketersediaan baru. Jika jadwal telah terkunci, permohonan akan diajukan sebagai tiket.</DialogDescription>
+            <DialogDescription className="text-body-xs">Pilih slot ketersediaan baru untuk memindahkan sesi.</DialogDescription>
           </DialogHeader>
           <div className="space-y-3 py-2">
             <div className="space-y-1">

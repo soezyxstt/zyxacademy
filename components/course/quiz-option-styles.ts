@@ -17,9 +17,11 @@ const optionStateClasses: Record<QuizOptionState, string> = {
   wrong: "border-status-error bg-status-error/10 shadow-sm",
 };
 
+export type QuizChoiceControl = "single" | "multiple";
+
 export function quizOptionClasses(state: QuizOptionState, className?: string) {
   return cn(
-    "flex w-full items-center gap-2.5 rounded-lg border px-3 py-2.5 text-left text-body-sm font-medium transition-all duration-200 cursor-pointer disabled:cursor-not-allowed md:gap-3 md:rounded-xl md:px-4 md:py-3",
+    "group flex w-full items-center gap-2.5 rounded-lg border px-3 py-2.5 text-left text-body-sm font-medium transition-all duration-200 cursor-pointer disabled:cursor-not-allowed md:gap-3 md:rounded-xl md:px-4 md:py-3",
     optionStateClasses[state],
     className,
   );
@@ -32,6 +34,9 @@ const letterStateClasses: Record<QuizOptionState, string> = {
   wrong: "bg-status-error text-white",
 };
 
+/**
+ * Returns class names for styling option letter badges (A, B, C...) based on state.
+ */
 export function quizOptionLetterClasses(state: QuizOptionState, className?: string) {
   return cn(
     "flex size-6 shrink-0 items-center justify-center rounded-md text-body-xs font-bold transition-colors md:size-7",
@@ -39,3 +44,31 @@ export function quizOptionLetterClasses(state: QuizOptionState, className?: stri
     className,
   );
 }
+
+/**
+ * Returns class names for styling choice indicator controls (circle radio vs boxie checkbox) based on state.
+ */
+export function quizOptionIndicatorClasses(
+  control: QuizChoiceControl,
+  state: QuizOptionState,
+  className?: string,
+) {
+  const isCircle = control === "single";
+  const shape = isCircle ? "rounded-full" : "rounded-md";
+  const stateColor =
+    state === "selected"
+      ? "border-brand-primary bg-brand-primary text-white"
+      : state === "correct"
+        ? "border-status-success bg-status-success text-white"
+        : state === "wrong"
+          ? "border-status-error bg-status-error text-white"
+          : "border-muted-foreground/35 bg-background group-hover:border-brand-primary/60";
+
+  return cn(
+    "flex size-4 shrink-0 items-center justify-center border-2 transition-all md:size-5",
+    shape,
+    stateColor,
+    className,
+  );
+}
+

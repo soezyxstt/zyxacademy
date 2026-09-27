@@ -634,14 +634,6 @@ export function validateSlotDeletionPolicy(input: {
       };
     }
 
-    if (!canTutorDeleteAvailability(input.slot!.sessionDate, input.now ?? new Date())) {
-      return {
-        canDelete: false,
-        slotId: input.slot!.id,
-        tutorId: input.tutorId,
-        reason: "TUTOR_AVAILABILITY_DEADLINE_PASSED",
-      };
-    }
   }
 
   return {

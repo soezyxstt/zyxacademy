@@ -144,13 +144,14 @@ export default async function PkaStagePage({ params, searchParams }: Props) {
                     : [];
                   const correct = q.correct_indices ?? (q as any).correctIndices ?? [];
 
+                  const isMultiple = qType === "multiple_choices" || correct.length > 1;
                   let isCorrect = false;
                   if (qType === "short_answer" || (Array.isArray((q as any).acceptable_answers) && (q as any).acceptable_answers.length > 0)) {
                     isCorrect = isShortAnswerCorrect(rawSel, (q as any).acceptable_answers);
                   } else if (qType === "essay") {
                     const text = typeof rawSel === "string" ? rawSel : Array.isArray(rawSel) ? String(rawSel[0] ?? "") : "";
                     isCorrect = text.trim().length > 0;
-                  } else if (qType === "multiple_choice" || !qType) {
+                  } else if (!isMultiple && (qType === "multiple_choice" || !qType)) {
                     const firstIdx = selected[0];
                     isCorrect = firstIdx !== undefined && correct.includes(firstIdx);
                   } else {
@@ -207,11 +208,22 @@ export default async function PkaStagePage({ params, searchParams }: Props) {
     }
 
     if (attempt.status === "in_progress") {
-      const initialAnswers: Record<string, number> = {};
+      const initialAnswers: Record<string, any> = {};
       if (attempt.answersSnapshot && typeof attempt.answersSnapshot === "object") {
-        for (const [qId, sel] of Object.entries(attempt.answersSnapshot as Record<string, number[]>)) {
-          if (Array.isArray(sel) && sel.length > 0 && typeof sel[0] === "number") {
-            initialAnswers[qId] = sel[0];
+        const qSnapshot = (attempt.questionsSnapshot as any[]) || [];
+        for (const [qId, sel] of Object.entries(attempt.answersSnapshot as Record<string, any>)) {
+          if (Array.isArray(sel)) {
+            const qObj = qSnapshot.find((x) => x.id === qId);
+            const isMultiple = qObj?.question_type === "multiple_choices" || (Array.isArray(qObj?.correct_indices) && qObj.correct_indices.length > 1);
+            if (isMultiple) {
+              initialAnswers[qId] = sel.filter((item) => typeof item === "number");
+            } else if (sel.length > 0 && typeof sel[0] === "number") {
+              initialAnswers[qId] = sel[0];
+            } else {
+              initialAnswers[qId] = sel;
+            }
+          } else {
+            initialAnswers[qId] = sel;
           }
         }
       }
@@ -222,18 +234,21 @@ export default async function PkaStagePage({ params, searchParams }: Props) {
         id: template.id,
         courseId: template.courseId,
         title: template.title,
-        questions: (attempt.questionsSnapshot as unknown as Array<{ id: string; prompt: string; options: string[]; correct_indices: number[]; origin?: "zyx_original" | "itb_example"; sourceEventName?: string | null; sourceReferenceId?: string | null }>).map(
-          (q, idx) => ({
-            id: q.id,
-            order: idx + 1,
-            type: "multiple_choice" as const,
-            prompt: q.prompt,
-            options: q.options,
-            correctIndex: q.correct_indices?.[0] ?? 0,
-            origin: q.origin,
-            sourceEventName: q.sourceEventName,
-            sourceReferenceId: q.sourceReferenceId,
-          }),
+        questions: (attempt.questionsSnapshot as unknown as Array<{ id: string; prompt: string; question_type?: string; options: string[]; correct_indices: number[]; origin?: "zyx_original" | "itb_example"; sourceEventName?: string | null; sourceReferenceId?: string | null }>).map(
+          (q, idx) => {
+            const isMultiple = q.question_type === "multiple_choices" || (Array.isArray(q.correct_indices) && q.correct_indices.length > 1);
+            return {
+              id: q.id,
+              order: idx + 1,
+              type: isMultiple ? "multiple_choices" : ((q.question_type as any) || "multiple_choice"),
+              prompt: q.prompt,
+              options: q.options,
+              correctIndex: q.correct_indices?.[0] ?? 0,
+              origin: q.origin,
+              sourceEventName: q.sourceEventName,
+              sourceReferenceId: q.sourceReferenceId,
+            };
+          },
         ),
         settings: {
           timeLimitSeconds: template.timeLimitSeconds ?? undefined,
