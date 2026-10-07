@@ -30,6 +30,7 @@ export async function GET(request: NextRequest) {
   const codeChallenge = params.get("code_challenge") ?? "";
   const codeChallengeMethod = params.get("code_challenge_method");
   const requestedResource = params.get("resource");
+  const prompt = params.get("prompt");
 
   if (responseType !== "code" || codeChallengeMethod !== "S256" || !codeChallenge) {
     return errorResponse(request, "invalid_request", state, undefined);
@@ -57,34 +58,41 @@ export async function GET(request: NextRequest) {
     return errorResponse(request, "invalid_scope", state, redirectUri);
   }
 
-  const session = await auth.api.getSession({ headers: request.headers });
-  if (!session?.user) {
-    const next = `${request.nextUrl.pathname}${request.nextUrl.search}`;
-    return NextResponse.redirect(new URL(`/sign-in?next=${encodeURIComponent(next)}`, request.nextUrl.origin));
+  // Silent approval path when prompt=none is requested
+  if (prompt === "none") {
+    const session = await auth.api.getSession({ headers: request.headers });
+    if (!session?.user) {
+      return errorResponse(request, "login_required", state, redirectUri);
+    }
+
+    try {
+      const principal = await resolveMcpAdmin({
+        userId: session.user.id,
+        sessionId: session.session.id,
+        scopes: scope,
+        authMethod: "session",
+      });
+      const code = await storeAuthorizationCode({
+        clientId,
+        redirectUri,
+        userId: principal.userId,
+        sessionId: principal.sessionId,
+        codeChallenge,
+        scope: principal.scopes.filter((item) => scope.includes(item)),
+        resource: expectedResource,
+      });
+      const target = new URL(redirectUri);
+      target.searchParams.set("code", code);
+      if (state) target.searchParams.set("state", state);
+      return NextResponse.redirect(target);
+    } catch (error) {
+      const code = error instanceof Error && error.message === "AUTHORING_MCP_ADMIN_REQUIRED" ? "access_denied" : "server_error";
+      return errorResponse(request, code, state, redirectUri);
+    }
   }
 
-  try {
-    const principal = await resolveMcpAdmin({
-      userId: session.user.id,
-      sessionId: session.session.id,
-      scopes: scope,
-      authMethod: "session",
-    });
-    const code = await storeAuthorizationCode({
-      clientId,
-      redirectUri,
-      userId: principal.userId,
-      sessionId: principal.sessionId,
-      codeChallenge,
-      scope: principal.scopes.filter((item) => scope.includes(item)),
-      resource: expectedResource,
-    });
-    const target = new URL(redirectUri);
-    target.searchParams.set("code", code);
-    if (state) target.searchParams.set("state", state);
-    return NextResponse.redirect(target);
-  } catch (error) {
-    const code = error instanceof Error && error.message === "AUTHORING_MCP_ADMIN_REQUIRED" ? "access_denied" : "server_error";
-    return errorResponse(request, code, state, redirectUri);
-  }
+  // Standard interactive user-agent consent flow
+  const authUrl = new URL("/mcp/authorize", request.nextUrl.origin);
+  authUrl.search = request.nextUrl.search;
+  return NextResponse.redirect(authUrl);
 }

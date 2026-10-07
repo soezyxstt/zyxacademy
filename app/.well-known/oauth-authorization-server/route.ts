@@ -8,7 +8,7 @@ export async function GET(request: Request) {
   const origin = new URL(request.url).origin;
   return NextResponse.json({
     issuer: origin,
-    authorization_endpoint: `${origin}/api/mcp/oauth/authorize`,
+    authorization_endpoint: `${origin}/mcp/authorize`,
     token_endpoint: `${origin}/api/mcp/oauth/token`,
     registration_endpoint: `${origin}/api/mcp/oauth/register`,
     response_types_supported: ["code"],
