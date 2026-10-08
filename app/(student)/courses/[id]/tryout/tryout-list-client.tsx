@@ -14,6 +14,7 @@ interface TryoutItem {
   status: "draft" | "published" | "ended";
   settings: any;
   questions: any[];
+  questionCount: number;
   isFree?: boolean;
   isPreview?: boolean;
   openAt?: Date | string | null;
@@ -201,7 +202,7 @@ export function TryoutListClient({ courseId, isEnrolled, tryouts }: TryoutListCl
                     ) : null}
                   </div>
                   <p className="mt-1 text-body-sm text-muted-foreground">
-                    {tryout.questions.length} soal · {tryout.settings?.timeLimitMinutes ?? 90} menit
+                    {tryout.questionCount} soal · {tryout.settings?.timeLimitMinutes ?? 90} menit
                   </p>
                 </div>
 

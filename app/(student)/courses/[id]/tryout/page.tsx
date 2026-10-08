@@ -9,8 +9,8 @@ import { checkEnrollment } from "@/app/(student)/dashboard/actions";
 import { TryoutListClient } from "./tryout-list-client";
 import { Reveal } from "@/components/ui/reveal";
 import { db } from "@/db";
-import { exams } from "@/db/schema";
-import { and, eq } from "drizzle-orm";
+import { exams, questions } from "@/db/schema";
+import { and, count, eq, inArray } from "drizzle-orm";
 
 type Props = { params: Promise<{ id: string }> };
 
@@ -38,6 +38,15 @@ export default async function CourseTryoutListPage({ params }: Props) {
     .from(exams)
     .where(and(eq(exams.courseId, course.legacyId ?? id), eq(exams.type, "tryout"), eq(exams.status, "published")));
 
+  const questionCounts = dbTryouts.length
+    ? await db
+        .select({ examId: questions.examId, count: count() })
+        .from(questions)
+        .where(inArray(questions.examId, dbTryouts.map((tryout) => tryout.id)))
+        .groupBy(questions.examId)
+    : [];
+  const questionCountsByExam = new Map(questionCounts.map(({ examId, count }) => [examId, count]));
+
   const mappedDb = dbTryouts.map((t) => {
     const settings = typeof t.settings === "string" ? JSON.parse(t.settings) : t.settings;
     return {
@@ -47,6 +56,7 @@ export default async function CourseTryoutListPage({ params }: Props) {
       type: "tryout" as const,
       status: t.status,
       settings: settings || { timeLimitMinutes: 90, maxAttempts: 2 },
+      questionCount: questionCountsByExam.get(t.id) ?? 0,
       questions: [],
       openAt: t.openAt,
       closeAt: t.closeAt,
