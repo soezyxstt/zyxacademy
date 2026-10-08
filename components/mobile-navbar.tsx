@@ -20,6 +20,7 @@ export function getRouteTitle(
       if (subpath.startsWith("/documents")) return "Dokumen";
       if (subpath.startsWith("/videos")) return "Video";
       if (subpath.startsWith("/quizzes")) return "Kuis";
+      if (subpath.startsWith("/tryouts")) return "Tryout";
       if (subpath.startsWith("/questions")) return "Soal";
       if (subpath.startsWith("/flashcards")) return "Flashcard";
       if (subpath.startsWith("/results")) return "Hasil";

@@ -207,7 +207,7 @@ export function TryoutForm({ courseId, exam }: TryoutFormProps) {
     if (index < sorted.length - 1) setIndex((i) => i + 1);
   }
 
-  const isQuestionAnswered = (question: QuestionSpec) => {
+  function isQuestionAnswered(question: QuestionSpec) {
     const ans = answers[question.id];
     if (!ans) return false;
     if (ans.type === "multiple_choice") return ans.index !== null;
@@ -218,7 +218,7 @@ export function TryoutForm({ courseId, exam }: TryoutFormProps) {
       return textDone || fileDone;
     }
     return false;
-  };
+  }
 
   const ans = answers[q.id];
   const currentFlagged = !!flags[q.id];

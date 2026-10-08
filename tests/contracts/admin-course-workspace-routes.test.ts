@@ -58,4 +58,35 @@ describe("admin course workspace routes", () => {
     expect(editPage).toContain("/${encodeURIComponent(slug)}/quizzes");
     expect(editPage).toContain("courseData.quizzes.some");
   });
+
+  test("adds admin-only course-scoped tryout authoring", () => {
+    const page = source(`${courseRoot}/tryouts/page.tsx`);
+
+    expect(page).toContain("await assertAdmin()");
+    expect(page).toContain("getCourseDetailData(slug)");
+    expect(page).toContain("<TryoutsClient");
+    expect(page).toContain("notFound()");
+    expect(page).toContain('eq(exams.courseId, courseId)');
+    expect(page).toContain('eq(exams.type, "tryout")');
+    expect(page).toContain('eq(aiQuestionBank.reviewStatus, "published")');
+  });
+
+  test("adds the tryout route to the admin course navigation titles", () => {
+    const sidebar = source("components/admin-sidebar.tsx");
+    const mobileNavbar = source("components/mobile-navbar.tsx");
+
+    expect(sidebar).toContain('id: "tryouts", label: "Tryout"');
+    expect(mobileNavbar).toContain('if (subpath.startsWith("/tryouts")) return "Tryout";');
+  });
+
+  test("publishes essay attachments through the existing tryout answer flow", () => {
+    const tryoutPage = source(`${courseRoot}/tryouts/page.tsx`);
+    const importAction = source("app/actions/tutor-management.ts");
+    const answerForm = source("components/course/tryout-form.tsx");
+
+    expect(tryoutPage).toContain('eq(aiQuestionBank.reviewStatus, "published")');
+    expect(importAction).toContain('acceptsFile: row.questionType === "essay"');
+    expect(answerForm).toContain('placeholder="Ketik penjelasan runut, penjabaran matematika, atau esai Anda di sini..."');
+    expect(answerForm).toContain('accept=".pdf,image/*"');
+  });
 });

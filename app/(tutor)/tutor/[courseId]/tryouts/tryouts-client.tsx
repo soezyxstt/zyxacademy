@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { MathText } from "@/components/course/math-text";
 import { toast } from "@/components/ui/toast";
 import {
@@ -345,14 +346,38 @@ export function TryoutsClient({ courseId, initialTryouts, initialQuestions, ques
                       ) : null}
                     </div>
 
-                    <div className="flex gap-1">
-                      <Button variant="ghost" size="xs" onClick={() => handleOpenEditQ(q)} className="rounded-md text-muted-foreground hover:text-foreground">
-                        <Edit2 className="size-3.5" />
-                      </Button>
-                      <Button variant="ghost" size="xs" onClick={() => setDeleteQId(q.id)} className="rounded-md text-status-error hover:bg-status-error/10 hover:text-status-error">
-                        <Trash2 className="size-3.5" />
-                      </Button>
-                    </div>
+                    <TooltipProvider>
+                      <div className="flex gap-1">
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="xs"
+                              aria-label={`Edit pertanyaan ${q.order}`}
+                              onClick={() => handleOpenEditQ(q)}
+                              className="rounded-md text-muted-foreground hover:text-foreground"
+                            >
+                              <Edit2 className="size-3.5" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>Edit pertanyaan</TooltipContent>
+                        </Tooltip>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="xs"
+                              aria-label={`Hapus pertanyaan ${q.order}`}
+                              onClick={() => setDeleteQId(q.id)}
+                              className="rounded-md text-status-error hover:bg-status-error/10 hover:text-status-error"
+                            >
+                              <Trash2 className="size-3.5" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>Hapus pertanyaan</TooltipContent>
+                        </Tooltip>
+                      </div>
+                    </TooltipProvider>
                   </div>
 
                   {/* Options Preview for MC */}

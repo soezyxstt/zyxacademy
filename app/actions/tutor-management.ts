@@ -1737,7 +1737,7 @@ export async function importQuestionBankToTryoutAction(
               correctIndex: Array.isArray(row.correctIndices) ? row.correctIndices[0] : undefined,
               correctIndices: Array.isArray(row.correctIndices) ? row.correctIndices : [],
               acceptsImage: false,
-              acceptsFile: false,
+              acceptsFile: row.questionType === "essay",
               acceptableAnswers: Array.isArray(row.acceptableAnswers) ? row.acceptableAnswers : [],
               explanation: row.explanation,
               ...questionProvenanceSnapshot(row),
