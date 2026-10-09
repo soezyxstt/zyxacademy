@@ -6,7 +6,7 @@ import { toast } from "@/components/ui/toast";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Flag, Timer, BookOpen, AlertCircle, FileText, CheckCircle2, Trash2, ArrowLeft, ArrowRight, UploadCloud } from "lucide-react";
-import { MathText } from "@/components/course/math-text";
+import { MarkdownRenderer } from "@/components/course/markdown-renderer";
 import type { ExamFixture, QuestionSpec } from "@/lib/student-course-fixtures";
 import { QuestionSourceCitation } from "@/components/course/question-source-citation";
 import {
@@ -259,13 +259,13 @@ export function TryoutForm({ courseId, exam }: TryoutFormProps) {
           )}
         >
           {/* Question Prompt */}
-          <div className="flex gap-4">
+          <div className="flex items-start gap-4">
             <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary text-body-sm font-bold text-white shadow-xs">
               {index + 1}
             </span>
-            <h2 className="font-sans text-body-base font-bold text-foreground leading-snug">
-              <MathText>{q.prompt}</MathText>
-            </h2>
+            <div className="min-w-0 flex-1 font-sans text-body-base leading-relaxed text-foreground">
+              <MarkdownRenderer content={q.prompt} className="space-y-3" />
+            </div>
           </div>
 
           {/* RENDER A: Pilihan Ganda (Single Choice) */}
