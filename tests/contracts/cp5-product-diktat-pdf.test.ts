@@ -180,7 +180,7 @@ describe("CP5 Product Bundle Diktat PDF", () => {
   });
 
   test("uses an explicit reproducible print profile", () => {
-    assert.equal(PRODUCT_DIKTAT_PRINT_PROFILE, "a4-self-study-compact-v2");
+    assert.equal(PRODUCT_DIKTAT_PRINT_PROFILE, "a4-self-study-readable-v3");
   });
 
   test("separates formula rows from symbol bullets and removes the repeated heading", () => {

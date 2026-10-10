@@ -49,6 +49,12 @@ const PRINT_PROFILES = {
     scale: 1,
     margin: DEFAULT_MARGIN,
   },
+  "a4-self-study-readable-v3": {
+    format: "a4",
+    printBackground: true,
+    scale: 1,
+    margin: DEFAULT_MARGIN,
+  },
   "a4-self-study-compact-v2": {
     format: "a4",
     printBackground: true,

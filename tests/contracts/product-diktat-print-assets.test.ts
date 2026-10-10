@@ -19,7 +19,7 @@ test("renderer places supplied contacts in the PDF footer with no default header
   let captured: any;
   const response = await worker.fetch(new Request("https://renderer.test/render", {
     method: "POST", headers: { Authorization: "Bearer test", "Content-Type": "application/json" },
-    body: JSON.stringify({html:"<p>PDF</p>",printProfile:"a4-self-study-compact-v2",footerTemplate:PRODUCT_DIKTAT_FOOTER_TEMPLATE}),
+    body: JSON.stringify({html:"<p>PDF</p>",printProfile:"a4-self-study-readable-v3",footerTemplate:PRODUCT_DIKTAT_FOOTER_TEMPLATE}),
   }), {SHARED_SECRET:"test",BROWSER:{quickAction:async (_action, options) => {captured=options;return new Response("%PDF-");}}});
   expect(response.status).toBe(200);
   expect(captured.pdfOptions).toMatchObject({displayHeaderFooter:true,headerTemplate:"<span></span>",footerTemplate:PRODUCT_DIKTAT_FOOTER_TEMPLATE,preferCSSPageSize:true});

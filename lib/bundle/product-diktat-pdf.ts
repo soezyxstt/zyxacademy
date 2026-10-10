@@ -5,8 +5,8 @@ import katex from "katex";
 import type { ProductEntity } from "./product-validator";
 
 
-export const PRODUCT_DIKTAT_RENDERER_VERSION = "zyx-diktat-worker-v2";
-export const PRODUCT_DIKTAT_PRINT_PROFILE = "a4-self-study-compact-v2";
+export const PRODUCT_DIKTAT_RENDERER_VERSION = "zyx-diktat-worker-v3";
+export const PRODUCT_DIKTAT_PRINT_PROFILE = "a4-self-study-readable-v3";
 
 export function buildSelfContainedKatexCss(): string {
   const require = createRequire("Deno" in globalThis ? new URL("../../workers/deno-background/package.json", import.meta.url) : import.meta.url);
@@ -105,30 +105,31 @@ export function compileProductDiktatHtml(source: ProductDiktatRenderSource): str
 ${WATERMARK_CSS}
 @page { size: A4; margin: 9mm 12mm 15mm; }
 * { box-sizing: border-box; }
-body { margin: 0; color: #172033; font-family: Arial, sans-serif; font-size: 8.4pt; line-height: 1.32; }
+body { margin: 0; color: #172033; font-family: Arial, sans-serif; font-size: 10.5pt; line-height: 1.38; }
 .diktat { position: relative; z-index: 1; }
 .diktat-header { border-bottom: 1px solid #b9c5d2; margin-bottom: 3mm; padding-bottom: 2mm; }
 .eyebrow { color: #b94c16; font-size: 7pt; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; }
 h1 { color: #172033; font-size: 15pt; line-height: 1.2; margin: 1mm 0 0; }
 .diktat-content { column-count: 2; column-gap: 7mm; }
-.section-h1, .section-h2 { color: #172033; font-size: 10pt; line-height: 1.2; margin: 3mm 0 1mm; break-after: avoid; }
-.section-h3, .section-h4 { font-size: 8.7pt; margin: 2mm 0 .7mm; break-after: avoid; }
+@media screen and (max-width: 600px) { .diktat-content { column-count: 1; } }
+.section-h1, .section-h2 { color: #172033; font-size: 12pt; line-height: 1.2; margin: 3mm 0 1mm; break-after: avoid; }
+.section-h3, .section-h4 { font-size: 10.8pt; margin: 2mm 0 .7mm; break-after: avoid; }
 p { margin: 0 0 1.4mm; }
 ol, ul { margin: 0 0 1.6mm; padding-left: 5.5mm; }
 li { margin-bottom: .8mm; padding-left: .5mm; }
 .pedagogical-card { display: contents; }
 .formula-display { margin: 1mm 0 1.2mm; text-align: left; break-inside: avoid; }
 .katex-display { margin: 0; overflow: visible; text-align: left; }
-.formula-list { display: grid; gap: .6mm; margin: 1.4mm 0 2mm; padding-left: 1mm; }
+.formula-list { display: grid; gap: .6mm; margin: 1.4mm 0 2mm; padding-left: 1mm; break-inside: avoid; }
 .formula-item { min-width: 0; }
 .formula-item .formula-display { display: block; margin: 0; }
-.katex { font-size: .92em; }
+.katex { font-size: 1.05em; }
 .semantic-emphasis { font-weight: 600; }
 .semantic-label { font-weight: 700; margin-right: 3px; }
 .semantic-caution { color: inherit; }
 .diktat-divider { border: 0; border-top: 1px solid #d9dee8; margin: 2mm 0; }
 .table-container { break-inside: avoid; margin: 1.5mm 0; }
-.diktat-table { width: 100%; border-collapse: collapse; font-size: 7.5pt; }
+.diktat-table { width: 100%; border-collapse: collapse; font-size: 10pt; }
 .diktat-table th, .diktat-table td { border: 1px solid #d9dee8; padding: 1mm; }
 .misconception-grid { margin: 1.5mm 0; }
 .label-wrong, .label-correct, .solution-header, .example-badge, .step-badge { font-weight: 700; }
