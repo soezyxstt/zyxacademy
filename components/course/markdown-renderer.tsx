@@ -198,7 +198,7 @@ function parseInline(text: string): ReactNode[] {
       result.push(
         <span
           key={`mathblk-${index}`}
-          className="my-2 block max-w-full overflow-x-auto no-scrollbar py-1 text-left [&_.katex-display]:my-0 [&_.katex-display]:text-left"
+          className="my-2 block max-w-full overflow-x-auto overflow-y-hidden no-scrollbar py-1 text-left [&_.katex-display]:my-0 [&_.katex-display]:text-left"
           dangerouslySetInnerHTML={{ __html: renderMath(content, true) }}
         />
       );
@@ -830,7 +830,7 @@ function ASTBlockRenderer({ block, density }: { block: ASTBlock; density?: Markd
         return (
           <div
             className={cn(
-              "formula-focus max-w-full overflow-x-auto no-scrollbar rounded-lg border-l-4 border-primary bg-primary/[0.04] px-4 py-3 text-left [&_.katex-display]:my-0 [&_.katex-display]:text-left",
+              "formula-focus max-w-full overflow-x-auto overflow-y-hidden no-scrollbar rounded-lg border-l-4 border-primary bg-primary/[0.04] px-4 py-3 text-left [&_.katex-display]:my-0 [&_.katex-display]:text-left",
               isCompact ? "my-2" : "my-4",
             )}
             data-content-kind="formula"
@@ -883,7 +883,7 @@ function ASTBlockRenderer({ block, density }: { block: ASTBlock; density?: Markd
             {block.items?.map((item, itemIdx) => (
               <div
                 key={itemIdx}
-                className="max-w-full overflow-x-auto no-scrollbar text-left [&_.katex-display]:my-0 [&_.katex-display]:text-left"
+                className="max-w-full overflow-x-auto overflow-y-hidden no-scrollbar text-left [&_.katex-display]:my-0 [&_.katex-display]:text-left"
                 dangerouslySetInnerHTML={{ __html: renderMath(standaloneMathSource(item.text), true) }}
               />
             ))}
@@ -899,16 +899,27 @@ function ASTBlockRenderer({ block, density }: { block: ASTBlock; density?: Markd
             isOrdered ? "list-decimal" : "list-disc"
           )}
         >
-          {block.items?.map((item: any, itemIdx: number) => (
-            <li key={itemIdx} className="pl-2 marker:text-muted-foreground">
-              {isStandaloneMathBlock(item.text) ? (
-                <span
-                  className="block max-w-full overflow-x-auto no-scrollbar [&_.katex-display]:my-0 [&_.katex-display]:text-left"
-                  dangerouslySetInnerHTML={{ __html: renderMath(standaloneMathSource(item.text), true) }}
-                />
-              ) : renderRichText(item.text)}
-            </li>
-          ))}
+          {block.items?.map((item: any, itemIdx: number) => {
+            const isMath = !isOrdered && isStandaloneMathBlock(item.text);
+            if (isMath) {
+              return (
+                <li
+                  key={itemIdx}
+                  className="list-none -ml-6 sm:-ml-7 my-2.5 rounded-xl border border-border/70 bg-card p-3 shadow-2xs"
+                >
+                  <span
+                    className="block max-w-full overflow-x-auto overflow-y-hidden no-scrollbar [&_.katex-display]:my-0 [&_.katex-display]:text-left"
+                    dangerouslySetInnerHTML={{ __html: renderMath(standaloneMathSource(item.text), true) }}
+                  />
+                </li>
+              );
+            }
+            return (
+              <li key={itemIdx} className="pl-2 marker:text-muted-foreground">
+                {renderRichText(item.text)}
+              </li>
+            );
+          })}
         </ListTag>
       );
     }

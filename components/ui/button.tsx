@@ -93,7 +93,7 @@ function Button({
           {isLoading && (
             <Loader2 className="absolute size-4 animate-spin text-inherit" aria-hidden="true" />
           )}
-          <span className={cn("inline-flex items-center justify-center", gapClass, isLoading && "opacity-0 invisible")}>
+          <span className={cn("inline-flex items-center justify-center w-full min-w-0 max-w-full", gapClass, isLoading && "opacity-0 invisible")}>
             {children}
           </span>
         </>

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { ExternalLink, GraduationCap } from "lucide-react";
-import { AdminPageHeader } from "@/components/admin/page-header";
+import { AdminPageHeader, type BreadcrumbItem } from "@/components/admin/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
@@ -13,15 +13,20 @@ export type AdminCourseHeaderData = {
 
 type Props = {
   course: AdminCourseHeaderData;
+  breadcrumbs?: BreadcrumbItem[];
 };
 
-export function CourseDetailHeader({ course }: Props) {
+export function CourseDetailHeader({ course, breadcrumbs }: Props) {
+  const resolvedBreadcrumbs: BreadcrumbItem[] = breadcrumbs ?? [
+    { label: "Mata Kuliah", href: "/admin/courses" },
+    { label: course.title },
+  ];
+
   return (
     <AdminPageHeader
       icon={GraduationCap}
       title={course.title}
-      backHref="/admin/courses"
-      backLabel="Kembali ke Daftar Mata Kuliah"
+      breadcrumbs={resolvedBreadcrumbs}
       actions={
         <div className="flex flex-wrap items-center gap-2">
           <Badge variant="outline" className="rounded-md font-mono text-body-xs">
