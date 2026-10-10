@@ -28,7 +28,7 @@ test("Diktat math uses embedded KaTeX fonts and bounded radicals", async ({page}
   if(testInfo.project.name==="laptop-fhd-125") {
     for (const width of [600, 601]) {
       await page.setViewportSize({width,height:864});
-      expect(await page.locator('.diktat-content').evaluate(element=>getComputedStyle(element).columnCount)).toBe(width===600 ? '1' : '2');
+      expect(await page.locator('.diktat').evaluate(element=>getComputedStyle(element).columnCount)).toBe(width===600 ? '1' : '2');
       expect(await page.evaluate(()=>document.documentElement.scrollWidth<=document.documentElement.clientWidth)).toBe(true);
       await page.screenshot({path:testInfo.outputPath(`breakpoint-${width}.png`),fullPage:true});
     }

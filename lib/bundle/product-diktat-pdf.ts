@@ -5,7 +5,7 @@ import katex from "katex";
 import type { ProductEntity } from "./product-validator";
 
 
-export const PRODUCT_DIKTAT_RENDERER_VERSION = "zyx-diktat-worker-v3";
+export const PRODUCT_DIKTAT_RENDERER_VERSION = "zyx-diktat-worker-v4";
 export const PRODUCT_DIKTAT_PRINT_PROFILE = "a4-self-study-readable-v3";
 
 export function buildSelfContainedKatexCss(): string {
@@ -69,7 +69,7 @@ export const ZYX_MAIN_LOGO_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBo
 
 const DIKTAT_CONTACT_FOOTER_HTML = `<span>Instagram: zyx_academy</span><span>Email: zyxforbusiness@gmail.com</span><span>WhatsApp: 0851 9475 4224</span><a href="https://zyxacademy.com">zyxacademy.com</a>`;
 
-export const PRODUCT_DIKTAT_FOOTER_TEMPLATE = `<div style="width:100%;margin:0 12mm;font-family:Arial,sans-serif;font-size:8px;color:#334b78;border-top:1px solid #b9c5d2;padding-top:5px;display:flex;justify-content:space-between;white-space:nowrap">${DIKTAT_CONTACT_FOOTER_HTML}</div>`;
+export const PRODUCT_DIKTAT_FOOTER_TEMPLATE = `<div style="width:100%;margin:0 12mm;font-family:Arial,sans-serif;font-size:8px;color:#334b78;border-top:1px solid #b9c5d2;padding-top:5px;display:flex;justify-content:space-between;white-space:nowrap">${DIKTAT_CONTACT_FOOTER_HTML}<span><span class="pageNumber"></span>/<span class="totalPages"></span></span></div>`;
 
 const WATERMARK_CSS = `
 .diktat-watermark {
@@ -110,8 +110,9 @@ body { margin: 0; color: #172033; font-family: Arial, sans-serif; font-size: 10.
 .diktat-header { border-bottom: 1px solid #b9c5d2; margin-bottom: 3mm; padding-bottom: 2mm; }
 .eyebrow { color: #b94c16; font-size: 7pt; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; }
 h1 { color: #172033; font-size: 15pt; line-height: 1.2; margin: 1mm 0 0; }
-.diktat-content { column-count: 2; column-gap: 7mm; }
-@media screen and (max-width: 600px) { .diktat-content { column-count: 1; } }
+.diktat { column-count: 2; column-gap: 7mm; }
+
+@media screen and (max-width: 600px) { .diktat { column-count: 1; } }
 .section-h1, .section-h2 { color: #172033; font-size: 12pt; line-height: 1.2; margin: 3mm 0 1mm; break-after: avoid; }
 .section-h3, .section-h4 { font-size: 10.8pt; margin: 2mm 0 .7mm; break-after: avoid; }
 p { margin: 0 0 1.4mm; }
@@ -138,7 +139,7 @@ li { margin-bottom: .8mm; padding-left: .5mm; }
 </style></head><body>
 <div class="diktat-watermark" aria-hidden="true">${ZYX_MAIN_LOGO_SVG}</div>
 
-<main class="diktat"><header class="diktat-header"><span class="eyebrow">Diktat</span><h1>${title}</h1></header><div class="diktat-content">${content}</div></main></body></html>`;
+<main class="diktat"><header class="diktat-header"><span class="eyebrow">Diktat</span><h1>${title}</h1></header>${content}</main></body></html>`;
 }
 
 /** Removes the leading Markdown title already printed in the document header. */

@@ -22,5 +22,7 @@ test("renderer places supplied contacts in the PDF footer with no default header
     body: JSON.stringify({html:"<p>PDF</p>",printProfile:"a4-self-study-readable-v3",footerTemplate:PRODUCT_DIKTAT_FOOTER_TEMPLATE}),
   }), {SHARED_SECRET:"test",BROWSER:{quickAction:async (_action, options) => {captured=options;return new Response("%PDF-");}}});
   expect(response.status).toBe(200);
+  expect(PRODUCT_DIKTAT_FOOTER_TEMPLATE).toContain('class="pageNumber"');
+  expect(PRODUCT_DIKTAT_FOOTER_TEMPLATE).toContain('class="totalPages"');
   expect(captured.pdfOptions).toMatchObject({displayHeaderFooter:true,headerTemplate:"<span></span>",footerTemplate:PRODUCT_DIKTAT_FOOTER_TEMPLATE,preferCSSPageSize:true});
 });

@@ -340,7 +340,14 @@ function fitFunctionViewport(spec: FunctionPlotCanvas): Viewport {
     yMin = clamp(plotMin, -100, 100);
     yMax = clamp(plotMax, -100, 100);
   }
-  return { xMin: spec.domain.min, xMax: spec.domain.max, yMin, yMax };
+  if (spec.equalAxisScale) {
+    const scale = Math.max((spec.domain.max - spec.domain.min) / PLOT_W, (yMax - yMin) / PLOT_H);
+    const cx = (spec.domain.min + spec.domain.max) / 2;
+    const cy = (yMin + yMax) / 2;
+    return { xMin: cx - scale * PLOT_W / 2, xMax: cx + scale * PLOT_W / 2, yMin: cy - scale * PLOT_H / 2, yMax: cy + scale * PLOT_H / 2 };
+  }
+  const paddingX = (spec.domain.max - spec.domain.min) * 0.05;
+  return { xMin: spec.domain.min - paddingX, xMax: spec.domain.max + paddingX, yMin, yMax };
 }
 
 function GridLayer({
@@ -853,7 +860,7 @@ function FunctionPlot({ spec }: { spec: FunctionPlotCanvas }) {
               cx={mapX(root.x)}
               cy={mapY(0)}
               r={4}
-              fill="var(--color-card)"
+              fill={root.color}
               stroke={root.color}
               strokeWidth={2}
               clipPath={`url(#plot-clip-${uid})`}
@@ -931,7 +938,7 @@ function FunctionPlot({ spec }: { spec: FunctionPlotCanvas }) {
 function FallbackTable({ spec, className }: { spec: CanvasSpec; className?: string }) {
   return (
     <div className={cn("space-y-3 rounded-xl border border-border bg-card p-4", className)}>
-      <p className="text-body-sm text-muted-foreground">{spec.fallback.summary}</p>
+      <MathText as="p" className="text-body-sm text-muted-foreground">{spec.fallback.summary}</MathText>
       <div className="overflow-x-auto">
         <table className="w-full border-collapse text-body-sm">
           <caption className="sr-only">{spec.altText}</caption>
@@ -949,7 +956,7 @@ function FallbackTable({ spec, className }: { spec: CanvasSpec; className?: stri
               <tr key={rowIndex} className="border-b border-border/60">
                 {spec.fallback.columns.map((column, columnIndex) => (
                   <td key={column.id} className="px-2 py-1 font-mono">
-                    {row[columnIndex] ?? ""}
+                    <MathText>{row[columnIndex] ?? ""}</MathText>
                   </td>
                 ))}
               </tr>

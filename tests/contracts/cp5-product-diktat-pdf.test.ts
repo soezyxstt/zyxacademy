@@ -147,6 +147,20 @@ after(async () => {
 });
 
 describe("CP5 Product Bundle Diktat PDF", () => {
+  test("a multi-page Diktat starts its body on the title page", async () => {
+    const article = articleProduct(LIMIT_ARTICLE_FIXTURE);
+    const diktat = diktatProduct(article, "x^2");
+    diktat.contentMarkdown = Array.from({ length: 24 }, (_, i) => `## Konsep ${i + 1}\n\nPenanda isi ${i + 1}. ${"Periksa domain sebelum menggunakan rumus dan substitusikan hasil untuk memastikan syarat awal terpenuhi. ".repeat(5)}`).join("\n\n");
+    const bytes = await realPdf(compileProductDiktatHtml({ article, diktat }));
+    const { PDFParse } = await import("pdf-parse");
+    PDFParse.setWorker(pathToFileURL(path.resolve("node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs")).href);
+    const parser = new PDFParse({ data: bytes.slice() });
+    try {
+      const text = await parser.getText();
+      assert.ok(text.pages.length > 1);
+      assert.match(text.pages[0].text, /Penanda isi 1\./);
+    } finally { await parser.destroy(); }
+  });
   const fixtures = [
     [LIMIT_ARTICLE_FIXTURE, "\\delta=\\varepsilon/2"],
     [EIGENVALUES_ARTICLE_FIXTURE, "Av=\\lambda v"],
