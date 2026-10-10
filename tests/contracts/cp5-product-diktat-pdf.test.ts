@@ -10,6 +10,7 @@ import {
   compileProductDiktatHtml,
   parseCanonicalDiktatMarkdownToHtml,
   PRODUCT_DIKTAT_PRINT_PROFILE,
+  PRODUCT_DIKTAT_FOOTER_TEMPLATE,
   canDownloadProductDiktat,
 } from "@/lib/bundle/product-diktat-pdf";
 import {
@@ -97,7 +98,7 @@ function diktatProduct(article: Extract<ProductEntity, { productType: "article" 
     sourceHash: article.sourceHash,
     generationHash: HASH,
     creatorId: "fixture-author",
-    contentMarkdown: generateDiktatContent(formula),
+    contentMarkdown: Array.from({ length: 4 }, () => generateDiktatContent(formula)).join("\n\n"),
     sourceArticleId: article.id,
     sourceArticleVersion: article.version,
     sourceArticleHash: article.generationHash,
@@ -108,7 +109,7 @@ async function realPdf(html: string): Promise<Uint8Array> {
   const page = await browser.newPage();
   try {
     await page.setContent(html, { waitUntil: "load" });
-    return await page.pdf({ format: "A4", printBackground: true, preferCSSPageSize: true });
+    return await page.pdf({ format: "A4", printBackground: true, preferCSSPageSize: true, displayHeaderFooter: true, headerTemplate: "<span></span>", footerTemplate: PRODUCT_DIKTAT_FOOTER_TEMPLATE });
   } finally {
     await page.close();
   }
@@ -192,7 +193,7 @@ describe("CP5 Product Bundle Diktat PDF", () => {
     assert.doesNotMatch(html, /<h1 class="section-h1">Diktat ringkas/);
     assert.match(html, /class="formula-list"/);
     assert.match(html, /<ul class="diktat-list">/);
-    assert.match(html, /href="https:\/\/zyxacademy.com"/);
+    assert.match(PRODUCT_DIKTAT_FOOTER_TEMPLATE, /href="https:\/\/zyxacademy.com"/);
     const parsed = parseCanonicalDiktatMarkdownToHtml(diktat.contentMarkdown, diktat.title);
     assert.match(parsed, /class="formula-list"/);
   });
