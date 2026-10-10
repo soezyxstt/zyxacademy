@@ -101,7 +101,7 @@ export async function generateProductDiktatPdfEvidence(input: {
   };
   await db.insert(buktiPdfBundle).values({ ...base, status: "pending", createdAt: now, updatedAt: now }).onConflictDoUpdate({
     target: [buktiPdfBundle.imporBundleId, buktiPdfBundle.productId, buktiPdfBundle.diktatHash, buktiPdfBundle.printProfile],
-    set: { status: "pending", storageKey: null, pageCount: null, failureCode: null, updatedAt: now },
+    set: { rendererVersion: PRODUCT_DIKTAT_RENDERER_VERSION, status: "pending", storageKey: null, pageCount: null, failureCode: null, updatedAt: now },
   });
 
   try {

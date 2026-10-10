@@ -1,6 +1,5 @@
 import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
-import { fileURLToPath } from "node:url";
 import path from "node:path";
 import katex from "katex";
 import type { ProductEntity } from "./product-validator";
