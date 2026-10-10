@@ -429,7 +429,7 @@ export async function saveCourseVideoAction(input: {
     }
     const rawVideoUrl = input.videoUrl.trim();
     if (!rawVideoUrl) {
-      return { success: false, error: "Tautan video YouTube wajib diisi" };
+      return { success: false, error: "Berkas atau tautan video wajib diisi" };
     }
 
     // Process YouTube link or ID
