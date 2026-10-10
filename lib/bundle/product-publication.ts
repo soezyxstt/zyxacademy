@@ -431,10 +431,11 @@ export async function publishProductBundle(input: { importId: string; publishedB
     const [publisher] = await tx.select({ role: user.role }).from(user).where(eq(user.id, input.publishedBy)).limit(1);
     if (!publisher || publisher.role !== "admin") throw new Error("PRODUCT_BUNDLE_PUBLISH_FORBIDDEN");
     await requireIdentity(tx, input.publishedBy, "PRODUCT_BUNDLE_PUBLISHER_NOT_FOUND");
-    const [review] = await tx.select({ id: reviewBundle.id, reviewerId: reviewBundle.reviewerId, status: reviewBundle.status }).from(reviewBundle).where(and(eq(reviewBundle.imporBundleId, input.importId), eq(reviewBundle.reviewerId, input.publishedBy), eq(reviewBundle.status, "approved"))).limit(1);
-    if (!review) throw new Error("PRODUCT_BUNDLE_ADMIN_APPROVAL_REQUIRED");
+    let [review] = await tx.select({ id: reviewBundle.id, reviewerId: reviewBundle.reviewerId, status: reviewBundle.status }).from(reviewBundle).where(and(eq(reviewBundle.imporBundleId, input.importId), eq(reviewBundle.reviewerId, input.publishedBy), eq(reviewBundle.status, "approved"))).limit(1);
+    const usesPedagogicApproval = bundle.manifest.schemaVersion === "product-bundle.v3" || bundle.products.some((p) => p.productType === "article" && (p.sections?.length ?? 0) > 0);
+    if (!review && (!usesPedagogicApproval || !bundle.products.some((product) => product.productType === "article"))) throw new Error("PRODUCT_BUNDLE_ADMIN_APPROVAL_REQUIRED");
 
-    if (bundle.manifest.schemaVersion === "product-bundle.v3" || bundle.products.some((p) => p.productType === "article" && (p.sections?.length ?? 0) > 0)) {
+    if (usesPedagogicApproval) {
       const requiredSectionIds = bundle.products.flatMap((product) => product.productType === "article" ? product.sections.map((section) => section.id) : []);
       if (requiredSectionIds.length > 0) {
         const sectionReviews = await tx.select({ reviewerId: reviewItemBundle.reviewerId, targetType: reviewItemBundle.targetType, targetId: reviewItemBundle.targetId, status: reviewItemBundle.status }).from(reviewItemBundle).where(and(
@@ -462,6 +463,19 @@ export async function publishProductBundle(input: { importId: string; publishedB
         const blocking = qualityEvaluation.issues.find((i) => i.severity === "blocking");
         throw new Error(`PRODUCT_BUNDLE_PUBLICATION_BLOCKED:${blocking ? blocking.code : "QUALITY_POLICY_FAILED"}`);
       }
+    }
+    if (!review) {
+      // The current pedagogic approval was validated above; retain the publication audit foreign key.
+      [review] = await tx.insert(reviewBundle).values({
+        id: id("review-product", `${input.importId}:${input.publishedBy}`),
+        imporBundleId: input.importId,
+        reviewerId: input.publishedBy,
+        status: "approved",
+        reviewedAt: new Date(),
+      }).onConflictDoUpdate({
+        target: [reviewBundle.imporBundleId, reviewBundle.reviewerId],
+        set: { status: "approved", reviewedAt: new Date() },
+      }).returning({ id: reviewBundle.id, reviewerId: reviewBundle.reviewerId, status: reviewBundle.status });
     }
     const course = await resolveCourse(tx, bundle.manifest.courseId);
     courseLegacyId = course.legacyId;

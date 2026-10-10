@@ -593,7 +593,21 @@ describe("CP2 Publication Integration Contract", () => {
     });
   }
 
-  test("publishes V3 bundle end-to-end with approved review and ready PDF evidence", async () => {
+  for (const failure of ["missing-approval", "failed-pdf", "missing-section"] as const) {
+    test(`does not create a legacy approval when ${failure} blocks publication`, async () => {
+      const article = createV3Article();
+      const diktat = createDiktat(article);
+      const { staged } = await stageTestBundle(article, diktat);
+      await seedApprovalRecords({ importId: staged.importId, article, diktat });
+      await testDb.delete(schema.reviewBundle).where(eq(schema.reviewBundle.imporBundleId, staged.importId));
+      if (failure === "missing-approval") await testDb.delete(schema.reviewPedagogiBundle).where(eq(schema.reviewPedagogiBundle.imporBundleId, staged.importId));
+      if (failure === "failed-pdf") await testDb.update(schema.buktiPdfBundle).set({ status: "failed" }).where(eq(schema.buktiPdfBundle.imporBundleId, staged.importId));
+      if (failure === "missing-section") await testDb.delete(schema.reviewItemBundle).where(eq(schema.reviewItemBundle.imporBundleId, staged.importId));
+      await expect(publishProductBundle({ importId: staged.importId, publishedBy: "user-admin-1" })).rejects.toThrow();
+      expect(await testDb.select().from(schema.reviewBundle).where(eq(schema.reviewBundle.imporBundleId, staged.importId))).toHaveLength(0);
+    });
+  }
+  test("publishes V3 with the current pedagogic approval and no legacy bundle review", async () => {
     const article = createV3Article();
     const diktat = createDiktat(article);
     const { staged } = await stageTestBundle(article, diktat);
@@ -603,6 +617,9 @@ describe("CP2 Publication Integration Contract", () => {
       article,
       diktat,
     });
+
+    await testDb.delete(schema.reviewBundle).where(eq(schema.reviewBundle.imporBundleId, staged.importId));
+    await testDb.update(schema.reviewPedagogiBundle).set({ rubric: { criteria: [] } }).where(eq(schema.reviewPedagogiBundle.imporBundleId, staged.importId));
 
     const pubResult = await publishProductBundle({
       importId: staged.importId,
