@@ -27,7 +27,8 @@ type DiktatProduct = Extract<ProductEntity, { productType: "diktat" }>;
 export async function inspectProductDiktatPdf(bytes: Uint8Array): Promise<InspectedPdf> {
   const { PDFParse } = await import("pdf-parse");
   await setupPdfWorker(PDFParse);
-  const parser = new PDFParse({ data: bytes });
+  // PDF.js transfers its input buffer to a worker. Keep the upload bytes owned here.
+  const parser = new PDFParse({ data: bytes.slice() });
   try {
     const info = await parser.getInfo();
     const textResult = await parser.getText();
