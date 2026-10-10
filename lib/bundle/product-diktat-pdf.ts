@@ -112,6 +112,7 @@ body { margin: 0; color: #172033; font-family: Arial, sans-serif; font-size: 10.
 h1 { color: #172033; font-size: 15pt; line-height: 1.2; margin: 1mm 0 0; }
 .diktat { column-count: 2; column-gap: 7mm; }
 
+@media screen { .diktat { padding-top: 2mm; } }
 @media screen and (max-width: 600px) { .diktat { column-count: 1; } }
 .section-h1, .section-h2 { color: #172033; font-size: 12pt; line-height: 1.2; margin: 3mm 0 1mm; break-after: avoid; }
 .section-h3, .section-h4 { font-size: 10.8pt; margin: 2mm 0 .7mm; break-after: avoid; }
