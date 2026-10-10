@@ -8,6 +8,7 @@ import { joinKey, slugifySegment } from "@/lib/storage/keys";
 import type { ProductEntity } from "@/lib/bundle/product-validator";
 import { parseStagedProductBundle } from "@/lib/bundle/product-staging";
 import type { SafeFailureCode } from "@/lib/materials/pdf-artifact-contract";
+import { uploadProductDiktatPdf } from "./product-diktat-storage";
 import {
   PRODUCT_DIKTAT_PRINT_PROFILE,
   PRODUCT_DIKTAT_RENDERER_VERSION,
@@ -111,14 +112,13 @@ export async function generateProductDiktatPdfEvidence(input: {
     });
     if (inspection.pageCount < 2 || inspection.pageCount > 4) throw new Error("PRODUCT_DIKTAT_PAGE_BUDGET_EXCEEDED");
     const objectKey = joinKey("overhaul", input.importId, "diktat-pdf", `${slugifySegment(diktat.id)}-${diktat.generationHash.slice(0, 16)}.pdf`);
-    try {
-      await (input.storageProvider ?? storage).upload(bytes, `${slugifySegment(diktat.title)}.pdf`, "application/pdf", {
-        key: objectKey,
-        metadata: { importId: input.importId, productId: diktat.id, rendererVersion: PRODUCT_DIKTAT_RENDERER_VERSION },
-      });
-    } catch {
-      throw new Error("PRODUCT_DIKTAT_STORAGE_UNAVAILABLE");
-    }
+    await uploadProductDiktatPdf({
+      provider: input.storageProvider ?? storage,
+      bytes,
+      filename: `${slugifySegment(diktat.title)}.pdf`,
+      key: objectKey,
+      metadata: { importId: input.importId, productId: diktat.id, rendererVersion: PRODUCT_DIKTAT_RENDERER_VERSION },
+    });
     await db.update(buktiPdfBundle).set({ status: "ready", storageKey: objectKey, pageCount: inspection.pageCount, failureCode: null, updatedAt: new Date() }).where(eq(buktiPdfBundle.id, id));
     return { evidenceId: id, status: "ready", pageCount: inspection.pageCount };
   } catch (error) {
