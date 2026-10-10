@@ -406,6 +406,9 @@ function GridLayer({
       {showXAxis && <line x1={PAD_L} y1={y0} x2={PAD_L + PLOT_W} y2={y0} stroke={AXIS} strokeWidth={1.75} />}
       {showYAxis && <line x1={x0} y1={PAD_T} x2={x0} y2={PAD_T + PLOT_H} stroke={AXIS} strokeWidth={1.75} />}
 
+      <text x={PAD_L + PLOT_W + 10} y={PAD_T + PLOT_H + 22} fill={LABEL} fontSize={11}>x</text>
+      <text x={PAD_L - 32} y={PAD_T - 3} fill={LABEL} fontSize={11}>y</text>
+
       {xTicks.map((xv) => (
         <text
           key={`xt-${xv}`}
