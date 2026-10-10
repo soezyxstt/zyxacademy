@@ -3,7 +3,7 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   serverExternalPackages: ["puppeteer", "katex"],
   outputFileTracingIncludes: {
-    "/api/**": ["./node_modules/katex/dist/katex.min.css", "./node_modules/katex/dist/fonts/*.woff2"],
+    "/api/**": ["./node_modules/katex/dist/**", "./node_modules/katex/package.json"],
   },
   typescript: {
     ignoreBuildErrors: true,
