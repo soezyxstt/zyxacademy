@@ -10,8 +10,8 @@ export const PRODUCT_DIKTAT_RENDERER_VERSION = "zyx-diktat-worker-v2";
 export const PRODUCT_DIKTAT_PRINT_PROFILE = "a4-self-study-compact-v2";
 
 export function buildSelfContainedKatexCss(): string {
-  const require = createRequire(import.meta.url);
-  const distDir = path.dirname("Deno" in globalThis ? fileURLToPath(import.meta.resolve("katex")) : require.resolve("katex"));
+  const require = createRequire("Deno" in globalThis ? path.resolve(process.cwd(), "package.json") : import.meta.url);
+  const distDir = path.dirname(require.resolve("katex"));
   const rawCss = readFileSync(path.join(distDir, "katex.min.css"), "utf8");
   return rawCss.replace(/url\(fonts\/(KaTeX_[^)]+\.woff2)\) format\("woff2"\)(?:,url\([^)]+\) format\("[^"]+"\))*/g, (_match, filename) => {
     const font = readFileSync(path.join(distDir, "fonts", filename)).toString("base64");
