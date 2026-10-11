@@ -31,7 +31,7 @@ Background execution is handled by Deno Deploy, orchestrated via Inngest. Deploy
 ### Automated Pipeline Capabilities
 
 The deployment workflow performs the following actions automatically on push (filtered to worker-relevant paths) or manual `workflow_dispatch`:
-1. **Pre-deploy Verification**: Runs `worker:deno:audit` (dependency tree guard) and `worker:deno:check` (typecheck).
+1. **Pre-deploy Verification**: Runs `worker:deno:audit` (dependency tree guard) and `worker:deno:check` (typecheck). Before deployment, `workers/deno-background/diktat-assets-smoke.ts` also verifies embedded KaTeX fonts and the contact footer with the worker import map, a dummy database URL, and no network permission.
 2. **Dynamic Provisioning**: Automatically provisions the Deno Deploy app via `deno deploy create` if it does not already exist.
 3. **Environment Sync**: Synchronizes all repository and environment secrets to Deno Deploy via `deno deploy env load --replace`.
 4. **Zero-downtime Deploy**: Runs `deno run -A jsr:@deno/deploy@0.0.9904 --non-interactive --org soezyxst --app $APP_NAME --prod` with a 10 minute step timeout. The CLI version is pinned so CI never floats to an untested release.

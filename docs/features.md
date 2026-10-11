@@ -46,6 +46,7 @@ Canonical access-role codes are `admin`, `tutor`, and `murid`. Admin and tutor l
 - Monitors content quality flags (auto-detected issues)
 - Views coaching analytics dashboards
 - Accesses course-scoped Quiz & Exam Analytics & Insight portals (`/admin/courses/[slug]/analytics`) for real-time item and distractor analysis, student attempt spreadsheets, item-response answer matrices, export to CSV, and on-demand Gemini AI deep pedagogical insights
+- Creates and publishes course-scoped tryouts at `/admin/courses/[slug]/tryouts` from published question bank items; essay questions can accept typed responses and PDF or image attachments
 - Accesses Tutor Quiz Attempt Spreadsheet portal (`/tutor/[courseId]/quizzes/[templateId]/attempts`) for detailed student answer inspection and CSV exports
 - Monitors real-time tutor mutations, rejections, and failures with cursor pagination, stats aggregation, and sanitized snapshot inspection (`/admin/ops/tutor-activity`)
 - Monitors real-time statuses for the approved optional feature flags (`/admin/ops/flags`) with status badges, category filters, and env key helpers
@@ -110,10 +111,12 @@ Canonical access-role codes are `admin`, `tutor`, and `murid`. Admin and tutor l
 ### Admin Course Workspace Hierarchy & Contextual Navigation
 
 1. Admin course management is organized as a nested hierarchy under `/admin/courses/[slug]`, replacing former tab-based client state with direct, addressable routes.
-2. The contextual sidebar automatically switches when navigating inside `/admin/courses/[slug]`, rendering exactly nine course-scoped destinations in order:
+2. The contextual sidebar automatically switches when navigating inside `/admin/courses/[slug]`, rendering course-scoped destinations in this order:
    - Bab (`/admin/courses/[slug]`): chapter management, reordering, and canonical projection.
    - Dokumen (`/admin/courses/[slug]/documents`): unified document catalog with responsive search, upload dialog, and full document management workspace for previews, PDF metadata, and article or diktat lifecycle.
+   - Video (`/admin/courses/[slug]/videos`): course video playlists and lesson links.
    - Kuis (`/admin/courses/[slug]/quizzes`): course quizzes list with inline metrics and nested quiz authoring routes.
+   - Tryout (`/admin/courses/[slug]/tryouts`): course-scoped tryout authoring, question bank import, and publication to the student Tryout page.
    - Soal (`/admin/courses/[slug]/questions`): course-filtered question bank.
    - Flashcard (`/admin/courses/[slug]/flashcards`): course-locked flashcard set and card CRUD management.
    - Hasil (`/admin/courses/[slug]/results`): student attempt metrics and completion rates.

@@ -10,11 +10,11 @@ Source Pack adalah bukti asli. Idea mengikat pengetahuan dan provenance. Artikel
 
 ## 2. Matriks Artikel sebelum drafting
 
-Satu baris untuk setiap tujuan yang dapat diamati:
+Satu baris untuk setiap tujuan yang dapat diamati. Tandai target/Idea dan unsur terkait sebagai `WAJIB`, `PENDUKUNG`, atau `TAMBAHAN` berdasarkan tujuan serta bukti. Klasifikasi ini membantu prioritas, tetapi tidak boleh melanggar primary Idea coverage atau batas contract.
 
-| Tujuan | Primary Idea dan source locator | Prasyarat yang harus dijelaskan | Block penjelasan | Formula, simbol, dan kondisi | Contoh dan alasan relevansi | Visual/emphasis, fallback, dan alasan | Cek, jawaban, pembahasan | Hasil |
+| Tujuan dan prioritas | Primary Idea dan source locator | Prasyarat yang harus dijelaskan | Block penjelasan | Formula, simbol, dan kondisi | Contoh dan alasan relevansi | Visual/emphasis, fallback, dan alasan | Cek, jawaban, pembahasan | Status dan bukti |
 |---|---|---|---|---|---|---|---|---|
-| Menentukan kapan aturan berlaku | ID dan excerpt internal yang benar-benar dibaca | Istilah/kondisi yang dipakai | Lokasi section/block setelah ditulis | Kasus berlaku dan tidak berlaku bila kondisi menentukan keputusan | - | - | Cek keputusan beserta alasannya | PASS/FAIL |
+| Menentukan kapan aturan berlaku (`WAJIB`) | ID dan excerpt internal yang benar-benar dibaca | Istilah/kondisi yang dipakai | Lokasi section/block setelah ditulis | Kasus berlaku dan tidak berlaku bila kondisi menentukan keputusan | - | - | Cek keputusan beserta alasannya | `PASS`/`FAIL`/`NOT_APPLICABLE`/`NOT_TESTED` plus lokasi bukti |
 
 Jangan memakai “memahami topik” sebagai tujuan tanpa keluaran yang dapat diperiksa. Gunakan keluaran seperti menjelaskan hubungan, memilih metode beserta alasan, menghitung beserta kondisi, atau membedakan dua kasus.
 
@@ -49,17 +49,17 @@ Jangan memperbaiki gap hanya dengan menambahkan link atau menyisipkan penjelasan
 
 ## 5. Turunkan Diktat per item
 
-Setelah Artikel lulus, susun tabel berikut untuk setiap item Diktat:
+Setelah Artikel lulus, susun tabel berikut untuk setiap konsep wajib dan setiap unsur pendukung/tambahan yang dimasukkan ke Diktat:
 
-| Item Diktat | Lokasi Artikel + kutipan pendukung singkat | Aksi kompresi | Fungsi review | Kondisi yang dipertahankan | Dampak page budget | Bukti render | Hasil |
+| Konsep/prioritas | Lokasi Artikel + kutipan pendukung singkat | Aksi kompresi | Fungsi review | Kondisi/notasi yang dipertahankan | Pertanyaan recall/penerapan | Jawaban dan alasan singkat | Contoh bila tujuan perlu penerapan | Dampak page budget | Bukti render | Status |
 |---|---|---|---|---|---|---|---|
-| Ringkasan konsep/rumus/prosedur/jebakan/cek | Section/block aktual, bukan hanya Idea ID | Dipadatkan, digabung, atau dihapus dengan alasan | Mengingat konsep, memilih aturan, atau mengecek kesalahan | Domain, asumsi, pengecualian yang memengaruhi kebenaran | Perkiraan kepadatan, bukan pengganti page count | Hash, renderer/profile, page count, inspeksi halaman | PASS/FAIL |
+| Konsep inti (`WAJIB`) | Section/block aktual, bukan hanya Idea ID | Dipadatkan, digabung, atau dihapus dengan alasan | Mengingat konsep, memilih aturan, atau mengecek kesalahan | Domain, asumsi, pengecualian yang memengaruhi kebenaran | Satu cek yang sesuai tujuan | Jawaban dapat diperiksa dan menjelaskan alasan | Lokasi contoh Artikel bila penerapan diperlukan | Perkiraan kepadatan, bukan pengganti page count | Hash, renderer/profile, page count, inspeksi halaman | Status dan lokasi bukti |
 
-“Penting” berarti termasuk primary Idea scope, diperlukan untuk mencapai tujuan, atau menentukan kapan jawaban/metode benar. Seluruh Idea scope harus tetap terwakili; kurangi pengulangan dan uraian pengantar, bukan cakupan atau syarat kebenaran. Jangan memaksakan formula/prosedur pada bab yang tidak memilikinya.
+`WAJIB` berarti langsung memenuhi tujuan, termasuk primary Idea yang wajib dicakup, atau menentukan kapan jawaban/metode benar. `PENDUKUNG` membantu memahami atau memakai konsep wajib. `TAMBAHAN` berguna untuk pendalaman, tetapi tidak dibutuhkan untuk tujuan scope. Seluruh primary Idea yang diwajibkan contract harus tetap terwakili; ringkas unsur pendukung dan hilangkan tambahan hanya bila tidak wajib untuk coverage. Jangan memaksakan formula/prosedur pada bab yang tidak memilikinya.
 
-Urutan kerja: petakan konsep, pilih intisari tiap topic, ringkas rumus dengan kondisi, tampilkan langkah keputusan, pilih contoh kilat dari Artikel, rangkum jebakan yang sudah dijelaskan, lalu buat retrieval check beserta jawaban ringkas untuk self-review. Contoh kilat merujuk solusi yang sudah diajarkan; jangan menyembunyikan cara baru di contoh Diktat.
+Urutan kerja: petakan konsep dan prioritas, pilih intisari tiap topic, ringkas rumus dengan kondisi serta notasi Artikel, tampilkan langkah keputusan, pilih contoh kilat dari Artikel, rangkum jebakan yang sudah dijelaskan, lalu buat sedikitnya satu cek recall/penerapan untuk setiap konsep inti beserta jawaban yang dapat diperiksa dan alasan singkat. Setiap tujuan yang memang meminta penerapan juga memiliki contoh representatif yang dirujuk dari Artikel. Contoh kilat merujuk solusi yang sudah diajarkan; jangan menyembunyikan cara baru di contoh Diktat.
 
-Diktat lulus jika tiap item punya evidence Artikel dan membantu review cepat setelah belajar. Buang pembukaan berulang, analogi panjang, derivasi lengkap, dan contoh yang tidak mengubah keputusan; pertahankan langkah keputusan dan batas penggunaan. Jika pemadatan tetap tidak cukup untuk PDF 2 sampai 4 halaman, laporkan konflik scope. Jangan menghapus Idea, formula, atau syarat kebenaran, dan jangan mengecilkan font untuk mengejar halaman.
+Diktat lulus jika setiap unsur punya bukti Artikel dan membantu review cepat setelah belajar. Buang pembukaan berulang, analogi panjang, derivasi lengkap, dan contoh yang tidak mengubah keputusan; pertahankan langkah keputusan dan batas penggunaan. Tujuan editorial adalah paling ringkas dan terbaca, maksimal 4 halaman A4, tanpa target minimum atau filler. Body font tetap 10.5 pt tanpa auto-shrink. Contract saat ini tetap mensyaratkan 2 sampai 4 halaman; bila isi lengkap muat 1 halaman, jangan menambah isi hanya untuk mencapai minimum. Tandai mutu isi sesuai bukti dan PDF `BLOCKED` oleh contract sampai batas tersebut diperbarui. Jika pemadatan yang sah belum muat dalam 4 halaman, laporkan konflik scope. Jangan menghapus Idea, formula, contoh yang perlu untuk tujuan, atau syarat kebenaran.
 
 Contoh dengan asumsi Artikel telah mengajarkan pembagian ketaksamaan:
 
@@ -86,6 +86,6 @@ Jika kartu tidak dapat dibuat atomic tanpa kehilangan kondisi penting, ubah fron
 
 Jika Diktat/Flashcard membutuhkan fakta yang belum ada: cari bukti sumber dalam scope, perbaiki Artikel dahulu bila sah, ulangi audit tujuan/cek terkait, lalu regenerasi turunan dan hash terkait. Jika tidak didukung sumber, hapus kandidat yang opsional; bila fakta wajib untuk scope, laporkan blocker. Jangan langsung meminta keputusan untuk kekurangan yang dapat diperbaiki dari bukti yang sudah ada.
 
-Sebelum validate dan submit, laporkan jumlah tujuan lulus/total, Idea tercakup/total, item Diktat terpetakan/total, kartu terpetakan/total, serta daftar FAIL. Tidak boleh ada FAIL saat submit. `NOT_APPLICABLE` harus punya alasan dan hanya dipakai pada elemen kondisional. Angka laporan dihitung dari tabel, bukan perkiraan.
+Sebelum validate dan submit, laporkan jumlah tujuan lulus/total, Idea tercakup/total, konsep inti Diktat yang memiliki cek dan jawaban/total, contoh yang diwajibkan/tersedia, kartu terpetakan/total, status yang belum selesai, serta daftar FAIL. Tidak boleh ada hard fail saat submit. `NOT_APPLICABLE` harus beralasan dan hanya dipakai pada elemen kondisional. Gunakan `NOT_TESTED` untuk bukti manusia, mahasiswa, browser, perangkat, atau PDF tagged yang belum tersedia. Hitung jumlah dari tabel, bukan perkiraan.
 
-PDF belum dirender berarti `NOT_RENDERED`, bukan lulus/gagal otomatis untuk draft authoring. Readiness PDF hanya `VERIFIED` setelah artifact revisi yang sama benar-benar dirender 2 sampai 4 halaman dan semua halaman diperiksa. Render gagal, stale, atau di luar rentang berarti `BLOCKED` untuk PDF readiness. Status ini adalah label laporan author, bukan field payload atau izin publish.
+PDF belum dirender berarti `NOT_RENDERED`, bukan bukti mutu visual. Readiness PDF hanya `VERIFIED` setelah artifact revisi yang sama benar-benar dirender 2 sampai 4 halaman dan semua halaman diperiksa. Catat checksum, renderer/profile, jumlah halaman, dan hasil inspeksi formula/glyph, clipping, pemisahan konten, footer, serta pencarian teks bila alat tersedia. Render gagal, stale, atau di luar rentang berarti `BLOCKED` untuk PDF readiness. Cetak fisik, navigasi pembaca layar, tag PDF, WCAG, dan uji pengguna tetap `NOT_TESTED` kecuali benar-benar diperiksa. Status ini adalah label laporan author, bukan field payload atau izin publish.

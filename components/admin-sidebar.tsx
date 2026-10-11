@@ -93,6 +93,7 @@ export function getAdminCourseNavItems(slug: string): CourseSidebarItem[] {
     { id: "documents", label: "Dokumen", href: `${base}/documents`, icon: FileText },
     { id: "videos", label: "Video", href: `${base}/videos`, icon: Video },
     { id: "quizzes", label: "Kuis", href: `${base}/quizzes`, icon: NotebookPen },
+    { id: "tryouts", label: "Tryout", href: `${base}/tryouts`, icon: ClipboardCheck },
     { id: "questions", label: "Soal", href: `${base}/questions`, icon: Library },
     { id: "flashcards", label: "Flashcard", href: `${base}/flashcards`, icon: Layers },
     { id: "results", label: "Hasil", href: `${base}/results`, icon: ListChecks },

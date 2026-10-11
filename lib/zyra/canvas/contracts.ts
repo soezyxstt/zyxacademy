@@ -82,6 +82,7 @@ const DomainSchema = z.object({
 export const FunctionPlotCanvasSchema = CanvasBaseSchema.extend({
   type: z.literal("function_plot"),
   domain: DomainSchema,
+  equalAxisScale: z.boolean().optional(),
   series: z.array(z.object({
     id: IdentifierSchema,
     label: LabelSchema,

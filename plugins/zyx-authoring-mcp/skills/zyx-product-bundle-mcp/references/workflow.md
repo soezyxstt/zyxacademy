@@ -19,7 +19,7 @@ Peran learner-facing bersifat tetap:
 - Diktat = review pra-ujian yang diturunkan dari Artikel;
 - Flashcard = active recall atas hal yang sudah diajarkan di Artikel.
 
-Baca [editorial-guide.md](editorial-guide.md) dan [flashcard-guide.md](flashcard-guide.md) sebelum drafting.
+Baca [editorial-guide.md](editorial-guide.md), [quality-rubric.md](quality-rubric.md), dan [flashcard-guide.md](flashcard-guide.md) sebelum drafting.
 
 ## Canonical ZIP
 
@@ -49,7 +49,7 @@ Matriks audit, catatan recall target, dan laporan PDF berada di luar ZIP. Jangan
 
 MCP memeriksa typed product, checksum, source/Idea provenance, chapter scope, published Idea version/hash, dependency freshness, holdout marker, semantic Article compiler gates, formative checks, flashcard atomicity, Diktat lineage, formula, dan Idea coverage.
 
-Author preflight tetap wajib dan harus memeriksa hal yang tidak cukup dijamin schema:
+Author preflight tetap wajib. Jalankan rubrik mutu dengan bukti dan status terpisah untuk hal yang tidak cukup dijamin schema:
 
 - Artikel self-contained untuk first learning;
 - tidak ada fakta learner-facing pada Diktat/flashcard yang belum diajarkan di Artikel;
@@ -57,6 +57,9 @@ Author preflight tetap wajib dan harus memeriksa hal yang tidak cukup dijamin sc
 - flashcard hanya satu recall target dan tidak duplikat/filler;
 - zero internal-ID leak;
 - penjelasan, contoh, cek, jawaban, dan pembahasan cukup untuk tujuan belajar.
+- Diktat memiliki satu cek recall/penerapan dengan jawaban dan alasan singkat untuk setiap konsep inti;
+- hitungan, syarat, notasi, dan contoh matematika telah dicek ulang;
+- pemeriksaan yang memerlukan ahli, mahasiswa, browser, perangkat, atau pembaca PDF diberi status `NOT_TESTED` bila belum dilakukan.
 
 `publicationBlocked`, stale Idea links, missing chapter, atau blocking quality issue mencegah validation/submission. `valid: true` diperlukan tetapi tidak cukup untuk menyatakan konten layak publish.
 
@@ -64,16 +67,16 @@ Author preflight tetap wajib dan harus memeriksa hal yang tidak cukup dijamin sc
 
 1. Gunakan run `idea_product` dengan scope yang sama dan published Idea context yang fresh. Catat run ID, contract checksum, Source Pack checksum, Idea versions/hashes, dan intended Product checksum.
 2. Jika Source Pack belum tersedia, selesaikan prasyarat melalui `$zyx-source-pack-mcp` dari stored PDFs dalam scope yang diminta; jangan mulai Product atau membuat Idea baru secara diam-diam. Bila Idea belum published, simpan checkpoint dan laporkan prasyarat tersebut.
-3. Rencanakan setiap topic sebelum menulis: prerequisite, objective, sequence, formula/symbol/condition, representation/visual, example bila benar-benar membantu, formative check, answer, explanation, misconception/boundary.
+3. Rencanakan setiap topic sebelum menulis: prerequisite, objective, priority (`WAJIB`/`PENDUKUNG`/`TAMBAHAN`), sequence, formula/symbol/condition, representation/visual, example bila benar-benar membantu, formative check, answer, explanation, misconception/boundary.
    - Untuk matematika, pisahkan blok rumus display dari penjelasan. Tulis definisi simbol dan syarat tepat di bawahnya; jangan menjejalkan rumus dan prosa panjang dalam satu kalimat.
    - Putuskan visual dengan bukti kebutuhan. Gunakan `learning_canvas` hanya untuk relasi yang lebih mudah dipahami lewat grafik/diagram daripada teks; plot pergeseran harus menandai kurva sumber dan hasil dengan style garis berbeda.
    - Interaktivitas harus menjawab pertanyaan belajar tertentu. Expose hanya variabel yang relevan melalui `controls` typed dengan rentang, step, default, keyboard support, dan fallback statis. Jangan membuat iframe Desmos, HTML/SVG/JS mentah, atau grafik interaktif dekoratif. Tipe 3D belum boleh dipakai tanpa renderer typed dan fallback PDF yang sudah tersedia.
 4. Bangun **Artikel lebih dulu sampai self-contained**. Gunakan emphasis typed (`remember`, `avoid`, `caution`, `definition`, `formula`) hanya untuk hal yang benar-benar perlu difokuskan; jangan memakai ikon spark/sparkles.
-5. Turunkan Diktat dari Artikel yang sudah lengkap; jangan menambah fakta baru. Diktat harus formula-first, padat untuk review, dan maksimal 4 halaman A4 pada render nyata. Jangan menghapus rumus, syarat, Idea, atau batas kebenaran secara diam-diam untuk mengejar page budget; jika konflik, laporkan dan revisi sumber/struktur.
+5. Turunkan Diktat dari Artikel yang sudah lengkap; jangan menambah fakta baru. Setiap konsep inti memerlukan cek recall/penerapan singkat dengan jawaban yang dapat diperiksa dan alasan ringkas. Diktat harus padat untuk review, memakai body font tetap 10.5 pt tanpa auto-shrink, dan maksimal 4 halaman A4. Contract PDF saat ini menerima 2 sampai 4 halaman; bila isi lengkap muat di 1 halaman, jangan menambah filler dan laporkan bahwa PDF readiness terhalang batas minimum contract. Jangan menghapus rumus, syarat, Idea, contoh yang diperlukan, atau batas kebenaran demi page budget.
 6. Buat flashcard hanya dari recall target yang sudah ada di Artikel; jalankan `flashcard-guide.md`.
-7. Jalankan author preflight `editorial-guide.md` dan flashcard preflight.
+7. Jalankan author preflight `editorial-guide.md`, `quality-rubric.md`, dan flashcard preflight. Gunakan `PASS`, `FAIL`, `NOT_APPLICABLE`, dan `NOT_TESTED`; tidak ada hard fail yang boleh tersisa saat submit.
 8. Panggil `authoring.validate_product_bundle` (`authoring:read`).
-9. Perbaiki issue, ulangi author preflight, lalu validasi ulang. Jangan mengurangi konten penting hanya untuk mengejar metric.
+9. Perbaiki issue, ulangi author preflight serta review critic dan Student POV pada checksum terbaru, lalu validasi ulang. Jika issue tetap setelah dua pendekatan, diagnosis penyebab dan coba opsi lain yang didukung bukti. Berhenti hanya karena blocker scope/sumber/contract/akses/otorisasi; jangan mengurangi konten penting demi metrik.
 10. Panggil `authoring.submit_product_bundle` hanya bila MCP hijau, preflight author lulus, dan staging diminta (`authoring:stage`).
 11. Untuk existing Product imports, gunakan lifecycle tool sesuai SKILL.md; destructive/review mutations tidak boleh dijalankan tanpa instruksi eksplisit.
 

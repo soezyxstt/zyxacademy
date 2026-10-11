@@ -30,6 +30,12 @@ describe("Learning Canvas schema", () => {
     expect(validateCanvasSpec(functionPlot, ["claim-1"]).isValid).toBe(true);
   });
 
+  test("accepts equal axis scaling without changing existing plots", () => {
+    const plot = CanvasSpecSchema.parse({ ...functionPlot, equalAxisScale: true });
+    expect(plot.type === "function_plot" && plot.equalAxisScale).toBe(true);
+    expect(CanvasSpecSchema.safeParse({ ...functionPlot, equalAxisScale: "true" }).success).toBe(false);
+  });
+
   test("rejects unknown visual types", () => {
     const result = CanvasSpecSchema.safeParse({ ...functionPlot, type: "arbitrary_markup" });
     expect(result.success).toBe(false);

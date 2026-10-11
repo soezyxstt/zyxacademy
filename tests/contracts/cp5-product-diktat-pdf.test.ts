@@ -10,6 +10,7 @@ import {
   compileProductDiktatHtml,
   parseCanonicalDiktatMarkdownToHtml,
   PRODUCT_DIKTAT_PRINT_PROFILE,
+  PRODUCT_DIKTAT_FOOTER_TEMPLATE,
   canDownloadProductDiktat,
 } from "@/lib/bundle/product-diktat-pdf";
 import {
@@ -97,7 +98,7 @@ function diktatProduct(article: Extract<ProductEntity, { productType: "article" 
     sourceHash: article.sourceHash,
     generationHash: HASH,
     creatorId: "fixture-author",
-    contentMarkdown: generateDiktatContent(formula),
+    contentMarkdown: Array.from({ length: 4 }, () => generateDiktatContent(formula)).join("\n\n"),
     sourceArticleId: article.id,
     sourceArticleVersion: article.version,
     sourceArticleHash: article.generationHash,
@@ -108,7 +109,7 @@ async function realPdf(html: string): Promise<Uint8Array> {
   const page = await browser.newPage();
   try {
     await page.setContent(html, { waitUntil: "load" });
-    return await page.pdf({ format: "A4", printBackground: true, preferCSSPageSize: true });
+    return await page.pdf({ format: "A4", printBackground: true, preferCSSPageSize: true, displayHeaderFooter: true, headerTemplate: "<span></span>", footerTemplate: PRODUCT_DIKTAT_FOOTER_TEMPLATE });
   } finally {
     await page.close();
   }
@@ -146,6 +147,20 @@ after(async () => {
 });
 
 describe("CP5 Product Bundle Diktat PDF", () => {
+  test("a multi-page Diktat starts its body on the title page", async () => {
+    const article = articleProduct(LIMIT_ARTICLE_FIXTURE);
+    const diktat = diktatProduct(article, "x^2");
+    diktat.contentMarkdown = Array.from({ length: 24 }, (_, i) => `## Konsep ${i + 1}\n\nPenanda isi ${i + 1}. ${"Periksa domain sebelum menggunakan rumus dan substitusikan hasil untuk memastikan syarat awal terpenuhi. ".repeat(5)}`).join("\n\n");
+    const bytes = await realPdf(compileProductDiktatHtml({ article, diktat }));
+    const { PDFParse } = await import("pdf-parse");
+    PDFParse.setWorker(pathToFileURL(path.resolve("node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs")).href);
+    const parser = new PDFParse({ data: bytes.slice() });
+    try {
+      const text = await parser.getText();
+      assert.ok(text.pages.length > 1);
+      assert.match(text.pages[0].text, /Penanda isi 1\./);
+    } finally { await parser.destroy(); }
+  });
   const fixtures = [
     [LIMIT_ARTICLE_FIXTURE, "\\delta=\\varepsilon/2"],
     [EIGENVALUES_ARTICLE_FIXTURE, "Av=\\lambda v"],
@@ -179,7 +194,7 @@ describe("CP5 Product Bundle Diktat PDF", () => {
   });
 
   test("uses an explicit reproducible print profile", () => {
-    assert.equal(PRODUCT_DIKTAT_PRINT_PROFILE, "a4-self-study-compact-v2");
+    assert.equal(PRODUCT_DIKTAT_PRINT_PROFILE, "a4-self-study-readable-v3");
   });
 
   test("separates formula rows from symbol bullets and removes the repeated heading", () => {
@@ -192,7 +207,7 @@ describe("CP5 Product Bundle Diktat PDF", () => {
     assert.doesNotMatch(html, /<h1 class="section-h1">Diktat ringkas/);
     assert.match(html, /class="formula-list"/);
     assert.match(html, /<ul class="diktat-list">/);
-    assert.match(html, /href="https:\/\/zyxacademy.com"/);
+    assert.match(PRODUCT_DIKTAT_FOOTER_TEMPLATE, /href="https:\/\/zyxacademy.com"/);
     const parsed = parseCanonicalDiktatMarkdownToHtml(diktat.contentMarkdown, diktat.title);
     assert.match(parsed, /class="formula-list"/);
   });

@@ -13,6 +13,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { MarkdownRenderer } from "@/components/course/markdown-renderer";
 import { MathText } from "@/components/course/math-text";
 import { toast } from "@/components/ui/toast";
 import {
@@ -337,7 +339,7 @@ export function TryoutsClient({ courseId, initialTryouts, initialQuestions, ques
                           {q.type.replace("_", " ")}
                         </Badge>
                       </div>
-                      <MathText className="text-body-base font-medium text-foreground leading-relaxed pt-1" as="p">{content.prompt}</MathText>
+                      <MarkdownRenderer content={content.prompt} className="pt-1 text-body-sm" />
                       {provenanceEnabled && content.origin === "itb_example" && content.sourceEventName ? (
                         <p className="mt-2 text-body-xs font-medium text-muted-foreground">Sumber: {content.sourceEventName}</p>
                       ) : provenanceEnabled ? (
@@ -345,14 +347,38 @@ export function TryoutsClient({ courseId, initialTryouts, initialQuestions, ques
                       ) : null}
                     </div>
 
-                    <div className="flex gap-1">
-                      <Button variant="ghost" size="xs" onClick={() => handleOpenEditQ(q)} className="rounded-md text-muted-foreground hover:text-foreground">
-                        <Edit2 className="size-3.5" />
-                      </Button>
-                      <Button variant="ghost" size="xs" onClick={() => setDeleteQId(q.id)} className="rounded-md text-status-error hover:bg-status-error/10 hover:text-status-error">
-                        <Trash2 className="size-3.5" />
-                      </Button>
-                    </div>
+                    <TooltipProvider>
+                      <div className="flex gap-1">
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="xs"
+                              aria-label={`Edit pertanyaan ${q.order}`}
+                              onClick={() => handleOpenEditQ(q)}
+                              className="rounded-md text-muted-foreground hover:text-foreground"
+                            >
+                              <Edit2 className="size-3.5" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>Edit pertanyaan</TooltipContent>
+                        </Tooltip>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="xs"
+                              aria-label={`Hapus pertanyaan ${q.order}`}
+                              onClick={() => setDeleteQId(q.id)}
+                              className="rounded-md text-status-error hover:bg-status-error/10 hover:text-status-error"
+                            >
+                              <Trash2 className="size-3.5" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>Hapus pertanyaan</TooltipContent>
+                        </Tooltip>
+                      </div>
+                    </TooltipProvider>
                   </div>
 
                   {/* Options Preview for MC */}
@@ -431,7 +457,7 @@ export function TryoutsClient({ courseId, initialTryouts, initialQuestions, ques
                         <span className="text-body-xs text-muted-foreground">{question.difficulty}</span>
                         {alreadyImported ? <span className="text-body-xs font-medium text-status-success">Sudah ada</span> : null}
                       </div>
-                      <MathText className="mt-1 text-body-sm text-foreground" as="p">{question.prompt}</MathText>
+                      <MarkdownRenderer content={question.prompt} className="mt-1 text-body-sm" />
                       {provenanceEnabled && question.origin === "itb_example" && question.sourceEventName ? <p className="mt-1 text-body-xs text-muted-foreground">Sumber: {question.sourceEventName}</p> : null}
                     </div>
                   </label>
@@ -512,8 +538,8 @@ export function TryoutsClient({ courseId, initialTryouts, initialQuestions, ques
                   id="que-prompt"
                   value={qPrompt}
                   onChange={(e) => setQPrompt(e.target.value)}
-                  rows={4}
-                  placeholder="Gunakan LaTeX jika terdapat notasi matematika..."
+                  rows={8}
+                  placeholder="Gunakan daftar Markdown dan LaTeX untuk notasi kimia atau matematika."
                   className="rounded-lg border-input bg-background"
                 />
               </div>
@@ -728,26 +754,26 @@ export function TryoutsClient({ courseId, initialTryouts, initialQuestions, ques
               </Select>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="grid gap-2">
+            <div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2">
+              <div className="grid min-w-0 gap-2">
                 <Label htmlFor="t-open" className="text-body-sm font-semibold">Waktu Buka (Optional)</Label>
                 <Input
                   id="t-open"
                   type="datetime-local"
                   value={tOpenAt}
                   onChange={(e) => setTOpenAt(e.target.value)}
-                  className="rounded-lg border-input bg-background"
+                  className="min-w-0 rounded-lg border-input bg-background"
                 />
               </div>
 
-              <div className="grid gap-2">
+              <div className="grid min-w-0 gap-2">
                 <Label htmlFor="t-close" className="text-body-sm font-semibold">Waktu Tutup (Optional)</Label>
                 <Input
                   id="t-close"
                   type="datetime-local"
                   value={tCloseAt}
                   onChange={(e) => setTCloseAt(e.target.value)}
-                  className="rounded-lg border-input bg-background"
+                  className="min-w-0 rounded-lg border-input bg-background"
                 />
               </div>
             </div>

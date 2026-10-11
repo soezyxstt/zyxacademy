@@ -1,5 +1,9 @@
 export interface BrowserPdfOptions {
   format?: string;
+  displayHeaderFooter?: boolean;
+  headerTemplate?: string;
+  footerTemplate?: string;
+  preferCSSPageSize?: boolean;
   printBackground?: boolean;
   scale?: number;
   margin?: {
@@ -45,6 +49,12 @@ const PRINT_PROFILES = {
     scale: 1,
     margin: DEFAULT_MARGIN,
   },
+  "a4-self-study-readable-v3": {
+    format: "a4",
+    printBackground: true,
+    scale: 1,
+    margin: DEFAULT_MARGIN,
+  },
   "a4-self-study-compact-v2": {
     format: "a4",
     printBackground: true,
@@ -72,14 +82,14 @@ export default {
       return new Response("Unauthorized", { status: 401 });
     }
 
-    let payload: { html?: unknown; printProfile?: unknown };
+    let payload: { html?: unknown; printProfile?: unknown; footerTemplate?: unknown };
     try {
       payload = await request.json();
     } catch {
       return new Response("Invalid JSON body", { status: 400 });
     }
 
-    const { html, printProfile } = payload;
+    const { html, printProfile, footerTemplate } = payload;
     if (!html || typeof html !== "string") {
       return new Response("Missing html", { status: 400 });
     }
@@ -88,7 +98,10 @@ export default {
       typeof printProfile === "string" && printProfile in PRINT_PROFILES
         ? (printProfile as KnownProfile)
         : "legacy-a4";
-    const pdfOptions = PRINT_PROFILES[profileKey];
+    const pdfOptions: BrowserPdfOptions = { ...PRINT_PROFILES[profileKey] };
+    if (typeof footerTemplate === "string" && footerTemplate.trim()) {
+      Object.assign(pdfOptions, { displayHeaderFooter: true, headerTemplate: "<span></span>", footerTemplate, preferCSSPageSize: true });
+    }
 
     try {
       const response = await env.BROWSER.quickAction("pdf", {

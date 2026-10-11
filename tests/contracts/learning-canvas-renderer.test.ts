@@ -25,6 +25,14 @@ const spec: FunctionPlotCanvas = {
 };
 
 describe("Learning Canvas renderer contracts", () => {
+  test("refines real-domain boundaries without joining excluded intervals", () => {
+    const result = evaluateFunctionPlot({ ...spec, variables: [], domain: { min: -5, max: 5, sampleCount: 20 }, series: [{ id: "circle", label: "Circle", expression: "sqrt(9-x^2)" }] });
+    const finite = result[0].points.filter(p => p.y !== null);
+    expect(Math.abs(finite[0].x + 3)).toBeLessThan(0.000001);
+    expect(Math.abs(finite.at(-1)!.x - 3)).toBeLessThan(0.000001);
+    expect(finite[0].y!).toBeLessThan(0.003);
+    expect(result[0].points.some(p => p.y === null)).toBe(true);
+  });
   test("evaluates controls locally with no side effects", () => {
     const first = evaluateFunctionPlot(spec, { a: 1 });
     const second = evaluateFunctionPlot(spec, { a: 2 });

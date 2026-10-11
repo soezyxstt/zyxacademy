@@ -1,27 +1,22 @@
-import { existsSync, readFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
+import { createRequire } from "node:module";
 import path from "node:path";
 import katex from "katex";
 import type { ProductEntity } from "./product-validator";
 
 
-export const PRODUCT_DIKTAT_RENDERER_VERSION = "zyx-diktat-worker-v1";
-export const PRODUCT_DIKTAT_PRINT_PROFILE = "a4-self-study-compact-v2";
+export const PRODUCT_DIKTAT_RENDERER_VERSION = "zyx-diktat-worker-v4";
+export const PRODUCT_DIKTAT_PRINT_PROFILE = "a4-self-study-readable-v3";
 
-function buildSelfContainedKatexCss(): string {
-  const cssPath = path.resolve(process.cwd(), "node_modules/katex/dist/katex.min.css");
-  const fontsDir = path.resolve(process.cwd(), "node_modules/katex/dist/fonts");
-  if (!existsSync(cssPath)) return "";
-  const rawCss = readFileSync(cssPath, "utf8");
-  return rawCss.replace(/url\(fonts\/(KaTeX_[^)]+\.woff2)\)/g, (_match, filename) => {
-    const fontPath = path.join(fontsDir, filename);
-    if (existsSync(fontPath)) {
-      const base64 = readFileSync(fontPath).toString("base64");
-      return `url("data:font/woff2;base64,${base64}")`;
-    }
-    return _match;
+export function buildSelfContainedKatexCss(): string {
+  const require = createRequire("Deno" in globalThis ? new URL("../../workers/deno-background/package.json", import.meta.url) : import.meta.url);
+  const distDir = path.dirname(require.resolve("katex"));
+  const rawCss = readFileSync(path.join(distDir, "katex.min.css"), "utf8");
+  return rawCss.replace(/url\(fonts\/(KaTeX_[^)]+\.woff2)\) format\("woff2"\)(?:,url\([^)]+\) format\("[^"]+"\))*/g, (_match, filename) => {
+    const font = readFileSync(path.join(distDir, "fonts", filename)).toString("base64");
+    return `url("data:font/woff2;base64,${font}") format("woff2")`;
   });
 }
-
 const KATEX_CSS = buildSelfContainedKatexCss();
 
 type ArticleProduct = Extract<ProductEntity, { productType: "article" }>;
@@ -74,6 +69,8 @@ export const ZYX_MAIN_LOGO_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBo
 
 const DIKTAT_CONTACT_FOOTER_HTML = `<span>Instagram: zyx_academy</span><span>Email: zyxforbusiness@gmail.com</span><span>WhatsApp: 0851 9475 4224</span><a href="https://zyxacademy.com">zyxacademy.com</a>`;
 
+export const PRODUCT_DIKTAT_FOOTER_TEMPLATE = `<div style="width:100%;margin:0 12mm;font-family:Arial,sans-serif;font-size:8px;color:#334b78;border-top:1px solid #b9c5d2;padding-top:5px;display:flex;justify-content:space-between;white-space:nowrap">${DIKTAT_CONTACT_FOOTER_HTML}<span><span class="pageNumber"></span>/<span class="totalPages"></span></span></div>`;
+
 const WATERMARK_CSS = `
 .diktat-watermark {
   position: fixed;
@@ -108,41 +105,42 @@ export function compileProductDiktatHtml(source: ProductDiktatRenderSource): str
 ${WATERMARK_CSS}
 @page { size: A4; margin: 9mm 12mm 15mm; }
 * { box-sizing: border-box; }
-body { margin: 0; color: #172033; font-family: Arial, sans-serif; font-size: 8.4pt; line-height: 1.32; }
+body { margin: 0; color: #172033; font-family: Arial, sans-serif; font-size: 10.5pt; line-height: 1.38; }
 .diktat { position: relative; z-index: 1; }
 .diktat-header { border-bottom: 1px solid #b9c5d2; margin-bottom: 3mm; padding-bottom: 2mm; }
 .eyebrow { color: #b94c16; font-size: 7pt; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; }
 h1 { color: #172033; font-size: 15pt; line-height: 1.2; margin: 1mm 0 0; }
-.diktat-content { column-count: 2; column-gap: 7mm; }
-.section-h1, .section-h2 { color: #172033; font-size: 10pt; line-height: 1.2; margin: 3mm 0 1mm; break-after: avoid; }
-.section-h3, .section-h4 { font-size: 8.7pt; margin: 2mm 0 .7mm; break-after: avoid; }
+.diktat { column-count: 2; column-gap: 7mm; }
+
+@media screen { .diktat { padding-top: 2mm; } }
+@media screen and (max-width: 600px) { .diktat { column-count: 1; } }
+.section-h1, .section-h2 { color: #172033; font-size: 12pt; line-height: 1.2; margin: 3mm 0 1mm; break-after: avoid; }
+.section-h3, .section-h4 { font-size: 10.8pt; margin: 2mm 0 .7mm; break-after: avoid; }
 p { margin: 0 0 1.4mm; }
 ol, ul { margin: 0 0 1.6mm; padding-left: 5.5mm; }
 li { margin-bottom: .8mm; padding-left: .5mm; }
 .pedagogical-card { display: contents; }
 .formula-display { margin: 1mm 0 1.2mm; text-align: left; break-inside: avoid; }
 .katex-display { margin: 0; overflow: visible; text-align: left; }
-.formula-list { display: grid; gap: .6mm; margin: 1.4mm 0 2mm; padding-left: 1mm; }
+.formula-list { display: grid; gap: .6mm; margin: 1.4mm 0 2mm; padding-left: 1mm; break-inside: avoid; }
 .formula-item { min-width: 0; }
 .formula-item .formula-display { display: block; margin: 0; }
-.katex { font-size: .92em; }
+.katex { font-size: 1.05em; }
 .semantic-emphasis { font-weight: 600; }
 .semantic-label { font-weight: 700; margin-right: 3px; }
 .semantic-caution { color: inherit; }
 .diktat-divider { border: 0; border-top: 1px solid #d9dee8; margin: 2mm 0; }
 .table-container { break-inside: avoid; margin: 1.5mm 0; }
-.diktat-table { width: 100%; border-collapse: collapse; font-size: 7.5pt; }
+.diktat-table { width: 100%; border-collapse: collapse; font-size: 10pt; }
 .diktat-table th, .diktat-table td { border: 1px solid #d9dee8; padding: 1mm; }
 .misconception-grid { margin: 1.5mm 0; }
 .label-wrong, .label-correct, .solution-header, .example-badge, .step-badge { font-weight: 700; }
 .example-header, .solution-header { margin: 1.5mm 0 .5mm; }
 .inline-code { font-family: monospace; }
-.diktat-contact-footer { position: fixed; z-index: 2; bottom: -11mm; left: 0; right: 0; min-height: 5.5mm; display: flex; align-items: center; justify-content: space-between; gap: 2mm; border: 1px solid #334b78; border-radius: 8mm; padding: 1mm 2.5mm; color: #334b78; background: #fff; font-size: 7pt; font-weight: 700; white-space: nowrap; }
-.diktat-contact-footer a { color: inherit; text-decoration: underline; }
 </style></head><body>
 <div class="diktat-watermark" aria-hidden="true">${ZYX_MAIN_LOGO_SVG}</div>
-<footer class="diktat-contact-footer">${DIKTAT_CONTACT_FOOTER_HTML}</footer>
-<main class="diktat"><header class="diktat-header"><span class="eyebrow">Diktat</span><h1>${title}</h1></header><div class="diktat-content">${content}</div></main></body></html>`;
+
+<main class="diktat"><header class="diktat-header"><span class="eyebrow">Diktat</span><h1>${title}</h1></header>${content}</main></body></html>`;
 }
 
 /** Removes the leading Markdown title already printed in the document header. */
@@ -943,7 +941,7 @@ export async function renderProductDiktatPdf(
     response = await (options.fetchImpl ?? fetch)(`${rendererUrl}/render`, {
       method: "POST",
       headers: { Authorization: `Bearer ${rendererSecret}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ html, printProfile: PRODUCT_DIKTAT_PRINT_PROFILE }),
+      body: JSON.stringify({ html, printProfile: PRODUCT_DIKTAT_PRINT_PROFILE, footerTemplate: PRODUCT_DIKTAT_FOOTER_TEMPLATE }),
       signal: AbortSignal.timeout(options.timeoutMs ?? 45_000),
     });
   } catch (error) {

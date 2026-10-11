@@ -56,6 +56,24 @@ export function evaluateFunctionPlot(
         points.push({ x, y: null });
       }
     }
+    if (compiled) {
+      for (let i = points.length - 1; i > 0; i -= 1) {
+        const left = points[i - 1];
+        const right = points[i];
+        if ((left.y === null) === (right.y === null)) continue;
+        let valid = left.y === null ? right : left;
+        let invalidX = left.y === null ? left.x : right.x;
+        for (let attempt = 0; attempt < 20; attempt += 1) {
+          const x = (valid.x + invalidX) / 2;
+          try {
+            const y = compiled.evaluate({ ...variables, x });
+            if (Number.isFinite(y)) { valid = { x, y }; continue; }
+          } catch {}
+          invalidX = x;
+        }
+        points.splice(i, 0, valid);
+      }
+    }
     return { id: series.id, label: series.label, points };
   });
 }
