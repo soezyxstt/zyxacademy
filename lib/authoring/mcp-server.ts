@@ -1149,6 +1149,16 @@ function registerWorkflowTools(server: McpServer, principal: McpPrincipal): void
 
     const bytes = decodeMcpArtifact(contentBase64, AUTHORING_MCP_MAX_SOURCE_PACK_BYTES);
     const sourcePack = validateSourcePack(bytes);
+    if (!ingestResult.sourcePackToken) {
+      ingestResult.sourcePackToken = issueSourcePackToken({
+        checksum: sourcePack.archive.checksum,
+        packId: sourcePack.manifest.packId,
+        name: sourcePack.manifest.name,
+        summary: ingestResult.source,
+        courseId: resolved.boundScope?.courseId,
+        chapterId: resolved.boundScope?.chapterId,
+      });
+    }
 
     if (resolved.boundScope?.chapterId) {
       const docIds = sourcePack.documents.map((doc) => doc.id);
