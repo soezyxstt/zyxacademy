@@ -171,7 +171,8 @@ export async function handleSourcePackResolveRpc(c: Context) {
       filename,
       contentBase64,
       originalsMap.size > 0 ? originalsMap : undefined,
-      boundScope
+      boundScope,
+      { issueToken: false },
     );
 
     return c.json({ success: true, result: ingestResult });
