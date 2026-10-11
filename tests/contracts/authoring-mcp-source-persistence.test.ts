@@ -27,7 +27,7 @@ function digest(bytes: Uint8Array): string {
   return createHash("sha256").update(bytes).digest("hex");
 }
 
-function sampleSourcePack(packId = "source-pack-test-01"): { bytes: Uint8Array; originalSha256: string; markdownText: string } {
+function sampleSourcePack(packId = "source-pack-test-01", provider: "google" | "openai" = "google"): { bytes: Uint8Array; originalSha256: string; markdownText: string } {
   const markdownText = "<!-- source-unit: 1 -->\n# Kalkulus Dasar\nLimit fungsi mendekati nol.\n";
   const markdown = strToU8(markdownText);
   const original = strToU8("PDF Content Mock");
@@ -48,7 +48,7 @@ function sampleSourcePack(packId = "source-pack-test-01"): { bytes: Uint8Array; 
     name: "Kalkulus Bab 1",
     language: "id",
     createdAt: "2026-08-28T00:00:00.000Z",
-    generator: { provider: "google", model: "test", promptVersion: "stored-source.v1" },
+    generator: { provider, model: provider === "openai" ? "gpt-6" : "test", promptVersion: "stored-source.v1" },
     documents: [{
       id: "doc-kalkulus-01",
       title: "Materi Limit",
@@ -72,6 +72,11 @@ function sampleSourcePack(packId = "source-pack-test-01"): { bytes: Uint8Array; 
 }
 
 describe("Source Pack Storage & Persistence", () => {
+  it("accepts truthful OpenAI generator provenance", () => {
+    const { bytes } = sampleSourcePack("source-pack-openai-01", "openai");
+    expect(validateSourcePack(bytes).manifest.generator.provider).toBe("openai");
+  });
+
   it("builds consistent R2 object keys using buildSourcePackKey", () => {
     const checksum = "b".repeat(64);
     const key = buildSourcePackKey({
