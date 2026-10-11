@@ -70,25 +70,97 @@ const samplePlaylist: VideoPlaylistItem = {
   videos: sampleVideos,
 };
 
+import { AdminVideoDialog } from "@/components/course/video/admin-video-dialog";
+
+const sampleChapters = [
+  { id: "ch-1", title: "Sistem Bilangan Real", orderIndex: 0 },
+  { id: "ch-2", title: "Turunan dan Aplikasinya", orderIndex: 1 },
+];
+
+const sampleR2Video: VideoItem = {
+  id: "vid-r2-sample",
+  courseId: "ma1101",
+  playlistId: "pl-uts-2023",
+  chapterId: "ch-1",
+  chapterTitle: "Sistem Bilangan Real",
+  title: "Rekaman Kuliah Bab 1",
+  description: "Materi pengenalan bilangan riil yang diunggah ke penyimpanan Cloudflare R2.",
+  videoUrl: "/api/storage/file/courses/ma1101/videos/sample.mp4",
+  thumbnailUrl: null,
+  videoKey: "courses/ma1101/videos/sample.mp4",
+  thumbnailKey: null,
+  duration: 1200,
+  fileSize: 45000000,
+  orderIndex: 3,
+  uploadedBy: "admin",
+  createdAt: new Date(),
+  updatedAt: new Date(),
+};
+
 export default function VideoPlayerVisualFixture() {
-  const [open, setOpen] = useState(true);
+  const [playerOpen, setPlayerOpen] = useState(true);
+  const [adminDialogOpen, setAdminDialogOpen] = useState(false);
+  const [editingVideo, setEditingVideo] = useState<VideoItem | null>(null);
   const [currentVideo, setCurrentVideo] = useState<VideoItem>(sampleVideos[0]);
 
   return (
     <div
       data-fixture-ready="true"
-      className="min-h-screen bg-background p-6 font-sans flex flex-col items-center justify-center"
+      className="min-h-screen bg-background p-6 font-sans flex flex-col items-center justify-center gap-4"
     >
-      <Button onClick={() => setOpen(true)} className="rounded-lg">
-        Buka Video Player Modal
-      </Button>
+      <div className="flex flex-wrap gap-2">
+        <Button
+          data-testid="btn-open-player"
+          onClick={() => {
+            setAdminDialogOpen(false);
+            setPlayerOpen(true);
+          }}
+          className="rounded-lg"
+        >
+          Buka Video Player Modal
+        </Button>
+        <Button
+          data-testid="btn-open-admin-add"
+          variant="outline"
+          onClick={() => {
+            setPlayerOpen(false);
+            setEditingVideo(null);
+            setAdminDialogOpen(true);
+          }}
+          className="rounded-lg"
+        >
+          Buka Dialog Tambah Video
+        </Button>
+        <Button
+          data-testid="btn-open-admin-r2"
+          variant="secondary"
+          onClick={() => {
+            setPlayerOpen(false);
+            setEditingVideo(sampleR2Video);
+            setAdminDialogOpen(true);
+          }}
+          className="rounded-lg"
+        >
+          Buka Dialog Edit Berkas R2
+        </Button>
+      </div>
 
       <VideoPlayerModal
         video={currentVideo}
         playlist={samplePlaylist}
-        open={open}
-        onOpenChange={setOpen}
+        open={playerOpen}
+        onOpenChange={setPlayerOpen}
         onSelectVideo={(v) => setCurrentVideo(v)}
+      />
+
+      <AdminVideoDialog
+        open={adminDialogOpen}
+        onOpenChange={setAdminDialogOpen}
+        courseId="ma1101"
+        playlists={[samplePlaylist]}
+        chapters={sampleChapters}
+        video={editingVideo}
+        defaultPlaylistId={samplePlaylist.id}
       />
     </div>
   );
