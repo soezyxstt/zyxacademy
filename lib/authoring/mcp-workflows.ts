@@ -340,6 +340,7 @@ export function ingestMcpSourcePack(
   contentBase64: string,
   originals?: ReadonlyMap<string, Uint8Array>,
   boundScope?: { courseId: string; chapterId: string },
+  options: { issueToken?: boolean } = {},
 ) {
   if (!filename.trim()) throw new Error("SOURCE_PACK_FILE_REQUIRED");
   const bytes = decodeBase64(contentBase64, AUTHORING_MCP_MAX_SOURCE_PACK_BYTES);
@@ -368,6 +369,14 @@ export function ingestMcpSourcePack(
     };
   }
   const summary = sourceSummary(sourcePack, quality);
+  if (options.issueToken === false) {
+    return {
+      ok: true as const,
+      filename,
+      source: summary,
+      quality,
+    };
+  }
   const sourcePackToken = issueToken({
     kind: "source",
     checksum: sourcePack.archive.checksum,
