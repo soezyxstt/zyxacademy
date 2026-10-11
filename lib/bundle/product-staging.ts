@@ -18,7 +18,7 @@ import { storage } from "@/lib/storage";
 import { buildProductBundleKey } from "@/lib/storage/keys";
 import { isBundleIdentitySentinelOrPlaceholder } from "./attribution";
 import { productEntityHash, parseProductBundleZip } from "./product-bundle-v2";
-import { deterministicProductSerialization, type ProductDependency } from "./product-validator";
+import { deterministicProductSerialization, type ProductDependency, type ProductEntity } from "./product-validator";
 import { type ProductBundleValidation } from "./product-validator";
 import {
   canPreservePedagogicReview,
@@ -414,10 +414,68 @@ export async function reviewProductBundle(input: { importId: string; reviewerId:
   if (productBundleLifecycleStatus(row.status) !== "draft") throw new Error("PRODUCT_BUNDLE_REVIEW_DRAFT_REQUIRED");
   const status = "draft" as const;
   const now = new Date();
+  const bundle = input.decision === "approved" ? await parseStagedProductBundle(input.importId) : null;
   await db.transaction(async (tx) => {
     await tx.insert(reviewBundle).values({ id: reviewId, imporBundleId: input.importId, reviewerId: input.reviewerId, status: input.decision, notes: input.notes ?? null, reviewedAt: now });
     await tx.update(imporBundle).set({ status, updatedAt: now }).where(eq(imporBundle.id, input.importId));
     await tx.insert(auditMutasi).values({ id: stableId("audit-product", `${input.importId}:review:${input.reviewerId}`), actorId: input.reviewerId, entityType: "product_bundle", entityId: input.importId, action: input.decision === "approved" ? "reviewed" : "rejected", beforeSnapshot: null, afterSnapshot: { decision: input.decision, reviewerRole: role }, correlationId: input.importId });
+
+    if (bundle) {
+      const articles = bundle.products.filter(
+        (p): p is Extract<ProductEntity, { productType: "article" }> => p.productType === "article",
+      );
+      for (const art of articles) {
+        const sections = art.sections ?? [];
+        for (const section of sections) {
+          const itemReviewId = stableId(
+            "review-product-item",
+            `${input.importId}:${input.reviewerId}:article_section:${section.id}`,
+          );
+          const [existing] = await tx
+            .select({ status: reviewItemBundle.status })
+            .from(reviewItemBundle)
+            .where(
+              and(
+                eq(reviewItemBundle.imporBundleId, input.importId),
+                eq(reviewItemBundle.reviewerId, input.reviewerId),
+                eq(reviewItemBundle.targetType, "article_section"),
+                eq(reviewItemBundle.targetId, section.id),
+              ),
+            )
+            .limit(1);
+
+          if (!existing || existing.status !== "changes_requested") {
+            await tx
+              .insert(reviewItemBundle)
+              .values({
+                id: itemReviewId,
+                imporBundleId: input.importId,
+                reviewerId: input.reviewerId,
+                productId: art.id,
+                blockId: section.id,
+                targetType: "article_section",
+                targetId: section.id,
+                status: "approved",
+                notes: null,
+                createdAt: now,
+                updatedAt: now,
+              })
+              .onConflictDoUpdate({
+                target: [
+                  reviewItemBundle.imporBundleId,
+                  reviewItemBundle.reviewerId,
+                  reviewItemBundle.targetType,
+                  reviewItemBundle.targetId,
+                ],
+                set: {
+                  status: "approved",
+                  updatedAt: now,
+                },
+              });
+          }
+        }
+      }
+    }
   });
   return { reviewId, status, reviewerRole: role };
 }
