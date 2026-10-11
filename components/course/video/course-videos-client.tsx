@@ -14,6 +14,7 @@ import {
   Layers,
   Filter,
 } from "lucide-react";
+import { FaYoutube } from "react-icons/fa6";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -272,7 +273,7 @@ export function CourseVideosClient({
               className="h-9 text-body-sm rounded-lg gap-1.5 bg-brand-primary text-white hover:bg-brand-primary/90"
             >
               <Plus className="size-4" />
-              <span>Unggah Video</span>
+              <span>Tambah Video</span>
             </Button>
           </div>
         )}
@@ -287,7 +288,7 @@ export function CourseVideosClient({
           </h3>
           <p className="mt-1 text-body-xs text-muted-foreground max-w-sm mx-auto">
             {canManage
-              ? "Buat playlist terlebih dahulu (contoh: 'Pembahasan Soal UTS 2022'), lalu unggah video ke dalamnya."
+              ? "Buat playlist terlebih dahulu (contoh: 'Pembahasan Soal UTS 2022'), lalu tambahkan video YouTube ke dalamnya."
               : "Video pembelajaran untuk mata kuliah ini belum tersedia."}
           </p>
           {canManage && (
@@ -410,7 +411,7 @@ export function CourseVideosClient({
                           className="mt-2 h-7 text-body-xs gap-1 rounded-lg"
                         >
                           <Plus className="size-3" />
-                          <span>Unggah Video</span>
+                          <span>Tambah Video</span>
                         </Button>
                       )}
                     </div>
@@ -477,11 +478,18 @@ export function CourseVideosClient({
 
                           {/* Card Footer: Metadata and Actions */}
                           <div className="mt-2 flex items-center justify-between border-t border-border/30 pt-2 text-body-xs text-muted-foreground">
-                            <span className="text-[11px]">
-                              {video.fileSize
-                                ? `${(video.fileSize / (1024 * 1024)).toFixed(1)} MB`
-                                : "Video"}
-                            </span>
+                            {video.videoUrl.includes("youtube") || video.videoUrl.includes("youtu.be") ? (
+                              <span className="inline-flex items-center gap-1 text-[11px] font-medium text-red-600 dark:text-red-400">
+                                <FaYoutube className="size-3" />
+                                <span>YouTube</span>
+                              </span>
+                            ) : (
+                              <span className="text-[11px]">
+                                {video.fileSize
+                                  ? `${(video.fileSize / (1024 * 1024)).toFixed(1)} MB`
+                                  : "Video"}
+                              </span>
+                            )}
 
                             {canManage && (
                               <DropdownMenu>

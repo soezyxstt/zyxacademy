@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Flag, Timer, BookOpen, AlertCircle, FileText, CheckCircle2, Trash2, ArrowLeft, ArrowRight, UploadCloud } from "lucide-react";
 import { MarkdownRenderer } from "@/components/course/markdown-renderer";
+import { MathText } from "@/components/course/math-text";
 import type { ExamFixture, QuestionSpec } from "@/lib/student-course-fixtures";
 import { QuestionSourceCitation } from "@/components/course/question-source-citation";
 import {

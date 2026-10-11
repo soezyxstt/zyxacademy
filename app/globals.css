@@ -812,18 +812,38 @@
   display: none;
 }
 
-/* KaTeX overflow formatting overrides. Vertical overflow stays visible so
-   tall glyphs (integrals, stacked limits) are never clipped; horizontal
-   scrolling remains for long equations. */
+/* KaTeX overflow formatting overrides. Vertical scrollbar is strictly suppressed
+   so tall glyphs (fractions, sums, integrals) never produce vertical scrollbars;
+   horizontal scrolling remains for wide equations without ugly vertical tracks. */
 .katex-display {
   overflow-x: auto;
+  overflow-y: hidden !important;
   max-width: 100%;
-  padding: 0.15em 0;
+  padding: 0.35em 0;
+  scrollbar-width: thin;
 }
 
 .katex-display > .katex {
   white-space: nowrap;
+  max-width: 100%;
+  text-align: inherit;
 }
+
+.katex-display::-webkit-scrollbar:vertical {
+  display: none !important;
+  width: 0 !important;
+}
+
+.katex-html {
+  overflow-y: hidden;
+}
+
+[data-katex-display],
+.formula-focus,
+[data-content-kind="formula-list"] {
+  overflow-y: hidden !important;
+}
+
 
 /* Zebra rhythm for data tables and row-based lists. Keep this selector
    low-specificity so explicit status and selected-state backgrounds win. */

@@ -1,6 +1,7 @@
 "use client";
 
 import { IdeaBundleReviewDetail, ProductBundleReviewDetail } from "@/components/admin/material-review-detail";
+import { CourseDetailHeader } from "@/components/admin/course-detail/course-detail-header";
 import { StructuredArticleReader } from "@/components/course/structured-article-reader";
 import { TutorProvider } from "@/components/course/tutor-drawer";
 import type { PublicArticleReadModel, PublicLearningCanvasVisualSpec } from "@/lib/articles/structured-read-model";
@@ -212,10 +213,18 @@ export function StructuredArticleVisualFixture({ mode }: { mode: "student" | "id
       <main
         id="main-content"
         data-fixture-ready={ready ? "true" : "false"}
-        className="min-h-screen bg-background p-4 text-foreground sm:p-6"
+        className="min-h-screen w-full flex-1 bg-background p-4 text-foreground sm:p-6"
       >
-        <div className="mx-auto max-w-[1536px] space-y-4">
-          <h1 className="font-heading text-h5 font-bold">{mode === "idea" ? "Review Source Pack + Idea" : "Review Product"}</h1>
+        <div className="w-full space-y-4">
+          <CourseDetailHeader
+            course={{ id: "matematika-1", title: "Matematika I: Sistem Bilangan Real, Pertaksamaan, dan Nilai Mutlak", category: "Wajib" }}
+            breadcrumbs={[
+              { label: "Mata Kuliah", href: "/admin/courses" },
+              { label: "Matematika I: Sistem Bilangan Real, Pertaksamaan, dan Nilai Mutlak", href: "/admin/courses/matematika-1" },
+              { label: "Review", href: "/admin/courses/matematika-1/review?tab=product" },
+              { label: "Product Bundle" },
+            ]}
+          />
           {mode === "idea" ? <IdeaBundleReviewDetail detailId="visual-idea" courseLabels={{ "matematika-1": "Matematika I" }} /> : <ProductBundleReviewDetail detailId="visual-product" courseLabels={{ "matematika-1": "Matematika I" }} />}
         </div>
       </main>

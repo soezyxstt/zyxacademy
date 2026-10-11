@@ -17,6 +17,13 @@ import { resolveCourseIdentity } from "@/lib/admin/course-identity";
 import { requireTutorCourseAccess } from "@/lib/auth/tutor-access";
 import { resolveCourseAccess } from "@/lib/student/course-access";
 import { storage } from "@/lib/storage";
+import {
+  extractYouTubeVideoId,
+  getCanonicalYouTubeUrl,
+  getYouTubeThumbnailUrl,
+  fetchYouTubeVideoMetadata,
+  type YouTubeMetadataResult,
+} from "@/lib/video/youtube";
 
 /**
  * Representation of a video playlist with its contained videos.
@@ -172,25 +179,51 @@ export async function getCourseVideosData(courseSlugOrId: string) {
 
   const chapterMap = new Map(chapterRows.map((ch) => [ch.id, ch.title]));
 
-  const mappedVideos: VideoItem[] = videoRows.map((v) => ({
-    id: v.id,
-    courseId: v.courseId,
-    playlistId: v.playlistId,
-    chapterId: v.chapterId,
-    chapterTitle: v.chapterId ? chapterMap.get(v.chapterId) || null : null,
-    title: v.title,
-    description: v.description,
-    videoUrl: v.videoUrl ? storage.getUrl(v.videoUrl) : "",
-    thumbnailUrl: v.thumbnailUrl ? storage.getUrl(v.thumbnailUrl) : null,
-    videoKey: v.videoUrl || null,
-    thumbnailKey: v.thumbnailUrl || null,
-    duration: v.duration,
-    fileSize: v.fileSize,
-    orderIndex: v.orderIndex,
-    uploadedBy: v.uploadedBy,
-    createdAt: v.createdAt,
-    updatedAt: v.updatedAt,
-  }));
+  const mappedVideos: VideoItem[] = videoRows.map((v) => {
+    const isExternalVideo =
+      Boolean(v.videoUrl) &&
+      (v.videoUrl.startsWith("http://") ||
+        v.videoUrl.startsWith("https://") ||
+        v.videoUrl.startsWith("youtube/"));
+
+    const resolvedVideoUrl = v.videoUrl
+      ? isExternalVideo
+        ? v.videoUrl
+        : storage.getUrl(v.videoUrl)
+      : "";
+
+    const isExternalThumb =
+      Boolean(v.thumbnailUrl) &&
+      (v.thumbnailUrl?.startsWith("http://") ||
+        v.thumbnailUrl?.startsWith("https://") ||
+        false);
+
+    const resolvedThumbnailUrl = v.thumbnailUrl
+      ? isExternalThumb
+        ? v.thumbnailUrl
+        : storage.getUrl(v.thumbnailUrl)
+      : null;
+
+    return {
+      id: v.id,
+      courseId: v.courseId,
+      playlistId: v.playlistId,
+      chapterId: v.chapterId,
+      chapterTitle: v.chapterId ? chapterMap.get(v.chapterId) || null : null,
+      title: v.title,
+      description: v.description,
+      videoUrl: resolvedVideoUrl,
+      thumbnailUrl: resolvedThumbnailUrl,
+      videoKey: v.videoUrl || null,
+      thumbnailKey: v.thumbnailUrl || null,
+      duration: v.duration,
+      fileSize: v.fileSize,
+      orderIndex: v.orderIndex,
+      uploadedBy: v.uploadedBy,
+      createdAt: v.createdAt,
+      updatedAt: v.updatedAt,
+    };
+  });
 
   const videosByPlaylist = new Map<string, VideoItem[]>();
   for (const v of mappedVideos) {
@@ -330,8 +363,10 @@ export async function deleteVideoPlaylistAction(playlistId: string) {
       );
 
     for (const v of videos) {
-      if (v.videoUrl) await storage.delete(v.videoUrl).catch(() => {});
-      if (v.thumbnailUrl) await storage.delete(v.thumbnailUrl).catch(() => {});
+      const isExtVid = v.videoUrl?.startsWith("http://") || v.videoUrl?.startsWith("https://") || v.videoUrl?.startsWith("youtube/");
+      const isExtThumb = v.thumbnailUrl?.startsWith("http://") || v.thumbnailUrl?.startsWith("https://");
+      if (v.videoUrl && !isExtVid) await storage.delete(v.videoUrl).catch(() => {});
+      if (v.thumbnailUrl && !isExtThumb) await storage.delete(v.thumbnailUrl).catch(() => {});
     }
 
     await db
@@ -348,6 +383,22 @@ export async function deleteVideoPlaylistAction(playlistId: string) {
     return { success: true };
   } catch (error: any) {
     return { success: false, error: error?.message || "Gagal menghapus playlist" };
+  }
+}
+
+/**
+ * Fetches video metadata (title, author, thumbnail) from YouTube oEmbed.
+ */
+export async function fetchYouTubeMetadataAction(
+  urlOrId: string
+): Promise<YouTubeMetadataResult> {
+  try {
+    return await fetchYouTubeVideoMetadata(urlOrId);
+  } catch (error: any) {
+    return {
+      success: false,
+      error: error?.message || "Gagal mengambil data video dari YouTube",
+    };
   }
 }
 
@@ -376,8 +427,18 @@ export async function saveCourseVideoAction(input: {
     if (!input.playlistId) {
       return { success: false, error: "Playlist wajib dipilih" };
     }
-    if (!input.videoUrl) {
-      return { success: false, error: "Berkas video wajib diunggah" };
+    const rawVideoUrl = input.videoUrl.trim();
+    if (!rawVideoUrl) {
+      return { success: false, error: "Berkas atau tautan video wajib diisi" };
+    }
+
+    // Process YouTube link or ID
+    const youtubeId = extractYouTubeVideoId(rawVideoUrl);
+    const finalVideoUrl = youtubeId ? getCanonicalYouTubeUrl(youtubeId) : rawVideoUrl;
+
+    let finalThumbnailUrl = input.thumbnailUrl?.trim() || null;
+    if (!finalThumbnailUrl && youtubeId) {
+      finalThumbnailUrl = getYouTubeThumbnailUrl(youtubeId, "hq");
     }
 
     // Verify playlist belongs to this course
@@ -417,8 +478,8 @@ export async function saveCourseVideoAction(input: {
           chapterId: input.chapterId || null,
           title: cleanTitle,
           description: input.description?.trim() || null,
-          videoUrl: input.videoUrl,
-          thumbnailUrl: input.thumbnailUrl || null,
+          videoUrl: finalVideoUrl,
+          thumbnailUrl: finalThumbnailUrl,
           duration: input.duration || null,
           fileSize: input.fileSize || null,
           updatedAt: new Date(),
@@ -439,8 +500,8 @@ export async function saveCourseVideoAction(input: {
         chapterId: input.chapterId || null,
         title: cleanTitle,
         description: input.description?.trim() || null,
-        videoUrl: input.videoUrl,
-        thumbnailUrl: input.thumbnailUrl || null,
+        videoUrl: finalVideoUrl,
+        thumbnailUrl: finalThumbnailUrl,
         duration: input.duration || null,
         fileSize: input.fileSize || null,
         orderIndex: existingVideos.length + 1,
@@ -478,8 +539,10 @@ export async function deleteCourseVideoAction(videoId: string) {
       return { success: false, error: "Akses ditolak untuk video ini" };
     }
 
-    if (video.videoUrl) await storage.delete(video.videoUrl).catch(() => {});
-    if (video.thumbnailUrl) await storage.delete(video.thumbnailUrl).catch(() => {});
+    const isExtVid = video.videoUrl?.startsWith("http://") || video.videoUrl?.startsWith("https://") || video.videoUrl?.startsWith("youtube/");
+    const isExtThumb = video.thumbnailUrl?.startsWith("http://") || video.thumbnailUrl?.startsWith("https://");
+    if (video.videoUrl && !isExtVid) await storage.delete(video.videoUrl).catch(() => {});
+    if (video.thumbnailUrl && !isExtThumb) await storage.delete(video.thumbnailUrl).catch(() => {});
 
     await db.delete(courseVideos).where(eq(courseVideos.id, videoId));
 

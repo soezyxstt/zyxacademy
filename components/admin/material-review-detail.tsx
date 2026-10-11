@@ -8,6 +8,7 @@ import {
   ArchiveX,
   BookOpen,
   Check,
+  Copy,
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
@@ -34,6 +35,8 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { AdminEmptyState, AdminErrorState } from "@/components/admin/state-panels";
+import { ClampedMarquee } from "@/components/ui/clamped-marquee";
+import { AdminTable, AdminTableHead } from "@/components/admin/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useUrlTab } from "@/hooks/use-url-tab";
 import { StatusBadge } from "@/components/admin/status-badges";
@@ -64,6 +67,7 @@ type DetailProps = {
   courseLabels?: Record<string, string>;
   backHref?: string;
   backLabel?: string;
+  showBackButton?: boolean;
 };
 
 type IdeaPreview = {
@@ -344,7 +348,7 @@ function DetailLoading() {
 // Idea Bundle Review Detail (Compact & Space-Efficient)
 // ---------------------------------------------------------------------------
 
-export function IdeaBundleReviewDetail({ detailId, backHref, backLabel }: DetailProps) {
+export function IdeaBundleReviewDetail({ detailId, backHref, backLabel, showBackButton = true }: DetailProps) {
   const router = useRouter();
   const [payload, setPayload] = useState<IdeaDetailPayload | null>(null);
   const [draft, setDraft] = useState<IdeaDraft | null>(null);
@@ -511,7 +515,7 @@ export function IdeaBundleReviewDetail({ detailId, backHref, backLabel }: Detail
 
   return (
     <div className="space-y-4">
-      {backHref && (
+      {showBackButton && backHref && (
         <div className="flex items-center gap-2">
           <Button
             variant="ghost"
@@ -1708,32 +1712,25 @@ export function DiktatProductView({
   };
 
   return (
-    <div className="max-w-2xl mx-auto space-y-4">
-      {/* Meta Header */}
-      <div className="border-b border-border pb-3 flex flex-wrap items-center justify-between gap-2">
-        <div>
-          <span className="text-body-xs font-semibold uppercase tracking-wider text-brand-primary">Diktat PDF Ringkas</span>
-          <h3 className="mt-0.5 font-heading text-body-base font-bold text-foreground">{product.title}</h3>
-          {product.sourceArticleId ? (
-            <p className="mt-1 text-body-xs text-muted-foreground">
-              Artikel sumber: <span className="font-mono font-semibold text-foreground">{product.sourceArticleId}</span> (v{product.sourceArticleVersion})
+    <div className="w-full space-y-3">
+      {/* Contextual Action & Dependency Bar */}
+      <div className="flex flex-wrap items-center justify-between gap-2.5 pb-2">
+        <div className="flex flex-wrap items-center gap-2.5">
+          {product.sourceArticleVersion ? (
+            <p className="text-body-xs text-muted-foreground">
+              Artikel sumber: <span className="font-semibold text-foreground">v{product.sourceArticleVersion}</span>
             </p>
-          ) : (
-            <p className="mt-1 text-body-xs text-muted-foreground font-mono">
-              ID: {product.id}
-            </p>
-          )}
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
+          ) : null}
           {matchingDep && (
-            <div className="flex items-center gap-1.5 mr-2">
+            <div className="flex items-center gap-1.5">
               <span className="text-body-xs text-muted-foreground">Dependensi:</span>
               <StatusBadge tone={freshnessTones[matchingDep.freshness] ?? "muted"}>
                 {freshnessLabels[matchingDep.freshness] ?? matchingDep.freshness}
               </StatusBadge>
             </div>
           )}
-
+        </div>
+        <div className="flex flex-wrap items-center gap-2 ml-auto">
           {hasPdf && (
             <Button asChild type="button" size="sm" variant="outline" className="gap-1.5 h-8 text-body-xs">
               <a href={pdfViewUrl} target="_blank" rel="noreferrer">
@@ -1771,11 +1768,9 @@ export function DiktatProductView({
         </div>
       </div>
 
-      {/* Diktat Content in Compact Mode */}
-      <div className="rounded-2xl border border-border bg-card p-6 sm:p-8 shadow-xs">
-        <div className="prose dark:prose-invert max-w-none text-body-base leading-relaxed text-foreground">
-          <MarkdownRenderer content={parsed.content} density="compact" />
-        </div>
+      {/* Diktat Content Canvas (Direct canvas without nested card) */}
+      <div className="prose dark:prose-invert max-w-none text-body-base leading-relaxed text-foreground border-t border-border/70 pt-4">
+        <MarkdownRenderer content={parsed.content} density="compact" />
       </div>
     </div>
   );
@@ -1792,7 +1787,7 @@ export function FlashcardProductView({ product }: { product: Extract<ProductEnti
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border pb-3">
         <div>
           <span className="text-body-xs font-semibold uppercase tracking-wider text-brand-primary">Kartu Hafalan</span>
-          <h3 className="mt-0.5 font-heading text-body-sm font-bold text-foreground">{product.id}</h3>
+          <h3 className="mt-0.5 font-heading text-body-sm font-bold text-foreground">Kartu Hafalan</h3>
         </div>
         <Button
           type="button"
@@ -1834,7 +1829,7 @@ export function FlashcardProductView({ product }: { product: Extract<ProductEnti
 
         <div className="text-center text-body-xs text-muted-foreground">
           {"ideaLinks" in product && Array.isArray(product.ideaLinks) && product.ideaLinks.length > 0
-            ? `Idea: ${(product.ideaLinks as Array<{ id: string }>).map((l) => l.id).join(", ")}`
+            ? `${product.ideaLinks.length} Idea terhubung`
             : "Flashcard"}
         </div>
       </div>
@@ -1883,7 +1878,6 @@ function FlashcardSetProductView({ product, allProducts, onSelectCard }: { produ
             >
               <div className="flex items-center justify-between">
                 <Badge variant="outline" className="text-[10px]">#{idx + 1}</Badge>
-                <span className="text-[10px] font-mono text-muted-foreground">{card.id}</span>
               </div>
               <p className="line-clamp-2 text-body-xs font-semibold text-foreground">{frontParsed.content}</p>
             </div>
@@ -1986,7 +1980,7 @@ function SolutionProductView({ product }: { product: Extract<ProductEntity, { pr
     <div className="space-y-4">
       <div className="border-b border-border pb-3">
         <span className="text-body-xs font-semibold uppercase tracking-wider text-brand-primary">Pembahasan Soal</span>
-        <h3 className="mt-0.5 font-heading text-body-base font-bold text-foreground">{product.questionId}</h3>
+        <h3 className="mt-0.5 font-heading text-body-base font-bold text-foreground">Pembahasan Soal</h3>
       </div>
       <div className="rounded-2xl border border-border bg-card p-6 sm:p-8 shadow-xs">
         <div className="prose dark:prose-invert max-w-none text-body-base leading-relaxed text-foreground">
@@ -2103,8 +2097,217 @@ function BundleReadinessPanel({ payload, onRefresh }: { payload: ProductDetailPa
     </section>
   );
 }
+
+function ProductBundleMetadataPanel({
+  payload,
+  courseLabels = {},
+}: {
+  payload: ProductDetailPayload;
+  courseLabels?: Record<string, string>;
+}) {
+  const [copiedKey, setCopiedKey] = useState<string | null>(null);
+
+  const copyToClipboard = async (text: string, key: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedKey(key);
+      setTimeout(() => setCopiedKey(null), 2000);
+      toast.success("ID disalin ke clipboard");
+    } catch {
+      toast.error("Gagal menyalin ID");
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Bundle Info Card */}
+      <div className="rounded-xl border border-border bg-card p-5 shadow-xs space-y-4">
+        <div className="border-b border-border/70 pb-3">
+          <h3 className="font-heading text-body-base font-bold text-foreground">Metadata Bundle</h3>
+          <p className="text-body-xs text-muted-foreground mt-0.5">Informasi teknis dan identitas bundle untuk audit admin.</p>
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="rounded-lg border border-border/60 bg-muted/20 p-3 space-y-1">
+            <span className="text-body-xs text-muted-foreground">Bundle ID</span>
+            <div className="flex items-center justify-between gap-2">
+              <span className="font-mono text-body-xs font-semibold text-foreground truncate">{payload.bundle.id}</span>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-6 w-6 p-0 shrink-0"
+                onClick={() => void copyToClipboard(payload.bundle.id, "bundle-id")}
+                aria-label="Salin Bundle ID"
+              >
+                {copiedKey === "bundle-id" ? <Check className="size-3 text-status-success" /> : <Copy className="size-3" />}
+              </Button>
+            </div>
+          </div>
+
+          <div className="rounded-lg border border-border/60 bg-muted/20 p-3 space-y-1">
+            <span className="text-body-xs text-muted-foreground">Mata Kuliah</span>
+            <p className="font-medium text-body-xs text-foreground truncate">
+              {payload.bundle.courseId ? courseLabels[payload.bundle.courseId] ?? payload.bundle.courseId : "Belum terpetakan"}
+            </p>
+            {payload.bundle.courseId && (
+              <span className="font-mono text-body-2xs text-muted-foreground block truncate">{payload.bundle.courseId}</span>
+            )}
+          </div>
+
+          <div className="rounded-lg border border-border/60 bg-muted/20 p-3 space-y-1">
+            <span className="text-body-xs text-muted-foreground">Checksum</span>
+            <div className="flex items-center justify-between gap-2">
+              <span className="font-mono text-body-xs text-foreground truncate">{payload.bundle.checksum}</span>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-6 w-6 p-0 shrink-0"
+                onClick={() => void copyToClipboard(payload.bundle.checksum, "checksum")}
+                aria-label="Salin Checksum"
+              >
+                {copiedKey === "checksum" ? <Check className="size-3 text-status-success" /> : <Copy className="size-3" />}
+              </Button>
+            </div>
+          </div>
+
+          <div className="rounded-lg border border-border/60 bg-muted/20 p-3 space-y-1">
+            <span className="text-body-xs text-muted-foreground">Status & Revisi</span>
+            <div className="flex items-center gap-2">
+              <DetailStatus status={payload.bundle.status} />
+              {payload.revisionFreshness?.policyVersion && (
+                <Badge variant="outline" className="text-body-2xs font-mono">{payload.revisionFreshness.policyVersion}</Badge>
+              )}
+            </div>
+          </div>
+
+          <div className="rounded-lg border border-border/60 bg-muted/20 p-3 space-y-1">
+            <span className="text-body-xs text-muted-foreground">Tanggal Dibuat</span>
+            <p className="text-body-xs font-medium text-foreground">
+              <FormattedDate date={payload.bundle.createdAt} />
+            </p>
+          </div>
+
+          <div className="rounded-lg border border-border/60 bg-muted/20 p-3 space-y-1">
+            <span className="text-body-xs text-muted-foreground">Status PDF Diktat</span>
+            <p className="text-body-xs font-medium text-foreground">
+              {payload.pdfStatus?.status ? `Status: ${payload.pdfStatus.status}` : "Belum ada bukti PDF"}
+              {payload.pdfStatus?.pageCount ? ` (${payload.pdfStatus.pageCount} halaman)` : ""}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Products Table with technical IDs */}
+      <div className="rounded-xl border border-border bg-card p-5 shadow-xs space-y-4">
+        <div className="flex items-center justify-between border-b border-border/70 pb-3">
+          <div>
+            <h3 className="font-heading text-body-base font-bold text-foreground">Daftar Entitas Produk ({payload.previews.length})</h3>
+            <p className="text-body-xs text-muted-foreground mt-0.5">Pemetaan ID teknis setiap modul pembelajaran dalam bundle.</p>
+          </div>
+        </div>
+
+        <AdminTable>
+          <table className="w-full text-left text-body-xs">
+            <AdminTableHead>
+              <tr>
+                <th className="p-3 font-semibold text-foreground">Tipe</th>
+                <th className="p-3 font-semibold text-foreground">Judul</th>
+                <th className="p-3 font-semibold text-foreground">ID Entitas</th>
+                <th className="p-3 font-semibold text-foreground">Versi</th>
+                <th className="p-3 font-semibold text-foreground">Aksi</th>
+              </tr>
+            </AdminTableHead>
+            <tbody className="divide-y divide-border/60">
+              {payload.previews.map((preview) => (
+                <tr key={preview.id} className="hover:bg-muted/30">
+                  <td className="p-3">
+                    <Badge variant="secondary" className="text-body-2xs">
+                      {productLabels[preview.productType] ?? preview.productType}
+                    </Badge>
+                  </td>
+                  <td className="p-3 font-medium text-foreground max-w-[220px] truncate" title={preview.title}>
+                    {preview.title || "-"}
+                  </td>
+                  <td className="p-3 font-mono text-muted-foreground">
+                    <span className="truncate block max-w-[200px]" title={preview.id}>{preview.id}</span>
+                  </td>
+                  <td className="p-3 font-medium text-foreground">
+                    v{preview.version}
+                  </td>
+                  <td className="p-3">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 px-2 text-body-2xs gap-1"
+                      onClick={() => void copyToClipboard(preview.id, `prod-${preview.id}`)}
+                    >
+                      {copiedKey === `prod-${preview.id}` ? (
+                        <>
+                          <Check className="size-3 text-status-success" />
+                          <span className="text-status-success">Tersalin</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="size-3" />
+                          <span>Salin ID</span>
+                        </>
+                      )}
+                    </Button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </AdminTable>
+      </div>
+
+      {/* Dependencies Table if any */}
+      {payload.dependencies && payload.dependencies.length > 0 && (
+        <div className="rounded-xl border border-border bg-card p-5 shadow-xs space-y-4">
+          <div className="border-b border-border/70 pb-3">
+            <h3 className="font-heading text-body-base font-bold text-foreground">Dependensi Entitas ({payload.dependencies.length})</h3>
+            <p className="text-body-xs text-muted-foreground mt-0.5">Relasi hulu (upstream) ke hilir (downstream) untuk menjamin kesegaran materi.</p>
+          </div>
+
+          <AdminTable>
+            <table className="w-full text-left text-body-xs">
+              <AdminTableHead>
+                <tr>
+                  <th className="p-3 font-semibold text-foreground">Upstream Entity</th>
+                  <th className="p-3 font-semibold text-foreground">Downstream Entity</th>
+                  <th className="p-3 font-semibold text-foreground">Kesegaran</th>
+                </tr>
+              </AdminTableHead>
+              <tbody className="divide-y divide-border/60">
+                {payload.dependencies.map((dep) => (
+                  <tr key={dep.id} className="hover:bg-muted/30">
+                    <td className="p-3 font-mono text-muted-foreground max-w-[200px] truncate" title={dep.upstreamEntityId}>
+                      {dep.upstreamEntityId}
+                    </td>
+                    <td className="p-3 font-mono text-muted-foreground max-w-[200px] truncate" title={dep.downstreamEntityId}>
+                      {dep.downstreamEntityId}
+                    </td>
+                    <td className="p-3">
+                      <StatusBadge tone={dep.freshness === "UP_TO_DATE" ? "success" : dep.freshness === "NEEDS_REVIEW" ? "warning" : "error"}>
+                        {dep.freshness}
+                      </StatusBadge>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </AdminTable>
+        </div>
+      )}
+    </div>
+  );
+}
+
 /** Loads the Product Bundle and coordinates product, section, and bundle review. */
-export function ProductBundleReviewDetail({ detailId, courseLabels = {}, backHref, backLabel }: DetailProps) {
+export function ProductBundleReviewDetail({ detailId, courseLabels = {}, backHref, backLabel, showBackButton = true }: DetailProps) {
   const router = useRouter();
   const [payload, setPayload] = useState<ProductDetailPayload | null>(null);
   const [draftProducts, setDraftProducts] = useState<ProductEntity[]>([]);
@@ -2116,6 +2319,8 @@ export function ProductBundleReviewDetail({ detailId, courseLabels = {}, backHre
   const [reviewDecision, setReviewDecision] = useState<"approved" | "rejected" | "changes_requested" | null>(null);
   const [editing, setEditing] = useState(false);
   const [articleViewMode, setArticleViewMode] = useState<"student" | "blocks">("student");
+  const [mobileNotesOpen, setMobileNotesOpen] = useState(false);
+  const [pickerHovered, setPickerHovered] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -2341,110 +2546,115 @@ export function ProductBundleReviewDetail({ detailId, courseLabels = {}, backHre
         </div>
       )}
 
-      {/* Compact Meta Strip */}
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-card px-4 py-3 shadow-xs">
-        <div className="flex flex-wrap items-center gap-3 text-body-sm">
-          <span className="font-semibold text-foreground">{payload.bundle.courseId ? courseLabels[payload.bundle.courseId] ?? payload.bundle.courseId : "Belum terpetakan"}</span>
-          <span className="text-muted-foreground">·</span>
-          <span className="text-muted-foreground"><FormattedDate date={payload.bundle.createdAt} /></span>
-          <span className="text-muted-foreground">·</span>
-          <span className="font-medium text-foreground">{payload.previews.length} bagian</span>
-        </div>
-        <DetailStatus status={payload.bundle.status} />
-      </div>
-
-      {/* Tabs & compact product navigator */}
+      {/* Unified Integrated Review Toolbar */}
       <Tabs value={activeType} onValueChange={handleTypeTabChange}>
-        <div className="space-y-2.5">
-          <TabsList>
-            <TabsTrigger value="all">Semua</TabsTrigger>
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border bg-muted/40 p-1.5 shadow-2xs">
+          {/* Filter Tabs */}
+          <TabsList className="bg-transparent p-0 border-0 shrink-0">
+            <TabsTrigger value="all" className="h-8 text-body-xs font-medium">Semua</TabsTrigger>
             {Object.entries(typeCounts).map(([type]) => (
-              <TabsTrigger key={type} value={type}>
+              <TabsTrigger key={type} value={type} className="h-8 text-body-xs font-medium">
                 {productLabels[type] ?? type}
               </TabsTrigger>
             ))}
+            <TabsTrigger value="metadata" className="h-8 text-body-xs font-medium">Metadata</TabsTrigger>
           </TabsList>
 
           {/* Stepper + Active Product Searchable Sheet Toolbar */}
-          <div className={cn(styles.bundleNavigator, "flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border bg-muted/40 p-2 shadow-xs")}>
-            <div className="flex items-center gap-1.5">
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                disabled={currentIndex <= 0}
-                onClick={() => goToIndex(currentIndex - 1)}
-                aria-label="Bagian sebelumnya"
-                className="h-8 px-2.5"
-              >
-                <ChevronLeft className="size-4" />
-              </Button>
-              <span className="px-1 font-mono text-body-xs font-semibold text-foreground">
-                {currentIndex >= 0 ? currentIndex + 1 : 1} / {visiblePreviews.length}
-              </span>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                disabled={currentIndex >= visiblePreviews.length - 1}
-                onClick={() => goToIndex(currentIndex + 1)}
-                aria-label="Bagian berikutnya"
-                className="h-8 px-2.5"
-              >
-                <ChevronRight className="size-4" />
-              </Button>
-            </div>
-
-            {/* Searchable Sheet Trigger with Active Product Name */}
-            <Sheet open={drawerOpen} onOpenChange={setDrawerOpen}>
-              <SheetTrigger asChild>
-                <Button type="button" size="sm" variant="outline" className={cn(styles.bundleSelectorTrigger, "h-8 min-w-0 gap-1.5 text-body-sm justify-between")}>
-                  <div className={cn(styles.bundleSelectorContent, "flex items-center gap-1.5")}>
-                    <ListFilter className="size-3.5 shrink-0 text-muted-foreground" />
-                    <span className={styles.bundleSelectorLabel}>{activePreview ? (activePreview.title || activePreview.id) : "Pilih bagian"}</span>
-                  </div>
-                  <Badge variant="outline" className="ml-1 text-body-xs shrink-0 font-normal">
-                    {visiblePreviews.length}
-                  </Badge>
+          {activeType !== "metadata" && (
+            <div className="flex items-center gap-1.5 w-full sm:w-auto sm:ml-auto justify-between sm:justify-end min-w-0">
+              <div className="flex items-center gap-1 bg-background/80 rounded-lg p-0.5 border border-border/60 shrink-0">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  disabled={currentIndex <= 0}
+                  onClick={() => goToIndex(currentIndex - 1)}
+                  aria-label="Bagian sebelumnya"
+                  className="size-7 p-0"
+                >
+                  <ChevronLeft className="size-3.5" />
                 </Button>
-              </SheetTrigger>
-              <SheetContent side="right" className="flex flex-col w-full sm:max-w-md p-4">
-                <SheetHeader className="pb-3 border-b border-border text-left">
-                  <SheetTitle className="text-body-base font-semibold">Daftar Bagian ({visiblePreviews.length})</SheetTitle>
-                  <div className="mt-2">
-                    <SearchBar
-                      size="sm"
-                      value={searchQuery}
-                      onSearch={setSearchQuery}
-                      onClear={() => setSearchQuery("")}
-                      placeholder="Cari bagian..."
-                    />
+                <span className="px-1.5 font-mono text-[11px] font-semibold text-muted-foreground">
+                  {currentIndex >= 0 ? currentIndex + 1 : 1}/{visiblePreviews.length}
+                </span>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  disabled={currentIndex >= visiblePreviews.length - 1}
+                  onClick={() => goToIndex(currentIndex + 1)}
+                  aria-label="Bagian berikutnya"
+                  className="size-7 p-0"
+                >
+                  <ChevronRight className="size-3.5" />
+                </Button>
+              </div>
+
+              {/* Searchable Sheet Trigger with Active Product Name */}
+              <Sheet open={drawerOpen} onOpenChange={setDrawerOpen}>
+                <SheetTrigger asChild>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onMouseEnter={() => setPickerHovered(true)}
+                    onMouseLeave={() => setPickerHovered(false)}
+                    className="h-8 min-w-0 max-w-[220px] sm:w-[260px] sm:max-w-[260px] flex-1 sm:flex-initial gap-2 text-body-xs justify-between overflow-hidden"
+                  >
+                    <div className="flex items-center gap-1.5 min-w-0 flex-1 overflow-hidden pr-1">
+                      <ListFilter className="size-3 shrink-0 text-muted-foreground" />
+                      <ClampedMarquee
+                        text={activePreview ? (activePreview.title || "Bagian") : "Pilih bagian"}
+                        isParentHovered={pickerHovered}
+                        className="text-left font-medium min-w-0 flex-1"
+                      />
+                    </div>
+                    <Badge variant="outline" className="text-[10px] shrink-0 font-normal py-0 px-1">
+                      {visiblePreviews.length}
+                    </Badge>
+                  </Button>
+                </SheetTrigger>
+                <SheetContent side="right" className="flex flex-col w-full sm:max-w-md p-4">
+                  <SheetHeader className="pb-3 border-b border-border text-left">
+                    <SheetTitle className="text-body-base font-semibold">Daftar Bagian ({visiblePreviews.length})</SheetTitle>
+                    <div className="mt-2">
+                      <SearchBar
+                        size="sm"
+                        value={searchQuery}
+                        onSearch={setSearchQuery}
+                        onClear={() => setSearchQuery("")}
+                        placeholder="Cari bagian..."
+                      />
+                    </div>
+                  </SheetHeader>
+                  <div className="flex-1 overflow-y-auto space-y-1 py-3 pr-1">
+                    {drawerFilteredPreviews.map((preview, index) => (
+                      <button
+                        key={preview.id}
+                        type="button"
+                        onClick={() => handleSelectProduct(preview.id)}
+                        className={cn(
+                          "w-full rounded-lg p-2.5 text-left text-body-xs transition-colors hover:bg-muted",
+                          activePreview?.id === preview.id ? "bg-muted font-semibold border-l-2 border-brand-primary" : "text-foreground"
+                        )}
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <ClampedMarquee text={preview.title || `Bagian ${index + 1}`} className="font-semibold text-foreground flex-1 min-w-0" />
+                          <Badge variant="outline" className="text-[10px] shrink-0">{productLabels[preview.productType] ?? preview.productType}</Badge>
+                        </div>
+                      </button>
+                    ))}
                   </div>
-                </SheetHeader>
-                <div className="flex-1 overflow-y-auto space-y-1 py-3 pr-1">
-                  {drawerFilteredPreviews.map((preview, index) => (
-                    <button
-                      key={preview.id}
-                      type="button"
-                      onClick={() => handleSelectProduct(preview.id)}
-                      className={cn(
-                        "w-full rounded-lg p-2.5 text-left text-body-xs transition-colors hover:bg-muted",
-                        activePreview?.id === preview.id ? "bg-muted font-semibold border-l-2 border-brand-primary" : "text-foreground"
-                      )}
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="font-semibold text-foreground truncate">{preview.title || `Bagian ${index + 1}`}</span>
-                        <Badge variant="outline" className="text-[10px] shrink-0">{productLabels[preview.productType] ?? preview.productType}</Badge>
-                      </div>
-                      <span className="text-body-xs text-muted-foreground font-mono">{preview.id}</span>
-                    </button>
-                  ))}
-                </div>
-              </SheetContent>
-            </Sheet>
-          </div>
+                </SheetContent>
+              </Sheet>
+            </div>
+          )}
         </div>
 
+        <TabsContent value="metadata" className="mt-4">
+          <ProductBundleMetadataPanel payload={payload} courseLabels={courseLabels} />
+        </TabsContent>
         <TabsContent value={activeType} className="mt-4">
           {/* 100% Canvas Width for Content Review */}
           {activePreview ? (
@@ -2453,7 +2663,7 @@ export function ProductBundleReviewDetail({ detailId, courseLabels = {}, backHre
                 <div className={cn(styles.productHeader, "min-w-0 flex-1")}>
                   <Badge variant="secondary" className="text-body-xs font-semibold">{productLabels[activePreview.productType] ?? activePreview.productType}</Badge>
                   <h3 className={cn(styles.productTitle, "mt-1.5 font-heading text-body-base font-bold text-foreground")}>{activePreview.title || "Bagian tanpa judul"}</h3>
-                  <span className="text-body-xs text-muted-foreground font-mono">ID: {activePreview.id} · Versi {activePreview.version}</span>
+                  <span className="text-body-xs text-muted-foreground">Versi {activePreview.version}</span>
                 </div>
                 {!editing && payload.bundle.status === "draft" && (
                   <Button type="button" size="sm" variant="outline" onClick={() => setEditing(true)} className="h-8 text-body-sm">Edit isi</Button>
@@ -2562,10 +2772,21 @@ export function ProductBundleReviewDetail({ detailId, courseLabels = {}, backHre
           </div>
         )}
 
-        <div className="space-y-1.5">
+        <div className={cn("space-y-1.5", !mobileNotesOpen && !reviewNote && "hidden md:block")}>
           <div className="flex items-center justify-between">
             <Label htmlFor="product-review-note" className="text-body-sm font-semibold">Alasan keputusan</Label>
-            <span className="text-body-xs text-muted-foreground">Wajib untuk revisi atau penolakan</span>
+            <div className="flex items-center gap-2">
+              <span className="text-body-xs text-muted-foreground">Wajib untuk revisi atau penolakan</span>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-6 px-1.5 text-body-2xs md:hidden"
+                onClick={() => setMobileNotesOpen(false)}
+              >
+                Tutup
+              </Button>
+            </div>
           </div>
           <Textarea
             id="product-review-note"
@@ -2579,14 +2800,39 @@ export function ProductBundleReviewDetail({ detailId, courseLabels = {}, backHre
         {error && <p className="text-body-xs text-status-error">{error}</p>}
 
         {/* Action Buttons */}
-        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border pt-2 md:pt-3">
-          <div className="flex flex-wrap gap-2">
+        <div className="flex items-center justify-between gap-2 border-t border-border pt-2 md:pt-3">
+          <div className="flex flex-wrap items-center gap-2">
             {payload.bundle.status === "draft" && (
               <>
-                <Button type="button" size="sm" variant="outline" disabled={saving || !reviewNote.trim()} onClick={() => void decide("changes_requested")}>
+                {!mobileNotesOpen && !reviewNote ? (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="md:hidden"
+                    onClick={() => setMobileNotesOpen(true)}
+                  >
+                    Catatan revisi
+                  </Button>
+                ) : null}
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className={cn(!mobileNotesOpen && !reviewNote && "hidden md:inline-flex")}
+                  disabled={saving || !reviewNote.trim()}
+                  onClick={() => void decide("changes_requested")}
+                >
                   Minta revisi
                 </Button>
-                <Button type="button" size="sm" variant="destructive" disabled={saving || !reviewNote.trim()} onClick={() => void decide("rejected")}>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="destructive"
+                  className={cn(!mobileNotesOpen && !reviewNote && "hidden md:inline-flex")}
+                  disabled={saving || !reviewNote.trim()}
+                  onClick={() => void decide("rejected")}
+                >
                   Tolak
                 </Button>
                 <Button type="button" size="sm" disabled={saving} onClick={() => void decide("approved")}>
@@ -2617,7 +2863,7 @@ export function ProductBundleReviewDetail({ detailId, courseLabels = {}, backHre
           {(payload.bundle.status === "draft" || payload.bundle.status === "published") && (
             <DropdownMenu.Root>
               <DropdownMenu.Trigger asChild>
-                <Button type="button" size="sm" variant="outline" disabled={saving} aria-label="Aksi lainnya" className="absolute bottom-3 right-20 sm:static">
+                <Button type="button" size="sm" variant="outline" disabled={saving} aria-label="Aksi lainnya" className="shrink-0">
                   <MoreHorizontal className="size-4" />
                   <span className="hidden sm:inline">Aksi lainnya</span>
                 </Button>
