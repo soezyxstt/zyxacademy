@@ -1,7 +1,8 @@
 import crypto from "node:crypto";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
-import { reviewPedagogiBundle, user } from "@/db/schema";
+import { reviewBundle, reviewItemBundle, reviewPedagogiBundle, user } from "@/db/schema";
+import type { ProductEntity } from "@/lib/bundle/product-validator";
 import { hasPeran } from "@/lib/auth/authorization";
 import { checkTutorCourseAccess } from "@/lib/auth/tutor-access";
 import {
@@ -198,6 +199,83 @@ export async function executePedagogicReview(
         createdAt: now,
       },
     });
+
+  const reviewId = stableId("review-product", `${input.importId}:${input.reviewerId}`);
+  await db
+    .insert(reviewBundle)
+    .values({
+      id: reviewId,
+      imporBundleId: input.importId,
+      reviewerId: input.reviewerId,
+      status: input.decision === "approved" ? "approved" : "rejected",
+      notes: reviewNotes,
+      reviewedAt: now,
+    })
+    .onConflictDoUpdate({
+      target: [reviewBundle.imporBundleId, reviewBundle.reviewerId],
+      set: {
+        status: input.decision === "approved" ? "approved" : "rejected",
+        notes: reviewNotes,
+        reviewedAt: now,
+      },
+    });
+
+  if (input.decision === "approved") {
+    const articles = stagedBundle.products.filter(
+      (p): p is Extract<ProductEntity, { productType: "article" }> => p.productType === "article",
+    );
+    for (const art of articles) {
+      const sections = art.sections ?? [];
+      for (const section of sections) {
+        const itemReviewId = stableId(
+          "review-product-item",
+          `${input.importId}:${input.reviewerId}:article_section:${section.id}`,
+        );
+        const [existing] = await db
+          .select({ status: reviewItemBundle.status })
+          .from(reviewItemBundle)
+          .where(
+            and(
+              eq(reviewItemBundle.imporBundleId, input.importId),
+              eq(reviewItemBundle.reviewerId, input.reviewerId),
+              eq(reviewItemBundle.targetType, "article_section"),
+              eq(reviewItemBundle.targetId, section.id),
+            ),
+          )
+          .limit(1);
+
+        if (!existing || existing.status !== "changes_requested") {
+          await db
+            .insert(reviewItemBundle)
+            .values({
+              id: itemReviewId,
+              imporBundleId: input.importId,
+              reviewerId: input.reviewerId,
+              productId: art.id,
+              blockId: section.id,
+              targetType: "article_section",
+              targetId: section.id,
+              status: "approved",
+              notes: null,
+              createdAt: now,
+              updatedAt: now,
+            })
+            .onConflictDoUpdate({
+              target: [
+                reviewItemBundle.imporBundleId,
+                reviewItemBundle.reviewerId,
+                reviewItemBundle.targetType,
+                reviewItemBundle.targetId,
+              ],
+              set: {
+                status: "approved",
+                updatedAt: now,
+              },
+            });
+        }
+      }
+    }
+  }
 
   return {
     ok: true,

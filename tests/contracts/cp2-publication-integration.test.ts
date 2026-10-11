@@ -15,7 +15,7 @@ import {
   type ProductEntity,
 } from "@/lib/bundle/product-validator";
 import { provisionPenggunaForNewUser } from "@/lib/auth/authorization";
-import { stageProductBundle } from "@/lib/bundle/product-staging";
+import { stageProductBundle, reviewProductBundle } from "@/lib/bundle/product-staging";
 import { publishProductBundle } from "@/lib/bundle/product-publication";
 import { evaluateProductBundleQualityPolicy } from "@/lib/bundle/product-review-gate";
 import {
@@ -665,6 +665,84 @@ describe("CP2 Publication Integration Contract", () => {
     // Verify vectorSyncQueue
     const vectorRows = await testDb.select().from(schema.vectorSyncQueue);
     expect(vectorRows.length).toBeGreaterThan(0);
+  });
+
+  test("auto-approves pending article sections when bundle review is approved", async () => {
+    const article = createV3Article("article-auto-approve");
+    const diktat = createDiktat(article, "diktat-auto-approve");
+    const { staged } = await stageTestBundle(
+      article,
+      diktat,
+      "bundle-auto-approve",
+    );
+
+    // Prior to bundle approval, no sections are reviewed
+    const beforeReviews = await testDb
+      .select()
+      .from(schema.reviewItemBundle)
+      .where(eq(schema.reviewItemBundle.imporBundleId, staged.importId));
+    expect(beforeReviews).toHaveLength(0);
+
+    // Admin approves the bundle overall
+    await reviewProductBundle({
+      importId: staged.importId,
+      reviewerId: "user-admin-1",
+      decision: "approved",
+      notes: "Approve bundle with auto-approval of sections",
+    });
+
+    // All sections should now be automatically approved in reviewItemBundle
+    const afterReviews = await testDb
+      .select()
+      .from(schema.reviewItemBundle)
+      .where(eq(schema.reviewItemBundle.imporBundleId, staged.importId));
+    expect(afterReviews).toHaveLength(article.sections.length);
+    expect(afterReviews.every((r) => r.status === "approved")).toBe(true);
+  });
+
+  test("preserves existing changes_requested sections when bundle review is approved", async () => {
+    const article = createV3Article("article-cr-preserve");
+    const diktat = createDiktat(article, "diktat-cr-preserve");
+    const { staged } = await stageTestBundle(
+      article,
+      diktat,
+      "bundle-cr-preserve",
+    );
+
+    const firstSection = article.sections[0];
+    await testDb.insert(schema.reviewItemBundle).values({
+      id: `rev-sec-${staged.importId}-${firstSection.id}`,
+      imporBundleId: staged.importId,
+      reviewerId: "user-admin-1",
+      productId: article.id,
+      blockId: firstSection.id,
+      targetType: "article_section",
+      targetId: firstSection.id,
+      status: "changes_requested",
+      notes: "Needs improvement",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    // Admin approves the bundle overall
+    await reviewProductBundle({
+      importId: staged.importId,
+      reviewerId: "user-admin-1",
+      decision: "approved",
+      notes: "Approve bundle",
+    });
+
+    const reviews = await testDb
+      .select()
+      .from(schema.reviewItemBundle)
+      .where(eq(schema.reviewItemBundle.imporBundleId, staged.importId));
+    expect(reviews).toHaveLength(article.sections.length);
+
+    const crReview = reviews.find((r) => r.targetId === firstSection.id);
+    expect(crReview?.status).toBe("changes_requested");
+
+    const otherReviews = reviews.filter((r) => r.targetId !== firstSection.id);
+    expect(otherReviews.every((r) => r.status === "approved")).toBe(true);
   });
 
   test("publication is idempotent on retry without duplicating records", async () => {
