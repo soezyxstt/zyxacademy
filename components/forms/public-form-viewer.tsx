@@ -802,8 +802,8 @@ export function PublicFormViewer({
       </header>
 
       {/* Main Interactive Screen Area */}
-      <main ref={mainScrollRef} className="relative z-10 flex-1 min-h-0 overflow-y-auto px-4 py-6 pb-24 sm:pb-28 flex flex-col justify-center">
-        <div className="w-full max-w-2xl mx-auto my-auto">
+      <main ref={mainScrollRef} className="relative z-10 flex-1 min-h-0 overflow-y-auto px-4 sm:px-6 py-8 sm:py-10 flex flex-col">
+        <div className="w-full max-w-2xl mx-auto my-auto shrink-0">
           <AnimatePresence mode="wait" custom={direction}>
             {/* 1. COVER / WELCOME SCREEN */}
             {currentStep?.kind === "cover" && (
