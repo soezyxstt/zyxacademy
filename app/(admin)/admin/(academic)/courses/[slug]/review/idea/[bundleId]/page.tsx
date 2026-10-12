@@ -65,7 +65,15 @@ export default async function CourseIdeaReviewDetailPage({ params }: Props) {
 
   return (
     <div className="space-y-4 font-sans">
-      <CourseDetailHeader course={courseData.course} />
+      <CourseDetailHeader
+        course={courseData.course}
+        breadcrumbs={[
+          { label: "Mata Kuliah", href: "/admin/courses" },
+          { label: identity.title, href: `/admin/courses/${encodeURIComponent(identity.slug)}` },
+          { label: "Review Materi", href: `/admin/courses/${encodeURIComponent(identity.slug)}/review?tab=idea` },
+          { label: "Source Pack + Idea" },
+        ]}
+      />
       <MaterialWorkspace
         {...data}
         mode="idea-detail"

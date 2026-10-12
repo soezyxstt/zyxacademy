@@ -515,22 +515,6 @@ export function IdeaBundleReviewDetail({ detailId, backHref, backLabel, showBack
 
   return (
     <div className="space-y-4">
-      {showBackButton && backHref && (
-        <div className="flex items-center gap-2">
-          <Button
-            variant="ghost"
-            size="sm"
-            asChild
-            className="-ml-2 h-8 gap-1.5 text-body-sm text-muted-foreground hover:text-foreground"
-          >
-            <Link href={backHref}>
-              <ChevronLeft className="size-4" />
-              {backLabel ?? "Kembali ke daftar review"}
-            </Link>
-          </Button>
-        </div>
-      )}
-
       {/* Top Navigator Bar */}
       <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border bg-muted/40 p-2 shadow-xs">
         <div className="flex items-center gap-1.5">
@@ -2530,22 +2514,6 @@ export function ProductBundleReviewDetail({ detailId, courseLabels = {}, backHre
 
   return (
     <div className="space-y-4">
-      {backHref && (
-        <div className="flex items-center gap-2">
-          <Button
-            variant="ghost"
-            size="sm"
-            asChild
-            className="-ml-2 h-8 gap-1.5 text-body-sm text-muted-foreground hover:text-foreground"
-          >
-            <Link href={backHref}>
-              <ChevronLeft className="size-4" />
-              {backLabel ?? "Kembali ke daftar review"}
-            </Link>
-          </Button>
-        </div>
-      )}
-
       {/* Unified Integrated Review Toolbar */}
       <Tabs value={activeType} onValueChange={handleTypeTabChange}>
         <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border bg-muted/40 p-1.5 shadow-2xs">

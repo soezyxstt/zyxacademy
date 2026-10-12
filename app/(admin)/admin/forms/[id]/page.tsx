@@ -272,7 +272,7 @@ export default function DetailedFormAnalyticsPage({
   const questionNumberMap = useMemo(() => {
     const map = new Map<number, number>();
     (form?.questions || []).forEach((q: any, idx: number) => {
-      if (q.type === "SECTION") return;
+      if (q.type === "SECTION" || q.type === "STATEMENT") return;
       const n = (map.size) + 1;
       map.set(idx, n);
     });
@@ -282,7 +282,7 @@ export default function DetailedFormAnalyticsPage({
   const visibleQuestions = useMemo(() => {
     return (form?.questions || [])
       .map((q: any, idx: number) => ({ qIdx: idx, q }))
-      .filter((x) => x.q.type !== "SECTION");
+      .filter((x) => x.q.type !== "SECTION" && x.q.type !== "STATEMENT");
   }, [form]);
 
   const exportQuestions = visibleQuestions.map(({ qIdx, q }) => {
@@ -513,7 +513,7 @@ export default function DetailedFormAnalyticsPage({
           {/* TAB 1: SUMMARY */}
           <TabsContent value="summary" className="space-y-6">
             {(form.questions || []).map((q: any, qIdx: number) => {
-              if (q.type === "SECTION") return null;
+              if (q.type === "SECTION" || q.type === "STATEMENT") return null;
               const num = questionNumberMap.get(qIdx) || qIdx + 1;
               const questionTitle = q.title || `Pertanyaan #${num}`;
               const allAnswers = responses

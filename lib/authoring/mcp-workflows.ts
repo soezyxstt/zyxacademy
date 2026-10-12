@@ -81,10 +81,13 @@ export type McpClientPayload = SignedTokenPayload & {
   redirectUris: string[];
 };
 
-export const MCP_AUTHORING_DEFAULT_SCOPES = ["authoring:read", "authoring:stage"] as const;
+export const MCP_AUTHORING_DEFAULT_SCOPES = [
+  "authoring:read",
+  "authoring:stage",
+  "authoring:review",
+] as const;
 export const MCP_AUTHORING_SCOPES = [
   ...MCP_AUTHORING_DEFAULT_SCOPES,
-  "authoring:review",
   "authoring:withdraw",
 ] as const;
 
