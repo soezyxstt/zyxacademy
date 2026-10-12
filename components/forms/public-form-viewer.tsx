@@ -88,10 +88,12 @@ export function PublicFormViewer({
   idOrSlug,
   previewForm,
   isPreview = false,
+  initialStepIndex = 0,
 }: {
   idOrSlug?: string;
   previewForm?: FormPayload;
   isPreview?: boolean;
+  initialStepIndex?: number;
 }) {
   const [form, setForm] = useState<FormPayload | null>(previewForm || null);
   const [loading, setLoading] = useState(!previewForm);
@@ -122,7 +124,7 @@ export function PublicFormViewer({
   const [loginRequired, setLoginRequired] = useState(false);
 
   // Typeform Step Navigation State
-  const [currentStepIndex, setCurrentStepIndex] = useState(0);
+  const [currentStepIndex, setCurrentStepIndex] = useState(initialStepIndex);
   const [direction, setDirection] = useState<1 | -1>(1);
 
   const activeFocusRef = useRef<HTMLElement | null>(null);
@@ -1211,7 +1213,9 @@ export function PublicFormViewer({
                                 >
                                   {letter}
                                 </span>
-                                <span className="text-body-sm font-medium">{opt}</span>
+                                <span className="text-body-sm font-medium">
+                                  <MathText as="span">{opt}</MathText>
+                                </span>
                               </div>
                               {isSelected && <Check className="size-5 text-brand-primary shrink-0" />}
                             </button>
@@ -1240,7 +1244,7 @@ export function PublicFormViewer({
                                   {OPTION_LETTERS[q.options?.length || 0] || "•"}
                                 </span>
                                 <span className="text-body-sm font-medium">
-                                  {q.otherOption.label || "Lainnya"}
+                                  <MathText as="span">{q.otherOption.label || "Lainnya"}</MathText>
                                 </span>
                               </div>
                               {answerVal === OTHER_OPTION_MARKER && <Check className="size-5 text-brand-primary shrink-0" />}
@@ -1298,7 +1302,9 @@ export function PublicFormViewer({
                                 >
                                   {letter}
                                 </span>
-                                <span className="text-body-sm font-medium">{opt}</span>
+                                <span className="text-body-sm font-medium">
+                                  <MathText as="span">{opt}</MathText>
+                                </span>
                               </div>
                               <div
                                 className={`size-5 rounded-md border flex items-center justify-center transition-colors ${
@@ -1350,7 +1356,7 @@ export function PublicFormViewer({
                                         {OPTION_LETTERS[q.options?.length || 0] || "•"}
                                       </span>
                                       <span className="text-body-sm font-medium">
-                                        {q.otherOption?.label || "Lainnya"}
+                                        <MathText as="span">{q.otherOption?.label || "Lainnya"}</MathText>
                                       </span>
                                     </div>
                                     <div
@@ -1747,13 +1753,16 @@ export function PublicFormViewer({
 
                     return (
                       <div key={qIdx} className="p-3.5 flex items-start justify-between gap-3 text-body-sm">
-                        <div className="space-y-0.5 max-w-[80%]">
-                          <p className="font-semibold text-foreground">
-                            {questionNumberMap.get(qIdx) || qIdx + 1}. {q.title}
-                          </p>
-                          <p className="text-muted-foreground text-body-xs truncate">
-                            {displayAns}
-                          </p>
+                        <div className="space-y-1 max-w-[80%] min-w-0">
+                          <div className="font-semibold text-foreground leading-snug">
+                            <span className="font-mono mr-1.5">
+                              {questionNumberMap.get(qIdx) || qIdx + 1}.
+                            </span>
+                            <MathText as="span">{q.title}</MathText>
+                          </div>
+                          <div className="text-muted-foreground text-body-xs line-clamp-3 break-words">
+                            <MathText as="span">{displayAns}</MathText>
+                          </div>
                         </div>
                         {stepIdx >= 0 && (
                           <Button
