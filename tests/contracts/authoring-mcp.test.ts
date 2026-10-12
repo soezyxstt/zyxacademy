@@ -88,8 +88,16 @@ describe("provider-neutral authoring MCP workflow registry", () => {
   });
 
   it("keeps OAuth defaults backward compatible while exposing explicit lifecycle scopes", () => {
-    expect(MCP_AUTHORING_DEFAULT_SCOPES).toEqual(["authoring:read", "authoring:stage"]);
-    expect(requestedScopes(null)).toEqual(["authoring:read", "authoring:stage"]);
+    expect(MCP_AUTHORING_DEFAULT_SCOPES).toEqual([
+      "authoring:read",
+      "authoring:stage",
+      "authoring:review",
+    ]);
+    expect(requestedScopes(null)).toEqual([
+      "authoring:read",
+      "authoring:stage",
+      "authoring:review",
+    ]);
     expect(MCP_OAUTH_SCOPES).toEqual([
       "authoring:read",
       "authoring:stage",

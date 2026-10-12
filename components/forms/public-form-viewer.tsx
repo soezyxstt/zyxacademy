@@ -21,7 +21,9 @@ import {
   Check,
   Send,
   Eraser,
+  Info,
 } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { MathText } from "@/components/course/math-text";
 import { Button } from "@/components/ui/button";
 import {
@@ -76,14 +78,23 @@ type StepType =
   | { kind: "cover" }
   | { kind: "email" }
   | { kind: "section"; questionIndex: number }
+  | { kind: "statement"; questionIndex: number }
   | { kind: "question"; questionIndex: number }
   | { kind: "review" };
 
 const OPTION_LETTERS = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P"];
 
-export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
-  const [form, setForm] = useState<FormPayload | null>(null);
-  const [loading, setLoading] = useState(true);
+export function PublicFormViewer({
+  idOrSlug,
+  previewForm,
+  isPreview = false,
+}: {
+  idOrSlug?: string;
+  previewForm?: FormPayload;
+  isPreview?: boolean;
+}) {
+  const [form, setForm] = useState<FormPayload | null>(previewForm || null);
+  const [loading, setLoading] = useState(!previewForm);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [submittedMessage, setSubmittedMessage] = useState<string | null>(null);
@@ -148,6 +159,7 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
   }, []);
 
   const fetchForm = useCallback(async () => {
+    if (!idOrSlug) return;
     setLoading(true);
     setErrorMsg(null);
     try {
@@ -170,8 +182,14 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
   }, [idOrSlug]);
 
   useEffect(() => {
+    if (isPreview && previewForm) {
+      setForm(previewForm);
+      setLoading(false);
+      setErrorMsg(null);
+      return;
+    }
     fetchForm();
-  }, [fetchForm]);
+  }, [isPreview, previewForm, fetchForm]);
 
   const collectEmail = form?.settings?.collectEmail || "none";
 
@@ -188,10 +206,12 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
       list.push({ kind: "email" });
     }
 
-    // 3. Question & Section steps
+    // 3. Question, Section & Statement steps
     form.questions.forEach((q, qIdx) => {
       if (q.type === "SECTION") {
         list.push({ kind: "section", questionIndex: qIdx });
+      } else if (q.type === "STATEMENT") {
+        list.push({ kind: "statement", questionIndex: qIdx });
       } else {
         list.push({ kind: "question", questionIndex: qIdx });
       }
@@ -203,13 +223,13 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
     return list;
   }, [form, collectEmail]);
 
-  // Question numbering map (excludes SECTION, cover, review)
+  // Question numbering map (excludes SECTION, STATEMENT, cover, review)
   const questionNumberMap = useMemo(() => {
     const map = new Map<number, number>();
     if (!form?.questions) return map;
     let n = 0;
     form.questions.forEach((q, idx) => {
-      if (q.type !== "SECTION") {
+      if (q.type !== "SECTION" && q.type !== "STATEMENT") {
         n += 1;
         map.set(idx, n);
       }
@@ -219,7 +239,7 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
 
   const totalQuestions = useMemo(() => {
     if (!form?.questions) return 0;
-    return form.questions.filter((q) => q.type !== "SECTION").length;
+    return form.questions.filter((q) => q.type !== "SECTION" && q.type !== "STATEMENT").length;
   }, [form]);
 
   // Calculate overall percentage progress
@@ -421,7 +441,7 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
     // Validate all required questions
     for (let qIdx = 0; qIdx < form.questions.length; qIdx += 1) {
       const question = form.questions[qIdx];
-      if (question.type === "SECTION") continue;
+      if (question.type === "SECTION" || question.type === "STATEMENT") continue;
       const value = answersRef.current[qIdx] ?? answers[qIdx];
       const otherTextVal = otherTextsRef.current[qIdx] ?? otherTexts[qIdx];
       const hasEmptyOther =
@@ -460,6 +480,21 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
         return;
       }
       setEmailError(null);
+    }
+
+    if (isPreview) {
+      answersRef.current = {};
+      otherTextsRef.current = {};
+      setAnswers({});
+      setOtherTexts({});
+      setResponderEmail("");
+      setEmailError(null);
+      setCurrentStepIndex(0);
+      setSubmittedMessage(
+        form?.settings?.customSuccessMessage || "Jawaban Anda telah berhasil disimpan (Mode Pratinjau)."
+      );
+      toast.success("Mode Pratinjau: Simulasi pengisian berhasil.");
+      return;
     }
 
     const finalAnswers: Record<number, any> = {};
@@ -683,7 +718,12 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
 
   if (submittedMessage && form) {
     return (
-      <div className="relative flex h-screen h-[100dvh] items-center justify-center p-4 overflow-hidden bg-background">
+      <div
+        className={cn(
+          "relative flex items-center justify-center p-4 overflow-hidden bg-background",
+          isPreview ? "min-h-[500px] rounded-xl border border-border" : "h-screen h-[100dvh]"
+        )}
+      >
         <PageOrnaments variant="testimonial" />
         <motion.div
           initial={{ opacity: 0, scale: 0.95, y: 15 }}
@@ -709,11 +749,13 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
               variant="outline"
               className="w-full sm:w-auto font-medium"
             >
-              Isi Formulir Lagi
+              {isPreview ? "Ulangi Pratinjau" : "Isi Formulir Lagi"}
             </Button>
-            <Button asChild className="w-full sm:w-auto font-semibold">
-              <Link href="/">Selesai</Link>
-            </Button>
+            {!isPreview && (
+              <Button asChild className="w-full sm:w-auto font-semibold">
+                <Link href="/">Selesai</Link>
+              </Button>
+            )}
           </div>
         </motion.div>
       </div>
@@ -723,7 +765,12 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
   if (!form) return null;
 
   return (
-    <div className="relative flex h-screen h-[100dvh] flex-col overflow-hidden bg-background text-foreground selection:bg-brand-primary/20">
+    <div
+      className={cn(
+        "relative flex flex-col overflow-hidden bg-background text-foreground selection:bg-brand-primary/20",
+        isPreview ? "min-h-[620px] h-[78vh] rounded-xl border border-border" : "h-screen h-[100dvh]"
+      )}
+    >
       {/* Background Math Symbols, Radial Glows & Geometric Ornaments */}
       <PageOrnaments variant="plans" />
 
@@ -943,6 +990,77 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
               );
             })()}
 
+            {/* 3b. STATEMENT / INFORMATIONAL SCREEN */}
+            {currentStep?.kind === "statement" && (() => {
+              const q = form.questions[currentStep.questionIndex];
+              if (!q) return null;
+
+              return (
+                <motion.div
+                  key={`statement-${currentStep.questionIndex}`}
+                  custom={direction}
+                  variants={slideVariants}
+                  initial="enter"
+                  animate="center"
+                  exit="exit"
+                  onAnimationComplete={focusActiveElement}
+                  className="space-y-6 text-left"
+                >
+                  <div className="inline-flex items-center gap-2 rounded-md bg-brand-primary/10 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-brand-primary">
+                    <Info className="size-3.5" />
+                    Informasi
+                  </div>
+
+                  {q.title && (
+                    <h2 className="font-heading text-body-base sm:text-h5 font-bold text-foreground tracking-tight leading-tight">
+                      <MathText as="span">{q.title}</MathText>
+                    </h2>
+                  )}
+
+                  {q.description && (
+                    <div className="text-body-base text-muted-foreground whitespace-pre-line leading-relaxed">
+                      <MathText as="div">{q.description}</MathText>
+                    </div>
+                  )}
+
+                  {q.imageUrl && (
+                    <div className="relative inline-block rounded-xl border border-border bg-card p-2 group max-w-full">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={q.imageUrl}
+                        alt={q.title || "Ilustrasi Informasi"}
+                        className="max-h-72 rounded-lg object-contain cursor-pointer"
+                        onClick={() => setZoomImageUri({ url: q.imageUrl!, title: q.title || "Informasi" })}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setZoomImageUri({ url: q.imageUrl!, title: q.title || "Informasi" })}
+                        className="absolute bottom-3 right-3 inline-flex items-center gap-1 rounded-md bg-black/75 px-2.5 py-1 text-body-xs font-semibold text-white backdrop-blur-xs cursor-pointer hover:bg-black"
+                      >
+                        <ZoomIn className="size-3" />
+                        Perbesar
+                      </button>
+                    </div>
+                  )}
+
+                  <div className="pt-4 flex items-center gap-4">
+                    <Button
+                      ref={setFocusableRef as any}
+                      size="lg"
+                      onClick={goToNextStep}
+                      className="h-12 px-7 text-body-sm font-bold shadow-sm inline-flex items-center gap-2 bg-brand-primary text-white cursor-pointer"
+                    >
+                      <span>Lanjut</span>
+                      <ArrowRight className="size-4" />
+                    </Button>
+                    <span className="hidden sm:inline-flex items-center gap-1 text-body-xs text-muted-foreground">
+                      Tekan <strong className="font-semibold text-foreground">Enter ↵</strong>
+                    </span>
+                  </div>
+                </motion.div>
+              );
+            })()}
+
             {/* 4. INDIVIDUAL QUESTION SCREEN */}
             {currentStep?.kind === "question" && (() => {
               const qIdx = currentStep.questionIndex;
@@ -997,7 +1115,7 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
                     </h2>
 
                     {q.description && (
-                      <div className="text-body-base text-muted-foreground leading-relaxed">
+                      <div className="text-body-base text-muted-foreground leading-relaxed whitespace-pre-line">
                         <MathText as="div">{q.description}</MathText>
                       </div>
                     )}
@@ -1603,7 +1721,7 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
                   )}
 
                   {form.questions.map((q, qIdx) => {
-                    if (q.type === "SECTION") return null;
+                    if (q.type === "SECTION" || q.type === "STATEMENT") return null;
                     const ans = answersRef.current[qIdx] ?? answers[qIdx];
                     const otherTextVal = otherTextsRef.current[qIdx] ?? otherTexts[qIdx];
                     const stepIdx = steps.findIndex(

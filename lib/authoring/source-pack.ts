@@ -25,7 +25,7 @@ export const sourcePackManifestSchema = z.object({
   name: z.string().min(1),
   language: z.string().min(1),
   createdAt: z.string().datetime({ offset: true }),
-  generator: z.object({ provider: z.literal("google"), model: z.string().min(1), promptVersion: z.string().min(1) }).strict(),
+  generator: z.object({ provider: z.enum(["google", "openai"]), model: z.string().min(1), promptVersion: z.string().min(1) }).strict(),
   documents: z.array(sourcePackDocumentSchema).min(1),
 }).strict();
 export type SourcePackManifest = z.infer<typeof sourcePackManifestSchema>;

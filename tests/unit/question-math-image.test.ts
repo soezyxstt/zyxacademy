@@ -51,4 +51,25 @@ describe("MathText with markdown images", () => {
     expect(html).not.toContain("<img");
     expect(html).not.toContain("<figure");
   });
+
+  it("renders markdown links and raw URLs as clickable anchor tags", () => {
+    const prompt = "Silakan kunjungi [Portal Belajar](https://zyx.id/portal) atau buka https://itb.ac.id untuk materi.";
+    const html = renderToStaticMarkup(React.createElement(MathText, null, prompt));
+
+    expect(html).toContain('<a href="https://zyx.id/portal" target="_blank" rel="noopener noreferrer"');
+    expect(html).toContain(">Portal Belajar</a>");
+    expect(html).toContain('<a href="https://itb.ac.id" target="_blank" rel="noopener noreferrer"');
+    expect(html).toContain(">https://itb.ac.id</a>");
+  });
+
+  it("renders bold and inline code in text segments alongside math", () => {
+    const prompt = "**Penting:** Gunakan rumus $E = mc^2$ pada `main.py`.";
+    const html = renderToStaticMarkup(React.createElement(MathText, null, prompt));
+
+    expect(html).toContain("<strong");
+    expect(html).toContain("Penting:</strong>");
+    expect(html).toContain("<code");
+    expect(html).toContain("main.py</code>");
+    expect(html).toContain("katex");
+  });
 });

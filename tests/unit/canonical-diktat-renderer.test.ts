@@ -102,6 +102,15 @@ Koreksi: Tanda dari $(x-2)$ bergantung pada $x$. Perkalian silang variabel dilar
     expect(content).not.toContain("katex-error");
   });
 
+  it("renders an explicit page break marker for print review sections", () => {
+    const markdown = "Pertanyaan\n\n<!-- page-break -->\n\n## Kunci jawaban\nJawaban ringkas.";
+    const content = parseCanonicalDiktatMarkdownToHtml(markdown, "Diktat");
+    const html = compileCanonicalDiktatHtml("Diktat", markdown);
+    expect(content).toContain('<div class="diktat-page-break"></div>');
+    expect(content.indexOf('<div class="diktat-page-break"></div>')).toBeLessThan(content.indexOf("Kunci jawaban"));
+    expect(html).toContain(".diktat-page-break { break-before: page; page-break-before: always; column-span: all; }");
+  });
+
   it("wraps pedagogical sections into structured cards", () => {
     const content = parseCanonicalDiktatMarkdownToHtml(sampleMarkdown, "Pertaksamaan dan Fungsi - Review Cepat");
     expect(content).toContain("card-formula");

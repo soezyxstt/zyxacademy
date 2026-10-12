@@ -41,6 +41,8 @@ import {
   Link2,
   Edit3,
   Undo2,
+  Eye,
+  Info,
 } from "lucide-react";
 import type { CreateCustomQuestionInput, QuestionType } from "@/lib/google-forms";
 import { formatDatetimeLocal } from "@/lib/date-utils";
@@ -74,6 +76,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useUrlTab } from "@/hooks/use-url-tab";
 import { FormPresetsPanel, PresetSettingsLoader } from "@/components/forms/form-presets";
+import { PublicFormViewer } from "@/components/forms/public-form-viewer";
 
 interface ExtendedQuestionInput extends CreateCustomQuestionInput {
   showDescription?: boolean;
@@ -157,7 +160,7 @@ export default function AdminFormsBuilder({
     const map = new Map<number, number>();
     let n = 0;
     questions.forEach((q, idx) => {
-      if (q.type === "SECTION") {
+      if (q.type === "SECTION" || q.type === "STATEMENT") {
         map.set(idx, 0);
       } else {
         n += 1;
@@ -311,6 +314,25 @@ export default function AdminFormsBuilder({
     };
     const nextIdx = questions.length;
     setQuestions([...questions, newQ]);
+    setActiveQIndex(nextIdx);
+    setTimeout(() => {
+      if (builderListRef.current) {
+        const el = builderListRef.current.querySelector(`[data-qidx="${nextIdx}"]`);
+        el?.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+    }, 50);
+  };
+
+  const handleAddStatement = () => {
+    const newStatement: ExtendedQuestionInput = {
+      title: "",
+      description: "",
+      type: "STATEMENT",
+      required: false,
+      showDescription: true,
+    };
+    const nextIdx = questions.length;
+    setQuestions([...questions, newStatement]);
     setActiveQIndex(nextIdx);
     setTimeout(() => {
       if (builderListRef.current) {
@@ -547,7 +569,21 @@ export default function AdminFormsBuilder({
     for (let i = 0; i < questions.length; i++) {
       const q = questions[i];
       const qNum = realQuestionNumbers.get(i) || i + 1;
-      const qLabel = q.type === "SECTION" ? `Bagian #${i + 1}` : `Pertanyaan #${qNum}`;
+      const qLabel =
+        q.type === "SECTION"
+          ? `Bagian #${i + 1}`
+          : q.type === "STATEMENT"
+          ? `Slide Informasi #${i + 1}`
+          : `Pertanyaan #${qNum}`;
+
+      if (q.type === "STATEMENT") {
+        if (!q.title?.trim() && !q.description?.trim() && !q.imageUrl) {
+          setErrorMsg(`${qLabel} harus memiliki minimal teks judul, deskripsi, atau gambar.`);
+          setActiveQIndex(i);
+          return;
+        }
+        continue;
+      }
 
       if (q.type !== "SECTION" && !q.title.trim()) {
         setErrorMsg(`Teks pada ${qLabel} wajib diisi.`);
@@ -688,6 +724,10 @@ export default function AdminFormsBuilder({
           <TabsTrigger value="builder">
             <FileText className="size-3.5" />
             {editingFormId ? "Editor Pertanyaan (Edit)" : "Editor Pertanyaan"}
+          </TabsTrigger>
+          <TabsTrigger value="preview">
+            <Eye className="size-3.5" />
+            Pratinjau
           </TabsTrigger>
           <TabsTrigger value="settings">
             <Sliders className="size-3.5" />
@@ -853,6 +893,8 @@ export default function AdminFormsBuilder({
                       <span>
                         {q.type === "SECTION"
                           ? "Bagian"
+                          : q.type === "STATEMENT"
+                          ? "Informasi"
                           : `Pertanyaan #${realQuestionNumbers.get(qIdx) || qIdx + 1}`}
                       </span>
                     </div>
@@ -962,20 +1004,30 @@ export default function AdminFormsBuilder({
                     <div className="sm:col-span-7 space-y-2">
                       <input
                         type="text"
-                        placeholder="Teks Pertanyaan"
+                        placeholder={q.type === "STATEMENT" ? "Judul Informasi (Opsional)" : "Teks Pertanyaan"}
                         value={q.title}
                         onChange={(e) => handleQuestionChange(qIdx, { title: e.target.value })}
                         className="w-full font-heading text-body-base font-semibold text-foreground bg-transparent border-b border-border/40 pb-1 focus:border-brand-primary focus:outline-none transition-colors"
                       />
 
                       {(q.showDescription ?? true) && (
-                        <input
-                          type="text"
-                          placeholder="Deskripsi tambahan pertanyaan (Opsional)"
-                          value={q.description || ""}
-                          onChange={(e) => handleQuestionChange(qIdx, { description: e.target.value })}
-                          className="w-full text-body-xs text-muted-foreground bg-transparent border-b border-border/20 pb-1 focus:border-brand-primary focus:outline-none transition-colors"
-                        />
+                        q.type === "STATEMENT" ? (
+                          <textarea
+                            rows={3}
+                            placeholder="Teks atau penjelasan informasi (Mendukung Markdown, tautan link, dan rumus)"
+                            value={q.description || ""}
+                            onChange={(e) => handleQuestionChange(qIdx, { description: e.target.value })}
+                            className="w-full text-body-xs text-foreground bg-transparent border rounded-lg border-border/40 p-2 focus:border-brand-primary focus:outline-none transition-colors resize-y leading-relaxed"
+                          />
+                        ) : (
+                          <input
+                            type="text"
+                            placeholder="Deskripsi tambahan pertanyaan (Opsional)"
+                            value={q.description || ""}
+                            onChange={(e) => handleQuestionChange(qIdx, { description: e.target.value })}
+                            className="w-full text-body-xs text-muted-foreground bg-transparent border-b border-border/20 pb-1 focus:border-brand-primary focus:outline-none transition-colors"
+                          />
+                        )
                       )}
 
                       {/* Image Attachment Bar & Lightbox Zoom Button */}
@@ -1008,7 +1060,11 @@ export default function AdminFormsBuilder({
                         <div className="flex items-center gap-2 pt-1">
                           <label className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background px-2.5 py-1 text-body-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer">
                             <ImageIcon className="size-3.5 text-brand-primary" />
-                            {uploadingQIndex === qIdx ? "Mengunggah..." : "Unggah Gambar Pertanyaan"}
+                            {uploadingQIndex === qIdx
+                              ? "Mengunggah..."
+                              : q.type === "STATEMENT"
+                              ? "Unggah Gambar Informasi"
+                              : "Unggah Gambar Pertanyaan"}
                             <input
                               type="file"
                               accept="image/*"
@@ -1044,6 +1100,8 @@ export default function AdminFormsBuilder({
                               {q.type === "GRID_CHECKBOX" && <Grid3X3 className="size-4" />}
                               {q.type === "DATE" && <Calendar className="size-4" />}
                               {q.type === "TIME" && <Clock className="size-4" />}
+                              {q.type === "SECTION" && <Layers className="size-4" />}
+                              {q.type === "STATEMENT" && <Info className="size-4" />}
                             </span>
                             <SelectValue placeholder="Tipe Pertanyaan" />
                           </div>
@@ -1062,6 +1120,7 @@ export default function AdminFormsBuilder({
                           <SelectItem value="DATE">Date (Tanggal)</SelectItem>
                           <SelectItem value="TIME">Time (Waktu)</SelectItem>
                           <SelectItem value="SECTION">Section Header (Bagian / Break Section)</SelectItem>
+                          <SelectItem value="STATEMENT">Slide Informasi (Teks & Gambar)</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -1069,6 +1128,19 @@ export default function AdminFormsBuilder({
 
                   {/* Question Content & Option Editors per Type */}
                   <div className="pt-2">
+                    {/* STATEMENT */}
+                    {q.type === "STATEMENT" && (
+                      <div className="rounded-xl border border-brand-primary/40 bg-brand-primary/10 p-3 space-y-1">
+                        <div className="flex items-center gap-2 text-body-xs font-bold text-brand-primary uppercase tracking-wider">
+                          <Info className="size-3.5" />
+                          Slide Informasi (Non-Pertanyaan)
+                        </div>
+                        <p className="text-body-xs text-muted-foreground">
+                          Slide ini hanya menampilkan judul, deskripsi markdown, tautan link, atau gambar tanpa meminta input jawaban responden.
+                        </p>
+                      </div>
+                    )}
+
                     {/* SECTION */}
                     {q.type === "SECTION" && (
                       <div className="rounded-xl border border-brand-secondary/40 bg-brand-secondary/10 p-3 space-y-1">
@@ -1371,22 +1443,24 @@ export default function AdminFormsBuilder({
                       )}
                     </div>
 
-                    <div className="flex items-center gap-2">
-                      <div className="h-4 w-px bg-border" />
-                      <div className="inline-flex items-center gap-2">
-                        <Label
-                          htmlFor={`question-required-${qIdx}`}
-                          className="text-body-xs font-semibold text-foreground cursor-pointer"
-                        >
-                          Wajib Diisi
-                        </Label>
-                        <Switch
-                          id={`question-required-${qIdx}`}
-                          checked={q.required ?? true}
-                          onCheckedChange={(checked) => handleQuestionChange(qIdx, { required: Boolean(checked) })}
-                        />
+                    {q.type !== "STATEMENT" && q.type !== "SECTION" && (
+                      <div className="flex items-center gap-2">
+                        <div className="h-4 w-px bg-border" />
+                        <div className="inline-flex items-center gap-2">
+                          <Label
+                            htmlFor={`question-required-${qIdx}`}
+                            className="text-body-xs font-semibold text-foreground cursor-pointer"
+                          >
+                            Wajib Diisi
+                          </Label>
+                          <Switch
+                            id={`question-required-${qIdx}`}
+                            checked={q.required ?? true}
+                            onCheckedChange={(checked) => handleQuestionChange(qIdx, { required: Boolean(checked) })}
+                          />
+                        </div>
                       </div>
-                    </div>
+                    )}
                   </div>
                 </div>
               );
@@ -1411,11 +1485,29 @@ export default function AdminFormsBuilder({
 
               <button
                 type="button"
+                onClick={handleAddStatement}
+                className="w-full inline-flex items-center justify-center gap-1.5 rounded-lg border border-brand-primary/40 bg-brand-primary/10 px-3 py-2 text-body-xs font-bold text-brand-primary hover:bg-brand-primary/20 transition-colors cursor-pointer"
+              >
+                <Info className="size-3.5" />
+                Tambah Informasi
+              </button>
+
+              <button
+                type="button"
                 onClick={handleAddSection}
                 className="w-full inline-flex items-center justify-center gap-1.5 rounded-lg border border-brand-secondary/40 bg-brand-secondary/10 px-3 py-2 text-body-xs font-bold text-brand-secondary hover:bg-brand-secondary/20 transition-colors cursor-pointer"
               >
                 <Layers className="size-3.5" />
                 Tambah Bagian
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveTab("preview")}
+                className="w-full inline-flex items-center justify-center gap-1.5 rounded-lg border border-border bg-background px-3 py-2 text-body-xs font-semibold text-foreground hover:bg-muted transition-colors cursor-pointer"
+              >
+                <Eye className="size-3.5" />
+                Pratinjau Formulir
               </button>
 
               <button
@@ -1470,6 +1562,46 @@ export default function AdminFormsBuilder({
             )}
           </div>
         </div>
+        </TabsContent>
+
+        <TabsContent value="preview">
+          <div className="space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-brand-primary/30 bg-brand-primary/5 p-4 text-body-xs shadow-2xs">
+              <div className="flex items-center gap-2">
+                <Badge variant="secondary" className="bg-brand-primary text-brand-primary-foreground font-bold uppercase tracking-wider text-[10px]">
+                  Mode Pratinjau
+                </Badge>
+                <span className="text-muted-foreground">
+                  Simulasi interaktif tampilan responden langsung. Tanggapan pada mode ini tidak disimpan.
+                </span>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setActiveTab("builder")}
+                className="h-8 gap-1.5 text-body-xs cursor-pointer"
+              >
+                <Edit3 className="size-3.5" />
+                Kembali ke Editor
+              </Button>
+            </div>
+
+            <div className="rounded-2xl border border-border bg-card p-2 sm:p-4 shadow-sm overflow-hidden">
+              <PublicFormViewer
+                previewForm={{
+                  id: editingFormId || "preview",
+                  slug: slug || "preview",
+                  title: title || "Formulir Tanpa Judul",
+                  description: description || undefined,
+                  category,
+                  questions,
+                  settings,
+                }}
+                isPreview={true}
+              />
+            </div>
+          </div>
         </TabsContent>
 
         <TabsContent value="settings">
