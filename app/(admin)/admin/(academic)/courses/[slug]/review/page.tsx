@@ -65,7 +65,14 @@ export default async function AdminCourseReviewPage({ params, searchParams }: Pr
 
   return (
     <div className="space-y-4 font-sans">
-      <CourseDetailHeader course={courseData.course} />
+      <CourseDetailHeader
+        course={courseData.course}
+        breadcrumbs={[
+          { label: "Mata Kuliah", href: "/admin/courses" },
+          { label: identity.title, href: `/admin/courses/${encodeURIComponent(identity.slug)}` },
+          { label: "Review Materi" },
+        ]}
+      />
       <MaterialWorkspace
         {...data}
         mode="review"

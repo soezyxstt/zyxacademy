@@ -130,6 +130,7 @@ li { margin-bottom: .8mm; padding-left: .5mm; }
 .semantic-label { font-weight: 700; margin-right: 3px; }
 .semantic-caution { color: inherit; }
 .diktat-divider { border: 0; border-top: 1px solid #d9dee8; margin: 2mm 0; }
+.diktat-page-break { break-before: page; page-break-before: always; column-span: all; }
 .table-container { break-inside: avoid; margin: 1.5mm 0; }
 .diktat-table { width: 100%; border-collapse: collapse; font-size: 10pt; }
 .diktat-table th, .diktat-table td { border: 1px solid #d9dee8; padding: 1mm; }
@@ -229,6 +230,13 @@ export function parseCanonicalDiktatMarkdownToHtml(markdown: string, documentTit
     const trimmed = line.trim();
 
     if (!trimmed) {
+      i++;
+      continue;
+    }
+
+    if (trimmed.toLowerCase() === "<!-- page-break -->") {
+      closeCardIfOpen();
+      out.push('<div class="diktat-page-break"></div>');
       i++;
       continue;
     }

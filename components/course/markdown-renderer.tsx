@@ -307,6 +307,26 @@ function parseInline(text: string): ReactNode[] {
       continue;
     }
 
+    // 4b. Raw URL (e.g. https://... or http://...)
+    const rawUrlMatch = remaining.match(/^(https?:\/\/[^\s<)]+)/);
+    if (rawUrlMatch) {
+      flushText();
+      const rawUrl = rawUrlMatch[1];
+      result.push(
+        <a
+          key={`rawurl-${index}`}
+          href={rawUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-brand-primary font-semibold hover:underline decoration-brand-primary/40 underline-offset-4 break-all cursor-pointer"
+        >
+          {rawUrl}
+        </a>
+      );
+      index += rawUrl.length;
+      continue;
+    }
+
     // 5. Bold (e.g. **text** or __text__)
     let boldMatch = remaining.match(/^\*\*([\s\S]+?)\*\*/) || remaining.match(/^__([\s\S]+?)__/);
     if (!boldMatch) {

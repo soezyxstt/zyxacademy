@@ -74,6 +74,80 @@ function parseMathText(input: string): Segment[] {
   return segments;
 }
 
+const MARKDOWN_TOKEN_REGEX = /(?:\[([^\]]+)\]\(((?:https?:\/\/|\/)[^\s)]+)\))|(?:(https?:\/\/[^\s<)]+))|(?:\*\*([^\*]+?)\*\*)|(?:\*([^\*]+?)\*)|(?:`([^`]+?)`)/g;
+
+function renderInlineMarkdown(text: string, baseKey: string): ReactNode[] {
+  if (!text) return [];
+
+  const nodes: ReactNode[] = [];
+  const regex = new RegExp(MARKDOWN_TOKEN_REGEX);
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+
+  while ((match = regex.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      nodes.push(text.slice(lastIndex, match.index));
+    }
+
+    const subKey = `${baseKey}-${match.index}`;
+
+    if (match[1] && match[2]) {
+      nodes.push(
+        <a
+          key={subKey}
+          href={match[2]}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-brand-primary underline underline-offset-2 hover:text-brand-primary/80 transition-colors cursor-pointer"
+        >
+          {match[1]}
+        </a>
+      );
+    } else if (match[3]) {
+      nodes.push(
+        <a
+          key={subKey}
+          href={match[3]}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-brand-primary underline underline-offset-2 hover:text-brand-primary/80 transition-colors break-all cursor-pointer"
+        >
+          {match[3]}
+        </a>
+      );
+    } else if (match[4]) {
+      nodes.push(
+        <strong key={subKey} className="font-semibold text-foreground">
+          {match[4]}
+        </strong>
+      );
+    } else if (match[5]) {
+      nodes.push(
+        <em key={subKey} className="italic">
+          {match[5]}
+        </em>
+      );
+    } else if (match[6]) {
+      nodes.push(
+        <code
+          key={subKey}
+          className="rounded bg-muted px-1.5 py-0.5 font-mono text-body-xs text-foreground border border-border/50"
+        >
+          {match[6]}
+        </code>
+      );
+    }
+
+    lastIndex = regex.lastIndex;
+  }
+
+  if (lastIndex < text.length) {
+    nodes.push(text.slice(lastIndex));
+  }
+
+  return nodes;
+}
+
 function renderMath(value: string, displayMode: boolean) {
   return katex.renderToString(value, { ...katexOptions, displayMode });
 }
@@ -84,7 +158,10 @@ function renderMathSegments(text: string, bareMath = false): ReactNode[] {
   const segments = parseMathText(mathReadyText);
 
   return segments.map((segment, index): ReactNode => {
-    if (segment.type === "text") return <span key={index}>{segment.value}</span>;
+    if (segment.type === "text") {
+      const rendered = renderInlineMarkdown(segment.value, `seg-${index}`);
+      return <span key={index}>{rendered}</span>;
+    }
 
     return (
       <span
