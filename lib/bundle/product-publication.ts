@@ -67,6 +67,12 @@ function id(prefix: string, value: string): string {
   return `${prefix}-${createHash("sha256").update(`${prefix}:${value}`, "utf8").digest("hex").slice(0, 32)}`;
 }
 
+function chunksOf<T>(values: readonly T[], size = 40): T[][] {
+  const result: T[][] = [];
+  for (let index = 0; index < values.length; index += size) result.push(values.slice(index, index + size));
+  return result;
+}
+
 function targetId(product: ProductEntity): string {
   return product.version === 1 ? product.id : `${product.id}:v${product.version}`;
 }
@@ -108,53 +114,84 @@ async function resolveChapter(tx: Tx, chapterId: string | undefined, courseTarge
   return row.id;
 }
 
-async function verifyTraceability(tx: Tx, product: ProductEntity): Promise<void> {
-  for (const link of product.ideaLinks) {
-    const [row] = await tx.select({ version: ide.version, semanticHash: ide.semanticHash, status: ide.status }).from(ide).where(eq(ide.id, link.id)).limit(1);
-    if (!row || row.status !== "published") throw new Error(`PRODUCT_BUNDLE_IDEA_NOT_PUBLISHED:${link.id}`);
-    if (row.version !== link.version || row.semanticHash !== link.semanticHash) throw new Error(`PRODUCT_BUNDLE_IDEA_VERSION_MISMATCH:${link.id}`);
-  }
-  for (const source of product.sourceRefs) {
-    const [material] = await tx.select({ id: sumberMateri.id, version: sumberMateri.version, checksum: sumberMateri.checksum, status: sumberMateri.status }).from(sumberMateri).where(eq(sumberMateri.id, source.sourceId)).limit(1);
-    if (!material || material.status !== "active" || material.version !== source.version || material.checksum !== source.checksum) throw new Error(`PRODUCT_BUNDLE_SOURCE_MISMATCH:${source.sourceId}`);
-    const excerpts = await tx.select({ id: potonganSumber.id, sourceVersion: potonganSumber.sourceVersion }).from(potonganSumber).where(and(eq(potonganSumber.sumberMateriId, source.sourceId), inArray(potonganSumber.id, source.excerptIds)));
-    if (excerpts.length !== source.excerptIds.length || excerpts.some((excerpt) => excerpt.sourceVersion !== source.version)) throw new Error(`PRODUCT_BUNDLE_EXCERPT_MISMATCH:${source.sourceId}`);
-  }
-}
+async function verifyTraceability(tx: Tx, products: readonly ProductEntity[]): Promise<void> {
+  const ideaIds = [...new Set(products.flatMap((product) => product.ideaLinks.map((link) => link.id)))];
+  const sourceRefs = products.flatMap((product) => product.sourceRefs);
+  const sourceIds = [...new Set(sourceRefs.map((source) => source.sourceId))];
+  const excerptIds = [...new Set(sourceRefs.flatMap((source) => source.excerptIds))];
+  const ideaRows = [];
+  const sourceRows = [];
+  const excerptRows = [];
+  for (const batch of chunksOf(ideaIds)) ideaRows.push(...await tx.select({ id: ide.id, version: ide.version, semanticHash: ide.semanticHash, status: ide.status }).from(ide).where(inArray(ide.id, batch)));
+  for (const batch of chunksOf(sourceIds)) sourceRows.push(...await tx.select({ id: sumberMateri.id, version: sumberMateri.version, checksum: sumberMateri.checksum, status: sumberMateri.status }).from(sumberMateri).where(inArray(sumberMateri.id, batch)));
+  for (const batch of chunksOf(excerptIds)) excerptRows.push(...await tx.select({ id: potonganSumber.id, sourceId: potonganSumber.sumberMateriId, sourceVersion: potonganSumber.sourceVersion }).from(potonganSumber).where(inArray(potonganSumber.id, batch)));
+  const ideasById = new Map(ideaRows.map((row) => [row.id, row]));
+  const sourcesById = new Map(sourceRows.map((row) => [row.id, row]));
+  const excerptsById = new Map(excerptRows.map((row) => [row.id, row]));
 
-async function currentProductDependency(tx: Tx, entityId: string): Promise<{ version: number; hash: string } | null> {
-  const [article] = await tx.select({ version: artikel.version, hash: artikel.generationHash }).from(artikel).where(eq(artikel.id, entityId)).limit(1);
-  if (article) return article;
-  const [diktat] = await tx.select({ version: diktatMateri.version, hash: diktatMateri.generationHash }).from(diktatMateri).where(eq(diktatMateri.id, entityId)).limit(1);
-  if (diktat) return diktat;
-  const [question] = await tx.select({ version: soal.version, hash: soal.generationHash }).from(soal).where(eq(soal.id, entityId)).limit(1);
-  if (question) return question;
-  const [solution] = await tx.select({ version: pembahasanSoal.version, hash: pembahasanSoal.generationHash }).from(pembahasanSoal).where(eq(pembahasanSoal.id, entityId)).limit(1);
-  if (solution) return solution;
-  const [set] = await tx.select({ version: setFlashcard.version, hash: setFlashcard.generationHash }).from(setFlashcard).where(eq(setFlashcard.id, entityId)).limit(1);
-  if (set) return set;
-  const [card] = await tx.select({ version: flashcard.version, hash: flashcard.generationHash }).from(flashcard).where(eq(flashcard.id, entityId)).limit(1);
-  if (card) return card;
-  const [blueprint] = await tx.select({ version: blueprintAsesmen.version, hash: blueprintAsesmen.generationHash }).from(blueprintAsesmen).where(eq(blueprintAsesmen.id, entityId)).limit(1);
-  return blueprint ?? null;
+  for (const product of products) {
+    for (const link of product.ideaLinks) {
+      const row = ideasById.get(link.id);
+      if (!row || row.status !== "published") throw new Error(`PRODUCT_BUNDLE_IDEA_NOT_PUBLISHED:${link.id}`);
+      if (row.version !== link.version || row.semanticHash !== link.semanticHash) throw new Error(`PRODUCT_BUNDLE_IDEA_VERSION_MISMATCH:${link.id}`);
+    }
+    for (const source of product.sourceRefs) {
+      const material = sourcesById.get(source.sourceId);
+      if (!material || material.status !== "active" || material.version !== source.version || material.checksum !== source.checksum) throw new Error(`PRODUCT_BUNDLE_SOURCE_MISMATCH:${source.sourceId}`);
+      if (new Set(source.excerptIds).size !== source.excerptIds.length || source.excerptIds.some((excerptId) => {
+        const excerpt = excerptsById.get(excerptId);
+        return !excerpt || excerpt.sourceId !== source.sourceId || excerpt.sourceVersion !== source.version;
+      })) throw new Error(`PRODUCT_BUNDLE_EXCERPT_MISMATCH:${source.sourceId}`);
+    }
+  }
 }
 
 async function verifyDependencies(tx: Tx, dependencies: readonly ProductDependency[], products: readonly ProductEntity[]): Promise<void> {
   for (const dependency of dependencies) {
     if (dependency.freshness !== "UP_TO_DATE") throw new Error(`PRODUCT_BUNDLE_DEPENDENCY_NEEDS_REVIEW:${dependency.id}`);
+  }
+
+  const idsFor = (type: ProductDependency["upstreamEntityType"]) => [...new Set(dependencies.filter((dependency) => dependency.upstreamEntityType === type).map((dependency) => dependency.upstreamEntityId))];
+  const ideaIds = idsFor("idea");
+  const sourceIds = idsFor("source_material");
+  const chunkIds = idsFor("source_chunk");
+  const ideaRows = [];
+  const sourceRows = [];
+  const chunkRows = [];
+  for (const batch of chunksOf(ideaIds)) ideaRows.push(...await tx.select({ id: ide.id, version: ide.version, hash: ide.semanticHash, status: ide.status }).from(ide).where(inArray(ide.id, batch)));
+  for (const batch of chunksOf(sourceIds)) sourceRows.push(...await tx.select({ id: sumberMateri.id, version: sumberMateri.version, hash: sumberMateri.checksum, status: sumberMateri.status }).from(sumberMateri).where(inArray(sumberMateri.id, batch)));
+  for (const batch of chunksOf(chunkIds)) chunkRows.push(...await tx.select({ id: potonganSumber.id, version: potonganSumber.sourceVersion, hash: potonganSumber.checksum }).from(potonganSumber).where(inArray(potonganSumber.id, batch)));
+  const ideasById = new Map(ideaRows.filter((row) => row.status === "published").map((row) => [row.id, row]));
+  const sourcesById = new Map(sourceRows.filter((row) => row.status === "active").map((row) => [row.id, row]));
+  const chunksById = new Map(chunkRows.map((row) => [row.id, row]));
+  const localProducts = new Map(products.map((product) => [`${product.id}:${product.version}`, product]));
+  const externalProductIds = [...new Set(dependencies.filter((dependency) => dependency.upstreamEntityType === "product" && !localProducts.has(`${dependency.upstreamEntityId}:${dependency.upstreamVersion}`)).map((dependency) => dependency.upstreamEntityId))];
+  const productsById = new Map<string, { version: number; hash: string }>();
+  for (const batch of chunksOf(externalProductIds)) {
+    const articles = await tx.select({ id: artikel.id, version: artikel.version, hash: artikel.generationHash }).from(artikel).where(inArray(artikel.id, batch));
+    articles.forEach((row) => { if (!productsById.has(row.id)) productsById.set(row.id, row); });
+    const diktats = await tx.select({ id: diktatMateri.id, version: diktatMateri.version, hash: diktatMateri.generationHash }).from(diktatMateri).where(inArray(diktatMateri.id, batch));
+    diktats.forEach((row) => { if (!productsById.has(row.id)) productsById.set(row.id, row); });
+    const questions = await tx.select({ id: soal.id, version: soal.version, hash: soal.generationHash }).from(soal).where(inArray(soal.id, batch));
+    questions.forEach((row) => { if (!productsById.has(row.id)) productsById.set(row.id, row); });
+    const solutions = await tx.select({ id: pembahasanSoal.id, version: pembahasanSoal.version, hash: pembahasanSoal.generationHash }).from(pembahasanSoal).where(inArray(pembahasanSoal.id, batch));
+    solutions.forEach((row) => { if (!productsById.has(row.id)) productsById.set(row.id, row); });
+    const sets = await tx.select({ id: setFlashcard.id, version: setFlashcard.version, hash: setFlashcard.generationHash }).from(setFlashcard).where(inArray(setFlashcard.id, batch));
+    sets.forEach((row) => { if (!productsById.has(row.id)) productsById.set(row.id, row); });
+    const cards = await tx.select({ id: flashcard.id, version: flashcard.version, hash: flashcard.generationHash }).from(flashcard).where(inArray(flashcard.id, batch));
+    cards.forEach((row) => { if (!productsById.has(row.id)) productsById.set(row.id, row); });
+    const blueprints = await tx.select({ id: blueprintAsesmen.id, version: blueprintAsesmen.version, hash: blueprintAsesmen.generationHash }).from(blueprintAsesmen).where(inArray(blueprintAsesmen.id, batch));
+    blueprints.forEach((row) => { if (!productsById.has(row.id)) productsById.set(row.id, row); });
+  }
+
+  for (const dependency of dependencies) {
     let current: { version: number; hash: string } | null = null;
-    if (dependency.upstreamEntityType === "idea") {
-      const [ideaRow] = await tx.select({ version: ide.version, hash: ide.semanticHash, status: ide.status }).from(ide).where(eq(ide.id, dependency.upstreamEntityId)).limit(1);
-      current = ideaRow && ideaRow.status === "published" ? { version: ideaRow.version, hash: ideaRow.hash } : null;
-    } else if (dependency.upstreamEntityType === "source_material") {
-      const [sourceRow] = await tx.select({ version: sumberMateri.version, hash: sumberMateri.checksum, status: sumberMateri.status }).from(sumberMateri).where(eq(sumberMateri.id, dependency.upstreamEntityId)).limit(1);
-      current = sourceRow && sourceRow.status === "active" ? { version: sourceRow.version, hash: sourceRow.hash } : null;
-    } else if (dependency.upstreamEntityType === "source_chunk") {
-      const [chunkRow] = await tx.select({ version: potonganSumber.sourceVersion, hash: potonganSumber.checksum }).from(potonganSumber).where(eq(potonganSumber.id, dependency.upstreamEntityId)).limit(1);
-      current = chunkRow ?? null;
-    } else {
-      const localProduct = products.find((product) => product.id === dependency.upstreamEntityId && product.version === dependency.upstreamVersion);
-      current = localProduct ? { version: localProduct.version, hash: localProduct.generationHash } : await currentProductDependency(tx, dependency.upstreamEntityId);
+    if (dependency.upstreamEntityType === "idea") current = ideasById.get(dependency.upstreamEntityId) ?? null;
+    else if (dependency.upstreamEntityType === "source_material") current = sourcesById.get(dependency.upstreamEntityId) ?? null;
+    else if (dependency.upstreamEntityType === "source_chunk") current = chunksById.get(dependency.upstreamEntityId) ?? null;
+    else {
+      const localProduct = localProducts.get(`${dependency.upstreamEntityId}:${dependency.upstreamVersion}`);
+      current = localProduct ? { version: localProduct.version, hash: localProduct.generationHash } : productsById.get(dependency.upstreamEntityId) ?? null;
     }
     if (!current || current.version !== dependency.upstreamVersion || current.hash !== dependency.upstreamHash) throw new Error(`PRODUCT_BUNDLE_DEPENDENCY_NEEDS_REVIEW:${dependency.id}`);
   }
@@ -209,25 +246,30 @@ async function insertArticle(tx: Tx, product: Extract<ProductEntity, { productTy
   if (existing) {
     if (!equal(existing.title, values.title) || existing.version !== values.version || existing.sourceHash !== values.sourceHash || existing.generationHash !== values.generationHash) throw new Error(`PRODUCT_BUNDLE_VERSION_CONFLICT:${product.id}`);
   } else await tx.insert(artikel).values(values);
-  for (const link of product.ideaLinks) await tx.insert(artikelIde).values({ id: id("artikel-ide", `${articleId}:${link.id}`), artikelId: articleId, ideId: link.id, weight: link.weight }).onConflictDoNothing();
-  for (const block of product.blocks) await tx.insert(blokArtikel).values({ id: id("artikel-block", `${articleId}:${block.id}`), artikelId: articleId, bagianArtikelId: null, blockKey: block.id, blockType: block.blockType, title: null, orderIndex: block.orderIndex, content: block.content, version: product.version, generationHash: product.generationHash, status: "published", createdAt: now, updatedAt: now }).onConflictDoNothing();
+  const articleIdeaValues = product.ideaLinks.map((link) => ({ id: id("artikel-ide", `${articleId}:${link.id}`), artikelId: articleId, ideId: link.id, weight: link.weight }));
+  for (const batch of chunksOf(articleIdeaValues)) await tx.insert(artikelIde).values(batch).onConflictDoNothing();
 
   const sectionRowId = (sectionId: string) => id("artikel-section", `${articleId}:${sectionId}`);
   const pendingSections = new Map(product.sections.map((section) => [section.id, section]));
   const insertedSections = new Set<string>();
+  const orderedSections = [] as typeof product.sections;
   while (pendingSections.size > 0) {
-    let insertedInPass = 0;
-    for (const section of pendingSections.values()) {
-      if (section.parentSectionId && !insertedSections.has(section.parentSectionId)) continue;
-      if (section.kind === "topic" && section.learningSectionId) {
-        const [learningSection] = await tx.select({ id: bagianPembelajaran.id }).from(bagianPembelajaran).where(eq(bagianPembelajaran.id, section.learningSectionId)).limit(1);
-        if (!learningSection) throw new Error(`PRODUCT_ARTICLE_LEARNING_SECTION_NOT_FOUND:${section.learningSectionId}`);
-      }
+    const ready = [...pendingSections.values()].filter((section) => !section.parentSectionId || insertedSections.has(section.parentSectionId));
+    if (ready.length === 0) throw new Error("PRODUCT_ARTICLE_SECTION_PARENT_UNRESOLVED");
+    const learningSectionIds = [...new Set(ready.flatMap((section) => section.kind === "topic" && section.learningSectionId ? [section.learningSectionId] : []))];
+    const learningSections = learningSectionIds.length
+      ? await tx.select({ id: bagianPembelajaran.id }).from(bagianPembelajaran).where(inArray(bagianPembelajaran.id, learningSectionIds))
+      : [];
+    const validLearningSectionIds = new Set(learningSections.map((section) => section.id));
+    for (const section of ready) {
+      if (section.kind === "topic" && section.learningSectionId && !validLearningSectionIds.has(section.learningSectionId)) throw new Error(`PRODUCT_ARTICLE_LEARNING_SECTION_NOT_FOUND:${section.learningSectionId}`);
+    }
+    const sectionValues: (typeof bagianArtikel.$inferInsert)[] = ready.map((section) => {
       const wordCount = section.blocks.reduce((total, block) => total + block.contentMarkdown.trim().split(/\s+/).filter(Boolean).length, 0);
       const pedagogyMeta = section.pedagogy
         ? `\n<!--__ZYX_V3_SECTION_PEDAGOGY__:${Buffer.from(JSON.stringify(section.pedagogy)).toString("base64url")}-->`
         : "";
-      await tx.insert(bagianArtikel).values({
+      return {
         id: sectionRowId(section.id),
         artikelId: articleId,
         bagianPembelajaranId: section.learningSectionId ?? null,
@@ -243,18 +285,45 @@ async function insertArticle(tx: Tx, product: Extract<ProductEntity, { productTy
         status: "published",
         createdAt: now,
         updatedAt: now,
-      }).onConflictDoNothing();
-      for (const block of section.blocks) {
-        const blockId = id("artikel-block", `${articleId}:${block.id}`);
-        let blockContent = block.contentMarkdown;
-        if (block.workedExamplePayload || block.formativeCheckPayload || block.visualIds?.length) {
-          const payloadMeta: Record<string, unknown> = {};
-          if (block.workedExamplePayload) payloadMeta.workedExamplePayload = block.workedExamplePayload;
-          if (block.formativeCheckPayload) payloadMeta.formativeCheckPayload = block.formativeCheckPayload;
-          if (block.visualIds?.length) payloadMeta.visualIds = block.visualIds;
-          blockContent = `${block.contentMarkdown}\n\n<!--__ZYX_V3_BLOCK_PAYLOAD__:${Buffer.from(JSON.stringify(payloadMeta)).toString("base64url")}-->`;
-        }
-        await tx.insert(blokArtikel).values({
+      };
+    });
+    for (const batch of chunksOf(sectionValues)) await tx.insert(bagianArtikel).values(batch).onConflictDoNothing();
+    for (const section of ready) {
+      pendingSections.delete(section.id);
+      insertedSections.add(section.id);
+      orderedSections.push(section);
+    }
+  }
+
+  const blockValues: (typeof blokArtikel.$inferInsert)[] = product.blocks.map((block) => ({
+    id: id("artikel-block", `${articleId}:${block.id}`),
+    artikelId: articleId,
+    bagianArtikelId: null,
+    blockKey: block.id,
+    blockType: block.blockType,
+    title: null,
+    orderIndex: block.orderIndex,
+    content: block.content,
+    version: product.version,
+    generationHash: product.generationHash,
+    status: "published",
+    createdAt: now,
+    updatedAt: now,
+  }));
+  const blockIdeaValues: (typeof blokArtikelIde.$inferInsert)[] = [];
+  const blockSourceValues: (typeof blokArtikelSumber.$inferInsert)[] = [];
+  for (const section of orderedSections) {
+    for (const block of section.blocks) {
+      const blockId = id("artikel-block", `${articleId}:${block.id}`);
+      let blockContent = block.contentMarkdown;
+      if (block.workedExamplePayload || block.formativeCheckPayload || block.visualIds?.length) {
+        const payloadMeta: Record<string, unknown> = {};
+        if (block.workedExamplePayload) payloadMeta.workedExamplePayload = block.workedExamplePayload;
+        if (block.formativeCheckPayload) payloadMeta.formativeCheckPayload = block.formativeCheckPayload;
+        if (block.visualIds?.length) payloadMeta.visualIds = block.visualIds;
+        blockContent = `${block.contentMarkdown}\n\n<!--__ZYX_V3_BLOCK_PAYLOAD__:${Buffer.from(JSON.stringify(payloadMeta)).toString("base64url")}-->`;
+      }
+      blockValues.push({
           id: blockId,
           artikelId: articleId,
           bagianArtikelId: sectionRowId(section.id),
@@ -268,27 +337,21 @@ async function insertArticle(tx: Tx, product: Extract<ProductEntity, { productTy
           status: "published",
           createdAt: now,
           updatedAt: now,
-        }).onConflictDoNothing();
-        for (const ideaId of block.ideaIds) {
-          await tx.insert(blokArtikelIde).values({ id: id("artikel-block-ide", `${blockId}:${ideaId}`), blokArtikelId: blockId, ideId: ideaId }).onConflictDoNothing();
-        }
-        for (const sourceRef of block.sourceRefs) {
-          await tx.insert(blokArtikelSumber).values({
-            id: id("artikel-block-source", `${blockId}:${sourceRef.sourceId}:${sourceRef.version}`),
-            blokArtikelId: blockId,
-            sumberMateriId: sourceRef.sourceId,
-            sourceVersion: sourceRef.version,
-            sourceChecksum: sourceRef.checksum,
-            excerptIds: sourceRef.excerptIds,
-          }).onConflictDoNothing();
-        }
-      }
-      pendingSections.delete(section.id);
-      insertedSections.add(section.id);
-      insertedInPass++;
+      });
+      blockIdeaValues.push(...block.ideaIds.map((ideaId) => ({ id: id("artikel-block-ide", `${blockId}:${ideaId}`), blokArtikelId: blockId, ideId: ideaId })));
+      blockSourceValues.push(...block.sourceRefs.map((sourceRef) => ({
+        id: id("artikel-block-source", `${blockId}:${sourceRef.sourceId}:${sourceRef.version}`),
+        blokArtikelId: blockId,
+        sumberMateriId: sourceRef.sourceId,
+        sourceVersion: sourceRef.version,
+        sourceChecksum: sourceRef.checksum,
+        excerptIds: sourceRef.excerptIds,
+      })));
     }
-    if (insertedInPass === 0) throw new Error("PRODUCT_ARTICLE_SECTION_PARENT_UNRESOLVED");
   }
+  for (const batch of chunksOf(blockValues)) await tx.insert(blokArtikel).values(batch).onConflictDoNothing();
+  for (const batch of chunksOf(blockIdeaValues)) await tx.insert(blokArtikelIde).values(batch).onConflictDoNothing();
+  for (const batch of chunksOf(blockSourceValues)) await tx.insert(blokArtikelSumber).values(batch).onConflictDoNothing();
 }
 
 async function insertDiktat(tx: Tx, product: Extract<ProductEntity, { productType: "diktat" }>, course: { targetId: string }, now: Date, fileKey: string): Promise<void> {
@@ -299,7 +362,8 @@ async function insertDiktat(tx: Tx, product: Extract<ProductEntity, { productTyp
   if (existing) {
     if (existing.version !== values.version || existing.sourceHash !== values.sourceHash || existing.generationHash !== values.generationHash) throw new Error(`PRODUCT_BUNDLE_VERSION_CONFLICT:${product.id}`);
   } else await tx.insert(diktatMateri).values(values);
-  for (const link of product.ideaLinks) await tx.insert(diktatIde).values({ id: id("diktat-ide", `${materialId}:${link.id}`), diktatMateriId: materialId, ideId: link.id, weight: link.weight }).onConflictDoNothing();
+  const ideaValues = product.ideaLinks.map((link) => ({ id: id("diktat-ide", `${materialId}:${link.id}`), diktatMateriId: materialId, ideId: link.id, weight: link.weight }));
+  for (const batch of chunksOf(ideaValues)) await tx.insert(diktatIde).values(batch).onConflictDoNothing();
 }
 
 async function insertQuestion(tx: Tx, product: Extract<ProductEntity, { productType: "question" }>, course: { targetId: string; legacyId: string }, now: Date): Promise<void> {
@@ -380,17 +444,31 @@ async function insertFlashcardSet(tx: Tx, product: Extract<ProductEntity, { prod
   } else await tx.insert(setFlashcard).values(values);
 }
 
-async function insertFlashcard(tx: Tx, product: Extract<ProductEntity, { productType: "flashcard" }>, setProducts: readonly Extract<ProductEntity, { productType: "flashcard_set" }>[], now: Date): Promise<void> {
-  const setProduct = product.setId ? setProducts.find((candidate) => candidate.id === product.setId) : setProducts.find((candidate) => candidate.cards.includes(product.id));
-  if (!setProduct) throw new Error(`PRODUCT_BUNDLE_FLASHCARD_SET_MISSING:${product.id}`);
-  const cardId = targetId(product);
-  const setId = targetId(setProduct);
-  const values = { id: cardId, setFlashcardId: setId, front: product.front, back: product.back, explanation: product.explanation ?? null, version: product.version, status: "published" as const, generationHash: product.generationHash, createdAt: now, updatedAt: now };
-  const [existing] = await tx.select({ id: flashcard.id, version: flashcard.version, generationHash: flashcard.generationHash }).from(flashcard).where(eq(flashcard.id, cardId)).limit(1);
-  if (existing) {
-    if (existing.version !== values.version || existing.generationHash !== values.generationHash) throw new Error(`PRODUCT_BUNDLE_VERSION_CONFLICT:${product.id}`);
-  } else await tx.insert(flashcard).values(values);
-  for (const link of product.ideaLinks) await tx.insert(flashcardIde).values({ id: id("flashcard-ide", `${cardId}:${link.id}`), flashcardId: cardId, ideId: link.id, weight: link.weight }).onConflictDoNothing();
+async function insertFlashcards(tx: Tx, products: readonly Extract<ProductEntity, { productType: "flashcard" }>[], setProducts: readonly Extract<ProductEntity, { productType: "flashcard_set" }>[], now: Date): Promise<void> {
+  const cards = products.map((product) => {
+    const setProduct = product.setId ? setProducts.find((candidate) => candidate.id === product.setId) : setProducts.find((candidate) => candidate.cards.includes(product.id));
+    if (!setProduct) throw new Error(`PRODUCT_BUNDLE_FLASHCARD_SET_MISSING:${product.id}`);
+    return {
+      product,
+      values: { id: targetId(product), setFlashcardId: targetId(setProduct), front: product.front, back: product.back, explanation: product.explanation ?? null, version: product.version, status: "published" as const, generationHash: product.generationHash, createdAt: now, updatedAt: now },
+    };
+  });
+  const existingRows = [];
+  for (const batch of chunksOf(cards.map(({ values }) => values.id))) {
+    existingRows.push(...await tx.select({ id: flashcard.id, version: flashcard.version, generationHash: flashcard.generationHash }).from(flashcard).where(inArray(flashcard.id, batch)));
+  }
+  const existingById = new Map(existingRows.map((row) => [row.id, row]));
+  const newCards: (typeof flashcard.$inferInsert)[] = [];
+  const ideaValues: (typeof flashcardIde.$inferInsert)[] = [];
+  for (const { product, values } of cards) {
+    const existing = existingById.get(values.id);
+    if (existing) {
+      if (existing.version !== values.version || existing.generationHash !== values.generationHash) throw new Error(`PRODUCT_BUNDLE_VERSION_CONFLICT:${product.id}`);
+    } else newCards.push(values);
+    ideaValues.push(...product.ideaLinks.map((link) => ({ id: id("flashcard-ide", `${values.id}:${link.id}`), flashcardId: values.id, ideId: link.id, weight: link.weight })));
+  }
+  for (const batch of chunksOf(newCards)) await tx.insert(flashcard).values(batch).onConflictDoNothing();
+  for (const batch of chunksOf(ideaValues)) await tx.insert(flashcardIde).values(batch).onConflictDoNothing();
 }
 
 async function insertBlueprint(tx: Tx, product: Extract<ProductEntity, { productType: "assessment_blueprint" }>, course: { targetId: string }, now: Date): Promise<void> {
@@ -495,7 +573,6 @@ export async function publishProductBundle(input: { importId: string; publishedB
     for (const product of products) {
       await requireIdentity(tx, product.creatorId, "PRODUCT_BUNDLE_CREATOR_NOT_FOUND");
       if (product.curatorId) await requireIdentity(tx, product.curatorId, "PRODUCT_BUNDLE_CURATOR_NOT_FOUND");
-      await verifyTraceability(tx, product);
       if (product.productType === "diktat" && product.sourceArticleId && product.sourceArticleVersion !== undefined && product.sourceArticleHash) {
         const lineageDependency = bundle.dependencies.find((dependency) =>
           dependency.upstreamEntityType === "product" &&
@@ -510,9 +587,12 @@ export async function publishProductBundle(input: { importId: string; publishedB
         if (!lineageDependency) throw new Error(`PRODUCT_DIKTAT_LINEAGE_DEPENDENCY_MISSING:${product.id}`);
       }
     }
+    await verifyTraceability(tx, products);
     await verifyDependencies(tx, bundle.dependencies, products);
     const setProducts = products.filter((product): product is Extract<ProductEntity, { productType: "flashcard_set" }> => product.productType === "flashcard_set");
+    const flashcardProducts = products.filter((product): product is Extract<ProductEntity, { productType: "flashcard" }> => product.productType === "flashcard");
     const ordered = [...products].sort((left, right) => ["flashcard_set", "question", "article", "diktat", "flashcard", "solution", "assessment_blueprint"].indexOf(left.productType) - ["flashcard_set", "question", "article", "diktat", "flashcard", "solution", "assessment_blueprint"].indexOf(right.productType));
+    let flashcardsInserted = false;
     for (const product of ordered) {
       switch (product.productType) {
         case "flashcard_set": await insertFlashcardSet(tx, product, course, now); break;
@@ -529,7 +609,12 @@ export async function publishProductBundle(input: { importId: string; publishedB
           await insertDiktat(tx, product, course, now, pdfEvidence.storageKey);
           break;
         }
-        case "flashcard": await insertFlashcard(tx, product, setProducts, now); break;
+        case "flashcard":
+          if (!flashcardsInserted) {
+            await insertFlashcards(tx, flashcardProducts, setProducts, now);
+            flashcardsInserted = true;
+          }
+          break;
         case "solution": {
           const solutionId = targetId(product);
           const question = products.find((candidate) => candidate.productType === "question" && candidate.id === product.questionId);
@@ -544,9 +629,8 @@ export async function publishProductBundle(input: { importId: string; publishedB
       }
       maybeFail(input.testFailureAfter, product.productType);
     }
-    for (const dependency of bundle.dependencies) {
-      await tx.insert(ketergantunganProduk).values({ id: dependency.id, upstreamEntityType: dependency.upstreamEntityType, upstreamEntityId: dependency.upstreamEntityId, upstreamVersion: dependency.upstreamVersion, upstreamHash: dependency.upstreamHash, downstreamEntityType: dependency.downstreamEntityType, downstreamEntityId: dependency.downstreamEntityId, downstreamVersion: dependency.downstreamVersion, downstreamHash: dependency.downstreamHash, freshness: dependency.freshness, reason: null, createdAt: now, updatedAt: now }).onConflictDoNothing();
-    }
+    const dependencyValues = bundle.dependencies.map((dependency) => ({ id: dependency.id, upstreamEntityType: dependency.upstreamEntityType, upstreamEntityId: dependency.upstreamEntityId, upstreamVersion: dependency.upstreamVersion, upstreamHash: dependency.upstreamHash, downstreamEntityType: dependency.downstreamEntityType, downstreamEntityId: dependency.downstreamEntityId, downstreamVersion: dependency.downstreamVersion, downstreamHash: dependency.downstreamHash, freshness: dependency.freshness, reason: null, createdAt: now, updatedAt: now }));
+    for (const batch of chunksOf(dependencyValues)) await tx.insert(ketergantunganProduk).values(batch).onConflictDoNothing();
     const vectorJobs = products.flatMap((product) => {
       const spec = canonicalProductVectorSpec(product);
       if (!spec) return [];
@@ -572,7 +656,7 @@ export async function publishProductBundle(input: { importId: string; publishedB
       }];
     });
     maybeFail(input.testFailureAfter, "outbox");
-    for (const job of vectorJobs) await tx.insert(vectorSyncQueue).values(job).onConflictDoNothing();
+    for (const batch of chunksOf(vectorJobs)) await tx.insert(vectorSyncQueue).values(batch).onConflictDoNothing();
     const publicationId = id("publikasi-product", input.importId);
     const publicationHash = createHash("sha256").update(serializeDeterministically({ bundleChecksum: bundle.manifest.bundleChecksum, productIds: bundle.products.map((product) => `${product.id}:${product.version}`).sort() }), "utf8").digest("hex");
     await tx.insert(publikasiBundle).values({ id: publicationId, imporBundleId: input.importId, approvedReviewId: review.id, version: 1, publicationHash, status: "published", publishedBy: input.publishedBy, publishedAt: now, createdAt: now });

@@ -808,7 +808,7 @@ export function DocumentListClient({
                     <p className="mt-0.5 truncate text-body-xs text-muted-foreground leading-none">
                       {subLabel}
                       {material.year ? ` · ${material.year}` : ""}
-                      {material.fileSize ? ` · ${material.fileSize}` : ""}
+                      {material.fileSize && !/^diktat(\s+resmi|\s+canonical)?$/i.test(material.fileSize.trim()) ? ` · ${material.fileSize}` : ""}
                     </p>
                   </div>
                   {isAdmin ? (
@@ -977,7 +977,9 @@ export function DocumentListClient({
                     {subLabel}
                   </span>
                   <span className="hidden text-body-xs text-muted-foreground md:block">
-                    {material.fileSize ?? (material.year ? String(material.year) : "-")}
+                    {material.fileSize && !/^diktat(\s+resmi|\s+canonical)?$/i.test(material.fileSize.trim())
+                      ? material.fileSize
+                      : (material.year ? String(material.year) : "-")}
                   </span>
                   {isAdmin ? (
                     <div className="flex items-center gap-1.5 shrink-0" onClick={(e) => e.stopPropagation()}>
@@ -1091,8 +1093,8 @@ export function DocumentListClient({
             Belum ada berkas {tabConfig.find((t) => t.key === activeTab)?.label.toLowerCase()}
           </h2>
           <p className="mt-1 text-body-xs text-muted-foreground">
-            {activeTab === "materi" && "Artikel materi belajar untuk kelas ini belum tersedia."}
-            {activeTab === "diktat" && "Diktat resmi untuk kelas ini belum tersedia."}
+            {activeTab === "materi" && "Materi belajar untuk kelas ini belum tersedia."}
+            {activeTab === "diktat" && "Diktat untuk kelas ini belum tersedia."}
             {activeTab === "pdf" && "Belum ada materi kuliah PDF yang diunggah untuk kelas ini."}
             {activeTab === "bank_soal" &&
               "Belum ada bank soal, kuis, atau tryout untuk kelas ini."}

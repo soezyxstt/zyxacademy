@@ -98,7 +98,7 @@ const typeStyle: Record<
   { label: string; border: string; icon: typeof FileText; iconClass: string }
 > = {
   materi: {
-    label: "Artikel",
+    label: "Materi",
     border: "border-l-blue-500",
     icon: FileText,
     iconClass: "text-blue-500",
@@ -135,7 +135,19 @@ function documentMeta(material: CourseMaterial, typeLabel: string): string {
     ? getSubcategoryLabel(material.subcategory as CourseMaterialSubcategory) ?? material.subcategory
     : null;
 
-  return [typeLabel, subcategory, material.year ? String(material.year) : null, material.fileSize]
+  const rawFileSize = material.fileSize?.trim();
+  const isRedundantFileSize =
+    !rawFileSize ||
+    /^diktat(\s+resmi|\s+canonical)?$/i.test(rawFileSize) ||
+    rawFileSize.toLowerCase() === typeLabel.toLowerCase() ||
+    rawFileSize.toLowerCase() === "artikel";
+
+  return [
+    typeLabel,
+    subcategory,
+    material.year ? String(material.year) : null,
+    isRedundantFileSize ? null : rawFileSize,
+  ]
     .filter(Boolean)
     .join(" · ");
 }
