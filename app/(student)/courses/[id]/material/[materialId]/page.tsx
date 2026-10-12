@@ -95,7 +95,7 @@ function sanitizeMaterialTitle(rawTitle: string): string {
       title: sanitizeMaterialTitle(canonicalProduct.title),
       kind: "article",
       docCategory: isDiktat ? "diktat" : "materi",
-      fileSize: isDiktat ? "Diktat Resmi" : "Rangkuman Materi",
+      fileSize: isDiktat ? undefined : "Rangkuman Materi",
       body: canonicalProduct.contentMarkdown,
       url: downloadUrl,
       completed,
@@ -261,7 +261,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       title: pageTitle(course ? `${course.title} - ${canonicalArticle.title}` : canonicalArticle.title),
       description: course
         ? `Baca materi ${canonicalArticle.title}; bagian dari ${course.title}.`
-        : "Baca materi pelajaran dan artikel terstruktur.",
+        : "Baca materi pelajaran dan materi belajar terstruktur.",
     };
   }
 
