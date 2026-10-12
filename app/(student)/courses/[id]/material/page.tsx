@@ -175,7 +175,6 @@ export default async function CourseMaterialListPage({ params, searchParams }: P
     kind: "article" as const,
     docCategory: "diktat" as const,
     tabGroup: "diktat" as const,
-    fileSize: "Diktat Resmi",
     completed: completedMaterialIds.has(diktat.id),
     isPastYear: false,
     isPreview: false,
@@ -238,7 +237,7 @@ export default async function CourseMaterialListPage({ params, searchParams }: P
 
   const mappedWeb = webMaterials.filter((m) => !canonicalMappedChapterIds.has(m.chapterId)).map((m) => ({
     id: m.id, courseId: id, title: sanitizeMaterialTitle(m.title), kind: "article" as const, docCategory: "materi" as const, tabGroup: "materi" as const,
-    fileSize: "Artikel Web", body: m.canonicalMarkdown, completed: completedMaterialIds.has(m.id), isPastYear: false, isPreview: true,
+    fileSize: undefined, body: m.canonicalMarkdown, completed: completedMaterialIds.has(m.id), isPastYear: false, isPreview: true,
     thumbnailUrl: m.thumbnailUrl ? storage.getUrl(m.thumbnailUrl) : undefined, chapterId: m.chapterId, chapterIds: m.chapterId ? [m.chapterId] : [], href: `/courses/${id}/material/${m.id}`,
   }));
 
@@ -309,7 +308,7 @@ export default async function CourseMaterialListPage({ params, searchParams }: P
                   Aktivasi token kelas
                 </h3>
                 <p className="mt-1 max-w-2xl text-body-sm text-muted-foreground">
-                  Berkas PDF materi, latihan soal ITB, dan kuis uji coba bab awal dapat diakses gratis. Masukkan token kelas untuk membuka seluruh kuis interaktif, tryout ujian, artikel lengkap, flashcard, dan diktat.
+                  Berkas PDF materi, latihan soal ITB, dan kuis uji coba bab awal dapat diakses gratis. Masukkan token kelas untuk membuka seluruh kuis interaktif, tryout ujian, materi lengkap, flashcard, dan diktat.
                 </p>
               </div>
               <EnrollmentForm className="w-full" />

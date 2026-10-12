@@ -136,7 +136,6 @@ export async function listAdminCourseMaterials(
       kind: "article" as const,
       docCategory: "materi" as const,
       tabGroup: "materi" as const,
-      fileSize: "Artikel",
       completed: false,
       isPastYear: false,
       isPreview: false,
@@ -155,7 +154,6 @@ export async function listAdminCourseMaterials(
       kind: "article" as const,
       docCategory: "diktat" as const,
       tabGroup: "diktat" as const,
-      fileSize: "Diktat Resmi",
       completed: false,
       isPastYear: false,
       isPreview: false,
@@ -306,7 +304,7 @@ export async function getAdminCourseMaterialPreview(
         title: sanitizeMaterialTitle(canonical.title),
         kind: "article",
         docCategory: canonical.productType === "diktat" ? "diktat" : "materi",
-        fileSize: canonical.productType === "diktat" ? "Diktat Resmi" : "Rangkuman Materi",
+        fileSize: canonical.productType === "diktat" ? undefined : "Rangkuman Materi",
         body: canonical.contentMarkdown,
         completed: false,
         isPastYear: false,
@@ -343,7 +341,6 @@ export async function getAdminCourseMaterialPreview(
         title: sanitizeMaterialTitle(directArticle.title),
         kind: "article",
         docCategory: "materi",
-        fileSize: "Artikel",
         body: directArticle.contentMarkdown,
         status: (directArticle.status === "published" ? "published" : "draft") as "draft" | "published",
         source: "canonical-article",
@@ -380,7 +377,6 @@ export async function getAdminCourseMaterialPreview(
         title: sanitizeMaterialTitle(directDiktat.title),
         kind: "article",
         docCategory: "diktat",
-        fileSize: "Diktat Resmi",
         body: directDiktat.contentMarkdown,
         status: (directDiktat.status === "published" ? "published" : "draft") as "draft" | "published",
         source: "canonical-diktat",
@@ -409,7 +405,7 @@ export async function getAdminCourseMaterialPreview(
   }
   if (web[0]) {
     const item = web[0];
-    return { renderer: "material", source: "legacy-article", material: { id: item.id, courseId: identity.primaryId, title: item.title, kind: "article", docCategory: "materi", fileSize: "Artikel Web", body: item.canonicalMarkdown, status: (item.status === "published" ? "published" : "draft") as "draft" | "published", source: "legacy-article", completed: false, isPastYear: false, isPreview: true, chapterId: item.chapterId } };
+    return { renderer: "material", source: "legacy-article", material: { id: item.id, courseId: identity.primaryId, title: item.title, kind: "article", docCategory: "materi", body: item.canonicalMarkdown, status: (item.status === "published" ? "published" : "draft") as "draft" | "published", source: "legacy-article", completed: false, isPastYear: false, isPreview: true, chapterId: item.chapterId } };
   }
   if (pdf[0]) {
     const item = pdf[0];

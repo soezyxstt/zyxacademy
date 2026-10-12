@@ -390,7 +390,6 @@ export async function getCourseMaterials(courseId: string, studentId?: string, p
     title: diktat.title,
     kind: "article" as const,
     docCategory: "diktat" as const,
-    fileSize: "Diktat canonical",
     completed: completedSet.has(diktat.id),
     completionPercent: completedSet.has(diktat.id) ? 100 : 0,
     isPastYear: false,
