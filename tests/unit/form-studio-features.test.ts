@@ -108,4 +108,39 @@ describe("Form Studio - Non-Question Statement Slides & Preview Logic", () => {
     // Total question count displays 1 (excludes the STATEMENT slide)
     expect(html).toContain("1 pertanyaan");
   });
+
+  it("renders markdown links and formatting in review screen question titles and answers", () => {
+    const previewForm = {
+      id: "test-form-review",
+      slug: "test-form-review",
+      title: "Pendaftaran Tutorial UTS TPB",
+      category: "survey",
+      questions: [
+        {
+          title: "Udah join [grup WhatsApp](https://chat.whatsapp.com/CzK0v3qvu4jGLnyaa) nyaa?",
+          type: "MULTIPLE_CHOICE" as const,
+          options: ["Ya", "Belum"],
+          required: true,
+        },
+      ],
+      settings: {
+        collectEmail: "none" as const,
+      },
+    };
+
+    // Step 0: cover, Step 1: question 0, Step 2: review
+    const html = renderToStaticMarkup(
+      React.createElement(PublicFormViewer, {
+        previewForm,
+        isPreview: true,
+        initialStepIndex: 2,
+      })
+    );
+
+    expect(html).toContain("Tinjau Jawaban Anda");
+    expect(html).toContain('<a href="https://chat.whatsapp.com/CzK0v3qvu4jGLnyaa" target="_blank" rel="noopener noreferrer"');
+    expect(html).toContain(">grup WhatsApp</a>");
+    expect(html).toContain("nyaa?");
+  });
 });
+
