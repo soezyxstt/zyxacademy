@@ -35,11 +35,12 @@ import {
   CalendarDays,
   Library,
   Calculator,
+  ChevronRight,
+  LayoutDashboard,
 } from "lucide-react";
 
 import { RefreshAnalyticsButton } from "@/components/admin/refresh-analytics-button";
 import { AdminPageHeader } from "@/components/admin/page-header";
-import { LayoutDashboard } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
@@ -349,53 +350,59 @@ export default async function AdminHomePage() {
         </div>
       )}
 
-      <div className="space-y-8">
-        {categories.map((category) => (
-          <section key={category.name} className="space-y-4">
-            <div className="flex items-end justify-between gap-4 border-b border-border pb-3">
-              <h2 className="font-heading text-body-base font-bold text-foreground">
-                {category.name}
-              </h2>
-              <span className="text-body-xs font-semibold text-muted-foreground">
-                {category.items.length} area
-              </span>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-              {category.items.map((item) => (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className="group flex flex-col justify-between rounded-xl border border-border/70 bg-card/70 backdrop-blur-md p-4 sm:p-5 shadow-xs transition-all duration-200 hover:border-brand-primary/40 hover:shadow-md hover:bg-card/90 hover:-translate-y-0.5"
-                >
-                  <div>
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground transition-colors group-hover:bg-brand-primary/10">
-                        <item.icon
-                          className={`size-5 ${item.iconColor}`}
-                          aria-hidden
-                        />
-                      </div>
-                      {item.stat && (
-                        <span className="rounded-md bg-muted px-2 py-0.5 text-body-xs font-semibold text-muted-foreground">
-                          {item.stat}
-                        </span>
-                      )}
-                    </div>
-                    <div className="mt-3">
-                      <h3 className="font-heading text-body-base font-semibold text-foreground transition-colors group-hover:text-brand-primary">
-                        {item.title}
-                      </h3>
-                    </div>
-                  </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 items-start">
+        {[
+          categories.filter((c) => ["Akademik & Konten", "Evaluasi & Asesmen", "Akses & Keanggotaan"].includes(c.name)),
+          categories.filter((c) => c.name === "Alat & Komunikasi"),
+          categories.filter((c) => c.name === "Sistem & Operasional"),
+        ].map((group, colIdx) => (
+          <div key={colIdx} className="space-y-6">
+            {group.map((category) => (
+              <section key={category.name} className="space-y-2.5">
+                <div className="flex items-center justify-between gap-4 px-0.5">
+                  <h2 className="font-heading text-body-base font-bold text-foreground">
+                    {category.name}
+                  </h2>
+                  <span className="text-body-xs font-semibold text-muted-foreground">
+                    {category.items.length} area
+                  </span>
+                </div>
 
-                  <div className="mt-4 pt-3 border-t border-border/50 flex items-center justify-between text-body-xs font-semibold text-foreground group-hover:text-brand-primary transition-colors">
-                    <span>{item.label}</span>
-                    <span aria-hidden="true" className="transition-transform group-hover:translate-x-0.5">→</span>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          </section>
+                <div className="overflow-hidden rounded-xl border border-border/70 bg-card/60 backdrop-blur-md divide-y divide-border/40 shadow-2xs">
+                  {category.items.map((item) => (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      className="group flex items-center justify-between gap-3 px-3.5 py-2.5 transition-colors hover:bg-muted/50"
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-muted/60 text-muted-foreground transition-colors group-hover:bg-brand-primary/10">
+                          <item.icon className={`size-4 ${item.iconColor}`} aria-hidden />
+                        </div>
+                        <div className="min-w-0">
+                          <span className="font-heading text-body-sm font-semibold text-foreground group-hover:text-brand-primary transition-colors truncate block">
+                            {item.title}
+                          </span>
+                          <span className="text-body-xs text-muted-foreground truncate block">
+                            {item.label}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 shrink-0">
+                        {item.stat && (
+                          <span className="rounded-md bg-muted/70 px-2 py-0.5 text-body-xs font-medium text-muted-foreground">
+                            {item.stat}
+                          </span>
+                        )}
+                        <ChevronRight className="size-3.5 text-muted-foreground/60 transition-transform group-hover:translate-x-0.5 group-hover:text-foreground" />
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              </section>
+            ))}
+          </div>
         ))}
       </div>
     </div>

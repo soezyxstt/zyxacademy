@@ -8,6 +8,7 @@ import {
   Search,
   ChevronDown,
   Play,
+  Lock,
   MoreVertical,
   Pencil,
   Trash2,
@@ -18,6 +19,14 @@ import { FaYoutube } from "react-icons/fa6";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { EnrollmentForm } from "@/components/enrollment-form";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -63,6 +72,7 @@ type CourseVideosClientProps = {
   initialPlaylists: VideoPlaylistItem[];
   chapters: ChapterOption[];
   canManage?: boolean;
+  isEnrolled?: boolean;
 };
 
 /**
@@ -75,6 +85,7 @@ export function CourseVideosClient({
   initialPlaylists,
   chapters,
   canManage = false,
+  isEnrolled = true,
 }: CourseVideosClientProps) {
   const router = useRouter();
 
@@ -107,6 +118,7 @@ export function CourseVideosClient({
   // Player modal state
   const [playingVideo, setPlayingVideo] = useState<VideoItem | null>(null);
   const [activePlaylistForPlayer, setActivePlaylistForPlayer] = useState<VideoPlaylistItem | null>(null);
+  const [lockedVideo, setLockedVideo] = useState<VideoItem | null>(null);
 
   const togglePlaylist = (id: string) => {
     setOpenPlaylists((prev) => ({
@@ -210,6 +222,11 @@ export function CourseVideosClient({
   };
 
   const handlePlayVideo = (video: VideoItem, playlist: VideoPlaylistItem) => {
+    const isLocked = !canManage && !isEnrolled && (video.locked ?? true);
+    if (isLocked) {
+      setLockedVideo(video);
+      return;
+    }
     setPlayingVideo(video);
     setActivePlaylistForPlayer(playlist);
   };
@@ -417,111 +434,150 @@ export function CourseVideosClient({
                     </div>
                   ) : (
                     <div className="grid grid-cols-1 gap-3 border-t border-border/35 bg-muted/10 p-3 sm:grid-cols-2 lg:grid-cols-3">
-                      {playlist.videos.map((video) => (
-                        <div
-                          key={video.id}
-                          className="group relative flex flex-col justify-between overflow-hidden rounded-xl border border-border/60 bg-card p-2.5 shadow-2xs transition-all hover:border-brand-primary/40 hover:shadow-xs"
-                        >
-                          {/* Thumbnail Container */}
+                      {playlist.videos.map((video) => {
+                        const isLocked = !canManage && !isEnrolled && (video.locked ?? true);
+                        return (
                           <div
-                            onClick={() => handlePlayVideo(video, playlist)}
-                            className="relative aspect-video w-full cursor-pointer overflow-hidden rounded-lg bg-black/5"
-                          >
-                            {video.thumbnailUrl ? (
-                              <img
-                                src={video.thumbnailUrl}
-                                alt={video.title}
-                                className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-102"
-                              />
-                            ) : (
-                              <div className="flex h-full w-full items-center justify-center bg-muted/40 text-muted-foreground">
-                                <VideoIcon className="size-8 opacity-40" />
-                              </div>
+                            key={video.id}
+                            className={cn(
+                              "group relative flex flex-col justify-between overflow-hidden rounded-xl border border-border/60 bg-card p-2.5 shadow-2xs transition-all hover:border-brand-primary/40 hover:shadow-xs",
+                              isLocked && "hover:border-amber-500/40"
                             )}
+                          >
+                            {/* Thumbnail Container */}
+                            <div
+                              onClick={() => handlePlayVideo(video, playlist)}
+                              className="relative aspect-video w-full cursor-pointer overflow-hidden rounded-lg bg-black/5"
+                            >
+                              {video.thumbnailUrl ? (
+                                <img
+                                  src={video.thumbnailUrl}
+                                  alt={video.title}
+                                  className={cn(
+                                    "h-full w-full object-cover transition-transform duration-200 group-hover:scale-102",
+                                    isLocked && "opacity-90"
+                                  )}
+                                />
+                              ) : (
+                                <div className="flex h-full w-full items-center justify-center bg-muted/40 text-muted-foreground">
+                                  <VideoIcon className="size-8 opacity-40" />
+                                </div>
+                              )}
 
-                            {/* Hover Play Button Overlay */}
-                            <div className="absolute inset-0 flex items-center justify-center bg-black/25 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
-                              <div className="flex size-10 items-center justify-center rounded-full bg-brand-primary text-white shadow-md">
-                                <Play className="size-5 fill-white ml-0.5" />
+                              {/* Lock Indicator on Thumbnail */}
+                              {isLocked && (
+                                <div className="absolute top-2 right-2 flex size-6 items-center justify-center rounded-md border border-amber-500/30 bg-background/90 text-amber-600 shadow-xs backdrop-blur-xs dark:text-amber-400">
+                                  <Lock className="size-3.5" />
+                                </div>
+                              )}
+
+                              {/* Hover Overlay */}
+                              <div className="absolute inset-0 flex items-center justify-center bg-black/25 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+                                {isLocked ? (
+                                  <div className="flex items-center gap-1.5 rounded-full bg-background/95 px-3 py-1.5 text-body-xs font-semibold text-amber-600 shadow-md backdrop-blur-xs dark:text-amber-400">
+                                    <Lock className="size-3.5" />
+                                    <span>Buka Akses</span>
+                                  </div>
+                                ) : (
+                                  <div className="flex size-10 items-center justify-center rounded-full bg-brand-primary text-white shadow-md">
+                                    <Play className="size-5 fill-white ml-0.5" />
+                                  </div>
+                                )}
                               </div>
+
+                              {/* Duration Badge */}
+                              {video.duration && video.duration > 0 && (
+                                <span className="absolute bottom-1.5 right-1.5 rounded-md bg-black/75 px-1.5 py-0.5 text-[10px] font-medium text-white tabular-nums">
+                                  {Math.floor(video.duration / 60)}:
+                                  {String(video.duration % 60).padStart(2, "0")}
+                                </span>
+                              )}
                             </div>
 
-                            {/* Duration Badge */}
-                            {video.duration && video.duration > 0 && (
-                              <span className="absolute bottom-1.5 right-1.5 rounded-md bg-black/75 px-1.5 py-0.5 text-[10px] font-medium text-white tabular-nums">
-                                {Math.floor(video.duration / 60)}:
-                                {String(video.duration % 60).padStart(2, "0")}
-                              </span>
-                            )}
-                          </div>
+                            {/* Card Content */}
+                            <div className="mt-2.5 flex-1 space-y-1">
+                              {/* Chapter & Lock Badges */}
+                              <div className="flex flex-wrap items-center gap-1.5">
+                                {video.chapterTitle && (
+                                  <Badge
+                                    variant="outline"
+                                    className="rounded-md text-[10px] px-1.5 py-0 font-normal border-border/80 text-muted-foreground"
+                                  >
+                                    {video.chapterTitle}
+                                  </Badge>
+                                )}
+                                {isLocked && (
+                                  <span className="inline-flex shrink-0 items-center gap-1 rounded-md bg-amber-500/10 px-1.5 py-0.5 text-body-2xs font-semibold text-amber-600 dark:text-amber-400 ring-1 ring-amber-500/20">
+                                    <Lock className="size-3" />
+                                    Terkunci
+                                  </span>
+                                )}
+                              </div>
 
-                          {/* Card Content */}
-                          <div className="mt-2.5 flex-1 space-y-1">
-                            {/* Chapter Badge if linked */}
-                            {video.chapterTitle && (
-                              <Badge
-                                variant="outline"
-                                className="rounded-md text-[10px] px-1.5 py-0 font-normal border-border/80 text-muted-foreground"
+                              <h4
+                                onClick={() => handlePlayVideo(video, playlist)}
+                                className={cn(
+                                  "cursor-pointer line-clamp-2 font-heading text-body-sm font-semibold text-foreground transition-colors",
+                                  isLocked ? "group-hover:text-amber-600 dark:group-hover:text-amber-400" : "group-hover:text-brand-primary"
+                                )}
+                                title={video.title}
                               >
-                                {video.chapterTitle}
-                              </Badge>
-                            )}
+                                {video.title}
+                              </h4>
+                            </div>
 
-                            <h4
-                              onClick={() => handlePlayVideo(video, playlist)}
-                              className="cursor-pointer line-clamp-2 font-heading text-body-sm font-semibold text-foreground group-hover:text-brand-primary transition-colors"
-                              title={video.title}
-                            >
-                              {video.title}
-                            </h4>
+                            {/* Card Footer: Metadata and Actions */}
+                            <div className="mt-2 flex items-center justify-between border-t border-border/30 pt-2 text-body-xs text-muted-foreground">
+                              {isLocked ? (
+                                <span className="inline-flex items-center gap-1 text-[11px] font-medium text-amber-600 dark:text-amber-400">
+                                  <Lock className="size-3" />
+                                  <span>Perlu Akses Kelas</span>
+                                </span>
+                              ) : video.videoUrl.includes("youtube") || video.videoUrl.includes("youtu.be") ? (
+                                <span className="inline-flex items-center gap-1 text-[11px] font-medium text-red-600 dark:text-red-400">
+                                  <FaYoutube className="size-3" />
+                                  <span>YouTube</span>
+                                </span>
+                              ) : (
+                                <span className="text-[11px]">
+                                  {video.fileSize
+                                    ? `${(video.fileSize / (1024 * 1024)).toFixed(1)} MB`
+                                    : "Video"}
+                                </span>
+                              )}
+
+                              {canManage && (
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="size-6 p-0 text-muted-foreground hover:text-foreground rounded-md"
+                                    >
+                                      <MoreVertical className="size-3.5" />
+                                      <span className="sr-only">Menu Video</span>
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end" className="text-body-sm">
+                                    <DropdownMenuItem onClick={() => handleOpenEditVideo(video)}>
+                                      <Pencil className="mr-2 size-3.5" />
+                                      <span>Edit Video</span>
+                                    </DropdownMenuItem>
+                                    <DropdownMenuSeparator />
+                                    <DropdownMenuItem
+                                      onClick={() => setVideoToDelete(video)}
+                                      className="text-destructive focus:text-destructive"
+                                    >
+                                      <Trash2 className="mr-2 size-3.5" />
+                                      <span>Hapus Video</span>
+                                    </DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                              )}
+                            </div>
                           </div>
-
-                          {/* Card Footer: Metadata and Actions */}
-                          <div className="mt-2 flex items-center justify-between border-t border-border/30 pt-2 text-body-xs text-muted-foreground">
-                            {video.videoUrl.includes("youtube") || video.videoUrl.includes("youtu.be") ? (
-                              <span className="inline-flex items-center gap-1 text-[11px] font-medium text-red-600 dark:text-red-400">
-                                <FaYoutube className="size-3" />
-                                <span>YouTube</span>
-                              </span>
-                            ) : (
-                              <span className="text-[11px]">
-                                {video.fileSize
-                                  ? `${(video.fileSize / (1024 * 1024)).toFixed(1)} MB`
-                                  : "Video"}
-                              </span>
-                            )}
-
-                            {canManage && (
-                              <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="size-6 p-0 text-muted-foreground hover:text-foreground rounded-md"
-                                  >
-                                    <MoreVertical className="size-3.5" />
-                                    <span className="sr-only">Menu Video</span>
-                                  </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end" className="text-body-sm">
-                                  <DropdownMenuItem onClick={() => handleOpenEditVideo(video)}>
-                                    <Pencil className="mr-2 size-3.5" />
-                                    <span>Edit Video</span>
-                                  </DropdownMenuItem>
-                                  <DropdownMenuSeparator />
-                                  <DropdownMenuItem
-                                    onClick={() => setVideoToDelete(video)}
-                                    className="text-destructive focus:text-destructive"
-                                  >
-                                    <Trash2 className="mr-2 size-3.5" />
-                                    <span>Hapus Video</span>
-                                  </DropdownMenuItem>
-                                </DropdownMenuContent>
-                              </DropdownMenu>
-                            )}
-                          </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   )}
                 </CollapsibleContent>
@@ -588,6 +644,32 @@ export function CourseVideosClient({
         loading={deleteLoading}
         onConfirm={handleConfirmDeleteVideo}
       />
+
+      {/* Locked Video Activation Dialog */}
+      <Dialog open={Boolean(lockedVideo)} onOpenChange={(open) => !open && setLockedVideo(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <div className="mx-auto mb-2 flex size-11 items-center justify-center rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 ring-1 ring-amber-500/20">
+              <Lock className="size-5" />
+            </div>
+            <DialogTitle className="text-center font-heading text-body-base font-bold">
+              Akses Video Terkunci
+            </DialogTitle>
+            <DialogDescription className="text-center text-body-xs text-muted-foreground">
+              {lockedVideo ? `Video "${lockedVideo.title}" hanya dapat diakses oleh siswa terdaftar.` : "Video ini hanya dapat diakses oleh siswa terdaftar."} Masukkan token kelas untuk membuka seluruh video pembelajaran.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="pt-2">
+            <EnrollmentForm
+              className="w-full"
+              onSuccess={() => {
+                setLockedVideo(null);
+                router.refresh();
+              }}
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

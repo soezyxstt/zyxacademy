@@ -13,7 +13,7 @@ describe("Free dashboard and Zyra surface contract", () => {
     expect(page).toContain("getCourseQuizzes(course.id, user.id)");
     expect(page).toContain("freeChapters: chapterOutline.map");
     expect(page).toContain("firstIncompleteMaterialId");
-    expect(view).toContain("Bab 1 dan Bab 2 gratis di setiap mata kuliah.");
+    expect(view).toContain("Bab pertama gratis di setiap mata kuliah.");
     expect(view).toContain("course.firstIncompleteMaterialId");
     expect(view).toContain("Mulai Bab 1");
     expect(view).toContain("Progres tersimpan");

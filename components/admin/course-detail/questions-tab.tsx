@@ -19,7 +19,7 @@ import {
   ChevronLeft,
   ChevronRight,
   BookOpen,
-  Sparkles,
+  BookOpenCheck,
 } from "lucide-react";
 import { SearchBar } from "@/components/ui/search-bar";
 import {
@@ -179,7 +179,7 @@ export function QuestionsTab({
             Semua Soal ({questions.length})
           </TabsTrigger>
           <TabsTrigger value="zyx" className="text-body-sm font-medium flex items-center gap-1.5">
-            <Sparkles className="size-3.5 text-brand-primary" />
+            <BookOpenCheck className="size-3.5 text-brand-primary" />
             Soal Asli Zyx ({zyxCount})
           </TabsTrigger>
           <TabsTrigger value="reference" className="text-body-sm font-medium flex items-center gap-1.5">

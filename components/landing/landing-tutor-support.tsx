@@ -8,7 +8,7 @@ const supportOptions = [
   {
     icon: BookOpen,
     title: "Belajar mandiri",
-    body: "Free membuka Bab 1 dan Bab 2 di setiap mata kuliah, termasuk Artikel, Diktat, Kuis, dan Flashcard. Diktat hanya dapat dibaca, Zyra satu pertanyaan per hari.",
+    body: "Free membuka bab pertama di setiap mata kuliah, termasuk Artikel, Diktat, Kuis, dan Flashcard. Diktat hanya dapat dibaca, Zyra satu pertanyaan per hari.",
   },
   {
     icon: CalendarClock,

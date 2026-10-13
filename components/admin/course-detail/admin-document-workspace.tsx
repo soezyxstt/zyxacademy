@@ -17,7 +17,7 @@ import {
   Pencil,
   RotateCcw,
   Save,
-  Sparkles,
+  Wand2,
   Trash2,
   ExternalLink,
 } from "lucide-react";
@@ -651,7 +651,7 @@ export function AdminDocumentWorkspace({
                           {formattingPdfAi ? (
                             <Loader2 className="size-3 animate-spin" />
                           ) : (
-                            <Sparkles className="size-3" />
+                            <Wand2 className="size-3" />
                           )}
                           <span>{formattingPdfAi ? "Menganalisis..." : "Rapikan dengan AI"}</span>
                         </button>
@@ -857,7 +857,7 @@ export function AdminDocumentWorkspace({
                           {formattingArticleAi ? (
                             <Loader2 className="size-3 animate-spin" />
                           ) : (
-                            <Sparkles className="size-3" />
+                            <Wand2 className="size-3" />
                           )}
                           <span>{formattingArticleAi ? "Menganalisis..." : "Rapikan dengan AI"}</span>
                         </button>

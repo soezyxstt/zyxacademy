@@ -47,7 +47,7 @@ export const planTiers: readonly PlanTier[] = [
     name: "Free",
     note: "Akses materi dasar tanpa biaya.",
     features: [
-      "Bab 1 dan Bab 2 di setiap mata kuliah",
+      "Bab pertama di setiap mata kuliah",
       "Artikel, Diktat, Kuis, dan Flashcard terkait",
       "Diktat dapat dibaca, tanpa unduhan",
       "1 pertanyaan Zyra per hari",

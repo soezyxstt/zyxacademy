@@ -9,7 +9,6 @@ import {
   GraduationCap,
   Info,
   Layers,
-  Sparkles,
   Users,
 } from "lucide-react";
 import { AdminSectionTitle } from "@/components/admin/section-title";

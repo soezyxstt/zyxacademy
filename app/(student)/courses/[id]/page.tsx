@@ -95,7 +95,7 @@ export default async function CourseOverviewPage({ params }: Props) {
                     Aktivasi token kelas
                   </h3>
                   <p className="mt-1 max-w-2xl text-body-sm text-muted-foreground">
-                    Dokumen dan berkas PDF materi terbuka gratis. Masukkan token kelas untuk membuka kuis interaktif, tryout, materi lengkap, flashcard, dan diktat.
+                    Materi artikel, diktat, dan kuis bab pertama terbuka gratis. Masukkan token kelas untuk membuka seluruh materi, tryout ujian, dan flashcard.
                   </p>
                 </div>
                 <EnrollmentForm className="w-full" />

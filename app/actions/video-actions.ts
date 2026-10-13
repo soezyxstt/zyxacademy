@@ -60,6 +60,7 @@ export type VideoItem = {
   uploadedBy: string | null;
   createdAt: Date;
   updatedAt: Date;
+  locked?: boolean;
 };
 
 async function assertVideoManagerPermission(courseId: string): Promise<{
@@ -142,9 +143,7 @@ export async function getCourseVideosData(courseSlugOrId: string) {
     roleHint: (session.user as { role?: string | null }).role,
   });
 
-  if (!access.isEnrolled && access.tier !== "staff") {
-    return null;
-  }
+  const isEnrolled = access.isEnrolled || access.tier === "staff";
 
   const courseIds = identity.allIds;
 
@@ -212,9 +211,9 @@ export async function getCourseVideosData(courseSlugOrId: string) {
       chapterTitle: v.chapterId ? chapterMap.get(v.chapterId) || null : null,
       title: v.title,
       description: v.description,
-      videoUrl: resolvedVideoUrl,
+      videoUrl: isEnrolled ? resolvedVideoUrl : "",
       thumbnailUrl: resolvedThumbnailUrl,
-      videoKey: v.videoUrl || null,
+      videoKey: isEnrolled ? (v.videoUrl || null) : null,
       thumbnailKey: v.thumbnailUrl || null,
       duration: v.duration,
       fileSize: v.fileSize,
@@ -222,6 +221,7 @@ export async function getCourseVideosData(courseSlugOrId: string) {
       uploadedBy: v.uploadedBy,
       createdAt: v.createdAt,
       updatedAt: v.updatedAt,
+      locked: !isEnrolled,
     };
   });
 
@@ -249,6 +249,7 @@ export async function getCourseVideosData(courseSlugOrId: string) {
     chapters: chapterRows,
     playlists,
     videos: mappedVideos,
+    isEnrolled,
   };
 }
 

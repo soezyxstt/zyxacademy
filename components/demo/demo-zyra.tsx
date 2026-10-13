@@ -1,4 +1,4 @@
-import { MessageCircle, Sparkles } from "lucide-react";
+import { MessageCircle, Bot } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { DemoAuthCta } from "./demo-shell";
 
@@ -25,7 +25,7 @@ export function DemoZyra({ nextPath }: { nextPath: string }) {
             const fromZyra = message.role === "Zyra";
             return (
               <div key={`${message.role}-${index}`} className={fromZyra ? "flex items-start gap-2" : "flex justify-end"}>
-                {fromZyra ? <Sparkles className="mt-2 size-4 shrink-0 text-brand-primary" aria-hidden="true" /> : null}
+                {fromZyra ? <Bot className="mt-2 size-4 shrink-0 text-brand-primary" aria-hidden="true" /> : null}
                 <div
                   className={fromZyra
                     ? "max-w-[88%] rounded-xl rounded-tl-sm bg-muted px-3 py-2.5 text-body-sm leading-relaxed text-foreground"
