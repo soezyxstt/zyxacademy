@@ -4,14 +4,16 @@ import { MessageSquareHeart } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { ApplicationPage } from "@/components/application-page";
 import { Reveal } from "@/components/ui/reveal";
-import { pageTitle } from "@/lib/site";
+import { createMetadata, pageTitle } from "@/lib/site";
 import { auth } from "@/lib/auth";
 import { FeedbackForm } from "./feedback-form";
 
-export const metadata: Metadata = {
-  title: pageTitle("Masukan Mahasiswa"),
+export const metadata: Metadata = createMetadata({
+  title: "Masukan Mahasiswa",
   description: "Sampaikan masukan, kendala materi, atau saran fitur untuk pembelajaran di Zyx Academy.",
-};
+  path: "/feedback",
+});
+
 
 export default async function FeedbackPage() {
   const session = await auth.api.getSession({ headers: await headers() });

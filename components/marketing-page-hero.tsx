@@ -4,7 +4,6 @@ import { cn } from "@/lib/utils";
 type MarketingPageHeroProps = {
   /** Used for `aria-labelledby` and stable SVG gradient id. */
   sectionId: string;
-  eyebrow?: string;
   title: string;
   description: string;
   className?: string;

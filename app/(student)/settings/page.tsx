@@ -5,13 +5,15 @@ import { Settings, Bell, User, MessageSquareHeart, ChevronRight, ShieldCheck } f
 import { PageHeader } from "@/components/page-header";
 import { ApplicationPage } from "@/components/application-page";
 import { Reveal } from "@/components/ui/reveal";
-import { pageTitle } from "@/lib/site";
+import { createMetadata, pageTitle } from "@/lib/site";
 import { auth } from "@/lib/auth";
 
-export const metadata: Metadata = {
-  title: pageTitle("Pengaturan Akun"),
+export const metadata: Metadata = createMetadata({
+  title: "Pengaturan Akun",
   description: "Pengaturan preferensi akun, notifikasi, dan profil Zyx Academy.",
-};
+  path: "/settings",
+});
+
 
 export default async function SettingsPage() {
   const session = await auth.api.getSession({ headers: await headers() });

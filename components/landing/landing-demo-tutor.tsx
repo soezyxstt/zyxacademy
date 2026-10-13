@@ -76,10 +76,7 @@ export function LandingDemoTutor() {
  </LandingVisible>
 
  <div className="order-1 max-w-xl lg:order-2">
- <p className="text-body-xs font-semibold uppercase tracking-[0.2em] text-[var(--zx-accent)]">
- Zyra
- </p>
- <SectionHeading as="h2" id="landing-tutor-heading" className="mt-3 text-foreground">
+ <SectionHeading as="h2" id="landing-tutor-heading" className="text-foreground">
  Jawaban bertumpu pada materi yang tersedia.
  </SectionHeading>
  <p className="mt-4 text-body-base text-muted-foreground">

@@ -4,16 +4,18 @@ import { and, asc, eq, isNull } from "drizzle-orm";
 
 import { db } from "@/db";
 import { importantLinks } from "@/db/schema";
-import { pageTitle } from "@/lib/site";
+import { createMetadata, pageTitle } from "@/lib/site";
 import { PageOrnaments } from "@/components/ui/page-ornaments";
 import { Logo } from "@/components/logo";
 import { DEFAULT_ICON, linkColor } from "@/lib/links";
 import { cn } from "@/lib/utils";
 
-export const metadata: Metadata = {
-  title: pageTitle("Tautan"),
+export const metadata: Metadata = createMetadata({
+  title: "Tautan",
   description: "Kumpulan tautan penting dari Zyx Academy dalam satu tempat.",
-};
+  path: "/tautan",
+});
+
 
 export const dynamic = "force-dynamic";
 

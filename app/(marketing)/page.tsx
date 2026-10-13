@@ -14,12 +14,12 @@ import {
   LandingPricingPreview,
   LandingTutorSupport,
 } from "@/components/landing";
-import { pageTitle, siteDescription } from "@/lib/site";
+import { createMetadata } from "@/lib/site";
 
-export const metadata: Metadata = {
-  title: pageTitle(),
-  description: siteDescription,
-};
+export const metadata: Metadata = createMetadata({
+  path: "/",
+});
+
 
 export default function Home() {
   return (

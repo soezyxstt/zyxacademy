@@ -11,10 +11,7 @@ export function DemoArticleView({ article, nextPath }: { article: PublicArticleR
         <div className="flex items-start gap-3 border-b border-border pb-5">
           <BookOpen className="mt-1 size-5 shrink-0 text-brand-primary" aria-hidden="true" />
           <div className="min-w-0">
-            <p className="text-body-xs font-semibold uppercase tracking-[0.16em] text-brand-primary">
-              Artikel lengkap
-            </p>
-            <h2 className="mt-2 font-heading text-h5 font-bold tracking-tight text-foreground">{article.title}</h2>
+            <h2 className="font-heading text-h5 font-bold tracking-tight text-foreground">{article.title}</h2>
             <p className="mt-1 text-body-xs text-muted-foreground">
               {article.totalEstimatedReadingMinutes} menit membaca, {article.sections.length} bagian
             </p>

@@ -4,11 +4,15 @@ import { DemoEmptyState } from "@/components/demo/demo-empty-state";
 import { demoCoursePath, DemoShell } from "@/components/demo/demo-shell";
 import { getDemoContent } from "./demo-data";
 
-export const metadata: Metadata = {
-  title: "Demo Zyx Academy",
+import { createMetadata } from "@/lib/site";
+
+export const metadata: Metadata = createMetadata({
+  title: "Demo Belajar",
   description: "Jelajahi alur belajar Zyx Academy sebelum membuat akun.",
-  robots: { index: false, follow: false },
-};
+  path: "/demo",
+  noIndex: true,
+});
+
 
 export const dynamic = "force-dynamic";
 

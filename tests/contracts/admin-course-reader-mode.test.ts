@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 const root = process.cwd();
-const source = (path: string) => readFileSync(join(root, path), "utf8");
+const source = (path: string) => readFileSync(join(root, path), "utf8").replace(/\r\n/g, "\n");
 
 describe("admin course reader mode contract", () => {
   test("defines explicit learner and admin preview modes", () => {

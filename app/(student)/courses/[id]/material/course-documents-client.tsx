@@ -32,6 +32,8 @@ import {
 import { AdminUploadDocumentDialog } from "@/components/admin/course-detail/admin-upload-document-dialog";
 import { AdminConfirmDialog } from "@/components/admin/confirm-dialog";
 import { deleteCourseMaterial } from "@/app/(admin)/admin/(academic)/courses/actions";
+import { updateMaterialProgress } from "@/app/(student)/dashboard/actions";
+import { getViewablePdfUrl, isMobileOrTablet } from "@/lib/pdf-utils";
 import { toast } from "@/components/ui/toast";
 import {
   Collapsible,
@@ -242,10 +244,22 @@ function HierarchyDocumentCard({
       ? `/admin/courses/${encodeURIComponent(courseSlug)}/documents/${material.id}`
       : material.href ?? `/courses/${courseId}/material/${material.id}`;
   const isLocked = Boolean(material.locked);
+  const isPdf = material.kind === "pdf" && Boolean(material.url);
+  const viewPdfUrl = isPdf ? getViewablePdfUrl(material.url) : null;
+
+  const handleClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    if (isLocked) return;
+    if (isPdf && viewPdfUrl && !isAdmin && isMobileOrTablet()) {
+      e.preventDefault();
+      updateMaterialProgress(material.id, "in_progress").catch(() => {});
+      window.open(viewPdfUrl, "_blank", "noopener,noreferrer");
+    }
+  };
 
   return (
     <Link
       href={itemHref}
+      onClick={handleClick}
       className={cn(
         "group flex min-w-0 items-center gap-2.5 rounded-lg border border-border/50 border-l-2 bg-background p-2 text-left transition-colors hover:bg-muted/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
         style.border,

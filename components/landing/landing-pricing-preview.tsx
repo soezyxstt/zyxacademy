@@ -10,8 +10,7 @@ export function LandingPricingPreview() {
       aria-labelledby="pricing-preview-heading"
     >
       <div className="mx-auto max-w-3xl text-center">
-        <p className="text-body-xs font-semibold uppercase tracking-[0.2em] text-[var(--zx-accent)]">Paket</p>
-        <SectionHeading id="pricing-preview-heading" tier="secondary" className="mt-2 text-foreground">
+        <SectionHeading id="pricing-preview-heading" tier="secondary" className="text-foreground">
           Pilih dukungan belajar yang cocok
         </SectionHeading>
         <p className="mt-3 text-body-base text-muted-foreground">

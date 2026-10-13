@@ -71,10 +71,7 @@ export function LandingDemoQuiz() {
  <SectionContainer className="bg-background" aria-labelledby="landing-quiz-heading">
  <div className="grid min-w-0 items-center gap-12 lg:grid-cols-2 lg:gap-16">
  <div className="min-w-0 max-w-xl">
- <p className="text-body-xs font-semibold uppercase tracking-[0.2em] text-[var(--zx-accent)]">
- Kuis Latihan
- </p>
- <SectionHeading as="h2" id="landing-quiz-heading" className="mt-3 text-foreground">
+ <SectionHeading as="h2" id="landing-quiz-heading" className="text-foreground">
  Salah itu bagian dari rencana.
  </SectionHeading>
  <p className="mt-4 text-body-base text-muted-foreground">

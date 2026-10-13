@@ -16,14 +16,16 @@ import { eq, and, inArray, desc } from "drizzle-orm";
 import { PageHeader } from "@/components/page-header";
 import { ApplicationPage } from "@/components/application-page";
 import { Reveal } from "@/components/ui/reveal";
-import { pageTitle } from "@/lib/site";
+import { createMetadata, pageTitle } from "@/lib/site";
 import { listStudentEnrollments } from "@/lib/student/course-catalog";
 import { CalendarAgendaClient, type CalendarEventItem } from "./calendar-agenda-client";
 
-export const metadata: Metadata = {
-  title: pageTitle("Kalender Akademik"),
+export const metadata: Metadata = createMetadata({
+  title: "Kalender Akademik",
   description: "Jadwal kegiatan belajar, tenggat kuis, tryout, dan sesi tutorial kelompok Anda di Zyx Academy.",
-};
+  path: "/calendar",
+});
+
 
 const MONTH_NAMES = [
   "Jan", "Feb", "Mar", "Apr", "Mei", "Jun",

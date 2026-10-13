@@ -8,7 +8,7 @@ import { checkEnrollment } from "@/app/(student)/dashboard/actions";
 import { CoursePageShell } from "@/components/course/course-page-shell";
 import { EnrollmentForm } from "@/components/enrollment-form";
 import { Reveal } from "@/components/ui/reveal";
-import { pageTitle } from "@/lib/site";
+import { createMetadata, pageTitle } from "@/lib/site";
 import { getCourse } from "@/lib/course-utils";
 import { getCourseLearningSummary } from "@/lib/learning-analytics";
 import { StudyStatisticsCard } from "@/components/course/study-statistics-card";
@@ -21,13 +21,15 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params;
   const course = await getCourse(id);
 
-  return {
-    title: pageTitle(course ? `${course.title} - Progres Belajar` : "Progres Belajar"),
+  return createMetadata({
+    title: course ? `Progres Belajar ${course.title}` : "Progres Belajar",
     description: course
       ? `Statistik belajar dan riwayat aktivitas ${course.title}.`
       : "Statistik belajar dan riwayat aktivitas siswa.",
-  };
+    path: `/courses/${id}/progress`,
+  });
 }
+
 
 export default async function CourseProgressPage({ params }: Props) {
   const { id } = await params;
