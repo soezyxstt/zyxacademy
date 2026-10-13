@@ -8,6 +8,16 @@ import {
 } from "@/lib/articles/structured-read-model";
 
 describe("Structured Article Reader Contracts", () => {
+  it("uses the catalogue title and chapter number instead of a verbose article title", () => {
+    const article = buildPublicArticleReadModel(
+      { id: "functions", slug: "functions", title: "Matematika I Bab 3: Fungsi dan Limit, Grafik, dan Kekontinuan", version: 1 },
+      [], [], [],
+      { id: "chapter-2", title: "Fungsi dan Limit", number: 2 },
+    );
+    expect(article.title).toBe("Fungsi dan Limit");
+    expect(article.chapterNumber).toBe(2);
+  });
+
   describe("Deterministic Section Numbering", () => {
     it("assigns sequential numbers for flat sections ordered by orderIndex", () => {
       const flatSections = [

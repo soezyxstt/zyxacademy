@@ -5,6 +5,7 @@ import { CourseDetailHeader } from "@/components/admin/course-detail/course-deta
 import { StructuredArticleReader } from "@/components/course/structured-article-reader";
 import { TutorProvider } from "@/components/course/tutor-drawer";
 import type { PublicArticleReadModel, PublicLearningCanvasVisualSpec } from "@/lib/articles/structured-read-model";
+import { buildPublicArticleReadModel } from "@/lib/articles/structured-read-model";
 import { useEffect, useState } from "react";
 
 const lineShiftVisual: PublicLearningCanvasVisualSpec = {
@@ -202,12 +203,17 @@ const sourceArticle: PublicArticleReadModel = {
   ],
 };
 
-export function StructuredArticleVisualFixture({ mode }: { mode: "student" | "idea" | "product" }) {
+export function StructuredArticleVisualFixture({ mode, catalogueTitle = false }: { mode: "student" | "idea" | "product"; catalogueTitle?: boolean }) {
   const [ready, setReady] = useState(false);
 
   useEffect(() => setReady(true), []);
 
-  if (mode === "student") return <TutorProvider><StructuredArticleReader article={sourceArticle} course={{ id: "matematika-1", title: "Matematika I" }} /></TutorProvider>;
+  const catalogueArticle = catalogueTitle ? {
+    ...sourceArticle,
+    ...buildPublicArticleReadModel({ ...sourceArticle, title: "Matematika I Bab 3: Fungsi dan Limit, Grafik, dan Kekontinuan" }, [], [], [], { id: "bab-2", title: "Fungsi dan Limit", number: 2 }),
+    sections: sourceArticle.sections,
+  } : sourceArticle;
+  if (mode === "student") return <TutorProvider><StructuredArticleReader article={catalogueArticle} course={{ id: "matematika-1", title: "Matematika I" }} /></TutorProvider>;
   return (
     <TutorProvider>
       <main

@@ -224,7 +224,7 @@ export async function getCanonicalPublishedArticle(
       {
         id: resolvedChapterId,
         title: chapterRecord?.title ?? null,
-        number: chapterRecord ? chapterRecord.orderIndex + 1 : null,
+        number: chapterRecord ? chapterRecord.orderIndex : null,
         courseTitle: matchedCourse?.title ?? null,
       },
     );
