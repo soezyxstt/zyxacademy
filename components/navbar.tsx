@@ -74,7 +74,7 @@ export function Navbar() {
  <Link
  href="/"
  prefetch={true}
- className="relative z-10 -m-px flex shrink-0 items-center p-px [&_img]:block [&_img]:align-middle [&_svg]:block"
+ className="relative z-10 -m-px flex shrink-0 items-center p-px"
  >
  <Logo variant="symbol" className="lg:hidden [--logo-height:2rem]" />
  <Logo variant="horizontal" className="hidden lg:flex [--logo-height:2rem]" />
