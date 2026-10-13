@@ -1,0 +1,528 @@
+{
+  "source": {
+    "figmaFileKey": "NvOC7gydMjFVA1uivfNvJz",
+    "fileUrl": "https://www.figma.com/design/NvOC7gydMjFVA1uivfNvJz/Zyx-Edu-Website"
+  },
+  "frames": [
+    {
+      "name": "zyx-logo-horizontal-color",
+      "nodeId": "2002:7785",
+      "frameWidth": 579,
+      "frameHeight": 72,
+      "exports": [
+        {
+          "path": "/brand/zyx-logo-horizontal-color.svg",
+          "format": "image/svg+xml",
+          "widthPx": 579,
+          "heightPx": 72,
+          "scale": 1.0
+        },
+        {
+          "path": "/brand/zyx-logo-horizontal-color@2x.png",
+          "format": "image/png",
+          "widthPx": 1158,
+          "heightPx": 144,
+          "scale": 2.0
+        }
+      ]
+    },
+    {
+      "name": "zyx-logo-vertical-color",
+      "nodeId": "2002:7808",
+      "frameWidth": 371,
+      "frameHeight": 289.9642333984375,
+      "exports": [
+        {
+          "path": "/brand/zyx-logo-vertical-color.svg",
+          "format": "image/svg+xml",
+          "widthPx": 371,
+          "heightPx": 290,
+          "scale": 1.0
+        },
+        {
+          "path": "/brand/zyx-logo-vertical-color@2x.png",
+          "format": "image/png",
+          "widthPx": 742,
+          "heightPx": 580,
+          "scale": 2.0
+        }
+      ]
+    },
+    {
+      "name": "zyx-logo-symbol-color",
+      "nodeId": "2002:7830",
+      "frameWidth": 369.5,
+      "frameHeight": 216,
+      "exports": [
+        {
+          "path": "/brand/zyx-logo-symbol-color.svg",
+          "format": "image/svg+xml",
+          "widthPx": 370,
+          "heightPx": 216,
+          "scale": 1.0
+        },
+        {
+          "path": "/brand/zyx-logo-symbol-color@2x.png",
+          "format": "image/png",
+          "widthPx": 739,
+          "heightPx": 432,
+          "scale": 2.0
+        }
+      ]
+    },
+    {
+      "name": "zyx-logo-horizontal-reversed",
+      "nodeId": "2002:7852",
+      "frameWidth": 579,
+      "frameHeight": 72,
+      "exports": [
+        {
+          "path": "/brand/zyx-logo-horizontal-reversed.svg",
+          "format": "image/svg+xml",
+          "widthPx": 579,
+          "heightPx": 72,
+          "scale": 1.0
+        },
+        {
+          "path": "/brand/zyx-logo-horizontal-reversed@2x.png",
+          "format": "image/png",
+          "widthPx": 1158,
+          "heightPx": 144,
+          "scale": 2.0
+        }
+      ]
+    },
+    {
+      "name": "zyx-logo-vertical-reversed",
+      "nodeId": "2002:7875",
+      "frameWidth": 371,
+      "frameHeight": 289.9642639160156,
+      "exports": [
+        {
+          "path": "/brand/zyx-logo-vertical-reversed.svg",
+          "format": "image/svg+xml",
+          "widthPx": 371,
+          "heightPx": 290,
+          "scale": 1.0
+        },
+        {
+          "path": "/brand/zyx-logo-vertical-reversed@2x.png",
+          "format": "image/png",
+          "widthPx": 742,
+          "heightPx": 580,
+          "scale": 2.0
+        }
+      ]
+    },
+    {
+      "name": "zyx-logo-symbol-reversed",
+      "nodeId": "2002:7897",
+      "frameWidth": 369.5,
+      "frameHeight": 216,
+      "exports": [
+        {
+          "path": "/brand/zyx-logo-symbol-reversed.svg",
+          "format": "image/svg+xml",
+          "widthPx": 370,
+          "heightPx": 216,
+          "scale": 1.0
+        },
+        {
+          "path": "/brand/zyx-logo-symbol-reversed@2x.png",
+          "format": "image/png",
+          "widthPx": 739,
+          "heightPx": 432,
+          "scale": 2.0
+        }
+      ]
+    },
+    {
+      "name": "zyx-logo-horizontal-black",
+      "nodeId": "2002:7919",
+      "frameWidth": 579,
+      "frameHeight": 72,
+      "exports": [
+        {
+          "path": "/brand/zyx-logo-horizontal-black.svg",
+          "format": "image/svg+xml",
+          "widthPx": 579,
+          "heightPx": 72,
+          "scale": 1.0
+        },
+        {
+          "path": "/brand/zyx-logo-horizontal-black@2x.png",
+          "format": "image/png",
+          "widthPx": 1158,
+          "heightPx": 144,
+          "scale": 2.0
+        }
+      ]
+    },
+    {
+      "name": "zyx-logo-vertical-black",
+      "nodeId": "2002:7942",
+      "frameWidth": 371,
+      "frameHeight": 289.9642333984375,
+      "exports": [
+        {
+          "path": "/brand/zyx-logo-vertical-black.svg",
+          "format": "image/svg+xml",
+          "widthPx": 371,
+          "heightPx": 290,
+          "scale": 1.0
+        },
+        {
+          "path": "/brand/zyx-logo-vertical-black@2x.png",
+          "format": "image/png",
+          "widthPx": 742,
+          "heightPx": 580,
+          "scale": 2.0
+        }
+      ]
+    },
+    {
+      "name": "zyx-logo-symbol-black",
+      "nodeId": "2002:7964",
+      "frameWidth": 369.5,
+      "frameHeight": 216,
+      "exports": [
+        {
+          "path": "/brand/zyx-logo-symbol-black.svg",
+          "format": "image/svg+xml",
+          "widthPx": 370,
+          "heightPx": 216,
+          "scale": 1.0
+        },
+        {
+          "path": "/brand/zyx-logo-symbol-black@2x.png",
+          "format": "image/png",
+          "widthPx": 739,
+          "heightPx": 432,
+          "scale": 2.0
+        }
+      ]
+    },
+    {
+      "name": "zyx-logo-horizontal-white",
+      "nodeId": "2002:7986",
+      "frameWidth": 579,
+      "frameHeight": 72,
+      "exports": [
+        {
+          "path": "/brand/zyx-logo-horizontal-white.svg",
+          "format": "image/svg+xml",
+          "widthPx": 579,
+          "heightPx": 72,
+          "scale": 1.0
+        },
+        {
+          "path": "/brand/zyx-logo-horizontal-white@2x.png",
+          "format": "image/png",
+          "widthPx": 1158,
+          "heightPx": 144,
+          "scale": 2.0
+        }
+      ]
+    },
+    {
+      "name": "zyx-logo-vertical-white",
+      "nodeId": "2002:8009",
+      "frameWidth": 371,
+      "frameHeight": 289.9642333984375,
+      "exports": [
+        {
+          "path": "/brand/zyx-logo-vertical-white.svg",
+          "format": "image/svg+xml",
+          "widthPx": 371,
+          "heightPx": 290,
+          "scale": 1.0
+        },
+        {
+          "path": "/brand/zyx-logo-vertical-white@2x.png",
+          "format": "image/png",
+          "widthPx": 742,
+          "heightPx": 580,
+          "scale": 2.0
+        }
+      ]
+    },
+    {
+      "name": "zyx-logo-symbol-white",
+      "nodeId": "2002:8031",
+      "frameWidth": 369.5,
+      "frameHeight": 216,
+      "exports": [
+        {
+          "path": "/brand/zyx-logo-symbol-white.svg",
+          "format": "image/svg+xml",
+          "widthPx": 370,
+          "heightPx": 216,
+          "scale": 1.0
+        },
+        {
+          "path": "/brand/zyx-logo-symbol-white@2x.png",
+          "format": "image/png",
+          "widthPx": 739,
+          "heightPx": 432,
+          "scale": 2.0
+        }
+      ]
+    },
+    {
+      "name": "zyx-favicon-16",
+      "nodeId": "2002:8061",
+      "frameWidth": 16,
+      "frameHeight": 16,
+      "exports": [
+        {
+          "path": "/brand/zyx-favicon-16.png",
+          "format": "image/png",
+          "widthPx": 16,
+          "heightPx": 16,
+          "scale": 1.0
+        }
+      ]
+    },
+    {
+      "name": "zyx-favicon-32",
+      "nodeId": "2002:8080",
+      "frameWidth": 32,
+      "frameHeight": 32,
+      "exports": [
+        {
+          "path": "/brand/zyx-favicon-32.png",
+          "format": "image/png",
+          "widthPx": 32,
+          "heightPx": 32,
+          "scale": 1.0
+        }
+      ]
+    },
+    {
+      "name": "zyx-favicon-48",
+      "nodeId": "2002:8099",
+      "frameWidth": 48,
+      "frameHeight": 48,
+      "exports": [
+        {
+          "path": "/brand/zyx-favicon-48.png",
+          "format": "image/png",
+          "widthPx": 48,
+          "heightPx": 48,
+          "scale": 1.0
+        }
+      ]
+    },
+    {
+      "name": "zyx-app-180",
+      "nodeId": "2002:8122",
+      "frameWidth": 180,
+      "frameHeight": 180,
+      "exports": [
+        {
+          "path": "/brand/zyx-app-180.png",
+          "format": "image/png",
+          "widthPx": 180,
+          "heightPx": 180,
+          "scale": 1.0
+        }
+      ]
+    },
+    {
+      "name": "zyx-app-192",
+      "nodeId": "2002:8143",
+      "frameWidth": 192,
+      "frameHeight": 192,
+      "exports": [
+        {
+          "path": "/brand/zyx-app-192.png",
+          "format": "image/png",
+          "widthPx": 192,
+          "heightPx": 192,
+          "scale": 1.0
+        }
+      ]
+    },
+    {
+      "name": "zyx-app-512",
+      "nodeId": "2002:8164",
+      "frameWidth": 512,
+      "frameHeight": 512,
+      "exports": [
+        {
+          "path": "/brand/zyx-app-512.png",
+          "format": "image/png",
+          "widthPx": 512,
+          "heightPx": 512,
+          "scale": 1.0
+        }
+      ]
+    },
+    {
+      "name": "zyx-profile-light-512",
+      "nodeId": "2002:8193",
+      "frameWidth": 512,
+      "frameHeight": 512,
+      "exports": [
+        {
+          "path": "/brand/zyx-profile-light-512.png",
+          "format": "image/png",
+          "widthPx": 512,
+          "heightPx": 512,
+          "scale": 1.0
+        }
+      ]
+    },
+    {
+      "name": "zyx-profile-navy-512",
+      "nodeId": "2002:8214",
+      "frameWidth": 512,
+      "frameHeight": 512,
+      "exports": [
+        {
+          "path": "/brand/zyx-profile-navy-512.png",
+          "format": "image/png",
+          "widthPx": 512,
+          "heightPx": 512,
+          "scale": 1.0
+        }
+      ]
+    },
+    {
+      "name": "zyx-web-header-light-1200x120",
+      "nodeId": "2002:8242",
+      "frameWidth": 1200,
+      "frameHeight": 120,
+      "exports": [
+        {
+          "path": "/brand/zyx-web-header-light-1200x120.png",
+          "format": "image/png",
+          "widthPx": 1200,
+          "heightPx": 120,
+          "scale": 1.0
+        }
+      ]
+    },
+    {
+      "name": "zyx-web-header-dark-1200x120",
+      "nodeId": "2002:8264",
+      "frameWidth": 1200,
+      "frameHeight": 120,
+      "exports": [
+        {
+          "path": "/brand/zyx-web-header-dark-1200x120.png",
+          "format": "image/png",
+          "widthPx": 1200,
+          "heightPx": 120,
+          "scale": 1.0
+        }
+      ]
+    },
+    {
+      "name": "zyx-og-1200x630",
+      "nodeId": "2002:8294",
+      "frameWidth": 1200,
+      "frameHeight": 630,
+      "exports": [
+        {
+          "path": "/brand/zyx-og-1200x630.png",
+          "format": "image/png",
+          "widthPx": 1200,
+          "heightPx": 630,
+          "scale": 1.0
+        }
+      ]
+    },
+    {
+      "name": "zyx-social-post-1080x1080",
+      "nodeId": "2002:8336",
+      "frameWidth": 1080,
+      "frameHeight": 1080,
+      "exports": [
+        {
+          "path": "/brand/zyx-social-post-1080x1080.png",
+          "format": "image/png",
+          "widthPx": 1080,
+          "heightPx": 1080,
+          "scale": 1.0
+        }
+      ]
+    },
+    {
+      "name": "zyx-social-story-1080x1920",
+      "nodeId": "2002:8378",
+      "frameWidth": 1080,
+      "frameHeight": 1920,
+      "exports": [
+        {
+          "path": "/brand/zyx-social-story-1080x1920.png",
+          "format": "image/png",
+          "widthPx": 1080,
+          "heightPx": 1920,
+          "scale": 1.0
+        }
+      ]
+    },
+    {
+      "name": "zyx-identity-horizontal-color",
+      "nodeId": "2002:8429",
+      "frameWidth": 579,
+      "frameHeight": 72,
+      "exports": [
+        {
+          "path": "/brand/zyx-identity-horizontal-color.svg",
+          "format": "image/svg+xml",
+          "widthPx": 579,
+          "heightPx": 72,
+          "scale": 1.0
+        },
+        {
+          "path": "/brand/zyx-identity-horizontal-color@2x.png",
+          "format": "image/png",
+          "widthPx": 1158,
+          "heightPx": 144,
+          "scale": 2.0
+        }
+      ]
+    },
+    {
+      "name": "zyx-identity-horizontal-black",
+      "nodeId": "2002:8452",
+      "frameWidth": 579,
+      "frameHeight": 72,
+      "exports": [
+        {
+          "path": "/brand/zyx-identity-horizontal-black.svg",
+          "format": "image/svg+xml",
+          "widthPx": 579,
+          "heightPx": 72,
+          "scale": 1.0
+        },
+        {
+          "path": "/brand/zyx-identity-horizontal-black@2x.png",
+          "format": "image/png",
+          "widthPx": 1158,
+          "heightPx": 144,
+          "scale": 2.0
+        }
+      ]
+    }
+  ],
+  "derivedAssets": [
+    {
+      "path": "/brand/zyx-favicon.ico",
+      "format": "image/x-icon",
+      "frameSizesPx": [
+        16,
+        32,
+        48
+      ],
+      "sourcePaths": [
+        "/brand/zyx-favicon-16.png",
+        "/brand/zyx-favicon-32.png",
+        "/brand/zyx-favicon-48.png"
+      ],
+      "derivation": "PNG frames embedded without re-encoding"
+    }
+  ]
+}

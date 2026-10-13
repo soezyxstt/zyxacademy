@@ -24,7 +24,7 @@ export function PlanPrice({ plan, persons, courses, perPerson = false, className
     <div className="space-y-1" data-plan-price={plan}>
       {quote.isIntroductory && (
         <div className="flex items-center justify-between gap-2">
-          <s className="text-body-sm text-muted-foreground" aria-label={`Harga reguler mulai 12 Oktober 2026: ${formatPlanPrice(regularAmount)}${perPerson ? " per orang" : " per semester"}`}>
+          <s className="text-body-sm text-muted-foreground" aria-label={`Harga reguler mulai 1 November 2026: ${formatPlanPrice(regularAmount)}${perPerson ? " per orang" : " per semester"}`}>
             {formatPlanPrice(regularAmount)}
           </s>
           <Badge className="shrink-0 rounded-md border-[var(--zx-accent)]/30 bg-[var(--zx-accent)]/10 px-2 py-0.5 text-[var(--zx-accent)]">40% off</Badge>
@@ -46,8 +46,8 @@ export function PlanPromotion({ className }: { className?: string }) {
   if (phase !== "intro") return null;
   return (
     <p className={cn("text-body-xs text-muted-foreground", className)}>
-      <strong className="font-semibold text-foreground">Harga perkenalan sampai 11 Oktober 2026, 23.59 WIB.</strong>{" "}
-      Harga coret berlaku mulai 12 Oktober 2026.
+      <strong className="font-semibold text-foreground">Harga perkenalan sampai 31 Oktober 2026, 23.59 WIB.</strong>{" "}
+      Harga coret berlaku mulai 1 November 2026.
     </p>
   );
 }

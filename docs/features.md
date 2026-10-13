@@ -56,8 +56,8 @@ Canonical access-role codes are `admin`, `tutor`, and `murid`. Admin and tutor l
 ## Plan pricing
 
 - `/plans`, the landing preview, student dashboard preview, and student onboarding use the same scheduled pricing quote and display components.
-- From 12 September 2026 at 00:00 WIB until 12 October 2026 at 00:00 WIB (exclusive), paid plans use the existing formula result `x` as the introductory price. The regular price is `ceil(x / 0.6)` in whole Rupiah, a 40% introductory saving subject to sub-Rupiah rounding.
-- From 12 October 2026, the calculator actually returns the regular price. Before the campaign starts, the previous price `x` applies without a promotion. Free and Custom plans do not receive a discount badge.
+- From 12 September 2026 at 00:00 WIB until 1 November 2026 at 00:00 WIB (exclusive), paid plans use the existing formula result `x` as the introductory price. The regular price is `ceil(x / 0.6)` in whole Rupiah, a 40% introductory saving subject to sub-Rupiah rounding.
+- From 1 November 2026, the calculator actually returns the regular price. Before the campaign starts, the previous price `x` applies without a promotion. Free and Custom plans do not receive a discount badge.
 - Paid pricing uses a compact struck-through regular amount above the current amount, with a rectangular `40% off` badge on the right. Both amounts use the same unit (per person or group total). The promotion deadline and the future regular price effective date appear once per pricing section. Group totals are authoritative; per-person amounts are rounded estimates. Cards are ordered Minimal, Essential, Premium, Free, Custom.
 - Client pricing refreshes on a one-second tick and when a tab regains focus or visibility. Server HTML shows a neutral loading state so cached pages do not retain an expired offer. Static plan metadata contains no monetary snapshots.
 - Payment remains outside the website through the admin. WhatsApp enrollment text includes the current semester total and, during the campaign, the introductory deadline and future regular price. Clicking the link refreshes the quote. Admin must confirm the applicable price at payment time; the website does not collect or enforce an external payment.
@@ -603,6 +603,8 @@ The tutor experience is housed in a dedicated, role-scoped shell (`app/(tutor)`)
 - The page lists measurement gaps explicitly: daily pop-up quiz stays in localStorage, Cmd+K search records no server events, and diktat download counts are cumulative only. Page traffic remains in Web Analytics; AI token usage remains in Analitik Zyra.
 
 ## Structured Article authoring and reading
+
+Student Article headings use the catalogue chapter number and title, for example `Bab 2: Fungsi dan Limit`, in both normal and focus mode. Catalogue numbering already starts at 1. Verbose authoring titles remain available in the bundle without adding course names or duplicate chapter prefixes to the student heading.
 
 `FEATURE_STRUCTURED_ARTICLE_READER_V1` enables coordinated Idea Bundle V3 and Product Bundle V3 authoring, submission, and review. Admin Idea review uses an Idea queue, safe editor, and source evidence. Product Article review uses a section queue, the same semantic renderer as students, provenance, dependency state, and per-section decisions. Published canonical content remains visible to students regardless of the authoring rollout flag.
 

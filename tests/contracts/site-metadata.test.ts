@@ -37,6 +37,16 @@ describe("Site metadata and Open Graph contract", () => {
     expect(existsSync(path.resolve(process.cwd(), "public/brand/zyx-app-512.png"))).toBe(true);
   });
 
+  it("serves the exported multi-size ICO through Next's root favicon convention", () => {
+    const appIcon = readFileSync(path.resolve(process.cwd(), "app/favicon.ico"));
+    const exportedIcon = readFileSync(path.resolve(process.cwd(), "public/brand/zyx-favicon.ico"));
+
+    expect(appIcon.equals(exportedIcon)).toBe(true);
+    expect(appIcon.readUInt16LE(0)).toBe(0);
+    expect(appIcon.readUInt16LE(2)).toBe(1);
+    expect(appIcon.readUInt16LE(4)).toBe(3);
+  });
+
   it("keeps article thumbnails and falls back to the canonical OG image", () => {
     const blogPagePath = path.resolve(process.cwd(), "app/(marketing)/blog/[slug]/page.tsx");
     const content = readFileSync(blogPagePath, "utf8");
