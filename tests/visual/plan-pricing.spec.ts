@@ -30,8 +30,8 @@ for (const [name, route] of [
     page.on("pageerror", (error) => errors.push(error.message));
     page.on("console", (message) => { if (message.type() === "error") errors.push(message.text()); });
     page.on("response", (response) => { if (response.status() >= 400) errors.push(`${response.status()} ${response.url()}`); });
-    await page.clock.install({ time: new Date("2026-10-11T23:59:50+07:00") });
-    await page.clock.pauseAt(new Date("2026-10-11T23:59:50+07:00"));
+    await page.clock.install({ time: new Date("2026-10-31T23:59:50+07:00") });
+    await page.clock.pauseAt(new Date("2026-10-31T23:59:50+07:00"));
     const response = await page.goto(route, { waitUntil: "domcontentloaded" });
     expect(response?.status()).toBe(200);
     expect(new URL(page.url()).pathname).toBe(new URL(route, "http://local").pathname);

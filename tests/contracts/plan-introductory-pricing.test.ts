@@ -18,8 +18,8 @@ describe("scheduled introductory pricing", () => {
   test("uses Jakarta midnight for both boundaries", () => {
     expect(getPlanPricingPhase(new Date("2026-09-11T16:59:59.999Z"))).toBe("before");
     expect(getPlanPricingPhase(new Date("2026-09-11T17:00:00Z"))).toBe("intro");
-    expect(getPlanPricingPhase(new Date("2026-10-11T16:59:59.999Z"))).toBe("intro");
-    expect(getPlanPricingPhase(new Date("2026-10-11T17:00:00Z"))).toBe("regular");
+    expect(getPlanPricingPhase(new Date("2026-10-31T16:59:59.999Z"))).toBe("intro");
+    expect(getPlanPricingPhase(new Date("2026-10-31T17:00:00Z"))).toBe("regular");
   });
 
   test("preserves known existing formula prices during introduction", () => {
@@ -33,7 +33,7 @@ describe("scheduled introductory pricing", () => {
       for (let persons = 1; persons <= 5; persons++) {
         for (let courses = 1; courses <= 5; courses++) {
           const intro = getPlanPriceQuote(plan, persons, courses, "intro");
-          const regular = calculatePlanPrice(plan, persons, courses, new Date("2026-10-12T00:00:00+07:00"));
+          const regular = calculatePlanPrice(plan, persons, courses, new Date("2026-11-01T00:00:00+07:00"));
           expect(intro.isIntroductory).toBe(true);
           expect(regular).toBe(intro.regularPrice);
           expect(regular).toBe(Math.ceil(intro.price * 5 / 3));
@@ -57,7 +57,7 @@ describe("scheduled introductory pricing", () => {
   test("WhatsApp enrollment carries the applicable price and only active promotion", () => {
     const message = (phase: "intro" | "regular") => new URL(getTestWhatsAppPlanUrl("minimal", "Minimal", 1, 1, ["Matematika I"], phase)).searchParams.get("text")!;
     expect(message("intro")).toContain("Rp 250.000");
-    expect(message("intro")).toContain("11 Oktober 2026");
+    expect(message("intro")).toContain("31 Oktober 2026");
     expect(message("intro")).toContain("Matematika I");
     expect(message("regular")).toContain("Rp 416.667");
     expect(message("regular")).not.toContain("40%");
