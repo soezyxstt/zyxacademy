@@ -44,7 +44,7 @@ import {
   FileText,
   Upload,
   Loader2,
-  Sparkles,
+  Wand2,
   Layers,
   X,
   Check,
@@ -431,7 +431,7 @@ export function AdminUploadDocumentDialog({
                     {isFormattingWithAi ? (
                       <Loader2 className="size-3 animate-spin" />
                     ) : (
-                      <Sparkles className="size-3" />
+                      <Wand2 className="size-3" />
                     )}
                     <span>{isFormattingWithAi ? "Menganalisis..." : "Rapikan dengan AI"}</span>
                   </button>

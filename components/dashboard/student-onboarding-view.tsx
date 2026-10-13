@@ -116,7 +116,7 @@ export function StudentOnboardingView({
                   )}
                 </div>
                 <p className="mt-1 text-body-xs text-muted-foreground">
-                  Bab 1 dan Bab 2 gratis di setiap mata kuliah.
+                  Bab pertama gratis di setiap mata kuliah.
                 </p>
               </div>
               <span className="rounded-md bg-brand-primary/10 px-2 py-1 text-body-2xs font-semibold text-brand-primary">

@@ -10,6 +10,7 @@ import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
 import { Reveal } from "@/components/ui/reveal";
 
+import { EnrollmentForm } from "@/components/enrollment-form";
 import { resolveCourseIdentity } from "@/lib/admin/course-identity";
 import { resolveCourseAccess } from "@/lib/student/course-access";
 
@@ -50,9 +51,7 @@ export default async function StudentCourseVideosPage({ params }: Props) {
     roleHint: (session.user as { role?: string | null }).role,
   });
 
-  if (!access.isEnrolled && access.tier !== "staff") {
-    notFound();
-  }
+  const isEnrolled = access.isEnrolled || access.tier === "staff";
 
   const data = await getCourseVideosData(id);
   if (!data) notFound();
@@ -65,6 +64,21 @@ export default async function StudentCourseVideosPage({ params }: Props) {
       backLabel="Kembali ke Kelas"
     >
       <Reveal>
+        {!isEnrolled && (
+          <div className="mb-6 rounded-lg border border-brand-secondary/25 bg-brand-secondary/5 p-4">
+            <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(280px,420px)] md:items-center">
+              <div>
+                <h3 className="font-heading text-body-base font-bold text-brand-secondary">
+                  Aktivasi token kelas
+                </h3>
+                <p className="mt-1 max-w-2xl text-body-sm text-muted-foreground">
+                  Masukkan token kelas untuk membuka seluruh playlist video pembelajaran, diktat, materi lengkap, kuis interaktif, dan tryout.
+                </p>
+              </div>
+              <EnrollmentForm className="w-full" />
+            </div>
+          </div>
+        )}
         <Suspense fallback={null}>
           <CourseVideosClient
             courseId={data.course.id}
@@ -73,6 +87,7 @@ export default async function StudentCourseVideosPage({ params }: Props) {
             initialPlaylists={data.playlists}
             chapters={data.chapters}
             canManage={false}
+            isEnrolled={isEnrolled}
           />
         </Suspense>
       </Reveal>

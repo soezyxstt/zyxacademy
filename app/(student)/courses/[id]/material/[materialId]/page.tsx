@@ -294,7 +294,12 @@ export default async function CourseMaterialDetailPage({ params }: Props) {
   if (canonicalArticle && course) {
     const access = studentId ? await getStudentCourseAccess(studentId, id) : null;
     const isEnrolled = access?.tier === "standard";
-    if (!isEnrolled) {
+    const articleChapterIds = [
+      canonicalArticle.chapterId,
+    ].filter((ch): ch is string => Boolean(ch));
+    const isFreeChapter = access?.tier === "free" && isFreeChapterScoped(articleChapterIds, access.freeChapterIds);
+    const isAllowed = isEnrolled || isFreeChapter;
+    if (!isAllowed) {
       return (
         <CoursePageShell title="Materi terkunci" description={`${course.title}, konten premium`} hideHeader>
           <div className="mb-4">
@@ -337,7 +342,12 @@ export default async function CourseMaterialDetailPage({ params }: Props) {
   const access = studentId ? await getStudentCourseAccess(studentId, id) : null;
   const isEnrolled = access?.tier === "standard";
   const isFreePdf = material.kind === "pdf" && material.docCategory !== "diktat";
-  const isAccessible = isEnrolled || isFreePdf;
+  const materialChapterIds = [
+    ...(material.chapterIds ?? []),
+    ...(material.chapterId ? [material.chapterId] : []),
+  ];
+  const isFreeChapter = access?.tier === "free" && isFreeChapterScoped(materialChapterIds, access.freeChapterIds);
+  const isAccessible = isEnrolled || isFreePdf || isFreeChapter;
 
   if (!isAccessible) {
     return (

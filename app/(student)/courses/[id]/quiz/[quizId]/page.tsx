@@ -423,12 +423,11 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
         prompt: string;
         question_type?: string;
         options: string[];
-        correct_indices?: number[];
         origin?: "zyx_original" | "historical_reference" | "itb_example";
         sourceEventName?: string | null;
         sourceReferenceId?: string | null;
       }>).map((q, idx) => {
-        const isMultiple = q.question_type === "multiple_choices" || (Array.isArray(q.correct_indices) && q.correct_indices.length > 1);
+        const isMultiple = q.question_type === "multiple_choices";
         return {
           id: q.id,
           order: idx + 1,
@@ -448,7 +447,7 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
       for (const [qId, sel] of Object.entries(targetAttempt.answersSnapshot as Record<string, any>)) {
         if (Array.isArray(sel)) {
           const qObj = qSnapshot.find((x) => x.id === qId);
-          const isMultiple = qObj?.question_type === "multiple_choices" || (Array.isArray(qObj?.correct_indices) && qObj.correct_indices.length > 1);
+          const isMultiple = qObj?.question_type === "multiple_choices";
           if (isMultiple) {
             initialAnswers[qId] = sel.filter((item) => typeof item === "number");
           } else if (sel.length > 0 && typeof sel[0] === "number") {

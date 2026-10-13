@@ -287,10 +287,17 @@ export default async function CourseMaterialListPage({ params, searchParams }: P
   const allMaterials = [...mappedCanonical, ...mappedCanonicalDiktats, ...mappedDiktats, ...mappedDb, ...mappedWeb, ...mappedManual, ...mappedQuizzes, ...mappedTryouts];
   const isEnrolled = studentAccess?.tier === "standard";
   const materialsWithLockState = allMaterials.map((material) => {
-    // PDF materials (materi PDF, bank soal ITB / lembar soal tutorial / ujian) and qualifying free quizzes are free
+    const materialChapterIds = [
+      ...("chapterIds" in material && Array.isArray(material.chapterIds) ? material.chapterIds : []),
+      ...("chapterId" in material && typeof material.chapterId === "string" ? [material.chapterId] : []),
+    ];
+    const isFreeChapterContent = isFreeChapterScoped(materialChapterIds, freeChapterIds);
+    // PDF materials (materi PDF, bank soal ITB / lembar soal tutorial / ujian), qualifying free quizzes,
+    // and all first-chapter materials (artikel, diktat, kuis) are free
     const isFreeContent =
       (material.kind === "pdf" && material.docCategory !== "diktat") ||
-      (material.kind === "quiz" && freeQuizIds.has(material.id));
+      (material.kind === "quiz" && freeQuizIds.has(material.id)) ||
+      isFreeChapterContent;
     const locked = !isEnrolled && !isFreeContent;
     return {
       ...material,
@@ -310,7 +317,7 @@ export default async function CourseMaterialListPage({ params, searchParams }: P
                   Aktivasi token kelas
                 </h3>
                 <p className="mt-1 max-w-2xl text-body-sm text-muted-foreground">
-                  Berkas PDF materi, latihan soal ITB, dan kuis uji coba bab awal dapat diakses gratis. Masukkan token kelas untuk membuka seluruh kuis interaktif, tryout ujian, materi lengkap, flashcard, dan diktat.
+                  Materi artikel, diktat, dan kuis bab pertama terbuka gratis. Masukkan token kelas untuk membuka seluruh materi, tryout ujian, dan flashcard.
                 </p>
               </div>
               <EnrollmentForm className="w-full" />

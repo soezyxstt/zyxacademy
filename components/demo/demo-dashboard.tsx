@@ -81,7 +81,7 @@ export function DemoDashboard({ nextPath }: { nextPath: string }) {
         <div>
           <h2 className="font-heading text-h5 font-bold text-foreground">Simpan progres belajarmu</h2>
           <p className="mt-2 text-body-sm leading-relaxed text-muted-foreground">
-            Masuk dengan Google untuk mengakses dua bab pertama di setiap mata kuliah dan memakai Zyra satu pertanyaan per hari.
+            Masuk dengan Google untuk mengakses bab pertama di setiap mata kuliah dan memakai Zyra satu pertanyaan per hari.
           </p>
         </div>
         <div className="mt-6">
