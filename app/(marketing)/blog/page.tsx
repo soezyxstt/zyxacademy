@@ -14,11 +14,14 @@ import { PageOrnaments } from "@/components/ui/page-ornaments";
 import { SectionHeading } from "@/components/ui/section-heading";
 import { Reveal } from "@/components/ui/reveal";
 import { cn } from "@/lib/utils";
+import { createMetadata } from "@/lib/site";
 
-export const metadata: Metadata = {
-  title: "Blog - Zyx Academy",
+export const metadata: Metadata = createMetadata({
+  title: "Blog",
   description: "Artikel terbaru seputar tips kuliah, pojok kampus, fakta seru, dan kegiatan Zyx Academy.",
-};
+  path: "/blog",
+});
+
 
 const CATEGORIES = [
   { id: "all", name: "Semua", value: null },
@@ -108,7 +111,6 @@ export default async function BlogPage({ searchParams }: BlogPageProps) {
         <Reveal>
           <MarketingPageHero
             sectionId="blog"
-            eyebrow="Zyx Academy"
             title="Blog"
             description="Artikel untuk membantu kamu belajar, memahami kehidupan kampus, dan mengenal kegiatan Zyx."
           />

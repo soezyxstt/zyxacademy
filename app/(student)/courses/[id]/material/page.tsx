@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { FileText } from "lucide-react";
 import { CoursePageShell } from "@/components/course/course-page-shell";
-import { pageTitle } from "@/lib/site";
+import { createMetadata, pageTitle } from "@/lib/site";
 import {
   getCourse,
   getCourseChapterOutline,
@@ -32,13 +32,15 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params;
   const course = await getCourse(id);
 
-  return {
-    title: pageTitle(course ? `${course.title} - Materi` : "Materi"),
+  return createMetadata({
+    title: course ? `Materi ${course.title}` : "Materi Belajar",
     description: course
       ? `Dokumen dan materi belajar ${course.title}; modul, diktat, dan contoh soal.`
       : "Dokumen dan materi belajar; modul, diktat, dan contoh soal.",
-  };
+    path: `/courses/${id}/material`,
+  });
 }
+
 
 export default async function CourseMaterialListPage({ params, searchParams }: Props) {
   const { id } = await params;

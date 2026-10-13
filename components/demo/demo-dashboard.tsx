@@ -43,10 +43,7 @@ export function DemoDashboard({ nextPath }: { nextPath: string }) {
       <Card variant="solid" className="p-5 sm:p-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <p className="text-body-xs font-semibold uppercase tracking-[0.16em] text-brand-primary">
-              Mulai dari sini
-            </p>
-            <h2 className="mt-2 font-heading text-h5 font-bold text-foreground">Jelajahi alur belajar</h2>
+            <h2 className="font-heading text-h5 font-bold text-foreground">Jelajahi alur belajar</h2>
           </div>
           <Button asChild size="sm" className="gap-1.5 rounded-lg">
             <Link href="/demo/article">
@@ -82,8 +79,7 @@ export function DemoDashboard({ nextPath }: { nextPath: string }) {
 
       <Card variant="subtle" className="flex flex-col justify-between p-5 sm:p-6">
         <div>
-          <p className="text-body-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">Setelah demo</p>
-          <h2 className="mt-2 font-heading text-h5 font-bold text-foreground">Simpan progres belajarmu</h2>
+          <h2 className="font-heading text-h5 font-bold text-foreground">Simpan progres belajarmu</h2>
           <p className="mt-2 text-body-sm leading-relaxed text-muted-foreground">
             Masuk dengan Google untuk mengakses dua bab pertama di setiap mata kuliah dan memakai Zyra satu pertanyaan per hari.
           </p>

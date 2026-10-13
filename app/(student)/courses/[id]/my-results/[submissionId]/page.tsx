@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { CoursePageShell } from "@/components/course/course-page-shell";
 import { Button } from "@/components/ui/button";
 import { Reveal } from "@/components/ui/reveal";
-import { pageTitle } from "@/lib/site";
+import { createMetadata, pageTitle } from "@/lib/site";
 import { db } from "@/db";
 import { studentQuizAttempts, submissions, exams } from "@/db/schema";
 import { auth } from "@/lib/auth";
@@ -17,14 +17,16 @@ import { getCourse } from "@/lib/course-utils";
 type Props = { params: Promise<{ id: string; submissionId: string }> };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const { id } = await params;
+  const { id, submissionId } = await params;
   const course = await getCourse(id);
 
-  return {
-    title: pageTitle(course ? `${course.title} - Tinjau Jawaban` : "Tinjau Jawaban"),
-    description: "Tinjau jawaban kuis atau tryout Anda",
-  };
+  return createMetadata({
+    title: course ? `Tinjau Jawaban ${course.title}` : "Tinjau Jawaban",
+    description: "Tinjau jawaban kuis atau tryout Anda dengan pembahasan terstruktur.",
+    path: `/courses/${id}/my-results/${submissionId}`,
+  });
 }
+
 
 export default async function SubmissionReviewPage({ params }: Props) {
   const { id, submissionId } = await params;
@@ -50,7 +52,7 @@ export default async function SubmissionReviewPage({ params }: Props) {
 
   if (attempt) {
     return (
-      <CoursePageShell eyebrow="Review" title="Review kuis" description="Pembahasan kuis Anda" hideHeader>
+      <CoursePageShell title="Review kuis" description="Pembahasan kuis Anda" hideHeader>
         <Reveal>
           <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
             <Button
@@ -170,7 +172,7 @@ export default async function SubmissionReviewPage({ params }: Props) {
   if (!listItem || !review) notFound();
 
   return (
-    <CoursePageShell eyebrow="Review" title="Review jawaban" description={review.examTitle} hideHeader>
+    <CoursePageShell title="Review jawaban" description={review.examTitle} hideHeader>
       <Reveal>
         <div className="mb-4">
           <Button

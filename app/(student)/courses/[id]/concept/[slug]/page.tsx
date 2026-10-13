@@ -10,7 +10,7 @@ import { Reveal } from "@/components/ui/reveal";
 import { Badge } from "@/components/ui/badge";
 import { MarkdownRenderer } from "@/components/course/markdown-renderer";
 import { MathText } from "@/components/course/math-text";
-import { pageTitle } from "@/lib/site";
+import { createMetadata, pageTitle } from "@/lib/site";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
 import { getConceptExplorerData, type ConceptRef } from "@/lib/concept-explorer-service";
@@ -36,11 +36,14 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const course = await getCourse(id);
   const data = await getConceptExplorerData(id, slug);
 
-  return {
-    title: pageTitle(data ? `${data.conceptName} - ${course?.title ?? ""}` : "Konsep"),
+  const title = data ? `${data.conceptName} (${course?.title ?? ""})` : "Konsep";
+  return createMetadata({
+    title,
     description: data ? `Penjelasan lengkap konsep ${data.conceptName}.` : "Penjelasan konsep.",
-  };
+    path: `/courses/${id}/concept/${slug}`,
+  });
 }
+
 
 function ConceptLinkRow({ courseId, refs }: { courseId: string; refs: ConceptRef[] }) {
   return (

@@ -9,8 +9,7 @@ export function LandingCoursePreview() {
  return (
  <SectionContainer className="border-b border-border bg-background" aria-labelledby="courses-heading">
  <div className="max-w-2xl">
- <p className="text-body-xs font-semibold uppercase tracking-[0.2em] text-[var(--zx-accent)]">Katalog</p>
- <SectionHeading id="courses-heading" tier="secondary" className="mt-2">
+ <SectionHeading id="courses-heading" tier="secondary">
  Selaras silabus ITB.
  </SectionHeading>
  <p className="mt-3 max-w-prose text-body-base text-muted-foreground">

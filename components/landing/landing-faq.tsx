@@ -39,10 +39,7 @@ export function LandingFaq() {
   return (
     <SectionContainer className="bg-background" aria-labelledby="landing-faq-heading">
       <div className="mx-auto max-w-2xl text-center">
-        <p className="text-body-xs font-semibold uppercase tracking-[0.2em] text-[var(--zx-accent)]">
-          Sebelum memilih
-        </p>
-        <SectionHeading as="h2" id="landing-faq-heading" className="mt-3 text-foreground">
+        <SectionHeading as="h2" id="landing-faq-heading" className="text-foreground">
           Pertanyaan tentang akses dan paket.
         </SectionHeading>
       </div>

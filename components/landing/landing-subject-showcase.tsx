@@ -98,8 +98,7 @@ export function LandingSubjectShowcase() {
 
         <div className="mt-6 grid gap-6 rounded-2xl border border-border bg-card p-4 shadow-sm transition-opacity duration-200 md:grid-cols-2 md:p-6">
           <div className="flex min-h-0 flex-col">
-            <p className="text-body-sm font-medium uppercase tracking-wide text-muted-foreground">{s.tag}</p>
-            <h3 className="mt-1 font-heading text-body-base font-bold text-card-foreground">{s.title}</h3>
+            <h3 className="font-heading text-body-base font-bold text-card-foreground">{s.title}</h3>
             <p className="mt-2 text-body-base text-muted-foreground">{s.blurb}</p>
             <p className="mt-4 font-heading text-body-sm font-semibold text-card-foreground">Topik</p>
             <ul className="mt-2 flex flex-1 flex-col gap-2 overflow-y-auto">

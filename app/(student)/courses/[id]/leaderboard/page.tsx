@@ -3,7 +3,7 @@ import Link from "next/link";
 import { Lock, Trophy } from "lucide-react";
 import { CoursePageShell } from "@/components/course/course-page-shell";
 import { studentCardClass } from "@/components/course/course-surfaces";
-import { pageTitle } from "@/lib/site";
+import { createMetadata, pageTitle } from "@/lib/site";
 import { getCourse, getCourseLeaderboard } from "@/lib/course-utils";
 import { checkEnrollment } from "@/app/(student)/dashboard/actions";
 import { EnrollmentForm } from "@/components/enrollment-form";
@@ -21,11 +21,13 @@ type Props = {
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params;
   const course = await getCourse(id);
-  return {
-    title: pageTitle(course ? `${course.title} - Papan peringkat` : "Papan peringkat"),
-    description: "Peringkat course berdasarkan kuis dan tryout",
-  };
+  return createMetadata({
+    title: course ? `Papan Peringkat ${course.title}` : "Papan Peringkat",
+    description: `Peringkat kelas ${course?.title ?? ""} berdasarkan capaian kuis dan tryout.`,
+    path: `/courses/${id}/leaderboard`,
+  });
 }
+
 
 function formatDuration(seconds: number) {
   if (!seconds || seconds <= 0) return "0s";

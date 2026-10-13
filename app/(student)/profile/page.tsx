@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { Mail, GraduationCap, CalendarDays, User2, ShieldCheck, ClipboardList, Edit3 } from "lucide-react";
 
 import { ShellPage } from "@/components/shell-page";
-import { pageTitle } from "@/lib/site";
+import { createMetadata, pageTitle } from "@/lib/site";
 import { auth } from "@/lib/auth";
 import { db } from "@/db";
 import { eq, and } from "drizzle-orm";
@@ -22,10 +22,12 @@ import {
 import { listStudentCourses, listStudentEnrollments } from "@/lib/student/course-catalog";
 import { getCanonicalPublishedArticlesForCourse } from "@/lib/articles/structured-repository";
 
-export const metadata: Metadata = {
- title: pageTitle("Profil Pengguna"),
- description: "Profil akademis, statistik belajar, kelompok belajar, dan jadwal tutorial Anda di Zyx Academy.",
-};
+export const metadata: Metadata = createMetadata({
+  title: "Profil Pengguna",
+  description: "Profil akademis, statistik belajar, kelompok belajar, dan jadwal tutorial Anda di Zyx Academy.",
+  path: "/profile",
+});
+
 
 /**
  * Server-rendered profile page displaying student user info, ITB academic data, course enrollments, and activity statistics.

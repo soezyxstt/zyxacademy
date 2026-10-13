@@ -7,7 +7,7 @@ import { CoursePageShell } from "@/components/course/course-page-shell";
 import { studentCardClass } from "@/components/course/course-surfaces";
 import { EnrollmentForm } from "@/components/enrollment-form";
 import { Reveal } from "@/components/ui/reveal";
-import { pageTitle } from "@/lib/site";
+import { createMetadata, pageTitle } from "@/lib/site";
 import { getCourse } from "@/lib/course-utils";
 import { StudyPathTimeline } from "@/components/course/study-path-timeline";
 
@@ -16,11 +16,13 @@ type Props = { params: Promise<{ id: string }> };
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params;
   const course = await getCourse(id);
-  return {
-    title: pageTitle(course ? `${course.title} - Alur Belajar` : "Alur Belajar"),
-    description: course?.description ?? "Rencana alur belajar personal",
-  };
+  return createMetadata({
+    title: course ? `Alur Belajar ${course.title}` : "Alur Belajar",
+    description: course?.description ?? "Rencana alur belajar personal terstruktur.",
+    path: `/courses/${id}/path`,
+  });
 }
+
 
 export default async function CoursePathPage({ params }: Props) {
   const { id } = await params;

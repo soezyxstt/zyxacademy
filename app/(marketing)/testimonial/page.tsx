@@ -7,13 +7,15 @@ import { SectionHeading } from "@/components/ui/section-heading";
 import { Button } from "@/components/ui/button";
 import { Reveal } from "@/components/ui/reveal";
 import { PageOrnaments } from "@/components/ui/page-ornaments";
-import { pageTitle } from "@/lib/site";
+import { createMetadata, pageTitle } from "@/lib/site";
 import { testimonialStories } from "@/lib/testimonials";
 
-export const metadata: Metadata = {
- title: pageTitle("Testimonials"),
- description: "Testimoni singkat murid Zyx Academy mengenai kualitas layanan dan pengalaman belajar.",
-};
+export const metadata: Metadata = createMetadata({
+  title: "Testimoni",
+  description: "Testimoni singkat murid Zyx Academy mengenai kualitas layanan dan pengalaman belajar.",
+  path: "/testimonial",
+});
+
 
 /** One accent colour per card, cycling through brand palette */
 const CARD_ACCENTS = [
@@ -28,7 +30,6 @@ export default function TestimonialPage() {
  <Reveal>
  <MarketingPageHero
  sectionId="testimonial"
- eyebrow="Zyx Academy"
  title="Testimoni"
  description="Cerita dari siswa Zyx Academy tentang proses belajar yang mereka jalani."
  />

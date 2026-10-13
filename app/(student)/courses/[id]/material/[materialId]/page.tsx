@@ -9,7 +9,7 @@ import { MaterialViewer } from "@/components/course/material-viewer";
 import { StructuredArticleReader } from "@/components/course/structured-article-reader";
 import { EnrollmentForm } from "@/components/enrollment-form";
 import { Reveal } from "@/components/ui/reveal";
-import { pageTitle } from "@/lib/site";
+import { createMetadata, pageTitle } from "@/lib/site";
 import { getMaterial, type CourseMaterial } from "@/lib/student-course-fixtures";
 import { getCourse, getStudentCourseAccess, isFreeChapterScoped } from "@/lib/course-utils";
 import { getCanonicalPublishedArticle, getCanonicalPublishedTextProduct } from "@/lib/articles/structured-repository";
@@ -257,22 +257,27 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   // Check canonical structured article first
   const canonicalArticle = await getCanonicalPublishedArticle(id, materialId);
   if (canonicalArticle) {
-    return {
-      title: pageTitle(course ? `${course.title} - ${canonicalArticle.title}` : canonicalArticle.title),
+    const title = course ? `${canonicalArticle.title} (${course.title})` : canonicalArticle.title;
+    return createMetadata({
+      title,
       description: course
         ? `Baca materi ${canonicalArticle.title}; bagian dari ${course.title}.`
         : "Baca materi pelajaran dan materi belajar terstruktur.",
-    };
+      path: `/courses/${id}/material/${materialId}`,
+    });
   }
 
   const material = await fetchMaterial(id, materialId);
-  return {
-    title: pageTitle(course && material ? `${course.title} - ${material.title}` : "Materi"),
+  const title = course && material ? `${material.title} (${course.title})` : material ? material.title : "Materi";
+  return createMetadata({
+    title,
     description: material && course
       ? `Baca materi ${material.title}; bagian dari ${course.title}.`
       : "Baca materi pelajaran dan diktat kuliah.",
-  };
+    path: `/courses/${id}/material/${materialId}`,
+  });
 }
+
 
 export default async function CourseMaterialDetailPage({ params }: Props) {
   const { id, materialId } = await params;

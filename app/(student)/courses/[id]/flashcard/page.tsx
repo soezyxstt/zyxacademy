@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { Brain, Lock } from "lucide-react";
 import { CoursePageShell } from "@/components/course/course-page-shell";
 import { studentCardClass } from "@/components/course/course-surfaces";
-import { pageTitle } from "@/lib/site";
+import { createMetadata, pageTitle } from "@/lib/site";
 import { FlashcardClient } from "./flashcard-client";
 import { Reveal } from "@/components/ui/reveal";
 import { auth } from "@/lib/auth";
@@ -19,11 +19,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params;
   const course = await getCourse(id);
 
-  return {
-    title: pageTitle(course ? `${course.title} - Flashcard` : "Flashcard"),
-    description: "Dek belajar spaced repetition untuk konsep-konsep kelas",
-  };
+  return createMetadata({
+    title: course ? `Flashcard ${course.title}` : "Flashcard",
+    description: `Dek belajar spaced repetition untuk konsep-konsep kelas ${course?.title ?? ""}.`,
+    path: `/courses/${id}/flashcard`,
+  });
 }
+
 
 export default async function CourseFlashcardPage({ params }: Props) {
   const { id } = await params;

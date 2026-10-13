@@ -16,8 +16,7 @@ export function DemoZyra({ nextPath }: { nextPath: string }) {
         <div className="flex items-start gap-3 border-b border-border pb-5">
           <MessageCircle className="mt-1 size-5 shrink-0 text-brand-primary" aria-hidden="true" />
           <div>
-            <p className="text-body-xs font-semibold uppercase tracking-[0.16em] text-brand-primary">Zyra</p>
-            <h2 className="mt-2 font-heading text-h5 font-bold text-foreground">Teman belajar yang memberi arah</h2>
+            <h2 className="font-heading text-h5 font-bold text-foreground">Teman belajar yang memberi arah</h2>
           </div>
         </div>
 

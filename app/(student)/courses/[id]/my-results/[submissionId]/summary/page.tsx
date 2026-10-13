@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { CoursePageShell } from "@/components/course/course-page-shell";
 import { Button } from "@/components/ui/button";
 import { Reveal } from "@/components/ui/reveal";
-import { pageTitle } from "@/lib/site";
+import { createMetadata, pageTitle } from "@/lib/site";
 import { db } from "@/db";
 import { studentQuizAttempts } from "@/db/schema";
 import { auth } from "@/lib/auth";
@@ -19,14 +19,16 @@ type Props = {
 };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const { id } = await params;
+  const { id, submissionId } = await params;
   const course = await getCourse(id);
 
-  return {
-    title: pageTitle(course ? `${course.title} - Diagnosis Pembelajaran` : "Diagnosis Pembelajaran"),
+  return createMetadata({
+    title: course ? `Diagnosis Pembelajaran ${course.title}` : "Diagnosis Pembelajaran",
     description: "Diagnosis pembelajaran dan rencana belajar personal.",
-  };
+    path: `/courses/${id}/my-results/${submissionId}/summary`,
+  });
 }
+
 
 export default async function SubmissionSummaryPage({ params }: Props) {
   const { id, submissionId } = await params;
@@ -52,7 +54,7 @@ export default async function SubmissionSummaryPage({ params }: Props) {
   if (!attempt) notFound();
 
   return (
-    <CoursePageShell eyebrow="Diagnosis" title="Diagnosis Pembelajaran" description="Diagnosis dan Rencana Belajar Personal" hideHeader>
+    <CoursePageShell title="Diagnosis Pembelajaran" description="Diagnosis dan Rencana Belajar Personal" hideHeader>
       <Reveal>
         <div className="space-y-6">
           <div className="flex items-center justify-between gap-3 pb-2 border-b border-border/60">

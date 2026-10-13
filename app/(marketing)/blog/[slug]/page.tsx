@@ -20,33 +20,29 @@ const getArticleBySlug = cache(async (slug: string) => {
   });
 });
 
-export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
+import { createMetadata } from "@/lib/site";
+import type { Metadata } from "next";
+
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
   const article = await getArticleBySlug(slug);
-  if (!article || article.status !== "published") return {};
+  if (!article || article.status !== "published") {
+    return createMetadata({
+      title: "Artikel",
+      description: "Artikel blog Zyx Academy.",
+      path: `/blog/${slug}`,
+    });
+  }
 
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://www.zyxacademy.com";
-  return {
-    title: `${article.title} - Zyx Blog`,
-    description: article.summary,
-    alternates: { canonical: `${baseUrl}/blog/${article.slug}` },
-    openGraph: {
-      title: article.title,
-      description: article.summary,
-      type: "article",
-      url: `${baseUrl}/blog/${article.slug}`,
-      images: article.thumbnailUrl
-        ? [{ url: article.thumbnailUrl }]
-        : [{ url: "/og-image.png", width: 1200, height: 630, alt: article.title }],
-    },
-    twitter: {
-      card: "summary_large_image",
-      title: article.title,
-      description: article.summary,
-      images: article.thumbnailUrl ? [article.thumbnailUrl] : ["/og-image.png"],
-    }
-  };
+  return createMetadata({
+    title: article.title,
+    description: article.summary || `Baca artikel ${article.title} di Blog Zyx Academy.`,
+    path: `/blog/${article.slug}`,
+    image: article.thumbnailUrl || "/og-image.png",
+    type: "article",
+  });
 }
+
 
 export default async function BlogDetailPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;

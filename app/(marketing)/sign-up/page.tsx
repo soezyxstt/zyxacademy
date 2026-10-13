@@ -4,12 +4,14 @@ import {
   getOAuthCallbackErrorMessage,
   getSafeRedirectPath,
 } from "@/lib/auth-redirect";
-import { pageTitle } from "@/lib/site";
+import { createMetadata, pageTitle } from "@/lib/site";
 
-export const metadata: Metadata = {
-  title: pageTitle("Sign up"),
-  description: "Daftar ke Zyx Academy dengan Google.",
-};
+export const metadata: Metadata = createMetadata({
+  title: "Daftar Akun",
+  description: "Daftar ke platform pembelajaran Zyx Academy.",
+  path: "/sign-up",
+});
+
 
 type SearchParams = {
   next?: string | string[];

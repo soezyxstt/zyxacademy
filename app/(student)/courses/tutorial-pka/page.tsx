@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import { db } from "@/db";
 import { pkaAnnouncements, pkaAnnouncementReads, pkaSchedules, quizTemplates, studentQuizAttempts } from "@/db/schema";
-import { pageTitle } from "@/lib/site";
+import { createMetadata, pageTitle } from "@/lib/site";
 import {
   PKA_ASSUMED_TEST_DATE,
   PKA_DISCLAIMER,
@@ -26,11 +26,13 @@ import { Reveal } from "@/components/ui/reveal";
 import { FormattedDate } from "@/components/ui/formatted-date";
 import { AnnouncementCard } from "./_components/announcement-card";
 
-export const metadata: Metadata = {
-  title: pageTitle("Tutorial PKA"),
+export const metadata: Metadata = createMetadata({
+  title: "Tutorial PKA",
   description:
     "Persiapan Pemetaan Kesiapan Akademik (PKA) ITB: jadwal sesi live, simulasi kuis, dan materi Matematika, Fisika, Kimia.",
-};
+  path: "/courses/tutorial-pka",
+});
+
 
 export default async function PkaCourseHomePage() {
   const userId = await requirePkaSession("/courses/tutorial-pka");

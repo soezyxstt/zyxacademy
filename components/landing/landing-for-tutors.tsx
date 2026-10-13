@@ -124,10 +124,7 @@ export function LandingForTutors() {
  return (
  <SectionContainer className="bg-black-2" aria-labelledby="landing-tutors-heading">
  <div className="mx-auto max-w-2xl text-center">
- <p className="text-body-xs font-semibold uppercase tracking-[0.2em] text-[var(--zx-accent)]">
- Untuk tutor &amp; kelas
- </p>
- <SectionHeading as="h2" id="landing-tutors-heading" className="mt-3 text-white">
+ <SectionHeading as="h2" id="landing-tutors-heading" className="text-white">
           Bantu kelas melihat konsep yang perlu dibahas.
  </SectionHeading>
  </div>

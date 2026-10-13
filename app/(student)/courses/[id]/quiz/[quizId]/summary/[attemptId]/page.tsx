@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { CoursePageShell } from "@/components/course/course-page-shell";
 import { Button } from "@/components/ui/button";
 import { Reveal } from "@/components/ui/reveal";
-import { pageTitle } from "@/lib/site";
+import { createMetadata, pageTitle } from "@/lib/site";
 import { db } from "@/db";
 import { studentQuizAttempts, quizTemplates } from "@/db/schema";
 import { auth } from "@/lib/auth";
@@ -19,18 +19,20 @@ type Props = {
 };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const { quizId } = await params;
+  const { id, quizId, attemptId } = await params;
   const [template] = await db
     .select({ title: quizTemplates.title })
     .from(quizTemplates)
     .where(eq(quizTemplates.id, quizId))
     .limit(1);
 
-  return {
-    title: pageTitle(template ? `${template.title} - Diagnosis Pembelajaran` : "Diagnosis Pembelajaran"),
-    description: "Diagnosis pembelajaran dan rencana belajar personal hasil kuis Anda.",
-  };
+  return createMetadata({
+    title: template ? `Diagnosis ${template.title}` : "Diagnosis Pembelajaran",
+    description: "Diagnosis pembelajaran dan rencana belajar personal hasil pengerjaan kuis.",
+    path: `/courses/${id}/quiz/${quizId}/summary/${attemptId}`,
+  });
 }
+
 
 export default async function QuizSummaryPage({ params }: Props) {
   const { id, quizId, attemptId } = await params;
@@ -63,13 +65,6 @@ export default async function QuizSummaryPage({ params }: Props) {
 
   return (
     <CoursePageShell
-      eyebrow={
-        <div className="flex items-center gap-1.5 text-body-xs text-muted-foreground uppercase tracking-widest">
-          <Link href={`/courses/${id}/quiz`} className="hover:text-primary transition-colors">Kuis</Link>
-          <ChevronRight className="size-3" />
-          <span className="truncate max-w-[200px]">{template?.title || "Kuis"}</span>
-        </div>
-      }
       title="Diagnosis Pembelajaran & Rencana Belajar"
       description={template?.title || course.title}
       hideHeader

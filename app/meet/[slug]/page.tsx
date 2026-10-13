@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { and, eq, isNull } from "drizzle-orm";
@@ -5,6 +6,36 @@ import { Video } from "lucide-react";
 import { db } from "@/db";
 import { googleMeetSessions } from "@/db/schema";
 import { Button } from "@/components/ui/button";
+import { createMetadata } from "@/lib/site";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}): Promise<Metadata> {
+  const { slug } = await params;
+
+  const [session] = await db
+    .select({ title: googleMeetSessions.title })
+    .from(googleMeetSessions)
+    .where(and(eq(googleMeetSessions.slug, slug), isNull(googleMeetSessions.deletedAt)))
+    .limit(1);
+
+  if (session) {
+    return createMetadata({
+      title: `Google Meet: ${session.title}`,
+      description: `Ruang pertemuan Google Meet untuk ${session.title}.`,
+      path: `/meet/${slug}`,
+    });
+  }
+
+  return createMetadata({
+    title: "Google Meet",
+    description: "Link sesi Google Meet Zyx Academy.",
+    path: `/meet/${slug}`,
+  });
+}
+
 
 export default async function MeetSlugPage({
   params,

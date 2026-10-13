@@ -55,6 +55,7 @@ import { getYoutubeEmbedUrl } from "@/lib/youtube";
 import type { CourseMaterial } from "@/lib/student-course-fixtures";
 import { updateMaterialProgress } from "@/app/(student)/dashboard/actions";
 import { cn } from "@/lib/utils";
+import { getViewablePdfUrl } from "@/lib/pdf-utils";
 import { ArticleReadingCanvas } from "@/components/course/article-reading-canvas";
 import { MarkdownRenderer } from "@/components/course/markdown-renderer";
 import { MathText } from "@/components/course/math-text";
@@ -1262,7 +1263,7 @@ export function MaterialViewer({
     }
   };
 
-  const openUrl = material.url ?? "#";
+  const openUrl = getViewablePdfUrl(material.url) || "#";
 
   const tutorPopover = learnerMode && selectionCoords && selectedText ? (
     <div
@@ -1715,15 +1716,17 @@ export function MaterialViewer({
               </div>
 
               <div className="flex items-center gap-1.5">
-                {material.url && canDownload && (
+                {material.url && (
                   <>
-                    <Button asChild variant="outline" size="xs" className="rounded-md text-[10px] font-semibold h-7">
-                      <a href={material.url} download target="_blank" rel="noopener noreferrer">
-                        <Download className="mr-1 size-3" aria-hidden />
-                        <span className="hidden sm:inline">Unduh PDF</span>
-                        <span className="sm:hidden">Unduh</span>
-                      </a>
-                    </Button>
+                    {canDownload && (
+                      <Button asChild variant="outline" size="xs" className="rounded-md text-[10px] font-semibold h-7">
+                        <a href={material.url} download target="_blank" rel="noopener noreferrer">
+                          <Download className="mr-1 size-3" aria-hidden />
+                          <span className="hidden sm:inline">Unduh PDF</span>
+                          <span className="sm:hidden">Unduh</span>
+                        </a>
+                      </Button>
+                    )}
                     <Button asChild variant="outline" size="xs" className="rounded-md text-[10px] font-semibold h-7">
                       <a href={openUrl} target="_blank" rel="noopener noreferrer">
                         <ExternalLink className="mr-1 size-3" aria-hidden />
@@ -2300,16 +2303,39 @@ export function MaterialViewer({
               </div>
             ) : (
               <div className="flex-1 min-h-0 w-full flex flex-col p-2 sm:p-4 bg-background">
-                {/* Native Browser PDF Viewer (iframe fallback) */}
-                <p className="hidden sm:block text-body-xs text-muted-foreground mb-2 shrink-0">
-                  Pratinjau PDF bawaan browser di bawah ini. Gunakan tombol unduh atau buka berkas jika pratinjau tidak termuat.
-                </p>
-                <div className="flex-1 w-full overflow-hidden border border-border bg-[#333] dark:bg-black-3 rounded-xl sm:rounded-2xl relative shadow-md min-h-[500px]">
-                  <iframe
-                    title={material.title}
-                    src={material.url}
-                    className="w-full h-full border-0"
-                  />
+                {/* Mobile / Tablet Direct PDF Launcher */}
+                <div className="md:hidden flex flex-col items-center justify-center p-6 text-center border border-border bg-card rounded-xl my-auto space-y-3">
+                  <div className="size-12 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+                    <FileText className="size-6 text-[#ea4335]" />
+                  </div>
+                  <div>
+                    <h3 className="font-heading text-body-sm font-bold text-foreground">{material.title}</h3>
+                    <p className="text-body-xs text-muted-foreground mt-1 max-w-xs">
+                      Buka dokumen di penampil PDF peramban Anda.
+                    </p>
+                  </div>
+                  {openUrl && openUrl !== "#" ? (
+                    <Button asChild size="sm" className="rounded-md font-semibold text-body-xs">
+                      <a href={openUrl} target="_blank" rel="noopener noreferrer">
+                        <ExternalLink className="mr-1.5 size-3.5" />
+                        Buka Dokumen PDF
+                      </a>
+                    </Button>
+                  ) : null}
+                </div>
+
+                {/* Native Browser PDF Viewer (iframe fallback for desktop) */}
+                <div className="hidden md:flex flex-col flex-1 w-full min-h-0">
+                  <p className="text-body-xs text-muted-foreground mb-2 shrink-0">
+                    Pratinjau PDF bawaan browser di bawah ini. Gunakan tombol unduh atau buka berkas jika pratinjau tidak termuat.
+                  </p>
+                  <div className="flex-1 w-full overflow-hidden border border-border bg-[#333] dark:bg-black-3 rounded-xl sm:rounded-2xl relative shadow-md min-h-[500px]">
+                    <iframe
+                      title={material.title}
+                      src={material.url}
+                      className="w-full h-full border-0"
+                    />
+                  </div>
                 </div>
               </div>
             )}
