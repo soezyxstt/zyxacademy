@@ -797,7 +797,7 @@ export function SidebarShell({
           {!isCollapsed ? (
             <>
               <Link href={logoHref} aria-label={logoLabel} className="flex flex-1 min-w-0 items-center">
-                <Logo className="[--logo-height:1.75rem]" />
+                <Logo variant="symbol" className="[--logo-height:1.75rem]" />
               </Link>
 
               <NotificationBell variant="sidebar" />

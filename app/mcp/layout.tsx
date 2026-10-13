@@ -11,7 +11,7 @@ export default function McpLayout({ children }: { children: ReactNode }) {
       <header className="sticky top-0 z-40 w-full border-b border-border/60 bg-background/80 backdrop-blur-md">
         <div className="container mx-auto flex h-14 max-w-5xl items-center justify-between px-4 sm:px-6">
           <Link href="/" className="flex items-center gap-2.5 transition-opacity hover:opacity-90">
-            <Logo presentation="default" disableAnimation={true} className="h-7 w-auto" />
+            <Logo variant="horizontal" className="[--logo-height:1.25rem]" />
           </Link>
           <div className="flex items-center gap-3">
             <div className="hidden sm:flex items-center gap-1.5 rounded-md border border-border/80 bg-muted/50 px-2.5 py-1 text-body-xs font-medium text-muted-foreground">

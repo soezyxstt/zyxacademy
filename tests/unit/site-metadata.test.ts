@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { createMetadata, pageTitle, siteName, siteDescription } from "@/lib/site";
+import { createMetadata, pageTitle, siteName, siteDescription, siteOgImage } from "@/lib/site";
 
 describe("Site Metadata & OpenGraph", () => {
   it("formats pageTitle correctly without duplicating brand", () => {
@@ -27,7 +27,7 @@ describe("Site Metadata & OpenGraph", () => {
     expect(og.siteName).toBe(siteName);
     expect(og.locale).toBe("id_ID");
     expect(og.url).toContain("/f/registrasi-tutor");
-    expect(og.images[0].url).toContain("/og-image.png");
+    expect(og.images[0].url).toContain(siteOgImage);
 
     // Twitter assertions
     const twitter = meta.twitter as any;
@@ -44,5 +44,6 @@ describe("Site Metadata & OpenGraph", () => {
     const og = meta.openGraph as any;
     expect(og.title).toBe(siteName);
     expect(og.description).toBe(siteDescription);
+    expect(og.images[0].url).toContain(siteOgImage);
   });
 });

@@ -108,7 +108,7 @@ export default async function TautanPage() {
       <div className="relative z-10 mx-auto flex w-full max-w-xl flex-1 flex-col px-4 py-12 sm:py-16">
         <header className="flex flex-col items-center text-center">
           <div className="flex size-16 items-center justify-center rounded-2xl border border-border bg-card shadow-sm">
-            <Logo disableAnimation className="[--logo-height:2.25rem]" />
+            <Logo variant="symbol" className="[--logo-height:2.25rem]" />
           </div>
           <h1 className="mt-4 font-heading text-h5 font-bold tracking-tight text-foreground">
             Tautan Zyx Academy

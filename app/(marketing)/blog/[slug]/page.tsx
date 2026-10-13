@@ -20,7 +20,7 @@ const getArticleBySlug = cache(async (slug: string) => {
   });
 });
 
-import { createMetadata } from "@/lib/site";
+import { createMetadata, siteOgImage } from "@/lib/site";
 import type { Metadata } from "next";
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
@@ -38,7 +38,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
     title: article.title,
     description: article.summary || `Baca artikel ${article.title} di Blog Zyx Academy.`,
     path: `/blog/${article.slug}`,
-    image: article.thumbnailUrl || "/og-image.png",
+    image: article.thumbnailUrl || siteOgImage,
     type: "article",
   });
 }

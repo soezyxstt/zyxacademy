@@ -17,7 +17,8 @@ export function AdminNavbar() {
  aria-label="Admin"
  >
  <Link href="/admin" className="-m-px flex shrink-0 items-center p-px [&_img]:block [&_img]:align-middle">
- <Logo className="[--logo-height:2rem] md:[--logo-height:2.25rem]" />
+ <Logo variant="symbol" className="lg:hidden [--logo-height:2rem]" />
+ <Logo variant="horizontal" className="hidden lg:flex [--logo-height:1.25rem]" />
  </Link>
 
  <div className="flex shrink-0 items-center gap-2 md:gap-3">
