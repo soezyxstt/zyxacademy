@@ -792,7 +792,7 @@ export function buildPublicArticleReadModel(
     courseId,
     chapterId: chapterId ?? rawArticle.babId ?? null,
     slug: rawArticle.slug,
-    title: rawArticle.title,
+    title: typeof chapter === "object" && chapter ? chapter.title?.trim() || rawArticle.title : rawArticle.title,
     courseTitle: typeof chapter === "object" && chapter ? chapter.courseTitle ?? "" : "",
     chapterTitle: typeof chapter === "object" && chapter ? chapter.title ?? null : null,
     chapterNumber,
