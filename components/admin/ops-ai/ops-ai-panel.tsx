@@ -7,7 +7,6 @@ import {
   Send,
   Loader2,
   Trash2,
-  Sparkles,
   RotateCcw,
   Bot,
   Copy,
@@ -858,7 +857,7 @@ export function OpsAiPanel({ initialMessages }: { initialMessages?: OpsAiMessage
           {messages.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-center px-2 py-12 space-y-4">
               <div className="flex size-11 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                <Sparkles className="size-5" />
+                <Bot className="size-5" />
               </div>
               <div>
                 <h4 className="font-heading text-body-base font-bold text-foreground">
@@ -1056,7 +1055,7 @@ export function OpsAiPanel({ initialMessages }: { initialMessages?: OpsAiMessage
                     </>
                   ) : (
                     <>
-                      <Sparkles className="size-3 text-primary" />
+                      <MessageSquare className="size-3 text-primary" />
                       <span>Mode Tanya</span>
                     </>
                   )}

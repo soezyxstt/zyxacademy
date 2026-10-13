@@ -170,14 +170,14 @@ function chapterIdsFromRows(rows: readonly CourseChapterCandidate[]): string[] {
 }
 
 /**
- * Selects the first two active chapters after the canonical/legacy source has
+ * Selects the first active chapter after the canonical/legacy source has
  * already been chosen. The stable id tie-breaker keeps the result deterministic
  * if old data contains duplicate order indexes.
  */
 export function selectFreeChapters(rows: readonly CourseChapterCandidate[]): CourseChapterAccess[] {
   return [...rows]
     .sort((left, right) => left.orderIndex - right.orderIndex || left.id.localeCompare(right.id, "id"))
-    .slice(0, 2)
+    .slice(0, 1)
     .map((row) => ({
       id: row.id,
       canonicalId: row.canonicalId,

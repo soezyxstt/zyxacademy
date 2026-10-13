@@ -13,7 +13,7 @@ import {
   Flame,
   History,
   Layers,
-  Sparkles,
+  Compass,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { FormattedDate } from "@/components/ui/formatted-date";
@@ -548,7 +548,7 @@ export default async function DashboardPage() {
                       </div>
                     </div>
 
-                    <div className="space-y-3">
+                    <div className="divide-y divide-border/30">
                       {enrollments.map((course) => {
                         const materials = courseDataMap.get(course.id)?.materials || [];
                         const courseCompletedIds = progressList
@@ -561,7 +561,7 @@ export default async function DashboardPage() {
                           <Link
                             key={course.id}
                             href={`/courses/${course.id}`}
-                            className="group block rounded-xl border border-border/60 bg-muted/20 hover:bg-muted/40 hover:border-brand-primary/30 p-4 transition-all duration-200"
+                            className="group block py-3.5 px-2 -mx-2 rounded-xl transition-colors hover:bg-muted/40"
                           >
                             <div className="flex items-start justify-between gap-3">
                               <div className="min-w-0 flex-1">
@@ -576,7 +576,7 @@ export default async function DashboardPage() {
                                 </div>
 
                                 {/* Sleek inline progress */}
-                                <div className="mt-3 flex flex-wrap items-center gap-2 sm:gap-3 max-w-md">
+                                <div className="mt-2.5 flex flex-wrap items-center gap-2 sm:gap-3 max-w-md">
                                   <div className="h-1.5 w-20 sm:w-28 shrink-0 overflow-hidden rounded bg-muted">
                                     <div
                                       className="h-full bg-brand-primary transition-all duration-300 rounded"
@@ -588,7 +588,7 @@ export default async function DashboardPage() {
                                 </div>
 
                                 {nextConcepts[course.id] && (
-                                  <div className="mt-2.5 text-body-xs font-medium text-muted-foreground break-words min-w-0">
+                                  <div className="mt-2 text-body-xs font-medium text-muted-foreground break-words min-w-0">
                                     Langkah selanjutnya:{" "}
                                     <span className="text-brand-primary font-semibold group-hover:underline">
                                       <MathText as="span">{nextConcepts[course.id]}</MathText>
@@ -598,7 +598,7 @@ export default async function DashboardPage() {
                               </div>
 
                               {/* Interactive arrow indicator */}
-                              <div className="flex size-7 items-center justify-center rounded-lg border border-border bg-background text-muted-foreground group-hover:text-brand-primary group-hover:border-brand-primary/30 transition-all shrink-0">
+                              <div className="flex size-7 items-center justify-center rounded-lg border border-border/70 bg-background text-muted-foreground group-hover:text-brand-primary group-hover:border-brand-primary/30 transition-all shrink-0">
                                 <ArrowUpRight className="size-4" />
                               </div>
                             </div>
@@ -623,13 +623,13 @@ export default async function DashboardPage() {
                     </div>
 
                     {inProgressDocuments.length > 0 ? (
-                      <div className="space-y-3">
+                      <div className="divide-y divide-border/30">
                         {inProgressDocuments.map((doc) => {
                           if (!doc) return null;
                           return (
                             <div
                               key={doc.id}
-                              className="group rounded-xl border border-border/60 bg-muted/20 hover:bg-muted/40 hover:border-brand-primary/30 p-4 transition-all duration-200"
+                              className="group py-3 px-2 -mx-2 rounded-xl transition-colors hover:bg-muted/40"
                             >
                               <Link
                                 href={`/courses/${doc.courseId}/material/${doc.id}${doc.lastSectionId ? `?section=${encodeURIComponent(doc.lastSectionId)}` : ""}`}
@@ -644,11 +644,11 @@ export default async function DashboardPage() {
                                       ({doc.kind})
                                     </span>
                                   </div>
-                                  <h3 className="font-heading text-body-sm font-bold text-foreground group-hover:text-brand-primary transition-colors mt-2 truncate min-w-0">
+                                  <h3 className="font-heading text-body-sm font-bold text-foreground group-hover:text-brand-primary transition-colors mt-1.5 truncate min-w-0">
                                     {doc.title}
                                   </h3>
                                   {/* Completion Progress Bar */}
-                                  <div className="mt-2.5 flex flex-wrap items-center gap-2 sm:gap-3 max-w-xs">
+                                  <div className="mt-2 flex flex-wrap items-center gap-2 sm:gap-3 max-w-xs">
                                     <div className="h-1.5 w-20 sm:w-24 shrink-0 overflow-hidden rounded bg-muted">
                                       <div
                                         className="h-full bg-brand-primary transition-all duration-300 rounded"
@@ -684,7 +684,7 @@ export default async function DashboardPage() {
                     <section className={studentCardClass()}>
                       <div className="mb-4 flex flex-wrap items-center justify-between gap-2 border-b border-border/40 pb-3">
                         <div className="flex flex-wrap items-center gap-2">
-                          <Sparkles className="size-4.5 text-brand-primary" />
+                          <Compass className="size-4.5 text-brand-primary" />
                           <h2 className="font-heading text-body-base font-bold text-foreground">
                             Rekomendasi mata kuliah
                           </h2>
@@ -703,11 +703,11 @@ export default async function DashboardPage() {
                         </Link>
                       </div>
 
-                      <div className="space-y-2.5">
+                      <div className="divide-y divide-border/30">
                         {recommendedUnenrolledCourses.map((course) => (
                           <div
                             key={course.id}
-                            className="group rounded-xl border border-border/60 bg-muted/20 hover:bg-muted/40 hover:border-brand-primary/30 p-3.5 transition-all duration-200"
+                            className="group py-2.5 px-2 -mx-2 rounded-xl transition-colors hover:bg-muted/40"
                           >
                             <Link
                               href={`/courses/${course.id}`}
@@ -722,11 +722,11 @@ export default async function DashboardPage() {
                                     {course.materialsCount} materi
                                   </span>
                                 </div>
-                                <h3 className="font-heading text-body-sm font-bold text-foreground group-hover:text-brand-primary transition-colors truncate mt-1.5">
+                                <h3 className="font-heading text-body-sm font-bold text-foreground group-hover:text-brand-primary transition-colors truncate mt-1">
                                   {course.title}
                                 </h3>
                               </div>
-                              <div className="flex size-7 items-center justify-center rounded-lg border border-border bg-background text-muted-foreground group-hover:text-brand-primary group-hover:border-brand-primary/30 transition-all shrink-0">
+                              <div className="flex size-7 items-center justify-center rounded-lg border border-border/70 bg-background text-muted-foreground group-hover:text-brand-primary group-hover:border-brand-primary/30 transition-all shrink-0">
                                 <ArrowRight className="size-4" />
                               </div>
                             </Link>
@@ -739,7 +739,7 @@ export default async function DashboardPage() {
 
                 {/* Right Column (Review, Mastery & Available Quizzes) - 5 cols */}
                 <div className="space-y-6 lg:col-span-5 min-w-0">
-                  {/* Status Spaced Repetition */}
+                  {/* Status Spaced Repetition & Aktivitas Ulasan */}
                   <section className={studentCardClass()}>
                     <div className="mb-4 flex flex-wrap items-center justify-between gap-2 border-b border-border/40 pb-3">
                       <h2 className="font-heading text-body-base font-bold text-foreground flex items-center gap-2">
@@ -761,13 +761,68 @@ export default async function DashboardPage() {
                     </p>
 
                     {firstCourseWithQueue && (
-                      <Button asChild className="w-full mt-4 rounded-lg text-body-sm font-semibold">
+                      <Button asChild className="w-full mt-3.5 rounded-lg text-body-sm font-semibold">
                         <Link href={`/courses/${firstCourseWithQueue}/flashcard`}>
                           {totalDueFlashcards > 0 ? "Mulai ulas flashcard" : "Buka koleksi flashcard"}
                           <ArrowRight className="ml-1.5 size-4" />
                         </Link>
                       </Button>
                     )}
+
+                    {/* Integrated Recent Reviews */}
+                    <div className="mt-5 pt-3.5 border-t border-border/40">
+                      <div className="mb-2 flex items-center justify-between">
+                        <span className="text-body-xs font-semibold text-foreground flex items-center gap-1.5">
+                          <History className="size-3.5 text-muted-foreground" />
+                          Aktivitas ulasan terbaru
+                        </span>
+                      </div>
+
+                      {recentReviews.length > 0 ? (
+                        <div className="divide-y divide-border/30">
+                          {recentReviews.map((review) => {
+                            const gradeLabels: Record<number, string> = {
+                              1: "Ulangi",
+                              2: "Sulit",
+                              3: "Baik",
+                              4: "Mudah",
+                            };
+                            const gradeColors: Record<number, string> = {
+                              1: "text-status-error bg-status-error/10 border-status-error/20",
+                              2: "text-brand-secondary bg-brand-secondary/10 border-brand-secondary/20",
+                              3: "text-brand-primary bg-brand-primary/10 border-brand-primary/20",
+                              4: "text-status-success bg-status-success/10 border-status-success/20",
+                            };
+                            return (
+                              <div
+                                key={review.id}
+                                className="py-2.5 px-1"
+                              >
+                                <div className="flex items-start justify-between gap-2">
+                                  <span className={cn(
+                                    "inline-flex rounded-md border px-1.5 py-0.2 text-[10px] font-bold uppercase tracking-wider shrink-0",
+                                    gradeColors[review.grade] || "text-muted-foreground border-border bg-muted/40"
+                                  )}>
+                                    {gradeLabels[review.grade] || "Ulasan"}
+                                  </span>
+                                  <span className="text-[11px] text-muted-foreground shrink-0">
+                                    <FormattedDate date={review.reviewedAt} options={{ dateStyle: "medium" }} />
+                                  </span>
+                                </div>
+                                <p className="text-body-xs font-medium text-foreground mt-1 truncate">
+                                  {review.front}
+                                </p>
+                                <p className="text-[11px] text-muted-foreground mt-0.5 truncate">
+                                  {review.courseTitle}
+                                </p>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <p className="text-body-xs text-muted-foreground py-2 text-center">Belum ada aktivitas ulasan baru-baru ini.</p>
+                      )}
+                    </div>
                   </section>
 
                   {/* Peta Penguasaan */}
@@ -803,11 +858,11 @@ export default async function DashboardPage() {
                     </div>
 
                     {availableExams.length > 0 ? (
-                      <div className="space-y-2.5">
+                      <div className="divide-y divide-border/30">
                         {availableExams.slice(0, 4).map((exam) => (
                           <div
                             key={exam.id}
-                            className="group rounded-xl border border-border/60 bg-muted/20 hover:bg-muted/40 hover:border-brand-primary/30 p-3 transition-all duration-200"
+                            className="group py-2.5 px-2 -mx-2 rounded-xl transition-colors hover:bg-muted/40"
                           >
                             <Link
                               href={`/courses/${exam.courseId}/${exam.type}/${exam.id}`}
@@ -847,63 +902,6 @@ export default async function DashboardPage() {
                         <Trophy className="size-8 text-brand-secondary/60 mb-2" />
                         <p className="text-body-sm font-medium text-foreground">Semua ujian telah selesai</p>
                         <p className="text-body-xs text-muted-foreground mt-0.5">Kerjakan latihan baru ketika materi bab selanjutnya dibuka.</p>
-                      </div>
-                    )}
-                  </section>
-
-                  {/* Recent Activity */}
-                  <section className={studentCardClass()}>
-                    <div className="mb-4 flex flex-wrap items-center justify-between gap-2 border-b border-border/40 pb-3">
-                      <h2 className="font-heading text-body-base font-bold text-foreground flex items-center gap-2">
-                        <History className="size-4.5 text-brand-primary" />
-                        Aktivitas ulasan terbaru
-                      </h2>
-                    </div>
-                    {recentReviews.length > 0 ? (
-                      <div className="space-y-2.5">
-                        {recentReviews.map((review) => {
-                          const gradeLabels: Record<number, string> = {
-                            1: "Ulangi",
-                            2: "Sulit",
-                            3: "Baik",
-                            4: "Mudah",
-                          };
-                          const gradeColors: Record<number, string> = {
-                            1: "text-status-error bg-status-error/10 border-status-error/20",
-                            2: "text-brand-secondary bg-brand-secondary/10 border-brand-secondary/20",
-                            3: "text-brand-primary bg-brand-primary/10 border-brand-primary/20",
-                            4: "text-status-success bg-status-success/10 border-status-success/20",
-                          };
-                          return (
-                            <div
-                              key={review.id}
-                              className="rounded-xl border border-border/60 bg-muted/20 p-3"
-                            >
-                              <div className="flex items-start justify-between gap-2">
-                                <span className={cn(
-                                  "inline-flex rounded-md border px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider shrink-0",
-                                  gradeColors[review.grade] || "text-muted-foreground border-border bg-muted/40"
-                                )}>
-                                  {gradeLabels[review.grade] || "Ulasan"}
-                                </span>
-                                <span className="text-[11px] text-muted-foreground shrink-0">
-                                  <FormattedDate date={review.reviewedAt} options={{ dateStyle: "medium" }} />
-                                </span>
-                              </div>
-                              <p className="text-body-xs font-medium text-foreground mt-1.5 truncate">
-                                {review.front}
-                              </p>
-                              <p className="text-[11px] text-muted-foreground mt-0.5">
-                                {review.courseTitle}
-                              </p>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    ) : (
-                      <div className="flex flex-col items-center justify-center py-6 text-center rounded-xl border border-dashed border-border/60 bg-muted/15">
-                        <History className="size-6 text-muted-foreground/40 mb-1.5" />
-                        <p className="text-body-xs text-muted-foreground">Belum ada aktivitas ulasan baru-baru ini.</p>
                       </div>
                     )}
                   </section>

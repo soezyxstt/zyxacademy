@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Inter, Lexend } from "next/font/google";
 import "./globals.css";
 import { AppToaster } from "@/components/app-toaster";
-import { pageTitle, siteDescription } from "@/lib/site";
+import { pageTitle, siteDescription, siteOgImage } from "@/lib/site";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { Analytics } from "@vercel/analytics/next";
 import { QueryProvider } from "@/components/providers/query-provider";
@@ -24,7 +24,7 @@ export const metadata: Metadata = {
     type: "website",
     images: [
       {
-        url: "/og-image.png",
+        url: siteOgImage,
         width: 1200,
         height: 630,
         alt: "Zyx Academy",
@@ -35,7 +35,15 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: pageTitle(),
     description: siteDescription,
-    images: ["/og-image.png"],
+    images: [siteOgImage],
+  },
+  icons: {
+    icon: [
+      { url: "/brand/zyx-favicon-16.png", sizes: "16x16", type: "image/png" },
+      { url: "/brand/zyx-favicon-32.png", sizes: "32x32", type: "image/png" },
+      { url: "/brand/zyx-favicon-48.png", sizes: "48x48", type: "image/png" },
+    ],
+    apple: [{ url: "/brand/zyx-app-180.png", sizes: "180x180", type: "image/png" }],
   },
 };
 

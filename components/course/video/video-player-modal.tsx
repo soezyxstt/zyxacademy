@@ -15,7 +15,7 @@ import {
   Layers,
   Play,
   ExternalLink,
-  Sparkles,
+  SkipForward,
   X,
 } from "lucide-react";
 import { FaYoutube } from "react-icons/fa6";
@@ -313,7 +313,7 @@ export function VideoPlayerModal({
               {/* Auto-advance Toggle Strip */}
               <div className="flex items-center justify-between px-4 py-2 border-b border-border/40 bg-muted/20 text-body-xs shrink-0">
                 <span className="text-muted-foreground flex items-center gap-1.5">
-                  <Sparkles className="size-3.5 text-brand-primary" />
+                  <SkipForward className="size-3.5 text-brand-primary" />
                   <span>Putar otomatis berikutnya</span>
                 </span>
                 <button

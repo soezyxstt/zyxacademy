@@ -3,6 +3,8 @@ export const siteName = "Zyx Academy";
 export const siteDescription =
   "Tutorial dan pembelajaran untuk mahasiswa ITB tahun pertama dan kedua, materi, kuis, dan pendampingan yang terstruktur.";
 
+export const siteOgImage = "/brand/zyx-og-1200x630.png";
+
 export function pageTitle(segment?: string) {
   if (!segment) return siteName;
   const trimmed = segment.trim();
@@ -26,7 +28,7 @@ export function createMetadata({
   title,
   description = siteDescription,
   path,
-  image = "/og-image.png",
+  image = siteOgImage,
   type = "website",
   noIndex = false,
 }: CreateMetadataOptions = {}): Metadata {

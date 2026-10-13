@@ -24,7 +24,10 @@ async function createTestDb() {
       created_at INTEGER NOT NULL,
       updated_at INTEGER NOT NULL,
       role TEXT DEFAULT 'student',
-      last_activity_at INTEGER
+      last_activity_at INTEGER,
+      faculty TEXT,
+      major TEXT,
+      entry_year INTEGER
     );
     CREATE TABLE courses (
       id TEXT PRIMARY KEY,
@@ -170,21 +173,21 @@ async function insertUser(
 }
 
 describe("student course access policy", () => {
-  it("selects the first two chapters and fails closed for missing or foreign scope", () => {
+  it("selects the first chapter and fails closed for missing or foreign scope", () => {
     const rows = [
       { id: "bab-3", canonicalId: "bab-3", legacyId: null, title: "Tiga", orderIndex: 3, source: "canonical" as const },
       { id: "bab-2", canonicalId: "bab-2", legacyId: null, title: "Dua", orderIndex: 2, source: "canonical" as const },
       { id: "bab-1", canonicalId: "bab-1", legacyId: null, title: "Satu", orderIndex: 1, source: "canonical" as const },
     ];
     const free = selectFreeChapters(rows);
-    expect(free.map((chapter) => chapter.id)).toEqual(["bab-1", "bab-2"]);
+    expect(free.map((chapter) => chapter.id)).toEqual(["bab-1"]);
     expect(hasChapterScopeWithin(undefined, ["bab-1"])).toBe(false);
     expect(hasChapterScopeWithin([], ["bab-1"])).toBe(false);
-    expect(hasChapterScopeWithin(["bab-1", "bab-unknown"], ["bab-1", "bab-2"])).toBe(false);
-    expect(hasChapterScopeWithin(["bab-1"], ["bab-1", "bab-2"])).toBe(true);
+    expect(hasChapterScopeWithin(["bab-1", "bab-unknown"], ["bab-1"])).toBe(false);
+    expect(hasChapterScopeWithin(["bab-1"], ["bab-1"])).toBe(true);
   });
 
-  it("keeps anonymous access static while granting Free the first two chapters of every active course", async () => {
+  it("keeps anonymous access static while granting Free the first chapter of every active course", async () => {
     const { client, testDb } = await createTestDb();
     try {
       const now = new Date("2026-09-14T00:00:00.000Z");
@@ -239,11 +242,16 @@ describe("student course access policy", () => {
       expect(free.tier).toBe("free");
       expect(free.courseId).toBe("mk-demo");
       expect(free.publicCourseId).toBe("legacy-demo");
-      expect(free.freeChapterIds).toEqual(expect.arrayContaining(["bab-demo-1", "chapter-demo-1", "bab-demo-2", "chapter-demo-2"]));
+      expect(free.freeChapterIds).toEqual(expect.arrayContaining(["bab-demo-1", "chapter-demo-1"]));
+      expect(free.freeChapterIds).not.toContain("bab-demo-2");
+      expect(free.freeChapterIds).not.toContain("chapter-demo-2");
       expect(free.freeChapterIds).not.toContain("bab-demo-3");
       expect(free.capabilities.zyraDailyQuestionLimit).toBe(1);
       expect(canAccessCourseContent(free, "article", ["bab-demo-1"])).toBe(true);
-      expect(canAccessCourseContent(free, "quiz", ["chapter-demo-2"])).toBe(true);
+      expect(canAccessCourseContent(free, "diktat", ["bab-demo-1"])).toBe(true);
+      expect(canAccessCourseContent(free, "quiz", ["chapter-demo-1"])).toBe(true);
+      expect(canAccessCourseContent(free, "quiz", ["chapter-demo-2"])).toBe(false);
+      expect(canAccessCourseContent(free, "article", ["bab-demo-2"])).toBe(false);
       expect(canAccessCourseContent(free, "article", ["bab-demo-3"])).toBe(false);
       expect(canAccessCourseContent(free, "article")).toBe(false);
       expect(canAccessCourseContent(free, "diktat-download", ["bab-demo-1"])).toBe(false);
@@ -255,8 +263,10 @@ describe("student course access policy", () => {
       const freeOther = await resolveCourseAccess({ courseId: "mk-other", userId: "free-user" }, testDb);
       expect(freeOther.tier).toBe("free");
       expect(freeOther.hasCourseAccess).toBe(true);
-      expect(freeOther.freeChapters.map((chapter) => chapter.id)).toEqual(["bab-other-1", "bab-other-2"]);
+      expect(freeOther.freeChapters.map((chapter) => chapter.id)).toEqual(["bab-other-1"]);
       expect(canAccessCourseContent(freeOther, "article", ["bab-other-1"])).toBe(true);
+      expect(canAccessCourseContent(freeOther, "diktat", ["bab-other-1"])).toBe(true);
+      expect(canAccessCourseContent(freeOther, "article", ["bab-other-2"])).toBe(false);
       expect(canAccessCourseContent(freeOther, "article", ["bab-other-3"])).toBe(false);
     } finally {
       client.close();
@@ -287,9 +297,10 @@ describe("student course access policy", () => {
       await insertUser(testDb, { id: "legacy-free-user" });
 
       const access = await resolveCourseAccess({ courseId: "mk-legacy-chapter", userId: "legacy-free-user" }, testDb);
-      expect(access.freeChapters.map((chapter) => chapter.id)).toEqual(["legacy-chapter-1", "legacy-chapter-2"]);
+      expect(access.freeChapters.map((chapter) => chapter.id)).toEqual(["legacy-chapter-1"]);
       expect(access.scopedChapterIds).toEqual(["legacy-chapter-1", "legacy-chapter-2", "legacy-chapter-3"]);
       expect(canAccessCourseContent(access, "article", ["legacy-chapter-1"])).toBe(true);
+      expect(canAccessCourseContent(access, "article", ["legacy-chapter-2"])).toBe(false);
       expect(canAccessCourseContent(access, "article", ["legacy-chapter-3"])).toBe(false);
     } finally {
       client.close();

@@ -76,7 +76,8 @@ export function Navbar() {
  prefetch={true}
  className="relative z-10 -m-px flex shrink-0 items-center p-px [&_img]:block [&_img]:align-middle [&_svg]:block"
  >
- <Logo className="[--logo-height:2rem] md:[--logo-height:2.25rem]" />
+ <Logo variant="symbol" className="lg:hidden [--logo-height:2rem]" />
+ <Logo variant="horizontal" className="hidden lg:flex [--logo-height:2rem]" />
  </Link>
 
  {/* Never use unconditional `hidden` + `md:flex` ; if `hidden` wins in CSS order, desktop links disappear. Prefer max-lg:hidden. */}
@@ -154,7 +155,7 @@ export function Navbar() {
  <div className="flex h-14 shrink-0 items-center justify-between border-b border-border px-3">
  <SheetClose asChild>
  <Link href="/" prefetch={true} className="flex items-center" aria-label="Beranda">
- <Logo className="[--logo-height:1.75rem]" />
+ <Logo variant="horizontal" className="[--logo-height:1.25rem]" />
  </Link>
  </SheetClose>
  <SheetClose asChild>

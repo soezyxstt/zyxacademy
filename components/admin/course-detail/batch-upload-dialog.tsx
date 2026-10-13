@@ -43,7 +43,7 @@ import {
   List,
   Loader2,
   Plus,
-  Sparkles,
+  Wand2,
   Trash2,
   Upload,
   X,
@@ -1221,7 +1221,7 @@ export function BatchUploadDialog({
                         {isBatchFormattingAi ? (
                           <Loader2 className="size-3.5 animate-spin" />
                         ) : (
-                          <Sparkles className="size-3.5" />
+                          <Wand2 className="size-3.5" />
                         )}
                         <span>{isBatchFormattingAi ? "Merapikan AI..." : "Rapikan dengan AI"}</span>
                       </Button>
@@ -1383,7 +1383,7 @@ export function BatchUploadDialog({
                       {isBatchFormattingAi ? (
                         <Loader2 className="size-3.5 animate-spin" />
                       ) : (
-                        <Sparkles className="size-3.5" />
+                        <Wand2 className="size-3.5" />
                       )}
                       <span>{isBatchFormattingAi ? "Merapikan AI..." : "Rapikan dengan AI"}</span>
                     </Button>

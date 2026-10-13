@@ -1,9 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { X, TrendingUp, Sparkles } from "lucide-react";
+import { X, TrendingUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { studentCardClass } from "@/components/course/course-surfaces";
 
 interface WeeklyReflectionProps {
   reflection: {
@@ -61,54 +60,60 @@ export function WeeklyReflection({ reflection }: WeeklyReflectionProps) {
   };
 
   return (
-    <section className={studentCardClass("relative mb-8 hidden overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-300 sm:block")}>
-      <div className="flex items-center justify-between">
-        <h2 className="flex items-center gap-2 font-heading text-body-base font-bold text-foreground">
-          <Sparkles className="size-4.5 text-brand-primary" />
-          Refleksi mingguan
-        </h2>
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={handleDismiss}
-          className="size-8 text-muted-foreground hover:text-foreground"
-          aria-label="Tutup refleksi mingguan"
-        >
-          <X className="size-4" />
-        </Button>
-      </div>
-
-      <div className="mt-4">
-        {masteryGrowth > 0 ? (
-          <div className="flex items-baseline gap-2">
-            <span className="font-heading text-h3 font-bold tabular-nums text-status-success">
-              +{masteryGrowth}
+    <section className="relative mb-6 hidden overflow-hidden rounded-xl border border-border/60 bg-card/60 backdrop-blur-md px-4 py-3 sm:px-5 sm:py-3 shadow-2xs animate-in fade-in slide-in-from-bottom-2 duration-300 sm:block">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+          <div className="flex items-center gap-2">
+            <TrendingUp className="size-4 text-brand-primary shrink-0" />
+            <span className="font-heading text-body-sm font-bold text-foreground">
+              Refleksi mingguan
             </span>
-            <span className="text-body-sm text-muted-foreground">poin penguasaan</span>
           </div>
-        ) : (
-          <div className="flex items-baseline gap-2">
-            <span className="font-heading text-h3 font-bold tabular-nums text-foreground">
-              {totalCompleted}
-            </span>
-            <span className="text-body-sm text-muted-foreground">aktivitas selesai</span>
+          <div className="flex items-baseline gap-1.5 border-l border-border/50 pl-3">
+            {masteryGrowth > 0 ? (
+              <>
+                <span className="font-heading text-body-base font-bold tabular-nums text-status-success">
+                  +{masteryGrowth}
+                </span>
+                <span className="text-body-xs text-muted-foreground">poin penguasaan</span>
+              </>
+            ) : (
+              <>
+                <span className="font-heading text-body-base font-bold tabular-nums text-foreground">
+                  {totalCompleted}
+                </span>
+                <span className="text-body-xs text-muted-foreground">aktivitas selesai</span>
+              </>
+            )}
           </div>
-        )}
-
-        <div className="mt-2 flex flex-wrap gap-x-6 gap-y-1 text-body-sm text-muted-foreground">
-          <span>{completed.quizzes} kuis</span>
-          <span>{completed.flashcards} flashcard</span>
-          <span>{completed.modules} modul</span>
-          <span>{streak.currentStreak} hari streak</span>
+          <div className="hidden lg:flex items-center gap-x-3 text-body-xs text-muted-foreground">
+            <span>•</span>
+            <span>{completed.quizzes} kuis</span>
+            <span>•</span>
+            <span>{completed.flashcards} flashcard</span>
+            <span>•</span>
+            <span>{completed.modules} modul</span>
+            <span>•</span>
+            <span>{streak.currentStreak} hari streak</span>
+          </div>
         </div>
 
-        {mostImproved && (
-          <p className="mt-3 flex items-center gap-1.5 border-t border-border/40 pt-2 text-body-sm">
-            <span className="text-muted-foreground">Peningkatan terbesar:</span>{" "}
-            <span className="font-semibold text-foreground">{mostImproved}</span>
-            <TrendingUp className="size-3.5 shrink-0 text-status-success" />
-          </p>
-        )}
+        <div className="flex items-center gap-3 shrink-0">
+          {mostImproved && (
+            <span className="text-body-xs text-muted-foreground hidden md:inline">
+              Peningkatan: <strong className="text-foreground">{mostImproved}</strong>
+            </span>
+          )}
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={handleDismiss}
+            className="size-7 text-muted-foreground hover:text-foreground"
+            aria-label="Tutup refleksi mingguan"
+          >
+            <X className="size-3.5" />
+          </Button>
+        </div>
       </div>
     </section>
   );
