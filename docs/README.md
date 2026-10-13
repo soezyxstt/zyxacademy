@@ -2,7 +2,7 @@
 
 This directory contains the technical documentation, architecture specifications, data schemas, operational runbooks, bundle contracts, and audits for Zyx Academy.
 
-All markdown documents across `docs/` and `plans/` must be registered in this index with an explicit lifecycle status. The active feature catalog also specifies catalogue-based Article headings and chapter numbering.
+All markdown documents across `docs/` and `plans/` must be registered in this index with an explicit lifecycle status. The active feature catalog also specifies catalogue-based Article headings, chapter numbering, and decoded canonical product URLs.
 
 ---
 

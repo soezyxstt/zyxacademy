@@ -67,6 +67,7 @@ export async function getCanonicalPublishedArticle(
   userId?: string,
 ): Promise<PublicArticleReadModel | null> {
   try {
+    articleIdOrSlug = decodeURIComponent(articleIdOrSlug);
     const matchedCourse = await findCanonicalMataKuliah(courseId);
     const validCourseIds = matchedCourse
       ? [matchedCourse.id, ...(matchedCourse.legacyCourseId ? [matchedCourse.legacyCourseId] : [])]
@@ -239,6 +240,7 @@ export async function getCanonicalPublishedTextProduct(
   productId: string,
 ): Promise<CanonicalTextProduct | null> {
   try {
+    productId = decodeURIComponent(productId);
     const matchedCourse = await findCanonicalMataKuliah(courseId);
     if (!matchedCourse) return null;
 
