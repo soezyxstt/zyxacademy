@@ -52,8 +52,8 @@ messaging.onBackgroundMessage((payload) => {
  const notificationTitle = notification.title || "Zyx Academy";
  const notificationOptions = {
  body: notification.body || "",
- icon: notification.icon || "/logo-light.png",
- badge: "/logo-light.png",
+ icon: notification.icon || "/brand/zyx-app-192.png",
+ badge: "/brand/zyx-logo-symbol-black@2x.png",
  // Store data so the notificationclick handler can use it
  data: {
  url: data.url || "/dashboard",

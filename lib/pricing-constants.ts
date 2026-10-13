@@ -3,7 +3,7 @@ import { getJakartaCalendarDate } from "@/lib/date-utils";
 import type { PlanKey } from "@/lib/plan-tiers";
 
 export const INTRO_PRICE_START = "2026-09-12";
-export const REGULAR_PRICE_START = "2026-10-12";
+export const REGULAR_PRICE_START = "2026-11-01";
 export const INTRO_DISCOUNT_PERCENT = 40;
 export type PlanPricingPhase = "before" | "intro" | "regular";
 
@@ -352,7 +352,7 @@ export const buildWhatsAppPlanUrl = (
     const quote = getPlanPriceQuote(planKey, persons, courses, phase);
     message += ` Total paket per semester: ${formatPlanPrice(quote.price)}.`;
     if (quote.isIntroductory) {
-      message += ` Harga perkenalan hemat 40% berlaku sampai 11 Oktober 2026 pukul 23.59 WIB. Harga reguler mulai 12 Oktober 2026: ${formatPlanPrice(quote.regularPrice)}. Mohon konfirmasi harga saat pembayaran.`;
+      message += ` Harga perkenalan hemat 40% berlaku sampai 31 Oktober 2026 pukul 23.59 WIB. Harga reguler mulai 1 November 2026: ${formatPlanPrice(quote.regularPrice)}. Mohon konfirmasi harga saat pembayaran.`;
     }
   }
 
