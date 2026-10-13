@@ -135,7 +135,6 @@ export function DailyQuizPopup({
             <BrainCircuit className="size-5" />
           </span>
           <div>
-            <span className="text-[10px] font-bold tracking-widest uppercase text-brand-primary">Kuis Harian Pop-Up</span>
             <h3 className="font-heading text-body-base font-bold text-foreground leading-tight">{courseTitle} Trivia</h3>
           </div>
         </div>

@@ -3,17 +3,19 @@ import { asc } from "drizzle-orm";
 import { CalendarDays, CalendarRange, CheckCircle2, Video } from "lucide-react";
 import { db } from "@/db";
 import { pkaSchedules } from "@/db/schema";
-import { pageTitle } from "@/lib/site";
+import { createMetadata, pageTitle } from "@/lib/site";
 import { PKA_TOTAL_SESSIONS } from "@/lib/pka-config";
 import { requirePkaSession } from "@/lib/pka-enrollment";
 import { CoursePageShell } from "@/components/course/course-page-shell";
 import { Reveal } from "@/components/ui/reveal";
 import { FormattedDate } from "@/components/ui/formatted-date";
 
-export const metadata: Metadata = {
-  title: pageTitle("Tutorial PKA - Jadwal"),
+export const metadata: Metadata = createMetadata({
+  title: "Jadwal Tutorial PKA",
   description: "Jadwal sesi tutorial live PKA lengkap dengan link Google Meet.",
-};
+  path: "/courses/tutorial-pka/jadwal",
+});
+
 
 export default async function PkaJadwalPage() {
   await requirePkaSession("/courses/tutorial-pka/jadwal");

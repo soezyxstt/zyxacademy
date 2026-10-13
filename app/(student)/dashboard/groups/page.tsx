@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
-import { pageTitle } from "@/lib/site";
+import { createMetadata, pageTitle } from "@/lib/site";
 import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
 import { getStudentStudyGroups } from "./actions";
@@ -10,10 +10,12 @@ import { PageHeader } from "@/components/page-header";
 import { ApplicationPage } from "@/components/application-page";
 import { Users } from "lucide-react";
 
-export const metadata: Metadata = {
-  title: pageTitle("Kelompok Belajar"),
+export const metadata: Metadata = createMetadata({
+  title: "Kelompok Belajar",
   description: "Informasi kelompok belajar, kuota sesi pertemuan semester, rekan belajar, dan mata kuliah Anda.",
-};
+  path: "/dashboard/groups",
+});
+
 
 export default async function StudentGroupsPage() {
   const h = await headers();

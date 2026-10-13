@@ -3,16 +3,18 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { GraduationCap } from "lucide-react";
 import { auth } from "@/lib/auth";
-import { pageTitle } from "@/lib/site";
+import { createMetadata, pageTitle } from "@/lib/site";
 import { PKA_COURSE_ID } from "@/lib/pka-config";
 import { isPkaEnrolled } from "@/lib/pka-enrollment";
 import { CoursePageShell } from "@/components/course/course-page-shell";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
-export const metadata: Metadata = {
-  title: pageTitle("Tutorial PKA - Pendaftaran"),
-  description: "Lengkapi data untuk bergabung dengan Tutorial PKA.",
-};
+export const metadata: Metadata = createMetadata({
+  title: "Pendaftaran Tutorial PKA",
+  description: "Lengkapi data untuk bergabung dengan Tutorial PKA Zyx Academy.",
+  path: "/courses/tutorial-pka/daftar",
+});
+
 
 export default async function PkaRegisterPage() {
   const session = await auth.api.getSession({ headers: await headers() });

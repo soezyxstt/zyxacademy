@@ -108,6 +108,18 @@ def configure_plugin(plugin_root: Path, environment: str) -> None:
         ]
     write_json(codex_manifest_path, codex_manifest)
 
+    root_manifest_path = plugin_root / "plugin.json"
+    if root_manifest_path.exists():
+        root_manifest = read_json(root_manifest_path)
+        root_manifest.update(
+            {
+                "name": config["plugin_id"],
+                "displayName": config["display_name"],
+                "description": config["short_description"],
+            }
+        )
+        write_json(root_manifest_path, root_manifest)
+
     readme_path = plugin_root / "README.md"
     readme = readme_path.read_text(encoding="utf-8")
     environment_block = "\n".join(

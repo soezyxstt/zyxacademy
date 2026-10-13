@@ -10,10 +10,7 @@ export function LandingClosingCta() {
       aria-labelledby="closing-heading"
     >
       <div className="text-center">
-        <p className="text-body-xs font-semibold uppercase tracking-[0.2em] text-[var(--zx-accent)]">
-          Mulai hari ini
-        </p>
-        <SectionHeading id="closing-heading" tier="primary" className="mt-2 text-foreground">
+        <SectionHeading id="closing-heading" tier="primary" className="text-foreground">
           Mulai belajar dengan langkah yang jelas.
         </SectionHeading>
         <p className="mx-auto mt-4 max-w-prose text-body-base text-muted-foreground">

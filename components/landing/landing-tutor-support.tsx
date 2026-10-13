@@ -29,10 +29,7 @@ export function LandingTutorSupport() {
       aria-labelledby="landing-tutor-support-heading"
     >
       <div className="mx-auto max-w-2xl text-center">
-        <p className="text-body-xs font-semibold uppercase tracking-[0.2em] text-[var(--zx-accent)]">
-          Pendampingan tutor
-        </p>
-        <SectionHeading as="h2" id="landing-tutor-support-heading" className="mt-3 text-foreground">
+        <SectionHeading as="h2" id="landing-tutor-support-heading" className="text-foreground">
           Saat belajar mandiri belum cukup, pilih dukungan yang tepat.
         </SectionHeading>
       </div>

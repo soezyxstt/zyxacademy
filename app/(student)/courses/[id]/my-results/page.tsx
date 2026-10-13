@@ -8,7 +8,7 @@ import { EnrollmentForm } from "@/components/enrollment-form";
 import { Reveal } from "@/components/ui/reveal";
 import { FormattedDate } from "@/components/ui/formatted-date";
 import { Button } from "@/components/ui/button";
-import { pageTitle } from "@/lib/site";
+import { createMetadata, pageTitle } from "@/lib/site";
 import { cn } from "@/lib/utils";
 import { db } from "@/db";
 import { studentQuizAttempts, quizTemplates, submissions, exams } from "@/db/schema";
@@ -23,13 +23,15 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params;
   const course = await getCourse(id);
 
-  return {
-    title: pageTitle(course ? `${course.title} - Hasil saya` : "Hasil saya"),
+  return createMetadata({
+    title: course ? `Hasil Belajar ${course.title}` : "Hasil Belajar",
     description: course
       ? `Riwayat nilai kuis dan tryout ${course.title}; pantau perkembangan belajarmu.`
       : "Riwayat nilai kuis dan tryout; pantau perkembangan belajarmu.",
-  };
+    path: `/courses/${id}/my-results`,
+  });
 }
+
 
 function statusBadge(status: string) {
   const map: Record<string, string> = {

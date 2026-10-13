@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { ClipboardList } from "lucide-react";
-import { pageTitle } from "@/lib/site";
+import { createMetadata, pageTitle } from "@/lib/site";
 import { PKA_COURSE_ID } from "@/lib/pka-config";
 import { requirePkaSession } from "@/lib/pka-enrollment";
 import { CoursePageShell } from "@/components/course/course-page-shell";
@@ -11,10 +11,12 @@ import { eq, and, desc } from "drizzle-orm";
 import { checkEnrollment } from "@/app/(student)/dashboard/actions";
 import { QuizListClient } from "../../[id]/quiz/quiz-list-client";
 
-export const metadata: Metadata = {
-  title: pageTitle("Tutorial PKA - Simulasi"),
+export const metadata: Metadata = createMetadata({
+  title: "Simulasi Tutorial PKA",
   description: "Simulasi tryout PKA untuk persiapan ujian akademik; kerjakan latihan soal interaktif dengan batas waktu.",
-};
+  path: "/courses/tutorial-pka/simulasi",
+});
+
 
 export default async function PkaSimulasiPage() {
   const userId = await requirePkaSession("/courses/tutorial-pka/simulasi");

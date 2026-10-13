@@ -17,8 +17,10 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { FormattedDate } from "@/components/ui/formatted-date";
-import { pageTitle } from "@/lib/site";
 import { Reveal } from "@/components/ui/reveal";
+import { createMetadata, pageTitle } from "@/lib/site";
+
+
 import { auth } from "@/lib/auth";
 import {
   getStudentEnrollments,
@@ -74,11 +76,13 @@ import {
   getStudentTargetCategory,
 } from "@/lib/student/itb-academic-data";
 
-export const metadata: Metadata = {
-  title: pageTitle("Dashboard Siswa"),
+export const metadata: Metadata = createMetadata({
+  title: "Dashboard Siswa",
   description:
     "Pantau progres belajar, materi, kuis, tryout ITB TPB; semua dalam satu ruang belajar personal.",
-};
+  path: "/dashboard",
+});
+
 
 /**
  * Server-rendered dashboard page displaying student course enrollments, learning progress, recommendations, and academic prompts.

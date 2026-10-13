@@ -87,7 +87,6 @@ export default function PlansClient() {
         <MarketingPageHero
           className="py-8 md:py-10"
           sectionId="plans"
-          eyebrow="Zyx Academy"
           title="Paket & layanan"
           description="Pilih kombinasi course dan intensitas pendampingan. Pembayaran dilakukan di luar website; admin akan mengaktifkan akses sesuai paket."
         />

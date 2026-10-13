@@ -100,12 +100,9 @@ export function AboutClient() {
       <Reveal>
         <SectionContainer className="relative z-10 border-b border-border bg-background/30 py-16 backdrop-blur-xs md:py-24">
           <div className="mx-auto max-w-3xl space-y-6">
-            <div className="space-y-3">
-              <span className="text-body-xs font-bold uppercase tracking-widest text-primary">Mengapa Zyx</span>
-              <SectionHeading as="h2" tier="primary" className="text-foreground">
-                Belajar lebih terarah, tanpa kehilangan kedalaman.
-              </SectionHeading>
-            </div>
+            <SectionHeading as="h2" tier="primary" className="text-foreground">
+              Belajar lebih terarah, tanpa kehilangan kedalaman.
+            </SectionHeading>
             <div className="space-y-4 text-body-base leading-relaxed text-muted-foreground">
               <p>
                 Zyx lahir dari pengalaman menghadapi materi TPB yang padat dan kebutuhan akan pendampingan yang lebih terstruktur. Kami ingin mahasiswa dapat melihat hubungan antar konsep, bukan hanya mengumpulkan catatan untuk ujian berikutnya.
@@ -122,7 +119,6 @@ export function AboutClient() {
         <SectionContainer className="relative z-10 border-b border-border bg-muted/20 py-16 md:py-24">
           <div className="grid gap-10 lg:grid-cols-[0.9fr_1.1fr] lg:items-start lg:gap-16">
             <div className="space-y-4">
-              <span className="text-body-xs font-bold uppercase tracking-widest text-primary">Cara kami bekerja</span>
               <SectionHeading as="h2" tier="primary" className="text-foreground">
                 Prinsip yang terlihat di produk.
               </SectionHeading>
@@ -147,7 +143,6 @@ export function AboutClient() {
         <SectionContainer className="relative z-10 border-b border-border bg-background/50 py-16 backdrop-blur-xs md:py-24">
           <div className="mx-auto max-w-5xl space-y-8">
             <div className="max-w-3xl space-y-3">
-              <span className="text-body-xs font-bold uppercase tracking-widest text-primary">Kontribusi produk</span>
               <SectionHeading as="h2" tier="primary" className="text-foreground">
                 Arah akademik dan pengembangan berjalan bersama.
               </SectionHeading>
@@ -191,7 +186,6 @@ export function AboutClient() {
         <SectionContainer className="relative z-10 bg-background/50 py-16 backdrop-blur-xs md:py-24">
           <div className="mx-auto max-w-5xl space-y-10">
             <div className="max-w-3xl space-y-3">
-              <span className="text-body-xs font-bold uppercase tracking-widest text-primary">Tim penggagas</span>
               <SectionHeading as="h2" tier="primary" className="text-foreground">
                 Orang di balik arah akademik dan teknologi.
               </SectionHeading>

@@ -8,7 +8,7 @@ import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { studentCardClass } from "@/components/course/course-surfaces";
 import { env } from "@/lib/env";
-import { pageTitle } from "@/lib/site";
+import { createMetadata, pageTitle } from "@/lib/site";
 import { auth } from "@/lib/auth";
 import { db } from "@/db";
 import { user as userTable } from "@/db/schema";
@@ -27,10 +27,12 @@ import { listStudentCourses } from "@/lib/student/course-catalog";
 import { getWhatsAppAdminChatHref } from "@/lib/whatsapp-admin";
 import { CourseCatalogClient, type CourseGroup } from "./course-catalog-client";
 
-export const metadata: Metadata = {
-  title: pageTitle("Katalog Course"),
-  description: "Katalog course Zyx Academy, enrollment diaktifkan oleh admin sesuai paket.",
-};
+export const metadata: Metadata = createMetadata({
+  title: "Katalog Kursus",
+  description: "Katalog kursus Zyx Academy; materi terstruktur, latihan soal, dan persiapan ujian akademik.",
+  path: "/courses",
+});
+
 
 /**
  * Normalizes course category string to a consistent display title from the predefined category catalog.

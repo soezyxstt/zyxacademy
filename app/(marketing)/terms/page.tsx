@@ -5,13 +5,15 @@ import {
   type LegalSection,
 } from "@/components/legal-document-page";
 import { env } from "@/lib/env";
-import { pageTitle } from "@/lib/site";
+import { createMetadata, pageTitle } from "@/lib/site";
 
-export const metadata: Metadata = {
-  title: pageTitle("Syarat dan Ketentuan"),
+export const metadata: Metadata = createMetadata({
+  title: "Syarat dan Ketentuan",
   description:
     "Ketentuan penggunaan situs, materi, akun, dan layanan pembelajaran Zyx Academy.",
-};
+  path: "/terms",
+});
+
 
 const sections: LegalSection[] = [
   {

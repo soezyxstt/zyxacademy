@@ -4,18 +4,19 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { Trophy, ChevronRight } from "lucide-react";
 import { auth } from "@/lib/auth";
-import { pageTitle } from "@/lib/site";
+import { createMetadata, pageTitle } from "@/lib/site";
 import { Reveal } from "@/components/ui/reveal";
 import { PageHeader } from "@/components/page-header";
 import { studentCardClass } from "@/components/course/course-surfaces";
 import { getCourseLeaderboard } from "@/lib/course-utils";
 import { listStudentCourses, listStudentEnrollments } from "@/lib/student/course-catalog";
 
+export const metadata: Metadata = createMetadata({
+  title: "Papan Peringkat",
+  description: "Peringkat kuis dan tryout per kursus di Zyx Academy.",
+  path: "/leaderboard",
+});
 
-export const metadata: Metadata = {
-  title: pageTitle("Papan Peringkat"),
-  description: "Peringkat kuis per kursus.",
-};
 
 export default async function LeaderboardPage() {
   const session = await auth.api.getSession({ headers: await headers() });

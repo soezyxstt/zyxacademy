@@ -21,7 +21,7 @@ import { EnrollmentForm } from "@/components/enrollment-form";
 import { Reveal } from "@/components/ui/reveal";
 import { Button } from "@/components/ui/button";
 import { getCourse } from "@/lib/course-utils";
-import { pageTitle } from "@/lib/site";
+import { createMetadata, pageTitle } from "@/lib/site";
 import {
   getStudentIdeaMasteryReadModel,
   type StudentIdeaMasteryReadModel,
@@ -32,13 +32,15 @@ type Props = { params: Promise<{ id: string }> };
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params;
   const course = await getCourse(id);
-  return {
-    title: pageTitle(course ? `Peta Penguasaan - ${course.title}` : "Peta Penguasaan"),
+  return createMetadata({
+    title: course ? `Peta Penguasaan ${course.title}` : "Peta Penguasaan",
     description: course
       ? `Visualisasi penguasaan konsep dan topik ${course.title}; lihat progres belajarmu.`
       : "Visualisasi penguasaan konsep dan topik; lihat progres belajarmu.",
-  };
+    path: `/courses/${id}/mastery`,
+  });
 }
+
 
 async function getLegacyMasteryReadModel(
   studentId: string,

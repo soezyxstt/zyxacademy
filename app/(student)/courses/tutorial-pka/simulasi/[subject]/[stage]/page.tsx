@@ -5,7 +5,7 @@ import { ArrowLeft, CheckCircle2, XCircle, AlertTriangle } from "lucide-react";
 import { and, desc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { pkaSimulationStages, quizTemplates, studentQuizAttempts } from "@/db/schema";
-import { pageTitle } from "@/lib/site";
+import { createMetadata, pageTitle } from "@/lib/site";
 import { cn } from "@/lib/utils";
 import { PKA_SUBJECTS, PKA_SUBJECT_LABELS, type PkaSubject } from "@/lib/pka-config";
 import { getSubjectStageState, recordPkaStageResult } from "@/lib/pka-simulation";
@@ -38,8 +38,13 @@ function stagePath(subject: string, stage: number | string) {
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { subject, stage } = await params;
   const label = isPkaSubject(subject) ? PKA_SUBJECT_LABELS[subject] : "PKA";
-  return { title: pageTitle(`${label} - Stage ${stage}`) };
+  return createMetadata({
+    title: `Simulasi ${label}: Tahap ${stage}`,
+    description: `Simulasi ujian pemetaan ${label} tahap ${stage}.`,
+    path: `/courses/tutorial-pka/simulasi/${subject}/${stage}`,
+  });
 }
+
 
 export default async function PkaStagePage({ params, searchParams }: Props) {
   const { subject, stage: stageParam } = await params;

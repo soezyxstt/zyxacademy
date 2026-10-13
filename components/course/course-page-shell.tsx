@@ -11,7 +11,6 @@ export type CoursePageShellProps = {
   description?: ReactNode;
   icon?: ComponentType<{ className?: string }>;
   actions?: ReactNode;
-  eyebrow?: ReactNode;
   headingTier?: "primary" | "secondary";
   backHref?: string;
   backLabel?: string;

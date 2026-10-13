@@ -6,7 +6,7 @@ import { CoursePageShell } from "@/components/course/course-page-shell";
 import { QuizPlayer } from "@/components/course/quiz-player";
 import { EnrollmentForm } from "@/components/enrollment-form";
 import { Reveal } from "@/components/ui/reveal";
-import { pageTitle } from "@/lib/site";
+import { createMetadata, pageTitle } from "@/lib/site";
 import { db } from "@/db";
 import { quizTemplates, studentQuizAttempts, aiQuestionBank, knowledgeObjects, chapters } from "@/db/schema";
 import { auth } from "@/lib/auth";
@@ -46,13 +46,18 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
         .limit(1)
     : [];
 
-  return {
-    title: pageTitle(course && template ? `${course.title} - ${template.title}` : "Kuis"),
-    description: course && template
-      ? `Kerjakan kuis ${template.title}; bagian dari ${course.title}.`
-      : "Kerjakan kuis interaktif untuk mengukur pemahaman.",
-  };
+  const title = course && template ? `${template.title} (${course.title})` : template ? template.title : "Kuis";
+  const description = course && template
+    ? `Kerjakan kuis ${template.title}; bagian dari ${course.title}.`
+    : "Kerjakan kuis interaktif untuk mengukur pemahaman materi.";
+
+  return createMetadata({
+    title,
+    description,
+    path: `/courses/${id}/quiz/${quizId}`,
+  });
 }
+
 
 /**
  * Formats a duration in seconds into human-readable Indonesian minutes and seconds.
@@ -573,13 +578,6 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
 
     return (
       <CoursePageShell
-        eyebrow={
-          <div className="flex items-center gap-1.5 text-body-xs text-muted-foreground uppercase tracking-widest">
-            <Link href={`/courses/${id}/quiz`} className="hover:text-primary transition-colors">Kuis</Link>
-            <ChevronRight className="size-3" />
-            <span className="truncate max-w-[200px]">{template.title}</span>
-          </div>
-        }
         title={targetAttempt ? "Analisis Jawaban & Pembahasan" : "Pembahasan Kuis"}
         description={template.title}
         hideHeader
@@ -1017,13 +1015,6 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
 
   return (
     <CoursePageShell
-      eyebrow={
-        <div className="flex items-center gap-1.5 text-body-xs text-muted-foreground uppercase tracking-widest">
-          <Link href={`/courses/${id}/quiz`} className="hover:text-primary transition-colors">Kuis</Link>
-          <ChevronRight className="size-3" />
-          <span className="truncate max-w-[200px]">{template.title}</span>
-        </div>
-      }
       title={template.title}
       description={`${course.title} · Kuis Evaluasi`}
       hideHeader

@@ -6,7 +6,9 @@ import { CoursePageShell } from "@/components/course/course-page-shell";
 import { TryoutForm } from "@/components/course/tryout-form";
 import { EnrollmentForm } from "@/components/enrollment-form";
 import { Reveal } from "@/components/ui/reveal";
-import { pageTitle } from "@/lib/site";
+import { createMetadata, pageTitle } from "@/lib/site";
+
+
 // Fixture imports removed
 import { getCourse } from "@/lib/course-utils";
 import { db } from "@/db";
@@ -75,13 +77,15 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const [dbExam] = await db.select({ title: exams.title }).from(exams).where(eq(exams.id, tryoutId)).limit(1);
   if (dbExam) examTitle = dbExam.title;
 
-  return {
-    title: pageTitle(course ? `${course.title} - ${examTitle}` : "Tryout"),
+  return createMetadata({
+    title: course ? `${examTitle} (${course.title})` : examTitle,
     description: course
       ? `Kerjakan ${examTitle}; simulasi ujian ${course.title}.`
       : `Kerjakan ${examTitle}; simulasi ujian.`,
-  };
+    path: `/courses/${id}/tryout/${tryoutId}`,
+  });
 }
+
 
 export default async function CourseTryoutTakePage({ params }: Props) {
   const { id, tryoutId } = await params;

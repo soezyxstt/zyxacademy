@@ -304,10 +304,7 @@ export function LandingLearningLoop() {
  aria-labelledby="landing-loop-heading"
  >
  <div className="mx-auto max-w-2xl text-center">
- <p className="text-body-xs font-semibold uppercase tracking-[0.2em] text-[var(--zx-accent)]">
- Satu lingkaran belajar
- </p>
-  <SectionHeading as="h2" id="landing-loop-heading" className="mt-3 text-foreground">
+  <SectionHeading as="h2" id="landing-loop-heading" className="text-foreground">
   Belajar dari apa yang perlu kamu kuasai.
   </SectionHeading>
   </div>

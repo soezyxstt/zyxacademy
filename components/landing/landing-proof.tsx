@@ -18,10 +18,7 @@ export function LandingProof() {
     >
       <div className="grid items-center gap-8 lg:grid-cols-[0.9fr_1.1fr] lg:gap-16">
         <div className="max-w-xl">
-          <p className="text-body-xs font-semibold uppercase tracking-[0.2em] text-[var(--zx-accent)]">
-            Bukti pendampingan tutor
-          </p>
-          <SectionHeading id="landing-proof-heading" className="mt-3 text-foreground">
+          <SectionHeading id="landing-proof-heading" className="text-foreground">
             Ruang belajar yang membuatmu berani bertanya.
           </SectionHeading>
           <p className="mt-4 text-body-base text-muted-foreground">

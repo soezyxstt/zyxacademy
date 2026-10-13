@@ -31,10 +31,7 @@ export function LandingHero() {
     >
       <div className="landing-stagger grid items-center gap-10 lg:grid-cols-2 lg:gap-14 xl:gap-20 [&>*]:[animation-delay:120ms]">
         <div className="max-w-xl text-left [&>*:nth-child(1)]:[animation-delay:0ms] [&>*:nth-child(2)]:[animation-delay:60ms] [&>*:nth-child(3)]:[animation-delay:120ms] [&>*:nth-child(4)]:[animation-delay:180ms] [&>*:nth-child(5)]:[animation-delay:240ms]">
-          <p className="text-body-xs font-semibold uppercase tracking-[0.2em] text-[var(--zx-accent)]">
-            Untuk mahasiswa ITB · TPB &amp; jurusan
-          </p>
-          <SectionHeading as="h1" tier="hero" id="landing-hero-heading" className="mt-3 text-foreground">
+          <SectionHeading as="h1" tier="hero" id="landing-hero-heading" className="text-foreground">
             Pahami materi kuliah ITB,{" "}
             <span className="font-bold italic text-primary">dengan arah yang jelas.</span>
           </SectionHeading>

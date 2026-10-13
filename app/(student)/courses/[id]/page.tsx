@@ -7,7 +7,7 @@ import { CoursePrimaryActions } from "@/components/course/course-primary-actions
 import { CourseAttentionStrip } from "@/components/course/course-attention-strip";
 import { EnrollmentForm } from "@/components/enrollment-form";
 import { Reveal } from "@/components/ui/reveal";
-import { pageTitle } from "@/lib/site";
+import { createMetadata, pageTitle } from "@/lib/site";
 import { getCourse, getCourseChapterOutline, getStudentCourseAccess } from "@/lib/course-utils";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
@@ -19,11 +19,13 @@ type Props = { params: Promise<{ id: string }> };
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params;
   const course = await getCourse(id);
-  return {
-    title: pageTitle(course ? course.title : "Kelas"),
-    description: course?.description ?? "Ringkasan kelas",
-  };
+  return createMetadata({
+    title: course ? course.title : "Kelas",
+    description: course?.description ?? "Ringkasan kelas, materi terstruktur, dan latihan soal.",
+    path: `/courses/${id}`,
+  });
 }
+
 
 export default async function CourseOverviewPage({ params }: Props) {
   const { id } = await params;

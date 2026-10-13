@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { redirect, notFound } from "next/navigation";
 import { Video as VideoIcon } from "lucide-react";
 import { CoursePageShell } from "@/components/course/course-page-shell";
-import { pageTitle } from "@/lib/site";
+import { createMetadata, pageTitle } from "@/lib/site";
 import { getCourseVideosData } from "@/app/actions/video-actions";
 import { CourseVideosClient } from "@/components/course/video/course-videos-client";
 import { auth } from "@/lib/auth";
@@ -25,11 +25,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const identity = await resolveCourseIdentity(id);
   const title = identity?.title || "Video";
 
-  return {
-    title: pageTitle(`${title} - Video`),
+  return createMetadata({
+    title: `Video Pembelajaran ${title}`,
     description: `Playlist dan video pembelajaran untuk ${title}.`,
-  };
+    path: `/courses/${id}/video`,
+  });
 }
+
 
 /**
  * Student course video page rendering playlists and videos for enrolled learners.

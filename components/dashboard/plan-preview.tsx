@@ -8,10 +8,7 @@ export function DashboardPlanPreview() {
     <section className="mt-10 border-t border-border pt-8 text-left" aria-labelledby="dashboard-plan-title">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="text-body-xs font-semibold uppercase tracking-wide text-brand-primary">
-            Pilihan paket
-          </p>
-          <h3 id="dashboard-plan-title" className="mt-1 font-heading text-body-base font-semibold text-foreground">
+          <h3 id="dashboard-plan-title" className="font-heading text-body-base font-semibold text-foreground">
             Pilih dukungan belajar yang cocok
           </h3>
         </div>
