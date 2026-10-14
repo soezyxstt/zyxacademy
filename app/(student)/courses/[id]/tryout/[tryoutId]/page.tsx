@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { Lock } from "lucide-react";
+import { Lock, ArrowLeft } from "lucide-react";
 import { checkEnrollment } from "@/app/(student)/dashboard/actions";
 import { CoursePageShell } from "@/components/course/course-page-shell";
 import { TryoutForm } from "@/components/course/tryout-form";
@@ -185,6 +185,14 @@ export default async function CourseTryoutTakePage({ params }: Props) {
   if (!isEnrolled) {
     return (
       <CoursePageShell title="Tryout terkunci" description={`${course.title}, tryout premium`} hideHeader>
+        <div className="mb-4">
+          <Button variant="ghost" size="sm" asChild className="gap-1.5 text-body-xs font-semibold text-muted-foreground hover:text-foreground">
+            <Link href={`/courses/${id}/tryout`}>
+              <ArrowLeft className="size-3.5" />
+              <span>Kembali ke Daftar Tryout</span>
+            </Link>
+          </Button>
+        </div>
         <Reveal>
           <div className="rounded-lg border border-border/70 bg-card/75 p-4 backdrop-blur-sm">
             <div className="flex items-start gap-3">

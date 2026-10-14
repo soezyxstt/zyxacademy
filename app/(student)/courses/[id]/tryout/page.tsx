@@ -3,14 +3,17 @@ import type { Metadata } from "next";
 import { GraduationCap } from "lucide-react";
 import { CoursePageShell } from "@/components/course/course-page-shell";
 import { pageTitle } from "@/lib/site";
-// Fixture imports removed
 import { getCourse } from "@/lib/course-utils";
 import { checkEnrollment } from "@/app/(student)/dashboard/actions";
 import { TryoutListClient } from "./tryout-list-client";
+import { EnrollmentForm } from "@/components/enrollment-form";
 import { Reveal } from "@/components/ui/reveal";
 import { db } from "@/db";
 import { exams, questions } from "@/db/schema";
 import { and, count, eq, inArray } from "drizzle-orm";
+import { auth } from "@/lib/auth";
+import { headers } from "next/headers";
+import { redirect } from "next/navigation";
 
 type Props = { params: Promise<{ id: string }> };
 
@@ -30,13 +33,22 @@ export default async function CourseTryoutListPage({ params }: Props) {
   const course = await getCourse(id);
   if (!course) return null;
 
+  const session = await auth.api.getSession({ headers: await headers() });
+  const studentId = session?.user?.id;
+  if (!studentId) {
+    redirect(`/sign-in?next=${encodeURIComponent(`/courses/${id}/tryout`)}`);
+  }
+
   const isEnrolled = await checkEnrollment(id);
 
   // Retrieve db tryouts
+  const compatibilityCourseId = course.legacyId ?? id;
+  const courseIds = [...new Set([course.id, course.canonicalId, compatibilityCourseId].filter(Boolean))] as string[];
+
   const dbTryouts = await db
     .select()
     .from(exams)
-    .where(and(eq(exams.courseId, course.legacyId ?? id), eq(exams.type, "tryout"), eq(exams.status, "published")));
+    .where(and(inArray(exams.courseId, courseIds), eq(exams.type, "tryout"), eq(exams.status, "published")));
 
   const questionCounts = dbTryouts.length
     ? await db
@@ -72,6 +84,21 @@ export default async function CourseTryoutListPage({ params }: Props) {
       icon={GraduationCap}
     >
       <Reveal>
+        {!isEnrolled && (
+          <div className="mb-6 rounded-lg border border-brand-secondary/25 bg-brand-secondary/5 p-4">
+            <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(280px,420px)] md:items-center">
+              <div>
+                <h3 className="font-heading text-body-base font-bold text-brand-secondary">
+                  Aktivasi token kelas
+                </h3>
+                <p className="mt-1 max-w-2xl text-body-sm text-muted-foreground">
+                  Tryout ujian resmi hanya dapat diakses oleh siswa terdaftar. Masukkan token kelas untuk membuka seluruh tryout ujian, materi, dan fitur lengkap.
+                </p>
+              </div>
+              <EnrollmentForm className="w-full" />
+            </div>
+          </div>
+        )}
         <TryoutListClient courseId={id} isEnrolled={isEnrolled} tryouts={allTryouts} />
       </Reveal>
     </CoursePageShell>

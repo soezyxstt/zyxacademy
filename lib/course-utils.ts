@@ -463,6 +463,8 @@ export type ChapterOutlineItem = {
   id: string;
   title: string;
   orderIndex: number;
+  canonicalId?: string | null;
+  legacyChapterId?: string | null;
   materialId: string | null;
   hasMaterial: boolean;
   completed: boolean;
@@ -575,6 +577,8 @@ export async function getCourseChapterOutline(
         id: c.id,
         title: c.title,
         orderIndex: c.orderIndex,
+        canonicalId: c.canonicalId,
+        legacyChapterId: legacyChapterId ?? null,
         materialId,
         hasMaterial: true,
         completed,
@@ -589,6 +593,8 @@ export async function getCourseChapterOutline(
       id: c.id,
       title: c.title,
       orderIndex: c.orderIndex,
+      canonicalId: c.canonicalId,
+      legacyChapterId: legacyChapterId ?? null,
       materialId,
       hasMaterial: Boolean(materialId),
       completed,
@@ -882,12 +888,7 @@ export async function getStudentVisibleCourseQuizzes(courseId: string, studentId
       )
     )
     .orderBy(desc(quizTemplates.createdAt));
-  const sortedTemplates = await sortQuizTemplatesByChapter(templates, courseId);
-  if (!studentId) return sortedTemplates;
-  const access = await getStudentCourseAccess(studentId, courseId);
-  if (!access) return [];
-  if (access.tier !== "free") return sortedTemplates;
-  return sortedTemplates.filter((template) => isFreeQuizTemplate(template, access.freeChapterIds));
+  return sortQuizTemplatesByChapter(templates, courseId);
 }
 
 export async function getCourseQuizzes(courseId: string, studentId?: string) {
@@ -926,10 +927,6 @@ export async function getCourseQuizzes(courseId: string, studentId?: string) {
 }
 
 export async function getCourseTryouts(courseId: string, studentId?: string) {
-  if (studentId) {
-    const access = await getStudentCourseAccess(studentId, courseId);
-    if (!access || access.tier === "free") return [];
-  }
   const course = await resolveStudentCourse(courseId);
   const compatibilityCourseId = course?.legacyId ?? courseId;
   const dbTryouts = await db
