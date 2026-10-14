@@ -350,34 +350,34 @@ export default async function AdminHomePage() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 items-start">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8 items-start">
         {[
           categories.filter((c) => ["Akademik & Konten", "Evaluasi & Asesmen", "Akses & Keanggotaan"].includes(c.name)),
           categories.filter((c) => c.name === "Alat & Komunikasi"),
           categories.filter((c) => c.name === "Sistem & Operasional"),
         ].map((group, colIdx) => (
-          <div key={colIdx} className="space-y-6">
+          <div key={colIdx} className="space-y-8">
             {group.map((category) => (
-              <section key={category.name} className="space-y-2.5">
-                <div className="flex items-center justify-between gap-4 px-0.5">
+              <section key={category.name} className="space-y-1">
+                <div className="flex items-center justify-between gap-4 border-b border-border/50 pb-2">
                   <h2 className="font-heading text-body-base font-bold text-foreground">
                     {category.name}
                   </h2>
-                  <span className="text-body-xs font-semibold text-muted-foreground">
+                  <span className="text-body-2xs font-semibold uppercase tracking-wider text-muted-foreground">
                     {category.items.length} area
                   </span>
                 </div>
 
-                <div className="overflow-hidden rounded-xl border border-border/70 bg-card/60 backdrop-blur-md divide-y divide-border/40 shadow-2xs">
+                <div className="divide-y divide-border/30">
                   {category.items.map((item) => (
                     <Link
                       key={item.href}
                       href={item.href}
-                      className="group flex items-center justify-between gap-3 px-3.5 py-2.5 transition-colors hover:bg-muted/50"
+                      className="group flex items-center justify-between gap-3 px-2 py-2.5 rounded-lg transition-colors hover:bg-muted/50 -mx-1"
                     >
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-muted/60 text-muted-foreground transition-colors group-hover:bg-brand-primary/10">
-                          <item.icon className={`size-4 ${item.iconColor}`} aria-hidden />
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="flex size-7.5 shrink-0 items-center justify-center rounded-lg bg-muted/60 text-muted-foreground transition-colors group-hover:bg-brand-primary/10">
+                          <item.icon className={`size-3.5 ${item.iconColor}`} aria-hidden />
                         </div>
                         <div className="min-w-0">
                           <span className="font-heading text-body-sm font-semibold text-foreground group-hover:text-brand-primary transition-colors truncate block">
