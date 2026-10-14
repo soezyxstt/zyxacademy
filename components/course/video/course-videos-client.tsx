@@ -57,6 +57,7 @@ import {
 import { PlaylistDialog } from "./playlist-dialog";
 import { AdminVideoDialog } from "./admin-video-dialog";
 import { VideoPlayerModal } from "./video-player-modal";
+import { getYouTubeThumbnailUrl } from "@/lib/video/youtube";
 import { cn } from "@/lib/utils";
 
 type ChapterOption = {
@@ -234,7 +235,7 @@ export function CourseVideosClient({
   return (
     <div className="space-y-4 font-sans">
       {/* Responsive Inline Filter Toolbar */}
-      <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border/60 bg-card p-3 shadow-2xs">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-1 flex-wrap items-center gap-2 min-w-[240px]">
           {/* Search Bar */}
           <div className="relative min-w-[140px] flex-1 max-w-sm">
@@ -433,126 +434,105 @@ export function CourseVideosClient({
                       )}
                     </div>
                   ) : (
-                    <div className="grid grid-cols-1 gap-3 border-t border-border/35 bg-muted/10 p-3 sm:grid-cols-2 lg:grid-cols-3">
+                    <div className="divide-y divide-border/40 border-t border-border/40 bg-card/30">
                       {playlist.videos.map((video) => {
                         const isLocked = !canManage && !isEnrolled && (video.locked ?? true);
+                        const thumbnail = video.thumbnailUrl || getYouTubeThumbnailUrl(video.videoUrl);
                         return (
                           <div
                             key={video.id}
                             className={cn(
-                              "group relative flex flex-col justify-between overflow-hidden rounded-xl border border-border/60 bg-card p-2.5 shadow-2xs transition-all hover:border-brand-primary/40 hover:shadow-xs",
-                              isLocked && "hover:border-amber-500/40"
+                              "group flex items-center justify-between gap-3 px-3.5 py-2.5 transition-colors hover:bg-muted/40",
+                              isLocked ? "opacity-90 cursor-pointer" : "cursor-pointer"
                             )}
+                            onClick={() => handlePlayVideo(video, playlist)}
                           >
-                            {/* Thumbnail Container */}
-                            <div
-                              onClick={() => handlePlayVideo(video, playlist)}
-                              className="relative aspect-video w-full cursor-pointer overflow-hidden rounded-lg bg-black/5"
-                            >
-                              {video.thumbnailUrl ? (
-                                <img
-                                  src={video.thumbnailUrl}
-                                  alt={video.title}
-                                  className={cn(
-                                    "h-full w-full object-cover transition-transform duration-200 group-hover:scale-102",
-                                    isLocked && "opacity-90"
-                                  )}
-                                />
-                              ) : (
-                                <div className="flex h-full w-full items-center justify-center bg-muted/40 text-muted-foreground">
-                                  <VideoIcon className="size-8 opacity-40" />
-                                </div>
-                              )}
-
-                              {/* Lock Indicator on Thumbnail */}
-                              {isLocked && (
-                                <div className="absolute top-2 right-2 flex size-6 items-center justify-center rounded-md border border-amber-500/30 bg-background/90 text-amber-600 shadow-xs backdrop-blur-xs dark:text-amber-400">
-                                  <Lock className="size-3.5" />
-                                </div>
-                              )}
-
-                              {/* Hover Overlay */}
-                              <div className="absolute inset-0 flex items-center justify-center bg-black/25 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
-                                {isLocked ? (
-                                  <div className="flex items-center gap-1.5 rounded-full bg-background/95 px-3 py-1.5 text-body-xs font-semibold text-amber-600 shadow-md backdrop-blur-xs dark:text-amber-400">
-                                    <Lock className="size-3.5" />
-                                    <span>Buka Akses</span>
-                                  </div>
+                            <div className="flex items-center gap-3 min-w-0 flex-1">
+                              {/* Landscape Video Thumbnail */}
+                              <div className="relative w-28 sm:w-36 aspect-video shrink-0 overflow-hidden rounded-lg border border-border/60 bg-muted/20">
+                                {thumbnail ? (
+                                  <img
+                                    src={thumbnail}
+                                    alt={video.title}
+                                    className="size-full object-cover transition-transform group-hover:scale-105 duration-200"
+                                  />
                                 ) : (
-                                  <div className="flex size-10 items-center justify-center rounded-full bg-brand-primary text-white shadow-md">
-                                    <Play className="size-5 fill-white ml-0.5" />
+                                  <div className="flex size-full flex-col items-center justify-center bg-gradient-to-br from-muted/50 to-muted/20">
+                                    <VideoIcon className="size-5 text-muted-foreground/60" />
                                   </div>
                                 )}
+                                <div className="absolute inset-0 flex items-center justify-center bg-black/25 group-hover:bg-black/40 transition-colors">
+                                  {isLocked ? (
+                                    <div className="rounded-full bg-black/60 p-1.5 backdrop-blur-xs">
+                                      <Lock className="size-3 text-amber-400" />
+                                    </div>
+                                  ) : (
+                                    <div className="rounded-full bg-black/60 p-1.5 backdrop-blur-xs group-hover:scale-110 transition-transform">
+                                      <Play className="size-3 fill-white text-white ml-0.5" />
+                                    </div>
+                                  )}
+                                </div>
+                                {video.duration && video.duration > 0 ? (
+                                  <div className="absolute bottom-1 right-1 rounded bg-black/75 px-1 py-0.5 text-[10px] font-medium text-white tabular-nums leading-none">
+                                    {Math.floor(video.duration / 60)}:
+                                    {String(video.duration % 60).padStart(2, "0")}
+                                  </div>
+                                ) : null}
                               </div>
 
-                              {/* Duration Badge */}
-                              {video.duration && video.duration > 0 && (
-                                <span className="absolute bottom-1.5 right-1.5 rounded-md bg-black/75 px-1.5 py-0.5 text-[10px] font-medium text-white tabular-nums">
-                                  {Math.floor(video.duration / 60)}:
-                                  {String(video.duration % 60).padStart(2, "0")}
-                                </span>
-                              )}
-                            </div>
-
-                            {/* Card Content */}
-                            <div className="mt-2.5 flex-1 space-y-1">
-                              {/* Chapter & Lock Badges */}
-                              <div className="flex flex-wrap items-center gap-1.5">
-                                {video.chapterTitle && (
-                                  <Badge
-                                    variant="outline"
-                                    className="rounded-md text-[10px] px-1.5 py-0 font-normal border-border/80 text-muted-foreground"
+                              {/* Center Title and Combined Sub-line */}
+                              <div className="min-w-0 flex-1">
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  <h4
+                                    className={cn(
+                                      "text-body-sm font-semibold truncate text-foreground transition-colors",
+                                      isLocked
+                                        ? "group-hover:text-amber-600 dark:group-hover:text-amber-400"
+                                        : "group-hover:text-brand-primary"
+                                    )}
+                                    title={video.title}
                                   >
-                                    {video.chapterTitle}
-                                  </Badge>
-                                )}
-                                {isLocked && (
-                                  <span className="inline-flex shrink-0 items-center gap-1 rounded-md bg-amber-500/10 px-1.5 py-0.5 text-body-2xs font-semibold text-amber-600 dark:text-amber-400 ring-1 ring-amber-500/20">
-                                    <Lock className="size-3" />
-                                    Terkunci
-                                  </span>
-                                )}
+                                    {video.title}
+                                  </h4>
+                                  {isLocked && (
+                                    <span className="inline-flex shrink-0 items-center gap-1 rounded-md bg-amber-500/10 px-1.5 py-0.5 text-body-2xs font-semibold text-amber-600 dark:text-amber-400 ring-1 ring-amber-500/20">
+                                      <Lock className="size-2.5" />
+                                      Terkunci
+                                    </span>
+                                  )}
+                                </div>
+                                <p className="mt-1 flex items-center gap-1.5 text-body-xs text-muted-foreground flex-wrap">
+                                  {video.chapterTitle && (
+                                    <span className="rounded bg-muted/60 px-1.5 py-0.5 text-body-2xs font-medium text-foreground/80">
+                                      {video.chapterTitle}
+                                    </span>
+                                  )}
+                                  {video.chapterTitle && (video.fileSize || video.videoUrl) && (
+                                    <span>·</span>
+                                  )}
+                                  {isLocked ? (
+                                    <span className="text-amber-600 dark:text-amber-400 font-medium">Perlu akses kelas</span>
+                                  ) : video.videoUrl.includes("youtube") || video.videoUrl.includes("youtu.be") ? (
+                                    <span className="inline-flex items-center gap-1 text-red-600 dark:text-red-400 font-medium">
+                                      <FaYoutube className="size-3" />
+                                      YouTube
+                                    </span>
+                                  ) : video.fileSize ? (
+                                    <span>{(video.fileSize / (1024 * 1024)).toFixed(1)} MB</span>
+                                  ) : null}
+                                </p>
                               </div>
-
-                              <h4
-                                onClick={() => handlePlayVideo(video, playlist)}
-                                className={cn(
-                                  "cursor-pointer line-clamp-2 font-heading text-body-sm font-semibold text-foreground transition-colors",
-                                  isLocked ? "group-hover:text-amber-600 dark:group-hover:text-amber-400" : "group-hover:text-brand-primary"
-                                )}
-                                title={video.title}
-                              >
-                                {video.title}
-                              </h4>
                             </div>
 
-                            {/* Card Footer: Metadata and Actions */}
-                            <div className="mt-2 flex items-center justify-between border-t border-border/30 pt-2 text-body-xs text-muted-foreground">
-                              {isLocked ? (
-                                <span className="inline-flex items-center gap-1 text-[11px] font-medium text-amber-600 dark:text-amber-400">
-                                  <Lock className="size-3" />
-                                  <span>Perlu Akses Kelas</span>
-                                </span>
-                              ) : video.videoUrl.includes("youtube") || video.videoUrl.includes("youtu.be") ? (
-                                <span className="inline-flex items-center gap-1 text-[11px] font-medium text-red-600 dark:text-red-400">
-                                  <FaYoutube className="size-3" />
-                                  <span>YouTube</span>
-                                </span>
-                              ) : (
-                                <span className="text-[11px]">
-                                  {video.fileSize
-                                    ? `${(video.fileSize / (1024 * 1024)).toFixed(1)} MB`
-                                    : "Video"}
-                                </span>
-                              )}
-
+                            {/* Right Action / Dropdown */}
+                            <div className="flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
                               {canManage && (
                                 <DropdownMenu>
                                   <DropdownMenuTrigger asChild>
                                     <Button
                                       variant="ghost"
                                       size="sm"
-                                      className="size-6 p-0 text-muted-foreground hover:text-foreground rounded-md"
+                                      className="size-7 p-0 text-muted-foreground hover:text-foreground rounded-md"
                                     >
                                       <MoreVertical className="size-3.5" />
                                       <span className="sr-only">Menu Video</span>

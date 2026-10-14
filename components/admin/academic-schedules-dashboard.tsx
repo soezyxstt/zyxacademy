@@ -156,7 +156,7 @@ export function AcademicSchedulesDashboard({ initialData, initialWeekOffset = 0 
   const [deleteSlotReason, setDeleteSlotReason] = useState("");
   const [deleteSlotLoading, setDeleteSlotLoading] = useState(false);
 
-  const pendingTickets = data.tickets.filter((ticket: any) => ticket.status === "pending").length;
+  const pendingTickets = (data?.tickets ?? []).filter((ticket: any) => ticket.status === "pending").length;
 
   const handleWeekChange = (offset: number) => {
     setDisplayWeekOffset(offset);
@@ -665,7 +665,7 @@ export function AcademicSchedulesDashboard({ initialData, initialWeekOffset = 0 
           <table className="w-full min-w-3xl text-left text-body-sm">
             <AdminTableHead><tr><th>Jenis & Kelompok</th><th>Mata Kuliah & Tutor</th><th>Alasan</th><th>Status</th><th>Tanggal</th></tr></AdminTableHead>
             <tbody className="divide-y divide-border">
-              {data.tickets.length === 0 ? <tr><td colSpan={5}><AdminEmptyState compact title="Belum ada permohonan reschedule atau pembatalan." /></td></tr> : data.tickets.map((ticket: any) => (
+              {(data?.tickets ?? []).length === 0 ? <tr><td colSpan={5}><AdminEmptyState compact title="Belum ada permohonan reschedule atau pembatalan." /></td></tr> : (data?.tickets ?? []).map((ticket: any) => (
                 <tr key={ticket.id} className="align-top hover:bg-muted/30">
                   <td className="px-4 py-3"><p className="font-semibold capitalize text-foreground">Permohonan {ticket.type}</p><p className="text-body-xs text-muted-foreground">{ticket.booking?.group?.name}</p></td>
                   <td className="px-4 py-3 text-body-xs"><p>{ticket.booking?.course?.title}</p><p className="text-muted-foreground">Tutor: {ticket.tutor?.name}</p></td>
@@ -684,7 +684,7 @@ export function AcademicSchedulesDashboard({ initialData, initialWeekOffset = 0 
           <table className="w-full min-w-3xl text-left text-body-sm">
             <AdminTableHead><tr><th>Aktivitas</th><th>Kelompok & Kelas</th><th>Pelaku</th><th>Waktu</th></tr></AdminTableHead>
             <tbody className="divide-y divide-border">
-              {data.auditLogs.length === 0 ? <tr><td colSpan={4}><AdminEmptyState compact title="Belum ada riwayat aktivitas." /></td></tr> : data.auditLogs.map((log: any) => (
+              {(data?.auditLogs ?? []).length === 0 ? <tr><td colSpan={4}><AdminEmptyState compact title="Belum ada riwayat aktivitas." /></td></tr> : (data?.auditLogs ?? []).map((log: any) => (
                 <tr key={log.id} className="hover:bg-muted/30"><td className="max-w-lg whitespace-pre-wrap break-words px-4 py-3 text-body-xs font-semibold">{log.summary}</td><td className="px-4 py-3 text-body-xs"><p>{log.booking?.group?.name}</p><p className="text-muted-foreground">{log.booking?.course?.title}</p></td><td className="px-4 py-3 text-body-xs text-muted-foreground">{log.actor?.name || "Sistem"}</td><td className="whitespace-nowrap px-4 py-3 text-body-xs text-muted-foreground">{formatIsoDate(new Date(log.createdAt))}</td></tr>
               ))}
             </tbody>

@@ -97,6 +97,24 @@ const emptyFilters = (): DocumentFilterState => ({
   years: new Set(),
 });
 
+function parseMaterialTitle(rawTitle: string, courseTitle?: string) {
+  let cleaned = rawTitle.trim();
+  if (courseTitle && cleaned.toLowerCase().startsWith(courseTitle.toLowerCase())) {
+    cleaned = cleaned.slice(courseTitle.length).replace(/^[\s:,-]+/, "").trim();
+  }
+  const babMatch = cleaned.match(/^(Bab\s+\d+)[:\s,-]+(.*)$/i);
+  if (babMatch) {
+    return {
+      babBadge: babMatch[1],
+      title: babMatch[2].trim() || cleaned,
+    };
+  }
+  return {
+    babBadge: null,
+    title: cleaned,
+  };
+}
+
 function normalizeTabKey(tab?: string | null): TabKey {
   if (tab === "diktat") return "diktat";
   if (tab === "pdf") return "pdf";
@@ -278,6 +296,32 @@ function DocumentPreview({ material }: { material: CourseMaterial }) {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function CompactDocumentRowThumbnail({ material }: { material: CourseMaterial }) {
+  const baseThumbnailUrl = material.thumbnailUrl ?? "";
+  if (!baseThumbnailUrl) {
+    return (
+      <div className="flex size-full items-center justify-center bg-muted/40 text-muted-foreground">
+        <DocumentHeaderIcon
+          kind={material.kind}
+          docCategory={material.docCategory}
+          subcategory={material.subcategory}
+        />
+      </div>
+    );
+  }
+  return (
+    <div className="relative size-full overflow-hidden bg-white dark:bg-zinc-900">
+      <Image
+        src={baseThumbnailUrl}
+        alt={material.title}
+        fill
+        sizes="64px"
+        className="object-contain object-center"
+      />
     </div>
   );
 }
@@ -664,6 +708,7 @@ export function DocumentListClient({
               material.subcategory
                 ? getSubcategoryLabel(material.subcategory as any) ?? material.subcategory
                 : categoryLabel[material.docCategory ?? "materi"];
+            const { babBadge, title: cleanTitle } = parseMaterialTitle(material.title, courseTitle);
 
             return (
               <DocumentItemWrapper
@@ -682,12 +727,19 @@ export function DocumentListClient({
                     subcategory={material.subcategory}
                   />
                   <div className="min-w-0 flex-1">
-                    <p
-                      className="truncate text-body-sm font-medium text-foreground group-hover:text-primary leading-tight"
-                      title={material.title}
-                    >
-                      {material.title}
-                    </p>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      {babBadge && (
+                        <span className="shrink-0 rounded-md bg-muted px-1.5 py-0.5 text-body-2xs font-semibold text-foreground/80 ring-1 ring-border">
+                          {babBadge}
+                        </span>
+                      )}
+                      <p
+                        className="truncate text-body-sm font-medium text-foreground group-hover:text-primary leading-tight"
+                        title={material.title}
+                      >
+                        {cleanTitle}
+                      </p>
+                    </div>
                     <p className="mt-0.5 truncate text-body-xs text-muted-foreground leading-none">
                       {subLabel}
                       {material.year ? ` · ${material.year}` : ""}
@@ -816,7 +868,7 @@ export function DocumentListClient({
           })}
         </div>
       ) : (
-        /* List View Mode */
+        /* List View Mode with Compact Thumbnails */
         <ul className="divide-y divide-border/50 rounded-xl border border-border/50 bg-card overflow-hidden">
           {filteredMaterials.map((material) => {
             const itemHref = material.href ?? `/courses/${courseId}/material/${material.id}`;
@@ -825,6 +877,7 @@ export function DocumentListClient({
               material.subcategory
                 ? getSubcategoryLabel(material.subcategory as any) ?? material.subcategory
                 : categoryLabel[material.docCategory ?? "materi"];
+            const { babBadge, title: cleanTitle } = parseMaterialTitle(material.title, courseTitle);
 
             return (
               <li key={material.id}>
@@ -835,18 +888,30 @@ export function DocumentListClient({
                   onSelectPdf={setSelectedPdf}
                   className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-3.5 py-2.5 transition-colors hover:bg-muted/30 md:grid-cols-[minmax(0,1fr)_160px_100px_auto]"
                 >
-                  <div className="flex min-w-0 items-center gap-2.5">
-                    <DocumentHeaderIcon
-                      kind={material.kind}
-                      docCategory={material.docCategory}
-                      subcategory={material.subcategory}
-                    />
-                    <span
-                      className="truncate text-body-sm font-medium leading-snug"
-                      title={material.title}
-                    >
-                      {material.title}
-                    </span>
+                  <div className="flex min-w-0 items-center gap-3">
+                    <div className="relative h-12 w-16 shrink-0 overflow-hidden rounded-md border border-border/60 bg-muted/20">
+                      <CompactDocumentRowThumbnail material={material} />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        {babBadge && (
+                          <span className="shrink-0 rounded-md bg-muted px-1.5 py-0.5 text-body-2xs font-semibold text-foreground/80 ring-1 ring-border">
+                            {babBadge}
+                          </span>
+                        )}
+                        <span
+                          className="truncate text-body-sm font-medium leading-snug"
+                          title={material.title}
+                        >
+                          {cleanTitle}
+                        </span>
+                      </div>
+                      <p className="mt-0.5 truncate text-body-xs text-muted-foreground md:hidden">
+                        {subLabel}
+                        {material.year ? ` · ${material.year}` : ""}
+                        {material.fileSize && !/^diktat(\s+resmi|\s+canonical)?$/i.test(material.fileSize.trim()) ? ` · ${material.fileSize}` : ""}
+                      </p>
+                    </div>
                     {material.locked ? (
                       <span className="inline-flex shrink-0 items-center gap-1 rounded-md bg-amber-500/10 px-1.5 py-0.5 text-body-2xs font-semibold text-amber-600 dark:text-amber-400 ring-1 ring-amber-500/20">
                         <LockKeyhole className="size-2.5" />
