@@ -69,6 +69,7 @@ export async function POST(req: Request) {
       attachmentIds = [],
       pathname,
       requestId,
+      selectionContext = null,
     } = body;
 
     const normalizedCourseId = typeof courseId === "string" ? courseId.trim() : "";
@@ -76,6 +77,16 @@ export async function POST(req: Request) {
     const normalizedConceptId = typeof conceptId === "string" ? conceptId : null;
     const normalizedSessionId = typeof sessionId === "string" ? sessionId : null;
     const normalizedPathname = typeof pathname === "string" ? pathname : null;
+    const sanitizedSelectionContext = selectionContext && typeof selectionContext === "object"
+      ? {
+          snippet: typeof selectionContext.snippet === "string" ? selectionContext.snippet.trim().slice(0, 1200) : undefined,
+          blockType: typeof selectionContext.blockType === "string" ? selectionContext.blockType : undefined,
+          surroundingText: typeof selectionContext.surroundingText === "string" ? selectionContext.surroundingText.trim().slice(0, 2000) : undefined,
+          sectionTitle: typeof selectionContext.sectionTitle === "string" ? selectionContext.sectionTitle.trim().slice(0, 200) : undefined,
+          chapterTitle: typeof selectionContext.chapterTitle === "string" ? selectionContext.chapterTitle.trim().slice(0, 200) : undefined,
+          intent: typeof selectionContext.intent === "string" ? selectionContext.intent : undefined,
+        }
+      : null;
     if (!normalizedCourseId) {
       return new Response(JSON.stringify({ error: "Mata kuliah tidak valid." }), {
         status: 400,
@@ -89,7 +100,7 @@ export async function POST(req: Request) {
       });
     }
 
-    if (!normalizedQuestion && attachmentIds.length === 0) {
+    if (!normalizedQuestion && attachmentIds.length === 0 && !sanitizedSelectionContext?.snippet) {
       return new Response(JSON.stringify({ error: "Pertanyaan atau lampiran tidak boleh kosong." }), {
         status: 400,
         headers: { "Content-Type": "application/json" },
@@ -148,11 +159,12 @@ export async function POST(req: Request) {
           const res = await askTutorRagAction(
             normalizedCourseId,
             normalizedConceptId,
-            normalizedQuestion || "Tolong jelaskan materi sesuai konteks.",
+            normalizedQuestion || (sanitizedSelectionContext?.snippet ? `Jelaskan kutipan: "${sanitizedSelectionContext.snippet}"` : "Tolong jelaskan materi sesuai konteks."),
             normalizedSessionId,
             attachmentIds,
             normalizedPathname,
             idempotencyKey,
+            sanitizedSelectionContext,
           );
 
           if (req.signal.aborted) {
