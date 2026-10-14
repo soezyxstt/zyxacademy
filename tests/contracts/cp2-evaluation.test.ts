@@ -417,11 +417,22 @@ describe("CP2 Quality Policy Evaluation Service", () => {
     expect(issue?.target.targetId).toBe(diktat.id);
   });
 
-  test("rejects publication when ready PDF page count is outside 2 to 4 pages", async () => {
+  test("permits a complete one-page PDF when review and lineage are current", async () => {
+    const article = createValidArticleEntity();
+    const review = createApprovedReview(article);
+    const result = await evaluateProductBundleQualityPolicy([article], {
+      publisherId: review.reviewerId,
+      pedagogicReview: review,
+      pdfEvidence: [{ ...createValidPdfEvidence(article), pageCount: 1 }],
+    });
+    expect(result.publicationReady).toBe(true);
+  });
+
+  test("rejects publication when ready PDF page count is outside 1 to 4 pages", async () => {
     const article = createValidArticleEntity();
     const review = createApprovedReview(article);
 
-    for (const badPageCount of [1, 5]) {
+    for (const badPageCount of [0, 5]) {
       const pdfEvidence: PdfArtifactEvidence[] = [
         {
           ...createValidPdfEvidence(article),

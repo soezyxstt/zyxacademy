@@ -369,7 +369,7 @@ export function evaluateProductBundleQuality(data: { products: readonly ProductE
     const ratioCompatibleMinimum = Math.max(1, Math.floor(articleReport.wordCount * 0.45));
     // Formula-dense review sheets can stay short because display equations
     // carry more visual density than prose. The PDF gate still requires the
-    // later 2-4 page render evidence before publication.
+    // later 1-4 page render evidence before publication.
     const compactFormulaMinimum = metrics.formulas >= 20 ? 450 : 900;
     const minimumWords = Math.min(
       Math.max(compactFormulaMinimum, Math.min(1500, Math.ceil(articleReport.wordCount * 0.12))),

@@ -688,7 +688,7 @@ Revision-bound Product Bundle pedagogic review evidence stored outside the autho
 ### bukti_pdf_bundle
 Revision-bound Diktat PDF renderer evidence stored outside the authored ZIP.
 * `id`, `imporBundleId`, `productId`, Article version and hash, Diktat hash, renderer version, and print profile.
-* `status` is `pending`, `ready`, `failed`, or `stale`; ready rows require a protected `storageKey` and a verified `pageCount` from 2 to 4, while failed rows retain only a safe `failureCode`.
+* `status` is `pending`, `ready`, `failed`, or `stale`; ready rows require a protected `storageKey` and a verified `pageCount` from 1 to 4, while failed rows retain only a safe `failureCode`.
 * One lineage row is selected by import, Diktat product, Diktat hash, and print profile. Newer unrelated or Article-owned rows cannot outrank current Diktat evidence.
 
 ### publikasi_bundle

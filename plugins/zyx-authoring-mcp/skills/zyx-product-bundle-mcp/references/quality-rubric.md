@@ -50,7 +50,7 @@ Periksa profil sesuai isi dan tujuan. Tandai yang tidak berlaku dengan alasan; j
 
 Pemeriksaan author hanya dapat menilai konten dan payload yang ditulis. Jangan menyatakan materi telah diuji pada mahasiswa, divalidasi ahli, memenuhi WCAG, berfungsi di browser, atau dapat diakses pembaca layar tanpa bukti aktual. Catat hal tersebut `NOT_TESTED` bila relevan.
 
-Untuk Diktat PDF, gunakan A4 dengan body font tetap 10.5 pt tanpa auto-shrink. Tujuan editorialnya paling ringkas yang tetap lengkap dan mudah dibaca, maksimal 4 halaman, tanpa target minimum atau filler. Contract saat ini menerima 2 sampai 4 halaman; hasil 1 halaman dapat lulus rubrik isi tetapi tetap `BLOCKED` untuk PDF readiness sampai contract menerima hasil tersebut. Jangan menurunkan ukuran teks untuk mencapai batas halaman.
+Untuk Diktat PDF, gunakan A4 dengan body font tetap 10.5 pt tanpa auto-shrink. Tujuan editorialnya paling ringkas yang tetap lengkap dan mudah dibaca, maksimal 4 halaman, tanpa target minimum atau filler. Contract menerima 1 sampai 4 halaman; hasil 1 halaman dapat lulus bila lengkap, terbaca, dan semua pemeriksaan readiness selesai. Jangan menurunkan ukuran teks untuk mencapai batas halaman.
 
 `VERIFIED` membutuhkan Diktat dengan checksum yang sama, renderer dan print profile tercatat, jumlah halaman terukur, serta inspeksi setiap halaman. Periksa rumus/glyph, pemotongan, urutan dan pemisahan konten, footer, teks yang dapat dipilih/dicari, dan tampilan pada layar/cetak jika perangkat uji tersedia. Jika tag PDF, bookmark, kontras, navigasi, atau cetak fisik tidak benar-benar diuji, tandai `NOT_TESTED`; jangan mengklaimnya dari render layar saja.
 

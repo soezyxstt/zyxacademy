@@ -558,7 +558,7 @@ describe("PB-CP3 Authoring MCP Contract and Quality Parity", () => {
 
       // PDF evidence states and bounds
       expect(pbContract.pdfEvidenceStates.statuses).toEqual(["pending", "ready", "failed", "stale"]);
-      expect(pbContract.pdfEvidenceStates.readyPageRange).toEqual({ minPages: 2, maxPages: 4 });
+      expect(pbContract.pdfEvidenceStates.readyPageRange).toEqual({ minPages: 1, maxPages: 4 });
       expect(pbContract.pdfEvidenceStates.safeFailureCodes).toContain("RENDER_TIMEOUT");
       expect(pbContract.pdfEvidenceStates.safeFailureCodes).toContain("PAGE_BUDGET_EXCEEDED");
 
