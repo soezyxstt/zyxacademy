@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { Brain, Check, X, RotateCw, RefreshCw, SkipForward } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { MathText } from "@/components/course/math-text";
 import { submitReviewAction } from "./actions";
 import { toast } from "@/components/ui/toast";
@@ -220,56 +221,58 @@ export function FlashcardClient({ courseId, initialQueue, studentId }: Flashcard
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
-      {/* Top Controls and Stats */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between rounded-xl border border-border/60 bg-card/60 p-4 backdrop-blur-xs">
-        <div>
-          <span className="text-body-xs font-semibold text-muted-foreground">
-            Sesi {currentSessionNum} dari {totalSessions}: Kartu {currentIndex + 1} dari {activeBatch.length} (Total {queue.length} kartu)
-          </span>
-          <div className="mt-1.5 h-1.5 w-48 overflow-hidden rounded bg-muted">
-            <div
-              className="h-full bg-brand-primary transition-all duration-300"
-              style={{ width: `${progressPercent}%` }}
-            />
-          </div>
+      {/* Top Controls and Stats - Flat Header without Card border */}
+      <div className="space-y-2">
+        <div className="h-1 w-full overflow-hidden rounded-full bg-muted">
+          <div
+            className="h-full bg-brand-primary transition-all duration-300"
+            style={{ width: `${progressPercent}%` }}
+          />
         </div>
+        <div className="flex flex-wrap items-center justify-between gap-2 px-1">
+          <span className="text-body-xs font-medium text-muted-foreground">
+            Sesi {currentSessionNum}/{totalSessions} · Kartu {currentIndex + 1}/{activeBatch.length} (Total {queue.length})
+          </span>
 
-        {/* Mode Selector - Rectangular rounded-md buttons (No Pills!) */}
-        <div className="flex rounded-lg border border-border p-0.5 bg-muted/40 w-fit shrink-0">
-          <button
-            onClick={() => {
-              if (loading) return;
-              setMode("standard");
-              setIsFlipped(false);
-              setTypedAnswer("");
-              setIsChecked(false);
-            }}
-            disabled={loading}
-            className={`px-3 py-1 text-body-xs font-semibold rounded-md transition-colors ${
-              mode === "standard"
-                ? "bg-background text-foreground shadow-xs"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            Mode Standar
-          </button>
-          <button
-            onClick={() => {
-              if (loading) return;
-              setMode("exam");
-              setIsFlipped(false);
-              setTypedAnswer("");
-              setIsChecked(false);
-            }}
-            disabled={loading}
-            className={`px-3 py-1 text-body-xs font-semibold rounded-md transition-colors ${
-              mode === "exam"
-                ? "bg-background text-foreground shadow-xs"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            Mode Ujian (Ketik)
-          </button>
+          {/* Mode Selector */}
+          <div className="flex rounded-lg border border-border/80 p-0.5 bg-muted/40 w-fit shrink-0">
+            <button
+              onClick={() => {
+                if (loading) return;
+                setMode("standard");
+                setIsFlipped(false);
+                setTypedAnswer("");
+                setIsChecked(false);
+              }}
+              disabled={loading}
+              className={cn(
+                "px-2.5 py-1 text-body-xs font-semibold rounded-md transition-colors",
+                mode === "standard"
+                  ? "bg-background text-foreground shadow-2xs"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              Standar
+            </button>
+            <button
+              onClick={() => {
+                if (loading) return;
+                setMode("exam");
+                setIsFlipped(false);
+                setTypedAnswer("");
+                setIsChecked(false);
+              }}
+              disabled={loading}
+              className={cn(
+                "px-2.5 py-1 text-body-xs font-semibold rounded-md transition-colors",
+                mode === "exam"
+                  ? "bg-background text-foreground shadow-2xs"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              Ketik
+            </button>
+          </div>
         </div>
       </div>
 
@@ -303,7 +306,7 @@ export function FlashcardClient({ courseId, initialQueue, studentId }: Flashcard
             className="absolute inset-0 w-full h-full rounded-2xl border border-border bg-card p-6 shadow-sm flex flex-col justify-between"
             style={faceStyle}
           >
-            <div className="flex items-center justify-between border-b border-border/40 pb-3">
+            <div className="flex items-center justify-between">
               <span className="inline-flex rounded-md border border-brand-primary/20 bg-brand-primary/5 px-2 py-0.5 text-body-xs font-semibold text-brand-primary">{currentItem.priorityReason}</span>
               <span className="text-body-xs font-medium text-muted-foreground">
                 Tanya
@@ -316,9 +319,9 @@ export function FlashcardClient({ courseId, initialQueue, studentId }: Flashcard
               </MathText>
             </div>
 
-            <div className="flex items-center justify-center gap-1.5 text-body-xs text-muted-foreground border-t border-border/40 pt-3">
+            <div className="flex items-center justify-center gap-1.5 text-body-xs text-muted-foreground">
               <RotateCw className="size-3" />
-              <span>Ketuk area kartu untuk membalik</span>
+              <span>Ketuk untuk balik kartu</span>
             </div>
           </div>
 
@@ -327,8 +330,8 @@ export function FlashcardClient({ courseId, initialQueue, studentId }: Flashcard
             className="absolute inset-0 w-full h-full rounded-2xl border border-border bg-card p-6 shadow-sm flex flex-col justify-between rotate-y-180"
             style={faceStyle}
           >
-            <div className="flex items-center justify-between border-b border-border/40 pb-3">
-              <span className="inline-flex rounded-md border border-emerald-500/20 bg-emerald-500/5 px-2 py-0.5 text-body-xs font-semibold text-emerald-600">
+            <div className="flex items-center justify-between">
+              <span className="inline-flex rounded-md border border-emerald-500/20 bg-emerald-500/5 px-2 py-0.5 text-body-xs font-semibold text-emerald-600 dark:text-emerald-400">
                 Jawaban
               </span>
               {typeof activeCard.metadata?.recallDifficulty === "number" ? (
@@ -368,17 +371,16 @@ export function FlashcardClient({ courseId, initialQueue, studentId }: Flashcard
               )}
             </div>
 
-            <div className="flex items-center justify-center gap-1.5 text-body-xs text-muted-foreground border-t border-border/40 pt-3">
+            <div className="flex items-center justify-center gap-1.5 text-body-xs text-muted-foreground">
               <RotateCw className="size-3" />
-              <span>Ketuk untuk kembali ke pertanyaan</span>
+              <span>Ketuk untuk balik ke pertanyaan</span>
             </div>
           </div>
         </div>
       </div>
 
-      <div className="flex items-center justify-between gap-3">
-        <span className="text-body-xs text-muted-foreground">Kartu {currentIndex + 1} dari {queue.length}</span>
-        <Button type="button" variant="ghost" size="sm" onClick={handleSkip} disabled={loading || queue.length - currentIndex <= 1} className="rounded-md text-body-sm">
+      <div className="flex items-center justify-end">
+        <Button type="button" variant="ghost" size="sm" onClick={handleSkip} disabled={loading || queue.length - currentIndex <= 1} className="rounded-md text-body-sm text-muted-foreground hover:text-foreground">
           Lewati <SkipForward className="ml-1.5 size-4" />
         </Button>
       </div>
@@ -439,13 +441,6 @@ export function FlashcardClient({ courseId, initialQueue, studentId }: Flashcard
             )}
           </div>
         </div>
-      )}
-
-      {/* Interaction Hint before flip */}
-      {!isFlipped && !isChecked && mode === "standard" && (
-        <p className="text-center text-body-xs text-muted-foreground animate-pulse">
-          Ketuk kartu untuk melihat jawaban dan evaluasi diri
-        </p>
       )}
 
       {/* Recall Self-Evaluation Grade Buttons (Visible when flipped or checked) */}
