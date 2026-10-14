@@ -160,91 +160,120 @@ function documentMeta(material: CourseMaterial, typeLabel: string): string {
     .join(" · ");
 }
 
-function CompactDocumentThumbnail({
-  material,
-  icon: Icon,
-  iconClass,
-}: {
-  material: CourseMaterial;
-  icon: typeof FileText;
-  iconClass: string;
-}) {
-  const [imageLoaded, setImageLoaded] = useState(false);
-  const [imageError, setImageError] = useState(false);
-  const [retryAttempt, setRetryAttempt] = useState(0);
-  const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const baseThumbnailUrl = material.thumbnailUrl ?? "";
-  const isRetryableThumbnail = baseThumbnailUrl.includes("/thumbnail");
-  const thumbnailSrc =
-    baseThumbnailUrl && retryAttempt > 0
-      ? `${baseThumbnailUrl}${baseThumbnailUrl.includes("?") ? "&" : "?"}retry=${retryAttempt}`
-      : baseThumbnailUrl;
-  const hasThumbnail = Boolean(baseThumbnailUrl) && !imageError;
+export type MaterialHierarchyTier = "article" | "diktat" | "materi_pdf" | "soal_pdf";
 
-  useEffect(() => {
-    setImageLoaded(false);
-    setImageError(false);
-    setRetryAttempt(0);
-  }, [baseThumbnailUrl]);
+export function getMaterialHierarchyTier(material: CourseMaterial): MaterialHierarchyTier {
+  // 1. Artikel: Structured / canonical article, or written interactive reading
+  if (
+    material.kind === "article" ||
+    material.source === "canonical-article" ||
+    (material.docCategory === "materi" && material.kind !== "pdf")
+  ) {
+    return "article";
+  }
 
-  useEffect(() => () => {
-    if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
-  }, []);
+  // 2. Diktat: Canonical diktat or diktat review document
+  if (
+    material.docCategory === "diktat" ||
+    material.source === "canonical-diktat" ||
+    (material as { kind?: string }).kind === "diktat"
+  ) {
+    return "diktat";
+  }
 
-  const handleThumbnailError = () => {
-    if (!isRetryableThumbnail || retryAttempt >= MAX_THUMBNAIL_RETRIES) {
-      setImageError(true);
-      return;
-    }
+  // 4. Soal PDF: Problem sheets, quizzes, exam papers, SCL, latihan soal, solusi
+  if (isSoalMaterial(material)) {
+    return "soal_pdf";
+  }
 
-    if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
-    const delayMs = Math.min(750 * 2 ** retryAttempt, 5000);
-    retryTimerRef.current = setTimeout(() => {
-      setImageLoaded(false);
-      setRetryAttempt((current) => current + 1);
-    }, delayMs);
-  };
+  // 3. Materi PDF: Lecture slides, notes, textbook chapters, or generic PDF reading
+  return "materi_pdf";
+}
 
-  return (
-    <div className="relative flex h-14 w-18 shrink-0 items-center justify-center overflow-hidden rounded-md border border-border/45 bg-muted/20">
-      {(!hasThumbnail || !imageLoaded) && (
-        <Icon className={cn("size-5", iconClass, hasThumbnail && "animate-pulse opacity-70")} aria-hidden />
-      )}
-      {hasThumbnail && (
-        <Image
-          key={thumbnailSrc}
-          src={thumbnailSrc}
-          alt={`Pratinjau ${material.title}`}
-          fill
-          unoptimized={isRetryableThumbnail}
-          sizes="72px"
-          className={cn(
-            "object-cover object-center transition-all duration-200 group-hover:scale-[1.02]",
-            imageLoaded ? "opacity-100" : "opacity-0"
-          )}
-          onLoad={() => setImageLoaded(true)}
-          onError={handleThumbnailError}
-        />
-      )}
-    </div>
-  );
+export const HIERARCHY_TIER_STYLES: Record<
+  MaterialHierarchyTier,
+  {
+    label: string;
+    textColor: string;
+    borderAccent: string;
+    icon: typeof FileText;
+    iconColor: string;
+  }
+> = {
+  article: {
+    label: "Artikel",
+    textColor: "text-blue-600 dark:text-blue-400 font-medium",
+    borderAccent: "border-l-blue-500",
+    icon: FileText,
+    iconColor: "text-blue-500",
+  },
+  diktat: {
+    label: "Diktat",
+    textColor: "text-purple-600 dark:text-purple-400 font-medium",
+    borderAccent: "border-l-purple-500",
+    icon: BookOpen,
+    iconColor: "text-purple-500",
+  },
+  materi_pdf: {
+    label: "Materi PDF",
+    textColor: "text-rose-600 dark:text-rose-400 font-medium",
+    borderAccent: "border-l-rose-500",
+    icon: FileText,
+    iconColor: "text-rose-500",
+  },
+  soal_pdf: {
+    label: "Soal PDF",
+    textColor: "text-amber-600 dark:text-amber-400 font-medium",
+    borderAccent: "border-l-amber-500",
+    icon: ClipboardList,
+    iconColor: "text-amber-500",
+  },
+};
+
+function cleanDocTitle(title: string, courseTitle?: string) {
+  let cleaned = title.trim();
+  if (courseTitle && cleaned.toLowerCase().startsWith(courseTitle.toLowerCase())) {
+    cleaned = cleaned.slice(courseTitle.length).replace(/^[\s:,-]+/, "").trim();
+  }
+  cleaned = cleaned.replace(/^Bab\s+\d+[:\s,-]+/i, "").trim();
+  return cleaned || title;
+}
+
+function getDocumentSecondaryMeta(material: CourseMaterial): string[] {
+  const subcategory = material.subcategory
+    ? getSubcategoryLabel(material.subcategory as CourseMaterialSubcategory) ?? material.subcategory
+    : null;
+
+  const rawFileSize = material.fileSize?.trim();
+  const isRedundantFileSize =
+    !rawFileSize ||
+    /^diktat(\s+resmi|\s+canonical)?$/i.test(rawFileSize) ||
+    /^(pdf|artikel|materi|berkas\s+pdf(\s+itb)?)$/i.test(rawFileSize);
+
+  return [
+    subcategory,
+    material.year ? String(material.year) : null,
+    isRedundantFileSize ? null : rawFileSize,
+  ].filter((val): val is string => Boolean(val));
 }
 
 function HierarchyDocumentCard({
   material,
   courseId,
   courseSlug,
+  courseTitle,
   isAdmin,
   onDelete,
 }: {
   material: CourseMaterial;
   courseId: string;
   courseSlug?: string;
+  courseTitle?: string;
   isAdmin?: boolean;
   onDelete?: (m: CourseMaterial) => void;
 }) {
-  const group = resolveTabGroup(material);
-  const style = typeStyle[group];
+  const tier = getMaterialHierarchyTier(material);
+  const tierStyle = HIERARCHY_TIER_STYLES[tier];
   const itemHref =
     isAdmin && courseSlug
       ? `/admin/courses/${encodeURIComponent(courseSlug)}/documents/${material.id}`
@@ -252,6 +281,8 @@ function HierarchyDocumentCard({
   const isLocked = Boolean(material.locked);
   const isPdf = material.kind === "pdf" && Boolean(material.url);
   const viewPdfUrl = isPdf ? getViewablePdfUrl(material.url) : null;
+  const secondaryMeta = getDocumentSecondaryMeta(material);
+  const FallbackIcon = tierStyle.icon;
 
   const handleClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
     if (isLocked) return;
@@ -267,27 +298,46 @@ function HierarchyDocumentCard({
       href={itemHref}
       onClick={handleClick}
       className={cn(
-        "group flex min-w-0 items-center gap-2.5 rounded-lg border border-border/50 border-l-2 bg-background p-2 text-left transition-colors hover:bg-muted/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
-        style.border,
+        "group flex min-w-0 items-center justify-between gap-3 px-3.5 py-2.5 text-left transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
         isLocked && "opacity-90 hover:opacity-100"
       )}
     >
-      <div className="relative shrink-0">
-        <CompactDocumentThumbnail material={material} icon={style.icon} iconClass={style.iconClass} />
-        {isLocked && (
-          <div className="absolute top-1 right-1 flex size-5 items-center justify-center rounded-md bg-background/90 text-amber-500 shadow-xs border border-border/50">
-            <Lock className="size-3" />
-          </div>
-        )}
-      </div>
+      <div className="flex min-w-0 flex-1 items-center gap-3">
+        {/* Document Thumbnail Preview with Seamless Left Color Accent */}
+        <div
+          className={cn(
+            "relative h-12 w-9 sm:h-14 sm:w-10 shrink-0 overflow-hidden rounded-md border border-border/60 border-l-[3px] bg-muted/30 transition-colors",
+            tierStyle.borderAccent
+          )}
+        >
+          {material.thumbnailUrl ? (
+            <Image
+              src={material.thumbnailUrl}
+              alt={material.title}
+              fill
+              sizes="40px"
+              className="object-cover object-center"
+            />
+          ) : (
+            <div className="flex size-full flex-col items-center justify-center bg-muted/40">
+              <FallbackIcon className={cn("size-4", tierStyle.iconColor)} aria-hidden />
+            </div>
+          )}
+        </div>
 
-      <div className="min-w-0 flex-1">
-        <p className="line-clamp-2 text-body-sm font-semibold leading-snug text-foreground" title={material.title}>
-          {material.title}
-        </p>
-        <p className="mt-1 truncate text-body-xs leading-tight text-muted-foreground">
-          {documentMeta(material, style.label)}
-        </p>
+        {/* Full-width Title and Seamless Color Meta Line */}
+        <div className="min-w-0 flex-1">
+          <p
+            className="truncate text-body-sm font-semibold leading-snug text-foreground group-hover:text-primary transition-colors"
+            title={material.title}
+          >
+            {cleanDocTitle(material.title, courseTitle)}
+          </p>
+          <p className="mt-0.5 truncate text-body-xs leading-tight text-muted-foreground">
+            <span className={tierStyle.textColor}>{tierStyle.label}</span>
+            {secondaryMeta.length > 0 && <span> · {secondaryMeta.join(" · ")}</span>}
+          </p>
+        </div>
       </div>
 
       {isAdmin ? (
@@ -359,7 +409,7 @@ function HierarchyDocumentCard({
         </DropdownMenu>
       ) : isLocked ? (
         <span className="inline-flex shrink-0 items-center gap-1 rounded-md bg-amber-500/10 px-1.5 py-0.5 text-body-2xs font-semibold text-amber-600 dark:text-amber-400 ring-1 ring-amber-500/20">
-          <Lock className="size-3" />
+          <Lock className="size-2.5" />
           Terkunci
         </span>
       ) : material.completed ? (
@@ -380,7 +430,8 @@ function isSoalMaterial(material: CourseMaterial): boolean {
   if (material.docCategory === "soal" || material.docCategory === "solusi") return true;
   if (material.tabGroup === "bank_soal") return true;
   const sub = material.subcategory?.toLowerCase().trim();
-  if (sub && ["kuis", "kbf", "tutorial", "tryout"].includes(sub)) return true;
+  if (sub && ["kuis", "kbf", "tutorial", "tryout", "scl"].includes(sub)) return true;
+  if (/\b(soal|latihan|pembahasan|kuis|uts|uas|scl)\b/i.test(material.title)) return true;
   return false;
 }
 
@@ -400,9 +451,29 @@ function isUasMaterial(material: CourseMaterial): boolean {
   return false;
 }
 
-/** Sorts materials placing dated materials first in descending order, then alphabetical by title. */
+/** Determines if a material belongs to the UP subcategory or exam scope. */
+function isUpMaterial(material: CourseMaterial): boolean {
+  const sub = material.subcategory?.toLowerCase().trim();
+  if (sub === "up") return true;
+  if (isSoalMaterial(material) && /\b(up)\b/i.test(material.title)) return true;
+  return false;
+}
+
+const HIERARCHY_TIER_RANK: Record<MaterialHierarchyTier, number> = {
+  article: 1,
+  diktat: 2,
+  materi_pdf: 3,
+  soal_pdf: 4,
+};
+
+/** Sorts materials by pedagogical hierarchy: artikel -> diktat -> materi pdf -> soal pdf. */
 function sortMaterials(items: CourseMaterial[]): CourseMaterial[] {
   return [...items].sort((a, b) => {
+    const tierA = HIERARCHY_TIER_RANK[getMaterialHierarchyTier(a)];
+    const tierB = HIERARCHY_TIER_RANK[getMaterialHierarchyTier(b)];
+    if (tierA !== tierB) {
+      return tierA - tierB;
+    }
     if (a.year !== b.year) {
       if (a.year == null) return 1;
       if (b.year == null) return -1;
@@ -419,6 +490,7 @@ function CollapsibleDocumentSection({
   materials,
   courseId,
   courseSlug,
+  courseTitle,
   isAdmin,
   onDelete,
   open,
@@ -429,6 +501,7 @@ function CollapsibleDocumentSection({
   materials: CourseMaterial[];
   courseId: string;
   courseSlug?: string;
+  courseTitle?: string;
   isAdmin?: boolean;
   onDelete?: (m: CourseMaterial) => void;
   open: boolean;
@@ -463,13 +536,14 @@ function CollapsibleDocumentSection({
       </CollapsibleTrigger>
       {hasDocuments ? (
         <CollapsibleContent>
-          <div className="grid grid-cols-1 gap-2 border-t border-border/35 bg-muted/10 p-2 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="divide-y divide-border/40 border-t border-border/40 bg-card/25">
             {materials.map((material) => (
               <HierarchyDocumentCard
                 key={material.id}
                 material={material}
                 courseId={courseId}
                 courseSlug={courseSlug}
+                courseTitle={courseTitle}
                 isAdmin={isAdmin}
                 onDelete={onDelete}
               />
@@ -545,11 +619,13 @@ export function CourseDocumentsClient({
     chapterGroups,
     utsMaterials,
     uasMaterials,
+    upMaterials,
     soalLainnyaMaterials,
     lainLainMaterials,
   } = useMemo(() => {
     const uts: CourseMaterial[] = [];
     const uas: CourseMaterial[] = [];
+    const up: CourseMaterial[] = [];
     const soalLainnya: CourseMaterial[] = [];
     const lainLain: CourseMaterial[] = [];
 
@@ -567,12 +643,11 @@ export function CourseDocumentsClient({
         uas.push(material);
         continue;
       }
-      if (isSoalMaterial(material)) {
-        soalLainnya.push(material);
+      if (isUpMaterial(material)) {
+        up.push(material);
         continue;
       }
-
-      // Non-soal materials: check one-to-one relationship with chapters
+      // Check chapter relationship
       const rawIds = materialChapterIds(material);
       const resolvedChapterIds = Array.from(
         new Set(
@@ -587,11 +662,19 @@ export function CourseDocumentsClient({
         if (list) {
           list.push(material);
         } else {
-          lainLain.push(material);
+          if (isSoalMaterial(material)) {
+            soalLainnya.push(material);
+          } else {
+            lainLain.push(material);
+          }
         }
       } else {
         // One-to-many (>1 chapters) or 0 chapters (unassigned/general)
-        lainLain.push(material);
+        if (isSoalMaterial(material)) {
+          soalLainnya.push(material);
+        } else {
+          lainLain.push(material);
+        }
       }
     }
 
@@ -602,6 +685,7 @@ export function CourseDocumentsClient({
       })),
       utsMaterials: sortMaterials(uts),
       uasMaterials: sortMaterials(uas),
+      upMaterials: sortMaterials(up),
       soalLainnyaMaterials: sortMaterials(soalLainnya),
       lainLainMaterials: sortMaterials(lainLain),
     };
@@ -612,10 +696,11 @@ export function CourseDocumentsClient({
     if (firstChapter) return `chapter:${firstChapter.chapter.id}`;
     if (utsMaterials.length > 0) return "special:uts";
     if (uasMaterials.length > 0) return "special:uas";
+    if (upMaterials.length > 0) return "special:up";
     if (soalLainnyaMaterials.length > 0) return "special:soal_lainnya";
     if (lainLainMaterials.length > 0) return "special:lain_lain";
     return null;
-  }, [chapterGroups, utsMaterials.length, uasMaterials.length, soalLainnyaMaterials.length, lainLainMaterials.length]);
+  }, [chapterGroups, utsMaterials.length, uasMaterials.length, upMaterials.length, soalLainnyaMaterials.length, lainLainMaterials.length]);
 
   const [openSection, setOpenSection] = useState<string | null>(firstPopulatedSectionKey);
 
@@ -674,6 +759,7 @@ export function CourseDocumentsClient({
                   materials={chapterMaterials}
                   courseId={courseId}
                   courseSlug={courseSlug}
+                  courseTitle={courseTitle}
                   isAdmin={isAdmin}
                   onDelete={setDeleteTarget}
                   open={openSection === sectionKey}
@@ -687,6 +773,7 @@ export function CourseDocumentsClient({
               materials={utsMaterials}
               courseId={courseId}
               courseSlug={courseSlug}
+              courseTitle={courseTitle}
               isAdmin={isAdmin}
               onDelete={setDeleteTarget}
               open={openSection === "special:uts"}
@@ -698,17 +785,33 @@ export function CourseDocumentsClient({
               materials={uasMaterials}
               courseId={courseId}
               courseSlug={courseSlug}
+              courseTitle={courseTitle}
               isAdmin={isAdmin}
               onDelete={setDeleteTarget}
               open={openSection === "special:uas"}
               onOpenChange={(nextOpen) => setOpenSection(nextOpen ? "special:uas" : null)}
             />
+            {upMaterials.length > 0 && (
+              <CollapsibleDocumentSection
+                badge="UP"
+                title="Ujian Perbaikan"
+                materials={upMaterials}
+                courseId={courseId}
+                courseSlug={courseSlug}
+                courseTitle={courseTitle}
+                isAdmin={isAdmin}
+                onDelete={setDeleteTarget}
+                open={openSection === "special:up"}
+                onOpenChange={(nextOpen) => setOpenSection(nextOpen ? "special:up" : null)}
+              />
+            )}
             <CollapsibleDocumentSection
               badge="Soal"
               title="Soal lainnya"
               materials={soalLainnyaMaterials}
               courseId={courseId}
               courseSlug={courseSlug}
+              courseTitle={courseTitle}
               isAdmin={isAdmin}
               onDelete={setDeleteTarget}
               open={openSection === "special:soal_lainnya"}
@@ -720,6 +823,7 @@ export function CourseDocumentsClient({
               materials={lainLainMaterials}
               courseId={courseId}
               courseSlug={courseSlug}
+              courseTitle={courseTitle}
               isAdmin={isAdmin}
               onDelete={setDeleteTarget}
               open={openSection === "special:lain_lain"}
@@ -758,6 +862,7 @@ export function CourseDocumentsClient({
             courseId={courseId}
             courseTitle={courseTitle || "Mata Kuliah"}
             chapters={chapters}
+            existingTitles={materials.map((m) => m.title)}
           />
           {deleteTarget ? (
             <AdminConfirmDialog

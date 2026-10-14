@@ -1,7 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import {
+  buildCanonicalDocumentTitle,
   detectCategoryFromFilename,
   detectMetadataFromFilename,
+  detectSessionFromFilename,
   detectYear,
   generateFileName,
   isHiddenOrSystemFile,
@@ -176,3 +178,133 @@ describe("standard renaming engine", () => {
     ).toBe("ki1001_bab03_catatan_stoikiometri_2025.pdf");
   });
 });
+
+describe("canonical document title builder", () => {
+  test("generates collision-proof exam titles with course, session, year, and role", () => {
+    expect(
+      buildCanonicalDocumentTitle({
+        courseCode: "MA1101",
+        category: "soal",
+        subcategory: "uts",
+        year: 2024,
+        session: "Sesi 1",
+      })
+    ).toBe("UTS MA1101 Sesi 1 2024 (Soal)");
+
+    expect(
+      buildCanonicalDocumentTitle({
+        courseCode: "MA1101",
+        category: "pembahasan_soal",
+        subcategory: "uts",
+        year: 2024,
+        session: "Sesi 1",
+      })
+    ).toBe("Pembahasan UTS MA1101 Sesi 1 2024");
+
+    expect(
+      buildCanonicalDocumentTitle({
+        courseCode: "FI1101",
+        category: "soal",
+        subcategory: "uas",
+        year: 2023,
+        session: "Sesi A",
+      })
+    ).toBe("UAS FI1101 Sesi A 2023 (Soal)");
+
+    expect(
+      buildCanonicalDocumentTitle({
+        courseCode: "KI1101",
+        category: "pembahasan_soal",
+        subcategory: "up",
+        year: 2022,
+      })
+    ).toBe("Pembahasan UP KI1101 2022");
+  });
+
+  test("handles multi-part chapter materials cleanly", () => {
+    expect(
+      buildCanonicalDocumentTitle({
+        category: "materi",
+        subcategory: "materi_dosen",
+        chapterIndex: 6,
+        chapterTitle: "Struktur Atom",
+        qualifier: "bagian",
+        partNumber: 1,
+      })
+    ).toBe("Bab 6: Struktur Atom (Bagian 1)");
+
+    expect(
+      buildCanonicalDocumentTitle({
+        category: "materi",
+        subcategory: "materi_dosen",
+        chapterIndex: 6,
+        chapterTitle: "Struktur Atom",
+        qualifier: "bagian",
+        partNumber: 2,
+      })
+    ).toBe("Bab 6: Struktur Atom (Bagian 2)");
+  });
+
+  test("handles pedagogical role qualifiers: aplikasi and problem", () => {
+    expect(
+      buildCanonicalDocumentTitle({
+        category: "materi",
+        subcategory: "materi_dosen",
+        chapterIndex: 3,
+        chapterTitle: "Dinamika Gerak",
+        qualifier: "aplikasi",
+      })
+    ).toBe("Bab 3: Dinamika Gerak (Aplikasi)");
+
+    expect(
+      buildCanonicalDocumentTitle({
+        category: "materi",
+        subcategory: "materi_dosen",
+        chapterIndex: 3,
+        chapterTitle: "Dinamika Gerak",
+        qualifier: "problem",
+      })
+    ).toBe("Bab 3: Dinamika Gerak (Contoh Problem)");
+  });
+
+  test("handles SCL, textbook, tutorial, and KBF", () => {
+    expect(
+      buildCanonicalDocumentTitle({
+        category: "materi",
+        subcategory: "scl",
+        chapterIndex: 1,
+        chapterTitle: "Vektor dan Kinematika",
+      })
+    ).toBe("SCL Bab 1: Vektor dan Kinematika");
+
+    expect(
+      buildCanonicalDocumentTitle({
+        category: "soal",
+        subcategory: "tutorial",
+        chapterIndex: 1,
+        chapterTitle: "Sistem Bilangan Real",
+        partNumber: 1,
+        year: 2024,
+      })
+    ).toBe("Tutorial 1: Bab 1 (Sistem Bilangan Real) 2024");
+
+    expect(
+      buildCanonicalDocumentTitle({
+        courseCode: "KI1101",
+        category: "soal",
+        subcategory: "kbf",
+        chapterIndex: 1,
+        chapterTitle: "Stoikiometri",
+        partNumber: 1,
+        year: 2023,
+      })
+    ).toBe("KBF 1 KI1101: Bab 1 (Stoikiometri) 2023");
+  });
+
+  test("detects session markers from filename", () => {
+    expect(detectSessionFromFilename("ma1101_uts_sesi-1_soal_2024.pdf")).toBe("Sesi 1");
+    expect(detectSessionFromFilename("fi1101_uts_sesi-a_soal_2023.pdf")).toBe("Sesi A");
+    expect(detectSessionFromFilename("uas_soal_2020.pdf")).toBeNull();
+  });
+});
+
