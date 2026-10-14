@@ -595,7 +595,10 @@ export async function askTutorRagAction(
             canonicalArticle.sections.length > 0
               ? canonicalArticle.sections
                   .slice(0, 10)
-                  .map((s, idx) => `Subtopik ${idx + 1}: ${s.title}\n${s.content || ""}`)
+                  .map((s, idx) => {
+                    const sectionBody = s.blocks?.map((b) => b.content).filter(Boolean).join("\n") || s.learningObjective || "";
+                    return `Subtopik ${idx + 1}: ${s.title}${sectionBody ? `\n${sectionBody}` : ""}`;
+                  })
                   .join("\n\n")
               : "",
           ].filter(Boolean).join("\n\n").slice(0, 4000),

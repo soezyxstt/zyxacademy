@@ -335,7 +335,7 @@ export function StructuredArticleSectionContent({
                 data-block-title={displayTitle || meta.label}
                 className={cn(
                   "space-y-3 py-1 scroll-mt-24",
-                  block.blockType === "mathematical_representation" && "space-y-2",
+                  block.blockType === "mathematical_representation" && "space-y-1.5 py-0.5",
                 )}
               >
                 {displayTitle &&
