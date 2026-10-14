@@ -27,7 +27,9 @@ import {
   Square,
   ArrowUp,
   ChevronDown,
+  Quote,
 } from "lucide-react";
+import type { ZyraQuotedContext } from "./tutor-drawer";
 import {
   Tooltip,
   TooltipContent,
@@ -44,6 +46,7 @@ import {
   loadTutorHistoryAction,
   clearTutorHistoryAction,
   getTutorCourseContextAction,
+  listTutorSessionsAction,
 } from "@/app/actions/tutor";
 import { MarkdownRenderer } from "@/components/course/markdown-renderer";
 import { toast } from "@/components/ui/toast";
@@ -74,9 +77,15 @@ interface ChatMessage {
   id: string;
   role: "student" | "ai";
   content: string;
+  quotedContext?: ZyraQuotedContext | null;
   sources?: Array<{ type: string; id: string; label: string; href: string }>;
   canvasSpec?: CanvasSpec | null;
   attachments?: ZyraMessageAttachment[];
+  isError?: boolean;
+  failedPayload?: {
+    question: string;
+    quotedContext?: ZyraQuotedContext | null;
+  };
 }
 
 const MIN_SIDEBAR_WIDTH = MIN_TUTOR_PANEL_WIDTH;
@@ -96,10 +105,28 @@ function isComprehensionCheck(content: string): boolean {
   return /\?/.test(tail.replace(/[$`\\]/g, ""));
 }
 
+function formatSessionDate(isoString: string): string {
+  try {
+    const date = new Date(isoString);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    if (diffMins < 1) return "Baru saja";
+    if (diffMins < 60) return `${diffMins}m lalu`;
+    const diffHours = Math.floor(diffMins / 60);
+    if (diffHours < 24) return `${diffHours}j lalu`;
+    const diffDays = Math.floor(diffHours / 24);
+    if (diffDays < 7) return `${diffDays}h lalu`;
+    return date.toLocaleDateString("id-ID", { day: "numeric", month: "short" });
+  } catch {
+    return "";
+  }
+}
+
 const GENERIC_CHIPS = [
-  { icon: "example", label: "Contoh Soal", prompt: "Berikan contoh soal serupa dan tuntun aku langkah demi langkah." },
-  { icon: "help", label: "Uji Pemahaman", prompt: "Uji pemahamanku dengan 1 pertanyaan konsep singkat tanpa memberi kunci jawaban langsung." },
-  { icon: "compass", label: "Analogi", prompt: "Jelaskan dengan analogi sehari-hari yang mudah dibayangkan." },
+  { icon: "example", label: "Contoh Soal", prompt: "Berikan contoh soal materi ini dan tuntun aku langkah demi langkah." },
+  { icon: "help", label: "Uji Pemahaman", prompt: "Uji pemahamanku tentang materi ini dengan 1 pertanyaan konsep singkat tanpa memberi kunci jawaban langsung." },
+  { icon: "compass", label: "Analogi", prompt: "Jelaskan materi ini dengan analogi sehari-hari yang mudah dibayangkan." },
 ] as const;
 
 const CHECK_CHIPS = [
@@ -152,6 +179,8 @@ export interface TutorDrawerViewProps {
   explainMode: "content" | "analogy" | "simplification";
   initialQuestion?: string | null;
   onClearInitialQuestion?: () => void;
+  quotedContext?: ZyraQuotedContext | null;
+  onClearQuotedContext?: () => void;
 }
 
 export function TutorDrawerView({
@@ -165,6 +194,8 @@ export function TutorDrawerView({
   explainMode,
   initialQuestion,
   onClearInitialQuestion,
+  quotedContext,
+  onClearQuotedContext,
 }: TutorDrawerViewProps) {
   const pathname = usePathname();
   const courseIdFromPath = pathname?.startsWith("/courses/") ? pathname.split("/")[2] : null;
@@ -175,6 +206,7 @@ export function TutorDrawerView({
   // standard functionality for the rest of the drawer session.
   const advancedModesEnabled = zyraAccessTier !== "free";
   const imageInputEnabled = caps.imageInput && activeMode === "chat" && advancedModesEnabled;
+  const _hasExplainCapability = advancedModesEnabled && caps.explain;
 
   React.useEffect(() => {
     setZyraAccessTier(null);
@@ -186,8 +218,22 @@ export function TutorDrawerView({
   const [data, setData] = React.useState<any>(null);
 
   // Chat state
-  const [messages, setMessages] = React.useState<ChatMessage[]>([]);
+  const [messages, setMessages] = React.useState<ChatMessage[]>([
+    {
+      id: "chat-welcome",
+      role: "ai",
+      content: "Halo! Aku Zyra, asisten belajarmu. Tanyakan konsep, rumus matematika, atau soal latihan!",
+    },
+  ]);
   const [inputVal, setInputVal] = React.useState("");
+  const [activeQuotedContext, setActiveQuotedContext] = React.useState<ZyraQuotedContext | null>(quotedContext ?? null);
+
+  React.useEffect(() => {
+    if (quotedContext) {
+      setActiveQuotedContext(quotedContext);
+    }
+  }, [quotedContext]);
+
   const [chatLoading, setChatLoading] = React.useState(false);
   const [sessionId, setSessionId] = React.useState<string | null>(null);
   const [attachmentIds, setAttachmentIds] = React.useState<string[]>([]);
@@ -195,6 +241,30 @@ export function TutorDrawerView({
   const [_attachmentComposerKey, setAttachmentComposerKey] = React.useState(0);
   const [_attachmentsReady, setAttachmentsReady] = React.useState(true);
   const [copiedMessageId, setCopiedMessageId] = React.useState<string | null>(null);
+
+  // Chat sessions history
+  interface ChatSessionSummary {
+    id: string;
+    title: string;
+    lastMessageAt: string | null;
+    messageCount: number;
+  }
+  const [sessions, setSessions] = React.useState<ChatSessionSummary[]>([]);
+  const [sessionsLoading, setSessionsLoading] = React.useState(false);
+
+  const loadSessions = React.useCallback(async () => {
+    const courseId = pathname?.startsWith("/courses/") ? pathname.split("/")[2] : null;
+    if (!courseId) return;
+    setSessionsLoading(true);
+    try {
+      const list = await listTutorSessionsAction(courseId);
+      setSessions(list);
+    } catch {
+      // silent
+    } finally {
+      setSessionsLoading(false);
+    }
+  }, [pathname]);
 
   const attachmentComposerRef = React.useRef<ZyraAttachmentComposerHandle>(null);
   const textareaRef = React.useRef<HTMLTextAreaElement>(null);
@@ -222,6 +292,13 @@ export function TutorDrawerView({
 
   // Course label for the drawer header
   const [courseLabel, setCourseLabel] = React.useState<string | null>(null);
+
+  // Load sessions whenever menu is opened
+  React.useEffect(() => {
+    if (showMenu) {
+      loadSessions();
+    }
+  }, [showMenu, loadSessions]);
 
   // Click outside to close dropdown menu
   React.useEffect(() => {
@@ -284,12 +361,16 @@ export function TutorDrawerView({
     if (activeMode === "study-plan") {
       return "Rencana Belajar Mandiri";
     }
+    const currentSession = sessions.find((s) => s.id === sessionId);
+    if (currentSession?.title && currentSession.title !== "General Chat") {
+      return currentSession.title;
+    }
     const firstStudent = messages.find((m) => m.role === "student");
     if (firstStudent?.content) {
       return firstStudent.content;
     }
     return courseLabel || "Tanya Zyra";
-  }, [activeMode, data, messages, courseLabel]);
+  }, [activeMode, data, messages, courseLabel, sessions, sessionId]);
 
   // Mobile body scroll lock
   React.useEffect(() => {
@@ -308,42 +389,20 @@ export function TutorDrawerView({
     }
   }, [messages, isOpen, chatLoading]);
 
-  // Load chat history when in chat mode
+  // Load chat history smoothly in background when in chat mode (non-blocking)
   React.useEffect(() => {
     if (activeMode !== "chat") return;
     const courseId = pathname?.startsWith("/courses/") ? pathname.split("/")[2] : null;
 
     if (courseId) {
-      setLoading(true);
       loadTutorHistoryAction(courseId)
         .then((result) => {
           setSessionId(result.sessionId);
           if (result.messages.length > 0) {
             setMessages(result.messages);
-          } else {
-            setMessages([{
-              id: "chat-welcome",
-              role: "ai",
-              content: "Halo! Aku Zyra, asisten belajar buatan Zyx. Tanyakan apa saja seputar materi kuliah atau soal latihan, aku siap membimbingmu dengan pendekatan Socratic!",
-            }]);
           }
         })
-        .catch(() => {
-          setMessages([{
-            id: "chat-welcome",
-            role: "ai",
-            content: "Halo! Aku Zyra, asisten belajar buatan Zyx. Tanyakan apa saja seputar materi kuliah atau soal latihan, aku siap membimbingmu dengan pendekatan Socratic!",
-          }]);
-        })
-        .finally(() => {
-          setLoading(false);
-        });
-    } else {
-      setMessages([{
-        id: "chat-welcome",
-        role: "ai",
-        content: "Halo! Aku Zyra, asisten belajar buatan Zyx. Tanyakan apa saja seputar materi kuliah atau soal latihan, aku siap membimbingmu dengan pendekatan Socratic!",
-      }]);
+        .catch(() => {});
     }
   }, [activeMode, pathname]);
 
@@ -668,9 +727,10 @@ export function TutorDrawerView({
   };
 
   // Handle sending arbitrary chat messages with SSE streaming
-  const handleSend = async (suggestedQuestion?: string) => {
+  const handleSend = async (suggestedQuestion?: string, overrideQuote?: ZyraQuotedContext | null) => {
     const rawQuestion = (suggestedQuestion || inputVal).trim();
-    if (!rawQuestion) return;
+    const effectiveQuote = overrideQuote !== undefined ? overrideQuote : activeQuotedContext;
+    if (!rawQuestion && !effectiveQuote) return;
     const question = normalizeTutorMathMarkdown(rawQuestion);
     const requestedAttachmentIds = [...attachmentIds];
     const requestedAttachments = [...readyAttachments];
@@ -684,11 +744,14 @@ export function TutorDrawerView({
       id: `msg-${Date.now()}`,
       role: "student",
       content: question,
+      quotedContext: effectiveQuote,
       attachments: requestedAttachments.length > 0 ? requestedAttachments : undefined,
     };
 
     setMessages((prev) => [...prev, studentMsg]);
     setInputVal("");
+    setActiveQuotedContext(null);
+    onClearQuotedContext?.();
     setAttachmentIds([]);
     setReadyAttachments([]);
     setAttachmentsReady(true);
@@ -710,6 +773,7 @@ export function TutorDrawerView({
     let finalSources: any = undefined;
     let finalCanvasSpec: CanvasSpec | null = null;
     let activeSid = sessionId;
+    let hasError = false;
 
     setMessages((prev) => [
       ...prev,
@@ -728,6 +792,14 @@ export function TutorDrawerView({
           attachmentIds: requestedAttachmentIds,
           pathname,
           requestId,
+          selectionContext: effectiveQuote ? {
+            snippet: effectiveQuote.snippet,
+            blockType: effectiveQuote.blockType,
+            surroundingText: effectiveQuote.surroundingText,
+            sectionTitle: effectiveQuote.sectionTitle,
+            chapterTitle: effectiveQuote.title,
+            intent: effectiveQuote.intent,
+          } : undefined,
         }),
         signal: abortController.signal,
       });
@@ -774,17 +846,25 @@ export function TutorDrawerView({
           } else if (part.type === "data-session" && part.sessionId) {
             activeSid = part.sessionId;
             setSessionId(part.sessionId);
+            void loadSessions();
           } else if (part.type === "data-error" && part.data?.message) {
+            hasError = true;
             accumulatedContent = `Maaf, terjadi kendala: ${part.data.message}`;
             setMessages((prev) =>
               prev.map((m) =>
-                m.id === aiMsgId ? { ...m, content: accumulatedContent } : m
+                m.id === aiMsgId ? {
+                  ...m,
+                  content: accumulatedContent,
+                  isError: true,
+                  failedPayload: { question: rawQuestion, quotedContext: effectiveQuote },
+                } : m
               )
             );
           }
         }
       }
     } catch (err: unknown) {
+      hasError = true;
       if (abortController.signal.aborted) {
         accumulatedContent = accumulatedContent || "Tanggapan dihentikan oleh pengguna.";
         setMessages((prev) =>
@@ -797,7 +877,12 @@ export function TutorDrawerView({
         accumulatedContent = `Maaf, terjadi kendala saat memproses jawaban: ${msg}`;
         setMessages((prev) =>
           prev.map((m) =>
-            m.id === aiMsgId ? { ...m, content: accumulatedContent } : m
+            m.id === aiMsgId ? {
+              ...m,
+              content: accumulatedContent,
+              isError: true,
+              failedPayload: { question: rawQuestion, quotedContext: effectiveQuote },
+            } : m
           )
         );
       }
@@ -806,12 +891,16 @@ export function TutorDrawerView({
       abortControllerRef.current = null;
     }
 
-    if (courseId && accumulatedContent) {
+    if (courseId && accumulatedContent && !hasError) {
       saveTutorMessagesAction(courseId, [
         { role: studentMsg.role, content: studentMsg.content, attachmentIds: requestedAttachmentIds },
         { role: "ai", content: accumulatedContent, sources: finalSources, canvasSpec: finalCanvasSpec },
       ], activeSid).catch(() => {});
     }
+  };
+
+  const handleRetry = (payload: { question: string; quotedContext?: ZyraQuotedContext | null }) => {
+    void handleSend(payload.question, payload.quotedContext);
   };
 
   const handleCopyText = (id: string, text: string) => {
@@ -823,6 +912,59 @@ export function TutorDrawerView({
     }, 2000);
   };
 
+  const handleSelectSession = React.useCallback(async (targetSessionId: string) => {
+    if (targetSessionId === sessionId) {
+      setShowMenu(false);
+      return;
+    }
+    const courseId = pathname?.startsWith("/courses/") ? pathname.split("/")[2] : null;
+    if (!courseId) return;
+    setChatLoading(true);
+    setShowMenu(false);
+    try {
+      const res = await loadTutorHistoryAction(courseId, targetSessionId);
+      setSessionId(res.sessionId);
+      if (res.messages.length > 0) {
+        setMessages(res.messages);
+      } else {
+        setMessages([
+          {
+            id: "chat-welcome",
+            role: "ai",
+            content: "Halo! Aku Zyra, asisten belajarmu. Tanyakan konsep, rumus matematika, atau soal latihan!",
+          },
+        ]);
+      }
+    } catch {
+      toast.error("Gagal memuat sesi percakapan.");
+    } finally {
+      setChatLoading(false);
+    }
+  }, [pathname, sessionId]);
+
+  const handleDeleteSession = React.useCallback(async (targetSessionId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const courseId = pathname?.startsWith("/courses/") ? pathname.split("/")[2] : null;
+    if (!courseId) return;
+    try {
+      await clearTutorHistoryAction(courseId, targetSessionId);
+      setSessions((prev) => prev.filter((s) => s.id !== targetSessionId));
+      if (sessionId === targetSessionId) {
+        setSessionId(null);
+        setMessages([
+          {
+            id: "chat-welcome",
+            role: "ai",
+            content: "Halo! Aku Zyra, asisten belajarmu. Tanyakan konsep, rumus matematika, atau soal latihan!",
+          },
+        ]);
+      }
+      toast.success("Sesi percakapan dihapus.");
+    } catch {
+      toast.error("Gagal menghapus sesi.");
+    }
+  }, [pathname, sessionId]);
+
   const handleNewChat = React.useCallback(() => {
     setSessionId(null);
     setMessages([
@@ -833,6 +975,7 @@ export function TutorDrawerView({
           "Halo! Aku Zyra, asisten belajarmu. Tanyakan konsep, rumus matematika, atau soal latihan!",
       },
     ]);
+    setShowMenu(false);
     toast.success("Sesi obrolan baru dimulai.");
   }, []);
 
@@ -841,6 +984,8 @@ export function TutorDrawerView({
     if (courseId) {
       await clearTutorHistoryAction(courseId).catch(() => {});
     }
+    setSessionId(null);
+    setSessions([]);
     setMessages([
       {
         id: "chat-welcome",
@@ -935,84 +1080,78 @@ export function TutorDrawerView({
               <ChevronDown className="size-3.5 text-muted-foreground group-hover:text-brand-primary transition-transform shrink-0" />
             </button>
 
-            {/* Dropdown Menu */}
+            {/* Dropdown Menu: Riwayat Percakapan (History) */}
             {showMenu && (
-              <div className="absolute top-full left-0 mt-1.5 w-[280px] rounded-xl border border-border bg-background shadow-xl p-2 z-50 space-y-1 animate-in fade-in zoom-in-95 duration-150">
-                <div className="px-2 py-1 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
-                  Mode Belajar
+              <div className="absolute top-full left-0 mt-1.5 w-[300px] sm:w-[340px] rounded-xl border border-border bg-background shadow-xl p-2 z-50 space-y-1.5 animate-in fade-in zoom-in-95 duration-150">
+                <div className="flex items-center justify-between px-2 pt-1 pb-1.5 border-b border-border/60">
+                  <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+                    Riwayat Percakapan
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      handleNewChat();
+                      setShowMenu(false);
+                    }}
+                    className="inline-flex items-center gap-1 text-body-xs font-semibold text-brand-primary hover:underline cursor-pointer"
+                  >
+                    <Plus className="size-3.5" />
+                    <span>Obrolan Baru</span>
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setActiveMode("chat");
-                    setShowMenu(false);
-                  }}
-                  className={cn(
-                    "w-full flex items-center justify-between px-2.5 py-1.5 text-body-sm rounded-lg transition-colors text-left cursor-pointer",
-                    activeMode === "chat"
-                      ? "bg-brand-primary/10 text-brand-primary font-medium"
-                      : "hover:bg-muted text-foreground"
+
+                {/* Sessions list */}
+                <div className="max-h-64 overflow-y-auto space-y-1 py-1 pr-0.5">
+                  {sessionsLoading ? (
+                    <div className="flex items-center justify-center py-5 text-muted-foreground text-body-xs gap-2">
+                      <Loader2 className="size-3.5 animate-spin text-brand-primary" />
+                      <span>Memuat riwayat...</span>
+                    </div>
+                  ) : sessions.length === 0 ? (
+                    <div className="py-5 text-center text-body-xs text-muted-foreground">
+                      Belum ada riwayat percakapan.
+                    </div>
+                  ) : (
+                    sessions.map((sess) => {
+                      const isCurrent = sessionId === sess.id;
+                      return (
+                        <div
+                          key={sess.id}
+                          className={cn(
+                            "group flex items-center justify-between rounded-lg px-2.5 py-2 text-body-sm transition-colors cursor-pointer",
+                            isCurrent
+                              ? "bg-brand-primary/10 text-brand-primary font-medium"
+                              : "hover:bg-muted text-foreground"
+                          )}
+                        >
+                          <button
+                            type="button"
+                            onClick={() => handleSelectSession(sess.id)}
+                            className="min-w-0 flex-1 text-left"
+                          >
+                            <p className="truncate text-body-xs font-medium">{sess.title}</p>
+                            <span className="text-[10px] text-muted-foreground">
+                              {sess.messageCount} pesan{sess.lastMessageAt ? ` • ${formatSessionDate(sess.lastMessageAt)}` : ""}
+                            </span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(e) => handleDeleteSession(sess.id, e)}
+                            aria-label="Hapus sesi"
+                            title="Hapus sesi ini"
+                            className="opacity-0 group-hover:opacity-100 p-1 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded transition-opacity"
+                          >
+                            <Trash2 className="size-3" />
+                          </button>
+                        </div>
+                      );
+                    })
                   )}
-                >
-                  <span>Diskusi</span>
-                  {activeMode === "chat" && <Check className="size-3.5" />}
-                </button>
-                {advancedModesEnabled && caps.explain && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setActiveMode("explain");
-                      setShowMenu(false);
-                    }}
-                    className={cn(
-                      "w-full flex items-center justify-between px-2.5 py-1.5 text-body-sm rounded-lg transition-colors text-left cursor-pointer",
-                      activeMode === "explain"
-                        ? "bg-brand-primary/10 text-brand-primary font-medium"
-                        : "hover:bg-muted text-foreground"
-                    )}
-                  >
-                    <span>Konsep</span>
-                    {activeMode === "explain" && <Check className="size-3.5" />}
-                  </button>
-                )}
-                {advancedModesEnabled && <button
-                  type="button"
-                  onClick={() => {
-                    setActiveMode("mistake");
-                    setShowMenu(false);
-                  }}
-                  className={cn(
-                    "w-full flex items-center justify-between px-2.5 py-1.5 text-body-sm rounded-lg transition-colors text-left cursor-pointer",
-                    activeMode === "mistake"
-                      ? "bg-brand-primary/10 text-brand-primary font-medium"
-                      : "hover:bg-muted text-foreground"
-                  )}
-                >
-                  <span>Bedah Jawaban</span>
-                  {activeMode === "mistake" && <Check className="size-3.5" />}
-                </button>}
-                {advancedModesEnabled && caps.studyPlan && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setActiveMode("study-plan");
-                      setShowMenu(false);
-                    }}
-                    className={cn(
-                      "w-full flex items-center justify-between px-2.5 py-1.5 text-body-sm rounded-lg transition-colors text-left cursor-pointer",
-                      activeMode === "study-plan"
-                        ? "bg-brand-primary/10 text-brand-primary font-medium"
-                        : "hover:bg-muted text-foreground"
-                    )}
-                  >
-                    <span>Rencana Belajar</span>
-                    {activeMode === "study-plan" && <Check className="size-3.5" />}
-                  </button>
-                )}
+                </div>
 
                 {zyraAccessTier === "free" && (
                   <div className="mt-2 border-t border-border/60 px-2 pt-2">
-                    <p className="text-body-xs text-muted-foreground">Fitur lanjutan tersedia di paket berbayar.</p>
+                    <p className="text-body-xs text-muted-foreground">Paket Free hanya mendukung pertanyaan teks.</p>
                     <Link
                       href="/plans"
                       className="mt-1 inline-flex items-center gap-1 text-body-xs font-semibold text-brand-primary hover:underline"
@@ -1023,32 +1162,21 @@ export function TutorDrawerView({
                   </div>
                 )}
 
-                <div className="border-t border-border/60 my-1 pt-1">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      handleNewChat();
-                      setShowMenu(false);
-                    }}
-                    className="w-full flex items-center gap-2 px-2.5 py-1.5 text-body-sm rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors text-left cursor-pointer"
-                  >
-                    <Plus className="size-3.5" />
-                    <span>Percakapan Baru</span>
-                  </button>
-                  {activeMode === "chat" && messages.length > 1 && (
+                {sessions.length > 0 && (
+                  <div className="border-t border-border/60 pt-1 px-1">
                     <button
                       type="button"
                       onClick={() => {
                         handleClearHistory();
                         setShowMenu(false);
                       }}
-                      className="w-full flex items-center gap-2 px-2.5 py-1.5 text-body-sm rounded-lg text-destructive hover:bg-destructive/10 transition-colors text-left cursor-pointer"
+                      className="w-full flex items-center gap-1.5 px-2 py-1.5 text-body-xs text-destructive hover:bg-destructive/10 rounded-lg transition-colors text-left cursor-pointer"
                     >
                       <Trash2 className="size-3.5" />
-                      <span>Bersihkan Riwayat</span>
+                      <span>Hapus Semua Riwayat</span>
                     </button>
-                  )}
-                </div>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -1121,7 +1249,18 @@ export function TutorDrawerView({
                 if (isStudent) {
                   return (
                     <div key={msg.id || index} className="flex justify-end">
-                      <div className="max-w-[85%] rounded-2xl bg-muted/90 text-foreground px-4 py-2.5 text-body-sm leading-relaxed shadow-2xs">
+                      <div className="max-w-[85%] rounded-2xl bg-muted/90 text-foreground px-4 py-2.5 text-body-sm leading-relaxed shadow-2xs space-y-2">
+                        {msg.quotedContext && (
+                          <div className="rounded-xl border border-brand-primary/20 bg-background/80 p-2 text-body-xs">
+                            <p className="font-semibold text-brand-primary text-[11px] truncate">
+                              {msg.quotedContext.title || "Kutipan materi"}
+                              {msg.quotedContext.sectionTitle ? ` · ${msg.quotedContext.sectionTitle}` : ""}
+                            </p>
+                            <p className="text-muted-foreground line-clamp-2 italic text-[11px]">
+                              &ldquo;{msg.quotedContext.snippet}&rdquo;
+                            </p>
+                          </div>
+                        )}
                         {msg.attachments && msg.attachments.length > 0 && courseIdFromPath && sessionId && (
                           <div className="mb-2">
                             <ZyraMessageAttachments
@@ -1131,7 +1270,7 @@ export function TutorDrawerView({
                             />
                           </div>
                         )}
-                        <p className="whitespace-pre-wrap break-words font-sans text-body-sm">{msg.content}</p>
+                        {msg.content && <p className="whitespace-pre-wrap break-words font-sans text-body-sm">{msg.content}</p>}
                       </div>
                     </div>
                   );
@@ -1147,9 +1286,33 @@ export function TutorDrawerView({
                     </div>
 
                     {/* Message Content Flow (Natural typography, no heavy card wrapper) */}
-                    <div className="prose prose-sm dark:prose-invert max-w-none break-words text-body-sm leading-relaxed text-foreground">
-                      <MarkdownRenderer content={msg.content} density="compact" />
-                    </div>
+                    {msg.isError ? (
+                      <div className="rounded-xl border border-destructive/20 bg-destructive/5 p-3 space-y-2 text-body-xs">
+                        <div className="flex items-center gap-2 text-destructive">
+                          <AlertTriangle className="size-4 shrink-0" />
+                          <span>{msg.content}</span>
+                        </div>
+                        {msg.failedPayload && (
+                          <div className="pt-1">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              disabled={chatLoading}
+                              onClick={() => handleRetry(msg.failedPayload!)}
+                              className="h-7 text-body-xs font-semibold gap-1.5 border-destructive/30 hover:bg-destructive/10 text-foreground cursor-pointer"
+                            >
+                              <RefreshCw className={cn("size-3", chatLoading && "animate-spin")} />
+                              <span>Coba lagi</span>
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="prose prose-sm dark:prose-invert max-w-none break-words text-body-sm leading-relaxed text-foreground">
+                        <MarkdownRenderer content={msg.content} density="compact" />
+                      </div>
+                    )}
 
                     {msg.canvasSpec && (
                       <div className="mt-3">
@@ -1241,6 +1404,34 @@ export function TutorDrawerView({
                   onAttachmentsChange={setReadyAttachments}
                   onAttachmentsReadyChange={setAttachmentsReady}
                 />
+              </div>
+            )}
+
+            {activeQuotedContext && (
+              <div className="mb-2 flex items-start justify-between gap-2 rounded-xl border border-brand-primary/20 bg-brand-primary/5 p-2.5 text-body-xs animate-in fade-in duration-150">
+                <div className="flex items-start gap-2 min-w-0">
+                  <Quote className="mt-0.5 size-3.5 shrink-0 text-brand-primary" />
+                  <div className="min-w-0 space-y-0.5">
+                    <p className="font-semibold text-brand-primary text-[11px] truncate">
+                      {activeQuotedContext.title || "Kutipan materi"}
+                      {activeQuotedContext.sectionTitle ? ` · ${activeQuotedContext.sectionTitle}` : ""}
+                    </p>
+                    <p className="text-foreground line-clamp-2 italic text-[11px]">
+                      &ldquo;{activeQuotedContext.snippet}&rdquo;
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveQuotedContext(null);
+                    onClearQuotedContext?.();
+                  }}
+                  className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground shrink-0 transition-colors cursor-pointer"
+                  aria-label="Hapus kutipan"
+                >
+                  <X className="size-3.5" />
+                </button>
               </div>
             )}
 

@@ -4,8 +4,8 @@ import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
 import { TutorActionService } from "@/lib/tutor-actions";
 import { db } from "@/db";
-import { aiQuestionBank, knowledgeObjects, tutorChatMessages, chatSessions, studentQuizAttempts, quizTemplates, zyraMessageAttachments, bab, chapters, mataKuliah } from "@/db/schema";
-import { eq, and, asc, desc, gt, inArray, isNull, or } from "drizzle-orm";
+import { aiQuestionBank, knowledgeObjects, tutorChatMessages, chatSessions, studentQuizAttempts, quizTemplates, zyraMessageAttachments, bab, chapters, mataKuliah, courseMaterials, diktatMateri } from "@/db/schema";
+import { eq, and, asc, desc, gt, inArray, isNull, or, sql } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 import { exams } from "@/lib/student-course-fixtures";
 import { askTutorRag, type TutorPageContext } from "@/lib/tutor-rag";
@@ -13,6 +13,7 @@ import { getOrCreateChatSession } from "@/lib/zyra/zyra-context-builder";
 import { isFreeChapterScoped } from "@/lib/course-utils";
 import { resolveCourseAccess, type CourseAccessResult } from "@/lib/student/course-access";
 import { resolveCourseIdentity } from "@/lib/admin/course-identity";
+import { getCanonicalPublishedArticle, getCanonicalPublishedTextProduct } from "@/lib/articles/structured-repository";
 import { FREE_ALLOWANCE_IDEMPOTENCY_PREFIX } from "@/lib/usage-budget-service";
 import { zyraRuntimeEnv } from "@/lib/zyra/runtime-env";
 import {
@@ -414,6 +415,14 @@ export async function askTutorRagAction(
   attachmentIds?: readonly string[],
   pagePath?: string | null,
   requestId?: string | null,
+  selectionContext?: {
+    snippet?: string;
+    blockType?: string;
+    surroundingText?: string;
+    sectionTitle?: string;
+    chapterTitle?: string;
+    intent?: string;
+  } | null,
 ) {
   const { user, access } = await requireCourseAccess(courseId);
   const normalizedQuestion = typeof question === "string" ? question.trim() : "";
@@ -561,6 +570,162 @@ export async function askTutorRagAction(
           strongAreas.length > 0 ? `Area kuat: ${strongAreas.join(", ")}` : "",
           weakAreas.length > 0 ? `Area yang perlu dipelajari: ${weakAreas.join(", ")}` : "",
         ].filter(Boolean).join("\n\n"),
+      };
+    }
+  }
+
+  const materialMatch = requestedAttachmentIds.length === 0
+    ? pagePath?.match(/^\/courses\/([^/]+)\/material\/([^/]+)(?:\/.*)?$/)
+    : null;
+  if (materialMatch && courseScopeIds.some((scopeId) => scopeId.toLowerCase() === materialMatch[1].toLowerCase())) {
+    const rawMaterialId = decodeURIComponent(materialMatch[2]);
+    try {
+      const canonicalArticle = await getCanonicalPublishedArticle(courseId, rawMaterialId, user.id);
+      if (canonicalArticle) {
+        if (!resolvedChapterId && canonicalArticle.chapterId) {
+          resolvedChapterId = canonicalArticle.chapterId;
+        }
+        pageContext = {
+          id: `article-${canonicalArticle.id}`,
+          label: `Materi: ${canonicalArticle.title}`,
+          href: pagePath ?? `/courses/${courseId}/material/${canonicalArticle.id}`,
+          content: [
+            `Murid sedang membaca materi kuliah: "${canonicalArticle.title}".`,
+            (canonicalArticle as any).learningObjective ? `Tujuan pembelajaran: ${(canonicalArticle as any).learningObjective}` : "",
+            canonicalArticle.sections.length > 0
+              ? `Subtopik materi ini:\n${canonicalArticle.sections.slice(0, 10).map((s, idx) => `${idx + 1}. ${s.title}`).join("\n")}`
+              : "",
+            `PANDUAN KONTEKS: Jawaban, analogi, atau contoh soal yang Anda berikan HARUS merujuk pada konsep materi "${canonicalArticle.title}" ini, bukan materi atau mata kuliah lain.`,
+          ].filter(Boolean).join("\n\n"),
+        };
+      } else {
+        const textProduct = await getCanonicalPublishedTextProduct(courseId, rawMaterialId);
+        if (textProduct) {
+          if (!resolvedChapterId && textProduct.chapterId) {
+            resolvedChapterId = textProduct.chapterId;
+          }
+          pageContext = {
+            id: `text-product-${textProduct.id}`,
+            label: `Materi: ${textProduct.title}`,
+            href: pagePath ?? `/courses/${courseId}/material/${textProduct.id}`,
+            content: [
+              `Murid sedang membaca materi/diktat: "${textProduct.title}".`,
+              `PANDUAN KONTEKS: Jawaban, analogi, atau contoh soal yang Anda berikan HARUS merujuk pada materi "${textProduct.title}" ini.`,
+            ].join("\n\n"),
+          };
+        } else {
+          const [mat] = await db
+            .select({
+              id: courseMaterials.id,
+              title: courseMaterials.title,
+              chapterIds: courseMaterials.chapterIds,
+            })
+            .from(courseMaterials)
+            .where(eq(courseMaterials.id, rawMaterialId))
+            .limit(1);
+
+          if (mat) {
+            const firstChapter = Array.isArray(mat.chapterIds) ? mat.chapterIds[0] : null;
+            if (!resolvedChapterId && firstChapter) {
+              resolvedChapterId = firstChapter;
+            }
+            pageContext = {
+              id: `material-${mat.id}`,
+              label: `Materi: ${mat.title}`,
+              href: pagePath ?? `/courses/${courseId}/material/${mat.id}`,
+              content: [
+                `Murid sedang membaca materi: "${mat.title}".`,
+                `PANDUAN KONTEKS: Jawab pertanyaan dalam konteks materi "${mat.title}".`,
+              ].filter(Boolean).join("\n\n"),
+            };
+          }
+        }
+      }
+    } catch (err) {
+      console.error("Error resolving material page context:", err);
+    }
+  }
+
+  const conceptMatch = !pageContext && requestedAttachmentIds.length === 0
+    ? pagePath?.match(/^\/courses\/([^/]+)\/concept\/([^/]+)(?:\/.*)?$/)
+    : null;
+  if (conceptMatch && courseScopeIds.some((scopeId) => scopeId.toLowerCase() === conceptMatch[1].toLowerCase())) {
+    const rawKoId = decodeURIComponent(conceptMatch[2]);
+    try {
+      const [ko] = await db
+        .select({
+          id: knowledgeObjects.id,
+          conceptName: knowledgeObjects.conceptName,
+          title: knowledgeObjects.title,
+          chapterId: knowledgeObjects.chapterId,
+          content: knowledgeObjects.content,
+        })
+        .from(knowledgeObjects)
+        .where(eq(knowledgeObjects.id, rawKoId))
+        .limit(1);
+
+      if (ko) {
+        if (!resolvedChapterId && ko.chapterId) {
+          resolvedChapterId = ko.chapterId;
+        }
+        pageContext = {
+          id: `concept-${ko.id}`,
+          label: `Konsep: ${ko.conceptName}`,
+          href: pagePath ?? `/courses/${courseId}/concept/${ko.id}`,
+          content: [
+            `Murid sedang mempelajari konsep: "${ko.conceptName}" (${ko.title}).`,
+            ko.content ? `Rangkuman konsep: ${ko.content.slice(0, 500)}` : "",
+            `PANDUAN KONTEKS: Jawab pertanyaan dalam konteks konsep "${ko.conceptName}".`,
+          ].filter(Boolean).join("\n\n"),
+        };
+      }
+    } catch (err) {
+      console.error("Error resolving concept page context:", err);
+    }
+  }
+
+  if (selectionContext?.snippet) {
+    const contextLines: string[] = [];
+    if (selectionContext.sectionTitle || selectionContext.chapterTitle) {
+      contextLines.push(
+        `Bagian materi: ${[selectionContext.chapterTitle, selectionContext.sectionTitle].filter(Boolean).join(" - ")}`
+      );
+    }
+    contextLines.push(`Kutipan teks materi yang disorot murid: "${selectionContext.snippet}"`);
+
+    if (selectionContext.blockType === "retrieval_prompt") {
+      contextLines.push(
+        "PANDUAN SOCRATIC KETAT: Murid sedang menanyakan soal atau latihan pada Cek Pemahaman. JANGAN PERNAH membocorkan jawaban langsung atau menyebutkan opsi/huruf yang benar (seperti A/B/C/D). Berikan bimbingan bertahap dengan mengajukan pertanyaan pemandu (Socratic hint) atau membedah konsep dasarnya agar murid menemukan jawabannya sendiri."
+      );
+    } else if (selectionContext.blockType === "worked_example" && selectionContext.surroundingText) {
+      contextLines.push(
+        `Konteks alur contoh soal lengkap:\n${selectionContext.surroundingText}\n\nPanduan: Murid sedang menanyakan langkah spesifik di atas. Jelaskan bagaimana langkah tersebut diturunkan dari langkah-langkah sebelumnya secara runut dan logis.`
+      );
+    } else if (selectionContext.intent === "define") {
+      contextLines.push(
+        "Panduan: Berikan definisi yang padat, presisi secara akademik (maksimal 2-3 kalimat), dan sertakan contoh singkat atau formula matematis bila relevan."
+      );
+    } else if (selectionContext.intent === "intuition") {
+      contextLines.push(
+        "Panduan: Berikan intuisi dasar atau analogi kehidupan nyata yang mudah dibayangkan agar murid memahami esensinya."
+      );
+    } else if (selectionContext.intent === "step_by_step") {
+      contextLines.push(
+        "Panduan: Bedah penurunan rumus atau langkah pengerjaan ini secara bertahap dan jelaskan alasan matematis/fisik di setiap perpindahan baris."
+      );
+    }
+
+    if (pageContext) {
+      pageContext = {
+        ...pageContext,
+        content: `${pageContext.content}\n\n${contextLines.join("\n\n")}`,
+      };
+    } else {
+      pageContext = {
+        id: `selection-${Date.now()}`,
+        label: selectionContext.sectionTitle || selectionContext.chapterTitle || "Kutipan Materi",
+        href: pagePath ?? `/courses/${courseId}/material`,
+        content: contextLines.join("\n\n"),
       };
     }
   }
@@ -790,3 +955,88 @@ export async function clearTutorHistoryAction(
 
   return { success: true };
 }
+
+export async function listTutorSessionsAction(courseId: string) {
+  const { user } = await requireCourseAccess(courseId);
+  const rows = await db
+    .select({
+      id: chatSessions.id,
+      title: chatSessions.title,
+      startedAt: chatSessions.startedAt,
+      lastMessageAt: chatSessions.lastMessageAt,
+      messageCount: sql<number>`(
+        select count(*) from ${tutorChatMessages}
+        where ${tutorChatMessages.sessionId} = ${chatSessions.id}
+      )`,
+    })
+    .from(chatSessions)
+    .where(and(
+      eq(chatSessions.studentId, user.id),
+      eq(chatSessions.courseId, courseId),
+    ))
+    .orderBy(desc(chatSessions.lastMessageAt))
+    .limit(30);
+
+  return rows.map((r) => ({
+    id: r.id,
+    title: r.title || "Percakapan",
+    lastMessageAt: r.lastMessageAt ? new Date(r.lastMessageAt).toISOString() : null,
+    messageCount: Number(r.messageCount || 0),
+  }));
+}
+
+export async function quickExplainSnippetAction(input: {
+  courseId: string;
+  snippet: string;
+  sectionTitle?: string;
+  chapterTitle?: string;
+  blockType?: string;
+  intent?: "define" | "simplify" | "step_by_step" | "intuition";
+}) {
+  const normalizedSnippet = input.snippet.trim().slice(0, 600);
+  if (!normalizedSnippet) {
+    return { success: false, error: "Snippet kosong." };
+  }
+
+  let promptInstruction = "";
+  if (input.intent === "define") {
+    promptInstruction = `Jelaskan secara singkat definisi dan arti dari istilah atau simbol "${normalizedSnippet}" dalam materi ${input.sectionTitle || input.chapterTitle || "kuliah"}. Jawaban harus maksimal 2 sampai 3 kalimat pendek dan jika relevan sertakan contoh singkat atau formula matematis dengan KaTeX ($...$).`;
+  } else if (input.intent === "intuition") {
+    promptInstruction = `Jelaskan intuisi dasar atau analogi sederhana di balik pernyataan "${normalizedSnippet}" agar mahasiswa langsung memahaminya. Maksimal 3 kalimat pendek.`;
+  } else if (input.intent === "step_by_step") {
+    promptInstruction = `Jelaskan logika atau alasan di balik langkah perhitungan "${normalizedSnippet}". Maksimal 3 kalimat pendek.`;
+  } else {
+    promptInstruction = `Jelaskan intisari dari "${normalizedSnippet}" secara sederhana dan padat (maksimal 2-3 kalimat).`;
+  }
+
+  try {
+    const res = await askTutorRagAction(
+      input.courseId,
+      null,
+      promptInstruction,
+      null,
+      [],
+      null,
+      null,
+      {
+        snippet: normalizedSnippet,
+        blockType: input.blockType,
+        sectionTitle: input.sectionTitle,
+        chapterTitle: input.chapterTitle,
+        intent: input.intent,
+      }
+    );
+
+    return {
+      success: true,
+      explanation: res.answer || "Tidak ada penjelasan yang tersedia.",
+    };
+  } catch (err: unknown) {
+    const errorMsg = err instanceof Error ? err.message : "Gagal memuat penjelasan singkat.";
+    return {
+      success: false,
+      error: errorMsg,
+    };
+  }
+}
+
