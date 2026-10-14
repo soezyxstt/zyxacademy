@@ -606,6 +606,8 @@ The tutor experience is housed in a dedicated, role-scoped shell (`app/(tutor)`)
 
 Student Article headings use the catalogue chapter number and title, for example `Bab 2: Fungsi dan Limit`, in both normal and focus mode. Catalogue numbering already starts at 1. Verbose authoring titles remain available in the bundle without adding course names or duplicate chapter prefixes to the student heading.
 
+The active section's navigation includes the same meaningful block headings shown in the article, including existing fallback headings when a block has no authored title. Formula-only labels and headings that repeat the section title are omitted.
+
 Canonical Article and Diktat lookups decode URL-encoded product IDs before querying. This preserves access to versioned IDs such as `article-id:v2` when App Router page parameters contain `article-id%3Av2`.
 
 Article math styles ship with the application instead of loading from a CDN. Embedded function graphs retain authored equations, display labelled open or closed points, and keep optional value tables behind "Nilai grafik". The reader constrains its flex width so equations and graphs remain inside the mobile reading area. Visuals assigned to a teaching block appear there once, without repeating above the section.

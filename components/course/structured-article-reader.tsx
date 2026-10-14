@@ -54,7 +54,7 @@ import {
   ProductFormativeCheck,
   ProductLearningTimeBadge,
 } from "@/components/course/product-learning-blocks";
-import { formatReaderTocTitle } from "@/lib/materials/reader-toc";
+import { formatReaderTocTitle, resolveReaderBlockTitle } from "@/lib/materials/reader-toc";
 import { isLearnerReaderMode, type MaterialReaderMode } from "@/lib/materials/reader-mode";
 
 export interface StructuredArticleReaderProps {
@@ -183,6 +183,13 @@ function BlockVisuals({ visuals }: { visuals?: PublicSectionReadModel["visuals"]
   );
 }
 
+function getBlockTitle(block: PublicSectionReadModel["blocks"][number], sectionTitle: string) {
+  const fallback = block.blockType === "worked_example" && block.workedExample
+    ? "Contoh dan Pembahasan Bertahap"
+    : block.formativeCheck ? "Cek Pemahaman Mandiri" : getBlockMetadata(block.blockType).label;
+  return resolveReaderBlockTitle(block.title, fallback, sectionTitle);
+}
+
 export function StructuredArticleSectionContent({
   section,
   articleId,
@@ -299,11 +306,7 @@ export function StructuredArticleSectionContent({
 
           const meta = getBlockMetadata(block.blockType);
           const Icon = meta.icon;
-          const genericFormulaTitle = block.blockType === "mathematical_representation" && block.title === "Rumus dan syarat";
-          const genericSymbolTitle = block.blockType === "verbal_representation" && block.title === "Simbol, syarat, dan makna";
-          const displayTitle = genericFormulaTitle || genericSymbolTitle
-            ? null
-            : block.title === "Penjelasan inti" ? "Teori" : block.title || meta.label;
+          const displayTitle = getBlockTitle(block, section.title);
 
           const isCoreDocument =
             block.blockType === "explanation" ||
@@ -950,6 +953,7 @@ export function StructuredArticleReader({
                 const isCurrent = activeSectionSlug === section.slug;
                 const prog = sectionProgressMap[section.id];
                 const isDone = prog?.completed || (prog?.maxReadPercent ?? 0) >= 90;
+                const subheadings = section.blocks.map(block => ({ block, title: getBlockTitle(block, section.title) })).filter(item => item.title);
 
                 return (
                   <div key={section.id} className="space-y-0.5">
@@ -980,26 +984,16 @@ export function StructuredArticleReader({
                     </button>
 
                     {/* Subheadings / Key blocks expanded only for active section */}
-                    {isCurrent && section.blocks && section.blocks.length > 0 ? (
+                    {isCurrent && subheadings.length > 0 ? (
                       <div className="ml-6 pl-2.5 border-l border-primary/25 space-y-0.5 py-1">
-                        {section.blocks
-                          .filter(
-                            (b) =>
-                              b.title &&
-                              b.title !== section.title &&
-                              b.title.trim().length > 0 &&
-                              b.title !== "Penjelasan" &&
-                              b.title !== "Representasi Konseptual" &&
-                              b.title !== "Representasi Matematis",
-                          )
-                          .map((b) => (
+                        {subheadings.map(({ block: b, title }) => (
                             <button
                               key={b.id}
                               type="button"
                               onClick={() => navigateToBlock(b.id)}
                               className="block w-full text-left text-body-2xs text-muted-foreground hover:text-foreground line-clamp-1 py-1 transition-colors"
                             >
-                              {b.title}
+                              {title}
                             </button>
                           ))}
                       </div>
