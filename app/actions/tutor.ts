@@ -590,13 +590,15 @@ export async function askTutorRagAction(
           label: `Materi: ${canonicalArticle.title}`,
           href: pagePath ?? `/courses/${courseId}/material/${canonicalArticle.id}`,
           content: [
-            `Murid sedang membaca materi kuliah: "${canonicalArticle.title}".`,
+            `Materi Kuliah: "${canonicalArticle.title}"`,
             (canonicalArticle as any).learningObjective ? `Tujuan pembelajaran: ${(canonicalArticle as any).learningObjective}` : "",
             canonicalArticle.sections.length > 0
-              ? `Subtopik materi ini:\n${canonicalArticle.sections.slice(0, 10).map((s, idx) => `${idx + 1}. ${s.title}`).join("\n")}`
+              ? canonicalArticle.sections
+                  .slice(0, 10)
+                  .map((s, idx) => `Subtopik ${idx + 1}: ${s.title}\n${s.content || ""}`)
+                  .join("\n\n")
               : "",
-            `PANDUAN KONTEKS: Jawaban, analogi, atau contoh soal yang Anda berikan HARUS merujuk pada konsep materi "${canonicalArticle.title}" ini, bukan materi atau mata kuliah lain.`,
-          ].filter(Boolean).join("\n\n"),
+          ].filter(Boolean).join("\n\n").slice(0, 4000),
         };
       } else {
         const textProduct = await getCanonicalPublishedTextProduct(courseId, rawMaterialId);
@@ -608,10 +610,7 @@ export async function askTutorRagAction(
             id: `text-product-${textProduct.id}`,
             label: `Materi: ${textProduct.title}`,
             href: pagePath ?? `/courses/${courseId}/material/${textProduct.id}`,
-            content: [
-              `Murid sedang membaca materi/diktat: "${textProduct.title}".`,
-              `PANDUAN KONTEKS: Jawaban, analogi, atau contoh soal yang Anda berikan HARUS merujuk pada materi "${textProduct.title}" ini.`,
-            ].join("\n\n"),
+            content: `Materi/diktat: "${textProduct.title}"\n\n${(textProduct as any).content || ""}`.slice(0, 4000),
           };
         } else {
           const [mat] = await db
@@ -633,10 +632,7 @@ export async function askTutorRagAction(
               id: `material-${mat.id}`,
               label: `Materi: ${mat.title}`,
               href: pagePath ?? `/courses/${courseId}/material/${mat.id}`,
-              content: [
-                `Murid sedang membaca materi: "${mat.title}".`,
-                `PANDUAN KONTEKS: Jawab pertanyaan dalam konteks materi "${mat.title}".`,
-              ].filter(Boolean).join("\n\n"),
+              content: `Materi: "${mat.title}"`,
             };
           }
         }
@@ -673,9 +669,8 @@ export async function askTutorRagAction(
           label: `Konsep: ${ko.conceptName}`,
           href: pagePath ?? `/courses/${courseId}/concept/${ko.id}`,
           content: [
-            `Murid sedang mempelajari konsep: "${ko.conceptName}" (${ko.title}).`,
+            `Konsep: "${ko.conceptName}" (${ko.title})`,
             ko.content ? `Rangkuman konsep: ${ko.content.slice(0, 500)}` : "",
-            `PANDUAN KONTEKS: Jawab pertanyaan dalam konteks konsep "${ko.conceptName}".`,
           ].filter(Boolean).join("\n\n"),
         };
       }
@@ -688,37 +683,18 @@ export async function askTutorRagAction(
     const contextLines: string[] = [];
     if (selectionContext.sectionTitle || selectionContext.chapterTitle) {
       contextLines.push(
-        `Bagian materi: ${[selectionContext.chapterTitle, selectionContext.sectionTitle].filter(Boolean).join(" - ")}`
+        `Bagian: ${[selectionContext.chapterTitle, selectionContext.sectionTitle].filter(Boolean).join(" - ")}`
       );
     }
-    contextLines.push(`Kutipan teks materi yang disorot murid: "${selectionContext.snippet}"`);
-
-    if (selectionContext.blockType === "retrieval_prompt") {
-      contextLines.push(
-        "PANDUAN SOCRATIC KETAT: Murid sedang menanyakan soal atau latihan pada Cek Pemahaman. JANGAN PERNAH membocorkan jawaban langsung atau menyebutkan opsi/huruf yang benar (seperti A/B/C/D). Berikan bimbingan bertahap dengan mengajukan pertanyaan pemandu (Socratic hint) atau membedah konsep dasarnya agar murid menemukan jawabannya sendiri."
-      );
-    } else if (selectionContext.blockType === "worked_example" && selectionContext.surroundingText) {
-      contextLines.push(
-        `Konteks alur contoh soal lengkap:\n${selectionContext.surroundingText}\n\nPanduan: Murid sedang menanyakan langkah spesifik di atas. Jelaskan bagaimana langkah tersebut diturunkan dari langkah-langkah sebelumnya secara runut dan logis.`
-      );
-    } else if (selectionContext.intent === "define") {
-      contextLines.push(
-        "Panduan: Berikan definisi yang padat, presisi secara akademik (maksimal 2-3 kalimat), dan sertakan contoh singkat atau formula matematis bila relevan."
-      );
-    } else if (selectionContext.intent === "intuition") {
-      contextLines.push(
-        "Panduan: Berikan intuisi dasar atau analogi kehidupan nyata yang mudah dibayangkan agar murid memahami esensinya."
-      );
-    } else if (selectionContext.intent === "step_by_step") {
-      contextLines.push(
-        "Panduan: Bedah penurunan rumus atau langkah pengerjaan ini secara bertahap dan jelaskan alasan matematis/fisik di setiap perpindahan baris."
-      );
+    contextLines.push(`Teks yang ditanyakan: "${selectionContext.snippet}"`);
+    if (selectionContext.surroundingText) {
+      contextLines.push(`Konteks sekitar materi:\n${selectionContext.surroundingText}`);
     }
 
     if (pageContext) {
       pageContext = {
         ...pageContext,
-        content: `${pageContext.content}\n\n${contextLines.join("\n\n")}`,
+        content: `${contextLines.join("\n\n")}\n\n---\n\n${pageContext.content}`.slice(0, 5000),
       };
     } else {
       pageContext = {
@@ -730,11 +706,18 @@ export async function askTutorRagAction(
     }
   }
 
+  let effectiveQuestion = normalizedQuestion;
+  if (selectionContext?.snippet && !effectiveQuestion.includes(selectionContext.snippet)) {
+    effectiveQuestion = effectiveQuestion
+      ? `${effectiveQuestion}\n\nKutipan materi: "${selectionContext.snippet}"`
+      : `Jelaskan kutipan materi: "${selectionContext.snippet}"`;
+  }
+
   const result = await askTutorRag({
     studentId: user.id,
     courseId,
     chapterId: resolvedChapterId,
-    question: normalizedQuestion,
+    question: effectiveQuestion,
     sessionId: sid,
     accessTier: access?.tier === "free" ? "free" : "standard",
     freeChapterIds: access?.freeChapterIds,

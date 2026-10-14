@@ -1120,18 +1120,60 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
             const pedagogySources = pedagogyEvidence.map((source) => ({ ...source, version: source.version ?? 1 }));
             const legacy = teachingResponseToTutorAnswer(pedagogyResult.response, pedagogySources);
             pedagogyCanvasSpec = legacy.canvasSpec ?? null;
-            result = {
-              success: true,
-              data: {
-                covered: legacy.grounded,
-                answer: legacy.answer,
-                sourceIds: pedagogyResult.response.citations.map((citation) => citation.sourceId),
-                matchedConcepts: legacy.matchedConcepts,
-                confidence: legacy.confidence,
-              },
-              errors: [],
-              violationCodes: pedagogyResult.violationCodes,
-            };
+
+            if (pedagogyResult.usedFallback) {
+              const legacyFallback = await PromptExecutor.run({
+                userId: studentId,
+                prompt: tutorGroundedAnswer,
+                variables: {
+                  question: sanitizedQuestion,
+                  contextBlock,
+                  sourceList,
+                  conversationHistory: "",
+                },
+                schema: GroundedSchema,
+                useCase: USE_CASES.GROUNDED_RAG,
+                cachePolicy: remoteCache ? "public_scaffold" : undefined,
+                cacheKey: remoteCacheKey,
+                cacheTtlSeconds: remoteCache ? SHARED_TUTOR_TTL_SECONDS : undefined,
+                idempotencyKey,
+                structuredOutputMode: "legacy-fallback",
+              });
+              if (legacyFallback.success && legacyFallback.data?.answer) {
+                result = {
+                  success: true,
+                  data: legacyFallback.data,
+                  errors: [],
+                  violationCodes: legacyFallback.violationCodes,
+                };
+              } else {
+                result = {
+                  success: true,
+                  data: {
+                    covered: legacy.grounded,
+                    answer: legacy.answer,
+                    sourceIds: pedagogyResult.response.citations.map((citation) => citation.sourceId),
+                    matchedConcepts: legacy.matchedConcepts,
+                    confidence: legacy.confidence,
+                  },
+                  errors: [],
+                  violationCodes: pedagogyResult.violationCodes,
+                };
+              }
+            } else {
+              result = {
+                success: true,
+                data: {
+                  covered: legacy.grounded,
+                  answer: legacy.answer,
+                  sourceIds: pedagogyResult.response.citations.map((citation) => citation.sourceId),
+                  matchedConcepts: legacy.matchedConcepts,
+                  confidence: legacy.confidence,
+                },
+                errors: [],
+                violationCodes: pedagogyResult.violationCodes,
+              };
+            }
           }
         } else {
           result = await PromptExecutor.run({
