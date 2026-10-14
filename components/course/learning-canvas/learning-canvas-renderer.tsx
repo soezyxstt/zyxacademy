@@ -734,7 +734,7 @@ function FunctionPlot({ spec, editable = true }: { spec: FunctionPlotCanvas; edi
       return {
         id: series.id,
         path,
-        color: idx === 0 ? GRAPH_BLUE : GRAPH_SECONDARY,
+        color: getSeriesColor(idx),
         visible: visibleSeriesIds.has(series.id),
       };
     });
@@ -756,12 +756,71 @@ function FunctionPlot({ spec, editable = true }: { spec: FunctionPlotCanvas; edi
           result.push({
             id: `${series.id}-root-${i}`,
             x: rootX,
-            color: seriesIndex === 0 ? GRAPH_BLUE : GRAPH_SECONDARY,
+            color: getSeriesColor(seriesIndex),
           });
         }
       }
       return result;
     });
+  }, [evaluated, visibleSeriesIds, view.xMin, view.xMax, view.yMin, view.yMax]);
+
+  const intersections = useMemo(() => {
+    const visibleSeries = evaluated.filter((s) => visibleSeriesIds.has(s.id));
+    if (visibleSeries.length < 2) return [];
+
+    const results: Array<{ id: string; x: number; y: number; label: string }> = [];
+
+    for (let i = 0; i < visibleSeries.length - 1; i += 1) {
+      for (let j = i + 1; j < visibleSeries.length; j += 1) {
+        const s1 = visibleSeries[i];
+        const s2 = visibleSeries[j];
+        const count = Math.min(s1.points.length, s2.points.length);
+
+        for (let k = 1; k < count; k += 1) {
+          const p1Prev = s1.points[k - 1];
+          const p1Curr = s1.points[k];
+          const p2Prev = s2.points[k - 1];
+          const p2Curr = s2.points[k];
+
+          if (
+            !p1Prev || !p1Curr || !p2Prev || !p2Curr ||
+            p1Prev.y === null || p1Curr.y === null ||
+            p2Prev.y === null || p2Curr.y === null
+          ) continue;
+
+          const diffPrev = p1Prev.y - p2Prev.y;
+          const diffCurr = p1Curr.y - p2Curr.y;
+
+          if (diffPrev === 0 || Math.sign(diffPrev) !== Math.sign(diffCurr)) {
+            const denom = Math.abs(diffPrev) + Math.abs(diffCurr);
+            const ratio = denom === 0 ? 0 : Math.abs(diffPrev) / denom;
+            const ix = p1Prev.x + (p1Curr.x - p1Prev.x) * ratio;
+            const iy = p1Prev.y + (p1Curr.y - p1Prev.y) * ratio;
+
+            if (
+              Number.isFinite(ix) && Number.isFinite(iy) &&
+              ix >= view.xMin && ix <= view.xMax &&
+              iy >= view.yMin && iy <= view.yMax
+            ) {
+              const roundedX = Math.round(ix * 100) / 100;
+              const roundedY = Math.round(iy * 100) / 100;
+              const exists = results.some(
+                (r) => Math.abs(r.x - roundedX) < 0.04 && Math.abs(r.y - roundedY) < 0.04,
+              );
+              if (!exists) {
+                results.push({
+                  id: `intersect-${s1.id}-${s2.id}-${k}`,
+                  x: roundedX,
+                  y: roundedY,
+                  label: `(${formatNum(roundedX)}, ${formatNum(roundedY)})`,
+                });
+              }
+            }
+          }
+        }
+      }
+    }
+    return results;
   }, [evaluated, visibleSeriesIds, view.xMin, view.xMax, view.yMin, view.yMax]);
 
   const handleHoverMove = (e: ReactMouseEvent<SVGSVGElement>) => {
@@ -798,7 +857,7 @@ function FunctionPlot({ spec, editable = true }: { spec: FunctionPlotCanvas; edi
         if (!closest || distanceSquared < closest.distanceSquared) {
           closest = {
             label: series.label,
-            color: seriesIndex === 0 ? GRAPH_BLUE : GRAPH_SECONDARY,
+            color: getSeriesColor(seriesIndex),
             x: point.x,
             y: point.y,
             px: pointPx,
@@ -857,34 +916,43 @@ function FunctionPlot({ spec, editable = true }: { spec: FunctionPlotCanvas; edi
   }, [spec, resetView]);
 
   return (
-    <div className="relative mx-auto w-full max-w-full overflow-hidden rounded-xl border border-border bg-card shadow-md ring-1 ring-black/5">
-      <div className="flex max-w-full min-w-0 flex-wrap items-center justify-between gap-x-2 gap-y-1.5 border-b border-border bg-muted/40 px-3.5 py-2.5">
+    <div className="relative mx-auto w-full max-w-full my-3 space-y-2">
+      {/* Top Header / Legend (Open Toolbar, Not A Card) */}
+      <div className="flex max-w-full min-w-0 flex-wrap items-center justify-between gap-2 px-0.5">
         <SeriesLegend
           spec={spec}
           expressions={expressions}
           visibleSeriesIds={visibleSeriesIds}
           onToggleSeries={toggleSeries}
         />
-        <div className="flex shrink-0 items-center gap-3">
-          <button
+        <div className="flex shrink-0 items-center gap-1.5">
+          <Button
             type="button"
+            variant="ghost"
+            size="sm"
             onClick={resetView}
-            className="text-body-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
+            className="h-8 text-body-xs text-muted-foreground hover:text-foreground"
           >
+            <RotateCcw className="mr-1.5 h-3.5 w-3.5" />
             Reset tampilan
-          </button>
-          {editable ? <button
-            type="button"
-            onClick={() => setShowFormulaInput((prev) => !prev)}
-            className="text-body-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
-          >
-            {showFormulaInput ? "Sembunyikan edit rumus" : "Ubah rumus"}
-          </button> : null}
+          </Button>
+          {editable ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowFormulaInput((prev) => !prev)}
+              className="h-8 text-body-xs text-muted-foreground hover:text-foreground"
+            >
+              <SlidersHorizontal className="mr-1.5 h-3.5 w-3.5" />
+              {showFormulaInput ? "Sembunyikan edit rumus" : "Ubah rumus"}
+            </Button>
+          ) : null}
         </div>
       </div>
 
       {editable && showFormulaInput && (
-        <div className="border-b border-border bg-muted/20 px-4 py-3 space-y-2">
+        <div className="rounded-xl border border-border/70 bg-muted/20 p-3 space-y-2">
           {spec.series.map((series) => (
             <label key={series.id} className="block space-y-1 text-body-sm font-semibold text-foreground">
               <span>{series.label}</span>
@@ -908,7 +976,8 @@ function FunctionPlot({ spec, editable = true }: { spec: FunctionPlotCanvas; edi
         </div>
       )}
 
-      <div className="relative w-full bg-card overflow-hidden select-none">
+      {/* Math Canvas Viewport */}
+      <div className="relative w-full overflow-hidden rounded-xl border border-border/60 bg-muted/15 select-none shadow-2xs transition-colors">
         <svg
           {...bind}
           className={cn(bind.className, "block h-auto w-full")}
@@ -937,7 +1006,7 @@ function FunctionPlot({ spec, editable = true }: { spec: FunctionPlotCanvas; edi
               d={series.path}
               fill="none"
               stroke={series.color}
-              strokeWidth={3}
+              strokeWidth={2.75}
               strokeDasharray={spec.series[idx]?.lineStyle === "dashed" ? "8 6" : spec.series[idx]?.lineStyle === "dotted" ? "2 5" : undefined}
               strokeLinecap="round"
               strokeLinejoin="round"
@@ -946,6 +1015,59 @@ function FunctionPlot({ spec, editable = true }: { spec: FunctionPlotCanvas; edi
             />
           ))}
 
+          {/* Intersections between curves (Points of Interest) */}
+          {intersections.map((pt) => {
+            const cx = mapX(pt.x);
+            const cy = mapY(pt.y);
+            return (
+              <g key={pt.id} clipPath={`url(#plot-clip-${uid})`} className="cursor-pointer">
+                <circle
+                  cx={cx}
+                  cy={cy}
+                  r={7}
+                  fill="none"
+                  stroke="var(--color-primary)"
+                  strokeWidth={1.5}
+                  strokeDasharray="2 2"
+                  opacity={0.8}
+                />
+                <circle
+                  cx={cx}
+                  cy={cy}
+                  r={3.5}
+                  fill="var(--color-background)"
+                  stroke="var(--color-primary)"
+                  strokeWidth={2}
+                >
+                  <title>{`Titik potong: (${formatNum(pt.x)}, ${formatNum(pt.y)})`}</title>
+                </circle>
+                <g transform={`translate(${cx > PAD_L + PLOT_W - 60 ? cx - 52 : cx + 8}, ${cy < PAD_T + 22 ? cy + 16 : cy - 8})`}>
+                  <rect
+                    x={-3}
+                    y={-10}
+                    width={formatNum(pt.x).length * 7 + formatNum(pt.y).length * 7 + 18}
+                    height={15}
+                    rx={4}
+                    fill="var(--color-background)"
+                    fillOpacity={0.88}
+                    stroke="var(--color-border)"
+                    strokeWidth={0.75}
+                  />
+                  <text
+                    x={2}
+                    y={1}
+                    fill="var(--color-foreground)"
+                    fontSize={10}
+                    fontWeight={600}
+                    fontFamily="system-ui, sans-serif"
+                  >
+                    {`(${formatNum(pt.x)}, ${formatNum(pt.y)})`}
+                  </text>
+                </g>
+              </g>
+            );
+          })}
+
           {(spec.pointMarkers ?? []).filter(marker => visibleSeriesIds.has(marker.seriesId)).map((marker, index) => (
             <g key={`point-${index}`} clipPath={`url(#plot-clip-${uid})`}>
               <circle
@@ -953,7 +1075,7 @@ function FunctionPlot({ spec, editable = true }: { spec: FunctionPlotCanvas; edi
                 cx={mapX(marker.x)}
                 cy={mapY(marker.y)}
                 r={6}
-                fill={marker.kind === "open" ? BG : GRAPH_BLUE}
+                fill={marker.kind === "open" ? "var(--color-background)" : GRAPH_BLUE}
                 stroke={GRAPH_BLUE}
                 strokeWidth={2.5}
               ><title>{marker.label}</title></circle>
@@ -1004,12 +1126,41 @@ function FunctionPlot({ spec, editable = true }: { spec: FunctionPlotCanvas; edi
                 cy={hoverData.py}
                 r={5}
                 fill={hoverData.color}
-                stroke="var(--color-card)"
+                stroke="var(--color-background)"
                 strokeWidth={2}
               />
             </g>
           )}
         </svg>
+
+        {/* Floating Navigation Controls (Zoom / Reset) */}
+        <div className="absolute bottom-2.5 right-2.5 flex items-center gap-0.5 rounded-lg border border-border/60 bg-background/85 p-1 shadow-xs backdrop-blur-md">
+          <button
+            type="button"
+            aria-label="Perbesar tampilan grafik"
+            onClick={() => zoomBy(0.8)}
+            className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+          >
+            <ZoomIn className="h-3.5 w-3.5" />
+          </button>
+          <button
+            type="button"
+            aria-label="Perkecil tampilan grafik"
+            onClick={() => zoomBy(1.25)}
+            className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+          >
+            <ZoomOut className="h-3.5 w-3.5" />
+          </button>
+          <div className="mx-0.5 h-3.5 w-[1px] bg-border/60" />
+          <button
+            type="button"
+            aria-label="Atur ulang tampilan grafik"
+            onClick={resetView}
+            className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+          >
+            <RotateCcw className="h-3.5 w-3.5" />
+          </button>
+        </div>
 
         {!hasPlottableCurve && (
           <div className="absolute inset-x-6 bottom-3 rounded-lg border border-status-warning/30 bg-background/95 p-2.5 text-left text-body-xs text-foreground shadow-sm">
@@ -1042,12 +1193,27 @@ function FunctionPlot({ spec, editable = true }: { spec: FunctionPlotCanvas; edi
         onResetAll={resetAll}
       />
 
-      <div className="border-t border-border px-3.5 py-2">
-        <Button variant="ghost" size="sm" aria-expanded={showValues} aria-controls={`graph-values-${uid}`} onClick={() => setShowValues(value => !value)}>
+      <div className="flex items-center justify-between px-1 pt-1">
+        <Button
+          variant="ghost"
+          size="sm"
+          aria-expanded={showValues}
+          aria-controls={`graph-values-${uid}`}
+          onClick={() => setShowValues((value) => !value)}
+          className="h-8 text-body-xs text-muted-foreground hover:text-foreground"
+        >
+          <ChevronDown className={cn("mr-1.5 h-3.5 w-3.5 transition-transform duration-200", showValues && "rotate-180")} />
           {showValues ? "Sembunyikan nilai grafik" : "Nilai grafik"}
         </Button>
+        <span className="text-body-xs text-muted-foreground/60">
+          Seret untuk menggeser • Scroll / tombol untuk zoom
+        </span>
       </div>
-      {showValues ? <div id={`graph-values-${uid}`}><FallbackTable spec={spec} className="rounded-none border-0 border-t" /></div> : null}
+      {showValues ? (
+        <div id={`graph-values-${uid}`}>
+          <FallbackTable spec={spec} className="mt-2 rounded-xl border border-border/60 bg-muted/10 shadow-none" />
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -1335,15 +1501,22 @@ function ChemistryReaction({ spec }: { spec: ChemistryCanvas }) {
 
 export function LearningCanvasRenderer({ spec, embedded = false }: { spec: CanvasSpec; embedded?: boolean }) {
   const titleId = useId();
-  const compactPlot = embedded && spec.type === "function_plot";
+  const isFunctionPlot = spec.type === "function_plot";
+  const compactPlot = embedded && isFunctionPlot;
   return (
-    <section aria-labelledby={compactPlot ? undefined : titleId} aria-label={compactPlot ? spec.title : undefined} className={compactPlot ? "w-full min-w-0" : "my-6 w-full min-w-0 space-y-4 rounded-xl border border-border bg-card p-4 md:p-5"}>
-      {!compactPlot ? <div>
-        <h3 id={titleId} className="font-heading text-body-base font-semibold text-foreground">
-          {spec.title}
-        </h3>
-        <p className="mt-1 text-body-sm text-muted-foreground">{spec.purpose}</p>
-      </div> : null}
+    <section
+      aria-labelledby={compactPlot ? undefined : titleId}
+      aria-label={compactPlot ? spec.title : undefined}
+      className={isFunctionPlot ? "w-full min-w-0 my-3 space-y-2" : compactPlot ? "w-full min-w-0" : "my-6 w-full min-w-0 space-y-4 rounded-xl border border-border bg-card p-4 md:p-5"}
+    >
+      {!compactPlot && !isFunctionPlot ? (
+        <div>
+          <h3 id={titleId} className="font-heading text-body-base font-semibold text-foreground">
+            {spec.title}
+          </h3>
+          <p className="mt-1 text-body-sm text-muted-foreground">{spec.purpose}</p>
+        </div>
+      ) : null}
       {spec.type === "function_plot" ? (
         <FunctionPlot spec={spec} editable={!embedded} />
       ) : spec.type === "data_plot" ? (

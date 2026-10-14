@@ -857,8 +857,8 @@ function ASTBlockRenderer({ block, density }: { block: ASTBlock; density?: Markd
         return (
           <div
             className={cn(
-              "formula-focus max-w-full overflow-x-auto overflow-y-hidden no-scrollbar rounded-lg border-l-4 border-primary bg-primary/[0.04] px-4 py-3 text-left [&_.katex-display]:my-0 [&_.katex-display]:text-left",
-              isCompact ? "my-2" : "my-4",
+              "formula-focus max-w-full overflow-x-auto overflow-y-hidden no-scrollbar rounded-lg border-l-3 border-primary bg-primary/[0.03] px-3.5 py-2 text-left [&_.katex-display]:my-0 [&_.katex-display]:py-0 [&_.katex-display]:text-left",
+              isCompact ? "my-1.5" : "my-2.5",
             )}
             data-content-kind="formula"
             aria-label="Rumus utama"
@@ -924,7 +924,7 @@ function ASTBlockRenderer({ block, density }: { block: ASTBlock; density?: Markd
           <div
             className={cn(
               "rounded-xl border border-border/70 bg-card divide-y divide-border/40 overflow-hidden shadow-2xs",
-              isCompact ? "my-3" : "my-5",
+              isCompact ? "my-2" : "my-2.5",
             )}
             data-content-kind="formula-property-list"
           >
@@ -934,13 +934,13 @@ function ASTBlockRenderer({ block, density }: { block: ASTBlock; density?: Markd
                 return (
                   <div
                     key={itemIdx}
-                    className="px-4 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-6 hover:bg-muted/15 transition-colors"
+                    className="px-3.5 py-2 sm:px-4 sm:py-2 flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 sm:gap-6 hover:bg-muted/15 transition-colors [&_.katex-display]:my-0 [&_.katex-display]:py-0 [&_.katex-display]:text-left"
                   >
-                    <div className="overflow-x-auto overflow-y-hidden no-scrollbar text-left font-mono [&_.katex-display]:my-0 [&_.katex-display]:text-left">
+                    <div className="overflow-x-auto overflow-y-hidden no-scrollbar text-left font-mono">
                       <span dangerouslySetInnerHTML={{ __html: renderMath(parsed.math, true) }} />
                     </div>
                     {parsed.note ? (
-                      <div className="text-body-sm text-muted-foreground sm:text-right shrink-0 max-w-sm leading-relaxed">
+                      <div className="text-body-xs text-muted-foreground sm:text-right shrink-0 max-w-sm leading-relaxed">
                         {renderRichText(parsed.note)}
                       </div>
                     ) : null}
@@ -948,7 +948,7 @@ function ASTBlockRenderer({ block, density }: { block: ASTBlock; density?: Markd
                 );
               }
               return (
-                <div key={itemIdx} className="px-4 py-3 text-body-sm text-foreground hover:bg-muted/15 transition-colors">
+                <div key={itemIdx} className="px-3.5 py-2 text-body-sm text-foreground hover:bg-muted/15 transition-colors">
                   {renderRichText(item.text)}
                 </div>
               );
@@ -1183,12 +1183,12 @@ function ASTBlockRenderer({ block, density }: { block: ASTBlock; density?: Markd
       return (
         <div id={block.id} className={cn(
           "border border-border bg-card shadow-xs text-left",
-          isCompact ? "p-3.5 rounded-lg my-3" : "p-5 rounded-xl my-6"
+          isCompact ? "p-3 rounded-lg my-2" : "p-3.5 rounded-xl my-2.5"
         )}>
-          <h4 className={cn("text-body-base font-heading font-bold text-foreground", isCompact ? "mb-2" : "mb-3")}>{block.content.title ? renderRichText(block.content.title) : "Formula"}</h4>
-          <div className={cn("overflow-x-auto text-center w-full max-w-full", isCompact ? "my-2.5" : "my-4")} dangerouslySetInnerHTML={{ __html: formulaHtml }} />
+          <h4 className={cn("text-body-sm font-heading font-bold text-foreground", isCompact ? "mb-1.5" : "mb-2")}>{block.content.title ? renderRichText(block.content.title) : "Formula"}</h4>
+          <div className={cn("overflow-x-auto text-center w-full max-w-full [&_.katex-display]:my-0 [&_.katex-display]:py-0", isCompact ? "my-1.5" : "my-2")} dangerouslySetInnerHTML={{ __html: formulaHtml }} />
           {block.content.interpretation && (
-            <div className={cn("text-body-sm text-muted-foreground leading-relaxed", isCompact ? "mt-2" : "mt-3")}>
+            <div className={cn("text-body-xs text-muted-foreground leading-relaxed", isCompact ? "mt-1.5" : "mt-2")}>
               <MarkdownRenderer content={block.content.interpretation} density={density} />
             </div>
           )}
@@ -1441,14 +1441,14 @@ export function ASTRenderer({ blocks, className, density }: ASTRendererProps) {
                 key={`math-group-${idx}`}
                 className={cn(
                   "rounded-xl border border-border/70 bg-card divide-y divide-border/40 overflow-hidden shadow-2xs",
-                  activeDensity === "compact" ? "my-3" : "my-5"
+                  activeDensity === "compact" ? "my-2" : "my-2.5"
                 )}
                 data-content-kind="formula-group"
               >
                 {item.blocks.map((mathBlock, bIdx) => (
                   <div
                     key={mathBlock.id || bIdx}
-                    className="px-4 py-3 text-left font-mono overflow-x-auto overflow-y-hidden no-scrollbar [&_.katex-display]:my-0 [&_.katex-display]:text-left hover:bg-muted/15 transition-colors"
+                    className="px-3.5 py-1.5 sm:px-4 sm:py-2 text-left font-mono overflow-x-auto overflow-y-hidden no-scrollbar [&_.katex-display]:my-0 [&_.katex-display]:py-0 [&_.katex-display]:text-left hover:bg-muted/15 transition-colors"
                   >
                     <span dangerouslySetInnerHTML={{ __html: renderMath(standaloneMathSource(mathBlock.content), true) }} />
                   </div>
