@@ -68,6 +68,7 @@ function normalizeCanvasInput(input: unknown): unknown {
         id: typeof item.id === "string" && item.id ? item.id : `f${idx + 1}`,
         label: typeof item.label === "string" && item.label ? item.label : `f${idx + 1}(x)`,
         expression: typeof item.expression === "string" ? normalizeLegacyGraphExpression(item.expression) : "",
+        ...(item.excludedX === undefined ? {} : { excludedX: item.excludedX }),
       };
     });
 

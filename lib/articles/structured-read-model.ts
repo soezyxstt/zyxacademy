@@ -705,6 +705,9 @@ export function buildPublicArticleReadModel(
       }
     }
 
+    const blockVisualIds = new Set(sectionBlocks.flatMap((block) => (block.visuals ?? []).map((visual) => visual.id)));
+    const standaloneVisuals = sectionVisuals.filter((visual) => !blockVisualIds.has(visual.id));
+
     return {
       id: s.id,
       slug: s.slug,
@@ -718,7 +721,7 @@ export function buildPublicArticleReadModel(
       blocks: sectionBlocks,
       pedagogy: sectionPedagogy,
       learningTimeEstimate,
-      visuals: sectionVisuals.length > 0 ? sectionVisuals : undefined,
+      visuals: standaloneVisuals.length > 0 ? standaloneVisuals : undefined,
     };
   });
 
@@ -792,7 +795,7 @@ export function buildPublicArticleReadModel(
     courseId,
     chapterId: chapterId ?? rawArticle.babId ?? null,
     slug: rawArticle.slug,
-    title: rawArticle.title,
+    title: typeof chapter === "object" && chapter ? chapter.title?.trim() || rawArticle.title : rawArticle.title,
     courseTitle: typeof chapter === "object" && chapter ? chapter.courseTitle ?? "" : "",
     chapterTitle: typeof chapter === "object" && chapter ? chapter.title ?? null : null,
     chapterNumber,

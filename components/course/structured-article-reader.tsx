@@ -39,6 +39,12 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { MarkdownRenderer } from "@/components/course/markdown-renderer";
 import { useTutor } from "@/components/course/tutor-drawer";
@@ -57,7 +63,7 @@ import {
   ProductFormativeCheck,
   ProductLearningTimeBadge,
 } from "@/components/course/product-learning-blocks";
-import { formatReaderTocTitle } from "@/lib/materials/reader-toc";
+import { formatReaderTocTitle, resolveReaderBlockTitle } from "@/lib/materials/reader-toc";
 import { isLearnerReaderMode, type MaterialReaderMode } from "@/lib/materials/reader-mode";
 
 export interface MaterialNavigationItem {
@@ -194,6 +200,13 @@ function BlockVisuals({ visuals }: { visuals?: PublicSectionReadModel["visuals"]
   );
 }
 
+function getBlockTitle(block: PublicSectionReadModel["blocks"][number], sectionTitle: string) {
+  const fallback = block.blockType === "worked_example" && block.workedExample
+    ? "Contoh dan Pembahasan Bertahap"
+    : block.formativeCheck ? "Cek Pemahaman Mandiri" : getBlockMetadata(block.blockType).label;
+  return resolveReaderBlockTitle(block.title, fallback, sectionTitle);
+}
+
 export function StructuredArticleSectionContent({
   section,
   articleId,
@@ -238,18 +251,10 @@ export function StructuredArticleSectionContent({
         ) : null}
 
         {section.learningObjective ? (
-          <div className="mt-4 rounded-r-lg border-l-4 border-primary/60 border-t border-r border-b border-border/60 bg-primary/[0.03] p-4 shadow-2xs">
-            <div className="flex items-start gap-2.5">
-              <Compass className="mt-0.5 size-4 shrink-0 text-primary" />
-              <div>
-                <h3 className="text-body-xs font-bold uppercase tracking-wider text-primary">
-                  Tujuan belajar
-                </h3>
-                <p className="mt-1 text-body-sm leading-relaxed text-foreground">
-                  {section.learningObjective}
-                </p>
-              </div>
-            </div>
+          <div className="mt-3 border-l-2 border-primary/60 pl-3.5 py-1">
+            <p className="text-body-base leading-relaxed text-muted-foreground">
+              {section.learningObjective}
+            </p>
           </div>
         ) : null}
       </header>
@@ -314,11 +319,7 @@ export function StructuredArticleSectionContent({
 
           const meta = getBlockMetadata(block.blockType);
           const Icon = meta.icon;
-          const genericFormulaTitle = block.blockType === "mathematical_representation" && block.title === "Rumus dan syarat";
-          const genericSymbolTitle = block.blockType === "verbal_representation" && block.title === "Simbol, syarat, dan makna";
-          const displayTitle = genericFormulaTitle || genericSymbolTitle
-            ? null
-            : block.title === "Penjelasan inti" ? "Teori" : block.title || meta.label;
+          const displayTitle = getBlockTitle(block, section.title);
 
           const isCoreDocument =
             block.blockType === "explanation" ||
@@ -508,7 +509,13 @@ export function StructuredArticleReader({
   const { openExplain, openChatWithQuestion, isOpen: isTutorOpen } = useTutor();
   const selectionAskEnabled = isZyraSelectionAskEnabled();
   const [selectionContext, setSelectionContext] = useState<ZyraSelectionContext | null>(null);
-  const [selectionCoords, setSelectionCoords] = useState<{ top: number; left: number } | null>(null);
+  const [selectionCoords, setSelectionCoords] = useState<{
+    top: number;
+    left: number;
+    width: number;
+    height: number;
+  } | null>(null);
+  const [isSelectionToolbarOpen, setIsSelectionToolbarOpen] = useState(false);
 
   // Auto-collapse TOC ("BAB INI") on laptop screens when Zyra panel opens
   const tocWasOpenBeforeTutorRef = useRef<boolean | null>(null);
@@ -776,66 +783,94 @@ export function StructuredArticleReader({
     return () => window.removeEventListener("scroll", handleScroll);
   }, [activeSection, article.sections, learnerMode, sendProgressUpdate]);
 
-  // Selection change listener for selection-to-Zyra
+  // Selection listener for selection-to-Zyra toolbar using mouseup and keyup
   useEffect(() => {
-    if (!learnerMode) return;
-    const handleSelectionChange = () => {
-      const selection = window.getSelection();
-      if (!selection || selection.isCollapsed || !selection.toString().trim()) {
-        setSelectionContext(null);
-        setSelectionCoords(null);
+    if (!learnerMode || !selectionAskEnabled) return;
+
+    const handleMouseUp = (e: MouseEvent) => {
+      // If clicking inside the popover itself, do not recalculate or close
+      const target = e.target as HTMLElement | null;
+      if (
+        target?.closest('[data-slot="popover-content"]') ||
+        target?.closest('[data-slot="zyra-selection-anchor"]')
+      ) {
         return;
       }
 
-      const anchorNode = selection.anchorNode;
-      if (!anchorNode) return;
+      // Defer slightly so browser finalizes the range selection
+      requestAnimationFrame(() => {
+        const selection = window.getSelection();
+        if (!selection || selection.isCollapsed) return;
 
-      const container = contentContainerRef.current;
-      if (!container || !container.contains(anchorNode)) {
-        setSelectionContext(null);
-        setSelectionCoords(null);
-        return;
-      }
+        const rawText = selection.toString().trim();
+        if (!rawText || rawText.length < 2) return;
 
-      const extracted = extractZyraSelection(selection, article.title);
-      if (!extracted || extracted.cleanText.length < 2) {
-        setSelectionContext(null);
-        setSelectionCoords(null);
-        return;
-      }
+        const anchorNode = selection.anchorNode;
+        if (!anchorNode || !contentContainerRef.current?.contains(anchorNode)) {
+          return;
+        }
 
-      try {
-        const range = selection.getRangeAt(0);
-        const rect = range.getBoundingClientRect();
-        setSelectionCoords({
-          top: rect.top - 46,
-          left: rect.left + rect.width / 2,
-        });
-        setSelectionContext(extracted);
-      } catch {
-        // Safe fallback
+        const extracted = extractZyraSelection(selection, article.title);
+        if (!extracted || extracted.cleanText.length < 2) return;
+
+        try {
+          const range = selection.getRangeAt(0);
+          const rect = range.getBoundingClientRect();
+          if (rect.width > 0 && rect.height > 0) {
+            setSelectionCoords({
+              top: rect.top,
+              left: rect.left,
+              width: rect.width,
+              height: rect.height,
+            });
+            setSelectionContext(extracted);
+            setIsSelectionToolbarOpen(true);
+          }
+        } catch {
+          // Safe fallback
+        }
+      });
+    };
+
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (e.key === "Shift" || e.key.startsWith("Arrow")) {
+        const selection = window.getSelection();
+        if (selection && !selection.isCollapsed) {
+          const fakeEvent = new MouseEvent("mouseup");
+          handleMouseUp(fakeEvent);
+        }
       }
     };
 
-    const handleWindowScroll = () => {
-      setSelectionContext(null);
-      setSelectionCoords(null);
-    };
+    const container = contentContainerRef.current;
+    if (container) {
+      container.addEventListener("mouseup", handleMouseUp);
+      container.addEventListener("keyup", handleKeyUp);
+    }
 
-    document.addEventListener("selectionchange", handleSelectionChange);
-    document.addEventListener("scroll", handleWindowScroll, true);
     return () => {
-      document.removeEventListener("selectionchange", handleSelectionChange);
-      document.removeEventListener("scroll", handleWindowScroll, true);
+      if (container) {
+        container.removeEventListener("mouseup", handleMouseUp);
+        container.removeEventListener("keyup", handleKeyUp);
+      }
     };
-  }, [learnerMode, article.title]);
+  }, [learnerMode, selectionAskEnabled, article.title]);
+
+  const handleToolbarOpenChange = (open: boolean) => {
+    setIsSelectionToolbarOpen(open);
+    if (!open) {
+      setSelectionCoords(null);
+      setSelectionContext(null);
+    }
+  };
 
   const handleAskZyra = (intent: string, customQuestion?: string) => {
     if (!learnerMode || !selectionContext) return;
     const currentContext = selectionContext;
+
+    // Close the toolbar popover and clear selection
+    handleToolbarOpenChange(false);
     window.getSelection()?.removeAllRanges();
-    setSelectionContext(null);
-    setSelectionCoords(null);
 
     const sectionTitle = currentContext.sectionTitle || activeSection?.title || "";
     let questionText = customQuestion?.trim();
@@ -851,7 +886,7 @@ export function StructuredArticleReader({
       } else if (intent === "define") {
         questionText = "Jelaskan definisi istilah atau simbol ini secara padat.";
       } else {
-        questionText = "Jelaskan bagian ini secara bertahap dan berikan contoh konkret.";
+        questionText = `Bantu saya memahami bagian ini: "${currentContext.cleanText}".`;
       }
     }
 
@@ -1037,6 +1072,7 @@ export function StructuredArticleReader({
                 const isCurrent = activeSectionSlug === section.slug;
                 const prog = sectionProgressMap[section.id];
                 const isDone = prog?.completed || (prog?.maxReadPercent ?? 0) >= 90;
+                const subheadings = section.blocks.map(block => ({ block, title: getBlockTitle(block, section.title) })).filter(item => item.title);
 
                 return (
                   <div key={section.id} className="space-y-0.5">
@@ -1067,26 +1103,16 @@ export function StructuredArticleReader({
                     </button>
 
                     {/* Subheadings / Key blocks expanded only for active section */}
-                    {isCurrent && section.blocks && section.blocks.length > 0 ? (
+                    {isCurrent && subheadings.length > 0 ? (
                       <div className="ml-6 pl-2.5 border-l border-primary/25 space-y-0.5 py-1">
-                        {section.blocks
-                          .filter(
-                            (b) =>
-                              b.title &&
-                              b.title !== section.title &&
-                              b.title.trim().length > 0 &&
-                              b.title !== "Penjelasan" &&
-                              b.title !== "Representasi Konseptual" &&
-                              b.title !== "Representasi Matematis",
-                          )
-                          .map((b) => (
+                        {subheadings.map(({ block: b, title }) => (
                             <button
                               key={b.id}
                               type="button"
                               onClick={() => navigateToBlock(b.id)}
                               className="block w-full text-left text-body-2xs text-muted-foreground hover:text-foreground line-clamp-1 py-1 transition-colors"
                             >
-                              {b.title}
+                              {title}
                             </button>
                           ))}
                       </div>
@@ -1107,12 +1133,12 @@ export function StructuredArticleReader({
       {learnerMode &&
         (isFocusMode ? (
           <header className="sticky top-0 z-30 border-b border-border/80 bg-background/95 backdrop-blur-sm">
-            <div className="flex items-center justify-between px-4 py-2.5 gap-3 max-w-4xl mx-auto w-full">
-              <div className="flex items-center gap-2 min-w-0">
-                <span className="rounded-md bg-primary/10 px-2 py-0.5 text-body-xs font-semibold text-primary shrink-0">
+            <div className="flex items-center justify-between px-4 py-2 gap-3 max-w-4xl mx-auto w-full">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <span className="rounded-md bg-primary/10 px-2 py-0.5 text-body-2xs font-semibold text-primary uppercase tracking-wider shrink-0">
                   Mode Fokus
                 </span>
-                <h1 className="text-body-sm font-bold text-foreground truncate font-heading">
+                <h1 className="text-body-sm font-bold text-foreground truncate font-heading leading-tight">
                   {article.chapterNumber ? `Bab ${article.chapterNumber}: ` : ""}
                   {article.title}
                 </h1>
@@ -1126,8 +1152,8 @@ export function StructuredArticleReader({
                 aria-label="Keluar mode fokus"
               >
                 <Minimize2 className="size-3.5" />
-                <span>Keluar Fokus</span>
-                <kbd className="hidden sm:inline rounded border border-border bg-muted px-1.5 py-0.5 text-body-2xs font-mono text-muted-foreground">
+                <span className="hidden sm:inline">Keluar Fokus</span>
+                <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 text-body-2xs font-mono text-muted-foreground">
                   Esc
                 </kbd>
               </Button>
@@ -1135,91 +1161,122 @@ export function StructuredArticleReader({
           </header>
         ) : (
           <header className="sticky top-0 z-30 border-b border-border/80 bg-background/95 backdrop-blur-sm">
-            <div className="flex items-center justify-between px-4 py-2.5 gap-3 max-w-7xl mx-auto w-full">
-              <div className="flex items-center gap-2 min-w-0">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  asChild
-                  className="gap-1.5 text-body-xs font-semibold text-muted-foreground hover:text-foreground shrink-0"
-                >
-                  <Link href={backHref ?? `/courses/${article.courseId}/material`}>
-                    <ArrowLeft className="size-4" />
-                    <span className="hidden sm:inline">Kembali ke Materi</span>
-                  </Link>
-                </Button>
-                <div className="h-4 w-px bg-border shrink-0 hidden sm:block" />
-                <div className="min-w-0">
-                  <p className="truncate text-body-xs font-medium text-muted-foreground">
-                    {courseTitle}
-                  </p>
-                  <h1 className="text-body-sm font-bold text-foreground truncate font-heading">
-                    {article.chapterNumber ? `Bab ${article.chapterNumber}: ` : ""}
-                    {article.title}
-                  </h1>
-                </div>
-              </div>
+            <TooltipProvider delayDuration={150}>
+              <div className="flex items-center justify-between px-4 py-2 gap-3 max-w-7xl mx-auto w-full">
+                {/* Left: Back button + Chapter Title */}
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        asChild
+                        className="text-muted-foreground hover:text-foreground shrink-0 rounded-lg"
+                        aria-label="Kembali ke materi"
+                      >
+                        <Link href={backHref ?? `/courses/${article.courseId}/material`}>
+                          <ArrowLeft className="size-4" />
+                        </Link>
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom" align="start">
+                      <span>Kembali ke materi</span>
+                    </TooltipContent>
+                  </Tooltip>
 
-              <div className="flex items-center gap-3 shrink-0">
-                {/* Progress indicator */}
-                <div className="hidden md:flex items-center gap-2 text-body-xs text-muted-foreground">
-                  <div className="w-24 h-2 rounded-md bg-muted overflow-hidden">
-                    <div
-                      className="h-full bg-primary transition-all duration-300 rounded-md"
-                      style={{ width: `${overallPercent}%` }}
-                    />
+                  <div className="h-4 w-px bg-border/70 shrink-0" />
+
+                  <div className="min-w-0">
+                    <p className="truncate text-body-2xs font-medium text-muted-foreground uppercase tracking-wider">
+                      {courseTitle}
+                    </p>
+                    <h1 className="text-body-sm font-bold text-foreground truncate font-heading leading-tight">
+                      {article.chapterNumber ? `Bab ${article.chapterNumber}: ` : ""}
+                      {article.title}
+                    </h1>
                   </div>
-                  <span className="text-body-xs font-semibold text-foreground">{overallPercent}%</span>
                 </div>
 
-                {/* Focus Mode Trigger */}
-                <Button
-                  ref={focusButtonRef}
-                  variant="outline"
-                  size="sm"
-                  onClick={enterFocusMode}
-                  className="gap-1.5 text-body-xs"
-                  aria-label="Masuk mode fokus"
-                >
-                  <Maximize2 className="size-3.5" />
-                  <span className="hidden sm:inline">Mode Fokus</span>
-                </Button>
+                {/* Right: Progress + Action controls */}
+                <div className="flex items-center gap-2 shrink-0">
+                  {/* Reading Progress indicator */}
+                  <div
+                    className="hidden sm:flex items-center gap-2 text-body-xs text-muted-foreground pr-1"
+                    title={`Progres membaca: ${overallPercent}%`}
+                  >
+                    <div className="w-20 h-1.5 rounded-full bg-muted/80 overflow-hidden">
+                      <div
+                        className="h-full bg-primary transition-all duration-300 rounded-full"
+                        style={{ width: `${overallPercent}%` }}
+                      />
+                    </div>
+                    <span className="font-mono text-body-2xs font-semibold text-foreground">{overallPercent}%</span>
+                  </div>
 
-                {/* Mobile Sheet Trigger */}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setIsMobileSheetOpen(true)}
-                  className="md:hidden gap-1.5 text-body-xs"
-                >
-                  <Menu className="size-4" />
-                  <span>Daftar Isi</span>
-                </Button>
+                  <div className="hidden sm:block h-4 w-px bg-border/70 mx-1" />
 
-                {/* Desktop TOC Toggle */}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={controlledToggleToc ?? (() => setInternalTocOpen(!internalTocOpen))}
-                  className="hidden md:flex gap-1.5 text-body-xs"
-                >
-                  {isTocOpen ? (
-                    <>
-                      <PanelRightClose className="size-4" />
-                      <span>Sembunyikan Menu</span>
-                    </>
-                  ) : (
-                    <>
-                      <PanelRight className="size-4" />
-                      <span>Buka Menu</span>
-                    </>
-                  )}
-                </Button>
+                  {/* Focus Mode Trigger (icon only with tooltip) */}
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        ref={focusButtonRef}
+                        variant="ghost"
+                        size="icon-sm"
+                        onClick={enterFocusMode}
+                        className="text-muted-foreground hover:text-foreground rounded-lg"
+                        aria-label="Masuk mode fokus"
+                      >
+                        <Maximize2 className="size-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom">
+                      <span>Mode fokus</span>
+                    </TooltipContent>
+                  </Tooltip>
+
+                  {/* Mobile Sheet Trigger */}
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    onClick={() => setIsMobileSheetOpen(true)}
+                    className="md:hidden text-muted-foreground hover:text-foreground rounded-lg"
+                    aria-label="Buka daftar isi"
+                  >
+                    <Menu className="size-4" />
+                  </Button>
+
+                  {/* Desktop TOC Toggle (icon only with tooltip) */}
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        onClick={controlledToggleToc ?? (() => setInternalTocOpen(!internalTocOpen))}
+                        className={cn(
+                          "hidden md:flex rounded-lg transition-colors",
+                          isTocOpen
+                            ? "text-primary bg-primary/10 hover:bg-primary/15"
+                            : "text-muted-foreground hover:text-foreground"
+                        )}
+                        aria-label={isTocOpen ? "Sembunyikan daftar isi" : "Buka daftar isi"}
+                      >
+                        {isTocOpen ? (
+                          <PanelRightClose className="size-4" />
+                        ) : (
+                          <PanelRight className="size-4" />
+                        )}
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom" align="end">
+                      <span>{isTocOpen ? "Sembunyikan daftar isi" : "Buka daftar isi"}</span>
+                    </TooltipContent>
+                  </Tooltip>
+                </div>
               </div>
-            </div>
+            </TooltipProvider>
 
-            {/* Thin progress bar for top header */}
-            <div className="w-full h-1 bg-muted">
+            {/* Bottom progress track */}
+            <div className="w-full h-[2px] bg-border/40">
               <div
                 className="h-full bg-primary transition-all duration-300"
                 style={{ width: `${overallPercent}%` }}
@@ -1281,25 +1338,7 @@ export function StructuredArticleReader({
                     </article>
 
                     {!isLast ? (
-                      <div className="py-10 my-4 flex items-center gap-4 text-muted-foreground/60">
-                        <div className="h-px flex-1 bg-border/60" />
-                        {isSecDone ? (
-                          <div className="flex items-center gap-1.5 text-body-xs font-semibold px-3 py-1 rounded-md bg-status-success/10 border border-status-success/30 text-status-success">
-                            <CheckCircle2 className="size-3.5" />
-                            <span>Selesai {sec.sectionNumber}</span>
-                          </div>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => markSectionCompleted(sec.id)}
-                            className="flex items-center gap-1.5 text-body-xs font-semibold px-3 py-1 rounded-md bg-muted/60 hover:bg-muted border border-border text-muted-foreground transition-colors cursor-pointer"
-                          >
-                            <Circle className="size-3.5" />
-                            <span>Tandai selesai {sec.sectionNumber}</span>
-                          </button>
-                        )}
-                        <div className="h-px flex-1 bg-border/60" />
-                      </div>
+                      <hr className="my-12 border-t border-border/80" />
                     ) : null}
                   </React.Fragment>
                 );
@@ -1397,17 +1436,14 @@ export function StructuredArticleReader({
         )}
       </div>
 
-      {/* Floating Selection-to-Zyra toolbar with Progressive Disclosure */}
+      {/* Floating Selection-to-Zyra toolbar using Shadcn Popover with Progressive Disclosure */}
       {learnerMode && selectionCoords && selectionContext && (
         <ZyraSelectionToolbar
           courseId={article.courseId}
           selectionContext={selectionContext}
           coords={selectionCoords}
-          onClose={() => {
-            window.getSelection()?.removeAllRanges();
-            setSelectionContext(null);
-            setSelectionCoords(null);
-          }}
+          open={isSelectionToolbarOpen}
+          onOpenChange={handleToolbarOpenChange}
           onAskZyra={handleAskZyra}
         />
       )}

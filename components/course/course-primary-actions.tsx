@@ -36,6 +36,7 @@ function ActionTile({ card }: { card: CourseOverviewActionCard }) {
         <Icon className="size-3.5" aria-hidden="true" />
       </span>
       <div className="min-w-0 flex-1">
+        <span className="sr-only">{card.tag}: {card.title}</span>
         <div className="truncate font-heading text-body-xs font-semibold text-foreground group-hover:text-brand-primary transition-colors">
           {label}
         </div>

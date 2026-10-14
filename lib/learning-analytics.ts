@@ -647,6 +647,7 @@ export async function getCourseOverviewData(
   let quizCard: CourseOverviewActionCard;
 
   if (weakestMeasured) {
+    const cleanConceptName = weakestMeasured.conceptName.trim().replace(/\.+$/, "");
     const taggedQuiz = quizzes.find((q) => {
       const rules = q.selectionRules as Record<string, unknown> | null;
       const tags = (rules?.tags as string[] | undefined) ?? [];
@@ -656,7 +657,7 @@ export async function getCourseOverviewData(
     if (taggedQuiz) {
       quizCard = {
         tag: "KUIS",
-        title: `Latihan ${weakestMeasured.conceptName}`,
+        title: `Latihan ${cleanConceptName}`,
         meta: `${quizzes.length} kuis tersedia`,
         actionLabel: "Mulai latihan →",
         href: `/courses/${courseId}/quiz/${taggedQuiz.id}`,
@@ -664,7 +665,7 @@ export async function getCourseOverviewData(
     } else {
       quizCard = {
         tag: "KUIS",
-        title: `Latihan ${weakestMeasured.conceptName}`,
+        title: `Latihan ${cleanConceptName}`,
         meta: `${quizzes.length} kuis tersedia`,
         actionLabel: "Mulai latihan →",
         href: `/courses/${courseId}/quiz`,
@@ -710,9 +711,10 @@ export async function getCourseOverviewData(
   }
 
   if (weakestMeasured) {
+    const cleanConceptName = weakestMeasured.conceptName.trim().replace(/\.+$/, "");
     attentionItems.push({
       kind: "weak-concept",
-      label: `${weakestMeasured.conceptName} perlu latihan (${weakestMeasured.masteryScore}%)`,
+      label: `${cleanConceptName} perlu latihan (${weakestMeasured.masteryScore}%)`,
       actionLabel: "Latihan sekarang →",
       href: quizCard.href,
     });

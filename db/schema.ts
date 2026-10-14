@@ -2968,7 +2968,7 @@ export const buktiPdfBundle = sqliteTable(
     index("bukti_pdf_bundle_article_hash_idx").on(table.articleHash),
     check(
       "bukti_pdf_bundle_page_count_check",
-      sql`${table.pageCount} IS NULL OR (${table.pageCount} >= 2 AND ${table.pageCount} <= 4)`,
+      sql`${table.pageCount} IS NULL OR (${table.pageCount} >= 1 AND ${table.pageCount} <= 4)`,
     ),
     check(
       "bukti_pdf_bundle_status_check",

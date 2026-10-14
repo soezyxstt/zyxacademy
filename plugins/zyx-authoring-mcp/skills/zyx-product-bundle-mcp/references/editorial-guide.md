@@ -193,7 +193,7 @@ Diktat berisi pengingat dan keputusan ringkas, bukan pengajaran pertama: hapus u
 
 Untuk setiap konsep inti, sediakan sekurangnya satu pertanyaan recall atau penerapan singkat yang menguji pemahaman/keputusan sesuai tujuan, beserta jawaban yang dapat diperiksa dan alasan ringkas. Jika format mendukungnya, pisahkan kumpulan jawaban dari pertanyaan agar jawaban tidak langsung terlihat. Pilih sekurangnya satu contoh ringkas untuk setiap tujuan yang memang memerlukan penerapan; contoh tambahan hanya untuk variasi yang mengubah keputusan.
 
-Target editorialnya paling ringkas yang tetap lengkap dan mudah dibaca, maksimal 4 halaman tanpa filler atau target minimum. Body font tetap 10.5 pt dan tidak boleh auto-shrink. Contract PDF saat ini menerima 2 sampai 4 halaman; jika isi lengkap hanya menghasilkan 1 halaman, jangan menambah pengisi, tandai isi lulus bila sesuai rubrik, tetapi PDF readiness tetap `BLOCKED` oleh batas minimum contract. PDF `VERIFIED` memerlukan checksum Diktat, versi renderer, profil cetak, page count, dan inspeksi setiap halaman. Render gagal/stale, jumlah halaman di luar contract, glyph rusak, formula mentah, clipping, atau halaman kosong memblokir readiness.
+Target editorialnya paling ringkas yang tetap lengkap dan mudah dibaca, maksimal 4 halaman tanpa filler atau target minimum. Body font tetap 10.5 pt dan tidak boleh auto-shrink. Contract PDF menerima 1 sampai 4 halaman; jika isi lengkap hanya menghasilkan 1 halaman, jangan menambah pengisi. PDF `VERIFIED` memerlukan checksum Diktat, versi renderer, profil cetak, page count, dan inspeksi setiap halaman. Render gagal/stale, jumlah halaman di luar contract, glyph rusak, formula mentah, clipping, atau halaman kosong memblokir readiness.
 
 Diktat boleh memiliki topic tanpa contoh atau jebakan bila keduanya tidak menambah keputusan review. Jangan menghapus satu-satunya contoh yang diperlukan untuk menerapkan tujuan atau satu-satunya cue kesalahan yang mengubah jawaban hanya untuk menghemat halaman.
 
@@ -244,7 +244,7 @@ Checklist tambahan sebelum validation dan setelah setiap revisi:
 11. Diktat tidak menambah fakta; setiap konsep inti memiliki cek recall/penerapan dengan jawaban dan alasan; domain, simbol, satuan, asumsi, dan kondisi konsisten dengan Artikel;
 12. flashcard lulus `flashcard-guide.md` dan tidak menambah fakta;
 13. estimasi belajar dihitung setelah konten tuntas;
-14. bukti render PDF berasal dari checksum akhir, body font tetap 10.5 pt, jumlah halaman sesuai contract 2 sampai 4, dan seluruh halaman telah diperiksa.
+14. bukti render PDF berasal dari checksum akhir, body font tetap 10.5 pt, jumlah halaman sesuai contract 1 sampai 4, dan seluruh halaman telah diperiksa.
 
 Tambahkan bukti berikut pada laporan author: hasil scan formula/prose separation, semantic token allowlist dan kontras light/dark, icon scan tanpa spark, keputusan visual dan fallback, uji keyboard untuk kontrol interaktif, serta status PDF `NOT_RENDERED`, `BLOCKED`, atau `VERIFIED` dengan checksum dan page count.
 

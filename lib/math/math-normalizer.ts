@@ -442,6 +442,41 @@ function normalizePlainTextSegment(text: string): string {
     (_, p) => ` $10^{${p}}$ `
   );
 
+  // 0d2. Two-point line equation and quotient proportions: (y-y1)/(x-x1) = (y2-y1)/(x2-x1)
+  s = s.replace(
+    /\(\s*([a-zA-Z0-9_\-+*\s]+?)\s*\)\s*\/\s*\(\s*([a-zA-Z0-9_\-+*\s]+?)\s*\)\s*=\s*\(\s*([a-zA-Z0-9_\-+*\s]+?)\s*\)\s*\/\s*\(\s*([a-zA-Z0-9_\-+*\s]+?)\s*\)/g,
+    (_, n1, d1, n2, d2) => {
+      const formatSub = (t: string) =>
+        t
+          .replace(/([a-zA-Z])(\d+)/g, "$1_$2")
+          .replace(/\s*([+\-])\s*/g, " $1 ")
+          .trim();
+      return ` $\\frac{${formatSub(n1)}}{${formatSub(d1)}} = \\frac{${formatSub(n2)}}{${formatSub(d2)}}$ `;
+    }
+  );
+
+  // 0d3. Slope formula: m = (y2-y1)/(x2-x1)
+  s = s.replace(
+    /(?<![\\$a-zA-Z0-9])\bm\s*=\s*\(\s*([a-zA-Z0-9_\-+*\s]+?)\s*\)\s*\/\s*\(\s*([a-zA-Z0-9_\-+*\s]+?)\s*\)/g,
+    (_, num, den) => {
+      const formatSub = (t: string) =>
+        t
+          .replace(/([a-zA-Z])(\d+)/g, "$1_$2")
+          .replace(/\s*([+\-])\s*/g, " $1 ")
+          .trim();
+      return ` $m = \\frac{${formatSub(num)}}{${formatSub(den)}}$ `;
+    }
+  );
+
+  // 0d4. Point-slope equation: y - y1 = m(x - x1)
+  s = s.replace(
+    /(?<![\\$])(?:\(\s*)?([xy])\s*-\s*([xy]\d+)(?:\s*\))?\s*=\s*([a-zA-Z0-9]+)\s*\(\s*([xy])\s*-\s*([xy]\d+)\s*\)(?![\\$])/g,
+    (_, yVar, ySub, mVal, xVar, xSub) => {
+      const formatSub = (t: string) => t.replace(/([a-zA-Z])(\d+)/g, "$1_$2");
+      return ` $${yVar} - ${formatSub(ySub)} = ${mVal}(${xVar} - ${formatSub(xSub)})$ `;
+    }
+  );
+
   // 0e. Quantum subscripts & variable subscripts:
   // e.g. "n2=4", "n1=2", "n1^2", "n2^2", "RZ^2"
   s = s.replace(
@@ -622,11 +657,12 @@ function normalizePlainTextSegment(text: string): string {
     }
   );
   s = s.replace(
-    /(?<![\\$])\b([a-zA-Z](?:[0-9]+)?)\s*(>=|<=|!=|>|<)\s*(-?[0-9a-zA-Z]+)\b(?![\\$])/g,
+    /(?<![\\$])\b([a-zA-Z](?:[0-9]+)?)\s*(>=|<=|!=|≠|>|<)\s*(-?[0-9a-zA-Z]+)\b(?![\\$])/g,
     (_, v, op, val) => {
       const texOp =
-        op === ">=" ? "\\ge" : op === "<=" ? "\\le" : op === "!=" ? "\\ne" : op;
-      return ` $${v} ${texOp} ${val}$ `;
+        op === ">=" ? "\\ge" : op === "<=" ? "\\le" : op === "!=" || op === "≠" ? "\\neq" : op;
+      const formatSub = (t: string) => t.replace(/([a-zA-Z])(\d+)/g, "$1_$2");
+      return ` $${formatSub(v)} ${texOp} ${formatSub(val)}$ `;
     }
   );
 

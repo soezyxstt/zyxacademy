@@ -8,6 +8,34 @@ import {
 } from "@/lib/articles/structured-read-model";
 
 describe("Structured Article Reader Contracts", () => {
+  it("keeps a visual at its teaching block without repeating it above the section", () => {
+    const visual = {
+      id: "limit-plot", kind: "epsilon_delta_graph", label: "Limit", description: "Limit kuadratik",
+      bounds: { xMin: 0, xMax: 4, yMin: -2, yMax: 10 },
+      staticFallback: { type: "text", summary: "Limit", content: "Nilai mendekati 3." },
+      limitPoint: 2, limitValue: 3, defaultDelta: 0.2, defaultEpsilon: 0.8,
+      functionModel: { kind: "quadratic", a: 1, b: 0, c: -1 },
+    };
+    const article = buildPublicArticleReadModel(
+      { id: "article", title: "Limit", visuals: [visual] },
+      [{ id: "section", title: "Limit", status: "published", pedagogy: { visualRequirement: { status: "required", visualIds: [visual.id] } } }],
+      [{ id: "block", bagianArtikelId: "section", status: "published", content: "Limit", blockType: "verbal_representation", visualIds: [visual.id] }],
+      [], "chapter",
+    );
+    expect(article.sections[0].blocks[0].visuals?.map(item => item.id)).toEqual([visual.id]);
+    expect(article.sections[0].visuals).toBeUndefined();
+  });
+
+  it("uses the catalogue title and chapter number instead of a verbose article title", () => {
+    const article = buildPublicArticleReadModel(
+      { id: "functions", slug: "functions", title: "Matematika I Bab 3: Fungsi dan Limit, Grafik, dan Kekontinuan", version: 1 },
+      [], [], [],
+      { id: "chapter-2", title: "Fungsi dan Limit", number: 2 },
+    );
+    expect(article.title).toBe("Fungsi dan Limit");
+    expect(article.chapterNumber).toBe(2);
+  });
+
   describe("Deterministic Section Numbering", () => {
     it("assigns sequential numbers for flat sections ordered by orderIndex", () => {
       const flatSections = [

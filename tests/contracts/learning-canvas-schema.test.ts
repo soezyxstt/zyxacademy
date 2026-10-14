@@ -25,6 +25,15 @@ const functionPlot = {
 };
 
 describe("Learning Canvas schema", () => {
+  test("distinguishes an excluded limit point from the defined function value", () => {
+    const pointMarkers = [
+      { seriesId: "f", x: 0, y: 1, label: "Limit = 1", kind: "open" },
+      { seriesId: "f", x: 0, y: 2, label: "f(0) = 2", kind: "closed" },
+    ];
+    expect(CanvasSpecSchema.safeParse({ ...functionPlot, pointMarkers }).success).toBe(true);
+    expect(CanvasSpecSchema.safeParse({ ...functionPlot, pointMarkers: [{ ...pointMarkers[0], seriesId: "missing" }] }).success).toBe(false);
+    expect(CanvasSpecSchema.safeParse({ ...functionPlot, pointMarkers: [{ ...pointMarkers[0], x: Infinity }] }).success).toBe(false);
+  });
   test("accepts a bounded function plot", () => {
     expect(CanvasSpecSchema.parse(functionPlot).type).toBe("function_plot");
     expect(validateCanvasSpec(functionPlot, ["claim-1"]).isValid).toBe(true);
