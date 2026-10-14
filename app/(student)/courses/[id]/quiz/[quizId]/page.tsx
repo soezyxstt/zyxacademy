@@ -236,6 +236,14 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
   if (!isAccessible) {
     return (
       <CoursePageShell title="Kuis terkunci" description={`${course.title}, kuis premium`} hideHeader>
+        <div className="mb-4">
+          <Button variant="ghost" size="sm" asChild className="gap-1.5 text-body-xs font-semibold text-muted-foreground hover:text-foreground">
+            <Link href={`/courses/${id}/quiz`}>
+              <ArrowLeft className="size-3.5" />
+              <span>Kembali ke Daftar Kuis</span>
+            </Link>
+          </Button>
+        </div>
         <Reveal>
           <div className="rounded-lg border border-border/70 bg-card/75 p-4 backdrop-blur-sm">
             <div className="flex items-start gap-3">

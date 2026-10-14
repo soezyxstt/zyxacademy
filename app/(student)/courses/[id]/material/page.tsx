@@ -87,7 +87,13 @@ export default async function CourseMaterialListPage({ params, searchParams }: P
     if (art.babId) canonicalMappedChapterIds.add(art.babId);
   }
 
-  const courseChapters = (await getCourseChapterOutline(id, studentId)).map((chapter) => ({ id: chapter.id, title: chapter.title, orderIndex: chapter.orderIndex }));
+  const courseChapters = (await getCourseChapterOutline(id)).map((chapter) => ({
+    id: chapter.id,
+    title: chapter.title,
+    orderIndex: chapter.orderIndex,
+    canonicalId: chapter.canonicalId,
+    legacyChapterId: chapter.legacyChapterId,
+  }));
 
   const dbMaterials = await db
     .select({ id: aiMaterialInstances.id, title: aiMaterialInstances.title, chapterIds: aiMaterialInstances.chapterIds, thumbnailUrl: aiMaterialInstances.thumbnailUrl })
@@ -166,7 +172,7 @@ export default async function CourseMaterialListPage({ params, searchParams }: P
     isPreview: false,
     thumbnailUrl: `/api/courses/${encodeURIComponent(id)}/material/${encodeURIComponent(a.id)}/cover.svg`,
     chapterId: a.chapterId ?? undefined,
-    chapterIds: a.chapterId ? [a.chapterId] : [],
+    chapterIds: [a.chapterId, a.babId, a.legacyChapterId].filter((chId): chId is string => Boolean(chId)),
     href: `/courses/${id}/material/${a.id}`,
   }));
 
@@ -182,7 +188,7 @@ export default async function CourseMaterialListPage({ params, searchParams }: P
     isPreview: false,
     thumbnailUrl: `/api/courses/${encodeURIComponent(id)}/material/${encodeURIComponent(diktat.id)}/cover.svg`,
     chapterId: diktat.legacyChapterId ?? diktat.babId ?? undefined,
-    chapterIds: [diktat.legacyChapterId ?? diktat.babId].filter((chapterId): chapterId is string => Boolean(chapterId)),
+    chapterIds: [diktat.legacyChapterId, diktat.babId].filter((chapterId): chapterId is string => Boolean(chapterId)),
     url: diktat.fileKey
       ? `/api/courses/${encodeURIComponent(id)}/diktats/${encodeURIComponent(diktat.id)}/pdf${canDownloadDiktat ? "?download=1" : ""}`
       : undefined,

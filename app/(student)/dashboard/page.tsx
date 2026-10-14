@@ -68,7 +68,6 @@ import {
 } from "@/components/dashboard/student-onboarding-view";
 import { PKA_COURSE_ID } from "@/lib/pka-config";
 import { listStudentCourses } from "@/lib/student/course-catalog";
-import { studentCardClass } from "@/components/course/course-surfaces";
 import { ApplicationPage } from "@/components/application-page";
 import { getCatalogCourseSummaries } from "@/lib/student/dashboard-read-model";
 import {
@@ -526,14 +525,14 @@ export default async function DashboardPage() {
             )}
 
             <Reveal duration="duration-700" className="w-full min-w-0">
-              <div className="grid gap-6 lg:grid-cols-12 w-full min-w-0">
+              <div className="grid gap-8 lg:grid-cols-12 w-full min-w-0">
                 {/* Left Column (Primary learning track) - 7 cols */}
-                <div className="space-y-6 lg:col-span-7 min-w-0">
+                <div className="space-y-8 lg:col-span-7 min-w-0">
                   {/* Classes list Section */}
-                  <section className={studentCardClass()}>
-                    <div className="mb-5 flex flex-wrap items-center justify-between gap-2 border-b border-border/40 pb-3">
+                  <section>
+                    <div className="mb-3 flex flex-wrap items-center justify-between gap-2 border-b border-border/50 pb-2.5">
                       <h2 className="font-heading text-body-base font-bold text-foreground flex items-center gap-2">
-                        <GraduationCap className="size-4.5 text-brand-primary" />
+                        <GraduationCap className="size-4 text-brand-primary" />
                         Kelas aktif
                       </h2>
                       <div className="flex flex-wrap items-center gap-2 sm:gap-2.5">
@@ -609,10 +608,10 @@ export default async function DashboardPage() {
                   </section>
 
                   {/* Documents In Progress */}
-                  <section className={studentCardClass()}>
-                    <div className="mb-4 flex flex-wrap items-center justify-between gap-2 border-b border-border/40 pb-3">
+                  <section>
+                    <div className="mb-3 flex flex-wrap items-center justify-between gap-2 border-b border-border/50 pb-2.5">
                       <h2 className="font-heading text-body-base font-bold text-foreground flex items-center gap-2">
-                        <Bookmark className="size-4.5 text-brand-primary" />
+                        <Bookmark className="size-4 text-brand-primary" />
                         Materi terbuka (belum selesai)
                       </h2>
                       {inProgressDocuments.length > 0 && (
@@ -681,10 +680,10 @@ export default async function DashboardPage() {
 
                   {/* Recommended Courses for Student Major */}
                   {recommendedUnenrolledCourses.length > 0 && (
-                    <section className={studentCardClass()}>
-                      <div className="mb-4 flex flex-wrap items-center justify-between gap-2 border-b border-border/40 pb-3">
+                    <section>
+                      <div className="mb-3 flex flex-wrap items-center justify-between gap-2 border-b border-border/50 pb-2.5">
                         <div className="flex flex-wrap items-center gap-2">
-                          <Compass className="size-4.5 text-brand-primary" />
+                          <Compass className="size-4 text-brand-primary" />
                           <h2 className="font-heading text-body-base font-bold text-foreground">
                             Rekomendasi mata kuliah
                           </h2>
@@ -738,12 +737,12 @@ export default async function DashboardPage() {
                 </div>
 
                 {/* Right Column (Review, Mastery & Available Quizzes) - 5 cols */}
-                <div className="space-y-6 lg:col-span-5 min-w-0">
+                <div className="space-y-8 lg:col-span-5 min-w-0">
                   {/* Status Spaced Repetition & Aktivitas Ulasan */}
-                  <section className={studentCardClass()}>
-                    <div className="mb-4 flex flex-wrap items-center justify-between gap-2 border-b border-border/40 pb-3">
+                  <section>
+                    <div className="mb-3 flex flex-wrap items-center justify-between gap-2 border-b border-border/50 pb-2.5">
                       <h2 className="font-heading text-body-base font-bold text-foreground flex items-center gap-2">
-                        <Layers className="size-4.5 text-brand-primary" />
+                        <Layers className="size-4 text-brand-primary" />
                         Spaced repetition
                       </h2>
                       <span className={cn(
@@ -761,7 +760,7 @@ export default async function DashboardPage() {
                     </p>
 
                     {firstCourseWithQueue && (
-                      <Button asChild className="w-full mt-3.5 rounded-lg text-body-sm font-semibold">
+                      <Button asChild className="w-full mt-3 rounded-lg text-body-sm font-semibold">
                         <Link href={`/courses/${firstCourseWithQueue}/flashcard`}>
                           {totalDueFlashcards > 0 ? "Mulai ulas flashcard" : "Buka koleksi flashcard"}
                           <ArrowRight className="ml-1.5 size-4" />
@@ -770,7 +769,7 @@ export default async function DashboardPage() {
                     )}
 
                     {/* Integrated Recent Reviews */}
-                    <div className="mt-5 pt-3.5 border-t border-border/40">
+                    <div className="mt-4 pt-3 border-t border-border/40">
                       <div className="mb-2 flex items-center justify-between">
                         <span className="text-body-xs font-semibold text-foreground flex items-center gap-1.5">
                           <History className="size-3.5 text-muted-foreground" />
@@ -826,7 +825,7 @@ export default async function DashboardPage() {
                   </section>
 
                   {/* Peta Penguasaan */}
-                  <section className={studentCardClass()}>
+                  <section>
                     <DashboardWeakConcepts
                       concepts={masteryConcepts}
                       courseTitle={enrollments[0]?.title ?? "Kuliah"}
@@ -835,7 +834,7 @@ export default async function DashboardPage() {
                     {enrollments[0]?.id && (
                       <Link
                         href={`/courses/${enrollments[0].id}/mastery`}
-                        className="mt-4 pt-3 border-t border-border/40 inline-flex items-center gap-1 text-body-xs font-semibold text-brand-primary hover:underline"
+                        className="mt-3 pt-2.5 border-t border-border/40 inline-flex items-center gap-1 text-body-xs font-semibold text-brand-primary hover:underline"
                       >
                         Lihat peta lengkap
                         <ArrowUpRight className="size-3.5" />
@@ -844,10 +843,10 @@ export default async function DashboardPage() {
                   </section>
 
                   {/* Quizzes and Tryouts */}
-                  <section className={studentCardClass()}>
-                    <div className="mb-4 flex flex-wrap items-center justify-between gap-2 border-b border-border/40 pb-3">
+                  <section>
+                    <div className="mb-3 flex flex-wrap items-center justify-between gap-2 border-b border-border/50 pb-2.5">
                       <h2 className="font-heading text-body-base font-bold text-foreground flex items-center gap-2">
-                        <ClipboardList className="size-4.5 text-brand-primary" />
+                        <ClipboardList className="size-4 text-brand-primary" />
                         Kuis & tryout tersedia
                       </h2>
                       {availableExams.length > 0 && (

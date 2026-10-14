@@ -52,7 +52,13 @@ import type { CourseMaterial, DocCategory } from "@/lib/student-course-fixtures"
 import { getSubcategoryLabel, type CourseMaterialSubcategory } from "@/lib/course-materials";
 import { materialMatchesDocumentFilters, type DocumentFilterState } from "@/lib/document-filters";
 
-type Chapter = { id: string; title: string; orderIndex: number };
+type Chapter = {
+  id: string;
+  title: string;
+  orderIndex: number;
+  canonicalId?: string | null;
+  legacyChapterId?: string | null;
+};
 type TabKey = "materi" | "diktat" | "pdf" | "bank_soal";
 
 type DocumentListClientProps = {

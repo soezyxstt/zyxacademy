@@ -71,10 +71,10 @@ export function QuizListClient({ courseId, isEnrolled, accessTier = isEnrolled ?
                   asChild
                   variant="outline"
                   size="sm"
-                  className="interactive rounded-md border-dashed md:justify-self-end"
+                  className="interactive rounded-md border-dashed md:justify-self-end text-muted-foreground hover:text-foreground"
                 >
                   <Link href={`/courses/${courseId}/quiz/${template.id}`}>
-                    Buka <ChevronRight className="ml-1 size-4" />
+                    Buka <Lock className="ml-1 size-3.5" />
                   </Link>
                 </Button>
               );
@@ -199,13 +199,23 @@ export function QuizListClient({ courseId, isEnrolled, accessTier = isEnrolled ?
                 <span
                   className={cn(
                     "inline-flex w-fit items-center gap-1 rounded-md px-2.5 py-0.5 text-body-xs font-semibold ring-1",
-                    isFree
-                      ? "bg-status-success/10 text-status-success ring-status-success/20"
-                      : "bg-brand-primary/10 text-brand-primary ring-brand-primary/20",
+                    accessible
+                      ? isFree
+                        ? "bg-status-success/10 text-status-success ring-status-success/20"
+                        : "bg-brand-primary/10 text-brand-primary ring-brand-primary/20"
+                      : "bg-amber-500/10 text-amber-600 dark:text-amber-400 ring-amber-500/20",
                   )}
                 >
-                  {!isFree && accessTier !== "standard" && <Lock className="size-3" />}
-                  {isFree ? "Gratis" : "Premium"}
+                  {!accessible ? (
+                    <>
+                      <Lock className="size-3" />
+                      Terkunci
+                    </>
+                  ) : isFree ? (
+                    "Gratis"
+                  ) : (
+                    "Premium"
+                  )}
                 </span>
 
                 {buttonContent}
