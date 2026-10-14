@@ -647,6 +647,7 @@ export function CourseDocumentsClient({
         up.push(material);
         continue;
       }
+
       // Check chapter relationship
       const rawIds = materialChapterIds(material);
       const resolvedChapterIds = Array.from(
