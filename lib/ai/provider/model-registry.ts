@@ -1,7 +1,8 @@
 import { ProviderAdapterError } from "@/lib/ai/provider/errors";
 
 export const MODEL_IDS = {
-  default: "gemini-3.1-flash-lite",
+  default: "gemini-3.5-flash-lite",
+  fallbackFlashLite: "gemini-3.1-flash-lite",
   premiumPedagogy: "gemini-3.5-flash",
   premiumVisual: "gemini-3.6-flash",
   stableFlash: "gemini-2.5-flash",
@@ -9,7 +10,6 @@ export const MODEL_IDS = {
   emergencyText: "gemma-4-31b-it",
   embedding: "gemini-embedding-2",
   legacyEmbedding: "gemini-embedding-001",
-  quarantinedFlashLite: "gemini-3.5-flash-lite",
   quarantinedPreview: "gemini-3-flash-preview",
   quarantinedGemma: "gemma-4-26b-a4b-it",
 } as const;
@@ -89,13 +89,6 @@ const STANDARD_HEALTH_GATE = {
   required: false,
 } as const satisfies ModelHealthGate;
 
-const FLASH_LITE_HEALTH_GATE = {
-  required: true,
-  minimumSuccessRate: 0.95,
-  maximumP95LatencyMs: 4_000,
-  minimumSampleSize: 20,
-} as const satisfies ModelHealthGate;
-
 const GENERATION_LIMITS = {
   perProjectRpm: 15,
   perProjectTpm: 1_000_000,
@@ -104,6 +97,20 @@ const GENERATION_LIMITS = {
 const REGISTRY = {
   [MODEL_IDS.default]: {
     id: MODEL_IDS.default,
+    family: "generate-content",
+    stability: "stable",
+    operations: ["generate"],
+    ordinaryRoutingAllowed: true,
+    limits: { ...GENERATION_LIMITS, perProjectRpd: 500, initialUsableRpd: 1_800 },
+    deadlineMs: 15_000,
+    thinking: { kind: "none" },
+    outputFloor: 512,
+    routeClasses: ["default"],
+    input: TEXT_INPUT,
+    healthGate: STANDARD_HEALTH_GATE,
+  },
+  [MODEL_IDS.fallbackFlashLite]: {
+    id: MODEL_IDS.fallbackFlashLite,
     family: "generate-content",
     stability: "stable",
     operations: ["generate"],
@@ -216,20 +223,6 @@ const REGISTRY = {
     healthGate: STANDARD_HEALTH_GATE,
     dimensions: 768,
   },
-  [MODEL_IDS.quarantinedFlashLite]: {
-    id: MODEL_IDS.quarantinedFlashLite,
-    family: "generate-content",
-    stability: "quarantined",
-    operations: ["generate"],
-    ordinaryRoutingAllowed: false,
-    limits: { ...GENERATION_LIMITS, perProjectRpd: 500, initialUsableRpd: 0 },
-    deadlineMs: 15_000,
-    thinking: { kind: "none" },
-    outputFloor: 1_024,
-    routeClasses: [],
-    input: TEXT_INPUT,
-    healthGate: FLASH_LITE_HEALTH_GATE,
-  },
   [MODEL_IDS.quarantinedPreview]: {
     id: MODEL_IDS.quarantinedPreview,
     family: "generate-content",
@@ -291,7 +284,7 @@ export type EmbeddingProfileId = keyof typeof EMBEDDING_PROFILES;
 export type EmbeddingProfile = (typeof EMBEDDING_PROFILES)[EmbeddingProfileId];
 
 export const ROUTE_POLICY = {
-  default: [MODEL_IDS.default, MODEL_IDS.stableFlash, MODEL_IDS.stableFlashLite],
+  default: [MODEL_IDS.default, MODEL_IDS.fallbackFlashLite, MODEL_IDS.stableFlash, MODEL_IDS.stableFlashLite],
   premiumPedagogy: [MODEL_IDS.premiumPedagogy, MODEL_IDS.default, MODEL_IDS.stableFlash],
   premiumVisual: [MODEL_IDS.premiumVisual, MODEL_IDS.stableFlash],
   emergency: [MODEL_IDS.emergencyText],
