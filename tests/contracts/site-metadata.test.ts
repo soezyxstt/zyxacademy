@@ -33,8 +33,14 @@ describe("Site metadata and Open Graph contract", () => {
     expect(manifest).toContain('theme_color: "#1a2744"');
     expect(manifest).toContain('zyx-app-192.png');
     expect(manifest).toContain('zyx-app-512.png');
+    expect(manifest).toContain('zyx-maskable-192.png');
+    expect(manifest).toContain('zyx-maskable-512.png');
+    expect(manifest).toContain('purpose: "any"');
+    expect(manifest).toContain('purpose: "maskable"');
     expect(existsSync(path.resolve(process.cwd(), "public/brand/zyx-app-192.png"))).toBe(true);
     expect(existsSync(path.resolve(process.cwd(), "public/brand/zyx-app-512.png"))).toBe(true);
+    expect(existsSync(path.resolve(process.cwd(), "public/icons/zyx-maskable-192.png"))).toBe(true);
+    expect(existsSync(path.resolve(process.cwd(), "public/icons/zyx-maskable-512.png"))).toBe(true);
   });
 
   it("serves the exported multi-size ICO through Next's root favicon convention", () => {
