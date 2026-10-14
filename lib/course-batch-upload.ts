@@ -1,6 +1,7 @@
 import type {
   CourseMaterialSubcategory,
   MaterialLevel1Category,
+  MaterialRoleQualifier,
 } from "@/lib/course-materials";
 
 export const BATCH_MAX_FILES = 200;
@@ -84,6 +85,8 @@ function detectExamSubcategory(
 ): CourseMaterialSubcategory | null {
   if (/\buts\b|ujian\s*tengah\s*semester/i.test(base)) return "uts";
   if (/\buas\b|ujian\s*akhir\s*semester/i.test(base)) return "uas";
+  if (/\bup\b|ujian\s*perbaikan/i.test(base)) return "up";
+  if (/\bltm\b/i.test(base)) return "ltm";
   if (/kuis|\bquiz\b/i.test(base)) return "kuis";
   if (/\bkbf\b/i.test(base)) return "kbf";
   if (/tutorial/i.test(base)) return "tutorial";
@@ -178,6 +181,8 @@ const CATEGORY_MAP: Record<string, string> = {
   kbf: "kbf",
   uts: "uts",
   uas: "uas",
+  up: "up",
+  ltm: "ltm",
   tryout: "tryout",
   modul: "modul",
 };
@@ -200,7 +205,7 @@ export function generateFileName(input: GenerateFileNameInput): string {
   }
 
   const isComprehensiveExam =
-    input.subcategory === "uts" || input.subcategory === "uas";
+    input.subcategory === "uts" || input.subcategory === "uas" || input.subcategory === "up";
 
   if (chapNum !== null && !isComprehensiveExam) {
     parts.push(`bab${String(chapNum).padStart(2, "0")}`);
@@ -358,6 +363,10 @@ export function detectChaptersFromFilename(
     const sorted = [...chapters].sort((a, b) => a.orderIndex - b.orderIndex);
     return sorted.map((c) => c.id);
   }
+  if (subcategory === "up" || /\bup\b|ujian\s*perbaikan/i.test(base)) {
+    const sorted = [...chapters].sort((a, b) => a.orderIndex - b.orderIndex);
+    return sorted.map((c) => c.id);
+  }
 
   // 2. Direct chapter patterns: "bab 0", "bab 1", "chapter 2", "ch 3", "modul 1", "tutorial 2", "kbf 1"
   let foundByNumber: BatchChapterInfo | null = null;
@@ -461,6 +470,10 @@ export interface DetectedFileMetadata {
   chapterIds: string[];
   primaryChapterIndex: number | null;
   role: string | null;
+  session?: string | null;
+  partNumber?: number | null;
+  roleQualifier?: MaterialRoleQualifier | null;
+  customTopic?: string | null;
 }
 
 /**
@@ -535,6 +548,17 @@ export function detectMetadataFromFilename(
     role = "soal";
   }
 
+  const session = detectSessionFromFilename(filename);
+  const partNumber = detectPartNumberFromFilename(filename);
+  let roleQualifier: MaterialRoleQualifier | null = null;
+  if (partNumber) {
+    roleQualifier = "bagian";
+  } else if (/aplikasi/i.test(filename)) {
+    roleQualifier = "aplikasi";
+  } else if (/problem|contoh/i.test(filename)) {
+    roleQualifier = "problem";
+  }
+
   return {
     title: cleanTitle,
     category: detectedCategory.category,
@@ -543,6 +567,9 @@ export function detectMetadataFromFilename(
     chapterIds,
     primaryChapterIndex,
     role,
+    session,
+    partNumber,
+    roleQualifier,
   };
 }
 
@@ -568,7 +595,10 @@ const ACRONYM_WORDS = new Set([
   "tpb",
   "uts",
   "uas",
+  "up",
+  "ltm",
   "kbf",
+  "scl",
   "ppt",
   "pdf",
   "doc",
@@ -576,11 +606,161 @@ const ACRONYM_WORDS = new Set([
   "ai",
 ]);
 
+export function detectSessionFromFilename(filename: string): string | null {
+  const match = filename.match(/(?:^|[^a-zA-Z0-9])sesi\s*[-_]?\s*([0-9]+|[a-zA-Z])(?=[^a-zA-Z0-9]|$)/i);
+  if (!match) return null;
+  const token = match[1].trim();
+  if (/^\d+$/.test(token)) {
+    return `Sesi ${token}`;
+  }
+  return `Sesi ${token.toUpperCase()}`;
+}
+
+export function detectPartNumberFromFilename(filename: string): number | null {
+  const match = filename.match(/(?:^|[^a-zA-Z0-9])(?:bagian|part)\s*[-_]?\s*([0-9]+)(?=[^a-zA-Z0-9]|$)/i);
+  if (match) return Number(match[1]);
+  const exerciseMatch = filename.match(/(?:^|[^a-zA-Z0-9])(?:ltm|kuis|quiz|tutorial|tut|kbf|modul)\s*[-_]?\s*([0-9]+)(?=[^a-zA-Z0-9]|$)/i);
+  if (exerciseMatch) return Number(exerciseMatch[1]);
+  return null;
+}
+
+export interface CanonicalTitleOptions {
+  courseCode?: string;
+  category: MaterialLevel1Category;
+  subcategory?: CourseMaterialSubcategory | string | null;
+  chapterIndex?: number | null;
+  chapterOrderIndex?: number | null;
+  chapterTitle?: string | null;
+  chapter?: { orderIndex?: number | null; title?: string | null } | null;
+  year?: number | null;
+  session?: string | null;
+  partNumber?: number | null;
+  qualifier?: MaterialRoleQualifier | string | null;
+  roleQualifier?: MaterialRoleQualifier | string | null;
+  customTopic?: string | null;
+  rawFilename?: string | null;
+  isSolution?: boolean;
+}
+
+/**
+ * Builds a clean, unique, collision-proof canonical document title according to Zyx Academy rules:
+ * - No em dashes or en dashes
+ * - No exclamation marks
+ * - Sentence-case with uppercase official exam and course codes
+ */
+export function buildCanonicalDocumentTitle(opts: CanonicalTitleOptions): string {
+  const {
+    courseCode = "",
+    category,
+    subcategory,
+    chapterIndex,
+    chapterOrderIndex,
+    chapterTitle,
+    chapter,
+    year,
+    session,
+    partNumber,
+    qualifier = "utama",
+    roleQualifier,
+    customTopic,
+    isSolution = category === "pembahasan_soal",
+  } = opts;
+
+  const effectiveChapterIndex = chapterIndex ?? chapterOrderIndex ?? chapter?.orderIndex ?? null;
+  const effectiveChapterTitle = chapterTitle ?? chapter?.title ?? "";
+  const effectiveQualifier = roleQualifier ?? qualifier ?? "utama";
+
+  const cleanCourse = courseCode.toUpperCase().replace(/[^A-Z0-9]/g, "");
+  const cleanChapTitle = effectiveChapterTitle
+    ? standardizeDocumentTitle(effectiveChapterTitle.replace(/^bab\s*\d+\s*[:\.-]?\s*/i, ""))
+    : "";
+
+  // 1. Comprehensive Exams: UTS, UAS, UP
+  if (subcategory === "uts" || subcategory === "uas" || subcategory === "up") {
+    const examLabel = subcategory.toUpperCase();
+    const sessionStr = session ? ` ${session.trim()}` : "";
+    const yearStr = year ? ` ${year}` : "";
+    const courseStr = cleanCourse ? ` ${cleanCourse}` : "";
+
+    if (isSolution) {
+      return `Pembahasan ${examLabel}${courseStr}${sessionStr}${yearStr}`.replace(/\s+/g, " ").trim();
+    }
+    return `${examLabel}${courseStr}${sessionStr}${yearStr} (Soal)`.replace(/\s+/g, " ").trim();
+  }
+
+  // 2. Exercises: Tutorial, Kuis, KBF, LTM
+  if (subcategory === "tutorial" || subcategory === "kuis" || subcategory === "kbf" || subcategory === "ltm") {
+    const typeLabel = subcategory === "tutorial" ? "Tutorial" : subcategory.toUpperCase();
+    const num = partNumber ? ` ${partNumber}` : "";
+    const chapStr = effectiveChapterIndex ? `Bab ${effectiveChapterIndex}` : "";
+    const topicStr = cleanChapTitle ? ` (${cleanChapTitle})` : (customTopic ? ` (${customTopic})` : "");
+    const yearStr = year ? ` ${year}` : "";
+    const courseStr = cleanCourse && (subcategory === "kbf" || subcategory === "ltm") ? ` ${cleanCourse}` : "";
+
+    const middle = [chapStr, topicStr].filter(Boolean).join(" ");
+    const content = middle ? `: ${middle}` : "";
+
+    if (isSolution) {
+      return `Pembahasan ${typeLabel}${num}${courseStr}${content}${yearStr}`.replace(/\s+/g, " ").trim();
+    }
+    return `${typeLabel}${num}${courseStr}${content}${yearStr}`.replace(/\s+/g, " ").trim();
+  }
+
+  // 3. E-Book / Diktat
+  if (subcategory === "ebook" || subcategory === "diktat") {
+    const topic = customTopic || cleanChapTitle || "Buku Teks";
+    if (isSolution) {
+      return `Pembahasan Buku Teks: ${topic}`;
+    }
+    return `Buku Teks: ${topic}`;
+  }
+
+  // 4. Chapter Materials (materi_dosen, scl, modul, lainnya)
+  if (effectiveChapterIndex !== null && effectiveChapterIndex !== undefined && effectiveChapterIndex > 0) {
+    const baseChap = `Bab ${effectiveChapterIndex}: ${cleanChapTitle || customTopic || "Materi"}`;
+
+    if (subcategory === "scl") {
+      return `SCL ${baseChap}`;
+    }
+
+    if (effectiveQualifier === "bagian" && partNumber) {
+      return `${baseChap} (Bagian ${partNumber})`;
+    }
+    if (effectiveQualifier === "aplikasi") {
+      const appTopic = customTopic ? `: ${customTopic}` : "";
+      return `${baseChap} (Aplikasi${appTopic})`;
+    }
+    if (effectiveQualifier === "problem") {
+      const probTopic = customTopic ? `: ${customTopic}` : "";
+      return `${baseChap} (Contoh Problem${probTopic})`;
+    }
+    if (effectiveQualifier === "kustom" && customTopic) {
+      return `${baseChap} (${customTopic})`;
+    }
+
+    if (subcategory === "modul") {
+      return `Modul ${baseChap}`;
+    }
+
+    return baseChap;
+  }
+
+  if (subcategory === "scl") {
+    const base = customTopic || cleanChapTitle || "Modul";
+    return base.toLowerCase().startsWith("scl") ? base : `SCL ${base}`.replace(/\s*:\s*/g, ": ");
+  }
+
+  return customTopic || cleanChapTitle || "Dokumen Materi";
+}
+
 export function standardizeDocumentTitle(rawTitle: string): string {
   if (!rawTitle) return "";
   const cleaned = rawTitle
     .replace(/\.pdf$/i, "")
+    .replace(/[—–]/g, ", ")
+    .replace(/!+/g, "")
     .replace(/[_-]+/g, " ")
+    .replace(/\s*:\s*/g, ": ")
     .replace(/\s+/g, " ")
     .trim();
 

@@ -1,8 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ChevronRight, Lock, CheckCircle2, AlertCircle, ClipboardList } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Lock, ClipboardList } from "lucide-react";
 import { FormattedDate } from "@/components/ui/formatted-date";
 import { cn } from "@/lib/utils";
 import type { quizTemplates, studentQuizAttempts } from "@/db/schema";
@@ -25,7 +24,7 @@ export function QuizListClient({ courseId, isEnrolled, accessTier = isEnrolled ?
 
   return (
     <div className="font-sans">
-      <ul className="overflow-hidden rounded-lg border border-border/70 bg-card/75 backdrop-blur-sm">
+      <ul className="divide-y divide-border/60 overflow-hidden rounded-xl border border-border/70 bg-card/75 backdrop-blur-sm shadow-2xs">
         {templates.map((template) => {
           const isFree = template.visibility === "free";
           const accessible = accessTier === "standard"
@@ -64,162 +63,117 @@ export function QuizListClient({ courseId, isEnrolled, accessTier = isEnrolled ?
             isOpen = false;
           }
 
-          const buttonContent = (() => {
+          const actionBadge = (() => {
             if (!accessible) {
               return (
-                <Button
-                  asChild
-                  variant="outline"
-                  size="sm"
-                  className="interactive rounded-md border-dashed md:justify-self-end text-muted-foreground hover:text-foreground"
-                >
-                  <Link href={`/courses/${courseId}/quiz/${template.id}`}>
-                    Buka <Lock className="ml-1 size-3.5" />
-                  </Link>
-                </Button>
+                <span className="flex items-center gap-1 rounded-lg border border-border/60 bg-muted/40 px-2.5 py-1 text-body-xs text-muted-foreground shrink-0">
+                  Buka <Lock className="size-3" />
+                </span>
               );
             }
             if (isClosed) {
               if (accessible && (template as any).showDiscussion) {
                 return (
-                  <Button
-                    asChild
-                    variant="outline"
-                    size="sm"
-                    className="interactive rounded-md border-brand-primary text-brand-primary hover:bg-brand-primary/10 md:justify-self-end"
-                  >
-                    <Link href={`/courses/${courseId}/quiz/${template.id}?viewDiscussion=true`}>
-                      Lihat Pembahasan
-                    </Link>
-                  </Button>
+                  <span className="rounded-lg border border-brand-primary/30 bg-brand-primary/10 px-2.5 py-1 text-body-xs font-semibold text-brand-primary shrink-0">
+                    Pembahasan ›
+                  </span>
                 );
               }
               return (
-                <Button disabled variant="outline" size="sm" className="rounded-md border-dashed md:justify-self-end">
+                <span className="rounded-lg border border-border/60 bg-muted/30 px-2.5 py-1 text-body-xs text-muted-foreground shrink-0">
                   Ditutup
-                </Button>
+                </span>
               );
             }
             if (isUpcoming) {
               return (
-                <Button disabled variant="outline" size="sm" className="rounded-md border-dashed md:justify-self-end">
+                <span className="rounded-lg border border-border/60 bg-muted/30 px-2.5 py-1 text-body-xs text-muted-foreground shrink-0">
                   Belum Buka
-                </Button>
+                </span>
               );
             }
             return (
-              <Button
-                asChild
-                variant="default"
-                size="sm"
-                className="interactive rounded-md bg-brand-primary text-white hover:bg-brand-primary/95 md:justify-self-end"
-              >
-                <Link href={`/courses/${courseId}/quiz/${template.id}`}>
-                  {activeAttempt ? "Lanjutkan" : "Mulai"}
-                  <ChevronRight className="ml-1 size-4" />
-                </Link>
-              </Button>
+              <span className="rounded-lg bg-brand-primary/15 px-3 py-1.5 text-body-xs font-semibold text-brand-primary shrink-0 transition-colors group-hover:bg-brand-primary group-hover:text-white">
+                {activeAttempt ? "Lanjutkan ›" : "Mulai ›"}
+              </span>
             );
           })();
 
+          const targetHref =
+            isClosed && accessible && (template as any).showDiscussion
+              ? `/courses/${courseId}/quiz/${template.id}?viewDiscussion=true`
+              : `/courses/${courseId}/quiz/${template.id}`;
+
           return (
-            <li key={template.id} className="border-b border-border/60 last:border-0">
-              <div
+            <li key={template.id}>
+              <Link
+                href={targetHref}
                 className={cn(
-                  "grid gap-3 px-4 py-3.5 transition-colors md:grid-cols-[minmax(0,1fr)_100px_180px] md:items-center",
-                  accessible && isOpen ? "hover:bg-muted/30" : "bg-card/45 text-muted-foreground",
+                  "group flex items-center justify-between gap-3 px-4 py-3 transition-colors",
+                  accessible && isOpen ? "hover:bg-muted/30 active:bg-muted/50" : "bg-card/40 opacity-80 hover:opacity-100",
                 )}
               >
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2">
-                    <h3 className="truncate font-heading text-body-base font-semibold text-foreground">
-                      {template.title}
-                    </h3>
-                    <span className="rounded-sm bg-muted px-1.5 py-0.5 text-body-xs capitalize text-muted-foreground">
-                      {template.category}
-                    </span>
-                  </div>
+                <div className="min-w-0 flex-1">
+                  <h3 className="truncate font-heading text-body-sm font-semibold text-foreground group-hover:text-brand-primary transition-colors">
+                    {template.title}
+                  </h3>
 
-                  <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-body-sm text-muted-foreground">
+                  <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-body-xs text-muted-foreground">
                     <span>{qCount} soal</span>
                     <span>·</span>
-                    <span>{template.timeLimitSeconds ? `${Math.round(template.timeLimitSeconds / 60)} menit` : "Tanpa batas waktu"}</span>
-                    {template.maxAttempts && (
+                    <span>{template.timeLimitSeconds ? `${Math.round(template.timeLimitSeconds / 60)} mnt` : "Tanpa batas"}</span>
+                    {template.category && (
                       <>
                         <span>·</span>
-                        <span>Maks {template.maxAttempts}x percobaan</span>
+                        <span className="capitalize">{template.category}</span>
                       </>
                     )}
-                  </div>
-
-                  {accessible && (
-                    <div className="mt-2 flex flex-wrap gap-2 text-body-xs">
-                      {activeAttempt && !isClosed && (
-                        <span className="inline-flex items-center gap-1 font-medium text-amber-500">
-                          <AlertCircle className="size-3.5" />
-                          Sedang dikerjakan
-                        </span>
+                    <span>·</span>
+                    <span
+                      className={cn(
+                        "font-medium",
+                        !accessible
+                          ? "text-amber-600 dark:text-amber-400"
+                          : isFree
+                            ? "text-status-success font-medium"
+                            : "text-brand-primary",
                       )}
-                      {highestScore !== null && (
-                        <span className="inline-flex items-center gap-1 font-medium text-emerald-500">
-                          <CheckCircle2 className="size-3.5" />
-                          Terjawab (Nilai Terbaik: {highestScore}%)
+                    >
+                      {!accessible ? "Terkunci" : isFree ? "Gratis" : "Premium"}
+                    </span>
+                    {highestScore !== null && (
+                      <>
+                        <span>·</span>
+                        <span className="text-status-success font-medium">Nilai {highestScore}%</span>
+                      </>
+                    )}
+                    {activeAttempt && !isClosed && (
+                      <>
+                        <span>·</span>
+                        <span className="text-amber-500 font-medium">Sedang dikerjakan</span>
+                      </>
+                    )}
+                    {isUpcoming && openDate && (
+                      <>
+                        <span>·</span>
+                        <span className="text-status-warning">
+                          Buka: <FormattedDate date={openDate} options={{ dateStyle: "short", timeStyle: "short" }} />
                         </span>
-                      )}
-
-                      {template.maxAttempts && completedAttempts.length > 0 && (
-                        <span className="text-muted-foreground">
-                          ({completedAttempts.length}/{template.maxAttempts} percobaan selesai)
+                      </>
+                    )}
+                    {isClosed && closeDate && (
+                      <>
+                        <span>·</span>
+                        <span className="text-status-error">
+                          Tutup: <FormattedDate date={closeDate} options={{ dateStyle: "short", timeStyle: "short" }} />
                         </span>
-                      )}
-
-                      {isUpcoming && openDate && (
-                        <span className="inline-flex items-center gap-1 font-medium text-status-warning">
-                          <AlertCircle className="size-3.5" />
-                          Akan dibuka: <FormattedDate date={openDate} options={{ dateStyle: "medium", timeStyle: "short" }} />
-                        </span>
-                      )}
-
-                      {isClosed && (
-                        <span className="inline-flex items-center gap-1 font-medium text-status-error">
-                          <AlertCircle className="size-3.5" />
-                          {closeDate ? (
-                            <>
-                              Telah ditutup: <FormattedDate date={closeDate} options={{ dateStyle: "medium", timeStyle: "short" }} />
-                            </>
-                          ) : (
-                            "Telah ditutup"
-                          )}
-                        </span>
-                      )}
-                    </div>
-                  )}
+                      </>
+                    )}
+                  </p>
                 </div>
 
-                <span
-                  className={cn(
-                    "inline-flex w-fit items-center gap-1 rounded-md px-2.5 py-0.5 text-body-xs font-semibold ring-1",
-                    accessible
-                      ? isFree
-                        ? "bg-status-success/10 text-status-success ring-status-success/20"
-                        : "bg-brand-primary/10 text-brand-primary ring-brand-primary/20"
-                      : "bg-amber-500/10 text-amber-600 dark:text-amber-400 ring-amber-500/20",
-                  )}
-                >
-                  {!accessible ? (
-                    <>
-                      <Lock className="size-3" />
-                      Terkunci
-                    </>
-                  ) : isFree ? (
-                    "Gratis"
-                  ) : (
-                    "Premium"
-                  )}
-                </span>
-
-                {buttonContent}
-              </div>
+                {actionBadge}
+              </Link>
             </li>
           );
         })}

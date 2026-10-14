@@ -43,7 +43,7 @@ import {
   List,
   Loader2,
   Plus,
-  Wand2,
+  Bot,
   Trash2,
   Upload,
   X,
@@ -328,17 +328,8 @@ export function BatchUploadDialog({
         ? sortedChapters.find((c) => c.id === meta.chapterIds[0])
         : null;
 
-      let standardTitle = meta.title;
-      let cleanTopicForFilename = meta.title;
-      if (
-        meta.category === "materi" &&
-        (meta.subcategory === "materi_dosen" || !meta.subcategory) &&
-        primaryChap
-      ) {
-        const cleanChapTitle = primaryChap.title.replace(/^bab\s*\d+\s*[:\.-]?\s*/i, "");
-        standardTitle = `Bab ${primaryChap.orderIndex}: ${standardizeDocumentTitle(cleanChapTitle)}`;
-        cleanTopicForFilename = cleanChapTitle;
-      }
+      const standardTitle = meta.title || file.name;
+      const cleanTopicForFilename = standardTitle.replace(/^bab\s*\d+\s*[:\.-]?\s*/i, "");
 
       const generatedName = generateFileName({
         courseCode: courseId,
@@ -1221,7 +1212,7 @@ export function BatchUploadDialog({
                         {isBatchFormattingAi ? (
                           <Loader2 className="size-3.5 animate-spin" />
                         ) : (
-                          <Wand2 className="size-3.5" />
+                          <Bot className="size-3.5" />
                         )}
                         <span>{isBatchFormattingAi ? "Merapikan AI..." : "Rapikan dengan AI"}</span>
                       </Button>
@@ -1383,7 +1374,7 @@ export function BatchUploadDialog({
                       {isBatchFormattingAi ? (
                         <Loader2 className="size-3.5 animate-spin" />
                       ) : (
-                        <Wand2 className="size-3.5" />
+                        <Bot className="size-3.5" />
                       )}
                       <span>{isBatchFormattingAi ? "Merapikan AI..." : "Rapikan dengan AI"}</span>
                     </Button>

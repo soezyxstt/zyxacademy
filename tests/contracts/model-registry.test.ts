@@ -28,20 +28,21 @@ describe("Plan 002 model registry", () => {
       if (entry.family === "embedding") expect(entry.dimensions).toBe(768);
     }
 
-    expect(getRpdLimit("gemini-3.1-flash-lite")).toBe(500);
+    expect(getRpdLimit("gemini-3.5-flash-lite")).toBe(500);
     expect(getRpdLimit("gemini-3.5-flash")).toBe(20);
     expect(getRpdLimit("gemini-embedding-2")).toBe(1_000);
   });
 
   it("normalizes only the supported models prefix and rejects unknown IDs", () => {
-    expect(normalizeModelId("models/gemini-3.1-flash-lite")).toBe("gemini-3.1-flash-lite");
+    expect(normalizeModelId("models/gemini-3.5-flash-lite")).toBe("gemini-3.5-flash-lite");
     expect(() => normalizeModelId("gemini-does-not-exist")).toThrow("UNKNOWN_MODEL");
   });
 
-  it("keeps quarantined and legacy entries out of ordinary routing", () => {
-    expect(getModelEntry("gemini-3.5-flash-lite").ordinaryRoutingAllowed).toBe(false);
+  it("keeps quarantined and legacy entries out of ordinary routing while allowing 3.5 Flash-Lite", () => {
+    expect(getModelEntry("gemini-3.5-flash-lite").ordinaryRoutingAllowed).toBe(true);
+    expect(getModelEntry("gemini-3.5-flash-lite").stability).toBe("stable");
+    expect(getModelEntry("gemini-3-flash-preview").ordinaryRoutingAllowed).toBe(false);
     expect(getModelEntry("gemini-embedding-001").ordinaryRoutingAllowed).toBe(false);
-    expect(getModelEntry("gemini-3.5-flash-lite").healthGate.minimumSuccessRate).toBe(0.95);
   });
 
   it("keeps canonical and semantic-cache profiles separate", () => {

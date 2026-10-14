@@ -10,6 +10,7 @@ import {
   Circle,
   Clock,
   Compass,
+  ChevronLeft,
   ChevronRight,
   PanelRightClose,
   PanelRight,
@@ -42,6 +43,8 @@ import { cn } from "@/lib/utils";
 import { MarkdownRenderer } from "@/components/course/markdown-renderer";
 import { useTutor } from "@/components/course/tutor-drawer";
 import { isZyraSelectionAskEnabled, normalizeZyraSelection } from "@/lib/zyra/murid";
+import { extractZyraSelection, type ZyraSelectionContext } from "@/lib/zyra/selection-serializer";
+import { ZyraSelectionToolbar } from "@/components/course/zyra-selection-toolbar";
 import {
   type PublicArticleReadModel,
   type PublicSectionReadModel,
@@ -57,11 +60,19 @@ import {
 import { formatReaderTocTitle, resolveReaderBlockTitle } from "@/lib/materials/reader-toc";
 import { isLearnerReaderMode, type MaterialReaderMode } from "@/lib/materials/reader-mode";
 
+export interface MaterialNavigationItem {
+  id: string;
+  title: string;
+  href: string;
+}
+
 export interface StructuredArticleReaderProps {
   article: PublicArticleReadModel;
   course?: { id?: string; title: string } | null;
   mode?: MaterialReaderMode;
   backHref?: string;
+  prevMaterial?: MaterialNavigationItem | null;
+  nextMaterial?: MaterialNavigationItem | null;
   isTocOpen?: boolean;
   onToggleToc?: () => void;
   isMobileSheetOpen?: boolean;
@@ -266,6 +277,8 @@ export function StructuredArticleSectionContent({
               <div
                 key={block.id || blockIndex}
                 id={block.id ? `block-${block.id}` : undefined}
+                data-block-type="worked_example"
+                data-block-title={block.title || "Contoh dan Pembahasan"}
                 className="scroll-mt-24"
               >
                 <ProductWorkedExample
@@ -286,6 +299,8 @@ export function StructuredArticleSectionContent({
               <div
                 key={block.id || blockIndex}
                 id={block.id ? `block-${block.id}` : undefined}
+                data-block-type={block.blockType}
+                data-block-title={block.title || "Cek Pemahaman"}
                 className="scroll-mt-24"
               >
                 <ProductFormativeCheck
@@ -318,6 +333,8 @@ export function StructuredArticleSectionContent({
               <div
                 key={block.id || blockIndex}
                 id={block.id ? `block-${block.id}` : undefined}
+                data-block-type={block.blockType}
+                data-block-title={displayTitle || meta.label}
                 className={cn(
                   "space-y-3 py-1 scroll-mt-24",
                   block.blockType === "mathematical_representation" && "space-y-2",
@@ -344,6 +361,8 @@ export function StructuredArticleSectionContent({
             <div
               key={block.id || blockIndex}
               id={block.id ? `block-${block.id}` : undefined}
+              data-block-type={block.blockType}
+              data-block-title={displayTitle || meta.label}
               className={cn(
                 "rounded-r-lg p-4 sm:p-5 space-y-3 shadow-xs my-3 scroll-mt-24",
                 meta.containerClass,
@@ -381,6 +400,8 @@ export function StructuredArticleReader({
   course,
   mode = "learner",
   backHref,
+  prevMaterial,
+  nextMaterial,
   isTocOpen: controlledTocOpen,
   onToggleToc: controlledToggleToc,
   isMobileSheetOpen: controlledMobileSheetOpen,
@@ -487,10 +508,25 @@ export function StructuredArticleReader({
   }, [article.progress]);
 
   // Zyra selection hooks & state
-  const { openExplain, openChatWithQuestion } = useTutor();
+  const { openExplain, openChatWithQuestion, isOpen: isTutorOpen } = useTutor();
   const selectionAskEnabled = isZyraSelectionAskEnabled();
-  const [selectedText, setSelectedText] = useState("");
+  const [selectionContext, setSelectionContext] = useState<ZyraSelectionContext | null>(null);
   const [selectionCoords, setSelectionCoords] = useState<{ top: number; left: number } | null>(null);
+
+  // Auto-collapse TOC ("BAB INI") on laptop screens when Zyra panel opens
+  const tocWasOpenBeforeTutorRef = useRef<boolean | null>(null);
+  useEffect(() => {
+    if (isTutorOpen) {
+      const isConstrained = typeof window !== "undefined" && window.innerWidth < 1440;
+      if (isConstrained && internalTocOpen) {
+        tocWasOpenBeforeTutorRef.current = true;
+        setInternalTocOpen(false);
+      }
+    } else if (tocWasOpenBeforeTutorRef.current) {
+      setInternalTocOpen(true);
+      tocWasOpenBeforeTutorRef.current = null;
+    }
+  }, [isTutorOpen, internalTocOpen]);
 
   // Smooth scroll to section
   const navigateToSection = useCallback(
@@ -749,24 +785,24 @@ export function StructuredArticleReader({
     const handleSelectionChange = () => {
       const selection = window.getSelection();
       if (!selection || selection.isCollapsed || !selection.toString().trim()) {
-        setSelectedText("");
+        setSelectionContext(null);
         setSelectionCoords(null);
         return;
       }
 
-      const text = selection.toString().trim();
       const anchorNode = selection.anchorNode;
       if (!anchorNode) return;
 
       const container = contentContainerRef.current;
       if (!container || !container.contains(anchorNode)) {
-        setSelectedText("");
+        setSelectionContext(null);
         setSelectionCoords(null);
         return;
       }
 
-      if (text.length < 3) {
-        setSelectedText("");
+      const extracted = extractZyraSelection(selection, article.title);
+      if (!extracted || extracted.cleanText.length < 2) {
+        setSelectionContext(null);
         setSelectionCoords(null);
         return;
       }
@@ -775,17 +811,17 @@ export function StructuredArticleReader({
         const range = selection.getRangeAt(0);
         const rect = range.getBoundingClientRect();
         setSelectionCoords({
-          top: rect.top - 48,
+          top: rect.top - 46,
           left: rect.left + rect.width / 2,
         });
-        setSelectedText(text);
+        setSelectionContext(extracted);
       } catch {
         // Safe fallback
       }
     };
 
     const handleWindowScroll = () => {
-      setSelectedText("");
+      setSelectionContext(null);
       setSelectionCoords(null);
     };
 
@@ -795,21 +831,44 @@ export function StructuredArticleReader({
       document.removeEventListener("selectionchange", handleSelectionChange);
       document.removeEventListener("scroll", handleWindowScroll, true);
     };
-  }, [learnerMode]);
+  }, [learnerMode, article.title]);
 
-  const handleAskZyra = () => {
-    if (!learnerMode) return;
-    if (!selectedText) return;
-    const selection = normalizeZyraSelection(selectedText);
+  const handleAskZyra = (intent: string, customQuestion?: string) => {
+    if (!learnerMode || !selectionContext) return;
+    const currentContext = selectionContext;
     window.getSelection()?.removeAllRanges();
-    setSelectedText("");
+    setSelectionContext(null);
     setSelectionCoords(null);
 
-    const sectionTitle = activeSection ? activeSection.title : "";
-    const question = `Kutipan dari materi "${article.title}" (${sectionTitle}): "${selection}"\n\nJelaskan bagian ini secara bertahap dan berikan contoh konkret.`;
+    const sectionTitle = currentContext.sectionTitle || activeSection?.title || "";
+    let questionText = customQuestion?.trim();
+    if (!questionText) {
+      if (intent === "example") {
+        questionText = "Berikan contoh konkret atau latihan terkait materi ini.";
+      } else if (intent === "step_by_step") {
+        questionText = "Bedah langkah perhitungan ini secara bertahap dan jelaskan logikanya.";
+      } else if (intent === "rationale") {
+        questionText = "Kenapa metode atau cara ini yang digunakan pada langkah ini?";
+      } else if (intent === "intuition") {
+        questionText = "Apa intuisi dasar atau analogi di balik pernyataan ini?";
+      } else if (intent === "define") {
+        questionText = "Jelaskan definisi istilah atau simbol ini secara padat.";
+      } else {
+        questionText = "Jelaskan bagian ini secara bertahap dan berikan contoh konkret.";
+      }
+    }
 
-    if (selectionAskEnabled && selection.length >= 3) {
-      openChatWithQuestion(question);
+    const quotedContext = {
+      title: article.title,
+      sectionTitle,
+      snippet: currentContext.cleanText,
+      blockType: currentContext.blockType,
+      surroundingText: currentContext.surroundingText,
+      intent: intent as any,
+    };
+
+    if (selectionAskEnabled && currentContext.cleanText.length >= 2) {
+      openChatWithQuestion(questionText, quotedContext);
     } else {
       openExplain("ko-article", "content");
     }
@@ -866,6 +925,34 @@ export function StructuredArticleReader({
       }
     }
     router.push(backHref ?? `/courses/${article.courseId}/material`);
+  };
+
+  const handleNextMaterial = () => {
+    if (learnerMode) {
+      for (const sec of article.sections) {
+        if (!completedSectionsSentRef.current.has(sec.id)) {
+          completedSectionsSentRef.current.add(sec.id);
+          sendProgressUpdate(sec.id, 100, 5, true);
+        }
+      }
+    }
+    if (nextMaterial?.href) {
+      router.push(nextMaterial.href);
+    }
+  };
+
+  const handlePrevMaterial = () => {
+    if (learnerMode) {
+      for (const sec of article.sections) {
+        if (!completedSectionsSentRef.current.has(sec.id)) {
+          completedSectionsSentRef.current.add(sec.id);
+          sendProgressUpdate(sec.id, 100, 5, true);
+        }
+      }
+    }
+    if (prevMaterial?.href) {
+      router.push(prevMaterial.href);
+    }
   };
 
   const courseTitle = course?.title || "Materi Kuliah";
@@ -1224,17 +1311,59 @@ export function StructuredArticleReader({
                   <p className="text-body-sm text-muted-foreground max-w-md mx-auto">
                     Anda telah menyelesaikan seluruh materi dalam bab {article.title}.
                   </p>
+                  {nextMaterial && (
+                    <p className="text-body-xs text-muted-foreground pt-1">
+                      Materi berikutnya: <span className="font-semibold text-foreground">{nextMaterial.title}</span>
+                    </p>
+                  )}
                 </div>
                 <div className="pt-2 flex flex-wrap items-center justify-center gap-3">
-                  <Button
-                    variant="default"
-                    size="lg"
-                    onClick={handleFinishArticle}
-                    className="rounded-lg bg-primary hover:bg-primary/95 text-primary-foreground font-semibold"
-                  >
-                    <span>Kembali ke Daftar Materi</span>
-                    <ChevronRight className="size-4 ml-1.5" />
-                  </Button>
+                  {prevMaterial && (
+                    <Button
+                      variant="outline"
+                      size="default"
+                      onClick={handlePrevMaterial}
+                      className="rounded-lg font-semibold gap-1.5"
+                    >
+                      <ChevronLeft className="size-4" />
+                      <span>Materi Sebelumnya</span>
+                    </Button>
+                  )}
+
+                  {nextMaterial ? (
+                    <Button
+                      variant="default"
+                      size="default"
+                      onClick={handleNextMaterial}
+                      className="rounded-lg bg-primary hover:bg-primary/95 text-primary-foreground font-semibold gap-1.5"
+                    >
+                      <span>Materi Berikutnya</span>
+                      <ChevronRight className="size-4" />
+                    </Button>
+                  ) : (
+                    <Button
+                      variant="default"
+                      size="default"
+                      onClick={handleFinishArticle}
+                      className="rounded-lg bg-primary hover:bg-primary/95 text-primary-foreground font-semibold gap-1.5"
+                    >
+                      <span>Kembali ke Daftar Materi</span>
+                      <ChevronRight className="size-4" />
+                    </Button>
+                  )}
+
+                  {nextMaterial && (
+                    <Button
+                      variant="ghost"
+                      size="default"
+                      asChild
+                      className="rounded-lg text-muted-foreground hover:text-foreground font-semibold"
+                    >
+                      <Link href={backHref ?? `/courses/${article.courseId}/material`}>
+                        <span>Daftar Materi</span>
+                      </Link>
+                    </Button>
+                  )}
                 </div>
               </div>
             </div>
@@ -1262,49 +1391,19 @@ export function StructuredArticleReader({
         )}
       </div>
 
-      {/* Floating Selection-to-Zyra popover */}
-      {learnerMode && selectionCoords && selectedText && (
-        <div
-          style={{
-            position: "fixed",
-            top: `${selectionCoords.top}px`,
-            left: `${selectionCoords.left}px`,
-            transform: "translateX(-50%)",
-            zIndex: 9999,
+      {/* Floating Selection-to-Zyra toolbar with Progressive Disclosure */}
+      {learnerMode && selectionCoords && selectionContext && (
+        <ZyraSelectionToolbar
+          courseId={article.courseId}
+          selectionContext={selectionContext}
+          coords={selectionCoords}
+          onClose={() => {
+            window.getSelection()?.removeAllRanges();
+            setSelectionContext(null);
+            setSelectionCoords(null);
           }}
-          className="animate-fade-in"
-          onMouseDown={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-          }}
-        >
-          <div className="relative">
-            <Button
-              type="button"
-              size="sm"
-              className="rounded-lg bg-brand-primary hover:bg-brand-primary/95 shadow-md flex items-center gap-1.5 h-8 font-sans text-body-xs font-semibold !text-white px-3 border border-brand-primary/20"
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                handleAskZyra();
-              }}
-            >
-              Tanya Zyra
-            </Button>
-            <button
-              type="button"
-              onClick={() => {
-                window.getSelection()?.removeAllRanges();
-                setSelectedText("");
-                setSelectionCoords(null);
-              }}
-              className="absolute -top-2 -right-2 flex size-5 items-center justify-center rounded-lg bg-muted text-muted-foreground hover:bg-border hover:text-foreground shadow-sm transition-colors"
-              aria-label="Tutup popover"
-            >
-              <X className="size-3" />
-            </button>
-          </div>
-        </div>
+          onAskZyra={handleAskZyra}
+        />
       )}
     </div>
   );

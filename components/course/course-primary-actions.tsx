@@ -1,8 +1,6 @@
 import Link from "next/link";
-import { BookOpen, ListChecks, CalendarRange, ArrowRight } from "lucide-react";
+import { BookOpen, ListChecks, CalendarRange } from "lucide-react";
 import type { CourseOverviewActionCard } from "@/types/course-learning";
-import { studentCardClass } from "@/components/course/course-surfaces";
-import { MathText } from "@/components/course/math-text";
 import { cn } from "@/lib/utils";
 
 interface CoursePrimaryActionsProps {
@@ -18,37 +16,32 @@ const ICONS = {
   JADWAL: CalendarRange,
 } as const;
 
-function ActionCard({ card }: { card: CourseOverviewActionCard }) {
+const COLOR_CLASSES = {
+  DOKUMEN: "bg-blue-500/10 text-blue-500 dark:text-blue-400",
+  KUIS: "bg-emerald-500/10 text-emerald-500 dark:text-emerald-400",
+  JADWAL: "bg-purple-500/10 text-purple-500 dark:text-purple-400",
+} as const;
+
+function ActionTile({ card }: { card: CourseOverviewActionCard }) {
   const Icon = ICONS[card.tag as keyof typeof ICONS] ?? BookOpen;
+  const colorClass = COLOR_CLASSES[card.tag as keyof typeof COLOR_CLASSES] ?? "bg-brand-primary/10 text-brand-primary";
+  const label = card.tag === "DOKUMEN" ? "Materi" : card.tag === "KUIS" ? "Latihan" : "Tutorial";
 
   return (
     <Link
       href={card.href}
-      className={cn(
-        studentCardClass("group flex flex-col justify-between transition-all duration-200"),
-        "hover:border-brand-primary/40 hover:shadow-xs",
-      )}
+      className="group flex items-center gap-2 rounded-xl border border-border/60 bg-card/80 p-2.5 transition-all hover:border-brand-primary/40 hover:bg-muted/30 active:bg-muted/50"
     >
-      <div>
-        <div className="flex items-center justify-between">
-          <span className="sr-only">{card.tag}</span>
-          <span className="flex size-6 items-center justify-center rounded-md bg-brand-primary/10 text-brand-primary ml-auto">
-            <Icon className="size-3.5" aria-hidden="true" />
-          </span>
+      <span className={cn("flex size-7 shrink-0 items-center justify-center rounded-lg", colorClass)}>
+        <Icon className="size-3.5" aria-hidden="true" />
+      </span>
+      <div className="min-w-0 flex-1">
+        <div className="truncate font-heading text-body-xs font-semibold text-foreground group-hover:text-brand-primary transition-colors">
+          {label}
         </div>
-        <div className="mt-1 min-w-0">
-          <h3 className="line-clamp-2 font-heading text-body-base font-bold text-foreground transition-colors group-hover:text-brand-primary">
-            <MathText as="span">{card.title}</MathText>
-          </h3>
-          <p className="mt-1 truncate text-body-xs text-muted-foreground">
-            {card.meta}
-          </p>
+        <div className="truncate text-body-xs text-muted-foreground">
+          {card.meta || card.actionLabel}
         </div>
-      </div>
-
-      <div className="mt-4 flex items-center justify-between border-t border-border/30 pt-3 text-body-xs font-semibold text-brand-primary">
-        <span>{card.actionLabel}</span>
-        <ArrowRight className="size-3.5 transition-transform duration-200 group-hover:translate-x-0.5" aria-hidden="true" />
       </div>
     </Link>
   );
@@ -61,10 +54,10 @@ export function CoursePrimaryActions({
   className,
 }: CoursePrimaryActionsProps) {
   return (
-    <div className={cn("grid grid-cols-1 gap-4 md:grid-cols-3 md:items-start", className)}>
-      <ActionCard card={reading} />
-      <ActionCard card={quiz} />
-      <ActionCard card={schedule} />
+    <div className={cn("grid grid-cols-3 gap-2", className)}>
+      <ActionTile card={reading} />
+      <ActionTile card={quiz} />
+      <ActionTile card={schedule} />
     </div>
   );
 }

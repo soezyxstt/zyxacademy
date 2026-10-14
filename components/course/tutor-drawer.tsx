@@ -10,12 +10,21 @@ import type { TutorMode } from "./tutor-drawer-view";
 
 export type { TutorMode };
 
+export interface ZyraQuotedContext {
+  title?: string;
+  sectionTitle?: string;
+  snippet: string;
+  blockType?: string;
+  surroundingText?: string;
+  intent?: "define" | "simplify" | "step_by_step" | "intuition" | "custom";
+}
+
 export interface TutorContextType {
   openExplain: (koId: string, initialMode?: "content" | "analogy" | "simplification") => void;
   openMistake: (questionId: string, userAnswer: string) => void;
   openStudyPlan: () => void;
   openChat: () => void;
-  openChatWithQuestion: (question: string) => void;
+  openChatWithQuestion: (question: string, quotedContext?: ZyraQuotedContext | null) => void;
   close: () => void;
   isOpen: boolean;
   activeMode: TutorMode;
@@ -88,6 +97,21 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
   const courseIdFromPath = pathname?.startsWith("/courses/") ? pathname.split("/")[2] : null;
   const caps = getTutorCapabilities(courseIdFromPath);
 
+  // Preload TutorDrawerView in idle time so opening the drawer is instant
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
+    const preload = () => {
+      import("./tutor-drawer-view").catch(() => {});
+    };
+    if ("requestIdleCallback" in window) {
+      const handle = (window as any).requestIdleCallback(preload, { timeout: 2000 });
+      return () => (window as any).cancelIdleCallback(handle);
+    } else {
+      const timer = setTimeout(preload, 1000);
+      return () => clearTimeout(timer);
+    }
+  }, []);
+
   const [isOpen, setIsOpen] = React.useState(false);
   const [activeMode, setActiveMode] = React.useState<TutorMode>(null);
   const [suppressPet, setSuppressPet] = React.useState(false);
@@ -97,6 +121,7 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
   const [userAnswer, setUserAnswer] = React.useState<string | null>(null);
   const [explainMode, setExplainMode] = React.useState<"content" | "analogy" | "simplification">("content");
   const [initialQuestion, setInitialQuestion] = React.useState<string | null>(null);
+  const [quotedContext, setQuotedContext] = React.useState<ZyraQuotedContext | null>(null);
 
   const openExplain = React.useCallback(
     (id: string, initialMode: "content" | "analogy" | "simplification" = "content") => {
@@ -104,6 +129,7 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
       setKoId(id);
       setQuestionId(null);
       setUserAnswer(null);
+      setQuotedContext(null);
       setExplainMode(initialMode);
       setActiveMode("explain");
       setIsOpen(true);
@@ -117,6 +143,7 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
       setKoId(null);
       setQuestionId(qId);
       setUserAnswer(answerText);
+      setQuotedContext(null);
       setActiveMode("mistake");
       setIsOpen(true);
     },
@@ -128,6 +155,7 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
     setKoId(null);
     setQuestionId(null);
     setUserAnswer(null);
+    setQuotedContext(null);
     setActiveMode("study-plan");
     setIsOpen(true);
   }, [suppressPet]);
@@ -142,11 +170,12 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
   }, [suppressPet]);
 
   const openChatWithQuestion = React.useCallback(
-    (question: string) => {
+    (question: string, quote?: ZyraQuotedContext | null) => {
       if (suppressPet) return;
       setKoId(null);
       setQuestionId(null);
       setUserAnswer(null);
+      setQuotedContext(quote ?? null);
       setInitialQuestion(question);
       setActiveMode("chat");
       setIsOpen(true);
@@ -158,6 +187,7 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
     setIsOpen(false);
     setActiveMode(null);
     setInitialQuestion(null);
+    setQuotedContext(null);
   }, []);
 
   return (
@@ -189,6 +219,7 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
             <button
               type="button"
               onClick={openChat}
+              onMouseEnter={() => import("./tutor-drawer-view").catch(() => {})}
               aria-label="Tanya Zyra"
               title="Tanya Zyra"
               className="group fixed bottom-6 right-6 z-40 flex size-14 items-center justify-center rounded-full bg-brand-primary text-white shadow-lg shadow-brand-primary/30 transition-all hover:scale-105 hover:bg-brand-primary/95 active:scale-95 md:bottom-8 md:right-8"
@@ -213,6 +244,8 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
               explainMode={explainMode}
               initialQuestion={initialQuestion}
               onClearInitialQuestion={() => setInitialQuestion(null)}
+              quotedContext={quotedContext}
+              onClearQuotedContext={() => setQuotedContext(null)}
             />
           </ZyraWelcomeCopyGuard>
         )}

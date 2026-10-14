@@ -2,10 +2,10 @@ import { describe, expect, it } from "bun:test";
 import { classifyProviderRoute, getProviderRoutePlan } from "@/lib/ai-router";
 
 describe("Plan 005 deterministic model routing", () => {
-  it("defaults ordinary tutoring to 3.1 Flash-Lite", () => {
+  it("defaults ordinary tutoring to 3.5 Flash-Lite", () => {
     const route = classifyProviderRoute({ feature: "tutor", useCase: "explain-concept" });
     expect(route.routeClass).toBe("default");
-    expect(route.models[0]).toBe("gemini-3.1-flash-lite");
+    expect(route.models[0]).toBe("gemini-3.5-flash-lite");
     expect(route.premium).toBe(false);
   });
 
@@ -30,7 +30,7 @@ describe("Plan 005 deterministic model routing", () => {
 
   it("does not let a prompt-provided model name change the route", () => {
     const route = classifyProviderRoute({ feature: "tutor", explicitUserAction: "explain" });
-    expect(route.models[0]).toBe("gemini-3.1-flash-lite");
-    expect(route.models).not.toContain("gemini-3.5-flash-lite");
+    expect(route.models[0]).toBe("gemini-3.5-flash-lite");
+    expect(route.models).not.toContain("gemini-3-flash-preview");
   });
 });

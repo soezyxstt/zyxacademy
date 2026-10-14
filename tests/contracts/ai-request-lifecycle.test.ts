@@ -74,9 +74,9 @@ function dependencies(overrides: Partial<RequestLifecycleDependencies> = {}) {
       if (input.modelId === "gemini-3.5-flash") return { status: "fallback_allowed" as const, code: "PREMIUM_EXHAUSTED_FALLBACK_ALLOWED", modelId: input.modelId };
       return { status: "reserved" as const, lease: controlLease(input.modelId, input.routeClass) };
     },
-    dispatch: async () => { events.push("cp.dispatch"); return { status: "updated" as const, lease: controlLease("gemini-3.1-flash-lite", "default") }; },
-    commit: async () => { events.push("cp.commit"); return { status: "updated" as const, lease: controlLease("gemini-3.1-flash-lite", "default") }; },
-    refund: async () => { events.push("cp.refund"); return { status: "updated" as const, lease: controlLease("gemini-3.1-flash-lite", "default") }; },
+    dispatch: async () => { events.push("cp.dispatch"); return { status: "updated" as const, lease: controlLease("gemini-3.5-flash-lite", "default") }; },
+    commit: async () => { events.push("cp.commit"); return { status: "updated" as const, lease: controlLease("gemini-3.5-flash-lite", "default") }; },
+    refund: async () => { events.push("cp.refund"); return { status: "updated" as const, lease: controlLease("gemini-3.5-flash-lite", "default") }; },
   } as unknown as ControlPlaneClient;
 
   return {
@@ -84,7 +84,7 @@ function dependencies(overrides: Partial<RequestLifecycleDependencies> = {}) {
     dependencies: {
       allowance,
       controlPlane,
-      invokeProvider: async ({ modelId }: { modelId: "gemini-3.1-flash-lite" }) => {
+      invokeProvider: async ({ modelId }: { modelId: string }) => {
         events.push(`provider:${modelId}`);
         return result(modelId);
       },
@@ -241,12 +241,12 @@ describe("Plan 005 request lifecycle", () => {
       parts: [{ type: "text", text: "Explain" }],
     });
 
-    expect(output.modelId).toBe("gemini-3.1-flash-lite");
+    expect(output.modelId).toBe("gemini-3.5-flash-lite");
     expect(output.routeClass).toBe("premium-pedagogy");
     expect(fixture.events.filter((event) => event === "allowance.reserve")).toHaveLength(1);
     expect(fixture.events).toContain("cp.reserve:gemini-3.5-flash:premium-pedagogy");
-    expect(fixture.events).toContain("cp.reserve:gemini-3.1-flash-lite:default");
-    expect(fixture.events).toContain("provider:gemini-3.1-flash-lite");
+    expect(fixture.events).toContain("cp.reserve:gemini-3.5-flash-lite:default");
+    expect(fixture.events).toContain("provider:gemini-3.5-flash-lite");
   });
 
   it("records exact cache hits without a provider lease or provider call", async () => {

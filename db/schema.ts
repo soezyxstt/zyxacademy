@@ -3688,6 +3688,8 @@ export const courseMaterials = sqliteTable(
 			| "tutorial"
 			| "uts"
 			| "uas"
+			| "up"
+			| "ltm"
 			| "lainnya"
 		>(),
 		year: integer("year"),
