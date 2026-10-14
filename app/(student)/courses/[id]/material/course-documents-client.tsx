@@ -451,6 +451,14 @@ function isUasMaterial(material: CourseMaterial): boolean {
   return false;
 }
 
+/** Determines if a material belongs to the UP subcategory or exam scope. */
+function isUpMaterial(material: CourseMaterial): boolean {
+  const sub = material.subcategory?.toLowerCase().trim();
+  if (sub === "up") return true;
+  if (isSoalMaterial(material) && /\b(up)\b/i.test(material.title)) return true;
+  return false;
+}
+
 const HIERARCHY_TIER_RANK: Record<MaterialHierarchyTier, number> = {
   article: 1,
   diktat: 2,
@@ -611,11 +619,13 @@ export function CourseDocumentsClient({
     chapterGroups,
     utsMaterials,
     uasMaterials,
+    upMaterials,
     soalLainnyaMaterials,
     lainLainMaterials,
   } = useMemo(() => {
     const uts: CourseMaterial[] = [];
     const uas: CourseMaterial[] = [];
+    const up: CourseMaterial[] = [];
     const soalLainnya: CourseMaterial[] = [];
     const lainLain: CourseMaterial[] = [];
 
@@ -633,6 +643,11 @@ export function CourseDocumentsClient({
         uas.push(material);
         continue;
       }
+      if (isUpMaterial(material)) {
+        up.push(material);
+        continue;
+      }
+
       // Check chapter relationship
       const rawIds = materialChapterIds(material);
       const resolvedChapterIds = Array.from(
@@ -671,6 +686,7 @@ export function CourseDocumentsClient({
       })),
       utsMaterials: sortMaterials(uts),
       uasMaterials: sortMaterials(uas),
+      upMaterials: sortMaterials(up),
       soalLainnyaMaterials: sortMaterials(soalLainnya),
       lainLainMaterials: sortMaterials(lainLain),
     };
@@ -681,10 +697,11 @@ export function CourseDocumentsClient({
     if (firstChapter) return `chapter:${firstChapter.chapter.id}`;
     if (utsMaterials.length > 0) return "special:uts";
     if (uasMaterials.length > 0) return "special:uas";
+    if (upMaterials.length > 0) return "special:up";
     if (soalLainnyaMaterials.length > 0) return "special:soal_lainnya";
     if (lainLainMaterials.length > 0) return "special:lain_lain";
     return null;
-  }, [chapterGroups, utsMaterials.length, uasMaterials.length, soalLainnyaMaterials.length, lainLainMaterials.length]);
+  }, [chapterGroups, utsMaterials.length, uasMaterials.length, upMaterials.length, soalLainnyaMaterials.length, lainLainMaterials.length]);
 
   const [openSection, setOpenSection] = useState<string | null>(firstPopulatedSectionKey);
 
@@ -775,6 +792,20 @@ export function CourseDocumentsClient({
               open={openSection === "special:uas"}
               onOpenChange={(nextOpen) => setOpenSection(nextOpen ? "special:uas" : null)}
             />
+            {upMaterials.length > 0 && (
+              <CollapsibleDocumentSection
+                badge="UP"
+                title="Ujian Perbaikan"
+                materials={upMaterials}
+                courseId={courseId}
+                courseSlug={courseSlug}
+                courseTitle={courseTitle}
+                isAdmin={isAdmin}
+                onDelete={setDeleteTarget}
+                open={openSection === "special:up"}
+                onOpenChange={(nextOpen) => setOpenSection(nextOpen ? "special:up" : null)}
+              />
+            )}
             <CollapsibleDocumentSection
               badge="Soal"
               title="Soal lainnya"
@@ -832,6 +863,7 @@ export function CourseDocumentsClient({
             courseId={courseId}
             courseTitle={courseTitle || "Mata Kuliah"}
             chapters={chapters}
+            existingTitles={materials.map((m) => m.title)}
           />
           {deleteTarget ? (
             <AdminConfirmDialog

@@ -7,6 +7,9 @@ import {
 import {
   detectMetadataFromFilename,
   standardizeDocumentTitle,
+  buildCanonicalDocumentTitle,
+  detectSessionFromFilename,
+  detectPartNumberFromFilename,
   type BatchChapterInfo,
 } from "@/lib/course-batch-upload";
 
@@ -88,28 +91,20 @@ export function buildDeterministicFallback(
 
   const cleanCourseCode = courseCode.toUpperCase().replace(/[^A-Z0-9]/g, "");
 
-  // Generate standard title based on category & subcategory
-  let title = meta.title || filename.replace(/\.pdf$/i, "");
-  if (category === "materi" && (subcategory === "materi_dosen" || !subcategory) && matchedChapter) {
-    title = `Bab ${matchedChapter.orderIndex}: ${standardizeDocumentTitle(matchedChapter.title.replace(/^bab\s*\d+\s*[:\.-]?\s*/i, ""))}`;
-  } else if (category === "materi" && subcategory === "scl" && matchedChapter) {
-    title = `SCL Bab ${matchedChapter.orderIndex}: ${standardizeDocumentTitle(matchedChapter.title.replace(/^bab\s*\d+\s*[:\.-]?\s*/i, ""))}`;
-  } else if (category === "soal" && subcategory === "uts") {
-    title = `UTS ${cleanCourseCode}${year ? ` ${year}` : ""}`;
-  } else if (category === "soal" && subcategory === "uas") {
-    title = `UAS ${cleanCourseCode}${year ? ` ${year}` : ""}`;
-  } else if (category === "pembahasan_soal" && subcategory === "uts") {
-    title = `Pembahasan UTS ${cleanCourseCode}${year ? ` ${year}` : ""}`;
-  } else if (category === "pembahasan_soal" && subcategory === "uas") {
-    title = `Pembahasan UAS ${cleanCourseCode}${year ? ` ${year}` : ""}`;
-  } else if (matchedChapter) {
-    const chapName = standardizeDocumentTitle(matchedChapter.title.replace(/^bab\s*\d+\s*[:\.-]?\s*/i, ""));
-    if (category === "pembahasan_soal") {
-      title = `Pembahasan: Bab ${matchedChapter.orderIndex} (${chapName})`;
-    } else if (category === "soal") {
-      title = `Latihan Soal: Bab ${matchedChapter.orderIndex} (${chapName})`;
-    }
-  }
+  const session = detectSessionFromFilename(filename);
+  const partNumber = detectPartNumberFromFilename(filename);
+
+  const title = buildCanonicalDocumentTitle({
+    courseCode,
+    category,
+    subcategory,
+    chapterIndex: matchedChapter?.orderIndex ?? meta.primaryChapterIndex,
+    chapterTitle: matchedChapter?.title,
+    year,
+    session,
+    partNumber,
+    customTopic: meta.title || undefined,
+  });
 
   return {
     title: sanitizeStandardTitle(title),
@@ -154,21 +149,25 @@ KONVENSI PENOMORAN & SEMANTIK BAB:
    Cocokkan topik materi berkas (misal "Limit", "Turunan", "Integral Tentu", "Aplikasi Turunan") secara semantik terhadap judul bab resmi yang terdaftar di sistem Zyx.
 3. Kategori yang didukung:
    - "materi" (Subkategori: "materi_dosen", "scl", "modul", "ebook", "lainnya")
-   - "soal" (Subkategori: "uts", "uas", "kuis", "kbf", "tutorial", "modul", "lainnya")
-   - "pembahasan_soal" (Subkategori: "uts", "uas", "kuis", "kbf", "tutorial", "modul", "lainnya")
+   - "soal" (Subkategori: "uts", "uas", "up", "ltm", "kuis", "kbf", "tutorial", "modul", "lainnya")
+   - "pembahasan_soal" (Subkategori: "uts", "uas", "up", "ltm", "kuis", "kbf", "tutorial", "modul", "lainnya")
 
 ATURAN DISPLAY NAME BAKU:
 - materi_dosen: "Bab {orderIndex}: {Judul Bab di Zyx}" (misal: "Bab 2: Limit dan Kekontinuan")
   Jika materi multi-part: "Bab {orderIndex}: {Judul Bab di Zyx} (Bagian {N})"
+  Jika materi aplikasi: "Bab {orderIndex}: {Judul Bab di Zyx} (Aplikasi)"
+  Jika materi problem: "Bab {orderIndex}: {Judul Bab di Zyx} (Contoh Problem)"
 - scl: "SCL Bab {orderIndex}: {Judul Bab di Zyx}"
-- modul: "Modul Bab {orderIndex}: {Judul Bab di Zyx}" atau "Modul {N}: {Topik}"
-- ebook: "Buku Teks: {Judul}" atau "Diktat Bab {orderIndex}: {Judul Bab di Zyx}"
-- tutorial: "Tutorial {N}: Bab {orderIndex} ({Judul Bab})"
-- kuis: "Kuis {N} {Kode MK}: Bab {orderIndex} ({Judul Bab})"
-- kbf: "KBF {N} {Kode MK}: Bab {orderIndex} ({Judul Bab})"
-- uts: "UTS {Kode MK} {Tahun/TahunAjaran}" (misal: "UTS MA1101 2023/2024")
-- uas: "UAS {Kode MK} {Tahun/TahunAjaran}"
-- pembahasan_soal: Awali dengan kata "Pembahasan" sesuai kategori ujian/soal (misal: "Pembahasan UTS MA1101 2023/2024", "Pembahasan Tutorial 2: Bab 3 (Turunan)").
+- modul: "Modul Bab {orderIndex}: {Judul Bab di Zyx}"
+- ebook: "Buku Teks: {Judul}"
+- tutorial: "Tutorial {N}: Bab {orderIndex} ({Judul Bab}){Tahun}"
+- kuis: "Kuis {N} {Kode MK}: Bab {orderIndex} ({Judul Bab}){Tahun}"
+- kbf: "KBF {N} {Kode MK}: Bab {orderIndex} ({Judul Bab}){Tahun}"
+- ltm: "LTM {N} {Kode MK}: Bab {orderIndex} ({Judul Bab})"
+- uts: "UTS {Kode MK} [{Sesi}] {Tahun} (Soal)" (misal: "UTS MA1101 Sesi 1 2024 (Soal)")
+- uas: "UAS {Kode MK} [{Sesi}] {Tahun} (Soal)"
+- up: "UP {Kode MK} {Tahun} (Soal)"
+- pembahasan_soal: Awali dengan kata "Pembahasan" (misal: "Pembahasan UTS MA1101 Sesi 1 2024", "Pembahasan UP MA1101 2022")
 
 ATURAN FORMAT KETAT:
 - Jangan gunakan tanda hubung em-dash (—) maupun en-dash (–). Gunakan titik dua (:), koma (,), atau titik (.).

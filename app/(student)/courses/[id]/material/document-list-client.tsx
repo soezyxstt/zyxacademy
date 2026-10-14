@@ -925,9 +925,14 @@ export function DocumentListClient({
                     {subLabel}
                   </span>
                   <span className="hidden text-body-xs text-muted-foreground md:block">
-                    {material.fileSize && !/^diktat(\s+resmi|\s+canonical)?$/i.test(material.fileSize.trim())
-                      ? material.fileSize
-                      : (material.year ? String(material.year) : "-")}
+                    {[
+                      material.year ? String(material.year) : null,
+                      material.fileSize && !/^diktat(\s+resmi|\s+canonical)?$/i.test(material.fileSize.trim())
+                        ? material.fileSize
+                        : null,
+                    ]
+                      .filter(Boolean)
+                      .join(" · ") || "-"}
                   </span>
                   {isAdmin ? (
                     <div className="flex items-center gap-1.5 shrink-0" onClick={(e) => e.stopPropagation()}>
@@ -1085,6 +1090,7 @@ export function DocumentListClient({
           courseId={courseId}
           courseTitle={courseTitle || "Mata Kuliah"}
           chapters={chapters}
+          existingTitles={materials.map((m) => m.title)}
         />
       ) : null}
 

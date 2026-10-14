@@ -21,11 +21,20 @@ export type MaterialSoalSubcategory =
   | "modul"
   | "uts"
   | "uas"
+  | "up"
+  | "ltm"
   | "lainnya";
 
 export type CourseMaterialSubcategory =
   | MaterialMateriSubcategory
   | MaterialSoalSubcategory;
+
+export type MaterialRoleQualifier =
+  | "utama"
+  | "bagian"
+  | "aplikasi"
+  | "problem"
+  | "kustom";
 
 export const LEVEL1_CATEGORIES: Array<{ value: MaterialLevel1Category; label: string }> = [
   { value: "materi", label: "Materi" },
@@ -48,6 +57,8 @@ export const SOAL_SUBCATEGORIES: Array<{ value: MaterialSoalSubcategory; label: 
   { value: "modul", label: "Modul" },
   { value: "uts", label: "UTS" },
   { value: "uas", label: "UAS" },
+  { value: "up", label: "UP" },
+  { value: "ltm", label: "LTM" },
   { value: "lainnya", label: "Lainnya" },
 ];
 
@@ -61,6 +72,8 @@ export const SUBCATEGORY_LABELS: Record<CourseMaterialSubcategory, string> = {
   modul: "Modul",
   uts: "UTS",
   uas: "UAS",
+  up: "UP",
+  ltm: "LTM",
   lainnya: "Lainnya",
 };
 
