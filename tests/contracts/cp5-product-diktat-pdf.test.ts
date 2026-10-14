@@ -177,7 +177,7 @@ describe("CP5 Product Bundle Diktat PDF", () => {
       const bytes = await realPdf(html);
       assert.equal(new TextDecoder().decode(bytes.slice(0, 5)), "%PDF-");
       const inspected = await inspectProductDiktatPdf(bytes);
-      assert.ok(inspected.pageCount >= 2 && inspected.pageCount <= 4, `Expected pageCount between 2 and 4, got ${inspected.pageCount}`);
+      assert.ok(inspected.pageCount >= 1 && inspected.pageCount <= 4, `Expected pageCount between 1 and 4, got ${inspected.pageCount}`);
       assert.match(inspected.text, /Ringkasan mandiri/);
       assert.doesNotMatch(inspected.text, /Pokok gagasan/);
       assert.match(inspected.text, /zyxacademy.com/);

@@ -205,7 +205,7 @@ Canonical access-role codes are `admin`, `tutor`, and `murid`. Admin and tutor l
 5. Product Bundle never creates Zyx-original questions. Every question declares `itbSource.referenceId` and `itbSource.eventName`; the source must be present in ITB curation, allowed for authoring, and label-matched against the database. Curation dimensions still cover difficulty, format, terminology, and reasoning pattern.
 6. Every Diktat declares its source Article ID, version, and generation hash. The bundle must include the matching Article dependency so the Diktat cannot silently drift from its Article.
 7. Product Bundle lifecycle is only `draft -> published -> withdrawn`. Explicit save stores a draft. Section decisions and one bundle review decision live outside the ZIP and are bound to reviewer identity, policy version, and the current content fingerprint. Detailed criterion evidence from older reviews remains readable. Restaging preserves only evidence whose content remains unchanged; content edits invalidate affected decisions and make downstream PDF evidence stale.
-8. Publication verifies current published Ideas, active source excerpts, identities, dependency freshness, same-reviewer section approval, current pedagogic approval, and a ready 2 to 4 page Diktat PDF before one transaction writes V3 learning products, links, dependencies, the PDF storage key, vector outbox entries, publication state, and mutation audit records. Product Bundle V3 does not write question, solution, or assessment blueprint rows. Existing V2 assessment products remain readable and publish-compatible for legacy bundles. Historical reference questions keep their own assessment workflow and attribution boundary.
+8. Publication verifies current published Ideas, active source excerpts, identities, dependency freshness, same-reviewer section approval, current pedagogic approval, and a ready 1 to 4 page Diktat PDF before one transaction writes V3 learning products, links, dependencies, the PDF storage key, vector outbox entries, publication state, and mutation audit records. Product Bundle V3 does not write question, solution, or assessment blueprint rows. Existing V2 assessment products remain readable and publish-compatible for legacy bundles. Historical reference questions keep their own assessment workflow and attribution boundary.
 9. The workflow is always-on. Legacy material, Diktat, and assessment-source CRUD is retired. Existing legacy rows remain available to compatibility readers, but new authoring must use Source Pack, Idea Bundle, Product Bundle, and the canonical Bank Soal flow.
 
 ### Student canonical content
@@ -289,7 +289,7 @@ The standalone Admin material editor is retired. Existing website material remai
 - The standalone Admin Diktat compiler is retired.
 - New Diktat is authored from an approved Article inside Product Bundle, reviewed at `/admin/materials/review`, and published through the canonical bundle lifecycle.
 - Rendering runs as a retryable background job against exact Article and Diktat hashes. Formula, renderer, storage, content, and page-count failures are recorded as safe evidence codes.
-- A current ready artifact must contain 2 to 4 pages before publication. Admin preview and enrolled-student download use dedicated authorized routes; generic storage access rejects protected Product Diktat PDF keys.
+- A current ready artifact must contain 1 to 4 pages before publication. Admin preview and enrolled-student download use dedicated authorized routes; generic storage access rejects protected Product Diktat PDF keys.
 
 ### Bundle Import Pipeline
 - Legacy Learning Bundle and Assessment Bundle Admin importers are retired.
@@ -607,6 +607,8 @@ The tutor experience is housed in a dedicated, role-scoped shell (`app/(tutor)`)
 Student Article headings use the catalogue chapter number and title, for example `Bab 2: Fungsi dan Limit`, in both normal and focus mode. Catalogue numbering already starts at 1. Verbose authoring titles remain available in the bundle without adding course names or duplicate chapter prefixes to the student heading.
 
 Canonical Article and Diktat lookups decode URL-encoded product IDs before querying. This preserves access to versioned IDs such as `article-id:v2` when App Router page parameters contain `article-id%3Av2`.
+
+Article math styles ship with the application instead of loading from a CDN. Embedded function graphs retain authored equations, display labelled open or closed points, and keep optional value tables behind "Nilai grafik". The reader constrains its flex width so equations and graphs remain inside the mobile reading area. Visuals assigned to a teaching block appear there once, without repeating above the section.
 
 `FEATURE_STRUCTURED_ARTICLE_READER_V1` enables coordinated Idea Bundle V3 and Product Bundle V3 authoring, submission, and review. Admin Idea review uses an Idea queue, safe editor, and source evidence. Product Article review uses a section queue, the same semantic renderer as students, provenance, dependency state, and per-section decisions. Published canonical content remains visible to students regardless of the authoring rollout flag.
 

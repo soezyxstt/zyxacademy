@@ -580,7 +580,7 @@ function VariableControls({
 }
 
 /** Renders an interactive function plot with editable formulas and series visibility. */
-function FunctionPlot({ spec }: { spec: FunctionPlotCanvas }) {
+function FunctionPlot({ spec, editable = true }: { spec: FunctionPlotCanvas; editable?: boolean }) {
   const uid = useId().replace(/:/g, "");
   const [values, setValues] = useState(() => valuesForSpec(spec));
   const [expressions, setExpressions] = useState<Record<string, string>>(() => (
@@ -590,6 +590,7 @@ function FunctionPlot({ spec }: { spec: FunctionPlotCanvas }) {
     new Set(spec.series.map((series) => series.id))
   ));
   const [showFormulaInput, setShowFormulaInput] = useState(false);
+  const [showValues, setShowValues] = useState(false);
   const [hoverData, setHoverData] = useState<{
     label: string;
     color: string;
@@ -784,17 +785,17 @@ function FunctionPlot({ spec }: { spec: FunctionPlotCanvas }) {
           >
             Reset tampilan
           </button>
-          <button
+          {editable ? <button
             type="button"
             onClick={() => setShowFormulaInput((prev) => !prev)}
             className="text-body-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
           >
             {showFormulaInput ? "Sembunyikan edit rumus" : "Ubah rumus"}
-          </button>
+          </button> : null}
         </div>
       </div>
 
-      {showFormulaInput && (
+      {editable && showFormulaInput && (
         <div className="border-b border-border bg-muted/20 px-4 py-3 space-y-2">
           {spec.series.map((series) => (
             <label key={series.id} className="block space-y-1 text-body-sm font-semibold text-foreground">
@@ -857,6 +858,26 @@ function FunctionPlot({ spec }: { spec: FunctionPlotCanvas }) {
             />
           ))}
 
+          {(spec.pointMarkers ?? []).filter(marker => visibleSeriesIds.has(marker.seriesId)).map((marker, index) => (
+            <g key={`point-${index}`} clipPath={`url(#plot-clip-${uid})`}>
+              <circle
+                data-point-kind={marker.kind}
+                cx={mapX(marker.x)}
+                cy={mapY(marker.y)}
+                r={6}
+                fill={marker.kind === "open" ? BG : GRAPH_BLUE}
+                stroke={GRAPH_BLUE}
+                strokeWidth={2.5}
+              ><title>{marker.label}</title></circle>
+              <text
+                x={mapX(marker.x) + (mapX(marker.x) > PAD_L + PLOT_W * 0.75 ? -10 : 10)}
+                y={Math.max(PAD_T + 14, Math.min(PAD_T + PLOT_H - 4, mapY(marker.y) + (marker.kind === "open" || index % 2 === 1 ? 18 : -10)))}
+                textAnchor={mapX(marker.x) > PAD_L + PLOT_W * 0.75 ? "end" : "start"}
+                fill={LABEL}
+                fontSize={14}
+              >{marker.label}</text>
+            </g>
+          ))}
           {roots.map((root) => (
             <circle
               key={root.id}
@@ -933,7 +954,12 @@ function FunctionPlot({ spec }: { spec: FunctionPlotCanvas }) {
         onResetAll={resetAll}
       />
 
-      <FallbackTable spec={spec} className="rounded-none border-0 border-t" />
+      <div className="border-t border-border px-3.5 py-2">
+        <Button variant="ghost" size="sm" aria-expanded={showValues} aria-controls={`graph-values-${uid}`} onClick={() => setShowValues(value => !value)}>
+          {showValues ? "Sembunyikan nilai grafik" : "Nilai grafik"}
+        </Button>
+      </div>
+      {showValues ? <div id={`graph-values-${uid}`}><FallbackTable spec={spec} className="rounded-none border-0 border-t" /></div> : null}
     </div>
   );
 }
@@ -1231,7 +1257,7 @@ export function LearningCanvasRenderer({ spec, embedded = false }: { spec: Canva
         <p className="mt-1 text-body-sm text-muted-foreground">{spec.purpose}</p>
       </div> : null}
       {spec.type === "function_plot" ? (
-        <FunctionPlot spec={spec} />
+        <FunctionPlot spec={spec} editable={!embedded} />
       ) : spec.type === "data_plot" ? (
         <DataPlot spec={spec} />
       ) : spec.type === "derivation" ? (

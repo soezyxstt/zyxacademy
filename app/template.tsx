@@ -41,6 +41,10 @@ export default function RouteTemplate({
 
   useEffect(() => {
     if (typeof window !== "undefined") {
+      if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+        setShouldAnimate(false);
+        return;
+      }
       const prevGroup = window.sessionStorage.getItem("zyx_last_layout_group");
 
       if (isInitialLoad) {

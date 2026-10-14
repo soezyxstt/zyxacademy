@@ -678,7 +678,7 @@ export function productBundleV3Contract() {
       authorPreflight: "Local AST compilation, schema validation, and quality policy gate checking prior to submission.",
       deterministicValid: "Pure content validity checking pedagogy references, payloads, and typed visuals. Independent from admin review and PDF evidence.",
       adminReview: "Pedagogic quality assessment across eight criteria with content anchors and approved exceptions.",
-      pdfEvidence: "Diktat PDF rendering evidence states: pending, ready, failed, stale; ready requires 2-4 pages.",
+      pdfEvidence: "Diktat PDF rendering evidence states: pending, ready, failed, stale; ready requires 1-4 pages.",
       publicationReady: "Final readiness requiring valid content, approved review with matching fingerprint and policy, and ready PDF evidence.",
     },
     pedagogyFields: {
@@ -747,7 +747,7 @@ export function productBundleV3Contract() {
     },
     pdfEvidenceStates: {
       statuses: ["pending", "ready", "failed", "stale"],
-      readyPageRange: { minPages: 2, maxPages: 4 },
+      readyPageRange: { minPages: 1, maxPages: 4 },
       safeFailureCodes: [
         "RENDER_TIMEOUT",
         "LAYOUT_OVERFLOW",

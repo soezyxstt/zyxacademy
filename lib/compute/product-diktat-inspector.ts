@@ -111,7 +111,7 @@ export async function generateProductDiktatPdfEvidence(input: {
       console.error("Product Diktat PDF inspection failed:", error instanceof Error ? error.message : String(error));
       throw new Error("PRODUCT_DIKTAT_PDF_INSPECTION_FAILED", { cause: error });
     });
-    if (inspection.pageCount < 2 || inspection.pageCount > 4) throw new Error("PRODUCT_DIKTAT_PAGE_BUDGET_EXCEEDED");
+    if (inspection.pageCount < 1 || inspection.pageCount > 4) throw new Error("PRODUCT_DIKTAT_PAGE_BUDGET_EXCEEDED");
     const objectKey = joinKey("overhaul", input.importId, "diktat-pdf", `${slugifySegment(diktat.id)}-${diktat.generationHash.slice(0, 16)}.pdf`);
     await uploadProductDiktatPdf({
       provider: input.storageProvider ?? storage,

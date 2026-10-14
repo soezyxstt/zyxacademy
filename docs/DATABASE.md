@@ -23,6 +23,8 @@ bun run db:push:prod
 
 Never hand-edit files in `drizzle/`.
 
+Migration `0097_mushy_bushwacker.sql` changes only the Diktat PDF evidence page-count constraint to accept 1 to 4 pages. It rebuilds `bukti_pdf_bundle`, copies every existing row and lineage field, and restores its indexes. Apply it before storing one-page evidence; inspect the target database, preserve a backup, and verify row preservation before committing a production migration.
+
 ## Schema Reference
 
 The table-by-table reference lives in [DB_SCHEMA.md](./DB_SCHEMA.md). High-level domains:

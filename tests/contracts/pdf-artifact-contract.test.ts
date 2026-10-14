@@ -49,11 +49,13 @@ describe("pdf artifact evidence contract", () => {
       pageCount: 3,
     };
 
-    test("accepts ready artifact within 2 to 4 page bounds", () => {
+    test("accepts ready artifact within 1 to 4 page bounds", () => {
       const parsed = pdfArtifactEvidenceSchema.parse(validReady);
       const validation = validatePdfArtifactEvidence(parsed);
       expect(validation.valid).toBe(true);
       expect(validation.issues).toHaveLength(0);
+
+      expect(validatePdfArtifactEvidence(pdfArtifactEvidenceSchema.parse({ ...validReady, pageCount: 1 })).valid).toBe(true);
 
       // 2 pages
       expect(
@@ -70,13 +72,13 @@ describe("pdf artifact evidence contract", () => {
       ).toBe(true);
     });
 
-    test("rejects ready artifact with pageCount less than 2", () => {
+    test("rejects ready artifact with pageCount less than 1", () => {
       expect(() =>
         pdfArtifactEvidenceSchema.parse({
           ...validReady,
-          pageCount: 1,
+          pageCount: 0,
         }),
-      ).toThrow("Ready PDF artifact page count must be between 2 and 4");
+      ).toThrow();
     });
 
     test("rejects ready artifact with pageCount greater than 4", () => {
@@ -85,7 +87,7 @@ describe("pdf artifact evidence contract", () => {
           ...validReady,
           pageCount: 5,
         }),
-      ).toThrow("Ready PDF artifact page count must be between 2 and 4");
+      ).toThrow("Ready PDF artifact page count must be between 1 and 4");
     });
 
     test("rejects ready artifact without storageKey", () => {

@@ -53,10 +53,10 @@ export const pdfArtifactEvidenceSchema = z
           message: "Ready PDF artifact must specify pageCount",
           path: ["pageCount"],
         });
-      } else if (evidence.pageCount < 2 || evidence.pageCount > 4) {
+      } else if (evidence.pageCount < 1 || evidence.pageCount > 4) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
-          message: `Ready PDF artifact page count must be between 2 and 4, got ${evidence.pageCount}`,
+          message: `Ready PDF artifact page count must be between 1 and 4, got ${evidence.pageCount}`,
           path: ["pageCount"],
         });
       }
@@ -136,13 +136,13 @@ export function validatePdfArtifactEvidence(
         reason: "Ready PDF artifact must specify a verified page count",
         remediation: "Record the measured page count from the rendered PDF",
       });
-    } else if (evidence.pageCount < 2 || evidence.pageCount > 4) {
+    } else if (evidence.pageCount < 1 || evidence.pageCount > 4) {
       issues.push({
         code: "PDF_PAGE_COUNT_OUT_OF_BOUNDS",
         severity: "blocking",
         target,
-        reason: `Ready PDF artifact has ${evidence.pageCount} pages; required range is 2 to 4 pages`,
-        remediation: "Adjust diktat compression or layout to produce exactly 2 to 4 pages per chapter",
+        reason: `Ready PDF artifact has ${evidence.pageCount} pages; required range is 1 to 4 pages`,
+        remediation: "Keep the complete diktat within 1 to 4 readable pages per chapter without filler or font shrinking",
       });
     }
 
