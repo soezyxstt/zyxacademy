@@ -83,15 +83,29 @@ export const FunctionPlotCanvasSchema = CanvasBaseSchema.extend({
   type: z.literal("function_plot"),
   domain: DomainSchema,
   equalAxisScale: z.boolean().optional(),
+  pointMarkers: z.array(z.object({
+    seriesId: IdentifierSchema,
+    x: FiniteNumberSchema,
+    y: FiniteNumberSchema,
+    label: LabelSchema,
+    kind: z.enum(["open", "closed"]),
+  }).strict()).max(24).optional(),
   series: z.array(z.object({
     id: IdentifierSchema,
     label: LabelSchema,
     expression: z.string().trim().min(1).max(180),
+    excludedX: z.array(FiniteNumberSchema).max(16).optional(),
     unit: UnitSchema.nullable().optional(),
     lineStyle: z.enum(["solid", "dashed", "dotted"]).default("solid"),
     role: z.enum(["primary", "reference"]).default("primary"),
   }).strict()).min(1).max(6),
-}).strict();
+}).strict().superRefine((plot, ctx) => {
+  for (const marker of plot.pointMarkers ?? []) {
+    if (!plot.series.some(series => series.id === marker.seriesId)) {
+      ctx.addIssue({ code: "custom", path: ["pointMarkers"], message: "Point marker must reference a plotted series." });
+    }
+  }
+});
 export type FunctionPlotCanvas = z.infer<typeof FunctionPlotCanvasSchema>;
 
 const DataPointSchema = z.object({

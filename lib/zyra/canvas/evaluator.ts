@@ -74,6 +74,14 @@ export function evaluateFunctionPlot(
         points.splice(i, 0, valid);
       }
     }
+    const excludedX = [...(series.excludedX ?? []), ...(spec.pointMarkers ?? []).filter(marker => marker.seriesId === series.id && marker.kind === "open").map(marker => marker.x)];
+    for (const x of excludedX) {
+      if (x < spec.domain.min || x > spec.domain.max) continue;
+      const point = points.find(point => point.x === x);
+      if (point) point.y = null;
+      else points.push({ x, y: null });
+    }
+    points.sort((left, right) => left.x - right.x);
     return { id: series.id, label: series.label, points };
   });
 }

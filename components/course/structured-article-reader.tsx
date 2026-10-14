@@ -1015,7 +1015,7 @@ export function StructuredArticleReader({
   );
 
   return (
-    <div className="min-h-screen bg-background text-foreground flex flex-col">
+    <div className="min-h-screen w-full min-w-0 flex-1 bg-background text-foreground flex flex-col">
       {/* Sticky Reader Header / Focus Header - only rendered in learner mode */}
       {learnerMode &&
         (isFocusMode ? (
