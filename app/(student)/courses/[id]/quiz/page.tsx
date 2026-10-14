@@ -12,7 +12,8 @@ import { auth } from "@/lib/auth";
 import { eq } from "drizzle-orm";
 import { headers } from "next/headers";
 import { notFound, redirect } from "next/navigation";
-import { getCourse, getStudentCourseAccess, getStudentVisibleCourseQuizzes } from "@/lib/course-utils";
+import { EnrollmentForm } from "@/components/enrollment-form";
+import { getCourse, getStudentCourseAccess, getStudentVisibleCourseQuizzes, isFreeQuizTemplate } from "@/lib/course-utils";
 import { cn } from "@/lib/utils";
 
 type QuizAccessFilter = "all" | "free" | "premium";
@@ -54,8 +55,8 @@ export default async function CourseQuizListPage({ params, searchParams }: Props
   }
   const studentAccess = studentId ? await getStudentCourseAccess(studentId, id) : null;
 
-  // The server-side catalog helper removes unscoped, mixed, and chapter 3+
-  // templates for authenticated Free users before they reach the client.
+  // The server-side catalog returns all published course quizzes so students can see
+  // the full curriculum. Templates outside free chapters are marked locked on the client.
   // Calls getStudentVisibleCourseQuizzes(id) with studentId scoping.
   const templates = await getStudentVisibleCourseQuizzes(id, studentId);
   const accessTier = !studentId
@@ -77,7 +78,9 @@ export default async function CourseQuizListPage({ params, searchParams }: Props
     return true;
   });
   const freeEligibleTemplateIds = studentAccess?.tier === "free"
-    ? templates.map((template) => template.id)
+    ? templates
+        .filter((template) => isFreeQuizTemplate(template, studentAccess.freeChapterIds))
+        .map((template) => template.id)
     : [];
   const counts = {
     all: templates.length,
@@ -117,6 +120,21 @@ export default async function CourseQuizListPage({ params, searchParams }: Props
       )}
     >
       <Reveal>
+        {!isEnrolled && (
+          <div className="mb-6 rounded-lg border border-brand-secondary/25 bg-brand-secondary/5 p-4">
+            <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(280px,420px)] md:items-center">
+              <div>
+                <h3 className="font-heading text-body-base font-bold text-brand-secondary">
+                  Aktivasi token kelas
+                </h3>
+                <p className="mt-1 max-w-2xl text-body-sm text-muted-foreground">
+                  Materi artikel, diktat, dan kuis bab pertama terbuka gratis. Masukkan token kelas untuk membuka seluruh materi, kuis, tryout ujian, dan flashcard.
+                </p>
+              </div>
+              <EnrollmentForm className="w-full" />
+            </div>
+          </div>
+        )}
         <QuizListClient
           courseId={id}
           isEnrolled={isEnrolled}

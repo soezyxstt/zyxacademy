@@ -46,7 +46,13 @@ import { cn } from "@/lib/utils";
 import type { CourseMaterial } from "@/lib/student-course-fixtures";
 import { getSubcategoryLabel, type CourseMaterialSubcategory } from "@/lib/course-materials";
 
-type Chapter = { id: string; title: string; orderIndex: number };
+type Chapter = {
+  id: string;
+  title: string;
+  orderIndex: number;
+  canonicalId?: string | null;
+  legacyChapterId?: string | null;
+};
 type TabKey = "all" | "materi" | "diktat" | "bank_soal" | "pdf";
 
 type CourseDocumentsClientProps = {
@@ -516,7 +522,24 @@ export function CourseDocumentsClient({
   const [urlTab, setUrlTab] = useUrlTab("tab", "all", initialTab);
   const activeTab = normalizeTabKey(urlTab);
 
-  const knownChapterIds = useMemo(() => new Set(chapters.map((chapter) => chapter.id)), [chapters]);
+  const { chapterKeyById, knownChapterIds } = useMemo(() => {
+    const keyMap = new Map<string, string>();
+    const allKnown = new Set<string>();
+
+    for (const chapter of chapters) {
+      keyMap.set(chapter.id, chapter.id);
+      allKnown.add(chapter.id);
+      if (chapter.canonicalId) {
+        keyMap.set(chapter.canonicalId, chapter.id);
+        allKnown.add(chapter.canonicalId);
+      }
+      if (chapter.legacyChapterId) {
+        keyMap.set(chapter.legacyChapterId, chapter.id);
+        allKnown.add(chapter.legacyChapterId);
+      }
+    }
+    return { chapterKeyById: keyMap, knownChapterIds: allKnown };
+  }, [chapters]);
 
   const {
     chapterGroups,
@@ -551,12 +574,16 @@ export function CourseDocumentsClient({
 
       // Non-soal materials: check one-to-one relationship with chapters
       const rawIds = materialChapterIds(material);
-      const validChapterIds = Array.from(
-        new Set(rawIds.filter((id) => knownChapterIds.has(id)))
+      const resolvedChapterIds = Array.from(
+        new Set(
+          rawIds
+            .map((id) => chapterKeyById.get(id))
+            .filter((id): id is string => Boolean(id))
+        )
       );
 
-      if (validChapterIds.length === 1) {
-        const list = chapterMaterialMap.get(validChapterIds[0]);
+      if (resolvedChapterIds.length === 1) {
+        const list = chapterMaterialMap.get(resolvedChapterIds[0]);
         if (list) {
           list.push(material);
         } else {
@@ -578,7 +605,7 @@ export function CourseDocumentsClient({
       soalLainnyaMaterials: sortMaterials(soalLainnya),
       lainLainMaterials: sortMaterials(lainLain),
     };
-  }, [chapters, knownChapterIds, materials]);
+  }, [chapterKeyById, chapters, materials]);
 
   const firstPopulatedSectionKey = useMemo(() => {
     const firstChapter = chapterGroups.find(({ materials: chMats }) => chMats.length > 0);
@@ -597,7 +624,7 @@ export function CourseDocumentsClient({
       {activeTab === "all" && accessTier === "free" && lockedMaterialCount > 0 ? (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-brand-primary/25 bg-brand-primary/5 px-3 py-2.5">
           <div className="flex min-w-0 items-center gap-2 text-body-xs text-muted-foreground">
-            <span>Bab berikutnya dan materi tanpa bab tersedia setelah aktivasi kelas.</span>
+            <span>Artikel dan diktat bab berikutnya terbuka setelah aktivasi kelas.</span>
           </div>
           <Link href="/plans" className="shrink-0 rounded-md border border-border bg-card px-2.5 py-1.5 text-body-sm font-semibold text-brand-primary hover:bg-muted">
             Aktifkan akses

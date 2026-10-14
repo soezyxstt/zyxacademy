@@ -106,7 +106,7 @@ export function TryoutListClient({ courseId, isEnrolled, tryouts }: TryoutListCl
                   asChild
                   variant="outline"
                   size="sm"
-                  className="interactive rounded-md md:justify-self-end border-dashed"
+                  className="interactive rounded-md md:justify-self-end border-dashed text-muted-foreground hover:text-foreground"
                 >
                   <Link href={`/courses/${courseId}/tryout/${tryout.id}`}>
                     Buka <Lock className="ml-1 size-3.5" />
@@ -178,11 +178,15 @@ export function TryoutListClient({ courseId, isEnrolled, tryouts }: TryoutListCl
                       {tryout.title}
                     </h3>
                     {!accessible ? (
-                      <span className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-0.5 text-body-xs font-semibold text-muted-foreground ring-1 ring-border">
+                      <span className="inline-flex items-center gap-1 rounded-md bg-amber-500/10 px-2 py-0.5 text-body-xs font-semibold text-amber-600 dark:text-amber-400 ring-1 ring-amber-500/20">
                         <Lock className="size-3" />
-                        Premium
+                        Terkunci
                       </span>
-                    ) : null}
+                    ) : (
+                      <span className="inline-flex items-center gap-1 rounded-md bg-brand-primary/10 px-2 py-0.5 text-body-xs font-semibold text-brand-primary ring-1 ring-brand-primary/20">
+                        {isFree ? "Gratis" : "Premium"}
+                      </span>
+                    )}
                     {isBlocked ? (
                       <span className="rounded-md bg-status-error/12 px-2 py-0.5 text-body-xs font-semibold text-status-error ring-1 ring-status-error/20">
                         Batas habis
