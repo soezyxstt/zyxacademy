@@ -306,7 +306,7 @@ function HierarchyDocumentCard({
         {/* Document Thumbnail Preview with Seamless Left Color Accent */}
         <div
           className={cn(
-            "relative h-12 w-9 sm:h-14 sm:w-10 shrink-0 overflow-hidden rounded-md border border-border/60 border-l-[3px] bg-muted/30 transition-colors",
+            "relative aspect-[16/10] w-24 sm:w-32 shrink-0 overflow-hidden rounded-md border border-border/60 border-l-[3px] bg-muted/30 transition-colors",
             tierStyle.borderAccent
           )}
         >
@@ -315,12 +315,12 @@ function HierarchyDocumentCard({
               src={material.thumbnailUrl}
               alt={material.title}
               fill
-              sizes="40px"
-              className="object-cover object-center"
+              sizes="(max-width: 640px) 96px, 128px"
+              className="object-cover object-top"
             />
           ) : (
             <div className="flex size-full flex-col items-center justify-center bg-muted/40">
-              <FallbackIcon className={cn("size-4", tierStyle.iconColor)} aria-hidden />
+              <FallbackIcon className={cn("size-5 sm:size-6", tierStyle.iconColor)} aria-hidden />
             </div>
           )}
         </div>

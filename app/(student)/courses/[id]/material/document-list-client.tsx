@@ -319,8 +319,8 @@ function CompactDocumentRowThumbnail({ material }: { material: CourseMaterial })
         src={baseThumbnailUrl}
         alt={material.title}
         fill
-        sizes="64px"
-        className="object-contain object-center"
+        sizes="(max-width: 640px) 96px, 128px"
+        className="object-cover object-top"
       />
     </div>
   );
@@ -889,7 +889,7 @@ export function DocumentListClient({
                   className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-3.5 py-2.5 transition-colors hover:bg-muted/30 md:grid-cols-[minmax(0,1fr)_160px_100px_auto]"
                 >
                   <div className="flex min-w-0 items-center gap-3">
-                    <div className="relative h-12 w-16 shrink-0 overflow-hidden rounded-md border border-border/60 bg-muted/20">
+                    <div className="relative aspect-[16/10] w-24 sm:w-32 shrink-0 overflow-hidden rounded-md border border-border/60 bg-muted/20">
                       <CompactDocumentRowThumbnail material={material} />
                     </div>
                     <div className="min-w-0 flex-1">

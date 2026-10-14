@@ -1251,12 +1251,12 @@ export function TutorDrawerView({
                     <div key={msg.id || index} className="flex justify-end">
                       <div className="max-w-[85%] rounded-2xl bg-muted/90 text-foreground px-4 py-2.5 text-body-sm leading-relaxed shadow-2xs space-y-2">
                         {msg.quotedContext && (
-                          <div className="rounded-xl border border-brand-primary/20 bg-background/80 p-2 text-body-xs">
-                            <p className="font-semibold text-brand-primary text-[11px] truncate">
+                          <div className="border-l-2 border-brand-primary/60 pl-2.5 py-0.5 text-body-xs space-y-0.5 text-muted-foreground">
+                            <p className="font-medium text-foreground text-[11px] truncate">
                               {msg.quotedContext.title || "Kutipan materi"}
                               {msg.quotedContext.sectionTitle ? ` · ${msg.quotedContext.sectionTitle}` : ""}
                             </p>
-                            <p className="text-muted-foreground line-clamp-2 italic text-[11px]">
+                            <p className="line-clamp-2 italic text-[11px]">
                               &ldquo;{msg.quotedContext.snippet}&rdquo;
                             </p>
                           </div>
@@ -1408,17 +1408,17 @@ export function TutorDrawerView({
             )}
 
             {activeQuotedContext && (
-              <div className="mb-2 flex items-start justify-between gap-2 rounded-xl border border-brand-primary/20 bg-brand-primary/5 p-2.5 text-body-xs animate-in fade-in duration-150">
-                <div className="flex items-start gap-2 min-w-0">
-                  <Quote className="mt-0.5 size-3.5 shrink-0 text-brand-primary" />
-                  <div className="min-w-0 space-y-0.5">
-                    <p className="font-semibold text-brand-primary text-[11px] truncate">
+              <div className="mb-2 flex items-center justify-between gap-2 border-l-2 border-brand-primary bg-muted/40 rounded-r-lg px-2.5 py-1.5 text-body-xs animate-in fade-in duration-150">
+                <div className="flex items-center gap-2 min-w-0">
+                  <Quote className="size-3.5 shrink-0 text-brand-primary" />
+                  <div className="min-w-0 flex items-center gap-1.5">
+                    <span className="font-semibold text-foreground text-[11px] shrink-0">
                       {activeQuotedContext.title || "Kutipan materi"}
-                      {activeQuotedContext.sectionTitle ? ` · ${activeQuotedContext.sectionTitle}` : ""}
-                    </p>
-                    <p className="text-foreground line-clamp-2 italic text-[11px]">
+                      {activeQuotedContext.sectionTitle ? ` · ${activeQuotedContext.sectionTitle}` : ""}:
+                    </span>
+                    <span className="text-muted-foreground truncate italic text-[11px]">
                       &ldquo;{activeQuotedContext.snippet}&rdquo;
-                    </p>
+                    </span>
                   </div>
                 </div>
                 <button
@@ -1427,7 +1427,7 @@ export function TutorDrawerView({
                     setActiveQuotedContext(null);
                     onClearQuotedContext?.();
                   }}
-                  className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground shrink-0 transition-colors cursor-pointer"
+                  className="rounded p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground shrink-0 transition-colors cursor-pointer"
                   aria-label="Hapus kutipan"
                 >
                   <X className="size-3.5" />

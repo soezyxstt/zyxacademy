@@ -95,11 +95,11 @@ const semanticEmphasis = {
   },
   definition: {
     label: "Definisi",
-    className: "border-primary/60 bg-primary/10 text-primary",
+    className: "border-border/80 bg-muted/60 text-foreground font-semibold px-1.5 py-0.5 rounded",
   },
   formula: {
     label: "Rumus",
-    className: "border-brand-secondary/60 bg-brand-secondary/10 text-brand-secondary",
+    className: "border-border/70 bg-muted/40 text-foreground font-mono font-medium px-1.5 py-0.5 rounded",
   },
 } as const;
 
@@ -725,7 +725,14 @@ function GraphRenderer({ data, title, caption, density }: { data: any; title?: s
           </div>
         )}
       </div>
-      {caption && <p className={cn("text-body-sm text-muted-foreground italic", isCompact ? "mt-2" : "mt-3")}>{renderRichText(caption)}</p>}
+      {caption && (
+        <div className={cn(
+          "border-t border-border/60 bg-muted/20 text-left text-body-sm text-muted-foreground",
+          isCompact ? "mt-3 -mx-3.5 -mb-3.5 p-3 rounded-b-lg" : "mt-4 -mx-5 -mb-5 p-4 rounded-b-xl"
+        )}>
+          {renderRichText(caption)}
+        </div>
+      )}
     </div>
   );
 }
@@ -850,8 +857,8 @@ function ASTBlockRenderer({ block, density }: { block: ASTBlock; density?: Markd
         return (
           <div
             className={cn(
-              "formula-focus max-w-full overflow-x-auto overflow-y-hidden no-scrollbar rounded-lg border-l-4 border-primary bg-primary/[0.04] px-4 py-3 text-left [&_.katex-display]:my-0 [&_.katex-display]:text-left",
-              isCompact ? "my-2" : "my-4",
+              "formula-focus max-w-full overflow-x-auto overflow-y-hidden no-scrollbar rounded-lg border-l-3 border-primary bg-primary/[0.03] px-3.5 py-2 text-left [&_.katex-display]:my-0 [&_.katex-display]:py-0 [&_.katex-display]:text-left",
+              isCompact ? "my-1.5" : "my-2.5",
             )}
             data-content-kind="formula"
             aria-label="Rumus utama"
@@ -896,27 +903,67 @@ function ASTBlockRenderer({ block, density }: { block: ASTBlock; density?: Markd
 
     case "list": {
       const isOrdered = block.items?.[0]?.ordered || false;
-      const isFormulaList = !isOrdered && Boolean(block.items?.length) && block.items!.every((item) => isStandaloneMathBlock(item.text));
-      if (isFormulaList) {
+      const parseFormulaItem = (text: string) => {
+        const trimmed = text.trim();
+        if (isStandaloneMathBlock(trimmed)) {
+          return { math: standaloneMathSource(trimmed), note: undefined };
+        }
+        const match = trimmed.match(/^(\$\$[\s\S]+?\$\$|\\\[[\s\S]+?\\\])\s*(?:[:—–-]|untuk|dengan)?\s*([\s\S]*)$/i);
+        if (match && match[1]) {
+          return { math: standaloneMathSource(match[1]), note: match[2]?.trim() || undefined };
+        }
+        return null;
+      };
+
+      const parsedItems = block.items?.map((it: any) => parseFormulaItem(it.text || ""));
+      const mathItemCount = parsedItems?.filter(Boolean).length || 0;
+      const isMathList = !isOrdered && Boolean(block.items?.length) && mathItemCount >= Math.ceil((block.items?.length || 1) / 2);
+
+      if (isMathList) {
         return (
-          <div className={cn("grid gap-2 border-l-2 border-border pl-4", isCompact ? "my-3" : "my-5")} data-content-kind="formula-list">
-            {block.items?.map((item, itemIdx) => (
-              <div
-                key={itemIdx}
-                className="max-w-full overflow-x-auto overflow-y-hidden no-scrollbar text-left [&_.katex-display]:my-0 [&_.katex-display]:text-left"
-                dangerouslySetInnerHTML={{ __html: renderMath(standaloneMathSource(item.text), true) }}
-              />
-            ))}
+          <div
+            className={cn(
+              "rounded-xl border border-border/70 bg-card divide-y divide-border/40 overflow-hidden shadow-2xs",
+              isCompact ? "my-2" : "my-2.5",
+            )}
+            data-content-kind="formula-property-list"
+          >
+            {block.items?.map((item: any, itemIdx: number) => {
+              const parsed = parsedItems?.[itemIdx];
+              if (parsed) {
+                return (
+                  <div
+                    key={itemIdx}
+                    className="px-3.5 py-2 sm:px-4 sm:py-2 flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 sm:gap-6 hover:bg-muted/15 transition-colors [&_.katex-display]:my-0 [&_.katex-display]:py-0 [&_.katex-display]:text-left"
+                  >
+                    <div className="overflow-x-auto overflow-y-hidden no-scrollbar text-left font-mono">
+                      <span dangerouslySetInnerHTML={{ __html: renderMath(parsed.math, true) }} />
+                    </div>
+                    {parsed.note ? (
+                      <div className="text-body-xs text-muted-foreground sm:text-right shrink-0 max-w-sm leading-relaxed">
+                        {renderRichText(parsed.note)}
+                      </div>
+                    ) : null}
+                  </div>
+                );
+              }
+              return (
+                <div key={itemIdx} className="px-3.5 py-2 text-body-sm text-foreground hover:bg-muted/15 transition-colors">
+                  {renderRichText(item.text)}
+                </div>
+              );
+            })}
           </div>
         );
       }
+
       const ListTag = isOrdered ? "ol" : "ul";
       return (
         <ListTag
           className={cn(
             isCompact ? "my-2.5 pl-8 space-y-1" : "my-4 pl-9 space-y-1.5",
             "leading-relaxed text-body-base",
-            isOrdered ? "list-decimal" : "list-disc"
+            isOrdered ? "list-decimal" : "list-disc",
           )}
         >
           {block.items?.map((item: any, itemIdx: number) => {
@@ -925,7 +972,7 @@ function ASTBlockRenderer({ block, density }: { block: ASTBlock; density?: Markd
               return (
                 <li
                   key={itemIdx}
-                  className="list-none -ml-6 sm:-ml-7 my-2.5 rounded-xl border border-border/70 bg-card p-3 shadow-2xs"
+                  className="list-none my-2 rounded-lg border border-border/60 bg-muted/20 px-3 py-2"
                 >
                   <span
                     className="block max-w-full overflow-x-auto overflow-y-hidden no-scrollbar [&_.katex-display]:my-0 [&_.katex-display]:text-left"
@@ -1136,12 +1183,12 @@ function ASTBlockRenderer({ block, density }: { block: ASTBlock; density?: Markd
       return (
         <div id={block.id} className={cn(
           "border border-border bg-card shadow-xs text-left",
-          isCompact ? "p-3.5 rounded-lg my-3" : "p-5 rounded-xl my-6"
+          isCompact ? "p-3 rounded-lg my-2" : "p-3.5 rounded-xl my-2.5"
         )}>
-          <h4 className={cn("text-body-base font-heading font-bold text-foreground", isCompact ? "mb-2" : "mb-3")}>{block.content.title ? renderRichText(block.content.title) : "Formula"}</h4>
-          <div className={cn("overflow-x-auto text-center w-full max-w-full", isCompact ? "my-2.5" : "my-4")} dangerouslySetInnerHTML={{ __html: formulaHtml }} />
+          <h4 className={cn("text-body-sm font-heading font-bold text-foreground", isCompact ? "mb-1.5" : "mb-2")}>{block.content.title ? renderRichText(block.content.title) : "Formula"}</h4>
+          <div className={cn("overflow-x-auto text-center w-full max-w-full [&_.katex-display]:my-0 [&_.katex-display]:py-0", isCompact ? "my-1.5" : "my-2")} dangerouslySetInnerHTML={{ __html: formulaHtml }} />
           {block.content.interpretation && (
-            <div className={cn("text-body-sm text-muted-foreground leading-relaxed", isCompact ? "mt-2" : "mt-3")}>
+            <div className={cn("text-body-xs text-muted-foreground leading-relaxed", isCompact ? "mt-1.5" : "mt-2")}>
               <MarkdownRenderer content={block.content.interpretation} density={density} />
             </div>
           )}
@@ -1349,6 +1396,34 @@ export function ASTRenderer({ blocks, className, density }: ASTRendererProps) {
   if (!blocks || !Array.isArray(blocks)) return null;
   const sortedBlocks = [...blocks].sort((a, b) => a.globalOrderIndex - b.globalOrderIndex);
 
+  // Group consecutive standalone math paragraph blocks into a unified container
+  type ParagraphASTBlock = Extract<ASTBlock, { type: "p" }>;
+  type RenderGroupItem =
+    | { kind: "block"; block: ASTBlock }
+    | { kind: "math-group"; blocks: ParagraphASTBlock[] };
+
+  const renderItems: RenderGroupItem[] = [];
+  let pendingMathGroup: ParagraphASTBlock[] = [];
+
+  const flushMathGroup = () => {
+    if (pendingMathGroup.length === 1) {
+      renderItems.push({ kind: "block", block: pendingMathGroup[0] });
+    } else if (pendingMathGroup.length > 1) {
+      renderItems.push({ kind: "math-group", blocks: [...pendingMathGroup] });
+    }
+    pendingMathGroup = [];
+  };
+
+  for (const block of sortedBlocks) {
+    if (block.type === "p" && isStandaloneMathBlock(block.content)) {
+      pendingMathGroup.push(block);
+    } else {
+      flushMathGroup();
+      renderItems.push({ kind: "block", block });
+    }
+  }
+  flushMathGroup();
+
   return (
     <MarkdownDensityContext.Provider value={activeDensity}>
       <div
@@ -1359,9 +1434,30 @@ export function ASTRenderer({ blocks, className, density }: ASTRendererProps) {
           className
         )}
       >
-        {sortedBlocks.map((block, idx) => (
-          <ASTBlockRenderer key={block.id || idx} block={block} density={activeDensity} />
-        ))}
+        {renderItems.map((item, idx) => {
+          if (item.kind === "math-group") {
+            return (
+              <div
+                key={`math-group-${idx}`}
+                className={cn(
+                  "rounded-xl border border-border/70 bg-card divide-y divide-border/40 overflow-hidden shadow-2xs",
+                  activeDensity === "compact" ? "my-2" : "my-2.5"
+                )}
+                data-content-kind="formula-group"
+              >
+                {item.blocks.map((mathBlock, bIdx) => (
+                  <div
+                    key={mathBlock.id || bIdx}
+                    className="px-3.5 py-1.5 sm:px-4 sm:py-2 text-left font-mono overflow-x-auto overflow-y-hidden no-scrollbar [&_.katex-display]:my-0 [&_.katex-display]:py-0 [&_.katex-display]:text-left hover:bg-muted/15 transition-colors"
+                  >
+                    <span dangerouslySetInnerHTML={{ __html: renderMath(standaloneMathSource(mathBlock.content), true) }} />
+                  </div>
+                ))}
+              </div>
+            );
+          }
+          return <ASTBlockRenderer key={item.block.id || idx} block={item.block} density={activeDensity} />;
+        })}
       </div>
     </MarkdownDensityContext.Provider>
   );

@@ -34,7 +34,7 @@ export interface ProductWorkedExampleProps {
   className?: string;
 }
 
-/** Presents a worked example and its verification in the course article. */
+/** Presents a worked example with a vertical timeline stepper in the course article. */
 export function ProductWorkedExample({
   title,
   content,
@@ -42,67 +42,68 @@ export function ProductWorkedExample({
   className,
 }: ProductWorkedExampleProps) {
   return (
-    <div
-      className={cn(
-        "rounded-r-lg border-l-4 border-l-status-success border-t border-r border-b border-border/70 bg-card p-4 sm:p-5 space-y-4 shadow-xs",
-        className,
-      )}
+    <section
+      aria-label={title || "Contoh dan Pembahasan Bertahap"}
+      className={cn("my-6 space-y-4", className)}
     >
       {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/70 pb-3">
-        <div className="flex items-center gap-2">
-          <span className="flex size-6 shrink-0 items-center justify-center rounded-md bg-status-success/15 text-status-success">
-            <BookOpen className="size-3.5" />
-          </span>
-          <h3 className="font-heading text-body-sm font-bold text-foreground">
-            {title || "Contoh dan Pembahasan Bertahap"}
-          </h3>
-        </div>
+      <div className="flex items-center gap-2 border-b border-border/60 pb-2.5">
+        <span className="flex size-6 shrink-0 items-center justify-center rounded-md bg-status-success/15 text-status-success">
+          <BookOpen className="size-3.5" />
+        </span>
+        <h3 className="font-heading text-body-base font-bold text-foreground">
+          {title || "Contoh dan Pembahasan Bertahap"}
+        </h3>
       </div>
 
       {/* Problem Prompt */}
       {content ? (
-        <div className="text-body-base leading-relaxed text-foreground">
+        <div className="rounded-lg border border-border/60 bg-muted/20 p-3.5 text-body-base leading-relaxed text-foreground">
           <MarkdownRenderer content={content} density="compact" />
         </div>
       ) : null}
 
-      {/* Steps List */}
-      <ol className="space-y-3 pt-1">
+      {/* Vertical Timeline Stepper */}
+      <ol className="relative ml-3 space-y-5 border-l-2 border-border/80 pl-6 pt-1">
         {workedExample.steps.map((step) => (
-          <li
-            key={step.stepIndex}
-            className="space-y-1.5 border-l-2 border-border pl-3"
-          >
-            <div className="flex items-center gap-2">
-              <span className="flex size-5 shrink-0 items-center justify-center rounded bg-primary/10 font-mono text-body-xs font-bold text-primary">
-                {step.stepIndex + 1}
-              </span>
-              <h4 className="font-heading text-body-xs font-bold text-foreground">
+          <li key={step.stepIndex} className="relative">
+            {/* Step number badge pinned to the vertical line */}
+            <span className="absolute -left-[35px] top-0 flex size-5.5 items-center justify-center rounded-full border-2 border-primary/70 bg-background font-mono text-body-2xs font-bold text-primary shadow-2xs">
+              {step.stepIndex + 1}
+            </span>
+
+            <div className="space-y-1">
+              <h4 className="font-heading text-body-sm font-bold text-foreground">
                 {step.label}
               </h4>
-            </div>
 
-            {/* Step Explanation */}
-            <div className="text-body-sm text-foreground pl-7 leading-relaxed">
-              <MarkdownRenderer content={step.explanation} density="compact" />
-            </div>
+              <div className="text-body-sm leading-relaxed text-foreground">
+                <MarkdownRenderer content={step.explanation} density="compact" />
+              </div>
 
-            <p className="pl-7 text-body-xs leading-relaxed text-muted-foreground">{step.reason}</p>
+              {step.reason ? (
+                <p className="text-body-xs leading-relaxed text-muted-foreground italic">
+                  {step.reason}
+                </p>
+              ) : null}
+            </div>
           </li>
         ))}
       </ol>
 
       {/* Solution Verification */}
       {workedExample.verification ? (
-        <div className="flex items-start gap-2 border-t border-border pt-3 text-body-sm">
+        <div className="flex items-start gap-2.5 rounded-lg border border-status-success/30 bg-status-success/5 p-3.5 text-body-sm">
           <CheckCircle2 className="size-4 shrink-0 text-status-success mt-0.5" />
           <div className="min-w-0 leading-relaxed text-foreground">
+            <span className="mb-0.5 block text-body-xs font-semibold text-status-success">
+              Kesimpulan dan Verifikasi
+            </span>
             <MarkdownRenderer content={workedExample.verification} density="compact" />
           </div>
         </div>
       ) : null}
-    </div>
+    </section>
   );
 }
 
@@ -385,7 +386,17 @@ export function ProductFormativeCheck({
 
         <div className="flex flex-wrap items-center gap-2 pt-1">
           {!isLegacy ? (
-            <Button type="submit" size="sm" disabled={isSubmitting || isEvaluated} className="gap-1.5 text-body-sm">
+            <Button
+              type="submit"
+              size="sm"
+              disabled={isSubmitting || isEvaluated || !getLearnerResponse()}
+              className={cn(
+                "gap-1.5 text-body-sm transition-all",
+                !getLearnerResponse() && !isEvaluated
+                  ? "bg-muted text-muted-foreground hover:bg-muted hover:text-muted-foreground opacity-60 cursor-not-allowed border border-border/70"
+                  : "bg-primary text-primary-foreground",
+              )}
+            >
               {isSubmitting ? <Loader2 className="size-3.5 animate-spin" /> : <CheckCircle2 className="size-3.5" />}
               {isSubmitting ? "Memeriksa" : "Periksa jawaban"}
             </Button>
