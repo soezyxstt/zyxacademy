@@ -327,5 +327,27 @@ describe("normalizeMathInText", () => {
     expect(normalizedDangling).toContain("$\\vec{v}$");
     expect(normalizedDangling).not.toContain("$\\vec{v}_$");
   });
+
+  it("normalizes two-point line equation, slope, and unicode neq in syllabus statements", () => {
+    const input = "Garis melalui dua titik dengan x1≠x2 memenuhi (y-y1)/(x-x1)=(y2-y1)/(x2-x1).";
+    const normalized = normalizeMathInText(input);
+
+    expect(normalized).toContain("$x_1 \\neq x_2$");
+    expect(normalized).toContain("$\\frac{y - y_1}{x - x_1} = \\frac{y_2 - y_1}{x_2 - x_1}$");
+
+    const math = normalized.match(/\$([^$]+)\$/g) || [];
+    expect(math.length).toBe(2);
+    expect(() => {
+      for (const m of math) {
+        katex.renderToString(m.slice(1, -1), { throwOnError: true });
+      }
+    }).not.toThrow();
+
+    // Point-slope and slope formulas
+    const slopeInput = "Gradien m = (y2-y1)/(x2-x1) dan persamaan titik-gradien y - y1 = m(x - x1).";
+    const slopeNorm = normalizeMathInText(slopeInput);
+    expect(slopeNorm).toContain("$m = \\frac{y_2 - y_1}{x_2 - x_1}$");
+    expect(slopeNorm).toContain("$y - y_1 = m(x - x_1)$");
+  });
 });
 

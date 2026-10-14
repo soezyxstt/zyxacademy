@@ -101,7 +101,7 @@ export function classifyProviderRoute(input: ProviderRouteRequest = {}): Provide
 }
 
 export function providerRouterV2Enabled(): boolean {
-  return true;
+  return Boolean(process.env.ZYRA_CONTROL_PLANE_URL && process.env.ZYRA_CONTROL_PLANE_TOKEN);
 }
 
 export function getModelChain(useCase?: string): string[] {

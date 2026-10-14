@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { MathText } from "@/components/course/math-text";
 import { cn } from "@/lib/utils";
+import { ChevronDown, RotateCcw, SlidersHorizontal, ZoomIn, ZoomOut } from "lucide-react";
 import {
   evaluateFunctionPlot,
   resetCanvasValues,
@@ -30,12 +31,23 @@ import {
   type VectorCanvas,
 } from "@/lib/zyra/canvas";
 
-const GRAPH_BLUE = "var(--color-brand-primary)";
-const GRAPH_SECONDARY = "var(--color-brand-secondary)";
-const BG = "var(--color-card)";
+const SERIES_PALETTE = [
+  "#38bdf8", // Vibrant Sky / Cyan Blue
+  "#fb923c", // Warm Coral / Amber Orange
+  "#a78bfa", // Soft Violet
+  "#34d399", // Emerald Mint
+];
+
+function getSeriesColor(index: number): string {
+  return SERIES_PALETTE[index % SERIES_PALETTE.length] ?? "#38bdf8";
+}
+
+const GRAPH_BLUE = SERIES_PALETTE[0];
+const GRAPH_SECONDARY = SERIES_PALETTE[1];
+const BG = "transparent";
 const MINOR_GRID = "var(--color-border)";
 const MAJOR_GRID = "var(--color-border-strong)";
-const AXIS = "var(--color-foreground)";
+const AXIS = "var(--color-muted-foreground)";
 const LABEL = "var(--color-muted-foreground)";
 
 const PAD_L = 46;
@@ -372,9 +384,19 @@ function GridLayer({
 
   return (
     <>
+      <defs>
+        <marker id="axis-arrow-x" viewBox="0 0 6 6" refX="5" refY="3" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+          <path d="M 0 1 L 6 3 L 0 5 z" fill="var(--color-muted-foreground)" opacity={0.7} />
+        </marker>
+        <marker id="axis-arrow-y" viewBox="0 0 6 6" refX="5" refY="3" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+          <path d="M 0 1 L 6 3 L 0 5 z" fill="var(--color-muted-foreground)" opacity={0.7} />
+        </marker>
+      </defs>
+
       <g aria-hidden>
         {xTicks.map((gx) => {
-          const major = Math.abs(gx) < 1e-9 || (xStep >= 1 && Math.abs(gx % (xStep * 2)) < 1e-9);
+          const isOrigin = Math.abs(gx) < 1e-9;
+          const major = isOrigin || (xStep >= 1 && Math.abs(gx % (xStep * 2)) < 1e-9);
           return (
             <line
               key={`vx-${gx}`}
@@ -382,13 +404,15 @@ function GridLayer({
               y1={PAD_T}
               x2={mapX(gx)}
               y2={PAD_T + PLOT_H}
-              stroke={major ? MAJOR_GRID : MINOR_GRID}
-              strokeWidth={major ? 1 : 0.65}
+              stroke="var(--color-border)"
+              strokeOpacity={major ? 0.35 : 0.15}
+              strokeWidth={major ? 0.75 : 0.5}
             />
           );
         })}
         {yTicks.map((gy) => {
-          const major = Math.abs(gy) < 1e-9 || (yStep >= 1 && Math.abs(gy % (yStep * 2)) < 1e-9);
+          const isOrigin = Math.abs(gy) < 1e-9;
+          const major = isOrigin || (yStep >= 1 && Math.abs(gy % (yStep * 2)) < 1e-9);
           return (
             <line
               key={`hy-${gy}`}
@@ -396,46 +420,110 @@ function GridLayer({
               y1={mapY(gy)}
               x2={PAD_L + PLOT_W}
               y2={mapY(gy)}
-              stroke={major ? MAJOR_GRID : MINOR_GRID}
-              strokeWidth={major ? 1 : 0.65}
+              stroke="var(--color-border)"
+              strokeOpacity={major ? 0.35 : 0.15}
+              strokeWidth={major ? 0.75 : 0.5}
             />
           );
         })}
       </g>
 
-      {showXAxis && <line x1={PAD_L} y1={y0} x2={PAD_L + PLOT_W} y2={y0} stroke={AXIS} strokeWidth={1.75} />}
-      {showYAxis && <line x1={x0} y1={PAD_T} x2={x0} y2={PAD_T + PLOT_H} stroke={AXIS} strokeWidth={1.75} />}
+      {/* Axis lines with arrows */}
+      {showXAxis && (
+        <line
+          x1={PAD_L}
+          y1={y0}
+          x2={PAD_L + PLOT_W + 8}
+          y2={y0}
+          stroke="var(--color-muted-foreground)"
+          strokeOpacity={0.65}
+          strokeWidth={1.25}
+          markerEnd="url(#axis-arrow-x)"
+        />
+      )}
+      {showYAxis && (
+        <line
+          x1={x0}
+          y1={PAD_T + PLOT_H}
+          x2={x0}
+          y2={PAD_T - 8}
+          stroke="var(--color-muted-foreground)"
+          strokeOpacity={0.65}
+          strokeWidth={1.25}
+          markerEnd="url(#axis-arrow-y)"
+        />
+      )}
 
-      <text x={PAD_L + PLOT_W + 10} y={PAD_T + PLOT_H + 22} fill={LABEL} fontSize={11}>x</text>
-      <text x={PAD_L - 32} y={PAD_T - 3} fill={LABEL} fontSize={11}>y</text>
+      {/* Axis symbols */}
+      <text
+        x={PAD_L + PLOT_W + 14}
+        y={showXAxis ? y0 + 3.5 : PAD_T + PLOT_H + 18}
+        fill="var(--color-foreground)"
+        fontSize={11}
+        fontWeight={600}
+        fontFamily='system-ui, "Segoe UI", sans-serif'
+      >
+        x
+      </text>
+      <text
+        x={showYAxis ? x0 - 10 : PAD_L - 22}
+        y={PAD_T - 10}
+        fill="var(--color-foreground)"
+        fontSize={11}
+        fontWeight={600}
+        fontFamily='system-ui, "Segoe UI", sans-serif'
+      >
+        y
+      </text>
 
-      {xTicks.map((xv) => (
+      {/* Numbers */}
+      {xTicks.map((xv) => {
+        if (Math.abs(xv) < 1e-9 && showYAxis) return null;
+        return (
+          <text
+            key={`xt-${xv}`}
+            x={mapX(xv)}
+            y={PAD_T + PLOT_H + 18}
+            textAnchor="middle"
+            fill="var(--color-muted-foreground)"
+            fontSize={10}
+            fontFamily='system-ui, "Segoe UI", sans-serif'
+          >
+            {formatTick(xv, xStep)}
+          </text>
+        );
+      })}
+      {yTicks.map((yv) => {
+        if (Math.abs(yv) < 1e-9 && showXAxis) return null;
+        return (
+          <text
+            key={`yt-${yv}`}
+            x={PAD_L - 8}
+            y={mapY(yv) + 3}
+            textAnchor="end"
+            fill="var(--color-muted-foreground)"
+            fontSize={10}
+            fontFamily='system-ui, "Segoe UI", sans-serif'
+          >
+            {formatTick(yv, yStep)}
+          </text>
+        );
+      })}
+
+      {/* Center 0 label */}
+      {showXAxis && showYAxis && view.xMin < 0 && view.xMax > 0 && view.yMin < 0 && view.yMax > 0 && (
         <text
-          key={`xt-${xv}`}
-          x={mapX(xv)}
-          y={PAD_T + PLOT_H + 22}
-          textAnchor="middle"
-          fill={LABEL}
-          fontSize={11}
-          fontFamily='system-ui, "Segoe UI", sans-serif'
-        >
-          {formatTick(xv, xStep)}
-        </text>
-      ))}
-      {yTicks.map((yv) => (
-        <text
-          key={`yt-${yv}`}
-          x={PAD_L - 10}
-          y={mapY(yv)}
+          x={x0 - 8}
+          y={y0 + 12}
           textAnchor="end"
-          dominantBaseline="middle"
-          fill={LABEL}
-          fontSize={11}
+          fill="var(--color-muted-foreground)"
+          fontSize={10}
+          opacity={0.8}
           fontFamily='system-ui, "Segoe UI", sans-serif'
         >
-          {formatTick(yv, yStep)}
+          0
         </text>
-      ))}
+      )}
     </>
   );
 }
@@ -462,7 +550,7 @@ function SeriesLegend({
           ["x", ...spec.variables.map((v) => v.id)],
         );
         const isVisible = visibleSeriesIds.has(series.id);
-        const color = idx === 0 ? GRAPH_BLUE : GRAPH_SECONDARY;
+        const color = getSeriesColor(idx);
         return (
           <button
             key={series.id}
@@ -471,27 +559,27 @@ function SeriesLegend({
             aria-describedby={`graph-equation-${legendId}-${idx}`}
             aria-pressed={isVisible}
             onClick={() => onToggleSeries(series.id)}
-            className="inline-flex min-w-0 max-w-full items-center gap-2 rounded-md border border-transparent px-1.5 py-1 text-left text-body-sm text-foreground transition-colors hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className={cn(
+              "group inline-flex min-w-0 max-w-full items-center gap-2 rounded-lg border px-2.5 py-1 text-left text-body-sm transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+              isVisible
+                ? "border-border/70 bg-muted/30 text-foreground hover:bg-muted/50 shadow-2xs"
+                : "border-transparent bg-muted/10 text-muted-foreground opacity-55 hover:opacity-80",
+            )}
           >
-            <span
-              className={cn(
-                "inline-flex h-6 min-w-6 shrink-0 items-center justify-center rounded border border-transparent px-1.5 text-body-xs font-bold text-white shadow-xs",
-                !isVisible && "opacity-50",
-              )}
-              style={{ backgroundColor: color }}
-              aria-hidden
-            >
-              {series.label.length <= 2 ? series.label : `f${idx + 1}`}
+            <span className="flex items-center gap-1.5" aria-hidden>
+              <span
+                className="inline-block h-2 w-2 rounded-full shrink-0 transition-transform group-hover:scale-125"
+                style={{ backgroundColor: color }}
+              />
+              <span
+                className="h-0 w-4 shrink-0"
+                style={{
+                  borderTop: `2px ${series.lineStyle === "dashed" ? "dashed" : series.lineStyle === "dotted" ? "dotted" : "solid"} ${color}`,
+                }}
+              />
             </span>
-            <span
-              aria-hidden
-              className={cn("h-0 w-7 shrink-0", !isVisible && "opacity-40")}
-              style={{
-                borderTop: `2px ${series.lineStyle === "dashed" ? "dashed" : series.lineStyle === "dotted" ? "dotted" : "solid"} ${color}`,
-              }}
-            />
             <span id={`graph-equation-${legendId}-${idx}`} className="min-w-0 max-w-full">
-              <MathText as="span" className={cn("text-body-sm font-semibold tracking-tight text-foreground", !isVisible && "opacity-60")}>
+              <MathText as="span" className={cn("text-body-sm font-semibold tracking-tight text-foreground", !isVisible && "line-through opacity-60")}>
                 {`y = \\(${latexFormatted}\\)`}
               </MathText>
             </span>

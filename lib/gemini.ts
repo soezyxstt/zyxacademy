@@ -299,33 +299,37 @@ export async function generateContentWithFallback(
     if (!params.userId) {
       throw new Error("ZYRA_PROVIDER_ROUTER_USER_ID_REQUIRED");
     }
-    const lifecycle = new RequestLifecycle({
-      invokeProvider: invokeProviderThroughControlPlane,
-    });
-    const result = await lifecycle.execute({
-      userId: params.userId,
-      idempotencyKey: params.requestId,
-      feature: params.feature ?? params.useCase ?? "zyra-provider-request",
-      parts: toProviderParts(params.contents),
-      config: params.config,
-      route: params.route,
-      useCase: params.useCase,
-      cacheStatus: params.cacheStatus,
-      cachePolicy: params.cachePolicy,
-      cacheKey: params.cacheKey,
-      cacheTtlSeconds: params.cacheTtlSeconds,
-    });
-    const response = makeCompatibilityResponse(result.result);
-    return {
-      response,
-      modelUsed: result.modelId,
-      viaGateway: result.result.viaGateway ?? false,
-      promptTokenCount: result.result.usage?.promptTokens,
-      candidatesTokenCount: result.result.usage?.outputTokens,
-      projectAlias: result.projectAlias,
-      requestId: result.requestId,
-      outcome: result.outcome,
-    };
+    try {
+      const lifecycle = new RequestLifecycle({
+        invokeProvider: invokeProviderThroughControlPlane,
+      });
+      const result = await lifecycle.execute({
+        userId: params.userId,
+        idempotencyKey: params.requestId,
+        feature: params.feature ?? params.useCase ?? "zyra-provider-request",
+        parts: toProviderParts(params.contents),
+        config: params.config,
+        route: params.route,
+        useCase: params.useCase,
+        cacheStatus: params.cacheStatus,
+        cachePolicy: params.cachePolicy,
+        cacheKey: params.cacheKey,
+        cacheTtlSeconds: params.cacheTtlSeconds,
+      });
+      const response = makeCompatibilityResponse(result.result);
+      return {
+        response,
+        modelUsed: result.modelId,
+        viaGateway: result.result.viaGateway ?? false,
+        promptTokenCount: result.result.usage?.promptTokens,
+        candidatesTokenCount: result.result.usage?.outputTokens,
+        projectAlias: result.projectAlias,
+        requestId: result.requestId,
+        outcome: result.outcome,
+      };
+    } catch (lifecycleErr) {
+      console.warn("Provider router execution failed, falling back to direct keypool:", lifecycleErr);
+    }
   }
 
   const modelPriority = params.route?.multimodal || params.route?.visualMode
