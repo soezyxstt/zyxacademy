@@ -470,6 +470,10 @@ export interface DetectedFileMetadata {
   chapterIds: string[];
   primaryChapterIndex: number | null;
   role: string | null;
+  session?: string | null;
+  partNumber?: number | null;
+  roleQualifier?: MaterialRoleQualifier | null;
+  customTopic?: string | null;
 }
 
 /**
@@ -544,6 +548,17 @@ export function detectMetadataFromFilename(
     role = "soal";
   }
 
+  const session = detectSessionFromFilename(filename);
+  const partNumber = detectPartNumberFromFilename(filename);
+  let roleQualifier: MaterialRoleQualifier | null = null;
+  if (partNumber) {
+    roleQualifier = "bagian";
+  } else if (/aplikasi/i.test(filename)) {
+    roleQualifier = "aplikasi";
+  } else if (/problem|contoh/i.test(filename)) {
+    roleQualifier = "problem";
+  }
+
   return {
     title: cleanTitle,
     category: detectedCategory.category,
@@ -552,6 +567,9 @@ export function detectMetadataFromFilename(
     chapterIds,
     primaryChapterIndex,
     role,
+    session,
+    partNumber,
+    roleQualifier,
   };
 }
 
@@ -611,12 +629,16 @@ export interface CanonicalTitleOptions {
   category: MaterialLevel1Category;
   subcategory?: CourseMaterialSubcategory | string | null;
   chapterIndex?: number | null;
+  chapterOrderIndex?: number | null;
   chapterTitle?: string | null;
+  chapter?: { orderIndex?: number | null; title?: string | null } | null;
   year?: number | null;
   session?: string | null;
   partNumber?: number | null;
   qualifier?: MaterialRoleQualifier | string | null;
+  roleQualifier?: MaterialRoleQualifier | string | null;
   customTopic?: string | null;
+  rawFilename?: string | null;
   isSolution?: boolean;
 }
 
@@ -632,18 +654,25 @@ export function buildCanonicalDocumentTitle(opts: CanonicalTitleOptions): string
     category,
     subcategory,
     chapterIndex,
+    chapterOrderIndex,
     chapterTitle,
+    chapter,
     year,
     session,
     partNumber,
     qualifier = "utama",
+    roleQualifier,
     customTopic,
     isSolution = category === "pembahasan_soal",
   } = opts;
 
+  const effectiveChapterIndex = chapterIndex ?? chapterOrderIndex ?? chapter?.orderIndex ?? null;
+  const effectiveChapterTitle = chapterTitle ?? chapter?.title ?? "";
+  const effectiveQualifier = roleQualifier ?? qualifier ?? "utama";
+
   const cleanCourse = courseCode.toUpperCase().replace(/[^A-Z0-9]/g, "");
-  const cleanChapTitle = chapterTitle
-    ? standardizeDocumentTitle(chapterTitle.replace(/^bab\s*\d+\s*[:\.-]?\s*/i, ""))
+  const cleanChapTitle = effectiveChapterTitle
+    ? standardizeDocumentTitle(effectiveChapterTitle.replace(/^bab\s*\d+\s*[:\.-]?\s*/i, ""))
     : "";
 
   // 1. Comprehensive Exams: UTS, UAS, UP
@@ -663,7 +692,7 @@ export function buildCanonicalDocumentTitle(opts: CanonicalTitleOptions): string
   if (subcategory === "tutorial" || subcategory === "kuis" || subcategory === "kbf" || subcategory === "ltm") {
     const typeLabel = subcategory === "tutorial" ? "Tutorial" : subcategory.toUpperCase();
     const num = partNumber ? ` ${partNumber}` : "";
-    const chapStr = chapterIndex ? `Bab ${chapterIndex}` : "";
+    const chapStr = effectiveChapterIndex ? `Bab ${effectiveChapterIndex}` : "";
     const topicStr = cleanChapTitle ? ` (${cleanChapTitle})` : (customTopic ? ` (${customTopic})` : "");
     const yearStr = year ? ` ${year}` : "";
     const courseStr = cleanCourse && (subcategory === "kbf" || subcategory === "ltm") ? ` ${cleanCourse}` : "";
@@ -687,25 +716,25 @@ export function buildCanonicalDocumentTitle(opts: CanonicalTitleOptions): string
   }
 
   // 4. Chapter Materials (materi_dosen, scl, modul, lainnya)
-  if (chapterIndex !== null && chapterIndex !== undefined && chapterIndex > 0) {
-    const baseChap = `Bab ${chapterIndex}: ${cleanChapTitle || customTopic || "Materi"}`;
+  if (effectiveChapterIndex !== null && effectiveChapterIndex !== undefined && effectiveChapterIndex > 0) {
+    const baseChap = `Bab ${effectiveChapterIndex}: ${cleanChapTitle || customTopic || "Materi"}`;
 
     if (subcategory === "scl") {
       return `SCL ${baseChap}`;
     }
 
-    if (qualifier === "bagian" && partNumber) {
+    if (effectiveQualifier === "bagian" && partNumber) {
       return `${baseChap} (Bagian ${partNumber})`;
     }
-    if (qualifier === "aplikasi") {
+    if (effectiveQualifier === "aplikasi") {
       const appTopic = customTopic ? `: ${customTopic}` : "";
       return `${baseChap} (Aplikasi${appTopic})`;
     }
-    if (qualifier === "problem") {
+    if (effectiveQualifier === "problem") {
       const probTopic = customTopic ? `: ${customTopic}` : "";
       return `${baseChap} (Contoh Problem${probTopic})`;
     }
-    if (qualifier === "kustom" && customTopic) {
+    if (effectiveQualifier === "kustom" && customTopic) {
       return `${baseChap} (${customTopic})`;
     }
 
