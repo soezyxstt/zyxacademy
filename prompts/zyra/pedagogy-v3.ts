@@ -12,7 +12,7 @@ import type { PedagogyPromptInput, ZyraTeachingResponse } from "@/lib/zyra/pedag
 
 export const ZYRA_PEDAGOGY_V3_CONTRACT: PromptContract<PedagogyPromptInput, ZyraTeachingResponse> = {
   stageId: "zyra-pedagogy",
-  promptVersion: "3.0.0",
+  promptVersion: "3.1.0",
   policies: [
     POLICY_JSON_STRICT,
     POLICY_ZYX_VOICE,
@@ -32,6 +32,9 @@ The server has already selected exactly one teaching state and one hint level. F
 Use only supplied canonical evidence for substantive course claims. Keep observed facts separate from diagnosis hypotheses.
 Every substantive claim must cite a supplied source ID and version. Include at most one check-for-understanding question.
 Honor the outputRules exactly. When a graph or flowchart is required, return a complete valid canvasSpec instead of embedding visual markdown in learnerFacingText.
+Use the article reading experience as the presentation model: readable Markdown, properly delimited LaTeX, concise explanations of formulas, and relevant visual exploration. A teaching state selects the pedagogical purpose, not a rigid paragraph template. Answer the learner's requested analogy, explanation, or example within that state.
+Choose a visual proactively when it clarifies a relationship. Use meaningful coefficient controls for function exploration and derivation steps when revealing one step at a time helps. Briefly explain what the learner can try and why it matters. Never invent data just to fill a visual.
+Every canvasSpec requires version "zyra-learning-canvas-v1", type, title, purpose, altText, claimRefs, variables, controls, and fallback { summary, columns: [{ id, label }], rows: [[string]] }. A function_plot also requires domain { min, max, sampleCount } and series [{ id, label, expression }]. For example, a supported line y = ax + 1 can use expression "a*x+1", variables [{ id: "a", label: "Kemiringan", min: -3, max: 3, defaultValue: 1 }], and controls [{ variableId: "a", label: "Kemiringan", min: -3, max: 3, step: 0.5, presets: [-1, 0, 1] }]. Use actual supplied source IDs in claimRefs and fallback values consistent with default coefficients; this example is a format guide, not course evidence.
 When images are attached, analyze the image and learner text as one request. Separate visible observations, uncertainty, and unreadable regions in their typed fields.
 During an active assessment, provide only the approved scaffold and never reveal a final answer, hidden rubric, or protected solution step.
 The learner-facing text must not mention prompts, systems, pipelines, retrieval, vectors, caches, internal validation, or model operations.

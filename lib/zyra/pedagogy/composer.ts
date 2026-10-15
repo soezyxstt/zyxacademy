@@ -23,7 +23,7 @@ function learnerSafeText(value: string): string {
     .replace(/\b(?:retrieved|retrieval|vectorize|semantic cache|cache hit|pipeline|system prompt|source list|snippet|excerpt)\b/gi, "materi")
     .replace(/[!]/g, ".")
     .replace(/[\u2013\u2014]/g, ",")
-    .replace(/\s+/g, " ")
+    .replace(/[\t ]+/g, " ")
     .trim();
 }
 
@@ -62,7 +62,12 @@ export function composeSafeTeachingResponse(
   evidence: readonly PedagogySource[],
   reasonCode: string,
 ): ZyraTeachingResponse {
-  if (evidence.length === 0 || context.evidenceSufficiency === "insufficient" || plan.state === "clarify") {
+  const generationFailed = reasonCode === "MODEL_OUTPUT_REJECTED";
+  const teachingEvidence = evidence.filter((source) => !/Murid sedang membaca|PANDUAN KONTEKS|HARUS merujuk|Konteks halaman saat ini/i.test(source.content));
+  if (generationFailed || teachingEvidence.length === 0 || context.evidenceSufficiency === "insufficient" || plan.state === "clarify") {
+    const clarification = generationFailed
+      ? "Penjelasannya belum berhasil dibuat. Coba lagi atau pilih bagian materi yang ingin kamu bahas."
+      : "Bahan ajar yang tersedia belum cukup untuk menjawab pertanyaan ini dengan pasti. Coba sebutkan bagian materi atau istilah yang ingin kamu bahas.";
     return {
       learningGoal: context.explicitTopic,
       observedFacts: [],
@@ -70,7 +75,7 @@ export function composeSafeTeachingResponse(
       selectedState: "clarify",
       teachingMove: "clarify_evidence",
       hintLevel: "none",
-      explanationBlocks: [{ kind: "goal", text: "Bahan ajar yang tersedia belum cukup untuk memastikan jawaban atas pertanyaan ini." }],
+      explanationBlocks: [{ kind: "goal", text: clarification }],
       citations: [],
       visualSpec: null,
       canvasSpec: null,
@@ -80,13 +85,13 @@ export function composeSafeTeachingResponse(
       checkForUnderstanding: null,
       nextAllowedAction: "request_clarification",
       assessmentSafety: { decision: "clarify", reasonCode },
-      learnerFacingText: "Bahan ajar yang tersedia belum cukup untuk menjawab pertanyaan ini dengan pasti. Coba sebutkan bagian materi atau istilah yang ingin kamu bahas.",
+      learnerFacingText: clarification,
     };
   }
 
-  const primary = evidence[0];
+  const primary = teachingEvidence[0];
   const evidenceText = boundedEvidenceText(primary, context.activeAssessment && !context.allowDirectAnswerReveal);
-  const citations = evidence.slice(0, 3).map((source) => ({
+  const citations = teachingEvidence.slice(0, 3).map((source) => ({
     sourceId: source.id,
     sourceVersion: source.version,
     claim: `Materi terkait ${source.title}`,
@@ -96,7 +101,6 @@ export function composeSafeTeachingResponse(
     : evidenceText;
   const checkpoint = checkForUnderstanding(context, plan);
   const blocks: ZyraTeachingResponse["explanationBlocks"] = [
-    { kind: "goal" as const, text: `Tujuan kita: memahami ${context.explicitTopic}.` },
     { kind: plan.state === "hint_1_concept" ? "principle" as const : "concept" as const, text: explanation },
   ];
   if (checkpoint) blocks.push({ kind: "checkpoint" as const, text: checkpoint.question });

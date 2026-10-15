@@ -704,6 +704,24 @@ function FunctionPlot({ spec, editable = true }: { spec: FunctionPlotCanvas; edi
     [sampledSpec, values, expressions],
   );
 
+  const valueTableSpec = useMemo(() => {
+    const tableSeries = evaluateFunctionPlot({ ...sampledSpec, domain: { ...sampledSpec.domain, sampleCount: 7 } }, values, expressions);
+    return {
+      ...spec,
+      fallback: {
+        summary: "Nilai fungsi untuk rumus, parameter, dan rentang grafik saat ini.",
+        columns: [{ id: "x", label: "x" }, ...spec.series.map(series => ({ id: series.id, label: series.label }))],
+        rows: (tableSeries[0]?.points ?? []).map(point => [
+          formatNum(point.x),
+          ...tableSeries.map(series => {
+            const value = series.points.find(sample => sample.x === point.x)?.y;
+            return value === null || value === undefined ? "N/A" : formatNum(value);
+          }),
+        ]),
+      },
+    };
+  }, [sampledSpec, spec, values, expressions]);
+
   const invalidSeries = evaluated.filter((series) => series.points.every((point) => point.y === null));
 
   const mapX = useCallback((x: number) => PAD_L + ((x - view.xMin) / (view.xMax - view.xMin)) * PLOT_W, [view.xMin, view.xMax]);
@@ -1134,7 +1152,7 @@ function FunctionPlot({ spec, editable = true }: { spec: FunctionPlotCanvas; edi
         </svg>
 
         {/* Floating Navigation Controls (Zoom / Reset) */}
-        <div className="absolute bottom-2.5 right-2.5 flex items-center gap-0.5 rounded-lg border border-border/60 bg-background/85 p-1 shadow-xs backdrop-blur-md">
+        <div className={cn("absolute bottom-2.5 right-2.5 flex items-center gap-0.5 rounded-lg border border-border/60 bg-background/85 p-1 shadow-xs backdrop-blur-md", !hasPlottableCurve && "bottom-auto top-2")}>
           <button
             type="button"
             aria-label="Perbesar tampilan grafik"
@@ -1211,7 +1229,7 @@ function FunctionPlot({ spec, editable = true }: { spec: FunctionPlotCanvas; edi
       </div>
       {showValues ? (
         <div id={`graph-values-${uid}`}>
-          <FallbackTable spec={spec} className="mt-2 rounded-xl border border-border/60 bg-muted/10 shadow-none" />
+          <FallbackTable spec={valueTableSpec} className="mt-2 rounded-xl border border-border/60 bg-muted/10 shadow-none" />
         </div>
       ) : null}
     </div>

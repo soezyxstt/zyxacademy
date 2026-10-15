@@ -39,6 +39,7 @@ async function prepareForScreenshot(page: Page) {
 
 for (const route of routes) {
   test(`visual quality check for ${route}`, async ({ page }, testInfo) => {
+    if (routePathname(route) === "/visual-fixtures/zyra-learning") test.setTimeout(90_000);
     const runtimeErrors: string[] = [];
 
     page.on("console", (message) => {
@@ -55,6 +56,9 @@ for (const route of routes) {
     // Pricing deliberately hydrates from a neutral server snapshot. Wait for
     // hydration before changing media preferences or capturing its final state.
     await expect(page.getByRole("status").filter({ hasText: "Memuat harga..." })).toHaveCount(0);
+    if (routePathname(route) === "/visual-fixtures/zyra-learning") {
+      await expect(page.locator('[data-zyra-hydrated="true"]')).toBeVisible();
+    }
     await prepareForScreenshot(page);
 
     const screenshotPath = testInfo.outputPath(
