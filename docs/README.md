@@ -6,6 +6,8 @@ All markdown documents across `docs/` and `plans/` must be registered in this in
 
 The `ACTIVE` feature catalog records Zyra article-style math presentation, proactive grounded visual exploration, and safe retry responses when generation fails.
 
+The `ACTIVE` feature catalog also documents compact Article formula rows, reading-first embedded graphs, optional parameter controls, and explicit graph interaction activation.
+
 ---
 
 ## 1. Documentation Taxonomy & Hierarchy

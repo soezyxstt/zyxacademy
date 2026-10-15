@@ -15,6 +15,8 @@ import {
 } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { MathText } from "@/components/course/math-text";
 import { cn } from "@/lib/utils";
 import { ChevronDown, RotateCcw, SlidersHorizontal, ZoomIn, ZoomOut } from "lucide-react";
@@ -118,13 +120,25 @@ type PlotGesture =
  * Shared pan/zoom viewport for Learning Canvas plots. Drag pans, scroll or
  * pinch zooms around the pointer, double-click resets to the fitted view.
  */
-function useInteractiveViewport(defaultView: Viewport) {
+function useInteractiveViewport(defaultView: Viewport, enabled = true) {
   const [view, setView] = useState<Viewport>(defaultView);
   const [isDragging, setIsDragging] = useState(false);
   const svgRef = useRef<SVGSVGElement | null>(null);
   const pointersRef = useRef(new Map<number, { x: number; y: number }>());
   const gestureRef = useRef<PlotGesture | null>(null);
   const defaultViewRef = useRef(defaultView);
+
+  useEffect(() => {
+    if (enabled) return;
+    const svg = svgRef.current;
+    const pointerIds = [...pointersRef.current.keys()];
+    pointersRef.current.clear();
+    gestureRef.current = null;
+    setIsDragging(false);
+    for (const id of pointerIds) {
+      if (svg?.hasPointerCapture(id)) svg.releasePointerCapture(id);
+    }
+  }, [enabled]);
 
   useEffect(() => {
     defaultViewRef.current = defaultView;
@@ -160,7 +174,7 @@ function useInteractiveViewport(defaultView: Viewport) {
 
   useEffect(() => {
     const svg = svgRef.current;
-    if (!svg) return;
+    if (!svg || !enabled) return;
     const onWheel = (event: WheelEvent) => {
       event.preventDefault();
       const rect = svg.getBoundingClientRect();
@@ -174,9 +188,10 @@ function useInteractiveViewport(defaultView: Viewport) {
     };
     svg.addEventListener("wheel", onWheel, { passive: false });
     return () => svg.removeEventListener("wheel", onWheel);
-  }, []);
+  }, [enabled]);
 
   const onPointerDown = useCallback((event: ReactPointerEvent<SVGSVGElement>) => {
+    if (!enabled) return;
     if (event.pointerType === "mouse" && event.button !== 0) return;
     try {
       event.currentTarget.setPointerCapture(event.pointerId);
@@ -215,7 +230,7 @@ function useInteractiveViewport(defaultView: Viewport) {
       };
       setIsDragging(true);
     }
-  }, [svgScale, view]);
+  }, [enabled, svgScale, view]);
 
   const onPointerMove = useCallback((event: ReactPointerEvent<SVGSVGElement>) => {
     const gesture = gestureRef.current;
@@ -277,15 +292,15 @@ function useInteractiveViewport(defaultView: Viewport) {
     bind: {
       ref: svgRef,
       className: cn(
-        "h-[260px] w-full max-w-full touch-none select-none md:h-[300px]",
-        isDragging ? "cursor-grabbing" : "cursor-grab",
+        "h-[260px] w-full max-w-full select-none md:h-[300px]",
+        enabled ? (isDragging ? "touch-none cursor-grabbing" : "touch-none cursor-grab") : "touch-auto",
       ),
       onPointerDown,
       onPointerMove,
       onPointerUp: endPointer,
       onPointerCancel: endPointer,
       onLostPointerCapture: endPointer,
-      onDoubleClick: resetView,
+      onDoubleClick: enabled ? resetView : undefined,
     },
   };
 }
@@ -366,15 +381,17 @@ function GridLayer({
   view,
   mapX,
   mapY,
+  labelSize = 10,
 }: {
   view: Viewport;
   mapX: (x: number) => number;
   mapY: (y: number) => number;
+  labelSize?: number;
 }) {
   const xSpan = finiteSpan(view.xMin, view.xMax);
   const ySpan = finiteSpan(view.yMin, view.yMax);
-  const xStep = useMemo(() => niceStep(xSpan), [xSpan]);
-  const yStep = useMemo(() => niceStep(ySpan), [ySpan]);
+  const xStep = useMemo(() => niceStep(xSpan * Math.max(1, labelSize / 12)), [xSpan, labelSize]);
+  const yStep = useMemo(() => niceStep(ySpan * Math.max(1, labelSize / 12)), [ySpan, labelSize]);
   const xTicks = useMemo(() => tickValues(view.xMin, view.xMax, xStep), [view.xMin, view.xMax, xStep]);
   const yTicks = useMemo(() => tickValues(view.yMin, view.yMax, yStep), [view.yMin, view.yMax, yStep]);
   const showXAxis = view.yMin < 0 && view.yMax > 0;
@@ -456,10 +473,10 @@ function GridLayer({
 
       {/* Axis symbols */}
       <text
-        x={PAD_L + PLOT_W + 14}
+        x={PAD_L + PLOT_W + 6}
         y={showXAxis ? y0 + 3.5 : PAD_T + PLOT_H + 18}
         fill="var(--color-foreground)"
-        fontSize={11}
+        fontSize={labelSize + 1}
         fontWeight={600}
         fontFamily='system-ui, "Segoe UI", sans-serif'
       >
@@ -467,9 +484,9 @@ function GridLayer({
       </text>
       <text
         x={showYAxis ? x0 - 10 : PAD_L - 22}
-        y={PAD_T - 10}
+        y={PAD_T + 2}
         fill="var(--color-foreground)"
-        fontSize={11}
+        fontSize={labelSize + 1}
         fontWeight={600}
         fontFamily='system-ui, "Segoe UI", sans-serif'
       >
@@ -486,7 +503,7 @@ function GridLayer({
             y={PAD_T + PLOT_H + 18}
             textAnchor="middle"
             fill="var(--color-muted-foreground)"
-            fontSize={10}
+            fontSize={labelSize}
             fontFamily='system-ui, "Segoe UI", sans-serif'
           >
             {formatTick(xv, xStep)}
@@ -502,7 +519,7 @@ function GridLayer({
             y={mapY(yv) + 3}
             textAnchor="end"
             fill="var(--color-muted-foreground)"
-            fontSize={10}
+            fontSize={labelSize}
             fontFamily='system-ui, "Segoe UI", sans-serif'
           >
             {formatTick(yv, yStep)}
@@ -517,7 +534,7 @@ function GridLayer({
           y={y0 + 12}
           textAnchor="end"
           fill="var(--color-muted-foreground)"
-          fontSize={10}
+          fontSize={labelSize}
           opacity={0.8}
           fontFamily='system-ui, "Segoe UI", sans-serif'
         >
@@ -534,11 +551,13 @@ function SeriesLegend({
   expressions,
   visibleSeriesIds,
   onToggleSeries,
+  compact = false,
 }: {
   spec: FunctionPlotCanvas;
   expressions: Record<string, string>;
   visibleSeriesIds: Set<string>;
   onToggleSeries: (seriesId: string) => void;
+  compact?: boolean;
 }) {
   const legendId = useId().replace(/:/g, "");
   return (
@@ -561,16 +580,17 @@ function SeriesLegend({
             onClick={() => onToggleSeries(series.id)}
             className={cn(
               "group inline-flex min-w-0 max-w-full items-center gap-2 rounded-lg border px-2.5 py-1 text-left text-body-sm transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+              compact && "gap-1.5 border-transparent px-1.5 shadow-none",
               isVisible
                 ? "border-border/70 bg-muted/30 text-foreground hover:bg-muted/50 shadow-2xs"
                 : "border-transparent bg-muted/10 text-muted-foreground opacity-55 hover:opacity-80",
             )}
           >
             <span className="flex items-center gap-1.5" aria-hidden>
-              <span
+              {!compact && <span
                 className="inline-block h-2 w-2 rounded-full shrink-0 transition-transform group-hover:scale-125"
                 style={{ backgroundColor: color }}
-              />
+              />}
               <span
                 className="h-0 w-4 shrink-0"
                 style={{
@@ -578,7 +598,7 @@ function SeriesLegend({
                 }}
               />
             </span>
-            <span id={`graph-equation-${legendId}-${idx}`} className="min-w-0 max-w-full">
+            <span id={`graph-equation-${legendId}-${idx}`} className="min-w-0 max-w-full overflow-x-auto">
               <MathText as="span" className={cn("text-body-sm font-semibold tracking-tight text-foreground", !isVisible && "line-through opacity-60")}>
                 {`y = \\(${latexFormatted}\\)`}
               </MathText>
@@ -595,22 +615,24 @@ function VariableControls({
   values,
   setValues,
   onResetAll,
+  compact = false,
 }: {
   spec: FunctionPlotCanvas;
   values: Record<string, number>;
   setValues: Dispatch<SetStateAction<Record<string, number>>>;
   onResetAll: () => void;
+  compact?: boolean;
 }) {
   if (spec.controls.length === 0) return null;
   return (
-    <div className="border-t border-border bg-card px-4 py-3.5 md:px-5 space-y-3">
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+    <div className={compact ? "space-y-3 border-t border-border py-3" : "border-t border-border bg-card px-4 py-3.5 md:px-5 space-y-3"}>
+      <div className={compact ? "space-y-3" : "grid gap-3 sm:grid-cols-2 lg:grid-cols-3"}>
         {spec.controls.map((control) => {
           const variable = spec.variables.find((item) => item.id === control.variableId);
           if (!variable) return null;
           const value = values[variable.id] ?? variable.defaultValue;
           return (
-            <div key={control.variableId} className="space-y-1.5 rounded-lg border border-border/60 bg-muted/20 p-2.5">
+            <div key={control.variableId} className={compact ? "space-y-2" : "space-y-1.5 rounded-lg border border-border/60 bg-muted/20 p-2.5"}>
               <div className="flex items-center justify-between gap-2">
                 <span className="font-mono text-body-sm font-semibold text-foreground">
                   {control.label}: <span className="text-brand-primary font-bold">{formatNum(value)}</span>
@@ -621,11 +643,13 @@ function VariableControls({
                       <button
                         key={p}
                         type="button"
+                        aria-label={`${control.label}: ${p}`}
+                        aria-pressed={value === p}
                         onClick={() => setValues((curr) => ({ ...curr, [variable.id]: p }))}
                         className={cn(
-                          "rounded px-1.5 py-0.5 text-[10px] font-mono transition-colors",
+                          "min-h-8 rounded-md px-2 py-1 text-body-sm font-mono font-normal transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                           value === p
-                            ? "bg-brand-primary text-white font-bold"
+                            ? "bg-primary text-primary-foreground"
                             : "bg-muted text-muted-foreground hover:text-foreground",
                         )}
                       >
@@ -642,7 +666,7 @@ function VariableControls({
                 step={control.step}
                 value={value}
                 aria-label={`Ubah nilai ${control.label}`}
-                className="h-1.5 w-full cursor-pointer accent-brand-secondary"
+                className="h-6 w-full cursor-pointer accent-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 onChange={(event) => setValues((current) => ({
                   ...current,
                   [variable.id]: Number(event.target.value),
@@ -653,14 +677,15 @@ function VariableControls({
         })}
       </div>
       <div className="flex items-center justify-between gap-2 pt-1 text-body-xs text-muted-foreground">
-        <span>Geser koefisien untuk melihat perubahan kurva secara interaktif.</span>
+        {!compact && <span>Geser koefisien untuk melihat perubahan kurva secara interaktif.</span>}
         <Button
           type="button"
           variant="outline"
           size="sm"
+          className={compact ? "text-body-sm" : undefined}
           onClick={onResetAll}
         >
-          Reset visual
+          {compact ? "Reset parameter" : "Reset visual"}
         </Button>
       </div>
     </div>
@@ -668,8 +693,14 @@ function VariableControls({
 }
 
 /** Renders an interactive function plot with editable formulas and series visibility. */
-function FunctionPlot({ spec, editable = true }: { spec: FunctionPlotCanvas; editable?: boolean }) {
+function FunctionPlot({ spec, embedded = false }: { spec: FunctionPlotCanvas; embedded?: boolean }) {
   const uid = useId().replace(/:/g, "");
+  const editable = !embedded;
+  const [interactionActive, setInteractionActive] = useState(false);
+  const interactive = !embedded || interactionActive;
+  const interactionButtonRef = useRef<HTMLButtonElement | null>(null);
+  const [showParameters, setShowParameters] = useState(false);
+  const [labelSize, setLabelSize] = useState(10);
   const [values, setValues] = useState(() => valuesForSpec(spec));
   const [expressions, setExpressions] = useState<Record<string, string>>(() => (
     Object.fromEntries(spec.series.map((series) => [series.id, series.expression]))
@@ -689,7 +720,24 @@ function FunctionPlot({ spec, editable = true }: { spec: FunctionPlotCanvas; edi
   } | null>(null);
 
   const defaultView = useMemo(() => fitFunctionViewport(spec), [spec]);
-  const { view, isDragging, resetView, nudge, zoomBy, bind } = useInteractiveViewport(defaultView);
+  const { view, isDragging, resetView, nudge, zoomBy, bind } = useInteractiveViewport(defaultView, interactive);
+
+  useEffect(() => {
+    const svg = bind.ref.current;
+    if (!embedded || !svg) return;
+    const observer = new ResizeObserver(([entry]) => {
+      const width = entry?.contentRect.width;
+      if (width) setLabelSize(Math.max(10, Math.min(20, 11 * SVG_W / width)));
+    });
+    observer.observe(svg);
+    return () => observer.disconnect();
+  }, [embedded, bind.ref]);
+
+  const finishInteraction = () => {
+    setInteractionActive(false);
+    setHoverData(null);
+    interactionButtonRef.current?.focus();
+  };
 
   const sampledSpec = useMemo(
     () => ({
@@ -783,6 +831,7 @@ function FunctionPlot({ spec, editable = true }: { spec: FunctionPlotCanvas; edi
   }, [evaluated, visibleSeriesIds, view.xMin, view.xMax, view.yMin, view.yMax]);
 
   const intersections = useMemo(() => {
+    if (embedded) return [];
     const visibleSeries = evaluated.filter((s) => visibleSeriesIds.has(s.id));
     if (visibleSeries.length < 2) return [];
 
@@ -839,10 +888,10 @@ function FunctionPlot({ spec, editable = true }: { spec: FunctionPlotCanvas; edi
       }
     }
     return results;
-  }, [evaluated, visibleSeriesIds, view.xMin, view.xMax, view.yMin, view.yMax]);
+  }, [embedded, evaluated, visibleSeriesIds, view.xMin, view.xMax, view.yMin, view.yMax]);
 
   const handleHoverMove = (e: ReactMouseEvent<SVGSVGElement>) => {
-    if (isDragging) return;
+    if (isDragging || !interactive) return;
     const svg = e.currentTarget;
     const rect = svg.getBoundingClientRect();
     if (rect.width === 0 || rect.height === 0) return;
@@ -912,6 +961,7 @@ function FunctionPlot({ spec, editable = true }: { spec: FunctionPlotCanvas; edi
   }, []);
 
   const handlePlotKeyDown = useCallback((event: ReactKeyboardEvent<SVGSVGElement>) => {
+    if (!interactive) return;
     if (event.ctrlKey || event.metaKey || event.altKey) return;
     if (event.key === "ArrowLeft" || event.key === "ArrowRight" || event.key === "ArrowUp" || event.key === "ArrowDown" || event.key === "+" || event.key === "=" || event.key === "-" || event.key === "0") {
       event.preventDefault();
@@ -923,7 +973,7 @@ function FunctionPlot({ spec, editable = true }: { spec: FunctionPlotCanvas; edi
     else if (event.key === "+" || event.key === "=") zoomBy(0.8);
     else if (event.key === "-") zoomBy(1.25);
     else if (event.key === "0") resetView();
-  }, [nudge, resetView, zoomBy]);
+  }, [interactive, nudge, resetView, zoomBy]);
 
   const resetAll = useCallback(() => {
     setValues(valuesForSpec(spec));
@@ -934,7 +984,16 @@ function FunctionPlot({ spec, editable = true }: { spec: FunctionPlotCanvas; edi
   }, [spec, resetView]);
 
   return (
-    <div className="relative mx-auto w-full max-w-full my-3 space-y-2">
+    <div
+      className="relative mx-auto w-full min-w-0 max-w-full space-y-2"
+      onKeyDown={(event) => {
+        if (embedded && interactionActive && event.key === "Escape") {
+          event.preventDefault();
+          event.stopPropagation();
+          finishInteraction();
+        }
+      }}
+    >
       {/* Top Header / Legend (Open Toolbar, Not A Card) */}
       <div className="flex max-w-full min-w-0 flex-wrap items-center justify-between gap-2 px-0.5">
         <SeriesLegend
@@ -942,18 +1001,9 @@ function FunctionPlot({ spec, editable = true }: { spec: FunctionPlotCanvas; edi
           expressions={expressions}
           visibleSeriesIds={visibleSeriesIds}
           onToggleSeries={toggleSeries}
+          compact={embedded}
         />
         <div className="flex shrink-0 items-center gap-1.5">
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={resetView}
-            className="h-8 text-body-xs text-muted-foreground hover:text-foreground"
-          >
-            <RotateCcw className="mr-1.5 h-3.5 w-3.5" />
-            Reset tampilan
-          </Button>
           {editable ? (
             <Button
               type="button"
@@ -998,20 +1048,21 @@ function FunctionPlot({ spec, editable = true }: { spec: FunctionPlotCanvas; edi
       <div className="relative w-full overflow-hidden rounded-xl border border-border/60 bg-muted/15 select-none shadow-2xs transition-colors">
         <svg
           {...bind}
-          className={cn(bind.className, "block h-auto w-full")}
+          className={cn(bind.className, "block h-auto w-full md:h-auto")}
           viewBox={`0 0 ${SVG_W} ${SVG_H}`}
           role="img"
-          tabIndex={0}
+          id={`graph-plot-${uid}`}
+          tabIndex={interactive ? 0 : undefined}
           aria-describedby={hoverData ? `graph-tooltip-${uid}` : undefined}
-          aria-keyshortcuts="ArrowLeft ArrowRight ArrowUp ArrowDown Plus = Minus 0"
-          aria-label={`${spec.altText} Seret untuk menggeser, scroll untuk memperbesar, klik dua kali untuk mengatur ulang. Dengan keyboard, gunakan tombol panah untuk menggeser, Plus atau sama dengan untuk memperbesar, Minus untuk memperkecil, dan 0 untuk mengatur ulang.`}
+          aria-keyshortcuts={interactive ? "ArrowLeft ArrowRight ArrowUp ArrowDown Plus = Minus 0" : undefined}
+          aria-label={interactive ? `${spec.altText} Seret untuk menggeser, scroll untuk memperbesar, klik dua kali untuk mengatur ulang. Dengan keyboard, gunakan tombol panah untuk menggeser, Plus atau sama dengan untuk memperbesar, Minus untuk memperkecil, dan 0 untuk mengatur ulang.` : spec.altText}
           onMouseMove={handleHoverMove}
           onMouseLeave={() => setHoverData(null)}
           onKeyDown={handlePlotKeyDown}
         >
           <rect x="0" y="0" width={SVG_W} height={SVG_H} fill={BG} />
 
-          <GridLayer view={view} mapX={mapX} mapY={mapY} />
+          <GridLayer view={view} mapX={mapX} mapY={mapY} labelSize={labelSize} />
 
           <clipPath id={`plot-clip-${uid}`}>
             <rect x={PAD_L} y={PAD_T} width={PLOT_W} height={PLOT_H} />
@@ -1034,7 +1085,7 @@ function FunctionPlot({ spec, editable = true }: { spec: FunctionPlotCanvas; edi
           ))}
 
           {/* Intersections between curves (Points of Interest) */}
-          {intersections.map((pt) => {
+          {!embedded && intersections.map((pt) => {
             const cx = mapX(pt.x);
             const cy = mapY(pt.y);
             return (
@@ -1152,36 +1203,51 @@ function FunctionPlot({ spec, editable = true }: { spec: FunctionPlotCanvas; edi
         </svg>
 
         {/* Floating Navigation Controls (Zoom / Reset) */}
-        <div className={cn("absolute bottom-2.5 right-2.5 flex items-center gap-0.5 rounded-lg border border-border/60 bg-background/85 p-1 shadow-xs backdrop-blur-md", !hasPlottableCurve && "bottom-auto top-2")}>
+        {interactive && <TooltipProvider><div className={cn("absolute bottom-2 right-2 flex items-center gap-0.5 rounded-lg border border-border/60 bg-background/95 p-1 shadow-xs", !hasPlottableCurve && "bottom-auto top-2")}>
+          <Tooltip>
+          <TooltipTrigger asChild>
           <button
             type="button"
             aria-label="Perbesar tampilan grafik"
             onClick={() => zoomBy(0.8)}
-            className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+            className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             <ZoomIn className="h-3.5 w-3.5" />
           </button>
+          </TooltipTrigger>
+          <TooltipContent>Perbesar</TooltipContent>
+          </Tooltip>
+          <Tooltip>
+          <TooltipTrigger asChild>
           <button
             type="button"
             aria-label="Perkecil tampilan grafik"
             onClick={() => zoomBy(1.25)}
-            className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+            className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             <ZoomOut className="h-3.5 w-3.5" />
           </button>
+          </TooltipTrigger>
+          <TooltipContent>Perkecil</TooltipContent>
+          </Tooltip>
           <div className="mx-0.5 h-3.5 w-[1px] bg-border/60" />
+          <Tooltip>
+          <TooltipTrigger asChild>
           <button
             type="button"
             aria-label="Atur ulang tampilan grafik"
             onClick={resetView}
-            className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+            className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             <RotateCcw className="h-3.5 w-3.5" />
           </button>
-        </div>
+          </TooltipTrigger>
+          <TooltipContent>Reset tampilan</TooltipContent>
+          </Tooltip>
+        </div></TooltipProvider>}
 
         {!hasPlottableCurve && (
-          <div className="absolute inset-x-6 bottom-3 rounded-lg border border-status-warning/30 bg-background/95 p-2.5 text-left text-body-xs text-foreground shadow-sm">
+          <div className="m-2 rounded-lg border border-status-warning/30 bg-background/95 p-2.5 text-left text-body-xs text-foreground">
             {visibleSeriesIds.size === 0
               ? "Tidak ada fungsi yang ditampilkan. Aktifkan fungsi di atas untuk melihat kurvanya."
               : "Grafik belum dapat digambar pada tampilan ini. Coba geser atau atur ulang tampilan, atau periksa kembali rumusnya."}
@@ -1204,29 +1270,58 @@ function FunctionPlot({ spec, editable = true }: { spec: FunctionPlotCanvas; edi
         )}
       </div>
 
-      <VariableControls
+      {!embedded && <VariableControls
         spec={spec}
         values={values}
         setValues={setValues}
         onResetAll={resetAll}
-      />
+      />}
 
-      <div className="flex items-center justify-between px-1 pt-1">
+      <Collapsible open={showParameters} onOpenChange={setShowParameters}>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        {embedded && (
+          <Button
+            ref={interactionButtonRef}
+            type="button"
+            variant={interactionActive ? "secondary" : "outline"}
+            size="sm"
+            className="text-body-sm"
+            aria-pressed={interactionActive}
+            aria-controls={`graph-plot-${uid}`}
+            onClick={() => interactionActive ? finishInteraction() : setInteractionActive(true)}
+          >
+            {interactionActive ? "Selesai" : "Interaksi grafik"}
+          </Button>
+        )}
+        {embedded && spec.controls.length > 0 && (
+          <CollapsibleTrigger asChild>
+            <Button variant="ghost" size="sm" className="text-body-sm">
+              <ChevronDown className={cn("mr-1.5 h-3.5 w-3.5", showParameters && "rotate-180")} />
+              Parameter
+            </Button>
+          </CollapsibleTrigger>
+        )}
         <Button
           variant="ghost"
           size="sm"
           aria-expanded={showValues}
           aria-controls={`graph-values-${uid}`}
           onClick={() => setShowValues((value) => !value)}
-          className="h-8 text-body-xs text-muted-foreground hover:text-foreground"
+          className="h-8 text-body-sm text-muted-foreground hover:text-foreground"
         >
           <ChevronDown className={cn("mr-1.5 h-3.5 w-3.5 transition-transform duration-200", showValues && "rotate-180")} />
           {showValues ? "Sembunyikan nilai grafik" : "Nilai grafik"}
         </Button>
-        <span className="text-body-xs text-muted-foreground/60">
+        {!embedded && <span className="text-body-xs text-muted-foreground/60">
           Seret untuk menggeser • Scroll / tombol untuk zoom
-        </span>
+        </span>}
       </div>
+      {embedded && spec.controls.length > 0 && (
+        <CollapsibleContent>
+          <VariableControls spec={spec} values={values} setValues={setValues} compact onResetAll={() => setValues(valuesForSpec(spec))} />
+        </CollapsibleContent>
+      )}
+      </Collapsible>
       {showValues ? (
         <div id={`graph-values-${uid}`}>
           <FallbackTable spec={valueTableSpec} className="mt-2 rounded-xl border border-border/60 bg-muted/10 shadow-none" />
@@ -1536,7 +1631,7 @@ export function LearningCanvasRenderer({ spec, embedded = false }: { spec: Canva
         </div>
       ) : null}
       {spec.type === "function_plot" ? (
-        <FunctionPlot spec={spec} editable={!embedded} />
+        <FunctionPlot spec={spec} embedded={embedded} />
       ) : spec.type === "data_plot" ? (
         <DataPlot spec={spec} />
       ) : spec.type === "derivation" ? (

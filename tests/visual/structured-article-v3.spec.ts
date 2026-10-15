@@ -259,10 +259,11 @@ test.describe("Structured Article V3 visual acceptance", () => {
 
     await page.getByRole("figure", { name: "Geser dan skala grafik" }).scrollIntoViewIfNeeded();
     const graph = page.getByRole("region", { name: "Geser dan skala grafik" });
-    const plottedCurve = graph.locator("svg path").nth(1);
+    const plottedCurve = graph.locator('path[data-series-id="shifted"]');
     let previousCurve = await plottedCurve.getAttribute("d");
     expect(previousCurve).toBeTruthy();
     const shiftSlider = page.getByRole("slider", { name: "Ubah nilai Geser" });
+    await graph.getByRole("button", { name: "Parameter", exact: true }).click();
     await expect(shiftSlider).toBeVisible();
     await shiftSlider.fill("2");
     await expect(plottedCurve).not.toHaveAttribute("d", previousCurve!);
@@ -275,15 +276,14 @@ test.describe("Structured Article V3 visual acceptance", () => {
     await expect(graph).toBeVisible();
     await capture(page, testInfo, "self-study-learning-canvas-shifted");
 
-    await graph.getByRole("button", { name: "Ubah rumus" }).click();
-    await graph.getByRole("textbox", { name: "Formula Awal" }).fill("1/x");
+    await expect(graph.getByRole("button", { name: "Ubah rumus" })).toHaveCount(0);
+    await graph.getByRole("button", { name: "Interaksi grafik", exact: true }).click();
     const hideSource = graph.getByRole("button", { name: "Sembunyikan Awal" });
-    await expect(hideSource.locator(".mfrac")).toBeVisible();
     await hideSource.click();
     await expect(graph.locator('path[data-series-id="source"]')).toHaveCSS("display", "none");
     await graph.getByRole("button", { name: "Sembunyikan Hasil" }).click();
     await expect(graph.locator('path[data-series-id="shifted"]')).toHaveCSS("display", "none");
-    await expect(graph.getByText("Tidak ada fungsi yang ditampilkan.")).toBeVisible();
+    await expect(graph.getByText(/Tidak ada fungsi yang ditampilkan/)).toBeVisible();
 
     await graph.getByRole("button", { name: "Tampilkan Hasil" }).click();
     const resultCurve = graph.locator('path[data-series-id="shifted"]');
@@ -303,8 +303,8 @@ test.describe("Structured Article V3 visual acceptance", () => {
     await expect(graphTooltip).toContainText("x:");
     await expect(graphTooltip).toContainText("y:");
     await graph.getByRole("button", { name: "Tampilkan Awal" }).click();
-    await graph.getByRole("button", { name: "Reset visual" }).click();
-    await graph.getByRole("button", { name: "Sembunyikan edit rumus" }).click();
+    await graph.getByRole("button", { name: "Reset parameter" }).click();
+    await graph.getByRole("button", { name: "Selesai", exact: true }).click();
 
     const focusButton = page.getByRole("button", { name: "Masuk mode fokus" });
     await focusButton.focus();
