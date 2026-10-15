@@ -923,7 +923,7 @@ function ASTBlockRenderer({ block, density }: { block: ASTBlock; density?: Markd
         return (
           <div
             className={cn(
-              "rounded-xl border border-border/70 bg-card divide-y divide-border/40 overflow-hidden shadow-2xs",
+              "min-w-0 max-w-full space-y-1 text-left",
               isCompact ? "my-2" : "my-2.5",
             )}
             data-content-kind="formula-property-list"
@@ -934,13 +934,13 @@ function ASTBlockRenderer({ block, density }: { block: ASTBlock; density?: Markd
                 return (
                   <div
                     key={itemIdx}
-                    className="px-3.5 py-2 sm:px-4 sm:py-2 flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 sm:gap-6 hover:bg-muted/15 transition-colors [&_.katex-display]:my-0 [&_.katex-display]:py-0 [&_.katex-display]:text-left"
+                    className="min-w-0 space-y-1"
                   >
-                    <div className="overflow-x-auto overflow-y-hidden no-scrollbar text-left font-mono">
-                      <span dangerouslySetInnerHTML={{ __html: renderMath(parsed.math, true) }} />
+                    <div className="article-formula-row">
+                      <span className="block" dangerouslySetInnerHTML={{ __html: renderMath(parsed.math, true) }} />
                     </div>
                     {parsed.note ? (
-                      <div className="text-body-xs text-muted-foreground sm:text-right shrink-0 max-w-sm leading-relaxed">
+                      <div className="text-body-xs text-muted-foreground leading-relaxed">
                         {renderRichText(parsed.note)}
                       </div>
                     ) : null}
@@ -948,7 +948,7 @@ function ASTBlockRenderer({ block, density }: { block: ASTBlock; density?: Markd
                 );
               }
               return (
-                <div key={itemIdx} className="px-3.5 py-2 text-body-sm text-foreground hover:bg-muted/15 transition-colors">
+                <div key={itemIdx} className="py-1 text-body-sm text-foreground">
                   {renderRichText(item.text)}
                 </div>
               );
@@ -1440,7 +1440,7 @@ export function ASTRenderer({ blocks, className, density }: ASTRendererProps) {
               <div
                 key={`math-group-${idx}`}
                 className={cn(
-                  "rounded-xl border border-border/70 bg-card divide-y divide-border/40 overflow-hidden shadow-2xs",
+                  "min-w-0 max-w-full space-y-1 text-left",
                   activeDensity === "compact" ? "my-2" : "my-2.5"
                 )}
                 data-content-kind="formula-group"
@@ -1448,9 +1448,9 @@ export function ASTRenderer({ blocks, className, density }: ASTRendererProps) {
                 {item.blocks.map((mathBlock, bIdx) => (
                   <div
                     key={mathBlock.id || bIdx}
-                    className="px-3.5 py-1.5 sm:px-4 sm:py-2 text-left font-mono overflow-x-auto overflow-y-hidden no-scrollbar [&_.katex-display]:my-0 [&_.katex-display]:py-0 [&_.katex-display]:text-left hover:bg-muted/15 transition-colors"
+                    className="article-formula-row"
                   >
-                    <span dangerouslySetInnerHTML={{ __html: renderMath(standaloneMathSource(mathBlock.content), true) }} />
+                    <span className="block" dangerouslySetInnerHTML={{ __html: renderMath(standaloneMathSource(mathBlock.content), true) }} />
                   </div>
                 ))}
               </div>
