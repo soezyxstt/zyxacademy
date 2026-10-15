@@ -11,6 +11,13 @@ import {
 // STRING ATTRIBUTE PARSER UTILITY
 // ==========================================
 
+function startsMarkdownTable(lines: string[], index: number): boolean {
+  const headers = splitMarkdownTableRow(lines[index]);
+  const separator = splitMarkdownTableRow(lines[index + 1] ?? "");
+  return separator.length > 0 && separator.length === headers.length &&
+    separator.every(cell => /^:?-{3,}:?$/.test(cell));
+}
+
 function isEndingWithUnescapedPipe(str: string): boolean {
   if (!str.endsWith("|")) return false;
   let backslashCount = 0;
@@ -1094,7 +1101,7 @@ export function parseCanonicalMarkdown(markdown: string): ASTBlock[] {
           currentTrimmed === "---" || currentTrimmed === "***" || currentTrimmed === "___" ||
           /^(#{1,6})\s+/.test(currentLine) ||
           currentTrimmed.startsWith(">") ||
-          (currentTrimmed.startsWith("|") && currentTrimmed.endsWith("|") && currentTrimmed.length > 2)
+          (currentTrimmed.startsWith("|") && startsMarkdownTable(lines, i))
         ) {
           i--; // back up so the outer loop parses this line
           break;
@@ -1187,7 +1194,7 @@ export function parseCanonicalMarkdown(markdown: string): ASTBlock[] {
       lineType = "h";
     } else if (trimmed.startsWith(">")) {
       lineType = "blockquote";
-    } else if (trimmed.startsWith("|")) {
+    } else if (trimmed.startsWith("|") && (presenterType === "table" || startsMarkdownTable(lines, i))) {
       lineType = "table";
     } else if (trimmed.match(/^[-*+]\s+/) || trimmed.match(/^\d+\.\s+/)) {
       lineType = "list";
