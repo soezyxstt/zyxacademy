@@ -116,6 +116,21 @@ describe("Markdown Table Row Scanner Contract", () => {
   });
 
   describe("General table parsing integration", () => {
+    test("keeps the squeeze theorem absolute values in prose instead of table cells", () => {
+      const text = "|cos(x)|≤1 memberi −1/|x|≤cos(x)/x≤1/|x|.";
+      const blocks = parseCanonicalMarkdown(text);
+      expect(blocks).toHaveLength(1);
+      expect(blocks[0].type).toBe("p");
+      expect(blocks[0].content).toBe(text);
+      expect(compileMarkdown(text).ast.blocks.some(block => block.type === "table")).toBe(false);
+    });
+
+    test("requires a matching table separator before treating leading pipes as a table", () => {
+      expect(parseCanonicalMarkdown("|x|\n\nNilai mutlak.").map(block => block.type)).toEqual(["p", "p"]);
+      expect(parseCanonicalMarkdown("| A | B |\n|---|\n| 1 | 2 |").some(block => block.type === "table")).toBe(false);
+      expect(parseCanonicalMarkdown("| A | B |\n|:---|---:|\n| 1 | 2 |")[0].type).toBe("table");
+    });
+
     test("parses markdown table with math absolute value and escaped pipes into AST table block", () => {
       const markdown = [
         "| Simbol | Kondisi | Keterangan |",
