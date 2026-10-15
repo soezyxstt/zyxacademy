@@ -775,11 +775,12 @@ export default function AdminFormsBuilder({
             )}
 
             {/* Header Card (Title, Description, & Compact Toolbar) */}
-            <div className="rounded-2xl border border-border bg-card p-4 sm:p-5 shadow-sm border-l-4 border-l-brand-primary space-y-3">
+            <div className="rounded-xl border border-border bg-card p-4 space-y-3">
               <div>
-                <input
+                <Input
                   type="text"
-                  placeholder="Judul Formulir"
+                  aria-label="Judul formulir"
+                  placeholder="Judul formulir"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   className="w-full font-heading text-body-sm font-bold text-foreground bg-transparent border-b border-border/40 pb-1.5 focus:border-brand-primary focus:outline-none transition-colors"
@@ -787,12 +788,13 @@ export default function AdminFormsBuilder({
               </div>
 
               <div>
-                <textarea
+                <Textarea
+                  aria-label="Deskripsi formulir"
                   rows={1}
                   placeholder="Deskripsi formulir atau petunjuk bagi responden..."
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  className="w-full text-body-xs text-muted-foreground bg-transparent border-b border-border/40 pb-1 focus:border-brand-primary focus:outline-none transition-colors resize-none"
+                  className="w-full text-body-xs text-muted-foreground bg-transparent border-b border-border/40 pb-1 focus:border-brand-primary focus:outline-none transition-colors resize-none min-h-0"
                 />
               </div>
 
@@ -802,7 +804,7 @@ export default function AdminFormsBuilder({
                   <div className="flex items-center gap-1.5">
                     <span className="text-body-xs font-semibold text-muted-foreground">Kategori:</span>
                     <Select value={category} onValueChange={(val: any) => setCategory(val)}>
-                      <SelectTrigger className="w-40 h-7 text-body-xs font-semibold">
+                      <SelectTrigger className="w-40 h-7 text-body-sm font-semibold">
                         <SelectValue placeholder="Pilih Kategori" />
                       </SelectTrigger>
                       <SelectContent>
@@ -864,7 +866,7 @@ export default function AdminFormsBuilder({
                     setDraggedIdx(null);
                     setDragOverIdx(null);
                   }}
-                  className={`rounded-2xl border bg-card p-4 sm:p-4.5 shadow-sm transition-all space-y-3 relative ${
+                  className={`rounded-xl border bg-card p-3 sm:p-4 transition-colors space-y-3 relative ${
                     isDragging
                       ? "opacity-40 border-dashed border-brand-primary"
                       : isDragOver
@@ -940,25 +942,25 @@ export default function AdminFormsBuilder({
                           </button>
                         </PopoverTrigger>
                         <PopoverContent className="w-56 p-1 space-y-0.5">
-                          <button
+                          <Button variant="ghost" size="sm"
                             type="button"
                             onClick={() => handleDuplicateQuestion(qIdx)}
-                            className="w-full inline-flex items-center gap-2 rounded-md px-2.5 py-1.5 text-body-xs font-medium text-foreground hover:bg-muted transition-colors cursor-pointer text-left"
+                            className="w-full inline-flex justify-start items-center gap-2 rounded-md px-2.5 py-1.5 text-body-sm font-medium text-foreground hover:bg-muted transition-colors cursor-pointer text-left"
                           >
                             <Copy className="size-3.5 text-muted-foreground" />
                             Salin Pertanyaan
-                          </button>
+                          </Button>
 
-                          <button
+                          <Button variant="ghost" size="sm"
                             type="button"
                             onClick={() => handleQuestionChange(qIdx, { showDescription: !q.showDescription })}
-                            className="w-full inline-flex items-center gap-2 rounded-md px-2.5 py-1.5 text-body-xs font-medium text-foreground hover:bg-muted transition-colors cursor-pointer text-left"
+                            className="w-full inline-flex justify-start items-center gap-2 rounded-md px-2.5 py-1.5 text-body-sm font-medium text-foreground hover:bg-muted transition-colors cursor-pointer text-left"
                           >
                             <FileText className="size-3.5 text-muted-foreground" />
                             {q.showDescription ? "Sembunyikan Subteks" : "Tampilkan Subteks"}
-                          </button>
+                          </Button>
 
-                          <button
+                          <Button variant="ghost" size="sm"
                             type="button"
                             onClick={() => {
                               if (q.imageUrl) {
@@ -967,32 +969,32 @@ export default function AdminFormsBuilder({
                                 handleQuestionChange(qIdx, { showDescription: true });
                               }
                             }}
-                            className="w-full inline-flex items-center gap-2 rounded-md px-2.5 py-1.5 text-body-xs font-medium text-foreground hover:bg-muted transition-colors cursor-pointer text-left"
+                            className="w-full inline-flex justify-start items-center gap-2 rounded-md px-2.5 py-1.5 text-body-sm font-medium text-foreground hover:bg-muted transition-colors cursor-pointer text-left"
                           >
                             <ImageIcon className="size-3.5 text-muted-foreground" />
                             {q.imageUrl ? "Hapus Gambar" : "Lampirkan Gambar"}
-                          </button>
+                          </Button>
 
                           {(q.type === "RADIO" || q.type === "CHECKBOX" || q.type === "DROP_DOWN") && (
-                            <button
+                            <Button variant="ghost" size="sm"
                               type="button"
                               onClick={() => handleQuestionChange(qIdx, { shuffleOptions: !q.shuffleOptions })}
-                              className="w-full inline-flex items-center gap-2 rounded-md px-2.5 py-1.5 text-body-xs font-medium text-foreground hover:bg-muted transition-colors cursor-pointer text-left"
+                              className="w-full inline-flex justify-start items-center gap-2 rounded-md px-2.5 py-1.5 text-body-sm font-medium text-foreground hover:bg-muted transition-colors cursor-pointer text-left"
                             >
                               <Shuffle className="size-3.5 text-muted-foreground" />
                               {q.shuffleOptions ? "Nonaktifkan Acak Opsi" : "Acak Urutan Opsi"}
-                            </button>
+                            </Button>
                           )}
 
                           {questions.length > 1 && (
-                            <button
+                            <Button variant="ghost" size="sm"
                               type="button"
                               onClick={() => handleRemoveQuestion(qIdx)}
-                              className="w-full inline-flex items-center gap-2 rounded-md px-2.5 py-1.5 text-body-xs font-medium text-status-error hover:bg-status-error/10 transition-colors cursor-pointer text-left border-t border-border/40 mt-1 pt-1.5"
+                              className="w-full inline-flex justify-start items-center gap-2 rounded-md px-2.5 py-1.5 text-body-sm font-medium text-status-error hover:bg-status-error/10 transition-colors cursor-pointer text-left border-t border-border/40 mt-1 pt-1.5"
                             >
                               <Trash2 className="size-3.5 text-status-error" />
                               Hapus Pertanyaan
-                            </button>
+                            </Button>
                           )}
                         </PopoverContent>
                       </Popover>
@@ -1085,7 +1087,7 @@ export default function AdminFormsBuilder({
                         value={q.type}
                         onValueChange={(val: QuestionType) => handleQuestionChange(qIdx, { type: val })}
                       >
-                        <SelectTrigger className="w-full h-8.5 text-body-xs font-semibold">
+                        <SelectTrigger className="w-full h-8.5 text-body-sm font-semibold">
                           <div className="flex items-center gap-2 truncate">
                             <span className="text-brand-primary shrink-0">
                               {q.type === "TEXT" && <AlignLeft className="size-4" />}
@@ -1281,7 +1283,7 @@ export default function AdminFormsBuilder({
 
                     {/* 7. ENHANCED MATRIX EDITOR & PREVIEW UI (GRID_RADIO & GRID_CHECKBOX) */}
                     {(q.type === "GRID_RADIO" || q.type === "GRID_CHECKBOX") && (
-                      <div className="space-y-3 rounded-2xl border border-border/80 bg-card p-3.5 text-body-xs">
+                      <div className="space-y-3 border-t border-border/80 pt-3 text-body-xs">
                         {/* Editor Controls Header */}
                         <div className="flex items-center gap-2 border-b border-border/60 pb-2">
                           <Layers className="size-4 text-brand-primary" />
@@ -1293,7 +1295,7 @@ export default function AdminFormsBuilder({
                         {/* Side-by-Side Row & Column Item Editors */}
                         <div className="grid gap-3 sm:grid-cols-2">
                           {/* Rows Editor */}
-                          <div className="rounded-xl border border-border bg-muted/20 p-3 space-y-2">
+                          <div className="border-t border-border pt-3 space-y-2">
                             <p className="font-bold text-foreground flex items-center justify-between">
                               <span>Baris (Pertanyaan)</span>
                               <span className="text-muted-foreground font-mono text-body-xs">({(q.gridRows || []).length} items)</span>
@@ -1328,7 +1330,7 @@ export default function AdminFormsBuilder({
                           </div>
 
                           {/* Columns Editor */}
-                          <div className="rounded-xl border border-border bg-muted/20 p-3 space-y-2">
+                          <div className="border-t border-border pt-3 space-y-2">
                             <p className="font-bold text-foreground flex items-center justify-between">
                               <span>Kolom (Skala Opsi)</span>
                               <span className="text-muted-foreground font-mono text-body-xs">({(q.gridColumns || []).length} items)</span>
@@ -1469,7 +1471,7 @@ export default function AdminFormsBuilder({
 
           {/* Floating Actions Sidebar Column */}
           <div className="md:col-span-3 space-y-3 md:sticky md:top-24">
-            <div className="rounded-2xl border border-border bg-card p-3.5 shadow-sm space-y-2">
+            <div className="border-l border-border pl-3.5 space-y-2">
               <p className="text-body-xs font-bold text-foreground uppercase tracking-wider">
                 {editingFormId ? "Aksi Edit Formulir" : "Aksi Formulir"}
               </p>
@@ -1547,7 +1549,7 @@ export default function AdminFormsBuilder({
             </div>
 
             {presetsEnabled && (
-              <div className="rounded-2xl border border-border bg-card p-3.5 shadow-sm">
+              <div className="border-t border-border pt-3.5">
                 <FormPresetsPanel
                   category={category}
                   questions={questions}
@@ -1587,7 +1589,7 @@ export default function AdminFormsBuilder({
               </Button>
             </div>
 
-            <div className="rounded-2xl border border-border bg-card p-2 sm:p-4 shadow-sm overflow-hidden">
+            <div className="overflow-hidden">
               <PublicFormViewer
                 previewForm={{
                   id: editingFormId || "preview",
@@ -1607,22 +1609,19 @@ export default function AdminFormsBuilder({
         <TabsContent value="settings">
         <div className="space-y-4 w-full">
           {presetsEnabled && (
-            <div className="rounded-2xl border border-border bg-card p-4 sm:p-5 shadow-sm">
+            <div className="rounded-xl border border-border bg-card p-4">
               <PresetSettingsLoader
                 onApplySettings={(s) => setSettings((prev) => ({ ...prev, ...s }))}
               />
             </div>
           )}
 
-          <div className="rounded-2xl border border-border bg-card p-4 sm:p-5 shadow-sm space-y-4">
+          <div className="rounded-xl border border-border bg-card p-4 space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-3 pb-1">
               <div>
                 <h2 className="font-heading text-body-base font-bold text-foreground">
                   Pengaturan Tanggapan & Akses
                 </h2>
-                <p className="text-body-xs text-muted-foreground mt-0.5">
-                  Kelola pengumpulan respon, privasi, dan batasan jadwal.
-                </p>
               </div>
               <div className="flex items-center gap-2">
                 {editingFormId && (
@@ -1631,7 +1630,7 @@ export default function AdminFormsBuilder({
                     variant="outline"
                     size="sm"
                     onClick={handleCancelEdit}
-                    className="text-body-xs h-8"
+                    className="text-body-sm h-8"
                   >
                     <Undo2 className="size-3.5" />
                     Batal Edit
@@ -1643,7 +1642,7 @@ export default function AdminFormsBuilder({
                   disabled={submitting}
                   isLoading={submitting}
                   size="sm"
-                  className="text-body-xs h-8"
+                  className="text-body-sm h-8"
                 >
                   {editingFormId ? (
                     <>
@@ -1667,13 +1666,12 @@ export default function AdminFormsBuilder({
               </p>
 
               <div
-                className="flex items-center justify-between rounded-xl border border-border bg-muted/20 p-3"
+                className="flex items-center justify-between gap-3 py-2"
               >
                 <div>
                   <Label htmlFor="builder-setting-accepting" className="text-body-sm font-semibold text-foreground cursor-pointer">
                     Menerima Tanggapan
                   </Label>
-                  <p className="text-body-xs text-muted-foreground">Izinkan responden mengisi formulir ini.</p>
                 </div>
                 <Switch
                   id="builder-setting-accepting"
@@ -1739,13 +1737,13 @@ export default function AdminFormsBuilder({
                     value={settings.collectEmail}
                     onValueChange={(val: any) => setSettings({ ...settings, collectEmail: val })}
                   >
-                    <SelectTrigger className="w-full h-8 text-body-xs">
+                    <SelectTrigger className="w-full h-8 text-body-sm">
                       <SelectValue placeholder="Pilih Pengumpulan Email" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="none">Do not collect (Tidak dikumpulkan)</SelectItem>
-                      <SelectItem value="input">Responder input (Diisi manual)</SelectItem>
-                      <SelectItem value="verified">Verified (Verifikasi Akun Zyx)</SelectItem>
+                      <SelectItem value="none">Tidak dikumpulkan</SelectItem>
+                      <SelectItem value="input">Diisi manual</SelectItem>
+                      <SelectItem value="verified">Akun Zyx terverifikasi</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -1758,26 +1756,25 @@ export default function AdminFormsBuilder({
                     value={settings.sendResponseCopy}
                     onValueChange={(val: any) => setSettings({ ...settings, sendResponseCopy: val })}
                   >
-                    <SelectTrigger className="w-full h-8 text-body-xs">
+                    <SelectTrigger className="w-full h-8 text-body-sm">
                       <SelectValue placeholder="Kirim Salinan Respon" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="off">Off (Mati)</SelectItem>
-                      <SelectItem value="requested">When requested (Saat diminta)</SelectItem>
-                      <SelectItem value="always">Always (Selalu dikirim)</SelectItem>
+                      <SelectItem value="off">Tidak dikirim</SelectItem>
+                      <SelectItem value="requested">Saat diminta</SelectItem>
+                      <SelectItem value="always">Selalu dikirim</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
               </div>
 
               <div
-                className="flex items-center justify-between rounded-xl border border-border bg-muted/20 p-3"
+                className="flex items-center justify-between gap-3 py-2"
               >
                 <div>
                   <Label htmlFor="builder-setting-allow-edit" className="text-body-sm font-semibold text-foreground cursor-pointer">
                     Izinkan pengeditan respons
                   </Label>
-                  <p className="text-body-xs text-muted-foreground">Respon dapat diubah kembali setelah dikirimkan.</p>
                 </div>
                 <Switch
                   id="builder-setting-allow-edit"
@@ -1787,13 +1784,12 @@ export default function AdminFormsBuilder({
               </div>
 
               <div
-                className="flex items-center justify-between rounded-xl border border-border bg-muted/20 p-3"
+                className="flex items-center justify-between gap-3 py-2"
               >
                 <div>
                   <Label htmlFor="builder-setting-limit-one" className="text-body-sm font-semibold text-foreground cursor-pointer">
                     Batasi 1 respons per pengguna
                   </Label>
-                  <p className="text-body-xs text-muted-foreground">Membatasi responden hanya boleh 1 kali pengisian.</p>
                 </div>
                 <Switch
                   id="builder-setting-limit-one"
@@ -1817,7 +1813,7 @@ export default function AdminFormsBuilder({
                   value={settings.maxFileSizeLimit}
                   onValueChange={(val: any) => setSettings({ ...settings, maxFileSizeLimit: val })}
                 >
-                  <SelectTrigger className="w-full sm:w-1/2 h-8 text-body-xs">
+                  <SelectTrigger className="w-full sm:w-1/2 h-8 text-body-sm">
                     <SelectValue placeholder="Batas Ukuran File" />
                   </SelectTrigger>
                   <SelectContent>
@@ -1848,7 +1844,7 @@ export default function AdminFormsBuilder({
                     variant="outline"
                     size="sm"
                     onClick={handleCancelEdit}
-                    className="text-body-xs h-8"
+                    className="text-body-sm h-8"
                   >
                     <Undo2 className="size-3.5" />
                     Batal Edit
@@ -1860,7 +1856,7 @@ export default function AdminFormsBuilder({
                   disabled={submitting}
                   isLoading={submitting}
                   size="sm"
-                  className="text-body-xs h-8"
+                  className="text-body-sm h-8"
                 >
                   {editingFormId ? (
                     <>
@@ -1885,11 +1881,8 @@ export default function AdminFormsBuilder({
           <div className="flex items-center justify-between border-b border-border pb-3">
             <div>
               <h2 className="font-heading text-body-base font-bold text-foreground">
-                Daftar Formulir Terbit
+                Formulir terbit
               </h2>
-              <p className="text-body-xs text-muted-foreground">
-                Kelola formulir yang telah diterbitkan beserta short link dan visualisasi respon.
-              </p>
             </div>
             <button
               type="button"
@@ -1910,14 +1903,14 @@ export default function AdminFormsBuilder({
             <div className="flex flex-col items-center justify-center rounded-2xl border border-border bg-card p-12 text-center">
               <FileText className="size-10 text-muted-foreground/60" />
               <p className="mt-3 font-heading text-body-base font-semibold text-foreground">
-                Belum Ada Formulir Terbuat
+                Belum ada formulir
               </p>
               <p className="mt-1 text-body-sm text-muted-foreground max-w-md">
                 Gunakan tab &quot;Editor Pertanyaan&quot; untuk merancang dan menerbitkan formulir baru.
               </p>
             </div>
           ) : (
-            <div className="grid gap-4">
+            <div className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
               {forms.map((f) => {
                 const isDeleting = deletingId === f.id;
                 const shortPath = `/f/${f.slug}`;
@@ -1928,7 +1921,7 @@ export default function AdminFormsBuilder({
                 return (
                   <article
                     key={f.id}
-                    className="min-w-0 rounded-2xl border border-border/80 bg-card p-4 shadow-xs transition-colors hover:border-border hover:bg-muted/20 sm:p-5"
+                    className="min-w-0 p-4 transition-colors hover:bg-muted/20"
                   >
                     <div className="flex min-w-0 flex-col gap-4">
                       <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">

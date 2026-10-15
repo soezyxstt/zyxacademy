@@ -1,7 +1,10 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { RefreshCw, TriangleAlert } from "lucide-react";
+import { RefreshCw } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import { AdminEmptyState, AdminErrorState } from "@/components/admin/state-panels";
 import type { OpsMetrics } from "@/lib/ops-metrics";
 
 function relativeTime(iso: string | null): string {
@@ -92,8 +95,8 @@ export function OpsClient() {
       <div className="max-w-4xl space-y-8">
         {Array.from({ length: 6 }).map((_, i) => (
           <div key={i} className="space-y-3">
-            <div className="h-6 rounded-md bg-muted animate-pulse w-48" />
-            <div className="h-4 rounded-md bg-muted animate-pulse w-64" />
+            <Skeleton className="h-6 w-48" />
+            <Skeleton className="h-4 w-64" />
           </div>
         ))}
       </div>
@@ -102,14 +105,7 @@ export function OpsClient() {
 
   if (error || !data) {
     return (
-      <div className="max-w-4xl">
-        <div className="flex items-center gap-2">
-          <TriangleAlert className="size-4 text-status-error" />
-          <span className="text-body-sm text-status-error">
-            Failed to load ops metrics.
-          </span>
-        </div>
-      </div>
+      <AdminErrorState message="Gagal memuat metrik operasional." onRetry={() => refetch()} />
     );
   }
 
@@ -122,21 +118,24 @@ export function OpsClient() {
 
   return (
     <div className="max-w-4xl space-y-6">
-      <div className="flex justify-end border-b border-border/40 pb-4">
-        <button
+      <div className="flex justify-end">
+        <Button
+          variant="outline"
+          size="sm"
+          disabled={isFetching}
           onClick={() => refetch()}
           className="flex items-center gap-2 text-body-sm text-muted-foreground hover:text-foreground transition-colors duration-150 cursor-pointer"
         >
           <RefreshCw className={`size-4 ${isFetching ? "animate-spin" : ""}`} />
           Refresh
-        </button>
+        </Button>
       </div>
 
       <div className="divide-y divide-border">
         {/* 1. AI usage */}
-        <div className="py-8 first:pt-0 space-y-4">
+        <div className="py-4 first:pt-0 space-y-3">
           <SectionHead title="AI usage" status={geminiStatus} checkedAt={data.checkedAt} />
-          <div className="flex flex-wrap gap-8">
+          <div className="flex flex-wrap gap-x-6 gap-y-3">
             <Stat
               label="Model requests today"
               value={data.gemini.reqToday}
@@ -153,9 +152,9 @@ export function OpsClient() {
         </div>
 
         {/* 2. KV Writes */}
-        <div className="py-8 space-y-4">
+        <div className="py-4 space-y-3">
           <SectionHead title="KV Writes" status={kvStatus} checkedAt={data.checkedAt} />
-          <div className="flex flex-wrap gap-8">
+          <div className="flex flex-wrap gap-x-6 gap-y-3">
             <Stat
               label="writes today"
               value={data.kv.writesToday}
@@ -170,10 +169,10 @@ export function OpsClient() {
         </div>
 
         {/* 3. Usage by Feature */}
-        <div className="py-8 space-y-4">
+        <div className="py-4 space-y-3">
           <SectionHead title="Usage by Feature" status="healthy" checkedAt={data.checkedAt} />
           {data.usageByFeature.length === 0 ? (
-            <p className="text-body-sm text-muted-foreground">No model requests logged today.</p>
+            <AdminEmptyState compact title="Belum ada permintaan hari ini" />
           ) : (
             <div className="divide-y divide-border">
               {data.usageByFeature.map((row) => (
@@ -199,31 +198,31 @@ export function OpsClient() {
         </div>
 
         {/* 4. Job Failures */}
-        <div className="py-8 space-y-4">
+        <div className="py-4 space-y-3">
           <SectionHead
             title="Job Failures (24 h)"
             status={failureStatus}
             checkedAt={data.checkedAt}
           />
-          <div className="flex flex-wrap gap-8">
+          <div className="flex flex-wrap gap-x-6 gap-y-3">
             <Stat label="failed generation jobs" value={data.jobFailures24h} />
           </div>
         </div>
 
         {/* 5. Vector Sync Queue */}
-        <div className="py-8 space-y-4">
+        <div className="py-4 space-y-3">
           <SectionHead
             title="Vector Sync Queue"
             status={queueStatus}
             checkedAt={data.checkedAt}
           />
-          <div className="flex flex-wrap gap-8">
+          <div className="flex flex-wrap gap-x-6 gap-y-3">
             <Stat label="pending items" value={data.syncQueueDepth} />
           </div>
         </div>
 
         {/* 6. Job Health */}
-        <div className="py-8 space-y-4">
+        <div className="py-4 space-y-3">
           <SectionHead title="Job Health" status="healthy" checkedAt={data.checkedAt} />
           <div className="divide-y divide-border">
             <div className="py-3 flex items-center justify-between gap-4">

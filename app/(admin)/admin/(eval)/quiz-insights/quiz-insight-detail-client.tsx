@@ -216,7 +216,7 @@ export function QuizInsightDetailClient({
   const courseDisplayName = lockedCourse?.title || template.courseName || template.courseId;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <AdminPageHeader
         icon={BarChart3}
         backHref={backHref}
@@ -280,7 +280,6 @@ export function QuizInsightDetailClient({
         <AdminStatStripItem
           label="Rata-rata Waktu"
           value={formatDuration(summary.avgDurationSeconds)}
-          caption="Durasi pengerjaan siswa"
           icon={BookOpen}
           iconClassName="text-brand-secondary"
         />
@@ -296,26 +295,23 @@ export function QuizInsightDetailClient({
               <span className="text-body-sm font-normal text-muted-foreground">Belum Dianalisis</span>
             )
           }
-          caption={latestAiInsight ? `Berdasarkan ${latestAiInsight.sampleSize} pengerjaan` : "Klik tombol analisis di atas"}
+          caption={latestAiInsight ? `Berdasarkan ${latestAiInsight.sampleSize} pengerjaan` : undefined}
           icon={BrainCircuit}
           iconClassName="text-amber-500"
         />
       </AdminStatStrip>
 
       {/* Multi-Tab Analytics Section */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList>
           <TabsTrigger value="ai-insights" className="gap-2">
             <BrainCircuit className="size-4 text-brand-primary" />
-            <span>AI Insight & Pedagogi</span>
+            <span>Evaluasi AI</span>
             <BetaBadge />
           </TabsTrigger>
           <TabsTrigger value="questions" className="gap-2">
             <Target className="size-4" />
-            <span>Analisis Butir Soal</span>
-            <Badge variant="secondary" className="ml-1 px-1.5 py-0 text-body-xs font-semibold">
-              {questionAnalysis.length}
-            </Badge>
+            <span>Analisis soal</span>
           </TabsTrigger>
           <TabsTrigger value="score-dist" className="gap-2">
             <BarChart3 className="size-4" />
@@ -324,14 +320,11 @@ export function QuizInsightDetailClient({
           <TabsTrigger value="attempts-sheet" className="gap-2">
             <FileSpreadsheet className="size-4 text-brand-primary" />
             <span>Pengerjaan Siswa</span>
-            <Badge variant="secondary" className="ml-1 px-1.5 py-0 text-body-xs font-semibold">
-              {summary.totalCompleted}
-            </Badge>
           </TabsTrigger>
         </TabsList>
 
-        {/* Tab 1: AI Insight & Pedagogical Recommendations */}
-        <TabsContent value="ai-insights" className="space-y-6">
+        {/* Tab 1: AI evaluation */}
+        <TabsContent value="ai-insights" className="space-y-4">
           {!latestAiInsight ? (
             <div className="border border-border/80 rounded-2xl p-12 text-center bg-card/50 space-y-4">
               <div className="size-12 rounded-full bg-brand-primary/10 text-brand-primary flex items-center justify-center mx-auto">
@@ -349,16 +342,16 @@ export function QuizInsightDetailClient({
                 className="gap-2 bg-brand-primary text-white hover:bg-brand-primary/90"
               >
                 {analyzingAi ? <RefreshCw className="size-4 animate-spin" /> : <Zap className="size-4" />}
-                {summary.totalCompleted === 0 ? "Butuh minimal 1 pengerjaan siswa" : "Jalankan Analisis Sekarang"}
+                {summary.totalCompleted === 0 ? "Butuh minimal 1 pengerjaan siswa" : "Jalankan analisis"}
               </Button>
             </div>
           ) : (
-            <div className="space-y-6">
+            <div className="space-y-4">
               {/* Executive Summary */}
-              <div className="border border-border rounded-xl p-5 bg-card/80 space-y-3">
+              <div className="border border-border rounded-xl p-4 bg-card space-y-3">
                 <div className="flex items-center gap-2 text-foreground font-semibold text-body-base">
                   <Lightbulb className="size-5 text-amber-500" />
-                  <h4>Ringkasan Evaluasi Performa</h4>
+                  <h4>Ringkasan evaluasi</h4>
                 </div>
                 <p className="text-body-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">
                   {latestAiInsight.insights.summaryOverview || latestAiInsight.summary}
@@ -366,19 +359,19 @@ export function QuizInsightDetailClient({
               </div>
 
               {/* Teaching Recommendations & Misconceptions */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {/* Misconceptions */}
-                <div className="border border-border rounded-xl p-5 bg-card/60 space-y-4">
+                <div className="border border-border rounded-xl p-4 bg-card space-y-3">
                   <h4 className="font-semibold text-body-base text-foreground flex items-center gap-2">
                     <AlertTriangle className="size-4 text-status-warning" />
-                    <span>Miskonsepsi Siswa Teridentifikasi</span>
+                    <span>Miskonsepsi</span>
                   </h4>
                   {latestAiInsight.insights.misconceptions?.length === 0 ? (
                     <p className="text-body-xs text-muted-foreground italic">Tidak ditemukan pola miskonsepsi kritis.</p>
                   ) : (
                     <div className="space-y-3">
                       {latestAiInsight.insights.misconceptions?.map((misc, idx) => (
-                        <div key={idx} className="p-3 bg-muted/40 rounded-lg border border-border space-y-1.5">
+                        <div key={idx} className="py-3 border-b border-border last:border-0 space-y-1.5">
                           <div className="flex items-center justify-between">
                             <span className="font-semibold text-body-sm text-foreground">{misc.concept}</span>
                             <Badge
@@ -396,17 +389,17 @@ export function QuizInsightDetailClient({
                 </div>
 
                 {/* Recommendations */}
-                <div className="border border-border rounded-xl p-5 bg-card/60 space-y-4">
+                <div className="border border-border rounded-xl p-4 bg-card space-y-3">
                   <h4 className="font-semibold text-body-base text-foreground flex items-center gap-2">
                     <Target className="size-4 text-status-info" />
-                    <span>Rekomendasi Tindak Lanjut Tutor</span>
+                    <span>Tindak lanjut</span>
                   </h4>
                   {latestAiInsight.insights.teachingRecommendations?.length === 0 ? (
                     <p className="text-body-xs text-muted-foreground italic">Belum ada rekomendasi khusus.</p>
                   ) : (
                     <div className="space-y-3">
                       {latestAiInsight.insights.teachingRecommendations?.map((rec, idx) => (
-                        <div key={idx} className="p-3 bg-muted/40 rounded-lg border border-border space-y-1.5">
+                        <div key={idx} className="py-3 border-b border-border last:border-0 space-y-1.5">
                           <span className="font-semibold text-body-sm text-foreground">{rec.topic}</span>
                           <p className="text-body-xs font-medium text-brand-primary">{rec.actionItem}</p>
                           <p className="text-body-xs text-muted-foreground">{rec.rationale}</p>
@@ -419,14 +412,14 @@ export function QuizInsightDetailClient({
 
               {/* Hardest Questions Deep Dive */}
               {latestAiInsight.insights.hardestQuestionsAnalysis?.length > 0 && (
-                <div className="border border-border rounded-xl p-5 bg-card/60 space-y-4">
+                <div className="border border-border rounded-xl p-4 bg-card space-y-3">
                   <h4 className="font-semibold text-body-base text-foreground flex items-center gap-2">
                     <AlertTriangle className="size-4 text-status-error" />
-                    <span>Analisis Soal Paling Sulit & Distraktor Jebakan</span>
+                    <span>Soal sulit dan distraktor</span>
                   </h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {latestAiInsight.insights.hardestQuestionsAnalysis.map((item, idx) => (
-                      <div key={idx} className="p-3.5 bg-muted/30 border border-border rounded-lg space-y-2">
+                      <div key={idx} className="py-3 border-b border-border last:border-0 space-y-2">
                         <div className="flex items-center justify-between gap-2">
                           <span className="text-body-xs font-mono text-muted-foreground">ID: {item.questionId}</span>
                           <Badge variant="outline" className="text-status-error border-status-error/40 text-body-xs">
@@ -448,10 +441,10 @@ export function QuizInsightDetailClient({
         </TabsContent>
 
         {/* Tab 2: Question Item & Distractor Analysis */}
-        <TabsContent value="questions" className="space-y-6">
+        <TabsContent value="questions" className="space-y-4">
           <div className="space-y-4">
             {questionAnalysis.map((q, idx) => (
-              <div key={q.questionId} className="border border-border rounded-xl p-5 bg-card/60 space-y-4">
+              <div key={q.questionId} className="border border-border rounded-xl p-4 bg-card space-y-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
                     <span className="size-6 rounded-full bg-brand-primary/10 text-brand-primary text-body-xs font-bold flex items-center justify-center">
@@ -479,7 +472,7 @@ export function QuizInsightDetailClient({
 
                 {/* Option Breakdown */}
                 <div className="space-y-2 pt-2 border-t border-border">
-                  <p className="text-body-xs font-semibold text-muted-foreground">Distribusi Pilihan Jawaban Siswa:</p>
+                  <p className="text-body-xs font-semibold text-muted-foreground">Distribusi jawaban</p>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     {q.options.map((opt, optIdx) => {
                       const isCorrect = q.correctIndices.includes(optIdx);
@@ -510,7 +503,7 @@ export function QuizInsightDetailClient({
                 </div>
 
                 {q.explanation && (
-                  <div className="p-3 bg-muted/40 rounded-lg text-body-xs text-muted-foreground space-y-1">
+                  <div className="border-t border-border pt-3 text-body-xs text-muted-foreground space-y-1">
                     <p className="font-semibold text-foreground">Pembahasan:</p>
                     <MathText>{q.explanation}</MathText>
                   </div>
@@ -521,13 +514,13 @@ export function QuizInsightDetailClient({
         </TabsContent>
 
         {/* Tab 3: Score Distribution & Concept Mastery */}
-        <TabsContent value="score-dist" className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <TabsContent value="score-dist" className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Score Ranges */}
-            <div className="border border-border rounded-xl p-5 bg-card/60 space-y-4">
+            <div className="border border-border rounded-xl p-4 bg-card space-y-3">
               <h4 className="font-semibold text-body-base text-foreground flex items-center gap-2">
                 <BarChart3 className="size-4 text-brand-primary" />
-                <span>Distribusi Rentang Nilai Siswa</span>
+                <span>Distribusi nilai</span>
               </h4>
               <div className="space-y-3 pt-2">
                 {[
@@ -554,10 +547,10 @@ export function QuizInsightDetailClient({
             </div>
 
             {/* Concept Mastery Tags */}
-            <div className="border border-border rounded-xl p-5 bg-card/60 space-y-4">
+            <div className="border border-border rounded-xl p-4 bg-card space-y-3">
               <h4 className="font-semibold text-body-base text-foreground flex items-center gap-2">
                 <Target className="size-4 text-brand-secondary" />
-                <span>Penguasaan Topik & Konsep</span>
+                <span>Penguasaan konsep</span>
               </h4>
               {conceptAnalysis.length === 0 ? (
                 <p className="text-body-xs text-muted-foreground italic">Tidak ada metadata tag pada soal kuis ini.</p>

@@ -7,6 +7,7 @@ import { auth } from "@/lib/auth";
 import { createMetadata, pageTitle } from "@/lib/site";
 import { Reveal } from "@/components/ui/reveal";
 import { PageHeader } from "@/components/page-header";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { studentCardClass } from "@/components/course/course-surfaces";
 import { getCourseLeaderboard } from "@/lib/course-utils";
 import { listStudentCourses, listStudentEnrollments } from "@/lib/student/course-catalog";
@@ -73,17 +74,13 @@ export default async function LeaderboardPage() {
           </p>
         </div>
       ) : (
-        <div className="space-y-12">
+        <div className="space-y-4">
           {allCourses.map((course) => {
             const rows = leaderboardByCourse[course.id] ?? [];
-            const p1 = rows.find((r) => r.rank === 1);
-            const p2 = rows.find((r) => r.rank === 2);
-            const p3 = rows.find((r) => r.rank === 3);
-            const others = rows.filter((r) => r.rank > 3);
 
             return (
               <section key={course.id} className={studentCardClass("bg-card/45")}>
-                <div className="mb-6 flex items-center justify-between">
+                <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                   <h2 className="font-heading text-body-base font-bold text-foreground">
                     {course.title}
                   </h2>
@@ -99,128 +96,25 @@ export default async function LeaderboardPage() {
                 {rows.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-10 text-center rounded-xl border border-dashed border-border bg-muted/10">
                     <Trophy className="size-8 text-muted-foreground/25 mb-2" />
-                    <p className="text-body-sm text-muted-foreground">Belum ada kuis yang diselesaikan untuk kelas ini.</p>
+                    <p className="text-body-sm text-muted-foreground">Belum ada hasil kuis.</p>
                   </div>
                 ) : (
-                  <div className="space-y-6">
-                    {/* Podium for top 3 */}
-                    <div className="grid grid-cols-3 gap-3 items-end mb-6 max-w-xl mx-auto pt-6">
-                      {/* Rank 2 */}
-                      <div className="flex flex-col items-center">
-                        {p2 ? (
-                          <div className="w-full flex flex-col items-center">
-                            <div className="relative flex flex-col items-center justify-end p-4 rounded-xl border border-border/70 bg-card/75 backdrop-blur-md shadow-2xs w-full text-center min-h-[140px] hover:border-brand-primary/40 transition-all">
-                              <div className="absolute -top-5 flex size-9 items-center justify-center rounded-full bg-slate-200 border border-slate-300 dark:bg-slate-800 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-bold text-body-sm shadow-xs shrink-0">
-                                2
-                              </div>
-                              <div className="font-heading text-body-xs font-bold text-foreground line-clamp-2 w-full px-1">
-                                {p2.name}
-                              </div>
-                              <div className="font-heading text-h6 font-bold text-slate-600 dark:text-slate-400 mt-1">
-                                {p2.avgScore}%
-                              </div>
-                              <div className="text-body-xs text-muted-foreground mt-0.5">
-                                {p2.attempts} kuis
-                              </div>
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="h-10 w-full" />
-                        )}
-                      </div>
-
-                      {/* Rank 1 */}
-                      <div className="flex flex-col items-center relative -top-3">
-                        {p1 ? (
-                          <div className="w-full flex flex-col items-center">
-                            <div className="relative flex flex-col items-center justify-end p-5 rounded-2xl border-2 border-brand-secondary/40 bg-card/75 backdrop-blur-md shadow-md w-full text-center min-h-[170px] hover:border-brand-secondary transition-all">
-                              <div className="absolute -top-7 flex size-11 items-center justify-center rounded-full bg-brand-secondary border-2 border-amber-300 text-white font-bold text-body-base shadow-md shrink-0">
-                                🥇
-                              </div>
-                              <div className="font-heading text-body-sm font-extrabold text-foreground line-clamp-2 w-full px-1">
-                                {p1.name}
-                              </div>
-                              <div className="text-h6 font-extrabold text-brand-secondary mt-1">
-                                {p1.avgScore}%
-                              </div>
-                              <div className="text-body-xs text-muted-foreground font-medium mt-0.5">
-                                {p1.attempts} kuis
-                              </div>
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="h-10 w-full" />
-                        )}
-                      </div>
-
-                      {/* Rank 3 */}
-                      <div className="flex flex-col items-center">
-                        {p3 ? (
-                          <div className="w-full flex flex-col items-center">
-                            <div className="relative flex flex-col items-center justify-end p-4 rounded-xl border border-border/70 bg-card/75 backdrop-blur-md shadow-2xs w-full text-center min-h-[125px] hover:border-brand-primary/40 transition-all">
-                              <div className="absolute -top-5 flex size-9 items-center justify-center rounded-full bg-amber-700/10 border border-amber-700/20 text-amber-800 dark:bg-amber-900/20 dark:border-amber-900/30 dark:text-amber-400 font-bold text-body-sm shadow-xs shrink-0">
-                                3
-                              </div>
-                              <div className="font-heading text-body-xs font-bold text-foreground line-clamp-2 w-full px-1">
-                                {p3.name}
-                              </div>
-                              <div className="font-heading text-h6 font-bold text-amber-700 dark:text-amber-500 mt-1">
-                                {p3.avgScore}%
-                              </div>
-                              <div className="text-body-xs text-muted-foreground mt-0.5">
-                                {p3.attempts} kuis
-                              </div>
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="h-10 w-full" />
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Table for other ranks */}
-                    {others.length > 0 && (
-                      <div className="overflow-hidden rounded-xl border border-border bg-card/60 shadow-xs">
-                        <table className="w-full text-left text-body-sm">
-                          <thead>
-                            <tr className="border-b border-border bg-muted/20">
-                              <th className="px-4 py-3 text-body-xs font-semibold uppercase tracking-wide text-muted-foreground w-14">
-                                #
-                              </th>
-                              <th className="px-4 py-3 text-body-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                                Nama
-                              </th>
-                              <th className="px-4 py-3 text-body-xs font-semibold uppercase tracking-wide text-muted-foreground text-right">
-                                Rata-rata
-                              </th>
-                              <th className="px-4 py-3 text-body-xs font-semibold uppercase tracking-wide text-muted-foreground text-right">
-                                Kuis
-                              </th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {others.map((r) => (
-                              <tr
-                                key={r.name}
-                                className="border-b border-border/40 hover:bg-muted/10 last:border-0 transition-colors"
-                              >
-                                <td className="px-4 py-3 tabular-nums font-semibold text-muted-foreground">
-                                  {r.rank}
-                                </td>
-                                <td className="px-4 py-3 font-medium text-foreground">{r.name}</td>
-                                <td className="px-4 py-3 tabular-nums font-semibold text-brand-primary text-right">
-                                  {r.avgScore}%
-                                </td>
-                                <td className="px-4 py-3 tabular-nums text-muted-foreground text-right">
-                                  {r.attempts}×
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    )}
-                  </div>
+                  <Table>
+                    <TableHeader><TableRow>
+                      <TableHead className="w-12">#</TableHead>
+                      <TableHead>Nama</TableHead>
+                      <TableHead className="text-right">Nilai</TableHead>
+                      <TableHead className="text-right">Kuis</TableHead>
+                    </TableRow></TableHeader>
+                    <TableBody>{rows.map((row) => (
+                      <TableRow key={`${course.id}-${row.rank}`}>
+                        <TableCell className="tabular-nums">{row.rank}</TableCell>
+                        <TableCell className="font-medium">{row.name}</TableCell>
+                        <TableCell className="text-right tabular-nums text-primary">{row.avgScore}%</TableCell>
+                        <TableCell className="text-right tabular-nums">{row.attempts}</TableCell>
+                      </TableRow>
+                    ))}</TableBody>
+                  </Table>
                 )}
               </section>
             );

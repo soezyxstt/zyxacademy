@@ -80,7 +80,7 @@ export default async function CourseTryoutListPage({ params }: Props) {
   return (
     <CoursePageShell
       title={`Tryout Ujian: ${course.title}`}
-      description="Simulasikan ujian asli dengan batas waktu dan analisis pembahasan."
+
       icon={GraduationCap}
     >
       <Reveal>

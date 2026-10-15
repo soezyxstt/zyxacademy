@@ -21,11 +21,10 @@ export default async function TutorialPkaRegistrationsPage() {
   const registrations = await getPkaRegistrationsAction();
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-4">
       <AdminPageHeader
         icon={UserCheck}
         title="Pendaftar Tutorial PKA"
-        description="Kelola pendaftar sesi review live Tutorial PKA."
       />
       <TabNav
         tabs={[

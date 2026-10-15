@@ -113,14 +113,14 @@ function rectsIntersect(a: { left: number; top: number; right: number; bottom: n
 function FileThumb({ file }: { file: MediaFile }) {
   if (file.kind === "image") {
     return (
-      <div className="bg-muted relative flex aspect-photo-card w-full items-center justify-center overflow-hidden rounded-lg border border-border/80">
+      <div className="bg-muted relative flex aspect-photo-card w-full items-center justify-center overflow-hidden rounded-lg">
         <Image src={file.url} alt={file.name} fill sizes="(max-width: 768px) 50vw, 25vw" unoptimized className="object-cover" />
       </div>
     );
   }
   const Icon = KIND_ICON[file.kind];
   return (
-    <div className="bg-muted flex aspect-photo-card w-full items-center justify-center rounded-lg border border-border/80">
+    <div className="bg-muted flex aspect-photo-card w-full items-center justify-center rounded-lg">
       <Icon className="text-muted-foreground size-10 opacity-60" aria-hidden />
     </div>
   );
@@ -776,7 +776,7 @@ export function MediaLibrary() {
         onClear={() => setQuery("")}
         placeholder="Cari file atau folder"
         size="sm"
-        containerClassName="w-48 shrink-0 sm:w-64"
+        containerClassName="min-w-[140px] w-48 shrink-0 sm:w-64"
       />
       <div className="border-border flex rounded-lg border p-0.5">
         <button
@@ -886,12 +886,12 @@ export function MediaLibrary() {
       ) : (
         <>
           <UploadCloud className="text-brand-primary size-6" aria-hidden />
-          <p className="text-body-sm font-medium text-foreground">Tarik file ke sini atau klik untuk memilih</p>
+          <p className="text-body-sm font-medium text-foreground">Unggah berkas</p>
           <p className="text-body-xs text-muted-foreground">
-            Gambar, video, audio, PDF, markdown, dan teks. Maksimal {formatBytes(MEDIA_MAX_UPLOAD_BYTES)} per file.
+            Gambar, video, audio, PDF, Markdown, teks. Maksimal {formatBytes(MEDIA_MAX_UPLOAD_BYTES)} per file.
           </p>
           <p className="text-body-xs text-muted-foreground">
-            Seret file atau folder di daftar ke folder tujuan untuk memindahkannya.
+            Seret item ke folder tujuan untuk memindahkan.
           </p>
         </>
       )}
@@ -918,7 +918,7 @@ export function MediaLibrary() {
             )}
           >
             <div className="relative">
-              <div className="bg-muted flex aspect-photo-card w-full items-center justify-center rounded-lg border border-border/80">
+              <div className="bg-muted flex aspect-photo-card w-full items-center justify-center rounded-lg">
                 <Folder className="text-brand-primary size-10 opacity-70" aria-hidden />
               </div>
               <div className="absolute top-1.5 left-1.5 z-10">
@@ -1143,7 +1143,7 @@ export function MediaLibrary() {
       {renderUploadDropzone}
 
       <div className="flex flex-col gap-4 lg:flex-row">
-        <aside className="border-border hidden w-56 shrink-0 self-start rounded-xl border bg-card p-2 shadow-sm lg:block">
+        <aside className="hidden w-48 shrink-0 self-start border-r border-border pr-3 lg:block">
           <p className="text-body-xs text-muted-foreground px-2 pt-1 pb-2 font-semibold uppercase tracking-wide">
             Folder
           </p>

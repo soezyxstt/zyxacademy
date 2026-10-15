@@ -1005,7 +1005,7 @@ export function QuestionBankClient({ questions, courses, courseMap, canonicalCou
               </div>
 
               {(createQuestionType === "multiple_choice" || createQuestionType === "multiple_choices") && (
-                <div className="space-y-3 rounded-xl border border-border bg-muted/5 p-5">
+                <div className="space-y-3 border-t border-border pt-4">
                   <label className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground block mb-1">Opsi pilihan dan kunci jawaban</label>
                   <p className="text-body-xs text-muted-foreground">Centang satu jawaban untuk Pilihan Ganda, atau beberapa jawaban untuk PG Kompleks.</p>
                   <div className="space-y-2.5">
@@ -1043,7 +1043,7 @@ export function QuestionBankClient({ questions, courses, courseMap, canonicalCou
               )}
 
               {createQuestionType === "short_answer" && (
-                <div className="space-y-1.5 rounded-xl border border-border bg-muted/5 p-5">
+                <div className="space-y-1.5 border-t border-border pt-4">
                   <label className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground block mb-1">Jawaban Benar yang Diterima (Pisahkan dengan koma jika ada variasi)</label>
                   <Input
                     type="text"
@@ -1052,12 +1052,12 @@ export function QuestionBankClient({ questions, courses, courseMap, canonicalCou
                     placeholder="Contoh: 12, duabelas, 12.0"
                     className="h-10 border-border/85 bg-background text-body-sm font-medium"
                   />
-                  <p className="text-body-xs text-muted-foreground mt-1">Siswa dianggap benar jika jawabannya cocok dengan salah satu kata kunci di atas (tidak peka huruf besar/kecil).</p>
+                  <p className="text-body-xs text-muted-foreground mt-1">Jawaban benar jika cocok dengan kata kunci, tanpa membedakan huruf besar dan kecil.</p>
                 </div>
               )}
 
               {createQuestionType === "essay" && (
-                <div className="p-4 rounded-xl border border-border bg-muted/5 text-body-xs text-muted-foreground">
+                <div className="border-t border-border pt-4 text-body-xs text-muted-foreground">
                   <p className="font-semibold text-foreground mb-1">Soal Tipe Essay / Uraian</p>
                   Siswa akan menjawab dengan teks bebas. Tuliskan kunci jawaban referensi atau rubrik penilaian pada kolom Penjelasan Solusi di bawah.
                 </div>
@@ -1194,7 +1194,7 @@ export function QuestionBankClient({ questions, courses, courseMap, canonicalCou
                 </div>
 
                 {(editQuestionType === "multiple_choice" || editQuestionType === "multiple_choices") && (
-                  <div className="space-y-3 rounded-xl border border-border bg-muted/5 p-5">
+                  <div className="space-y-3 border-t border-border pt-4">
                     <label className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground block mb-1">Opsi pilihan dan kunci jawaban</label>
                     <p className="text-body-xs text-muted-foreground">Centang satu jawaban untuk Pilihan Ganda, atau beberapa jawaban untuk PG Kompleks.</p>
                     <div className="space-y-2.5">
@@ -1232,7 +1232,7 @@ export function QuestionBankClient({ questions, courses, courseMap, canonicalCou
                 )}
 
                 {editQuestionType === "short_answer" && (
-                  <div className="space-y-1.5 rounded-xl border border-border bg-muted/5 p-5">
+                  <div className="space-y-1.5 border-t border-border pt-4">
                     <label className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground block mb-1">Jawaban Benar yang Diterima (Pisahkan dengan koma)</label>
                     <Input
                       type="text"
@@ -1245,7 +1245,7 @@ export function QuestionBankClient({ questions, courses, courseMap, canonicalCou
                 )}
 
                 {editQuestionType === "essay" && (
-                  <div className="p-4 rounded-xl border border-border bg-muted/5 text-body-xs text-muted-foreground">
+                  <div className="border-t border-border pt-4 text-body-xs text-muted-foreground">
                     <p className="font-semibold text-foreground mb-1">Soal Tipe Essay / Uraian</p>
                     Tuliskan rubrik atau kunci jawaban referensi pada kolom Penjelasan Solusi.
                   </div>
@@ -1399,7 +1399,7 @@ function IdeaAssignmentFields({
   const valid = hasValidIdeaWeights(links);
 
   return (
-    <section className="space-y-3 rounded-xl border border-border bg-muted/5 p-5" aria-labelledby={`${idPrefix}-idea-heading`}>
+    <section className="space-y-3 border-t border-border pt-4" aria-labelledby={`${idPrefix}-idea-heading`}>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <div className="flex items-center gap-2">
@@ -1432,7 +1432,7 @@ function IdeaAssignmentFields({
             </p>
           ) : null}
           {ideas.length === 0 ? (
-            <p className="rounded-lg border border-border bg-muted/30 p-3 text-body-xs text-muted-foreground">
+            <p className="text-body-xs text-muted-foreground">
               Belum ada Idea published untuk mata kuliah dan bab ini. Soal tetap dapat disimpan tanpa Idea.
             </p>
           ) : (

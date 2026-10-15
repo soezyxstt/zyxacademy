@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
 import {
   RefreshCw,
@@ -110,15 +111,15 @@ export function FlagsClient() {
   if (isLoading) {
     return (
       <div className="space-y-6">
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-border lg:grid-cols-4">
           {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="h-28 rounded-xl bg-muted/60 animate-pulse border border-border" />
+            <div key={i} className="h-12 bg-muted/60 animate-pulse" />
           ))}
         </div>
         <div className="h-14 rounded-xl bg-muted/60 animate-pulse border border-border" />
-        <div className="space-y-3">
+        <div className="overflow-hidden rounded-xl border border-border">
           {Array.from({ length: 5 }).map((_, i) => (
-            <div key={i} className="h-24 rounded-xl bg-muted/60 animate-pulse border border-border" />
+            <div key={i} className="h-16 border-b border-border bg-muted/60 animate-pulse" />
           ))}
         </div>
       </div>
@@ -137,14 +138,14 @@ export function FlagsClient() {
             </p>
           </div>
         </div>
-        <button
+        <Button variant="ghost" size="sm"
           type="button"
           onClick={() => refetch()}
           className="mt-4 inline-flex items-center gap-2 rounded-lg border border-border bg-background px-4 py-2 text-body-sm font-semibold text-foreground transition-colors hover:bg-muted cursor-pointer"
         >
           <RefreshCw className="size-4" />
           Coba lagi
-        </button>
+        </Button>
       </div>
     );
   }
@@ -173,7 +174,7 @@ export function FlagsClient() {
   return (
     <div className="space-y-6">
       {/* Subheader bar with provider status & actions */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 rounded-xl border border-border bg-card p-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <div className="flex size-10 items-center justify-center rounded-lg bg-brand-primary/10 text-brand-primary border border-brand-primary/20">
             <Flag className="size-5" />
@@ -203,10 +204,10 @@ export function FlagsClient() {
         </div>
 
         <div className="flex items-center gap-2 self-start sm:self-auto">
-          <button
+          <Button variant="ghost" size="sm"
             type="button"
             onClick={handleCopyAllEnv}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background px-3 py-1.5 text-body-xs font-semibold text-foreground transition-colors hover:bg-muted cursor-pointer"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background px-3 py-1.5 text-body-sm font-semibold text-foreground transition-colors hover:bg-muted cursor-pointer"
             title="Salin semua variabel lingkungan ke clipboard"
           >
             {copiedEnvSnippet ? (
@@ -220,119 +221,29 @@ export function FlagsClient() {
                 <span>Salin .env Template</span>
               </>
             )}
-          </button>
+          </Button>
 
-          <button
+          <Button variant="ghost" size="sm"
             type="button"
             onClick={() => refetch()}
             disabled={isFetching}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background px-3.5 py-1.5 text-body-xs font-semibold text-foreground transition-colors hover:bg-muted disabled:opacity-50 cursor-pointer"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background px-3.5 py-1.5 text-body-sm font-semibold text-foreground transition-colors hover:bg-muted disabled:opacity-50 cursor-pointer"
           >
             <RefreshCw className={`size-3.5 ${isFetching ? "animate-spin text-brand-primary" : ""}`} />
             <span>Refresh</span>
-          </button>
+          </Button>
         </div>
       </div>
 
-      {/* Metric Overview Cards */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <div className="rounded-xl border border-border bg-card p-4 transition-all hover:border-border/80">
-          <div className="flex items-center justify-between">
-            <p className="text-body-xs font-semibold text-muted-foreground uppercase tracking-wider">
-              Total Feature Flag
-            </p>
-            <Layers className="size-4 text-muted-foreground" />
-          </div>
-          <p className="mt-2 font-heading text-h3 font-bold text-foreground">
-            {data.total}
-          </p>
-          <p className="mt-1 text-body-xs text-muted-foreground">
-            Katalog resmi &amp; variabel dinamik
-          </p>
-        </div>
-      {/* Metric Overview Strip */}
-      <AdminStatStrip className="grid-cols-2 lg:grid-cols-4">
-        <AdminStatStripItem
-          label="Total Feature Flag"
-          value={data.total}
-          caption="Katalog resmi dan variabel"
-          icon={Layers}
-          tone="default"
-        />
-        <AdminStatStripItem
-          label="Aktif (Enabled)"
-          value={data.activeCount}
-          caption='Bernilai "1" atau "true"'
-          icon={CheckCircle2}
-          tone="success"
-        />
-        <AdminStatStripItem
-          label="Nonaktif (Disabled)"
-          value={data.inactiveCount}
-          caption='Tidak diset / "0"'
-          icon={XCircle}
-          tone="default"
-        />
-        <AdminStatStripItem
-          label="Cakupan Modul"
-          value={`${data.coveragePercent}%`}
-          caption="Persentase flag aktif"
-          icon={Activity}
-          tone="brand"
-        />
+      <AdminStatStrip className="lg:grid-cols-4">
+        <AdminStatStripItem label="Feature flags" value={data.total} icon={Layers} />
+        <AdminStatStripItem label="Aktif" value={data.activeCount} icon={CheckCircle2} tone="success" />
+        <AdminStatStripItem label="Nonaktif" value={data.inactiveCount} icon={XCircle} />
+        <AdminStatStripItem label="Cakupan aktif" value={`${data.coveragePercent}%`} icon={Activity} tone="brand" />
       </AdminStatStrip>
 
-        <div className="rounded-xl border border-status-success/30 bg-status-success/5 p-4 transition-all hover:border-status-success/50">
-          <div className="flex items-center justify-between">
-            <p className="text-body-xs font-semibold text-status-success uppercase tracking-wider">
-              Aktif (Enabled)
-            </p>
-            <CheckCircle2 className="size-4 text-status-success" />
-          </div>
-          <p className="mt-2 font-heading text-h3 font-bold text-status-success">
-            {data.activeCount}
-          </p>
-          <p className="mt-1 text-body-xs text-muted-foreground">
-            Bernilai &quot;1&quot; atau &quot;true&quot; di runtime
-          </p>
-        </div>
-
-        <div className="rounded-xl border border-border bg-card p-4 transition-all hover:border-border/80">
-          <div className="flex items-center justify-between">
-            <p className="text-body-xs font-semibold text-muted-foreground uppercase tracking-wider">
-              Nonaktif (Disabled)
-            </p>
-            <XCircle className="size-4 text-muted-foreground" />
-          </div>
-          <p className="mt-2 font-heading text-h3 font-bold text-muted-foreground">
-            {data.inactiveCount}
-          </p>
-          <p className="mt-1 text-body-xs text-muted-foreground">
-            Tidak diset atau bernilai &quot;0&quot;
-          </p>
-        </div>
-
-        <div className="rounded-xl border border-brand-primary/30 bg-brand-primary/5 p-4 transition-all hover:border-brand-primary/50">
-          <div className="flex items-center justify-between">
-            <p className="text-body-xs font-semibold text-brand-primary uppercase tracking-wider">
-              Cakupan Modul Aktif
-            </p>
-            <Activity className="size-4 text-brand-primary" />
-          </div>
-          <p className="mt-2 font-heading text-h3 font-bold text-brand-primary">
-            {data.coveragePercent}%
-          </p>
-          <div className="mt-2 h-1.5 w-full overflow-hidden rounded-md bg-brand-primary/15">
-            <div
-              className="h-full bg-brand-primary transition-all duration-500 rounded-md"
-              style={{ width: `${Math.min(100, Math.max(0, data.coveragePercent))}%` }}
-            />
-          </div>
-        </div>
-      </div>
-
       {/* Control Panel: Search & Filters */}
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         {/* Search Field */}
         <SearchBar
           size="sm"
@@ -341,7 +252,7 @@ export function FlagsClient() {
           onSearch={setSearch}
           onClear={() => setSearch("")}
           shortcut="/"
-          placeholder="Cari kunci FEATURE_*, nama modul, atau deskripsi..."
+          placeholder="Cari flag..."
           containerClassName="flex-1 min-w-0"
         />
 
@@ -362,46 +273,46 @@ export function FlagsClient() {
 
         {/* Status Tabs (Segmented Button Bar) */}
         <div className="flex items-center rounded-lg border border-border bg-muted/40 p-0.5 shrink-0">
-          <button
+          <Button variant="ghost" size="sm"
             type="button"
             onClick={() => setStatusFilter("all")}
-            className={`rounded-md px-2.5 py-1 text-body-xs font-semibold transition-all cursor-pointer ${
+            className={`rounded-md px-2.5 py-1 text-body-sm font-semibold transition-all cursor-pointer ${
               statusFilter === "all"
                 ? "bg-background text-foreground shadow-xs border border-border/60"
                 : "text-muted-foreground hover:text-foreground"
             }`}
           >
             Semua ({data.total})
-          </button>
-          <button
+          </Button>
+          <Button variant="ghost" size="sm"
             type="button"
             onClick={() => setStatusFilter("active")}
-            className={`rounded-md px-2.5 py-1 text-body-xs font-semibold transition-all cursor-pointer ${
+            className={`rounded-md px-2.5 py-1 text-body-sm font-semibold transition-all cursor-pointer ${
               statusFilter === "active"
                 ? "bg-status-success/15 text-status-success shadow-xs border border-status-success/30"
                 : "text-muted-foreground hover:text-foreground"
             }`}
           >
             Aktif ({data.activeCount})
-          </button>
-          <button
+          </Button>
+          <Button variant="ghost" size="sm"
             type="button"
             onClick={() => setStatusFilter("inactive")}
-            className={`rounded-md px-2.5 py-1 text-body-xs font-semibold transition-all cursor-pointer ${
+            className={`rounded-md px-2.5 py-1 text-body-sm font-semibold transition-all cursor-pointer ${
               statusFilter === "inactive"
                 ? "bg-background text-muted-foreground shadow-xs border border-border/60"
                 : "text-muted-foreground hover:text-foreground"
             }`}
           >
             Nonaktif ({data.inactiveCount})
-          </button>
+          </Button>
         </div>
       </div>
 
       {/* Main Flags List Card */}
       <div className="rounded-xl border border-border bg-card overflow-hidden">
         <div className="border-b border-border bg-muted/30 px-5 py-3.5 flex items-center justify-between">
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Zap className="size-4 text-brand-primary" />
             <h2 className="font-heading text-body-base font-semibold text-foreground">
               Daftar Feature Flag ({filteredFlags.length})
@@ -409,18 +320,18 @@ export function FlagsClient() {
           </div>
 
           {(search || statusFilter !== "all" || categoryFilter !== "all") && (
-            <button
+            <Button variant="ghost" size="sm"
               type="button"
               onClick={() => {
                 setSearch("");
                 setStatusFilter("all");
                 setCategoryFilter("all");
               }}
-              className="inline-flex items-center gap-1 text-body-xs font-semibold text-brand-primary hover:underline cursor-pointer"
+              className="inline-flex items-center gap-1 text-body-sm font-semibold text-brand-primary hover:underline cursor-pointer"
             >
               <X className="size-3" />
               Reset filter
-            </button>
+            </Button>
           )}
         </div>
 
@@ -437,7 +348,7 @@ export function FlagsClient() {
                 Coba sesuaikan kata kunci pencarian atau bersihkan filter status dan kategori di atas.
               </p>
             </div>
-            <button
+            <Button variant="ghost" size="sm"
               type="button"
               onClick={() => {
                 setSearch("");
@@ -447,7 +358,7 @@ export function FlagsClient() {
               className="inline-flex items-center gap-2 rounded-lg border border-border bg-background px-4 py-2 text-body-sm font-semibold text-foreground hover:bg-muted transition-colors cursor-pointer"
             >
               Tampilkan semua flag
-            </button>
+            </Button>
           </div>
         ) : (
           <div className="divide-y divide-border/60">
@@ -474,7 +385,7 @@ export function FlagsClient() {
                       <code className="rounded bg-muted/80 px-2 py-0.5 font-mono text-body-xs font-semibold text-foreground border border-border/80">
                         {flag.key}
                       </code>
-                      <button
+                      <Button variant="ghost" size="sm"
                         type="button"
                         onClick={() => handleCopyKey(flag.key)}
                         title="Salin nama variabel lingkungan"
@@ -485,7 +396,7 @@ export function FlagsClient() {
                         ) : (
                           <Copy className="size-3.5" />
                         )}
-                      </button>
+                      </Button>
                     </div>
 
                     <p className="text-body-sm text-muted-foreground leading-relaxed text-left">
@@ -528,7 +439,7 @@ export function FlagsClient() {
       </div>
 
       {/* Operational Guide Box */}
-      <div className="rounded-xl border border-border bg-card p-5 space-y-3">
+      <div className="border-t border-border pt-4 space-y-2">
         <div className="flex items-center gap-2 text-foreground font-semibold text-body-base">
           <Info className="size-5 text-brand-primary" />
           <span>Panduan Pengaturan Feature Flag</span>

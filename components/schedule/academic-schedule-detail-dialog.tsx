@@ -148,8 +148,8 @@ export function AcademicScheduleDetailDialog({
           ) : null}
 
           {schedule.description ? (
-            <div className="rounded-lg border bg-muted/20 p-4">
-              <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            <div className="border-t border-border pt-3">
+              <p className="mb-2 text-body-xs font-medium text-muted-foreground">
                 Catatan
               </p>
               <p className="whitespace-pre-wrap break-words leading-relaxed">

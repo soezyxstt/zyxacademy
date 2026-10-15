@@ -193,7 +193,7 @@ export function MaterialArtifactList({
       <AdminTable className="divide-y divide-border">
         {visibleRows.length === 0 ? (
           <div className="p-4">
-            <AdminEmptyState compact title={rows.length === 0 ? `Belum ada ${label.toLowerCase()}.` : "Tidak ada hasil yang cocok."} description={rows.length === 0 ? "Gunakan tombol Upload ZIP untuk memasukkan hasil generasi MCP." : "Coba ubah kata pencarian atau reset filter."} />
+            <AdminEmptyState compact title={rows.length === 0 ? `Belum ada ${label.toLowerCase()}.` : "Tidak ada hasil yang cocok."} description={rows.length === 0 ? "Upload ZIP hasil MCP." : "Ubah pencarian atau reset filter."} />
           </div>
         ) : visibleRows.map((item) => (
           <MaterialArtifactCard

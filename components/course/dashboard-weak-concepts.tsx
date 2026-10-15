@@ -57,32 +57,11 @@ export function DashboardWeakConcepts({
       )}
 
       {!hasAnyMeasured ? (
-        <div className="space-y-4 py-2 text-left">
+        <div className="space-y-1 py-2 text-left">
+          <p className="text-body-sm font-semibold">Belum ada data penguasaan</p>
           <p className="text-body-xs text-muted-foreground leading-relaxed">
-            Belum ada data penguasaan. Ambil kuis pertama Anda untuk mulai memetakan tingkat pemahaman konsep secara otomatis di sini.
+            Selesaikan kuis untuk mengukur penguasaan konsep.
           </p>
-          
-          {/* Skeleton Preview of Mastery concept bars */}
-          <div className="space-y-3 opacity-30 select-none pointer-events-none">
-            <div className="flex flex-col gap-1.5">
-              <div className="flex items-center justify-between gap-2 text-body-xs font-semibold text-foreground">
-                <span className="truncate">Konsep Aljabar Limit</span>
-                <span className="font-mono text-body-xs shrink-0">75%</span>
-              </div>
-              <div className="h-2 w-full overflow-hidden rounded-md bg-muted">
-                <div className="h-full w-3/4 rounded-md bg-brand-primary" />
-              </div>
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <div className="flex items-center justify-between gap-2 text-body-xs font-semibold text-foreground">
-                <span className="truncate">Kekontinuan Fungsi</span>
-                <span className="font-mono text-body-xs shrink-0">40%</span>
-              </div>
-              <div className="h-2 w-full overflow-hidden rounded-md bg-muted">
-                <div className="h-full w-2/5 rounded-md bg-brand-secondary" />
-              </div>
-            </div>
-          </div>
         </div>
       ) : (
         <div className="space-y-4">
@@ -127,10 +106,6 @@ export function DashboardWeakConcepts({
               </div>
             );
           })}
-          
-          <p className="mt-4 pt-2 border-t border-border/30 text-[10px] text-muted-foreground select-none">
-            Diperbarui otomatis dari kuis dan sesi flashcard terakhir.
-          </p>
         </div>
       )}
     </div>

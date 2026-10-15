@@ -20,11 +20,10 @@ export default async function WebAnalyticsPage() {
   const metrics = await getDashboardMetrics(30);
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-5">
       <AdminPageHeader
         icon={Globe}
-        title="Web Analytics"
-        description="Wawasan lalu lintas pengunjung Zyx Academy 30 hari terakhir."
+        title="Web Analytics, 30 hari"
         actions={<RefreshAnalyticsButton />}
       />
 
@@ -44,22 +43,22 @@ export default async function WebAnalyticsPage() {
             <AdminStatStripItem icon={MousePointerClick} label="Total sessions" value={metrics.summary.sessions.toLocaleString("id-ID")} tone="brand-secondary" />
           </AdminStatStrip>
 
-          <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
-            <h2 className="mb-6 font-heading text-body-base font-bold text-foreground">
+          <div className="space-y-3">
+            <h2 className="mb-3 font-heading text-body-base font-bold text-foreground">
               Tren Pengunjung
             </h2>
             <WebAnalyticsCharts data={metrics.dailyData} />
           </div>
 
           <div className="rounded-xl border border-border bg-card shadow-sm">
-            <div className="border-b border-border p-6">
+            <div className="border-b border-border px-4 py-3">
               <h2 className="font-heading text-body-base font-bold text-foreground">
                 Halaman Terpopuler
               </h2>
             </div>
             <div className="divide-y divide-border">
               {metrics.topPages.map((page, i) => (
-                <div key={page.path} className="flex items-center justify-between p-4 px-6 hover:bg-muted/30 transition-colors">
+                <div key={page.path} className="flex items-center justify-between gap-3 p-3 px-4 hover:bg-muted/30 transition-colors">
                   <div className="flex items-center gap-4 min-w-0">
                     <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted text-body-sm font-semibold text-muted-foreground">
                       {i + 1}

@@ -23,7 +23,7 @@ import { Button } from "@/components/ui/button";
 import { pageTitle } from "@/lib/site";
 
 export const metadata: Metadata = {
-  title: pageTitle("Dashboard Pengajar"),
+  title: pageTitle("Dashboard pengajar"),
   description: "Ringkasan operasional kelas, jadwal, dan tindak lanjut tutor Zyx Academy.",
 };
 
@@ -71,10 +71,9 @@ export default async function TutorPage() {
     <ApplicationPage spacing="space-y-5">
       <div className="flex flex-col gap-3 border-b border-border pb-4 sm:flex-row sm:items-end sm:justify-between">
         <PageHeader
-          title="Dashboard Pengajar"
+          title="Dashboard pengajar"
           icon={LayoutDashboard}
           divider={false}
-          description="Prioritas kelas, sesi berikutnya, dan hal yang perlu ditindaklanjuti."
         />
         <div className="flex shrink-0 flex-wrap gap-2">
           <Button asChild variant="outline" size="sm">
@@ -92,12 +91,12 @@ export default async function TutorPage() {
         {statItems.map((item) => {
           const Icon = item.icon;
           return (
-            <div key={item.label} className="bg-card px-4 py-4 sm:px-5">
+            <div key={item.label} className="bg-card px-4 py-3">
               <div className="flex items-center gap-2 text-muted-foreground">
                 <Icon className="size-4" aria-hidden />
-                <span className="text-body-xs font-medium">{item.label}</span>
+                <span className="text-body-sm font-medium">{item.label}</span>
               </div>
-              <p className="mt-2 font-heading text-xl font-bold text-foreground">{item.value}</p>
+              <p className="mt-2 font-heading text-h5 font-bold text-foreground">{item.value}</p>
             </div>
           );
         })}
@@ -108,7 +107,6 @@ export default async function TutorPage() {
           <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">
             <div>
               <h2 className="font-heading text-body-base font-bold text-foreground">Sesi berikutnya</h2>
-              <p className="text-body-xs text-muted-foreground">Sesi terjadwal terdekat yang masih aktif.</p>
             </div>
             <Link href="/tutor/schedule" className="shrink-0 text-body-xs font-semibold text-brand-primary hover:underline">
               Semua jadwal
@@ -160,13 +158,11 @@ export default async function TutorPage() {
         <section className="min-w-0 rounded-xl border border-border bg-card">
           <div className="border-b border-border px-4 py-3">
             <h2 className="font-heading text-body-base font-bold text-foreground">Perlu perhatian</h2>
-            <p className="text-body-xs text-muted-foreground">Tiket reschedule atau pembatalan yang menunggu keputusan.</p>
           </div>
           {pendingTickets.length === 0 ? (
             <AdminEmptyState
               icon={MessageSquareWarning}
               title="Tidak ada tiket pending"
-              description="Permintaan reschedule dan pembatalan yang perlu ditinjau akan muncul di sini."
               className="px-4 py-7"
             />
           ) : (
@@ -188,7 +184,6 @@ export default async function TutorPage() {
         <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">
           <div>
             <h2 className="font-heading text-body-base font-bold text-foreground">Pengajaran</h2>
-            <p className="text-body-xs text-muted-foreground">Mata kuliah yang ditugaskan kepada Anda.</p>
           </div>
           <span className="text-body-xs text-muted-foreground">{schedule.assignedActiveCourses.length} mata kuliah</span>
         </div>

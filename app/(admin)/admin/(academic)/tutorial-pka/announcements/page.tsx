@@ -21,11 +21,10 @@ export default async function TutorialPkaAnnouncementsPage() {
   const announcements = await getPkaAnnouncementsAction();
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-4">
       <AdminPageHeader
         icon={Megaphone}
         title="Pengumuman Tutorial PKA"
-        description="Kirim pengumuman otomatis ke email dan push notification peserta yang berlangganan."
       />
       <TabNav
         tabs={[

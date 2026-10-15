@@ -335,7 +335,7 @@ export function MaterialsTab({
         <div className="flex items-center justify-between gap-2 flex-wrap mb-3">
           <h3 className="font-heading text-body-sm font-semibold text-foreground flex items-center gap-2">
             <Upload className="size-4 text-brand-secondary" />
-            Unggah Dokumen PDF untuk {courseTitle}
+            Unggah PDF
           </h3>
           <Button
             type="button"
@@ -357,7 +357,7 @@ export function MaterialsTab({
               {courseId.toLowerCase()}_[bab]_[kategori]_[topik]_[role]_[tahun].pdf
             </code>
             <span className="text-muted-foreground ml-1">
-              Nama berkas target disusun otomatis saat Anda melengkapi form.
+              Nama berkas disusun otomatis.
             </span>
           </div>
         </div>
@@ -479,7 +479,7 @@ export function MaterialsTab({
 
           {/* Standardized Filename Review & Override */}
           {selectedFile && (
-            <div className="rounded-xl border border-border/80 bg-muted/20 p-3 space-y-1.5">
+            <div className="border-t border-border pt-3 space-y-1.5">
               <div className="flex items-center justify-between gap-2">
                 <Label className="text-body-xs font-semibold text-foreground">
                   Nama Berkas Terstandar (Disimpan ke Storage)
@@ -515,7 +515,7 @@ export function MaterialsTab({
           )}
 
           {/* Chapter Selector */}
-          <div className="rounded-xl border border-border/70 bg-muted/10 p-3 space-y-2">
+          <div className="border-t border-border pt-3 space-y-2">
             <div className="flex items-center justify-between">
               <span className="text-body-xs font-bold text-muted-foreground uppercase tracking-wider">
                 Kaitkan dengan Bab ({selectedChapters.size} dipilih)
@@ -568,7 +568,7 @@ export function MaterialsTab({
       </div>
 
       {/* Materials List */}
-      {showList && <div className="rounded-xl border border-border bg-card p-4 shadow-2xs overflow-x-auto">
+      {showList && <div className="rounded-xl border border-border bg-card p-3 overflow-x-auto">
         <h3 className="font-heading text-body-sm font-bold text-foreground mb-3 flex items-center gap-2">
           <FileText className="size-4 text-brand-primary" />
           Daftar PDF Terunggah ({materials.length})

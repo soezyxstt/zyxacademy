@@ -24,7 +24,6 @@ import { Switch } from "@/components/ui/switch";
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -302,7 +301,7 @@ export function LinksManager() {
   };
 
   const renderGrid = () => (
-    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+    <div className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
       {filteredLinks.map((link) => {
         const color = linkColor(link.color);
         const index = links.findIndex((l) => l.id === link.id);
@@ -311,7 +310,7 @@ export function LinksManager() {
           <article
             key={link.id}
             className={cn(
-              "flex flex-col gap-3 rounded-xl border border-border bg-card p-4 shadow-sm transition-all overflow-hidden",
+              "flex min-w-0 flex-col gap-2 p-3 transition-colors hover:bg-muted/20",
               moving && "opacity-60"
             )}
           >
@@ -462,11 +461,11 @@ export function LinksManager() {
       </div>
 
       {loading ? (
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
           {Array.from({ length: 6 }).map((_, i) => (
             <div
               key={i}
-              className="h-44 animate-pulse rounded-xl border border-border bg-muted/40"
+              className="h-20 animate-pulse bg-muted/40"
             />
           ))}
         </div>
@@ -476,8 +475,7 @@ export function LinksManager() {
         <AdminEmptyState
           icon={LinkIcon}
           title="Belum ada tautan"
-          description="Tambahkan tautan penting pertama untuk mulai mengisi pustaka tautan."
-          action={
+                    action={
             <Button onClick={openCreate} className="mt-2">
               <Plus className="size-4" />
               Tambah Tautan
@@ -502,16 +500,11 @@ export function LinksManager() {
           }
         }}
       >
-        <DialogContent className="max-w-lg rounded-xl border border-border p-6 shadow-lg text-left">
+        <DialogContent aria-describedby={undefined} className="max-w-lg rounded-xl border border-border p-6 shadow-lg text-left">
           <DialogHeader>
             <DialogTitle className="font-heading text-body-base font-bold">
               {editing ? "Edit Tautan" : "Tambah Tautan"}
             </DialogTitle>
-            <DialogDescription className="text-body-xs text-muted-foreground mt-2">
-              {editing
-                ? "Perbarui detail tautan di bawah ini."
-                : "Lengkapi detail tautan yang ingin ditambahkan."}
-            </DialogDescription>
           </DialogHeader>
 
           {formError && (
@@ -590,11 +583,14 @@ export function LinksManager() {
               />
               <div className="flex flex-wrap gap-1.5">
                 {categorySuggestions.map((category) => (
-                  <button
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    aria-pressed={form.category === category}
                     key={category}
                     type="button"
                     className={cn(
-                      "rounded-md border px-2 py-0.5 text-body-xs font-medium transition-colors cursor-pointer",
+                      "rounded-md border px-2 py-0.5 text-body-sm font-medium transition-colors cursor-pointer",
                       form.category === category
                         ? "border-brand-primary bg-brand-primary/10 text-brand-primary"
                         : "border-border bg-background text-muted-foreground hover:bg-muted"
@@ -604,7 +600,7 @@ export function LinksManager() {
                     }
                   >
                     {category}
-                  </button>
+                  </Button>
                 ))}
               </div>
             </div>
@@ -626,7 +622,11 @@ export function LinksManager() {
               </div>
               <div className="flex flex-wrap gap-1.5">
                 {EMOJI_OPTIONS.map((emoji) => (
-                  <button
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    aria-pressed={form.icon === emoji}
+                    aria-label={emoji}
                     key={emoji}
                     type="button"
                     className={cn(
@@ -639,7 +639,7 @@ export function LinksManager() {
                     title={emoji}
                   >
                     {emoji}
-                  </button>
+                  </Button>
                 ))}
               </div>
             </div>
@@ -650,11 +650,14 @@ export function LinksManager() {
               </Label>
               <div className="flex flex-wrap gap-2">
                 {LINK_COLORS.map((color) => (
-                  <button
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    aria-pressed={form.color === color.key}
                     key={color.key}
                     type="button"
                     className={cn(
-                      "flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-body-xs font-semibold transition-colors cursor-pointer",
+                      "flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-body-sm font-semibold transition-colors cursor-pointer",
                       form.color === color.key
                         ? "border-brand-primary bg-brand-primary/10 text-foreground"
                         : "border-border bg-background text-muted-foreground hover:bg-muted"
@@ -666,12 +669,12 @@ export function LinksManager() {
                       aria-hidden
                     />
                     {color.label}
-                  </button>
+                  </Button>
                 ))}
               </div>
             </div>
 
-            <div className="flex items-center justify-between gap-3 rounded-lg border border-border bg-muted/30 px-3 py-2.5">
+            <div className="flex items-center justify-between gap-3 border-t border-border pt-3">
               <div>
                 <Label htmlFor="link-active-status" className="text-body-sm font-semibold text-foreground cursor-pointer">
                   Status aktif

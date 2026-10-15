@@ -23,11 +23,11 @@ export default async function AdminMediaPage() {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-5">
       <AdminPageHeader
         icon={Images}
         title="Media"
-        description="Kelola pustaka media, atau jelajahi seluruh storage R2 secara read-only dan salin item ke media."
+        description="Storage hanya untuk dibaca. Salin berkas ke pustaka media untuk mengelolanya."
       />
       <MediaManager />
     </div>

@@ -430,7 +430,7 @@ export function TutorQuizForm({
           <CardContent className="p-4 flex flex-wrap items-center justify-between gap-3 text-body-xs">
             <div className="flex items-center gap-2 text-foreground font-medium">
               <Shield className="size-4 text-brand-primary shrink-0" />
-              <span>Pembuat Kanonikal:</span>
+              <span>Pembuat:</span>
               <span className="font-bold text-foreground">
                 {initialData.creatorName || "Sistem"}
               </span>
@@ -473,15 +473,15 @@ export function TutorQuizForm({
         <TabsContent value="pengaturan" className="space-y-4 focus-visible:outline-none">
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
             {/* LEFT COLUMN: Main Info & Schedule */}
-            <div className="space-y-4 lg:col-span-7">
-              <Card className="rounded-xl border border-border bg-card shadow-xs">
+            <div className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card lg:col-span-7">
+              <section>
                 <div className="border-b border-border px-4 py-3">
                   <h3 className="font-heading text-body-base font-bold text-foreground flex items-center gap-2">
                     <BookOpen className="size-4 text-brand-primary" />
-                    Informasi Utama Kuis
+                    Informasi kuis
                   </h3>
                 </div>
-                <CardContent className="p-4 space-y-4">
+                <div className="p-4 space-y-4">
                   <div>
                     <Label htmlFor="courseTitle" className="text-body-sm font-semibold text-foreground">
                       Mata Kuliah
@@ -540,18 +540,18 @@ export function TutorQuizForm({
                       </Select>
                     </div>
                   </div>
-                </CardContent>
-              </Card>
+                </div>
+              </section>
 
               {/* Schedule Settings */}
-              <Card className="rounded-xl border border-border bg-card shadow-xs">
+              <section>
                 <div className="border-b border-border px-4 py-3">
                   <h3 className="font-heading text-body-base font-bold text-foreground flex items-center gap-2">
                     <Calendar className="size-4 text-brand-primary" />
-                    Jadwal Akses Kuis
+                    Jadwal akses
                   </h3>
                 </div>
-                <CardContent className="p-4 space-y-4">
+                <div className="p-4 space-y-4">
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     <button
                       type="button"
@@ -664,23 +664,22 @@ export function TutorQuizForm({
                       </Select>
                     </div>
                   )}
-                </CardContent>
-              </Card>
+                </div>
+              </section>
             </div>
 
             {/* RIGHT COLUMN: Duration, Rules & Scoring */}
-            <div className="space-y-4 lg:col-span-5">
-              <Card className="rounded-xl border border-border bg-card shadow-xs">
+            <div className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card lg:col-span-5">
+              <section>
                 <div className="border-b border-border px-4 py-3">
                   <h3 className="font-heading text-body-base font-bold text-foreground">
-                    Durasi & Batas Percobaan
+                    Durasi dan percobaan
                   </h3>
                 </div>
-                <CardContent className="p-4 space-y-4">
+                <div className="p-4 space-y-4">
                   <div className="flex items-center justify-between">
                     <div>
                       <Label className="text-body-sm font-semibold text-foreground">Batas Waktu Pengerjaan</Label>
-                      <p className="text-body-xs text-muted-foreground">Hitung mundur durasi kuis</p>
                     </div>
                     <Switch
                       checked={hasGlobalTimeLimit}
@@ -717,20 +716,17 @@ export function TutorQuizForm({
                       onChange={(e) => setMaxAttempts(e.target.value)}
                       className="mt-1 rounded-lg border-border text-body-sm"
                     />
-                    <p className="text-body-xs text-muted-foreground mt-1">
-                      Biarkan kosong jika siswa bebas mencoba berkali-kali.
-                    </p>
                   </div>
-                </CardContent>
-              </Card>
+                </div>
+              </section>
 
-              <Card className="rounded-xl border border-border bg-card shadow-xs">
+              <section>
                 <div className="border-b border-border px-4 py-3">
                   <h3 className="font-heading text-body-base font-bold text-foreground">
-                    Aturan & Pembahasan
+                    Aturan dan pembahasan
                   </h3>
                 </div>
-                <CardContent className="p-4 space-y-3.5">
+                <div className="p-4 space-y-3.5">
                   <div className="flex items-center justify-between">
                     <div>
                       <span className="text-body-sm font-semibold text-foreground block">Navigasi Bebas</span>
@@ -778,8 +774,8 @@ export function TutorQuizForm({
                       </SelectContent>
                     </Select>
                   </div>
-                </CardContent>
-              </Card>
+                </div>
+              </section>
             </div>
           </div>
         </TabsContent>
@@ -790,11 +786,8 @@ export function TutorQuizForm({
             <div className="border-b border-border px-4 py-3 flex flex-wrap items-center justify-between gap-3">
               <div>
                 <h3 className="font-heading text-body-base font-bold text-foreground">
-                  Pilihan Butir Soal ({selectedQIds.length} Terpilih)
+                  Pilihan soal ({selectedQIds.length} Terpilih)
                 </h3>
-                <p className="text-body-xs text-muted-foreground mt-0.5">
-                  Pilih butir soal spesifik dari bank soal kelas {courseTitle}.
-                </p>
               </div>
 
               <div className="flex items-center gap-2">
@@ -917,7 +910,7 @@ export function TutorQuizForm({
                         key={q.id}
                         onClick={() => toggleSelectQuestion(q.id)}
                         className={cn(
-                          "flex items-start gap-3 p-4 rounded-xl border transition-colors cursor-pointer text-left",
+                          "flex items-start gap-3 px-2 py-3 border-b border-border transition-colors cursor-pointer text-left",
                           isSelected
                             ? "border-brand-primary bg-brand-primary/5 shadow-xs"
                             : "border-border bg-card hover:bg-muted/30"

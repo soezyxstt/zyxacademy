@@ -9,6 +9,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 export interface PkaCalendarSession {
@@ -79,22 +80,26 @@ export function PkaScheduleCalendar({ sessions }: { sessions: PkaCalendarSession
       <div className="mb-3 flex items-center justify-between gap-4">
         <h3 className="font-heading text-body-base font-bold text-foreground capitalize">{monthLabel}</h3>
         <div className="flex items-center gap-1">
-          <button
+          <Button
             type="button"
+            variant="outline"
+            size="icon"
             onClick={() => shiftMonth(-1)}
             aria-label="Bulan sebelumnya"
             className="flex size-8 items-center justify-center rounded-lg border border-border text-muted-foreground transition-colors duration-150 hover:bg-muted hover:text-foreground"
           >
             <ChevronLeft className="size-4" />
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
+            variant="outline"
+            size="icon"
             onClick={() => shiftMonth(1)}
             aria-label="Bulan berikutnya"
             className="flex size-8 items-center justify-center rounded-lg border border-border text-muted-foreground transition-colors duration-150 hover:bg-muted hover:text-foreground"
           >
             <ChevronRight className="size-4" />
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -170,13 +175,10 @@ export function PkaScheduleCalendar({ sessions }: { sessions: PkaCalendarSession
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4">
+          <div className="divide-y divide-border/60">
             {selectedSessions.map((s) => (
-              <div key={s.id} className="rounded-xl border border-border bg-muted/20 p-4 space-y-2">
+              <div key={s.id} className="py-3 space-y-2">
                 <div>
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                    Judul Meet
-                  </span>
                   <p className="text-body-base font-semibold text-foreground">{s.title}</p>
                 </div>
                 <p className="flex items-center gap-1.5 text-body-sm text-muted-foreground">

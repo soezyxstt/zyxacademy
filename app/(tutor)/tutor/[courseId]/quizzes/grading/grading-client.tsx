@@ -280,7 +280,7 @@ export function TutorQuizGradingClient({ courseId, pendingAttempts }: Props) {
             return (
               <div
                 key={q.id}
-                className="rounded-xl border border-border bg-card p-5 space-y-4 shadow-xs"
+                className="rounded-xl border border-border bg-card p-4 space-y-3"
               >
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
@@ -320,12 +320,12 @@ export function TutorQuizGradingClient({ courseId, pendingAttempts }: Props) {
                   )}
                 </div>
 
-                <div className="text-body-sm text-foreground bg-muted/40 p-3 rounded-lg border border-border/40">
+                <div className="text-body-sm text-foreground">
                   <MathText>{q.prompt}</MathText>
                 </div>
 
                 {q.acceptableAnswers && q.acceptableAnswers.length > 0 && (
-                  <div className="text-body-xs text-muted-foreground bg-muted/20 p-2.5 rounded-md border border-border/30">
+                  <div className="text-body-xs text-muted-foreground">
                     <span className="font-semibold text-foreground">Kunci jawaban referensi: </span>
                     {q.acceptableAnswers.join(", ")}
                   </div>
@@ -446,7 +446,7 @@ export function TutorQuizGradingClient({ courseId, pendingAttempts }: Props) {
           <AdminEmptyState
             icon={CheckSquare}
             title="Tidak ada kuis yang menunggu penilaian"
-            description="Semua jawaban esai sudah dikoreksi atau belum ada pengumpulan baru."
+            description="Tidak ada esai menunggu penilaian."
           />
         </div>
       ) : (

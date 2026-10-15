@@ -5,8 +5,10 @@ import { useRouter } from "next/navigation";
 import { toast } from "@/components/ui/toast";
 import { Copy, Trash2, KeyRound, Check, RefreshCw, User, Users, ShieldCheck, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { SearchBar } from "@/components/ui/search-bar";
+import { AdminEmptyState } from "@/components/admin/state-panels";
 import { AdminStatStrip, AdminStatStripItem } from "@/components/admin/stat-card";
 import { AdminConfirmDialog } from "@/components/admin/confirm-dialog";
 import { generateEnrollmentToken, deleteEnrollmentToken } from "@/app/(admin)/admin/(academic)/tokens/actions";
@@ -178,7 +180,7 @@ export function TokensDashboard({ initialTokens, coursesList }: Props) {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* KPI Stats Strip */}
       <AdminStatStrip className="grid-cols-2 lg:grid-cols-4">
         <AdminStatStripItem
@@ -208,45 +210,44 @@ export function TokensDashboard({ initialTokens, coursesList }: Props) {
       </AdminStatStrip>
 
       {/* Generate Form */}
-      <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
+      <div className="rounded-xl border border-border bg-card p-4">
         <h2 className="font-heading text-body-base font-bold text-foreground flex items-center gap-2 mb-4">
           <KeyRound className="size-5 text-brand-primary" />
-          Buat Token Baru
+          Buat token
         </h2>
         
-        <form onSubmit={handleGenerate} className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <form onSubmit={handleGenerate} className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Course Selection */}
             <div className="space-y-2">
               <label className="text-body-xs font-semibold text-muted-foreground block">
-                Pilih Course / Kelas (Bisa pilih lebih dari satu)
+                Mata kuliah
               </label>
               {coursesList.length === 0 ? (
                 <p className="text-body-sm text-muted-foreground italic">Tidak ada course tersedia.</p>
               ) : (
-                  <div className="grid grid-cols-1 gap-2 max-h-64 overflow-y-auto p-1.5 border border-border/80 rounded-xl bg-muted/10">
+                  <div className="max-h-64 overflow-y-auto divide-y divide-border rounded-lg border border-border">
                   {coursesList.map((c) => {
                     const isChecked = selectedCourseIds.includes(c.id);
                     return (
                       <label
                         key={c.id}
-                        className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-all hover:bg-muted/40 ${
+                        className={`flex items-center gap-3 px-3 py-2 cursor-pointer transition-colors hover:bg-muted/40 ${
                           isChecked
-                            ? "border-brand-primary bg-brand-primary/5 dark:bg-brand-primary/10"
-                            : "border-border bg-card"
+                            ? "bg-primary/5"
+                            : "bg-card"
                         }`}
                       >
-                        <input
-                          type="checkbox"
+                        <Checkbox
                           checked={isChecked}
-                          onChange={() => {
+                          onCheckedChange={() => {
                             setSelectedCourseIds((prev) =>
                               prev.includes(c.id)
                                 ? prev.filter((id) => id !== c.id)
                                 : [...prev, c.id]
                             );
                           }}
-                          className="mt-0.5 size-4 accent-brand-primary rounded border-border focus:ring-brand-primary focus:ring-offset-0 focus:ring-1"
+                          className="shrink-0"
                         />
                         <div className="flex flex-col">
                           <span className="text-body-sm font-semibold text-foreground">{c.title}</span>
@@ -266,7 +267,7 @@ export function TokensDashboard({ initialTokens, coursesList }: Props) {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="space-y-1.5">
                     <label className="text-body-sm font-semibold text-foreground block">
-                      Kuota Pertemuan (Sesi)
+                      Kuota pertemuan
                     </label>
                     <div className="relative">
                       <Input
@@ -336,21 +337,23 @@ export function TokensDashboard({ initialTokens, coursesList }: Props) {
                   ].map((preset) => {
                     const isSelected = totalQuota === preset.total && weeklyQuota === preset.weekly;
                     return (
-                      <button
+                      <Button
                         key={preset.total}
+                        variant="outline"
+                        size="sm"
                         type="button"
                         onClick={() => {
                           setTotalQuota(preset.total);
                           setWeeklyQuota(preset.weekly);
                         }}
-                        className={`px-2.5 py-1 rounded-md border text-body-xs font-medium transition-colors ${
+                        className={`px-2.5 py-1 rounded-md border text-body-sm font-medium transition-colors ${
                           isSelected
                             ? "border-brand-primary bg-brand-primary/10 text-brand-primary"
-                            : "border-border bg-card text-muted-foreground hover:bg-muted/40 hover:text-foreground"
+                            : "bg-card text-muted-foreground hover:bg-muted/40 hover:text-foreground"
                         }`}
                       >
                         {preset.label}
-                      </button>
+                      </Button>
                     );
                   })}
                 </div>
@@ -360,7 +363,7 @@ export function TokensDashboard({ initialTokens, coursesList }: Props) {
               <div className="space-y-2">
                 <div className="space-y-1.5">
                   <label className="text-body-sm font-semibold text-foreground block">
-                    Kapasitas Kelompok (Jumlah Orang)
+                    Kapasitas kelompok
                   </label>
                   <div className="relative max-w-xs">
                     <Input
@@ -389,19 +392,21 @@ export function TokensDashboard({ initialTokens, coursesList }: Props) {
                   {[1, 2, 3, 4, 5, 10].map((num) => {
                     const isSelected = capacity === num;
                     return (
-                      <button
+                      <Button
                         key={num}
+                        variant="outline"
+                        size="sm"
                         type="button"
                         onClick={() => setCapacity(num)}
-                        className={`flex items-center gap-1 px-2.5 py-1 rounded-md border text-body-xs font-medium transition-colors ${
+                        className={`flex items-center gap-1 px-2.5 py-1 rounded-md border text-body-sm font-medium transition-colors ${
                           isSelected
                             ? "border-brand-primary bg-brand-primary/10 text-brand-primary"
-                            : "border-border bg-card text-muted-foreground hover:bg-muted/40 hover:text-foreground"
+                            : "bg-card text-muted-foreground hover:bg-muted/40 hover:text-foreground"
                         }`}
                       >
                         {num === 1 ? <User className="size-3" /> : <Users className="size-3" />}
                         <span>{num} Orang</span>
-                      </button>
+                      </Button>
                     );
                   })}
                 </div>
@@ -413,9 +418,9 @@ export function TokensDashboard({ initialTokens, coursesList }: Props) {
             <Button
               type="submit"
               disabled={loading || selectedCourseIds.length === 0}
-              className="h-11 rounded-lg px-8 bg-brand-primary text-white hover:bg-brand-primary/95 transition-all shadow-md shadow-brand-primary/10"
+              className="h-9 rounded-lg px-4"
             >
-              {loading ? "Membuat..." : "Generate Token"}
+              {loading ? "Membuat..." : "Buat token"}
             </Button>
           </div>
         </form>
@@ -423,8 +428,8 @@ export function TokensDashboard({ initialTokens, coursesList }: Props) {
 
       {/* Tokens List */}
       <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-muted/20 px-6 py-4">
-          <div className="flex flex-1 items-center gap-3 min-w-[200px] max-w-md">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-muted/20 px-4 py-3">
+          <div className="flex flex-1 items-center gap-3 min-w-[140px] max-w-md">
             <SearchBar
               size="sm"
               value={searchQuery}
@@ -454,33 +459,31 @@ export function TokensDashboard({ initialTokens, coursesList }: Props) {
         </div>
 
         {filteredTokens.length === 0 ? (
-          <div className="p-8 text-center text-body-sm text-muted-foreground">
-            {searchQuery ? "Tidak ada token yang cocok dengan pencarian." : "Belum ada token pendaftaran kelas yang dibuat."}
-          </div>
+          <AdminEmptyState icon={KeyRound} title={searchQuery ? "Token tidak ditemukan" : "Belum ada token"} />
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full min-w-3xl text-left text-body-sm">
               <thead>
                 <tr className="border-b border-border bg-muted/10">
-                    <th scope="col" className="px-6 py-3.5 text-body-xs font-semibold text-muted-foreground">
+                    <th scope="col" className="px-4 py-3 text-body-xs font-semibold text-muted-foreground">
                       Token string
                   </th>
-                    <th scope="col" className="px-6 py-3.5 text-body-xs font-semibold text-muted-foreground">
+                    <th scope="col" className="px-4 py-3 text-body-xs font-semibold text-muted-foreground">
                       Kapasitas kelompok
                   </th>
-                    <th scope="col" className="px-6 py-3.5 text-body-xs font-semibold text-muted-foreground">
+                    <th scope="col" className="px-4 py-3 text-body-xs font-semibold text-muted-foreground">
                       Mata kuliah
                   </th>
-                    <th scope="col" className="px-6 py-3.5 text-body-xs font-semibold text-muted-foreground">
+                    <th scope="col" className="px-4 py-3 text-body-xs font-semibold text-muted-foreground">
                       Tanggal kedaluwarsa
                   </th>
-                    <th scope="col" className="px-6 py-3.5 text-body-xs font-semibold text-muted-foreground">
+                    <th scope="col" className="px-4 py-3 text-body-xs font-semibold text-muted-foreground">
                     Status
                   </th>
-                    <th scope="col" className="px-6 py-3.5 text-body-xs font-semibold text-muted-foreground">
+                    <th scope="col" className="px-4 py-3 text-body-xs font-semibold text-muted-foreground">
                       Anggota terdaftar
                   </th>
-                    <th scope="col" className="px-6 py-3.5 text-body-xs font-semibold text-muted-foreground text-center">
+                    <th scope="col" className="px-4 py-3 text-body-xs font-semibold text-muted-foreground text-center">
                     Aksi
                   </th>
                 </tr>
@@ -493,24 +496,26 @@ export function TokensDashboard({ initialTokens, coursesList }: Props) {
 
                   return (
                     <tr key={t.id} className="hover:bg-muted/30 transition-colors">
-                      <td className="px-6 py-4 font-mono font-bold text-foreground">
+                      <td className="px-4 py-3 font-mono font-bold text-foreground">
                         <div className="flex items-center gap-2">
                           <span>{t.token}</span>
-                          <button
+                          <Button
                             type="button"
                             onClick={() => handleCopy(t.token, t.id)}
                             className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
-                            title="Salin token"
+                            aria-label="Salin token"
+                            variant="ghost"
+                            size="icon"
                           >
                             {copiedTokenId === t.id ? (
                               <Check className="size-3.5 text-emerald-500" />
                             ) : (
                               <Copy className="size-3.5" />
                             )}
-                          </button>
+                          </Button>
                         </div>
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-4 py-3">
                         <div className="flex flex-col gap-1">
                           <span className="inline-flex items-center gap-1 text-body-xs font-medium text-foreground bg-muted/60 px-2.5 py-1 rounded-md border border-border w-fit">
                             <Users className="size-3 text-muted-foreground" />
@@ -523,7 +528,7 @@ export function TokensDashboard({ initialTokens, coursesList }: Props) {
                           )}
                         </div>
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-4 py-3">
                         <div className="flex flex-wrap gap-1.5 max-w-xs">
                           {t.courses.map((c) => (
                             <span
@@ -535,14 +540,14 @@ export function TokensDashboard({ initialTokens, coursesList }: Props) {
                           ))}
                         </div>
                       </td>
-                      <td className="px-6 py-4 text-body-xs text-muted-foreground">
+                      <td className="px-4 py-3 text-body-xs text-muted-foreground">
                         {new Date(t.expiresAt).toLocaleDateString("id-ID", {
                           day: "numeric",
                           month: "short",
                           year: "numeric",
                         })}
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-4 py-3">
                         {isExpired ? (
                           <span className="text-[10px] uppercase font-bold text-red-600 bg-red-500/10 px-2 py-0.5 rounded border border-red-500/20">
                             Kedaluwarsa
@@ -557,7 +562,7 @@ export function TokensDashboard({ initialTokens, coursesList }: Props) {
                           </span>
                         )}
                       </td>
-                      <td className="px-6 py-4 text-body-xs">
+                      <td className="px-4 py-3 text-body-xs">
                         <div className="flex flex-col gap-1">
                           <span className="font-semibold text-foreground">
                             {membersCount} / {t.capacity} Mahasiswa
@@ -573,7 +578,7 @@ export function TokensDashboard({ initialTokens, coursesList }: Props) {
                           )}
                         </div>
                       </td>
-                      <td className="px-6 py-4 text-center">
+                      <td className="px-4 py-3 text-center">
                         <Button
                           variant="ghost"
                           size="xs"

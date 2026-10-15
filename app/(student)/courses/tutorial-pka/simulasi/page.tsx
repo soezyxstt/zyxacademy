@@ -44,7 +44,7 @@ export default async function PkaSimulasiPage() {
   return (
     <CoursePageShell
       title="Simulasi Ujian PKA"
-      description="Latihan simulasi terstruktur dengan batas waktu dan analisis pembahasan."
+
       icon={ClipboardList}
     >
       <Reveal>

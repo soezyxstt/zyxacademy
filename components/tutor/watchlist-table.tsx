@@ -1,3 +1,6 @@
+import { Users } from "lucide-react";
+import { AdminEmptyState } from "@/components/admin/state-panels";
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import type { WatchlistStudent } from "@/lib/cohort-analytics";
 
 function relativeTime(iso: string | null): string {
@@ -13,23 +16,21 @@ function relativeTime(iso: string | null): string {
 export function WatchlistTable({ students }: { students: WatchlistStudent[] }) {
   if (students.length === 0) {
     return (
-      <p className="text-body-sm text-muted-foreground">
-        Tidak ada siswa yang memerlukan perhatian khusus saat ini.
-      </p>
+      <AdminEmptyState icon={Users} title="Tidak ada siswa perlu perhatian" />
     );
   }
 
   return (
     <div className="overflow-x-auto">
-      <table className="w-full text-body-sm">
-        <thead>
-          <tr className="border-b border-border text-left text-muted-foreground text-body-xs font-semibold">
-            <th className="px-4 py-2.5 font-medium">Siswa</th>
-            <th className="px-4 py-2.5 font-medium">Konsep menurun</th>
-            <th className="px-4 py-2.5 font-medium whitespace-nowrap">Terakhir aktif</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-border">
+      <Table className="w-full text-body-sm">
+        <TableHeader>
+          <TableRow className="border-b border-border text-left text-muted-foreground text-body-xs font-semibold">
+            <TableHead className="px-4 py-2.5 font-medium">Siswa</TableHead>
+            <TableHead className="px-4 py-2.5 font-medium">Konsep menurun</TableHead>
+            <TableHead className="px-4 py-2.5 font-medium whitespace-nowrap">Terakhir aktif</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody className="divide-y divide-border">
           {students.map((s) => {
             const shown = s.decliningConcepts.slice(0, 3);
             const overflow = s.decliningConcepts.length - shown.length;
@@ -39,19 +40,19 @@ export function WatchlistTable({ students }: { students: WatchlistStudent[] }) {
                 : shown.join(", ") + (overflow > 0 ? ` +${overflow}` : "");
 
             return (
-              <tr key={s.studentId}>
-                <td className="px-4 py-2.5 font-medium text-foreground">{s.name}</td>
-                <td className="px-4 py-2.5 text-muted-foreground max-w-xs truncate">
+              <TableRow key={s.studentId}>
+                <TableCell className="px-4 py-2.5 font-medium text-foreground">{s.name}</TableCell>
+                <TableCell className="px-4 py-2.5 text-muted-foreground max-w-xs truncate">
                   {conceptLabel}
-                </td>
-                <td className="px-4 py-2.5 whitespace-nowrap text-muted-foreground">
+                </TableCell>
+                <TableCell className="px-4 py-2.5 whitespace-nowrap text-muted-foreground">
                   {relativeTime(s.lastActiveAt)}
-                </td>
-              </tr>
+                </TableCell>
+              </TableRow>
             );
           })}
-        </tbody>
-      </table>
+        </TableBody>
+      </Table>
     </div>
   );
 }

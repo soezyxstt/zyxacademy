@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Send, History, Megaphone, CheckCircle2, XCircle, Users, Pin, Edit2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { AdminEmptyState } from "@/components/admin/state-panels";
 import { AdminTable } from "@/components/admin/table";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -120,8 +121,8 @@ export function AnnouncementsTab({ history }: { history: PkaAnnouncementRow[] })
   };
 
   return (
-    <div className="space-y-8">
-      <div className="grid items-start gap-6 lg:grid-cols-2">
+    <div className="space-y-4">
+      <div className={cn("grid items-start gap-4", (title || body) && "lg:grid-cols-2")}>
         {/* Compose */}
         <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
           <div className="flex items-center justify-between border-b border-border bg-muted/30 px-5 py-3">
@@ -137,7 +138,7 @@ export function AnnouncementsTab({ history }: { history: PkaAnnouncementRow[] })
               </Button>
             )}
           </div>
-          <form onSubmit={handleSubmit} className="space-y-5 p-5">
+          <form onSubmit={handleSubmit} className="space-y-4 p-4">
             <div className="space-y-1.5">
               <Label htmlFor="pka-ann-title" className="text-body-sm font-medium text-foreground">
                 Judul{" "}
@@ -168,29 +169,28 @@ export function AnnouncementsTab({ history }: { history: PkaAnnouncementRow[] })
                 onChange={(e) => setBody(e.target.value.slice(0, BODY_MAX))}
                 placeholder={"Tulis pengumuman di sini.\n\nMarkdown didukung: **tebal**, *miring*, daftar, dan [tautan](https://...)."}
                 required
-                className="min-h-[220px] rounded-md font-mono text-body-sm"
+                className="min-h-[160px] rounded-md font-mono text-body-sm"
               />
             </div>
 
-            <Button type="submit" disabled={!title.trim() || !body.trim()} isLoading={isPending} className="w-full gap-2 rounded-lg">
+            <Button type="submit" disabled={!title.trim() || !body.trim()} isLoading={isPending} className="gap-2 rounded-lg">
               <Send className="size-4" />
-              {editingId ? "Simpan Perubahan" : "Kirim & Broadcast"}
+              {editingId ? "Simpan Perubahan" : "Kirim pengumuman"}
             </Button>
             {!editingId && (
               <p className="text-body-xs text-muted-foreground">
-                Pengumuman langsung dikirim sebagai push notification dan email ke semua siswa yang terdaftar di
-                Tutorial PKA.
+                Dikirim lewat notifikasi dan email ke peserta Tutorial PKA.
               </p>
             )}
           </form>
         </div>
 
         {/* Live preview */}
-        <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden lg:sticky lg:top-6">
-          <div className="border-b border-border bg-muted/30 px-5 py-3">
-            <h3 className="font-heading text-body-sm font-semibold text-foreground">Preview</h3>
+        {(title || body) && <div className="min-w-0 border-t border-border pt-3 lg:sticky lg:top-6">
+          <div className="mb-3">
+            <h3 className="font-heading text-body-sm font-semibold text-foreground">Pratinjau</h3>
           </div>
-          <div className="p-5">
+          <div>
             {title || body ? (
               <div className="space-y-3">
                 <h4 className="font-heading text-body-base text-foreground">{title || "Judul pengumuman"}</h4>
@@ -199,18 +199,18 @@ export function AnnouncementsTab({ history }: { history: PkaAnnouncementRow[] })
                     <MarkdownRenderer content={body} />
                   </div>
                 ) : (
-                  <p className="text-body-sm italic text-muted-foreground/60">Isi pesan akan muncul di sini.</p>
+                  <p className="text-body-sm italic text-muted-foreground/60">Belum ada pesan.</p>
                 )}
               </div>
             ) : (
               <div className="py-10 text-center">
                 <p className="text-body-sm text-muted-foreground">
-                  Preview muncul saat kamu mulai mengetik. Tampilan ini sama dengan yang dilihat siswa di halaman kursus.
+                  Belum ada isi.
                 </p>
               </div>
             )}
           </div>
-        </div>
+        </div>}
       </div>
 
       {/* History */}
@@ -221,17 +221,15 @@ export function AnnouncementsTab({ history }: { history: PkaAnnouncementRow[] })
         </div>
 
         {history.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-border/60 py-12 text-center">
-            <p className="text-body-sm text-muted-foreground">Belum ada pengumuman yang dikirim.</p>
-          </div>
+          <AdminEmptyState icon={Megaphone} title="Belum ada pengumuman" />
         ) : (
           <AdminTable>
             <div className="hidden md:grid grid-cols-[1fr_120px_100px_120px_100px] gap-4 border-b border-border bg-muted/30 px-5 py-3">
-              <span className="text-body-xs font-semibold uppercase tracking-wide text-muted-foreground">Pengumuman</span>
-              <span className="text-body-xs font-semibold uppercase tracking-wide text-muted-foreground">Status</span>
-              <span className="text-body-xs font-semibold uppercase tracking-wide text-muted-foreground">Penerima</span>
-              <span className="text-body-xs font-semibold uppercase tracking-wide text-muted-foreground">Waktu</span>
-              <span className="text-body-xs font-semibold uppercase tracking-wide text-muted-foreground text-right">Aksi</span>
+              <span className="text-body-xs font-semibold text-muted-foreground">Pengumuman</span>
+              <span className="text-body-xs font-semibold text-muted-foreground">Status</span>
+              <span className="text-body-xs font-semibold text-muted-foreground">Penerima</span>
+              <span className="text-body-xs font-semibold text-muted-foreground">Waktu</span>
+              <span className="text-body-xs font-semibold text-muted-foreground text-right">Aksi</span>
             </div>
             <ul className="divide-y divide-border/60">
               {history.map((row) => (

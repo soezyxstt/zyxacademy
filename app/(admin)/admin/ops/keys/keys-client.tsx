@@ -1,5 +1,6 @@
 "use client";
 
+import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
 import { RefreshCw } from "lucide-react";
 
@@ -92,9 +93,9 @@ export function KeysClient() {
   if (error) {
     return (
       <div className="max-w-5xl">
-        <div className="rounded-xl border border-border bg-card p-6">
+        <div className="rounded-xl border border-border bg-card p-4">
           <p className="text-status-error">Failed to load diagnostics: {error.message}</p>
-          <button onClick={() => refetch()} className="mt-2 text-body-sm text-brand-primary underline">Retry</button>
+          <Button variant="ghost" size="sm" onClick={() => refetch()} className="mt-2 text-body-sm text-brand-primary underline">Retry</Button>
         </div>
       </div>
     );
@@ -114,18 +115,18 @@ export function KeysClient() {
 
   return (
     <div className="max-w-5xl space-y-6">
-      <div className="flex items-center justify-between border-b border-border/40 pb-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <span className="text-body-sm text-muted-foreground">
           Checked {relativeTime(data.checkedAt)} · {data.totalRequestsToday} total requests today
         </span>
-        <button
+        <Button variant="ghost" size="sm"
           onClick={() => refetch()}
           disabled={isFetching}
           className="flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2 text-body-sm text-foreground transition-colors hover:bg-muted disabled:opacity-50 cursor-pointer"
         >
           <RefreshCw className={`size-4 ${isFetching ? "animate-spin" : ""}`} />
           Refresh
-        </button>
+        </Button>
       </div>
 
       {keyHealth.map(({ keyId, healthy, totalToday, entries }) => (

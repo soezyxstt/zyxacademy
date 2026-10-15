@@ -53,7 +53,7 @@ export function ParticipantsClient({ data }: ParticipantsClientProps) {
   }, [data.groups, normalizedSearch]);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* ── KPI Strip ── */}
       <AdminStatStrip className="grid-cols-2 sm:grid-cols-4">
         <AdminStatStripItem icon={Users} label="Total peserta" value={data.summary.totalParticipants} caption="Aktif terdaftar" />
@@ -210,11 +210,11 @@ export function ParticipantsClient({ data }: ParticipantsClientProps) {
               </p>
             </div>
           ) : (
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
               {filteredGroups.map((grp) => (
                 <div
                   key={grp.id}
-                  className="flex flex-col justify-between rounded-xl border border-border bg-card p-4 space-y-4"
+                  className="grid gap-3 p-4 lg:grid-cols-2 lg:gap-6"
                 >
                   <div className="space-y-2">
                     <div className="flex items-start justify-between gap-2">
@@ -239,7 +239,7 @@ export function ParticipantsClient({ data }: ParticipantsClientProps) {
                     </div>
 
                     {grp.representative && (
-                      <div className="rounded-lg bg-muted/40 p-2 text-body-xs">
+                      <div className="text-body-xs">
                         <span className="text-muted-foreground">Perwakilan: </span>
                         <strong className="text-foreground">{grp.representative.name}</strong>
                         {grp.representative.role === "leader" && (
@@ -250,7 +250,7 @@ export function ParticipantsClient({ data }: ParticipantsClientProps) {
                   </div>
 
                   {/* Members list */}
-                  <div className="border-t border-border pt-3 space-y-2">
+                  <div className="space-y-2">
                     <p className="text-body-xs font-semibold text-muted-foreground">
                       Anggota ({grp.members.length})
                     </p>
@@ -258,7 +258,7 @@ export function ParticipantsClient({ data }: ParticipantsClientProps) {
                       {grp.members.map((member) => (
                         <div
                           key={member.userId}
-                          className="flex items-center justify-between gap-2 rounded-md bg-muted/20 px-2 py-1 text-body-xs"
+                          className="flex items-center justify-between gap-2 py-1 text-body-xs"
                         >
                           <span className="text-foreground truncate">{member.name}</span>
                           {member.role === "leader" ? (

@@ -164,7 +164,7 @@ export function AssessmentsClient({ sources, courses, courseMap }: Props) {
   const handleIngestSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.courseId || !form.title || !form.rawText) {
-      toast.error("Silakan isi semua field wajib (Mata Kuliah, Judul, Konten Markdown).");
+      toast.error("Silakan isi semua field wajib (Mata kuliah, Judul, Konten Markdown).");
       return;
     }
 
@@ -211,22 +211,22 @@ export function AssessmentsClient({ sources, courses, courseMap }: Props) {
   return (
     <div className="space-y-6">
       {/* Action Bar */}
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <SearchBar
           size="sm"
           placeholder="Cari judul asesmen historis..."
           value={searchQuery}
           onSearch={setSearchQuery}
           onClear={() => setSearchQuery("")}
-          containerClassName="flex-1 min-w-0"
+          containerClassName="flex-1 min-w-[140px]"
         />
 
         <Select value={filterCourse} onValueChange={setFilterCourse}>
           <SelectTrigger className="w-[140px] sm:w-[160px] h-9 text-body-sm rounded-lg shrink-0">
-            <SelectValue placeholder="Semua Mata Kuliah" />
+            <SelectValue placeholder="Semua Mata kuliah" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Semua Mata Kuliah</SelectItem>
+            <SelectItem value="all">Semua Mata kuliah</SelectItem>
             {courses.map((course) => (
               <SelectItem key={course.id} value={course.id}>
                 {course.title}
@@ -305,11 +305,11 @@ export function AssessmentsClient({ sources, courses, courseMap }: Props) {
         <table className="w-full text-left border-collapse">
           <AdminTableHead>
             <tr>
-              <th className="px-4 py-3 text-left font-medium text-muted-foreground text-body-sm">Nama Ujian / Judul</th>
-              <th className="px-4 py-3 text-left font-medium text-muted-foreground text-body-sm">Mata Kuliah</th>
+              <th className="px-4 py-3 text-left font-medium text-muted-foreground text-body-sm">Judul ujian</th>
+              <th className="px-4 py-3 text-left font-medium text-muted-foreground text-body-sm">Mata kuliah</th>
               <th className="px-4 py-3 text-left font-medium text-muted-foreground text-body-sm">Kategori</th>
               <th className="px-4 py-3 text-left font-medium text-muted-foreground text-body-sm">Tahun / Sem</th>
-              <th className="px-4 py-3 text-left font-medium text-muted-foreground text-body-sm">Status Ingest</th>
+              <th className="px-4 py-3 text-left font-medium text-muted-foreground text-body-sm">Status ingest</th>
               <th className="px-4 py-3 font-medium text-muted-foreground text-body-sm text-center">Soal</th>
               <th className="px-4 py-3 font-medium text-muted-foreground text-body-sm text-center">Bab</th>
               <th className="px-4 py-3 text-left font-medium text-muted-foreground text-body-sm">Tanggal</th>
@@ -320,7 +320,7 @@ export function AssessmentsClient({ sources, courses, courseMap }: Props) {
             {filteredSources.length === 0 ? (
               <tr>
                 <td colSpan={9} className="h-32 text-center text-body-sm text-muted-foreground px-4 py-3">
-                  Tidak ada data asesmen historis yang ditemukan.
+                  Tidak ada asesmen yang cocok.
                 </td>
               </tr>
             ) : (
@@ -336,7 +336,7 @@ export function AssessmentsClient({ sources, courses, courseMap }: Props) {
                     </Link>
                   </td>
                   <td className="text-body-sm text-muted-foreground px-4 py-3 align-middle">
-                    {courseMap[source.courseId] || "Mata Kuliah Tidak Diketahui"}
+                    {courseMap[source.courseId] || "Mata kuliah Tidak Diketahui"}
                   </td>
                   <td className="text-body-sm px-4 py-3 align-middle">
                     <Badge variant="outline" className="uppercase text-[10px] font-semibold tracking-wider">
@@ -426,7 +426,7 @@ export function AssessmentsClient({ sources, courses, courseMap }: Props) {
           <form onSubmit={handleIngestSubmit} className="space-y-4 py-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <label className="text-body-sm font-medium text-foreground">Mata Kuliah Target *</label>
+                <label className="text-body-sm font-medium text-foreground">Mata kuliah Target *</label>
                 <Select
                   value={form.courseId}
                   onValueChange={(val) => setForm((prev) => ({ ...prev, courseId: val }))}

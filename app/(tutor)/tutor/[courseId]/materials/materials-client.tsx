@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, Edit2, Trash2, BookOpen, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { AdminEmptyState } from "@/components/admin/state-panels";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -94,7 +94,7 @@ export function MaterialsClient({ courseId, initialMaterials }: Props) {
           rawText
         );
         if (res.success) {
-          toast.success(editingMaterial ? "Materi berhasil diperbarui!" : "Materi baru berhasil ditambahkan!");
+          toast.success(editingMaterial ? "Materi diperbarui." : "Materi ditambahkan.");
           setIsOpen(false);
           router.refresh();
         }
@@ -122,10 +122,10 @@ export function MaterialsClient({ courseId, initialMaterials }: Props) {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Action Row */}
-      <div className="flex justify-between items-center">
-        <h2 className="font-heading text-body-base font-semibold text-foreground">Daftar Modul ({initialMaterials.length})</h2>
+      <div className="flex flex-wrap justify-between items-center gap-2">
+        <h2 className="font-heading text-body-base font-semibold text-foreground">Materi ({initialMaterials.length})</h2>
         <Button onClick={handleOpenAdd} className="bg-brand-primary text-white hover:bg-brand-primary/90 rounded-md font-semibold gap-2">
           <Plus className="size-4" />
           Tambah Materi
@@ -134,44 +134,21 @@ export function MaterialsClient({ courseId, initialMaterials }: Props) {
 
       {/* Grid List */}
       {initialMaterials.length === 0 ? (
-        <div className="text-center py-12 border border-dashed border-border bg-card/50 rounded-2xl">
-          <BookOpen className="size-12 text-muted-foreground/50 mx-auto mb-3" />
-          <h3 className="font-heading text-body-base font-bold text-foreground">Belum Ada Materi</h3>
-          <p className="text-body-sm text-muted-foreground mt-1 max-w-sm mx-auto">
-            Materi belajar yang ditambahkan akan muncul di sini dan langsung dapat diakses oleh siswa.
-          </p>
-        </div>
+        <AdminEmptyState icon={BookOpen} title="Belum ada materi" action={<Button onClick={handleOpenAdd} size="sm"><Plus className="size-4" />Tambah materi</Button>} />
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
           {initialMaterials.map((m) => (
-            <Card key={m.id} className="bg-card border-border shadow-sm rounded-2xl flex flex-col justify-between overflow-hidden">
-              <CardHeader className="p-5 pb-3">
-                <div className="flex items-start gap-3">
-                  <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-brand-primary/10 text-brand-primary">
-                    <FileText className="size-5" />
-                  </span>
-                  <div className="min-w-0">
-                    <CardTitle className="font-heading text-body-base font-bold text-foreground truncate">{m.title}</CardTitle>
-                    <p className="text-body-xs text-muted-foreground mt-0.5">
-                      Dibuat pada: {new Date(m.createdAt).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })}
-                    </p>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent className="px-5 pb-4 flex-1">
-                <p className="text-body-sm text-muted-foreground line-clamp-3 leading-relaxed">{cleanSummary(m.summary)}</p>
-              </CardContent>
-              <div className="px-5 py-3.5 bg-muted/20 border-t border-border flex justify-end gap-2">
-                <Button variant="outline" size="sm" onClick={() => handleOpenEdit(m)} className="rounded-md border-border/80 text-muted-foreground hover:text-foreground hover:bg-muted gap-1">
-                  <Edit2 className="size-3.5" />
-                  Edit
-                </Button>
-                <Button variant="outline" size="sm" onClick={() => setDeleteId(m.id)} className="rounded-md border-border/80 text-status-error hover:bg-status-error/10 hover:text-status-error gap-1">
-                  <Trash2 className="size-3.5" />
-                  Hapus
-                </Button>
+            <div key={m.id} className="flex flex-wrap items-center gap-3 px-4 py-3">
+              <FileText className="size-4 shrink-0 text-primary" aria-hidden />
+              <div className="min-w-0 flex-1 basis-40">
+                <h3 className="font-heading text-body-sm font-bold text-foreground break-words">{m.title}</h3>
+                <p className="mt-0.5 text-body-xs text-muted-foreground line-clamp-2">{cleanSummary(m.summary)}</p>
               </div>
-            </Card>
+              <div className="flex shrink-0 gap-2">
+                <Button variant="outline" size="sm" onClick={() => handleOpenEdit(m)}><Edit2 className="size-3.5" />Edit</Button>
+                <Button variant="outline" size="sm" onClick={() => setDeleteId(m.id)} className="text-destructive"><Trash2 className="size-3.5" />Hapus</Button>
+              </div>
+            </div>
           ))}
         </div>
       )}
@@ -184,7 +161,7 @@ export function MaterialsClient({ courseId, initialMaterials }: Props) {
               {editingMaterial ? "Edit Materi Belajar" : "Tambah Materi Belajar"}
             </DialogTitle>
             <DialogDescription className="text-body-xs text-muted-foreground">
-              Tulis materi dengan format Markdown. Judul level 2 (##) akan otomatis membagi materi menjadi beberapa halaman.
+              Gunakan Markdown. Judul ## membagi materi menjadi halaman.
             </DialogDescription>
           </DialogHeader>
 
@@ -241,7 +218,7 @@ export function MaterialsClient({ courseId, initialMaterials }: Props) {
           <DialogHeader>
             <DialogTitle className="font-heading text-body-base font-bold text-foreground">Hapus Materi?</DialogTitle>
             <DialogDescription className="text-body-xs text-muted-foreground">
-              Apakah Anda yakin ingin menghapus materi ini? Tindakan ini bersifat permanen dan materi tidak akan dapat diakses oleh siswa lagi.
+              Materi dihapus permanen dan tidak dapat diakses siswa.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2 mt-4">

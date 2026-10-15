@@ -416,7 +416,7 @@ export function QuizzesTab({
             ) : (
               <div className="space-y-6">
                 {previewQuestions.map((q, idx) => (
-                  <div key={q.id} className="p-5 rounded-xl border border-border bg-card space-y-4">
+                  <div key={q.id} className="py-4 border-b border-border last:border-0 space-y-3">
                     <div className="flex items-center justify-between gap-2 border-b border-border/40 pb-2">
                       <span className="text-body-sm font-bold text-foreground">Soal {idx + 1}</span>
                       <div className="flex items-center gap-2">

@@ -2,19 +2,19 @@
 
 import React, { useState, useEffect } from "react";
 import { toast } from "@/components/ui/toast";
-import { 
-  Terminal, 
-  FileCode, 
-  CheckCircle, 
-  AlertTriangle, 
-  AlertCircle, 
-  RefreshCw, 
-  Layers, 
-  Play, 
-  Upload, 
-  Download, 
-  List, 
-  Eye, 
+import {
+  Terminal,
+  FileCode,
+  CheckCircle,
+  AlertTriangle,
+  AlertCircle,
+  RefreshCw,
+  Layers,
+  Play,
+  Upload,
+  Download,
+  List,
+  Eye,
   BookOpen
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -22,6 +22,8 @@ import { compileMarkdown } from "@/lib/markdown-compiler";
 import { ASTRenderer } from "@/components/course/markdown-renderer";
 import { MathText } from "@/components/course/math-text";
 import { CompilerResult, ASTBlock } from "@/lib/ast-validator";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useUrlTab } from "@/hooks/use-url-tab";
 
@@ -201,12 +203,12 @@ export function ASTInspectorClient() {
   };
 
   return (
-    <div className="mx-auto w-full px-4 sm:px-6">
+    <div className="w-full">
       <div className="flex flex-col h-[calc(100vh-250px)] bg-background text-foreground overflow-hidden font-sans border border-border rounded-xl shadow-xs">
         {/* DUAL PANE */}
-        <div className="flex flex-1 overflow-hidden">
+        <div className="flex flex-1 flex-col overflow-auto md:flex-row md:overflow-hidden">
           {/* LEFT PANE: EDITOR */}
-          <div className="flex w-1/2 flex-col border-r border-border bg-card">
+          <div className="flex min-h-80 w-full flex-col border-b border-border bg-card md:w-1/2 md:border-b-0 md:border-r">
             <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-2 bg-muted/40 border-b border-border">
               <span className="text-body-xs font-mono font-semibold text-muted-foreground flex items-center gap-1.5">
                 <Terminal className="size-3.5" />
@@ -215,27 +217,27 @@ export function ASTInspectorClient() {
 
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-body-xs text-muted-foreground font-medium">Demo:</span>
-                <button
+                <Button size="sm" variant="outline"
                   type="button"
                   onClick={() => loadTemplate("standard")}
                   className="px-2 py-1 rounded-md border border-border text-body-xs font-medium hover:bg-muted bg-background transition-colors cursor-pointer"
                 >
                   Standard
-                </button>
-                <button
+                </Button>
+                <Button size="sm" variant="outline"
                   type="button"
                   onClick={() => loadTemplate("leakage")}
                   className="px-2 py-1 rounded-md border border-border text-body-xs font-medium hover:bg-muted bg-background transition-colors cursor-pointer"
                 >
                   Leakage
-                </button>
-                <button
+                </Button>
+                <Button size="sm" variant="outline"
                   type="button"
                   onClick={() => loadTemplate("visual")}
                   className="px-2 py-1 rounded-md border border-border text-body-xs font-medium hover:bg-muted bg-background transition-colors cursor-pointer"
                 >
                   Visual
-                </button>
+                </Button>
 
                 <div className="w-px h-4 bg-border mx-1" />
 
@@ -245,7 +247,7 @@ export function ASTInspectorClient() {
                   <input type="file" accept=".json" onChange={handleImport} className="hidden" />
                 </label>
 
-                <button
+                <Button size="sm" variant="outline"
                   type="button"
                   onClick={handleExport}
                   disabled={!result}
@@ -253,20 +255,20 @@ export function ASTInspectorClient() {
                 >
                   <Download className="size-3" />
                   <span>Export</span>
-                </button>
+                </Button>
               </div>
 
-              <button
+              <Button size="sm" variant="outline"
                 type="button"
                 onClick={handleCompile}
                 className="flex items-center gap-1.5 px-3 py-1 rounded-md bg-brand-primary text-white text-body-xs font-semibold hover:opacity-90 transition-opacity cursor-pointer"
               >
                 <Play className="size-3" />
                 <span>Compile</span>
-              </button>
+              </Button>
             </div>
             <div className="flex-1 p-4 overflow-hidden relative">
-              <textarea
+              <Textarea
                 value={markdown}
                 onChange={(e) => setMarkdown(e.target.value)}
                 className="w-full h-full p-4 font-mono text-body-sm leading-relaxed bg-card text-foreground rounded-xl border border-border/80 focus:outline-none focus:ring-1 focus:ring-brand-primary resize-none overflow-y-auto"
@@ -276,7 +278,7 @@ export function ASTInspectorClient() {
           </div>
 
         {/* RIGHT PANE: VIEWER */}
-        <div className="w-1/2 flex flex-col bg-background">
+        <div className="w-full min-h-80 flex flex-col bg-background md:w-1/2">
           {/* TABS */}
           <Tabs value={activeTab} onValueChange={setActiveTab}>
             <TabsList>
@@ -314,8 +316,8 @@ export function ASTInspectorClient() {
 
                 {/* 2. BLOCK EXPLORER (Point 6) */}
                 {activeTab === "block-explorer" && (
-                  <div className="space-y-3">
-                    <h3 className="font-heading text-body-base font-bold mb-4">Sequential Block Explorer</h3>
+                  <div className="divide-y divide-border">
+                    <h3 className="font-heading text-body-base font-bold mb-4">Daftar blok</h3>
                     {result.ast.blocks.map((block, idx) => {
                       const isExpanded = !!expandedBlocks[block.id];
                       const isCanonical = ![
@@ -323,11 +325,11 @@ export function ASTInspectorClient() {
                       ].includes(block.type);
 
                       return (
-                        <div 
-                          key={block.id || idx} 
-                          className="border border-border/80 rounded-xl bg-card overflow-hidden shadow-2xs"
+                        <div
+                          key={block.id || idx}
+                          className="border-b border-border bg-card overflow-hidden"
                         >
-                          <div 
+                          <div
                             onClick={() => toggleBlock(block.id)}
                             className="flex items-center justify-between px-4 py-3 hover:bg-muted/30 cursor-pointer select-none"
                           >
@@ -337,8 +339,8 @@ export function ASTInspectorClient() {
                               </span>
                               <span className={cn(
                                 "px-2 py-0.5 rounded text-body-2xs font-bold uppercase",
-                                isCanonical 
-                                  ? "bg-brand-primary/15 text-brand-primary" 
+                                isCanonical
+                                  ? "bg-brand-primary/15 text-brand-primary"
                                   : "bg-muted text-muted-foreground"
                               )}>
                                 {block.type}
@@ -391,11 +393,11 @@ export function ASTInspectorClient() {
                     ) : (
                       <div className="space-y-3">
                         {result.diagnostics.map((diag, idx) => (
-                          <div 
-                            key={idx} 
+                          <div
+                            key={idx}
                             className={cn(
                               "p-4 rounded-xl border flex gap-3.5 leading-relaxed shadow-3xs",
-                              diag.severity === "error" 
+                              diag.severity === "error"
                                 ? "border-status-error/20 bg-status-error/5 text-rose-950 dark:text-rose-50"
                                 : diag.severity === "warning"
                                 ? "border-status-warning/20 bg-status-warning/5 text-amber-950 dark:text-amber-50"
@@ -445,7 +447,7 @@ export function ASTInspectorClient() {
                 {activeTab === "json" && (
                   <div className="relative">
                     <div className="absolute top-2 right-2 z-10">
-                      <button
+                      <Button size="sm" variant="outline"
                         onClick={() => {
                           navigator.clipboard.writeText(JSON.stringify(result.ast, null, 2));
                           toast.success("AST JSON berhasil disalin!");
@@ -453,7 +455,7 @@ export function ASTInspectorClient() {
                         className="px-2 py-1 rounded-md bg-card hover:bg-muted border border-border text-body-2xs font-semibold cursor-pointer"
                       >
                         Salin JSON
-                      </button>
+                      </Button>
                     </div>
                     <pre className="p-4 bg-muted/30 text-foreground rounded-xl border border-border overflow-x-auto text-body-xs font-mono leading-relaxed">
                       {JSON.stringify(result, null, 2)}
@@ -464,37 +466,37 @@ export function ASTInspectorClient() {
                 {/* 5. PIPELINE VIEWER (Point 7) */}
                 {activeTab === "pipeline" && (
                   <div className="space-y-6">
-                    <h3 className="font-heading text-body-base font-bold mb-4">Compiler Pipeline Progression</h3>
+                    <h3 className="font-heading text-body-base font-bold mb-4">Tahapan compiler</h3>
                     {[
-                      { 
-                        title: "1. Parse Phase", 
-                        desc: `Memecah berkas markdown mentah menjadi ${result.ast.blocks.length} blok AST mentah.`, 
-                        status: "Selesai", 
-                        details: "Parsing markdown token menggunakan regex ::: dan presenter markdown standard." 
+                      {
+                        title: "1. Parse Phase",
+                        desc: `Memecah berkas markdown mentah menjadi ${result.ast.blocks.length} blok AST mentah.`,
+                        status: "Selesai",
+                        details: "Parsing markdown token menggunakan regex ::: dan presenter markdown standard."
                       },
-                      { 
-                        title: "2. Normalize Phase", 
-                        desc: "Menormalisasi flowchart step numbers (e.g. Langkah 1 -> stepNumber: 1).", 
-                        status: "Selesai", 
-                        details: "Menyaring nama node, membersihkan label teks, dan mengekstrak relasi diagram." 
+                      {
+                        title: "2. Normalize Phase",
+                        desc: "Menormalisasi flowchart step numbers (e.g. Langkah 1 -> stepNumber: 1).",
+                        status: "Selesai",
+                        details: "Menyaring nama node, membersihkan label teks, dan mengekstrak relasi diagram."
                       },
-                      { 
-                        title: "3. Validate Phase", 
-                        desc: "Validasi data terstruktur menggunakan Zod schema di WebsiteMaterialASTSchema.", 
-                        status: result.diagnostics.some(d => d.code === "AST_SCHEMA_VALIDATION_FAILED") ? "Gagal" : "Valid", 
-                        details: "Melakukan verifikasi tipe data, bounds check parameter rumus, dan struktur Zod." 
+                      {
+                        title: "3. Validate Phase",
+                        desc: "Validasi data terstruktur menggunakan Zod schema di WebsiteMaterialASTSchema.",
+                        status: result.diagnostics.some(d => d.code === "AST_SCHEMA_VALIDATION_FAILED") ? "Gagal" : "Valid",
+                        details: "Melakukan verifikasi tipe data, bounds check parameter rumus, dan struktur Zod."
                       },
-                      { 
-                        title: "4. Diagnostics Phase", 
-                        desc: "Static analysis: leak checks, validasi glosarium, dan visual block distance.", 
-                        status: `${result.diagnostics.length} Diagnostik`, 
-                        details: `Menjalankan deteksi leakage level 3, validitas target [[visual:id]], dan checking [[term]] glosarium.` 
+                      {
+                        title: "4. Diagnostics Phase",
+                        desc: "Static analysis: leak checks, validasi glosarium, dan visual block distance.",
+                        status: `${result.diagnostics.length} Diagnostik`,
+                        details: `Menjalankan deteksi leakage level 3, validitas target [[visual:id]], dan checking [[term]] glosarium.`
                       },
-                      { 
-                        title: "5. Stats Phase", 
-                        desc: "Kalkulasi metrics, reading time, dan quality score breakdown.", 
-                        status: `Score: ${result.stats.quality.score}/100`, 
-                        details: `Menghitung Concept Length (${result.stats.averageConceptLength}ch) dan Glossary Coverage (${result.stats.quality.breakdown.glossaryCoverage}%).` 
+                      {
+                        title: "5. Stats Phase",
+                        desc: "Kalkulasi metrics, reading time, dan quality score breakdown.",
+                        status: `Score: ${result.stats.quality.score}/100`,
+                        details: `Menghitung Concept Length (${result.stats.averageConceptLength}ch) dan Glossary Coverage (${result.stats.quality.breakdown.glossaryCoverage}%).`
                       },
                     ].map((step, idx) => (
                       <div key={idx} className="flex gap-4 items-start relative pb-6 last:pb-0">
@@ -504,7 +506,7 @@ export function ASTInspectorClient() {
                         <div className="size-9 rounded-full bg-brand-primary/10 text-brand-primary flex items-center justify-center font-bold text-body-sm font-mono shrink-0 select-none z-10">
                           {idx + 1}
                         </div>
-                        <div className="flex-1 bg-card border border-border p-4 rounded-xl shadow-3xs text-left">
+                        <div className="flex-1 border-b border-border pb-3 text-left">
                           <div className="flex items-center justify-between mb-1.5">
                             <h4 className="font-heading text-body-sm font-bold text-foreground">{step.title}</h4>
                             <span className="text-body-2xs font-bold px-2 py-0.5 rounded bg-muted text-muted-foreground select-none">
@@ -527,7 +529,7 @@ export function ASTInspectorClient() {
                     {/* Quality Score Header */}
                     <div className="bg-card border border-border rounded-xl p-6 shadow-2xs flex flex-col md:flex-row items-center gap-6 justify-between">
                       <div className="space-y-1">
-                        <h4 className="font-heading text-body-base font-bold text-foreground">Transparent Quality Score</h4>
+                        <h4 className="font-heading text-body-base font-bold text-foreground">Skor kualitas</h4>
                         <p className="text-body-sm text-muted-foreground">Representasi kepatuhan pedoman pedagogi visual Zyx.</p>
                       </div>
                       <div className="flex items-baseline gap-1 select-none">
@@ -544,7 +546,7 @@ export function ASTInspectorClient() {
                         { label: "Formula Atomization", val: result.stats.quality.breakdown.formulaAtomization, desc: "Kebocoran penulisan persamaan matematika langsung di konsep." },
                         { label: "Visual Coverage", val: result.stats.quality.breakdown.visualCoverage, desc: "Tingkat pemanfaatan ilustrasi visual dalam dokumen." },
                       ].map((item, idx) => (
-                        <div key={idx} className="bg-card border border-border/80 rounded-xl p-4 shadow-3xs">
+                        <div key={idx} className="py-3 border-b border-border">
                           <div className="flex justify-between items-center mb-1 select-none">
                             <span className="text-body-xs font-semibold text-muted-foreground">{item.label}</span>
                             <span className="text-body-sm font-bold text-brand-primary">{item.val}%</span>
@@ -559,7 +561,7 @@ export function ASTInspectorClient() {
 
                     {/* Structural Metrics */}
                     <div className="bg-card border border-border rounded-xl p-5 shadow-3xs space-y-4">
-                      <h4 className="font-heading text-body-sm font-bold text-foreground">Structural Metrics & Stats</h4>
+                      <h4 className="font-heading text-body-sm font-bold text-foreground">Metrik struktur</h4>
                       <div className="grid grid-cols-2 gap-y-4 gap-x-6">
                         <div className="flex justify-between items-center border-b border-border/40 pb-2">
                           <span className="text-body-sm text-muted-foreground">Konsep Terdeteksi</span>

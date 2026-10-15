@@ -185,7 +185,7 @@ export function QuizForm({
     initialData?.selectionRules?.shuffleOptions ?? false
   );
 
-  // Discussion & Scoring Rules
+  // Pembahasan dan nilai Rules
   const [explanationRelease, setExplanationRelease] = useState<"immediate" | "after_close" | "never">(
     initialData?.selectionRules?.explanationRelease ||
       (initialData?.showDiscussion === false ? "never" : "after_close")
@@ -661,16 +661,16 @@ export function QuizForm({
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
 
             {/* LEFT COLUMN: Main Info & Schedule (7 cols) */}
-            <div className="space-y-4 lg:col-span-7">
+            <div className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card lg:col-span-7">
               {/* General Information Card */}
-              <Card className="rounded-xl border border-border bg-card shadow-2xs">
-                <div className="border-b border-border/80 px-4 py-3">
+              <section>
+                <div className="px-4 pt-3">
                   <h3 className="font-heading text-body-sm sm:text-body-base font-bold text-foreground flex items-center gap-2">
                     <BookOpen className="size-4 text-brand-primary" />
-                    Informasi Utama Kuis
+                    Informasi kuis
                   </h3>
                 </div>
-                <CardContent className="p-4 space-y-3.5">
+                <div className="p-4 space-y-3.5">
                   {!hideCourseSelect && (
                     <div>
                       <Label htmlFor="courseId" className="text-body-sm font-semibold text-foreground">
@@ -738,18 +738,18 @@ export function QuizForm({
                       </Select>
                     </div>
                   </div>
-                </CardContent>
-              </Card>
+                </div>
+              </section>
 
               {/* Schedule Settings Card */}
-              <Card className="rounded-xl border border-border bg-card shadow-2xs">
-                <div className="border-b border-border/80 px-4 py-3">
+              <section>
+                <div className="px-4 pt-3">
                   <h3 className="font-heading text-body-sm sm:text-body-base font-bold text-foreground flex items-center gap-2">
                     <Calendar className="size-4 text-brand-primary" />
                     Jadwal Akses Kuis
                   </h3>
                 </div>
-                <CardContent className="p-4 space-y-3.5">
+                <div className="p-4 space-y-3.5">
                   {/* Schedule Mode Selector */}
                   <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
                     <button
@@ -903,18 +903,18 @@ export function QuizForm({
                       </div>
                     </div>
                   )}
-                </CardContent>
-              </Card>
+                </div>
+              </section>
 
-              {/* Discussion & Scoring Card */}
-              <Card className="rounded-xl border border-border bg-card shadow-2xs">
-                <div className="border-b border-border/80 px-4 py-3">
+              {/* Pembahasan dan nilai Card */}
+              <section>
+                <div className="px-4 pt-3">
                   <h3 className="font-heading text-body-sm sm:text-body-base font-bold text-foreground flex items-center gap-2">
                     <BookOpenCheck className="size-4 text-brand-primary" />
                     Pembahasan & Penilaian
                   </h3>
                 </div>
-                <CardContent className="p-4 space-y-3.5">
+                <div className="p-4 space-y-3.5">
                   <div>
                     <Label htmlFor="explanationRelease" className="text-body-sm font-semibold text-foreground">
                       Waktu Rilis Pembahasan Kuis
@@ -973,22 +973,22 @@ export function QuizForm({
                       />
                     </div>
                   </div>
-                </CardContent>
-              </Card>
+                </div>
+              </section>
             </div>
 
             {/* RIGHT COLUMN: Timers, Navigation & Rules (5 cols) */}
-            <div className="space-y-4 lg:col-span-5">
+            <div className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card lg:col-span-5">
 
               {/* Duration & Timer Card */}
-              <Card className="rounded-xl border border-border bg-card shadow-2xs">
-                <div className="border-b border-border/80 px-4 py-3">
+              <section>
+                <div className="px-4 pt-3">
                   <h3 className="font-heading text-body-sm sm:text-body-base font-bold text-foreground flex items-center gap-2">
                     <Timer className="size-4 text-brand-primary" />
                     Durasi & Timer
                   </h3>
                 </div>
-                <CardContent className="p-4 space-y-3.5">
+                <div className="p-4 space-y-3.5">
                   {/* Global Duration */}
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
@@ -1056,18 +1056,18 @@ export function QuizForm({
                       </div>
                     )}
                   </div>
-                </CardContent>
-              </Card>
+                </div>
+              </section>
 
               {/* Navigation & Submission Rules Card */}
-              <Card className="rounded-xl border border-border bg-card shadow-2xs">
-                <div className="border-b border-border/80 px-4 py-3">
+              <section>
+                <div className="px-4 pt-3">
                   <h3 className="font-heading text-body-sm sm:text-body-base font-bold text-foreground flex items-center gap-2">
                     <Sliders className="size-4 text-brand-primary" />
                     Aturan Pengerjaan & Navigasi
                   </h3>
                 </div>
-                <CardContent className="p-4 space-y-3.5">
+                <div className="p-4 space-y-3.5">
                   {/* Can Go Back */}
                   <div className="flex items-start justify-between gap-3 border-b border-border/60 pb-2.5">
                     <div className="space-y-0.5">
@@ -1154,11 +1154,11 @@ export function QuizForm({
                       />
                     </div>
                   </div>
-                </CardContent>
-              </Card>
+                </div>
+              </section>
 
               {/* Quick Navigation to Tab 2 */}
-              <div className="rounded-xl border border-brand-primary/20 bg-brand-primary/5 p-3.5 flex items-center justify-between">
+              <div className="bg-muted/30 p-3.5 flex items-center justify-between">
                 <div>
                   <div className="text-body-sm font-bold text-brand-primary">Lanjut Pilih Soal</div>
                   <div className="text-body-xs text-muted-foreground">
@@ -1173,7 +1173,7 @@ export function QuizForm({
                   onClick={() => handleTabChange("soal")}
                   className="rounded-lg bg-brand-primary text-white hover:bg-brand-primary/90 font-semibold h-8 text-body-xs"
                 >
-                  Buka Tab Soal <ChevronRight className="ml-1 size-3.5" />
+                  Pilih soal <ChevronRight className="ml-1 size-3.5" />
                 </Button>
               </div>
             </div>

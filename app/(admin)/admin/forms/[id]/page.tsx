@@ -176,7 +176,7 @@ function RenderFormattedAnswer({ val }: { val: any }) {
   if (entries.length === 0) return <span className="text-muted-foreground italic">-</span>;
 
   return (
-    <div className="space-y-1.5 w-full rounded-lg border border-border bg-card p-3 shadow-2xs">
+    <div className="space-y-1.5 w-full py-2">
       {entries.map(([rowName, colVal], idx) => (
         <div key={idx} className="flex flex-wrap items-center justify-between text-body-xs gap-2 py-1 border-b border-border/40 last:border-0">
           <span className="font-semibold text-foreground">{rowName}</span>
@@ -383,7 +383,7 @@ export default function DetailedFormAnalyticsPage({
   };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-4">
       {form && (
         <AdminPageHeader
           icon={FileText}
@@ -448,9 +448,6 @@ export default function DetailedFormAnalyticsPage({
                 <CardTitle className="text-body-base font-heading">
                   {responses.length} tanggapan
                 </CardTitle>
-                <CardDescription className="mt-1">
-                  Visualisasi dan analisis tanggapan responden
-                </CardDescription>
               </div>
 
               <div className="flex flex-wrap items-center gap-2">
@@ -657,7 +654,7 @@ export default function DetailedFormAnalyticsPage({
                         {allAnswers.map((ans: any, aIdx: number) => (
                           <div
                             key={aIdx}
-                            className="rounded-lg border border-border/80 bg-muted/20 p-3 text-body-xs font-medium text-foreground"
+                            className="border-b border-border/60 py-2 text-body-xs font-medium text-foreground"
                           >
                             <RenderFormattedAnswer val={ans} />
                           </div>
@@ -740,9 +737,9 @@ export default function DetailedFormAnalyticsPage({
                       {responsesForQ.length} tanggapan tercatat
                     </CardDescription>
                   </CardHeader>
-                  <CardContent className="p-6 space-y-3">
+                  <CardContent className="px-4 pb-4 space-y-3">
                     {responsesForQ.map((item, idx) => (
-                      <div key={idx} className="rounded-lg border border-border bg-muted/20 p-4 space-y-1.5">
+                      <div key={idx} className="border-b border-border/60 py-3 space-y-1.5">
                         <div className="flex items-center justify-between text-body-xs font-medium text-muted-foreground">
                           <span>Responden: {item.responderEmail}</span>
                           <span className="font-mono">{formatIsoDate(new Date(item.submittedAt))}</span>
@@ -811,8 +808,8 @@ export default function DetailedFormAnalyticsPage({
                         const userAns = currentResp.answers[qIdx] ?? currentResp.answers[qTitle];
 
                         return (
-                          <Card key={qIdx} className="shadow-sm">
-                            <CardHeader className="pb-2">
+                          <section key={qIdx} className="border-b border-border pb-3">
+                            <CardHeader className="px-0 pb-2">
                               <CardTitle className="text-body-sm font-heading">
                                 <MathText as="span">{`${questionNumber}. ${qTitle}`}</MathText>
                               </CardTitle>
@@ -820,10 +817,10 @@ export default function DetailedFormAnalyticsPage({
                                 <CardDescription className="text-body-xs"><MathText as="span">{q.description}</MathText></CardDescription>
                               )}
                             </CardHeader>
-                            <CardContent className="pt-2">
+                            <CardContent className="px-0 pt-2">
                               <RenderFormattedAnswer val={userAns} />
                             </CardContent>
-                          </Card>
+                          </section>
                         );
                       })}
                     </div>
@@ -842,19 +839,16 @@ export default function DetailedFormAnalyticsPage({
                   <CardTitle className="text-body-base font-heading">
                     Pengaturan Tanggapan & Akses
                   </CardTitle>
-                  <CardDescription className="text-body-xs mt-1">
-                    Perbarui status penerimaan tanggapan, jadwal buka/tutup, dan batasan respon formulir ({form.title}).
-                  </CardDescription>
                 </div>
 
                 <Button
                   onClick={handleSaveSettings}
                   disabled={savingSettings}
                   isLoading={savingSettings}
-                  size="marketing"
+                  size="sm"
                   className="bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm"
                 >
-                  {savingSettings ? "Menyimpan..." : "Simpan Perubahan Pengaturan"}
+                  {savingSettings ? "Menyimpan..." : "Simpan pengaturan"}
                 </Button>
               </CardHeader>
             </Card>
@@ -863,18 +857,15 @@ export default function DetailedFormAnalyticsPage({
             <Card className="shadow-sm">
               <CardHeader>
                 <CardTitle className="font-heading text-body-sm font-bold uppercase text-primary tracking-wider">
-                  Menerima Tanggapan & Jadwal (Status Form)
+                  Status dan jadwal
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-5">
-                <div className="flex items-center justify-between rounded-lg border border-border bg-muted/20 p-4 gap-4">
+              <CardContent className="space-y-4">
+                <div className="flex items-center justify-between py-2 gap-4">
                   <div className="space-y-0.5">
                     <Label htmlFor="accepting-responses" className="text-body-sm font-semibold cursor-pointer">
                       Menerima Tanggapan
                     </Label>
-                    <p className="text-body-xs text-muted-foreground">
-                      Aktifkan untuk mengizinkan responden mengisi formulir ini.
-                    </p>
                   </div>
                   <Switch
                     id="accepting-responses"
@@ -925,7 +916,6 @@ export default function DetailedFormAnalyticsPage({
                     placeholder="Formulir ini telah ditutup dan tidak lagi menerima tanggapan."
                     className="text-body-sm resize-y"
                   />
-                  <p className="text-body-xs text-muted-foreground">Pesan yang ditampilkan jika formulir tidak menerima tanggapan.</p>
                 </div>
               </CardContent>
             </Card>
@@ -937,7 +927,7 @@ export default function DetailedFormAnalyticsPage({
                   Pengumpulan Alamat Email & Autentikasi
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-5">
+              <CardContent className="space-y-4">
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-1.5">
                     <Label className="text-body-sm font-semibold">
@@ -978,7 +968,7 @@ export default function DetailedFormAnalyticsPage({
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between rounded-lg border border-border bg-muted/20 p-4 gap-4">
+                <div className="flex items-center justify-between py-2 gap-4">
                   <div className="space-y-0.5">
                     <Label htmlFor="allow-editing" className="text-body-sm font-semibold cursor-pointer">
                       Izinkan ubah respons
@@ -994,7 +984,7 @@ export default function DetailedFormAnalyticsPage({
                   />
                 </div>
 
-                <div className="flex items-center justify-between rounded-lg border border-border bg-muted/20 p-4 gap-4">
+                <div className="flex items-center justify-between py-2 gap-4">
                   <div className="space-y-0.5">
                     <Label htmlFor="limit-one" className="text-body-sm font-semibold cursor-pointer">
                       Batasi 1 respons per responden
@@ -1019,7 +1009,7 @@ export default function DetailedFormAnalyticsPage({
                   Batas Ukuran File Upload & Tampilan
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-5">
+              <CardContent className="space-y-4">
                 <div className="space-y-1.5">
                   <Label className="text-body-sm font-semibold">
                     Batas total ukuran semua file
@@ -1051,7 +1041,6 @@ export default function DetailedFormAnalyticsPage({
                     placeholder="Jawaban Anda telah berhasil disimpan."
                     className="text-body-sm"
                   />
-                  <p className="text-body-xs text-muted-foreground">Pesan yang ditampilkan setelah responden selesai mengirimkan formulir.</p>
                 </div>
               </CardContent>
             </Card>

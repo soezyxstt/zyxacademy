@@ -155,9 +155,6 @@ export function VoucherManagementTab({
           <h2 className="font-heading text-body-base font-bold text-foreground">
             Daftar voucher & kode referal
           </h2>
-          <p className="mt-1 text-body-xs text-muted-foreground">
-            Kelola kode diskon dan kupon promosi untuk potongan harga paket murid.
-          </p>
         </div>
 
         <div className="flex items-center gap-2">
@@ -205,11 +202,10 @@ export function VoucherManagementTab({
       )}
 
       {showForm && (
-        <section className="rounded-xl border border-border/70 bg-card/70 p-4 shadow-xs backdrop-blur-md sm:p-5">
+        <section className="rounded-xl border border-border bg-card p-4">
           <AdminSectionTitle
             icon={Tag}
-            title="Form pembuatan voucher baru"
-            description="Tentukan kode, persentase diskon, kuota penggunaan, dan masa aktif."
+            title="Voucher baru"
           />
 
           <form onSubmit={handleCreateVoucher} className="mt-5 space-y-4">
@@ -225,8 +221,8 @@ export function VoucherManagementTab({
                   required
                   className="font-mono uppercase tracking-wider"
                 />
-                <p className="text-body-2xs text-muted-foreground">
-                  3-30 karakter alfanumerik (otomatis kapital).
+                <p className="text-body-xs text-muted-foreground">
+                  3-30 huruf atau angka.
                 </p>
               </div>
 
@@ -242,7 +238,7 @@ export function VoucherManagementTab({
                   onChange={(e) => setDiscountPercent(e.target.value)}
                   required
                 />
-                <p className="text-body-2xs text-muted-foreground">
+                <p className="text-body-xs text-muted-foreground">
                   Potongan dari harga setelah diskon 40%.
                 </p>
               </div>
@@ -258,8 +254,8 @@ export function VoucherManagementTab({
                   onChange={(e) => setMaxQuota(e.target.value)}
                   required
                 />
-                <p className="text-body-2xs text-muted-foreground">
-                  Batas maksimal kelompok yang dapat memakai.
+                <p className="text-body-xs text-muted-foreground">
+                  Maksimal kelompok.
                 </p>
               </div>
 
@@ -272,9 +268,6 @@ export function VoucherManagementTab({
                   onChange={(e) => setExpiresAt(e.target.value)}
                   required
                 />
-                <p className="text-body-2xs text-muted-foreground">
-                  Batas akhir masa aktif voucher.
-                </p>
               </div>
             </div>
 
@@ -325,7 +318,7 @@ export function VoucherManagementTab({
         <AdminEmptyState
           icon={Ticket}
           title="Belum ada voucher"
-          description="Buat voucher diskon atau kode referal baru untuk memberikan potongan harga kepada murid."
+          description="Tambahkan kode diskon atau referal."
           action={
             <Button
               type="button"
@@ -364,7 +357,7 @@ export function VoucherManagementTab({
                           {v.code}
                         </span>
                         {v.description && (
-                          <span className="text-body-2xs text-muted-foreground">
+                          <span className="text-body-xs text-muted-foreground">
                             {v.description}
                           </span>
                         )}
@@ -389,7 +382,7 @@ export function VoucherManagementTab({
                         >
                           {v.usedQuota} / {v.maxQuota}
                         </span>
-                        <span className="text-body-2xs text-muted-foreground">
+                        <span className="text-body-xs text-muted-foreground">
                           ({Math.max(0, v.maxQuota - v.usedQuota)} sisa)
                         </span>
                       </div>

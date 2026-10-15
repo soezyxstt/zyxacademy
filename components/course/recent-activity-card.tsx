@@ -78,12 +78,12 @@ export function RecentActivityCard({
   };
 
   return (
-    <div className={cn(studentCardClass(), "w-full transition-all duration-300 hover:border-brand-primary/15")}>
+    <div className={cn(studentCardClass(), "w-full")}>
       <h3 className="font-heading text-body-base font-bold text-foreground flex items-center gap-2 mb-2">
         <History className="size-4.5 text-brand-primary" aria-hidden="true" />
         Aktivitas Terbaru
       </h3>
-      
+
       {!isEmpty ? (
         <div className="divide-y divide-border zebra-no-rows animate-in fade-in slide-in-from-bottom-2 duration-300">
           {data.map((activity) => (
@@ -111,10 +111,7 @@ export function RecentActivityCard({
         </div>
       ) : (
         <div className="py-8 text-center animate-in fade-in duration-300">
-          <p className="text-body-sm text-muted-foreground">Belum ada aktivitas belajar baru-baru ini.</p>
-          <p className="text-body-xs text-muted-foreground mt-1">
-            Mulailah belajar untuk melihat riwayat aktivitas di sini.
-          </p>
+          <p className="text-body-sm text-muted-foreground">Belum ada aktivitas belajar.</p>
         </div>
       )}
     </div>

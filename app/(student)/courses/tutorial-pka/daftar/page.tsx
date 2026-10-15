@@ -7,7 +7,7 @@ import { createMetadata, pageTitle } from "@/lib/site";
 import { PKA_COURSE_ID } from "@/lib/pka-config";
 import { isPkaEnrolled } from "@/lib/pka-enrollment";
 import { CoursePageShell } from "@/components/course/course-page-shell";
-import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 
 export const metadata: Metadata = createMetadata({
   title: "Pendaftaran Tutorial PKA",
@@ -29,15 +29,11 @@ export default async function PkaRegisterPage() {
   return (
     <CoursePageShell
       title="Bergabung dengan Tutorial PKA"
-      description="Lengkapi data singkat berikut untuk membuka jadwal live, simulasi, dan materi."
       icon={GraduationCap}
     >
       <Card>
         <CardHeader className="text-center">
-          <CardTitle>Pendaftaran Ditutup</CardTitle>
-          <CardDescription>
-            Mohon maaf, pendaftaran untuk Tutorial PKA saat ini telah ditutup.
-          </CardDescription>
+          <CardTitle>Pendaftaran ditutup</CardTitle>
         </CardHeader>
       </Card>
     </CoursePageShell>

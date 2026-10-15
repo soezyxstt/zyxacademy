@@ -42,7 +42,7 @@ export default async function CourseQuizListPage({ params, searchParams }: Props
   const access: QuizAccessFilter = requestedAccess === "free" || requestedAccess === "premium"
     ? requestedAccess
     : "all";
-  
+
   const course = await getCourse(id);
 
   if (!course) notFound();
@@ -96,7 +96,7 @@ export default async function CourseQuizListPage({ params, searchParams }: Props
   return (
     <CoursePageShell
       title={`Kuis Latihan: ${course.title}`}
-      description="Uji pemahaman materi Anda dengan kuis interaktif."
+
       icon={ClipboardList}
       actions={(
         <nav className="flex max-w-full items-center gap-1 overflow-x-auto" aria-label="Filter akses kuis">

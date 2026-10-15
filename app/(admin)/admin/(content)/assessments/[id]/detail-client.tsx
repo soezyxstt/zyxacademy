@@ -255,7 +255,7 @@ export function AssessmentDetailClient({
       />
 
       {/* Hero Metadata Panel */}
-      <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
+      <div className="rounded-xl border border-border bg-card p-4">
         <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
           <div className="space-y-2">
             <div className="flex flex-wrap gap-2 pt-1">
@@ -355,7 +355,7 @@ export function AssessmentDetailClient({
         </TabsList>
 
         {/* Tab content: Extracted Questions list */}
-        <TabsContent value="questions" className="space-y-4">
+        <TabsContent value="questions" className="divide-y divide-border rounded-xl border border-border bg-card">
           {questions.length === 0 ? (
             <div className="py-12 border border-dashed border-border rounded-xl text-center">
               <FileQuestion className="mx-auto text-muted-foreground/30 mb-2" size={32} />
@@ -365,7 +365,7 @@ export function AssessmentDetailClient({
             </div>
           ) : (
             questions.map((q) => (
-              <div key={q.id} className="rounded-xl border border-border bg-card p-6 shadow-sm hover:border-border/80 transition-colors duration-150">
+              <div key={q.id} className="p-4 space-y-3">
                 {/* Question Metadata Header */}
                 <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border pb-3 mb-4">
                   <div className="flex items-center gap-2">
@@ -396,7 +396,7 @@ export function AssessmentDetailClient({
                 <div className="space-y-4">
                   <div>
                     <h4 className="text-body-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Pertanyaan</h4>
-                    <div className="bg-background/40 p-4 rounded-lg border border-border/50">
+                    <div className="py-1">
                       <MarkdownRenderer content={q.questionMarkdown} className="space-y-3" />
                     </div>
                   </div>
@@ -449,10 +449,10 @@ export function AssessmentDetailClient({
 
         {/* Tab content: Raw Markdown view */}
         <TabsContent value="markdown">
-          <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
+          <div className="rounded-xl border border-border bg-card p-4">
             <h3 className="font-heading text-body-base font-semibold mb-4 flex items-center gap-2">
               <FileText size={18} className="text-muted-foreground" />
-              Konten Canonical Markdown Asli
+              Canonical Markdown
             </h3>
             <div className="bg-background border border-border/80 rounded-lg p-4 font-mono text-body-xs overflow-auto max-h-[500px] whitespace-pre-wrap leading-relaxed select-all">
               {source.sourceMarkdown}
@@ -462,10 +462,10 @@ export function AssessmentDetailClient({
 
         {/* Tab content: Resolved Chapters */}
         <TabsContent value="chapters">
-          <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
+          <div className="rounded-xl border border-border bg-card p-4">
             <h3 className="font-heading text-body-base font-semibold mb-4 flex items-center gap-2">
               <BookOpen size={18} className="text-muted-foreground" />
-              Daftar Bab Mata Kuliah Terkait
+              Bab terkait
             </h3>
             {resolvedChapters.length === 0 ? (
               <p className="text-body-sm text-muted-foreground">
@@ -474,7 +474,7 @@ export function AssessmentDetailClient({
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {resolvedChapters.map((chap) => (
-                  <div key={chap.id} className="bg-background/50 border border-border p-3 rounded-lg flex items-center gap-2.5">
+                  <div key={chap.id} className="border-b border-border py-2 flex items-center gap-2.5">
                     <Layers size={16} className="text-primary" />
                     <span className="font-medium text-body-sm text-foreground">{chap.title}</span>
                   </div>
@@ -486,16 +486,16 @@ export function AssessmentDetailClient({
 
         {/* Tab content: Ingest Diagnostics */}
         <TabsContent value="diagnostics">
-          <div className="rounded-xl border border-border bg-card p-6 shadow-sm space-y-4">
+          <div className="rounded-xl border border-border bg-card p-4 space-y-3">
             <h3 className="font-heading text-body-base font-semibold flex items-center gap-2">
               <AlertTriangle size={18} className="text-status-warning" />
-              Analisis Peringatan Diagnostik
+              Diagnostik
             </h3>
 
             {diagnostics.length === 0 ? (
               <div className="flex items-center gap-2 p-4 rounded-lg bg-status-success/5 border border-status-success/10 text-status-success">
                 <CheckCircle2 size={16} />
-                <span className="text-body-sm font-semibold">Semua bab ter-resolve secara sempurna. Tidak ada diagnostik aktif.</span>
+                <span className="text-body-sm font-semibold">Semua bab terhubung. Tidak ada peringatan.</span>
               </div>
             ) : (
               <div className="space-y-2">
@@ -511,7 +511,7 @@ export function AssessmentDetailClient({
             <div className="mt-6 pt-4 border-t border-border">
               <h4 className="text-body-sm font-bold text-foreground mb-2">Bantuan Resolusi Manual</h4>
               <p className="text-body-sm text-muted-foreground leading-relaxed">
-                Jika bab tidak ter-resolve, pastikan nama bab dalam daftar <code>chapters</code> di bagian frontmatter markdown ditulis sesuai dengan judul bab di kurikulum Zyx, atau daftarkan alias baru untuk bab tersebut dalam sistem jika diperlukan.
+                Samakan <code>chapters</code> di frontmatter dengan judul bab kurikulum, atau tambahkan alias bab.
               </p>
             </div>
           </div>

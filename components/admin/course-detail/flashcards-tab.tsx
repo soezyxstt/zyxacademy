@@ -712,11 +712,11 @@ export function FlashcardsTab({
                         </div>
                       </div>
                     ) : (
-                      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+                      <div className="divide-y divide-border">
                         {set.cards.map((card, idx) => (
                           <div
                             key={card.id}
-                            className="rounded-lg border border-border bg-background p-3 flex flex-col justify-between hover:border-primary/40 transition-colors"
+                            className="py-3 first:pt-0 last:pb-0 flex flex-col justify-between"
                           >
                             <div className="space-y-2.5">
                               <div className="flex items-center justify-between gap-2">
@@ -765,7 +765,7 @@ export function FlashcardsTab({
                               </div>
 
                               {/* Front */}
-                              <div className="rounded-md bg-muted/30 p-2.5 border border-border/50">
+                              <div className="py-1">
                                 <span className="text-body-2xs font-semibold text-muted-foreground block mb-1">
                                   Sisi depan (konsep atau pertanyaan)
                                 </span>
@@ -775,7 +775,7 @@ export function FlashcardsTab({
                               </div>
 
                               {/* Back */}
-                              <div className="rounded-md bg-muted/10 p-2.5 border border-border/50">
+                              <div className="border-t border-border/50 pt-2">
                                 <span className="text-body-2xs font-semibold text-muted-foreground block mb-1">
                                   Sisi belakang (jawaban)
                                 </span>

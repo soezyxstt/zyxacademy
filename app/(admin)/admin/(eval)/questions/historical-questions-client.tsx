@@ -556,7 +556,7 @@ export function HistoricalQuestionsClient({ questions, courses, courseMap, canon
             {options.length > 0 ? (
               <div className="grid gap-2 sm:grid-cols-2">
                 {options.map((option, index) => (
-                  <div key={option.id ?? question.id + "-option-" + index} className={option.isCorrect ? "flex gap-3 rounded-lg border border-status-success/20 bg-status-success/5 px-3.5 py-2.5 text-body-sm text-status-success" : "flex gap-3 rounded-lg border border-border/30 bg-muted/5 px-3.5 py-2.5 text-body-sm text-muted-foreground"}>
+                  <div key={option.id ?? question.id + "-option-" + index} className={option.isCorrect ? "flex gap-3 border-l-2 border-status-success bg-status-success/5 px-3 py-2 text-body-sm text-status-success" : "flex gap-3 px-3 py-2 text-body-sm text-muted-foreground"}>
                     <span className="shrink-0 font-bold">{String.fromCharCode(65 + index)}.</span>
                     <MarkdownRenderer content={option.text} className="flex-1 space-y-3 leading-relaxed" />
                     {option.isCorrect ? <Check className="size-4 shrink-0" aria-label="Jawaban sumber" /> : null}
@@ -565,7 +565,7 @@ export function HistoricalQuestionsClient({ questions, courses, courseMap, canon
               </div>
             ) : null}
             {question.answerMarkdown ? (
-              <div className="rounded-xl border border-border/60 bg-muted/20 p-4">
+              <div className="border-t border-border pt-3">
                 <p className="mb-1.5 text-body-xs font-bold uppercase tracking-wide text-muted-foreground">Jawaban / pembahasan sumber</p>
                 <MarkdownRenderer content={question.answerMarkdown} className="space-y-3 text-body-sm leading-relaxed text-foreground/80" />
               </div>

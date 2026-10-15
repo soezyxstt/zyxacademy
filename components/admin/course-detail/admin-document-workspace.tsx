@@ -22,6 +22,7 @@ import {
   ExternalLink,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
@@ -641,7 +642,7 @@ export function AdminDocumentWorkspace({
                         Judul Tampilan
                       </Label>
                       {pdfTitle.trim() ? (
-                        <button
+                        <Button size="sm" variant="ghost"
                           type="button"
                           onClick={handleFormatPdfTitle}
                           disabled={formattingPdfAi || saving}
@@ -654,7 +655,7 @@ export function AdminDocumentWorkspace({
                             <Bot className="size-3" />
                           )}
                           <span>{formattingPdfAi ? "Menganalisis..." : "Rapikan dengan AI"}</span>
-                        </button>
+                        </Button>
                       ) : null}
                     </div>
                     <Input
@@ -737,19 +738,19 @@ export function AdminDocumentWorkspace({
                   </div>
 
                   {/* Chapter Selector */}
-                  <div className="space-y-2 rounded-xl border border-border/80 bg-muted/15 p-3">
+                  <div className="space-y-2 border-t border-border pt-3">
                     <div className="flex items-center justify-between">
                       <span className="text-body-xs font-semibold text-muted-foreground uppercase tracking-wider">
                         Kaitan Bab ({selectedChapters.size} dipilih)
                       </span>
                       {chapters.length > 0 && (
-                        <button
+                        <Button size="sm" variant="ghost"
                           type="button"
                           onClick={handleSelectAllChapters}
                           className="text-body-xs text-brand-primary font-medium hover:underline cursor-pointer"
                         >
                           {selectedChapters.size === chapters.length ? "Batalkan Semua" : "Pilih Semua Bab"}
-                        </button>
+                        </Button>
                       )}
                     </div>
 
@@ -765,10 +766,9 @@ export function AdminDocumentWorkspace({
                                 : "border-border/60 hover:bg-muted/30 text-muted-foreground"
                             }`}
                           >
-                            <input
-                              type="checkbox"
+                            <Checkbox
                               checked={isChecked}
-                              onChange={() => toggleChapter(ch.id)}
+                              onCheckedChange={() => toggleChapter(ch.id)}
                               disabled={saving}
                               className="rounded border-border"
                             />
@@ -806,15 +806,12 @@ export function AdminDocumentWorkspace({
             </div>
           ) : (
             /* Wide Editor Layout for Artikel / Diktat */
-            <div className="max-w-5xl mx-auto p-6 space-y-5">
+            <div className="max-w-5xl mx-auto p-4 space-y-4">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <h2 className="font-heading text-h5 font-bold text-foreground">
                     Edit Konten Dokumen
                   </h2>
-                  <p className="text-body-xs text-muted-foreground mt-0.5">
-                    Sunting judul, bab, dan konten markdown dokumen ini.
-                  </p>
                 </div>
                 <div className="flex items-center gap-2">
                   <Button
@@ -847,7 +844,7 @@ export function AdminDocumentWorkspace({
                         Judul Dokumen
                       </Label>
                       {articleTitle.trim() ? (
-                        <button
+                        <Button size="sm" variant="ghost"
                           type="button"
                           onClick={handleFormatArticleTitle}
                           disabled={formattingArticleAi || saving}
@@ -860,7 +857,7 @@ export function AdminDocumentWorkspace({
                             <Bot className="size-3" />
                           )}
                           <span>{formattingArticleAi ? "Menganalisis..." : "Rapikan dengan AI"}</span>
-                        </button>
+                        </Button>
                       ) : null}
                     </div>
                     <Input
@@ -902,9 +899,7 @@ export function AdminDocumentWorkspace({
                     <Label className="text-body-sm font-semibold text-foreground">
                       Isi Markdown
                     </Label>
-                    <span className="text-body-xs text-muted-foreground">
-                      Format Markdown didukung
-                    </span>
+
                   </div>
                   <Textarea
                     value={articleMarkdown}

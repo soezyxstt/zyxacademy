@@ -13,15 +13,15 @@ const STATUS_META: Record<PkaSubjectDiagnostic["status"], { label: string; icon:
 export function DiagnosticReport({ results }: { results: PkaSubjectDiagnostic[] }) {
   return (
     <div className="space-y-4">
-      <div className="space-y-3">
+      <div className="divide-y divide-border/60 overflow-hidden rounded-xl border border-border bg-card">
         {results.map((r) => {
           const meta = STATUS_META[r.status];
           const Icon = meta.icon;
           return (
-            <div key={r.subject} className={cn("flex items-start gap-3 rounded-xl border p-4 shadow-sm", meta.className)}>
+            <div key={r.subject} className={cn("flex items-start gap-3 p-4", meta.className)}>
               <Icon className="size-5 shrink-0" />
               <div className="flex-1">
-                <div className="flex items-center justify-between gap-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
                   <span className="font-heading text-body-base font-bold text-foreground">{PKA_SUBJECT_LABELS[r.subject]}</span>
                   <span className={cn("text-body-sm font-semibold", meta.className)}>{meta.label}</span>
                 </div>

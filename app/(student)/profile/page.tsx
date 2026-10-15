@@ -174,7 +174,7 @@ export default async function ProfilePage() {
  {user.role || "student"}
  </span>
 
- <h2 className="font-heading text-h5 font-bold tracking-tight text-foreground mt-2 truncate bg-gradient-to-r from-brand-primary via-primary-hover to-brand-secondary bg-clip-text text-transparent">
+ <h2 className="font-heading text-h5 font-bold tracking-tight text-foreground mt-2 break-words">
  {user.name}
  </h2>
 
@@ -185,7 +185,7 @@ export default async function ProfilePage() {
  </span>
  <span className="flex items-center gap-1.5 text-status-success font-medium shrink-0">
  <ShieldCheck className="size-4 shrink-0" />
- Google Connected
+ Google terhubung
  </span>
  <Link
  href="/profile/edit"
@@ -199,16 +199,16 @@ export default async function ProfilePage() {
  className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground font-medium hover:underline shrink-0"
  >
  <ClipboardList className="size-4 shrink-0" />
- Weekly reflections
+ Refleksi mingguan
  </Link>
  </div>
  </div>
  </div>
 
  {/* Stats Section: Cardless, Dividers Grid */}
- <div className="border-y border-border py-8 my-10 grid grid-cols-2 md:grid-cols-4 gap-y-6 md:gap-y-0 divide-y md:divide-y-0 md:divide-x divide-border">
- <div className="flex flex-col items-center md:items-start md:px-6 first:pl-0">
- <span className="font-heading text-h3 md:text-h2 font-bold text-brand-primary">
+ <div className="rounded-xl border border-border bg-card p-4 my-5 grid grid-cols-2 md:grid-cols-4 gap-4">
+ <div className="flex flex-col items-center md:items-start md:px-4 first:pl-0">
+ <span className="font-heading text-h5 font-bold text-brand-primary">
  {activeEnrollments.length}
  </span>
  <span className="text-body-xs font-bold uppercase tracking-wider text-muted-foreground mt-1.5">
@@ -216,8 +216,8 @@ export default async function ProfilePage() {
  </span>
  </div>
 
- <div className="flex flex-col items-center md:items-start md:px-6 pt-6 md:pt-0">
- <span className="font-heading text-h3 md:text-h2 font-bold text-brand-primary">
+ <div className="flex flex-col items-center md:items-start md:px-4">
+ <span className="font-heading text-h5 font-bold text-brand-primary">
  {completedCount}
  </span>
  <span className="text-body-xs font-bold uppercase tracking-wider text-muted-foreground mt-1.5">
@@ -225,8 +225,8 @@ export default async function ProfilePage() {
  </span>
  </div>
 
- <div className="flex flex-col items-center md:items-start md:px-6 pt-6 md:pt-0">
- <span className="font-heading text-h3 md:text-h2 font-bold text-brand-primary">
+ <div className="flex flex-col items-center md:items-start md:px-4">
+ <span className="font-heading text-h5 font-bold text-brand-primary">
  {submissionCount}
  </span>
  <span className="text-body-xs font-bold uppercase tracking-wider text-muted-foreground mt-1.5">
@@ -234,9 +234,9 @@ export default async function ProfilePage() {
  </span>
  </div>
 
- <div className="flex flex-col items-center md:items-start md:px-6 pt-6 md:pt-0 last:pr-0">
- <span className="font-heading text-h3 md:text-h2 font-bold text-brand-secondary">
- {averageScore !== null ? `${averageScore}%` : ""}
+ <div className="flex flex-col items-center md:items-start md:px-4 last:pr-0">
+ <span className="font-heading text-h5 font-bold text-brand-secondary">
+ {averageScore !== null ? `${averageScore}%` : "-"}
  </span>
  <span className="text-body-xs font-bold uppercase tracking-wider text-muted-foreground mt-1.5">
  Rata-rata Nilai
@@ -282,7 +282,7 @@ export default async function ProfilePage() {
               </div>
             ) : (
               <p className="text-body-sm text-muted-foreground py-2 italic border-t border-border/40">
-                Belum ada kelas aktif yang diikuti saat ini. Silakan hubungi dosen/admin Anda untuk token aktivasi kelas.
+                Belum ada kelas aktif. Minta token kelas dari admin.
               </p>
             )}
           </div>
@@ -294,9 +294,9 @@ export default async function ProfilePage() {
               Jadwal Tutorial Mendatang
             </h3>
             {studentBookings.length > 0 ? (
-              <div className="grid gap-3 sm:grid-cols-2">
+              <div className="divide-y divide-border/60">
                 {studentBookings.map((booking) => (
-                  <div key={booking.id} className="flex items-start gap-3 p-3.5 rounded-lg border border-border/70 bg-card/60 backdrop-blur-xs">
+                  <div key={booking.id} className="flex items-start gap-3 py-3">
                     <div className="size-8 shrink-0 flex items-center justify-center rounded bg-brand-secondary/10 text-brand-secondary">
                       <User2 className="size-4" />
                     </div>
@@ -316,7 +316,7 @@ export default async function ProfilePage() {
               </div>
             ) : (
               <p className="text-body-sm text-muted-foreground py-2 italic">
-                Tidak ada jadwal tutorial terdaftar untuk minggu ini.
+                Belum ada tutorial minggu ini.
               </p>
             )}
           </div>
@@ -363,7 +363,7 @@ export default async function ProfilePage() {
           {/* Google Identity info */}
           <div>
             <h3 className="font-heading text-body-base font-bold text-foreground mb-3">
-              Google Identity Account
+              Akun Google
             </h3>
             <dl className="text-body-sm divide-y divide-border/40 border-t border-border/40 zebra-no-rows">
               <div className="py-3 flex justify-between gap-4">
@@ -421,7 +421,7 @@ export default async function ProfilePage() {
  </div>
  ) : (
  <p className="text-body-xs text-muted-foreground italic pt-2 border-t border-border/40">
- Belum terdaftar di kelompok belajar mana pun. Kelompok akan otomatis dibuat saat melakukan pendaftaran kelas dengan token.
+ Kelompok dibuat saat aktivasi token kelas.
  </p>
  )}
  </div>

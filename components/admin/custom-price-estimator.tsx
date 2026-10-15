@@ -143,11 +143,10 @@ export function CustomPriceEstimator({
       className="grid gap-4 xl:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]"
       data-custom-price-estimator
     >
-      <section className="rounded-xl border border-border/70 bg-card/70 p-4 shadow-xs backdrop-blur-md sm:p-5">
+      <section className="rounded-xl border border-border bg-card p-4">
         <AdminSectionTitle
           icon={Calculator}
           title="Konfigurasi custom"
-          description="Atur kebutuhan kelompok untuk mendapatkan estimasi paket per semester."
         />
 
         <div className="mt-5 grid gap-4 sm:grid-cols-3 xl:grid-cols-1">
@@ -232,7 +231,7 @@ export function CustomPriceEstimator({
                   size="xs"
                   variant="ghost"
                   onClick={() => setSelectedVoucherCode("none")}
-                  className="h-5 px-1.5 text-body-2xs text-muted-foreground hover:text-foreground"
+                  className="h-5 px-1.5 text-body-xs text-muted-foreground hover:text-foreground"
                 >
                   Lepas voucher
                 </Button>
@@ -264,15 +263,15 @@ export function CustomPriceEstimator({
                 <span>Potongan tambahan dari harga promo</span>
               </div>
             ) : voucherError ? (
-              <p className="text-body-2xs text-destructive" role="alert">
+              <p className="text-body-xs text-destructive" role="alert">
                 {voucherError}
               </p>
             ) : isLoadingVouchers ? (
-              <p className="text-body-2xs text-muted-foreground">
+              <p className="text-body-xs text-muted-foreground">
                 Memuat voucher aktif...
               </p>
             ) : (
-              <p className="text-body-2xs text-muted-foreground">
+              <p className="text-body-xs text-muted-foreground">
                 {activeVouchers.length > 0
                   ? "Pilih voucher aktif untuk potongan tambahan setelah promo 40%."
                   : "Belum ada voucher aktif. Buat di tab Kelola voucher."}
@@ -284,19 +283,18 @@ export function CustomPriceEstimator({
         <div className="mt-5 flex items-start gap-2 border-t border-border/70 pt-4">
           <Info className="mt-0.5 size-4 shrink-0 text-status-info" aria-hidden="true" />
           <p className="text-body-xs leading-relaxed text-muted-foreground">
-            Estimasi menggunakan komponen akses platform dan sesi tutorial. Harga final tetap dikonfirmasi sebelum pembayaran.
+            Mencakup akses platform dan tutorial. Harga final dikonfirmasi sebelum pembayaran.
           </p>
         </div>
       </section>
 
       <section
-        className="rounded-xl border border-border/70 bg-card/70 p-4 shadow-xs backdrop-blur-md sm:p-5"
+        className="rounded-xl border border-border bg-card p-4"
         data-price-state={quote ? "valid" : "invalid"}
       >
         <AdminSectionTitle
           icon={Calculator}
           title="Perkiraan harga"
-          description="Perbandingan simulasi harga reguler dan harga setelah diskon pengantar."
           right={
             <span className="rounded-md border border-[var(--zx-accent)]/30 bg-[var(--zx-accent)]/10 px-2 py-1 text-body-xs font-semibold text-[var(--zx-accent)]">
               Diskon 40%
@@ -305,9 +303,9 @@ export function CustomPriceEstimator({
         />
 
         {quote ? (
-          <div className="mt-6 space-y-5" aria-live="polite">
+          <div className="mt-4 space-y-4" aria-live="polite">
             <div className="grid gap-3 sm:grid-cols-2">
-              <div className="rounded-lg border border-border/70 bg-muted/30 p-4">
+              <div className="space-y-2 border-t border-border pt-3">
                 <p className="text-body-xs font-semibold text-muted-foreground">Sebelum diskon</p>
                 <p
                   className="mt-2 font-heading text-h5 font-bold text-foreground"
@@ -328,7 +326,7 @@ export function CustomPriceEstimator({
                 </div>
               </div>
 
-              <div className="rounded-lg border border-[var(--zx-accent)]/30 bg-[var(--zx-accent)]/8 p-4">
+              <div className="border-l-2 border-primary pl-3 py-2">
                 <p className="text-body-xs font-semibold text-[var(--zx-accent)]">Setelah diskon</p>
                 <p
                   className="mt-2 font-heading text-h5 font-bold text-foreground"
@@ -352,7 +350,7 @@ export function CustomPriceEstimator({
 
             {quote.finalPrice !== undefined && (
               <div
-                className="rounded-lg border border-status-success/30 bg-status-success/8 p-4 space-y-3"
+                className="border-l-2 border-status-success pl-3 py-2 space-y-3"
                 data-voucher-applied
               >
                 <div className="flex items-center justify-between gap-2">

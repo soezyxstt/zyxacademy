@@ -499,13 +499,13 @@ export function TutorScheduleView({
       )}
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-3">
-        <div className="overflow-x-auto pb-1">
-          <TabsList className="h-10 min-w-max">
+        <div>
+          <TabsList>
             <TabsTrigger value="calendar">Kalender</TabsTrigger>
             <TabsTrigger value="tickets">Tiket</TabsTrigger>
             <TabsTrigger value="groups">Kelas & Kelompok</TabsTrigger>
-            <TabsTrigger value="slots">Daftar Slot</TabsTrigger>
-            <TabsTrigger value="sessions">Daftar Sesi</TabsTrigger>
+            <TabsTrigger value="slots">Slot</TabsTrigger>
+            <TabsTrigger value="sessions">Sesi</TabsTrigger>
           </TabsList>
         </div>
 
@@ -647,7 +647,7 @@ export function TutorScheduleView({
                       </div>
                     </div>
                     {isThreadOpen && (
-                      <div className="space-y-3 rounded-xl border border-border bg-muted/20 p-3">
+                      <div className="space-y-3 border-l-2 border-border pl-3">
                         {ticket.messages.length === 0 ? (
                           <p className="text-body-xs text-muted-foreground">Belum ada pesan diskusi pada tiket ini.</p>
                         ) : (

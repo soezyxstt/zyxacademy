@@ -101,7 +101,7 @@ export function AiAnalyticsClient() {
 
   if (!stats || stats.totalRequests === 0) {
     return (
-      <div className="space-y-8">
+      <div className="space-y-5">
         <div className="rounded-xl border border-border bg-muted/40 p-10 text-center">
           <p className="text-body-base font-heading font-semibold text-foreground">
             No model requests recorded yet
@@ -117,7 +117,7 @@ export function AiAnalyticsClient() {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-5">
       {/* Header row ─────────────────────────────────────────────────────── */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
@@ -134,7 +134,7 @@ export function AiAnalyticsClient() {
             }`}
           >
             {gatewayMode === "gateway"
-              ? "🛡️ Cloudflare AI Gateway"
+              ? "Cloudflare AI Gateway"
               : "Direct API"}
           </span>
         </div>
@@ -179,10 +179,10 @@ export function AiAnalyticsClient() {
       </AdminStatStrip>
 
       {/* Gateway vs Direct breakdown ─────────────────────────────────────── */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <div className="rounded-xl border border-border bg-card p-5">
+      <div className="grid grid-cols-1 divide-y divide-border overflow-hidden rounded-xl border border-border bg-card sm:grid-cols-2 sm:divide-x sm:divide-y-0">
+        <div className="p-4">
           <p className="text-body-sm font-semibold text-foreground mb-3">
-            🛡️ Cloudflare AI Gateway
+            Cloudflare AI Gateway
           </p>
           <div className="space-y-2 text-body-sm">
             <div className="flex justify-between">
@@ -200,7 +200,7 @@ export function AiAnalyticsClient() {
           </div>
         </div>
 
-        <div className="rounded-xl border border-border bg-card p-5">
+        <div className="p-4">
           <p className="text-body-sm font-semibold text-foreground mb-3">
             Direct API
           </p>

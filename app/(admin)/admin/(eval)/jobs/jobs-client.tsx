@@ -166,16 +166,16 @@ export function GenerationJobsClient({ jobs, courses, chapters, knowledgeObjects
  variant={showForm ? "outline" : "default"}
  >
  <Plus className="size-4" />
- {showForm ? "Tutup" : "Buat Job Baru"}
+ {showForm ? "Tutup" : "Buat job"}
  </Button>
  </div>
 
  {showForm && (
  <form
  onSubmit={handleCreate}
- className="mb-8 rounded-xl border border-border bg-card p-6 shadow-sm space-y-4"
+ className="mb-4 rounded-xl border border-border bg-card p-4 space-y-3"
  >
-  <AdminSectionTitle size="h6" icon={Zap} iconClassName="text-status-warning" title="Buat Generation Job" />
+  <AdminSectionTitle size="h6" icon={Zap} iconClassName="text-status-warning" title="Generasi soal" />
 
   <div className="grid gap-4 sm:grid-cols-2">
   <div>
@@ -200,7 +200,7 @@ export function GenerationJobsClient({ jobs, courses, chapters, knowledgeObjects
   </div>
 
   <div>
-  <label className="text-body-sm font-medium text-foreground mb-1 block">Bab (Chapter)</label>
+  <label className="text-body-sm font-medium text-foreground mb-1 block">Bab</label>
   <Select
     value={form.chapterId}
     onValueChange={(chapterId) => {
@@ -230,10 +230,10 @@ export function GenerationJobsClient({ jobs, courses, chapters, knowledgeObjects
     disabled={!form.chapterId}
   >
     <SelectTrigger className="w-full">
-      <SelectValue placeholder="Semua Objek Pengetahuan (Generate Massal)" />
+      <SelectValue placeholder="Semua objek pengetahuan" />
     </SelectTrigger>
     <SelectContent>
-      <SelectItem value="all">Semua Objek Pengetahuan (Generate Massal)</SelectItem>
+      <SelectItem value="all">Semua objek pengetahuan</SelectItem>
       {filteredKOs.map((k) => (
         <SelectItem key={k.id} value={k.id}>
           [{k.conceptName}] {k.title}
@@ -246,14 +246,14 @@ export function GenerationJobsClient({ jobs, courses, chapters, knowledgeObjects
  {form.chapterId && (
  <p className="text-body-xs text-muted-foreground">
  {form.koId === "all"
- ? `Menargetkan generasi kuis untuk ${filteredKOs.length} Objek Pengetahuan aktif dalam bab ini.`
- : "Menargetkan generasi kuis untuk 1 Objek Pengetahuan terpilih."}
+ ? `${filteredKOs.length} objek pengetahuan akan diproses.`
+ : "1 objek pengetahuan akan diproses."}
  </p>
  )}
 
  <div className="flex gap-3 pt-2">
  <Button type="submit" className="rounded-lg" disabled={submitting}>
- {submitting ? "Mengirim..." : "Jalankan Pipeline"}
+ {submitting ? "Mengirim..." : "Jalankan"}
  </Button>
  <Button
  type="button"

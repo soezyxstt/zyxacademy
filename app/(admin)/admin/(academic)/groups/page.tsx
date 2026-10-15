@@ -33,7 +33,7 @@ export default async function AdminGroupsPage() {
   }));
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <PageHeader
         icon={Users}
         title="Kelompok Belajar"
