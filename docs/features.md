@@ -374,6 +374,7 @@ The standalone Admin material editor is retired. Existing website material remai
 
 - The server-owned teaching state machine and typed response contract are always-on. Shadow comparison remains an explicit staging request.
 - Zyra selects one teaching move, validates canonical citations and assessment safety, and asks at most one checkpoint question.
+- Answers preserve article-style Markdown paragraphs and LaTeX display formulas. Failed generation offers retry guidance rather than repeating page instructions or presenting a source excerpt as the requested explanation.
 - Invalid model output becomes a safe clarification or evidence-grounded composition. Active attempts remain capped at the approved hint boundary.
 - Reservations are idempotent and fail closed before provider dispatch. Terminal transitions preserve legacy usage history and repair derived compatibility events idempotently.
 - The authenticated allowance summary is scoped to the current session actor and includes Jakarta reset timing without exposing global capacity or another user's usage.
@@ -391,6 +392,8 @@ The standalone Admin material editor is retired. Existing website material remai
 
 - Typed application-owned visual specs for plots, derivations, tables, diagrams, vectors, and chemistry relationships are always-on.
 - Function expressions use a bounded allowlist parser. Controls, presets, reset, and invalid-expression fallback run locally and spend zero AI quota.
+- Teaching prompts proactively request a supported visual when it helps explain the concept, including coefficient controls for exploration and stepwise derivations. Explicit graph requests can use function or data plots. Visuals must remain grounded and respect the current assessment hint level.
+- Function value tables recompute from the current formula, coefficient controls, and visible domain; invalid or undefined samples show `N/A` instead of stale default values.
 - Every canvas includes alt text and a table or textual fallback. Grounded visuals include canonical claim references validated against the retrieved evidence set. Shared specs contain no learner profile or interaction state.
 - The renderer uses semantic tokens and keyboard-operable native controls. Arbitrary model-generated JavaScript, HTML, SVG, or unrestricted Mermaid is rejected.
 - The harness renders exactly one interactive visual per answer: the validated `canvasSpec` emitted by the model through a structured channel. It never mines equations out of prose, so an answer without a structured spec has no canvas instead of a guessed plot. Tutor prompts no longer request `:::graph`, `:::chart`, or `:::flowchart` markdown blocks; legacy persisted answers with those blocks still render for backward compatibility.
@@ -611,6 +614,8 @@ The active section's navigation includes the same meaningful block headings show
 Canonical Article and Diktat lookups decode URL-encoded product IDs before querying. This preserves access to versioned IDs such as `article-id:v2` when App Router page parameters contain `article-id%3Av2`.
 
 Article math styles ship with the application instead of loading from a CDN. Embedded function graphs retain authored equations, display labelled open or closed points, and keep optional value tables behind "Nilai grafik". The reader constrains its flex width so equations and graphs remain inside the mobile reading area. Visuals assigned to a teaching block appear there once, without repeating above the section.
+
+Consecutive Article formulas use compact left-aligned rows without enclosing cards or dividers. Wide equations scroll within their own row. Embedded function graphs start in reading mode, allowing normal page scrolling and touch gestures. "Interaksi grafik" enables pan, pinch, wheel, keyboard navigation, and zoom controls; "Selesai" or Escape releases gestures without resetting the viewport or parameters. "Parameter" reveals compact coefficient controls and a parameter-only reset. Automatic intersection coordinates are inspected through the curve tooltip instead of always covering the plot; authored point labels remain visible. Zyra graphs retain immediate interaction.
 
 `FEATURE_STRUCTURED_ARTICLE_READER_V1` enables coordinated Idea Bundle V3 and Product Bundle V3 authoring, submission, and review. Admin Idea review uses an Idea queue, safe editor, and source evidence. Product Article review uses a section queue, the same semantic renderer as students, provenance, dependency state, and per-section decisions. Published canonical content remains visible to students regardless of the authoring rollout flag.
 

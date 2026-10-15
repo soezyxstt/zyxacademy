@@ -31,6 +31,36 @@ function context() {
 }
 
 describe("Plan 007 typed teaching response", () => {
+  it("reports failed generation without presenting page instructions as an explanation", () => {
+    const ctx = context();
+    const response = composeSafeTeachingResponse(ctx, selectTeachingPlan(ctx), [{
+      ...source,
+      content: 'Murid sedang membaca materi kuliah. PANDUAN KONTEKS: Jawaban HARUS merujuk pada materi ini.',
+    }], "MODEL_OUTPUT_REJECTED");
+    expect(response.selectedState).toBe("clarify");
+    expect(response.learnerFacingText).toContain("Coba lagi");
+    expect(response.learnerFacingText).not.toMatch(/Murid sedang membaca|PANDUAN KONTEKS|Tujuan kita/);
+    expect(response.citations).toHaveLength(0);
+  });
+
+  it("does not copy synthetic page instructions even during deterministic composition", () => {
+    const ctx = context();
+    const response = composeSafeTeachingResponse(ctx, selectTeachingPlan(ctx), [{
+      ...source, content: 'PANDUAN KONTEKS: Jawaban harus merujuk materi ini.',
+    }], "DETERMINISTIC_COMPOSITION");
+    expect(response.selectedState).toBe("clarify");
+    expect(response.learnerFacingText).not.toContain("PANDUAN KONTEKS");
+  });
+
+  it("preserves canonical Markdown paragraphs and display math without restating the request", () => {
+    const ctx = context();
+    const content = '## Turunan\n\nPerubahan fungsi:\n\n$$\nf\'(x) = 2x\n$$';
+    const response = composeSafeTeachingResponse(ctx, selectTeachingPlan(ctx), [{ ...source, content }], "TEST_COMPOSITION");
+    expect(response.learnerFacingText).toContain(content);
+    expect(response.learnerFacingText).not.toContain("Tujuan kita");
+    expect(response.learnerFacingText).not.toContain(ctx.explicitTopic);
+  });
+
   it("composes a valid grounded response with one checkpoint and canonical citation", () => {
     const ctx = context();
     const plan = selectTeachingPlan(ctx);

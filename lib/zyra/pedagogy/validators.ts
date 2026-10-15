@@ -16,7 +16,7 @@ export interface TeachingResponseValidationResult {
   response?: ZyraTeachingResponse;
 }
 
-const PIPELINE_LANGUAGE = /\b(?:system prompt|prompt|pipeline|retriev(?:e|al|ed)?|vector(?:ize)?|semantic cache|cache hit|json|internal validation|model output|ai gateway|canonical runtime|source list|snippet|excerpt)\b/i;
+const PIPELINE_LANGUAGE = /\b(?:system prompt|prompt|pipeline|retriev(?:e|al|ed)?|vector(?:ize)?|semantic cache|cache hit|json|internal validation|model output|ai gateway|canonical runtime|source list|snippet|excerpt|panduan konteks|murid sedang membaca|harus merujuk)\b/i;
 const ACTIVE_ASSESSMENT_SOLUTION_LANGUAGE = /\b(?:jawaban akhir|final answer|solusi lengkap|kunci jawaban|correct option|pilih opsi|hasil akhirnya)\b/i;
 
 function violation(code: string, path: string, message: string): SemanticViolation {

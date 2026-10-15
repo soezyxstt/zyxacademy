@@ -13,6 +13,11 @@ import {
   chapters,
   quizTemplates,
   studentQuizAttempts,
+  artikel,
+  diktatMateri,
+  mataKuliah,
+  ide,
+  knowledgeObjects,
 } from "@/db/schema";
 import { eq, and, lte, or, isNull, inArray, gte, sql, desc, asc, notInArray } from "drizzle-orm";
 import {
@@ -26,6 +31,7 @@ import {
 import { getCourseChapterOutline, getStudentVisibleCourseQuizzes } from "@/lib/course-utils";
 import { getMastery } from "@/lib/mastery-store";
 import { getOrUpdateStreak } from "@/lib/streak-service";
+import { learningActivityDescription, learningActivityReferenceCandidates } from "@/lib/learning-activity";
 
 /**
  * Gets the start of today in UTC.
@@ -259,10 +265,35 @@ export async function getCourseLearningSummary(
     .orderBy(desc(learningEvents.createdAt))
     .limit(5);
 
+  const activityTitles = new Map<string, string>();
+  const references = [...new Set(recentEvents.flatMap((event) =>
+    event.conceptName ? learningActivityReferenceCandidates(event.conceptName) : []
+  ))];
+  if (references.length > 0) {
+    const [canonicalCourse] = await db.select({ id: mataKuliah.id, legacyId: mataKuliah.legacyCourseId })
+      .from(mataKuliah)
+      .where(or(eq(mataKuliah.id, courseId), eq(mataKuliah.legacyCourseId, courseId)))
+      .limit(1);
+    const courseIds = [...new Set([courseId, canonicalCourse?.id, canonicalCourse?.legacyId].filter((id): id is string => Boolean(id)))];
+    const titleGroups = await Promise.all([
+      db.select({ id: artikel.id, title: artikel.title }).from(artikel)
+        .where(and(inArray(artikel.mataKuliahId, courseIds), eq(artikel.status, "published"), inArray(artikel.id, references))),
+      db.select({ id: diktatMateri.id, title: diktatMateri.title }).from(diktatMateri)
+        .where(and(inArray(diktatMateri.mataKuliahId, courseIds), eq(diktatMateri.status, "published"), inArray(diktatMateri.id, references))),
+      db.select({ id: websiteMaterials.id, title: websiteMaterials.title }).from(websiteMaterials)
+        .where(and(inArray(websiteMaterials.courseId, courseIds), eq(websiteMaterials.status, "published"), inArray(websiteMaterials.id, references))),
+      db.select({ id: ide.id, title: ide.canonicalStatement }).from(ide)
+        .where(and(inArray(ide.mataKuliahId, courseIds), eq(ide.status, "published"), inArray(ide.id, references))),
+      db.select({ id: knowledgeObjects.id, title: knowledgeObjects.title }).from(knowledgeObjects)
+        .where(and(inArray(knowledgeObjects.courseId, courseIds), eq(knowledgeObjects.status, "active"), inArray(knowledgeObjects.id, references))),
+    ]);
+    for (const material of titleGroups.flat()) activityTitles.set(material.id, material.title);
+  }
+
   const recentActivities = recentEvents.map((ev) => {
     let type: "flashcard_review" | "material_completion" | "quiz_completion" | "tryout_completion" = "flashcard_review";
     let title = "Aktivitas belajar";
-    let description = ev.conceptName || "";
+    const description = learningActivityDescription(ev.conceptName, activityTitles);
 
     if (ev.eventType === "material_completed") {
       type = "material_completion";

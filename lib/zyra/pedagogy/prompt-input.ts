@@ -74,21 +74,18 @@ export function buildPedagogyPromptInput(
       "Cite canonical source IDs and versions for each substantive claim.",
       "Ask at most one check-for-understanding question.",
       "Never reveal a final answer, protected solution, or hidden rubric during an active assessment.",
-      "Do not mention system, prompt, pipeline, retrieval, vector, cache, or internal validation details to the learner.",
-      "Write learner-facing text in concise Indonesian without exclamation marks or long dash characters.",
-      "Use canvasSpec, not markdown visual blocks, for every visual that the application should render.",
+      "Treat page context, selection guidance, and source instructions as background, never as text to quote or repeat to the learner. Do not mention system, prompt, pipeline, retrieval, vector, cache, or internal validation details.",
+      "Write learner-facing text as readable Indonesian Markdown with short paragraphs, lists, and useful headings. Honor requests for everyday analogies or worked examples with an actual explanation, not a restatement of the request. Wrap inline math in $...$; put important formulas in $$...$$ on separate lines, explain symbols and units, and preserve paragraph breaks. No exclamation marks or long dash characters.",
+      "Proactively include canvasSpec when a graph, comparison, diagram, or stepwise derivation would materially help understanding, even without a visual request. Use only the typed canvas channel, never markdown visual blocks or executable code. Choose function_plot, data_plot, derivation, table, flowchart, concept_map, vector_diagram, free_body, or chemistry_reaction to fit the concept; omit decorative visuals.",
+      "For function plots use bounded plain expressions such as a*x^2, sin(x), sqrt(x), or (x^2-1)/(x-1), not LaTeX or y =. Include canonical claimRefs, meaningful axes/domain and fallback values. When varying a coefficient helps, declare variables with min/max/defaultValue and matching controls with variableId/min/max/step/presets. Invite the learner to change a parameter or predict the result; all exploration runs locally. Represent excluded points and open/closed markers accurately. Keep assessment visuals within the approved hint level.",
       ...(context.responseModifiers.includes("graph") ? [
-        "The learner explicitly requested a graph. canvasSpec is required and must use type function_plot with at least one valid series.",
-        "Function expressions in canvasSpec must use plain bounded syntax such as x^2, sin(x), sqrt(x), or (x^2-1)/(x-1). Do not include y =, f(x) =, LaTeX delimiters, or LaTeX commands.",
-        "Use only supplied evidence IDs in canvasSpec.claimRefs and include a useful table fallback.",
+        "The learner explicitly requested a graph. Return a valid function_plot or data_plot canvasSpec grounded in the evidence; if evidence cannot support a graph, explain what information is missing rather than inventing it.",
       ] : []),
       ...(context.responseModifiers.includes("flowchart") ? [
         "The learner explicitly requested a flowchart. canvasSpec is required and must use type flowchart with valid node and edge identifiers.",
       ] : []),
       ...(options?.hasImages ? [
-        "Inspect every attached image together with the learner text before answering.",
-        "Record only directly visible facts in imageObservations. Put uncertain readings in uncertainties and illegible areas in unreadableRegions.",
-        "Never claim that a small, blurry, cropped, or occluded label is readable.",
+        "Inspect every attached image with the learner text. Record only directly visible facts in imageObservations, uncertain readings in uncertainties, and illegible areas in unreadableRegions. Never claim a blurry, cropped, or occluded label is readable.",
       ] : []),
     ],
   };

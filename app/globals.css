@@ -901,3 +901,27 @@
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }
+
+/* Keep these unlayered so KaTeX's unlayered defaults cannot restore row margins. */
+.article-formula-row {
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: auto;
+  padding: 0.125rem 0.25rem;
+  text-align: left;
+}
+
+.article-formula-row .katex-display {
+  margin: 0;
+  overflow-x: visible;
+  padding: 0.35em 0;
+  text-align: left;
+}
+
+.article-formula-row .katex-display > .katex {
+  text-align: left;
+}
+
+.article-formula-row .katex-html {
+  overflow: visible;
+}
