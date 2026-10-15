@@ -17,6 +17,7 @@ Canonical access-role codes are `admin`, `tutor`, and `murid`. Admin and tutor l
 - Views the AI-powered Quiz Learning Analytics & Diagnosis summary page after quiz completion (3-layer executive summary, deterministic concept mastery, AI error pattern detection, cognitive skill breakdown, time/speed insights, and personalized 3-step action plan)
 - Reviews flashcards with SM-2 spaced repetition
 - Chats with AI tutor for concept help
+- Article text selection shows a fixed bottom Tanya Zyra action below 768px and keeps the selection popover on desktop. Mobile selection changes update the saved quote, which is attached when Zyra opens.
 - Books real tutor sessions
 - Participates in live classroom quizzes
 - Views leaderboard and answer keys
