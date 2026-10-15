@@ -53,7 +53,11 @@ function safeFallback(
   reasonCode: string,
 ): ZyraTeachingResponse {
   const response = composeSafeTeachingResponse(context, plan, input.evidence, reasonCode);
-  const check = validateTeachingResponse(response, context, plan, sourceMap(input.evidence));
+  const fallbackContext = response.selectedState === "clarify"
+    ? { ...context, evidenceSufficiency: "insufficient" as const }
+    : context;
+  const fallbackPlan = response.selectedState === "clarify" ? selectTeachingPlan(fallbackContext) : plan;
+  const check = validateTeachingResponse(response, fallbackContext, fallbackPlan, sourceMap(input.evidence));
   if (check.valid && check.response) return check.response;
 
   return composeSafeTeachingResponse(
