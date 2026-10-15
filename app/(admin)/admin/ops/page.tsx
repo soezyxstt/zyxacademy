@@ -15,7 +15,7 @@ export const metadata: Metadata = {
 
 export default function OpsPage() {
   return (
-    <div className="space-y-8">
+    <div className="space-y-5">
       <AdminPageHeader
         icon={Activity}
         title="Monitor Ops"

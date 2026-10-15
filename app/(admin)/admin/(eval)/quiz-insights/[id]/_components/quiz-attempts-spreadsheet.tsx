@@ -250,11 +250,11 @@ export function QuizAttemptsSpreadsheet({ templateId, quizTitle }: Props) {
         </div>
       )}
       {/* Controls Bar */}
-      <Card className="border-border">
-        <CardContent className="p-4 sm:p-6 space-y-4">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <section aria-label="Filter pengerjaan">
+        <div className="space-y-3">
+          <div className="flex flex-wrap items-center gap-2">
             {/* Search Input */}
-            <div className="flex-1 max-w-md">
+            <div className="min-w-[140px] flex-1">
               <SearchBar
                 size="sm"
                 placeholder="Cari nama atau email siswa..."
@@ -263,16 +263,16 @@ export function QuizAttemptsSpreadsheet({ templateId, quizTitle }: Props) {
             </div>
 
             {/* Filter Dropdown & Status */}
-            <div className="flex flex-wrap items-center gap-3">
+            <div className="flex flex-wrap items-center gap-2">
               <div className="flex items-center gap-2">
                 <Filter className="size-4 text-muted-foreground" />
                 <Select value={statusFilter} onValueChange={setStatusFilter}>
                   <SelectTrigger className="w-[160px] rounded-lg bg-background">
-                    <SelectValue placeholder="Status Attempt" />
+                    <SelectValue placeholder="Status" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">Semua Status</SelectItem>
-                    <SelectItem value="completed">Selesai (Completed)</SelectItem>
+                    <SelectItem value="completed">Selesai</SelectItem>
                     <SelectItem value="in_progress">Sedang Dikerjakan</SelectItem>
                     <SelectItem value="abandoned">Ditinggalkan</SelectItem>
                   </SelectContent>
@@ -285,7 +285,7 @@ export function QuizAttemptsSpreadsheet({ templateId, quizTitle }: Props) {
                   onCheckedChange={(checked) => setIncludeInProgress(Boolean(checked))}
                   className="rounded-sm border-border text-brand-primary data-[state=checked]:bg-brand-primary data-[state=checked]:border-brand-primary"
                 />
-                Sertakan In-Progress
+                Sertakan yang berlangsung
               </label>
 
               <Button
@@ -293,7 +293,7 @@ export function QuizAttemptsSpreadsheet({ templateId, quizTitle }: Props) {
                 className="bg-brand-primary hover:bg-brand-primary/90 text-white rounded-lg gap-2"
               >
                 <FileSpreadsheet className="size-4" />
-                Export to CSV / Spreadsheet
+                Ekspor
               </Button>
             </div>
           </div>
@@ -301,17 +301,17 @@ export function QuizAttemptsSpreadsheet({ templateId, quizTitle }: Props) {
           {/* Quick Stats Banner */}
           <div className="flex flex-wrap items-center gap-4 text-body-sm pt-2 border-t border-border/60 text-muted-foreground">
             <div>
-              Total Attempt: <span className="font-semibold text-foreground">{attempts.length}</span>
+              Pengerjaan: <span className="font-semibold text-foreground">{attempts.length}</span>
             </div>
             <div>
               Ditampilkan: <span className="font-semibold text-foreground">{filteredAttempts.length}</span>
             </div>
             <div>
-              Jumlah Soal: <span className="font-semibold text-foreground">{questionsList.length}</span>
+              Soal: <span className="font-semibold text-foreground">{questionsList.length}</span>
             </div>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </section>
 
       {/* Spreadsheet Data Grid */}
       <Card className="border-border overflow-hidden">

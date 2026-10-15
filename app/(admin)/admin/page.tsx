@@ -41,6 +41,8 @@ import {
 
 import { RefreshAnalyticsButton } from "@/components/admin/refresh-analytics-button";
 import { AdminPageHeader } from "@/components/admin/page-header";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 export const dynamic = "force-dynamic";
 
@@ -122,29 +124,29 @@ export default async function AdminHomePage() {
   const redeemedTodayCount = tokenMembers.filter(
     (m) => new Date(m.joinedAt).getTime() >= todayStartMs
   ).length;
-  const tokenStat = `${totalTokens} issued, ${redeemedTodayCount} diklaim hari ini`;
+  const tokenStat = `${totalTokens} dibuat, ${redeemedTodayCount} diklaim hari ini`;
 
   const runningJobs = jobStatsRes.filter(
     (j) => j.status === "pending" || j.status === "processing"
   ).length;
   const failedJobs = jobStatsRes.filter((j) => j.status === "failed").length;
-  const jobStat = `${runningJobs} running, ${failedJobs} failed`;
+  const jobStat = `${runningJobs} berjalan, ${failedJobs} gagal`;
 
   const pendingQuestions = questionStatsRes.filter(
     (q) => q.reviewStatus === "generated"
   ).length;
-  const questionStat = `${pendingQuestions} pending review`;
+  const questionStat = `${pendingQuestions} menunggu tinjauan`;
 
   const totalAttempts = attemptCountRes[0]?.count ?? 0;
   const leaderboardStat = `${totalAttempts} pengerjaan`;
 
   const totalBroadcasts = notificationStatsRes[0][0]?.count ?? 0;
   const totalDevices = notificationStatsRes[1][0]?.count ?? 0;
-  const notifStat = `${totalBroadcasts} siaran, ${totalDevices} device`;
+  const notifStat = `${totalBroadcasts} siaran, ${totalDevices} perangkat`;
 
   const syncQueueDepth = opsStatsRes[0][0]?.count ?? 0;
   const aiRequestsToday = opsStatsRes[1][0]?.count ?? 0;
-  const opsStat = `${syncQueueDepth} sync job, ${aiRequestsToday} req`;
+  const opsStat = `${syncQueueDepth} antrean sinkronisasi, ${aiRequestsToday} permintaan`;
 
   const totalArticles = blogCountRes[0]?.count ?? 0;
   const blogStat = `${totalArticles} artikel`;
@@ -158,7 +160,7 @@ export default async function AdminHomePage() {
           icon: GraduationCap,
           iconColor: "text-brand-secondary",
           href: "/admin/courses",
-          label: "Kelola mata kuliah",
+
           stat: courseStat,
         },
         {
@@ -166,7 +168,7 @@ export default async function AdminHomePage() {
           icon: CalendarDays,
           iconColor: "text-brand-primary",
           href: "/admin/schedules",
-          label: "Kelola jadwal umum",
+
           stat: null,
         },
         {
@@ -174,7 +176,7 @@ export default async function AdminHomePage() {
           icon: Library,
           iconColor: "text-status-success",
           href: "/admin/questions",
-          label: "Buka bank soal",
+
           stat: questionStat,
         },
       ],
@@ -187,7 +189,7 @@ export default async function AdminHomePage() {
           icon: Trophy,
           iconColor: "text-brand-secondary",
           href: "/admin/leaderboard",
-          label: "Buka papan peringkat",
+
           stat: leaderboardStat,
         },
         {
@@ -195,7 +197,7 @@ export default async function AdminHomePage() {
           icon: Zap,
           iconColor: "text-status-warning",
           href: "/admin/jobs",
-          label: "Lihat job generasi",
+
           stat: jobStat,
         },
       ],
@@ -208,7 +210,7 @@ export default async function AdminHomePage() {
           icon: Calculator,
           iconColor: "text-status-info",
           href: "/admin/pricing",
-          label: "Hitung paket custom",
+
           stat: null,
         },
         {
@@ -216,7 +218,7 @@ export default async function AdminHomePage() {
           icon: Newspaper,
           iconColor: "text-brand-primary",
           href: "/admin/blog",
-          label: "Buka manajemen blog",
+
           stat: blogStat,
         },
         {
@@ -224,7 +226,7 @@ export default async function AdminHomePage() {
           icon: FileText,
           iconColor: "text-brand-secondary",
           href: "/admin/forms",
-          label: "Buka Form Studio",
+
           stat: null,
         },
         {
@@ -232,7 +234,7 @@ export default async function AdminHomePage() {
           icon: Video,
           iconColor: "text-brand-primary",
           href: "/admin/meet",
-          label: "Buka studio temu",
+
           stat: null,
         },
         {
@@ -240,7 +242,7 @@ export default async function AdminHomePage() {
           icon: Image,
           iconColor: "text-tertiary-1",
           href: "/admin/media",
-          label: "Buka pustaka media",
+
           stat: null,
         },
         {
@@ -248,7 +250,7 @@ export default async function AdminHomePage() {
           icon: LinkIcon,
           iconColor: "text-status-success",
           href: "/admin/tautan",
-          label: "Buka daftar tautan",
+
           stat: null,
         },
       ],
@@ -261,7 +263,7 @@ export default async function AdminHomePage() {
           icon: KeyRound,
           iconColor: "text-brand-secondary",
           href: "/admin/tokens",
-          label: "Kelola token",
+
           stat: tokenStat,
         },
         {
@@ -269,7 +271,7 @@ export default async function AdminHomePage() {
           icon: Bell,
           iconColor: "text-tertiary-3",
           href: "/admin/notifications",
-          label: "Kelola notifikasi",
+
           stat: notifStat,
         },
       ],
@@ -282,7 +284,7 @@ export default async function AdminHomePage() {
           icon: Activity,
           iconColor: "text-status-success",
           href: "/admin/ops",
-          label: "Buka monitor ops",
+
           stat: opsStat,
         },
         {
@@ -290,7 +292,7 @@ export default async function AdminHomePage() {
           icon: Flag,
           iconColor: "text-brand-primary",
           href: "/admin/ops/flags",
-          label: "Buka feature flags",
+
           stat: null,
         },
         {
@@ -298,7 +300,7 @@ export default async function AdminHomePage() {
           icon: KeyRound,
           iconColor: "text-tertiary-1",
           href: "/admin/ops/keys",
-          label: "Lihat API keys",
+
           stat: null,
         },
         {
@@ -306,7 +308,7 @@ export default async function AdminHomePage() {
           icon: LinkIcon,
           iconColor: "text-brand-secondary",
           href: "/admin/ops/short-links",
-          label: "Buka short links",
+
           stat: null,
         },
         {
@@ -314,7 +316,7 @@ export default async function AdminHomePage() {
           icon: LineChart,
           iconColor: "text-brand-primary",
           href: "/admin/ops/web-analytics",
-          label: "Buka web analytics",
+
           stat: null,
         },
         {
@@ -322,7 +324,7 @@ export default async function AdminHomePage() {
           icon: MousePointerClick,
           iconColor: "text-status-info",
           href: "/admin/ops/feature-usage",
-          label: "Lihat aktivitas fitur murid",
+
           stat: null,
         },
       ],
@@ -330,79 +332,48 @@ export default async function AdminHomePage() {
   ];
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-5">
       <AdminPageHeader
         icon={LayoutDashboard}
-        title="Admin Panel"
+        title="Admin"
         actions={<RefreshAnalyticsButton />}
       />
 
       {failedJobs > 0 && (
-        <div className="flex items-start gap-3 rounded-xl border border-status-error/20 bg-status-error/5 p-4 text-body-sm text-status-error">
-          <Zap className="size-5 shrink-0 mt-0.5" />
-          <div>
-            <p className="font-semibold">Perhatian: Generasi Soal Gagal</p>
-            <p className="text-muted-foreground mt-0.5">
-              Terdapat {failedJobs} pipeline generasi soal yang gagal. Silakan
-              tinjau status di menu Generasi Soal.
-            </p>
-          </div>
-        </div>
+        <Alert variant="destructive">
+          <Zap className="size-4" aria-hidden />
+          <AlertTitle>{failedJobs} generasi soal gagal</AlertTitle>
+          <AlertDescription>
+            <Link href="/admin/jobs" className="underline underline-offset-4">Tinjau generasi</Link>
+          </AlertDescription>
+        </Alert>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8 items-start">
-        {[
-          categories.filter((c) => ["Akademik & Konten", "Evaluasi & Asesmen", "Akses & Keanggotaan"].includes(c.name)),
-          categories.filter((c) => c.name === "Alat & Komunikasi"),
-          categories.filter((c) => c.name === "Sistem & Operasional"),
-        ].map((group, colIdx) => (
-          <div key={colIdx} className="space-y-8">
-            {group.map((category) => (
-              <section key={category.name} className="space-y-1">
-                <div className="flex items-center justify-between gap-4 border-b border-border/50 pb-2">
-                  <h2 className="font-heading text-body-base font-bold text-foreground">
-                    {category.name}
-                  </h2>
-                  <span className="text-body-2xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    {category.items.length} area
-                  </span>
-                </div>
-
-                <div className="divide-y divide-border/30">
-                  {category.items.map((item) => (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      className="group flex items-center justify-between gap-3 px-2 py-2.5 rounded-lg transition-colors hover:bg-muted/50 -mx-1"
-                    >
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className="flex size-7.5 shrink-0 items-center justify-center rounded-lg bg-muted/60 text-muted-foreground transition-colors group-hover:bg-brand-primary/10">
-                          <item.icon className={`size-3.5 ${item.iconColor}`} aria-hidden />
-                        </div>
-                        <div className="min-w-0">
-                          <span className="font-heading text-body-sm font-semibold text-foreground group-hover:text-brand-primary transition-colors truncate block">
-                            {item.title}
-                          </span>
-                          <span className="text-body-xs text-muted-foreground truncate block">
-                            {item.label}
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-2 shrink-0">
-                        {item.stat && (
-                          <span className="rounded-md bg-muted/70 px-2 py-0.5 text-body-xs font-medium text-muted-foreground">
-                            {item.stat}
-                          </span>
-                        )}
-                        <ChevronRight className="size-3.5 text-muted-foreground/60 transition-transform group-hover:translate-x-0.5 group-hover:text-foreground" />
-                      </div>
-                    </Link>
-                  ))}
-                </div>
-              </section>
-            ))}
-          </div>
+      <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-2 xl:grid-cols-3">
+        {categories.map((category) => (
+          <Card key={category.name} variant="solid" className="min-w-0 shadow-none">
+            <CardHeader className="px-4 py-3">
+              <CardTitle>{category.name}</CardTitle>
+            </CardHeader>
+            <CardContent className="divide-y divide-border/60 px-0 pb-0">
+              {category.items.map((item) => (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className="group flex min-w-0 items-start gap-3 px-4 py-3 transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring last:rounded-b-xl"
+                >
+                  <item.icon className={`mt-0.5 size-4 shrink-0 ${item.iconColor}`} aria-hidden />
+                  <div className="min-w-0 flex-1">
+                    <span className="block text-body-sm font-semibold text-foreground group-hover:text-primary">
+                      {item.title}
+                    </span>
+                    {item.stat && <span className="mt-0.5 block text-body-xs text-muted-foreground">{item.stat}</span>}
+                  </div>
+                  <ChevronRight className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden />
+                </Link>
+              ))}
+            </CardContent>
+          </Card>
         ))}
       </div>
     </div>

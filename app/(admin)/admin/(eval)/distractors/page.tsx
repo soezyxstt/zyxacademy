@@ -4,6 +4,7 @@ import { db } from "@/db";
 import { aiQuestionBank, courses, questionOptionStats } from "@/db/schema";
 import { inArray } from "drizzle-orm";
 import { assertTutorOrAdmin } from "@/lib/auth/admin-guards";
+import { AdminEmptyState } from "@/components/admin/state-panels";
 import { AdminPageHeader } from "@/components/admin/page-header";
 import { MathText } from "@/components/course/math-text";
 import { Target } from "lucide-react";
@@ -53,18 +54,15 @@ export default async function DistractorAnalyticsPage() {
     .sort((a, b) => b.agg.total - a.agg.total);
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-5">
       <AdminPageHeader
         icon={Target}
         title="Analitik Distraktor"
-        description="Analisis miskonsepsi siswa berdasarkan pilihan ganda yang salah."
       />
       {ordered.length === 0 ? (
-        <p className="text-body-sm text-muted-foreground">
-          Belum ada data. Statistik terisi setelah siswa mengerjakan kuis dengan fitur ini aktif.
-        </p>
+        <AdminEmptyState icon={Target} title="Belum ada analitik distraktor" description="Data tersedia setelah siswa mengerjakan kuis dengan fitur ini aktif." />
       ) : (
-        <div className="space-y-8">
+        <div className="space-y-5">
           {ordered.map(({ id, agg }) => {
             const q = questionMap.get(id)!;
             const options = (q.options as string[]) ?? [];

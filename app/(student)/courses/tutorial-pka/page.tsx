@@ -22,6 +22,7 @@ import {
 import { requirePkaSession } from "@/lib/pka-enrollment";
 import { CoursePageShell } from "@/components/course/course-page-shell";
 import { PkaCountdown } from "@/components/pka/pka-countdown";
+import { Button } from "@/components/ui/button";
 import { Reveal } from "@/components/ui/reveal";
 import { FormattedDate } from "@/components/ui/formatted-date";
 import { AnnouncementCard } from "./_components/announcement-card";
@@ -107,10 +108,10 @@ export default async function PkaCourseHomePage() {
   return (
     <CoursePageShell
       title="Tutorial PKA"
-      description="Persiapan Pemetaan Kesiapan Akademik ITB: Matematika, Fisika, dan Kimia dalam satu kelas."
+
       icon={GraduationCap}
     >
-      <div className="space-y-10">
+      <div className="space-y-6">
         <Reveal>
           <PkaCountdown targetDate={PKA_ASSUMED_TEST_DATE.toISOString()} />
         </Reveal>
@@ -121,9 +122,9 @@ export default async function PkaCourseHomePage() {
             <section className="space-y-3">
               <div className="flex items-center gap-2 border-b border-border pb-2">
                 <BellRing className="size-5 text-brand-primary" />
-                <h2 className="font-heading text-body-base font-bold text-foreground">Pengumuman Terbaru</h2>
+                <h2 className="font-heading text-body-base font-bold text-foreground">Pengumuman</h2>
               </div>
-              <div className="flex flex-col gap-4">
+              <div className="divide-y divide-border/60 overflow-hidden rounded-xl border border-border bg-card">
                 {announcements.map((announcement) => (
                   <AnnouncementCard key={announcement.id} {...announcement} />
                 ))}
@@ -146,7 +147,7 @@ export default async function PkaCourseHomePage() {
               </Link>
             </div>
             {nextSession ? (
-              <div className="flex items-center justify-between gap-4 rounded-xl border border-border bg-card p-4 shadow-sm">
+              <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-card p-4">
                 <div className="min-w-0">
                   <span className="block truncate text-body-base font-semibold text-foreground">
                     {nextSession.title}
@@ -157,6 +158,7 @@ export default async function PkaCourseHomePage() {
                   </span>
                 </div>
                 {nextSession.meetLink ? (
+                  <Button asChild size="sm">
                   <a
                     href={nextSession.meetLink}
                     target="_blank"
@@ -166,9 +168,10 @@ export default async function PkaCourseHomePage() {
                     <Video className="size-4" />
                     Gabung Meet
                   </a>
+                  </Button>
                 ) : (
                   <span className="flex shrink-0 items-center gap-1.5 rounded-md bg-muted px-3 py-1.5 text-body-sm font-semibold text-muted-foreground">
-                    Link Belum Tersedia
+                    Link belum tersedia
                   </span>
                 )}
               </div>
@@ -185,26 +188,27 @@ export default async function PkaCourseHomePage() {
         <Reveal>
           <section className="space-y-3">
             <div className="flex items-center justify-between gap-4 border-b border-border pb-2">
-              <h2 className="font-heading text-body-base font-bold text-foreground">Simulasi Ujian</h2>
+              <h2 className="font-heading text-body-base font-bold text-foreground">Simulasi ujian</h2>
               <Link
                 href="/courses/tutorial-pka/leaderboard?type=simulation"
                 className="flex items-center gap-1 text-body-sm font-semibold text-brand-primary transition-colors duration-150 hover:text-brand-primary/80"
               >
                 <BarChart3 className="size-3.5" />
-                Leaderboard Simulasi
+                Peringkat simulasi
               </Link>
             </div>
             <div className="rounded-xl border border-border bg-card p-4 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
                 <span className="block text-body-base font-semibold text-foreground">
-                  {simTemplates.length} Simulasi Tersedia
+                  {simTemplates.length} simulasi
                 </span>
                 <span className="block text-body-sm text-muted-foreground">
                   {completedCount > 0
-                    ? `Kamu telah menyelesaikan ${completedCount} simulasi. Skor tertinggi: ${bestScore}%`
-                    : "Uji kesiapan akademis kamu dengan mengerjakan simulasi."}
+                    ? `${completedCount} selesai · Skor tertinggi ${bestScore}%`
+                    : "Belum dikerjakan"}
                 </span>
               </div>
+              <Button asChild size="sm">
               <Link
                 href="/courses/tutorial-pka/simulasi"
                 className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-md bg-brand-primary px-4 py-2 text-body-sm font-bold text-white shadow-xs transition-colors duration-150 hover:bg-brand-primary/90"
@@ -212,6 +216,7 @@ export default async function PkaCourseHomePage() {
                 {completedCount > 0 ? "Lanjutkan simulasi" : "Buka simulasi"}
                 <ArrowRight className="size-4" />
               </Link>
+              </Button>
             </div>
           </section>
         </Reveal>

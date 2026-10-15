@@ -119,7 +119,7 @@ export function PkaRegistrationForm({
       </section>
 
       {/* Fields */}
-      <div className="space-y-6 rounded-xl border border-border bg-card p-6 shadow-sm">
+      <div className="space-y-4 rounded-xl border border-border bg-card p-4">
         <div className="space-y-1.5">
           <Label htmlFor="pka-fullname" className="text-body-sm font-medium text-foreground">
             Nama lengkap
@@ -171,13 +171,13 @@ export function PkaRegistrationForm({
           </Label>
           <div className="flex items-center gap-0 rounded-md border border-input bg-background focus-within:ring-2 focus-within:ring-ring">
             <span className="pl-3 pr-1 text-body-base text-muted-foreground">@</span>
-            <input
+            <Input
               id="pka-instagram"
               value={instagram}
               onChange={(e) => setInstagram(e.target.value.replace(/^@+/, ""))}
               placeholder={IG_HANDLE}
               required
-              className="h-9 w-full rounded-md bg-transparent pr-3 text-body-base outline-none placeholder:text-muted-foreground"
+              className="h-9 w-full rounded-md border-0 bg-transparent pr-3 text-body-sm shadow-none"
             />
           </div>
         </div>

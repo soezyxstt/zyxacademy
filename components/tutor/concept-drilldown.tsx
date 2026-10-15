@@ -43,7 +43,7 @@ export function ConceptDrilldown({ open, onClose, concept, trends, mostMissed, c
           </SheetTitle>
         </SheetHeader>
 
-        <div className="flex flex-col gap-6 px-5 py-5">
+        <div className="flex flex-col gap-4 px-5 py-4">
           {/* Distribution */}
           <section>
             <p className="text-body-sm text-muted-foreground mb-2">Distribusi penguasaan</p>
@@ -97,7 +97,7 @@ export function ConceptDrilldown({ open, onClose, concept, trends, mostMissed, c
             <section>
               <p className="text-body-sm text-muted-foreground mb-2">Tren 4 minggu</p>
               <p className="text-body-sm text-muted-foreground italic">
-                Data tren muncul setelah snapshot harian berjalan beberapa minggu.
+                Data tren belum cukup.
               </p>
             </section>
           )}

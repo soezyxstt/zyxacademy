@@ -67,8 +67,8 @@ function FeeTierCard({
     <div
       className={
         isHighlighted
-          ? "rounded-lg border border-[var(--zx-accent)]/30 bg-[var(--zx-accent)]/8 p-4"
-          : "rounded-lg border border-border/70 bg-muted/30 p-4"
+          ? "border-l-2 border-primary pl-3 py-2"
+          : "space-y-2 border-t border-border pt-3"
       }
     >
       <div className="flex items-center justify-between gap-2">
@@ -188,11 +188,10 @@ export function TutorFeeEstimator() {
       className="grid gap-4 xl:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)]"
       data-tutor-fee-estimator
     >
-      <section className="rounded-xl border border-border/70 bg-card/70 p-4 shadow-xs backdrop-blur-md sm:p-5">
+      <section className="rounded-xl border border-border bg-card p-4">
         <AdminSectionTitle
           icon={Coins}
           title="Konfigurasi paket & sesi"
-          description="Tentukan parameter paket untuk menghitung alokasi fee tutor per pertemuan."
         />
 
         <div className="mt-5 space-y-4">
@@ -292,7 +291,7 @@ export function TutorFeeEstimator() {
                   size="xs"
                   variant="ghost"
                   onClick={() => updateValue("customPrice", "")}
-                  className="h-5 px-1.5 text-body-2xs text-muted-foreground hover:text-foreground"
+                  className="h-5 px-1.5 text-body-xs text-muted-foreground hover:text-foreground"
                 >
                   Reset otomatis
                 </Button>
@@ -334,13 +333,13 @@ export function TutorFeeEstimator() {
       </section>
 
       <section
-        className="rounded-xl border border-border/70 bg-card/70 p-4 shadow-xs backdrop-blur-md sm:p-5"
+        className="rounded-xl border border-border bg-card p-4"
         data-tutor-price-state={quote ? "valid" : "invalid"}
       >
         <AdminSectionTitle
           icon={GraduationCap}
           title="Perkiraan fee tutor"
-          description="Alokasi pembagian hasil bersih setelah dikurangi biaya platform Zyx."
+          description="Setelah biaya platform Zyx."
           right={
             <Badge
               variant="outline"
@@ -352,7 +351,7 @@ export function TutorFeeEstimator() {
         />
 
         {quote ? (
-          <div className="mt-6 space-y-5" aria-live="polite">
+          <div className="mt-4 space-y-4" aria-live="polite">
             {quote.custom ? (
               <div className="space-y-3">
                 <FeeTierCard
@@ -378,37 +377,37 @@ export function TutorFeeEstimator() {
               </div>
             )}
 
-            <div className="rounded-lg border border-border/70 bg-muted/20 p-4">
+            <div className="border-t border-border pt-3">
               <p className="text-body-xs font-semibold text-foreground">Rincian komponen perhitungan</p>
               <div className="mt-3 grid gap-2 sm:grid-cols-3 text-body-xs">
-                <div className="rounded-md border border-border/50 bg-background/50 p-2.5">
+                <div className="border-l-2 border-border pl-3 py-1">
                   <span className="text-muted-foreground">Biaya platform Zyx</span>
                   <p className="mt-1 font-semibold text-foreground" data-platform-cost={quote.platformCost}>
                     {formatPlanPrice(quote.platformCost)}
                   </p>
-                  <p className="mt-0.5 text-body-2xs text-muted-foreground">
+                  <p className="mt-0.5 text-body-xs text-muted-foreground">
                     Akses materi & sistem untuk {quote.persons} murid ({quote.courses} matkul)
                   </p>
                 </div>
-                <div className="rounded-md border border-border/50 bg-background/50 p-2.5">
+                <div className="border-l-2 border-border pl-3 py-1">
                   <span className="text-muted-foreground">Alokasi tutor (70%)</span>
                   <p className="mt-1 font-semibold text-status-success">
                     {formatPlanPrice(
                       quote.custom ? quote.custom.tutorFeeTotal : quote.introductory.tutorFeeTotal,
                     )}
                   </p>
-                  <p className="mt-0.5 text-body-2xs text-muted-foreground">
+                  <p className="mt-0.5 text-body-xs text-muted-foreground">
                     Untuk {quote.meetings} pertemuan total
                   </p>
                 </div>
-                <div className="rounded-md border border-border/50 bg-background/50 p-2.5">
+                <div className="border-l-2 border-border pl-3 py-1">
                   <span className="text-muted-foreground">Alokasi manajemen (30%)</span>
                   <p className="mt-1 font-semibold text-muted-foreground">
                     {formatPlanPrice(
                       quote.custom ? quote.custom.managementFeeTotal : quote.introductory.managementFeeTotal,
                     )}
                   </p>
-                  <p className="mt-0.5 text-body-2xs text-muted-foreground">
+                  <p className="mt-0.5 text-body-xs text-muted-foreground">
                     Operasional & koordinasi tutor
                   </p>
                 </div>

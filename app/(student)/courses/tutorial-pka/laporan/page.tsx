@@ -22,7 +22,7 @@ export default async function PkaLaporanPage() {
   return (
     <CoursePageShell
       title="Laporan diagnostik"
-      description="Ringkasan hasil simulasi PKA kamu di ketiga mapel."
+
       icon={BarChart3}
     >
       <Reveal>

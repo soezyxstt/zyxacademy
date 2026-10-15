@@ -19,11 +19,10 @@ export default async function AdminFormsPage() {
   const presetsEnabled = true;
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-5">
       <AdminPageHeader
         icon={FileText}
         title="Form Studio & Visualizer"
-        description="Mendukung 12 jenis soal lengkap, short links (/f/[slug]), unggah berkas, dan custom UI."
       />
       <Suspense
         fallback={

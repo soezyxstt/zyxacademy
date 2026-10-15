@@ -228,7 +228,7 @@ export function ChaptersTab({
         <div className="flex items-center justify-between">
           <h3 className="font-heading text-body-sm font-semibold text-foreground flex items-center gap-2">
             <Layers className="size-4 text-brand-primary" />
-            Daftar Silabus & Bab ({chapters.length})
+            Bab ({chapters.length})
           </h3>
         </div>
 
@@ -237,7 +237,7 @@ export function ChaptersTab({
             <BookOpen className="size-6 text-muted-foreground/40 mx-auto mb-1.5" />
             <p className="text-body-xs font-medium text-foreground">Belum ada bab yang terdaftar</p>
             <p className="text-body-xs text-muted-foreground mt-0.5">
-              Gunakan formulir di atas untuk menambahkan bab pertama mata kuliah ini.
+              Tambahkan bab pertama.
             </p>
           </div>
         ) : (
@@ -246,8 +246,8 @@ export function ChaptersTab({
               <AdminTableHead>
                 <tr>
                   <th className="px-3.5 py-2 w-20 text-center">Urutan</th>
-                  <th className="px-3.5 py-2">Judul Silabus &amp; Bab</th>
-                  <th className="px-3.5 py-2 w-56">Konten Terkait</th>
+                  <th className="px-3.5 py-2">Judul bab</th>
+                  <th className="px-3.5 py-2 w-56">Konten terkait</th>
                   <th className="px-3.5 py-2 w-24 text-center">Posisi</th>
                   <th className="px-3.5 py-2 w-20 text-right">Aksi</th>
                 </tr>

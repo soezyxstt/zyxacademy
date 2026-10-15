@@ -1,5 +1,6 @@
 "use client";
 
+import { AdminEmptyState } from "@/components/admin/state-panels";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -255,7 +256,7 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <Tabs defaultValue="templates" className="w-full">
         <TabsList>
           <TabsTrigger value="templates">
@@ -271,36 +272,30 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
         {/* =====================================================================
             TAB 1: QUIZ
             ===================================================================== */}
-        <TabsContent value="templates" className="space-y-6">
-          <div className="flex justify-between items-center">
-            <h2 className="font-heading text-body-base font-semibold text-foreground">Daftar Kuis ({initialTemplates.length})</h2>
+        <TabsContent value="templates" className="space-y-4">
+          <div className="flex flex-wrap justify-between items-center gap-2">
+            <h2 className="font-heading text-body-base font-semibold text-foreground">Kuis ({initialTemplates.length})</h2>
             <Button asChild className="bg-brand-primary text-white hover:bg-brand-primary/90 rounded-md font-semibold gap-2">
               <Link href={`/tutor/${courseId}/quizzes/new`}>
                 <Plus className="size-4" />
-                Buat Kuis Baru
+                Buat kuis
               </Link>
             </Button>
           </div>
 
           {initialTemplates.length === 0 ? (
-            <div className="text-center py-12 border border-dashed border-border bg-card/50 rounded-2xl">
-              <ClipboardList className="size-12 text-muted-foreground/50 mx-auto mb-3" />
-              <h3 className="font-heading text-body-base font-bold text-foreground">Belum Ada Kuis</h3>
-              <p className="text-body-sm text-muted-foreground mt-1 max-w-sm mx-auto">
-                Buat kuis untuk menguji pemahaman siswa. Anda dapat menentukan aturan pemilihan soal dari bank soal secara otomatis.
-              </p>
-            </div>
+            <AdminEmptyState icon={ClipboardList} title="Belum Ada Kuis" />
           ) : (
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
               {initialTemplates.map((t) => {
                 const rules = typeof t.selectionRules === "string" ? JSON.parse(t.selectionRules) : t.selectionRules;
                 const isSimulation = t.category === "simulation";
 
                 return (
-                  <Card key={t.id} className="bg-card border-border shadow-xs rounded-2xl flex flex-col justify-between overflow-hidden">
-                    <CardHeader className="p-5 pb-3">
+                  <Card key={t.id} className="rounded-none border-0 bg-transparent py-0 shadow-none gap-0">
+                    <CardHeader className="px-4 pt-3 pb-2">
                       <div className="flex justify-between items-start gap-2">
-                        <CardTitle className="font-heading text-body-base font-bold text-foreground line-clamp-1">{t.title}</CardTitle>
+                        <CardTitle className="font-heading text-body-base font-bold text-foreground break-words">{t.title}</CardTitle>
                         <div className="flex gap-1.5 flex-wrap items-center">
                           <Badge variant="secondary" className="capitalize text-[10px] rounded-md px-2 py-0.5">
                             {t.category}
@@ -335,7 +330,7 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
                         Batas percobaan: {t.maxAttempts ? `${t.maxAttempts}x` : "Tak terbatas"} · Durasi: {t.timeLimitSeconds ? `${t.timeLimitSeconds / 60} menit` : "Bebas"}
                       </p>
                     </CardHeader>
-                    <CardContent className="px-5 pb-4 flex-1 space-y-2">
+                    <CardContent className="px-4 pb-3 space-y-2">
                       <div className="flex flex-wrap gap-1">
                         <span className="text-body-xs font-semibold text-muted-foreground mr-1.5 flex items-center gap-1">
                           <Layers className="size-3" />
@@ -375,7 +370,7 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
                         </div>
 
                         {t.manualStatus === "scheduled" && (t.openAt || t.closeAt) && (
-                          <div className="text-[10px] bg-muted/40 p-2 rounded-md border border-border/40 space-y-1 mt-1 text-foreground/80">
+                          <div className="text-body-xs space-y-1 mt-1 text-foreground/80">
                             {t.openAt && (
                               <div className="flex justify-between">
                                 <span>Buka:</span>
@@ -410,11 +405,11 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
                         </div>
                       )}
                     </CardContent>
-                    <div className="px-5 py-3.5 bg-muted/20 border-t border-border flex flex-wrap justify-end gap-2">
+                    <div className="flex flex-wrap gap-2 px-4 pb-3">
                       <Link href={`/tutor/${courseId}/quizzes/${t.id}/attempts`}>
                         <Button variant="outline" size="sm" className="rounded-md border-border/80 text-emerald-600 hover:bg-emerald-500/10 hover:text-emerald-600 gap-1 text-body-xs">
                           <FileSpreadsheet className="size-3.5" />
-                          Sheet Attempt
+                          Hasil
                         </Button>
                       </Link>
                       <Button variant="outline" size="sm" onClick={() => handleOpenPreviewTpl(t)} className="rounded-md border-border/80 text-brand-primary hover:bg-brand-primary/10 hover:text-brand-primary gap-1 text-body-xs">
@@ -455,8 +450,8 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
         {/* =====================================================================
             TAB 2: QUESTION BANK
             ===================================================================== */}
-        <TabsContent value="questionbank" className="space-y-6">
-          <div className="flex justify-between items-center">
+        <TabsContent value="questionbank" className="space-y-4">
+          <div className="flex flex-wrap justify-between items-center gap-2">
             <h2 className="font-heading text-body-base font-semibold text-foreground">Kumpulan Bank Soal ({initialQuestionBank.length})</h2>
             <Button onClick={handleOpenAddQ} className="bg-brand-primary text-white hover:bg-brand-primary/90 rounded-md font-semibold gap-2">
               <Plus className="size-4" />
@@ -465,13 +460,7 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
           </div>
 
           {initialQuestionBank.length === 0 ? (
-            <div className="text-center py-12 border border-dashed border-border bg-card/50 rounded-2xl">
-              <HelpCircle className="size-12 text-muted-foreground/50 mx-auto mb-3" />
-              <h3 className="font-heading text-body-base font-bold text-foreground">Bank Soal Kosong</h3>
-              <p className="text-body-sm text-muted-foreground mt-1 max-w-sm mx-auto">
-                Tambahkan soal ke bank soal agar kuis template dapat mengacak dan menarik soal untuk siswa secara dinamis.
-              </p>
-            </div>
+            <AdminEmptyState icon={HelpCircle} title="Bank Soal Kosong" />
           ) : (
             <div className="space-y-3">
               {initialQuestionBank.map((q, idx) => {
@@ -684,7 +673,7 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
                   placeholder="Contoh: 12, duabelas, 12.0"
                   className="rounded-lg border-input bg-background"
                 />
-                <p className="text-body-xs text-muted-foreground">Siswa dianggap benar jika jawaban teks mereka cocok dengan salah satu kata kunci di atas.</p>
+                <p className="text-body-xs text-muted-foreground">Jawaban benar jika cocok dengan salah satu kata kunci.</p>
               </div>
             )}
 
@@ -692,7 +681,7 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
             {qType === "essay" && (
               <div className="p-4 rounded-xl border border-border bg-muted/5 text-body-xs text-muted-foreground space-y-1">
                 <p className="font-semibold text-foreground">Soal Tipe Essay / Uraian</p>
-                <p>Siswa akan mengetikkan jawaban teks uraian bebas. Tuliskan rubrik penilaian atau kunci jawaban referensi pada kolom Pembahasan di bawah.</p>
+                <p>Tuliskan rubrik atau kunci jawaban di Pembahasan.</p>
               </div>
             )}
 
@@ -784,18 +773,18 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
             </DialogDescription>
           </DialogHeader>
 
-          <div className="flex-1 overflow-y-auto p-6 space-y-6 text-left">
+          <div className="flex-1 overflow-y-auto p-6 space-y-4 text-left">
             {loadingPreview ? (
               <div className="py-12 flex flex-col items-center justify-center gap-3">
                 <Loader2 className="size-8 animate-spin text-brand-primary" />
-                <p className="text-body-sm text-muted-foreground">Memilih dan meresolusi soal dari bank...</p>
+                <p className="text-body-sm text-muted-foreground">Memuat soal...</p>
               </div>
             ) : previewQuestions.length === 0 ? (
               <div className="py-12 text-center text-muted-foreground text-body-sm">
                 Tidak ada soal yang tersedia untuk aturan seleksi kuis ini.
               </div>
             ) : (
-              <div className="space-y-6">
+              <div className="space-y-4">
                 {previewQuestions.map((q, idx) => (
                   <div key={q.id} className="p-5 rounded-xl border border-border bg-card space-y-4">
                     <div className="flex items-center justify-between gap-2 border-b border-border/40 pb-2">

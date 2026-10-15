@@ -12,6 +12,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
@@ -761,7 +762,7 @@ export function AcademicSchedulesDashboard({ initialData, initialWeekOffset = 0 
           <div className="my-2 max-h-80 space-y-2 overflow-y-auto pr-1">
             {data.courses.map((course: any) => {
               const checked = certSelectedIds.includes(course.id);
-              return <label key={course.id} className={`flex items-center justify-between rounded-lg border p-3 ${checked ? "border-brand-primary bg-brand-primary/10" : "border-border"}`}><div className="flex items-center gap-2 text-body-sm font-semibold"><input type="checkbox" checked={checked} onChange={() => handleToggleCourse(course.id)} className="size-4 accent-brand-primary" /><span>{course.title}</span></div>{checked ? <CheckCircle2 className="size-4 text-brand-primary" /> : null}</label>;
+              return <label key={course.id} className={`flex items-center justify-between border-b border-border px-2 py-2 ${checked ? "border-brand-primary bg-brand-primary/10" : "border-border"}`}><div className="flex items-center gap-2 text-body-sm font-semibold"><Checkbox checked={checked} onCheckedChange={() => handleToggleCourse(course.id)} /><span>{course.title}</span></div>{checked ? <CheckCircle2 className="size-4 text-brand-primary" /> : null}</label>;
             })}
           </div>
           <DialogFooter><DialogClose asChild><Button variant="outline" type="button" disabled={certSaving}>Batal</Button></DialogClose><Button type="button" disabled={certSaving} isLoading={certSaving} onClick={handleSaveCerts}>Simpan Sertifikasi</Button></DialogFooter>

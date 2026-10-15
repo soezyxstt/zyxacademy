@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Check, ChevronDown, CircleAlert, Lock, Play, TriangleAlert } from "lucide-react";
+import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { MathText } from "@/components/course/math-text";
 import { cn } from "@/lib/utils";
@@ -147,7 +148,7 @@ export function StudyPathTimeline({ courseId }: { courseId: string }) {
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2 border-b border-border/60 pb-3">
         <label htmlFor="study-path-days" className="text-body-sm text-muted-foreground">Target selesai dalam</label>
-        <input id="study-path-days" type="number" min={1} max={60} value={daysInput} onChange={(event) => setDaysInput(event.target.value)} placeholder="7" className="h-9 w-16 rounded-md border border-input bg-background px-2 text-body-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" />
+        <Input id="study-path-days" type="number" min={1} max={60} value={daysInput} onChange={(event) => setDaysInput(event.target.value)} placeholder="7" className="h-9 w-16 rounded-md border border-input bg-background px-2 text-body-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" />
         <span className="text-body-sm text-muted-foreground">hari</span>
         <Button type="button" size="sm" variant="outline" className="rounded-md" disabled={planning || !daysInput} onClick={() => { const days = Number.parseInt(daysInput, 10); if (days > 0) void fetchStudyPath(days); }}>{planning ? "Menyusun..." : "Buat rencana"}</Button>
         {dayPlan ? <Button type="button" size="sm" variant="ghost" className="rounded-md" onClick={() => setDayPlan(null)}>Lihat roadmap</Button> : null}

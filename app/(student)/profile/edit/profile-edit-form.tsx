@@ -78,7 +78,7 @@ export function ProfileEditForm({ user }: ProfileEditFormProps) {
 
   return (
     <Card className="max-w-2xl border-border bg-card shadow-xs">
-      <CardHeader className="border-b border-border pb-5">
+      <CardHeader className="border-b border-border pb-3">
         <div className="flex items-center justify-between">
           <CardTitle className="font-heading text-body-base font-bold text-foreground flex items-center gap-2">
             <GraduationCap className="size-5 text-brand-primary shrink-0" />
@@ -89,13 +89,13 @@ export function ProfileEditForm({ user }: ProfileEditFormProps) {
           </Badge>
         </div>
         <CardDescription className="text-body-xs text-muted-foreground mt-1">
-          Data ini digunakan untuk menyesuaikan rekomendasi materi dan kelas dengan kurikulum Anda.
+          Untuk menyesuaikan rekomendasi kelas.
         </CardDescription>
       </CardHeader>
 
-      <CardContent className="pt-6">
+      <CardContent className="pt-4">
         {/* Google Identity Info Box */}
-        <div className="mb-6 rounded-xl border border-border bg-muted/40 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-body-sm">
+        <div className="mb-4 border-b border-border pb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-body-sm">
           <div>
             <p className="font-semibold text-foreground">{user.name}</p>
             <p className="text-body-xs text-muted-foreground flex items-center gap-1.5 mt-0.5">
@@ -148,7 +148,7 @@ export function ProfileEditForm({ user }: ProfileEditFormProps) {
             id="entryYear"
             name="entryYear"
             label="Tahun masuk ITB (Angkatan)"
-            description="Bagi mahasiswa tingkat pertama (TPB), kurikulum dan rekomendasi kelas otomatis memprioritaskan mata kuliah dasar TPB seperti Matematika, Fisika, Kimia, dan Berpikir Komputasional."
+            description="Tahun pertama memprioritaskan mata kuliah TPB."
             placeholder="Pilih tahun masuk..."
             options={entryYearOptions}
             value={selectedEntryYear}

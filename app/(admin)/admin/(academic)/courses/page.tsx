@@ -24,7 +24,7 @@ export default async function AdminCoursesPage() {
     <div className="space-y-6 font-sans">
       <AdminPageHeader
         icon={GraduationCap}
-        title="Manajemen Mata Kuliah"
+        title="Mata kuliah"
       />
 
       <CoursesDashboard initialCourses={coursesList} />

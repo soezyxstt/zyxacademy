@@ -14,18 +14,20 @@
 
 import { useState, useTransition } from "react";
 import { CheckCircle2, Circle, ChevronLeft, ChevronRight, AlertTriangle, Ban } from "lucide-react";
+import { AdminEmptyState } from "@/components/admin/state-panels";
+import { Button } from "@/components/ui/button";
 import { AdminTable } from "@/components/admin/table";
 import { getNotificationHistoryAction, type NotificationHistoryRow } from "../actions";
 
 // ─── Type labels and colors ───────────────────────────────────────────────────
 
 const TYPE_LABELS: Record<string, string> = {
-  quiz_published: "📝 Kuis",
-  flashcard_reminder: "🧠 Flashcard",
-  tutor_reminder: "📅 Tutor",
-  payment_success: "✅ Pembayaran",
-  admin_broadcast: "📢 Broadcast",
-  announcement: "🔔 Pengumuman",
+  quiz_published: "Kuis",
+  flashcard_reminder: "Flashcard",
+  tutor_reminder: "Tutor",
+  payment_success: "Pembayaran",
+  admin_broadcast: "Broadcast",
+  announcement: "Pengumuman",
 };
 
 function TypeBadge({ type }: { type: string }) {
@@ -114,11 +116,7 @@ export function NotificationHistoryTable({ history: initialHistory, total, pageS
 
   if (total === 0) {
     return (
-      <div className="rounded-xl border border-dashed border-border/60 py-12 text-center">
-        <p className="text-body-sm text-muted-foreground">
-          Belum ada notifikasi yang terkirim.
-        </p>
-      </div>
+      <AdminEmptyState title="Belum ada notifikasi" />
     );
   }
 
@@ -127,11 +125,11 @@ export function NotificationHistoryTable({ history: initialHistory, total, pageS
       <AdminTable>
         {/* Header */}
         <div className="hidden md:grid grid-cols-[1.6fr_auto_auto_auto_auto] gap-4 px-5 py-3 border-b border-border bg-muted/30">
-          <span className="text-body-xs font-semibold text-muted-foreground uppercase tracking-wide">Pesan</span>
-          <span className="text-body-xs font-semibold text-muted-foreground uppercase tracking-wide">Tipe</span>
-          <span className="text-body-xs font-semibold text-muted-foreground uppercase tracking-wide">Status</span>
-          <span className="text-body-xs font-semibold text-muted-foreground uppercase tracking-wide">Dibaca</span>
-          <span className="text-body-xs font-semibold text-muted-foreground uppercase tracking-wide">Waktu</span>
+          <span className="text-body-xs font-semibold text-muted-foreground">Pesan</span>
+          <span className="text-body-xs font-semibold text-muted-foreground">Tipe</span>
+          <span className="text-body-xs font-semibold text-muted-foreground">Status</span>
+          <span className="text-body-xs font-semibold text-muted-foreground">Dibaca</span>
+          <span className="text-body-xs font-semibold text-muted-foreground">Waktu</span>
         </div>
 
         {/* Rows */}
@@ -197,24 +195,28 @@ export function NotificationHistoryTable({ history: initialHistory, total, pageS
           {total} notifikasi · halaman {page} dari {totalPages}
         </p>
         <div className="flex items-center gap-1.5">
-          <button
+          <Button
+            variant="outline"
+            size="sm"
             type="button"
             disabled={page <= 1 || isPending}
             onClick={() => loadPage(page - 1)}
-            className="inline-flex items-center gap-1 rounded-lg border border-border px-2.5 py-1.5 text-body-xs font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-40 cursor-pointer"
+            className="inline-flex items-center gap-1 rounded-lg border border-border px-2.5 py-1.5 text-body-sm font-medium text-foreground"
           >
             <ChevronLeft className="size-3.5" aria-hidden />
             Sebelumnya
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
             type="button"
             disabled={page >= totalPages || isPending}
             onClick={() => loadPage(page + 1)}
-            className="inline-flex items-center gap-1 rounded-lg border border-border px-2.5 py-1.5 text-body-xs font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-40 cursor-pointer"
+            className="inline-flex items-center gap-1 rounded-lg border border-border px-2.5 py-1.5 text-body-sm font-medium text-foreground"
           >
             Berikutnya
             <ChevronRight className="size-3.5" aria-hidden />
-          </button>
+          </Button>
         </div>
       </div>
     </div>

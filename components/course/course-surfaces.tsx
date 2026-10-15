@@ -3,7 +3,7 @@ import { cn } from "@/lib/utils";
 /** Base / static student card (dashboard panels, calendar panels, static lists) */
 export function studentCardClass(className?: string) {
   return cn(
-    "rounded-2xl border border-border/70 bg-card/70 p-4 sm:p-6 shadow-xs backdrop-blur-md min-w-0",
+    "rounded-xl border border-border/70 bg-card p-4 min-w-0",
     className,
   );
 }
@@ -11,9 +11,9 @@ export function studentCardClass(className?: string) {
 /** Interactive / hoverable / link card (course catalog, interactive tiles, list rows) */
 export function studentInteractiveCardClass(className?: string) {
   return cn(
-    "group relative flex flex-col rounded-2xl border border-border/70 bg-card/70 p-6 shadow-xs backdrop-blur-md",
+    "group relative flex flex-col rounded-xl border border-border/70 bg-card p-4",
     "transition-all duration-200",
-    "hover:-translate-y-1 hover:border-brand-primary/45 hover:bg-card/90 hover:shadow-md hover:shadow-brand-primary/5",
+    "hover:border-brand-primary/45 hover:bg-muted/30",
     className,
   );
 }
@@ -31,7 +31,7 @@ export function courseListRowClass(className?: string) {
 /** Static card (quiz grid, overview tiles inner) */
 export function courseCardClass(className?: string) {
   return cn(
-    "rounded-2xl border border-border/70 bg-card/70 p-6 shadow-xs backdrop-blur-md transition-all duration-200 hover:-translate-y-0.5 hover:border-brand-primary/35 hover:bg-card/90 hover:shadow-md",
+    "rounded-xl border border-border/70 bg-card p-4 transition-colors hover:border-brand-primary/35 hover:bg-muted/30",
     className,
   );
 }

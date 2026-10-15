@@ -171,14 +171,14 @@ export function RescheduleTicketModal({
             Permohonan Reschedule & Pembatalan
           </DialogTitle>
           <DialogDescription className="text-body-xs text-muted-foreground">
-            Perubahan jadwal dapat diajukan untuk disepakati bersama tutor melalui ruang diskusi terpadu.
+            Perubahan jadwal perlu persetujuan tutor.
           </DialogDescription>
         </DialogHeader>
 
         {booking && (
           <div className="space-y-4 my-2">
             {/* Header info */}
-            <div className="p-3 rounded-lg border border-border bg-muted/20 text-body-xs flex items-center justify-between">
+            <div className="border-b border-border pb-3 text-body-xs flex items-center justify-between">
               <div>
                 <p className="font-bold text-foreground">{booking.course?.title}</p>
                 <p className="text-[11px] text-muted-foreground">
@@ -303,7 +303,7 @@ export function RescheduleTicketModal({
               /* If ACTIVE ticket: Show Thread & Decision Panel */
               <div className="space-y-4">
                 {/* Ticket Status Bar */}
-                <div className="p-3 rounded-lg border border-border bg-card flex items-center justify-between">
+                <div className="border-b border-border pb-3 flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <Badge
                       variant={activeTicket.status === "approved" ? "default" : "outline"}
@@ -331,7 +331,7 @@ export function RescheduleTicketModal({
                 </div>
 
                 {/* Reason box */}
-                <div className="p-3 rounded-lg border border-border bg-muted/20 text-body-xs space-y-1">
+                <div className="text-body-xs space-y-1">
                   <span className="font-semibold text-foreground">Alasan: </span>
                   <p className="text-muted-foreground">{activeTicket.reason}</p>
                 </div>
@@ -392,7 +392,7 @@ export function RescheduleTicketModal({
 
                 {/* Tutor Approval / Rejection Controls */}
                 {isTutor && activeTicket.status === "pending" && (
-                  <div className="p-4 rounded-xl border border-border bg-card space-y-3 pt-3">
+                  <div className="border-t border-border space-y-3 pt-3">
                     <h4 className="text-body-xs font-bold text-foreground">
                       Keputusan Tutor
                     </h4>

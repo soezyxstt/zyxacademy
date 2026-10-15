@@ -3,6 +3,8 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Brain, Check, X, RotateCw, RefreshCw, SkipForward } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { MathText } from "@/components/course/math-text";
@@ -173,7 +175,7 @@ export function FlashcardClient({ courseId, initialQueue, studentId }: Flashcard
     const currentSessionNum = Math.floor(batchOffset / BATCH_SIZE) + 1;
     const totalSessions = Math.ceil(queue.length / BATCH_SIZE);
     return (
-      <div className="mx-auto max-w-2xl rounded-2xl border border-border/60 bg-card p-8 text-center shadow-xs">
+      <div className="mx-auto max-w-2xl rounded-xl border border-border/60 bg-card p-4 text-center">
         <div className="mx-auto flex size-12 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-600">
           <Check className="size-6" />
         </div>
@@ -223,7 +225,7 @@ export function FlashcardClient({ courseId, initialQueue, studentId }: Flashcard
     <div className="mx-auto max-w-2xl space-y-6">
       {/* Top Controls and Stats - Flat Header without Card border */}
       <div className="space-y-2">
-        <div className="h-1 w-full overflow-hidden rounded-full bg-muted">
+        <div className="h-1 w-full overflow-hidden rounded-md bg-muted">
           <div
             className="h-full bg-brand-primary transition-all duration-300"
             style={{ width: `${progressPercent}%` }}
@@ -234,45 +236,15 @@ export function FlashcardClient({ courseId, initialQueue, studentId }: Flashcard
             Sesi {currentSessionNum}/{totalSessions} · Kartu {currentIndex + 1}/{activeBatch.length} (Total {queue.length})
           </span>
 
-          {/* Mode Selector */}
-          <div className="flex rounded-lg border border-border/80 p-0.5 bg-muted/40 w-fit shrink-0">
-            <button
-              onClick={() => {
-                if (loading) return;
-                setMode("standard");
-                setIsFlipped(false);
-                setTypedAnswer("");
-                setIsChecked(false);
-              }}
-              disabled={loading}
-              className={cn(
-                "px-2.5 py-1 text-body-xs font-semibold rounded-md transition-colors",
-                mode === "standard"
-                  ? "bg-background text-foreground shadow-2xs"
-                  : "text-muted-foreground hover:text-foreground",
-              )}
-            >
-              Standar
-            </button>
-            <button
-              onClick={() => {
-                if (loading) return;
-                setMode("exam");
-                setIsFlipped(false);
-                setTypedAnswer("");
-                setIsChecked(false);
-              }}
-              disabled={loading}
-              className={cn(
-                "px-2.5 py-1 text-body-xs font-semibold rounded-md transition-colors",
-                mode === "exam"
-                  ? "bg-background text-foreground shadow-2xs"
-                  : "text-muted-foreground hover:text-foreground",
-              )}
-            >
-              Ketik
-            </button>
-          </div>
+          <RadioGroup aria-label="Mode flashcard" orientation="horizontal" className="flex items-center gap-3" value={mode} onValueChange={(value) => {
+            setMode(value as "standard" | "exam");
+            setIsFlipped(false);
+            setTypedAnswer("");
+            setIsChecked(false);
+          }}>
+            <label className="flex items-center gap-2 text-body-sm"><RadioGroupItem value="standard" disabled={loading} />Standar</label>
+            <label className="flex items-center gap-2 text-body-sm"><RadioGroupItem value="exam" disabled={loading} />Ketik</label>
+          </RadioGroup>
         </div>
       </div>
 
@@ -280,7 +252,7 @@ export function FlashcardClient({ courseId, initialQueue, studentId }: Flashcard
       {currentItem.dueStatus === "review" && (
         <div className="flex items-center gap-2 rounded-lg border border-brand-primary/20 bg-brand-primary/5 p-3 text-body-xs text-brand-primary">
           <Brain className="size-4 shrink-0" />
-          <span>Kartu ini telah jatuh tempo untuk diulas kembali sesuai jadwal pengulangan berjeda Anda.</span>
+          <span>Kartu ini jatuh tempo untuk diulas.</span>
         </div>
       )}
 
@@ -407,7 +379,7 @@ export function FlashcardClient({ courseId, initialQueue, studentId }: Flashcard
             )}
           </div>
           <div className="flex items-center gap-2">
-            <input
+            <Input
               type="text"
               disabled={isChecked || loading}
               value={typedAnswer}

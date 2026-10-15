@@ -96,7 +96,6 @@ export default async function FeatureUsagePage({ searchParams }: Props) {
         <section className="rounded-xl border border-border bg-card p-5 shadow-sm">
           <AdminSectionTitle
             title="Peringkat Fitur"
-            description="Total unit aktivitas per fitur pada rentang terpilih."
             icon={Trophy}
             border
             className="mb-4"
@@ -107,7 +106,6 @@ export default async function FeatureUsagePage({ searchParams }: Props) {
         <section className="rounded-xl border border-border bg-card p-5 shadow-sm">
           <AdminSectionTitle
             title="Aktivitas Harian"
-            description="Distribusi aktivitas harian per fitur."
             icon={Activity}
             border
             className="mb-4"
@@ -119,7 +117,6 @@ export default async function FeatureUsagePage({ searchParams }: Props) {
       <section className="space-y-3">
         <AdminSectionTitle
           title="Detail per Fitur"
-          description="Diurutkan dari yang paling sering digunakan."
           icon={MousePointerClick}
         />
         <AdminTable>

@@ -35,7 +35,7 @@ export default async function CoursePathPage({ params }: Props) {
     return (
       <CoursePageShell
         title={`Alur Belajar: ${course.title}`}
-        description="Ikuti alur belajar terstruktur untuk menguasai materi ini."
+
         icon={Compass}
       >
         <Reveal>
@@ -56,7 +56,7 @@ export default async function CoursePathPage({ params }: Props) {
   return (
     <CoursePageShell
       title={`Alur Belajar: ${course.title}`}
-      description="Ikuti alur belajar terstruktur untuk menguasai materi ini."
+
       icon={Compass}
     >
       <StudyPathTimeline courseId={id} />

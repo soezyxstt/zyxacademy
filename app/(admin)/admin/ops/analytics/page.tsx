@@ -13,11 +13,10 @@ export default async function AiAnalyticsPage() {
   await assertTutorOrAdmin();
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-5">
       <AdminPageHeader
         icon={LineChart}
         title="Analitik Zyra"
-        description="Laporan penggunaan kuota dan performa sistem."
       />
       <AiAnalyticsClient />
     </div>

@@ -64,12 +64,11 @@ export function MaterialWorkspace({
   const effectiveBackLabel = backLabel ?? (detailMode ? (lockedCourse ? `Kembali ke Review ${lockedCourse.title}` : "Kembali ke daftar review") : undefined);
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-4">
       {!hideHeader && (
         <AdminPageHeader
           icon={BookOpenCheck}
           title={detailMode ? mode === "idea-detail" ? "Review Source Pack + Idea" : "Review Product" : lockedCourse ? `Review Materi · ${lockedCourse.title}` : "Review materi"}
-          description={detailMode ? "Periksa isi artifact, bukti sumber, dan keputusan review pada halaman khusus." : "Cari hasil generasi MCP berdasarkan mata kuliah, pembuat, status, dan waktu masuk."}
           backHref={effectiveBackHref}
           backLabel={effectiveBackLabel}
         />

@@ -22,11 +22,10 @@ export default async function AdminTautanPage() {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-5">
       <AdminPageHeader
         icon={LinkIcon}
         title="Tautan"
-        description="Simpan, urutkan, dan atur tautan penting yang ditampilkan di halaman publik /tautan."
       />
       <LinksManager />
     </div>

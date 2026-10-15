@@ -312,7 +312,7 @@ export function UsersDashboard({
         )}
 
         <div className="ml-auto text-body-xs text-muted-foreground self-center">
-          Menampilkan {filteredUsers.length} dari {users.length} pengguna
+          {filteredUsers.length} / {users.length} pengguna
         </div>
       </div>
 
@@ -493,7 +493,7 @@ export function UsersDashboard({
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-3 my-3">
+          <div className="divide-y divide-border my-2">
             {ROLE_OPTIONS.map((opt) => {
               const checked = selectedRoles.includes(opt.code);
               const isSelfAdmin =
@@ -503,10 +503,10 @@ export function UsersDashboard({
                 <div
                   key={opt.code}
                   onClick={() => !isSelfAdmin && handleToggleRole(opt.code)}
-                  className={`flex items-start gap-3 p-3 rounded-lg border transition-colors cursor-pointer ${
+                  className={`flex items-start gap-3 px-2 py-3 transition-colors cursor-pointer ${
                     checked
-                      ? "border-brand-primary/30 bg-brand-primary/5"
-                      : "border-border bg-card hover:bg-muted/30"
+                      ? "bg-primary/5"
+                      : "hover:bg-muted/30"
                   } ${isSelfAdmin ? "cursor-not-allowed opacity-80" : ""}`}
                 >
                   <Checkbox
@@ -520,15 +520,6 @@ export function UsersDashboard({
                       <span className="text-body-sm font-semibold text-foreground">
                         {opt.label}
                       </span>
-                      {opt.code === "admin" && (
-                        <StatusBadge tone="brand">Admin</StatusBadge>
-                      )}
-                      {opt.code === "tutor" && (
-                        <StatusBadge tone="info">Tutor</StatusBadge>
-                      )}
-                      {opt.code === "murid" && (
-                        <StatusBadge tone="muted">Murid</StatusBadge>
-                      )}
                     </div>
                     <p className="text-body-xs text-muted-foreground">
                       {opt.description}

@@ -21,7 +21,7 @@ export function ConceptRanking({
       {concepts.map((concept, index) => (
         <div
           key={concept.conceptName}
-          className="py-3 grid grid-cols-[2rem_1fr_auto_8rem] items-center gap-4 animate-in fade-in slide-in-from-bottom-2 duration-300"
+          className="py-3 grid grid-cols-[1.5rem_minmax(0,1fr)_auto] sm:grid-cols-[1.5rem_minmax(0,1fr)_auto_8rem] items-center gap-4 animate-in fade-in slide-in-from-bottom-2 duration-300"
           style={{ animationDelay: `${Math.min(index, 7) * 50}ms` }}
         >
           <span className="text-h6 font-heading text-muted-foreground tabular-nums">
@@ -37,7 +37,7 @@ export function ConceptRanking({
             mid={concept.bucketMid}
             high={concept.bucketHigh}
             total={concept.studentCount}
-            className={barWidth ?? "w-32"}
+            className={`hidden sm:flex ${barWidth ?? "w-32"}`}
           />
         </div>
       ))}

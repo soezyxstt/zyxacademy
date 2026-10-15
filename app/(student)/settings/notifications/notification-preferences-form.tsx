@@ -71,7 +71,7 @@ export function NotificationPreferencesForm({
               <Mail className="size-5" aria-hidden />
             </span>
             <div className="min-w-0">
-              <CardTitle className="text-h5">Notifikasi Surel</CardTitle>
+              <CardTitle className="font-heading text-body-base font-bold">Notifikasi surel</CardTitle>
               <CardDescription className="mt-1 text-body-xs">
                 Surel opsional dikirim ke akun Google Anda: <span className="font-semibold text-foreground">{accountEmail}</span>
               </CardDescription>
@@ -80,7 +80,7 @@ export function NotificationPreferencesForm({
         </CardHeader>
 
         <CardContent className="p-0">
-          <label className="flex cursor-pointer items-start gap-4 border-b border-border px-6 py-5 hover:bg-muted/20 transition-colors">
+          <label className="flex cursor-pointer items-start gap-4 border-b border-border px-4 py-3 hover:bg-muted/20 transition-colors">
             <Checkbox
               checked={preferences.emailEnabled}
               onCheckedChange={(checked) => setPreferences((current) => ({ ...current, emailEnabled: checked === true }))}
@@ -88,12 +88,12 @@ export function NotificationPreferencesForm({
               aria-label="Aktifkan notifikasi surel opsional"
             />
             <span className="min-w-0">
-              <span className="flex items-center gap-2 text-body-base font-semibold text-foreground">
+              <span className="flex items-center gap-2 text-body-sm font-semibold text-foreground">
                 <Bell className="size-4 text-primary" aria-hidden />
                 Aktifkan notifikasi surel opsional
               </span>
               <span className="mt-1 block text-body-xs text-muted-foreground">
-                Matikan seluruh surel opsional tanpa menghapus pilihan preferensi kategori Anda di bawah ini.
+                Pilihan kategori tetap tersimpan saat dinonaktifkan.
               </span>
             </span>
           </label>
@@ -102,7 +102,7 @@ export function NotificationPreferencesForm({
             {CATEGORY_ROWS.map(({ key, label, description, icon: Icon }) => (
               <label
                 key={key}
-                className="flex cursor-pointer items-start gap-4 px-6 py-4.5 has-[:disabled]:cursor-not-allowed hover:bg-muted/20 transition-colors"
+                className="flex cursor-pointer items-start gap-4 px-4 py-3 has-[:disabled]:cursor-not-allowed hover:bg-muted/20 transition-colors"
               >
                 <Checkbox
                   checked={preferences[key]}
@@ -124,12 +124,12 @@ export function NotificationPreferencesForm({
         </CardContent>
       </Card>
 
-      <div className="flex items-start gap-3 rounded-xl border border-border bg-muted/30 p-4">
+      <div className="flex items-start gap-3 px-1">
         <ShieldCheck className="mt-0.5 size-5 shrink-0 text-brand-primary" aria-hidden />
         <div>
           <p className="text-body-sm font-semibold text-foreground">Surel penting tetap aktif</p>
           <p className="mt-1 text-body-xs text-muted-foreground">
-            Pemberitahuan keamanan akun, konfirmasi aktivasi token kelas, dan informasi sistem utama bersifat esensial dan akan selalu dikirimkan.
+            Keamanan akun, aktivasi kelas, dan informasi sistem tetap dikirim.
           </p>
         </div>
       </div>

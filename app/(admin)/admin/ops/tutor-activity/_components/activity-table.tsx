@@ -165,11 +165,11 @@ export function ActivityTable({
       </div>
 
       {/* Mobile Stacked Rows View (shown only on small screens / 380px safe) */}
-      <div className="md:hidden space-y-2.5">
+      <div className="md:hidden divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
         {items.map((item) => (
           <div
             key={item.id}
-            className="rounded-xl border border-border bg-card p-3.5 space-y-2 shadow-xs min-w-0 overflow-hidden"
+            className="p-3.5 space-y-2 min-w-0 overflow-hidden"
           >
             <div className="flex items-start justify-between gap-2 min-w-0">
               <div className="flex items-center gap-2 min-w-0 flex-1">
@@ -216,7 +216,7 @@ export function ActivityTable({
               className="w-full h-8 gap-1 text-body-xs font-medium"
             >
               <Eye className="size-3.5" aria-hidden />
-              <span>Detail Selengkapnya</span>
+              <span>Detail</span>
             </Button>
           </div>
         ))}

@@ -205,8 +205,8 @@ export function CoursesDashboard({ initialCourses }: Props) {
   return (
     <div className="space-y-4">
       {/* Search, Filter, and View Controls */}
-      <div className="flex items-center gap-2">
-        <div className="flex-1 min-w-0">
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="flex-1 min-w-[140px]">
           <SearchBar
             size="sm"
             placeholder="Cari mata kuliah atau kode slug..."
@@ -284,8 +284,8 @@ export function CoursesDashboard({ initialCourses }: Props) {
           </p>
           <p className="text-body-xs text-muted-foreground mt-1 max-w-sm mx-auto">
             {search || categoryFilter !== "all"
-              ? "Coba sesuaikan kata kunci pencarian atau filter program studi Anda."
-              : "Belum ada mata kuliah yang terdaftar di Zyx Academy. Klik tombol 'Tambah Mata Kuliah' untuk memulai."}
+              ? "Ubah pencarian atau filter."
+              : "Tambahkan mata kuliah."}
           </p>
         </div>
       ) : viewMode === "grid" ? (
@@ -294,9 +294,9 @@ export function CoursesDashboard({ initialCourses }: Props) {
           {filteredCourses.map((c) => (
             <div
               key={c.id}
-              className="group rounded-xl border border-border/80 bg-card p-4 shadow-2xs hover:border-brand-primary/50 hover:shadow-xs transition-all flex flex-col justify-between"
+              className="group rounded-xl border border-border bg-card p-3 hover:border-brand-primary/50 transition-colors flex flex-col justify-between"
             >
-              <div className="space-y-2.5">
+              <div className="space-y-2">
                 <div className="flex items-start justify-between gap-2">
                   <Badge
                     variant="outline"
@@ -317,23 +317,23 @@ export function CoursesDashboard({ initialCourses }: Props) {
 
                 {/* Counters */}
                 <div className="grid grid-cols-3 gap-1.5 py-1.5 border-y border-border/50 text-center">
-                  <div className="p-1 rounded-md bg-muted/20">
+                  <div className="p-1">
                     <p className="text-body-xs font-bold text-foreground">{c.chapterCount}</p>
-                    <p className="text-[10px] text-muted-foreground">Bab</p>
+                    <p className="text-body-2xs text-muted-foreground">Bab</p>
                   </div>
-                  <div className="p-1 rounded-md bg-muted/20">
+                  <div className="p-1">
                     <p className="text-body-xs font-bold text-foreground">{c.materialCount}</p>
-                    <p className="text-[10px] text-muted-foreground">PDF</p>
+                    <p className="text-body-2xs text-muted-foreground">PDF</p>
                   </div>
-                  <div className="p-1 rounded-md bg-muted/20">
+                  <div className="p-1">
                     <p className="text-body-xs font-bold text-foreground">{c.quizCount}</p>
-                    <p className="text-[10px] text-muted-foreground">Kuis</p>
+                    <p className="text-body-2xs text-muted-foreground">Kuis</p>
                   </div>
                 </div>
               </div>
 
               {/* Action Bar */}
-              <div className="flex items-center justify-between pt-3 mt-1 border-t border-border/40">
+              <div className="flex items-center justify-between pt-2">
                 <div className="flex items-center gap-1">
                   <Button
                     size="icon"
@@ -372,8 +372,8 @@ export function CoursesDashboard({ initialCourses }: Props) {
             <thead className="bg-muted text-body-xs font-semibold text-muted-foreground">
               <tr>
                 <th className="px-3.5 py-2.5">ID</th>
-                <th className="px-3.5 py-2.5">Nama Mata Kuliah</th>
-                <th className="px-3.5 py-2.5">Program Studi</th>
+                <th className="px-3.5 py-2.5">Nama mata kuliah</th>
+                <th className="px-3.5 py-2.5">Program studi</th>
                 <th className="px-3.5 py-2.5 text-center">Silabus</th>
                 <th className="px-3.5 py-2.5 text-center">Materi PDF</th>
                 <th className="px-3.5 py-2.5 text-center">Kuis</th>
@@ -390,7 +390,7 @@ export function CoursesDashboard({ initialCourses }: Props) {
                     <p className="font-semibold text-foreground">{c.title}</p>
                   </td>
                   <td className="px-3.5 py-2.5">
-                    <Badge variant="secondary" className="rounded-md text-[10px] font-medium px-1.5 py-0.5">
+                    <Badge variant="secondary" className="rounded-md text-body-2xs font-medium px-1.5 py-0.5">
                       {c.category}
                     </Badge>
                   </td>
@@ -440,12 +440,10 @@ export function CoursesDashboard({ initialCourses }: Props) {
 
       {/* Create Course Dialog */}
       <Dialog open={createModalOpen} onOpenChange={setCreateModalOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md" aria-describedby={undefined}>
           <DialogHeader>
-            <DialogTitle>Tambah Mata Kuliah Baru</DialogTitle>
-            <DialogDescription>
-              Daftarkan mata kuliah baru ke kurikulum Zyx Academy.
-            </DialogDescription>
+            <DialogTitle>Tambah mata kuliah</DialogTitle>
+
           </DialogHeader>
 
           <form onSubmit={handleCreateCourse} className="space-y-4 py-2">
@@ -464,7 +462,7 @@ export function CoursesDashboard({ initialCourses }: Props) {
             </div>
 
             <div className="space-y-1">
-              <Label className="text-body-sm font-semibold text-foreground">Nama Mata Kuliah</Label>
+              <Label className="text-body-sm font-semibold text-foreground">Nama mata kuliah</Label>
               <Input
                 placeholder="Contoh: Matematika IA"
                 value={newTitle}
@@ -475,10 +473,10 @@ export function CoursesDashboard({ initialCourses }: Props) {
             </div>
 
             <div className="space-y-1">
-              <Label className="text-body-sm font-semibold text-foreground">Program Studi / Kategori</Label>
+              <Label className="text-body-sm font-semibold text-foreground">Program studi / Kategori</Label>
               <Select value={newCategory} onValueChange={setNewCategory} disabled={createLoading}>
                 <SelectTrigger className="rounded-lg">
-                  <SelectValue placeholder="Pilih Program Studi" />
+                  <SelectValue placeholder="Pilih Program studi" />
                 </SelectTrigger>
                 <SelectContent>
                   {allowedCategories.map((opt) => (
@@ -534,7 +532,7 @@ export function CoursesDashboard({ initialCourses }: Props) {
 
           <form onSubmit={handleSaveEdit} className="space-y-4 py-2">
             <div className="space-y-1">
-              <Label className="text-body-sm font-semibold text-foreground">Nama Mata Kuliah</Label>
+              <Label className="text-body-sm font-semibold text-foreground">Nama mata kuliah</Label>
               <Input
                 value={editTitle}
                 onChange={(e) => setEditTitle(e.target.value)}
@@ -544,10 +542,10 @@ export function CoursesDashboard({ initialCourses }: Props) {
             </div>
 
             <div className="space-y-1">
-              <Label className="text-body-sm font-semibold text-foreground">Program Studi / Kategori</Label>
+              <Label className="text-body-sm font-semibold text-foreground">Program studi / Kategori</Label>
               <Select value={editCategory} onValueChange={setEditCategory} disabled={editLoading}>
                 <SelectTrigger className="rounded-lg">
-                  <SelectValue placeholder="Pilih Program Studi" />
+                  <SelectValue placeholder="Pilih Program studi" />
                 </SelectTrigger>
                 <SelectContent>
                   {allowedCategories.map((opt) => (

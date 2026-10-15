@@ -52,7 +52,9 @@ export function CalendarAgendaClient({
       {/* Category filter chips */}
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/70 pb-3">
         <div className="flex flex-wrap items-center gap-1.5">
-          <button
+          <Button
+            variant="outline"
+            size="sm"
             type="button"
             onClick={() => setFilter("all")}
             className={cn(
@@ -62,9 +64,11 @@ export function CalendarAgendaClient({
                 : "border-border bg-card text-muted-foreground hover:bg-muted hover:text-foreground"
             )}
           >
-            Semua Agenda ({events.length})
-          </button>
-          <button
+            Semua agenda
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
             type="button"
             onClick={() => setFilter("quiz_tryout")}
             className={cn(
@@ -74,9 +78,11 @@ export function CalendarAgendaClient({
                 : "border-border bg-card text-muted-foreground hover:bg-muted hover:text-foreground"
             )}
           >
-            Kuis & Tryout ({events.filter((e) => e.category !== "tutorial").length})
-          </button>
-          <button
+            Kuis dan tryout
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
             type="button"
             onClick={() => setFilter("tutorial")}
             className={cn(
@@ -86,8 +92,8 @@ export function CalendarAgendaClient({
                 : "border-border bg-card text-muted-foreground hover:bg-muted hover:text-foreground"
             )}
           >
-            Sesi Tutorial ({events.filter((e) => e.category === "tutorial").length})
-          </button>
+            Tutorial
+          </Button>
         </div>
 
         <Link
@@ -109,7 +115,7 @@ export function CalendarAgendaClient({
             Belum ada agenda terjadwal
           </h3>
           <p className="mx-auto mt-1 max-w-md text-body-sm text-muted-foreground">
-            Tenggat waktu kuis kelas, tryout, dan sesi bimbingan tutorial kelompok akan otomatis tercatat di kalender akademik ini.
+            Jadwal kuis, tryout, dan tutorial akan muncul di sini.
           </p>
           <div className="mt-5 flex flex-wrap items-center justify-center gap-2.5">
             <Button asChild size="sm" className="rounded-lg text-body-sm">
@@ -129,7 +135,7 @@ export function CalendarAgendaClient({
                 <Clock className="size-4 text-brand-primary" />
                 Mendatang & Hari Ini ({upcomingEvents.length})
               </h2>
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="divide-y divide-border/60">
                 {upcomingEvents.map((item) => (
                   <EventCard key={item.id} event={item} />
                 ))}
@@ -144,7 +150,7 @@ export function CalendarAgendaClient({
                 <CheckCircle2 className="size-4 text-muted-foreground/60" />
                 Selesai & Riwayat ({pastEvents.length})
               </h2>
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 opacity-80 hover:opacity-100 transition-opacity">
+              <div className="divide-y divide-border/60">
                 {pastEvents.map((item) => (
                   <EventCard key={item.id} event={item} isPast />
                 ))}
@@ -175,11 +181,11 @@ function EventCard({
   return (
     <div
       className={cn(
-        "group flex flex-col justify-between rounded-xl border p-4 transition-all bg-card",
+        "group flex flex-col justify-between gap-3 py-3 sm:flex-row sm:items-center",
         event.status === "today"
-          ? "border-brand-primary/40 bg-brand-primary/5 ring-1 ring-brand-primary/20 shadow-xs"
-          : "border-border/70 hover:border-border",
-        isPast && "bg-muted/20"
+          ? "border-l-2 border-primary pl-3"
+          : "hover:bg-muted/20",
+        isPast && "text-muted-foreground"
       )}
     >
       <div>
@@ -209,13 +215,13 @@ function EventCard({
           {event.courseTitle}
         </p>
 
-        <div className="mt-3 flex items-center gap-2 text-body-xs font-medium text-foreground">
+        <div className="mt-1 flex items-center gap-2 text-body-xs font-medium text-foreground">
           <Clock className="size-3.5 text-muted-foreground shrink-0" />
           <span>{event.timeStr}</span>
         </div>
       </div>
 
-      <div className="mt-4 pt-3 border-t border-border/50 flex items-center justify-between gap-2">
+      <div className="flex shrink-0 flex-wrap items-center justify-between gap-2">
         {event.isOnlineMeet && event.meetUrl && (
           <a
             href={event.meetUrl}
@@ -232,7 +238,7 @@ function EventCard({
           asChild
           size="sm"
           variant={event.status === "today" ? "default" : "outline"}
-          className="ml-auto rounded-md text-body-xs h-7 px-3"
+          className="ml-auto rounded-md text-body-sm h-8 px-3"
         >
           <Link href={event.actionUrl}>
             {event.actionLabel}

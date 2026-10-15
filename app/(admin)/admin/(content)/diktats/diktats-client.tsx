@@ -3,13 +3,14 @@
 import { useState, useMemo, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { 
-  BookText, 
-  Trash2, 
-  Download, 
-  RefreshCw, 
-  Layers, 
+import {
+  BookText,
+  Trash2,
+  Download,
+  RefreshCw,
+  Layers,
   Sliders,
   Calendar,
   Compass
@@ -68,13 +69,13 @@ export function DiktatCompilerClient({
   courseMap
 }: Props) {
   const [diktatsList, setDiktatsList] = useState<Diktat[]>(initialDiktats);
-  
+
   // Compilation Form States
   const [selectedCourseId, setSelectedCourseId] = useState(courses[0]?.id || "");
   const [customTitle, setCustomTitle] = useState("");
   const [selectedChapters, setSelectedChapters] = useState<Set<string>>(new Set());
   const [coverStyle, setCoverStyle] = useState<"academic" | "modern">("academic");
-  
+
   // App UI Loading States
   const [isCompiling, setIsCompiling] = useState(false);
   const [loadingDiktatId, setLoadingDiktatId] = useState<string | null>(null);
@@ -143,14 +144,14 @@ export function DiktatCompilerClient({
 
     setIsCompiling(true);
     const chapterIdsArray = Array.from(selectedChapters);
-    
+
     toast.info("Memulai kompilasi PDF. Proses Puppeteer sedang berlangsung...");
 
     try {
       const res = await createDiktatDraftAction(selectedCourseId, chapterIdsArray);
       if (res.success) {
         toast.success("Diktat berhasil dikompilasi!");
-        
+
         // Construct a mock UI record representing the ready state
         const newDiktat: Diktat = {
           id: res.diktatId!,
@@ -167,13 +168,13 @@ export function DiktatCompilerClient({
           updatedAt: new Date().toISOString(),
           settings: {}
         };
-        
+
         if (res.warning) {
           toast.warning(`Peringatan: ${res.warning}`);
         }
-        
+
         setDiktatsList(prev => [newDiktat, ...prev]);
-        
+
         // Reset fields
         setCustomTitle("");
         setSelectedChapters(new Set());
@@ -190,7 +191,7 @@ export function DiktatCompilerClient({
   const handleRegenerateDiktat = async (diktatId: string) => {
     setLoadingDiktatId(diktatId);
     toast.info("Mengompilasi ulang PDF diktat...");
-    
+
     try {
       const res = await compileDiktatAction(diktatId);
       if (res.success) {
@@ -215,7 +216,7 @@ export function DiktatCompilerClient({
   const handleDeleteConfirm = async () => {
     if (!deletingDiktat) return;
     setLoadingDiktatId(deletingDiktat.id);
-    
+
     try {
       const res = await deleteDiktatAction(deletingDiktat.id);
       if (res.success) {
@@ -233,10 +234,10 @@ export function DiktatCompilerClient({
   };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-      
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+
       {/* LEFT: COMPILER FORM */}
-      <div className="lg:col-span-1 bg-card border border-border rounded-xl p-6 shadow-xs text-left h-fit space-y-5">
+      <div className="lg:col-span-1 bg-card border border-border rounded-xl p-4 text-left h-fit space-y-4">
         <AdminSectionTitle size="lg" border icon={Sliders} title="Konfigurasi Diktat" />
 
         {/* Course Target Select */}
@@ -261,7 +262,7 @@ export function DiktatCompilerClient({
 
         {/* Custom Title Input */}
         <div className="space-y-1.5">
-          <label className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">Judul Diktat Kustom (Opsional)</label>
+          <label className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">Judul diktat (opsional)</label>
           <Input
             type="text"
             value={customTitle}
@@ -273,9 +274,9 @@ export function DiktatCompilerClient({
 
         {/* Cover Page Configurator */}
         <div className="space-y-1.5">
-          <label className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">Desain Sampul (Cover Page)</label>
+          <label className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">Sampul</label>
           <div className="grid grid-cols-2 gap-3">
-            <button
+            <Button variant="outline"
               type="button"
               onClick={() => setCoverStyle("academic")}
               className={cn(
@@ -285,9 +286,9 @@ export function DiktatCompilerClient({
                   : "border-border text-muted-foreground hover:bg-muted/50"
               )}
             >
-              Academic (Formal)
-            </button>
-            <button
+              Formal
+            </Button>
+            <Button variant="outline"
               type="button"
               onClick={() => setCoverStyle("modern")}
               className={cn(
@@ -297,23 +298,23 @@ export function DiktatCompilerClient({
                   : "border-border text-muted-foreground hover:bg-muted/50"
               )}
             >
-              Modern (Sleek)
-            </button>
+              Modern
+            </Button>
           </div>
         </div>
 
         {/* Chapter Checklist */}
         <div className="space-y-2 border-t border-border pt-4">
           <div className="flex items-center justify-between text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            <span>Daftar Bab Tersedia ({courseChapters.length})</span>
+            <span>Bab ({courseChapters.length})</span>
             {courseChapters.length > 0 && (
-              <button
+              <Button variant="outline"
                 type="button"
                 onClick={handleSelectAllChapters}
                 className="text-body-sm text-primary hover:underline lowercase font-sans font-bold"
               >
-                {selectedChapters.size === courseChapters.length ? "uncheck all" : "check all"}
-              </button>
+                {selectedChapters.size === courseChapters.length ? "Batalkan semua" : "Pilih semua"}
+              </Button>
             )}
           </div>
 
@@ -322,15 +323,14 @@ export function DiktatCompilerClient({
           ) : (
             <div className="space-y-2 max-h-[220px] overflow-y-auto pr-1">
               {courseChapters.map((chapter) => (
-                <label 
+                <label
                   key={chapter.id}
-                  className="flex items-center gap-3 p-2.5 rounded-lg border border-border hover:bg-muted/20 cursor-pointer transition-colors"
+                  className="flex items-center gap-3 py-2 border-b border-border last:border-0 hover:bg-muted/20 cursor-pointer transition-colors"
                 >
-                  <input
-                    type="checkbox"
+                  <Checkbox
                     checked={selectedChapters.has(chapter.id)}
-                    onChange={() => handleToggleChapter(chapter.id)}
-                    className="size-4 rounded border-border text-primary focus:ring-primary accent-primary cursor-pointer"
+                    onCheckedChange={() => handleToggleChapter(chapter.id)}
+                    aria-label={`Pilih bab ${chapter.orderIndex}`}
                   />
                   <div className="text-body-xs text-left min-w-0">
                     <span className="font-mono text-muted-foreground uppercase font-bold block text-body-xs mb-0.5">
@@ -361,7 +361,7 @@ export function DiktatCompilerClient({
 
       {/* RIGHT: ACTIVE DIKTATS LIST */}
       <div className="lg:col-span-2 space-y-4 text-left">
-        <div className="bg-card border border-border rounded-xl p-6 shadow-xs space-y-4">
+        <div className="space-y-3">
         <AdminSectionTitle size="lg" border icon={BookText} title={`Daftar Diktat Terkompilasi (${diktatsList.length})`} />
 
           {diktatsList.length === 0 ? (
@@ -380,11 +380,11 @@ export function DiktatCompilerClient({
                 const isReady = status === "ready";
 
                 return (
-                  <div key={diktat.id} className="p-5 flex flex-col md:flex-row md:items-center md:justify-between gap-4 hover:bg-muted/10 transition-colors">
+                  <div key={diktat.id} className="p-3 flex flex-col md:flex-row md:items-center md:justify-between gap-3 hover:bg-muted/10 transition-colors">
                     <div className="space-y-1.5 flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
                         <CourseBadge>{courseMap[diktat.courseId] ?? diktat.courseId}</CourseBadge>
-                        
+
                         {/* Status Badge */}
                         <StatusBadge
                           tone={status === "ready" ? "success" : status === "generating" ? "warning" : status === "failed" ? "error" : "muted"}
@@ -400,7 +400,7 @@ export function DiktatCompilerClient({
 
                       <p className="text-body-xs text-muted-foreground flex items-center gap-1.5 flex-wrap">
                         <Layers className="size-3.5" />
-                        <span>Kompilasi dari <span className="font-semibold text-foreground">{chapterIdsArray.length} Bab</span></span>
+                        <span><span className="font-semibold text-foreground">{chapterIdsArray.length} bab</span></span>
                         <span>·</span>
                         <Calendar className="size-3.5" />
                         <span>Dibuat {new Date(diktat.createdAt).toLocaleDateString("id-ID", { dateStyle: "medium" })}</span>
@@ -409,9 +409,9 @@ export function DiktatCompilerClient({
 
                     <div className="flex items-center gap-2 shrink-0">
                       {isReady && diktat.fileUrl ? (
-                        <a 
-                          href={diktat.fileUrl} 
-                          target="_blank" 
+                        <a
+                          href={diktat.fileUrl}
+                          target="_blank"
                           rel="noopener noreferrer"
                         >
                           <Button

@@ -3,9 +3,12 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "@/components/ui/toast";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Textarea } from "@/components/ui/textarea";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { Flag, Timer, BookOpen, AlertCircle, FileText, CheckCircle2, Trash2, ArrowLeft, ArrowRight, UploadCloud } from "lucide-react";
+import { Flag, Timer, BookOpen, AlertCircle, FileText, Trash2, ArrowLeft, ArrowRight, UploadCloud } from "lucide-react";
 import { MarkdownRenderer } from "@/components/course/markdown-renderer";
 import { MathText } from "@/components/course/math-text";
 import type { ExamFixture, QuestionSpec } from "@/lib/student-course-fixtures";
@@ -225,13 +228,13 @@ export function TryoutForm({ courseId, exam }: TryoutFormProps) {
   const currentFlagged = !!flags[q.id];
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start font-sans">
+    <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start font-sans">
       
       {/* LEFT COLUMN: Ujian Workspace (8 cols) */}
-      <div className="lg:col-span-8 space-y-6">
+      <div className="lg:col-span-8 space-y-4">
         
         {/* Progress Tracker Bar */}
-        <div className="bg-card/50 border border-border/70 p-4 rounded-2xl flex items-center justify-between gap-4 backdrop-blur-xs">
+        <div className="flex items-center justify-between gap-3">
           <div className="flex-1 space-y-1.5">
             <div className="flex items-center justify-between text-body-xs font-semibold text-muted-foreground">
               <span>SIMULASI UTS / UAS</span>
@@ -239,7 +242,7 @@ export function TryoutForm({ courseId, exam }: TryoutFormProps) {
             </div>
             <div className="h-2 overflow-hidden rounded-md bg-muted">
               <div
-                className="h-full rounded-md bg-linear-to-r from-brand-primary via-tertiary-1 to-brand-secondary transition-[width] duration-300 ease-out"
+                className="h-full rounded-md bg-primary transition-[width] duration-300 ease-out"
                 style={{ width: `${progress}%` }}
               />
             </div>
@@ -254,7 +257,7 @@ export function TryoutForm({ courseId, exam }: TryoutFormProps) {
         {/* Card for Active Question */}
         <div
           className={cn(
-            "rounded-3xl border border-border/80 bg-card p-6 shadow-lg backdrop-blur-xs md:p-8 relative",
+            "rounded-xl border border-border bg-card p-4 relative",
             "motion-safe:animate-in motion-safe:fade-in motion-safe:duration-300",
             currentFlagged && "ring-1 ring-brand-secondary/35 border-brand-secondary/40"
           )}
@@ -271,27 +274,22 @@ export function TryoutForm({ courseId, exam }: TryoutFormProps) {
 
           {/* RENDER A: Pilihan Ganda (Single Choice) */}
           {q.type === "multiple_choice" && ans.type === "multiple_choice" ? (
-            <fieldset className="mt-8 space-y-3">
+            <fieldset className="mt-4 space-y-2">
               <legend className="sr-only">Pilih satu jawaban</legend>
+              <RadioGroup aria-label="Pilih satu jawaban" value={ans.index === null ? "" : String(ans.index)} onValueChange={(value) => setAnswerFor(q.id, { type: "multiple_choice", index: Number(value) })}>
               {q.options.map((opt, i) => {
                 const selected = ans.index === i;
                 return (
                   <label
                     key={i}
                     className={cn(
-                      "flex cursor-pointer items-center gap-3.5 rounded-2xl border-2 px-5 py-4 transition-all duration-200",
+                      "flex cursor-pointer items-center gap-3.5 rounded-lg border px-3 py-2.5 transition-all duration-200",
                       selected
                         ? "border-brand-primary bg-brand-primary/10 shadow-sm"
                         : "border-border/70 bg-muted/10 hover:border-brand-primary/45"
                     )}
                   >
-                    <input
-                      type="radio"
-                      name={q.id}
-                      checked={selected}
-                      onChange={() => setAnswerFor(q.id, { type: "multiple_choice", index: i })}
-                      className="size-4 text-brand-primary accent-brand-primary border-border"
-                    />
+                    <RadioGroupItem value={String(i)} className="shrink-0" />
                     <span className="text-body-sm font-semibold text-foreground mr-1">
                       {String.fromCharCode(65 + i)}.
                     </span>
@@ -299,12 +297,13 @@ export function TryoutForm({ courseId, exam }: TryoutFormProps) {
                   </label>
                 );
               })}
+              </RadioGroup>
             </fieldset>
           ) : null}
 
           {/* RENDER B: Pilihan Ganda Kompleks (Multi Select) */}
           {q.type === "multiple_choices" && ans.type === "multiple_choices" ? (
-            <fieldset className="mt-8 space-y-3">
+            <fieldset className="mt-4 space-y-2">
               <legend className="sr-only">Pilih semua yang benar (Multi-select)</legend>
               {q.options.map((opt, i) => {
                 const checked = ans.indices.includes(i);
@@ -312,22 +311,21 @@ export function TryoutForm({ courseId, exam }: TryoutFormProps) {
                   <label
                     key={i}
                     className={cn(
-                      "flex cursor-pointer items-center gap-3.5 rounded-2xl border-2 px-5 py-4 transition-all duration-200",
+                      "flex cursor-pointer items-center gap-3.5 rounded-lg border px-3 py-2.5 transition-all duration-200",
                       checked
                         ? "border-tertiary-1 bg-tertiary-1/10 shadow-sm"
                         : "border-border/70 bg-muted/10 hover:border-tertiary-1/45"
                     )}
                   >
-                    <input
-                      type="checkbox"
+                    <Checkbox
                       checked={checked}
-                      onChange={() => {
+                      onCheckedChange={() => {
                         const next = checked
                           ? ans.indices.filter((x) => x !== i)
                           : [...ans.indices, i].sort((a, b) => a - b);
                         setAnswerFor(q.id, { type: "multiple_choices", indices: next });
                       }}
-                      className="size-4 text-tertiary-1 accent-tertiary-1 rounded border-border"
+                      className="shrink-0"
                     />
                     <span className="text-body-sm font-semibold text-foreground mr-1">
                       {String.fromCharCode(65 + i)}.
@@ -341,7 +339,7 @@ export function TryoutForm({ courseId, exam }: TryoutFormProps) {
 
           {/* RENDER C: Isian Singkat */}
           {q.type === "short_answer" && ans.type === "short_answer" ? (
-            <div className="mt-8">
+            <div className="mt-4">
               <label className="block">
                 <span className="mb-2 block text-body-xs font-semibold text-muted-foreground uppercase">
                   Isikan Jawaban Singkat Anda:
@@ -357,16 +355,16 @@ export function TryoutForm({ courseId, exam }: TryoutFormProps) {
 
           {/* RENDER D: Esai (Text Area + Cloudflare R2 Upload) */}
           {q.type === "essay" && ans.type === "essay" ? (
-            <div className="mt-8 space-y-5">
+            <div className="mt-4 space-y-4">
               <label className="block">
                 <span className="mb-2 block text-body-xs font-semibold text-muted-foreground uppercase">
                   Jawaban Esai Teks:
                 </span>
-                <textarea
+                <Textarea
                   value={ans.text}
                   onChange={(e) => setAnswerFor(q.id, { ...ans, text: e.target.value })}
                   rows={8}
-                  className="w-full rounded-2xl border border-input bg-background px-4 py-3.5 text-body-sm leading-relaxed text-foreground shadow-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                  className="w-full rounded-lg border border-input bg-background px-3 py-2 text-body-sm leading-relaxed text-foreground shadow-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
                   placeholder="Ketik penjelasan runut, penjabaran matematika, atau esai Anda di sini..."
                 />
               </label>
@@ -405,7 +403,6 @@ export function TryoutForm({ courseId, exam }: TryoutFormProps) {
                           style={{ width: `${uploadProgress[q.id]}%` }}
                         />
                       </div>
-                      <p className="text-body-xs text-muted-foreground">Menyimpan langsung ke Cloudflare R2 Object Storage...</p>
                     </div>
                   ) : null}
 
@@ -418,17 +415,19 @@ export function TryoutForm({ courseId, exam }: TryoutFormProps) {
                         </span>
                         <div className="min-w-0">
                           <p className="text-body-xs font-bold text-foreground truncate max-w-[200px] md:max-w-xs">{ans.fileName}</p>
-                          <p className="text-[10px] text-muted-foreground">{ans.fileSize || "1.2 MB"} • Cloudflare R2</p>
+                          <p className="text-[10px] text-muted-foreground">{ans.fileSize || "Ukuran tidak tersedia"}</p>
                         </div>
                       </div>
-                      <button
+                      <Button
                         type="button"
+                        variant="ghost"
+                        size="icon"
                         onClick={() => handleRemoveFile(q.id)}
-                        className="rounded-md p-2 text-muted-foreground hover:bg-status-error/10 hover:text-status-error transition-colors shrink-0"
-                        title="Hapus lampiran"
+                        className="shrink-0 text-muted-foreground hover:text-destructive"
+                        aria-label="Hapus lampiran"
                       >
                         <Trash2 className="size-4" />
-                      </button>
+                      </Button>
                     </div>
                   )}
                 </div>
@@ -437,14 +436,9 @@ export function TryoutForm({ courseId, exam }: TryoutFormProps) {
           ) : null}
 
           {/* Ragu-ragu Checkbox */}
-          <div className="mt-8 border-t border-border pt-5 flex items-center justify-between">
+          <div className="mt-4 border-t border-border pt-3 flex items-center justify-between">
             <label className="flex items-center gap-2 cursor-pointer select-none">
-              <input
-                type="checkbox"
-                checked={currentFlagged}
-                onChange={() => toggleFlag(q.id)}
-                className="size-4 rounded-sm border-border text-brand-secondary accent-brand-secondary focus:ring-brand-secondary"
-              />
+              <Checkbox checked={currentFlagged} onCheckedChange={() => toggleFlag(q.id)} />
               <span className={cn(
                 "text-body-xs font-semibold flex items-center gap-1 transition-colors",
                 currentFlagged ? "text-brand-secondary" : "text-muted-foreground hover:text-foreground"
@@ -454,16 +448,12 @@ export function TryoutForm({ courseId, exam }: TryoutFormProps) {
               </span>
             </label>
 
-            <span className="text-body-xs text-muted-foreground flex items-center gap-1">
-              <CheckCircle2 className="size-3 text-status-success" />
-              Progress ujian tersimpan aman
-            </span>
           </div>
           <QuestionSourceCitation origin={q.origin} sourceEventName={q.sourceEventName} />
         </div>
 
         {/* Back and Forth Control buttons */}
-        <div className="flex items-center justify-between gap-3 bg-muted/20 p-4 rounded-2xl border border-border/60">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <Button
             type="button"
             variant="outline"
@@ -497,18 +487,15 @@ export function TryoutForm({ courseId, exam }: TryoutFormProps) {
       </div>
 
       {/* RIGHT COLUMN: Sidebar Navigation (4 cols) */}
-      <div className="lg:col-span-4 space-y-6">
+      <div className="lg:col-span-4 space-y-4">
         
         {/* Navigation grid panel */}
-        <div className="rounded-3xl border border-border bg-card p-5 shadow-md space-y-5">
+        <div className="rounded-xl border border-border bg-card p-4 space-y-4">
           <div>
             <h3 className="font-heading text-body-sm font-bold text-foreground flex items-center gap-2">
               <BookOpen className="size-4 text-brand-primary" />
-              Indikator Lembar Jawab
+              Navigasi soal
             </h3>
-            <p className="text-body-xs text-muted-foreground mt-1">
-              Navigasi cepat untuk mengecek soal yang sudah dikerjakan:
-            </p>
           </div>
 
           {/* Grid buttons */}
@@ -584,7 +571,7 @@ export function TryoutForm({ courseId, exam }: TryoutFormProps) {
           <div className="space-y-1">
             <h4 className="text-body-xs font-bold text-foreground">Kumpulkan Sesuai Waktu</h4>
             <p className="text-body-xs text-muted-foreground leading-relaxed">
-              Pastikan Anda mengklik <b>Kumpulkan Jawaban</b> sebelum sisa waktu habis. Sistem akan mengumpulkan lembar jawaban otomatis saat waktu habis.
+              Jawaban dikumpulkan otomatis saat waktu habis.
             </p>
           </div>
         </div>
@@ -601,29 +588,29 @@ export function TryoutForm({ courseId, exam }: TryoutFormProps) {
         <DialogContent className="max-w-md rounded-2xl border border-border p-6 shadow-xl text-left">
           <DialogHeader>
             <DialogTitle className="font-heading text-body-base font-bold text-foreground">
-              Kumpulkan Lembar Jawaban Tryout?
+              Kumpulkan jawaban?
             </DialogTitle>
             <DialogDescription className="text-body-xs text-muted-foreground mt-1.5">
-              Periksa kembali ringkasan pengerjaan sebelum mengumpulkan lembar jawaban Anda.
+              Jawaban tidak dapat diubah setelah dikumpulkan.
             </DialogDescription>
           </DialogHeader>
 
           <div className="my-2 space-y-3">
-            <div className="grid grid-cols-3 gap-2 text-center">
-              <div className="rounded-xl border border-border bg-muted/30 p-2.5">
+            <div className="grid grid-cols-3 divide-x divide-border overflow-hidden rounded-lg border border-border text-center">
+              <div className="p-2.5">
                 <span className="block text-body-xs font-semibold text-muted-foreground uppercase">Total Soal</span>
                 <span className="font-heading text-body-base font-bold text-foreground">{sorted.length}</span>
               </div>
-              <div className="rounded-xl border border-tertiary-1/30 bg-tertiary-1/10 p-2.5">
+              <div className="bg-tertiary-1/10 p-2.5">
                 <span className="block text-body-xs font-semibold text-tertiary-1 uppercase">Terjawab</span>
                 <span className="font-heading text-body-base font-bold text-tertiary-1">{answeredCount}</span>
               </div>
               <div
                 className={cn(
-                  "rounded-xl border p-2.5",
+                  "p-2.5",
                   unansweredCount > 0
-                    ? "border-status-error/30 bg-status-error/10 text-status-error"
-                    : "border-border bg-muted/30 text-muted-foreground"
+                    ? "bg-status-error/10 text-status-error"
+                    : "text-muted-foreground"
                 )}
               >
                 <span className="block text-body-xs font-semibold uppercase">Kosong</span>
@@ -650,9 +637,6 @@ export function TryoutForm({ courseId, exam }: TryoutFormProps) {
               <span className="font-mono font-bold text-foreground">{formatTime(timeLeft)}</span>
             </div>
 
-            <p className="text-body-xs text-muted-foreground">
-              Setelah dikumpulkan, lembar jawaban akan diserahkan untuk dinilai dan tidak dapat disunting kembali.
-            </p>
           </div>
 
           <DialogFooter className="mt-4 flex flex-col-reverse sm:flex-row sm:items-center sm:justify-end gap-2">

@@ -592,7 +592,7 @@ export function ScheduleCalendarView({
 
   return (
     <div className="min-w-0 space-y-2">
-      <div className="flex min-w-0 flex-wrap items-center gap-2 rounded-xl border border-border/80 bg-card/65 p-2 shadow-xs backdrop-blur-sm sm:flex-nowrap">
+      <div className="flex min-w-0 flex-wrap items-center gap-2 sm:flex-nowrap">
         <Select value={viewMode} onValueChange={(value: CalendarViewMode) => setViewMode(value)}>
           <SelectTrigger className="h-9 w-[106px] shrink-0 text-body-sm font-semibold">
             <SelectValue />

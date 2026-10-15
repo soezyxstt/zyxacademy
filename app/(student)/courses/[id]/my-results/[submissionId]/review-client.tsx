@@ -40,9 +40,9 @@ export function ReviewClient({ listItem, review }: ReviewClientProps) {
 
   return (
     <div className="space-y-6 font-sans">
-      
+
       {/* Overview stats */}
-      <div className="rounded-2xl border border-border bg-card/60 p-5 flex flex-wrap items-center justify-between gap-4 backdrop-blur-xs">
+      <div className="rounded-xl border border-border bg-card p-4 flex flex-wrap items-center justify-between gap-4">
         <div>
           <span className="text-body-xs font-semibold text-muted-foreground uppercase">Status Pengerjaan</span>
           <h2 className="font-heading text-body-base font-bold text-foreground mt-0.5">
@@ -65,21 +65,21 @@ export function ReviewClient({ listItem, review }: ReviewClientProps) {
         </div>
       </div>
 
-      <ol className="space-y-6">
+      <ol className="divide-y divide-border/60 overflow-hidden rounded-xl border border-border/70 bg-card">
         {review.items.map((item, idx) => {
           const hasExplanation = item.explanationText || item.explanationImage || item.explanationVideoUrl;
 
           return (
             <li
               key={item.questionId}
-              className="rounded-3xl border border-border/80 bg-card p-6 shadow-sm backdrop-blur-xs md:p-8"
+              className="p-4 sm:p-5"
             >
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <h3 className="font-heading text-body-base font-bold text-foreground max-w-xl leading-snug">
                   <span className="text-muted-foreground mr-1">{idx + 1}.</span>
                   <MathText>{item.prompt}</MathText>
                 </h3>
-                
+
                 {/* Answer Correctness Badges */}
                 {item.correct === true ? (
                   <span className="inline-flex items-center gap-1 rounded-md bg-status-success/12 px-2.5 py-0.5 text-body-xs font-semibold text-status-success ring-1 ring-status-success/20">
@@ -122,7 +122,7 @@ export function ReviewClient({ listItem, review }: ReviewClientProps) {
                       onClick={() => openMistake(item.questionId, item.userAnswer || "")}
                       className="text-body-xs font-semibold flex items-center gap-1.5 border-brand-primary/30 text-brand-primary hover:bg-brand-primary/5 rounded-lg h-9"
                     >
-                      Tanya Zyra: Analisis Kesalahan
+                      Tanya Zyra
                     </Button>
                   </div>
                 )}
@@ -195,7 +195,7 @@ export function ReviewClient({ listItem, review }: ReviewClientProps) {
                           <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center select-none">
                             {/* Blurred background image mock */}
                             <div className="absolute inset-0 bg-cover bg-center filter blur-md opacity-25" style={{ backgroundImage: "url('https://images.unsplash.com/photo-1635070041078-e363dbe005cb?w=600&q=80')" }} />
-                            
+
                             {/* Lock UI Content */}
                             <div className="absolute inset-0 bg-black/75 flex flex-col items-center justify-center p-4">
                               <span className="flex size-11 items-center justify-center rounded-full bg-brand-secondary/20 text-brand-secondary mb-3 border border-brand-secondary/35">

@@ -13,11 +13,10 @@ export const metadata: Metadata = {
 export default async function ASTInspectorPage() {
   await assertAdmin();
   return (
-    <div className="space-y-8">
+    <div className="space-y-4">
       <AdminPageHeader
         icon={Activity}
         title="AST Inspector"
-        description="Debug dan periksa struktur parser AST dari markdown MTD."
       />
       <ASTInspectorClient />
     </div>

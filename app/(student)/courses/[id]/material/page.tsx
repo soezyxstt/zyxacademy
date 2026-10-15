@@ -313,7 +313,7 @@ export default async function CourseMaterialListPage({ params, searchParams }: P
   const lockedMaterialCount = materialsWithLockState.filter((m) => m.locked).length;
 
   return (
-    <CoursePageShell title={`Materi Belajar: ${course.title}`} description="Pelajari bahan belajar, ringkasan rumus, dan diktat kuliah." icon={FileText}>
+    <CoursePageShell title={`Materi Belajar: ${course.title}`} icon={FileText}>
       <Reveal>
         {!isEnrolled && (
           <div className="mb-6 rounded-lg border border-brand-secondary/25 bg-brand-secondary/5 p-4">

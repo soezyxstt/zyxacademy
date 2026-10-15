@@ -21,11 +21,11 @@ export default async function TutorialPkaSchedulesPage() {
   const schedules = await getPkaSchedulesAction();
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-4">
       <AdminPageHeader
         icon={CalendarDays}
         title="Jadwal Live Tutorial PKA"
-        description="Atur jadwal sesi live Tutorial PKA. Jadwal akan dikirim otomatis ke email peserta."
+        description="Jadwal dikirim otomatis ke email peserta."
       />
       <TabNav
         tabs={[

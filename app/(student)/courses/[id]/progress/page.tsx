@@ -13,7 +13,6 @@ import { getCourse } from "@/lib/course-utils";
 import { getCourseLearningSummary } from "@/lib/learning-analytics";
 import { StudyStatisticsCard } from "@/components/course/study-statistics-card";
 import { RecentActivityCard } from "@/components/course/recent-activity-card";
-import { studentCardClass } from "@/components/course/course-surfaces";
 
 type Props = { params: Promise<{ id: string }> };
 
@@ -49,7 +48,7 @@ export default async function CourseProgressPage({ params }: Props) {
               Akses Terbatas
             </h3>
             <p className="mt-1 text-body-sm text-muted-foreground">
-              Masukkan token kelas untuk membuka statistik belajar personal, riwayat aktivitas, dan analitik lengkap.
+              Masukkan token kelas untuk melihat progres belajar.
             </p>
             <div className="mt-4 max-w-md">
               <EnrollmentForm className="w-full" />
@@ -69,7 +68,7 @@ export default async function CourseProgressPage({ params }: Props) {
           <StudyStatisticsCard data={learningSummary?.studyStatistics ?? null} />
           <RecentActivityCard data={learningSummary?.recentActivities ?? null} />
 
-          <section className={studentCardClass("text-left")}>
+          <section className="text-left">
             <h3 className="mb-3 font-heading text-body-base font-bold text-foreground">
               Analisis lebih lanjut
             </h3>
@@ -85,9 +84,6 @@ export default async function CourseProgressPage({ params }: Props) {
                   <div>
                     <p className="text-body-sm font-semibold text-foreground group-hover:text-brand-primary">
                       Peta penguasaan konsep
-                    </p>
-                    <p className="text-body-xs text-muted-foreground">
-                      Lihat tingkat pemahaman per materi dan prasyarat belajar
                     </p>
                   </div>
                 </div>
@@ -105,9 +101,6 @@ export default async function CourseProgressPage({ params }: Props) {
                   <div>
                     <p className="text-body-sm font-semibold text-foreground group-hover:text-brand-primary">
                       Hasil kuis dan ujian
-                    </p>
-                    <p className="text-body-xs text-muted-foreground">
-                      Riwayat pengerjaan, nilai, dan pembahasan soal
                     </p>
                   </div>
                 </div>

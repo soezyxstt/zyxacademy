@@ -93,7 +93,7 @@ export default function LiveStudentPage() {
 
   if (!process.env.NEXT_PUBLIC_REALTIME_URL) {
     return (
-      <CoursePageShell title={title} description="Ikuti kuis langsung bersama teman sekelas." icon={Play}>
+      <CoursePageShell title={title} icon={Play}>
         <div className="mx-auto max-w-md px-4 py-12 text-center rounded-xl border border-dashed border-border bg-card/50">
           <Play className="mx-auto mb-3 size-10 text-muted-foreground/40" />
           <h3 className="font-heading text-body-base font-bold text-foreground">
@@ -114,7 +114,7 @@ export default function LiveStudentPage() {
 
   if (phase === "join") {
     return (
-      <CoursePageShell title={title} description="Ikuti kuis langsung bersama teman sekelas." icon={Play}>
+      <CoursePageShell title={title} icon={Play}>
         <div className="mx-auto flex max-w-xs flex-col items-center gap-6 px-4 py-20">
           <h1 className="font-heading text-h5 font-semibold text-foreground">Gabung kuis langsung</h1>
           <Input
@@ -140,7 +140,7 @@ export default function LiveStudentPage() {
   }
 
   return (
-    <CoursePageShell title={title} description="Ikuti kuis langsung bersama teman sekelas." icon={Play}>
+    <CoursePageShell title={title} icon={Play}>
       <LiveView
         state={state}
         sendAnswer={sendAnswer}

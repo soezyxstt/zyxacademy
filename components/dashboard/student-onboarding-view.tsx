@@ -49,17 +49,17 @@ const featureHighlights = [
   {
     icon: BookOpen,
     title: "Dokumen dan soal PDF",
-    desc: "Akses berkas PDF materi kuliah dan arsip soal latihan secara gratis.",
+    desc: "PDF materi dan arsip soal gratis.",
   },
   {
     icon: ClipboardList,
     title: "Kuis dan materi interaktif",
-    desc: "Aktivasi token kelas untuk membuka kuis, flashcard, dan artikel lengkap.",
+    desc: "Token kelas membuka kuis, flashcard, dan artikel lengkap.",
   },
   {
     icon: CheckCircle2,
     title: "Progres tersimpan",
-    desc: "Lanjutkan belajar dari posisi terakhir setelah login.",
+    desc: "Lanjutkan dari posisi terakhir.",
   },
 ];
 
@@ -125,7 +125,7 @@ export function StudentOnboardingView({
             </div>
 
             {catalogCourses.length > 0 ? (
-              <div className="space-y-3">
+              <div className="divide-y divide-border/60">
                 {catalogCourses.map((course) => {
                   const totalMaterials = course.freeMaterialCount;
                   const completedMaterials = course.completedFreeMaterialCount;
@@ -140,9 +140,9 @@ export function StudentOnboardingView({
                     : "Mulai Bab 1";
 
                   return (
-                    <article key={course.id} className="rounded-xl border border-border/70 bg-muted/15 p-4">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
+                    <article key={course.id} className="py-4 first:pt-0 last:pb-0">
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div className="min-w-0 flex-1 basis-40">
                           <div className="flex flex-wrap items-center gap-2">
                             <span className="rounded-md bg-brand-primary/10 px-2 py-0.5 text-body-2xs font-bold uppercase tracking-wider text-brand-primary">
                               {course.category}
@@ -152,7 +152,7 @@ export function StudentOnboardingView({
                                 Maba ITB
                               </span>
                             ) : null}
-                            <h3 className="truncate font-heading text-body-sm font-bold text-foreground">
+                            <h3 className="break-words font-heading text-body-sm font-bold text-foreground">
                               {course.title}
                             </h3>
                           </div>
@@ -187,7 +187,7 @@ export function StudentOnboardingView({
                         {course.freeChapters.length > 0 ? course.freeChapters.map((chapter, index) => (
                           <div
                             key={chapter.id}
-                            className="flex min-w-0 items-center gap-2 rounded-lg border border-border/60 bg-background px-3 py-2"
+                            className="flex min-w-0 items-center gap-2 py-1"
                           >
                             {chapter.completed ? (
                               <CheckCircle2 className="size-4 shrink-0 text-status-success" aria-hidden="true" />
@@ -219,11 +219,11 @@ export function StudentOnboardingView({
                 </p>
                 <p className="mt-1 text-body-xs text-muted-foreground">
                   {studentTargetCategory
-                    ? "Mata kuliah untuk jurusan Anda akan segera tersedia. Anda juga dapat menjelajahi seluruh mata kuliah di katalog."
+                    ? "Jelajahi mata kuliah lain di katalog."
                     : "Kembali lagi setelah materi gratis dipublikasikan."}
                 </p>
                 <Button asChild size="sm" variant="outline" className="mt-3 rounded-lg text-body-sm">
-                  <Link href="/courses">Lihat semua course di katalog</Link>
+                  <Link href="/courses">Lihat katalog</Link>
                 </Button>
               </div>
             )}
@@ -239,13 +239,13 @@ export function StudentOnboardingView({
               {featureHighlights.map((feature) => {
                 const Icon = feature.icon;
                 return (
-                  <Card key={feature.title} className="p-3.5">
+                  <div key={feature.title} className="py-2">
                     <div className="flex size-7 items-center justify-center rounded-lg bg-brand-primary/10 text-brand-primary">
                       <Icon className="size-4" />
                     </div>
                     <h3 className="mt-2.5 font-heading text-body-xs font-bold text-foreground">{feature.title}</h3>
                     <p className="mt-1 text-body-xs leading-snug text-muted-foreground">{feature.desc}</p>
-                  </Card>
+                  </div>
                 );
               })}
             </div>
@@ -307,10 +307,10 @@ export function StudentOnboardingView({
             <EnrollmentForm className="mt-3.5" />
           </Card>
 
-          <Card className="p-4 sm:p-5">
-            <h2 className="font-heading text-body-sm font-bold text-foreground">Ingin akses lebih banyak?</h2>
+          <section className="border-t border-border pt-4">
+            <h2 className="font-heading text-body-sm font-bold text-foreground">Paket belajar</h2>
             <p className="mt-2 text-body-xs leading-relaxed text-muted-foreground">
-              Buka kuis interaktif, tryout, artikel lengkap, flashcard, dan fitur belajar lanjutan dengan paket berbayar.
+              Kuis, tryout, artikel, dan flashcard lengkap.
             </p>
             <Button asChild className="mt-4 w-full rounded-lg text-body-sm">
               <Link href="/plans">
@@ -318,7 +318,7 @@ export function StudentOnboardingView({
                 <ArrowRight className="ml-1.5 size-4" />
               </Link>
             </Button>
-          </Card>
+          </section>
         </div>
       </div>
     </div>

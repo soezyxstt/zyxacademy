@@ -1,5 +1,6 @@
 "use client";
 
+import { AdminEmptyState } from "@/components/admin/state-panels";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, CheckCircle2, AlertCircle, FileText, Download, Award, Calendar, User, CheckSquare } from "lucide-react";
@@ -62,7 +63,7 @@ export function GradingClient({ courseId, initialSubmissions }: Props) {
       try {
         const res = await gradeSubmissionAction(courseId, activeSub.id, finalScore, notesInput);
         if (res.success) {
-          toast.success("Penilaian berhasil disimpan!");
+          toast.success("Penilaian disimpan.");
           setActiveSub(null);
           router.refresh();
         }
@@ -82,7 +83,7 @@ export function GradingClient({ courseId, initialSubmissions }: Props) {
       : activeSub.answersSnapshot || {};
 
     return (
-      <div className="space-y-6">
+      <div className="space-y-4">
         {/* Detail Header */}
         <div className="flex items-center gap-3">
           <Button variant="outline" size="sm" onClick={() => setActiveSub(null)} className="rounded-md border-border/80">
@@ -100,7 +101,7 @@ export function GradingClient({ courseId, initialSubmissions }: Props) {
         {/* Workspace Layout */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
           {/* Left Column: Student Answers (8 cols) */}
-          <div className="lg:col-span-8 space-y-6">
+          <div className="lg:col-span-8 space-y-4">
             {Array.isArray(qSnapshot) && qSnapshot.map((q: any, idx: number) => {
               const ans = aSnapshot[q.id];
               const isEssay = q.type === "essay";
@@ -198,7 +199,7 @@ export function GradingClient({ courseId, initialSubmissions }: Props) {
                             </span>
                             <div className="min-w-0">
                               <p className="text-body-xs font-bold text-foreground truncate max-w-[200px] md:max-w-xs">{ans.fileName}</p>
-                              <p className="text-[10px] text-muted-foreground">{ans.fileSize || "PDF / Gambar"} • Cloudflare R2</p>
+                              <p className="text-[10px] text-muted-foreground">{ans.fileSize || "PDF / Gambar"}</p>
                             </div>
                           </div>
                           {ans.fileKey ? (
@@ -232,7 +233,7 @@ export function GradingClient({ courseId, initialSubmissions }: Props) {
           </div>
 
           {/* Right Column: Grading Panel (4 cols) */}
-          <div className="lg:col-span-4 sticky top-6 space-y-6">
+          <div className="lg:col-span-4 sticky top-6 space-y-4">
             <Card className="bg-card border-border shadow-md rounded-2xl p-5">
               <CardHeader className="p-0 mb-4">
                 <CardTitle className="font-heading text-body-base font-bold text-foreground flex items-center gap-2">
@@ -286,7 +287,7 @@ export function GradingClient({ courseId, initialSubmissions }: Props) {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <Tabs defaultValue="pending" className="w-full">
         <TabsList>
           <TabsTrigger value="pending">
@@ -309,17 +310,11 @@ export function GradingClient({ courseId, initialSubmissions }: Props) {
         {/* Tab 1: Pending */}
         <TabsContent value="pending">
           {pendingList.length === 0 ? (
-            <div className="text-center py-12 border border-dashed border-border bg-card/50 rounded-2xl">
-              <CheckCircle2 className="size-12 text-status-success/60 mx-auto mb-3" />
-              <h3 className="font-heading text-body-base font-bold text-foreground">Semua Tugas Telah Dinilai</h3>
-              <p className="text-body-sm text-muted-foreground mt-1 max-w-sm mx-auto">
-                Bagus sekali! Tidak ada pengumpulan tryout siswa yang sedang menunggu penilaian saat ini.
-              </p>
-            </div>
+            <AdminEmptyState icon={CheckCircle2} title="Semua Tugas Telah Dinilai" />
           ) : (
-            <div className="space-y-3">
+            <div className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
               {pendingList.map((s) => (
-                <Card key={s.id} className="bg-card border-border shadow-2xs rounded-xl p-4 flex flex-col sm:flex-row justify-between sm:items-center gap-4 hover:border-brand-primary/45 transition-colors">
+                <Card key={s.id} className="rounded-none border-0 bg-transparent p-4 shadow-none flex flex-col sm:flex-row justify-between sm:items-center gap-3 hover:bg-muted/20 transition-colors">
                   <div className="space-y-1">
                     <h3 className="font-heading text-body-base font-semibold text-foreground">{s.examTitle}</h3>
                     <p className="text-body-sm text-muted-foreground flex items-center gap-1.5">
@@ -327,7 +322,7 @@ export function GradingClient({ courseId, initialSubmissions }: Props) {
                     </p>
                     <p className="text-body-xs text-muted-foreground flex items-center gap-1.5">
                       <Calendar className="size-3.5" />
-                      Dikumpulkan pada: {s.submittedAt ? new Date(s.submittedAt).toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" }) : "-"}
+                      {s.submittedAt ? new Date(s.submittedAt).toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" }) : "-"}
                     </p>
                   </div>
                   <Button onClick={() => handleOpenGrade(s)} className="bg-brand-primary text-white hover:bg-brand-primary/90 rounded-md font-semibold text-body-sm">
@@ -342,17 +337,11 @@ export function GradingClient({ courseId, initialSubmissions }: Props) {
         {/* Tab 2: Graded */}
         <TabsContent value="graded">
           {gradedList.length === 0 ? (
-            <div className="text-center py-12 border border-dashed border-border bg-card/50 rounded-2xl">
-              <AlertCircle className="size-12 text-muted-foreground/50 mx-auto mb-3" />
-              <h3 className="font-heading text-body-base font-bold text-foreground">Belum Ada Ujian Dinilai</h3>
-              <p className="text-body-sm text-muted-foreground mt-1 max-w-sm mx-auto">
-                Jawaban tryout siswa yang sudah Anda nilai dan beri feedback akan tersimpan dan muncul di sini.
-              </p>
-            </div>
+            <AdminEmptyState icon={AlertCircle} title="Belum Ada Ujian Dinilai" />
           ) : (
-            <div className="space-y-3">
+            <div className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
               {gradedList.map((s) => (
-                <Card key={s.id} className="bg-card border-border shadow-2xs rounded-xl p-4 flex flex-col sm:flex-row justify-between sm:items-center gap-4">
+                <Card key={s.id} className="rounded-none border-0 bg-transparent p-4 shadow-none flex flex-col sm:flex-row justify-between sm:items-center gap-3">
                   <div className="space-y-1">
                     <h3 className="font-heading text-body-base font-semibold text-foreground">{s.examTitle}</h3>
                     <p className="text-body-sm text-muted-foreground">
@@ -360,7 +349,7 @@ export function GradingClient({ courseId, initialSubmissions }: Props) {
                     </p>
                     <p className="text-body-xs text-muted-foreground flex items-center gap-1.5">
                       <Calendar className="size-3.5" />
-                      Dikumpulkan pada: {s.submittedAt ? new Date(s.submittedAt).toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" }) : "-"}
+                      {s.submittedAt ? new Date(s.submittedAt).toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" }) : "-"}
                     </p>
                   </div>
                   <div className="flex items-center gap-4 shrink-0">
@@ -381,17 +370,11 @@ export function GradingClient({ courseId, initialSubmissions }: Props) {
         {/* Tab 3: All */}
         <TabsContent value="all">
           {initialSubmissions.length === 0 ? (
-            <div className="text-center py-12 border border-dashed border-border bg-card/50 rounded-2xl">
-              <CheckSquare className="size-12 text-muted-foreground/50 mx-auto mb-3" />
-              <h3 className="font-heading text-body-base font-bold text-foreground">Belum Ada Pengumpulan</h3>
-              <p className="text-body-sm text-muted-foreground mt-1 max-w-sm mx-auto">
-                Seluruh riwayat pengerjaan ujian tryout siswa kelas akan tercantum di tab ini.
-              </p>
-            </div>
+            <AdminEmptyState icon={CheckSquare} title="Belum Ada Pengumpulan" />
           ) : (
-            <div className="space-y-3">
+            <div className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
               {initialSubmissions.map((s) => (
-                <Card key={s.id} className="bg-card border-border shadow-2xs rounded-xl p-4 flex flex-col sm:flex-row justify-between sm:items-center gap-4">
+                <Card key={s.id} className="rounded-none border-0 bg-transparent p-4 shadow-none flex flex-col sm:flex-row justify-between sm:items-center gap-3">
                   <div className="space-y-1">
                     <h3 className="font-heading text-body-base font-semibold text-foreground">{s.examTitle}</h3>
                     <p className="text-body-sm text-muted-foreground">

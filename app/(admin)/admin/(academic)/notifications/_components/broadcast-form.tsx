@@ -57,7 +57,7 @@ export function NotificationBroadcastForm({ courses }: Props) {
 
  return (
  <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
- <form action={formAction} className="p-5 space-y-5">
+ <form action={formAction} className="p-4 space-y-4">
  {/* Hidden target fields (controlled by Select components) */}
  <input type="hidden" name="target" value={target} />
  <input type="hidden" name="targetId" value={targetId} />
@@ -109,7 +109,7 @@ export function NotificationBroadcastForm({ courses }: Props) {
  value={targetId}
  onChange={(e) => setTargetId(e.target.value)}
  placeholder="e.g. abc123-def456..."
- className="rounded-md font-mono text-body-xs"
+ className="rounded-md font-mono text-body-sm"
  />
  </div>
  )}
@@ -147,6 +147,8 @@ export function NotificationBroadcastForm({ courses }: Props) {
  />
  </div>
 
+ <p className="text-body-xs text-muted-foreground">Hanya pengguna yang mengizinkan notifikasi browser yang menerima pesan. Token tidak valid dihapus otomatis.</p>
+
  {/* Link */}
  <div className="space-y-1.5">
  <Label htmlFor="notif-link" className="text-body-sm font-medium text-foreground">
@@ -163,9 +165,9 @@ export function NotificationBroadcastForm({ courses }: Props) {
 
  {/* Live preview */}
  {(title || body) && (
- <div className="rounded-lg border border-border/60 bg-muted/30 p-4">
- <p className="text-body-xs text-muted-foreground font-medium mb-2 uppercase tracking-wide">
- Preview Notifikasi
+ <div className="border-t border-border pt-3">
+ <p className="text-body-xs text-muted-foreground font-medium mb-2">
+ Pratinjau
  </p>
  <div className="flex gap-3 items-start">
  <div className="flex size-9 shrink-0 items-center justify-center rounded-md bg-brand-primary/15">
@@ -209,7 +211,7 @@ export function NotificationBroadcastForm({ courses }: Props) {
  type="submit"
  disabled={!title || !body}
  isLoading={isPending}
- className="w-full gap-2 rounded-lg"
+ className="gap-2 rounded-lg"
  id="send-notification-btn"
  >
  <Send className="size-4" />

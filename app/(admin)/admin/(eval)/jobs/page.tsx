@@ -60,11 +60,10 @@ export default async function GenerationJobsPage() {
   const courseMap = Object.fromEntries(allCourses.map((c) => [c.id, c.title]));
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-5">
       <AdminPageHeader
         icon={Zap}
         title="Generasi Soal"
-        description="Pantau dan kelola background jobs untuk pembuatan dan kurasi soal."
       />
       <GenerationJobsClient
         jobs={jobs}

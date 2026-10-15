@@ -30,6 +30,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 
@@ -342,9 +343,9 @@ export default function AdminMeetPage() {
       )}
 
       {/* Top Action Section: Create & Manage Active Meeting */}
-      <div className="grid gap-6 md:grid-cols-2">
+      <div className="grid gap-4 md:grid-cols-2">
         {/* Card 1: Start Meeting Controls */}
-        <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+        <div className="rounded-xl border border-border bg-card p-4">
           <div className="flex items-center gap-2">
             <PlusCircle className="size-5 text-brand-primary" />
             <h2 className="font-heading text-body-base font-bold text-foreground">
@@ -569,7 +570,7 @@ export default function AdminMeetPage() {
         </div>
 
         {/* Card 2: Active Meeting Card */}
-        <div className="rounded-2xl border border-border bg-card p-5 shadow-sm flex flex-col justify-between">
+        <div className="rounded-xl border border-border bg-card p-4 flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -592,7 +593,7 @@ export default function AdminMeetPage() {
 
             {activeSpace ? (
               <div className="mt-4 space-y-3">
-                <div className="rounded-xl border border-border/80 bg-muted/40 p-3">
+                <div className="border-b border-border pb-3">
                   <p className="font-heading text-body-base font-bold text-foreground">
                     {activeSpace.title}
                   </p>
@@ -773,23 +774,23 @@ export default function AdminMeetPage() {
               Belum ada riwayat meeting
             </p>
             <p className="mt-1 max-w-md text-body-xs text-muted-foreground">
-              Sesi meeting yang telah selesai akan tercatat di sini.
+              Meeting selesai akan muncul di sini.
             </p>
           </div>
         ) : (
-          <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+          <div className="overflow-hidden rounded-xl border border-border bg-card">
             <div className="overflow-x-auto">
-              <table className="w-full text-left text-body-sm">
-                <thead className="border-b border-border bg-muted/50 text-body-xs font-semibold text-muted-foreground">
-                  <tr>
-                    <th className="px-4 py-3">Judul</th>
-                    <th className="px-4 py-3">Waktu</th>
-                    <th className="px-4 py-3">Durasi</th>
-                    <th className="px-4 py-3">Peserta</th>
-                    <th className="px-4 py-3 text-right">Aksi</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
+              <Table className="w-full text-left text-body-sm">
+                <TableHeader className="border-b border-border bg-muted/50 text-body-xs font-semibold text-muted-foreground">
+                  <TableRow>
+                    <TableHead className="px-4 py-3">Judul</TableHead>
+                    <TableHead className="px-4 py-3">Waktu</TableHead>
+                    <TableHead className="px-4 py-3">Durasi</TableHead>
+                    <TableHead className="px-4 py-3">Peserta</TableHead>
+                    <TableHead className="px-4 py-3 text-right">Aksi</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody className="divide-y divide-border">
                   {records.map((rec) => {
                     const recordId = rec.name.replace(/^conferenceRecords\//, "");
                     const isDeleting = deletingId === recordId;
@@ -797,38 +798,38 @@ export default function AdminMeetPage() {
                     const total = rec.participantCount || 0;
 
                     return (
-                      <tr key={rec.name} className="transition-colors hover:bg-muted/30">
-                        <td className="whitespace-nowrap px-4 py-3.5 font-medium text-foreground">
+                      <TableRow key={rec.name} className="transition-colors hover:bg-muted/30">
+                        <TableCell className="whitespace-nowrap px-4 py-3.5 font-medium text-foreground">
                           <p className="text-body-sm font-bold text-foreground">
                             {rec.title || `Meeting ${recordId.slice(0, 8)}`}
                           </p>
                           <p className="font-mono text-body-xs text-muted-foreground">
                             ID: {recordId.slice(0, 16)}...
                           </p>
-                        </td>
+                        </TableCell>
 
-                        <td className="whitespace-nowrap px-4 py-3.5 text-foreground">
+                        <TableCell className="whitespace-nowrap px-4 py-3.5 text-foreground">
                           <p className="text-body-xs font-semibold">
                             {formatIsoDate(new Date(rec.startTime))}
                           </p>
                           <p className="text-body-xs text-muted-foreground">
                             {formatTimeOnly(rec.startTime)} - {formatTimeOnly(rec.endTime)}
                           </p>
-                        </td>
+                        </TableCell>
 
-                        <td className="whitespace-nowrap px-4 py-3.5 font-medium text-muted-foreground">
+                        <TableCell className="whitespace-nowrap px-4 py-3.5 font-medium text-muted-foreground">
                           {calculateDuration(rec.startTime, rec.endTime)}
-                        </td>
+                        </TableCell>
 
-                        <td className="whitespace-nowrap px-4 py-3.5">
+                        <TableCell className="whitespace-nowrap px-4 py-3.5">
                           <div className="flex items-center gap-1.5 text-body-xs font-semibold text-foreground">
                             <TrendingUp className="size-3.5 text-brand-primary" />
                             <span>Peak: <strong className="text-brand-primary">{peak}</strong></span>
                             <span className="font-normal text-muted-foreground">(Total: {total})</span>
                           </div>
-                        </td>
+                        </TableCell>
 
-                        <td className="whitespace-nowrap px-4 py-3.5 text-right">
+                        <TableCell className="whitespace-nowrap px-4 py-3.5 text-right">
                           <div className="flex items-center justify-end gap-2">
                             <Button variant="outline" size="sm" asChild>
                               <Link href={`/admin/meet/${recordId}`}>
@@ -854,12 +855,12 @@ export default function AdminMeetPage() {
                               )}
                             </Button>
                           </div>
-                        </td>
-                      </tr>
+                        </TableCell>
+                      </TableRow>
                     );
                   })}
-                </tbody>
-              </table>
+                </TableBody>
+              </Table>
             </div>
           </div>
         )}
