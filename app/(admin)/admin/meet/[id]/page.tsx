@@ -157,14 +157,14 @@ export default function DetailedMeetingLogPage({
                 Tidak ada data peserta tercatat.
               </div>
             ) : (
-              <div className="space-y-4">
+              <div className="divide-y divide-border rounded-xl border border-border bg-card px-4">
                 {analytics.participants.map((p, idx) => (
                   <div
                     key={p.participantId || idx}
-                    className="rounded-2xl border border-border bg-card p-5 shadow-sm hover:border-border/80 transition-colors"
+                    className="py-4"
                   >
                     {/* Participant Header Info */}
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-border/60 pb-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                       <div className="flex items-center gap-3">
                         <div className="flex size-10 items-center justify-center rounded-full bg-brand-primary/10 text-brand-primary font-bold text-body-base">
                           {p.displayName.charAt(0).toUpperCase()}
@@ -188,7 +188,7 @@ export default function DetailedMeetingLogPage({
 
                       <div className="flex items-center gap-3 text-body-xs font-semibold text-foreground">
                         <span className="rounded-lg border border-border bg-muted/40 px-3 py-1.5">
-                          Durasi:{" "}
+                          Durasi {" "}
                           <strong className="text-brand-primary">
                             {formatDurationSec(p.totalDurationSeconds)}
                           </strong>
@@ -197,16 +197,16 @@ export default function DetailedMeetingLogPage({
                     </div>
 
                     {/* Join / Leave Sessions Visual Timeline */}
-                    <div className="mt-4 space-y-3">
+                    <div className="mt-2 space-y-2">
                       <p className="text-body-xs font-semibold text-muted-foreground uppercase tracking-wider">
                         Sesi:
                       </p>
 
-                      <div className="grid gap-2.5 sm:grid-cols-1 md:grid-cols-2">
+                      <div className="divide-y divide-border/60">
                         {p.sessions.map((session, sIdx) => (
                           <div
                             key={session.sessionId || sIdx}
-                            className="flex flex-wrap items-center gap-2 rounded-xl border border-border bg-muted/20 p-3"
+                            className="flex flex-wrap items-center gap-2 py-2"
                           >
                             {/* GREEN BADGE - MASUK */}
                             <span className="inline-flex items-center gap-1.5 rounded-md border border-status-success/40 bg-status-success/10 px-2.5 py-1 text-body-xs font-bold text-status-success">
@@ -243,11 +243,11 @@ export default function DetailedMeetingLogPage({
                 Belum ada rekaman video untuk sesi ini.
               </div>
             ) : (
-              <div className="grid gap-3 sm:grid-cols-2">
+              <div className="divide-y divide-border rounded-xl border border-border bg-card px-4">
                 {analytics.recordings.map((rec) => (
                   <div
                     key={rec.recordingId}
-                    className="flex items-center justify-between rounded-xl border border-border bg-card p-4 shadow-sm"
+                    className="flex flex-wrap items-center justify-between gap-2 py-3"
                   >
                     <div>
                       <p className="font-semibold text-body-sm text-foreground">
@@ -280,7 +280,7 @@ export default function DetailedMeetingLogPage({
               </div>
             ) : (
               analytics.transcripts.map((t) => (
-                <div key={t.transcriptId} className="rounded-2xl border border-border bg-card p-5 space-y-4 shadow-sm">
+                <div key={t.transcriptId} className="rounded-xl border border-border bg-card p-4 space-y-3">
                   <div className="flex items-center justify-between border-b border-border/60 pb-3">
                     <p className="text-body-xs font-bold text-foreground">
                       Dokumen transkrip ({formatTimeOnly(t.startTime)} - {formatTimeOnly(t.endTime)})
@@ -300,14 +300,14 @@ export default function DetailedMeetingLogPage({
 
                   {t.entries.length === 0 ? (
                     <p className="text-body-sm text-muted-foreground italic">
-                      Tidak ada entri teks percakapan yang terekam.
+                      Belum ada teks transkrip.
                     </p>
                   ) : (
                     <div className="max-h-96 overflow-y-auto space-y-2.5 pr-2">
                       {t.entries.map((entry) => (
                         <div
                           key={entry.entryId}
-                          className="rounded-xl border border-border bg-muted/30 p-3 text-body-sm leading-relaxed"
+                          className="border-b border-border/60 pb-3 last:border-0 text-body-sm leading-relaxed"
                         >
                           <div className="flex items-center justify-between text-body-xs font-semibold text-muted-foreground mb-1">
                             <span className="text-brand-primary font-bold">

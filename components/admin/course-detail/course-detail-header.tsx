@@ -35,9 +35,9 @@ export function CourseDetailHeader({ course, breadcrumbs }: Props) {
           <Badge variant="secondary" className="rounded-md text-body-xs">
             {course.category}
           </Badge>
-          <Button asChild size="sm" variant="outline" className="h-8 gap-1.5 rounded-lg text-body-xs">
+          <Button asChild size="sm" variant="outline" className="h-8 gap-1.5 rounded-lg text-body-sm">
             <Link href={`/courses/${course.id}`} target="_blank">
-              <span>Lihat sebagai siswa</span>
+              <span>Tampilan siswa</span>
               <ExternalLink className="size-3.5" />
             </Link>
           </Button>

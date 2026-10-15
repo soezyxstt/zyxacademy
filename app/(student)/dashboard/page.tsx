@@ -525,9 +525,9 @@ export default async function DashboardPage() {
             )}
 
             <Reveal duration="duration-700" className="w-full min-w-0">
-              <div className="grid gap-8 lg:grid-cols-12 w-full min-w-0">
+              <div className="grid gap-6 lg:grid-cols-12 w-full min-w-0">
                 {/* Left Column (Primary learning track) - 7 cols */}
-                <div className="space-y-8 lg:col-span-7 min-w-0">
+                <div className="space-y-6 lg:col-span-7 min-w-0">
                   {/* Classes list Section */}
                   <section>
                     <div className="mb-3 flex flex-wrap items-center justify-between gap-2 border-b border-border/50 pb-2.5">
@@ -672,8 +672,8 @@ export default async function DashboardPage() {
                     ) : (
                       <div className="flex flex-col items-center justify-center py-8 text-center rounded-xl border border-dashed border-border/60 bg-muted/15">
                         <CheckCircle2 className="size-8 text-status-success/60 mb-2" />
-                        <p className="text-body-sm font-medium text-foreground">Semua dokumen telah selesai dibaca</p>
-                        <p className="text-body-xs text-muted-foreground mt-0.5">Buka materi baru dari kelas aktif untuk melanjutkan belajar.</p>
+                        <p className="text-body-sm font-medium text-foreground">Dokumen selesai dibaca</p>
+                        <p className="text-body-xs text-muted-foreground mt-0.5">Lanjutkan ke materi baru di kelas.</p>
                       </div>
                     )}
                   </section>
@@ -819,7 +819,7 @@ export default async function DashboardPage() {
                           })}
                         </div>
                       ) : (
-                        <p className="text-body-xs text-muted-foreground py-2 text-center">Belum ada aktivitas ulasan baru-baru ini.</p>
+                        <p className="text-body-xs text-muted-foreground py-2 text-center">Belum ada ulasan baru.</p>
                       )}
                     </div>
                   </section>
@@ -900,7 +900,7 @@ export default async function DashboardPage() {
                       <div className="flex flex-col items-center justify-center py-8 text-center rounded-xl border border-dashed border-border/60 bg-muted/15">
                         <Trophy className="size-8 text-brand-secondary/60 mb-2" />
                         <p className="text-body-sm font-medium text-foreground">Semua ujian telah selesai</p>
-                        <p className="text-body-xs text-muted-foreground mt-0.5">Kerjakan latihan baru ketika materi bab selanjutnya dibuka.</p>
+                        <p className="text-body-xs text-muted-foreground mt-0.5">Latihan baru tersedia saat bab berikutnya dibuka.</p>
                       </div>
                     )}
                   </section>

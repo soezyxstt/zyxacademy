@@ -3,7 +3,7 @@ import Link from "next/link";
 import { ChevronRight, Lock, History } from "lucide-react";
 import { checkEnrollment } from "@/app/(student)/dashboard/actions";
 import { CoursePageShell } from "@/components/course/course-page-shell";
-import { courseListRowClass, studentCardClass } from "@/components/course/course-surfaces";
+import { studentCardClass } from "@/components/course/course-surfaces";
 import { EnrollmentForm } from "@/components/enrollment-form";
 import { Reveal } from "@/components/ui/reveal";
 import { FormattedDate } from "@/components/ui/formatted-date";
@@ -45,7 +45,7 @@ function statusBadge(status: string) {
 
 export default async function CourseMyResultsPage({ params }: Props) {
   const { id } = await params;
-  
+
   const course = await getCourse(id);
 
   if (!course) return null;
@@ -56,7 +56,7 @@ export default async function CourseMyResultsPage({ params }: Props) {
     return (
       <CoursePageShell
         title={`Hasil Ujian: ${course.title}`}
-        description="Riwayat nilai kuis, tryout, dan review jawaban lengkap."
+
         icon={History}
       >
         <Reveal>
@@ -157,14 +157,14 @@ export default async function CourseMyResultsPage({ params }: Props) {
   return (
     <CoursePageShell
       title={`Hasil Ujian: ${course.title}`}
-      description="Riwayat nilai kuis, tryout, dan review jawaban lengkap."
+
       icon={History}
     >
       <Reveal>
-        <ul className="space-y-2">
+        <ul className="divide-y divide-border/60 overflow-hidden rounded-xl border border-border/70 bg-card">
           {allSubmissions.map((submission) => (
             <li key={submission.id}>
-              <Link href={`/courses/${id}/my-results/${submission.id}`} className={courseListRowClass("items-center")}>
+              <Link href={`/courses/${id}/my-results/${submission.id}`} className="group flex items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/30">
                 <div className="min-w-0 flex-1 text-left">
                   <h2 className="truncate font-heading text-body-base font-semibold text-foreground group-hover:text-primary">
                     {submission.examTitle}
@@ -194,7 +194,7 @@ export default async function CourseMyResultsPage({ params }: Props) {
                   <p className="font-heading text-h6 font-bold tabular-nums text-foreground">
                     {submission.score != null ? `${submission.score}%` : "Pending"}
                   </p>
-                  <p className="text-body-sm text-muted-foreground">Review</p>
+
                 </div>
                 <ChevronRight
                   className="size-5 shrink-0 text-muted-foreground opacity-60 transition-opacity group-hover:opacity-100"
@@ -211,7 +211,7 @@ export default async function CourseMyResultsPage({ params }: Props) {
               Belum ada riwayat ujian
             </h3>
             <p className="mt-1 text-body-xs text-muted-foreground leading-relaxed">
-              Nilai kuis dan try out yang kamu selesaikan akan tercatat di sini bersama rincian pembahasan soal.
+              Selesaikan kuis atau tryout untuk melihat hasil.
             </p>
             <Button asChild size="sm" className="mt-5 rounded-md text-body-xs">
               <Link href={`/courses/${id}/quiz`}>

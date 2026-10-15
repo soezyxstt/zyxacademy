@@ -186,7 +186,7 @@ export function TutorLiveConsole({ courseId, courseTitle }: TutorLiveConsoleProp
     return (
       <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
         <Loader2 className="size-6 animate-spin" />
-        <p className="mt-2 text-body-sm">Memuat konsol kuis langsung...</p>
+        <p className="mt-2 text-body-sm">Memuat sesi...</p>
       </div>
     );
   }
@@ -210,12 +210,12 @@ export function TutorLiveConsole({ courseId, courseTitle }: TutorLiveConsoleProp
   // ── Setup Phase ─────────────────────────────────────────────────────────────
   if (phase === "setup") {
     return (
-      <div className="mx-auto max-w-xl space-y-6 rounded-xl border border-border bg-card p-6">
+      <div className="mx-auto max-w-xl space-y-4 rounded-xl border border-border bg-card p-4">
         <div className="border-b border-border pb-4">
           <div className="flex items-center gap-2">
             <Radio className="size-5 text-brand-primary" />
-            <h2 className="font-heading text-h5 font-bold text-foreground">
-              Pengaturan Sesi Langsung
+            <h2 className="font-heading text-body-base font-bold text-foreground">
+              Pengaturan sesi
             </h2>
           </div>
           <p className="mt-1 text-body-sm text-muted-foreground">
@@ -227,7 +227,7 @@ export function TutorLiveConsole({ courseId, courseTitle }: TutorLiveConsoleProp
 
         {templates.length === 0 ? (
           <div className="rounded-lg bg-muted/40 p-4 text-body-sm text-muted-foreground">
-            Belum ada templat kuis yang diterbitkan untuk kelas ini. Terbitkan kuis terlebih dahulu pada menu Kuis.
+            Terbitkan kuis di menu Kuis untuk memulai sesi.
           </div>
         ) : (
           <div className="space-y-4">
@@ -274,7 +274,7 @@ export function TutorLiveConsole({ courseId, courseTitle }: TutorLiveConsoleProp
   } = state;
 
   return (
-    <div className="relative min-h-[60vh] space-y-6 rounded-xl border border-border bg-card p-6">
+    <div className="relative min-h-[60vh] space-y-4 rounded-xl border border-border bg-card p-4">
       {/* Top Status Strip */}
       <div className="flex items-center justify-between border-b border-border pb-4">
         <div className="flex items-center gap-2">
@@ -318,7 +318,7 @@ export function TutorLiveConsole({ courseId, courseTitle }: TutorLiveConsoleProp
             </span>
           </div>
           <p className="text-body-xs text-muted-foreground">
-            Total {session.questionCount} soal disiapkan
+            {session.questionCount} soal
           </p>
         </div>
       )}

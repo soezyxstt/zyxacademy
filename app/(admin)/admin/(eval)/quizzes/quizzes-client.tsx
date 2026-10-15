@@ -194,7 +194,7 @@ export function QuizzesCurationClient({ initialTemplates, courseMap, prefillCour
 
       {/* Grid List */}
       {templates.length === 0 ? (
-        <div className="rounded-2xl border border-border bg-card py-16 px-6 text-center shadow-xs flex flex-col items-center justify-center">
+        <div className="rounded-2xl border border-border bg-card py-8 px-4 text-center shadow-xs flex flex-col items-center justify-center">
           <div className="mx-auto flex size-14 items-center justify-center rounded-xl bg-brand-primary/10 text-brand-primary mb-5 border border-brand-primary/20">
             <BookOpen className="size-6" />
           </div>
@@ -209,7 +209,7 @@ export function QuizzesCurationClient({ initialTemplates, courseMap, prefillCour
           </Button>
         </div>
       ) : (
-        <div className="grid gap-5 sm:grid-cols-2 text-left">
+        <div className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card text-left">
           {templates.map((template) => {
             const rules = template.selectionRules as Record<string, any>;
             const qCount = rules?.count ?? 0;
@@ -221,9 +221,9 @@ export function QuizzesCurationClient({ initialTemplates, courseMap, prefillCour
             return (
               <div
                 key={template.id}
-                className="group relative rounded-xl border border-border bg-card p-5 shadow-xs hover:border-brand-primary/40 hover:-translate-y-0.5 hover:shadow-md transition-all duration-200 flex flex-col justify-between"
+                className="group relative flex flex-col gap-3 px-4 py-3 transition-colors hover:bg-muted/20"
               >
-                <div className="absolute top-0 left-0 right-0 h-1 bg-linear-to-r from-brand-primary/60 to-brand-primary/0 rounded-t-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+
 
                 <div>
                   <div className="flex items-center justify-between gap-2 flex-wrap">
@@ -259,11 +259,11 @@ export function QuizzesCurationClient({ initialTemplates, courseMap, prefillCour
                     </div>
                   </div>
 
-                  <h3 className="mt-3.5 font-heading text-body-base font-bold text-foreground leading-snug group-hover:text-brand-primary transition-colors">
+                  <h3 className="mt-2 font-heading text-body-base font-bold text-foreground leading-snug group-hover:text-brand-primary transition-colors">
                     {template.title}
                   </h3>
 
-                  <div className="mt-3.5 space-y-2 border-t border-border/40 pt-3 text-body-sm text-muted-foreground">
+                  <div className="mt-2 flex flex-wrap items-center gap-x-5 gap-y-2 text-body-xs text-muted-foreground">
                     <div className="flex items-center gap-2.5">
                       <BookOpen className="size-4 text-brand-primary/85 shrink-0" />
                       <span>

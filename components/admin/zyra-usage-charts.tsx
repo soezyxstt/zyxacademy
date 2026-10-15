@@ -64,7 +64,7 @@ export function ZyraUsageCharts() {
 
   if (error) {
     return (
-      <div className="rounded-xl border border-border bg-card p-6 shadow-sm mt-8">
+      <div className="space-y-4 mt-5">
         <AdminErrorState message={error} onRetry={fetchData} />
       </div>
     );
@@ -103,7 +103,7 @@ export function ZyraUsageCharts() {
         </div>
       ) : (
         <>
-          <div className="rounded-xl border border-border bg-card p-5">
+          <div className="min-w-0 space-y-3">
             <h3 className="text-body-sm font-semibold text-foreground mb-4">
               Tren Penggunaan Harian
             </h3>

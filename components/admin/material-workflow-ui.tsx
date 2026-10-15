@@ -176,7 +176,7 @@ export function MaterialArtifactCard({
   const cardTitle = row.bundleTitle || resolvedChapterLabel || courseLabel || "Mata kuliah belum terpetakan";
 
   return (
-    <article className="grid gap-4 px-4 py-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+    <article className="grid gap-3 p-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
       <div className="min-w-0 space-y-2">
         <div className="flex flex-wrap items-center gap-2">
           <Badge variant="outline" className="gap-1.5">
@@ -199,11 +199,11 @@ export function MaterialArtifactCard({
             {courseLabel}
           </p>
         )}
-        <p className="text-body-sm text-muted-foreground">
+        <p className="text-body-xs text-muted-foreground">
           Diupload <FormattedDate date={row.createdAt} options={dateOptions} />
         </p>
-        <p className="text-body-sm text-muted-foreground">
-          Dibuat oleh {authorLabel ?? "admin yang belum teridentifikasi"} · {itemSummary(row, kind)}
+        <p className="text-body-xs text-muted-foreground">
+          {authorLabel ?? "Admin tidak diketahui"} · {itemSummary(row, kind)}
         </p>
         <details className="text-body-xs text-muted-foreground">
           <summary className="cursor-pointer font-medium hover:text-foreground">Lihat identitas teknis</summary>

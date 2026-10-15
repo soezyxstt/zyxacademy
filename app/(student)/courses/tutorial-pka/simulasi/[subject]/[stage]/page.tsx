@@ -139,6 +139,7 @@ export default async function PkaStagePage({ params, searchParams }: Props) {
             <Reveal>
               <div className="space-y-4">
                 <h2 className="font-heading text-body-base font-bold text-foreground">Pembahasan</h2>
+                <div className="divide-y divide-border/60 overflow-hidden rounded-xl border border-border bg-card">
                 {snapshot.map((q, idx) => {
                   const rawSel = answers[q.id];
                   const qType = (q as any).question_type || (q as any).questionType || (q as any).type;
@@ -165,7 +166,7 @@ export default async function PkaStagePage({ params, searchParams }: Props) {
 
                   const selectedText = typeof rawSel === "string" ? rawSel : selected.map((i: number) => q.options[i]).filter(Boolean).join("; ");
                   return (
-                    <div key={q.id} className="rounded-xl border border-border bg-card p-4 shadow-sm">
+                    <div key={q.id} className="p-4">
                       <div className="flex items-start gap-2.5">
                         <span className={quizOptionLetterClasses(isCorrect ? "correct" : "wrong")}>{idx + 1}</span>
                         <div className="flex-1 text-body-base font-medium text-foreground">
@@ -205,6 +206,7 @@ export default async function PkaStagePage({ params, searchParams }: Props) {
                     </div>
                   );
                 })}
+                </div>
               </div>
             </Reveal>
           </div>

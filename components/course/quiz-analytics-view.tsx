@@ -98,7 +98,7 @@ export function QuizAnalyticsView({ attemptId, courseId }: QuizAnalyticsViewProp
 
   if (!metrics && !diagnosis) {
     return (
-      <div className="rounded-2xl border border-brand-primary/30 bg-gradient-to-br from-brand-primary/5 via-card to-card p-8 text-center space-y-5 shadow-xs">
+      <div className="rounded-xl border border-border bg-card p-4 text-center space-y-5 shadow-xs">
         <div className="flex size-14 items-center justify-center rounded-2xl bg-brand-primary/10 text-brand-primary mx-auto ring-1 ring-brand-primary/20">
           <Brain className="size-7" />
         </div>
@@ -142,7 +142,7 @@ export function QuizAnalyticsView({ attemptId, courseId }: QuizAnalyticsViewProp
           ───────────────────────────────────────────────────────────────────────── */}
       <div className="space-y-4">
         {/* Main Headline Banner */}
-        <div className="relative overflow-hidden rounded-2xl border border-brand-primary/30 bg-gradient-to-br from-brand-primary/10 via-card to-card p-6 shadow-sm">
+        <div className="relative overflow-hidden rounded-xl border border-border bg-card p-4">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
             <div className="space-y-2 max-w-2xl">
               <div className="flex flex-wrap items-center gap-2">
@@ -286,14 +286,14 @@ export function QuizAnalyticsView({ attemptId, courseId }: QuizAnalyticsViewProp
         {/* SECTION B: KEKUATAN SISWA & AREA FOKUS (STRENGTHS & FOCUS AREAS) */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Strengths Card */}
-          <div className="rounded-xl border border-status-success/30 bg-status-success/5 p-5 space-y-4">
+          <div className="space-y-3 border-t border-border pt-4">
             <h4 className="font-heading text-body-sm font-bold text-foreground flex items-center gap-2 text-status-success">
               <ShieldCheck className="size-5" /> Kekuatan & Keunggulan Anda
             </h4>
             {diagnosis?.strengths && diagnosis.strengths.length > 0 ? (
               <div className="space-y-3">
                 {diagnosis.strengths.map((item, i) => (
-                  <div key={i} className="rounded-lg border border-border/60 bg-card p-3.5 space-y-1.5 shadow-xs">
+                  <div key={i} className="border-b border-border/60 py-3 space-y-1.5 last:border-0">
                     <div className="font-heading text-body-base font-bold text-foreground"><MathText as="span">{item.title}</MathText></div>
                     <p className="text-body-sm text-muted-foreground leading-snug"><MathText as="span">{item.description}</MathText></p>
                     {item.evidence && item.evidence.length > 0 && (
@@ -312,14 +312,14 @@ export function QuizAnalyticsView({ attemptId, courseId }: QuizAnalyticsViewProp
           </div>
 
           {/* Focus Areas Card */}
-          <div className="rounded-xl border border-status-warning/30 bg-status-warning/5 p-5 space-y-4">
+          <div className="space-y-3 border-t border-border pt-4">
             <h4 className="font-heading text-body-sm font-bold text-foreground flex items-center gap-2 text-status-warning">
               <Target className="size-5" /> Area yang Perlu Diperkuat
             </h4>
             {diagnosis?.focus_areas && diagnosis.focus_areas.length > 0 ? (
               <div className="space-y-3">
                 {diagnosis.focus_areas.map((item, i) => (
-                  <div key={i} className="rounded-lg border border-border/60 bg-card p-3.5 space-y-1.5 shadow-xs">
+                  <div key={i} className="border-b border-border/60 py-3 space-y-1.5 last:border-0">
                     <div className="font-heading text-body-base font-bold text-foreground"><MathText as="span">{item.title}</MathText></div>
                     <p className="text-body-sm text-muted-foreground leading-snug"><MathText as="span">{item.description}</MathText></p>
                     <div className="text-body-xs text-status-warning bg-status-warning/10 p-2 rounded-md font-medium mt-1">
@@ -344,7 +344,7 @@ export function QuizAnalyticsView({ attemptId, courseId }: QuizAnalyticsViewProp
             </h4>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {diagnosis.error_patterns.map((errItem, idx) => (
-                <div key={idx} className="rounded-lg border border-border/80 bg-card p-4 space-y-2 shadow-xs">
+                <div key={idx} className="border-b border-border/60 py-3 space-y-2 last:border-0">
                   <div className="flex items-center justify-between gap-2">
                     <span className="font-heading text-body-base font-bold text-foreground"><MathText as="span">{errItem.title}</MathText></span>
                     <Badge variant="outline" className="rounded-md border-border text-body-xs uppercase font-medium">

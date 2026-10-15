@@ -610,7 +610,7 @@ export function IdeaBundleReviewDetail({ detailId, backHref, backLabel, showBack
               return <button key={idea.id} type="button" aria-label={`${shortIdeaCode(idea.code)}, ${blockReviewLabels[status]}`} onClick={() => { setSelectedIdeaId(idea.id); setEditing(false); }} className={cn("w-full rounded-lg border p-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring", status === "approved" ? "border-status-success/50 bg-status-success/10 hover:bg-status-success/15" : status === "changes_requested" ? "border-status-warning/60 bg-status-warning/10 hover:bg-status-warning/15" : "border-border bg-card hover:bg-muted/50", activeIdea.id === idea.id && "ring-2 ring-primary ring-offset-1 ring-offset-background")}><span className="text-body-sm font-semibold">{shortIdeaCode(idea.code)}</span><p className="mt-1 line-clamp-2 text-body-xs text-muted-foreground"><MathText as="span">{idea.canonicalStatement}</MathText></p></button>;
             })}
           </aside> : null}
-        <article key={activeIdea.id} className="space-y-6 rounded-xl border border-border bg-card p-5 shadow-xs sm:p-7">
+        <article key={activeIdea.id} className="space-y-4 rounded-xl border border-border bg-card p-4">
           <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border pb-4">
             <div>
               <div className="flex items-center gap-2">
@@ -682,14 +682,14 @@ export function IdeaBundleReviewDetail({ detailId, backHref, backLabel, showBack
             <div className="space-y-6">
               <div className="space-y-2">
                 <span className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">Pernyataan Utama</span>
-                <div className="rounded-xl border border-border bg-muted/30 p-4">
+                <div className="border-l-2 border-border pl-3 py-1">
                   <MathText as="div" className="text-body-base leading-relaxed text-foreground font-medium">{activeIdea.canonicalStatement}</MathText>
                 </div>
               </div>
 
               <div className="space-y-2">
                 <span className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">Penjelasan Ringkas</span>
-                <div className="rounded-xl border border-border bg-card p-4">
+                <div className="border-t border-border pt-3">
                   <MathText as="div" className="whitespace-pre-wrap text-body-sm leading-relaxed text-foreground">{activeIdea.conciseExplanation}</MathText>
                 </div>
               </div>
@@ -697,7 +697,7 @@ export function IdeaBundleReviewDetail({ detailId, backHref, backLabel, showBack
               {activeIdea.latex && (
                 <div className="space-y-2">
                   <span className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">Rumus KaTeX</span>
-                  <div className="rounded-xl border border-border bg-muted/50 p-4 text-center">
+                  <div className="bg-muted/30 py-3 text-center">
                     <MathText bareMath as="div">{activeIdea.latex}</MathText>
                   </div>
                 </div>
@@ -708,7 +708,7 @@ export function IdeaBundleReviewDetail({ detailId, backHref, backLabel, showBack
                   <span className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">Bukti Sumber ({activeIdea.provenance.length})</span>
                   <div className="grid gap-2">
                     {activeIdea.provenance.map((proof) => (
-                      <div key={proof.id} className="space-y-1.5 rounded-lg border border-border/80 bg-muted/20 p-4">
+                      <div key={proof.id} className="space-y-1.5 border-b border-border py-3 last:border-0">
                         <p className="text-body-sm font-semibold text-foreground">{proof.sourceTitle}{proof.pageNumber ? ` · Hal. ${proof.pageNumber}` : ""}</p>
                         <div className="text-body-sm leading-relaxed text-muted-foreground">
                           <MarkdownRenderer content={readableSourceExcerpt(proof.excerpt)} density="compact" />
@@ -751,7 +751,7 @@ export function IdeaBundleReviewDetail({ detailId, backHref, backLabel, showBack
 
       {/* Relations Summary (Compact) */}
       {payload.preview.relations.length > 0 && (
-        <details className="rounded-xl border border-border bg-card p-4 shadow-xs">
+        <details className="border-t border-border pt-3">
           <summary className="cursor-pointer text-body-sm font-semibold text-foreground">
             Hubungan Antar-Idea ({payload.preview.relations.length} relasi)
           </summary>
@@ -768,7 +768,7 @@ export function IdeaBundleReviewDetail({ detailId, backHref, backLabel, showBack
       )}
 
       {/* Review Actions Footer (Compact) */}
-      <section className="rounded-xl border border-border bg-card p-4 shadow-xs space-y-3">
+      <section className="border-t border-border pt-3 space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <Label htmlFor="idea-review-note" className="text-body-sm font-semibold">Catatan Review</Label>
           <span className="text-body-xs text-muted-foreground">Disimpan bersama keputusan</span>
@@ -1465,10 +1465,10 @@ function LegacyArticleProductView({
                   <div
                     key={block.id}
                     className={cn(
-                      "rounded-xl border p-4 shadow-xs transition-colors space-y-3",
+                      "border-l-2 p-3 transition-colors space-y-3",
                       isSelected
-                        ? "border-brand-primary bg-card ring-1 ring-brand-primary/20"
-                        : "border-border bg-card hover:border-border/80"
+                        ? "border-brand-primary bg-muted/30"
+                        : "border-border bg-card hover:bg-muted/20"
                     )}
                   >
                     {/* Block Toolbar Header */}
@@ -1591,7 +1591,7 @@ function LegacyArticleProductView({
             </div>
 
             {/* Right Column: Sticky Inspector on Desktop */}
-            <aside className={cn(styles.desktopInspector, "sticky top-4 rounded-xl border border-border bg-card p-4 shadow-xs")}>
+            <aside className={cn(styles.desktopInspector, "sticky top-4 border-t border-border pt-3")}>
               <div className="flex items-center justify-between border-b border-border pb-2.5 mb-3">
                 <h4 className="font-heading text-body-sm font-bold text-foreground">Inspector blok</h4>
                 <Badge variant="outline" className="text-body-xs">
@@ -1844,27 +1844,26 @@ function FlashcardSetProductView({ product, allProducts, onSelectCard }: { produ
       <div className="border-b border-border pb-3">
         <span className="text-body-xs font-semibold uppercase tracking-wider text-brand-primary">Set Flashcard</span>
         <h3 className="mt-0.5 font-heading text-body-base font-bold text-foreground">{product.title}</h3>
-        <p className="text-body-xs text-muted-foreground">{product.cards.length} kartu dalam set ini</p>
+        <p className="text-body-xs text-muted-foreground">{product.cards.length} kartu</p>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="divide-y divide-border rounded-xl border border-border bg-card">
         {childCards.map((card, idx) => {
           const frontParsed = parseEmbeddedContent(card.front);
 
           return (
-            <div
+            <Button
               key={card.id}
-              role="button"
-              tabIndex={0}
+              type="button"
+              variant="ghost"
               onClick={() => onSelectCard(card.id)}
-              onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") onSelectCard(card.id); }}
-              className="rounded-xl border border-border bg-card p-3.5 shadow-xs transition-all hover:border-brand-primary cursor-pointer space-y-1.5"
+              className="h-auto w-full flex-col items-stretch rounded-none p-3 text-left whitespace-normal space-y-1.5"
             >
               <div className="flex items-center justify-between">
                 <Badge variant="outline" className="text-[10px]">#{idx + 1}</Badge>
               </div>
-              <p className="line-clamp-2 text-body-xs font-semibold text-foreground">{frontParsed.content}</p>
-            </div>
+              <span className="line-clamp-2 text-body-xs font-semibold text-foreground">{frontParsed.content}</span>
+            </Button>
           );
         })}
       </div>
@@ -1907,7 +1906,7 @@ export function QuestionProductView({ product }: { product: Extract<ProductEntit
       </div>
 
       {/* Prompt */}
-      <div className="rounded-2xl border border-border bg-card p-5 sm:p-7 shadow-xs space-y-4">
+      <div className="space-y-4">
         <div className="text-body-base font-medium leading-relaxed text-foreground">
           <MarkdownRenderer content={promptParsed.content} />
         </div>
@@ -1966,7 +1965,7 @@ function SolutionProductView({ product }: { product: Extract<ProductEntity, { pr
         <span className="text-body-xs font-semibold uppercase tracking-wider text-brand-primary">Pembahasan Soal</span>
         <h3 className="mt-0.5 font-heading text-body-base font-bold text-foreground">Pembahasan Soal</h3>
       </div>
-      <div className="rounded-2xl border border-border bg-card p-6 sm:p-8 shadow-xs">
+      <div className="py-2">
         <div className="prose dark:prose-invert max-w-none text-body-base leading-relaxed text-foreground">
           <MarkdownRenderer content={contentParsed.content} />
         </div>
@@ -1988,13 +1987,13 @@ export function AssessmentBlueprintProductView({ product }: { product: Extract<P
         <h3 className="mt-0.5 font-heading text-body-base font-bold text-foreground">{product.title}</h3>
       </div>
       <div className="grid gap-3 sm:grid-cols-2">
-        <div className="rounded-xl border border-border bg-card p-4 space-y-2">
+        <div className="border-t border-border pt-3 space-y-2">
           <h4 className="text-body-xs font-semibold text-foreground uppercase tracking-wider">Bab ({product.chapterIds.length})</h4>
           <div className="flex flex-wrap gap-1.5">
             {product.chapterIds.map((ch) => <Badge key={ch} variant="secondary">{ch}</Badge>)}
           </div>
         </div>
-        <div className="rounded-xl border border-border bg-card p-4 space-y-2">
+        <div className="border-t border-border pt-3 space-y-2">
           <h4 className="text-body-xs font-semibold text-foreground uppercase tracking-wider">Soal ({product.questionIds.length})</h4>
           <div className="flex flex-wrap gap-1">
             {product.questionIds.map((qid) => <span key={qid} className="rounded bg-muted px-1.5 py-0.5 font-mono text-[10px] text-foreground">{qid}</span>)}
@@ -2626,7 +2625,7 @@ export function ProductBundleReviewDetail({ detailId, courseLabels = {}, backHre
         <TabsContent value={activeType} className="mt-4">
           {/* 100% Canvas Width for Content Review */}
           {activePreview ? (
-            <article key={activePreview.id} className="rounded-xl border border-border bg-card p-5 sm:p-7 shadow-xs space-y-5">
+            <article key={activePreview.id} className="rounded-xl border border-border bg-card p-4 space-y-4">
               {!isStudentArticlePreview && <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border pb-3">
                 <div className={cn(styles.productHeader, "min-w-0 flex-1")}>
                   <Badge variant="secondary" className="text-body-xs font-semibold">{productLabels[activePreview.productType] ?? activePreview.productType}</Badge>

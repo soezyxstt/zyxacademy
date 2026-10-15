@@ -56,7 +56,7 @@ export default async function CourseFlashcardPage({ params }: Props) {
   return (
     <CoursePageShell
       title={`Flashcards: ${course.title}`}
-      description="Hafalkan konsep-konsep kunci dengan metode pengulangan jeda."
+
       icon={Brain}
     >
       <Reveal>

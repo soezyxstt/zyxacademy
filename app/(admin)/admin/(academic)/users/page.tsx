@@ -22,7 +22,7 @@ export default async function AdminUsersPage() {
   const { users, stats, currentUserId } = await getAdminUsersData();
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <PageHeader
         icon={UserCog}
         title="Manajemen Pengguna"

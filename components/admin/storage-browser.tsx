@@ -156,14 +156,14 @@ function TreeItem({
 function FileThumb({ file }: { file: MediaFile }) {
   if (file.kind === "image") {
     return (
-      <div className="bg-muted relative flex aspect-photo-card w-full items-center justify-center overflow-hidden rounded-lg border border-border/80">
+      <div className="bg-muted relative flex aspect-photo-card w-full items-center justify-center overflow-hidden rounded-lg">
         <Image src={file.url} alt={file.name} fill sizes="(max-width: 768px) 50vw, 25vw" unoptimized className="object-cover" />
       </div>
     );
   }
   const Icon = KIND_ICON[file.kind];
   return (
-    <div className="bg-muted flex aspect-photo-card w-full items-center justify-center rounded-lg border border-border/80">
+    <div className="bg-muted flex aspect-photo-card w-full items-center justify-center rounded-lg">
       <Icon className="text-muted-foreground size-10 opacity-60" aria-hidden />
     </div>
   );
@@ -445,7 +445,7 @@ export function StorageBrowser() {
         onSearch={setQuery}
         onClear={() => setQuery("")}
         placeholder="Cari di folder ini"
-        containerClassName="w-48 shrink-0 sm:w-64"
+        containerClassName="min-w-[140px] w-48 shrink-0 sm:w-64"
       />
       {visibleItems.length > 0 && (
         <label className="text-body-sm flex items-center gap-1.5 text-muted-foreground">
@@ -474,7 +474,7 @@ export function StorageBrowser() {
       </div>
 
       <div className="flex flex-col gap-4 lg:flex-row">
-        <aside className="border-border hidden w-56 shrink-0 self-start rounded-xl border bg-card p-2 shadow-sm lg:block">
+        <aside className="hidden w-48 shrink-0 self-start border-r border-border pr-3 lg:block">
           <p className="text-body-xs text-muted-foreground px-2 pt-1 pb-2 font-semibold uppercase tracking-wide">
             Folder
           </p>
@@ -561,7 +561,7 @@ export function StorageBrowser() {
                         onCheckedChange={() => toggleRef(ref)}
                         aria-label={`Pilih folder ${f.name}`}
                       />
-                      <div className="bg-muted flex aspect-photo-card w-full items-center justify-center rounded-lg border border-border/80">
+                      <div className="bg-muted flex aspect-photo-card w-full items-center justify-center rounded-lg">
                         <Folder className="text-brand-primary size-10 opacity-70" aria-hidden />
                       </div>
                       <Popover>

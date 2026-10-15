@@ -92,7 +92,7 @@ export default async function TutorCoursePage({ params }: Props) {
   const updatedAt = snapshotRow?.updatedAt.toISOString() ?? null;
 
   return (
-    <ApplicationPage spacing="space-y-10">
+    <ApplicationPage spacing="space-y-5">
       {/* Section 1: headline stats */}
       <Reveal>
         <section aria-labelledby="course-title">
@@ -134,22 +134,22 @@ export default async function TutorCoursePage({ params }: Props) {
               </Link>
             </Button>
           </div>
-          <div className="flex gap-8 mt-4">
+          <div className="mt-4 flex flex-wrap gap-x-8 gap-y-3 rounded-xl border border-border bg-card px-4 py-3">
             <div>
-              <p className="font-heading text-h3 font-bold tabular-nums">
+              <p className="font-heading text-h5 font-bold tabular-nums">
                 {analytics.enrolledCount}
               </p>
               <p className="text-body-sm text-muted-foreground">terdaftar</p>
             </div>
             <div>
-              <p className="font-heading text-h3 font-bold tabular-nums">
+              <p className="font-heading text-h5 font-bold tabular-nums">
                 {analytics.activeCount}
               </p>
               <p className="text-body-sm text-muted-foreground">aktif minggu ini</p>
             </div>
             {analytics.engagement.quizParticipationPct > 0 && (
               <div>
-                <p className="font-heading text-h3 font-bold tabular-nums">
+                <p className="font-heading text-h5 font-bold tabular-nums">
                   {analytics.engagement.quizParticipationPct}%
                 </p>
                 <p className="text-body-sm text-muted-foreground">partisipasi kuis</p>

@@ -136,7 +136,7 @@ export function SettingsTab({ course }: Props) {
       <div className="rounded-xl border border-border bg-card p-4 shadow-2xs">
         <h3 className="font-heading text-body-sm font-semibold text-foreground mb-3 flex items-center gap-2">
           <Settings className="size-4 text-brand-primary" />
-          Pengaturan Informasi Mata Kuliah
+          Informasi mata kuliah
         </h3>
 
         <form onSubmit={handleSave} className="space-y-3">
@@ -184,7 +184,7 @@ export function SettingsTab({ course }: Props) {
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               disabled={loading}
-              placeholder="Jelaskan ringkasan materi, capaian pembelajaran, atau informasi penting lainnya..."
+              placeholder="Ringkasan materi dan capaian pembelajaran"
               className="rounded-lg text-body-sm"
             />
           </div>
@@ -220,7 +220,7 @@ export function SettingsTab({ course }: Props) {
             <div>
               <h3 className="font-heading text-body-sm font-semibold text-foreground">Demo publik</h3>
               <p className="mt-1 max-w-2xl text-body-xs leading-relaxed text-muted-foreground">
-                Pilih satu mata kuliah aktif untuk halaman demo tanpa login. Konten harus terbit dan lengkap.
+                Demo dapat dibuka tanpa login. Konten harus terbit dan lengkap.
               </p>
             </div>
           </div>
@@ -232,7 +232,7 @@ export function SettingsTab({ course }: Props) {
         {course.demoEligibility ? (
           <div className="mt-4 grid gap-2 sm:grid-cols-2">
             {course.demoEligibility.checks.map((check) => (
-              <div key={check.key} className="flex items-start gap-2 rounded-lg border border-border/70 bg-background px-3 py-2.5">
+              <div key={check.key} className="flex items-start gap-2 border-b border-border/60 py-2">
                 {check.ready ? (
                   <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-status-success" aria-hidden="true" />
                 ) : (

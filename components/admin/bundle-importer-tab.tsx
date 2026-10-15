@@ -3,6 +3,8 @@
 import React, { useState, useRef, useEffect } from "react";
 import { toast } from "@/components/ui/toast";
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import { AdminStatStrip, AdminStatStripItem } from "@/components/admin/stat-card";
 import { Label } from "@/components/ui/label";
 import { importCourseBundleAction, type ImportResult } from "@/app/(admin)/admin/(academic)/courses/import-actions";
@@ -40,7 +42,7 @@ export function BundleImporterTab() {
   const [dragActive, setDragActive] = useState(false);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<ImportResult | null>(null);
-  
+
   // Importer settings
   const [mode, setMode] = useState<"create" | "upsert" | "append">("upsert");
   const [postProcess, setPostProcess] = useState(true);
@@ -72,7 +74,7 @@ export function BundleImporterTab() {
     e.preventDefault();
     e.stopPropagation();
     setDragActive(false);
-    
+
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
       handleFile(e.dataTransfer.files[0]);
     }
@@ -143,7 +145,7 @@ export function BundleImporterTab() {
       }, 4000);
 
       const res = await importCourseBundleAction(bundleText, { mode, postProcess, dryRun });
-      
+
       clearTimeout(stepTimer1);
       clearTimeout(stepTimer2);
       clearTimeout(stepTimer3);
@@ -175,20 +177,20 @@ export function BundleImporterTab() {
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 rounded-xl border border-border bg-card p-4 lg:grid-cols-3">
         {/* Controls and Input Area */}
         <div className="space-y-6 lg:col-span-2">
-          <Card className="border border-border shadow-sm rounded-xl overflow-hidden bg-card">
-            <CardHeader className="border-b border-border bg-muted/20 py-4">
+          <Card className="gap-3 border-0 bg-transparent py-0 shadow-none">
+            <CardHeader className="border-b border-border px-0 pb-3 pt-0">
               <CardTitle className="font-heading text-body-base font-semibold text-foreground flex items-center gap-2">
                 <Upload className="size-5 text-brand-primary" />
-                Input Course Bundle JSON
+                Course Bundle JSON
               </CardTitle>
               <p className="text-body-sm text-muted-foreground">
-                Unggah berkas JSON bundel matakuliah yang diekspor dari compiler, atau tempel konten teksnya langsung.
+                Gunakan JSON hasil compiler.
               </p>
             </CardHeader>
-            <CardContent className="p-6 space-y-6">
+            <CardContent className="p-0 space-y-4">
               {/* Drag & Drop File Zone */}
               <div
                 onDragEnter={handleDrag}
@@ -196,7 +198,7 @@ export function BundleImporterTab() {
                 onDragLeave={handleDrag}
                 onDrop={handleDrop}
                 onClick={() => fileInputRef.current?.click()}
-                className={`relative border-2 border-dashed rounded-xl p-8 flex flex-col items-center justify-center gap-2 cursor-pointer transition-all duration-150 ${
+                className={`relative border-2 border-dashed rounded-xl p-4 flex flex-col items-center justify-center gap-2 cursor-pointer transition-all duration-150 ${
                   dragActive
                     ? "border-brand-primary bg-brand-primary/5"
                     : "border-border hover:border-brand-primary/50 hover:bg-muted/10"
@@ -209,25 +211,23 @@ export function BundleImporterTab() {
                   onChange={handleFileInput}
                   className="hidden"
                 />
-                
-                <div className="p-3 bg-muted rounded-xl text-muted-foreground">
+
+                <div className="text-muted-foreground">
                   <Upload className="size-6 text-foreground" />
                 </div>
-                
+
                 <p className="font-heading text-body-base font-semibold text-foreground mt-2">
-                  {fileName ? fileName : "Seret & Taruh File JSON di sini"}
+                  {fileName ? fileName : "Pilih atau seret berkas JSON"}
                 </p>
-                <p className="text-body-sm text-muted-foreground">
-                  {fileName ? "Klik untuk mengganti file" : "Atau klik untuk menelusuri berkas dari komputer Anda"}
-                </p>
+                <span className="sr-only">Klik untuk memilih berkas JSON</span>
               </div>
 
               {/* Textarea Paste Option */}
               <div className="space-y-2">
                 <Label htmlFor="paste-json" className="text-body-sm font-semibold text-foreground">
-                  Atau Tempel Konten JSON di bawah ini:
+                  Konten JSON
                 </Label>
-                <textarea
+                <Textarea
                   id="paste-json"
                   rows={8}
                   value={bundleText}
@@ -242,16 +242,13 @@ export function BundleImporterTab() {
 
         {/* Configurations Card */}
         <div className="space-y-6">
-          <Card className="border border-border shadow-sm rounded-xl overflow-hidden bg-card">
-            <CardHeader className="border-b border-border bg-muted/20 py-4">
+          <Card className="gap-3 border-0 bg-transparent py-0 shadow-none">
+            <CardHeader className="border-b border-border px-0 pb-3 pt-0">
               <CardTitle className="font-heading text-body-base font-semibold text-foreground">
-                Pengaturan Importir
+                Pengaturan impor
               </CardTitle>
-              <p className="text-body-sm text-muted-foreground">
-                Tentukan perilaku database dan pasca-proses selama import bundel.
-              </p>
             </CardHeader>
-            <CardContent className="p-6 space-y-6">
+            <CardContent className="p-0 space-y-4">
               {/* Mode Select */}
               <div className="space-y-2">
                 <Label htmlFor="import-mode" className="text-body-sm font-semibold text-foreground">
@@ -278,16 +275,15 @@ export function BundleImporterTab() {
               {/* Checkboxes */}
               <div className="space-y-4 pt-2">
                 <div className="flex items-start gap-3">
-                  <input
-                    type="checkbox"
+                  <Checkbox
                     id="post-process"
                     checked={postProcess}
-                    onChange={(e) => setPostProcess(e.target.checked)}
-                    className="size-4 mt-0.5 rounded-sm border-border bg-background text-brand-primary focus:ring-brand-primary"
+                    onCheckedChange={(checked) => setPostProcess(checked === true)}
+                    className="mt-0.5"
                   />
                   <div className="grid gap-1.5 leading-none">
                     <Label htmlFor="post-process" className="text-body-sm font-semibold text-foreground cursor-pointer">
-                      Jalankan Pasca-Proses (Rekomendasi)
+                      Jalankan pasca-proses
                     </Label>
                     <p className="text-body-sm text-muted-foreground">
                       Mengompilasi materi markdown, membangun relasi peta konsep, pemetaan soal ujian, serta antrean sinkronisasi canonical Vectorize.
@@ -296,16 +292,15 @@ export function BundleImporterTab() {
                 </div>
 
                 <div className="flex items-start gap-3">
-                  <input
-                    type="checkbox"
+                  <Checkbox
                     id="dry-run"
                     checked={dryRun}
-                    onChange={(e) => setDryRun(e.target.checked)}
-                    className="size-4 mt-0.5 rounded-sm border-border bg-background text-brand-primary focus:ring-brand-primary"
+                    onCheckedChange={(checked) => setDryRun(checked === true)}
+                    className="mt-0.5"
                   />
                   <div className="grid gap-1.5 leading-none">
                     <Label htmlFor="dry-run" className="text-body-sm font-semibold text-foreground cursor-pointer">
-                      Dry Run (Hanya Validasi)
+                      Validasi saja
                     </Label>
                     <p className="text-body-sm text-muted-foreground">
                       Hanya memvalidasi integritas struktur JSON tanpa menyimpan data apa pun ke database lokal.
@@ -328,7 +323,7 @@ export function BundleImporterTab() {
                   )}
                   {dryRun ? "Validasi" : "Mulai Import"}
                 </Button>
-                
+
                 <Button
                   variant="outline"
                   onClick={handleClear}
@@ -346,8 +341,8 @@ export function BundleImporterTab() {
 
       {/* Stepper (Only show when active) */}
       {(loading || result) && (
-        <Card className="border border-border shadow-sm rounded-xl overflow-hidden bg-card">
-          <CardContent className="p-6">
+        <Card className="gap-3 rounded-xl border border-border bg-card p-4 shadow-none">
+          <CardContent className="p-0">
             <div className="flex flex-col md:flex-row justify-between items-center gap-4">
               {[
                 { label: "Validasi Bundel", desc: "Mengecek struktur JSON" },
@@ -396,8 +391,8 @@ export function BundleImporterTab() {
 
       {/* Terminal logs monitor */}
       {result && (
-        <Card className="border border-border shadow-sm rounded-xl overflow-hidden bg-card">
-          <CardHeader className="border-b border-border bg-muted/20 py-4 flex flex-row items-center justify-between">
+        <Card className="gap-3 rounded-xl border border-border bg-card p-4 shadow-none">
+          <CardHeader className="border-b border-border px-0 pb-3 pt-0 flex flex-row items-center justify-between">
             <div>
               <CardTitle className="font-heading text-body-base font-semibold text-foreground flex items-center gap-2">
                 <TerminalIcon className="size-5 text-muted-foreground" />
@@ -440,8 +435,8 @@ export function BundleImporterTab() {
 
       {/* Impact Analysis: per-chapter diff, computed (and in dry-run mode, rolled back) before commit */}
       {result && !loading && result.success && result.stats && result.stats.chapterDiffs.length > 0 && (
-        <Card className="border border-border shadow-sm rounded-xl overflow-hidden bg-card">
-          <CardHeader className="border-b border-border bg-muted/20 py-4">
+        <Card className="gap-3 rounded-xl border border-border bg-card p-4 shadow-none">
+          <CardHeader className="border-b border-border px-0 pb-3 pt-0">
             <CardTitle className="font-heading text-body-base font-semibold text-foreground flex items-center gap-2">
               <Layers className="size-5 text-brand-primary" />
               {dryRun ? "Pratinjau Dampak (belum disimpan)" : "Ringkasan Perubahan"}
@@ -501,8 +496,8 @@ export function BundleImporterTab() {
 
           {/* Detailed Error Context (Non-Technical friendly details) */}
           {result.errorContext && (
-            <Card className="border border-border shadow-sm rounded-xl overflow-hidden bg-card">
-              <CardHeader className="border-b border-border bg-muted/20 py-4 text-left">
+            <Card className="gap-3 rounded-xl border border-border bg-card p-4 shadow-none">
+              <CardHeader className="border-b border-border px-0 pb-3 pt-0 text-left">
                 <CardTitle className="font-heading text-body-base font-semibold text-foreground flex items-center gap-2">
                   <HelpCircle className="size-5 text-brand-primary" />
                   Identifikasi Lokasi Masalah
@@ -511,7 +506,7 @@ export function BundleImporterTab() {
                   Berikut adalah perkiraan lokasi data yang menyebabkan kesalahan di dalam file bundel Anda:
                 </p>
               </CardHeader>
-              <CardContent className="p-6 text-left space-y-4">
+              <CardContent className="p-0 text-left space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {result.errorContext.courseTitle && (
                     <div className="p-3 bg-muted/50 border border-border rounded-lg">
@@ -523,7 +518,7 @@ export function BundleImporterTab() {
                     <div className="p-3 bg-muted/50 border border-border rounded-lg">
                       <span className="text-body-xs font-semibold text-muted-foreground uppercase tracking-wider block">Bab Belajar</span>
                       <span className="text-body-sm font-semibold text-foreground block mt-0.5">
-                        {result.errorContext.chapterTitle} 
+                        {result.errorContext.chapterTitle}
                         {result.errorContext.chapterIndex && ` (Bab ke-${result.errorContext.chapterIndex})`}
                       </span>
                     </div>

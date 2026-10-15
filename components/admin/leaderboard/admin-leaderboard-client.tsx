@@ -193,11 +193,6 @@ export function AdminLeaderboardClient({
     setSearch("");
   };
 
-  const scopeLabel = lockedCourse
-    ? lockedCourse.title
-    : isOverview
-    ? "Semua mata kuliah"
-    : courses.find((c) => c.id === selectedCourse)?.title || "Mata Kuliah";
 
   return (
     <div className="space-y-4">
@@ -208,9 +203,6 @@ export function AdminLeaderboardClient({
               <Trophy className="size-4 text-brand-primary" />
               <span>Papan Peringkat Siswa</span>
             </h2>
-            <p className="text-body-xs text-muted-foreground">
-              Menampilkan peringkat siswa untuk {lockedCourse.title}.
-            </p>
           </div>
           <Button
             variant="outline"
@@ -222,7 +214,7 @@ export function AdminLeaderboardClient({
             <RefreshCw
               className={cn("size-3.5", loading && "animate-spin")}
             />
-            <span>Perbarui Data</span>
+            <span>Perbarui</span>
           </Button>
         </div>
       ) : (
@@ -242,7 +234,7 @@ export function AdminLeaderboardClient({
               <RefreshCw
                 className={cn("size-3.5", loading && "animate-spin")}
               />
-              <span>Perbarui Data</span>
+              <span>Perbarui</span>
             </Button>
           }
         />
@@ -279,13 +271,6 @@ export function AdminLeaderboardClient({
         </div>
       </div>
 
-      <p className="text-body-xs text-muted-foreground">
-        {lockedCourse
-          ? `Menampilkan peringkat siswa untuk ${lockedCourse.title}.`
-          : isOverview
-          ? "Perbandingan antar mata kuliah. Pilih satu mata kuliah untuk melihat peringkat siswa."
-          : `Menampilkan peringkat siswa untuk ${scopeLabel}. Pilih "Semua Mata Kuliah" untuk kembali ke ringkasan.`}
-      </p>
 
       {/* Toolbar: single row on desktop, wraps near 380px */}
       <div className="flex flex-row flex-wrap items-center gap-2">
@@ -348,7 +333,7 @@ export function AdminLeaderboardClient({
               <RefreshCw
                 className={cn("size-3.5", loading && "animate-spin")}
               />
-              <span>Perbarui Data</span>
+              <span>Perbarui</span>
             </Button>
           )}
         </div>
@@ -359,7 +344,7 @@ export function AdminLeaderboardClient({
         {loading ? (
           <div className="p-12 text-center text-body-sm text-muted-foreground space-y-3">
             <RefreshCw className="size-6 animate-spin mx-auto text-brand-primary" />
-            <p>Memuat data papan peringkat...</p>
+            <p>Memuat peringkat...</p>
           </div>
         ) : isOverview ? (
           /* ====== OVERVIEW MODE ====== */

@@ -308,11 +308,10 @@ export default async function AIQuestionsPage() {
   }).sort((a, b) => normalizeDate(b.createdAt).getTime() - normalizeDate(a.createdAt).getTime());
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-5">
       <AdminPageHeader
         icon={Library}
         title="Bank Soal"
-        description="Kelola soal yang siap ditinjau, diterbitkan, dan dipakai ulang dalam kuis."
         actions={
           <>
             <Button asChild variant="outline" size="sm" className="text-body-sm">

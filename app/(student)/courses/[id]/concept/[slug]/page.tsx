@@ -69,7 +69,7 @@ export default async function ConceptExplorerPage({ params }: Props) {
 
   if (!isEnrolled) {
     return (
-      <CoursePageShell title={`Konsep: ${course.title}`} description="Jelajahi konsep secara mendalam." icon={Lightbulb}>
+      <CoursePageShell title={`Konsep: ${course.title}`} icon={Lightbulb}>
         <Reveal>
           <div className={studentCardClass()}>
             <div className="flex items-start gap-3">
@@ -151,9 +151,9 @@ export default async function ConceptExplorerPage({ params }: Props) {
                 <h2 id={`${type}-heading`} className="text-body-base font-semibold mb-3">
                   {TYPE_LABELS[type] ?? type}
                 </h2>
-                <div className="space-y-4">
+                <div className="divide-y divide-border/60 overflow-hidden rounded-xl border border-border/70 bg-card">
                   {items.map((ko) => (
-                    <div key={ko.id} className={studentCardClass()}>
+                    <div key={ko.id} className="p-4">
                       <h3 className="text-body-base font-semibold text-foreground mb-2"><MathText as="span">{ko.title}</MathText></h3>
                       <MarkdownRenderer content={ko.content} />
                     </div>

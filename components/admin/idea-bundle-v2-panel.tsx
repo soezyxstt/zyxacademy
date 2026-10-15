@@ -258,13 +258,13 @@ export function IdeaBundleV2Panel({ initialImports, courseLabels = {}, authorLab
 
   return (
     <div className={embedded ? "space-y-6" : "space-y-8"}>
-      {!embedded && <AdminPageHeader icon={Layers} title="Source Pack + Idea" description="Upload hasil MCP, periksa satu Idea pada satu waktu, lalu simpan hasil review." />}
+      {!embedded && <AdminPageHeader icon={Layers} title="Source Pack + Idea" />}
 
       <WorkflowStepBar steps={ideaSteps} currentStep={analysis ? 2 : 1} />
 
       {!analysis ? (
         <section className="space-y-4">
-          <AdminSectionTitle as="h2" size="h6" icon={Upload} title="Upload hasil generasi MCP" description="ZIP hanya dibaca untuk pemeriksaan awal. Belum ada data yang disimpan sampai Anda menekan tombol simpan." />
+          <AdminSectionTitle as="h2" size="h6" icon={Upload} title="Upload ZIP" description="ZIP hanya dibaca untuk pemeriksaan awal. Belum ada data yang disimpan sampai Anda menekan tombol simpan." />
           <form className="flex flex-col gap-3 rounded-xl border border-border bg-card p-4 shadow-sm sm:flex-row sm:items-center" onSubmit={(event) => { event.preventDefault(); void analyze(); }}>
             <Label htmlFor="idea-bundle-file" className="sr-only">Pilih ZIP hasil generasi MCP</Label>
             <Input id="idea-bundle-file" type="file" accept=".zip,application/zip" onChange={(event) => { setFile(event.target.files?.[0] ?? null); setMessage(null); setError(null); }} />
@@ -273,7 +273,7 @@ export function IdeaBundleV2Panel({ initialImports, courseLabels = {}, authorLab
         </section>
       ) : (
         <section className="space-y-5">
-          <AdminSectionTitle as="h2" size="h6" title="Review isi Idea" description="Pilih satu Idea dari daftar di kiri. Identitas, sumber, dan jejak bukti tetap dikunci." right={<Badge variant="outline">Belum disimpan</Badge>} />
+          <AdminSectionTitle as="h2" size="h6" title="Review isi Idea" description="Identitas, sumber, dan bukti terkunci." right={<Badge variant="outline">Belum disimpan</Badge>} />
 
           <AdminStatStrip className="sm:grid-cols-2 lg:grid-cols-4">
             <AdminStatStripItem label="Mata kuliah" value={courseLabels[analysis.manifest.courseId] ?? analysis.manifest.courseId} />
@@ -291,7 +291,7 @@ export function IdeaBundleV2Panel({ initialImports, courseLabels = {}, authorLab
             <TabsContent value="ideas" className="space-y-4">
               <SearchBar value={query} onSearch={setQuery} onClear={() => setQuery("")} placeholder="Cari kode atau isi Idea" />
               <div className="grid gap-4 lg:grid-cols-[240px_minmax(0,1fr)]">
-                <div className="rounded-xl border border-border bg-card p-2 shadow-sm">
+                <div className="lg:border-r lg:border-border lg:pr-3">
                   <p className="px-2 pb-2 pt-1 text-body-xs font-semibold uppercase tracking-wide text-muted-foreground">Daftar Idea</p>
                   <div className="space-y-1">
                     {visibleIdeas.map((idea, index) => <Button key={idea.id} type="button" variant={activeIdea?.id === idea.id ? "secondary" : "ghost"} className="h-auto w-full justify-start whitespace-normal px-2.5 py-2 text-left" onClick={() => setSelectedIdeaId(idea.id)}><span className="min-w-0 flex-1"><span className="block truncate text-body-sm font-semibold">{idea.code || `Idea ${index + 1}`}</span><span className="mt-0.5 block line-clamp-2 text-body-xs font-normal text-muted-foreground"><MathText as="span">{idea.canonicalStatement}</MathText></span></span><Badge variant="outline" className="shrink-0">{idea.provenance.length}</Badge></Button>)}
@@ -311,7 +311,7 @@ export function IdeaBundleV2Panel({ initialImports, courseLabels = {}, authorLab
             </TabsContent>
 
             <TabsContent value="relations" className="space-y-4">
-              <AdminSectionTitle as="h3" size="lg" title="Peta hubungan antar-Idea" description="Gunakan bagian ini untuk memeriksa urutan prasyarat dan hubungan konsep." />
+              <AdminSectionTitle as="h3" size="lg" title="Peta hubungan antar-Idea" />
               <AdminTable className="divide-y divide-border">
                 {analysis.draft.relations.length === 0 && <p className="px-4 py-6 text-body-sm text-muted-foreground">Tidak ada relasi eksplisit.</p>}
                 {analysis.draft.relations.map((relation) => <div key={relation.id} className="grid gap-3 px-4 py-4 lg:grid-cols-[minmax(0,1fr)_200px_minmax(0,1fr)_minmax(0,1.5fr)] lg:items-center"><p className="text-body-sm font-medium text-foreground">{analysis.draft.ideas.find((idea) => idea.id === relation.sourceIdeaId)?.code ?? relation.sourceIdeaId}</p><Select value={relation.relationType} onValueChange={(value) => setAnalysis((current) => current ? { ...current, draft: { ...current.draft, relations: current.draft.relations.map((item) => item.id === relation.id ? { ...item, relationType: value } : item) } } : current)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{Object.entries(relationLabels).map(([value, label]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}</SelectContent></Select><p className="text-body-sm font-medium text-foreground">{analysis.draft.ideas.find((idea) => idea.id === relation.targetIdeaId)?.code ?? relation.targetIdeaId}</p><Input value={relation.explanation ?? ""} onChange={(event) => setAnalysis((current) => current ? { ...current, draft: { ...current.draft, relations: current.draft.relations.map((item) => item.id === relation.id ? { ...item, explanation: event.target.value } : item) } } : current)} placeholder="Penjelasan hubungan" /></div>)}
@@ -336,9 +336,9 @@ export function IdeaBundleV2Panel({ initialImports, courseLabels = {}, authorLab
       </section>
 
       {selected && <section className="space-y-4 border-t border-border pt-6">
-        <div className="flex flex-wrap items-start justify-between gap-3"><AdminSectionTitle as="h2" size="h6" title="Review artifact tersimpan" description="Buka satu Idea dari daftar di kiri untuk membaca isi dan bukti sumbernya." /><Button type="button" size="sm" variant="ghost" onClick={() => setSelected(null)}>Tutup</Button></div>
+        <div className="flex flex-wrap items-start justify-between gap-3"><AdminSectionTitle as="h2" size="h6" title="Review artifact tersimpan" /><Button type="button" size="sm" variant="ghost" onClick={() => setSelected(null)}>Tutup</Button></div>
         <div className="grid gap-4 lg:grid-cols-[240px_minmax(0,1fr)]">
-          <div className="rounded-xl border border-border bg-card p-2 shadow-sm"><p className="px-2 pb-2 pt-1 text-body-xs font-semibold uppercase tracking-wide text-muted-foreground">Daftar Idea</p><div className="space-y-1">{selected.preview.ideas.map((idea, index) => <Button key={idea.id} type="button" variant={activePreviewIdea?.id === idea.id ? "secondary" : "ghost"} className="h-auto w-full justify-start whitespace-normal px-2.5 py-2 text-left" onClick={() => setSelectedPreviewIdeaId(idea.id)}><span className="min-w-0 flex-1"><span className="block truncate text-body-sm font-semibold">{idea.code || `Idea ${index + 1}`}</span><span className="mt-0.5 block line-clamp-2 text-body-xs font-normal text-muted-foreground"><MathText as="span">{idea.canonicalStatement}</MathText></span></span><Badge variant="outline" className="shrink-0">{idea.provenance.length}</Badge></Button>)}</div></div>
+          <div className="lg:border-r lg:border-border lg:pr-3"><p className="px-2 pb-2 pt-1 text-body-xs font-semibold uppercase tracking-wide text-muted-foreground">Daftar Idea</p><div className="space-y-1">{selected.preview.ideas.map((idea, index) => <Button key={idea.id} type="button" variant={activePreviewIdea?.id === idea.id ? "secondary" : "ghost"} className="h-auto w-full justify-start whitespace-normal px-2.5 py-2 text-left" onClick={() => setSelectedPreviewIdeaId(idea.id)}><span className="min-w-0 flex-1"><span className="block truncate text-body-sm font-semibold">{idea.code || `Idea ${index + 1}`}</span><span className="mt-0.5 block line-clamp-2 text-body-xs font-normal text-muted-foreground"><MathText as="span">{idea.canonicalStatement}</MathText></span></span><Badge variant="outline" className="shrink-0">{idea.provenance.length}</Badge></Button>)}</div></div>
           {activePreviewIdea && <article className="min-w-0 space-y-4 rounded-xl border border-border bg-card p-4 shadow-sm sm:p-5"><div className="border-b border-border pb-4"><p className="font-heading text-body-base text-foreground">{activePreviewIdea.code}</p><p className="mt-1 text-body-sm text-muted-foreground">{humanLabel(activePreviewIdea.knowledgeKind, knowledgeLabels)} · {humanLabel(activePreviewIdea.instructionalRole, roleLabels)} · Bab {activePreviewIdea.chapterId}</p></div><MathText as="div" className="text-body-base text-foreground">{activePreviewIdea.canonicalStatement}</MathText><p className="text-body-sm text-muted-foreground">{activePreviewIdea.conciseExplanation}</p>{activePreviewIdea.latex && <div className="rounded-lg bg-muted p-3"><MathText bareMath as="div">{activePreviewIdea.latex}</MathText></div>}<div className="space-y-2 border-t border-border pt-4"><p className="text-body-sm font-semibold text-foreground">Bukti sumber</p>{activePreviewIdea.provenance.map((item) => <div key={item.id} className="border-l-2 border-border pl-3 text-body-sm"><p className="font-medium text-foreground">{item.sourceTitle} · {item.role}</p><p className="text-muted-foreground">{item.excerpt}</p></div>)}</div></article>}
         </div>
         {selected.preview.relations.length > 0 && <details className="rounded-xl border border-border bg-card p-4 shadow-sm"><summary className="cursor-pointer text-body-sm font-semibold text-foreground">Lihat {selected.preview.relations.length} relasi Idea</summary><div className="mt-3 divide-y divide-border">{selected.preview.relations.map((relation) => <p key={relation.id} className="py-2 text-body-sm text-muted-foreground">{relation.sourceIdeaId} · {humanLabel(relation.relationType, relationLabels)} · {relation.targetIdeaId}{relation.explanation ? ` · ${relation.explanation}` : ""}</p>)}</div></details>}

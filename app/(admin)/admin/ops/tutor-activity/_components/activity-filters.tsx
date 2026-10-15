@@ -265,7 +265,7 @@ export function ActivityFilters({
 
       {/* Date Range Inputs */}
       <div className="flex items-center gap-1 min-w-[240px] flex-1 max-w-[280px]">
-        <input
+        <Input
           type="date"
           aria-label="Tanggal mulai"
           value={filters.startDate ?? ""}
@@ -273,7 +273,7 @@ export function ActivityFilters({
           className="h-9 w-full rounded-md border border-input bg-background px-2 py-1 text-body-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
         />
         <span className="text-body-xs text-muted-foreground shrink-0">s/d</span>
-        <input
+        <Input
           type="date"
           aria-label="Tanggal selesai"
           value={filters.endDate ?? ""}

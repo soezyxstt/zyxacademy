@@ -132,7 +132,7 @@ export default async function CourseMasteryPage({ params }: Props) {
 
   if (!enrolled) {
     return (
-      <CoursePageShell title={`Penguasaan Materi: ${course.title}`} description="Analisis tingkat penguasaan konsep Anda berdasarkan aktivitas belajar." icon={Target}>
+      <CoursePageShell title={`Penguasaan Materi: ${course.title}`} icon={Target}>
         <Reveal>
           <div className={studentCardClass()}>
             <div className="flex items-start gap-3">
@@ -156,7 +156,7 @@ export default async function CourseMasteryPage({ params }: Props) {
     ?? (await getLegacyMasteryReadModel(session.user.id, course.legacyId ?? id));
 
   return (
-    <CoursePageShell title={`Penguasaan Materi: ${course.title}`} description="Analisis tingkat penguasaan konsep Anda berdasarkan aktivitas belajar." icon={Target}>
+    <CoursePageShell title={`Penguasaan Materi: ${course.title}`} icon={Target}>
       {!readModel || readModel.groups.length === 0 ? (
         <Reveal>
           <div className="rounded-2xl border border-dashed border-border/80 bg-card/60 p-8 sm:p-12 text-center">

@@ -18,16 +18,15 @@ export default async function AdminBlogDashboard() {
   });
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-5">
       <AdminPageHeader
         icon={PenLine}
-        title="Manajemen Blog"
-        description="Kelola artikel, berita, dan tips untuk ditampilkan di Zyx Blog."
+        title="Blog"
         actions={
           <Button asChild>
             <Link href="/admin/blog/new">
               <Plus className="size-4" />
-              Tulis Artikel
+              Tulis artikel
             </Link>
           </Button>
         }
@@ -37,11 +36,11 @@ export default async function AdminBlogDashboard() {
         <table className="w-full text-left text-body-sm">
           <AdminTableHead>
             <tr>
-              <th className="px-6 py-4 font-semibold text-foreground">Judul Artikel</th>
-              <th className="px-6 py-4 font-semibold text-foreground">Kategori</th>
-              <th className="px-6 py-4 font-semibold text-foreground">Status</th>
-              <th className="px-6 py-4 font-semibold text-foreground">Penulis</th>
-              <th className="px-6 py-4 font-semibold text-foreground">Aksi</th>
+              <th className="px-4 py-3 font-semibold text-foreground">Judul artikel</th>
+              <th className="px-4 py-3 font-semibold text-foreground">Kategori</th>
+              <th className="px-4 py-3 font-semibold text-foreground">Status</th>
+              <th className="px-4 py-3 font-semibold text-foreground">Penulis</th>
+              <th className="px-4 py-3 font-semibold text-foreground">Aksi</th>
             </tr>
           </AdminTableHead>
           <tbody className="divide-y divide-border/40">
@@ -54,15 +53,15 @@ export default async function AdminBlogDashboard() {
             ) : (
               articles.map((article) => (
                 <tr key={article.id} className="hover:bg-muted/30 transition-colors">
-                  <td className="px-6 py-4 font-medium text-foreground max-w-[280px] md:max-w-xs truncate" title={article.title}>
+                  <td className="px-4 py-3 font-medium text-foreground max-w-[280px] md:max-w-xs truncate" title={article.title}>
                     {article.title}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
+                  <td className="px-4 py-3 whitespace-nowrap">
                     <Badge variant="outline" className="rounded-md capitalize">
                       {article.category.replace("_", " ")}
                     </Badge>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
+                  <td className="px-4 py-3 whitespace-nowrap">
                     <Badge 
                       variant={article.status === "published" ? "default" : "secondary"}
                       className={article.status === "published" ? "bg-status-success text-status-success-foreground hover:bg-status-success/90 rounded-md" : "rounded-md"}
@@ -70,10 +69,10 @@ export default async function AdminBlogDashboard() {
                       {article.status}
                     </Badge>
                   </td>
-                  <td className="px-6 py-4 text-muted-foreground whitespace-nowrap">
+                  <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">
                     {article.author?.name || "Anonim"}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
+                  <td className="px-4 py-3 whitespace-nowrap">
                     <div className="flex items-center gap-1.5 shrink-0">
                       <Button variant="ghost" size="sm" asChild>
                         <Link href={`/admin/blog/${article.id}/edit`}>

@@ -7,6 +7,7 @@ import { headers } from "next/headers";
 import { requireTutorCourseAccess } from "@/lib/auth/tutor-access";
 import { GradingClient } from "./grading-client";
 import { Reveal } from "@/components/ui/reveal";
+import { PageHeader } from "@/components/page-header";
 import { ApplicationPage } from "@/components/application-page";
 import { pageTitle } from "@/lib/site";
 import { resolveActorRoles, REVIEWABLE_SUBMISSION_STATUSES } from "@/lib/tutor/assessment-policy";
@@ -105,16 +106,9 @@ export default async function TutorGradingPage({ params }: Props) {
     .orderBy(desc(submissions.submittedAt));
 
   return (
-    <ApplicationPage spacing="space-y-8">
+    <ApplicationPage spacing="space-y-5">
       <Reveal>
-        <div className="flex flex-col gap-1">
-          <h1 className="text-h5 font-heading font-bold text-foreground">
-            Penilaian Tryout & Ujian
-          </h1>
-          <p className="text-body-sm text-muted-foreground">
-            {courseTitle} · Periksa jawaban essay siswa, masukkan skor akhir, dan berikan masukan belajar.
-          </p>
-        </div>
+        <PageHeader title={`Penilaian: ${courseTitle}`} backHref={`/tutor/${courseId}`} backLabel="Kelas" />
       </Reveal>
 
       <Reveal>

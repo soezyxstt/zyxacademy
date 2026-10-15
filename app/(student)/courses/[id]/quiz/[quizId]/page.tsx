@@ -472,7 +472,7 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
     const closeAtMs = template.closeAt ? normalizeDate(template.closeAt).getTime() : undefined;
 
     return (
-      <CoursePageShell title={template.title} description="Jawab kuis berikut dengan teliti." hideHeader>
+      <CoursePageShell title={template.title} hideHeader>
         <Reveal>
           <QuizPlayer
             courseId={id}
@@ -1058,7 +1058,6 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
               </div>
 
               <div className="mt-5 space-y-3 text-body-sm text-muted-foreground leading-relaxed">
-                <p>Silakan baca ketentuan pengerjaan kuis berikut:</p>
                 <ul className="list-disc pl-5 space-y-1">
                   <li>Kuis ini bersifat mandiri dan dinilai secara otomatis setelah pengumpulan.</li>
                   <li>Waktu pengerjaan akan berjalan otomatis saat tombol kuis ditekan.</li>
@@ -1100,7 +1099,6 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
           <div className="space-y-4 lg:col-span-4 lg:border-l lg:border-border lg:pl-6">
             <div>
               <h3 className="font-heading text-body-base font-bold text-foreground">Riwayat Percobaan</h3>
-              <p className="text-body-xs text-muted-foreground mt-1">Daftar percobaan kuis Anda sebelumnya:</p>
             </div>
 
             {completedAttempts.length === 0 ? (
@@ -1108,9 +1106,9 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
                 <p className="text-body-xs text-muted-foreground">Belum ada percobaan selesai.</p>
               </div>
             ) : (
-              <ul className="space-y-3">
+              <ul className="divide-y divide-border/60 overflow-hidden rounded-xl border border-border bg-card">
                 {completedAttempts.map((attempt, idx) => (
-                  <li key={attempt.id} className="rounded-lg border border-border/80 bg-card/60 p-3.5 shadow-2xs hover:border-brand-primary/45 transition-colors">
+                  <li key={attempt.id} className="p-3.5 hover:bg-muted/30 transition-colors">
                     <div className="flex items-center justify-between">
                       <span className="text-body-xs font-bold text-foreground">Percobaan #{completedAttempts.length - idx}</span>
                       <span className="font-heading text-body-base font-bold text-brand-primary">{attempt.score}%</span>

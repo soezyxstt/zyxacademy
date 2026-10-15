@@ -67,7 +67,7 @@ export default async function ReflectionsArchivePage() {
         />
 
         <Reveal className="mt-6">
-          <div className="rounded-2xl border border-border/80 bg-card p-6 sm:p-8 shadow-xs">
+          <div className="rounded-xl border border-border bg-card p-4">
             {reflections.length > 0 ? (
               <div className="divide-y divide-border/60">
                 {reflections.map((ref) => {
@@ -114,12 +114,12 @@ export default async function ReflectionsArchivePage() {
                   Belum ada catatan refleksi mingguan
                 </h3>
                 <p className="mx-auto mt-1 max-w-md text-body-sm text-muted-foreground">
-                  Ringkasan refleksi mingguan akan otomatis disusun setelah minggu belajar aktif pertama Anda selesai.
+                  Tersedia setelah minggu belajar aktif pertama.
                 </p>
                 <div className="mt-5">
                   <Button asChild size="sm" className="rounded-lg text-body-sm">
                     <Link href="/dashboard">
-                      Mulai Belajar di Dashboard
+                      Mulai belajar
                       <ArrowRight className="ml-1.5 size-3.5" />
                     </Link>
                   </Button>

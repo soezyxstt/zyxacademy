@@ -72,7 +72,7 @@ export default async function StudentCourseVideosPage({ params }: Props) {
                   Aktivasi token kelas
                 </h3>
                 <p className="mt-1 max-w-2xl text-body-sm text-muted-foreground">
-                  Masukkan token kelas untuk membuka seluruh playlist video pembelajaran, diktat, materi lengkap, kuis interaktif, dan tryout.
+                  Masukkan token kelas untuk membuka seluruh video dan materi.
                 </p>
               </div>
               <EnrollmentForm className="w-full" />

@@ -1,5 +1,6 @@
 "use client";
 
+import { AdminEmptyState } from "@/components/admin/state-panels";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, Edit2, Trash2, Trophy, Clock, Layers, ArrowLeft, Check, Library } from "lucide-react";
@@ -141,7 +142,7 @@ export function TryoutsClient({ courseId, initialTryouts, initialQuestions, ques
           closeAt: tCloseAt ? new Date(tCloseAt).toISOString() : null,
         });
         if (res.success) {
-          toast.success(editingT ? "Tryout diperbarui!" : "Tryout baru dibuat!");
+          toast.success(editingT ? "Tryout diperbarui." : "Tryout dibuat.");
           setIsTOpen(false);
           router.refresh();
         }
@@ -228,7 +229,7 @@ export function TryoutsClient({ courseId, initialTryouts, initialQuestions, ques
           acceptableAnswers: qAcceptableAnswers.split(",").map((a) => a.trim()).filter(Boolean),
         });
         if (res.success) {
-          toast.success("Soal tryout disimpan!");
+          toast.success("Soal disimpan.");
           setIsQOpen(false);
           router.refresh();
         }
@@ -289,7 +290,7 @@ export function TryoutsClient({ courseId, initialTryouts, initialQuestions, ques
       return typeof content?.bankQuestionId === "string" ? [content.bankQuestionId] : [];
     }));
     return (
-      <div className="space-y-6">
+      <div className="space-y-4">
         {/* Sub-view Header */}
         <div className="flex items-center gap-3">
           <Button variant="outline" size="sm" onClick={() => setActiveExam(null)} className="rounded-md border-border/80">
@@ -316,13 +317,7 @@ export function TryoutsClient({ courseId, initialTryouts, initialQuestions, ques
 
         {/* Questions List */}
         {activeQuestions.length === 0 ? (
-          <div className="text-center py-12 border border-dashed border-border bg-card/50 rounded-2xl">
-            <Trophy className="size-12 text-muted-foreground/50 mx-auto mb-3" />
-            <h3 className="font-heading text-body-base font-bold text-foreground">Ujian Belum Memiliki Soal</h3>
-            <p className="text-body-sm text-muted-foreground mt-1 max-w-sm mx-auto">
-              Tambahkan soal pilihan ganda, isian singkat, atau esai agar siswa dapat mulai mengerjakan.
-            </p>
-          </div>
+          <AdminEmptyState icon={Trophy} title="Ujian Belum Memiliki Soal" />
         ) : (
           <div className="space-y-4">
             {activeQuestions.map((q) => {
@@ -624,35 +619,29 @@ export function TryoutsClient({ courseId, initialTryouts, initialQuestions, ques
 
   // Default Listing view
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Header action */}
-      <div className="flex justify-between items-center">
-        <h2 className="font-heading text-body-base font-semibold text-foreground">Daftar Tryout ({initialTryouts.length})</h2>
+      <div className="flex flex-wrap justify-between items-center gap-2">
+        <h2 className="font-heading text-body-base font-semibold text-foreground">Tryout ({initialTryouts.length})</h2>
         <Button onClick={handleOpenAddT} className="bg-brand-primary text-white hover:bg-brand-primary/90 rounded-md font-semibold gap-2">
           <Plus className="size-4" />
-          Tambah Tryout Baru
+          Tambah tryout
         </Button>
       </div>
 
       {initialTryouts.length === 0 ? (
-        <div className="text-center py-12 border border-dashed border-border bg-card/50 rounded-2xl">
-          <Trophy className="size-12 text-muted-foreground/50 mx-auto mb-3" />
-          <h3 className="font-heading text-body-base font-bold text-foreground">Belum Ada Tryout</h3>
-          <p className="text-body-sm text-muted-foreground mt-1 max-w-sm mx-auto">
-            Tryout adalah ujian formal yang dinilai secara manual oleh pengajar untuk bagian esainya.
-          </p>
-        </div>
+        <AdminEmptyState icon={Trophy} title="Belum Ada Tryout" />
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
           {initialTryouts.map((t) => {
             const settings = typeof t.settings === "string" ? JSON.parse(t.settings) : t.settings;
             const qCount = initialQuestions.filter((q) => q.examId === t.id).length;
             
             return (
-              <Card key={t.id} className="bg-card border-border shadow-sm rounded-2xl flex flex-col justify-between overflow-hidden">
-                <CardHeader className="p-5 pb-3">
+              <Card key={t.id} className="rounded-none border-0 bg-transparent py-0 shadow-none gap-0 flex flex-col sm:flex-row sm:items-center">
+                <CardHeader className="min-w-0 flex-1 p-4">
                   <div className="flex justify-between items-start gap-2">
-                    <CardTitle className="font-heading text-body-base font-bold text-foreground line-clamp-1">{t.title}</CardTitle>
+                    <CardTitle className="font-heading text-body-base font-bold text-foreground break-words">{t.title}</CardTitle>
                     <Badge variant={t.status === "published" ? "default" : "secondary"} className={`text-[10px] rounded-md px-1.5 py-0.5 border ${
                       t.status === "published" ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20" :
                       t.status === "draft" ? "bg-amber-500/10 text-amber-600 border-amber-500/20" :
@@ -673,7 +662,7 @@ export function TryoutsClient({ courseId, initialTryouts, initialQuestions, ques
                   </p>
                 </CardHeader>
 
-                <div className="px-5 py-3.5 bg-muted/20 border-t border-border flex justify-between gap-2">
+                <div className="flex flex-wrap items-center gap-2 px-4 pb-3 sm:py-3">
                   <Button variant="outline" size="sm" onClick={() => setActiveExam(t)} className="rounded-md border-border/80 text-brand-primary hover:bg-brand-primary/5 hover:text-brand-primary">
                     Kelola Soal
                   </Button>

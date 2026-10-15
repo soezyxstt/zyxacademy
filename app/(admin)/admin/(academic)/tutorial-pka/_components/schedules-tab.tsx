@@ -23,6 +23,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { AdminEmptyState } from "@/components/admin/state-panels";
 import { AdminTable } from "@/components/admin/table";
 import { cn } from "@/lib/utils";
 import {
@@ -141,20 +142,16 @@ export function SchedulesTab({ schedules }: { schedules: PkaScheduleRow[] }) {
       </div>
 
       {schedules.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-border/60 py-12 text-center">
-          <p className="text-body-sm text-muted-foreground">Belum ada jadwal sesi live.</p>
-          <Button onClick={handleOpenCreate} variant="outline" size="sm" className="mt-3 gap-2">
-            <Plus className="size-4" />
-            Buat jadwal pertama
-          </Button>
-        </div>
+        <AdminEmptyState icon={CalendarDays} title="Belum ada jadwal live" action={
+          <Button onClick={handleOpenCreate} variant="outline" size="sm"><Plus className="size-4" />Tambah jadwal</Button>
+        } />
       ) : (
         <AdminTable>
           <div className="hidden md:grid grid-cols-[1fr_auto_auto_auto] gap-4 border-b border-border bg-muted/30 px-5 py-3">
-            <span className="text-body-xs font-semibold uppercase tracking-wide text-muted-foreground">Sesi</span>
-            <span className="text-body-xs font-semibold uppercase tracking-wide text-muted-foreground">Status</span>
-            <span className="text-body-xs font-semibold uppercase tracking-wide text-muted-foreground">Link Meet</span>
-            <span className="text-body-xs font-semibold uppercase tracking-wide text-muted-foreground text-right">Aksi</span>
+            <span className="text-body-xs font-semibold text-muted-foreground">Sesi</span>
+            <span className="text-body-xs font-semibold text-muted-foreground">Status</span>
+            <span className="text-body-xs font-semibold text-muted-foreground">Link Meet</span>
+            <span className="text-body-xs font-semibold text-muted-foreground text-right">Aksi</span>
           </div>
           <ul className="divide-y divide-border/60">
             {schedules.map((row) => {

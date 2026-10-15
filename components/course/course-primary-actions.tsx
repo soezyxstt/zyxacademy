@@ -30,14 +30,14 @@ function ActionTile({ card }: { card: CourseOverviewActionCard }) {
   return (
     <Link
       href={card.href}
-      className="group flex items-center gap-2 rounded-xl border border-border/60 bg-card/80 p-2.5 transition-all hover:border-brand-primary/40 hover:bg-muted/30 active:bg-muted/50"
+      className="group flex min-w-0 items-center gap-2 p-2.5 transition-colors hover:bg-muted/30 active:bg-muted/50"
     >
-      <span className={cn("flex size-7 shrink-0 items-center justify-center rounded-lg", colorClass)}>
+      <span className={cn("hidden size-7 shrink-0 items-center justify-center rounded-lg sm:flex", colorClass)}>
         <Icon className="size-3.5" aria-hidden="true" />
       </span>
       <div className="min-w-0 flex-1">
         <span className="sr-only">{card.tag}: {card.title}</span>
-        <div className="truncate font-heading text-body-xs font-semibold text-foreground group-hover:text-brand-primary transition-colors">
+        <div className="truncate font-heading text-body-sm font-semibold text-foreground group-hover:text-brand-primary transition-colors">
           {label}
         </div>
         <div className="truncate text-body-xs text-muted-foreground">
@@ -55,7 +55,7 @@ export function CoursePrimaryActions({
   className,
 }: CoursePrimaryActionsProps) {
   return (
-    <div className={cn("grid grid-cols-3 gap-2", className)}>
+    <div className={cn("grid grid-cols-3 divide-x divide-border/60 overflow-hidden rounded-xl border border-border/70 bg-card", className)}>
       <ActionTile card={reading} />
       <ActionTile card={quiz} />
       <ActionTile card={schedule} />

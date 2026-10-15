@@ -5,11 +5,11 @@ import { PlanPreviewGrid } from "@/components/pricing/plan-preview-grid";
 
 export function DashboardPlanPreview() {
   return (
-    <section className="mt-10 border-t border-border pt-8 text-left" aria-labelledby="dashboard-plan-title">
+    <section className="mt-6 border-t border-border pt-5 text-left" aria-labelledby="dashboard-plan-title">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h3 id="dashboard-plan-title" className="font-heading text-body-base font-semibold text-foreground">
-            Pilih dukungan belajar yang cocok
+            Paket belajar
           </h3>
         </div>
         <Button asChild variant="outline" size="sm" className="self-start sm:self-auto">

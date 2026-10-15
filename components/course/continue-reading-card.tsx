@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
 
 export function ContinueReadingSkeleton() {
   return (
-    <div className={cn(studentCardClass(), "flex flex-col justify-between h-[220px]")}>
+    <div className={cn(studentCardClass(), "flex flex-col justify-between gap-3")}>
       <div>
         <div className="flex items-center gap-2 mb-4">
           <div className="size-5 bg-muted rounded-md animate-pulse" />
@@ -48,13 +48,13 @@ export function ContinueReadingCard({
   const isEmpty = !data;
 
   return (
-    <div className={cn(studentCardClass(), "flex flex-col justify-between h-[220px] transition-all duration-300 hover:border-brand-primary/30 hover:shadow-md")}>
+    <div className={cn(studentCardClass(), "flex flex-col justify-between gap-3")}>
       <div>
         <h3 className="font-heading text-body-base font-bold text-foreground flex items-center gap-2 mb-3">
           <BookOpen className="size-4.5 text-brand-primary" aria-hidden="true" />
           Lanjutkan Membaca
         </h3>
-        
+
         {!isEmpty ? (
           <div className="space-y-3 animate-in fade-in slide-in-from-bottom-2 duration-300">
             <div>
@@ -77,10 +77,7 @@ export function ContinueReadingCard({
           </div>
         ) : (
           <div className="py-2 text-left animate-in fade-in duration-300">
-            <p className="text-body-sm text-muted-foreground">Belum ada materi yang dibaca baru-baru ini.</p>
-            <p className="text-body-xs text-muted-foreground mt-1">
-              Mulai membaca dokumen pertama untuk melacak kemajuan Anda.
-            </p>
+            <p className="text-body-sm text-muted-foreground">Belum ada bacaan terakhir.</p>
           </div>
         )}
       </div>

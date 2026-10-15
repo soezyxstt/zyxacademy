@@ -7,6 +7,7 @@ import { createMetadata, pageTitle } from "@/lib/site";
 import { PKA_TOTAL_SESSIONS } from "@/lib/pka-config";
 import { requirePkaSession } from "@/lib/pka-enrollment";
 import { CoursePageShell } from "@/components/course/course-page-shell";
+import { Button } from "@/components/ui/button";
 import { Reveal } from "@/components/ui/reveal";
 import { FormattedDate } from "@/components/ui/formatted-date";
 
@@ -42,11 +43,11 @@ export default async function PkaJadwalPage() {
               email kamu setiap kali sesi diumumkan.
             </p>
           ) : (
-            <ul className="divide-y divide-border">
+            <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
               {schedules.map((a, idx) => {
                 const isPast = a.sessionAt.getTime() < now.getTime();
                 return (
-                  <li key={a.id} className="flex items-center justify-between gap-4 py-3">
+                  <li key={a.id} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
                     <div className="flex min-w-0 items-start gap-3">
                       <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted text-body-sm font-bold text-foreground">
                         {idx + 1}
@@ -66,6 +67,7 @@ export default async function PkaJadwalPage() {
                       </span>
                     ) : (
                       a.meetLink ? (
+                        <Button asChild size="sm">
                         <a
                           href={a.meetLink}
                           target="_blank"
@@ -75,9 +77,10 @@ export default async function PkaJadwalPage() {
                           <Video className="size-4" />
                           Gabung Meet
                         </a>
+                        </Button>
                       ) : (
                         <span className="flex shrink-0 items-center gap-1.5 rounded-md bg-muted px-3 py-1.5 text-body-sm font-semibold text-muted-foreground">
-                          Link Belum Tersedia
+                          Link belum tersedia
                         </span>
                       )
                     )}

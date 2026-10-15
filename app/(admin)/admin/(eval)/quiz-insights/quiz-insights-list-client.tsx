@@ -143,14 +143,13 @@ export function QuizInsightsListClient({
             className="gap-2 rounded-lg text-body-sm"
           >
             <RefreshCw className={cn("size-3.5", loading && "animate-spin")} />
-            <span>Perbarui Data</span>
+            <span>Perbarui</span>
           </Button>
         </div>
       ) : (
         <AdminPageHeader
           icon={BarChart3}
-          title="Analisis & Insight Kuis / Exam"
-          description="Halaman khusus evaluasi performa kuis, simulasi, dan asesmen. Temukan konsep yang menyulitkan, distraktor jebakan, serta rekomendasi pengajaran untuk tutor."
+          title="Analisis kuis"
           backHref={backHref}
           backLabel={backLabel}
           actions={
@@ -162,7 +161,7 @@ export function QuizInsightsListClient({
               className="gap-2 rounded-lg text-body-sm"
             >
               <RefreshCw className={cn("size-3.5", loading && "animate-spin")} />
-              <span>Perbarui Data</span>
+              <span>Perbarui</span>
             </Button>
           }
         />
@@ -173,7 +172,6 @@ export function QuizInsightsListClient({
         <AdminStatStripItem
           label="Total Kuis & Simulasi"
           value={totalQuizzes}
-          caption={lockedCourse ? `Mata kuliah ${lockedCourse.title}` : "Terdaftar di sistem Zyx"}
           icon={BookOpen}
           iconClassName="text-brand-primary"
         />
@@ -199,7 +197,6 @@ export function QuizInsightsListClient({
               <span className="text-body-xs text-muted-foreground font-normal">/ {totalQuizzes}</span>
             </>
           }
-          caption="Kuis memiliki laporan insight"
           icon={BrainCircuit}
           iconClassName="text-brand-primary"
         />
@@ -259,7 +256,7 @@ export function QuizInsightsListClient({
             className="h-9 gap-1.5 rounded-lg text-body-sm shrink-0"
           >
             <RefreshCw className={cn("size-3.5", loading && "animate-spin")} />
-            <span>Perbarui Data</span>
+            <span>Perbarui</span>
           </Button>
         )}
       </div>
@@ -269,7 +266,7 @@ export function QuizInsightsListClient({
         {loading ? (
           <div className="p-8 text-center text-body-sm text-muted-foreground space-y-3">
             <RefreshCw className="size-6 animate-spin mx-auto text-brand-primary" />
-            <p>Memuat data kuis dan evaluasi...</p>
+            <p>Memuat analisis...</p>
           </div>
         ) : filteredItems.length === 0 ? (
           <AdminEmptyState
@@ -286,7 +283,7 @@ export function QuizInsightsListClient({
             <table className="w-full text-left text-body-sm">
               <AdminTableHead className="text-body-xs font-semibold text-muted-foreground">
                 <tr>
-                  <th className="px-4 py-3">Nama Kuis / Exam</th>
+                  <th className="px-4 py-3">Kuis</th>
                   {!lockedCourse && <th className="px-4 py-3">Mata Kuliah</th>}
                   <th className="px-4 py-3">Kategori</th>
                   <th className="px-4 py-3 text-center">Pengerjaan</th>

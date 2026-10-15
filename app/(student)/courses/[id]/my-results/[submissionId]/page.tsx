@@ -30,7 +30,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function SubmissionReviewPage({ params }: Props) {
   const { id, submissionId } = await params;
-  
+
   const course = await getCourse(id);
 
   if (!course) notFound();
@@ -52,7 +52,7 @@ export default async function SubmissionReviewPage({ params }: Props) {
 
   if (attempt) {
     return (
-      <CoursePageShell title="Review kuis" description="Pembahasan kuis Anda" hideHeader>
+      <CoursePageShell title="Review kuis" hideHeader>
         <Reveal>
           <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
             <Button

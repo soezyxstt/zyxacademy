@@ -30,6 +30,7 @@ import {
   Menu,
   Maximize2,
   Minimize2,
+  MessageSquareText,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -516,6 +517,41 @@ export function StructuredArticleReader({
     height: number;
   } | null>(null);
   const [isSelectionToolbarOpen, setIsSelectionToolbarOpen] = useState(false);
+  const [isMobileSelection, setIsMobileSelection] = useState(false);
+  const selectionActionPressedRef = useRef(false);
+
+  useEffect(() => {
+    const media = window.matchMedia("(max-width: 767px)");
+    const update = () => setIsMobileSelection(media.matches);
+    update();
+    media.addEventListener("change", update);
+    return () => media.removeEventListener("change", update);
+  }, []);
+
+  useEffect(() => {
+    if (!learnerMode || !selectionAskEnabled || !isMobileSelection || isTutorOpen) return;
+    let frame = 0;
+    const handleSelectionChange = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        // A touch can collapse native selection before the button receives its click.
+        if (selectionActionPressedRef.current) return;
+        const selection = window.getSelection();
+        const container = contentContainerRef.current;
+        const valid = selection && !selection.isCollapsed &&
+          container?.contains(selection.anchorNode) && container.contains(selection.focusNode);
+        const extracted = valid ? extractZyraSelection(selection, article.title) : null;
+        const context = extracted && extracted.cleanText.length >= 2 ? extracted : null;
+        setSelectionContext(context);
+        setIsSelectionToolbarOpen(Boolean(context));
+      });
+    };
+    document.addEventListener("selectionchange", handleSelectionChange);
+    return () => {
+      cancelAnimationFrame(frame);
+      document.removeEventListener("selectionchange", handleSelectionChange);
+    };
+  }, [learnerMode, selectionAskEnabled, isMobileSelection, isTutorOpen, article.title]);
 
   // Auto-collapse TOC ("BAB INI") on laptop screens when Zyra panel opens
   const tocWasOpenBeforeTutorRef = useRef<boolean | null>(null);
@@ -785,7 +821,7 @@ export function StructuredArticleReader({
 
   // Selection listener for selection-to-Zyra toolbar using mouseup and keyup
   useEffect(() => {
-    if (!learnerMode || !selectionAskEnabled) return;
+    if (!learnerMode || !selectionAskEnabled || isMobileSelection) return;
 
     const handleMouseUp = (e: MouseEvent) => {
       // If clicking inside the popover itself, do not recalculate or close
@@ -854,7 +890,7 @@ export function StructuredArticleReader({
         container.removeEventListener("keyup", handleKeyUp);
       }
     };
-  }, [learnerMode, selectionAskEnabled, article.title]);
+  }, [learnerMode, selectionAskEnabled, article.title, isMobileSelection]);
 
   const handleToolbarOpenChange = (open: boolean) => {
     setIsSelectionToolbarOpen(open);
@@ -1437,7 +1473,53 @@ export function StructuredArticleReader({
       </div>
 
       {/* Floating Selection-to-Zyra toolbar using Shadcn Popover with Progressive Disclosure */}
-      {learnerMode && selectionCoords && selectionContext && (
+      {learnerMode && isMobileSelection && !isTutorOpen && isSelectionToolbarOpen && selectionContext && (
+        <div
+          data-slot="zyra-mobile-selection"
+          className="fixed inset-x-4 bottom-[max(1rem,env(safe-area-inset-bottom))] z-50 flex items-center gap-2 rounded-xl border border-border bg-card p-2 shadow-lg md:hidden"
+        >
+          <Button
+            type="button"
+            className="min-h-11 flex-1 text-body-sm"
+            onPointerDown={(event) => {
+              selectionActionPressedRef.current = true;
+              event.preventDefault();
+            }}
+            onPointerCancel={() => { selectionActionPressedRef.current = false; }}
+            onPointerUp={() => {
+              setTimeout(() => { selectionActionPressedRef.current = false; }, 0);
+            }}
+            onClick={() => {
+              selectionActionPressedRef.current = false;
+              handleAskZyra("clarify");
+            }}
+          >
+            <MessageSquareText className="size-4" />
+            Tanya Zyra
+          </Button>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="size-11"
+                  aria-label="Tutup Tanya Zyra"
+                  onClick={() => {
+                    handleToolbarOpenChange(false);
+                    window.getSelection()?.removeAllRanges();
+                  }}
+                >
+                  <X className="size-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Tutup</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </div>
+      )}
+      {learnerMode && !isMobileSelection && selectionCoords && selectionContext && (
         <ZyraSelectionToolbar
           courseId={article.courseId}
           selectionContext={selectionContext}

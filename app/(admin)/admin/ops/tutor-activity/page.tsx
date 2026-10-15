@@ -38,7 +38,6 @@ export default async function TutorActivityPage() {
       <AdminPageHeader
         icon={Activity}
         title="Aktivitas Tutor"
-        description="Pantau audit mutasi dan riwayat tindakan tutor secara terpusat."
       />
 
       {/* KPI Stats Strip */}

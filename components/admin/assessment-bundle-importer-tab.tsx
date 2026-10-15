@@ -3,6 +3,8 @@
 import React, { useState, useRef, useEffect } from "react";
 import { toast } from "@/components/ui/toast";
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import { AdminStatStrip, AdminStatStripItem } from "@/components/admin/stat-card";
 import { Label } from "@/components/ui/label";
 import { importAssessmentBundleAction, type AssessmentImportResult } from "@/app/(admin)/admin/(academic)/courses/import-actions";
@@ -138,13 +140,13 @@ export function AssessmentBundleImporterTab() {
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 rounded-xl border border-border bg-card p-4 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
-          <Card className="border border-border shadow-sm rounded-xl overflow-hidden bg-card">
-            <CardHeader className="border-b border-border bg-muted/20 py-4">
+          <Card className="gap-3 border-0 bg-transparent py-0 shadow-none">
+            <CardHeader className="border-b border-border px-0 pb-3 pt-0">
               <CardTitle className="font-heading text-body-base font-semibold text-foreground flex items-center gap-2">
                 <Upload className="size-5 text-brand-primary" />
-                Input Assessment Bundle JSON
+                Assessment Bundle JSON
               </CardTitle>
               <p className="text-body-sm text-muted-foreground">
                 Unggah berkas JSON bundel asesmen (soal ujian/kuis) untuk mata kuliah yang sudah ada. Bab direferensikan
@@ -154,14 +156,14 @@ export function AssessmentBundleImporterTab() {
                 Mode upsert membuat versi sumber baru saat isi berubah dan mempertahankan versi sebelumnya untuk audit.
               </p>
             </CardHeader>
-            <CardContent className="p-6 space-y-6">
+            <CardContent className="p-0 space-y-4">
               <div
                 onDragEnter={handleDrag}
                 onDragOver={handleDrag}
                 onDragLeave={handleDrag}
                 onDrop={handleDrop}
                 onClick={() => fileInputRef.current?.click()}
-                className={`relative border-2 border-dashed rounded-xl p-8 flex flex-col items-center justify-center gap-2 cursor-pointer transition-all duration-150 ${
+                className={`relative border-2 border-dashed rounded-xl p-4 flex flex-col items-center justify-center gap-2 cursor-pointer transition-all duration-150 ${
                   dragActive
                     ? "border-brand-primary bg-brand-primary/5"
                     : "border-border hover:border-brand-primary/50 hover:bg-muted/10"
@@ -175,23 +177,21 @@ export function AssessmentBundleImporterTab() {
                   className="hidden"
                 />
 
-                <div className="p-3 bg-muted rounded-xl text-muted-foreground">
+                <div className="text-muted-foreground">
                   <Upload className="size-6 text-foreground" />
                 </div>
 
                 <p className="font-heading text-body-base font-semibold text-foreground mt-2">
-                  {fileName ? fileName : "Seret & Taruh File JSON di sini"}
+                  {fileName ? fileName : "Pilih atau seret berkas JSON"}
                 </p>
-                <p className="text-body-sm text-muted-foreground">
-                  {fileName ? "Klik untuk mengganti file" : "Atau klik untuk menelusuri berkas dari komputer Anda"}
-                </p>
+                <span className="sr-only">Klik untuk memilih berkas JSON</span>
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="paste-assessment-json" className="text-body-sm font-semibold text-foreground">
-                  Atau Tempel Konten JSON di bawah ini:
+                  Konten JSON
                 </Label>
-                <textarea
+                <Textarea
                   id="paste-assessment-json"
                   rows={8}
                   value={bundleText}
@@ -205,16 +205,16 @@ export function AssessmentBundleImporterTab() {
         </div>
 
         <div className="space-y-6">
-          <Card className="border border-border shadow-sm rounded-xl overflow-hidden bg-card">
-            <CardHeader className="border-b border-border bg-muted/20 py-4">
+          <Card className="gap-3 border-0 bg-transparent py-0 shadow-none">
+            <CardHeader className="border-b border-border px-0 pb-3 pt-0">
               <CardTitle className="font-heading text-body-base font-semibold text-foreground">
-                Pengaturan Importir
+                Pengaturan impor
               </CardTitle>
               <p className="text-body-sm text-muted-foreground">
                 Tentukan perilaku database dan pasca-proses selama import bundel asesmen.
               </p>
             </CardHeader>
-            <CardContent className="p-6 space-y-6">
+            <CardContent className="p-0 space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="assessment-import-mode" className="text-body-sm font-semibold text-foreground">
                   Mode Ingesti
@@ -239,16 +239,15 @@ export function AssessmentBundleImporterTab() {
 
               <div className="space-y-4 pt-2">
                 <div className="flex items-start gap-3">
-                  <input
-                    type="checkbox"
+                  <Checkbox
                     id="assessment-post-process"
                     checked={postProcess}
-                    onChange={(e) => setPostProcess(e.target.checked)}
-                    className="size-4 mt-0.5 rounded-sm border-border bg-background text-brand-primary focus:ring-brand-primary"
+                    onCheckedChange={(checked) => setPostProcess(checked === true)}
+                    className="mt-0.5"
                   />
                   <div className="grid gap-1.5 leading-none">
                     <Label htmlFor="assessment-post-process" className="text-body-sm font-semibold text-foreground cursor-pointer">
-                      Jalankan Pasca-Proses (Rekomendasi)
+                      Jalankan pasca-proses
                     </Label>
                     <p className="text-body-sm text-muted-foreground">
                       Memetakan soal ke konsep/materi secara heuristik dan mengantrekan sinkronisasi canonical Vectorize.
@@ -257,16 +256,15 @@ export function AssessmentBundleImporterTab() {
                 </div>
 
                 <div className="flex items-start gap-3">
-                  <input
-                    type="checkbox"
+                  <Checkbox
                     id="assessment-dry-run"
                     checked={dryRun}
-                    onChange={(e) => setDryRun(e.target.checked)}
-                    className="size-4 mt-0.5 rounded-sm border-border bg-background text-brand-primary focus:ring-brand-primary"
+                    onCheckedChange={(checked) => setDryRun(checked === true)}
+                    className="mt-0.5"
                   />
                   <div className="grid gap-1.5 leading-none">
                     <Label htmlFor="assessment-dry-run" className="text-body-sm font-semibold text-foreground cursor-pointer">
-                      Dry Run (Hanya Validasi)
+                      Validasi saja
                     </Label>
                     <p className="text-body-sm text-muted-foreground">
                       Hanya memvalidasi integritas struktur JSON dan referensi bab tanpa menyimpan data apa pun.
@@ -301,8 +299,8 @@ export function AssessmentBundleImporterTab() {
       </div>
 
       {result && (
-        <Card className="border border-border shadow-sm rounded-xl overflow-hidden bg-card">
-          <CardHeader className="border-b border-border bg-muted/20 py-4 flex flex-row items-center justify-between">
+        <Card className="gap-3 rounded-xl border border-border bg-card p-4 shadow-none">
+          <CardHeader className="border-b border-border px-0 pb-3 pt-0 flex flex-row items-center justify-between">
             <div>
               <CardTitle className="font-heading text-body-base font-semibold text-foreground flex items-center gap-2">
                 <TerminalIcon className="size-5 text-muted-foreground" />
@@ -350,8 +348,8 @@ export function AssessmentBundleImporterTab() {
           </AdminStatStrip>
 
           {result.stats.sourceDiffs.length > 0 && (
-            <Card className="border border-border shadow-sm rounded-xl overflow-hidden bg-card">
-              <CardHeader className="border-b border-border bg-muted/20 py-4">
+            <Card className="gap-3 rounded-xl border border-border bg-card p-4 shadow-none">
+              <CardHeader className="border-b border-border px-0 pb-3 pt-0">
                 <CardTitle className="font-heading text-body-base font-semibold text-foreground">
                   Detail per Sumber Ujian
                 </CardTitle>

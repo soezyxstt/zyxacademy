@@ -63,7 +63,7 @@ export function TodayPlan({ firstName }: { firstName: string }) {
       <PageHeader
         title={
           <>
-            Halo, <span className="bg-gradient-to-r from-brand-primary to-brand-secondary bg-clip-text text-transparent">{firstName}</span>
+            Halo, <span className="text-primary">{firstName}</span>
           </>
         }
         actions={

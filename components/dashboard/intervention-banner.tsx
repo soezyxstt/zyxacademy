@@ -79,7 +79,7 @@ export function InterventionBanner() {
         <div className="flex items-center gap-2">
           <TriangleAlert className="size-4 text-status-warning shrink-0" />
           <p className="text-body-base font-medium text-foreground">
-            Struggling with {conceptName}
+            Ulangi {conceptName}
           </p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
@@ -91,10 +91,10 @@ export function InterventionBanner() {
       <div className="mt-2 flex flex-wrap items-center justify-between gap-4">
         <div className="flex flex-wrap gap-4 text-body-sm text-primary">
           <Link href={reviewModuleHref} className="hover:underline font-medium">
-            Review module
+            Baca materi
           </Link>
           <Link href={practiceQuizHref} className="hover:underline font-medium">
-            Practice quiz
+            Latihan kuis
           </Link>
           <Link href={flashcardHref} className="hover:underline font-medium">
             {payload.flashcardCount} flashcards
@@ -104,7 +104,7 @@ export function InterventionBanner() {
             <span className="text-body-sm text-muted-foreground">
               +
               <Link href={`/courses/${courseId}`} className="hover:underline font-medium text-muted-foreground ml-0.5">
-                {extraCount} more
+                {extraCount} lainnya
               </Link>
             </span>
           )}
@@ -117,7 +117,7 @@ export function InterventionBanner() {
           onClick={dismiss}
           className="text-body-sm text-muted-foreground hover:text-foreground h-8 px-2 rounded-md"
         >
-          Dismiss
+          Tutup
         </Button>
       </div>
     </div>

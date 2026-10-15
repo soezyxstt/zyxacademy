@@ -475,7 +475,7 @@ export function SessionDetailDrawer({
         <SheetContent side="right" className="w-full sm:max-w-xl">
           <SheetHeader className="border-b border-border pr-12">
             <SheetTitle>Detail sesi tutorial</SheetTitle>
-            <SheetDescription>Kelola konteks, pelaksanaan, resource, dan aktivitas sesi dari satu tempat.</SheetDescription>
+            <SheetDescription className="sr-only">Detail sesi tutorial</SheetDescription>
           </SheetHeader>
 
           <div className="flex-1 space-y-4 overflow-y-auto px-4 py-4">

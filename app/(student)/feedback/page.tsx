@@ -26,11 +26,7 @@ export default async function FeedbackPage() {
         icon={MessageSquareHeart}
       />
 
-      <Reveal className="mt-6 space-y-4">
-        <p className="text-body-sm text-muted-foreground max-w-2xl leading-relaxed">
-          Suara Anda sangat berharga bagi kami. Setiap kritik dan saran terkait materi TPB, kualitas kuis, bimbingan tutor, maupun antarmuka platform akan ditindaklanjuti secara berkala oleh tim akademik Zyx.
-        </p>
-
+      <Reveal className="mt-4">
         <div className="pt-2">
           <FeedbackForm initialEmail={userEmail} />
         </div>

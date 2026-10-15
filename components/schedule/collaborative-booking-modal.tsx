@@ -210,7 +210,7 @@ export function CollaborativeBookingModal({
             <CalendarDays className="size-5 text-brand-primary" /> Booking sesi tutorial
           </DialogTitle>
           <DialogDescription className="text-body-xs text-muted-foreground">
-            Periksa detail sesi, lalu tambahkan konteks yang perlu diketahui tutor.
+            Tambahkan topik dan bahan untuk tutor.
           </DialogDescription>
         </DialogHeader>
 

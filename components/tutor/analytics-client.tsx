@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { AdminEmptyState } from "@/components/admin/state-panels";
 import { RefreshCw } from "lucide-react";
 import { LineChart, Line } from "recharts";
 import { Button } from "@/components/ui/button";
@@ -16,9 +17,9 @@ function relativeTime(date: Date | null): string {
   if (!date) return "";
   const diffMs = Date.now() - date.getTime();
   const diffH = Math.floor(diffMs / (1000 * 60 * 60));
-  if (diffH < 1) return "just now";
-  if (diffH === 1) return "1 h ago";
-  return `${diffH} h ago`;
+  if (diffH < 1) return "baru saja";
+  if (diffH === 1) return "1 jam lalu";
+  return `${diffH} jam lalu`;
 }
 
 interface Props {
@@ -55,9 +56,9 @@ export function AnalyticsClient({ courseId, analytics, updatedAt }: Props) {
   return (
     <>
       {/* Header meta row */}
-      <div className="flex items-center gap-3 -mt-6">
+      <div className="flex items-center gap-3 flex-wrap">
         <span className="text-body-sm text-muted-foreground">
-          {updatedDate ? `Updated ${relativeTime(updatedDate)}` : "Not yet computed"}
+          {updatedDate ? `Diperbarui ${relativeTime(updatedDate)}` : "Belum dihitung"}
         </span>
         <Button
           variant="ghost"
@@ -67,19 +68,19 @@ export function AnalyticsClient({ courseId, analytics, updatedAt }: Props) {
           className="gap-1.5 h-7 px-2"
         >
           <RefreshCw className={`size-3.5 ${isPending ? "animate-spin" : ""}`} aria-hidden />
-          Refresh
+          Perbarui
         </Button>
       </div>
 
       {/* Section 2: Weakest concepts with sparklines */}
       <Reveal>
-        <section aria-labelledby="weak-heading">
+        <section className="rounded-xl border border-border bg-card p-4" aria-labelledby="weak-heading">
           <h2 id="weak-heading" className="text-body-base font-semibold mb-3">
-            Most problematic concepts
+            Konsep prioritas
           </h2>
           {analytics.weakConcepts.length === 0 ? (
             <p className="text-body-sm text-muted-foreground">
-              Analytics appear once students take quizzes.
+              Belum ada hasil kuis.
             </p>
           ) : (
             <div className="divide-y divide-border">
@@ -89,7 +90,7 @@ export function AnalyticsClient({ courseId, analytics, updatedAt }: Props) {
                   <button
                     key={concept.conceptName}
                     onClick={() => openDrill(concept)}
-                    className="w-full py-3 grid grid-cols-[2rem_1fr_auto_5rem_8rem] items-center gap-4 text-left animate-in fade-in slide-in-from-bottom-2 duration-300 hover:bg-muted/40 rounded-md -mx-1 px-1 transition-colors"
+                    className="w-full py-3 grid grid-cols-[1.5rem_minmax(0,1fr)_auto] sm:grid-cols-[1.5rem_minmax(0,1fr)_auto_5rem_8rem] items-center gap-2 sm:gap-4 text-left animate-in fade-in slide-in-from-bottom-2 duration-300 hover:bg-muted/40 rounded-md -mx-1 px-1 transition-colors"
                     style={{ animationDelay: `${Math.min(index, 7) * 50}ms` }}
                   >
                     <span className="text-h6 font-heading text-muted-foreground tabular-nums">
@@ -97,11 +98,11 @@ export function AnalyticsClient({ courseId, analytics, updatedAt }: Props) {
                     </span>
                     <div className="min-w-0">
                       <p className="text-body-base font-medium truncate">{concept.conceptName}</p>
-                      <p className="text-body-sm text-muted-foreground">{concept.studentCount} students</p>
+                      <p className="text-body-sm text-muted-foreground">{concept.studentCount} siswa</p>
                     </div>
                     <span className="tabular-nums text-body-base">{concept.avgMastery}</span>
                     {/* Sparkline */}
-                    <div className="w-20 h-6 shrink-0">
+                    <div className="hidden w-20 h-6 shrink-0 sm:block">
                       {trendData.length >= 2 ? (
                         <LineChart width={80} height={24} data={trendData}>
                           <Line
@@ -122,7 +123,7 @@ export function AnalyticsClient({ courseId, analytics, updatedAt }: Props) {
                       mid={concept.bucketMid}
                       high={concept.bucketHigh}
                       total={concept.studentCount}
-                      className="w-32"
+                      className="hidden w-32 sm:flex"
                     />
                   </button>
                 );
@@ -134,20 +135,20 @@ export function AnalyticsClient({ courseId, analytics, updatedAt }: Props) {
 
       {/* Section 3: Full mastery distribution */}
       <Reveal>
-        <section aria-labelledby="dist-heading">
+        <section className="rounded-xl border border-border bg-card p-4" aria-labelledby="dist-heading">
           <h2 id="dist-heading" className="text-body-base font-semibold mb-3">
-            Mastery distribution
+            Distribusi penguasaan
           </h2>
           {analytics.allConcepts.length === 0 ? (
             <p className="text-body-sm text-muted-foreground">
-              Analytics appear once students take quizzes.
+              Belum ada hasil kuis.
             </p>
           ) : (
             <div className="divide-y divide-border">
               {analytics.allConcepts.map((concept, index) => (
                 <div
                   key={concept.conceptName}
-                  className="py-3 grid grid-cols-[2rem_1fr_auto_8rem] items-center gap-4 animate-in fade-in slide-in-from-bottom-2 duration-300"
+                  className="py-3 grid grid-cols-[1.5rem_minmax(0,1fr)_auto] sm:grid-cols-[1.5rem_minmax(0,1fr)_auto_8rem] items-center gap-4 animate-in fade-in slide-in-from-bottom-2 duration-300"
                   style={{ animationDelay: `${Math.min(index, 7) * 50}ms` }}
                 >
                   <span className="text-h6 font-heading text-muted-foreground tabular-nums">
@@ -155,7 +156,7 @@ export function AnalyticsClient({ courseId, analytics, updatedAt }: Props) {
                   </span>
                   <div className="min-w-0">
                     <p className="text-body-base font-medium truncate">{concept.conceptName}</p>
-                    <p className="text-body-sm text-muted-foreground">{concept.studentCount} students</p>
+                    <p className="text-body-sm text-muted-foreground">{concept.studentCount} siswa</p>
                   </div>
                   <span className="tabular-nums text-body-base">{concept.avgMastery}</span>
                   <DistributionBar
@@ -163,7 +164,7 @@ export function AnalyticsClient({ courseId, analytics, updatedAt }: Props) {
                     mid={concept.bucketMid}
                     high={concept.bucketHigh}
                     total={concept.studentCount}
-                    className="w-48"
+                    className="hidden w-32 sm:flex"
                   />
                 </div>
               ))}
@@ -172,16 +173,14 @@ export function AnalyticsClient({ courseId, analytics, updatedAt }: Props) {
         </section>
       </Reveal>
 
-      {/* Section 4: Active interventions */}
+      {/* Section 4: Intervensi aktif */}
       <Reveal>
-        <section aria-labelledby="interventions-heading">
+        <section className="rounded-xl border border-border bg-card p-4" aria-labelledby="interventions-heading">
           <h2 id="interventions-heading" className="text-body-base font-semibold mb-3">
-            Active interventions
+            Intervensi aktif
           </h2>
           {analytics.interventionCounts.length === 0 ? (
-            <p className="text-body-sm text-muted-foreground">
-              Available after the feedback phase ships.
-            </p>
+            <AdminEmptyState icon={RefreshCw} title="Belum ada intervensi" />
           ) : (
             <div className="divide-y divide-border">
               {analytics.interventionCounts.map((item) => (
@@ -197,13 +196,13 @@ export function AnalyticsClient({ courseId, analytics, updatedAt }: Props) {
 
       {/* Section 4b: Top misconceptions (cohort-wide) */}
       <Reveal>
-        <section aria-labelledby="misconceptions-heading">
+        <section className="rounded-xl border border-border bg-card p-4" aria-labelledby="misconceptions-heading">
           <h2 id="misconceptions-heading" className="text-body-base font-semibold mb-3">
-            Most common misconceptions
+            Miskonsepsi umum
           </h2>
           {analytics.topMisconceptions.length === 0 ? (
             <p className="text-body-sm text-muted-foreground">
-              Appears once enough students answer questions tagged with a misconception.
+              Belum ada pola miskonsepsi.
             </p>
           ) : (
             <div className="divide-y divide-border">
@@ -212,7 +211,7 @@ export function AnalyticsClient({ courseId, analytics, updatedAt }: Props) {
                   <div className="min-w-0">
                     <p className="text-body-base font-medium truncate">{m.label}</p>
                     <p className="text-body-sm text-muted-foreground">
-                      {m.conceptName} &middot; {m.sampleSize} attempts
+                      {m.conceptName} &middot; {m.sampleSize} percobaan
                     </p>
                   </div>
                   <Badge variant="secondary" className="shrink-0">{m.pctSelected}%</Badge>
@@ -225,9 +224,9 @@ export function AnalyticsClient({ courseId, analytics, updatedAt }: Props) {
 
       {/* Section 5: Watchlist */}
       <Reveal>
-        <section aria-labelledby="watchlist-heading">
+        <section className="rounded-xl border border-border bg-card p-4" aria-labelledby="watchlist-heading">
           <h2 id="watchlist-heading" className="text-body-base font-semibold mb-3">
-            Students needing attention
+            Perlu perhatian
           </h2>
           <WatchlistTable students={analytics.watchlist} />
         </section>

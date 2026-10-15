@@ -33,7 +33,7 @@ export function AnnouncementCard({ id, title, body, createdAt, isPinned }: Annou
   };
 
   return (
-    <div className="relative rounded-xl border border-border bg-card p-5 shadow-sm overflow-hidden group">
+    <div className="relative p-4 group">
       <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2 pr-8">
         <div className="flex items-center gap-2">
           {isPinned && <Pin className="size-4 text-brand-primary fill-brand-primary/20" aria-label="Pinned" />}
@@ -55,8 +55,9 @@ export function AnnouncementCard({ id, title, body, createdAt, isPinned }: Annou
           size="icon"
           onClick={handleMarkAsRead}
           disabled={isPending}
-          className="absolute top-3 right-3 size-8 rounded-full text-muted-foreground hover:text-foreground md:opacity-0 md:group-hover:opacity-100 transition-opacity"
-          title="Tandai sudah dibaca (Sembunyikan)"
+          className="absolute top-3 right-3 size-8 rounded-md text-muted-foreground hover:text-foreground"
+          title="Tandai sudah dibaca"
+          aria-label="Tandai sudah dibaca"
         >
           <X className="size-4" />
         </Button>

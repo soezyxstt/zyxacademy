@@ -21,6 +21,7 @@ import {
   Percent,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "@/components/ui/toast";
@@ -415,7 +416,7 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* 1. KPI Strip */}
       <AdminStatStrip className="lg:grid-cols-4">
         <AdminStatStripItem
@@ -548,25 +549,25 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
         <table className="w-full min-w-4xl text-left text-body-sm">
           <AdminTableHead>
             <tr>
-              <th scope="col" className="px-5 py-3.5 text-body-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              <th scope="col" className="px-5 py-3.5 text-body-xs font-semibold text-muted-foreground">
                 Kelompok & Paket
               </th>
-              <th scope="col" className="px-5 py-3.5 text-body-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              <th scope="col" className="px-5 py-3.5 text-body-xs font-semibold text-muted-foreground">
                 Kuota Sesi Semester
               </th>
-              <th scope="col" className="px-5 py-3.5 text-body-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              <th scope="col" className="px-5 py-3.5 text-body-xs font-semibold text-muted-foreground">
                 Mata Kuliah
               </th>
-              <th scope="col" className="px-5 py-3.5 text-body-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              <th scope="col" className="px-5 py-3.5 text-body-xs font-semibold text-muted-foreground">
                 Anggota ({totalMembers})
               </th>
-              <th scope="col" className="px-5 py-3.5 text-body-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              <th scope="col" className="px-5 py-3.5 text-body-xs font-semibold text-muted-foreground">
                 Periode Semester
               </th>
-              <th scope="col" className="px-5 py-3.5 text-body-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              <th scope="col" className="px-5 py-3.5 text-body-xs font-semibold text-muted-foreground">
                 Status
               </th>
-              <th scope="col" className="px-5 py-3.5 text-body-xs font-semibold uppercase tracking-wide text-muted-foreground text-center">
+              <th scope="col" className="px-5 py-3.5 text-body-xs font-semibold text-muted-foreground text-center">
                 Aksi
               </th>
             </tr>
@@ -606,15 +607,15 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
                 return (
                   <tr key={g.id} className="hover:bg-muted/30 transition-colors">
                     {/* Kelompok & Paket */}
-                    <td className="px-5 py-4">
+                    <td className="px-4 py-3">
                       <div className="flex flex-col">
-                        <button
+                        <Button variant="ghost"
                           type="button"
                           onClick={() => setDetailGroup(g)}
-                          className="font-heading font-bold text-foreground hover:text-brand-primary text-left text-body-sm transition-colors"
+                          className="h-auto justify-start whitespace-normal px-0 py-0 font-heading font-bold text-foreground hover:text-primary text-left text-body-sm"
                         >
                           {g.name}
-                        </button>
+                        </Button>
                         <div className="flex items-center gap-1.5 mt-0.5 text-body-xs text-muted-foreground">
                           <span>{g.packageName}</span>
                           <span>•</span>
@@ -626,7 +627,7 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
                     </td>
 
                     {/* Kuota Sesi */}
-                    <td className="px-5 py-4 min-w-[160px]">
+                    <td className="px-4 py-3 min-w-[160px]">
                       <div className="space-y-1.5">
                         <div className="flex items-center justify-between text-body-xs font-semibold">
                           <span className="text-foreground">
@@ -652,7 +653,7 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
                     </td>
 
                     {/* Mata Kuliah */}
-                    <td className="px-5 py-4">
+                    <td className="px-4 py-3">
                       <div className="flex flex-wrap gap-1 max-w-[200px]">
                         {g.courses.length === 0 ? (
                           <span className="text-body-xs text-muted-foreground italic">Belum ada</span>
@@ -670,7 +671,7 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
                     </td>
 
                     {/* Anggota */}
-                    <td className="px-5 py-4">
+                    <td className="px-4 py-3">
                       <div className="flex flex-col gap-1">
                         <div className="flex items-center gap-1">
                           <span className="font-semibold text-foreground text-body-xs">
@@ -699,7 +700,7 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
                     </td>
 
                     {/* Periode */}
-                    <td className="px-5 py-4 text-body-xs text-muted-foreground whitespace-nowrap">
+                    <td className="px-4 py-3 text-body-xs text-muted-foreground whitespace-nowrap">
                       {g.startDate && g.endDate ? (
                         <span>
                           {formatIsoDate(new Date(g.startDate))} s.d.{" "}
@@ -713,12 +714,12 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
                     </td>
 
                     {/* Status */}
-                    <td className="px-5 py-4">
+                    <td className="px-4 py-3">
                       <StatusBadge tone={statusTone}>{statusText}</StatusBadge>
                     </td>
 
                     {/* Aksi */}
-                    <td className="px-5 py-4 text-center">
+                    <td className="px-4 py-3 text-center">
                       <div className="flex items-center justify-center gap-1">
                         <Button
                           variant="ghost"
@@ -799,7 +800,7 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
                 ].map((p) => {
                   const active = formPackageType === p.id;
                   return (
-                    <button
+                    <Button variant="ghost"
                       key={p.id}
                       type="button"
                       onClick={() => {
@@ -807,15 +808,15 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
                         const preset = PACKAGE_PRESETS[p.id];
                         if (preset) setFormWeeklyQuota(preset.weeklySessions);
                       }}
-                      className={`flex flex-col items-center justify-center p-2.5 rounded-lg border text-center transition-all ${
+                      className={`h-auto flex flex-col items-center justify-center gap-0.5 p-2 rounded-lg border text-center text-body-sm font-medium transition-colors ${
                         active
-                          ? "border-brand-primary bg-brand-primary/10 text-brand-primary font-semibold"
-                          : "border-border bg-card text-muted-foreground hover:bg-muted/40 hover:text-foreground"
+                          ? "border-brand-primary bg-brand-primary/10 text-brand-primary"
+                          : "bg-card text-muted-foreground hover:bg-muted/40 hover:text-foreground"
                       }`}
                     >
                       <span className="text-body-sm font-bold">{p.title}</span>
                       <span className="text-[10px] text-muted-foreground">{p.sub}</span>
-                    </button>
+                    </Button>
                   );
                 })}
               </div>
@@ -858,15 +859,14 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
                 <label className="text-body-xs font-semibold text-foreground block">
                   Semester
                 </label>
-                <select
-                  value={formSemester}
-                  onChange={(e) => setFormSemester(e.target.value)}
-                  className="w-full h-10 rounded-lg border border-border bg-card px-3 text-body-sm"
-                >
-                  <option value="Ganjil">Semester Ganjil</option>
-                  <option value="Genap">Semester Genap</option>
-                  <option value="Pendek">Semester Pendek</option>
-                </select>
+                <Select value={formSemester} onValueChange={setFormSemester}>
+                  <SelectTrigger aria-label="Semester" className="w-full h-10 text-body-sm"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Ganjil">Semester Ganjil</SelectItem>
+                    <SelectItem value="Genap">Semester Genap</SelectItem>
+                    <SelectItem value="Pendek">Semester Pendek</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-1.5">
                 <label className="text-body-xs font-semibold text-foreground block">
@@ -912,27 +912,26 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
               <label className="text-body-xs font-semibold text-foreground block">
                 Mata Kuliah yang Diambil
               </label>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-36 overflow-y-auto p-2 rounded-lg border border-border bg-muted/10">
+              <div className="max-h-36 overflow-y-auto divide-y divide-border rounded-lg border border-border">
                 {coursesList.map((c) => {
                   const checked = formCourseIds.includes(c.id);
                   return (
                     <label
                       key={c.id}
-                      className={`flex items-center gap-2 p-2 rounded-md border text-body-xs cursor-pointer transition-colors ${
+                      className={`flex items-center gap-2 px-3 py-2 text-body-sm cursor-pointer transition-colors ${
                         checked
-                          ? "border-brand-primary bg-brand-primary/10 text-foreground"
-                          : "border-border bg-card text-muted-foreground"
+                          ? "bg-primary/5 text-foreground"
+                          : "bg-card text-muted-foreground"
                       }`}
                     >
-                      <input
-                        type="checkbox"
+                      <Checkbox
                         checked={checked}
-                        onChange={() => {
+                        onCheckedChange={() => {
                           setFormCourseIds((prev) =>
                             prev.includes(c.id) ? prev.filter((id) => id !== c.id) : [...prev, c.id]
                           );
                         }}
-                        className="size-3.5 accent-brand-primary rounded"
+                        className="shrink-0"
                       />
                       <span className="truncate">{c.title}</span>
                     </label>
@@ -1012,7 +1011,7 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
                 ].map((p) => {
                   const active = formPackageType === p.id;
                   return (
-                    <button
+                    <Button variant="ghost"
                       key={p.id}
                       type="button"
                       onClick={() => {
@@ -1020,15 +1019,15 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
                         const preset = PACKAGE_PRESETS[p.id];
                         if (preset) setFormWeeklyQuota(preset.weeklySessions);
                       }}
-                      className={`flex flex-col items-center justify-center p-2.5 rounded-lg border text-center transition-all ${
+                      className={`h-auto flex flex-col items-center justify-center gap-0.5 p-2 rounded-lg border text-center text-body-sm font-medium transition-colors ${
                         active
-                          ? "border-brand-primary bg-brand-primary/10 text-brand-primary font-semibold"
-                          : "border-border bg-card text-muted-foreground hover:bg-muted/40 hover:text-foreground"
+                          ? "border-brand-primary bg-brand-primary/10 text-brand-primary"
+                          : "bg-card text-muted-foreground hover:bg-muted/40 hover:text-foreground"
                       }`}
                     >
                       <span className="text-body-sm font-bold">{p.title}</span>
                       <span className="text-[10px] text-muted-foreground">{p.sub}</span>
-                    </button>
+                    </Button>
                   );
                 })}
               </div>
@@ -1070,15 +1069,14 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
                 <label className="text-body-xs font-semibold text-foreground block">
                   Semester
                 </label>
-                <select
-                  value={formSemester}
-                  onChange={(e) => setFormSemester(e.target.value)}
-                  className="w-full h-10 rounded-lg border border-border bg-card px-3 text-body-sm"
-                >
-                  <option value="Ganjil">Semester Ganjil</option>
-                  <option value="Genap">Semester Genap</option>
-                  <option value="Pendek">Semester Pendek</option>
-                </select>
+                <Select value={formSemester} onValueChange={setFormSemester}>
+                  <SelectTrigger aria-label="Semester" className="w-full h-10 text-body-sm"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Ganjil">Semester Ganjil</SelectItem>
+                    <SelectItem value="Genap">Semester Genap</SelectItem>
+                    <SelectItem value="Pendek">Semester Pendek</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-1.5">
                 <label className="text-body-xs font-semibold text-foreground block">
@@ -1121,27 +1119,26 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
               <label className="text-body-xs font-semibold text-foreground block">
                 Mata Kuliah yang Diambil
               </label>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-36 overflow-y-auto p-2 rounded-lg border border-border bg-muted/10">
+              <div className="max-h-36 overflow-y-auto divide-y divide-border rounded-lg border border-border">
                 {coursesList.map((c) => {
                   const checked = formCourseIds.includes(c.id);
                   return (
                     <label
                       key={c.id}
-                      className={`flex items-center gap-2 p-2 rounded-md border text-body-xs cursor-pointer transition-colors ${
+                      className={`flex items-center gap-2 px-3 py-2 text-body-sm cursor-pointer transition-colors ${
                         checked
-                          ? "border-brand-primary bg-brand-primary/10 text-foreground"
-                          : "border-border bg-card text-muted-foreground"
+                          ? "bg-primary/5 text-foreground"
+                          : "bg-card text-muted-foreground"
                       }`}
                     >
-                      <input
-                        type="checkbox"
+                      <Checkbox
                         checked={checked}
-                        onChange={() => {
+                        onCheckedChange={() => {
                           setFormCourseIds((prev) =>
                             prev.includes(c.id) ? prev.filter((id) => id !== c.id) : [...prev, c.id]
                           );
                         }}
-                        className="size-3.5 accent-brand-primary rounded"
+                        className="shrink-0"
                       />
                       <span className="truncate">{c.title}</span>
                     </label>
@@ -1173,7 +1170,7 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
       <Dialog open={!!detailGroup} onOpenChange={(open) => !open && setDetailGroup(null)}>
         <DialogContent className="max-w-2xl rounded-xl border border-border p-6 shadow-2xl max-h-[85vh] overflow-y-auto">
           {detailGroup && (
-            <div className="space-y-6">
+            <div className="space-y-4">
               <DialogHeader>
                 <div className="flex items-start justify-between gap-4">
                   <div>
@@ -1205,7 +1202,7 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
                 {detailGroup.weeklyStats && detailGroup.weeklyStats.length > 0 && (
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 border-t border-border/60">
                     {detailGroup.weeklyStats.map((w) => (
-                      <div key={w.weekStartIso} className="p-2 rounded-lg bg-card border border-border text-center">
+                      <div key={w.weekStartIso} className="px-2 py-1 text-center">
                         <span className="text-[11px] font-semibold text-foreground block">{w.label}</span>
                         <div className="flex items-center justify-center gap-2 text-[11px] mt-0.5">
                           <span className="text-emerald-600 dark:text-emerald-400">{w.attended} hadir</span>
@@ -1221,7 +1218,7 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
               <div className="space-y-2">
                 <h3 className="font-heading text-body-sm font-bold text-foreground flex items-center gap-2">
                   <BookOpen className="size-4 text-brand-primary" />
-                  Mata Kuliah yang Diambil ({detailGroup.courses.length})
+                  Mata kuliah ({detailGroup.courses.length})
                 </h3>
                 <div className="flex flex-wrap gap-2">
                   {detailGroup.courses.length === 0 ? (
@@ -1230,7 +1227,7 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
                     detailGroup.courses.map((c) => (
                       <div
                         key={c.id}
-                        className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-border bg-card text-body-xs font-medium text-foreground"
+                        className="flex items-center gap-2 py-1 text-body-xs text-foreground"
                       >
                         <GraduationCap className="size-3.5 text-brand-primary" />
                         <span>{c.title}</span>
@@ -1355,25 +1352,26 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
                     {detailGroup.tokens.map((t) => (
                       <div
                         key={t.id}
-                        className="flex items-center justify-between p-3 rounded-xl border border-border bg-muted/10 font-mono text-body-xs"
+                        className="flex items-center justify-between border-b border-border py-2 font-mono text-body-xs"
                       >
                         <span className="font-bold text-foreground">{t.token}</span>
                         <div className="flex items-center gap-2">
                           <span className="text-muted-foreground text-[11px]">
                             Kapasitas: {t.capacity} orang
                           </span>
-                          <button
+                          <Button variant="ghost"
                             type="button"
                             onClick={() => handleCopyText(t.token)}
                             className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground"
-                            title="Salin token"
+                            aria-label="Salin token"
+                            size="icon"
                           >
                             {copiedToken === t.token ? (
                               <Check className="size-3.5 text-emerald-500" />
                             ) : (
                               <Copy className="size-3.5" />
                             )}
-                          </button>
+                          </Button>
                         </div>
                       </div>
                     ))}

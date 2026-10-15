@@ -33,11 +33,10 @@ export default async function AdminTokensPage() {
   }));
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-4">
       <AdminPageHeader
         icon={KeyRound}
         title="Token Aktivasi"
-        description="Kelola token pendaftaran siswa untuk kelas."
       />
       <TokensDashboard initialTokens={tokensList} coursesList={coursesList} />
     </div>

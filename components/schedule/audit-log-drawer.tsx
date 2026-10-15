@@ -29,16 +29,16 @@ export function AuditLogDrawer({ open, onOpenChange, booking }: Props) {
         <DialogHeader>
           <DialogTitle className="font-heading text-body-base font-bold flex items-center gap-2">
             <History className="size-5 text-brand-primary" />
-            Riwayat Aktivitas & Jejak Audit Sesi
+            Riwayat sesi
           </DialogTitle>
-          <DialogDescription className="text-body-xs text-muted-foreground">
-            Transparansi seluruh riwayat pemilihan slot, perpindahan jadwal, unggah materi, dan tiket permohonan.
+          <DialogDescription className="sr-only">
+            Aktivitas dan perubahan sesi tutorial.
           </DialogDescription>
         </DialogHeader>
 
         {booking && (
           <div className="space-y-4 my-2">
-            <div className="p-3 rounded-lg border border-border bg-muted/20 text-body-xs flex items-center justify-between">
+            <div className="border-b border-border pb-3 text-body-xs flex items-center justify-between">
               <div>
                 <p className="font-bold text-foreground">{booking.course?.title}</p>
                 <p className="text-[11px] text-muted-foreground">

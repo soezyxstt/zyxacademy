@@ -116,10 +116,10 @@ export function ProductCatalogPanel({ courseLabels = {}, lockedCourse }: Props) 
   return (
     <div className="space-y-5">
       {/* Inline Responsive Filter Toolbar */}
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-card p-3 shadow-xs">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap items-center gap-2">
           {/* Search */}
-          <div className="min-w-[160px] max-w-xs">
+          <div className="min-w-[140px] flex-1 max-w-xs">
             <SearchBar
               size="sm"
               value={searchQuery}
@@ -205,10 +205,10 @@ export function ProductCatalogPanel({ courseLabels = {}, lockedCourse }: Props) 
         <AdminEmptyState
           icon={LayoutGrid}
           title="Belum ada produk"
-          description="Produk hasil authoring pipeline yang telah terbit akan muncul di sini."
+          description="Terbitkan produk dari Review materi."
         />
       ) : (
-        <div className="grid gap-3">
+        <div className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
           {items.map((item) => {
             const IconComponent = TYPE_ICONS[item.productType] || FileText;
             const courseText = item.courseTitle
@@ -218,7 +218,7 @@ export function ProductCatalogPanel({ courseLabels = {}, lockedCourse }: Props) 
             return (
               <article
                 key={item.id}
-                className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-card p-4 shadow-xs transition-colors hover:border-brand-primary/40"
+                className="flex flex-wrap items-center justify-between gap-3 p-3 transition-colors hover:bg-muted/30"
               >
                 <div className="min-w-0 flex-1 space-y-1.5">
                   <div className="flex flex-wrap items-center gap-2">

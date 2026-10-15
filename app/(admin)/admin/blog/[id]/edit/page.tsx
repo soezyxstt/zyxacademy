@@ -15,7 +15,7 @@ export default async function EditArticlePage({ params }: { params: Promise<{ id
   if (!article) notFound();
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-5">
       <AdminPageHeader
         icon={PenLine}
         title="Sunting Artikel"

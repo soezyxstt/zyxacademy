@@ -75,7 +75,6 @@ type Props = {
  */
 export function QuestionsTab({
   courseId,
-  courseTitle,
   chapters: _chapters,
   initialQuestions,
 }: Props) {
@@ -238,11 +237,11 @@ export function QuestionsTab({
       </div>
 
       {/* Questions Container */}
-      <div className="rounded-xl border border-border bg-card p-4 shadow-2xs space-y-3">
+      <div className="rounded-xl border border-border bg-card p-3 space-y-3">
         <div className="flex items-center justify-between">
           <h2 className="font-heading text-body-base font-bold text-foreground flex items-center gap-2">
             <Library className="size-4 text-brand-primary" />
-            Bank Soal {courseTitle} ({totalItems})
+            Bank soal ({totalItems})
           </h2>
           <span className="text-body-xs text-muted-foreground">
             Menampilkan {totalItems === 0 ? 0 : (validPage - 1) * pageSize + 1} - {Math.min(validPage * pageSize, totalItems)} dari {totalItems}
@@ -254,11 +253,11 @@ export function QuestionsTab({
             <HelpCircle className="size-8 text-muted-foreground/40 mx-auto mb-2" />
             <p className="text-body-sm font-medium text-foreground">Tidak ada butir soal yang sesuai</p>
             <p className="text-body-xs text-muted-foreground mt-0.5">
-              Coba sesuaikan kata kunci pencarian atau ubah filter tingkat kesulitan.
+              Ubah pencarian atau filter kesulitan.
             </p>
           </div>
         ) : (
-          <div className="space-y-3">
+          <div className="divide-y divide-border">
             {paginatedQuestions.map((q, idx) => {
               const questionIndex = (validPage - 1) * pageSize + idx + 1;
 
@@ -289,7 +288,7 @@ export function QuestionsTab({
               return (
                 <div
                   key={q.id}
-                  className="p-4 rounded-xl border border-border/80 bg-card hover:border-brand-primary/40 transition-all space-y-3"
+                  className="py-4 first:pt-1 last:pb-1 space-y-3"
                 >
                   {/* Top Metadata Row */}
                   <div className="flex items-center justify-between gap-2">

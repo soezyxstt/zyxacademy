@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SearchBar } from "@/components/ui/search-bar";
+import { AdminEmptyState } from "@/components/admin/state-panels";
 import { AdminTable } from "@/components/admin/table";
 import { AdminStatStrip, AdminStatStripItem } from "@/components/admin/stat-card";
 import {
@@ -204,12 +205,7 @@ export function RegistrationsTab({ registrations }: { registrations: PkaRegistra
 
   if (registrations.length === 0) {
     return (
-      <div className="rounded-xl border border-dashed border-border/60 py-16 text-center">
-        <Users className="mx-auto size-8 text-muted-foreground" />
-        <p className="mt-3 text-body-sm text-muted-foreground">
-          Belum ada pendaftar. Data akan muncul di sini saat siswa mengisi formulir pendaftaran.
-        </p>
-      </div>
+      <AdminEmptyState icon={Users} title="Belum ada pendaftar" />
     );
   }
 

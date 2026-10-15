@@ -57,7 +57,7 @@ export function FeedbackForm({ initialEmail }: { initialEmail?: string }) {
 
   if (submitted) {
     return (
-      <div className="rounded-2xl border border-border/80 bg-card p-8 sm:p-10 text-center shadow-xs">
+      <div className="rounded-xl border border-border bg-card p-5 text-center">
         <div className="mx-auto mb-4 flex size-14 items-center justify-center rounded-2xl bg-status-success/10 text-status-success ring-1 ring-status-success/20">
           <CheckCircle2 className="size-7" />
         </div>
@@ -65,7 +65,7 @@ export function FeedbackForm({ initialEmail }: { initialEmail?: string }) {
           Masukan berhasil terkirim
         </h2>
         <p className="mx-auto mt-2 max-w-md text-body-sm text-muted-foreground">
-          Terima kasih atas kontribusi Anda dalam meningkatkan kualitas pembelajaran di Zyx Academy. Tim akademik kami membaca setiap masukan secara berkala.
+          Tim akademik akan meninjau masukan Anda.
         </p>
         <Button
           type="button"
@@ -85,7 +85,7 @@ export function FeedbackForm({ initialEmail }: { initialEmail?: string }) {
   return (
     <form
       onSubmit={handleSubmit}
-      className="space-y-6 rounded-2xl border border-border/80 bg-card p-6 sm:p-8 shadow-xs"
+      className="space-y-4 max-w-2xl rounded-xl border border-border bg-card p-4 sm:p-5"
     >
       {/* Category selector */}
       <div>
@@ -94,7 +94,10 @@ export function FeedbackForm({ initialEmail }: { initialEmail?: string }) {
         </label>
         <div className="flex flex-wrap gap-2">
           {CATEGORIES.map((cat) => (
-            <button
+            <Button
+              variant="outline"
+              size="sm"
+              aria-pressed={category === cat.id}
               key={cat.id}
               type="button"
               onClick={() => setCategory(cat.id)}
@@ -106,7 +109,7 @@ export function FeedbackForm({ initialEmail }: { initialEmail?: string }) {
               )}
             >
               {cat.label}
-            </button>
+            </Button>
           ))}
         </div>
       </div>
@@ -118,7 +121,10 @@ export function FeedbackForm({ initialEmail }: { initialEmail?: string }) {
         </label>
         <div className="flex items-center gap-1.5">
           {[1, 2, 3, 4, 5].map((star) => (
-            <button
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-pressed={rating === star}
               key={star}
               type="button"
               onMouseEnter={() => setHoverRating(star)}
@@ -135,7 +141,7 @@ export function FeedbackForm({ initialEmail }: { initialEmail?: string }) {
                     : "text-muted-foreground/30"
                 )}
               />
-            </button>
+            </Button>
           ))}
           <span className="ml-2 text-body-xs font-semibold text-muted-foreground">
             {rating === 5 && "Sangat puas"}
@@ -155,14 +161,14 @@ export function FeedbackForm({ initialEmail }: { initialEmail?: string }) {
         <Textarea
           id="feedback-message"
           rows={4}
-          placeholder="Ceritakan pengalaman belajar, kendala materi, soal kuis, atau fitur yang perlu ditingkatkan..."
+          placeholder="Tulis masukan Anda..."
           value={message}
           onChange={(e) => setMessage(e.target.value)}
           className="rounded-lg text-body-sm resize-y min-h-[100px]"
           required
         />
         <p className="mt-1 text-body-xs text-muted-foreground">
-          Minimal 5 karakter. Masukan Anda membantu kami mengembangkan kurikulum dan sistem.
+          Minimal 5 karakter.
         </p>
       </div>
 
@@ -180,7 +186,7 @@ export function FeedbackForm({ initialEmail }: { initialEmail?: string }) {
           className="rounded-lg text-body-sm max-w-md"
         />
         <p className="mt-1 text-body-xs text-muted-foreground">
-          Isi surel jika Anda berkenan dihubungi oleh tim jika diperlukan informasi tambahan.
+          Untuk tindak lanjut dari tim.
         </p>
       </div>
 

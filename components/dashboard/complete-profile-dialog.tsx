@@ -86,12 +86,12 @@ export function CompleteProfileDialog({
             Lengkapi profil belajar Anda
           </DialogTitle>
           <DialogDescription className="text-body-xs text-muted-foreground leading-relaxed">
-            Yuk lengkapi fakultas, jurusan, dan tahun masuk ITB agar materi dan rekomendasi kursus Zyx lebih sesuai dengan tahap studi Anda.
+            Isi fakultas, jurusan, dan tahun masuk untuk rekomendasi kelas.
           </DialogDescription>
         </DialogHeader>
 
         {missingFields && (
-          <div className="my-2 rounded-xl border border-border bg-muted/30 p-3 space-y-1.5 text-body-xs">
+          <div className="my-2 border-y border-border py-3 space-y-1.5 text-body-xs">
             <div className="flex items-center justify-between">
               <span className="text-muted-foreground">Fakultas ITB</span>
               <span className={missingFields.faculty ? "font-semibold text-amber-600 dark:text-amber-500" : "text-status-success font-semibold"}>

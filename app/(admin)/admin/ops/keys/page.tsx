@@ -11,7 +11,7 @@ export const metadata: Metadata = {
 
 export default function KeysPage() {
   return (
-    <div className="space-y-8">
+    <div className="space-y-5">
       <AdminPageHeader
         icon={KeyRound}
         title="API Keys"
