@@ -70,6 +70,32 @@ export function ZyraUsageCharts() {
     );
   }
 
+  const formatDateTick = (value: string) => {
+    try {
+      const [y, m, d] = value.split("-");
+      const date = new Date(Number(y), Number(m) - 1, Number(d));
+      return date.toLocaleDateString("id-ID", { day: "numeric", month: "short" });
+    } catch {
+      return value;
+    }
+  };
+
+  const formatTooltipLabel = (label: any) => {
+    if (typeof label !== "string") return label;
+    try {
+      const [y, m, d] = label.split("-");
+      const date = new Date(Number(y), Number(m) - 1, Number(d));
+      return date.toLocaleDateString("id-ID", {
+        weekday: "short",
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+      });
+    } catch {
+      return label;
+    }
+  };
+
   return (
     <div className="space-y-8 mt-12 border-t border-border pt-8">
       <div className="flex items-center justify-between">
@@ -110,20 +136,76 @@ export function ZyraUsageCharts() {
             <div className="h-72 w-full">
               {daily.length > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={daily}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
-                    <XAxis dataKey="date" tick={{ fontSize: 12 }} tickMargin={10} stroke="hsl(var(--muted-foreground))" />
-                    <YAxis yAxisId="left" tick={{ fontSize: 12 }} stroke="hsl(var(--muted-foreground))" />
-                    <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 12 }} stroke="hsl(var(--muted-foreground))" />
-                    <Tooltip
-                      contentStyle={{ backgroundColor: "hsl(var(--card))", borderColor: "hsl(var(--border))", borderRadius: "8px" }}
-                      itemStyle={{ fontSize: "14px" }}
-                      labelStyle={{ color: "hsl(var(--foreground))", marginBottom: "4px" }}
+                  <BarChart data={daily} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-border)" opacity={0.5} />
+                    <XAxis
+                      dataKey="date"
+                      tick={{ fontSize: 12, fill: "var(--color-muted-foreground)" }}
+                      tickMargin={10}
+                      tickFormatter={formatDateTick}
+                      stroke="var(--color-border)"
                     />
-                    <Legend wrapperStyle={{ paddingTop: "20px" }} />
-                    <Bar yAxisId="left" dataKey="inputTokens" name="Input Tokens" stackId="a" fill="hsl(var(--brand-primary))" radius={[0, 0, 4, 4]} />
-                    <Bar yAxisId="left" dataKey="outputTokens" name="Output Tokens" stackId="a" fill="hsl(var(--brand-secondary))" radius={[4, 4, 0, 0]} />
-                    <Bar yAxisId="right" dataKey="requests" name="Total Request" fill="hsl(var(--status-info))" radius={4} />
+                    <YAxis
+                      yAxisId="left"
+                      tick={{ fontSize: 12, fill: "var(--color-muted-foreground)" }}
+                      stroke="var(--color-border)"
+                      tickFormatter={(v) => (v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v)}
+                    />
+                    <YAxis
+                      yAxisId="right"
+                      orientation="right"
+                      allowDecimals={false}
+                      tick={{ fontSize: 12, fill: "var(--color-muted-foreground)" }}
+                      stroke="var(--color-border)"
+                    />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: "var(--color-card)",
+                        borderColor: "var(--color-border)",
+                        borderRadius: "8px",
+                        color: "var(--color-foreground)",
+                        fontSize: "13px",
+                      }}
+                      itemStyle={{ color: "var(--color-foreground)" }}
+                      labelStyle={{ color: "var(--color-foreground)", fontWeight: 600, marginBottom: "4px" }}
+                      formatter={(value: any, name?: any) => [
+                        Number(value).toLocaleString("id-ID"),
+                        String(name ?? ""),
+                      ]}
+                      labelFormatter={formatTooltipLabel}
+                      cursor={{ fill: "var(--color-muted)", opacity: 0.3 }}
+                    />
+                    <Legend
+                      wrapperStyle={{ paddingTop: "16px", fontSize: "12px" }}
+                      formatter={(value) => (
+                        <span className="text-body-xs text-foreground font-medium">{value}</span>
+                      )}
+                    />
+                    <Bar
+                      yAxisId="left"
+                      dataKey="inputTokens"
+                      name="Input Tokens"
+                      stackId="tokens"
+                      fill="var(--color-brand-primary)"
+                      maxBarSize={32}
+                    />
+                    <Bar
+                      yAxisId="left"
+                      dataKey="outputTokens"
+                      name="Output Tokens"
+                      stackId="tokens"
+                      fill="var(--color-brand-secondary)"
+                      radius={[4, 4, 0, 0]}
+                      maxBarSize={32}
+                    />
+                    <Bar
+                      yAxisId="right"
+                      dataKey="requests"
+                      name="Total Request"
+                      fill="var(--color-status-info)"
+                      radius={[4, 4, 0, 0]}
+                      maxBarSize={32}
+                    />
                   </BarChart>
                 </ResponsiveContainer>
               ) : (
