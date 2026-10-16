@@ -6,7 +6,7 @@ const faqItems = [
   {
     question: "Apa yang termasuk akses Free?",
     answer:
-      "Paket Free memberi akses penuh ke bab pertama setiap mata kuliah, termasuk Artikel, Diktat, Kuis, dan Flashcard. Diktat dapat dibaca tanpa unduhan. Zyra tersedia satu pertanyaan per hari.",
+      "Paket Free memberi akses penuh ke bab pertama setiap mata kuliah, termasuk Artikel, Diktat, Kuis, dan Flashcard. Diktat dapat dibaca tanpa unduhan. Zyra tersedia 5 pertanyaan per hari.",
   },
   {
     question: "Bisa melihat fitur sebelum membuat akun?",

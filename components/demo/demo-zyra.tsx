@@ -42,7 +42,7 @@ export function DemoZyra({ nextPath }: { nextPath: string }) {
       <div className="mt-5 flex flex-col gap-3 rounded-xl border border-brand-primary/20 bg-brand-primary/5 p-5 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="font-heading text-body-base font-bold text-foreground">Coba Zyra di akunmu</h2>
-          <p className="mt-1 text-body-xs text-muted-foreground">Paket Free memberi satu pertanyaan per hari.</p>
+          <p className="mt-1 text-body-xs text-muted-foreground">Paket Free memberi 5 pertanyaan per hari.</p>
         </div>
         <DemoAuthCta nextPath={nextPath} />
       </div>

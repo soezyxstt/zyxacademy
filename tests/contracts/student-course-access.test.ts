@@ -246,7 +246,7 @@ describe("student course access policy", () => {
       expect(free.freeChapterIds).not.toContain("bab-demo-2");
       expect(free.freeChapterIds).not.toContain("chapter-demo-2");
       expect(free.freeChapterIds).not.toContain("bab-demo-3");
-      expect(free.capabilities.zyraDailyQuestionLimit).toBe(1);
+      expect(free.capabilities.zyraDailyQuestionLimit).toBe(5);
       expect(canAccessCourseContent(free, "article", ["bab-demo-1"])).toBe(true);
       expect(canAccessCourseContent(free, "diktat", ["bab-demo-1"])).toBe(true);
       expect(canAccessCourseContent(free, "quiz", ["chapter-demo-1"])).toBe(true);

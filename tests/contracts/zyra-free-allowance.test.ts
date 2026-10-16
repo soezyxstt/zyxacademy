@@ -6,11 +6,11 @@ import {
 } from "@/lib/usage-budget-service";
 
 describe("Zyra Free allowance", () => {
-  it("allows one provider question per Jakarta day", () => {
+  it("allows 5 provider questions per Jakarta day", () => {
     expect(ZYRA_FREE_ALLOWANCE_POLICY).toEqual({
-      providerPerDay: 1,
-      totalInteractions: 1,
-      perMinute: 1,
+      providerPerDay: 5,
+      totalInteractions: 5,
+      perMinute: 5,
       premiumPerDay: 0,
     });
 
@@ -23,13 +23,13 @@ describe("Zyra Free allowance", () => {
 
     const next = evaluateAllowance(
       "murid",
-      { provider: 1, total: 1, premium: 0, minute: 0 },
+      { provider: 5, total: 5, premium: 0, minute: 0 },
       { units: 1, premium: false, accessTier: "free" },
     );
     expect(next).toMatchObject({ accepted: false, reason: "TOTAL_INTERACTION_LIMIT" });
   });
 
-  it("counts a cache response as the same one daily interaction without provider spend", () => {
+  it("counts a cache response as the same daily interaction without provider spend", () => {
     const cacheHit = evaluateAllowance(
       "murid",
       { provider: 0, total: 0, premium: 0, minute: 0 },
@@ -37,16 +37,16 @@ describe("Zyra Free allowance", () => {
     );
     expect(cacheHit.accepted).toBe(true);
     if (cacheHit.accepted) {
-      expect(cacheHit.remaining.providerTurns).toBe(1);
-      expect(cacheHit.remaining.totalInteractions).toBe(0);
+      expect(cacheHit.remaining.providerTurns).toBe(5);
+      expect(cacheHit.remaining.totalInteractions).toBe(4);
     }
 
-    const secondQuestion = evaluateAllowance(
+    const exhausted = evaluateAllowance(
       "murid",
-      { provider: 0, total: 1, premium: 0, minute: 0 },
+      { provider: 0, total: 5, premium: 0, minute: 0 },
       { units: 1, premium: false, accessTier: "free" },
     );
-    expect(secondQuestion).toMatchObject({ accepted: false, reason: "TOTAL_INTERACTION_LIMIT" });
+    expect(exhausted).toMatchObject({ accepted: false, reason: "TOTAL_INTERACTION_LIMIT" });
   });
 
   it("rejects premium turns and keeps the Free idempotency namespace explicit", () => {
