@@ -28,6 +28,7 @@ import {
   isZyraCanvasFeatureEnabled,
   serializeTutorMessageSources,
 } from "@/lib/zyra/canvas";
+import { sanitizeAnswer } from "@/lib/tutor/answer-sanitizer";
 
 /** Thrown when a signed-in user has no access to the requested course. */
 const NOT_ENROLLED = "NOT_ENROLLED";
@@ -766,13 +767,18 @@ export async function saveTutorMessagesAction(
 
   const sid = await requireOwnedChatSession(user.id, courseId, providedSessionId, "General Chat");
 
-  const preparedRows = messages.map((m) => ({
+  const preparedRows = messages.map((m) => {
+    const rawSources = Array.isArray(m.sources) ? m.sources : [];
+    const content = m.role === "ai"
+      ? sanitizeAnswer(m.content ?? "", rawSources as any)
+      : (m.content ?? "");
+    return {
       id: randomUUID(),
       studentId: user.id,
       courseId,
       sessionId: sid,
       role: m.role,
-      content: m.content ?? "",
+      content,
       sources: access?.tier === "free"
         ? null
         : serializeTutorMessageSources(
@@ -780,7 +786,8 @@ export async function saveTutorMessagesAction(
             isZyraCanvasFeatureEnabled() ? m.canvasSpec : undefined,
           ),
       attachmentIds: m.role === "student" ? [...(m.attachmentIds ?? [])] : [],
-    }));
+    };
+  });
 
   for (const row of preparedRows) assertZyraImageCount(row.attachmentIds.length);
 
@@ -890,10 +897,13 @@ export async function loadTutorHistoryAction(
     sessionId: sid,
     messages: rows.map((r) => {
       const decoded = deserializeTutorMessageSources(r.sources);
+      const content = r.role === "ai"
+        ? sanitizeAnswer(r.content, decoded.sources)
+        : r.content;
       return {
         id: r.id,
         role: r.role as "student" | "ai",
-        content: r.content,
+        content,
         sources: access?.tier === "free"
           ? undefined
           : decoded.sources.length > 0 ? decoded.sources : undefined,
@@ -1015,7 +1025,7 @@ export async function quickExplainSnippetAction(input: {
 
     return {
       success: true,
-      explanation: res.answer || "Tidak ada penjelasan yang tersedia.",
+      explanation: res.answer ? sanitizeAnswer(res.answer, res.sources) : "Tidak ada penjelasan yang tersedia.",
     };
   } catch (err: unknown) {
     const errorMsg = err instanceof Error ? err.message : "Gagal memuat penjelasan singkat.";

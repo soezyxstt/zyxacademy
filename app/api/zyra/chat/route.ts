@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth";
 import { askTutorRagAction } from "@/app/actions/tutor";
 import { resolveCourseAccess } from "@/lib/student/course-access";
 import { FREE_ALLOWANCE_IDEMPOTENCY_PREFIX } from "@/lib/usage-budget-service";
+import { sanitizeAnswer } from "@/lib/tutor/answer-sanitizer";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -203,7 +204,7 @@ export async function POST(req: Request) {
           } else if (!res.answer) {
             fullAnswer = "Maaf, terjadi gangguan saat memproses jawaban. Silakan coba lagi dalam beberapa saat.";
           } else {
-            fullAnswer = res.answer;
+            fullAnswer = sanitizeAnswer(res.answer, res.sources);
           }
 
           // 3. Progressive stream of text-delta chunks for smooth typing effect

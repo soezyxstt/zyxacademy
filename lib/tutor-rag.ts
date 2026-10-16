@@ -75,6 +75,10 @@ import {
 } from "@/lib/tutor/evidence-coverage";
 import { verifyCitations } from "@/lib/tutor/citation-verifier";
 import {
+  sanitizeAnswer,
+  type SanitizationSource,
+} from "@/lib/tutor/answer-sanitizer";
+import {
   rehydrateCanonicalSourceIds,
   retrieveCanonicalEvidence,
 } from "@/lib/zyra/canonical-runtime";
@@ -218,28 +222,7 @@ export interface ChapterSummary {
  practiceRecommendations: string[];
 }
 
-// UUID v4-ish shape used for all source ids; never appears in tutoring prose.
-const UUID_RE = "[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}";
-
-// Cleans model output before it reaches the student:
-// - strips inline source-id citations the model leaks despite instructions
-// (the ids belong only in the sources chips, never in the answer text).
-function sanitizeAnswer(text: string): string {
- let out = text;
-
- // Remove ids wrapped in ()/[], with an optional "source id:" prefix.
- out = out.replace(
- new RegExp(`[ \\t]*[\\(\\[]\\s*(?:source\\s*id\\s*:?\\s*)?${UUID_RE}\\s*[\\)\\]]`, "gi"),
- ""
- );
- // Remove any remaining bare ids.
- out = out.replace(new RegExp(`[ \\t]*${UUID_RE}`, "gi"), "");
-
- // Tidy leftover artefacts: space before punctuation, doubled spaces.
- out = out.replace(/[ \t]+([.,!?;:])/g, "$1").replace(/[ \t]{2,}/g, " ");
-
- return normalizeTutorMathMarkdown(out.trim());
-}
+export { sanitizeAnswer, type SanitizationSource };
 
 // ─── Cache keys ───────────────────────────────────────────────────────────────
 
@@ -326,7 +309,7 @@ ${vars.sourceList}
 Generate a single JSON object:
 {
  "covered": [true only if the excerpts actually address this question, else false],
- "answer": "[Markdown answer. IMPORTANT: Do NOT include any source ids or UUIDs inline in the answer text. Write the answer in Socratic prose only. Source attribution goes exclusively in the sourceIds array below. Do not use ::: visual markdown blocks.]",
+ "answer": "[Markdown answer. IMPORTANT: Do NOT include any source ids, product ids, slugs, or UUIDs inline in the answer text. Never write bracketed citation tokens like [source-id] or [article-...]. Write the answer in natural Indonesian Socratic prose only. If referring to materials, use human-readable titles, never raw IDs. Source attribution goes exclusively in the sourceIds array below. Do not use ::: visual markdown blocks.]",
  "sourceIds": ["[ids you actually used ; only in this array, never embedded in the answer text; empty array when covered is false]"],
  "matchedConcepts": ["[concept names this question is about]"],
  "confidence": [0.0 to 1.0, how well the excerpts cover the question]
@@ -920,7 +903,7 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
       base = await kvGet<TutorRagAnswer>(cacheKey);
     }
     if (base && typeof base.answer === "string") {
-      let ansText = sanitizeAnswer(base.answer);
+      let ansText = sanitizeAnswer(base.answer, base.sources);
 
       if (policy) {
         const val = validateTutorOutput(ansText, protectedPayload, policy.allowedHelpLevel);
@@ -1215,7 +1198,7 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
               return { type: s.type, id: s.id, label: s.label, href: s.href };
             });
 
-            let ansText = sanitizeAnswer(d.answer);
+            let ansText = sanitizeAnswer(d.answer, sources);
 
             if (policy) {
               const validation = validateTutorOutput(ansText, protectedPayload, policy.allowedHelpLevel);
@@ -1234,7 +1217,7 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
               canvasSpec: pedagogyCanvasSpec,
             };
           } else {
-            let ansText = sanitizeAnswer(d.answer);
+            let ansText = sanitizeAnswer(d.answer, retrieved);
 
             base = {
               answer: ansText,
