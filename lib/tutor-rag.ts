@@ -668,7 +668,7 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
       prompt: hasImages ? tutorImageAnswer : tutorUngroundedAnswer,
       variables: { question, conversationHistory: historyText },
       schema: UngroundedSchema,
-      useCase: accessTier === "free" ? USE_CASES.UNGROUNDED_TUTOR_GEMMA : USE_CASES.UNGROUNDED_TUTOR,
+      useCase: USE_CASES.UNGROUNDED_TUTOR,
       providerParts: imageParts,
       maxAttempts: hasImages ? 1 : undefined,
       idempotencyKey,
@@ -705,8 +705,7 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
   let terminalFailure: TutorRagResult["failureCode"] | undefined;
 
   const generateGeneralTeachingFallback = async (): Promise<TutorRagAnswer | null> => {
-    const remaining = accessTier === "free" ? 0 : await UsageBudgetService.getRemainingPremium(studentId);
-    const useCase = remaining > 0 ? USE_CASES.UNGROUNDED_TUTOR : USE_CASES.UNGROUNDED_TUTOR_GEMMA;
+    const useCase = USE_CASES.UNGROUNDED_TUTOR;
     const historyText = history.recentMessages
       .map((message) => `${message.role === "student" ? "STUDENT" : "ZYRA"}: ${message.content}`)
       .join("\n\n");
@@ -1323,8 +1322,7 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
  // Tier 3: personalized AI, only for weak concepts, charged, silent on exhaustion
   let personalized: string | null = null;
   if (accessTier !== "free" && addendum && pedagogyMode === "legacy" && !hasImages) {
-   const remaining = await UsageBudgetService.getRemainingPremium(studentId);
-   const useCase = remaining > 0 ? USE_CASES.WEAK_CONCEPT_GUIDANCE : USE_CASES.WEAK_CONCEPT_GUIDANCE_GEMMA;
+   const useCase = USE_CASES.WEAK_CONCEPT_GUIDANCE;
    const result = await PromptExecutor.run({
    userId: studentId,
    prompt: tutorPersonalGuidance,
