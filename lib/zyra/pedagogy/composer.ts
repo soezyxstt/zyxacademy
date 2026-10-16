@@ -7,6 +7,7 @@ import type {
 import type { TeachingPlan } from "./state-machine";
 import type { CanvasSpec } from "@/lib/zyra/canvas";
 import { parseCanvasSpec } from "@/lib/zyra/canvas";
+import { sanitizeAnswer } from "@/lib/tutor/answer-sanitizer";
 
 export interface LegacyTutorAnswer {
   answer: string;
@@ -147,7 +148,7 @@ export function teachingResponseToTutorAnswer(
       href: source.href,
     }));
   return {
-    answer: response.learnerFacingText,
+    answer: sanitizeAnswer(response.learnerFacingText, evidence),
     sources,
     matchedConcepts: response.citations.map((citation) => citation.sourceId),
     confidence: sources.length > 0 ? 0.85 : 0,

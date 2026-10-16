@@ -1,6 +1,7 @@
 import { validateTutorOutput, type ProtectedItemPayload } from "@/lib/assessment-assistance-policy";
 import { validateVisualSpec } from "@/lib/tutor/visual-contracts";
 import { validateCanvasSpec } from "@/lib/zyra/canvas";
+import { sanitizeAnswer } from "@/lib/tutor/answer-sanitizer";
 import type { SemanticValidator, SemanticViolation } from "@/lib/ai/validation";
 import {
   ZyraTeachingResponseSchema,
@@ -60,6 +61,14 @@ export function validateTeachingResponse(
 
   const value = parsed.data;
   const violations: SemanticViolation[] = [];
+
+  const evidenceList = [...allowedSources.keys()].map((id) => ({ id }));
+  value.learnerFacingText = sanitizeAnswer(value.learnerFacingText, evidenceList);
+  for (const block of value.explanationBlocks) {
+    if (block.text) {
+      block.text = sanitizeAnswer(block.text, evidenceList);
+    }
+  }
 
   if (value.selectedState !== plan.state) {
     violations.push(violation("STATE_MISMATCH", "selectedState", "The response changed the server-selected teaching state."));

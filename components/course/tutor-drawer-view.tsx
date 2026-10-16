@@ -53,6 +53,7 @@ import { toast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
 import { clampTutorPanelWidth, DEFAULT_TUTOR_PANEL_WIDTH, MAX_TUTOR_PANEL_WIDTH, MIN_TUTOR_PANEL_WIDTH } from "@/lib/tutor-panel-layout";
 import { normalizeTutorMathMarkdown } from "@/lib/tutor/math-markdown";
+import { sanitizeAnswer } from "@/lib/tutor/answer-sanitizer";
 import { getTutorCapabilities } from "@/lib/tutor-capabilities";
 import {
   ZyraAttachmentComposer,
@@ -1310,7 +1311,7 @@ export function TutorDrawerView({
                       </div>
                     ) : (
                       <div className="prose prose-sm dark:prose-invert max-w-none break-words text-body-sm leading-relaxed text-foreground">
-                        <MarkdownRenderer content={msg.content} density="compact" />
+                        <MarkdownRenderer content={sanitizeAnswer(msg.content, msg.sources)} density="compact" />
                       </div>
                     )}
 
@@ -1323,17 +1324,29 @@ export function TutorDrawerView({
                     {msg.sources && msg.sources.length > 0 && (
                       <div className="mt-2.5 pt-2 border-t border-border/40 flex flex-wrap gap-1.5 items-center">
                         <span className="text-[10px] uppercase font-semibold text-muted-foreground">Sumber:</span>
-                        {msg.sources.map((s, idx) => (
-                          <a
-                            key={idx}
-                            href={s.href}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-body-xs text-brand-primary hover:underline bg-brand-primary/10 px-2 py-0.5 rounded-md"
-                          >
-                            {s.label}
-                          </a>
-                        ))}
+                        {msg.sources.map((s, idx) => {
+                          const cleanLabel = (s.label || "").trim();
+                          const displayLabel = cleanLabel && cleanLabel !== s.id
+                            ? cleanLabel.replace(/^(?:Materi|Konsep|Pembahasan):\s*/i, "").trim() || cleanLabel
+                            : (s.id.startsWith("article-") || s.id.startsWith("product-"))
+                              ? "Artikel materi"
+                              : (s.id.startsWith("diktat-") || s.id.startsWith("text-product-"))
+                                ? "Diktat kuliah"
+                                : (s.id.startsWith("quiz-review-") || s.id.startsWith("quiz-"))
+                                  ? "Pembahasan kuis"
+                                  : "Materi kuliah";
+                          return (
+                            <a
+                              key={idx}
+                              href={s.href}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-body-xs text-brand-primary hover:underline bg-brand-primary/10 px-2 py-0.5 rounded-md"
+                            >
+                              {displayLabel}
+                            </a>
+                          );
+                        })}
                       </div>
                     )}
 
