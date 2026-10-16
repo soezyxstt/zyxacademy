@@ -148,7 +148,7 @@ function capabilitiesForTier(
       canStartQuiz: true,
       canReviewFlashcard: true,
       canAskZyra: true,
-      zyraDailyQuestionLimit: 1,
+      zyraDailyQuestionLimit: 5,
     };
   }
 

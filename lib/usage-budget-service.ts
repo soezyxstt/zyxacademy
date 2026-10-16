@@ -21,7 +21,7 @@ import { normalizePeranCodes, type PeranCode } from "@/lib/auth/peran";
 type QueryExecutor = Pick<typeof db, "select" | "insert" | "update" | "delete">;
 
 export const ZYRA_ALLOWANCE_POLICY = {
-  murid: { providerPerDay: 20, totalInteractions: 60, perMinute: 8, premiumPerDay: 20 },
+  murid: { providerPerDay: 15, totalInteractions: 45, perMinute: 8, premiumPerDay: 15 },
   tutor: { providerPerDay: 50, totalInteractions: 150, perMinute: 12, premiumPerDay: 50 },
   admin: { providerPerDay: null, totalInteractions: 300, perMinute: 20, premiumPerDay: null },
 } as const;
@@ -29,12 +29,12 @@ export const ZYRA_ALLOWANCE_POLICY = {
 /**
  * The authenticated Free lane is deliberately separate from the enrolled
  * allowance. This keeps the existing murid allowance unchanged while making
- * the one-question-per-Jakarta-day promise atomic across every Free course.
+ * the 5-questions-per-Jakarta-day promise atomic across every Free course.
  */
 export const ZYRA_FREE_ALLOWANCE_POLICY = {
-  providerPerDay: 1,
-  totalInteractions: 1,
-  perMinute: 1,
+  providerPerDay: 5,
+  totalInteractions: 5,
+  perMinute: 5,
   premiumPerDay: 0,
 } as const;
 

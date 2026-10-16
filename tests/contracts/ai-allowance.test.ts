@@ -9,14 +9,14 @@ import { promptExecutorOwnsAllowance } from "@/lib/prompt-executor";
 
 describe("Plan 004 allowance policy", () => {
   it("keeps the approved role limits and always-on allowance protection", () => {
-    expect(ZYRA_ALLOWANCE_POLICY.murid).toEqual({ providerPerDay: 20, totalInteractions: 60, perMinute: 8, premiumPerDay: 20 });
+    expect(ZYRA_ALLOWANCE_POLICY.murid).toEqual({ providerPerDay: 15, totalInteractions: 45, perMinute: 8, premiumPerDay: 15 });
     expect(ZYRA_ALLOWANCE_POLICY.tutor).toEqual({ providerPerDay: 50, totalInteractions: 150, perMinute: 12, premiumPerDay: 50 });
     expect(ZYRA_ALLOWANCE_POLICY.admin.providerPerDay).toBeNull();
     expect(UsageBudgetService.isAllowanceEnabled()).toBe(true);
   });
 
   it("counts cache interactions without spending provider turns", () => {
-    const decision = evaluateAllowance("murid", { provider: 19, total: 58, premium: 1, minute: 7 }, { units: 0, premium: false });
+    const decision = evaluateAllowance("murid", { provider: 14, total: 43, premium: 1, minute: 7 }, { units: 0, premium: false });
     expect(decision.accepted).toBe(true);
     if (decision.accepted) {
       expect(decision.remaining.providerTurns).toBe(1);

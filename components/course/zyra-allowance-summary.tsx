@@ -67,7 +67,7 @@ export function ZyraAllowanceSummary({
         <Gauge className="size-3.5" aria-hidden="true" />
         {summary.providerTurnsRemaining} respons tersisa
       </span>
-      <span>{isFree ? "1 pertanyaan teks per hari" : "Termasuk pertanyaan teks dan gambar"}</span>
+      <span>{isFree ? "5 pertanyaan teks per hari" : "Termasuk pertanyaan teks dan gambar"}</span>
       <span>{summary.totalInteractionsUsed} interaksi hari ini</span>
       <span>{summary.cacheSaves} jawaban dari cache</span>
       <Badge variant="outline" className="rounded-md px-1.5 py-0 text-[10px] font-normal">
