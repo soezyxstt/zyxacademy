@@ -494,6 +494,9 @@ async function loadCanonicalRecords(
 
   for (const row of ideaRows) {
     const content = contentWithFormula(row.canonicalStatement, row.conciseExplanation, row.latex);
+    const cleanTitle = row.canonicalStatement?.trim()
+      ? (row.canonicalStatement.length > 80 ? `${row.canonicalStatement.slice(0, 77)}...` : row.canonicalStatement)
+      : row.code;
     records.push({
       namespace: "canonical_ideas",
       entityType: "idea",
@@ -503,7 +506,7 @@ async function loadCanonicalRecords(
       accessClass: "enrolled",
       courseId: row.mataKuliahId,
       chapterId: row.babId,
-      title: row.code,
+      title: cleanTitle,
       content,
       contentHash: hashContent(content),
       href: `/courses/${courseId}/material`,
@@ -547,6 +550,9 @@ async function loadCanonicalRecords(
 
   for (const row of questionRows) {
     const fullContent = `${row.prompt}\n\nOptions: ${stableSerialize(redactQuestionAnswerKeys(row.optionsSnapshot))}`;
+    const questionTitle = row.prompt?.trim()
+      ? (row.prompt.length > 60 ? `${row.prompt.slice(0, 57)}...` : row.prompt)
+      : "Soal latihan";
     records.push({
       namespace: "published_questions",
       entityType: "question",
@@ -556,7 +562,7 @@ async function loadCanonicalRecords(
       accessClass: "enrolled",
       courseId: row.mataKuliahId,
       chapterId: row.babId ?? undefined,
-      title: "Published question",
+      title: questionTitle,
       content: fullContent,
       safeContent: row.prompt,
       contentHash: hashContent(fullContent),
@@ -575,7 +581,7 @@ async function loadCanonicalRecords(
       accessClass: "restricted_solution",
       courseId: row.courseId,
       chapterId: row.chapterId ?? undefined,
-      title: "Published solution",
+      title: "Pembahasan soal",
       content: row.content,
       contentHash: hashContent(row.content),
       href: `/courses/${courseId}/material`,

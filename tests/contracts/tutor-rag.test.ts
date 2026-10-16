@@ -4,6 +4,7 @@ process.env.MOCK_GEMINI = "true";
 import {
   composeUngroundedTeachingAnswer,
   normalizeQuestion,
+  sanitizeAnswer,
   shouldRetrieveTutorEvidence,
 } from "@/lib/tutor-rag";
 import { normalizeTutorMathMarkdown } from "@/lib/tutor/math-markdown";
@@ -501,4 +502,62 @@ describe("Tutor RAG Contract Tests", () => {
     expect(serialized).toContain('"Limit": 40');
     expect(serialized).toContain(":::");
   });
+
+  describe("Tutor Answer UX & ID Sanitization", () => {
+    it("strips product bundle article IDs in citation brackets from student chat text", () => {
+      const rawText =
+        "Halo! Di bab ini kita lagi belajar tentang **vektor** [article-product-fisika-dasar-i-bab-01-vektor-article-v1]. " +
+        "1. Peta Belajar: Vektor satuan [article-product-fisika-dasar-i-bab-01-vektor-article-v1] $\\vec{A} = |\\vec{A}|\\hat{A}$. " +
+        "2. Perkalian Titik: Berupa skalar [article-product-fisika-dasar-i-bab-01-vektor-article-v1] melalui hubungan dot.";
+
+      const cleaned = sanitizeAnswer(rawText, [
+        {
+          id: "article-product-fisika-dasar-i-bab-01-vektor-article-v1",
+          title: "Menyatakan vektor dengan besar dan arah",
+        },
+      ]);
+
+      expect(cleaned).not.toContain("article-product-fisika-dasar-i-bab-01-vektor-article-v1");
+      expect(cleaned).toContain("**vektor**.");
+      expect(cleaned).toContain("Vektor satuan $\\vec{A} = |\\vec{A}|\\hat{A}$.");
+      expect(cleaned).toContain("Berupa skalar melalui hubungan dot.");
+    });
+
+    it("strips other technical IDs (KO, ideas, diktats, text products, and UUIDs)", () => {
+      const rawText =
+        "Sesuai konsep [ko-vektor-01], perhatikan [idea-vektor-basis-v2] dan [diktat-product-fisika-dasar-i-v1]. " +
+        "Juga rujuk [12345678-1234-1234-1234-123456789abc].";
+
+      const cleaned = sanitizeAnswer(rawText);
+
+      expect(cleaned).not.toContain("ko-vektor-01");
+      expect(cleaned).not.toContain("idea-vektor-basis-v2");
+      expect(cleaned).not.toContain("diktat-product-fisika-dasar-i-v1");
+      expect(cleaned).not.toContain("12345678-1234-1234-1234-123456789abc");
+      expect(cleaned).toContain("Sesuai konsep, perhatikan dan. Juga rujuk.");
+    });
+
+    it("replaces bare product IDs with human-readable titles when referenced in prose", () => {
+      const rawText =
+        "Kamu bisa membaca materi article-product-fisika-dasar-i-bab-01-vektor-article-v1 untuk penjelasan lebih lanjut.";
+
+      const cleaned = sanitizeAnswer(rawText, [
+        {
+          id: "article-product-fisika-dasar-i-bab-01-vektor-article-v1",
+          title: "Menyatakan vektor dengan besar dan arah",
+        },
+      ]);
+
+      expect(cleaned).not.toContain("article-product-fisika-dasar-i-bab-01-vektor-article-v1");
+      expect(cleaned).toContain('materi "Menyatakan vektor dengan besar dan arah"');
+    });
+
+    it("cleans up spacing and punctuation cleanly without leaving doubled spaces or dangling punctuation", () => {
+      const rawText = "Besaran vektor [article-product-vektor-v1]  , memiliki arah [ko-1234] .";
+      const cleaned = sanitizeAnswer(rawText);
+
+      expect(cleaned).toBe("Besaran vektor, memiliki arah.");
+    });
+  });
 });
+
