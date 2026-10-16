@@ -12,6 +12,7 @@ import {
   Copy,
   FileText,
   PieChart as PieIcon,
+  BarChart3,
   User,
   HelpCircle as QuestionIcon,
   Settings as SettingsIcon,
@@ -58,10 +59,18 @@ interface FormResponseItem {
   submittedAt: string;
 }
 
+interface ChartItem {
+  label: string;
+  count: number;
+  percentage: number;
+  percentageFormatted: string;
+  color: string;
+}
+
 function SimpleSvgPieChart({
   slices,
 }: {
-  slices: { label: string; count: number; percentage: number; color: string }[];
+  slices: ChartItem[];
 }) {
   const total = slices.reduce((sum, s) => sum + s.count, 0);
   if (total === 0) return null;
@@ -98,14 +107,70 @@ function SimpleSvgPieChart({
         </svg>
       </div>
 
-      <div className="space-y-2 text-body-xs min-w-44">
+      <div className="space-y-2 text-body-xs min-w-44 max-w-full">
         {slices.map((slice, i) => (
           <div key={i} className="flex items-center gap-2.5">
             <span className="size-3 rounded-xs shrink-0" style={{ backgroundColor: slice.color }} />
-            <span className="font-medium text-foreground truncate max-w-40">{slice.label}</span>
-            <span className="font-bold text-muted-foreground ml-auto">{slice.percentage}%</span>
+            <span className="font-medium text-foreground truncate max-w-48">
+              <MathText as="span">{slice.label}</MathText>
+            </span>
+            <span className="font-bold text-muted-foreground ml-auto whitespace-nowrap">
+              {slice.percentageFormatted || `${Math.round(slice.percentage)}%`}
+            </span>
           </div>
         ))}
+      </div>
+    </div>
+  );
+}
+
+function SimpleHorizontalBarChart({
+  items,
+}: {
+  items: ChartItem[];
+}) {
+  if (items.length === 0) return null;
+
+  return (
+    <div className="space-y-3.5 py-2 w-full">
+      {items.map((item, i) => (
+        <div key={i} className="space-y-1.5">
+          <div className="flex items-center justify-between gap-3 text-body-xs">
+            <div className="flex items-center gap-2 min-w-0">
+              <span
+                className="size-2.5 rounded-xs shrink-0"
+                style={{ backgroundColor: item.color }}
+              />
+              <span className="font-medium text-foreground truncate" title={item.label}>
+                <MathText as="span">{item.label}</MathText>
+              </span>
+            </div>
+            <div className="shrink-0 text-body-xs font-semibold text-foreground whitespace-nowrap">
+              {item.count}{" "}
+              <span className="text-muted-foreground font-normal">
+                ({item.percentageFormatted})
+              </span>
+            </div>
+          </div>
+
+          <div className="h-6 w-full rounded-md bg-muted/40 overflow-hidden relative">
+            <div
+              className="h-full rounded-md transition-all duration-300"
+              style={{
+                width: `${Math.min(100, Math.max(0, item.percentage))}%`,
+                backgroundColor: item.color,
+              }}
+            />
+          </div>
+        </div>
+      ))}
+
+      <div className="flex justify-between text-body-2xs text-muted-foreground pt-1.5 px-0.5 border-t border-border/40 font-mono">
+        <span>0%</span>
+        <span>25%</span>
+        <span>50%</span>
+        <span>75%</span>
+        <span>100%</span>
       </div>
     </div>
   );
@@ -223,6 +288,7 @@ export default function DetailedFormAnalyticsPage({
   const [responseTab, setResponseTab] = useUrlTab("tab", "summary");
   const [selectedQIndex, setSelectedQIndex] = useState<number>(0);
   const [individualIndex, setIndividualIndex] = useState<number>(0);
+  const [chartTypeMap, setChartTypeMap] = useState<Record<number, "pie" | "bar">>({});
 
   const [formSettings, setFormSettings] = useState<any>({});
   const [savingSettings, setSavingSettings] = useState(false);
@@ -517,35 +583,71 @@ export default function DetailedFormAnalyticsPage({
                 .map((r) => r.answers[qIdx] ?? r.answers[questionTitle])
                 .filter((a) => a !== undefined && a !== null && a !== "");
 
-              const isChoiceType =
-                q.type === "RADIO" ||
+              const isMultiSelect =
                 q.type === "CHECKBOX" ||
+                allAnswers.some((a) => Array.isArray(a));
+
+              const isChoiceType =
+                isMultiSelect ||
+                q.type === "RADIO" ||
                 q.type === "DROP_DOWN" ||
                 q.type === "SCALE" ||
                 q.type === "RATING";
 
-              let slices: { label: string; count: number; percentage: number; color: string }[] = [];
+              let chartItems: ChartItem[] = [];
               if (isChoiceType && allAnswers.length > 0) {
                 const counts: Record<string, number> = {};
+
+                if (Array.isArray(q.options)) {
+                  q.options.forEach((opt: any) => {
+                    const key = String(opt ?? "").trim();
+                    if (key) {
+                      counts[key] = 0;
+                    }
+                  });
+                }
+
                 allAnswers.forEach((ans) => {
                   if (Array.isArray(ans)) {
                     ans.forEach((sub) => {
-                      counts[sub] = (counts[sub] || 0) + 1;
+                      const key = String(sub ?? "").trim();
+                      if (key) {
+                        counts[key] = (counts[key] || 0) + 1;
+                      }
                     });
                   } else {
-                    const str = String(ans);
-                    counts[str] = (counts[str] || 0) + 1;
+                    const key = String(ans ?? "").trim();
+                    if (key) {
+                      counts[key] = (counts[key] || 0) + 1;
+                    }
                   }
                 });
 
-                const totalCount = Object.values(counts).reduce((a, b) => a + b, 0);
-                slices = Object.entries(counts).map(([lbl, cnt], i) => ({
-                  label: lbl,
-                  count: cnt,
-                  percentage: Math.round((cnt / totalCount) * 100),
-                  color: PIE_COLORS[i % PIE_COLORS.length],
-                }));
+                const totalSelections = Object.values(counts).reduce((a, b) => a + b, 0);
+                const respondentCount = allAnswers.length;
+
+                chartItems = Object.entries(counts).map(([lbl, cnt], i) => {
+                  const pct = isMultiSelect
+                    ? (respondentCount > 0 ? (cnt / respondentCount) * 100 : 0)
+                    : (totalSelections > 0 ? (cnt / totalSelections) * 100 : 0);
+
+                  const rounded = Math.round(pct * 10) / 10;
+                  const percentageFormatted =
+                    rounded % 1 === 0 ? `${rounded}%` : `${rounded.toFixed(1)}%`;
+
+                  return {
+                    label: lbl,
+                    count: cnt,
+                    percentage: pct,
+                    percentageFormatted,
+                    color: PIE_COLORS[i % PIE_COLORS.length],
+                  };
+                });
               }
+
+              const effectiveChartType = isMultiSelect
+                ? "bar"
+                : (chartTypeMap[qIdx] || "pie");
 
               return (
                 <Card key={qIdx} className="shadow-sm">
@@ -559,22 +661,50 @@ export default function DetailedFormAnalyticsPage({
                       </CardDescription>
                     </div>
 
-                    {isChoiceType && slices.length > 0 && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                          navigator.clipboard.writeText(
-                            `${questionTitle}:\n` + slices.map((s) => `- ${s.label}: ${s.count} (${s.percentage}%)`).join("\n")
-                          );
-                          toast.success("Data grafik disalin ke clipboard!");
-                        }}
-                        className="text-primary hover:text-primary gap-1 text-body-xs font-semibold"
-                      >
-                        <Copy className="size-3.5" />
-                        Salin Grafik
-                      </Button>
-                    )}
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      {!isMultiSelect && isChoiceType && chartItems.length > 0 && (
+                        <div className="flex items-center rounded-md border border-border p-0.5 bg-muted/20">
+                          <Button
+                            variant={effectiveChartType === "pie" ? "secondary" : "ghost"}
+                            size="icon-xs"
+                            onClick={() => setChartTypeMap((prev) => ({ ...prev, [qIdx]: "pie" }))}
+                            title="Diagram lingkaran"
+                            aria-label="Diagram lingkaran"
+                          >
+                            <PieIcon className="size-3.5" />
+                          </Button>
+                          <Button
+                            variant={effectiveChartType === "bar" ? "secondary" : "ghost"}
+                            size="icon-xs"
+                            onClick={() => setChartTypeMap((prev) => ({ ...prev, [qIdx]: "bar" }))}
+                            title="Diagram batang"
+                            aria-label="Diagram batang"
+                          >
+                            <BarChart3 className="size-3.5" />
+                          </Button>
+                        </div>
+                      )}
+
+                      {isChoiceType && chartItems.length > 0 && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            navigator.clipboard.writeText(
+                              `${questionTitle}:\n` +
+                                chartItems
+                                  .map((s) => `- ${s.label}: ${s.count} (${s.percentageFormatted})`)
+                                  .join("\n")
+                            );
+                            toast.success("Data grafik disalin ke clipboard.");
+                          }}
+                          className="text-primary hover:text-primary gap-1 text-body-xs font-semibold"
+                        >
+                          <Copy className="size-3.5" />
+                          Salin Grafik
+                        </Button>
+                      )}
+                    </div>
                   </CardHeader>
 
                   <CardContent>
@@ -583,7 +713,11 @@ export default function DetailedFormAnalyticsPage({
                         Belum ada jawaban untuk pertanyaan ini.
                       </p>
                     ) : isChoiceType ? (
-                      <SimpleSvgPieChart slices={slices} />
+                      effectiveChartType === "bar" ? (
+                        <SimpleHorizontalBarChart items={chartItems} />
+                      ) : (
+                        <SimpleSvgPieChart slices={chartItems} />
+                      )
                     ) : q.type === "GRID_RADIO" || q.type === "GRID_CHECKBOX" ? (
                       <div className="overflow-x-auto rounded-lg border border-border bg-card p-4">
                         <table className="w-full text-left text-body-xs">
