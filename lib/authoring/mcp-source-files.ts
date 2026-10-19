@@ -64,6 +64,12 @@ function sha256(bytes: Uint8Array): string {
   return createHash("sha256").update(bytes).digest("hex");
 }
 
+export function normalizeSha256Checksum(value: string | null | undefined): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return /^[a-f0-9]{64}$/i.test(trimmed) ? trimmed.toLowerCase() : null;
+}
+
 function cursorOffset(cursor?: string): number {
   if (!cursor) return 0;
   try {
@@ -248,7 +254,7 @@ export async function listStoredSourceFiles(
       category: normalizeLevel1Category(row.type),
       subcategory: row.subcategory,
       year: row.year,
-      checksum: row.checksum,
+      checksum: normalizeSha256Checksum(row.checksum),
     })),
   };
 }
@@ -265,14 +271,16 @@ async function inspectReferencePdf(
   fileKey: string,
   dependencies: SourceFileDependencies,
   includeText: boolean,
-): Promise<{ pageCount: number | null; extractedText: string | null }> {
-  if (!canInspectPdf(dependencies)) return { pageCount: null, extractedText: null };
+): Promise<{ pageCount: number | null; extractedText: string | null; checksum: string | null; size: number | null }> {
+  if (!canInspectPdf(dependencies)) return { pageCount: null, extractedText: null, checksum: null, size: null };
 
   try {
     const first = await readStoredSourceFile({ fileKey, mode: "pages", pages: [1] }, dependencies);
-    if (first.mode !== "pages") return { pageCount: null, extractedText: null };
+    if (first.mode !== "pages") return { pageCount: null, extractedText: null, checksum: null, size: null };
+    const checksum = normalizeSha256Checksum(first.checksum);
+    const size = typeof first.size === "number" && first.size > 0 ? first.size : null;
 
-    if (!includeText) return { pageCount: first.totalPages, extractedText: null };
+    if (!includeText) return { pageCount: first.totalPages, extractedText: null, checksum, size };
 
     const pages = [...first.pages];
     for (let pageStart = 2; pageStart <= first.totalPages; pageStart += AUTHORING_MCP_MAX_PAGES_PER_READ) {
@@ -281,7 +289,7 @@ async function inspectReferencePdf(
         (_, index) => pageStart + index,
       );
       const next = await readStoredSourceFile({ fileKey, mode: "pages", pages: pageNumbers }, dependencies);
-      if (next.mode !== "pages") return { pageCount: first.totalPages, extractedText: null };
+      if (next.mode !== "pages") return { pageCount: first.totalPages, extractedText: null, checksum, size };
       pages.push(...next.pages);
     }
 
@@ -290,13 +298,13 @@ async function inspectReferencePdf(
       .map((page) => `<!-- source page ${page.pageNumber} -->\n${page.text.trim()}`)
       .join("\n\n");
     if (!extractedText || Buffer.byteLength(extractedText, "utf8") > AUTHORING_MCP_MAX_REFERENCE_TEXT_BYTES) {
-      return { pageCount: first.totalPages, extractedText: null };
+      return { pageCount: first.totalPages, extractedText: null, checksum, size };
     }
-    return { pageCount: first.totalPages, extractedText };
+    return { pageCount: first.totalPages, extractedText, checksum, size };
   } catch {
     // Page count and extracted text are enrichment. Scope, checksum, and file
     // identity are still verified by getStoredReferenceSourceFile/readStoredSourceFile.
-    return { pageCount: null, extractedText: null };
+    return { pageCount: null, extractedText: null, checksum: null, size: null };
   }
 }
 
@@ -340,7 +348,7 @@ export async function listStoredReferenceFiles(
         subcategory: row.subcategory,
         year: row.year,
         pageCount: normalizePageCount(row.pageCount) ?? inspection.pageCount,
-        checksum: row.checksum,
+        checksum: normalizeSha256Checksum(row.checksum) ?? inspection.checksum,
       };
     })),
   };
@@ -367,7 +375,7 @@ export async function getStoredReferenceSourceFile(
       subcategory: row.subcategory,
       year: row.year,
       pageCount: normalizePageCount(row.pageCount) ?? inspection.pageCount,
-      checksum: row.checksum,
+      checksum: normalizeSha256Checksum(row.checksum) ?? inspection.checksum,
       ...(category === "pembahasan_soal" ? { extractedText: inspection.extractedText } : {}),
     },
   };
@@ -383,7 +391,8 @@ async function loadFile(fileKey: string, dependencies: SourceFileDependencies) {
     throw new Error("AUTHORING_MCP_SOURCE_FILE_SIZE_LIMIT");
   }
   const checksum = sha256(bytes);
-  if (row.checksum && checksum !== row.checksum) throw new Error("AUTHORING_MCP_SOURCE_FILE_CHECKSUM_MISMATCH");
+  const expectedChecksum = normalizeSha256Checksum(row.checksum);
+  if (expectedChecksum && checksum !== expectedChecksum) throw new Error("AUTHORING_MCP_SOURCE_FILE_CHECKSUM_MISMATCH");
   return { token, row, bytes, checksum };
 }
 
@@ -419,11 +428,38 @@ export async function readStoredSourceFile(
       pages,
     });
 
+    const expectedChecksum = normalizeSha256Checksum(row.checksum);
+    let resolvedChecksum = expectedChecksum ?? normalizeSha256Checksum(computeResult.checksum);
+    let resolvedSize = typeof computeResult.size === "number" && computeResult.size > 0 ? computeResult.size : null;
+
+    if (!resolvedChecksum || !resolvedSize) {
+      try {
+        const bytes = await dependencies.download(row.fileUrl);
+        if (bytes.byteLength === 0 || bytes.byteLength > AUTHORING_MCP_MAX_STORED_ORIGINAL_BYTES) {
+          throw new Error("AUTHORING_MCP_SOURCE_FILE_SIZE_LIMIT");
+        }
+        const computedChecksum = sha256(bytes);
+        if (expectedChecksum && computedChecksum !== expectedChecksum) {
+          throw new Error("AUTHORING_MCP_SOURCE_FILE_CHECKSUM_MISMATCH");
+        }
+        resolvedChecksum = computedChecksum;
+        resolvedSize = bytes.byteLength;
+      } catch (err) {
+        if (
+          err instanceof Error &&
+          (err.message === "AUTHORING_MCP_SOURCE_FILE_SIZE_LIMIT" ||
+            err.message === "AUTHORING_MCP_SOURCE_FILE_CHECKSUM_MISMATCH")
+        ) {
+          throw err;
+        }
+      }
+    }
+
     return {
       mode,
       title: row.title,
-      checksum: row.checksum,
-      size: 0,
+      checksum: resolvedChecksum,
+      size: resolvedSize,
       totalPages: computeResult.totalPages,
       pages: computeResult.pages,
     };

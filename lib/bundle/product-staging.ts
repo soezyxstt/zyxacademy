@@ -198,6 +198,8 @@ export async function stageProductBundle(input: ProductStageInput) {
         }
 
         const { chapterId: firstChapterId, bundleTitle: firstTitle } = extractBundleMeta(input.bundle.products as unknown as Array<Record<string, unknown>>);
+        const articleProduct = input.bundle.products.find((p) => p.productType === "article");
+        const diktatProduct = input.bundle.products.find((p) => p.productType === "diktat");
         const validationReportData = {
           valid: true,
           publicationBlocked: input.bundle.publicationBlocked,
@@ -206,12 +208,19 @@ export async function stageProductBundle(input: ProductStageInput) {
           dependencyCount: input.bundle.dependencies.length,
           chapterId: firstChapterId,
           bundleTitle: firstTitle,
+          articleId: articleProduct?.id ?? null,
+          diktatId: diktatProduct?.id ?? null,
+          articleGenerationHash: articleProduct?.generationHash ?? null,
+          diktatGenerationHash: diktatProduct?.generationHash ?? null,
+          contentFingerprint: typeof input.qualityReport?.contentFingerprint === "string" ? input.qualityReport.contentFingerprint : null,
           quality: input.qualityReport ?? null,
         };
 
         await tx.update(imporBundle).set({ checksum: input.checksum, courseId: legacyCourseId, sourceUriOrKey: sourceKey, version: schemaVersion, status: "draft", requestedBy: input.requestedBy, validationReport: validationReportData, updatedAt: new Date() }).where(eq(imporBundle.id, conflict.id));
       } else {
         const { chapterId: firstChapterId, bundleTitle: firstTitle } = extractBundleMeta(input.bundle.products as unknown as Array<Record<string, unknown>>);
+        const articleProduct = input.bundle.products.find((p) => p.productType === "article");
+        const diktatProduct = input.bundle.products.find((p) => p.productType === "diktat");
         const validationReportData = {
           valid: true,
           publicationBlocked: input.bundle.publicationBlocked,
@@ -220,6 +229,11 @@ export async function stageProductBundle(input: ProductStageInput) {
           dependencyCount: input.bundle.dependencies.length,
           chapterId: firstChapterId,
           bundleTitle: firstTitle,
+          articleId: articleProduct?.id ?? null,
+          diktatId: diktatProduct?.id ?? null,
+          articleGenerationHash: articleProduct?.generationHash ?? null,
+          diktatGenerationHash: diktatProduct?.generationHash ?? null,
+          contentFingerprint: typeof input.qualityReport?.contentFingerprint === "string" ? input.qualityReport.contentFingerprint : null,
           quality: input.qualityReport ?? null,
         };
 
@@ -237,6 +251,8 @@ export async function stageProductBundle(input: ProductStageInput) {
   return { importId: conflict?.id ?? importId, bundleId: input.bundleId, checksum: input.checksum, sourceKey, created: !conflict, replaced: Boolean(conflict), status: "draft" as const, itemCount: items.length };
 }
 
+import { normalizeDate } from "@/lib/date-utils";
+
 export async function getProductBundleImport(importId: string) {
   const [row] = await db.select().from(imporBundle).where(eq(imporBundle.id, importId)).limit(1);
   if (!row || row.bundleType !== "product") return null;
@@ -244,7 +260,21 @@ export async function getProductBundleImport(importId: string) {
     db.select().from(itemImporBundle).where(eq(itemImporBundle.imporBundleId, importId)),
     db.select().from(reviewBundle).where(eq(reviewBundle.imporBundleId, importId)).orderBy(desc(reviewBundle.createdAt)),
   ]);
-  return { ...row, items, reviews };
+  return {
+    ...row,
+    createdAt: normalizeDate(row.createdAt),
+    updatedAt: normalizeDate(row.updatedAt),
+    items: items.map((item) => ({
+      ...item,
+      createdAt: normalizeDate(item.createdAt),
+      updatedAt: normalizeDate(item.updatedAt),
+    })),
+    reviews: reviews.map((review) => ({
+      ...review,
+      reviewedAt: normalizeDate(review.reviewedAt),
+      createdAt: normalizeDate(review.createdAt),
+    })),
+  };
 }
 
 export async function listProductBundleImports(options?: number | { limit?: number; courseIds?: string[] }) {
@@ -254,12 +284,17 @@ export async function listProductBundleImports(options?: number | { limit?: numb
   if (courseIds && courseIds.length > 0) {
     conditions.push(inArray(imporBundle.courseId, courseIds));
   }
-  return db
+  const rows = await db
     .select()
     .from(imporBundle)
     .where(and(...conditions))
     .orderBy(desc(imporBundle.createdAt))
     .limit(Math.min(Math.max(limit, 1), 100));
+  return rows.map((row) => ({
+    ...row,
+    createdAt: normalizeDate(row.createdAt),
+    updatedAt: normalizeDate(row.updatedAt),
+  }));
 }
 
 export async function downloadProductBundleArtifact(importId: string): Promise<Uint8Array> {
