@@ -1,24 +1,55 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef, useTransition } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import * as Sentry from "@sentry/nextjs";
 import { Button } from "@/components/ui/button";
 import { PageOrnaments } from "@/components/ui/page-ornaments";
 import { RefreshCw, Home } from "lucide-react";
 
+function isChunkLoadError(error: Error): boolean {
+  const message = error?.message ?? "";
+  return (
+    error?.name === "ChunkLoadError" ||
+    /loading chunk|dynamically imported module|importing a module script/i.test(message)
+  );
+}
+
 export default function ErrorPage({
   error,
   reset,
+  retry,
 }: {
   error: Error & { digest?: string };
   reset: () => void;
+  retry?: () => void;
 }) {
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
+  const hasRetriedRef = useRef(false);
+
   useEffect(() => {
     // Log the error to an error reporting service
     console.error(error);
     Sentry.captureException(error);
   }, [error]);
+
+  const handleRetry = () => {
+    if (hasRetriedRef.current || isChunkLoadError(error)) {
+      window.location.reload();
+      return;
+    }
+    hasRetriedRef.current = true;
+    startTransition(() => {
+      if (retry) {
+        retry();
+      } else {
+        router.refresh();
+        reset();
+      }
+    });
+  };
 
   return (
     <>
@@ -46,12 +77,13 @@ export default function ErrorPage({
           {/* Action Buttons */}
           <div className="flex flex-row flex-wrap items-center justify-center gap-3 mt-4">
             <Button
-              onClick={() => reset()}
+              onClick={handleRetry}
+              disabled={isPending}
               variant="default"
               size="lg"
               className="font-semibold gap-1.5"
             >
-              <RefreshCw className="size-4" />
+              <RefreshCw className={isPending ? "size-4 animate-spin" : "size-4"} />
               Coba Lagi
             </Button>
 

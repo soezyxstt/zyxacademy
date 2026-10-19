@@ -10,6 +10,7 @@ import {
   getStoredReferenceSourceFile,
   loadStoredOriginals,
   mergeSourceOriginals,
+  parseStoredPdfPages,
   readStoredSourceFile,
   type SourceFileDependencies,
   type StoredSourceFileRow,
@@ -203,16 +204,28 @@ describe("historical reference file catalog", () => {
 });
 
 describe("stored PDF reading", () => {
-  it("returns requested page text and images, including an image-only scanned page", async () => {
-    const material = row();
+  it("returns requested page text and images, including an image-only scanned page, with exact byte size and SHA-256 checksum", async () => {
+    const rawPdfBytes = strToU8("stored pdf bytes");
+    const expectedSize = rawPdfBytes.byteLength;
+    const expectedSha256 = digest(rawPdfBytes);
+
+    // Even when DB row has null checksum or a legacy storage path in checksum, read_file computes exact size & SHA-256 from bytes
+    const material = row({ checksum: "courses/legacy-course/materials/1000-abcdef12-materi.pdf" });
+    const listRes = await listStoredSourceFiles({ courseKey: "course", chapterKey: "chapter" }, dependencies([material]));
+    expect(listRes.files[0]?.checksum).toBeNull(); // Legacy storage path must be sanitized to null in listings
+
     const result = await readStoredSourceFile({ fileKey: tokenFor(material), pages: [1, 2] }, dependencies([material]));
     expect(result.mode).toBe("pages");
     if (result.mode !== "pages") throw new Error("expected pages mode");
     expect(result.totalPages).toBe(8);
+    expect(result.size).toBe(expectedSize);
+    expect(result.checksum).toBe(expectedSha256);
     expect(result.pages[0]).toMatchObject({ pageNumber: 1, text: "", width: 1280 });
     expect(result.pages[0]?.png.byteLength).toBeGreaterThan(0);
     expect(result.pages[1]?.text).toBe("Teks halaman 2");
     const response = formatSourceFileReadResult(result);
+    expect(response.structuredContent.size).toBe(expectedSize);
+    expect(response.structuredContent.checksum).toBe(expectedSha256);
     expect(response.content[0]).toMatchObject({ type: "text" });
     expect(response.content.slice(1)).toEqual([
       { type: "image", data: "iVBORw==", mimeType: "image/png" },
@@ -287,6 +300,75 @@ describe("stored PDF reading", () => {
     await expect(readStoredSourceFile({ fileKey: tokenFor(material) }, dependencies([material], {
       download: async () => { throw new Error("AUTHORING_MCP_SOURCE_FILE_DOWNLOAD_FAILED"); },
     }))).rejects.toThrow("AUTHORING_MCP_SOURCE_FILE_DOWNLOAD_FAILED");
+  });
+
+  it("computes real byte size and SHA-256 checksum when offloading page reading to COMPUTE_SERVICE_URL and sanitizes storage-path checksums", async () => {
+    const pdfBytes = strToU8("stored pdf bytes with seven pages");
+    const expectedSha = digest(pdfBytes);
+    const legacyPathRow = row({
+      id: "material-legacy-checksum",
+      checksum: "courses/legacy-course/materials/1000-abcdef12-bab1.pdf",
+    });
+    const validShaRow = row({
+      id: "material-valid-checksum",
+      checksum: expectedSha,
+    });
+
+    const listed = await listStoredSourceFiles(
+      { courseKey: "course-key", chapterKey: "chapter-key" },
+      dependencies([legacyPathRow, validShaRow]),
+    );
+    const legacyItem = listed.files.find((f) => f.checksum === null);
+    const validItem = listed.files.find((f) => f.checksum === expectedSha);
+    expect(legacyItem).toBeDefined();
+    expect(validItem).toBeDefined();
+    expect(JSON.stringify(listed)).not.toContain("courses/legacy-course");
+
+    const prevComputeUrl = process.env.COMPUTE_SERVICE_URL;
+    const prevInternalSecret = process.env.COMPUTE_INTERNAL_SECRET;
+    const prevFetch = globalThis.fetch;
+    process.env.COMPUTE_SERVICE_URL = "http://compute.internal.test";
+    process.env.COMPUTE_INTERNAL_SECRET = "compute-secret-test";
+    globalThis.fetch = (async () =>
+      new Response(
+        JSON.stringify({
+          totalPages: 7,
+          pages: [
+            {
+              pageNumber: 1,
+              text: "Halaman 1 dari compute",
+              width: 1200,
+              height: 1600,
+              imageBase64: Buffer.from([137, 80, 78, 71]).toString("base64"),
+            },
+          ],
+        }),
+        { status: 200, headers: { "content-type": "application/json" } },
+      )) as unknown as typeof fetch;
+
+    try {
+      const readRes = await readStoredSourceFile(
+        { fileKey: tokenFor(legacyPathRow), mode: "pages", pages: [1] },
+        dependencies([legacyPathRow], {
+          download: async () => pdfBytes,
+          parsePages: parseStoredPdfPages,
+        }),
+      );
+      expect(readRes.mode).toBe("pages");
+      expect(readRes.size).toBe(pdfBytes.byteLength);
+      expect(readRes.size).toBeGreaterThan(0);
+      expect(readRes.checksum).toBe(expectedSha);
+
+      const formatted = formatSourceFileReadResult(readRes);
+      expect(formatted.structuredContent.size).toBe(pdfBytes.byteLength);
+      expect(formatted.structuredContent.checksum).toBe(expectedSha);
+    } finally {
+      if (prevComputeUrl === undefined) delete process.env.COMPUTE_SERVICE_URL;
+      else process.env.COMPUTE_SERVICE_URL = prevComputeUrl;
+      if (prevInternalSecret === undefined) delete process.env.COMPUTE_INTERNAL_SECRET;
+      else process.env.COMPUTE_INTERNAL_SECRET = prevInternalSecret;
+      globalThis.fetch = prevFetch;
+    }
   });
 });
 

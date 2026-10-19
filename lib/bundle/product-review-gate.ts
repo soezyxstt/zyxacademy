@@ -342,279 +342,45 @@ export async function evaluateProductBundleQualityPolicy(
     }
   }
 
-  let reviewDecision: PedagogicReviewDecision | null = null;
-  if (context.pedagogicReview !== undefined) {
-    reviewDecision = context.pedagogicReview;
-  } else if (context.imporBundleId) {
+  let reviewRows: Array<typeof reviewPedagogiBundle.$inferSelect> | undefined;
+  if (context.pedagogicReview === undefined && context.imporBundleId) {
     const txOrDb = context.tx ?? db;
-    const reviewRows = (await txOrDb
+    reviewRows = (await txOrDb
       .select()
       .from(reviewPedagogiBundle)
       .where(eq(reviewPedagogiBundle.imporBundleId, context.imporBundleId))
       .orderBy(desc(reviewPedagogiBundle.createdAt), desc(reviewPedagogiBundle.id))) as Array<typeof reviewPedagogiBundle.$inferSelect>;
-
-    if (reviewRows.length > 0) {
-      let selectedRow = reviewRows.find((row) => {
-        const matchesFingerprint = row.contentFingerprint === contentFingerprint;
-        const matchesPolicy = row.policyVersion === QUALITY_POLICY_VERSION;
-        const matchesPublisher = context.publisherId ? row.reviewerId === context.publisherId : true;
-        return matchesFingerprint && matchesPolicy && matchesPublisher;
-      });
-
-      if (!selectedRow) {
-        selectedRow =
-          (context.publisherId
-            ? reviewRows.find(
-                (r) =>
-                  r.reviewerId === context.publisherId &&
-                  r.contentFingerprint === contentFingerprint,
-              )
-            : undefined) ??
-          reviewRows.find(
-            (r) =>
-              r.contentFingerprint === contentFingerprint &&
-              r.policyVersion === QUALITY_POLICY_VERSION,
-          ) ??
-          reviewRows.find((r) => r.contentFingerprint === contentFingerprint) ??
-          (context.publisherId
-            ? reviewRows.find(
-                (r) =>
-                  r.reviewerId === context.publisherId &&
-                  r.policyVersion === QUALITY_POLICY_VERSION,
-              )
-            : undefined) ??
-          reviewRows.find((r) => r.policyVersion === QUALITY_POLICY_VERSION) ??
-          reviewRows[0];
-      }
-
-      const criteria = Array.isArray(selectedRow.rubric)
-        ? (selectedRow.rubric as unknown as PedagogicRubricItem[])
-        : Array.isArray((selectedRow.rubric as any)?.criteria)
-          ? ((selectedRow.rubric as any).criteria as PedagogicRubricItem[])
-          : [];
-      const exceptions = Array.isArray(selectedRow.exceptions)
-        ? (selectedRow.exceptions as unknown as PedagogicException[])
-        : Array.isArray((selectedRow.exceptions as any)?.exceptions)
-          ? ((selectedRow.exceptions as any).exceptions as PedagogicException[])
-          : [];
-
-      reviewDecision = {
-        imporBundleId: selectedRow.imporBundleId,
-        reviewerId: selectedRow.reviewerId,
-        policyVersion: selectedRow.policyVersion,
-        contentFingerprint: selectedRow.contentFingerprint,
-        status: selectedRow.status,
-        criteria,
-        exceptions,
-        notes: selectedRow.notes ?? undefined,
-      };
-    }
   }
 
-  if (article) {
-    if (!reviewDecision) {
-      issues.push({
-        code: "PEDAGOGIC_REVIEW_MISSING",
-        severity: "blocking",
-        target: { targetType: "rubric", targetId: article.id },
-        reason: "Persisted pedagogic review is missing for this article",
-        remediation: "Record an approved bundle decision after reviewing its sections",
-      });
-    } else {
-      if (reviewDecision.policyVersion !== QUALITY_POLICY_VERSION) {
-        issues.push({
-          code: "POLICY_VERSION_MISMATCH",
-          severity: "blocking",
-          target: { targetType: "rubric", targetId: article.id },
-          reason: `Review policy version '${reviewDecision.policyVersion}' does not match current '${QUALITY_POLICY_VERSION}'`,
-          remediation: "Re-evaluate review under current quality policy version",
-        });
-      }
-
-      if (reviewDecision.contentFingerprint !== contentFingerprint) {
-        issues.push({
-          code: "FINGERPRINT_MISMATCH",
-          severity: "blocking",
-          target: { targetType: "rubric", targetId: article.id },
-          reason: "Content has changed since the pedagogic review was recorded",
-          remediation: "Conduct and record a new review for the updated content fingerprint",
-        });
-      }
-
-      if (context.publisherId && reviewDecision.reviewerId !== context.publisherId) {
-        issues.push({
-          code: "REVIEWER_CONTEXT_MISMATCH",
-          severity: "blocking",
-          target: { targetType: "rubric", targetId: article.id },
-          reason: `Approval reviewer '${reviewDecision.reviewerId}' does not match publisher context '${context.publisherId}'`,
-          remediation: "Approval must belong to the authorized publication actor",
-        });
-      }
-
-      if (reviewDecision.status === "rejected") {
-        issues.push({
-          code: "PEDAGOGIC_REVIEW_REJECTED",
-          severity: "blocking",
-          target: { targetType: "rubric", targetId: article.id },
-          reason: "Pedagogic review status is rejected",
-          remediation: "Address reviewer findings and resubmit for review",
-        });
-      } else if (reviewDecision.status === "changes_requested") {
-        issues.push({
-          code: "PEDAGOGIC_REVIEW_CHANGES_REQUESTED",
-          severity: "blocking",
-          target: { targetType: "rubric", targetId: article.id },
-          reason: "Pedagogic review requires changes before publication",
-          remediation: "Revise requested sections and resubmit for approval",
-        });
-      } else if (reviewDecision.status === "pending") {
-        issues.push({
-          code: "PEDAGOGIC_REVIEW_PENDING",
-          severity: "blocking",
-          target: { targetType: "rubric", targetId: article.id },
-          reason: "Pedagogic review is pending approval",
-          remediation: "Await reviewer approval before publication",
-        });
-      } else if (reviewDecision.status !== "approved") {
-        issues.push({
-          code: "PEDAGOGIC_REVIEW_NOT_APPROVED",
-          severity: "blocking",
-          target: { targetType: "rubric", targetId: article.id },
-          reason: `Pedagogic review status is '${reviewDecision.status}'`,
-          remediation: "Review must be approved before publication",
-        });
-      }
-
-      if (reviewDecision.criteria.length > 0) {
-        const rubricResult = validatePedagogicRubricDecision(reviewDecision);
-        if (!rubricResult.valid) {
-          issues.push(...rubricResult.issues);
-        }
-      }
-    }
-
-    const targetPdfProduct = diktat ?? article;
-    const targetPdfProductId = targetPdfProduct.id;
-
-    let pdfEvidenceList: readonly PdfArtifactEvidence[] | null = null;
-    if (context.pdfEvidence !== undefined) {
-      pdfEvidenceList = context.pdfEvidence;
-    } else if (context.imporBundleId) {
-      const txOrDb = context.tx ?? db;
-      const evidenceRows = await txOrDb
-        .select()
-        .from(buktiPdfBundle)
-        .where(eq(buktiPdfBundle.imporBundleId, context.imporBundleId))
-        .orderBy(desc(buktiPdfBundle.createdAt), desc(buktiPdfBundle.id));
-      pdfEvidenceList = evidenceRows as unknown as PdfArtifactEvidence[];
-    }
-
-    const list = pdfEvidenceList ?? [];
-
-    const matchesCurrentLineage = (e: PdfArtifactEvidence) => {
-      const matchesArticle = e.articleHash === article.generationHash;
-      const matchesDiktat = diktat ? e.diktatHash === diktat.generationHash : true;
-      return matchesArticle && matchesDiktat;
-    };
-
-    // 1. Prefer exact current-lineage row for target product ID
-    let evidence: PdfArtifactEvidence | null =
-      list.find((e) => e.productId === targetPdfProductId && matchesCurrentLineage(e)) ?? null;
-
-    // 2. If no exact current-lineage row exists, choose deterministic target-product fallback so hash-mismatch diagnostics remain useful
-    if (!evidence) {
-      const targetRows = list.filter((e) => e.productId === targetPdfProductId);
-      if (targetRows.length > 0) {
-        evidence =
-          targetRows.find((e) => e.articleHash === article.generationHash) ??
-          (diktat ? targetRows.find((e) => e.diktatHash === diktat.generationHash) : undefined) ??
-          targetRows[0];
-      }
-    }
-
-    // 3. Article-ID fallback only for explicit legacy compatibility when no Diktat-owned evidence exists (never outranks Diktat-owned evidence)
-    if (!evidence && diktat) {
-      const legacyRows = list.filter((e) => e.productId === article.id);
-      if (legacyRows.length > 0) {
-        evidence =
-          legacyRows.find((e) => matchesCurrentLineage(e)) ??
-          legacyRows.find((e) => e.articleHash === article.generationHash) ??
-          legacyRows.find((e) => e.diktatHash === diktat.generationHash) ??
-          legacyRows[0];
-      }
-    }
-
-    if (!evidence) {
-      issues.push({
-        code: "PDF_EVIDENCE_MISSING",
-        severity: "blocking",
-        target: { targetType: "pdf", targetId: targetPdfProductId },
-        reason: diktat
-          ? `PDF artifact evidence is missing for diktat ${diktat.id}`
-          : "PDF artifact evidence is missing for this article",
-        remediation: "Render PDF artifact and record evidence in bukti_pdf_bundle before publication",
-      });
-    } else {
-      if (evidence.status === "pending") {
-        issues.push({
-          code: "PDF_EVIDENCE_PENDING",
-          severity: "blocking",
-          target: { targetType: "pdf", targetId: targetPdfProductId },
-          reason: "PDF artifact rendering is still pending",
-          remediation: "Wait for PDF generation to complete before publication",
-        });
-      } else if (evidence.status === "failed") {
-        issues.push({
-          code: "PDF_EVIDENCE_FAILED",
-          severity: "blocking",
-          target: { targetType: "pdf", targetId: targetPdfProductId },
-          reason: `PDF rendering failed: ${evidence.failureCode ?? "unknown"}`,
-          remediation: "Resolve rendering errors and re-generate PDF artifact",
-        });
-      } else if (evidence.status === "stale") {
-        issues.push({
-          code: "PDF_EVIDENCE_STALE",
-          severity: "blocking",
-          target: { targetType: "pdf", targetId: targetPdfProductId },
-          reason: "PDF artifact is stale because article or diktat lineage changed",
-          remediation: "Re-render PDF artifact against the updated content",
-        });
-      } else if (evidence.status !== "ready") {
-        issues.push({
-          code: "PDF_EVIDENCE_NOT_READY",
-          severity: "blocking",
-          target: { targetType: "pdf", targetId: targetPdfProductId },
-          reason: `PDF evidence status is '${evidence.status}'`,
-          remediation: "PDF evidence must be in 'ready' status before publication",
-        });
-      }
-
-      if (evidence.articleHash !== article.generationHash) {
-        issues.push({
-          code: "PDF_LINEAGE_HASH_MISMATCH",
-          severity: "blocking",
-          target: { targetType: "pdf", targetId: targetPdfProductId },
-          reason: `PDF evidence articleHash '${evidence.articleHash}' does not match article '${article.generationHash}'`,
-          remediation: "Re-render PDF artifact to match current article generation hash",
-        });
-      }
-
-      if (diktat && evidence.diktatHash !== diktat.generationHash) {
-        issues.push({
-          code: "PDF_LINEAGE_HASH_MISMATCH",
-          severity: "blocking",
-          target: { targetType: "pdf", targetId: targetPdfProductId },
-          reason: `PDF evidence diktatHash '${evidence.diktatHash}' does not match diktat '${diktat.generationHash}'`,
-          remediation: "Re-render PDF artifact to match current diktat generation hash",
-        });
-      }
-
-      const pdfResult = validatePdfArtifactEvidence(evidence);
-      if (!pdfResult.valid) {
-        issues.push(...pdfResult.issues);
-      }
-    }
+  let pdfEvidenceList: readonly PdfArtifactEvidence[] | undefined;
+  if (context.pdfEvidence !== undefined) {
+    pdfEvidenceList = context.pdfEvidence ?? [];
+  } else if (context.imporBundleId && article) {
+    const txOrDb = context.tx ?? db;
+    const evidenceRows = await txOrDb
+      .select()
+      .from(buktiPdfBundle)
+      .where(eq(buktiPdfBundle.imporBundleId, context.imporBundleId))
+      .orderBy(desc(buktiPdfBundle.createdAt), desc(buktiPdfBundle.id));
+    pdfEvidenceList = evidenceRows as unknown as PdfArtifactEvidence[];
   }
+
+  const gateResult = evaluateProductBundleReviewAndPdfGate({
+    imporBundleId: context.imporBundleId ?? "",
+    hasArticle: Boolean(article),
+    articleId: article?.id ?? "",
+    diktatId: diktat?.id ?? null,
+    contentFingerprint,
+    articleGenerationHash: article?.generationHash ?? null,
+    diktatGenerationHash: diktat?.generationHash ?? null,
+    publisherId: context.publisherId,
+    reviewDecision: context.pedagogicReview,
+    reviewRows,
+    pdfEvidenceRows: pdfEvidenceList,
+  });
+
+  const reviewDecision = gateResult.reviewDecision;
+  issues.push(...gateResult.issues);
 
   const uniqueIssues = [
     ...new Map(
@@ -649,5 +415,333 @@ export async function evaluateProductBundleQualityPolicy(
     contentFingerprint,
     issues: uniqueIssues,
     metrics,
+  };
+}
+
+export interface ProductReviewAndPdfGateInput {
+  imporBundleId: string;
+  bundleStatus?: string;
+  hasArticle: boolean;
+  articleId: string;
+  diktatId?: string | null;
+  contentFingerprint: string;
+  articleGenerationHash?: string | null;
+  diktatGenerationHash?: string | null;
+  publisherId?: string;
+  reviewDecision?: PedagogicReviewDecision | null;
+  reviewRows?: ReadonlyArray<{
+    id: string;
+    imporBundleId?: string;
+    reviewerId?: string;
+    status: string;
+    policyVersion: string;
+    contentFingerprint: string;
+    rubric: unknown;
+    exceptions: unknown;
+    notes: string | null;
+  }>;
+  pdfEvidenceRows?: ReadonlyArray<PdfArtifactEvidence>;
+}
+
+export interface ProductReviewAndPdfGateResult {
+  reviewDecision: PedagogicReviewDecision | null;
+  reviewStatus: "not_required" | "missing" | "pending" | "approved" | "rejected" | "changes_requested" | "stale";
+  pdfEvidenceStatus: "not_required" | "missing" | "pending" | "ready" | "failed" | "stale" | "published";
+  issues: DiagnosticIssue[];
+}
+
+/**
+ * Shared evaluator for pedagogic review and PDF artifact evidence readiness.
+ * Used by both `evaluateProductBundleQualityPolicy` (publication gate) and MCP readiness readers (`authoring.list_imports`, `authoring.get_import`).
+ */
+export function evaluateProductBundleReviewAndPdfGate(
+  input: ProductReviewAndPdfGateInput,
+): ProductReviewAndPdfGateResult {
+  const issues: DiagnosticIssue[] = [];
+  if (!input.hasArticle) {
+    return {
+      reviewDecision: null,
+      reviewStatus: "not_required",
+      pdfEvidenceStatus: "not_required",
+      issues,
+    };
+  }
+
+  let reviewDecision: PedagogicReviewDecision | null = input.reviewDecision ?? null;
+  if (input.reviewDecision === undefined && input.reviewRows && input.reviewRows.length > 0) {
+    const reviewRows = input.reviewRows;
+    let selectedRow = reviewRows.find((row) => {
+      const matchesFingerprint = input.contentFingerprint ? row.contentFingerprint === input.contentFingerprint : true;
+      const matchesPolicy = row.policyVersion === QUALITY_POLICY_VERSION;
+      const matchesPublisher = input.publisherId ? row.reviewerId === input.publisherId : true;
+      return matchesFingerprint && matchesPolicy && matchesPublisher;
+    });
+
+    if (!selectedRow) {
+      selectedRow =
+        (input.publisherId
+          ? reviewRows.find(
+              (r) =>
+                r.reviewerId === input.publisherId &&
+                (!input.contentFingerprint || r.contentFingerprint === input.contentFingerprint),
+            )
+          : undefined) ??
+        reviewRows.find(
+          (r) =>
+            (!input.contentFingerprint || r.contentFingerprint === input.contentFingerprint) &&
+            r.policyVersion === QUALITY_POLICY_VERSION,
+        ) ??
+        (input.contentFingerprint
+          ? reviewRows.find((r) => r.contentFingerprint === input.contentFingerprint)
+          : undefined) ??
+        (input.publisherId
+          ? reviewRows.find(
+              (r) =>
+                r.reviewerId === input.publisherId &&
+                r.policyVersion === QUALITY_POLICY_VERSION,
+            )
+          : undefined) ??
+        reviewRows.find((r) => r.policyVersion === QUALITY_POLICY_VERSION) ??
+        reviewRows[0];
+    }
+
+    if (selectedRow) {
+      const criteria = Array.isArray(selectedRow.rubric)
+        ? (selectedRow.rubric as unknown as PedagogicRubricItem[])
+        : Array.isArray((selectedRow.rubric as any)?.criteria)
+          ? ((selectedRow.rubric as any).criteria as PedagogicRubricItem[])
+          : [];
+      const exceptions = Array.isArray(selectedRow.exceptions)
+        ? (selectedRow.exceptions as unknown as PedagogicException[])
+        : Array.isArray((selectedRow.exceptions as any)?.exceptions)
+          ? ((selectedRow.exceptions as any).exceptions as PedagogicException[])
+          : [];
+
+      reviewDecision = {
+        imporBundleId: selectedRow.imporBundleId ?? input.imporBundleId,
+        reviewerId: selectedRow.reviewerId ?? "mcp-readiness-evaluator",
+        policyVersion: selectedRow.policyVersion,
+        contentFingerprint: selectedRow.contentFingerprint,
+        status: (selectedRow.status as PedagogicReviewDecision["status"]) ?? "pending",
+        criteria,
+        exceptions,
+        notes: selectedRow.notes ?? undefined,
+      };
+    }
+  }
+
+  let reviewStatus: ProductReviewAndPdfGateResult["reviewStatus"] = "missing";
+  if (!reviewDecision) {
+    reviewStatus = "missing";
+    issues.push({
+      code: "PEDAGOGIC_REVIEW_MISSING",
+      severity: "blocking",
+      target: { targetType: "rubric", targetId: input.articleId },
+      reason: "Persisted pedagogic review is missing for this article",
+      remediation: "Record an approved bundle decision after reviewing its sections",
+    });
+  } else {
+    reviewStatus = (reviewDecision.status as ProductReviewAndPdfGateResult["reviewStatus"]) ?? "pending";
+    if (reviewDecision.policyVersion !== QUALITY_POLICY_VERSION) {
+      reviewStatus = "stale";
+      issues.push({
+        code: "POLICY_VERSION_MISMATCH",
+        severity: "blocking",
+        target: { targetType: "rubric", targetId: input.articleId },
+        reason: `Review policy version '${reviewDecision.policyVersion}' does not match current '${QUALITY_POLICY_VERSION}'`,
+        remediation: "Re-evaluate review under current quality policy version",
+      });
+    }
+
+    if (input.contentFingerprint && reviewDecision.contentFingerprint !== input.contentFingerprint) {
+      reviewStatus = "stale";
+      issues.push({
+        code: "FINGERPRINT_MISMATCH",
+        severity: "blocking",
+        target: { targetType: "rubric", targetId: input.articleId },
+        reason: "Content has changed since the pedagogic review was recorded",
+        remediation: "Conduct and record a new review for the updated content fingerprint",
+      });
+    }
+
+    if (input.publisherId && reviewDecision.reviewerId !== input.publisherId) {
+      issues.push({
+        code: "REVIEWER_CONTEXT_MISMATCH",
+        severity: "blocking",
+        target: { targetType: "rubric", targetId: input.articleId },
+        reason: `Approval reviewer '${reviewDecision.reviewerId}' does not match publisher context '${input.publisherId}'`,
+        remediation: "Approval must belong to the authorized publication actor",
+      });
+    }
+
+    if (reviewDecision.status === "rejected") {
+      issues.push({
+        code: "PEDAGOGIC_REVIEW_REJECTED",
+        severity: "blocking",
+        target: { targetType: "rubric", targetId: input.articleId },
+        reason: "Pedagogic review status is rejected",
+        remediation: "Address reviewer findings and resubmit for review",
+      });
+    } else if (reviewDecision.status === "changes_requested") {
+      issues.push({
+        code: "PEDAGOGIC_REVIEW_CHANGES_REQUESTED",
+        severity: "blocking",
+        target: { targetType: "rubric", targetId: input.articleId },
+        reason: "Pedagogic review requires changes before publication",
+        remediation: "Revise requested sections and resubmit for approval",
+      });
+    } else if (reviewDecision.status === "pending") {
+      issues.push({
+        code: "PEDAGOGIC_REVIEW_PENDING",
+        severity: "blocking",
+        target: { targetType: "rubric", targetId: input.articleId },
+        reason: "Pedagogic review is pending approval",
+        remediation: "Await reviewer approval before publication",
+      });
+    } else if (reviewDecision.status !== "approved") {
+      issues.push({
+        code: "PEDAGOGIC_REVIEW_NOT_APPROVED",
+        severity: "blocking",
+        target: { targetType: "rubric", targetId: input.articleId },
+        reason: `Pedagogic review status is '${reviewDecision.status}'`,
+        remediation: "Review must be approved before publication",
+      });
+    }
+
+    if (reviewDecision.criteria.length > 0 && /^[a-f0-9]{64}$/i.test(reviewDecision.contentFingerprint)) {
+      const rubricResult = validatePedagogicRubricDecision(reviewDecision);
+      if (!rubricResult.valid) {
+        issues.push(...rubricResult.issues);
+      }
+    }
+  }
+
+  const targetPdfProductId = input.diktatId || input.articleId;
+  const list = input.pdfEvidenceRows ?? [];
+  const expectedArticleHash = input.articleGenerationHash ?? undefined;
+  const expectedDiktatHash = input.diktatGenerationHash ?? undefined;
+
+  const matchesCurrentLineage = (e: PdfArtifactEvidence) => {
+    const matchesArticle = expectedArticleHash ? e.articleHash === expectedArticleHash : true;
+    const matchesDiktat = expectedDiktatHash ? e.diktatHash === expectedDiktatHash : true;
+    return matchesArticle && matchesDiktat;
+  };
+
+  // 1. Prefer exact current-lineage row for target product ID
+  let evidence: PdfArtifactEvidence | null =
+    list.find((e) => e.productId === targetPdfProductId && matchesCurrentLineage(e)) ?? null;
+
+  // 2. If no exact current-lineage row exists, choose deterministic target-product fallback so hash-mismatch diagnostics remain useful
+  if (!evidence) {
+    const targetRows = list.filter((e) => e.productId === targetPdfProductId);
+    if (targetRows.length > 0) {
+      evidence =
+        (expectedArticleHash ? targetRows.find((e) => e.articleHash === expectedArticleHash) : undefined) ??
+        (expectedDiktatHash ? targetRows.find((e) => e.diktatHash === expectedDiktatHash) : undefined) ??
+        targetRows[0];
+    }
+  }
+
+  // 3. Article-ID fallback only for explicit legacy compatibility when no Diktat-owned evidence exists (never outranks Diktat-owned evidence)
+  if (!evidence && input.diktatId) {
+    const legacyRows = list.filter((e) => e.productId === input.articleId);
+    if (legacyRows.length > 0) {
+      evidence =
+        legacyRows.find((e) => matchesCurrentLineage(e)) ??
+        (expectedArticleHash ? legacyRows.find((e) => e.articleHash === expectedArticleHash) : undefined) ??
+        (expectedDiktatHash ? legacyRows.find((e) => e.diktatHash === expectedDiktatHash) : undefined) ??
+        legacyRows[0];
+    }
+  }
+
+  if (!evidence && list.length > 0) {
+    evidence = list.find((e) => matchesCurrentLineage(e)) ?? list[0];
+  }
+
+  let pdfEvidenceStatus: ProductReviewAndPdfGateResult["pdfEvidenceStatus"] = "missing";
+  if (!evidence) {
+    if (input.bundleStatus === "published") {
+      pdfEvidenceStatus = "published";
+    } else {
+      pdfEvidenceStatus = "missing";
+      issues.push({
+        code: "PDF_EVIDENCE_MISSING",
+        severity: "blocking",
+        target: { targetType: "pdf", targetId: targetPdfProductId },
+        reason: input.diktatId
+          ? `PDF artifact evidence is missing for diktat ${input.diktatId}`
+          : "PDF artifact evidence is missing for this article",
+        remediation: "Render PDF artifact and record evidence in bukti_pdf_bundle before publication",
+      });
+    }
+  } else {
+    pdfEvidenceStatus = evidence.status as ProductReviewAndPdfGateResult["pdfEvidenceStatus"];
+    if (evidence.status === "pending") {
+      issues.push({
+        code: "PDF_EVIDENCE_PENDING",
+        severity: "blocking",
+        target: { targetType: "pdf", targetId: targetPdfProductId },
+        reason: "PDF artifact rendering is still pending",
+        remediation: "Wait for PDF generation to complete before publication",
+      });
+    } else if (evidence.status === "failed") {
+      issues.push({
+        code: "PDF_EVIDENCE_FAILED",
+        severity: "blocking",
+        target: { targetType: "pdf", targetId: targetPdfProductId },
+        reason: `PDF rendering failed: ${evidence.failureCode ?? "unknown"}`,
+        remediation: "Resolve rendering errors and re-generate PDF artifact",
+      });
+    } else if (evidence.status === "stale") {
+      issues.push({
+        code: "PDF_EVIDENCE_STALE",
+        severity: "blocking",
+        target: { targetType: "pdf", targetId: targetPdfProductId },
+        reason: "PDF artifact is stale because article or diktat lineage changed",
+        remediation: "Re-render PDF artifact against the updated content",
+      });
+    } else if (evidence.status !== "ready") {
+      issues.push({
+        code: "PDF_EVIDENCE_NOT_READY",
+        severity: "blocking",
+        target: { targetType: "pdf", targetId: targetPdfProductId },
+        reason: `PDF evidence status is '${evidence.status}'`,
+        remediation: "PDF evidence must be in 'ready' status before publication",
+      });
+    }
+
+    if (expectedArticleHash && evidence.articleHash !== expectedArticleHash) {
+      pdfEvidenceStatus = "stale";
+      issues.push({
+        code: "PDF_LINEAGE_HASH_MISMATCH",
+        severity: "blocking",
+        target: { targetType: "pdf", targetId: targetPdfProductId },
+        reason: `PDF evidence articleHash '${evidence.articleHash}' does not match article '${expectedArticleHash}'`,
+        remediation: "Re-render PDF artifact to match current article generation hash",
+      });
+    }
+
+    if (expectedDiktatHash && evidence.diktatHash !== expectedDiktatHash) {
+      pdfEvidenceStatus = "stale";
+      issues.push({
+        code: "PDF_LINEAGE_HASH_MISMATCH",
+        severity: "blocking",
+        target: { targetType: "pdf", targetId: targetPdfProductId },
+        reason: `PDF evidence diktatHash '${evidence.diktatHash}' does not match diktat '${expectedDiktatHash}'`,
+        remediation: "Re-render PDF artifact to match current diktat generation hash",
+      });
+    }
+
+    const pdfResult = validatePdfArtifactEvidence(evidence);
+    if (!pdfResult.valid) {
+      issues.push(...pdfResult.issues);
+    }
+  }
+
+  return {
+    reviewDecision,
+    reviewStatus,
+    pdfEvidenceStatus,
+    issues,
   };
 }

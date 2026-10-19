@@ -17,7 +17,7 @@ export type SourceFilePage = {
 export async function requestPdfPagesFromCompute(params: {
   storageKey: string;
   pages: number[];
-}): Promise<{ totalPages: number; pages: SourceFilePage[] }> {
+}): Promise<{ totalPages: number; pages: SourceFilePage[]; size?: number | null; checksum?: string | null }> {
   const computeUrl = process.env.COMPUTE_SERVICE_URL;
   const secret = process.env.COMPUTE_SERVICE_SECRET;
 
@@ -43,10 +43,19 @@ export async function requestPdfPagesFromCompute(params: {
   const data = (await response.json()) as {
     totalPages: number;
     pages: ComputePdfPage[];
+    size?: number | null;
+    byteLength?: number | null;
+    checksum?: string | null;
   };
 
   return {
     totalPages: data.totalPages,
+    size: typeof data.size === "number" && data.size > 0
+      ? data.size
+      : typeof data.byteLength === "number" && data.byteLength > 0
+        ? data.byteLength
+        : null,
+    checksum: typeof data.checksum === "string" ? data.checksum : null,
     pages: data.pages.map((p) => ({
       pageNumber: p.pageNumber,
       text: p.text,

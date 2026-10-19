@@ -8,13 +8,27 @@ import { RefreshCw } from "lucide-react";
 export default function GlobalError({
   error,
   reset,
+  retry,
 }: {
   error: Error & { digest?: string };
   reset: () => void;
+  retry?: () => void;
 }) {
   useEffect(() => {
     Sentry.captureException(error);
   }, [error]);
+
+  const handleReload = () => {
+    if (typeof window !== "undefined") {
+      window.location.reload();
+      return;
+    }
+    if (retry) {
+      retry();
+      return;
+    }
+    reset();
+  };
 
   return (
     <html lang="id">
@@ -31,7 +45,7 @@ export default function GlobalError({
           </p>
           <div className="flex justify-center pt-2">
             <Button
-              onClick={() => reset()}
+              onClick={handleReload}
               variant="default"
               size="lg"
               className="font-semibold gap-1.5"

@@ -28,6 +28,7 @@ type SourceTokenPayload = SignedTokenPayload & {
   kind: "source";
   checksum: string;
   packId: string;
+  importId?: string | null;
   name: string;
   summary: SourcePackSummary;
   courseId?: string;
@@ -52,6 +53,7 @@ export type McpSourceFileTokenPayload = SignedTokenPayload & McpSourceFileRefere
 type RunSourceFields = {
   sourcePackChecksum: string | null;
   sourcePackId: string | null;
+  sourcePackImportId?: string | null;
   sourcePackName: string | null;
   sourcePackSummary: SourcePackSummary | null;
 };
@@ -120,8 +122,8 @@ export type AuthoringWorkflowOption = {
   description: string;
   sourcePackRequired: boolean;
   scope: ["course", "chapter"] | ["course"];
-  reviewRequired: true;
-  publicationTarget: "idea_and_product_review" | "quiz_bank_review" | "reference_question_review";
+  reviewRequired: boolean;
+  publicationTarget: "idea_and_product_review" | "quiz_bank_review" | "reference_question_bank";
 };
 
 const WORKFLOW_OPTIONS: readonly AuthoringWorkflowOption[] = [
@@ -146,11 +148,11 @@ const WORKFLOW_OPTIONS: readonly AuthoringWorkflowOption[] = [
   {
     key: "reference_question_ingest",
     label: "Soal referensi historis",
-    description: "Mengimpor soal historis dari source tersimpan, mempertahankan provenance, dan mengaitkannya ke Idea published.",
+    description: "Mengimpor soal historis dari source tersimpan, mempertahankan provenance, mengaitkannya ke Idea published, dan menyimpannya sebagai published (siap dipakai pada kuis sesuai quizEligible).",
     sourcePackRequired: false,
     scope: ["course"],
-    reviewRequired: true,
-    publicationTarget: "reference_question_review",
+    reviewRequired: false,
+    publicationTarget: "reference_question_bank",
   },
 ];
 
@@ -319,6 +321,11 @@ export function readMcpCourseChoice(courseKey: string): { courseId: string } {
   return { courseId: course.courseId };
 }
 
+export function readMcpChapterChoice(chapterKey: string): { courseId: string; chapterId: string } {
+  const chapter = verifyToken<SignedTokenPayload & { kind: "chapter_choice"; courseId: string; chapterId: string }>(chapterKey, "chapter_choice");
+  return { courseId: chapter.courseId, chapterId: chapter.chapterId };
+}
+
 export function issueMcpSourceFileKey(input: {
   materialId: string;
   storageKey: string;
@@ -401,6 +408,7 @@ export function ingestMcpSourcePack(
 export function issueSourcePackToken(input: {
   checksum: string;
   packId: string;
+  importId?: string | null;
   name: string;
   summary: SourcePackSummary;
   courseId?: string;
@@ -411,11 +419,16 @@ export function issueSourcePackToken(input: {
     kind: "source",
     checksum: input.checksum,
     packId: input.packId,
+    ...(input.importId ? { importId: input.importId } : {}),
     name: input.name,
     summary: input.summary,
     ...(input.courseId && input.chapterId ? { courseId: input.courseId, chapterId: input.chapterId } : {}),
     ttlMs: input.ttlMs ?? 24 * 60 * 60 * 1000,
   });
+}
+
+export function readMcpSourcePackToken(sourcePackToken: string): SourceTokenPayload {
+  return verifyToken<SourceTokenPayload>(sourcePackToken, "source");
 }
 
 export function readMcpSourcePackBinding(sourcePackToken: string): { courseId?: string; chapterId?: string } {
@@ -453,6 +466,7 @@ export async function startAuthoringWorkflow(input: {
       courseLabel: course.title,
       sourcePackChecksum: null,
       sourcePackId: null,
+      sourcePackImportId: null,
       sourcePackName: null,
       sourcePackSummary: null,
       ttlMs: 7 * 24 * 60 * 60 * 1000,
@@ -478,7 +492,7 @@ export async function startAuthoringWorkflow(input: {
   if (!input.chapterKey) throw new Error("AUTHORING_MCP_CHAPTER_REQUIRED");
   const chapterChoice = verifyToken<SignedTokenPayload & { kind: "chapter_choice"; courseId: string; chapterId: string }>(input.chapterKey, "chapter_choice");
   if (chapterChoice.courseId !== courseChoice.courseId) throw new Error("AUTHORING_MCP_SCOPE_MISMATCH");
-  let source: Pick<SourceTokenPayload, "checksum" | "packId" | "name" | "summary" | "courseId" | "chapterId"> | null = null;
+  let source: Pick<SourceTokenPayload, "checksum" | "packId" | "importId" | "name" | "summary" | "courseId" | "chapterId"> | null = null;
   if (input.sourcePackToken) {
     source = verifyToken<SourceTokenPayload>(input.sourcePackToken, "source");
     assertMcpSourceScopeBinding(source, { courseId: courseChoice.courseId, chapterId: chapterChoice.chapterId });
@@ -501,6 +515,7 @@ export async function startAuthoringWorkflow(input: {
     chapterLabel: chapter.title,
     sourcePackChecksum: source?.checksum ?? null,
     sourcePackId: source?.packId ?? null,
+    sourcePackImportId: source?.importId ?? null,
     sourcePackName: source?.name ?? null,
     sourcePackSummary: source?.summary ?? null,
     ttlMs: 7 * 24 * 60 * 60 * 1000,
@@ -510,7 +525,14 @@ export async function startAuthoringWorkflow(input: {
     runId,
     workflow,
     scope: { course: course.title, chapter: chapter.title },
-    source: source ? { packId: source.packId, name: source.name, checksum: source.checksum } : null,
+    source: source
+      ? {
+          ...(source.importId ? { importId: source.importId } : {}),
+          packId: source.packId,
+          name: source.name,
+          checksum: source.checksum,
+        }
+      : null,
     next: workflow.key === "idea_product"
       ? ["authoring.validate_idea_bundle", "authoring.submit_idea_bundle", "authoring.validate_product_bundle", "authoring.submit_product_bundle"]
       : [
@@ -539,6 +561,7 @@ export function issueMcpRunToken(input: {
   chapterLabel?: string;
   sourcePackChecksum?: string | null;
   sourcePackId?: string | null;
+  sourcePackImportId?: string | null;
   sourcePackName?: string | null;
   sourcePackSummary?: string | null;
   ttlMs?: number;
@@ -556,6 +579,7 @@ export function issueMcpRunToken(input: {
     ...(input.chapterLabel || input.chapterId ? { chapterLabel: input.chapterLabel ?? input.chapterId } : {}),
     sourcePackChecksum: input.sourcePackChecksum ?? null,
     sourcePackId: input.sourcePackId ?? null,
+    sourcePackImportId: input.sourcePackImportId ?? null,
     sourcePackName: input.sourcePackName ?? null,
     sourcePackSummary: input.sourcePackSummary ?? null,
     ttlMs: input.ttlMs ?? 7 * 24 * 60 * 60 * 1000,
@@ -605,6 +629,7 @@ export function publicMcpRun(runToken: string) {
     scope: run.chapterLabel ? { course: run.courseLabel, chapter: run.chapterLabel } : { course: run.courseLabel },
     source: run.sourcePackId
       ? {
+        ...(run.sourcePackImportId ? { importId: run.sourcePackImportId } : {}),
         packId: run.sourcePackId,
         name: run.sourcePackName,
         checksum: run.sourcePackChecksum,
@@ -795,7 +820,7 @@ export function workflowContract(runToken: string) {
         "Jangan membuat Idea baru, mengarang jawaban, mengoreksi sumber, menerjemahkan, atau menginfer jawaban yang tidak terbukti.",
         "Setiap soal wajib memiliki minimal satu Idea published dari course yang sama; Idea boleh berasal dari chapter berbeda.",
         "Simpan provenance jawaban dan solusi sebagai official, source_solution, zyx_generated, atau unavailable sesuai bukti yang tersedia.",
-        "Submit hanya membuat draft generated untuk admin review; workflow tidak memiliki tool direct publish.",
+        "Submit melalui assessment.submit_reference_draft menyimpan soal historis dengan status published; soal dengan quizEligible=true langsung dapat dipakai pada perakitan kuis.",
         "Jangan meminta atau mengirim course ID, chapter ID, database ID, atau storage key kepada operator.",
       ];
 
@@ -861,8 +886,10 @@ export function workflowContract(runToken: string) {
           ideaLinksRequired: true,
           sameCourseAcrossChaptersAllowed: true,
           origin: "historical_reference",
-          publicationTarget: "reference_question_review",
-          initialStatus: "generated",
+          reviewRequired: false,
+          publicationTarget: "reference_question_bank",
+          initialStatus: "published",
+          quizEligibilityRule: "Soal yang disubmit langsung berstatus published; soal dengan quizEligible=true langsung memenuhi syarat untuk perakitan kuis.",
         },
       },
   };
