@@ -1,21 +1,39 @@
-import { createCipheriv, createDecipheriv, createHmac, randomBytes, randomUUID, timingSafeEqual } from "node:crypto";
+import { createCipheriv, createDecipheriv, createHash, createHmac, randomBytes, randomUUID, timingSafeEqual } from "node:crypto";
 import { z } from "zod";
 import { getAuthoringCourseOption, listAuthoringCourseOptions } from "@/lib/authoring/catalog";
 import { validateSourcePack, type ValidatedSourcePack } from "@/lib/authoring/source-pack";
 import { evaluateSourcePackQuality, type SourcePackQualityReport } from "@/lib/authoring/quality/source-pack";
 import { ZipSecurityError } from "@/lib/bundle/zip-reader";
 import { resolveAuthSecret } from "@/lib/auth-secret";
+import { authoringValidationSnapshot } from "@/lib/authoring/mcp-contract-revision";
+import {
+  AUTHORING_MCP_BOOTSTRAP_PROTOCOL,
+  buildPlaybookResponse,
+  evaluatePlaybookCompatibility,
+  getStagePlaybookManifest,
+  listAllStagePlaybookManifests,
+  resolveAuthoringMcpEnvironment,
+  resolveAuthoringServerRevision,
+  authoringMcpSkillSchema,
+  authoringPlaybookStageSchema,
+  clientCapabilitiesSchema,
+  type AuthoringClientCapabilities,
+  type AuthoringMcpSkill,
+  type AuthoringPlaybookModuleKey,
+  type AuthoringPlaybookStage,
+} from "@/lib/authoring/mcp-playbook";
 
 export const AUTHORING_MCP_VERSION = "authoring-mcp.v1";
 export const AUTHORING_MCP_MAX_SOURCE_PACK_BYTES = 64 * 1024 * 1024;
 export const AUTHORING_MCP_MAX_BUNDLE_BYTES = 32 * 1024 * 1024;
 export const AUTHORING_MCP_MAX_ORIGINAL_BYTES = 32 * 1024 * 1024;
 export const MCP_CONNECTION_TOKEN_TTL_SECONDS = 30 * 24 * 60 * 60;
+export const MCP_BOOTSTRAP_TOKEN_TTL_MS = 60 * 60 * 1000;
 
 export const authoringWorkflowSchema = z.enum(["idea_product", "quiz_bank", "reference_question_ingest"]);
 export type AuthoringWorkflow = z.infer<typeof authoringWorkflowSchema>;
 
-type SignedTokenKind = "course_choice" | "chapter_choice" | "source_file" | "source" | "run" | "connection" | "client";
+type SignedTokenKind = "course_choice" | "chapter_choice" | "source_file" | "source" | "run" | "bootstrap" | "connection" | "client";
 
 type SignedTokenPayload = {
   kind: SignedTokenKind;
@@ -23,6 +41,55 @@ type SignedTokenPayload = {
   expiresAt: number;
   [key: string]: unknown;
 };
+
+export type McpBootstrapContext = {
+  actorId: string;
+  sessionId: string | null;
+  audience: string;
+  environment: "staging" | "production" | "local";
+  skill: AuthoringMcpSkill | null;
+  stage: AuthoringPlaybookStage;
+  bootstrapProtocol: number;
+  pluginVersion: string | null;
+  playbookRevision: string;
+  playbookChecksum: string;
+  contractRevision: string;
+  contractChecksum: string;
+  clientCapabilities: AuthoringClientCapabilities;
+};
+
+export type BootstrapTokenPayload = SignedTokenPayload & McpBootstrapContext & {
+  kind: "bootstrap";
+};
+
+const bootstrapContextSchema = z.object({
+  actorId: z.string().min(1),
+  sessionId: z.string().min(1).nullable(),
+  audience: z.string().min(1),
+  environment: z.enum(["staging", "production", "local"]),
+  skill: authoringMcpSkillSchema.nullable(),
+  stage: authoringPlaybookStageSchema,
+  bootstrapProtocol: z.number().int().positive(),
+  pluginVersion: z.string().nullable(),
+  playbookRevision: z.string().min(1),
+  playbookChecksum: z.string().regex(/^[a-f0-9]{64}$/),
+  contractRevision: z.string().min(1),
+  contractChecksum: z.string().regex(/^[a-f0-9]{64}$/),
+  clientCapabilities: clientCapabilitiesSchema,
+});
+
+function bootstrapAudience(): string {
+  const environment = resolveAuthoringMcpEnvironment();
+  if (environment === "production") return "https://www.zyxacademy.com/api/mcp/authoring";
+  if (environment === "staging") return "https://staging.zyxacademy.com/api/mcp/authoring";
+  return "urn:zyx-authoring:local";
+}
+
+function publicBootstrapContext(context: McpBootstrapContext | null | undefined) {
+  if (!context) return null;
+  const { actorId: _actorId, sessionId: _sessionId, audience: _audience, ...metadata } = context;
+  return metadata;
+}
 
 type SourceTokenPayload = SignedTokenPayload & {
   kind: "source";
@@ -66,6 +133,7 @@ type RunTokenPayload = SignedTokenPayload & {
   chapterId: string;
   courseLabel: string;
   chapterLabel: string;
+  bootstrap?: McpBootstrapContext | null;
 } & RunSourceFields;
 
 export type McpConnectionTokenPayload = SignedTokenPayload & {
@@ -443,13 +511,425 @@ export function assertMcpSourceScopeBinding(
   }
 }
 
+const WORKFLOW_ALLOWED_STAGES: Record<AuthoringWorkflow, readonly AuthoringPlaybookStage[]> = {
+  idea_product: ["pipeline", "source", "idea", "product"],
+  quiz_bank: ["quiz"],
+  reference_question_ingest: ["reference"],
+};
+
+const OPERATION_ALLOWED_STAGES: Record<AuthoringPlaybookStage, readonly AuthoringPlaybookStage[]> = {
+  common: ["common", "pipeline", "source", "idea", "product", "quiz", "reference"],
+  pipeline: ["pipeline"],
+  source: ["source"],
+  idea: ["idea"],
+  product: ["product"],
+  quiz: ["quiz"],
+  reference: ["reference"],
+};
+
+function workflowStaticDefinition(workflowKey: AuthoringWorkflow) {
+  const workflow = getAuthoringWorkflow(workflowKey);
+  const rules = workflow.key === "idea_product"
+    ? [
+      "Gunakan hanya Source Pack yang telah divalidasi oleh MCP.",
+      "Source Pack harus dikirim bersama binary asli setiap dokumen agar originalSha256 dapat diverifikasi independen.",
+      "Compatibility check harus selesai sebelum hasil dikirim untuk review.",
+      "Technical quality dan content quality report harus valid tanpa issue blocking.",
+      "Jika quality report gagal, revisi artifact lalu jalankan validator ulang; jangan mengubah checksum secara manual.",
+      "Product Bundle baru hanya boleh berisi article, diktat, flashcard_set, dan flashcard; question, solution, dan assessment_blueprint memakai workflow asesmen.",
+      "Jangan membuat soal kuis Zyx atau soal referensi historis dalam Product Bundle; gunakan workflow asesmen yang sesuai.",
+      "Publish selalu dilakukan oleh admin melalui alur review.",
+    ]
+    : workflow.key === "quiz_bank"
+      ? [
+        "Workflow mengunci course dan chapter; Source Pack bersifat opsional dan harus tetap tervalidasi bila digunakan.",
+        "Target Idea wajib berasal dari katalog published dalam scope yang dikunci.",
+        "Gunakan historical reference hanya sebagai konteks gap analysis; jangan menyalin soal historis secara verbatim.",
+        "Soal baru harus origin zyx_original, memakai referenceLinks bila terinspirasi, lalu masuk review admin tanpa publish otomatis.",
+        "Jangan meminta atau mengirim course ID, chapter ID, atau Idea ID internal kepada operator.",
+      ]
+      : [
+        "Workflow berjalan pada scope course tanpa chapter dan tanpa Source Pack.",
+        "Gunakan hanya source.list_reference_files untuk file kategori soal dan pembahasan_soal dalam course yang dikunci.",
+        "Pertahankan wording, nomor, bagian, opsi, halaman, dan locator sumber; normalisasi hanya whitespace, Markdown, dan LaTeX yang tidak mengubah makna.",
+        "Jangan membuat Idea baru, mengarang jawaban, mengoreksi sumber, menerjemahkan, atau menginfer jawaban yang tidak terbukti.",
+        "Setiap soal wajib memiliki minimal satu Idea published dari course yang sama; Idea boleh berasal dari chapter berbeda.",
+        "Simpan provenance jawaban dan solusi sebagai official, source_solution, zyx_generated, atau unavailable sesuai bukti yang tersedia.",
+        "Submit melalui assessment.submit_reference_draft menyimpan soal historis dengan status published; soal dengan quizEligible=true langsung dapat dipakai pada perakitan kuis.",
+        "Jangan meminta atau mengirim course ID, chapter ID, database ID, atau storage key kepada operator.",
+      ];
+
+  const outputs = workflow.key === "idea_product"
+    ? {
+      ideaBundle: {
+        schemaVersion: "idea-bundle.v3",
+        compatibleReadVersions: ["idea-bundle.v2", "idea-bundle.v3"],
+        validationTool: "authoring.validate_idea_bundle",
+        reviewRequired: true,
+        attribution: { creatorId: "$UPLOADER", curatorId: "$APPROVING_REVIEWER" },
+        creatorRule: "Generator Idea Bundle wajib selalu menghasilkan creatorId: '$UPLOADER', bukan ID placeholder eksternal.",
+      },
+      productBundle: productBundleV3Contract(),
+    }
+    : workflow.key === "quiz_bank" ? {
+      quizDraft: {
+        schemaVersion: "question-bank-draft.v2",
+        ideaCatalogTool: "assessment.list_ideas",
+        ideaDetailTool: "assessment.get_idea",
+        validationTool: "assessment.validate_quiz_draft",
+        submitTool: "assessment.submit_quiz_draft",
+        ideaLinksRequired: false,
+        linkedIdeaWeightRule: "Positive weights must sum to 1 when Idea links are present.",
+        scopeGuidance: quizBankScopeGuidance(),
+        historicalReferenceBoundary: "Historical questions are read-only context for gap analysis. New quiz questions remain zyx_original and may link lineage with inspired_by, adapted_from, or derived_from.",
+        draftExample: {
+          schemaVersion: "question-bank-draft.v2",
+          draftId: "draft-local-1",
+          questions: [{
+            id: "question-1",
+            questionType: "multiple_choice",
+            difficulty: "medium",
+            cognitiveLevel: "apply",
+            reasoningPattern: "direct_application",
+            tags: [],
+            prompt: "Tulis pertanyaan di sini.",
+            options: ["Opsi A", "Opsi B", "Opsi C", "Opsi D"],
+            correctIndices: [0],
+            acceptableAnswers: [],
+            explanation: "Tulis pembahasan di sini.",
+            ideaLinks: [],
+          }],
+        },
+        reviewRequired: true,
+        publicationTarget: "question_bank",
+        initialStatus: "generated",
+      },
+    } : {
+      referenceQuestionDraft: {
+        schemaVersion: "reference-question-draft.v1",
+        allowedSourceTools: ["source.list_reference_files", "source.read_file"],
+        allowedIdeaTools: ["knowledge.search_course_ideas", "knowledge.get_idea"],
+        validationTool: "assessment.validate_reference_draft",
+        submitTool: "assessment.submit_reference_draft",
+        ideaLinksRequired: true,
+        sameCourseAcrossChaptersAllowed: true,
+        origin: "historical_reference",
+        reviewRequired: false,
+        publicationTarget: "reference_question_bank",
+        initialStatus: "published",
+        quizEligibilityRule: "Soal yang disubmit langsung berstatus published; soal dengan quizEligible=true langsung memenuhi syarat untuk perakitan kuis.",
+      },
+    };
+
+  return { workflow, rules, outputs };
+}
+
+export function authoringContractSnapshot() {
+  const payload = {
+    version: AUTHORING_MCP_VERSION,
+    validation: authoringValidationSnapshot(),
+    workflows: WORKFLOW_OPTIONS,
+    contracts: {
+      idea_product: workflowStaticDefinition("idea_product"),
+      quiz_bank: workflowStaticDefinition("quiz_bank"),
+      reference_question_ingest: workflowStaticDefinition("reference_question_ingest"),
+    },
+  };
+  return payload;
+}
+
+export function computeAuthoringContractDigest(payload: unknown = authoringContractSnapshot()) {
+  const contractChecksum = createHash("sha256").update(JSON.stringify(payload), "utf8").digest("hex");
+  const contractRevision = `contract-v1-${contractChecksum.slice(0, 12)}`;
+  return { contractRevision, contractChecksum };
+}
+
+export function issueMcpBootstrapToken(input: {
+  actorId: string;
+  sessionId?: string;
+  skill?: AuthoringMcpSkill | null;
+  stage: AuthoringPlaybookStage;
+  bootstrapProtocol?: number;
+  pluginVersion?: string | null;
+  clientCapabilities?: AuthoringClientCapabilities;
+  playbookRevision?: string;
+  playbookChecksum?: string;
+  contractRevision?: string;
+  contractChecksum?: string;
+  environment?: "staging" | "production" | "local";
+  ttlMs?: number;
+}): string {
+  const compatibility = evaluatePlaybookCompatibility({
+    stage: input.stage,
+    bootstrapProtocol: input.bootstrapProtocol,
+    pluginVersion: input.pluginVersion ?? undefined,
+    clientCapabilities: input.clientCapabilities,
+  });
+  if (compatibility.status === "incompatible") {
+    throw new Error(compatibility.code);
+  }
+  const manifest = getStagePlaybookManifest(input.stage);
+  const contractDigest = computeAuthoringContractDigest();
+  return issueToken({
+    kind: "bootstrap",
+    actorId: input.actorId,
+    sessionId: input.sessionId ?? null,
+    audience: bootstrapAudience(),
+    environment: input.environment ?? resolveAuthoringMcpEnvironment(),
+    skill: input.skill ?? null,
+    stage: input.stage,
+    bootstrapProtocol: input.bootstrapProtocol ?? AUTHORING_MCP_BOOTSTRAP_PROTOCOL,
+    pluginVersion: input.pluginVersion ?? null,
+    playbookRevision: input.playbookRevision ?? manifest.playbookRevision,
+    playbookChecksum: input.playbookChecksum ?? manifest.playbookChecksum,
+    contractRevision: input.contractRevision ?? contractDigest.contractRevision,
+    contractChecksum: input.contractChecksum ?? contractDigest.contractChecksum,
+    clientCapabilities: input.clientCapabilities ?? {},
+    ttlMs: input.ttlMs ?? MCP_BOOTSTRAP_TOKEN_TTL_MS,
+  });
+}
+
+export function readMcpBootstrapToken(bootstrapToken: string): BootstrapTokenPayload {
+  const token = verifyToken<BootstrapTokenPayload>(bootstrapToken, "bootstrap");
+  const parsed = bootstrapContextSchema.safeParse(token);
+  if (!parsed.success) throw new Error("AUTHORING_MCP_BOOTSTRAP_INVALID");
+  return { kind: token.kind, issuedAt: token.issuedAt, expiresAt: token.expiresAt, ...parsed.data };
+}
+
+function verifyBootstrapIdentity(context: McpBootstrapContext, options: { actorId?: string; sessionId?: string }) {
+  const parsed = bootstrapContextSchema.safeParse(context);
+  if (!parsed.success) throw new Error("AUTHORING_MCP_BOOTSTRAP_INVALID");
+  if (options.actorId && context.actorId !== options.actorId) throw new Error("AUTHORING_MCP_BOOTSTRAP_PRINCIPAL_MISMATCH");
+  if (options.sessionId && context.sessionId !== options.sessionId) throw new Error("AUTHORING_MCP_BOOTSTRAP_SESSION_MISMATCH");
+  if (context.environment !== resolveAuthoringMcpEnvironment()) throw new Error("AUTHORING_MCP_BOOTSTRAP_ENVIRONMENT_MISMATCH");
+  if (context.audience !== bootstrapAudience()) throw new Error("AUTHORING_MCP_BOOTSTRAP_AUDIENCE_MISMATCH");
+}
+
+function validateBootstrapContextAgainstActiveServer(
+  bootstrap: McpBootstrapContext,
+  options: {
+    actorId?: string;
+    sessionId?: string;
+    requiredStage?: AuthoringPlaybookStage;
+    expectedWorkflow?: AuthoringWorkflow;
+  } = {},
+) {
+  verifyBootstrapIdentity(bootstrap, options);
+  if (options.expectedWorkflow) {
+    const allowedForWorkflow = WORKFLOW_ALLOWED_STAGES[options.expectedWorkflow];
+    if (!allowedForWorkflow.includes(bootstrap.stage)) {
+      throw new Error("AUTHORING_MCP_BOOTSTRAP_STAGE_MISMATCH");
+    }
+  }
+  if (options.requiredStage) {
+    const allowedForStage = OPERATION_ALLOWED_STAGES[options.requiredStage];
+    if (!allowedForStage.includes(bootstrap.stage)) {
+      throw new Error("AUTHORING_MCP_BOOTSTRAP_STAGE_MISMATCH");
+    }
+    const stageCompatibility = evaluatePlaybookCompatibility({
+      stage: options.requiredStage,
+      bootstrapProtocol: bootstrap.bootstrapProtocol,
+      pluginVersion: bootstrap.pluginVersion ?? undefined,
+      clientCapabilities: bootstrap.clientCapabilities,
+    });
+    if (stageCompatibility.status === "incompatible") {
+      throw new Error(stageCompatibility.code);
+    }
+  }
+
+  const boundStageManifest = getStagePlaybookManifest(bootstrap.stage);
+  if (
+    bootstrap.playbookChecksum !== boundStageManifest.playbookChecksum ||
+    bootstrap.playbookRevision !== boundStageManifest.playbookRevision
+  ) {
+    throw new Error("AUTHORING_MCP_PLAYBOOK_STALE");
+  }
+
+  const activeContract = computeAuthoringContractDigest();
+  if (
+    bootstrap.contractChecksum !== activeContract.contractChecksum ||
+    bootstrap.contractRevision !== activeContract.contractRevision
+  ) {
+    throw new Error("AUTHORING_MCP_CONTRACT_STALE");
+  }
+
+  const compatibility = evaluatePlaybookCompatibility({
+    stage: options.requiredStage ?? bootstrap.stage,
+    bootstrapProtocol: bootstrap.bootstrapProtocol,
+    pluginVersion: bootstrap.pluginVersion ?? undefined,
+    clientCapabilities: bootstrap.clientCapabilities,
+  });
+
+  return {
+    mode: "verified" as const,
+    status: compatibility.status,
+    code: compatibility.code,
+    warning: compatibility.status === "warning" ? compatibility.reason : null,
+    remediation: compatibility.remediation,
+    bootstrap,
+  };
+}
+
+export function verifyMcpExecutionBootstrap(input: {
+  actorId?: string;
+  sessionId?: string;
+  bootstrapToken?: string;
+  run?: Pick<RunTokenPayload, "workflow" | "bootstrap"> | null;
+  requiredStage?: AuthoringPlaybookStage;
+  expectedWorkflow?: AuthoringWorkflow;
+}) {
+  const expectedWorkflow = input.expectedWorkflow ?? input.run?.workflow;
+  let verifiedFromToken: ReturnType<typeof validateBootstrapContextAgainstActiveServer> | null = null;
+
+  if (input.bootstrapToken) {
+    const tokenPayload = readMcpBootstrapToken(input.bootstrapToken);
+    const { kind: _kind, issuedAt: _issuedAt, expiresAt: _expiresAt, ...context } = tokenPayload;
+    verifiedFromToken = validateBootstrapContextAgainstActiveServer(context as McpBootstrapContext, {
+      actorId: input.actorId,
+      sessionId: input.sessionId,
+      requiredStage: input.requiredStage,
+      expectedWorkflow,
+    });
+  }
+
+  if (input.run?.bootstrap) {
+    verifyBootstrapIdentity(input.run.bootstrap, input);
+    if (verifiedFromToken) return verifiedFromToken;
+    const verifiedFromRun = validateBootstrapContextAgainstActiveServer(input.run.bootstrap, {
+      actorId: input.actorId,
+      sessionId: input.sessionId,
+      requiredStage: verifiedFromToken ? undefined : input.requiredStage,
+      expectedWorkflow,
+    });
+    return verifiedFromToken ?? verifiedFromRun;
+  }
+
+  if (verifiedFromToken) {
+    return verifiedFromToken;
+  }
+
+  return {
+    mode: "legacy" as const,
+    status: "warning" as const,
+    code: "AUTHORING_MCP_LEGACY_BOOTSTRAP_OMITTED" as const,
+    warning: "Bootstrap context omitted; legacy transition mode is active. Call workflow.get_playbook before authoring.",
+    remediation: "Call workflow.get_playbook and pass bootstrapToken to workflow.start and mutation tools.",
+    bootstrap: null,
+  };
+}
+
+export function getMcpPlaybook(input: {
+  actorId: string;
+  sessionId?: string;
+  skill?: AuthoringMcpSkill;
+  stage?: AuthoringPlaybookStage;
+  modules?: readonly AuthoringPlaybookModuleKey[];
+  bootstrapProtocol?: number;
+  pluginVersion?: string;
+  clientCapabilities?: AuthoringClientCapabilities;
+  runToken?: string;
+  expectedPlaybookRevision?: string;
+}) {
+  const playbook = buildPlaybookResponse({
+    skill: input.skill,
+    stage: input.stage,
+    modules: input.modules,
+    bootstrapProtocol: input.bootstrapProtocol,
+    pluginVersion: input.pluginVersion,
+    clientCapabilities: input.clientCapabilities,
+    expectedPlaybookRevision: input.expectedPlaybookRevision,
+  });
+  const contractDigest = computeAuthoringContractDigest();
+
+  let runDiagnostics: {
+    runId: string;
+    workflow: AuthoringWorkflow;
+    bootstrapBound: boolean;
+    playbookFresh: boolean;
+    contractFresh: boolean;
+    refreshRequired: boolean;
+  } | null = null;
+
+  if (input.runToken) {
+    const run = readMcpRunToken(input.runToken);
+    if (run.bootstrap) {
+      verifyBootstrapIdentity(run.bootstrap, input);
+      const boundStageManifest = getStagePlaybookManifest(run.bootstrap.stage);
+      const playbookFresh =
+        run.bootstrap.playbookChecksum === boundStageManifest.playbookChecksum &&
+        run.bootstrap.playbookRevision === boundStageManifest.playbookRevision;
+      const contractFresh =
+        run.bootstrap.contractChecksum === contractDigest.contractChecksum &&
+        run.bootstrap.contractRevision === contractDigest.contractRevision;
+      runDiagnostics = {
+        runId: run.runId,
+        workflow: run.workflow,
+        bootstrapBound: true,
+        playbookFresh,
+        contractFresh,
+        refreshRequired: !playbookFresh || !contractFresh,
+      };
+    } else {
+      runDiagnostics = {
+        runId: run.runId,
+        workflow: run.workflow,
+        bootstrapBound: false,
+        playbookFresh: true,
+        contractFresh: true,
+        refreshRequired: false,
+      };
+    }
+  }
+
+  const compatible = playbook.compatibility.status !== "incompatible";
+  const bootstrapToken = compatible
+    ? issueMcpBootstrapToken({
+        actorId: input.actorId,
+        sessionId: input.sessionId,
+        skill: playbook.skill ?? undefined,
+        stage: playbook.stage,
+        bootstrapProtocol: playbook.bootstrapProtocol,
+        pluginVersion: playbook.pluginVersion,
+        clientCapabilities: input.clientCapabilities,
+        playbookRevision: playbook.playbookRevision,
+        playbookChecksum: playbook.playbookChecksum,
+        contractRevision: contractDigest.contractRevision,
+        contractChecksum: contractDigest.contractChecksum,
+        environment: playbook.environment,
+      })
+    : null;
+
+  return {
+    ok: compatible,
+    ...playbook,
+    contractRevision: contractDigest.contractRevision,
+    contractChecksum: contractDigest.contractChecksum,
+    bootstrapToken,
+    runDiagnostics,
+    next: !compatible
+      ? ["remediate_client_compatibility"]
+      : playbook.stage === "source"
+        ? ["catalog.list_courses", "catalog.list_chapters", "source.list_packs", "source.list_files", "source.read_file", "source.ingest"]
+        : ["catalog.list_courses", "catalog.list_chapters", "workflow.start", "workflow.get_contract"],
+  };
+}
+
 export async function startAuthoringWorkflow(input: {
   workflow: AuthoringWorkflow;
   sourcePackToken?: string;
   courseKey: string;
   chapterKey?: string;
+  bootstrapToken?: string;
+  actorId?: string;
+  sessionId?: string;
 }) {
   const workflow = getAuthoringWorkflow(input.workflow);
+  const bootstrapCheck = verifyMcpExecutionBootstrap({
+    actorId: input.actorId,
+    sessionId: input.sessionId,
+    bootstrapToken: input.bootstrapToken,
+    expectedWorkflow: workflow.key,
+  });
   const courseChoice = verifyToken<SignedTokenPayload & { kind: "course_choice"; courseId: string }>(input.courseKey, "course_choice");
   if (workflow.key === "reference_question_ingest") {
     if (input.chapterKey || input.sourcePackToken) throw new Error("WORKFLOW_SCOPE_INVALID");
@@ -467,6 +947,7 @@ export async function startAuthoringWorkflow(input: {
       sourcePackImportId: null,
       sourcePackName: null,
       sourcePackSummary: null,
+      bootstrap: bootstrapCheck.bootstrap,
       ttlMs: 7 * 24 * 60 * 60 * 1000,
     });
     return {
@@ -475,6 +956,17 @@ export async function startAuthoringWorkflow(input: {
       workflow,
       scope: { course: course.title },
       source: null,
+      compatibility: {
+        mode: bootstrapCheck.mode,
+        status: bootstrapCheck.status,
+        code: bootstrapCheck.code,
+        warning: bootstrapCheck.warning,
+        remediation: bootstrapCheck.remediation,
+        playbookRevision: bootstrapCheck.bootstrap?.playbookRevision ?? null,
+        playbookChecksum: bootstrapCheck.bootstrap?.playbookChecksum ?? null,
+        contractRevision: bootstrapCheck.bootstrap?.contractRevision ?? computeAuthoringContractDigest().contractRevision,
+        contractChecksum: bootstrapCheck.bootstrap?.contractChecksum ?? computeAuthoringContractDigest().contractChecksum,
+      },
       next: [
         "source.list_reference_files",
         "source.read_file",
@@ -516,6 +1008,7 @@ export async function startAuthoringWorkflow(input: {
     sourcePackImportId: source?.importId ?? null,
     sourcePackName: source?.name ?? null,
     sourcePackSummary: source?.summary ?? null,
+    bootstrap: bootstrapCheck.bootstrap,
     ttlMs: 7 * 24 * 60 * 60 * 1000,
   });
   return {
@@ -531,6 +1024,17 @@ export async function startAuthoringWorkflow(input: {
           checksum: source.checksum,
         }
       : null,
+    compatibility: {
+      mode: bootstrapCheck.mode,
+      status: bootstrapCheck.status,
+      code: bootstrapCheck.code,
+      warning: bootstrapCheck.warning,
+      remediation: bootstrapCheck.remediation,
+      playbookRevision: bootstrapCheck.bootstrap?.playbookRevision ?? null,
+      playbookChecksum: bootstrapCheck.bootstrap?.playbookChecksum ?? null,
+      contractRevision: bootstrapCheck.bootstrap?.contractRevision ?? computeAuthoringContractDigest().contractRevision,
+      contractChecksum: bootstrapCheck.bootstrap?.contractChecksum ?? computeAuthoringContractDigest().contractChecksum,
+    },
     next: workflow.key === "idea_product"
       ? ["authoring.validate_idea_bundle", "authoring.submit_idea_bundle", "authoring.validate_product_bundle", "authoring.submit_product_bundle"]
       : [
@@ -562,6 +1066,7 @@ export function issueMcpRunToken(input: {
   sourcePackImportId?: string | null;
   sourcePackName?: string | null;
   sourcePackSummary?: string | null;
+  bootstrap?: McpBootstrapContext | null;
   ttlMs?: number;
 }): string {
   const workflow = input.workflow ?? "idea_product";
@@ -580,6 +1085,7 @@ export function issueMcpRunToken(input: {
     sourcePackImportId: input.sourcePackImportId ?? null,
     sourcePackName: input.sourcePackName ?? null,
     sourcePackSummary: input.sourcePackSummary ?? null,
+    ...(input.bootstrap !== undefined ? { bootstrap: input.bootstrap } : {}),
     ttlMs: input.ttlMs ?? 7 * 24 * 60 * 60 * 1000,
   });
 }
@@ -619,8 +1125,64 @@ export function readMcpClientId(clientId: string): McpClientPayload {
   return verifyToken<McpClientPayload>(clientId, "client");
 }
 
-export function publicMcpRun(runToken: string) {
+export function publicMcpRun(runToken: string, principal: { actorId?: string; sessionId?: string } = {}) {
   const run = readMcpRunToken(runToken);
+  if (run.bootstrap) verifyBootstrapIdentity(run.bootstrap, principal);
+  const activeContract = computeAuthoringContractDigest();
+  let compatibility: {
+    mode: "verified" | "legacy";
+    playbookFresh: boolean;
+    contractFresh: boolean;
+    refreshRequired: boolean;
+    boundPlaybookRevision: string | null;
+    boundPlaybookChecksum: string | null;
+    activePlaybookRevision: string | null;
+    activePlaybookChecksum: string | null;
+    boundContractRevision: string | null;
+    boundContractChecksum: string | null;
+    activeContractRevision: string;
+    activeContractChecksum: string;
+  };
+
+  if (run.bootstrap) {
+    const activeStageManifest = getStagePlaybookManifest(run.bootstrap.stage);
+    const playbookFresh =
+      run.bootstrap.playbookChecksum === activeStageManifest.playbookChecksum &&
+      run.bootstrap.playbookRevision === activeStageManifest.playbookRevision;
+    const contractFresh =
+      run.bootstrap.contractChecksum === activeContract.contractChecksum &&
+      run.bootstrap.contractRevision === activeContract.contractRevision;
+    compatibility = {
+      mode: "verified",
+      playbookFresh,
+      contractFresh,
+      refreshRequired: !playbookFresh || !contractFresh,
+      boundPlaybookRevision: run.bootstrap.playbookRevision,
+      boundPlaybookChecksum: run.bootstrap.playbookChecksum,
+      activePlaybookRevision: activeStageManifest.playbookRevision,
+      activePlaybookChecksum: activeStageManifest.playbookChecksum,
+      boundContractRevision: run.bootstrap.contractRevision,
+      boundContractChecksum: run.bootstrap.contractChecksum,
+      activeContractRevision: activeContract.contractRevision,
+      activeContractChecksum: activeContract.contractChecksum,
+    };
+  } else {
+    compatibility = {
+      mode: "legacy",
+      playbookFresh: true,
+      contractFresh: true,
+      refreshRequired: false,
+      boundPlaybookRevision: null,
+      boundPlaybookChecksum: null,
+      activePlaybookRevision: null,
+      activePlaybookChecksum: null,
+      boundContractRevision: null,
+      boundContractChecksum: null,
+      activeContractRevision: activeContract.contractRevision,
+      activeContractChecksum: activeContract.contractChecksum,
+    };
+  }
+
   return {
     runId: run.runId,
     workflow: getAuthoringWorkflow(run.workflow),
@@ -634,6 +1196,8 @@ export function publicMcpRun(runToken: string) {
         summary: run.sourcePackSummary,
       }
       : null,
+    bootstrap: publicBootstrapContext(run.bootstrap),
+    compatibility,
   };
 }
 
@@ -789,109 +1353,72 @@ export function productBundleV3Contract() {
   };
 }
 
-export function workflowContract(runToken: string) {
+export function workflowContract(
+  runToken: string,
+  options: {
+    bootstrapToken?: string;
+    actorId?: string;
+    sessionId?: string;
+    skill?: AuthoringMcpSkill;
+    bootstrapProtocol?: number;
+    pluginVersion?: string;
+    clientCapabilities?: AuthoringClientCapabilities;
+  } = {},
+) {
   const run = readMcpRunToken(runToken);
-  const workflow = getAuthoringWorkflow(run.workflow);
-  const rules = workflow.key === "idea_product"
-    ? [
-      "Gunakan hanya Source Pack yang telah divalidasi oleh MCP.",
-      "Source Pack harus dikirim bersama binary asli setiap dokumen agar originalSha256 dapat diverifikasi independen.",
-      "Compatibility check harus selesai sebelum hasil dikirim untuk review.",
-      "Technical quality dan content quality report harus valid tanpa issue blocking.",
-      "Jika quality report gagal, revisi artifact lalu jalankan validator ulang; jangan mengubah checksum secara manual.",
-      "Product Bundle baru hanya boleh berisi article, diktat, flashcard_set, dan flashcard; question, solution, dan assessment_blueprint memakai workflow asesmen.",
-      "Jangan membuat soal kuis Zyx atau soal referensi historis dalam Product Bundle; gunakan workflow asesmen yang sesuai.",
-      "Publish selalu dilakukan oleh admin melalui alur review.",
-    ]
-    : workflow.key === "quiz_bank"
-      ? [
-        "Workflow mengunci course dan chapter; Source Pack bersifat opsional dan harus tetap tervalidasi bila digunakan.",
-        "Target Idea wajib berasal dari katalog published dalam scope yang dikunci.",
-        "Gunakan historical reference hanya sebagai konteks gap analysis; jangan menyalin soal historis secara verbatim.",
-        "Soal baru harus origin zyx_original, memakai referenceLinks bila terinspirasi, lalu masuk review admin tanpa publish otomatis.",
-        "Jangan meminta atau mengirim course ID, chapter ID, atau Idea ID internal kepada operator.",
-      ]
-      : [
-        "Workflow berjalan pada scope course tanpa chapter dan tanpa Source Pack.",
-        "Gunakan hanya source.list_reference_files untuk file kategori soal dan pembahasan_soal dalam course yang dikunci.",
-        "Pertahankan wording, nomor, bagian, opsi, halaman, dan locator sumber; normalisasi hanya whitespace, Markdown, dan LaTeX yang tidak mengubah makna.",
-        "Jangan membuat Idea baru, mengarang jawaban, mengoreksi sumber, menerjemahkan, atau menginfer jawaban yang tidak terbukti.",
-        "Setiap soal wajib memiliki minimal satu Idea published dari course yang sama; Idea boleh berasal dari chapter berbeda.",
-        "Simpan provenance jawaban dan solusi sebagai official, source_solution, zyx_generated, atau unavailable sesuai bukti yang tersedia.",
-        "Submit melalui assessment.submit_reference_draft menyimpan soal historis dengan status published; soal dengan quizEligible=true langsung dapat dipakai pada perakitan kuis.",
-        "Jangan meminta atau mengirim course ID, chapter ID, database ID, atau storage key kepada operator.",
-      ];
+  const definition = workflowStaticDefinition(run.workflow);
+  const contractDigest = computeAuthoringContractDigest();
+  const stageManifests = listAllStagePlaybookManifests();
+
+  const bootstrapCheck = verifyMcpExecutionBootstrap({
+    actorId: options.actorId,
+    sessionId: options.sessionId,
+    bootstrapToken: options.bootstrapToken,
+    run,
+    expectedWorkflow: run.workflow,
+  });
+
+  if (options.bootstrapToken && !run.bootstrap) {
+    throw new Error("AUTHORING_MCP_LEGACY_RUN_RESTART_REQUIRED");
+  }
+  const replacementRunToken = options.bootstrapToken && bootstrapCheck.bootstrap
+    ? issueToken({ ...run, bootstrap: bootstrapCheck.bootstrap, ttlMs: run.expiresAt - Date.now() })
+    : runToken;
+
+  const defaultStageForWorkflow: AuthoringPlaybookStage =
+    run.workflow === "idea_product"
+      ? (bootstrapCheck.bootstrap?.stage ?? "idea")
+      : run.workflow === "quiz_bank"
+        ? "quiz"
+        : "reference";
+  const activePlaybook = stageManifests[defaultStageForWorkflow];
 
   return {
     version: AUTHORING_MCP_VERSION,
-    workflow,
+    runToken: replacementRunToken,
+    environment: resolveAuthoringMcpEnvironment(),
+    serverRevision: resolveAuthoringServerRevision(),
+    contractRevision: contractDigest.contractRevision,
+    contractChecksum: contractDigest.contractChecksum,
+    playbookRevision: activePlaybook.playbookRevision,
+    playbookChecksum: activePlaybook.playbookChecksum,
+    workflow: definition.workflow,
     scope: run.chapterLabel ? { course: run.courseLabel, chapter: run.chapterLabel } : { course: run.courseLabel },
     source: run.sourcePackId ? { packId: run.sourcePackId, checksum: run.sourcePackChecksum } : null,
-    rules,
-    outputs: workflow.key === "idea_product"
-      ? {
-        ideaBundle: {
-          schemaVersion: "idea-bundle.v3",
-          compatibleReadVersions: ["idea-bundle.v2", "idea-bundle.v3"],
-          validationTool: "authoring.validate_idea_bundle",
-          reviewRequired: true,
-          attribution: { creatorId: "$UPLOADER", curatorId: "$APPROVING_REVIEWER" },
-          creatorRule: "Generator Idea Bundle wajib selalu menghasilkan creatorId: '$UPLOADER', bukan ID placeholder eksternal.",
-        },
-        productBundle: productBundleV3Contract(),
-
-      }
-      : workflow.key === "quiz_bank" ? {
-        quizDraft: {
-          schemaVersion: "question-bank-draft.v2",
-          ideaCatalogTool: "assessment.list_ideas",
-          ideaDetailTool: "assessment.get_idea",
-          validationTool: "assessment.validate_quiz_draft",
-          submitTool: "assessment.submit_quiz_draft",
-          ideaLinksRequired: false,
-          linkedIdeaWeightRule: "Positive weights must sum to 1 when Idea links are present.",
-          scopeGuidance: quizBankScopeGuidance(),
-          historicalReferenceBoundary: "Historical questions are read-only context for gap analysis. New quiz questions remain zyx_original and may link lineage with inspired_by, adapted_from, or derived_from.",
-          draftExample: {
-            schemaVersion: "question-bank-draft.v2",
-            draftId: "draft-local-1",
-            questions: [{
-              id: "question-1",
-              questionType: "multiple_choice",
-              difficulty: "medium",
-              cognitiveLevel: "apply",
-              reasoningPattern: "direct_application",
-              tags: [],
-              prompt: "Tulis pertanyaan di sini.",
-              options: ["Opsi A", "Opsi B", "Opsi C", "Opsi D"],
-              correctIndices: [0],
-              acceptableAnswers: [],
-              explanation: "Tulis pembahasan di sini.",
-              ideaLinks: [],
-            }],
-          },
-          reviewRequired: true,
-          publicationTarget: "question_bank",
-          initialStatus: "generated",
-        },
-      } : {
-        referenceQuestionDraft: {
-          schemaVersion: "reference-question-draft.v1",
-          allowedSourceTools: ["source.list_reference_files", "source.read_file"],
-          allowedIdeaTools: ["knowledge.search_course_ideas", "knowledge.get_idea"],
-          validationTool: "assessment.validate_reference_draft",
-          submitTool: "assessment.submit_reference_draft",
-          ideaLinksRequired: true,
-          sameCourseAcrossChaptersAllowed: true,
-          origin: "historical_reference",
-          reviewRequired: false,
-          publicationTarget: "reference_question_bank",
-          initialStatus: "published",
-          quizEligibilityRule: "Soal yang disubmit langsung berstatus published; soal dengan quizEligible=true langsung memenuhi syarat untuk perakitan kuis.",
-        },
-      },
+    compatibility: {
+      mode: bootstrapCheck.mode,
+      status: bootstrapCheck.status,
+      code: bootstrapCheck.code,
+      warning: bootstrapCheck.warning,
+      remediation: bootstrapCheck.remediation,
+      boundBootstrap: publicBootstrapContext(bootstrapCheck.bootstrap),
+    },
+    rules: definition.rules,
+    outputs: definition.outputs,
   };
 }
+
+export type AuthoringMcpRun = ReturnType<typeof publicMcpRun>;
 
 export function decodeMcpArtifact(value: string, maxBytes: number): Uint8Array {
   return decodeBase64(value, maxBytes);

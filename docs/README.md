@@ -157,3 +157,5 @@ To prevent confusion when navigating code or documentation, the active vs legacy
 3. **Audit Lifecycle Tracking**: New audits must be placed in `docs/audit/` and marked `OPEN / IN PROGRESS` in Section 3 and Section 5. When all findings are resolved and verified, the audit file can be removed and moved to `COMPLETED / RESOLVED` in Section 5.
 4. **No Dash Rule**: Never use em dashes or en dashes in documentation, code, or copy. Use commas, semicolons, colons, or periods instead.
 5. **Accurate Cross-Linking**: Ensure all markdown links use relative paths that correctly resolve from the referencing file.
+
+| Authoring MCP distribution and playbooks | [authoring-mcp-distribution-and-playbooks.md](../plans/authoring-mcp-distribution-and-playbooks.md) | `OPEN / IN PROGRESS` | Local review fixes validated by 95 Bun contracts, 11 Python tests, a production build with local fixtures, and 15 traced playbook assets. Repository lint/typecheck still have unrelated errors; HTTP smoke, CP5 host verification, and CP6 rollout remain open. |
