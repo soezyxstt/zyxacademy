@@ -25,200 +25,18 @@ import {
 import { createAuthoringMcpServer } from "@/lib/authoring/mcp-server";
 import type { McpPrincipal } from "@/lib/authoring/mcp-auth";
 
+import { migrate } from "drizzle-orm/libsql/migrator";
+import { createHmac } from "node:crypto";
+
 async function setupTables() {
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS user (
-      id TEXT PRIMARY KEY,
-      name TEXT NOT NULL,
-      email TEXT NOT NULL UNIQUE,
-      email_verified INTEGER NOT NULL DEFAULT 0,
-      image TEXT,
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL,
-      role TEXT DEFAULT 'student',
-      last_activity_at INTEGER
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS pengguna (
-      id TEXT PRIMARY KEY REFERENCES user(id),
-      status TEXT NOT NULL DEFAULT 'active',
-      created_at INTEGER NOT NULL DEFAULT (unixepoch()),
-      updated_at INTEGER NOT NULL DEFAULT (unixepoch())
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS courses (
-      id TEXT PRIMARY KEY,
-      title TEXT NOT NULL,
-      description TEXT,
-      price INTEGER DEFAULT 0,
-      is_published INTEGER DEFAULT 0,
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS mata_kuliah (
-      id TEXT PRIMARY KEY,
-      code TEXT NOT NULL UNIQUE,
-      title TEXT NOT NULL,
-      description TEXT,
-      legacy_course_id TEXT,
-      status TEXT NOT NULL DEFAULT 'active',
-      created_at INTEGER NOT NULL DEFAULT (unixepoch()),
-      updated_at INTEGER NOT NULL DEFAULT (unixepoch())
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS bab (
-      id TEXT PRIMARY KEY,
-      mata_kuliah_id TEXT NOT NULL REFERENCES mata_kuliah(id),
-      code TEXT NOT NULL,
-      title TEXT NOT NULL,
-      order_index INTEGER NOT NULL DEFAULT 0,
-      legacy_chapter_id TEXT,
-      status TEXT NOT NULL DEFAULT 'active',
-      created_at INTEGER NOT NULL DEFAULT (unixepoch()),
-      updated_at INTEGER NOT NULL DEFAULT (unixepoch())
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS soal (
-      id TEXT PRIMARY KEY,
-      mata_kuliah_id TEXT NOT NULL REFERENCES mata_kuliah(id),
-      bab_id TEXT REFERENCES bab(id),
-      question_type TEXT NOT NULL,
-      prompt TEXT NOT NULL,
-      options_snapshot TEXT NOT NULL DEFAULT '[]',
-      origin TEXT NOT NULL DEFAULT 'zyx_original',
-      source_event_name TEXT,
-      source_reference_id TEXT,
-      assessment_source_id TEXT,
-      source_question_number TEXT,
-      source_question_part TEXT,
-      source_page INTEGER,
-      source_locator TEXT,
-      answer_provenance TEXT,
-      solution_provenance TEXT,
-      quiz_eligible INTEGER NOT NULL DEFAULT 0,
-      version INTEGER NOT NULL DEFAULT 1,
-      status TEXT NOT NULL DEFAULT 'draft',
-      difficulty TEXT NOT NULL,
-      cognitive_level TEXT NOT NULL,
-      reasoning_pattern TEXT NOT NULL,
-      generation_hash TEXT NOT NULL,
-      creator_id TEXT NOT NULL REFERENCES pengguna(id),
-      curator_id TEXT REFERENCES pengguna(id),
-      published_at INTEGER,
-      created_at INTEGER NOT NULL DEFAULT (unixepoch()),
-      updated_at INTEGER NOT NULL DEFAULT (unixepoch())
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS quiz_templates (
-      id TEXT PRIMARY KEY,
-      course_id TEXT NOT NULL REFERENCES courses(id),
-      title TEXT NOT NULL,
-      category TEXT NOT NULL,
-      visibility TEXT NOT NULL DEFAULT 'free',
-      status TEXT NOT NULL DEFAULT 'draft',
-      time_limit_seconds INTEGER,
-      max_attempts INTEGER,
-      selection_rules TEXT NOT NULL,
-      open_at INTEGER,
-      close_at INTEGER,
-      manual_status TEXT NOT NULL DEFAULT 'scheduled',
-      show_discussion INTEGER NOT NULL DEFAULT 0,
-      spreadsheet_id TEXT,
-      spreadsheet_url TEXT,
-      created_at INTEGER NOT NULL DEFAULT (unixepoch()),
-      updated_at INTEGER NOT NULL DEFAULT (unixepoch())
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS blueprint_asesmen (
-      id TEXT PRIMARY KEY,
-      mata_kuliah_id TEXT NOT NULL REFERENCES mata_kuliah(id),
-      title TEXT NOT NULL,
-      assessment_type TEXT NOT NULL,
-      blueprint TEXT NOT NULL,
-      version INTEGER NOT NULL DEFAULT 1,
-      status TEXT NOT NULL DEFAULT 'draft',
-      generation_hash TEXT NOT NULL,
-      creator_id TEXT NOT NULL REFERENCES pengguna(id),
-      curator_id TEXT REFERENCES pengguna(id),
-      created_at INTEGER NOT NULL DEFAULT (unixepoch()),
-      updated_at INTEGER NOT NULL DEFAULT (unixepoch())
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS asesmen (
-      id TEXT PRIMARY KEY,
-      blueprint_asesmen_id TEXT NOT NULL REFERENCES blueprint_asesmen(id),
-      mata_kuliah_id TEXT NOT NULL REFERENCES mata_kuliah(id),
-      title TEXT NOT NULL,
-      assessment_type TEXT NOT NULL,
-      version INTEGER NOT NULL DEFAULT 1,
-      status TEXT NOT NULL DEFAULT 'draft',
-      generation_hash TEXT NOT NULL,
-      creator_id TEXT NOT NULL REFERENCES pengguna(id),
-      curator_id TEXT REFERENCES pengguna(id),
-      published_at INTEGER,
-      created_at INTEGER NOT NULL DEFAULT (unixepoch()),
-      updated_at INTEGER NOT NULL DEFAULT (unixepoch())
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS cakupan_asesmen (
-      id TEXT PRIMARY KEY,
-      asesmen_id TEXT NOT NULL REFERENCES asesmen(id),
-      bab_id TEXT NOT NULL REFERENCES bab(id),
-      order_index INTEGER NOT NULL DEFAULT 0,
-      created_at INTEGER NOT NULL DEFAULT (unixepoch())
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS item_asesmen (
-      id TEXT PRIMARY KEY,
-      asesmen_id TEXT NOT NULL REFERENCES asesmen(id),
-      soal_id TEXT NOT NULL REFERENCES soal(id),
-      order_index INTEGER NOT NULL DEFAULT 0,
-      rendered_question_snapshot TEXT NOT NULL DEFAULT '{}',
-      option_order_snapshot TEXT NOT NULL DEFAULT '[]',
-      grading_policy_snapshot TEXT NOT NULL DEFAULT '{}',
-      content_version INTEGER NOT NULL DEFAULT 1,
-      generation_hash TEXT NOT NULL,
-      created_at INTEGER NOT NULL DEFAULT (unixepoch())
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS audit_mutasi (
-      id TEXT PRIMARY KEY,
-      actor_id TEXT,
-      entity_type TEXT NOT NULL,
-      entity_id TEXT NOT NULL,
-      action TEXT NOT NULL,
-      before_snapshot TEXT,
-      after_snapshot TEXT,
-      correlation_id TEXT,
-      course_id TEXT,
-      outcome TEXT,
-      reason TEXT,
-      created_at INTEGER NOT NULL DEFAULT (unixepoch())
-    );
-  `);
+  try {
+    await migrate(testDb, { migrationsFolder: "./drizzle" });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    if (!message.includes("already exists")) {
+      throw err;
+    }
+  }
 }
 
 describe("Quiz Assembly Contract & MCP Tools", () => {
@@ -241,8 +59,8 @@ describe("Quiz Assembly Contract & MCP Tools", () => {
 
     // Seed courses & mata_kuliah
     await client.execute({
-      sql: `INSERT OR IGNORE INTO courses (id, title, created_at, updated_at) VALUES (?, ?, ?, ?)`,
-      args: [testCourseId, "Perpindahan Panas", Date.now(), Date.now()],
+      sql: `INSERT OR IGNORE INTO courses (id, title, category) VALUES (?, ?, ?)`,
+      args: [testCourseId, "Perpindahan Panas", "Teknik Mesin"],
     });
     await client.execute({
       sql: `INSERT OR IGNORE INTO mata_kuliah (id, code, title, legacy_course_id) VALUES (?, ?, ?, ?)`,
@@ -532,5 +350,146 @@ describe("Quiz Assembly Contract & MCP Tools", () => {
     expect(res.structuredContent.ok).toBe(true);
     expect(res.structuredContent.title).toBe("Kuis via MCP Handler");
     expect(res.structuredContent.questionCount).toBe(2);
+
+    // Bug 1 Acceptance Test: catalog.list_courses().choices[i].key and catalog.list_chapters().choices[i].key resolve directly in quiz.list and quiz.create
+    process.env.BETTER_AUTH_SECRET = "test-better-auth-secret-for-quiz-catalog-key";
+    const coursesRes = await tools["catalog.list_courses"].handler({});
+    expect(coursesRes.isError).toBeUndefined();
+    const courseChoice = coursesRes.structuredContent.choices.find(
+      (c: any) => c.code === testCourseId,
+    );
+    expect(courseChoice).toBeDefined();
+    expect(courseChoice.key).not.toBe(testCourseId);
+
+    const chaptersRes = await tools["catalog.list_chapters"].handler({
+      courseKey: courseChoice.key,
+    });
+    expect(chaptersRes.isError).toBeUndefined();
+    const chapterChoice = chaptersRes.structuredContent.choices[0];
+    expect(chapterChoice).toBeDefined();
+
+    const listBySignedKey = await tools["quiz.list"].handler({
+      courseKey: courseChoice.key,
+    });
+    expect(listBySignedKey.isError).toBeUndefined();
+    expect(listBySignedKey.structuredContent.ok).toBe(true);
+    expect(listBySignedKey.structuredContent.courseId).toBe(testCourseId);
+    expect(listBySignedKey.structuredContent.canonicalCourseId).toBe(testCanonicalCourseId);
+    // Ensure signed token is not echoed back as courseKey
+    expect(listBySignedKey.structuredContent.courseKey).toBe(testCanonicalCourseId);
+    expect(listBySignedKey.structuredContent.quizzes.length).toBeGreaterThanOrEqual(1);
+
+    const createBySignedKey = await tools["quiz.create"].handler({
+      courseKey: courseChoice.key,
+      chapterKey: chapterChoice.key,
+      title: "Kuis via Signed Catalog Key",
+      questionIds: ["soal-ht-1", "soal-ht-2"],
+      timeLimitSeconds: 1200,
+    });
+    expect(createBySignedKey.isError).toBeUndefined();
+    expect(createBySignedKey.structuredContent.ok).toBe(true);
+    expect(createBySignedKey.structuredContent.courseId).toBe(testCourseId);
+    expect(createBySignedKey.structuredContent.canonicalCourseId).toBe(testCanonicalCourseId);
+
+    // Ensure missing course error does not leak the raw signed key
+    const fakeKey = "signed-secret-key-should-not-leak-in-error";
+    const missingRes = await tools["quiz.list"].handler({
+      courseKey: fakeKey,
+    });
+    expect(missingRes.isError).toBe(true);
+    expect(missingRes.structuredContent.error).toBe("QUIZ_ASSEMBLY_COURSE_NOT_FOUND");
+    expect(JSON.stringify(missingRes)).not.toContain(fakeKey);
+
+    // Negative Token Verification Tests (Bug 1 strengthened):
+    // 1. Tampered signature must fail with AUTHORING_MCP_TOKEN_INVALID and NEVER fall back to legacy ID lookup
+    const [validBody, validSig] = courseChoice.key.split(".");
+    const tamperedSig = (validSig[0] === "a" ? "b" : "a") + validSig.slice(1);
+    const tamperedToken = `${validBody}.${tamperedSig}`;
+    const tamperedRes = await tools["quiz.list"].handler({
+      courseKey: tamperedToken,
+    });
+    expect(tamperedRes.isError).toBe(true);
+    expect(tamperedRes.structuredContent.error).toBe("AUTHORING_MCP_TOKEN_INVALID");
+
+    // Also test a token-shaped string whose first segment is a valid legacy courseId ("perpindahan-panas.fakesig")
+    const legacyShapedTampered = `${testCourseId}.fakesignature123`;
+    const legacyShapedRes = await tools["quiz.list"].handler({
+      courseKey: legacyShapedTampered,
+    });
+    expect(legacyShapedRes.isError).toBe(true);
+    expect(legacyShapedRes.structuredContent.error).toBe("AUTHORING_MCP_TOKEN_INVALID");
+
+    // 2. Expired token must fail with AUTHORING_MCP_TOKEN_EXPIRED
+    const decodedCoursePayload = JSON.parse(Buffer.from(validBody, "base64url").toString("utf8"));
+    const expiredBody = Buffer.from(
+      JSON.stringify({
+        ...decodedCoursePayload,
+        issuedAt: Date.now() - 120_000,
+        expiresAt: Date.now() - 60_000,
+      }),
+      "utf8",
+    ).toString("base64url");
+    const derivedSigningSecret = createHmac("sha256", process.env.BETTER_AUTH_SECRET)
+      .update("zyx-authoring-mcp.v1", "utf8")
+      .digest("hex");
+    const expiredSig = createHmac("sha256", derivedSigningSecret)
+      .update(expiredBody, "utf8")
+      .digest("base64url");
+    const expiredToken = `${expiredBody}.${expiredSig}`;
+    const expiredRes = await tools["quiz.list"].handler({
+      courseKey: expiredToken,
+    });
+    expect(expiredRes.isError).toBe(true);
+    expect(expiredRes.structuredContent.error).toBe("AUTHORING_MCP_TOKEN_EXPIRED");
+
+    // 3. Wrong token kind: chapter_choice passed as courseKey or course_choice passed as chapterKey
+    const wrongKindCourseRes = await tools["quiz.list"].handler({
+      courseKey: chapterChoice.key,
+    });
+    expect(wrongKindCourseRes.isError).toBe(true);
+    expect(wrongKindCourseRes.structuredContent.error).toBe("AUTHORING_MCP_TOKEN_INVALID");
+
+    const wrongKindChapterRes = await tools["quiz.create"].handler({
+      courseKey: courseChoice.key,
+      chapterKey: courseChoice.key,
+      title: "Wrong Kind Chapter Test",
+      questionIds: ["soal-ht-1", "soal-ht-2"],
+    });
+    expect(wrongKindChapterRes.isError).toBe(true);
+    expect(wrongKindChapterRes.structuredContent.error).toBe("AUTHORING_MCP_TOKEN_INVALID");
+
+    // 4. Chapter belonging to another course must fail with AUTHORING_MCP_SCOPE_MISMATCH
+    await client.execute({
+      sql: `INSERT OR IGNORE INTO courses (id, title, category) VALUES (?, ?, ?)`,
+      args: ["kimia-dasar-1", "Kimia Dasar I", "TPB"],
+    });
+    await client.execute({
+      sql: `INSERT OR IGNORE INTO mata_kuliah (id, code, title, legacy_course_id) VALUES (?, ?, ?, ?)`,
+      args: ["mk-kimia-dasar-1", "kimia-dasar-1", "Kimia Dasar I", "kimia-dasar-1"],
+    });
+    await client.execute({
+      sql: `INSERT OR IGNORE INTO bab (id, mata_kuliah_id, code, title, order_index) VALUES (?, ?, ?, ?, ?)`,
+      args: ["bab-ki-1", "mk-kimia-dasar-1", "BAB-01", "Stoikiometri", 1],
+    });
+
+    const coursesRes2 = await tools["catalog.list_courses"].handler({});
+    const kimiaCourseChoice = coursesRes2.structuredContent.choices.find(
+      (c: any) => c.code === "kimia-dasar-1",
+    );
+    expect(kimiaCourseChoice).toBeDefined();
+    const kimiaChaptersRes = await tools["catalog.list_chapters"].handler({
+      courseKey: kimiaCourseChoice.key,
+    });
+    const kimiaChapterChoice = kimiaChaptersRes.structuredContent.choices[0];
+    expect(kimiaChapterChoice).toBeDefined();
+
+    const crossCourseChapterRes = await tools["quiz.create"].handler({
+      courseKey: courseChoice.key, // Perpindahan Panas
+      chapterKey: kimiaChapterChoice.key, // Kimia Dasar I chapter
+      title: "Cross Course Mismatch Quiz",
+      questionIds: ["soal-ht-1", "soal-ht-2"],
+    });
+    expect(crossCourseChapterRes.isError).toBe(true);
+    expect(crossCourseChapterRes.structuredContent.error).toBe("AUTHORING_MCP_SCOPE_MISMATCH");
   });
 });

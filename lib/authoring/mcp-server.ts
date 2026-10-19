@@ -1,8 +1,9 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import { and, asc, desc, eq, inArray, like, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, like, or, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { aiQuestionBank, asalIde, artikel, artikelIde, assessmentSources, bab, diktatIde, diktatMateri, flashcard, flashcardIde, ide, mataKuliah, pembahasanSoal, potonganSumber, questionReferenceLinks, relasiIde, reviewPedagogiBundle, setFlashcard, soal, soalIde, soalItbReferensi, sumberMateri } from "@/db/schema";
+import { aiQuestionBank, asalIde, artikel, artikelIde, assessmentSources, bab, bagianArtikel, blokArtikel, buktiPdfBundle, diktatIde, diktatMateri, flashcard, flashcardIde, ide, ketergantunganProduk, mataKuliah, pembahasanSoal, potonganSumber, questionReferenceLinks, relasiIde, reviewPedagogiBundle, setFlashcard, soal, soalIde, soalItbReferensi, sumberMateri } from "@/db/schema";
+import { normalizeDate } from "@/lib/date-utils";
 import { serializeDeterministically, validateIdeaBundleZip, type ValidatedIdeaBundle } from "@/lib/bundle/idea-bundle-v2";
 import { previewIdeaBundle } from "@/lib/bundle/idea-preview";
 import { getIdeaBundleImport, listIdeaBundleImports, reviewIdeaBundle, stageIdeaBundle } from "@/lib/bundle/staging";
@@ -12,21 +13,36 @@ import { discardProductBundleDraft, getProductBundleImport, listProductBundleImp
 import {
   getSourcePackImport,
   listSourcePackImports,
+  normalizeSourcePackChecksum,
+  readStoredSourcePack,
   readStoredSourcePackDocument,
+  reconcileSourcePackChecksums,
+  reconcileSourcePackImportIds,
+  resolveSourcePackImport,
   stageSourcePack,
 } from "@/lib/bundle/source-staging";
 import { validateSourcePack } from "@/lib/authoring/source-pack";
 import { withdrawProductBundle } from "@/lib/bundle/product-publication";
 import { isStructuredArticleReaderEnabled } from "@/lib/articles/feature";
 import { evaluateIdeaBundleQuality } from "@/lib/authoring/quality/idea-bundle";
-import { evaluateProductBundleQualityPolicy } from "@/lib/bundle/product-review-gate";
+import {
+  evaluateProductBundleQualityPolicy,
+  evaluateProductBundleReviewAndPdfGate,
+} from "@/lib/bundle/product-review-gate";
 import { executePedagogicReview } from "@/lib/bundle/product-pedagogic-review";
 import {
   QUALITY_POLICY_VERSION,
   pedagogicRubricItemSchema,
   pedagogicExceptionSchema,
+  validatePedagogicRubricDecision,
   type DiagnosticIssue,
+  type PedagogicRubricItem,
+  type PedagogicException,
 } from "@/lib/materials/quality-policy";
+import {
+  validatePdfArtifactEvidence,
+  type PdfArtifactEvidence,
+} from "@/lib/materials/pdf-artifact-contract";
 import { sha256Text } from "@/lib/bundle/validator";
 import { createCanonicalQuestionBatch, createHistoricalQuestionBatch, QuestionAuthoringError, updateCanonicalQuestion, validateCanonicalQuestionBatch } from "@/lib/question-authoring";
 import { questionAuthoringQuestionSchema, questionIdeaLinkSchema } from "@/lib/question-authoring-contract";
@@ -64,6 +80,7 @@ import {
   readMcpCatalogScope,
   readMcpCourseChoice,
   readMcpRunToken,
+  readMcpSourcePackToken,
   startAuthoringWorkflow,
   workflowContract,
 } from "@/lib/authoring/mcp-workflows";
@@ -81,6 +98,7 @@ import {
   getStoredReferenceSourceFile,
   loadStoredOriginals,
   mergeSourceOriginals,
+  normalizeSha256Checksum,
   readStoredSourceFile,
 } from "@/lib/authoring/mcp-source-files";
 
@@ -89,6 +107,11 @@ type ToolPayload = Record<string, unknown>;
 type ExtraToolContent =
   | { type: "image"; data: string; mimeType: "image/png" }
   | { type: "resource"; resource: { uri: string; mimeType: "application/pdf"; blob: string } };
+
+function serializeMcpTimestamp(value: Date | number | string | null | undefined): string | null {
+  if (value === null || value === undefined) return null;
+  return normalizeDate(value).toISOString();
+}
 
 function toolResult(payload: ToolPayload, isError = false, extraContent: ExtraToolContent[] = []) {
   return {
@@ -135,19 +158,21 @@ function toolError(error: unknown) {
 }
 
 export function formatSourceFileReadResult(result: Awaited<ReturnType<typeof readStoredSourceFile>>) {
+  const safeChecksum = normalizeSha256Checksum(result.checksum);
+  const safeSize = typeof result.size === "number" && Number.isFinite(result.size) && result.size > 0 ? result.size : null;
   if (result.mode === "blob") {
     const payload = {
       ok: true,
       mode: result.mode,
       title: result.title,
-      checksum: result.checksum,
-      size: result.size,
+      checksum: safeChecksum,
+      size: safeSize,
       mimeType: "application/pdf",
     };
     return toolResult(payload, false, [{
       type: "resource",
       resource: {
-        uri: `zyx-authoring://stored-pdf/${result.checksum}`,
+        uri: `zyx-authoring://stored-pdf/${safeChecksum ?? "unverified"}`,
         mimeType: "application/pdf",
         blob: Buffer.from(result.bytes).toString("base64"),
       },
@@ -157,8 +182,8 @@ export function formatSourceFileReadResult(result: Awaited<ReturnType<typeof rea
     ok: true,
     mode: result.mode,
     title: result.title,
-    checksum: result.checksum,
-    size: result.size,
+    checksum: safeChecksum,
+    size: safeSize,
     totalPages: result.totalPages,
     pages: result.pages.map((page) => ({
       pageNumber: page.pageNumber,
@@ -240,7 +265,7 @@ function ideaStageItems(bundle: ValidatedIdeaBundle) {
     ...bundle.entities.ideas.map((entity) => ({ entityType: "idea", entityId: entity.id, entityVersion: entity.version, entityHash: sha256Text(serializeDeterministically(entity)) })),
     ...bundle.entities.provenance.map((entity) => ({ entityType: "provenance", entityId: entity.id, entityVersion: 1, entityHash: sha256Text(serializeDeterministically(entity)) })),
     ...bundle.entities.relations.map((entity) => ({ entityType: "relation", entityId: entity.id, entityVersion: entity.version, entityHash: sha256Text(serializeDeterministically(entity)) })),
-    ...bundle.entities.learningSections.map((entity) => ({ entityType: "learning_section", entityId: entity.id, entityVersion: 1, entityHash: sha256Text(serializeDeterministically(entity)) })),
+    ...bundle.entities.learningSections.map((entity) => ({ entityType: "learning_section", entityId: entity.id, entityVersion: entity.version ?? 1, entityHash: sha256Text(serializeDeterministically(entity)) })),
   ];
 }
 
@@ -749,10 +774,183 @@ async function assertImportRunScope(storedCourseId: string | null, runCourseId: 
   }
 }
 
+const REVIEW_AND_PDF_GATE_CODES = new Set([
+  "PEDAGOGIC_REVIEW_MISSING",
+  "POLICY_VERSION_MISMATCH",
+  "FINGERPRINT_MISMATCH",
+  "REVIEWER_CONTEXT_MISMATCH",
+  "PEDAGOGIC_REVIEW_REJECTED",
+  "PEDAGOGIC_REVIEW_CHANGES_REQUESTED",
+  "PEDAGOGIC_REVIEW_PENDING",
+  "PEDAGOGIC_REVIEW_NOT_APPROVED",
+  "RUBRIC_CRITERION_DUPLICATE",
+  "RUBRIC_CRITERION_UNANCHORED",
+  "RUBRIC_CRITERION_MISSING",
+  "RUBRIC_CRITERION_NOT_MET",
+  "EXCEPTION_WITHOUT_REASON",
+  "PDF_EVIDENCE_MISSING",
+  "PDF_EVIDENCE_PENDING",
+  "PDF_EVIDENCE_FAILED",
+  "PDF_EVIDENCE_STALE",
+  "PDF_EVIDENCE_NOT_READY",
+  "PDF_LINEAGE_HASH_MISMATCH",
+  "PDF_RENDERER_METADATA_MISSING",
+  "PDF_PROFILE_METADATA_MISSING",
+  "PDF_STORAGE_KEY_MISSING",
+  "PDF_PAGE_COUNT_MISSING",
+  "PDF_PAGE_BUDGET_EXCEEDED",
+  "PDF_FAILURE_CODE_UNEXPECTED",
+  "PDF_FAILURE_CODE_MISSING",
+]);
+
+type PedagogicReviewSummaryRow = {
+  id: string;
+  status: "pending" | "approved" | "rejected" | "changes_requested" | string;
+  policyVersion: string;
+  contentFingerprint: string;
+  rubric: unknown;
+  exceptions: unknown;
+  notes: string | null;
+  createdAt: Date | number | string;
+};
+
+type PdfEvidenceSummaryRow = typeof buktiPdfBundle.$inferSelect;
+
+function formatSnapshotValidationReport(
+  validationReport: Record<string, unknown> | null,
+  createdAt: Date | number | string,
+): Record<string, unknown> | null {
+  if (!validationReport) return null;
+  const snapshotAt = serializeMcpTimestamp(createdAt);
+  const quality = typeof validationReport.quality === "object" && validationReport.quality !== null
+    ? { ...(validationReport.quality as Record<string, unknown>), snapshotAt }
+    : undefined;
+  return {
+    ...validationReport,
+    snapshotAt,
+    ...(quality ? { quality } : {}),
+  };
+}
+
+function computeCurrentProductImportReadiness(
+  row: {
+    id: string;
+    status: string;
+    validationReport: Record<string, unknown> | null;
+    items?: ReadonlyArray<{ entityType: string; entityId: string; entityVersion: number; entityHash: string; status: string }>;
+  },
+  pedReviews: readonly PedagogicReviewSummaryRow[] = [],
+  pdfEvidenceRows: readonly PdfEvidenceSummaryRow[] = [],
+) {
+  const evaluatedAt = new Date().toISOString();
+  const report = (row.validationReport ?? {}) as Record<string, unknown>;
+  const quality = (typeof report.quality === "object" && report.quality !== null ? report.quality : {}) as Record<string, unknown>;
+  const contentFingerprint = typeof report.contentFingerprint === "string"
+    ? report.contentFingerprint
+    : typeof quality.contentFingerprint === "string"
+      ? quality.contentFingerprint
+      : "";
+  const rawSavedIssues = Array.isArray(quality.issues)
+    ? (quality.issues as DiagnosticIssue[])
+    : Array.isArray(report.issues)
+      ? (report.issues as DiagnosticIssue[])
+      : [];
+  const deterministicIssues = rawSavedIssues.filter((issue) => !REVIEW_AND_PDF_GATE_CODES.has(issue.code));
+  const deterministicBlocking = deterministicIssues.filter((issue) => issue.severity === "blocking");
+  const valid = deterministicBlocking.length === 0 && report.valid !== false && quality.valid !== false;
+
+  const articleItem = row.items?.find((item) => item.entityType === "article");
+  const diktatItem = row.items?.find((item) => item.entityType === "diktat");
+  const articleCount = typeof report.articleCount === "number"
+    ? report.articleCount
+    : typeof (quality.metrics as Record<string, unknown> | undefined)?.articleCount === "number"
+      ? Number((quality.metrics as Record<string, unknown>).articleCount)
+      : articleItem
+        ? 1
+        : contentFingerprint
+          ? 1
+          : 0;
+  const hasArticle = articleCount > 0 || Boolean(articleItem) || Boolean(contentFingerprint);
+  const articleTargetId = (typeof report.articleId === "string" && report.articleId ? report.articleId : null)
+    ?? articleItem?.entityId
+    ?? rawSavedIssues.find((issue) => issue.target?.targetType === "rubric")?.target.targetId
+    ?? row.id;
+  const diktatTargetId = (typeof report.diktatId === "string" && report.diktatId ? report.diktatId : null)
+    ?? diktatItem?.entityId
+    ?? null;
+
+  const expectedArticleGenHash = typeof report.articleGenerationHash === "string"
+    ? report.articleGenerationHash
+    : typeof (quality as Record<string, unknown>).articleGenerationHash === "string"
+      ? String((quality as Record<string, unknown>).articleGenerationHash)
+      : null;
+  const expectedDiktatGenHash = typeof report.diktatGenerationHash === "string"
+    ? report.diktatGenerationHash
+    : typeof (quality as Record<string, unknown>).diktatGenerationHash === "string"
+      ? String((quality as Record<string, unknown>).diktatGenerationHash)
+      : null;
+
+  const gateEval = evaluateProductBundleReviewAndPdfGate({
+    imporBundleId: row.id,
+    bundleStatus: row.status,
+    hasArticle,
+    articleId: articleTargetId,
+    diktatId: diktatTargetId,
+    contentFingerprint,
+    articleGenerationHash: expectedArticleGenHash,
+    diktatGenerationHash: expectedDiktatGenHash,
+    reviewRows: pedReviews.map((r) => ({
+      id: r.id,
+      imporBundleId: r.imporBundleId,
+      status: r.status,
+      policyVersion: r.policyVersion,
+      contentFingerprint: r.contentFingerprint,
+      rubric: r.rubric,
+      exceptions: r.exceptions,
+      notes: r.notes,
+    })),
+    pdfEvidenceRows: pdfEvidenceRows.map((e) => ({
+      id: e.id,
+      imporBundleId: e.imporBundleId,
+      productId: e.productId,
+      articleVersion: e.articleVersion,
+      articleHash: e.articleHash,
+      diktatHash: e.diktatHash,
+      rendererVersion: e.rendererVersion,
+      printProfile: e.printProfile,
+      status: e.status,
+      storageKey: e.storageKey ?? undefined,
+      pageCount: e.pageCount ?? undefined,
+      failureCode: (e.failureCode as PdfArtifactEvidence["failureCode"]) ?? undefined,
+    })),
+  });
+
+  const issues: DiagnosticIssue[] = [...deterministicIssues, ...gateEval.issues];
+  const blockingIssues = issues.filter((issue) => issue.severity === "blocking");
+  const publicationReady = valid && blockingIssues.length === 0;
+
+  return {
+    evaluatedAt,
+    valid,
+    publicationReady,
+    policyVersion: QUALITY_POLICY_VERSION,
+    contentFingerprint,
+    reviewStatus: gateEval.reviewStatus,
+    pdfEvidenceStatus: gateEval.pdfEvidenceStatus,
+    issues,
+    blockingIssueCodes: blockingIssues.map((issue) => issue.code),
+  };
+}
+
 function publicBundleImport(
   row: NonNullable<Awaited<ReturnType<typeof getIdeaBundleImport>> | Awaited<ReturnType<typeof getProductBundleImport>>>,
-  pedReviews: Array<{ id: string; status: string; policyVersion: string; contentFingerprint: string; rubric: unknown; exceptions: unknown; notes: string | null; createdAt: Date }> = [],
+  pedReviews: Array<PedagogicReviewSummaryRow> = [],
+  pdfEvidenceRows: Array<PdfEvidenceSummaryRow> = [],
 ) {
+  const isProduct = row.bundleType === "product";
+  const currentReadiness = isProduct
+    ? computeCurrentProductImportReadiness(row, pedReviews, pdfEvidenceRows)
+    : undefined;
   return {
     importId: row.id,
     bundleId: row.bundleId,
@@ -760,9 +958,13 @@ function publicBundleImport(
     checksum: row.checksum,
     version: row.version,
     status: row.status,
-    validationReport: row.validationReport,
-    createdAt: row.createdAt,
-    updatedAt: row.updatedAt,
+    ...(currentReadiness ? {
+      publicationReady: currentReadiness.publicationReady,
+      currentReadiness,
+    } : {}),
+    validationReport: formatSnapshotValidationReport(row.validationReport, row.createdAt),
+    createdAt: serializeMcpTimestamp(row.createdAt),
+    updatedAt: serializeMcpTimestamp(row.updatedAt),
     items: row.items.map((item) => ({
       entityType: item.entityType,
       entityId: item.entityId,
@@ -773,16 +975,16 @@ function publicBundleImport(
     reviews: row.reviews.map((review) => ({
       decision: review.status,
       notes: review.notes,
-      reviewedAt: review.reviewedAt,
+      reviewedAt: serializeMcpTimestamp(review.reviewedAt),
     })),
-    ...(pedReviews.length > 0 ? {
+    ...(isProduct ? {
       pedagogicReviews: pedReviews.map((r) => ({
         status: r.status,
         policyVersion: r.policyVersion,
         contentFingerprint: r.contentFingerprint,
         criteriaCount: Array.isArray((r.rubric as any)?.criteria) ? (r.rubric as any).criteria.length : Array.isArray(r.rubric) ? (r.rubric as any).length : 0,
         notes: r.notes,
-        reviewedAt: r.createdAt,
+        reviewedAt: serializeMcpTimestamp(r.createdAt),
       })),
     } : {}),
   };
@@ -1149,16 +1351,6 @@ function registerWorkflowTools(server: McpServer, principal: McpPrincipal): void
 
     const bytes = decodeMcpArtifact(contentBase64, AUTHORING_MCP_MAX_SOURCE_PACK_BYTES);
     const sourcePack = validateSourcePack(bytes);
-    if (!ingestResult.sourcePackToken) {
-      ingestResult.sourcePackToken = issueSourcePackToken({
-        checksum: sourcePack.archive.checksum,
-        packId: sourcePack.manifest.packId,
-        name: sourcePack.manifest.name,
-        summary: ingestResult.source,
-        courseId: resolved.boundScope?.courseId,
-        chapterId: resolved.boundScope?.chapterId,
-      });
-    }
 
     if (resolved.boundScope?.chapterId) {
       const docIds = sourcePack.documents.map((doc) => doc.id);
@@ -1184,6 +1376,16 @@ function registerWorkflowTools(server: McpServer, principal: McpPrincipal): void
       chapterId: resolved.boundScope?.chapterId,
       quality: ingestResult.quality,
       summary: ingestResult.source,
+    });
+
+    ingestResult.sourcePackToken = issueSourcePackToken({
+      importId: staged.importId,
+      checksum: sourcePack.archive.checksum,
+      packId: sourcePack.manifest.packId,
+      name: sourcePack.manifest.name,
+      summary: ingestResult.source,
+      courseId: resolved.boundScope?.courseId,
+      chapterId: resolved.boundScope?.chapterId,
     });
 
     return {
@@ -1225,6 +1427,7 @@ function registerWorkflowTools(server: McpServer, principal: McpPrincipal): void
         packId: row.bundleId,
         checksum: row.checksum,
         sourcePackToken: issueSourcePackToken({
+          importId: row.id,
           checksum: row.checksum,
           packId: row.bundleId,
           name: row.validationReport?.name ?? row.bundleId,
@@ -1245,25 +1448,61 @@ function registerWorkflowTools(server: McpServer, principal: McpPrincipal): void
         }),
         summary: row.validationReport?.summary,
         documentCount: row.validationReport?.documentCount,
-        createdAt: row.createdAt,
+        createdAt: serializeMcpTimestamp(row.createdAt),
+        updatedAt: serializeMcpTimestamp(row.updatedAt),
       })),
     };
   }));
 
   (server as any).registerTool("source.get_pack", {
     title: "Get stored Source Pack detail",
-    description: "Mengambil metadata, ringkasan, atau isi teks transkripsi Markdown dokumen dari Source Pack yang tersimpan.",
+    description: "Mengambil metadata, ringkasan, atau isi teks transkripsi Markdown dokumen dari Source Pack yang tersimpan. Mendukung pemilihan revisi tegas melalui importId, sourcePackToken, runToken, atau checksum.",
     inputSchema: {
       packId: z.string().trim().min(1),
+      importId: z.string().trim().min(1).optional(),
+      sourcePackToken: z.string().trim().min(1).optional(),
+      runToken: z.string().trim().min(1).optional(),
+      checksum: z.string().trim().regex(/^[a-f0-9]{64}$/i).optional(),
       documentId: z.string().trim().optional(),
     },
     annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
-  }, async ({ packId, documentId }: any) => safeTool(async () => {
+  }, async ({ packId, importId, sourcePackToken, runToken, checksum, documentId }: any) => safeTool(async () => {
     requireMcpScope(principal, "authoring:read");
-    const stored = await getSourcePackImport(packId);
+
+    const tokenPayload = sourcePackToken ? readMcpSourcePackToken(sourcePackToken) : null;
+    if (tokenPayload && tokenPayload.packId !== packId) {
+      throw new Error(
+        `AUTHORING_MCP_SOURCE_PACK_IMPORT_MISMATCH: sourcePackToken belongs to packId '${tokenPayload.packId}', not '${packId}'`,
+      );
+    }
+
+    const runPayload = runToken ? readMcpRunToken(runToken) : null;
+    if (runPayload && (!runPayload.sourcePackId || runPayload.sourcePackId !== packId)) {
+      throw new Error(
+        `AUTHORING_MCP_SOURCE_PACK_IMPORT_MISMATCH: runToken is bound to packId '${runPayload.sourcePackId ?? "none"}', not '${packId}'`,
+      );
+    }
+
+    const targetImportId = reconcileSourcePackImportIds([
+      importId,
+      tokenPayload?.importId,
+      runPayload?.sourcePackImportId,
+    ]);
+    const targetChecksum = reconcileSourcePackChecksums([
+      checksum,
+      tokenPayload?.checksum,
+      runPayload?.sourcePackChecksum,
+    ]);
+
+    const stored = await resolveSourcePackImport({
+      packId,
+      importId: targetImportId,
+      checksum: targetChecksum,
+    });
     if (!stored) throw new Error("AUTHORING_MCP_SOURCE_PACK_NOT_FOUND");
 
     const token = issueSourcePackToken({
+      importId: stored.id,
       checksum: stored.checksum,
       packId: stored.bundleId,
       name: stored.validationReport?.name ?? stored.bundleId,
@@ -1287,9 +1526,16 @@ function registerWorkflowTools(server: McpServer, principal: McpPrincipal): void
       const { document } = await readStoredSourcePackDocument(stored.sourceUriOrKey, documentId);
       return {
         ok: true,
+        importId: stored.id,
         packId: stored.bundleId,
         checksum: stored.checksum,
+        documentHash: document.markdownSha256,
+        markdownSha256: document.markdownSha256,
         sourcePackToken: token,
+        createdAt: serializeMcpTimestamp(stored.createdAt),
+        updatedAt: serializeMcpTimestamp(stored.updatedAt),
+        summary: stored.validationReport?.summary,
+        quality: stored.validationReport?.quality,
         document: {
           id: document.id,
           title: document.title,
@@ -1297,21 +1543,44 @@ function registerWorkflowTools(server: McpServer, principal: McpPrincipal): void
           unitKind: document.unitKind,
           expectedUnits: document.expectedUnits,
           markdown: document.markdown,
+          markdownSha256: document.markdownSha256,
+          documentHash: document.markdownSha256,
+          originalFilename: document.originalFilename,
+          originalSha256: document.originalSha256,
           sections: document.sections,
           counts: document.counts,
         },
       };
     }
 
+    let documentsWithHashes = stored.validationReport?.documents ?? [];
+    try {
+      const parsedPack = await readStoredSourcePack(stored.sourceUriOrKey);
+      const hashById = new Map<string, string>();
+      for (const doc of parsedPack.documents) {
+        const mdHash = createHash("sha256").update(doc.markdown, "utf8").digest("hex");
+        hashById.set(doc.id, mdHash);
+      }
+      documentsWithHashes = documentsWithHashes.map((doc) => ({
+        ...doc,
+        markdownSha256: hashById.get(doc.id) ?? null,
+        documentHash: hashById.get(doc.id) ?? null,
+      }));
+    } catch {
+      // Fallback if archive is not readable in metadata-only call
+    }
+
     return {
       ok: true,
+      importId: stored.id,
       packId: stored.bundleId,
       checksum: stored.checksum,
       sourcePackToken: token,
       summary: stored.validationReport?.summary,
-      documents: stored.validationReport?.documents,
+      documents: documentsWithHashes,
       quality: stored.validationReport?.quality,
-      createdAt: stored.createdAt,
+      createdAt: serializeMcpTimestamp(stored.createdAt),
+      updatedAt: serializeMcpTimestamp(stored.updatedAt),
     };
   }));
 
@@ -1322,18 +1591,51 @@ function registerWorkflowTools(server: McpServer, principal: McpPrincipal): void
       workflow: authoringWorkflowSchema,
       sourcePackToken: z.string().min(1).optional(),
       sourcePackId: z.string().min(1).optional(),
+      sourcePackImportId: z.string().min(1).optional(),
       courseKey: z.string().min(1),
       chapterKey: z.string().min(1).optional(),
     },
     annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
-  }, async ({ workflow, sourcePackToken, sourcePackId, courseKey, chapterKey }: any) => safeTool(async () => {
+  }, async ({ workflow, sourcePackToken, sourcePackId, sourcePackImportId, courseKey, chapterKey }: any) => safeTool(async () => {
     requireMcpScope(principal, "authoring:read");
-    if (workflow === "reference_question_ingest" && (chapterKey || sourcePackToken || sourcePackId)) throw new Error("WORKFLOW_SCOPE_INVALID");
+    if (workflow === "reference_question_ingest" && (chapterKey || sourcePackToken || sourcePackId || sourcePackImportId)) throw new Error("WORKFLOW_SCOPE_INVALID");
     let resolvedToken = sourcePackToken;
-    if (!resolvedToken && sourcePackId) {
-      const stored = await getSourcePackImport(sourcePackId);
+    if (resolvedToken) {
+      const tokenPayload = readMcpSourcePackToken(resolvedToken);
+      if (sourcePackId && tokenPayload.packId !== sourcePackId) {
+        throw new Error(`AUTHORING_MCP_SOURCE_PACK_IMPORT_MISMATCH: sourcePackToken belongs to packId '${tokenPayload.packId}', not '${sourcePackId}'`);
+      }
+      const reconciledImportId = reconcileSourcePackImportIds([
+        sourcePackImportId,
+        tokenPayload.importId,
+      ]);
+      const reconciledChecksum = normalizeSourcePackChecksum(tokenPayload.checksum);
+      if (!tokenPayload.importId || sourcePackImportId) {
+        const stored = await resolveSourcePackImport({
+          packId: tokenPayload.packId,
+          importId: reconciledImportId,
+          checksum: reconciledChecksum,
+        });
+        if (stored) {
+          resolvedToken = issueSourcePackToken({
+            importId: stored.id,
+            checksum: stored.checksum,
+            packId: stored.bundleId,
+            name: tokenPayload.name,
+            summary: tokenPayload.summary,
+            courseId: tokenPayload.courseId,
+            chapterId: tokenPayload.chapterId,
+          });
+        }
+      }
+    } else if (sourcePackId || sourcePackImportId) {
+      const stored = await resolveSourcePackImport({
+        packId: sourcePackId,
+        importId: sourcePackImportId,
+      });
       if (!stored) throw new Error("AUTHORING_MCP_SOURCE_PACK_NOT_FOUND");
       resolvedToken = issueSourcePackToken({
+        importId: stored.id,
         checksum: stored.checksum,
         packId: stored.bundleId,
         name: stored.validationReport?.name ?? stored.bundleId,
@@ -1800,7 +2102,7 @@ function registerReferenceQuestionTools(server: McpServer, principal: McpPrincip
 
   (server as any).registerTool("assessment.submit_reference_draft", {
     title: "Submit historical reference draft",
-    description: "Menyimpan soal historis sebagai canonical record published beserta projection kompatibilitas. Soal langsung dapat dipakai untuk kuis.",
+    description: "Menyimpan soal historis sebagai canonical record published (status published, reviewRequired false, publicationTarget reference_question_bank) beserta projection kompatibilitas. Soal yang memiliki jawaban terverifikasi langsung quizEligible dan dapat dipakai untuk kuis.",
     inputSchema: {
       runToken: z.string().min(1),
       draftJson: z.string().min(1).max(8 * 1024 * 1024),
@@ -1810,7 +2112,7 @@ function registerReferenceQuestionTools(server: McpServer, principal: McpPrincip
     requireMcpScope(principal, "authoring:stage");
     const run = requireReferenceWorkflow(runToken);
     const parsed = parseReferenceQuestionDraftJson(draftJson);
-    if (!parsed.success) return { ok: false, valid: false, staged: false, issues: parsed.issues, next: "agent_revision" };
+    if (!parsed.success) return { ok: false, valid: false, staged: false, published: false, issues: parsed.issues, next: "agent_revision" };
     const resolved = await resolveReferenceDraftContext(run, parsed.data);
     const validation = validateReferenceQuestionDraft(parsed.data, {
       courseId: run.courseId,
@@ -1818,7 +2120,7 @@ function registerReferenceQuestionTools(server: McpServer, principal: McpPrincip
       solution: resolved.solution?.metadata ?? null,
       ideas: resolved.ideas,
     });
-    if (!validation.valid) return { ok: false, valid: false, staged: false, issues: validation.issues, next: "agent_revision" };
+    if (!validation.valid) return { ok: false, valid: false, staged: false, published: false, issues: validation.issues, next: "agent_revision" };
     const results = await createHistoricalQuestionBatch({
       courseId: run.courseId,
       creatorId: principal.actorId,
@@ -1829,9 +2131,24 @@ function registerReferenceQuestionTools(server: McpServer, principal: McpPrincip
       ok: true,
       valid: true,
       staged: true,
+      published: true,
+      reviewRequired: false,
+      publicationTarget: "reference_question_bank",
       status: "published",
       questionCount: results.length,
-      questions: results.map((result, index) => ({ localId: parsed.data.questions[index]?.localId, version: result.version, status: result.reviewStatus, unchanged: result.unchanged })),
+      quizEligibleCount: validation.eligibleCount,
+      questions: results.map((result, index) => {
+        const draftQuestion = parsed.data.questions[index];
+        const quizEligible = Boolean(draftQuestion?.quizEligible);
+        return {
+          id: result.id,
+          localId: draftQuestion?.localId,
+          version: result.version,
+          status: result.reviewStatus,
+          quizEligible,
+          unchanged: result.unchanged,
+        };
+      }),
       next: "ready_for_quiz",
     };
   }));
@@ -2021,19 +2338,70 @@ function registerLifecycleTools(server: McpServer, principal: McpPrincipal): voi
       : bundleType === "idea"
         ? await listIdeaBundleImports(limit)
         : await listProductBundleImports(limit);
+
+    const pedReviewsByImport = new Map<string, PedagogicReviewSummaryRow[]>();
+    const pdfEvidenceByImport = new Map<string, PdfEvidenceSummaryRow[]>();
+    if (bundleType === "product" && rows.length > 0) {
+      const importIds = rows.map((row) => row.id);
+      const allPedReviews = await db
+        .select({
+          id: reviewPedagogiBundle.id,
+          imporBundleId: reviewPedagogiBundle.imporBundleId,
+          status: reviewPedagogiBundle.status,
+          policyVersion: reviewPedagogiBundle.policyVersion,
+          contentFingerprint: reviewPedagogiBundle.contentFingerprint,
+          rubric: reviewPedagogiBundle.rubric,
+          exceptions: reviewPedagogiBundle.exceptions,
+          notes: reviewPedagogiBundle.notes,
+          createdAt: reviewPedagogiBundle.createdAt,
+        })
+        .from(reviewPedagogiBundle)
+        .where(inArray(reviewPedagogiBundle.imporBundleId, importIds))
+        .orderBy(desc(reviewPedagogiBundle.createdAt), desc(reviewPedagogiBundle.id));
+      for (const review of allPedReviews) {
+        const list = pedReviewsByImport.get(review.imporBundleId) ?? [];
+        list.push(review);
+        pedReviewsByImport.set(review.imporBundleId, list);
+      }
+
+      const allPdfEvidence = await db
+        .select()
+        .from(buktiPdfBundle)
+        .where(inArray(buktiPdfBundle.imporBundleId, importIds))
+        .orderBy(desc(buktiPdfBundle.createdAt), desc(buktiPdfBundle.id));
+      for (const evidence of allPdfEvidence) {
+        const list = pdfEvidenceByImport.get(evidence.imporBundleId) ?? [];
+        list.push(evidence);
+        pdfEvidenceByImport.set(evidence.imporBundleId, list);
+      }
+    }
+
     return {
       ok: true,
       bundleType,
-      imports: rows.map((row) => ({
-        importId: row.id,
-        bundleId: row.bundleId,
-        checksum: row.checksum,
-        version: row.version,
-        status: row.status,
-        validationReport: row.validationReport,
-        createdAt: row.createdAt,
-        updatedAt: row.updatedAt,
-      })),
+      imports: rows.map((row) => {
+        const currentReadiness = bundleType === "product"
+          ? computeCurrentProductImportReadiness(
+              row,
+              pedReviewsByImport.get(row.id) ?? [],
+              pdfEvidenceByImport.get(row.id) ?? [],
+            )
+          : undefined;
+        return {
+          importId: row.id,
+          bundleId: row.bundleId,
+          checksum: row.checksum,
+          version: row.version,
+          status: row.status,
+          ...(currentReadiness ? {
+            publicationReady: currentReadiness.publicationReady,
+            currentReadiness,
+          } : {}),
+          validationReport: formatSnapshotValidationReport(row.validationReport as Record<string, unknown> | null, row.createdAt),
+          createdAt: serializeMcpTimestamp(row.createdAt),
+          updatedAt: serializeMcpTimestamp(row.updatedAt),
+        };
+      }),
     };
   }));
 
@@ -2058,9 +2426,9 @@ function registerLifecycleTools(server: McpServer, principal: McpPrincipal): voi
           checksum: row.checksum,
           version: row.version,
           status: row.status,
-          validationReport: row.validationReport,
-          createdAt: row.createdAt,
-          updatedAt: row.updatedAt,
+          validationReport: formatSnapshotValidationReport(row.validationReport as Record<string, unknown> | null, row.createdAt),
+          createdAt: serializeMcpTimestamp(row.createdAt),
+          updatedAt: serializeMcpTimestamp(row.updatedAt),
         },
       };
     }
@@ -2080,8 +2448,13 @@ function registerLifecycleTools(server: McpServer, principal: McpPrincipal): voi
         })
         .from(reviewPedagogiBundle)
         .where(eq(reviewPedagogiBundle.imporBundleId, importId))
-        .orderBy(desc(reviewPedagogiBundle.createdAt));
-      return { ok: true, import: publicBundleImport(row, pedReviews) };
+        .orderBy(desc(reviewPedagogiBundle.createdAt), desc(reviewPedagogiBundle.id));
+      const pdfEvidenceRows = await db
+        .select()
+        .from(buktiPdfBundle)
+        .where(eq(buktiPdfBundle.imporBundleId, importId))
+        .orderBy(desc(buktiPdfBundle.createdAt), desc(buktiPdfBundle.id));
+      return { ok: true, import: publicBundleImport(row, pedReviews, pdfEvidenceRows) };
     }
     return { ok: true, import: publicBundleImport(row) };
   }));
@@ -2228,6 +2601,271 @@ function registerLifecycleTools(server: McpServer, principal: McpPrincipal): voi
     }, principal.actorId, questionId);
     return { ok: true, result, next: "admin_review" };
   }));
+}
+
+const ARTICLE_VISUALS_META_RE = /\n*<!--__ZYX_V3_ARTICLE_VISUALS__:([A-Za-z0-9_-]+)-->\s*$/;
+const SECTION_PEDAGOGY_META_RE = /\n*<!--__ZYX_V3_SECTION_PEDAGOGY__:([A-Za-z0-9_-]+)-->\s*$/;
+const BLOCK_PAYLOAD_META_RE = /\n*<!--__ZYX_V3_BLOCK_PAYLOAD__:([A-Za-z0-9_-]+)-->\s*$/;
+
+function parseArticleRowContent(rawMarkdown: string | null | undefined) {
+  const text = rawMarkdown ?? "";
+  const match = ARTICLE_VISUALS_META_RE.exec(text);
+  if (!match) {
+    return { contentMarkdown: text || null, visuals: [] as unknown[] };
+  }
+  const stripped = text.slice(0, match.index).trimEnd();
+  let visuals: unknown[] = [];
+  try {
+    const parsed = JSON.parse(Buffer.from(match[1], "base64url").toString("utf8"));
+    if (Array.isArray(parsed)) visuals = parsed;
+  } catch {
+    visuals = [];
+  }
+  return { contentMarkdown: stripped || null, visuals };
+}
+
+function parseArticleSectionObjective(rawObjective: string | null | undefined) {
+  const text = rawObjective ?? "";
+  const match = SECTION_PEDAGOGY_META_RE.exec(text);
+  if (!match) {
+    return { learningObjective: text, pedagogy: null as Record<string, unknown> | null };
+  }
+  const stripped = text.slice(0, match.index).trimEnd();
+  let pedagogy: Record<string, unknown> | null = null;
+  try {
+    const parsed = JSON.parse(Buffer.from(match[1], "base64url").toString("utf8"));
+    if (parsed && typeof parsed === "object") pedagogy = parsed as Record<string, unknown>;
+  } catch {
+    pedagogy = null;
+  }
+  return { learningObjective: stripped, pedagogy };
+}
+
+function parseArticleBlockContent(rawContent: string | null | undefined) {
+  const text = rawContent ?? "";
+  const match = BLOCK_PAYLOAD_META_RE.exec(text);
+  if (!match) {
+    return {
+      contentMarkdown: text,
+      workedExamplePayload: null as unknown,
+      formativeCheckPayload: null as unknown,
+      visualIds: [] as string[],
+    };
+  }
+  const stripped = text.slice(0, match.index).trimEnd();
+  let workedExamplePayload: unknown = null;
+  let formativeCheckPayload: unknown = null;
+  let visualIds: string[] = [];
+  try {
+    const parsed = JSON.parse(Buffer.from(match[1], "base64url").toString("utf8")) as Record<string, unknown>;
+    if (parsed && typeof parsed === "object") {
+      workedExamplePayload = parsed.workedExamplePayload ?? null;
+      formativeCheckPayload = parsed.formativeCheckPayload ?? null;
+      if (Array.isArray(parsed.visualIds)) {
+        visualIds = parsed.visualIds.map((v) => String(v));
+      }
+    }
+  } catch {
+    // Ignore malformed metadata comment
+  }
+  return { contentMarkdown: stripped, workedExamplePayload, formativeCheckPayload, visualIds };
+}
+
+async function resolveProductDependencyState(
+  productType: "article" | "diktat" | "flashcard_set" | "question",
+  productId: string,
+  ideaLinks: ReadonlyArray<{ ideId: string; code: string; status?: string | null; version?: number | null; semanticHash?: string | null }>,
+) {
+  const baseProductId = productId.replace(/:v\d+$/, "");
+  const rawEdges = await db
+    .select()
+    .from(ketergantunganProduk)
+    .where(
+      and(
+        eq(ketergantunganProduk.downstreamEntityType, productType),
+        or(
+          eq(ketergantunganProduk.downstreamEntityId, productId),
+          eq(ketergantunganProduk.downstreamEntityId, baseProductId),
+        ),
+      ),
+    )
+    .orderBy(asc(ketergantunganProduk.upstreamEntityType), asc(ketergantunganProduk.upstreamEntityId));
+
+  const upstreamByType = {
+    idea: [...new Set(rawEdges.filter((e) => e.upstreamEntityType === "idea").map((e) => e.upstreamEntityId))],
+    source_material: [...new Set(rawEdges.filter((e) => e.upstreamEntityType === "source_material").map((e) => e.upstreamEntityId))],
+    source_chunk: [...new Set(rawEdges.filter((e) => e.upstreamEntityType === "source_chunk").map((e) => e.upstreamEntityId))],
+    product: [...new Set(rawEdges.filter((e) => e.upstreamEntityType === "product").map((e) => e.upstreamEntityId))],
+  };
+
+  const liveIdeas = new Map<string, { version: number; hash: string; status: string }>();
+  for (const chunk of chunkValues(upstreamByType.idea)) {
+    const rows = await db.select({ id: ide.id, version: ide.version, hash: ide.semanticHash, status: ide.status }).from(ide).where(inArray(ide.id, chunk));
+    for (const r of rows) liveIdeas.set(r.id, r);
+  }
+
+  const liveSources = new Map<string, { version: number; hash: string | null; status: string }>();
+  for (const chunk of chunkValues(upstreamByType.source_material)) {
+    const rows = await db.select({ id: sumberMateri.id, version: sumberMateri.version, hash: sumberMateri.checksum, status: sumberMateri.status }).from(sumberMateri).where(inArray(sumberMateri.id, chunk));
+    for (const r of rows) liveSources.set(r.id, r);
+  }
+
+  const liveChunks = new Map<string, { version: number; hash: string; status: string }>();
+  for (const chunk of chunkValues(upstreamByType.source_chunk)) {
+    const rows = await db.select({ id: potonganSumber.id, version: potonganSumber.sourceVersion, hash: potonganSumber.checksum }).from(potonganSumber).where(inArray(potonganSumber.id, chunk));
+    for (const r of rows) liveChunks.set(r.id, { ...r, status: "active" });
+  }
+
+  const liveProducts = new Map<string, { version: number; hash: string; status: string }>();
+  for (const chunk of chunkValues(upstreamByType.product)) {
+    for (const table of [artikel, diktatMateri, setFlashcard, soal, pembahasanSoal] as const) {
+      const rows = await db.select({ id: table.id, version: table.version, hash: table.generationHash, status: table.status }).from(table).where(inArray(table.id, chunk));
+      for (const r of rows) {
+        if (!liveProducts.has(r.id)) liveProducts.set(r.id, r);
+      }
+    }
+  }
+
+  let staleCount = 0;
+  let missingCount = 0;
+  const evaluatedEdges = rawEdges.map((edge) => {
+    const live = edge.upstreamEntityType === "idea"
+      ? liveIdeas.get(edge.upstreamEntityId)
+      : edge.upstreamEntityType === "source_material"
+        ? liveSources.get(edge.upstreamEntityId)
+        : edge.upstreamEntityType === "source_chunk"
+          ? liveChunks.get(edge.upstreamEntityId)
+          : liveProducts.get(edge.upstreamEntityId);
+
+    const activeStatus = edge.upstreamEntityType === "source_material" || edge.upstreamEntityType === "source_chunk"
+      ? "active"
+      : "published";
+    const isMissing = !live || live.status !== activeStatus;
+    const isVersionOrHashMismatch = Boolean(
+      live && (live.version !== edge.upstreamVersion || (live.hash && live.hash !== edge.upstreamHash)),
+    );
+    const isStale = !isMissing && (edge.freshness !== "UP_TO_DATE" || isVersionOrHashMismatch);
+
+    let state: "up_to_date" | "stale" | "missing" = "up_to_date";
+    if (isMissing) {
+      state = "missing";
+      missingCount++;
+    } else if (isStale) {
+      state = "stale";
+      staleCount++;
+    }
+
+    return {
+      id: edge.id,
+      upstreamEntityType: edge.upstreamEntityType,
+      upstreamEntityId: edge.upstreamEntityId,
+      upstreamVersion: edge.upstreamVersion,
+      upstreamHash: edge.upstreamHash,
+      currentUpstreamVersion: live?.version ?? null,
+      currentUpstreamHash: live?.hash ?? null,
+      currentUpstreamStatus: live?.status ?? null,
+      downstreamVersion: edge.downstreamVersion,
+      downstreamHash: edge.downstreamHash,
+      freshness: edge.freshness,
+      state,
+      reason: edge.reason,
+    };
+  });
+
+  const nonPublishedIdeaLinks = ideaLinks.filter((link) => link.status && link.status !== "published");
+  const ideaLinkStatus: "up_to_date" | "stale" = nonPublishedIdeaLinks.length > 0 ? "stale" : "up_to_date";
+  if (nonPublishedIdeaLinks.length > 0) {
+    staleCount += nonPublishedIdeaLinks.length;
+  }
+
+  const status: "up_to_date" | "stale" | "missing" | "none" = missingCount > 0
+    ? "missing"
+    : staleCount > 0
+      ? "stale"
+      : evaluatedEdges.length > 0 || ideaLinks.length > 0
+        ? "up_to_date"
+        : "none";
+
+  return {
+    status,
+    upToDate: missingCount === 0 && staleCount === 0,
+    totalCount: evaluatedEdges.length,
+    staleCount,
+    missingCount,
+    ideaLinkStatus,
+    edges: evaluatedEdges,
+  };
+}
+
+async function loadQuestionExplanationAndSolution(question: typeof soal.$inferSelect) {
+  const [solutionRow] = await db
+    .select({
+      id: pembahasanSoal.id,
+      content: pembahasanSoal.content,
+      status: pembahasanSoal.status,
+      version: pembahasanSoal.version,
+      generationHash: pembahasanSoal.generationHash,
+    })
+    .from(pembahasanSoal)
+    .where(eq(pembahasanSoal.soalId, question.id))
+    .orderBy(desc(pembahasanSoal.version))
+    .limit(1);
+
+  const [compatibility] = await db
+    .select({
+      correctIndices: aiQuestionBank.correctIndices,
+      acceptableAnswers: aiQuestionBank.acceptableAnswers,
+      explanation: aiQuestionBank.explanation,
+    })
+    .from(aiQuestionBank)
+    .where(eq(aiQuestionBank.id, question.id))
+    .limit(1);
+
+  const solutionContent = solutionRow?.content?.trim() ? solutionRow.content : null;
+  const compatibilityExplanation = compatibility?.explanation?.trim() ? compatibility.explanation : null;
+  const explanationText = solutionContent ?? compatibilityExplanation ?? null;
+
+  const optionIndicesFromSnapshot = Array.isArray(question.optionsSnapshot)
+    ? question.optionsSnapshot
+        .map((opt, idx) => (opt && typeof opt === "object" && (opt as { isCorrect?: boolean }).isCorrect === true ? idx : -1))
+        .filter((idx) => idx >= 0)
+    : [];
+  const correctIndices = Array.isArray(compatibility?.correctIndices) && compatibility.correctIndices.length > 0
+    ? compatibility.correctIndices
+    : optionIndicesFromSnapshot;
+  const acceptableAnswers = Array.isArray(compatibility?.acceptableAnswers)
+    ? compatibility.acceptableAnswers
+    : [];
+
+  const solution = solutionRow
+    ? {
+        id: solutionRow.id,
+        content: solutionContent,
+        status: solutionRow.status,
+        version: solutionRow.version,
+        generationHash: solutionRow.generationHash,
+        provenance: question.solutionProvenance ?? null,
+      }
+    : explanationText
+      ? {
+          id: null,
+          content: explanationText,
+          status: question.status,
+          version: question.version,
+          generationHash: null,
+          provenance: question.solutionProvenance ?? null,
+        }
+      : null;
+
+  return {
+    explanation: explanationText,
+    solution,
+    answer: {
+      correctIndices,
+      acceptableAnswers,
+      provenance: question.answerProvenance ?? null,
+    },
+  };
 }
 
 function registerKnowledgeTools(server: McpServer, principal: McpPrincipal): void {
@@ -2520,40 +3158,229 @@ function registerKnowledgeTools(server: McpServer, principal: McpPrincipal): voi
 
   (server as any).registerTool("knowledge.get_product", {
     title: "Get product detail",
-    description: "Mengembalikan detail satu produk (artikel, diktat, flashcard set, atau soal) beserta Idea links dan status dependency.",
+    description: "Mengembalikan detail satu produk (artikel, diktat, flashcard set, atau soal) beserta isi konten, Idea links, dan status dependency.",
     inputSchema: {
       runToken: z.string().min(1),
       productType: z.enum(["article", "diktat", "flashcard_set", "question"]),
       productId: z.string().trim().min(1),
+      includeContent: z.boolean().default(true),
     },
     annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
-  }, async ({ runToken, productType, productId }: any) => safeTool(async () => {
+  }, async ({ runToken, productType, productId, includeContent = true }: any) => safeTool(async () => {
     requireMcpScope(principal, "authoring:read");
     const run = readMcpRunToken(runToken);
 
     if (productType === "article") {
       const [row] = await db.select().from(artikel).where(and(eq(artikel.id, productId), eq(artikel.mataKuliahId, run.courseId), eq(artikel.babId, run.chapterId))).limit(1);
       if (!row) throw new Error("AUTHORING_MCP_PRODUCT_NOT_IN_SCOPE");
-      const links = await db.select({ ideId: artikelIde.ideId, code: ide.code, weight: artikelIde.weight }).from(artikelIde).innerJoin(ide, eq(ide.id, artikelIde.ideId)).where(eq(artikelIde.artikelId, productId));
-      return { ok: true, productType: "article", product: { id: row.id, title: row.title, slug: row.slug, version: row.version, status: row.status }, ideaLinks: links };
+      const links = await db.select({ ideId: artikelIde.ideId, code: ide.code, weight: artikelIde.weight, status: ide.status, version: ide.version, semanticHash: ide.semanticHash }).from(artikelIde).innerJoin(ide, eq(ide.id, artikelIde.ideId)).where(eq(artikelIde.artikelId, productId));
+      const dependencies = await resolveProductDependencyState("article", row.id, links);
+      const parsedArticle = parseArticleRowContent(row.contentMarkdown);
+      const allSectionRows = includeContent
+        ? await db.select().from(bagianArtikel).where(eq(bagianArtikel.artikelId, row.id)).orderBy(asc(bagianArtikel.orderIndex), asc(bagianArtikel.id))
+        : [];
+      const allBlockRows = includeContent
+        ? await db.select().from(blokArtikel).where(eq(blokArtikel.artikelId, row.id)).orderBy(asc(blokArtikel.orderIndex), asc(blokArtikel.id))
+        : [];
+      const sectionRows = allSectionRows.some((sec) => sec.version === row.version)
+        ? allSectionRows.filter((sec) => sec.version === row.version)
+        : allSectionRows;
+      const blockRows = allBlockRows.some((blk) => blk.version === row.version)
+        ? allBlockRows.filter((blk) => blk.version === row.version)
+        : allBlockRows;
+      const sectionIdToKey = new Map(sectionRows.map((sec) => [sec.id, sec.sectionKey]));
+      const parsedBlocksBySectionId = new Map<string, Array<Record<string, unknown>>>();
+      const rootBlocks: Array<Record<string, unknown>> = [];
+      for (const blk of blockRows) {
+        const parsedBlk = parseArticleBlockContent(blk.content);
+        const formattedBlk = {
+          id: blk.blockKey,
+          rowId: blk.id,
+          sectionId: blk.bagianArtikelId ? (sectionIdToKey.get(blk.bagianArtikelId) ?? blk.bagianArtikelId) : null,
+          blockType: blk.blockType,
+          title: blk.title,
+          orderIndex: blk.orderIndex,
+          contentMarkdown: parsedBlk.contentMarkdown,
+          workedExamplePayload: parsedBlk.workedExamplePayload,
+          formativeCheckPayload: parsedBlk.formativeCheckPayload,
+          visualIds: parsedBlk.visualIds,
+          version: blk.version,
+          status: blk.status,
+        };
+        if (blk.bagianArtikelId) {
+          const list = parsedBlocksBySectionId.get(blk.bagianArtikelId) ?? [];
+          list.push(formattedBlk);
+          parsedBlocksBySectionId.set(blk.bagianArtikelId, list);
+        } else {
+          rootBlocks.push(formattedBlk);
+        }
+      }
+      const sections = sectionRows.map((sec) => {
+        const parsedSec = parseArticleSectionObjective(sec.learningObjective);
+        return {
+          id: sec.sectionKey,
+          rowId: sec.id,
+          parentSectionId: sec.parentSectionId ? (sectionIdToKey.get(sec.parentSectionId) ?? sec.parentSectionId) : null,
+          learningSectionId: sec.bagianPembelajaranId,
+          kind: sec.sectionKind,
+          slug: sec.slug,
+          title: sec.title,
+          learningObjective: parsedSec.learningObjective,
+          pedagogy: parsedSec.pedagogy,
+          orderIndex: sec.orderIndex,
+          estimatedReadingMinutes: sec.estimatedReadingMinutes,
+          version: sec.version,
+          status: sec.status,
+          blocks: parsedBlocksBySectionId.get(sec.id) ?? [],
+        };
+      });
+      const ideaLinks = links.map(({ ideId, code, weight }) => ({ ideId, code, weight }));
+      return {
+        ok: true,
+        productType: "article",
+        product: {
+          id: row.id,
+          title: row.title,
+          slug: row.slug,
+          version: row.version,
+          status: row.status,
+          structureStatus: row.structureStatus,
+          sourceHash: row.sourceHash,
+          generationHash: row.generationHash,
+          contentMarkdown: includeContent ? parsedArticle.contentMarkdown : null,
+          visuals: includeContent ? parsedArticle.visuals : [],
+          sections: includeContent ? sections : [],
+          blocks: includeContent ? rootBlocks : [],
+        },
+        content: {
+          available: Boolean(parsedArticle.contentMarkdown || sections.length > 0 || rootBlocks.length > 0),
+          included: includeContent,
+          contentMarkdown: includeContent ? parsedArticle.contentMarkdown : null,
+          visuals: includeContent ? parsedArticle.visuals : [],
+          sections: includeContent ? sections : [],
+          blocks: includeContent ? rootBlocks : [],
+        },
+        sections: includeContent ? sections : [],
+        blocks: includeContent ? rootBlocks : [],
+        visuals: includeContent ? parsedArticle.visuals : [],
+        ideaLinks,
+        dependencies,
+      };
     }
     if (productType === "diktat") {
       const [row] = await db.select().from(diktatMateri).where(and(eq(diktatMateri.id, productId), eq(diktatMateri.mataKuliahId, run.courseId), eq(diktatMateri.babId, run.chapterId))).limit(1);
       if (!row) throw new Error("AUTHORING_MCP_PRODUCT_NOT_IN_SCOPE");
-      const links = await db.select({ ideId: diktatIde.ideId, code: ide.code, weight: diktatIde.weight }).from(diktatIde).innerJoin(ide, eq(ide.id, diktatIde.ideId)).where(eq(diktatIde.diktatMateriId, productId));
-      return { ok: true, productType: "diktat", product: { id: row.id, title: row.title, version: row.version, status: row.status }, ideaLinks: links };
+      const links = await db.select({ ideId: diktatIde.ideId, code: ide.code, weight: diktatIde.weight, status: ide.status, version: ide.version, semanticHash: ide.semanticHash }).from(diktatIde).innerJoin(ide, eq(ide.id, diktatIde.ideId)).where(eq(diktatIde.diktatMateriId, productId));
+      const dependencies = await resolveProductDependencyState("diktat", row.id, links);
+      const ideaLinks = links.map(({ ideId, code, weight }) => ({ ideId, code, weight }));
+      const contentMarkdown = row.contentMarkdown ?? null;
+      return {
+        ok: true,
+        productType: "diktat",
+        product: {
+          id: row.id,
+          title: row.title,
+          version: row.version,
+          status: row.status,
+          sourceHash: row.sourceHash,
+          generationHash: row.generationHash,
+          hasPdfFile: Boolean(row.fileKey),
+          contentMarkdown: includeContent ? contentMarkdown : null,
+        },
+        content: {
+          available: Boolean(contentMarkdown),
+          included: includeContent,
+          contentMarkdown: includeContent ? contentMarkdown : null,
+          hasPdfFile: Boolean(row.fileKey),
+        },
+        ideaLinks,
+        dependencies,
+      };
     }
     if (productType === "flashcard_set") {
       const [row] = await db.select().from(setFlashcard).where(and(eq(setFlashcard.id, productId), eq(setFlashcard.mataKuliahId, run.courseId), eq(setFlashcard.babId, run.chapterId))).limit(1);
       if (!row) throw new Error("AUTHORING_MCP_PRODUCT_NOT_IN_SCOPE");
-      const cards = await db.select({ id: flashcard.id, front: flashcard.front, back: flashcard.back, status: flashcard.status }).from(flashcard).where(eq(flashcard.setFlashcardId, productId));
-      return { ok: true, productType: "flashcard_set", product: { id: row.id, title: row.title, version: row.version, status: row.status, cardCount: cards.length }, cards };
+      const cards = includeContent
+        ? await db.select({ id: flashcard.id, front: flashcard.front, back: flashcard.back, status: flashcard.status }).from(flashcard).where(eq(flashcard.setFlashcardId, productId))
+        : [];
+      const cardIdeaRows = await db
+        .select({ ideId: flashcardIde.ideId, code: ide.code, weight: flashcardIde.weight, status: ide.status, version: ide.version, semanticHash: ide.semanticHash })
+        .from(flashcardIde)
+        .innerJoin(flashcard, eq(flashcard.id, flashcardIde.flashcardId))
+        .innerJoin(ide, eq(ide.id, flashcardIde.ideId))
+        .where(eq(flashcard.setFlashcardId, productId));
+      const uniqueIdeaLinksMap = new Map<string, (typeof cardIdeaRows)[number]>();
+      for (const link of cardIdeaRows) {
+        if (!uniqueIdeaLinksMap.has(link.ideId)) uniqueIdeaLinksMap.set(link.ideId, link);
+      }
+      const uniqueIdeaLinks = [...uniqueIdeaLinksMap.values()];
+      const dependencies = await resolveProductDependencyState("flashcard_set", row.id, uniqueIdeaLinks);
+      const ideaLinks = uniqueIdeaLinks.map(({ ideId, code, weight }) => ({ ideId, code, weight }));
+      return {
+        ok: true,
+        productType: "flashcard_set",
+        product: {
+          id: row.id,
+          title: row.title,
+          version: row.version,
+          status: row.status,
+          sourceHash: row.sourceHash,
+          generationHash: row.generationHash,
+          cardCount: cards.length,
+        },
+        content: {
+          available: cards.length > 0,
+          included: includeContent,
+          cards: includeContent ? cards : [],
+        },
+        cards,
+        ideaLinks,
+        dependencies,
+      };
     }
     if (productType === "question") {
       const [row] = await db.select().from(soal).where(and(eq(soal.id, productId), eq(soal.mataKuliahId, run.courseId), eq(soal.babId, run.chapterId))).limit(1);
       if (!row) throw new Error("AUTHORING_MCP_PRODUCT_NOT_IN_SCOPE");
-      const links = await db.select({ ideId: soalIde.ideId, code: ide.code, weight: soalIde.weight, role: soalIde.role }).from(soalIde).innerJoin(ide, eq(ide.id, soalIde.ideId)).where(eq(soalIde.soalId, productId));
-      return { ok: true, productType: "question", product: { id: row.id, questionType: row.questionType, difficulty: row.difficulty, cognitiveLevel: row.cognitiveLevel, origin: row.origin, version: row.version, status: row.status }, ideaLinks: links };
+      const links = await db.select({ ideId: soalIde.ideId, code: ide.code, weight: soalIde.weight, role: soalIde.role, status: ide.status, version: ide.version, semanticHash: ide.semanticHash }).from(soalIde).innerJoin(ide, eq(ide.id, soalIde.ideId)).where(eq(soalIde.soalId, productId));
+      const dependencies = await resolveProductDependencyState("question", row.id, links);
+      const detail = await loadQuestionExplanationAndSolution(row);
+      const ideaLinks = links.map(({ ideId, code, weight, role }) => ({ ideId, code, weight, role }));
+      return {
+        ok: true,
+        productType: "question",
+        product: {
+          id: row.id,
+          questionType: row.questionType,
+          prompt: includeContent ? row.prompt : null,
+          optionsSnapshot: includeContent ? row.optionsSnapshot : [],
+          difficulty: row.difficulty,
+          cognitiveLevel: row.cognitiveLevel,
+          reasoningPattern: row.reasoningPattern,
+          origin: row.origin,
+          version: row.version,
+          status: row.status,
+          quizEligible: Boolean(row.quizEligible),
+          answerProvenance: row.answerProvenance ?? null,
+          solutionProvenance: row.solutionProvenance ?? null,
+          answer: includeContent ? detail.answer : null,
+          explanation: includeContent ? detail.explanation : null,
+          solution: includeContent ? detail.solution : null,
+        },
+        content: {
+          available: Boolean(row.prompt),
+          included: includeContent,
+          prompt: includeContent ? row.prompt : null,
+          optionsSnapshot: includeContent ? row.optionsSnapshot : [],
+          answer: includeContent ? detail.answer : null,
+          explanation: includeContent ? detail.explanation : null,
+          solution: includeContent ? detail.solution : null,
+        },
+        explanation: includeContent ? detail.explanation : null,
+        solution: includeContent ? detail.solution : null,
+        answer: includeContent ? detail.answer : null,
+        ideaLinks,
+        dependencies,
+      };
     }
     throw new Error("AUTHORING_MCP_PRODUCT_TYPE_INVALID");
   }));
@@ -2586,7 +3413,14 @@ function registerKnowledgeTools(server: McpServer, principal: McpPrincipal): voi
     return {
       ok: true,
       scope: { course: run.courseLabel, chapter: run.chapterLabel },
-      sources: rows.map((row) => ({ id: row.id, title: row.title, sourceType: row.sourceType, version: row.version, checksum: row.checksum, chunkCount: Number(row.chunkCount) })),
+      sources: rows.map((row) => ({
+        id: row.id,
+        title: row.title,
+        sourceType: row.sourceType,
+        version: row.version,
+        checksum: normalizeSha256Checksum(row.checksum),
+        chunkCount: Number(row.chunkCount),
+      })),
     };
   }));
 
@@ -2611,8 +3445,8 @@ function registerKnowledgeTools(server: McpServer, principal: McpPrincipal): voi
     return {
       ok: true,
       scope: { course: run.courseLabel, chapter: run.chapterLabel },
-      source: { id: source.id, title: source.title, sourceType: source.sourceType, version: source.version, checksum: source.checksum },
-      chunks: chunks.map((chunk) => ({ id: chunk.id, sourceVersion: chunk.sourceVersion, startOffset: chunk.startOffset, endOffset: chunk.endOffset, pageNumber: chunk.pageNumber, sectionLocator: chunk.sectionLocator, checksum: chunk.checksum })),
+      source: { id: source.id, title: source.title, sourceType: source.sourceType, version: source.version, checksum: normalizeSha256Checksum(source.checksum) },
+      chunks: chunks.map((chunk) => ({ id: chunk.id, sourceVersion: chunk.sourceVersion, startOffset: chunk.startOffset, endOffset: chunk.endOffset, pageNumber: chunk.pageNumber, sectionLocator: chunk.sectionLocator, checksum: normalizeSha256Checksum(chunk.checksum) })),
     };
   }));
 
@@ -2796,7 +3630,7 @@ function registerAssessmentAnalysisTools(server: McpServer, principal: McpPrinci
 
   (server as any).registerTool("assessment.get_question", {
     title: "Get question detail",
-    description: "Mengembalikan detail satu soal beserta Idea links dan explanation.",
+    description: "Mengembalikan detail satu soal beserta Idea links, jawaban, pembahasan/solution, dan explanation.",
     inputSchema: {
       runToken: z.string().min(1),
       questionId: z.string().trim().min(1),
@@ -2816,15 +3650,31 @@ function registerAssessmentAnalysisTools(server: McpServer, principal: McpPrinci
       role: questionReferenceLinks.role,
       notes: questionReferenceLinks.notes,
     }).from(questionReferenceLinks).where(eq(questionReferenceLinks.questionId, questionId));
+    const detail = await loadQuestionExplanationAndSolution(question);
     return {
       ok: true,
       scope: runScope(run),
       question: {
-        id: question.id, questionType: question.questionType, prompt: question.prompt,
-        optionsSnapshot: question.optionsSnapshot, difficulty: question.difficulty,
-        cognitiveLevel: question.cognitiveLevel, reasoningPattern: question.reasoningPattern,
-        origin: question.origin, version: question.version, status: question.status,
+        id: question.id,
+        questionType: question.questionType,
+        prompt: question.prompt,
+        optionsSnapshot: question.optionsSnapshot,
+        difficulty: question.difficulty,
+        cognitiveLevel: question.cognitiveLevel,
+        reasoningPattern: question.reasoningPattern,
+        origin: question.origin,
+        version: question.version,
+        status: question.status,
+        quizEligible: Boolean(question.quizEligible),
+        answerProvenance: question.answerProvenance ?? null,
+        solutionProvenance: question.solutionProvenance ?? null,
+        answer: detail.answer,
+        explanation: detail.explanation,
+        solution: detail.solution,
       },
+      explanation: detail.explanation,
+      solution: detail.solution,
+      answer: detail.answer,
       ideaLinks: links,
       referenceLinks,
     };

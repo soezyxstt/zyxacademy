@@ -20,6 +20,11 @@ import {
   createAssessmentWithLegacyProjection,
   updateAssessmentWithLegacyProjection,
 } from "@/lib/asesmen/quiz-canonical-sync";
+import {
+  readMcpChapterChoice,
+  readMcpCourseChoice,
+} from "@/lib/authoring/mcp-workflows";
+import { normalizeDate } from "@/lib/date-utils";
 
 export interface CreateQuizInput {
   courseKey: string;
@@ -61,12 +66,32 @@ export interface ListQuizzesInput {
   offset?: number;
 }
 
+function extractCourseIdentifier(courseKey: string): string {
+  const trimmed = courseKey.trim();
+  if (trimmed.includes(".")) {
+    return readMcpCourseChoice(trimmed).courseId;
+  }
+  return trimmed;
+}
+
+function extractChapterIdentifier(chapterKey: string, canonicalCourseId: string): string {
+  const trimmed = chapterKey.trim();
+  if (trimmed.includes(".")) {
+    const choice = readMcpChapterChoice(trimmed);
+    if (choice.courseId !== canonicalCourseId) {
+      throw new Error("AUTHORING_MCP_SCOPE_MISMATCH: Bab tidak berasal dari mata kuliah yang dipilih.");
+    }
+    return choice.chapterId;
+  }
+  return trimmed;
+}
+
 async function resolveCourseIds(courseKey: string): Promise<{
   canonicalCourseId: string;
   legacyCourseId: string;
   title: string;
 }> {
-  const trimmed = courseKey.trim();
+  const resolvedKey = extractCourseIdentifier(courseKey);
   const [canonicalCourse] = await db
     .select({
       id: mataKuliah.id,
@@ -76,9 +101,9 @@ async function resolveCourseIds(courseKey: string): Promise<{
     .from(mataKuliah)
     .where(
       or(
-        eq(mataKuliah.id, trimmed),
-        eq(mataKuliah.legacyCourseId, trimmed),
-        eq(mataKuliah.code, trimmed),
+        eq(mataKuliah.id, resolvedKey),
+        eq(mataKuliah.legacyCourseId, resolvedKey),
+        eq(mataKuliah.code, resolvedKey),
       ),
     )
     .limit(1);
@@ -94,11 +119,11 @@ async function resolveCourseIds(courseKey: string): Promise<{
   const [legacyCourse] = await db
     .select({ id: courses.id, title: courses.title })
     .from(courses)
-    .where(eq(courses.id, trimmed))
+    .where(eq(courses.id, resolvedKey))
     .limit(1);
 
   if (!legacyCourse) {
-    throw new Error(`QUIZ_ASSEMBLY_COURSE_NOT_FOUND: Mata kuliah '${trimmed}' tidak ditemukan.`);
+    throw new Error("QUIZ_ASSEMBLY_COURSE_NOT_FOUND: Mata kuliah tidak ditemukan.");
   }
 
   return {
@@ -109,20 +134,20 @@ async function resolveCourseIds(courseKey: string): Promise<{
 }
 
 async function resolveChapterId(chapterKey: string, canonicalCourseId: string): Promise<string> {
-  const trimmed = chapterKey.trim();
+  const resolvedKey = extractChapterIdentifier(chapterKey, canonicalCourseId);
   const [chapter] = await db
     .select({ id: bab.id })
     .from(bab)
     .where(
       and(
-        or(eq(bab.id, trimmed), eq(bab.legacyChapterId, trimmed), eq(bab.code, trimmed)),
+        or(eq(bab.id, resolvedKey), eq(bab.legacyChapterId, resolvedKey), eq(bab.code, resolvedKey)),
         eq(bab.mataKuliahId, canonicalCourseId),
       ),
     )
     .limit(1);
 
   if (!chapter) {
-    throw new Error(`QUIZ_ASSEMBLY_CHAPTER_NOT_FOUND: Bab '${trimmed}' tidak ditemukan untuk mata kuliah ini.`);
+    throw new Error("QUIZ_ASSEMBLY_CHAPTER_NOT_FOUND: Bab tidak ditemukan untuk mata kuliah ini.");
   }
 
   return chapter.id;
@@ -319,8 +344,8 @@ export async function getQuizDetail(quizId: string) {
       showDiscussion: template.showDiscussion,
       questionCount: fixedQuestionIds.length,
       selectionRules: rules,
-      createdAt: template.createdAt,
-      updatedAt: template.updatedAt,
+      createdAt: normalizeDate(template.createdAt).toISOString(),
+      updatedAt: normalizeDate(template.updatedAt).toISOString(),
     },
     questions,
   };
@@ -371,7 +396,7 @@ export async function listQuizzes(filter: ListQuizzesInput) {
       manualStatus: r.manualStatus,
       timeLimitSeconds: r.timeLimitSeconds,
       questionCount: count,
-      createdAt: r.createdAt,
+      createdAt: normalizeDate(r.createdAt).toISOString(),
     };
   });
 
@@ -383,7 +408,9 @@ export async function listQuizzes(filter: ListQuizzesInput) {
 
   return {
     ok: true,
-    courseKey: filter.courseKey,
+    courseId: legacyCourseId,
+    canonicalCourseId,
+    courseKey: canonicalCourseId,
     total,
     quizzes: items,
   };

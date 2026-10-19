@@ -293,12 +293,19 @@ describe("provider-neutral authoring MCP workflow registry", () => {
       headers: { "content-type": "application/json", accept: "application/json, text/event-stream" },
       body: JSON.stringify({ jsonrpc: "2.0", id: 4, method: "tools/call", params: { name: "workflow.list", arguments: {} } }),
     }));
-    const listBody = await listResponse.json() as { result?: { structuredContent?: { workflows?: Array<{ key: string }> } } };
-    expect(listBody.result?.structuredContent?.workflows?.map((workflow) => workflow.key)).toEqual([
+    const listBody = await listResponse.json() as { result?: { structuredContent?: { workflows?: Array<{ key: string; reviewRequired?: boolean; publicationTarget?: string }> } } };
+    const workflows = listBody.result?.structuredContent?.workflows ?? [];
+    expect(workflows.map((workflow) => workflow.key)).toEqual([
       "idea_product",
       "quiz_bank",
       "reference_question_ingest",
     ]);
+    const historicalWorkflow = workflows.find((w) => w.key === "reference_question_ingest");
+    expect(historicalWorkflow).toMatchObject({
+      key: "reference_question_ingest",
+      reviewRequired: false,
+      publicationTarget: "reference_question_bank",
+    });
 
     const runToken = issueMcpRunToken({ workflow: "reference_question_ingest", courseId: "course-contract", courseLabel: "Course contract" });
     const contractServer = createAuthoringMcpServer(testPrincipal);
@@ -310,10 +317,19 @@ describe("provider-neutral authoring MCP workflow registry", () => {
       body: JSON.stringify({ jsonrpc: "2.0", id: 5, method: "tools/call", params: { name: "workflow.get_contract", arguments: { runToken } } }),
     }));
     const contractBody = await contractResponse.json() as { result?: { structuredContent?: any } };
-    expect(contractBody.result?.structuredContent?.workflow?.key).toBe("reference_question_ingest");
+    expect(contractBody.result?.structuredContent?.workflow).toMatchObject({
+      key: "reference_question_ingest",
+      reviewRequired: false,
+      publicationTarget: "reference_question_bank",
+    });
     expect(contractBody.result?.structuredContent?.scope).toEqual({ course: "Course contract" });
     expect(contractBody.result?.structuredContent?.rules).toContain("Jangan membuat Idea baru, mengarang jawaban, mengoreksi sumber, menerjemahkan, atau menginfer jawaban yang tidak terbukti.");
-    expect(contractBody.result?.structuredContent?.outputs?.referenceQuestionDraft?.allowedSourceTools).toEqual(["source.list_reference_files", "source.read_file"]);
+    expect(contractBody.result?.structuredContent?.outputs?.referenceQuestionDraft).toMatchObject({
+      reviewRequired: false,
+      publicationTarget: "reference_question_bank",
+      initialStatus: "published",
+      allowedSourceTools: ["source.list_reference_files", "source.read_file"],
+    });
   });
 
   it("does not grant lifecycle mutations to legacy read and stage principals", async () => {

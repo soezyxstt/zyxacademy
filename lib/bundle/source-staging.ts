@@ -236,6 +236,81 @@ export async function stageSourcePack(input: SourcePackStageInput): Promise<Sour
   };
 }
 
+import { sql } from "drizzle-orm";
+import { normalizeDate } from "@/lib/date-utils";
+
+function compareSourcePackRows(
+  a: { id: string; createdAt: Date; updatedAt: Date; rowid: number },
+  b: { id: string; createdAt: Date; updatedAt: Date; rowid: number },
+): number {
+  const updatedDiff = b.updatedAt.getTime() - a.updatedAt.getTime();
+  if (updatedDiff !== 0) return updatedDiff;
+  const createdDiff = b.createdAt.getTime() - a.createdAt.getTime();
+  if (createdDiff !== 0) return createdDiff;
+  const rowidDiff = b.rowid - a.rowid;
+  if (rowidDiff !== 0) return rowidDiff;
+  return b.id.localeCompare(a.id);
+}
+
+export function normalizeSourcePackChecksum(
+  value: string | null | undefined,
+): string | undefined {
+  if (typeof value !== "string") return undefined;
+  const trimmed = value.trim().toLowerCase();
+  if (!trimmed) return undefined;
+  if (!/^[a-f0-9]{64}$/.test(trimmed)) {
+    throw new Error("AUTHORING_MCP_SOURCE_PACK_IMPORT_MISMATCH: invalid SHA-256 checksum format");
+  }
+  return trimmed;
+}
+
+export function reconcileSourcePackImportIds(
+  importIds: ReadonlyArray<string | null | undefined>,
+): string | undefined {
+  let resolved: string | undefined;
+  for (const candidate of importIds) {
+    if (typeof candidate !== "string") continue;
+    const trimmed = candidate.trim();
+    if (!trimmed) continue;
+    if (resolved && resolved !== trimmed) {
+      throw new Error(
+        `AUTHORING_MCP_SOURCE_PACK_IMPORT_MISMATCH: conflicting importIds '${resolved}' and '${trimmed}'`,
+      );
+    }
+    resolved = trimmed;
+  }
+  return resolved;
+}
+
+export function reconcileSourcePackChecksums(
+  checksums: ReadonlyArray<string | null | undefined>,
+): string | undefined {
+  let resolved: string | undefined;
+  for (const candidate of checksums) {
+    const normalized = normalizeSourcePackChecksum(candidate);
+    if (!normalized) continue;
+    if (resolved && resolved !== normalized) {
+      throw new Error(
+        `AUTHORING_MCP_SOURCE_PACK_IMPORT_MISMATCH: conflicting checksums '${resolved}' and '${normalized}'`,
+      );
+    }
+    resolved = normalized;
+  }
+  return resolved;
+}
+
+function toStoredSourcePackRecord(
+  row: typeof imporBundle.$inferSelect,
+): StoredSourcePackRecord {
+  return {
+    ...row,
+    checksum: row.checksum.toLowerCase(),
+    createdAt: normalizeDate(row.createdAt),
+    updatedAt: normalizeDate(row.updatedAt),
+    validationReport: row.validationReport as StoredSourcePackRecord["validationReport"],
+  };
+}
+
 export async function listSourcePackImports(options?: {
   courseId?: string;
   chapterId?: string;
@@ -243,15 +318,20 @@ export async function listSourcePackImports(options?: {
 }): Promise<StoredSourcePackRecord[]> {
   const limit = Math.min(Math.max(options?.limit ?? 50, 1), 100);
   const rows = await db
-    .select()
+    .select({
+      row: imporBundle,
+      rowid: sql<number>`rowid`,
+    })
     .from(imporBundle)
-    .where(eq(imporBundle.bundleType, "source"))
-    .orderBy(desc(imporBundle.createdAt))
-    .limit(limit);
+    .where(eq(imporBundle.bundleType, "source"));
 
   return rows
+    .map(({ row, rowid }) => ({
+      ...toStoredSourcePackRecord(row),
+      rowid: Number(rowid ?? 0),
+    }))
     .filter((row) => {
-      const report = row.validationReport as StoredSourcePackRecord["validationReport"];
+      const report = row.validationReport;
       if (options?.courseId) {
         const matchesCourse = row.courseId === options.courseId || report?.courseId === options.courseId;
         if (!matchesCourse) return false;
@@ -262,29 +342,89 @@ export async function listSourcePackImports(options?: {
       }
       return true;
     })
-    .map((row) => ({
-      ...row,
-      validationReport: row.validationReport as StoredSourcePackRecord["validationReport"],
-    }));
+    .sort(compareSourcePackRows)
+    .slice(0, limit)
+    .map(({ rowid: _rowid, ...record }) => record);
 }
 
-export async function getSourcePackImport(importIdOrPackId: string): Promise<StoredSourcePackRecord | null> {
-  const [row] = await db
+export async function resolveSourcePackImport(input: {
+  packId: string;
+  importId?: string;
+  checksum?: string;
+}): Promise<StoredSourcePackRecord | null> {
+  const normalizedChecksum = normalizeSourcePackChecksum(input.checksum);
+
+  if (input.importId) {
+    const [exact] = await db
+      .select()
+      .from(imporBundle)
+      .where(and(eq(imporBundle.bundleType, "source"), eq(imporBundle.id, input.importId)))
+      .limit(1);
+    if (!exact) return null;
+    if (exact.bundleId !== input.packId) {
+      throw new Error("AUTHORING_MCP_SOURCE_PACK_IMPORT_MISMATCH");
+    }
+    if (normalizedChecksum && exact.checksum.toLowerCase() !== normalizedChecksum) {
+      throw new Error("AUTHORING_MCP_SOURCE_PACK_IMPORT_MISMATCH");
+    }
+    return toStoredSourcePackRecord(exact);
+  }
+
+  const candidates = await db
+    .select({
+      row: imporBundle,
+      rowid: sql<number>`rowid`,
+    })
+    .from(imporBundle)
+    .where(and(eq(imporBundle.bundleType, "source"), eq(imporBundle.bundleId, input.packId)));
+
+  if (candidates.length === 0) return null;
+
+  const normalized = candidates
+    .map(({ row, rowid }) => ({
+      ...toStoredSourcePackRecord(row),
+      rowid: Number(rowid ?? 0),
+    }))
+    .filter((row) => row.status === "validated" && row.validationReport?.valid !== false)
+    .sort(compareSourcePackRows);
+
+  if (normalizedChecksum) {
+    const matchingChecksum = normalized.find((row) => row.checksum.toLowerCase() === normalizedChecksum);
+    if (!matchingChecksum) {
+      throw new Error("AUTHORING_MCP_SOURCE_PACK_IMPORT_MISMATCH");
+    }
+    const { rowid: _rowid, ...record } = matchingChecksum;
+    return record;
+  }
+
+  const latest = normalized[0];
+  if (!latest) return null;
+  const { rowid: _rowid, ...record } = latest;
+  return record;
+}
+
+export async function getSourcePackImport(
+  importIdOrPackId: string,
+  options?: { importId?: string; checksum?: string },
+): Promise<StoredSourcePackRecord | null> {
+  if (options?.importId || options?.checksum) {
+    return resolveSourcePackImport({
+      packId: importIdOrPackId,
+      importId: options.importId,
+      checksum: options.checksum,
+    });
+  }
+
+  const [byId] = await db
     .select()
     .from(imporBundle)
-    .where(
-      and(
-        eq(imporBundle.bundleType, "source"),
-        or(eq(imporBundle.id, importIdOrPackId), eq(imporBundle.bundleId, importIdOrPackId)),
-      ),
-    )
+    .where(and(eq(imporBundle.bundleType, "source"), eq(imporBundle.id, importIdOrPackId)))
     .limit(1);
+  if (byId) {
+    return toStoredSourcePackRecord(byId);
+  }
 
-  if (!row) return null;
-  return {
-    ...row,
-    validationReport: row.validationReport as StoredSourcePackRecord["validationReport"],
-  };
+  return resolveSourcePackImport({ packId: importIdOrPackId });
 }
 
 export async function downloadSourcePackBytes(sourceKey: string): Promise<Uint8Array> {
@@ -301,7 +441,12 @@ export async function readStoredSourcePackDocument(
   sourceKey: string,
   documentId: string,
 ): Promise<{
-  document: ValidatedSourcePack["documents"][number] & { markdown: string };
+  document: ValidatedSourcePack["documents"][number] & {
+    markdown: string;
+    markdownSha256: string;
+    originalFilename: string;
+    originalSha256: string;
+  };
   pack: ValidatedSourcePack;
 }> {
   const pack = await readStoredSourcePack(sourceKey);
@@ -310,5 +455,15 @@ export async function readStoredSourcePackDocument(
   if (!document || !manifestDoc) throw new Error(`SOURCE_PACK_DOCUMENT_NOT_FOUND:${documentId}`);
   const markdownBytes = pack.archive.files.get(manifestDoc.markdownPath);
   const markdown = markdownBytes ? new TextDecoder().decode(markdownBytes) : "";
-  return { document: { ...document, markdown }, pack };
+  const computedMarkdownSha256 = createHash("sha256").update(markdownBytes ?? new Uint8Array()).digest("hex");
+  return {
+    document: {
+      ...document,
+      markdown,
+      markdownSha256: computedMarkdownSha256,
+      originalFilename: manifestDoc.originalFilename,
+      originalSha256: manifestDoc.originalSha256,
+    },
+    pack,
+  };
 }

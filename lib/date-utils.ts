@@ -212,6 +212,9 @@ export function normalizeDate(value: Date | string | number): Date {
     }
     return value;
   }
+  if (typeof value === "number" && value >= 100_000_000 && value < 100_000_000_000) {
+    return new Date(value * 1000);
+  }
   const d = new Date(value);
   if (isNaN(d.getTime())) return d;
   if (d.getFullYear() > 10000) {
