@@ -267,11 +267,10 @@ export async function getProductBundleImport(importId: string) {
     items: items.map((item) => ({
       ...item,
       createdAt: normalizeDate(item.createdAt),
-      updatedAt: normalizeDate(item.updatedAt),
     })),
     reviews: reviews.map((review) => ({
       ...review,
-      reviewedAt: normalizeDate(review.reviewedAt),
+      reviewedAt: review.reviewedAt ? normalizeDate(review.reviewedAt) : null,
       createdAt: normalizeDate(review.createdAt),
     })),
   };
