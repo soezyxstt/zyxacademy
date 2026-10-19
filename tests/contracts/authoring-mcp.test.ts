@@ -117,11 +117,13 @@ describe("provider-neutral authoring MCP workflow registry", () => {
     expect(() => requestedScopes("authoring:publish")).toThrow("invalid_scope");
   });
 
-  it("grants only selected scopes and rejects empty or expanded consent", () => {
+  it("grants selected supported scopes including explicit additions and rejects invalid consent", () => {
     expect(approvedScopes(null, ["authoring:read", "authoring:withdraw"])).toEqual(["authoring:read", "authoring:withdraw"]);
     expect(approvedScopes(null, ["authoring:read", "authoring:read"])).toEqual(["authoring:read"]);
     expect(() => approvedScopes(null, [])).toThrow("invalid_scope");
-    expect(() => approvedScopes("authoring:read", ["authoring:withdraw"])).toThrow("invalid_scope");
+    expect(approvedScopes("authoring:read authoring:stage authoring:review", ["authoring:read", "authoring:stage", "authoring:review", "authoring:withdraw"])).toEqual([...MCP_OAUTH_SCOPES]);
+    expect(approvedScopes("authoring:read", ["authoring:withdraw"])).toEqual(["authoring:withdraw"]);
+    expect(() => approvedScopes("authoring:publish", ["authoring:read"])).toThrow("invalid_scope");
     expect(() => approvedScopes(null, ["authoring:publish"])).toThrow("invalid_scope");
     expect(() => approvedScopes(null, [new File(["authoring:read"], "scope.txt")])).toThrow("invalid_scope");
   });

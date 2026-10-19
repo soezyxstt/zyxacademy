@@ -69,6 +69,7 @@ export interface McpAuthorizeViewProps {
   };
   isAdmin: boolean;
   scopes: string[];
+  defaultScopes: string[];
   searchParams: {
     clientId: string;
     redirectUri: string;
@@ -86,11 +87,12 @@ export function McpAuthorizeView({
   user,
   isAdmin,
   scopes,
+  defaultScopes,
   searchParams,
   currentPathWithSearch,
 }: McpAuthorizeViewProps) {
   const [isPending, startTransition] = useTransition();
-  const [selectedScopes, setSelectedScopes] = useState(scopes);
+  const [selectedScopes, setSelectedScopes] = useState(defaultScopes);
 
   const redirectHostname = (() => {
     try {
@@ -248,7 +250,7 @@ export function McpAuthorizeView({
           <div>
             <div className="flex items-center justify-between mb-2.5">
               <h2 className="text-body-sm font-semibold text-foreground">
-                Izin yang diminta
+                Izin aplikasi
               </h2>
               <span className="text-body-xs text-muted-foreground font-mono">
                 {selectedScopes.length} dari {scopes.length} izin
