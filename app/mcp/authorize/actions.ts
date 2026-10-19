@@ -6,7 +6,7 @@ import { auth } from "@/lib/auth";
 import { resolveMcpAdmin } from "@/lib/authoring/mcp-auth";
 import {
   readClientRegistration,
-  requestedScopes,
+  approvedScopes,
   resourceUrl,
   storeAuthorizationCode,
 } from "@/lib/authoring/mcp-oauth";
@@ -76,7 +76,7 @@ export async function submitMcpAuthorization(formData: FormData) {
 
   let scopes: string[];
   try {
-    scopes = requestedScopes(scopeRaw);
+    scopes = approvedScopes(scopeRaw, formData.getAll("selected_scope"));
   } catch {
     const target = new URL(redirectUri);
     target.searchParams.set("error", "invalid_scope");

@@ -1,6 +1,6 @@
 "use client";
 
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import Link from "next/link";
 import {
   ShieldCheck,
@@ -10,7 +10,6 @@ import {
   UploadCloud,
   ClipboardCheck,
   Archive,
-  Check,
   Lock,
   User,
   Globe,
@@ -19,6 +18,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { submitMcpAuthorization } from "@/app/mcp/authorize/actions";
 
 interface ScopeInfo {
@@ -49,8 +49,8 @@ const SCOPE_DETAILS: Record<string, ScopeInfo> = {
   },
   "authoring:withdraw": {
     key: "authoring:withdraw",
-    title: "Kelola siklus draf materi",
-    description: "Menarik kembali atau mengarsipkan bundle materi yang belum dipublikasikan.",
+    title: "Tarik materi dan hapus draf",
+    description: "Menarik bundle materi terbit dan menghapus draf yang belum dipublikasikan.",
     icon: Archive,
   },
 };
@@ -90,6 +90,7 @@ export function McpAuthorizeView({
   currentPathWithSearch,
 }: McpAuthorizeViewProps) {
   const [isPending, startTransition] = useTransition();
+  const [selectedScopes, setSelectedScopes] = useState(scopes);
 
   const redirectHostname = (() => {
     try {
@@ -250,7 +251,7 @@ export function McpAuthorizeView({
                 Izin yang diminta
               </h2>
               <span className="text-body-xs text-muted-foreground font-mono">
-                {scopes.length} cakupan
+                {selectedScopes.length} dari {scopes.length} izin
               </span>
             </div>
 
@@ -265,12 +266,12 @@ export function McpAuthorizeView({
                 const IconComponent = detail.icon;
 
                 return (
-                  <div key={scope} className="flex items-start gap-3 p-3.5">
+                  <label key={scope} htmlFor={`scope-${scope}`} className="flex cursor-pointer items-start gap-3 p-3.5">
                     <div className="flex size-8 items-center justify-center rounded-lg bg-primary/10 text-primary shrink-0 mt-0.5">
                       <IconComponent className="size-4" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
                         <p className="text-body-sm font-medium text-foreground">
                           {detail.title}
                         </p>
@@ -282,8 +283,17 @@ export function McpAuthorizeView({
                         {detail.description}
                       </p>
                     </div>
-                    <Check className="size-4 text-status-success shrink-0 mt-1" />
-                  </div>
+                    <Checkbox
+                      id={`scope-${scope}`}
+                      aria-label={detail.title}
+                      checked={selectedScopes.includes(scope)}
+                      disabled={isPending}
+                      onCheckedChange={(checked) => setSelectedScopes((current) =>
+                        checked === true ? [...current, scope] : current.filter((item) => item !== scope)
+                      )}
+                      className="mt-1"
+                    />
+                  </label>
                 );
               })}
             </div>
@@ -332,6 +342,9 @@ export function McpAuthorizeView({
             <input type="hidden" name="client_id" value={searchParams.clientId} />
             <input type="hidden" name="redirect_uri" value={searchParams.redirectUri} />
             <input type="hidden" name="scope" value={searchParams.scope} />
+            {selectedScopes.map((scope) => (
+              <input key={scope} type="hidden" name="selected_scope" value={scope} />
+            ))}
             <input type="hidden" name="state" value={searchParams.state ?? ""} />
             <input type="hidden" name="code_challenge" value={searchParams.codeChallenge} />
             <input type="hidden" name="code_challenge_method" value={searchParams.codeChallengeMethod} />
@@ -341,7 +354,7 @@ export function McpAuthorizeView({
               type="submit"
               name="decision"
               value="approve"
-              disabled={isPending}
+              disabled={isPending || selectedScopes.length === 0}
               className="h-11 w-full gap-2 text-body-sm font-semibold shadow-xs"
             >
               {isPending ? (
@@ -356,6 +369,10 @@ export function McpAuthorizeView({
                 </>
               )}
             </Button>
+
+            {selectedScopes.length === 0 && (
+              <p role="status" className="text-body-xs text-destructive">Pilih minimal 1 izin.</p>
+            )}
 
             <Button
               type="submit"
