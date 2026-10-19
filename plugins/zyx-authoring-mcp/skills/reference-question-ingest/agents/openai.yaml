@@ -1,4 +1,4 @@
 interface:
   display_name: "Historical Reference Question Ingest"
   short_description: "Import historical questions with strict source fidelity"
-  default_prompt: "Use $reference-question-ingest to ingest stored historical question and solution PDFs verbatim with complete source attribution. Resolve multipart, shared-stimulus, multi-page option, visual, and solution-locator boundaries from page evidence; never guess or rewrite source content; require same-course published Idea links and safe quiz eligibility before staging."
+  default_prompt: "Use $reference-question-ingest and call workflow.get_playbook first to fetch the active historical reference workflow and preflight playbooks. Ingest stored historical question and solution PDFs verbatim with complete source attribution and same-course published Idea links; only call submit when explicitly authorized because submission publishes directly to reference_question_bank."

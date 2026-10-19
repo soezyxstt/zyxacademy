@@ -1,0 +1,7 @@
+{
+  "mcpServers": {
+    "zyx-authoring-staging": {
+      "serverUrl": "https://staging.zyxacademy.com/api/mcp/authoring"
+    }
+  }
+}

@@ -1,4 +1,4 @@
 interface:
   display_name: "Zyx Idea Bundle MCP"
   short_description: "Author source-grounded Ideas with strict split/merge rules"
-  default_prompt: "Use $zyx-idea-bundle-mcp and its idea-decomposition reference to build a source-grounded Idea Bundle. Apply explicit split/merge tests instead of one-Idea-per-sentence, deduplicate knowledge across sources, justify relations, pass decomposition preflight, then run MCP validation. Submit only when staging is explicitly authorized."
+  default_prompt: "Use $zyx-idea-bundle-mcp and call workflow.get_playbook first to fetch the active Idea decomposition playbook and bootstrapToken. Apply explicit split/merge tests instead of one-Idea-per-sentence, deduplicate knowledge across sources, justify relations, and pass MCP validation before staging."

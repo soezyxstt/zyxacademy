@@ -1,4 +1,4 @@
 interface:
   display_name: "Zyx Product Bundle MCP"
   short_description: "Author learning-only Product V3 with strict learner roles"
-  default_prompt: "Use $zyx-product-bundle-mcp to create Product Bundle V3 only after reading all required references. Make the Article the self-contained primary reading source, derive a compact review-only Diktat and recall-only flashcards from it, create no assessment entities, pass author preflight plus flashcard preflight, then run MCP validation. Submit only when staging is explicitly authorized."
+  default_prompt: "Use $zyx-product-bundle-mcp and call workflow.get_playbook first to fetch the active Product Bundle V3 editorial, rubric, flashcard, and derivation-audit playbooks. Run independent Creator, Critic, and Student POV subagents, make the Article the self-contained primary reading source, derive a review-only Diktat and recall-only flashcards from it, and pass MCP validation."

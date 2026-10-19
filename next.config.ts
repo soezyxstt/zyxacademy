@@ -3,7 +3,11 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   serverExternalPackages: ["puppeteer", "katex"],
   outputFileTracingIncludes: {
-    "/api/**": ["./node_modules/katex/dist/**", "./node_modules/katex/package.json"],
+    "/api/**": [
+      "./node_modules/katex/dist/**",
+      "./node_modules/katex/package.json",
+    ],
+    "/api/mcp/authoring": ["./lib/authoring/playbooks/**/*"],
   },
   typescript: {
     ignoreBuildErrors: true,
