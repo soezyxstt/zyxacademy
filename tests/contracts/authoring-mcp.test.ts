@@ -20,7 +20,7 @@ import {
   type CatalogIdeaRecord,
 } from "@/lib/authoring/question-catalog";
 import { reviewQuestionBankDraft } from "@/lib/authoring/question-draft-review";
-import { MCP_OAUTH_SCOPES, requestedScopes } from "@/lib/authoring/mcp-oauth";
+import { MCP_OAUTH_SCOPES, approvedScopes, requestedScopes } from "@/lib/authoring/mcp-oauth";
 import { GET as mcpGet, DELETE as mcpDelete } from "@/app/api/mcp/authoring/route";
 
 const testPrincipal = {
@@ -87,17 +87,22 @@ describe("provider-neutral authoring MCP workflow registry", () => {
     expect(quizBank?.sourcePackRequired).toBe(false);
   });
 
-  it("keeps OAuth defaults backward compatible while exposing explicit lifecycle scopes", () => {
+  it("defaults OAuth to all four scopes while respecting explicit scope requests", () => {
     expect(MCP_AUTHORING_DEFAULT_SCOPES).toEqual([
       "authoring:read",
       "authoring:stage",
       "authoring:review",
+      "authoring:withdraw",
     ]);
     expect(requestedScopes(null)).toEqual([
       "authoring:read",
       "authoring:stage",
       "authoring:review",
+      "authoring:withdraw",
     ]);
+    expect(requestedScopes("")).toEqual([...MCP_AUTHORING_DEFAULT_SCOPES]);
+    expect(requestedScopes("   ")).toEqual([...MCP_AUTHORING_DEFAULT_SCOPES]);
+    expect(requestedScopes("authoring:read")).toEqual(["authoring:read"]);
     expect(MCP_OAUTH_SCOPES).toEqual([
       "authoring:read",
       "authoring:stage",
@@ -110,6 +115,26 @@ describe("provider-neutral authoring MCP workflow registry", () => {
       "authoring:withdraw",
     ]);
     expect(() => requestedScopes("authoring:publish")).toThrow("invalid_scope");
+  });
+
+  it("grants only selected scopes and rejects empty or expanded consent", () => {
+    expect(approvedScopes(null, ["authoring:read", "authoring:withdraw"])).toEqual(["authoring:read", "authoring:withdraw"]);
+    expect(approvedScopes(null, ["authoring:read", "authoring:read"])).toEqual(["authoring:read"]);
+    expect(() => approvedScopes(null, [])).toThrow("invalid_scope");
+    expect(() => approvedScopes("authoring:read", ["authoring:withdraw"])).toThrow("invalid_scope");
+    expect(() => approvedScopes(null, ["authoring:publish"])).toThrow("invalid_scope");
+    expect(() => approvedScopes(null, [new File(["authoring:read"], "scope.txt")])).toThrow("invalid_scope");
+  });
+
+  it("preserves a reduced consent scope in the issued token", () => {
+    process.env.BETTER_AUTH_SECRET = "test-better-auth-secret-for-mcp-contracts";
+    const scopes = approvedScopes(null, ["authoring:read"]);
+    const token = issueMcpConnectionToken({
+      userId: testPrincipal.userId,
+      sessionId: testPrincipal.sessionId,
+      scopes,
+    });
+    expect(readMcpConnectionToken(token).scopes).toEqual(["authoring:read"]);
   });
 
   it("issues MCP connection tokens with a 30-day hard lifetime", () => {
