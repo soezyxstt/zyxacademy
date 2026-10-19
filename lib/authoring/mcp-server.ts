@@ -1377,11 +1377,7 @@ function registerWorkflowTools(server: McpServer, principal: McpPrincipal): void
         runToken: input.runToken,
         clientCapabilities: input.clientCapabilities,
       });
-      return toolResult(
-        result,
-        !result.ok,
-        [{ type: "text", text: result.instructionsMarkdown }],
-      );
+      return toolResult(result, !result.ok);
     } catch (error) {
       return toolError(error);
     }
