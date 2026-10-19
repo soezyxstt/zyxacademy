@@ -50,11 +50,11 @@ export function requestedScopes(raw: string | null): string[] {
 }
 
 export function approvedScopes(raw: string | null, selected: FormDataEntryValue[]): string[] {
-  const requested = requestedScopes(raw);
-  if (selected.length === 0 || selected.some((scope) => typeof scope !== "string" || !requested.includes(scope))) {
+  requestedScopes(raw);
+  if (selected.length === 0 || selected.some((scope) => typeof scope !== "string" || !MCP_OAUTH_SCOPES.includes(scope as typeof MCP_OAUTH_SCOPES[number]))) {
     throw new Error("invalid_scope");
   }
-  return requested.filter((scope) => selected.includes(scope));
+  return MCP_OAUTH_SCOPES.filter((scope) => selected.includes(scope));
 }
 
 export function issueClientRegistration(input: { clientName?: string; redirectUris: string[] }) {

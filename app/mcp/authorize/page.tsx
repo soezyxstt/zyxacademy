@@ -5,6 +5,7 @@ import { auth } from "@/lib/auth";
 import { pageTitle } from "@/lib/site";
 import { resolveMcpAdmin } from "@/lib/authoring/mcp-auth";
 import {
+  MCP_OAUTH_SCOPES,
   readClientRegistration,
   requestedScopes,
   resourceUrl,
@@ -163,7 +164,8 @@ export default async function McpAuthorizePage({
         image: session.user.image ?? null,
       }}
       isAdmin={isAdmin}
-      scopes={validScopes}
+      scopes={[...MCP_OAUTH_SCOPES]}
+      defaultScopes={validScopes}
       searchParams={{
         clientId,
         redirectUri,
