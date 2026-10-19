@@ -49,6 +49,14 @@ export function requestedScopes(raw: string | null): string[] {
   return [...new Set(scopes)];
 }
 
+export function approvedScopes(raw: string | null, selected: FormDataEntryValue[]): string[] {
+  const requested = requestedScopes(raw);
+  if (selected.length === 0 || selected.some((scope) => typeof scope !== "string" || !requested.includes(scope))) {
+    throw new Error("invalid_scope");
+  }
+  return requested.filter((scope) => selected.includes(scope));
+}
+
 export function issueClientRegistration(input: { clientName?: string; redirectUris: string[] }) {
   return issueMcpClientId(input);
 }

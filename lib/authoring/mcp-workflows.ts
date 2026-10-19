@@ -87,11 +87,9 @@ export const MCP_AUTHORING_DEFAULT_SCOPES = [
   "authoring:read",
   "authoring:stage",
   "authoring:review",
-] as const;
-export const MCP_AUTHORING_SCOPES = [
-  ...MCP_AUTHORING_DEFAULT_SCOPES,
   "authoring:withdraw",
 ] as const;
+export const MCP_AUTHORING_SCOPES = MCP_AUTHORING_DEFAULT_SCOPES;
 
 export type SourcePackSummary = {
   packId: string;

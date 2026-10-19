@@ -1,5 +1,7 @@
 # Zyx Academy Documentation Index
 
+The `ACTIVE` architecture, deployment, development, and feature guides document all four MCP OAuth default scopes, per-scope consent checkboxes, and reauthorization for existing tokens.
+
 This directory contains the technical documentation, architecture specifications, data schemas, operational runbooks, bundle contracts, and audits for Zyx Academy.
 
 All markdown documents across `docs/` and `plans/` must be registered in this index with an explicit lifecycle status. The active feature catalog also specifies catalogue-based Article headings, chapter numbering, decoded canonical product URLs, and subsection navigation matching visible block headings. The active Product Bundle V3 contract includes labelled open and closed graph points and accepts complete Diktat PDFs from 1 to 4 pages without filler or font shrinking.
