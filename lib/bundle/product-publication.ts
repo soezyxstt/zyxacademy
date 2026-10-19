@@ -238,11 +238,16 @@ async function insertArticle(tx: Tx, product: Extract<ProductEntity, { productTy
   const articleId = targetId(product);
   const chapterId = await resolveChapter(tx, product.chapterId, course.targetId);
   const [existing] = await tx.select({ id: artikel.id, title: artikel.title, version: artikel.version, sourceHash: artikel.sourceHash, generationHash: artikel.generationHash }).from(artikel).where(eq(artikel.id, articleId)).limit(1);
+  const baseSlug = product.version === 1 ? product.slug : `${product.slug}-v${product.version}`;
+  const [slugOwner] = await tx.select({ id: artikel.id }).from(artikel).where(eq(artikel.slug, baseSlug)).limit(1);
+  const slug = slugOwner && slugOwner.id !== articleId
+    ? `${baseSlug}-${createHash("sha256").update(articleId, "utf8").digest("hex")}`
+    : baseSlug;
   const content = articleMarkdown(product);
   const visualMeta = product.visuals && product.visuals.length > 0
     ? `\n\n<!--__ZYX_V3_ARTICLE_VISUALS__:${Buffer.from(JSON.stringify(product.visuals)).toString("base64url")}-->`
     : "";
-  const values = { id: articleId, mataKuliahId: course.targetId, babId: chapterId, slug: product.version === 1 ? product.slug : `${product.slug}-v${product.version}`, title: product.title, contentMarkdown: `${content}${visualMeta}`, structureStatus: product.sections.length > 0 ? "structured" as const : "legacy_unreviewed" as const, version: product.version, status: "published" as const, sourceHash: product.sourceHash, generationHash: product.generationHash, creatorId: product.creatorId, curatorId: product.curatorId ?? null, publishedAt: now, createdAt: now, updatedAt: now };
+  const values = { id: articleId, mataKuliahId: course.targetId, babId: chapterId, slug, title: product.title, contentMarkdown: `${content}${visualMeta}`, structureStatus: product.sections.length > 0 ? "structured" as const : "legacy_unreviewed" as const, version: product.version, status: "published" as const, sourceHash: product.sourceHash, generationHash: product.generationHash, creatorId: product.creatorId, curatorId: product.curatorId ?? null, publishedAt: now, createdAt: now, updatedAt: now };
   if (existing) {
     if (!equal(existing.title, values.title) || existing.version !== values.version || existing.sourceHash !== values.sourceHash || existing.generationHash !== values.generationHash) throw new Error(`PRODUCT_BUNDLE_VERSION_CONFLICT:${product.id}`);
   } else await tx.insert(artikel).values(values);
