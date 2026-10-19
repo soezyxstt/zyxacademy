@@ -1,6 +1,6 @@
 # Zyx Academy Documentation Index
 
-The `ACTIVE` architecture, deployment, development, and feature guides document all four MCP OAuth default scopes, per-scope consent checkboxes, and reauthorization for existing tokens.
+The `ACTIVE` architecture, deployment, development, and feature guides document all four MCP OAuth default scopes, all four consent checkboxes even for narrower client requests, and reauthorization for existing tokens.
 
 This directory contains the technical documentation, architecture specifications, data schemas, operational runbooks, bundle contracts, and audits for Zyx Academy.
 
