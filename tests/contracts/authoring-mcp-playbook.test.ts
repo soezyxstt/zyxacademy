@@ -178,8 +178,24 @@ describe("authoring MCP bootstrap token, compatibility matrix, and drift checks 
       "product/flashcards",
       "product/derivation-audit",
     ]);
-    const textBlocks = body.result?.content?.map((c) => c.text ?? "") ?? [];
-    expect(textBlocks.some((t) => t.includes("## Module: product/editorial"))).toBe(true);
+    const textBlocks = body.result?.content?.filter((c) => c.type === "text") ?? [];
+    expect(textBlocks).toHaveLength(1);
+    const textPayload = JSON.parse(textBlocks[0].text!);
+    expect(textPayload).toEqual(structured);
+    expect(textPayload.instructionsMarkdown).toContain("## Module: product/editorial");
+    expect(readMcpBootstrapToken(textPayload.bootstrapToken).stage).toBe("product");
+  });
+
+  it("delivers URL-only bootstrap metadata and a usable token without structuredContent", async () => {
+    const body = await callMcpTool(testPrincipal, "workflow.get_playbook", { stage: "common", bootstrapProtocol: 1 });
+    expect(body.result?.content).toHaveLength(1);
+    const payload = JSON.parse(body.result!.content![0].text!);
+    expect(payload).toEqual(body.result?.structuredContent);
+    expect(payload.environment).toBeString();
+    expect(payload.serverRevision).toBeString();
+    expect(payload.contractRevision).toStartWith("contract-v1-");
+    expect(payload.compatibility.code).toBe("AUTHORING_MCP_PLUGIN_OUTDATED");
+    expect(readMcpBootstrapToken(payload.bootstrapToken).stage).toBe("common");
   });
 
   it("blocks workflow.get_playbook for product stage when independentSubagents is false", async () => {
@@ -194,6 +210,8 @@ describe("authoring MCP bootstrap token, compatibility matrix, and drift checks 
     expect(body.result?.structuredContent?.ok).toBe(false);
     expect(body.result?.structuredContent?.compatibility?.code).toBe("AUTHORING_MCP_CAPABILITY_MISSING");
     expect(body.result?.structuredContent?.bootstrapToken).toBeNull();
+    expect(body.result?.content).toHaveLength(1);
+    expect(JSON.parse(body.result!.content![0].text!)).toEqual(body.result?.structuredContent);
   });
 
   it("binds bootstrap context into runToken and verifies matching principal, environment, and revisions", () => {

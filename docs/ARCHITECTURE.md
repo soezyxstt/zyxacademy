@@ -1171,3 +1171,5 @@ Browser / Client
    - `bun run worker:deno:audit`: Scans the entire dependency graph of `jobs/compute.ts` to ensure zero Next.js, React, or framework leaks.
    - `bun run audit:web-boundaries`: Scans `app/**` to guarantee zero imports of `sharp`, `pdf-parse`, `puppeteer`, or compute workers in the Vercel web tier.
 6. **Deno Deploy CLI**: Deployment uses the official `deno deploy --non-interactive --org soezyxst --app zyx-background` CLI, driven by GitHub Actions with `DENO_DEPLOY_TOKEN`.
+
+`workflow.get_playbook` returns exactly one JSON text content block, identical to `structuredContent`. The JSON includes `instructionsMarkdown`, revision metadata, compatibility, and `bootstrapToken`, so clients that retain only text still receive the complete bootstrap payload.
