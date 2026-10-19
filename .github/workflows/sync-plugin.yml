@@ -1,12 +1,21 @@
 name: Sync Zyx Authoring MCP Plugin
 
 on:
+  pull_request:
+    paths:
+      - 'plugins/zyx-authoring-mcp/**'
+      - 'lib/authoring/**'
+      - 'app/api/mcp/authoring/**'
+      - 'tests/contracts/authoring-mcp*.ts'
+      - '.github/workflows/sync-plugin.yml'
   push:
     branches:
       - staging
       - main
     paths:
       - 'plugins/zyx-authoring-mcp/**'
+      - 'lib/authoring/**'
+      - 'app/api/mcp/authoring/**'
       - '.github/workflows/sync-plugin.yml'
   workflow_dispatch:
     inputs:
@@ -20,55 +29,124 @@ on:
           - staging
           - production
 
+permissions:
+  contents: read
+
 jobs:
-  sync-plugin:
-    name: Mirror Plugin to External Repo
+  validate-and-resolve:
+    name: Validate Plugin & Resolve Target
     runs-on: ubuntu-latest
+    outputs:
+      should_mirror: ${{ steps.resolve.outputs.should_mirror }}
+      target_env: ${{ steps.resolve.outputs.target_env }}
+      target_branch: ${{ steps.resolve.outputs.target_branch }}
 
     steps:
       - name: Checkout Source Repository
         uses: actions/checkout@v4
 
-      - name: Determine Environment & Target Branch
-        id: determine-env
+      - name: Run Plugin Distribution Unit Tests
         run: |
+          python3 -m unittest discover -s plugins/zyx-authoring-mcp/tests -p "test_*.py" -v
+
+      - name: Validate Both Environment Builds
+        run: |
+          mkdir -p /tmp/zyx-plugin-validate
+          python3 plugins/zyx-authoring-mcp/scripts/configure_environment.py build \
+            --plugin-root plugins/zyx-authoring-mcp \
+            --environment staging \
+            --output-dir /tmp/zyx-plugin-validate/staging \
+            --json > /tmp/zyx-plugin-validate/staging-meta.json
+          python3 plugins/zyx-authoring-mcp/scripts/configure_environment.py build \
+            --plugin-root plugins/zyx-authoring-mcp \
+            --environment production \
+            --output-dir /tmp/zyx-plugin-validate/production \
+            --json > /tmp/zyx-plugin-validate/production-meta.json
+
+      - name: Upload Validated Build Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: authoring-plugin-validated-${{ github.sha }}
+          path: /tmp/zyx-plugin-validate/
+          include-hidden-files: true
+          retention-days: 14
+
+      - name: Resolve Target Environment & Mirror Eligibility
+        id: resolve
+        run: |
+          EVENT_NAME="${{ github.event_name }}"
           REF_NAME="${{ github.ref_name }}"
+          FULL_REF="${{ github.ref }}"
           INPUT_ENV="${{ github.event.inputs.target_env }}"
-          
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "$INPUT_ENV" != "auto" ]; then
-            if [ "$INPUT_ENV" = "staging" ]; then
-              TARGET_ENV="staging"
-              TARGET_BRANCH="staging"
-            else
-              TARGET_ENV="production"
-              TARGET_BRANCH="main"
-            fi
-          else
-            if [ "$REF_NAME" = "staging" ]; then
-              TARGET_ENV="staging"
-              TARGET_BRANCH="staging"
-            else
-              TARGET_ENV="production"
-              TARGET_BRANCH="main"
-            fi
+
+          if [ "$EVENT_NAME" != "workflow_dispatch" ]; then
+            echo "should_mirror=false" >> "$GITHUB_OUTPUT"
+            echo "target_env=staging" >> "$GITHUB_OUTPUT"
+            echo "target_branch=staging" >> "$GITHUB_OUTPUT"
+            exit 0
           fi
-          
-          echo "TARGET_ENV=$TARGET_ENV" >> $GITHUB_ENV
-          echo "TARGET_BRANCH=$TARGET_BRANCH" >> $GITHUB_ENV
-          echo "Target Environment: $TARGET_ENV"
-          echo "Target Branch in Plugin Repo: $TARGET_BRANCH"
 
-      - name: Prepare Plugin Payload & Inject Manifests
+          if [ "$EVENT_NAME" = "workflow_dispatch" ] && [ "$INPUT_ENV" != "auto" ]; then
+            TARGET_ENV="$INPUT_ENV"
+          elif [ "$REF_NAME" = "staging" ]; then
+            TARGET_ENV="staging"
+          elif [ "$REF_NAME" = "main" ]; then
+            TARGET_ENV="production"
+          else
+            echo "::error::Unsupported branch ref '$REF_NAME' for automatic mirror."
+            exit 1
+          fi
+
+          if [ "$TARGET_ENV" = "production" ] && [ "$FULL_REF" != "refs/heads/main" ]; then
+            echo "::error::Production plugin mirror is restricted to refs/heads/main (got '$FULL_REF')."
+            exit 1
+          fi
+
+          if [ "$TARGET_ENV" = "staging" ]; then
+            TARGET_BRANCH="staging"
+          else
+            TARGET_BRANCH="main"
+          fi
+
+          echo "should_mirror=true" >> "$GITHUB_OUTPUT"
+          echo "target_env=$TARGET_ENV" >> "$GITHUB_OUTPUT"
+          echo "target_branch=$TARGET_BRANCH" >> "$GITHUB_OUTPUT"
+
+  mirror-plugin:
+    name: Mirror Plugin (${{ needs.validate-and-resolve.outputs.target_env }})
+    needs: validate-and-resolve
+    if: needs.validate-and-resolve.outputs.should_mirror == 'true'
+    runs-on: ubuntu-latest
+    concurrency:
+      group: authoring-plugin-mirror-${{ needs.validate-and-resolve.outputs.target_env }}
+      cancel-in-progress: false
+
+    steps:
+      - name: Checkout Source Repository
+        uses: actions/checkout@v4
+
+      - name: Build Allowlisted Package for Target Environment
+        env:
+          TARGET_ENV: ${{ needs.validate-and-resolve.outputs.target_env }}
         run: |
-          cp -a plugins/zyx-authoring-mcp build-plugin
-          python3 build-plugin/scripts/configure_environment.py build-plugin "$TARGET_ENV"
+          python3 plugins/zyx-authoring-mcp/scripts/configure_environment.py build \
+            --plugin-root plugins/zyx-authoring-mcp \
+            --environment "$TARGET_ENV" \
+            --output-dir build-plugin \
+            --json > build-metadata.json
 
-      - name: Push to External Plugin Repository
+      - name: Verify Release Progression & Push to Mirror
         env:
           PLUGIN_SYNC_TOKEN: ${{ secrets.PLUGIN_SYNC_TOKEN }}
-          TARGET_BRANCH: ${{ env.TARGET_BRANCH }}
-          TARGET_ENV: ${{ env.TARGET_ENV }}
+          TARGET_ENV: ${{ needs.validate-and-resolve.outputs.target_env }}
+          TARGET_BRANCH: ${{ needs.validate-and-resolve.outputs.target_branch }}
         run: |
+          set -euo pipefail
+          SOURCE_HEAD=$(git ls-remote origin "$GITHUB_REF" | cut -f1)
+          if [ "$SOURCE_HEAD" != "$GITHUB_SHA" ]; then
+            echo "Source ref advanced; skipping outdated plugin mirror job."
+            exit 0
+          fi
           if [ -z "$PLUGIN_SYNC_TOKEN" ]; then
             echo "::error::Secret PLUGIN_SYNC_TOKEN is not defined in this repository."
             exit 1
@@ -80,42 +158,59 @@ jobs:
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
-          echo "Cloning target branch $TARGET_BRANCH from zyx-authoring-mcp..."
-          if git clone --depth 1 --branch "$TARGET_BRANCH" "$REPO_URL" "$CLONE_DIR"; then
-            echo "Branch $TARGET_BRANCH found."
-          else
-            echo "Branch $TARGET_BRANCH does not exist yet. Initializing..."
-            mkdir -p "$CLONE_DIR"
-            cd "$CLONE_DIR"
-            git init
-            git remote add origin "$REPO_URL"
-            git checkout -b "$TARGET_BRANCH"
-            cd -
+          set +e
+          LS_OUTPUT=$(git ls-remote --heads "$REPO_URL" "refs/heads/$TARGET_BRANCH" 2>&1)
+          LS_STATUS=$?
+          set -e
+
+          if [ "$LS_STATUS" -ne 0 ]; then
+            echo "::error::Failed to query remote plugin repository (check network or token permissions)."
+            exit 1
           fi
 
-          # Clean target directory except .git
-          find "$CLONE_DIR" -mindepth 1 -maxdepth 1 ! -name '.git' -exec rm -rf {} +
+          if [ -n "$LS_OUTPUT" ]; then
+            git clone --depth 1 --branch "$TARGET_BRANCH" "$REPO_URL" "$CLONE_DIR"
+            VERDICT_JSON=$(python3 plugins/zyx-authoring-mcp/scripts/configure_environment.py verify-release \
+              --candidate-dir build-plugin \
+              --baseline-dir "$CLONE_DIR" \
+              --json)
+            echo "$VERDICT_JSON"
+            STATUS=$(python3 -c 'import json,sys; print(json.loads(sys.stdin.read())["status"])' <<< "$VERDICT_JSON")
+            if [ "$STATUS" = "noop" ]; then
+              echo "Version and payload hash match baseline on $TARGET_BRANCH; skipping push."
+              exit 0
+            fi
+          else
+            echo "Remote branch $TARGET_BRANCH does not exist yet; initializing clean branch."
+            git init "$CLONE_DIR"
+            git -C "$CLONE_DIR" remote add origin "$REPO_URL"
+            git -C "$CLONE_DIR" checkout -b "$TARGET_BRANCH"
+          fi
 
-          # Copy prepared build payload, including dotfiles and dot-directories.
+          find "$CLONE_DIR" -mindepth 1 -maxdepth 1 ! -name '.git' -exec rm -rf {} +
           cp -a build-plugin/. "$CLONE_DIR"/
+          # The ownership marker belongs to local build directories, not published packages.
+          rm -f "$CLONE_DIR/.zyx-managed-plugin.json"
 
           for required_file in \
+            'release.json' \
+            'plugin.json' \
             '.codex-plugin/plugin.json' \
             '.claude-plugin/plugin.json' \
-            '.mcp.json'; do
+            '.mcp.json' \
+            'mcp_config.json'; do
             if [ ! -f "$CLONE_DIR/$required_file" ]; then
-              echo "::error::Required plugin manifest was not copied: $required_file"
+              echo "::error::Required plugin file missing after copy: $required_file"
               exit 1
             fi
           done
 
-          cd "$CLONE_DIR"
-          git add -A
-
-          if git diff --staged --quiet; then
-            echo "No changes detected between source and destination. Nothing to commit."
+          git -C "$CLONE_DIR" add -A
+          if git -C "$CLONE_DIR" diff --staged --quiet; then
+            echo "No staged changes detected; skipping commit."
           else
-            git commit -m "sync(plugin): mirror from zyx-web@${{ github.sha }} [$TARGET_ENV]"
-            git push origin "$TARGET_BRANCH"
-            echo "Successfully pushed changes to branch $TARGET_BRANCH in soezyxstt/zyx-authoring-mcp."
+            VERSION=$(python3 -c 'import json; print(json.load(open("build-plugin/release.json"))["version"])')
+            PAYLOAD_HASH=$(python3 -c 'import json; print(json.load(open("build-metadata.json"))["payloadHash"][:12])')
+            git -C "$CLONE_DIR" commit -m "sync(plugin): release v${VERSION} (${PAYLOAD_HASH}) from zyx-web@${{ github.sha }} [${TARGET_ENV}]"
+            git -C "$CLONE_DIR" push origin "$TARGET_BRANCH"
           fi

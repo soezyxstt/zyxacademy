@@ -1,6 +1,6 @@
 {
-  "name": "zyx-authoring-mcp",
-  "displayName": "Zyx Authoring MCP",
-  "description": "Author production Zyx content through MCP quality gates.",
+  "name": "zyx-authoring-mcp-staging",
+  "displayName": "Zyx Authoring MCP (Staging)",
+  "description": "Author staging Zyx content through MCP quality gates.",
   "logo": "assets/logo.png"
 }

@@ -71,6 +71,7 @@ import {
   AUTHORING_MCP_MAX_SOURCE_PACK_BYTES,
   authoringWorkflowSchema,
   decodeMcpArtifact,
+  getMcpPlaybook,
   ingestMcpSourcePack,
   issueSourcePackToken,
   listAuthoringWorkflows,
@@ -82,8 +83,15 @@ import {
   readMcpRunToken,
   readMcpSourcePackToken,
   startAuthoringWorkflow,
+  verifyMcpExecutionBootstrap,
   workflowContract,
 } from "@/lib/authoring/mcp-workflows";
+import {
+  authoringMcpSkillSchema,
+  authoringPlaybookModuleKeySchema,
+  authoringPlaybookStageSchema,
+  clientCapabilitiesSchema,
+} from "@/lib/authoring/mcp-playbook";
 import { requireMcpScope, type McpPrincipal } from "@/lib/authoring/mcp-auth";
 import {
   createQuizWithQuestions,
@@ -105,6 +113,7 @@ import {
 type ToolPayload = Record<string, unknown>;
 
 type ExtraToolContent =
+  | { type: "text"; text: string }
   | { type: "image"; data: string; mimeType: "image/png" }
   | { type: "resource"; resource: { uri: string; mimeType: "application/pdf"; blob: string } };
 
@@ -640,9 +649,22 @@ async function reviewDraftAgainstScope(run: ReturnType<typeof readMcpRunToken>, 
   return { review, catalogCount: catalogRows.length };
 }
 
-async function validateQuestionBankDraft(runToken: string, draft: NormalizedQuestionBankDraft) {
+async function validateQuestionBankDraft(
+  principal: McpPrincipal,
+  runToken: string,
+  draft: NormalizedQuestionBankDraft,
+  bootstrapToken?: string,
+) {
   const run = readMcpRunToken(runToken);
   if (run.workflow !== "quiz_bank") return { ok: false, valid: false, error: "AUTHORING_MCP_WORKFLOW_MISMATCH" };
+  verifyMcpExecutionBootstrap({
+    actorId: principal.actorId,
+    sessionId: principal.sessionId,
+    bootstrapToken,
+    run,
+    requiredStage: "quiz",
+    expectedWorkflow: "quiz_bank",
+  });
   const { review } = await reviewDraftAgainstScope(run, draft);
   if (!review.valid) {
     return {
@@ -691,10 +713,23 @@ async function validateQuestionBankDraft(runToken: string, draft: NormalizedQues
   };
 }
 
-async function stageQuestionBankDraft(principal: McpPrincipal, runToken: string, draft: NormalizedQuestionBankDraft) {
+async function stageQuestionBankDraft(
+  principal: McpPrincipal,
+  runToken: string,
+  draft: NormalizedQuestionBankDraft,
+  bootstrapToken?: string,
+) {
   requireMcpScope(principal, "authoring:stage");
   const run = readMcpRunToken(runToken);
   if (run.workflow !== "quiz_bank") return { ok: false, valid: false, staged: false, error: "AUTHORING_MCP_WORKFLOW_MISMATCH" };
+  verifyMcpExecutionBootstrap({
+    actorId: principal.actorId,
+    sessionId: principal.sessionId,
+    bootstrapToken,
+    run,
+    requiredStage: "quiz",
+    expectedWorkflow: "quiz_bank",
+  });
   const { review } = await reviewDraftAgainstScope(run, draft);
   if (!review.valid) {
     return {
@@ -901,7 +936,7 @@ function computeCurrentProductImportReadiness(
     diktatGenerationHash: expectedDiktatGenHash,
     reviewRows: pedReviews.map((r) => ({
       id: r.id,
-      imporBundleId: r.imporBundleId,
+      imporBundleId: row.id,
       status: r.status,
       policyVersion: r.policyVersion,
       contentFingerprint: r.contentFingerprint,
@@ -996,9 +1031,17 @@ async function stageIdeaArtifact(input: {
   filename: string;
   bundleBase64: string;
   replaceImportId?: string;
+  bootstrapToken?: string;
 }) {
   const run = readMcpRunToken(input.runToken);
   if (run.workflow !== "idea_product") return { ok: false, error: "AUTHORING_MCP_WORKFLOW_MISMATCH" };
+  verifyMcpExecutionBootstrap({
+    actorId: input.principal.actorId,
+    bootstrapToken: input.bootstrapToken,
+    run,
+    requiredStage: "idea",
+    expectedWorkflow: "idea_product",
+  });
   const bytes = decodeMcpArtifact(input.bundleBase64, AUTHORING_MCP_MAX_BUNDLE_BYTES);
   const validation = validateIdeaBundleZip(bytes);
   if (!validation.success) return { ok: false, valid: false, staged: false, filename: input.filename, issues: validation.issues };
@@ -1060,9 +1103,17 @@ async function stageProductArtifact(input: {
   filename: string;
   bundleBase64: string;
   replaceImportId?: string;
+  bootstrapToken?: string;
 }) {
   const run = readMcpRunToken(input.runToken);
   if (run.workflow !== "idea_product") return { ok: false, error: "AUTHORING_MCP_WORKFLOW_MISMATCH" };
+  verifyMcpExecutionBootstrap({
+    actorId: input.principal.actorId,
+    bootstrapToken: input.bootstrapToken,
+    run,
+    requiredStage: "product",
+    expectedWorkflow: "idea_product",
+  });
   const bytes = decodeMcpArtifact(input.bundleBase64, AUTHORING_MCP_MAX_BUNDLE_BYTES);
   const validation = validateProductBundle(bytes);
   if (!validation.success) {
@@ -1297,6 +1348,45 @@ function registerWorkflowTools(server: McpServer, principal: McpPrincipal): void
     }
   });
 
+  (server as any).registerTool("workflow.get_playbook", {
+    title: "Get authoring playbook and bootstrap token",
+    description: "Mengambil playbook tahap authoring dari server, memeriksa kompatibilitas versi plugin dan protokol bootstrap, serta menerbitkan bootstrapToken bertanda tangan untuk mengikat operasi authoring.",
+    inputSchema: {
+      skill: authoringMcpSkillSchema.optional(),
+      bootstrapProtocol: z.number().int().positive().default(1),
+      pluginVersion: z.string().trim().min(1).max(64).optional(),
+      stage: authoringPlaybookStageSchema.optional(),
+      modules: z.array(authoringPlaybookModuleKeySchema).max(20).optional(),
+      expectedPlaybookRevision: z.string().trim().min(1).optional(),
+      runToken: z.string().trim().min(1).optional(),
+      clientCapabilities: clientCapabilitiesSchema.optional(),
+    },
+    annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
+  }, async (input: any) => {
+    try {
+      requireMcpScope(principal, "authoring:read");
+      const result = getMcpPlaybook({
+        actorId: principal.actorId,
+        sessionId: principal.sessionId,
+        skill: input.skill,
+        bootstrapProtocol: input.bootstrapProtocol,
+        pluginVersion: input.pluginVersion,
+        stage: input.stage,
+        modules: input.modules,
+        expectedPlaybookRevision: input.expectedPlaybookRevision,
+        runToken: input.runToken,
+        clientCapabilities: input.clientCapabilities,
+      });
+      return toolResult(
+        result,
+        !result.ok,
+        [{ type: "text", text: result.instructionsMarkdown }],
+      );
+    } catch (error) {
+      return toolError(error);
+    }
+  });
+
   (server as any).registerTool("source.ingest", {
     title: "Ingest Source Pack",
     description: "Menerima Source Pack sebagai base64 melalui MCP, menjalankan compatibility checking, menyimpan ke R2 dan database, dan mengembalikan token sumber tervalidasi.",
@@ -1305,10 +1395,17 @@ function registerWorkflowTools(server: McpServer, principal: McpPrincipal): void
       contentBase64: z.string().min(1).max(96 * 1024 * 1024),
       originals: sourceOriginalSchema,
       storedOriginals: storedSourceOriginalSchema,
+      bootstrapToken: z.string().min(1).optional(),
     },
     annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
-  }, async ({ filename, contentBase64, originals, storedOriginals }: any) => safeTool(async () => {
+  }, async ({ filename, contentBase64, originals, storedOriginals, bootstrapToken }: any) => safeTool(async () => {
     requireMcpScope(principal, "authoring:read");
+    verifyMcpExecutionBootstrap({
+      actorId: principal.actorId,
+      sessionId: principal.sessionId,
+      bootstrapToken,
+      requiredStage: "source",
+    });
     const resolved = await resolveSourceOriginals(originals, storedOriginals);
     let ingestResult: any;
     const hasStoredRefs = resolved.originals && [...resolved.originals.values()].some(
@@ -1557,14 +1654,13 @@ function registerWorkflowTools(server: McpServer, principal: McpPrincipal): void
     try {
       const parsedPack = await readStoredSourcePack(stored.sourceUriOrKey);
       const hashById = new Map<string, string>();
-      for (const doc of parsedPack.documents) {
-        const mdHash = createHash("sha256").update(doc.markdown, "utf8").digest("hex");
-        hashById.set(doc.id, mdHash);
+      for (const doc of parsedPack.manifest.documents) {
+        hashById.set(doc.id, doc.markdownSha256);
       }
       documentsWithHashes = documentsWithHashes.map((doc) => ({
         ...doc,
-        markdownSha256: hashById.get(doc.id) ?? null,
-        documentHash: hashById.get(doc.id) ?? null,
+        markdownSha256: hashById.get(doc.id) ?? doc.markdownSha256,
+        documentHash: hashById.get(doc.id) ?? doc.markdownSha256,
       }));
     } catch {
       // Fallback if archive is not readable in metadata-only call
@@ -1594,9 +1690,10 @@ function registerWorkflowTools(server: McpServer, principal: McpPrincipal): void
       sourcePackImportId: z.string().min(1).optional(),
       courseKey: z.string().min(1),
       chapterKey: z.string().min(1).optional(),
+      bootstrapToken: z.string().min(1).optional(),
     },
     annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
-  }, async ({ workflow, sourcePackToken, sourcePackId, sourcePackImportId, courseKey, chapterKey }: any) => safeTool(async () => {
+  }, async ({ workflow, sourcePackToken, sourcePackId, sourcePackImportId, courseKey, chapterKey, bootstrapToken }: any) => safeTool(async () => {
     requireMcpScope(principal, "authoring:read");
     if (workflow === "reference_question_ingest" && (chapterKey || sourcePackToken || sourcePackId || sourcePackImportId)) throw new Error("WORKFLOW_SCOPE_INVALID");
     let resolvedToken = sourcePackToken;
@@ -1657,7 +1754,7 @@ function registerWorkflowTools(server: McpServer, principal: McpPrincipal): void
     }
     return {
       ok: true,
-      ...(await startAuthoringWorkflow({ workflow, sourcePackToken: resolvedToken, courseKey, chapterKey })),
+      ...(await startAuthoringWorkflow({ workflow, sourcePackToken: resolvedToken, courseKey, chapterKey, actorId: principal.actorId, sessionId: principal.sessionId, bootstrapToken })),
     };
   }));
 
@@ -1668,17 +1765,35 @@ function registerWorkflowTools(server: McpServer, principal: McpPrincipal): void
     annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
   }, async ({ runToken }: { runToken: string }) => safeTool(() => {
     requireMcpScope(principal, "authoring:read");
-    return { ok: true, ...publicMcpRun(runToken) };
+    return { ok: true, ...publicMcpRun(runToken, principal) };
   }));
 
   (server as any).registerTool("workflow.get_contract", {
     title: "Get workflow contract",
     description: "Mengembalikan aturan output dan compatibility gate untuk workflow yang dipilih.",
-    inputSchema: { runToken: z.string().min(1) },
+    inputSchema: {
+      runToken: z.string().min(1),
+      bootstrapToken: z.string().min(1).optional(),
+      skill: authoringMcpSkillSchema.optional(),
+      bootstrapProtocol: z.number().int().positive().optional(),
+      pluginVersion: z.string().trim().min(1).max(64).optional(),
+      clientCapabilities: clientCapabilitiesSchema.optional(),
+    },
     annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
-  }, async ({ runToken }: { runToken: string }) => safeTool(() => {
+  }, async ({ runToken, bootstrapToken, skill, bootstrapProtocol, pluginVersion, clientCapabilities }: any) => safeTool(() => {
     requireMcpScope(principal, "authoring:read");
-    return { ok: true, ...workflowContract(runToken) };
+    return {
+      ok: true,
+      ...workflowContract(runToken, {
+        actorId: principal.actorId,
+        sessionId: principal.sessionId,
+        bootstrapToken,
+        skill,
+        bootstrapProtocol,
+        pluginVersion,
+        clientCapabilities,
+      }),
+    };
   }));
 }
 
@@ -1690,12 +1805,21 @@ function registerValidationTools(server: McpServer, principal: McpPrincipal): vo
       runToken: z.string().min(1),
       filename: z.string().min(1).max(255),
       bundleBase64: z.string().min(1).max(48 * 1024 * 1024),
+      bootstrapToken: z.string().min(1).optional(),
     },
     annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
-  }, async ({ runToken, filename, bundleBase64 }: any) => safeTool(async () => {
+  }, async ({ runToken, filename, bundleBase64, bootstrapToken }: any) => safeTool(async () => {
     requireMcpScope(principal, "authoring:read");
     const run = readMcpRunToken(runToken);
     if (run.workflow !== "idea_product") return { ok: false, error: "AUTHORING_MCP_WORKFLOW_MISMATCH" };
+    verifyMcpExecutionBootstrap({
+      actorId: principal.actorId,
+      sessionId: principal.sessionId,
+      run,
+      bootstrapToken,
+      requiredStage: "idea",
+      expectedWorkflow: "idea_product",
+    });
     const validation = validateIdeaBundleZip(decodeMcpArtifact(bundleBase64, AUTHORING_MCP_MAX_BUNDLE_BYTES));
     if (!validation.success) return { ok: false, valid: false, filename, issues: validation.issues };
     if (validation.data.manifest.courseId !== run.courseId) {
@@ -1726,11 +1850,12 @@ function registerValidationTools(server: McpServer, principal: McpPrincipal): vo
       runToken: z.string().min(1),
       filename: z.string().min(1).max(255),
       bundleBase64: z.string().min(1).max(48 * 1024 * 1024),
+      bootstrapToken: z.string().min(1).optional(),
     },
     annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
-  }, async ({ runToken, filename, bundleBase64 }: any) => safeTool(async () => {
+  }, async ({ runToken, filename, bundleBase64, bootstrapToken }: any) => safeTool(async () => {
     requireMcpScope(principal, "authoring:stage");
-    return stageIdeaArtifact({ principal, runToken, filename, bundleBase64 });
+    return stageIdeaArtifact({ principal, runToken, filename, bundleBase64, bootstrapToken });
   }));
 
   (server as any).registerTool("authoring.validate_product_bundle", {
@@ -1740,12 +1865,21 @@ function registerValidationTools(server: McpServer, principal: McpPrincipal): vo
       runToken: z.string().min(1),
       filename: z.string().min(1).max(255),
       bundleBase64: z.string().min(1).max(48 * 1024 * 1024),
+      bootstrapToken: z.string().min(1).optional(),
     },
     annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
-  }, async ({ runToken, filename, bundleBase64 }: any) => safeTool(async () => {
+  }, async ({ runToken, filename, bundleBase64, bootstrapToken }: any) => safeTool(async () => {
     requireMcpScope(principal, "authoring:read");
     const run = readMcpRunToken(runToken);
     if (run.workflow !== "idea_product") return { ok: false, error: "AUTHORING_MCP_WORKFLOW_MISMATCH" };
+    verifyMcpExecutionBootstrap({
+      actorId: principal.actorId,
+      sessionId: principal.sessionId,
+      run,
+      bootstrapToken,
+      requiredStage: "product",
+      expectedWorkflow: "idea_product",
+    });
     const bytes = decodeMcpArtifact(bundleBase64, AUTHORING_MCP_MAX_BUNDLE_BYTES);
     const validation = validateProductBundle(bytes);
     if (!validation.success) {
@@ -1842,11 +1976,12 @@ function registerValidationTools(server: McpServer, principal: McpPrincipal): vo
       runToken: z.string().min(1),
       filename: z.string().min(1).max(255),
       bundleBase64: z.string().min(1).max(48 * 1024 * 1024),
+      bootstrapToken: z.string().min(1).optional(),
     },
     annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
-  }, async ({ runToken, filename, bundleBase64 }: any) => safeTool(async () => {
+  }, async ({ runToken, filename, bundleBase64, bootstrapToken }: any) => safeTool(async () => {
     requireMcpScope(principal, "authoring:stage");
-    return stageProductArtifact({ principal, runToken, filename, bundleBase64 });
+    return stageProductArtifact({ principal, runToken, filename, bundleBase64, bootstrapToken });
   }));
 
   (server as any).registerTool("assessment.list_ideas", {
@@ -2001,13 +2136,14 @@ function registerValidationTools(server: McpServer, principal: McpPrincipal): vo
     inputSchema: {
       runToken: z.string().min(1),
       draftJson: z.string().min(1).max(8 * 1024 * 1024),
+      bootstrapToken: z.string().min(1).optional(),
     },
     annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
-  }, async ({ runToken, draftJson }: any) => safeTool(async () => {
+  }, async ({ runToken, draftJson, bootstrapToken }: any) => safeTool(async () => {
     requireMcpScope(principal, "authoring:read");
     const parsed = parseQuestionBankDraftJson(draftJson);
     if (!parsed.success) return { ok: false, valid: false, issues: parsed.issues, next: "agent_revision" };
-    return validateQuestionBankDraft(runToken, normalizeQuestionBankDraft(parsed.data));
+    return validateQuestionBankDraft(principal, runToken, normalizeQuestionBankDraft(parsed.data), bootstrapToken);
   }));
 
   (server as any).registerTool("assessment.submit_quiz_draft", {
@@ -2016,12 +2152,13 @@ function registerValidationTools(server: McpServer, principal: McpPrincipal): vo
     inputSchema: {
       runToken: z.string().min(1),
       draftJson: z.string().min(1).max(8 * 1024 * 1024),
+      bootstrapToken: z.string().min(1).optional(),
     },
     annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
-  }, async ({ runToken, draftJson }: any) => safeTool(async () => {
+  }, async ({ runToken, draftJson, bootstrapToken }: any) => safeTool(async () => {
     const parsed = parseQuestionBankDraftJson(draftJson);
     if (!parsed.success) return { ok: false, valid: false, staged: false, issues: parsed.issues, next: "agent_revision" };
-    return stageQuestionBankDraft(principal, runToken, normalizeQuestionBankDraft(parsed.data));
+    return stageQuestionBankDraft(principal, runToken, normalizeQuestionBankDraft(parsed.data), bootstrapToken);
   }));
 }
 
@@ -2077,11 +2214,20 @@ function registerReferenceQuestionTools(server: McpServer, principal: McpPrincip
     inputSchema: {
       runToken: z.string().min(1),
       draftJson: z.string().min(1).max(8 * 1024 * 1024),
+      bootstrapToken: z.string().min(1).optional(),
     },
     annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
-  }, async ({ runToken, draftJson }: any) => safeTool(async () => {
+  }, async ({ runToken, draftJson, bootstrapToken }: any) => safeTool(async () => {
     requireMcpScope(principal, "authoring:read");
     const run = requireReferenceWorkflow(runToken);
+    verifyMcpExecutionBootstrap({
+      actorId: principal.actorId,
+      sessionId: principal.sessionId,
+      run,
+      bootstrapToken,
+      requiredStage: "reference",
+      expectedWorkflow: "reference_question_ingest",
+    });
     const parsed = parseReferenceQuestionDraftJson(draftJson);
     if (!parsed.success) return { ok: false, valid: false, issues: parsed.issues, next: "agent_revision" };
     const resolved = await resolveReferenceDraftContext(run, parsed.data);
@@ -2106,11 +2252,20 @@ function registerReferenceQuestionTools(server: McpServer, principal: McpPrincip
     inputSchema: {
       runToken: z.string().min(1),
       draftJson: z.string().min(1).max(8 * 1024 * 1024),
+      bootstrapToken: z.string().min(1).optional(),
     },
     annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
-  }, async ({ runToken, draftJson }: any) => safeTool(async () => {
+  }, async ({ runToken, draftJson, bootstrapToken }: any) => safeTool(async () => {
     requireMcpScope(principal, "authoring:stage");
     const run = requireReferenceWorkflow(runToken);
+    verifyMcpExecutionBootstrap({
+      actorId: principal.actorId,
+      sessionId: principal.sessionId,
+      run,
+      bootstrapToken,
+      requiredStage: "reference",
+      expectedWorkflow: "reference_question_ingest",
+    });
     const parsed = parseReferenceQuestionDraftJson(draftJson);
     if (!parsed.success) return { ok: false, valid: false, staged: false, published: false, issues: parsed.issues, next: "agent_revision" };
     const resolved = await resolveReferenceDraftContext(run, parsed.data);
@@ -2467,11 +2622,12 @@ function registerLifecycleTools(server: McpServer, principal: McpPrincipal): voi
       importId: z.string().trim().min(1),
       filename: z.string().min(1).max(255),
       bundleBase64: z.string().min(1).max(48 * 1024 * 1024),
+      bootstrapToken: z.string().min(1).optional(),
     },
     annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: false },
-  }, async ({ runToken, importId, filename, bundleBase64 }: any) => safeTool(async () => {
+  }, async ({ runToken, importId, filename, bundleBase64, bootstrapToken }: any) => safeTool(async () => {
     requireMcpScope(principal, "authoring:stage");
-    return stageIdeaArtifact({ principal, runToken, filename, bundleBase64, replaceImportId: importId });
+    return stageIdeaArtifact({ principal, runToken, filename, bundleBase64, replaceImportId: importId, bootstrapToken });
   }));
 
   (server as any).registerTool("authoring.restage_product_bundle", {
@@ -2482,20 +2638,30 @@ function registerLifecycleTools(server: McpServer, principal: McpPrincipal): voi
       importId: z.string().trim().min(1),
       filename: z.string().min(1).max(255),
       bundleBase64: z.string().min(1).max(48 * 1024 * 1024),
+      bootstrapToken: z.string().min(1).optional(),
     },
     annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: false },
-  }, async ({ runToken, importId, filename, bundleBase64 }: any) => safeTool(async () => {
+  }, async ({ runToken, importId, filename, bundleBase64, bootstrapToken }: any) => safeTool(async () => {
     requireMcpScope(principal, "authoring:stage");
-    return stageProductArtifact({ principal, runToken, filename, bundleBase64, replaceImportId: importId });
+    return stageProductArtifact({ principal, runToken, filename, bundleBase64, replaceImportId: importId, bootstrapToken });
   }));
 
   (server as any).registerTool("authoring.discard_product_draft", {
     title: "Discard Product Bundle draft",
     description: "Menghapus Product Bundle yang masih draft beserta artifact staging-nya. Published atau withdrawn bundle tidak dapat dihapus.",
-    inputSchema: { importId: z.string().trim().min(1) },
+    inputSchema: {
+      importId: z.string().trim().min(1),
+      bootstrapToken: z.string().min(1).optional(),
+    },
     annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: false },
-  }, async ({ importId }: any) => safeTool(async () => {
+  }, async ({ importId, bootstrapToken }: any) => safeTool(async () => {
     requireMcpScope(principal, "authoring:withdraw");
+    verifyMcpExecutionBootstrap({
+      actorId: principal.actorId,
+      sessionId: principal.sessionId,
+      bootstrapToken,
+      requiredStage: "product",
+    });
     return { ok: true, result: await discardProductBundleDraft({ importId, actorId: principal.actorId }) };
   }));
 
@@ -2506,10 +2672,17 @@ function registerLifecycleTools(server: McpServer, principal: McpPrincipal): voi
       importId: z.string().trim().min(1),
       decision: z.enum(["approved", "rejected"]),
       notes: z.string().trim().max(4000).optional(),
+      bootstrapToken: z.string().min(1).optional(),
     },
     annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: false },
-  }, async ({ importId, decision, notes }: any) => safeTool(async () => {
+  }, async ({ importId, decision, notes, bootstrapToken }: any) => safeTool(async () => {
     requireMcpScope(principal, "authoring:review");
+    verifyMcpExecutionBootstrap({
+      actorId: principal.actorId,
+      sessionId: principal.sessionId,
+      bootstrapToken,
+      requiredStage: "idea",
+    });
     return { ok: true, result: await reviewIdeaBundle({ importId, reviewerId: principal.actorId, decision, notes }) };
   }));
 
@@ -2527,18 +2700,28 @@ function registerLifecycleTools(server: McpServer, principal: McpPrincipal): voi
       expectedRevision: z.union([z.string(), z.number()]).optional(),
       notes: z.string().trim().max(4000).optional(),
       reason: z.string().trim().max(4000).optional(),
+      bootstrapToken: z.string().min(1).optional(),
     },
     annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: false },
   }, async (input: any) => safeTool(async () => {
     requireMcpScope(principal, "authoring:review");
 
+    let run: ReturnType<typeof readMcpRunToken> | null = null;
     if (input.runToken) {
-      const run = readMcpRunToken(input.runToken);
+      run = readMcpRunToken(input.runToken);
       if (run.workflow !== "idea_product") throw new Error("AUTHORING_MCP_WORKFLOW_MISMATCH");
       const row = await getProductBundleImport(input.importId);
       if (!row) throw new Error("PRODUCT_BUNDLE_NOT_FOUND");
       await assertImportRunScope(row.courseId, run.courseId);
     }
+
+    verifyMcpExecutionBootstrap({
+      actorId: principal.actorId,
+      sessionId: principal.sessionId,
+      run,
+      bootstrapToken: input.bootstrapToken,
+      requiredStage: "product",
+    });
 
     const result = await executePedagogicReview({
       importId: input.importId,
@@ -2562,10 +2745,19 @@ function registerLifecycleTools(server: McpServer, principal: McpPrincipal): voi
   (server as any).registerTool("authoring.withdraw_product_bundle", {
     title: "Withdraw published Product Bundle",
     description: "Menarik Product Bundle published melalui lifecycle audited, meretire projection canonical, dan mengantrekan penghapusan vector. Tool ini idempotent.",
-    inputSchema: { importId: z.string().trim().min(1) },
+    inputSchema: {
+      importId: z.string().trim().min(1),
+      bootstrapToken: z.string().min(1).optional(),
+    },
     annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: false },
-  }, async ({ importId }: any) => safeTool(async () => {
+  }, async ({ importId, bootstrapToken }: any) => safeTool(async () => {
     requireMcpScope(principal, "authoring:withdraw");
+    verifyMcpExecutionBootstrap({
+      actorId: principal.actorId,
+      sessionId: principal.sessionId,
+      bootstrapToken,
+      requiredStage: "product",
+    });
     return { ok: true, result: await withdrawProductBundle({ importId, withdrawnBy: principal.actorId }) };
   }));
 
@@ -2577,12 +2769,21 @@ function registerLifecycleTools(server: McpServer, principal: McpPrincipal): voi
       questionId: z.string().trim().min(1),
       question: questionAuthoringQuestionSchema,
       ideaLinks: z.array(questionIdeaLinkSchema).max(50).default([]),
+      bootstrapToken: z.string().min(1).optional(),
     },
     annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: false },
-  }, async ({ runToken, questionId, question, ideaLinks }: any) => safeTool(async () => {
+  }, async ({ runToken, questionId, question, ideaLinks, bootstrapToken }: any) => safeTool(async () => {
     requireMcpScope(principal, "authoring:stage");
     const run = readMcpRunToken(runToken);
     if (run.workflow !== "quiz_bank") throw new Error("AUTHORING_MCP_WORKFLOW_MISMATCH");
+    verifyMcpExecutionBootstrap({
+      actorId: principal.actorId,
+      sessionId: principal.sessionId,
+      run,
+      bootstrapToken,
+      requiredStage: "quiz",
+      expectedWorkflow: "quiz_bank",
+    });
     const [existing] = await db
       .select({ id: soal.id, courseId: soal.mataKuliahId, chapterId: soal.babId, origin: soal.origin, status: soal.status })
       .from(soal)
@@ -3324,7 +3525,7 @@ function registerKnowledgeTools(server: McpServer, principal: McpPrincipal): voi
           title: row.title,
           version: row.version,
           status: row.status,
-          sourceHash: row.sourceHash,
+          sourceHash: null,
           generationHash: row.generationHash,
           cardCount: cards.length,
         },
@@ -3797,10 +3998,17 @@ function registerQuizAssemblyTools(server: McpServer, principal: McpPrincipal): 
       requireAllAnswered: z.boolean().default(false),
       passingScore: z.number().min(0).max(100).default(70),
       runToken: z.string().min(1).optional(),
+      bootstrapToken: z.string().min(1).optional(),
     },
     annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
   }, async (input: any) => safeTool(async () => {
     requireMcpScope(principal, "authoring:stage");
+    verifyMcpExecutionBootstrap({
+      actorId: principal.actorId,
+      sessionId: principal.sessionId,
+      run: input.runToken ? readMcpRunToken(input.runToken) : null,
+      bootstrapToken: input.bootstrapToken,
+    });
     return createQuizWithQuestions(input, principal.actorId);
   }));
 
@@ -3845,10 +4053,16 @@ function registerQuizAssemblyTools(server: McpServer, principal: McpPrincipal): 
       visibility: z.enum(["free", "paid"]).optional(),
       manualStatus: z.enum(["open", "closed", "scheduled"]).optional(),
       showDiscussion: z.boolean().optional(),
+      bootstrapToken: z.string().min(1).optional(),
     },
     annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
   }, async (input: any) => safeTool(async () => {
     requireMcpScope(principal, "authoring:stage");
+    verifyMcpExecutionBootstrap({
+      actorId: principal.actorId,
+      sessionId: principal.sessionId,
+      bootstrapToken: input.bootstrapToken,
+    });
     return updateQuizMeta(input, principal.actorId);
   }));
 
@@ -3858,16 +4072,29 @@ function registerQuizAssemblyTools(server: McpServer, principal: McpPrincipal): 
     inputSchema: {
       quizId: z.string().trim().min(1),
       questionIds: z.array(z.string().trim().min(1)).min(1),
+      bootstrapToken: z.string().min(1).optional(),
     },
     annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
-  }, async ({ quizId, questionIds }: { quizId: string; questionIds: string[] }) => safeTool(async () => {
+  }, async ({ quizId, questionIds, bootstrapToken }: { quizId: string; questionIds: string[]; bootstrapToken?: string }) => safeTool(async () => {
     requireMcpScope(principal, "authoring:stage");
+    verifyMcpExecutionBootstrap({
+      actorId: principal.actorId,
+      sessionId: principal.sessionId,
+      bootstrapToken,
+    });
     return setQuizQuestions(quizId, questionIds, principal.actorId);
   }));
 }
 
 export function createAuthoringMcpServer(principal: McpPrincipal): McpServer {
-  const server = new McpServer({ name: "zyx-authoring", version: "1.0.0" }, { capabilities: { tools: {} } });
+  const server = new McpServer(
+    { name: "zyx-authoring", version: "1.0.0" },
+    {
+      capabilities: { tools: {} },
+      instructions:
+        "Panggil workflow.get_playbook sebelum memulai authoring, setiap berpindah tahap, dan saat melanjutkan run untuk mengambil playbook terbaru serta bootstrapToken bertanda tangan.",
+    },
+  );
   registerWorkflowTools(server, principal);
   registerValidationTools(server, principal);
   registerReferenceQuestionTools(server, principal);
