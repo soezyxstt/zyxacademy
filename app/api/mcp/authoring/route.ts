@@ -62,7 +62,11 @@ async function handle(request: NextRequest): Promise<Response> {
   if (principal instanceof NextResponse) return principal;
 
   const requestId = crypto.randomUUID();
-  const server = createAuthoringMcpServer(principal, requestId);
+  const skillsProfile = request.nextUrl.searchParams.get("skills") ?? "chatgpt";
+  if (skillsProfile !== "chatgpt" && skillsProfile !== "all") {
+    return NextResponse.json({ error: "INVALID_SKILLS_PROFILE" }, { status: 400 });
+  }
+  const server = createAuthoringMcpServer(principal, requestId, skillsProfile);
   const transport = new WebStandardStreamableHTTPServerTransport({
     sessionIdGenerator: undefined,
     enableJsonResponse: true,

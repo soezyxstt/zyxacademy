@@ -1,5 +1,7 @@
 # Zyx Academy Documentation Index
 
+The `ACTIVE` [MCP skills distribution runbook](operations/authoring-mcp-skills.md) documents pinned external-repository builds, full and ChatGPT import catalogs, protocol handlers, resource integrity, limits, CI, rollback, and deployment acceptance.
+
 The `ACTIVE` architecture guide records integer PNG dimensions, source checksum metadata, explicit PDF page citations, and visual review markers for damaged extracted text. The source playbook includes polling fallback for stale connector catalogs.
 
 The `ACTIVE` architecture, deployment, development, and feature guides document all four MCP OAuth default scopes, all four consent checkboxes even for narrower client requests, and reauthorization for existing tokens.
@@ -42,6 +44,7 @@ docs/
 │   └── product-bundle-v3.md                  # Structured Product Bundle V3 Contract
 │
 ├── operations/                               # Operational Runbooks, Checklists, and Allowances
+│   ├── authoring-mcp-skills.md                # Pinned MCP Skills Build and Import Acceptance
 │   ├── legacy-vector-contract-allowlist.md   # Allowed Legacy Vector References during Cutover
 │   ├── manual-test-plan-bundles-v2.md       # Human-driven Verification for Bundle Ingestion
 │   ├── production-readiness-checklist.md     # Pre-deployment Gates and Plan Checkpoints
@@ -78,6 +81,7 @@ Every document in this repository has one of the following explicit statuses:
 
 | Document | Category | Status | Updated / Date | Purpose and Scope |
 |---|---|---|---|---|
+| [operations/authoring-mcp-skills.md](operations/authoring-mcp-skills.md) | Operations | `ACTIVE` | 2026-10-21 | Pinned external skills snapshots, MCP extension, full catalog and compact importer profile, validation, CI, and rollout acceptance. |
 | [README.md](README.md) | Index | `ACTIVE` | 2026-09-24 | Master documentation index, hierarchy map, course workspace compatibility status, marketing improvement plan, and lifecycle status ledger. |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Core Architecture | `ACTIVE` | 2026-10-20 | Core platform architecture, canonical-first student reads, fail-closed public demo read boundary, historical reference authoring, Product Bundle V3 boundaries, course workspace hierarchy, reader modes, compatibility redirects, Idea Bundle withdrawal, and manual browser authoring retirement. MCP playbook transport uses one complete JSON text block. |
 | [DATABASE.md](DATABASE.md) | Core Database | `ACTIVE` | Current | Database topology (Turso remote, SQLite local), Drizzle workflows, and driver adapters. |

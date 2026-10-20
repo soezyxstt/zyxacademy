@@ -7,7 +7,7 @@ const nextConfig: NextConfig = {
       "./node_modules/katex/dist/**",
       "./node_modules/katex/package.json",
     ],
-    "/api/mcp/authoring": ["./lib/authoring/playbooks/**/*"],
+    "/api/mcp/authoring": ["./lib/authoring/playbooks/**/*", "./dist/skills/**/*"],
   },
   typescript: {
     ignoreBuildErrors: true,
