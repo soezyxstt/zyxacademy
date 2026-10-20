@@ -1,0 +1,54 @@
+name: Validate MCP skills distribution
+
+on:
+  pull_request:
+    paths:
+      - 'authoring-skills.lock.json'
+      - 'scripts/*authoring-skills.ts'
+      - 'lib/authoring/*skills*'
+      - 'lib/authoring/skill-catalog.ts'
+      - 'lib/authoring/mcp-server.ts'
+      - 'app/api/mcp/authoring/**'
+      - 'tests/contracts/authoring-skills.test.ts'
+      - 'next.config.ts'
+      - 'package.json'
+      - '.github/workflows/authoring-skills.yml'
+  push:
+    branches: [staging, main]
+    paths:
+      - 'authoring-skills.lock.json'
+      - 'scripts/*authoring-skills.ts'
+      - 'lib/authoring/*skills*'
+      - 'lib/authoring/skill-catalog.ts'
+      - 'lib/authoring/mcp-server.ts'
+      - 'app/api/mcp/authoring/**'
+      - 'tests/contracts/authoring-skills.test.ts'
+      - 'next.config.ts'
+      - 'package.json'
+      - '.github/workflows/authoring-skills.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  skills:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        environment: [staging, production]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: '1.3.14'
+      - run: bun install --frozen-lockfile
+      - name: Build from locked external skills commit
+        run: bun run build:authoring-skills --environment ${{ matrix.environment }}
+      - name: Validate catalog, protocol, digests, and importer limits
+        run: bun test tests/contracts/authoring-skills.test.ts
+      - uses: actions/upload-artifact@v4
+        with:
+          name: authoring-skills-${{ matrix.environment }}-${{ github.sha }}
+          path: dist/skills/
+          retention-days: 14

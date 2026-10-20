@@ -4,6 +4,8 @@ import { readSourceFileMetadata } from "@/lib/authoring/source-file-metadata";
 import { resolveStoredSourceFile } from "@/lib/authoring/mcp-source-files";
 import { isSourceReadTimeout, timePdfStage } from "@/lib/compute/pdf-read-options";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { registerAuthoringSkills } from "./mcp-skills";
+import type { SkillCatalogProfile } from "./skill-catalog";
 import { z } from "zod";
 import { createHash } from "node:crypto";
 import { storage, type StorageProvider } from "@/lib/storage";
@@ -100,6 +102,7 @@ import {
   authoringPlaybookModuleKeySchema,
   authoringPlaybookStageSchema,
   clientCapabilitiesSchema,
+  resolveAuthoringMcpEnvironment,
 } from "@/lib/authoring/mcp-playbook";
 import { requireMcpScope, type McpPrincipal } from "@/lib/authoring/mcp-auth";
 import {
@@ -4179,7 +4182,7 @@ function registerQuizAssemblyTools(server: McpServer, principal: McpPrincipal): 
   }));
 }
 
-export function createAuthoringMcpServer(principal: McpPrincipal, requestId?: string): McpServer {
+export function createAuthoringMcpServer(principal: McpPrincipal, requestId?: string, skillsProfile: SkillCatalogProfile = "chatgpt"): McpServer {
   const server = new McpServer(
     { name: "zyx-authoring", version: "1.1.0" },
     {
@@ -4189,6 +4192,7 @@ export function createAuthoringMcpServer(principal: McpPrincipal, requestId?: st
     },
   );
   registerWorkflowTools(server, principal, requestId);
+  registerAuthoringSkills(server, skillsProfile, undefined, resolveAuthoringMcpEnvironment());
   registerValidationTools(server, principal);
   registerReferenceQuestionTools(server, principal);
   registerLifecycleTools(server, principal);
