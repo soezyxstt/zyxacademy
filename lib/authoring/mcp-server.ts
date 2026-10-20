@@ -96,6 +96,7 @@ import {
   startAuthoringWorkflow,
   verifyMcpExecutionBootstrap,
   workflowContract,
+  quizBankScopeGuidance,
 } from "@/lib/authoring/mcp-workflows";
 import {
   authoringMcpSkillSchema,
@@ -2140,7 +2141,7 @@ function registerValidationTools(server: McpServer, principal: McpPrincipal): vo
         instructionalRoles: instructionalRoles ?? [],
         difficultyLevels: difficultyLevels ?? [],
       },
-      linking: { required: false, weightRule: "Jika satu atau lebih Idea dipilih, bobot positif harus berjumlah 1." },
+      linking: quizBankScopeGuidance().linkingPolicy,
     };
   }));
 
@@ -2222,13 +2223,13 @@ function registerValidationTools(server: McpServer, principal: McpPrincipal): vo
         ...incomingRows.map((row) => ({ relationType: row.relationType, direction: "incoming", counterpart: { id: row.counterpartId, code: row.counterpartCode }, explanation: row.explanation })),
       ],
       provenance: { counts: provenanceCounts.map((row) => ({ role: row.role, count: Number(row.count) })) },
-      linking: { required: false, weightRule: "Jika satu atau lebih Idea dipilih, bobot positif harus berjumlah 1." },
+      linking: quizBankScopeGuidance().linkingPolicy,
     };
   }));
 
   (server as any).registerTool("assessment.validate_quiz_draft", {
     title: "Validate question bank draft",
-    description: "Memeriksa draft soal terstruktur, relasi Idea opsional, dan scope sebelum masuk ke review bank soal.",
+    description: "Memeriksa draft soal dengan minimal satu Idea published dalam scope bab dan tepat satu primary sebelum review bank soal.",
     inputSchema: {
       runToken: z.string().min(1),
       draftJson: z.string().min(1).max(8 * 1024 * 1024),
