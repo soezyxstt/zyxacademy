@@ -5,7 +5,7 @@ import { buildPdfPageCacheKey } from "@/lib/storage/keys";
 import type { SourceFilePage } from "@/lib/compute-client/pdf";
 
 // Bump when parser, rasterizer, or extraction settings change.
-export const PDF_PAGE_RENDERER_VERSION = "pdf-parse-2.4.5-v1";
+export const PDF_PAGE_RENDERER_VERSION = "pdf-parse-2.4.5-v2";
 export const PDF_PAGE_RENDER_WIDTH = 1280;
 
 const cachedPageSchema = z.object({

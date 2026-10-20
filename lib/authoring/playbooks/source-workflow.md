@@ -14,6 +14,9 @@ Build a lossless, verbatim-faithful `source-pack.v1` ZIP archive from stored cou
    - Call `source.list_packs` with `courseKey` and `chapterKey`.
    - If a persisted Source Pack already covers the target materials, inspect it with `source.get_pack` (`packId`, optional `documentId`) before deciding whether to reuse or create a new revision.
 4. **Read Stored Source Files:**
+   - If the host catalog lacks `source.get_read_job`, repeat `source.read_file` with the same arguments to poll. `workflow.list.sourceReader` advertises current reader options. Host catalog refresh is separate from server registration.
+   - Citations identify the PDF page explicitly. A `printedPage` with `printedPageVerified: false` is only a candidate; verify it visually. If `textQuality.status` is `needs_visual_review`, inspect the page image before transcribing formulas. Never guess missing symbols from control characters.
+   - When a download reports `checksumStatus: pending`, poll `checksumJobId` with the same `fileKey`, then request the download descriptor again to obtain SHA-256 for full-file verification.
    - Call `source.list_files` with `courseKey`, `chapterKey`, and optional `categories` (`["materi", "soal", "pembahasan_soal"]`).
    - Read every page of each selected file using `source.read_file` with `mode: "pages"` (up to 4 unique positive page numbers per call, e.g., `pages: [1, 2, 3, 4]`, then `[5, 6, 7, 8]`, until `pageCount` is reached).
    - Page reads default to `representation: "text"`. If the response is `pending`, save `jobId` and call `source.get_read_job` with `fileKey` and `jobId` after `pollAfterMs` until complete. A failed job reports status per page; use `retryFailed: true` to retry only failed pages. Keep successful pages.

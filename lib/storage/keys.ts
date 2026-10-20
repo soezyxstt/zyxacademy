@@ -92,6 +92,11 @@ export function buildSourceReadJobKey(jobId: string, pageNumber?: number): strin
   return joinKey("overhaul", "source-read-jobs", jobId, pageNumber === undefined ? "request.json" : `page-${pageNumber}.json`);
 }
 
+export function buildSourceFileMetadataKey(fingerprint: string): string {
+  if (!/^[a-f0-9]{64}$/.test(fingerprint)) throw new Error(INVALID_OBJECT_KEY);
+  return joinKey("overhaul", "source-file-metadata", `${fingerprint}.json`);
+}
+
 export function isProtectedProductDiktatPdfKey(key: string): boolean {
   return /^overhaul\/[^/]+\/diktat-pdf\/[^/]+\.pdf$/.test(key);
 }

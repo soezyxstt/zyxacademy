@@ -236,14 +236,14 @@ describe("stored PDF reading", () => {
     expect(response.content[0]).toMatchObject({ type: "text" });
     expect(response.content).toHaveLength(3);
     expect(response.content.slice(1)).toMatchObject([
-      { type: "resource_link", mimeType: "image/png", name: "Sumber: Materi Vektor, hlm. 1" },
+      { type: "resource_link", mimeType: "image/png", name: "Sumber: Materi Vektor, halaman PDF 1" },
       { type: "resource_link", mimeType: "image/png" },
     ]);
     expect(JSON.stringify(response.content)).not.toContain('"type":"image"');
     expect(uploads).toHaveLength(2);
     expect(uploads[0]).toStartWith(`courses/legacy-course/source-images/material-1/${expectedSha256}/page-1-`);
     expect(response.structuredContent.pages).toMatchObject([
-      { imageUrl: new URL(`/api/storage/file/${uploads[0]}`, process.env.BETTER_AUTH_URL || process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000").href, citation: { title: "Materi Vektor", pageNumber: 1, label: "Sumber: Materi Vektor, hlm. 1" } },
+      { imageUrl: new URL(`/api/storage/file/${uploads[0]}`, process.env.BETTER_AUTH_URL || process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000").href, citation: { title: "Materi Vektor", pageNumber: 1, label: "Sumber: Materi Vektor, halaman PDF 1" } },
       { imageUrl: new URL(`/api/storage/file/${uploads[1]}`, process.env.BETTER_AUTH_URL || process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000").href, citation: { pageNumber: 2 } },
     ]);
     await expect(formatSourceFileReadResult(result, {

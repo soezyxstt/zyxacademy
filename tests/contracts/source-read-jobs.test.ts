@@ -3,6 +3,7 @@ import { afterEach, expect, it } from "bun:test";
 import { inngest } from "@/jobs/client";
 import { processSourceReadPage } from "@/jobs/source-read";
 import { storage } from "@/lib/storage";
+import { readSourceFileMetadata } from "@/lib/authoring/source-file-metadata";
 import { buildSourceReadJobKey } from "@/lib/storage/keys";
 import { sourceReadJob } from "@/lib/authoring/source-read-jobs";
 import { issueMcpSourceFileKey, readMcpSourceFileKey } from "@/lib/authoring/mcp-workflows";
@@ -59,6 +60,9 @@ it("queues immediately, processes real PDF text without PNG, then polls without 
   expect(events).toHaveLength(1);
   expect([...objects.keys()].filter((key) => key.endsWith(".png"))).toHaveLength(0);
   await processSourceReadPage(events[0].data);
+  expect(await readSourceFileMetadata({ storageKey: row.fileUrl, updatedAtMs: 0, checksum: row.checksum })).toEqual({
+    checksum: row.checksum, size: pdf().byteLength,
+  });
   objects.delete(row.fileUrl);
   const complete = await sourceReadJob({ ...input, jobId: pending.jobId }, resolve);
   expect(complete.status).toBe("complete");
