@@ -16,7 +16,7 @@ Build a lossless, verbatim-faithful `source-pack.v1` ZIP archive from stored cou
 4. **Read Stored Source Files:**
    - Call `source.list_files` with `courseKey`, `chapterKey`, and optional `categories` (`["materi", "soal", "pembahasan_soal"]`).
    - Read every page of each selected file using `source.read_file` with `mode: "pages"` (up to 4 unique positive page numbers per call, e.g., `pages: [1, 2, 3, 4]`, then `[5, 6, 7, 8]`, until `pageCount` is reached).
-   - Inspect both the extracted page text and the 1280 px PNG page images returned by `source.read_file` so formulas, tables, diagrams, and scanned pages are transcribed completely.
+   - Inspect both the extracted page text and each `imageUrl` returned by `source.read_file` so formulas, tables, diagrams, and scanned pages are transcribed completely. Page mode requires `authoring:stage` and stores 1280 px PNG page renders in R2 instead of returning base64 image blocks. Preserve each image URL and its `citation` with the source transcription. These are full-page renders, not extracted figures.
    - Use `mode: "blob"` (up to 32 MiB) only as an explicit fallback when `mode: "pages"` fails or times out.
 5. **Transcribe and Reconcile:**
    - Transcribe each source document into structured Markdown under `documents/<docId>.md` following the lossless transcription and reconciliation rules in `source/reconciliation`.

@@ -59,6 +59,32 @@ export function joinKey(...segments: string[]): string {
   return key;
 }
 
+export function buildSourcePageImageKey(input: {
+  courseId: string;
+  materialId: string;
+  documentChecksum: string;
+  imageChecksum: string;
+  pageNumber: number;
+}): string {
+  if (!/^[a-f0-9]{64}$/.test(input.documentChecksum) || !/^[a-f0-9]{64}$/.test(input.imageChecksum) ||
+      !Number.isInteger(input.pageNumber) || input.pageNumber < 1) throw new Error(INVALID_OBJECT_KEY);
+  return joinKey("courses", slugifySegment(input.courseId), "source-images", slugifySegment(input.materialId),
+    input.documentChecksum, `page-${input.pageNumber}-${input.imageChecksum}.png`);
+}
+
+export function buildPdfPageCacheKey(input: {
+  checksum: string;
+  pageNumber: number;
+  rendererVersion: string;
+  width: number;
+}): string {
+  if (!/^[a-f0-9]{64}$/.test(input.checksum) || !/^[a-zA-Z0-9._-]+$/.test(input.rendererVersion) ||
+      !Number.isInteger(input.pageNumber) || input.pageNumber < 1 ||
+      !Number.isInteger(input.width) || input.width < 1) throw new Error(INVALID_OBJECT_KEY);
+  return joinKey("overhaul", "pdf-page-cache", input.checksum, input.rendererVersion,
+    `width-${input.width}`, `page-${input.pageNumber}`);
+}
+
 export function isProtectedProductDiktatPdfKey(key: string): boolean {
   return /^overhaul\/[^/]+\/diktat-pdf\/[^/]+\.pdf$/.test(key);
 }

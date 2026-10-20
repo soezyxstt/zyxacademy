@@ -459,6 +459,7 @@ export async function readStoredSourceFile(
       mode,
       title: row.title,
       checksum: resolvedChecksum,
+      imageSource: { courseId: row.courseId, materialId: row.id },
       size: resolvedSize,
       totalPages: computeResult.totalPages,
       pages: computeResult.pages,
@@ -497,6 +498,7 @@ export async function readStoredSourceFile(
     checksum: loaded.checksum,
     size: loaded.bytes.byteLength,
     totalPages: parsed.totalPages,
+    imageSource: { courseId: loaded.row.courseId, materialId: loaded.row.id },
     pages: parsed.pages,
   };
 }

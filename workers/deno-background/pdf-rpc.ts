@@ -4,10 +4,11 @@ import { storage } from "@/lib/storage";
 import { isSafeKey } from "@/lib/storage/keys";
 import { ingestMcpSourcePack } from "@/lib/authoring/mcp-workflows";
 import { setupPdfWorker } from "@/lib/compute/pdf-worker";
+import { cachedPdfPages, PDF_PAGE_RENDERER_VERSION, PDF_PAGE_RENDER_WIDTH } from "@/lib/compute/pdf-page-cache";
 
 const MAX_PDF_BYTES = 50 * 1024 * 1024;
 const MAX_PAGES_PER_REQUEST = 4;
-const PDF_PAGE_WIDTH = 1280;
+const PDF_PAGE_WIDTH = PDF_PAGE_RENDER_WIDTH;
 
 function sha256(bytes: Uint8Array): string {
   return createHash("sha256").update(bytes).digest("hex");
@@ -61,49 +62,43 @@ export async function handlePdfPagesRpc(c: Context) {
       return c.json({ error: "PDF_EXCEEDS_SIZE_LIMIT" }, 413);
     }
 
-    const { PDFParse } = await import("pdf-parse");
-    await setupPdfWorker(PDFParse);
-    const parser = new PDFParse({ data: bytes });
-
-    try {
-      const info = await parser.getInfo();
-      const totalPages = info.total;
-      if (pages.some((p) => p > totalPages)) {
-        return c.json({ error: "PAGE_OUT_OF_BOUNDS", totalPages }, 400);
+    const documentChecksum = sha256(bytes);
+    const result = await cachedPdfPages({
+      checksum: documentChecksum, pages, rendererVersion: PDF_PAGE_RENDERER_VERSION, width: PDF_PAGE_WIDTH,
+    }, storage, async (missingPages) => {
+      const { PDFParse } = await import("pdf-parse");
+      await setupPdfWorker(PDFParse);
+      const parser = new PDFParse({ data: bytes });
+      try {
+        const info = await parser.getInfo();
+        const totalPages = info.total;
+        if (missingPages.some((page) => page > totalPages)) throw new Error("PAGE_OUT_OF_BOUNDS");
+        const textResult = await parser.getText({ partial: missingPages });
+        const screenshotResult = await parser.getScreenshot({
+          partial: missingPages, desiredWidth: PDF_PAGE_WIDTH, imageBuffer: true,
+        });
+        const textByPage = new Map(textResult.pages.map((page) => [page.num, page.text]));
+        const imageByPage = new Map(screenshotResult.pages.map((page) => [page.pageNumber, page]));
+        return { totalPages, pages: missingPages.map((pageNumber) => {
+          const image = imageByPage.get(pageNumber);
+          if (!image || image.data.byteLength === 0) throw new Error(`RENDER_PAGE_FAILED_${pageNumber}`);
+          return { pageNumber, text: textByPage.get(pageNumber) ?? "", png: image.data,
+            width: image.width, height: image.height };
+        }) };
+      } finally {
+        await parser.destroy().catch(() => undefined);
       }
-
-      const textResult = await parser.getText({ partial: pages });
-      const screenshotResult = await parser.getScreenshot({
-        partial: pages,
-        desiredWidth: PDF_PAGE_WIDTH,
-        imageBuffer: true,
-      });
-
-      const textByPage = new Map(textResult.pages.map((p) => [p.num, p.text]));
-      const imageByPage = new Map(screenshotResult.pages.map((p) => [p.pageNumber, p]));
-
-      const serializedPages = pages.map((pageNumber) => {
-        const image = imageByPage.get(pageNumber);
-        if (!image || image.data.byteLength === 0) {
-          throw new Error(`RENDER_PAGE_FAILED_${pageNumber}`);
-        }
-        return {
-          pageNumber,
-          text: textByPage.get(pageNumber) ?? "",
-          imageBase64: Buffer.from(image.data).toString("base64"),
-          width: image.width,
-          height: image.height,
-        };
-      });
-
-      return c.json({
-        totalPages,
-        pages: serializedPages,
-      });
-    } finally {
-      await parser.destroy().catch(() => undefined);
-    }
+    });
+    return c.json({
+      totalPages: result.totalPages,
+      checksum: documentChecksum,
+      size: bytes.byteLength,
+      pages: result.pages.map(({ png, ...page }) => ({ ...page, imageBase64: Buffer.from(png).toString("base64") })),
+    });
   } catch (err: any) {
+    if (err instanceof Error && err.message === "PAGE_OUT_OF_BOUNDS") {
+      return c.json({ error: "PAGE_OUT_OF_BOUNDS" }, 400);
+    }
     console.error("[handlePdfPagesRpc] Error:", err);
     return c.json({ error: err.message || "PDF_PARSE_FAILED" }, 500);
   }
