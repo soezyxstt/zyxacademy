@@ -1,3 +1,4 @@
+import { pdfReadOptionsSchema, type PdfReadOptions } from "@/lib/compute/pdf-read-options";
 import { createHash } from "node:crypto";
 import { and, asc, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
@@ -43,6 +44,7 @@ export type StoredSourceFileRow = {
 };
 
 export type SourceFilePage = {
+  imageKey?: string;
   pageNumber: number;
   text: string;
   png: Uint8Array;
@@ -55,7 +57,7 @@ export type SourceFileDependencies = {
   listRows(legacyCourseId: string): Promise<StoredSourceFileRow[]>;
   getRow(materialId: string): Promise<StoredSourceFileRow | null>;
   download(key: string): Promise<Uint8Array>;
-  parsePages(bytes: Uint8Array, pages: number[]): Promise<{ totalPages: number; pages: SourceFilePage[] }>;
+  parsePages(bytes: Uint8Array, pages: number[], options?: Partial<PdfReadOptions>): Promise<{ totalPages: number; pages: SourceFilePage[] }>;
   issueFileKey(input: Parameters<typeof issueMcpSourceFileKey>[0]): string;
   readFileKey(fileKey: string): McpSourceFileTokenPayload;
 };
@@ -275,7 +277,7 @@ async function inspectReferencePdf(
   if (!canInspectPdf(dependencies)) return { pageCount: null, extractedText: null, checksum: null, size: null };
 
   try {
-    const first = await readStoredSourceFile({ fileKey, mode: "pages", pages: [1] }, dependencies);
+    const first = await readStoredSourceFile({ fileKey, mode: "pages", pages: [1], representation: "text" }, dependencies);
     if (first.mode !== "pages") return { pageCount: null, extractedText: null, checksum: null, size: null };
     const checksum = normalizeSha256Checksum(first.checksum);
     const size = typeof first.size === "number" && first.size > 0 ? first.size : null;
@@ -288,7 +290,7 @@ async function inspectReferencePdf(
         { length: Math.min(AUTHORING_MCP_MAX_PAGES_PER_READ, first.totalPages - pageStart + 1) },
         (_, index) => pageStart + index,
       );
-      const next = await readStoredSourceFile({ fileKey, mode: "pages", pages: pageNumbers }, dependencies);
+      const next = await readStoredSourceFile({ fileKey, mode: "pages", pages: pageNumbers, representation: "text" }, dependencies);
       if (next.mode !== "pages") return { pageCount: first.totalPages, extractedText: null, checksum, size };
       pages.push(...next.pages);
     }
@@ -340,15 +342,14 @@ export async function listStoredReferenceFiles(
         updatedAtMs: rowUpdatedAtMs(row),
         checksum: row.checksum,
       });
-      const inspection = await inspectReferencePdf(fileKey, dependencies, false);
       return {
         fileKey,
         title: row.title,
         category: normalizeLevel1Category(row.type),
         subcategory: row.subcategory,
         year: row.year,
-        pageCount: normalizePageCount(row.pageCount) ?? inspection.pageCount,
-        checksum: normalizeSha256Checksum(row.checksum) ?? inspection.checksum,
+        pageCount: normalizePageCount(row.pageCount),
+        checksum: normalizeSha256Checksum(row.checksum),
       };
     })),
   };
@@ -396,15 +397,24 @@ async function loadFile(fileKey: string, dependencies: SourceFileDependencies) {
   return { token, row, bytes, checksum };
 }
 
+export async function resolveStoredSourceFile(fileKey: string, dependencies: SourceFileDependencies = defaultDependencies) {
+  const token = dependencies.readFileKey(fileKey);
+  const row = await dependencies.getRow(token.materialId);
+  if (!row) throw new Error("AUTHORING_MCP_SOURCE_FILE_NOT_FOUND");
+  assertStoredSourceFileInScope(row, token);
+  return { token, row };
+}
+
 export type SourceOriginalRef =
   | { kind: "inline"; bytes: Uint8Array }
   | { kind: "stored"; storageKey: string; checksum: string };
 
 export async function readStoredSourceFile(
-  input: { fileKey: string; mode?: "pages" | "blob"; pages?: number[] },
+  input: { fileKey: string; mode?: "pages" | "blob"; pages?: number[]; representation?: PdfReadOptions["representation"]; imageWidth?: number; requestId?: string },
   dependencies: SourceFileDependencies = defaultDependencies,
 ) {
   const mode = input.mode ?? "pages";
+  const options = pdfReadOptionsSchema.parse(input);
 
   // When mode is pages and COMPUTE_SERVICE_URL is set with default parsePages dependency, offload to Deno compute RPC
   if (mode === "pages" && process.env.COMPUTE_SERVICE_URL && dependencies.parsePages === defaultDependencies.parsePages) {
@@ -426,9 +436,14 @@ export async function readStoredSourceFile(
     const computeResult = await requestPdfPagesFromCompute({
       storageKey: row.fileUrl,
       pages,
+      ...options,
+      requestId: input.requestId,
     });
 
     const expectedChecksum = normalizeSha256Checksum(row.checksum);
+    if (expectedChecksum && computeResult.checksum && expectedChecksum !== computeResult.checksum) {
+      throw new Error("AUTHORING_MCP_SOURCE_FILE_CHECKSUM_MISMATCH");
+    }
     let resolvedChecksum = expectedChecksum ?? normalizeSha256Checksum(computeResult.checksum);
     let resolvedSize = typeof computeResult.size === "number" && computeResult.size > 0 ? computeResult.size : null;
 
@@ -461,6 +476,7 @@ export async function readStoredSourceFile(
       checksum: resolvedChecksum,
       imageSource: { courseId: row.courseId, materialId: row.id },
       size: resolvedSize,
+      representation: options.representation,
       totalPages: computeResult.totalPages,
       pages: computeResult.pages,
     };
@@ -488,7 +504,7 @@ export async function readStoredSourceFile(
   ) {
     throw new Error("AUTHORING_MCP_SOURCE_PAGE_INVALID");
   }
-  const parsed = await dependencies.parsePages(loaded.bytes, pages);
+  const parsed = await dependencies.parsePages(loaded.bytes, pages, options);
   if (!Number.isInteger(parsed.totalPages) || parsed.totalPages < 1 || pages.some((page) => page > parsed.totalPages)) {
     throw new Error("AUTHORING_MCP_SOURCE_PAGE_INVALID");
   }
@@ -497,6 +513,7 @@ export async function readStoredSourceFile(
     title: loaded.row.title,
     checksum: loaded.checksum,
     size: loaded.bytes.byteLength,
+    representation: options.representation,
     totalPages: parsed.totalPages,
     imageSource: { courseId: loaded.row.courseId, materialId: loaded.row.id },
     pages: parsed.pages,

@@ -285,6 +285,8 @@ describe("provider-neutral authoring MCP workflow registry", () => {
     expect(names).toContain("assessment.update_question");
     expect(names).toContain("source.list_files");
     expect(names).toContain("source.read_file");
+    expect(names).toContain("source.get_read_job");
+    expect(tools.find((tool) => tool.name === "source.read_file")?.inputSchema.properties.representation.default).toBe("text");
     expect(names).toContain("workflow.list");
     expect(names).toContain("workflow.start");
     expect(names).toContain("source.list_packs");
@@ -355,7 +357,7 @@ describe("provider-neutral authoring MCP workflow registry", () => {
       reviewRequired: false,
       publicationTarget: "reference_question_bank",
       initialStatus: "published",
-      allowedSourceTools: ["source.list_reference_files", "source.read_file"],
+      allowedSourceTools: ["source.list_reference_files", "source.read_file", "source.get_read_job"],
     });
   });
 
@@ -382,19 +384,21 @@ describe("provider-neutral authoring MCP workflow registry", () => {
   });
 
   it("requires stage scope before persisting PDF page images", async () => {
-    const server = createAuthoringMcpServer({ ...testPrincipal, scopes: ["authoring:read"] });
-    const transport = new WebStandardStreamableHTTPServerTransport({ sessionIdGenerator: undefined, enableJsonResponse: true });
-    await server.connect(transport);
-    const response = await transport.handleRequest(new Request("http://localhost/api/mcp/authoring", {
-      method: "POST",
-      headers: { "content-type": "application/json", accept: "application/json, text/event-stream" },
-      body: JSON.stringify({ jsonrpc: "2.0", id: 4, method: "tools/call",
-        params: { name: "source.read_file", arguments: { fileKey: "not-resolved-before-scope-check", pages: [1] } } }),
-    }));
-    const body = await response.json() as { result?: { isError?: boolean; structuredContent?: unknown } };
-    expect(body.result?.isError).toBe(true);
-    expect(body.result?.structuredContent).toMatchObject({ error: "AUTHORING_MCP_SCOPE_REQUIRED", detail: "authoring:stage" });
-    await server.close();
+    for (const name of ["source.read_file", "source.get_read_job"]) {
+      const server = createAuthoringMcpServer({ ...testPrincipal, scopes: ["authoring:read"] });
+      const transport = new WebStandardStreamableHTTPServerTransport({ sessionIdGenerator: undefined, enableJsonResponse: true });
+      await server.connect(transport);
+      const response = await transport.handleRequest(new Request("http://localhost/api/mcp/authoring", {
+        method: "POST",
+        headers: { "content-type": "application/json", accept: "application/json, text/event-stream" },
+        body: JSON.stringify({ jsonrpc: "2.0", id: 4, method: "tools/call",
+          params: { name, arguments: { fileKey: "not-resolved-before-scope-check", pages: [1], jobId: "a".repeat(64) } } }),
+      }));
+      const body = await response.json() as { result?: { isError?: boolean; structuredContent?: unknown } };
+      expect(body.result?.isError).toBe(true);
+      expect(body.result?.structuredContent).toMatchObject({ error: "AUTHORING_MCP_SCOPE_REQUIRED", detail: "authoring:stage" });
+      await server.close();
+    }
   });
 
   it("does not dereference a missing conflict when staging a new Idea Bundle", () => {

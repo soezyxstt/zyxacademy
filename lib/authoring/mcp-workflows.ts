@@ -607,7 +607,7 @@ function workflowStaticDefinition(workflowKey: AuthoringWorkflow) {
     } : {
       referenceQuestionDraft: {
         schemaVersion: "reference-question-draft.v1",
-        allowedSourceTools: ["source.list_reference_files", "source.read_file"],
+        allowedSourceTools: ["source.list_reference_files", "source.read_file", "source.get_read_job"],
         allowedIdeaTools: ["knowledge.search_course_ideas", "knowledge.get_idea"],
         validationTool: "assessment.validate_reference_draft",
         submitTool: "assessment.submit_reference_draft",
@@ -909,7 +909,7 @@ export function getMcpPlaybook(input: {
     next: !compatible
       ? ["remediate_client_compatibility"]
       : playbook.stage === "source"
-        ? ["catalog.list_courses", "catalog.list_chapters", "source.list_packs", "source.list_files", "source.read_file", "source.ingest"]
+        ? ["catalog.list_courses", "catalog.list_chapters", "source.list_packs", "source.list_files", "source.read_file", "source.get_read_job", "source.ingest"]
         : ["catalog.list_courses", "catalog.list_chapters", "workflow.start", "workflow.get_contract"],
   };
 }
@@ -970,6 +970,7 @@ export async function startAuthoringWorkflow(input: {
       next: [
         "source.list_reference_files",
         "source.read_file",
+        "source.get_read_job",
         "knowledge.search_course_ideas",
         "knowledge.get_idea",
         "assessment.validate_reference_draft",

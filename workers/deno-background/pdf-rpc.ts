@@ -3,12 +3,10 @@ import { createHash } from "node:crypto";
 import { storage } from "@/lib/storage";
 import { isSafeKey } from "@/lib/storage/keys";
 import { ingestMcpSourcePack } from "@/lib/authoring/mcp-workflows";
-import { setupPdfWorker } from "@/lib/compute/pdf-worker";
-import { cachedPdfPages, PDF_PAGE_RENDERER_VERSION, PDF_PAGE_RENDER_WIDTH } from "@/lib/compute/pdf-page-cache";
+import { readPdfFromStorage } from "@/lib/compute/pdf-reader";
+import { isSourceReadTimeout, pdfReadOptionsSchema, timePdfStage } from "@/lib/compute/pdf-read-options";
 
-const MAX_PDF_BYTES = 50 * 1024 * 1024;
 const MAX_PAGES_PER_REQUEST = 4;
-const PDF_PAGE_WIDTH = PDF_PAGE_RENDER_WIDTH;
 
 function sha256(bytes: Uint8Array): string {
   return createHash("sha256").update(bytes).digest("hex");
@@ -27,13 +25,18 @@ export async function handlePdfPagesRpc(c: Context) {
     return c.json({ error: "UNAUTHORIZED" }, 401);
   }
 
-  let body: { storageKey?: string; pages?: number[] };
+  const requestId = crypto.randomUUID();
+  let body: { storageKey?: string; pages?: number[]; representation?: unknown; imageWidth?: unknown; requestId?: string };
   try {
     body = await c.req.json();
   } catch {
     return c.json({ error: "INVALID_JSON_BODY" }, 400);
   }
 
+  const traceId = typeof body.requestId === "string" && /^[a-zA-Z0-9-]{1,64}$/.test(body.requestId) ? body.requestId : requestId;
+  const options = pdfReadOptionsSchema.safeParse(body);
+  if (!options.success) return c.json({ error: "INVALID_PDF_OPTIONS", requestId: traceId }, 400);
+  const { representation } = options.data;
   const { storageKey, pages } = body;
   if (!storageKey || typeof storageKey !== "string" || !isSafeKey(storageKey) || !storageKey.toLowerCase().endsWith(".pdf")) {
     return c.json({ error: "INVALID_STORAGE_KEY" }, 400);
@@ -54,49 +57,19 @@ export async function handlePdfPagesRpc(c: Context) {
       return c.json({ error: "STORAGE_DOWNLOAD_UNSUPPORTED" }, 500);
     }
 
-    const bytes = await storage.download(storageKey);
-    if (!bytes || bytes.byteLength === 0) {
-      return c.json({ error: "PDF_EMPTY" }, 404);
-    }
-    if (bytes.byteLength > MAX_PDF_BYTES) {
-      return c.json({ error: "PDF_EXCEEDS_SIZE_LIMIT" }, 413);
-    }
-
-    const documentChecksum = sha256(bytes);
-    const result = await cachedPdfPages({
-      checksum: documentChecksum, pages, rendererVersion: PDF_PAGE_RENDERER_VERSION, width: PDF_PAGE_WIDTH,
-    }, storage, async (missingPages) => {
-      const { PDFParse } = await import("pdf-parse");
-      await setupPdfWorker(PDFParse);
-      const parser = new PDFParse({ data: bytes });
-      try {
-        const info = await parser.getInfo();
-        const totalPages = info.total;
-        if (missingPages.some((page) => page > totalPages)) throw new Error("PAGE_OUT_OF_BOUNDS");
-        const textResult = await parser.getText({ partial: missingPages });
-        const screenshotResult = await parser.getScreenshot({
-          partial: missingPages, desiredWidth: PDF_PAGE_WIDTH, imageBuffer: true,
-        });
-        const textByPage = new Map(textResult.pages.map((page) => [page.num, page.text]));
-        const imageByPage = new Map(screenshotResult.pages.map((page) => [page.pageNumber, page]));
-        return { totalPages, pages: missingPages.map((pageNumber) => {
-          const image = imageByPage.get(pageNumber);
-          if (!image || image.data.byteLength === 0) throw new Error(`RENDER_PAGE_FAILED_${pageNumber}`);
-          return { pageNumber, text: textByPage.get(pageNumber) ?? "", png: image.data,
-            width: image.width, height: image.height };
-        }) };
-      } finally {
-        await parser.destroy().catch(() => undefined);
-      }
-    });
-    return c.json({
+    const result = await readPdfFromStorage({ storageKey, pages, ...options.data, requestId: traceId });
+    const textOnly = representation === "text";
+    return await timePdfStage(traceId, "send.serialize", async () => c.json({
+      requestId: traceId,
       totalPages: result.totalPages,
-      checksum: documentChecksum,
-      size: bytes.byteLength,
-      pages: result.pages.map(({ png, ...page }) => ({ ...page, imageBase64: Buffer.from(png).toString("base64") })),
-    });
+      checksum: result.checksum,
+      size: result.size,
+      pages: result.pages.map(({ png, ...page }) => ({ ...page,
+        ...(textOnly ? {} : { imageBase64: Buffer.from(png).toString("base64") }) })),
+    }));
   } catch (err: any) {
-    if (err instanceof Error && err.message === "PAGE_OUT_OF_BOUNDS") {
+    if (isSourceReadTimeout(err)) return c.json({ error: "SOURCE_READ_TIMEOUT", requestId: traceId }, 504);
+    if (err instanceof Error && (err.message === "PAGE_OUT_OF_BOUNDS" || err.message === "AUTHORING_MCP_SOURCE_PAGE_INVALID")) {
       return c.json({ error: "PAGE_OUT_OF_BOUNDS" }, 400);
     }
     console.error("[handlePdfPagesRpc] Error:", err);

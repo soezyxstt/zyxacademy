@@ -2,7 +2,7 @@
 
 The `ACTIVE` architecture, deployment, development, and feature guides document all four MCP OAuth default scopes, all four consent checkboxes even for narrower client requests, and reauthorization for existing tokens.
 
-The `ACTIVE` development, architecture, and Product Bundle V3 guides document R2-backed MCP PDF page images, deterministic course/document/checksum folders, citation metadata, the page-read stage-scope requirement, and the compute text/PNG cache keyed by document checksum, page, renderer revision, and resolution.
+The `ACTIVE` development, architecture, and Product Bundle V3 guides document R2-backed MCP PDF page images, deterministic course/document/checksum folders, citation metadata, the page-read stage-scope requirement, the compute text/PNG cache keyed by document checksum, page, renderer revision, and resolution, plus text/image representation, request timings, per-page Inngest jobs and polling, and resumable signed binary downloads. The `ACTIVE` deployment guide records worker registration and remote Range verification required for this always-on change.
 
 This directory contains the technical documentation, architecture specifications, data schemas, operational runbooks, bundle contracts, and audits for Zyx Academy.
 

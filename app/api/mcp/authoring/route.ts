@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth";
 import { principalFromConnectionToken, resolveMcpAdmin, type McpPrincipal } from "@/lib/authoring/mcp-auth";
 import { createAuthoringMcpServer } from "@/lib/authoring/mcp-server";
 import { MCP_AUTHORING_DEFAULT_SCOPES, MCP_AUTHORING_SCOPES } from "@/lib/authoring/mcp-workflows";
+import { timePdfStage } from "@/lib/compute/pdf-read-options";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -60,13 +61,14 @@ async function handle(request: NextRequest): Promise<Response> {
   const principal = await authenticate(request);
   if (principal instanceof NextResponse) return principal;
 
-  const server = createAuthoringMcpServer(principal);
+  const requestId = crypto.randomUUID();
+  const server = createAuthoringMcpServer(principal, requestId);
   const transport = new WebStandardStreamableHTTPServerTransport({
     sessionIdGenerator: undefined,
     enableJsonResponse: true,
   });
   await server.connect(transport);
-  return transport.handleRequest(request);
+  return timePdfStage(requestId, "send.transport", () => transport.handleRequest(request));
 }
 
 export async function POST(request: NextRequest) {

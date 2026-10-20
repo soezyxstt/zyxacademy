@@ -1,3 +1,6 @@
+import { sourceReadJob } from "@/lib/authoring/source-read-jobs";
+import { resolveStoredSourceFile } from "@/lib/authoring/mcp-source-files";
+import { isSourceReadTimeout, timePdfStage } from "@/lib/compute/pdf-read-options";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { createHash } from "node:crypto";
@@ -150,7 +153,7 @@ function redactSensitiveDetails(text: string): string {
 }
 
 function toolError(error: unknown) {
-  const message = error instanceof Error ? error.message : "AUTHORING_MCP_REQUEST_FAILED";
+  const message = isSourceReadTimeout(error) ? "SOURCE_READ_TIMEOUT" : error instanceof Error ? error.message : "AUTHORING_MCP_REQUEST_FAILED";
   const firstLine = message.split("\n")[0] ?? "AUTHORING_MCP_REQUEST_FAILED";
   const [rawCode, ...details] = firstLine.split(":");
   const code = redactSensitiveDetails(rawCode.slice(0, 120)).trim();
@@ -197,14 +200,20 @@ export async function formatSourceFileReadResult(
   if (!safeChecksum) throw new Error("AUTHORING_MCP_SOURCE_IMAGE_CHECKSUM_REQUIRED");
   const pages = [];
   for (const page of result.pages) {
+    const citation = { title: result.title, pageNumber: page.pageNumber, documentChecksum: safeChecksum,
+      label: `Sumber: ${result.title}, hlm. ${page.pageNumber}` };
+    if (result.representation === "text") {
+      pages.push({ pageNumber: page.pageNumber, text: page.text, citation });
+      continue;
+    }
     const imageChecksum = createHash("sha256").update(page.png).digest("hex");
-    const key = buildSourcePageImageKey({
+    const key = page.imageKey ?? buildSourcePageImageKey({
       ...result.imageSource,
       documentChecksum: safeChecksum,
       imageChecksum,
       pageNumber: page.pageNumber,
     });
-    if (!imageStorage.exists || !await imageStorage.exists(key)) {
+    if (!page.imageKey && (!imageStorage.exists || !await imageStorage.exists(key))) {
       await imageStorage.upload(page.png, key.split("/").pop()!, "image/png", {
         key,
         metadata: { "document-sha256": safeChecksum, "page-number": String(page.pageNumber) },
@@ -212,12 +221,11 @@ export async function formatSourceFileReadResult(
     }
     pages.push({
       pageNumber: page.pageNumber,
-      text: page.text,
+      ...(result.representation === "image" ? {} : { text: page.text }),
       width: page.width,
       height: page.height,
       imageUrl: new URL(imageStorage.getUrl(key), resolveAuthBaseUrl()).href,
-      citation: { title: result.title, pageNumber: page.pageNumber, documentChecksum: safeChecksum,
-        label: `Sumber: ${result.title}, hlm. ${page.pageNumber}` },
+      citation,
     });
   }
   const payload = {
@@ -229,12 +237,12 @@ export async function formatSourceFileReadResult(
     totalPages: result.totalPages,
     pages,
   };
-  return toolResult(payload, false, pages.map((page) => ({
+  return toolResult(payload, false, pages.flatMap((page) => "imageUrl" in page ? [{
     type: "resource_link" as const,
     uri: page.imageUrl,
     name: page.citation.label,
     mimeType: "image/png" as const,
-  })));
+  }] : []));
 }
 
 function chunkValues<T>(values: readonly T[], size = 200): T[][] {
@@ -1288,7 +1296,7 @@ function productValidationIssueToDiagnostic(
   };
 }
 
-function registerWorkflowTools(server: McpServer, principal: McpPrincipal): void {
+function registerWorkflowTools(server: McpServer, principal: McpPrincipal, traceId?: string): void {
   (server as any).registerTool("workflow.list", {
     title: "List authoring workflows",
     description: "Mengembalikan pilihan workflow authoring. Pilihan sengaja tidak menyediakan opsi gabungan.",
@@ -1360,21 +1368,56 @@ function registerWorkflowTools(server: McpServer, principal: McpPrincipal): void
 
   (server as any).registerTool("source.read_file", {
     title: "Read stored PDF",
-    description: "Membaca PDF sebagai teks dan URL gambar halaman tersimpan di R2 beserta kutipan sumber. Mode pages memerlukan authoring:stage. Gunakan mode blob hanya sebagai fallback eksplisit.",
+    description: "Membaca teks PDF secara default. Minta representation image atau both untuk grafik, rumus, atau tata letak, dengan imageWidth 320 sampai 2048 px. Gambar halaman tersimpan di R2 beserta kutipan sumber. Mode pages memerlukan authoring:stage dan mengembalikan jobId jika belum siap. Periksa source.get_read_job. Mode download menyediakan URL biner sementara dengan HTTP Range; blob adalah alias download.",
     inputSchema: {
       fileKey: z.string().min(1),
-      mode: z.enum(["pages", "blob"]).default("pages"),
+      mode: z.enum(["pages", "download", "blob"]).default("pages"),
       pages: z.array(z.number().int().positive()).min(1).max(4).optional(),
+      representation: z.enum(["text", "image", "both"]).default("text"),
+      imageWidth: z.number().int().min(320).max(2048).default(1280),
     },
     annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
-  }, async ({ fileKey, mode, pages }: any) => {
+  }, async ({ fileKey, mode, pages, representation, imageWidth }: any) => {
+    const requestId = traceId ?? crypto.randomUUID();
     try {
       requireMcpScope(principal, "authoring:read");
-      if (mode !== "blob") requireMcpScope(principal, "authoring:stage");
-      const result = await readStoredSourceFile({ fileKey, mode, pages });
-      return await formatSourceFileReadResult(result);
+      if (mode === "download" || mode === "blob") {
+        const { row } = await resolveStoredSourceFile(fileKey);
+        if (!storage.getSignedUrl) throw new Error("AUTHORING_MCP_SOURCE_DOWNLOAD_UNSUPPORTED");
+        const url = await timePdfStage(requestId, "download.sign", () => storage.getSignedUrl!(row.fileUrl, "get", "application/pdf", 900));
+        return toolResult({ ok: true, requestId, mode: "download", title: row.title, mimeType: "application/pdf",
+          url, expiresInSeconds: 900, checksum: normalizeSha256Checksum(row.checksum), supportsRange: true });
+      }
+      requireMcpScope(principal, "authoring:stage");
+      const job = await timePdfStage(requestId, "job.lookup", () => sourceReadJob({ fileKey, pages, representation, imageWidth, requestId,
+        actorId: principal.actorId, sessionId: principal.sessionId }));
+      if (job.status !== "complete") return toolResult({ ok: true, requestId, ...job });
+      const result = job.result;
+      return await timePdfStage(requestId, "send.format", async () => {
+        const formatted = await formatSourceFileReadResult(result);
+        return toolResult({ ...formatted.structuredContent, requestId, jobId: job.jobId }, false, formatted.content.slice(1));
+      });
     } catch (error) {
-      return toolError(error);
+      return toolResult({ ...toolError(error).structuredContent, requestId }, true);
+    }
+  });
+
+  (server as any).registerTool("source.get_read_job", {
+    title: "Get PDF page job",
+    description: "Memeriksa hasil job halaman PDF. retryFailed hanya mengulang halaman yang gagal setelah retry worker habis.",
+    inputSchema: { fileKey: z.string().min(1), jobId: z.string().regex(/^[a-f0-9]{64}$/), retryFailed: z.boolean().default(false) },
+    annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
+  }, async ({ fileKey, jobId, retryFailed }: any) => {
+    const requestId = traceId ?? crypto.randomUUID();
+    try {
+      requireMcpScope(principal, "authoring:read");
+      requireMcpScope(principal, "authoring:stage");
+      const job = await sourceReadJob({ fileKey, jobId, retryFailed, requestId, actorId: principal.actorId, sessionId: principal.sessionId });
+      if (job.status !== "complete") return toolResult({ ok: true, requestId, ...job });
+      const formatted = await timePdfStage(requestId, "send.format", () => formatSourceFileReadResult(job.result));
+      return toolResult({ ...formatted.structuredContent, requestId, jobId }, false, formatted.content.slice(1));
+    } catch (error) {
+      return toolResult({ ...toolError(error).structuredContent, requestId }, true);
     }
   });
 
@@ -4112,7 +4155,7 @@ function registerQuizAssemblyTools(server: McpServer, principal: McpPrincipal): 
   }));
 }
 
-export function createAuthoringMcpServer(principal: McpPrincipal): McpServer {
+export function createAuthoringMcpServer(principal: McpPrincipal, requestId?: string): McpServer {
   const server = new McpServer(
     { name: "zyx-authoring", version: "1.0.0" },
     {
@@ -4121,7 +4164,7 @@ export function createAuthoringMcpServer(principal: McpPrincipal): McpServer {
         "Panggil workflow.get_playbook sebelum memulai authoring, setiap berpindah tahap, dan saat melanjutkan run untuk mengambil playbook terbaru serta bootstrapToken bertanda tangan.",
     },
   );
-  registerWorkflowTools(server, principal);
+  registerWorkflowTools(server, principal, requestId);
   registerValidationTools(server, principal);
   registerReferenceQuestionTools(server, principal);
   registerLifecycleTools(server, principal);
