@@ -2,6 +2,8 @@
 
 The `ACTIVE` architecture, deployment, development, and feature guides document all four MCP OAuth default scopes, all four consent checkboxes even for narrower client requests, and reauthorization for existing tokens.
 
+The `ACTIVE` development, architecture, and Product Bundle V3 guides document R2-backed MCP PDF page images, deterministic course/document/checksum folders, citation metadata, the page-read stage-scope requirement, the compute text/PNG cache keyed by document checksum, page, renderer revision, and resolution, plus text/image representation, request timings, per-page Inngest jobs and polling, and resumable signed binary downloads. The `ACTIVE` deployment guide records worker registration and remote Range verification required for this always-on change.
+
 This directory contains the technical documentation, architecture specifications, data schemas, operational runbooks, bundle contracts, and audits for Zyx Academy.
 
 All markdown documents across `docs/` and `plans/` must be registered in this index with an explicit lifecycle status. The active feature catalog also specifies catalogue-based Article headings, chapter numbering, decoded canonical product URLs, and subsection navigation matching visible block headings. The active Product Bundle V3 contract includes labelled open and closed graph points and accepts complete Diktat PDFs from 1 to 4 pages without filler or font shrinking.

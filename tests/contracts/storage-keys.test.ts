@@ -6,6 +6,7 @@ import {
   buildIdeaBundleKey,
   buildProductBundleKey,
   buildSourcePackKey,
+  buildSourcePageImageKey,
   formatQuestionFolder,
   isSafeKey,
   joinKey,
@@ -15,6 +16,18 @@ import {
   slugifySegment,
   userFileLeaf,
 } from "@/lib/storage/keys";
+
+test("PDF page image keys isolate document and render revisions", () => {
+  const input = { courseId: "Fisika Dasar", materialId: "Buku 1", documentChecksum: "a".repeat(64),
+    imageChecksum: "b".repeat(64), pageNumber: 3 };
+  const key = buildSourcePageImageKey(input);
+  expect(key).toBe(`courses/fisika-dasar/source-images/buku-1/${input.documentChecksum}/page-3-${input.imageChecksum}.png`);
+  expect(buildSourcePageImageKey(input)).toBe(key);
+  expect(buildSourcePageImageKey({ ...input, documentChecksum: "c".repeat(64) })).not.toBe(key);
+  expect(buildSourcePageImageKey({ ...input, imageChecksum: "c".repeat(64) })).not.toBe(key);
+  expect(() => buildSourcePageImageKey({ ...input, pageNumber: 0 })).toThrow("INVALID_OBJECT_KEY");
+  expect(() => buildSourcePageImageKey({ ...input, documentChecksum: "../unsafe" })).toThrow("INVALID_OBJECT_KEY");
+});
 
 describe("storage key slugify helpers", () => {
   test("slugifySegment produces kebab-case from any input", () => {

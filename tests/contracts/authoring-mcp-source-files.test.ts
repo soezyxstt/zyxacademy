@@ -184,7 +184,7 @@ describe("historical reference file catalog", () => {
     const result = await listStoredReferenceFiles({ courseId: scope.courseId, legacyCourseId: scope.legacyCourseId }, dependencies(rows));
     expect(result.total).toBe(2);
     expect(result.files.map((file) => file.category)).toEqual(["soal", "pembahasan_soal"]);
-    expect(result.files.every((file) => file.pageCount === 8)).toBe(true);
+    expect(result.files.every((file) => file.pageCount === null)).toBe(true);
     const serialized = JSON.stringify(result);
     expect(serialized).not.toContain("question-pdf");
     expect(serialized).not.toContain("courses/legacy-course/materials");
@@ -223,14 +223,39 @@ describe("stored PDF reading", () => {
     expect(result.pages[0]).toMatchObject({ pageNumber: 1, text: "", width: 1280 });
     expect(result.pages[0]?.png.byteLength).toBeGreaterThan(0);
     expect(result.pages[1]?.text).toBe("Teks halaman 2");
-    const response = formatSourceFileReadResult(result);
+    const uploads: string[] = [];
+    const response = await formatSourceFileReadResult(result, {
+      upload: async (_bytes, _filename, _mime, options) => {
+        uploads.push(options.key);
+        return { key: options.key, url: options.key, size: 4 };
+      },
+      getUrl: (key) => `/api/storage/file/${key}`,
+    });
     expect(response.structuredContent.size).toBe(expectedSize);
     expect(response.structuredContent.checksum).toBe(expectedSha256);
     expect(response.content[0]).toMatchObject({ type: "text" });
-    expect(response.content.slice(1)).toEqual([
-      { type: "image", data: "iVBORw==", mimeType: "image/png" },
-      { type: "image", data: "iVBORw==", mimeType: "image/png" },
+    expect(response.content).toHaveLength(3);
+    expect(response.content.slice(1)).toMatchObject([
+      { type: "resource_link", mimeType: "image/png", name: "Sumber: Materi Vektor, hlm. 1" },
+      { type: "resource_link", mimeType: "image/png" },
     ]);
+    expect(JSON.stringify(response.content)).not.toContain('"type":"image"');
+    expect(uploads).toHaveLength(2);
+    expect(uploads[0]).toStartWith(`courses/legacy-course/source-images/material-1/${expectedSha256}/page-1-`);
+    expect(response.structuredContent.pages).toMatchObject([
+      { imageUrl: new URL(`/api/storage/file/${uploads[0]}`, process.env.BETTER_AUTH_URL || process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000").href, citation: { title: "Materi Vektor", pageNumber: 1, label: "Sumber: Materi Vektor, hlm. 1" } },
+      { imageUrl: new URL(`/api/storage/file/${uploads[1]}`, process.env.BETTER_AUTH_URL || process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000").href, citation: { pageNumber: 2 } },
+    ]);
+    await expect(formatSourceFileReadResult(result, {
+      upload: async () => { throw new Error("upload failed"); },
+      getUrl: (key) => key,
+    })).rejects.toThrow("upload failed");
+    const cachedResponse = await formatSourceFileReadResult(result, {
+      exists: async () => true,
+      upload: async () => { throw new Error("existing images must not be uploaded again"); },
+      getUrl: (key) => `/api/storage/file/${key}`,
+    });
+    expect(cachedResponse.structuredContent.pages).toEqual(response.structuredContent.pages);
   });
 
   it("rejects invalid pages, stale associations, missing rows, and unsupported downloads", async () => {
@@ -262,7 +287,7 @@ describe("stored PDF reading", () => {
     expect(blob.mode).toBe("blob");
     if (blob.mode !== "blob") throw new Error("expected blob mode");
     expect(blob.bytes).toEqual(strToU8("stored pdf bytes"));
-    expect(formatSourceFileReadResult(blob).content[1]).toMatchObject({
+    expect((await formatSourceFileReadResult(blob)).content[1]).toMatchObject({
       type: "resource",
       resource: { mimeType: "application/pdf", blob: Buffer.from(blob.bytes).toString("base64") },
     });
@@ -359,7 +384,10 @@ describe("stored PDF reading", () => {
       expect(readRes.size).toBeGreaterThan(0);
       expect(readRes.checksum).toBe(expectedSha);
 
-      const formatted = formatSourceFileReadResult(readRes);
+      const formatted = await formatSourceFileReadResult(readRes, {
+        upload: async (_bytes, _filename, _mime, options) => ({ key: options.key, url: options.key, size: 4 }),
+        getUrl: (key) => `/api/storage/file/${key}`,
+      });
       expect(formatted.structuredContent.size).toBe(pdfBytes.byteLength);
       expect(formatted.structuredContent.checksum).toBe(expectedSha);
     } finally {

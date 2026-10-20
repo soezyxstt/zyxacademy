@@ -16,7 +16,7 @@ Extract historical exam, quiz, tutorial, or homework questions (`origin: "histor
    - Call `workflow.get_contract` with `runToken` and `bootstrapToken`.
 3. **List and Read Stored Historical PDFs:**
    - Call `source.list_reference_files` with `runToken` and optional `categories: ["soal", "pembahasan_soal"]`.
-   - Read every page of the target question PDF (`sourceFileKey`) and, when available, the matching solution PDF (`solutionFileKey`) using `source.read_file` (`mode: "pages"`, up to 4 pages per call).
+   - Read every page of the target question PDF (`sourceFileKey`) and, when available, the matching solution PDF (`solutionFileKey`) using `source.read_file` (`mode: "pages"`, up to 4 pages per call). Poll `source.get_read_job` with `fileKey` and `jobId` when pending; retry only failed pages with `retryFailed: true`. Request `representation: "both"` for formulas, diagrams, scans, or layout, with optional `imageWidth` (320 to 2048 px). Use `mode: "download"` for a temporary binary URL with HTTP Range when the client can download files.
 4. **Search Published Course Ideas Across Chapters:**
    - Call `knowledge.search_course_ideas` with `runToken` and `query` to find published Ideas across all chapters of the locked course.
    - Call `knowledge.get_idea` with `runToken` and `ideaId` to verify the exact Idea statement and chapter context before linking.

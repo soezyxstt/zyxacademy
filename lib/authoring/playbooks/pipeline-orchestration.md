@@ -20,7 +20,7 @@ Execute the pipeline in strict checkpoint order. Never skip a gate or start a do
 2. **Checkpoint 1 (Source Pack Stage: `source`)**
    - Fetch stage modules via `workflow.get_playbook` with `stage: "source"` if not already loaded.
    - If a valid, up-to-date Source Pack already exists in `source.list_packs` for the target chapter and documents, reuse its `packId` / `importId` / `sourcePackToken`.
-   - Otherwise, list stored PDFs via `source.list_files`, read all pages via `source.read_file`, reconcile multi-document coverage, build the `source-pack.v1` archive, and call `source.ingest` with `storedOriginals` (or `originals` for local files) and `bootstrapToken`.
+   - Otherwise, list stored PDFs via `source.list_files`, read all pages via `source.read_file` (poll `source.get_read_job` when pending; request images for visual evidence), reconcile multi-document coverage, build the `source-pack.v1` archive, and call `source.ingest` with `storedOriginals` (or `originals` for local files) and `bootstrapToken`.
    - Gate: `source.ingest` must return `ok: true` and `persisted.importId`.
 
 3. **Checkpoint 2 (Idea Bundle V3 Stage: `idea`)**
