@@ -184,7 +184,7 @@ describe("historical reference file catalog", () => {
     const result = await listStoredReferenceFiles({ courseId: scope.courseId, legacyCourseId: scope.legacyCourseId }, dependencies(rows));
     expect(result.total).toBe(2);
     expect(result.files.map((file) => file.category)).toEqual(["soal", "pembahasan_soal"]);
-    expect(result.files.every((file) => file.pageCount === 8)).toBe(true);
+    expect(result.files.every((file) => file.pageCount === null)).toBe(true);
     const serialized = JSON.stringify(result);
     expect(serialized).not.toContain("question-pdf");
     expect(serialized).not.toContain("courses/legacy-course/materials");

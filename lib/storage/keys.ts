@@ -85,6 +85,13 @@ export function buildPdfPageCacheKey(input: {
     `width-${input.width}`, `page-${input.pageNumber}`);
 }
 
+export function buildSourceReadJobKey(jobId: string, pageNumber?: number): string {
+  if (!/^[a-f0-9]{64}$/.test(jobId) || (pageNumber !== undefined && (!Number.isInteger(pageNumber) || pageNumber < 1))) {
+    throw new Error(INVALID_OBJECT_KEY);
+  }
+  return joinKey("overhaul", "source-read-jobs", jobId, pageNumber === undefined ? "request.json" : `page-${pageNumber}.json`);
+}
+
 export function isProtectedProductDiktatPdfKey(key: string): boolean {
   return /^overhaul\/[^/]+\/diktat-pdf\/[^/]+\.pdf$/.test(key);
 }
