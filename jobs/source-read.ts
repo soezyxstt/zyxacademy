@@ -3,8 +3,9 @@ import { inngest } from "./client";
 import { storage } from "@/lib/storage";
 import { buildSourcePageImageKey, buildSourceReadJobKey } from "@/lib/storage/keys";
 import { readPdfFromStorage } from "@/lib/compute/pdf-reader";
-import { isSourceReadTimeout, timePdfStage } from "@/lib/compute/pdf-read-options";
+import { sourcePageErrorCode, timePdfStage } from "@/lib/compute/pdf-read-options";
 import { sourceReadJobSchema, writeSourceReadJson } from "@/lib/authoring/source-read-jobs";
+import { writeSourceFileMetadata } from "@/lib/authoring/source-file-metadata";
 
 export async function processSourceReadPage(data: unknown) {
   const job = sourceReadJobSchema.extend({ pageNumber: sourceReadJobSchema.shape.pages.element }).parse(data);
@@ -14,6 +15,8 @@ export async function processSourceReadPage(data: unknown) {
   try {
     const result = await readPdfFromStorage({ ...job, pages: [job.pageNumber] });
     if (job.checksum && result.checksum !== job.checksum) throw new Error("AUTHORING_MCP_SOURCE_FILE_CHECKSUM_MISMATCH");
+    if (job.sourceVersion !== undefined) await writeSourceFileMetadata({ storageKey: job.storageKey,
+      updatedAtMs: job.sourceVersion, checksum: job.checksum }, { checksum: result.checksum, size: result.size });
     const { png, ...page } = result.pages[0];
     let imageKey: string | undefined;
     if (job.representation !== "text") {
@@ -26,7 +29,7 @@ export async function processSourceReadPage(data: unknown) {
       checksum: result.checksum, size: result.size, totalPages: result.totalPages, page: { ...page, imageKey } }));
     return { status: "complete", pageNumber: job.pageNumber };
   } catch (error) {
-    await writeSourceReadJson(key, { status: "retrying", error: isSourceReadTimeout(error) ? "SOURCE_READ_TIMEOUT" : "SOURCE_PAGE_READ_FAILED" });
+    await writeSourceReadJson(key, { status: "retrying", error: sourcePageErrorCode(error) });
     throw error;
   }
 }
@@ -38,7 +41,7 @@ export const sourceReadPageWorker = inngest.createFunction({
     const job = sourceReadJobSchema.parse(event.data.event.data);
     const pageNumber = event.data.event.data.pageNumber as number;
     await writeSourceReadJson(buildSourceReadJobKey(job.jobId, pageNumber), {
-      status: "failed", error: isSourceReadTimeout(new Error(event.data.error.message)) ? "SOURCE_READ_TIMEOUT" : "SOURCE_PAGE_READ_FAILED",
+      status: "failed", error: sourcePageErrorCode(new Error(event.data.error.message)),
     });
   },
 }, async ({ event, step }) => step.run("read-page", () => processSourceReadPage(event.data)));

@@ -11,6 +11,17 @@ export type SourceFilePage = {
   height: number;
 };
 
+function pngDimensions(bytes: Uint8Array) {
+  if (bytes.byteLength < 24) throw new Error("SOURCE_PAGE_PNG_INVALID");
+  const header = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  if (header.getUint32(0) !== 0x89504e47 || header.getUint32(4) !== 0x0d0a1a0a ||
+      header.getUint32(8) !== 13 || header.getUint32(12) !== 0x49484452) throw new Error("SOURCE_PAGE_PNG_INVALID");
+  const width = header.getUint32(16);
+  const height = header.getUint32(20);
+  if (!width || !height) throw new Error("SOURCE_PAGE_PNG_INVALID");
+  return { width, height };
+}
+
 export function classifyStoredPdfError(error: unknown): "AUTHORING_MCP_SOURCE_PDF_PASSWORD_REQUIRED" | "AUTHORING_MCP_SOURCE_PDF_INVALID" {
   const message = error instanceof Error ? `${error.name}:${error.message}`.toLowerCase() : "";
   return message.includes("password")
@@ -43,18 +54,19 @@ export async function parseStoredPdfPages(bytes: Uint8Array, pages: number[], op
       pages: pages.map((pageNumber) => {
         const image = imageByPage.get(pageNumber);
         if (representation !== "text" && (!image || image.data.byteLength === 0)) throw new Error("AUTHORING_MCP_SOURCE_PAGE_RENDER_FAILED");
+        // PDF viewport dimensions can be fractional; cache the actual raster pixels.
+        const dimensions = image ? pngDimensions(image.data) : { width: 1, height: 1 };
         return {
           pageNumber,
           text: textByPage.get(pageNumber) ?? "",
           png: image?.data ?? new Uint8Array(),
-          width: image?.width ?? 1,
-          height: image?.height ?? 1,
+          ...dimensions,
         };
       }),
     };
   } catch (error) {
     if (isSourceReadTimeout(error)) throw new Error("SOURCE_READ_TIMEOUT");
-    if (error instanceof Error && error.message.startsWith("AUTHORING_MCP_")) throw error;
+    if (error instanceof Error && /^(AUTHORING_MCP_|SOURCE_PAGE_)/.test(error.message)) throw error;
     throw new Error(classifyStoredPdfError(error));
   } finally {
     await parser.destroy().catch(() => undefined);

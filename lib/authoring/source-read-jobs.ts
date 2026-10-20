@@ -15,6 +15,7 @@ export const sourceReadJobSchema = pdfReadOptionsSchema.extend({
   materialId: z.string(),
   courseId: z.string(),
   checksum: z.string().regex(/^[a-f0-9]{64}$/).nullable(),
+  sourceVersion: z.number().int().nonnegative().optional(),
   pages: z.array(z.number().int().positive()).min(1).max(4).refine((pages) => new Set(pages).size === pages.length),
 });
 export type SourceReadJob = z.infer<typeof sourceReadJobSchema>;
@@ -54,6 +55,7 @@ export async function sourceReadJob(input: {
   if (input.jobId && !existing) throw new Error("AUTHORING_MCP_SOURCE_JOB_NOT_FOUND");
   const job = sourceReadJobSchema.parse(existing ?? { jobId, requestId: input.requestId,
     storageKey: row.fileUrl, materialId: row.id, courseId: row.courseId,
+    sourceVersion: token.updatedAtMs,
     checksum: normalizeSha256Checksum(row.checksum), pages, ...options });
   if (job.jobId !== jobId || job.storageKey !== row.fileUrl || job.materialId !== row.id || job.courseId !== row.courseId) {
     throw new Error("AUTHORING_MCP_SOURCE_JOB_NOT_IN_SCOPE");
