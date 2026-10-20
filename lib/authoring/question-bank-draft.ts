@@ -29,7 +29,7 @@ const legacyQuizQuestionSchema = z.object({
 
 const questionBankQuestionSchema = questionAuthoringQuestionSchema.extend({
   id: questionIdSchema,
-  ideaLinks: z.array(questionIdeaLinkSchema).default([]),
+  ideaLinks: z.array(questionIdeaLinkSchema).min(1),
   referenceLinks: z.array(questionReferenceLinkSchema).default([]),
 }).strict();
 
