@@ -3,6 +3,7 @@ import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/
 import { createAuthoringMcpServer } from "@/lib/authoring/mcp-server";
 import { previousIdeaBundleSourceKey } from "@/lib/bundle/staging";
 import {
+  authoringContractSnapshot,
   MCP_AUTHORING_DEFAULT_SCOPES,
   MCP_CONNECTION_TOKEN_TTL_SECONDS,
   ingestMcpSourcePack,
@@ -64,7 +65,7 @@ function multipleChoice(id: string, overrides: Record<string, unknown> = {}) {
     correctIndices: [0],
     acceptableAnswers: [],
     explanation: "Karena A benar.",
-    ideaLinks: [],
+    ideaLinks: [{ ideaId: "idea-1", weight: 1, role: "primary" }],
     ...overrides,
   };
 }
@@ -164,7 +165,7 @@ describe("provider-neutral authoring MCP workflow registry", () => {
       .toThrow("AUTHORING_MCP_BASE64_INVALID");
   });
 
-  it("accepts question bank draft v2 with optional per-question Idea links", () => {
+  it("accepts question bank draft v2 with explicit per-question Idea links", () => {
     const parsed = parseQuestionBankDraftJson(JSON.stringify({
       schemaVersion: "question-bank-draft.v2",
       draftId: "draft-1",
@@ -180,12 +181,13 @@ describe("provider-neutral authoring MCP workflow registry", () => {
         correctIndices: [1],
         acceptableAnswers: [],
         explanation: "Hasilnya 4.",
+        ideaLinks: [{ ideaId: "idea-1", weight: 1, role: "primary" }],
       }],
     }));
     expect(parsed.success).toBe(true);
     if (parsed.success) {
       const normalized = normalizeQuestionBankDraft(parsed.data);
-      expect(normalized.items[0]?.ideaLinks).toEqual([]);
+      expect(normalized.items[0]?.ideaLinks).toEqual([{ ideaId: "idea-1", weight: 1, role: "primary" }]);
       expect(normalized.items[0]?.question.questionType).toBe("multiple_choice");
     }
   });
@@ -283,6 +285,9 @@ describe("provider-neutral authoring MCP workflow registry", () => {
     expect(names).toContain("authoring.review_product_bundle");
     expect(names).toContain("authoring.withdraw_product_bundle");
     expect(names).toContain("assessment.update_question");
+    const updateLinks = tools.find((tool) => tool.name === "assessment.update_question")?.inputSchema;
+    expect(updateLinks.required).toContain("ideaLinks");
+    expect(updateLinks.properties.ideaLinks.minItems).toBe(1);
     expect(names).toContain("source.list_files");
     expect(names).toContain("source.read_file");
     expect(names).toContain("source.get_read_job");
@@ -468,6 +473,15 @@ describe("aggregated question bank draft review", () => {
     });
   }
 
+  it("advertises mandatory published links and exactly one primary in the contract", () => {
+    const output = authoringContractSnapshot().contracts.quiz_bank.outputs as any;
+    expect(output.quizDraft).toMatchObject({ ideaLinksRequired: true, primaryIdeaCount: 1 });
+    expect(output.quizDraft.scopeGuidance.linkingPolicy).toMatchObject({ required: true, primaryCount: 1 });
+    expect(output.quizDraft.draftExample.questions[0].ideaLinks).toEqual([
+      { ideaId: "published-idea-id-in-locked-chapter", weight: 1, role: "primary" },
+    ]);
+  });
+
   it("accepts a linked draft that satisfies scope and weight rules", () => {
     const review = reviewDraft([
       multipleChoice("q1", { ideaLinks: [
@@ -481,6 +495,31 @@ describe("aggregated question bank draft review", () => {
     expect(review.stats.coverage.coveredIdeaIds).toEqual(["idea-1", "idea-2"]);
     expect(review.stats.coverage.uncoveredIdeaIds).toEqual([]);
     expect(review.issues.some((issue) => issue.code === "QUESTION_COVERAGE_GAP")).toBe(false);
+  });
+
+  it("rejects missing and empty Idea links at the V2 schema boundary", () => {
+    expect(parseQuestionBankDraftJson(draftJson([multipleChoice("q1", { ideaLinks: [] })])).success).toBe(false);
+    const { ideaLinks: _links, ...question } = multipleChoice("q1");
+    expect(parseQuestionBankDraftJson(draftJson([question])).success).toBe(false);
+  });
+
+  it("blocks unlinked normalized legacy items instead of silently accepting them", () => {
+    const parsed = parseQuestionBankDraftJson(draftJson([multipleChoice("q1")]));
+    if (!parsed.success) throw new Error("fixture should parse");
+    const draft = normalizeQuestionBankDraft(parsed.data);
+    draft.items[0].ideaLinks = [];
+    const review = reviewQuestionBankDraft({ draft, scopeCourseId: "course-1", scopeChapterId: "chapter-1", ideas: scopeIdeas });
+    expect(review.valid).toBe(false);
+    expect(review.issues.some((issue) => issue.code === "QUESTION_AUTHORING_IDEA_REQUIRED")).toBe(true);
+  });
+
+  it.each([
+    [{ ideaId: "idea-1", weight: 1, role: "supporting" }],
+    [{ ideaId: "idea-1", weight: 0.5, role: "primary" }, { ideaId: "idea-2", weight: 0.5, role: "primary" }],
+  ])("blocks any primary count other than one: %j", (...links) => {
+    const review = reviewDraft([multipleChoice("q1", { ideaLinks: links })]);
+    expect(review.valid).toBe(false);
+    expect(review.issues.some((issue) => issue.code === "QUESTION_AUTHORING_PRIMARY_IDEA_REQUIRED")).toBe(true);
   });
 
   it("reports every blocking issue in one pass without failing fast", () => {
@@ -510,6 +549,6 @@ describe("aggregated question bank draft review", () => {
     expect(review.blockingIssueCount).toBe(0);
     const warningCodes = review.issues.filter((issue) => issue.severity === "warning").map((issue) => issue.code);
     expect(warningCodes).toContain("QUESTION_EXPLANATION_EMPTY");
-    expect(warningCodes.filter((code) => code === "QUESTION_COVERAGE_GAP")).toHaveLength(2);
+    expect(warningCodes.filter((code) => code === "QUESTION_COVERAGE_GAP")).toHaveLength(1);
   });
 });

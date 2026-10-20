@@ -8,8 +8,13 @@ on:
       - 'lib/authoring/*skills*'
       - 'lib/authoring/skill-catalog.ts'
       - 'lib/authoring/mcp-server.ts'
+      - 'lib/authoring/question-*.ts'
+      - 'lib/authoring/mcp-workflows.ts'
+      - 'lib/authoring/playbooks/quiz-*.md'
       - 'app/api/mcp/authoring/**'
       - 'tests/contracts/authoring-skills.test.ts'
+      - 'tests/contracts/authoring-mcp*.test.ts'
+      - 'tests/contracts/question-authoring.test.ts'
       - 'next.config.ts'
       - 'package.json'
       - '.github/workflows/authoring-skills.yml'
@@ -21,8 +26,13 @@ on:
       - 'lib/authoring/*skills*'
       - 'lib/authoring/skill-catalog.ts'
       - 'lib/authoring/mcp-server.ts'
+      - 'lib/authoring/question-*.ts'
+      - 'lib/authoring/mcp-workflows.ts'
+      - 'lib/authoring/playbooks/quiz-*.md'
       - 'app/api/mcp/authoring/**'
       - 'tests/contracts/authoring-skills.test.ts'
+      - 'tests/contracts/authoring-mcp*.test.ts'
+      - 'tests/contracts/question-authoring.test.ts'
       - 'next.config.ts'
       - 'package.json'
       - '.github/workflows/authoring-skills.yml'
@@ -47,6 +57,12 @@ jobs:
         run: bun run build:authoring-skills --environment ${{ matrix.environment }}
       - name: Validate catalog, protocol, digests, and importer limits
         run: bun test tests/contracts/authoring-skills.test.ts
+      - name: Verify quiz authoring and playbook contracts
+        env:
+          SKIP_ENV_VALIDATION: '1'
+          BETTER_AUTH_SECRET: 'ci-quiz-invariant-tests-only-not-a-real-secret'
+          DATABASE_URL: 'file::memory:'
+        run: bun test tests/contracts/authoring-mcp.test.ts tests/contracts/authoring-mcp-playbook.test.ts tests/contracts/question-authoring.test.ts
       - uses: actions/upload-artifact@v4
         with:
           name: authoring-skills-${{ matrix.environment }}-${{ github.sha }}

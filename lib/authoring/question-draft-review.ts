@@ -117,8 +117,14 @@ export function reviewQuestionBankDraft(input: DraftReviewInput): DraftReviewRes
       incrementCounter(tagCounter, tag);
     }
 
-    if (item.ideaLinks.length === 0) continue;
+    if (item.ideaLinks.length === 0) {
+      issues.push(blocking("QUESTION_AUTHORING_IDEA_REQUIRED", `${label} harus memiliki minimal satu published Idea.`, `${pathPrefix}.ideaLinks`));
+      continue;
+    }
     linkedQuestionCount += 1;
+    if (item.ideaLinks.filter((link) => link.role === "primary").length !== 1) {
+      issues.push(blocking("QUESTION_AUTHORING_PRIMARY_IDEA_REQUIRED", `${label} harus memiliki tepat satu Idea dengan role primary.`, `${pathPrefix}.ideaLinks`));
+    }
 
     const linkIds = item.ideaLinks.map((link) => link.ideaId);
     if (new Set(linkIds).size !== linkIds.length) {
