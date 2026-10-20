@@ -1,6 +1,6 @@
 # Zyx Academy Documentation Index
 
-The `ACTIVE` [MCP skills distribution runbook](operations/authoring-mcp-skills.md) documents pinned external-repository builds, full and ChatGPT import catalogs, protocol handlers, resource integrity, limits, CI, rollback, and deployment acceptance.
+The `ACTIVE` [MCP skills distribution runbook](operations/authoring-mcp-skills.md) documents pinned external-repository builds, full and ChatGPT import catalogs, protocol handlers, resource integrity, limits, CI, rollback, and deployment acceptance, including the verified developer identity required for Scan Tools draft creation.
 
 The `ACTIVE` architecture guide records integer PNG dimensions, source checksum metadata, explicit PDF page citations, and visual review markers for damaged extracted text. The source playbook includes polling fallback for stale connector catalogs.
 
