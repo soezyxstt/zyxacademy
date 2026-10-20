@@ -26,6 +26,7 @@ Author high-quality Zyx-original assessment questions (`origin: "zyx_original"`)
    - Call `assessment.submit_quiz_draft` with `runToken`, `draftJson`, and `bootstrapToken` (`authoring:stage`).
 6. **Editing Existing Draft Questions (`assessment.update_question`):**
    - To revise an existing un-published Zyx-original question in the locked chapter, call `assessment.update_question` with `runToken`, `questionId`, `question`, `ideaLinks`, and `bootstrapToken`.
+   - Apply the same published Idea, locked scope, exactly one primary, uniqueness, and weight rules as draft submission.
    - Only `zyx_original` questions in `draft` or `in_review` status can be updated (`reviewStatus` resets to `generated`). Historical reference questions, ITB examples, and `published` or `retired` questions are immutable in this tool.
 7. **Quiz Assembly (`quiz.*`, when requested by operator):**
    - `quiz.list` (`courseKey`, optional `category`, `status`) and `quiz.get` (`quizId`) inspect existing quizzes.
@@ -84,7 +85,7 @@ Author high-quality Zyx-original assessment questions (`origin: "zyx_original"`)
   - `essay`: `options` is `[]`, `correctIndices` is `[]`, and `explanation` must provide the full grading rubric and step-by-step model solution.
 - `difficulty`: `"easy" | "medium" | "hard"`
 - `cognitiveLevel`: `"remember" | "understand" | "apply" | "analyze" | "evaluate" | "create"`
-- `ideaLinks`: Optional array (`[]` allowed), but strongly recommended so every catalog Idea is covered. When `ideaLinks` is non-empty:
+- `ideaLinks`: Required non-empty array on every new or updated question. Empty or missing links are rejected; legacy V1 drafts must be migrated to V2 with explicit Idea links. Exactly one link must have `role: "primary"`:
   - Every `ideaId` must be `published` and belong to the locked `courseId` and `chapterId`.
   - No duplicate `ideaId` within the same question.
   - Positive `weight` values (`0 < weight <= 1`) must sum to `1` (`Math.abs(sum - 1) <= 1e-6`).
