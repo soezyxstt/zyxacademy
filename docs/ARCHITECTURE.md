@@ -1,5 +1,9 @@
 # Zyx Academy Architecture (vNext)
 
+PDF reader repair: image dimensions come from PNG IHDR integers, and renderer revision v2 isolates previous failed jobs. Start a fresh `source.read_file` request after rollout. Page citations explicitly identify `pdfPage`; `printedPage` is only an unverified boundary-text candidate (`printedPageVerified: false`). Control characters and empty extraction set `textQuality.status: needs_visual_review`; preserve source text and verify formulas through page images. This does not reconstruct formulas or run OCR.
+
+Page workers persist SHA-256 and byte size in private R2 metadata bound to source key and version. Downloads reuse this checksum; when absent, stage-authorized callers receive `checksumStatus: pending` and `checksumJobId` while a text-page job prepares it. Read-only callers can still download without starting jobs. `workflow.list.sourceReader` advertises reader options and polling fallback; host connector catalog refresh remains a separate host operation.
+
 **Stack:** Next.js 16 (App Router), Deno Deploy (background worker), Drizzle ORM + SQLite (dev) / Turso (prod), Better Auth, Gemini AI via Cloudflare AI Gateway, canonical Cloudflare Vectorize (vector search), Cloudflare R2 with UploadThing as a compatibility fallback (storage abstraction), Inngest (background orchestration), Firebase Cloud Messaging (push notifs), Cloudflare Workers (vector API, realtime, diktat renderer)
 
 ---

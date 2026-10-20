@@ -1,4 +1,6 @@
 import { sourceReadJob } from "@/lib/authoring/source-read-jobs";
+import { sourcePageMetadata } from "@/lib/authoring/source-page-metadata";
+import { readSourceFileMetadata } from "@/lib/authoring/source-file-metadata";
 import { resolveStoredSourceFile } from "@/lib/authoring/mcp-source-files";
 import { isSourceReadTimeout, timePdfStage } from "@/lib/compute/pdf-read-options";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
@@ -200,10 +202,12 @@ export async function formatSourceFileReadResult(
   if (!safeChecksum) throw new Error("AUTHORING_MCP_SOURCE_IMAGE_CHECKSUM_REQUIRED");
   const pages = [];
   for (const page of result.pages) {
-    const citation = { title: result.title, pageNumber: page.pageNumber, documentChecksum: safeChecksum,
-      label: `Sumber: ${result.title}, hlm. ${page.pageNumber}` };
+    const metadata = sourcePageMetadata(page.pageNumber, page.text, result.representation === "image");
+    const { textQuality, ...pageLocation } = metadata;
+    const citation = { title: result.title, pageNumber: page.pageNumber, documentChecksum: safeChecksum, ...pageLocation,
+      label: `Sumber: ${result.title}, halaman PDF ${page.pageNumber}` };
     if (result.representation === "text") {
-      pages.push({ pageNumber: page.pageNumber, text: page.text, citation });
+      pages.push({ pageNumber: page.pageNumber, text: page.text, textQuality, citation });
       continue;
     }
     const imageChecksum = createHash("sha256").update(page.png).digest("hex");
@@ -222,6 +226,7 @@ export async function formatSourceFileReadResult(
     pages.push({
       pageNumber: page.pageNumber,
       ...(result.representation === "image" ? {} : { text: page.text }),
+      textQuality,
       width: page.width,
       height: page.height,
       imageUrl: new URL(imageStorage.getUrl(key), resolveAuthBaseUrl()).href,
@@ -1303,7 +1308,10 @@ function registerWorkflowTools(server: McpServer, principal: McpPrincipal, trace
     annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
   }, async () => {
     requireMcpScope(principal, "authoring:read");
-    return toolResult({ version: "authoring-mcp.v1", workflows: listAuthoringWorkflows() });
+    return toolResult({ version: "authoring-mcp.v1", workflows: listAuthoringWorkflows(), sourceReader: {
+      version: "pdf-reader.v2", representations: ["text", "image", "both"], imageWidth: { min: 320, max: 2048, default: 1280 },
+      jobTool: "source.get_read_job", pollingFallback: "Repeat source.read_file with the same arguments if the host tool catalog is stale.",
+    } });
   });
 
   (server as any).registerTool("catalog.list_courses", {
@@ -1382,11 +1390,27 @@ function registerWorkflowTools(server: McpServer, principal: McpPrincipal, trace
     try {
       requireMcpScope(principal, "authoring:read");
       if (mode === "download" || mode === "blob") {
-        const { row } = await resolveStoredSourceFile(fileKey);
+        const { row, token } = await resolveStoredSourceFile(fileKey);
         if (!storage.getSignedUrl) throw new Error("AUTHORING_MCP_SOURCE_DOWNLOAD_UNSUPPORTED");
+        const expectedChecksum = normalizeSha256Checksum(row.checksum);
+        const metadata = expectedChecksum ? null : await readSourceFileMetadata({ storageKey: row.fileUrl,
+          updatedAtMs: token.updatedAtMs, checksum: expectedChecksum });
+        let checksum = expectedChecksum ?? metadata?.checksum ?? null;
+        let checksumJobId: string | undefined;
+        if (!checksum && principal.scopes.includes("authoring:stage")) {
+          try {
+            const job = await sourceReadJob({ fileKey, representation: "text", pages: [1], requestId,
+              actorId: principal.actorId, sessionId: principal.sessionId });
+            if (job.status !== "failed") checksumJobId = job.jobId;
+            if (job.status === "complete") checksum = job.result.checksum;
+          } catch {
+            console.warn(JSON.stringify({ requestId, event: "source.checksum", errorCode: "SOURCE_CHECKSUM_PREPARATION_FAILED" }));
+          }
+        }
         const url = await timePdfStage(requestId, "download.sign", () => storage.getSignedUrl!(row.fileUrl, "get", "application/pdf", 900));
         return toolResult({ ok: true, requestId, mode: "download", title: row.title, mimeType: "application/pdf",
-          url, expiresInSeconds: 900, checksum: normalizeSha256Checksum(row.checksum), supportsRange: true });
+          url, expiresInSeconds: 900, checksum, checksumStatus: checksum ? "ready" : checksumJobId ? "pending" : "unavailable",
+          ...(checksumJobId && !checksum ? { checksumJobId } : {}), supportsRange: true });
       }
       requireMcpScope(principal, "authoring:stage");
       const job = await timePdfStage(requestId, "job.lookup", () => sourceReadJob({ fileKey, pages, representation, imageWidth, requestId,
@@ -4157,7 +4181,7 @@ function registerQuizAssemblyTools(server: McpServer, principal: McpPrincipal): 
 
 export function createAuthoringMcpServer(principal: McpPrincipal, requestId?: string): McpServer {
   const server = new McpServer(
-    { name: "zyx-authoring", version: "1.0.0" },
+    { name: "zyx-authoring", version: "1.1.0" },
     {
       capabilities: { tools: {} },
       instructions:
