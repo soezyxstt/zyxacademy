@@ -53,4 +53,4 @@ Repeat on the exact authorized production hostname after staging passes. The smo
 
 In the plugin draft, use Scan Tools against the default endpoint, confirm `zyx-authoring` and all workflow references, then review and submit the new plugin version. Adding a custom MCP URL does not guarantee installation. Native package uploads and MCP snapshots require separate host acceptance evidence.
 
-Deployment and ChatGPT Scan Tools acceptance remain pending until recorded with the deployed revision and observed results.
+Deployment evidence is recorded in per-rollout smoke receipts. ChatGPT Scan Tools acceptance requires an observed successful scan and confirmation of the imported draft. OpenAI Platform requires a verified developer identity before creating or uploading that draft.
