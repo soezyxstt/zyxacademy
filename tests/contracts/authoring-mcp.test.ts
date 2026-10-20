@@ -293,7 +293,7 @@ describe("provider-neutral authoring MCP workflow registry", () => {
     expect(names.some((name) => name.includes("both"))).toBe(false);
     expect(tools.find((tool) => tool.name === "authoring.list_imports")?.annotations).toMatchObject({ readOnlyHint: true, destructiveHint: false });
     expect(tools.find((tool) => tool.name === "source.list_files")?.annotations).toMatchObject({ readOnlyHint: true, destructiveHint: false });
-    expect(tools.find((tool) => tool.name === "source.read_file")?.annotations).toMatchObject({ readOnlyHint: true, destructiveHint: false });
+    expect(tools.find((tool) => tool.name === "source.read_file")?.annotations).toMatchObject({ readOnlyHint: false, destructiveHint: false });
     expect(tools.find((tool) => tool.name === "source.list_packs")?.annotations).toMatchObject({ readOnlyHint: true, destructiveHint: false });
     expect(tools.find((tool) => tool.name === "source.get_pack")?.annotations).toMatchObject({ readOnlyHint: true, destructiveHint: false });
     expect(tools.find((tool) => tool.name === "authoring.review_idea_bundle")?.annotations).toMatchObject({ readOnlyHint: false, destructiveHint: true });
@@ -379,6 +379,22 @@ describe("provider-neutral authoring MCP workflow registry", () => {
       error: "AUTHORING_MCP_SCOPE_REQUIRED",
       detail: "authoring:withdraw",
     });
+  });
+
+  it("requires stage scope before persisting PDF page images", async () => {
+    const server = createAuthoringMcpServer({ ...testPrincipal, scopes: ["authoring:read"] });
+    const transport = new WebStandardStreamableHTTPServerTransport({ sessionIdGenerator: undefined, enableJsonResponse: true });
+    await server.connect(transport);
+    const response = await transport.handleRequest(new Request("http://localhost/api/mcp/authoring", {
+      method: "POST",
+      headers: { "content-type": "application/json", accept: "application/json, text/event-stream" },
+      body: JSON.stringify({ jsonrpc: "2.0", id: 4, method: "tools/call",
+        params: { name: "source.read_file", arguments: { fileKey: "not-resolved-before-scope-check", pages: [1] } } }),
+    }));
+    const body = await response.json() as { result?: { isError?: boolean; structuredContent?: unknown } };
+    expect(body.result?.isError).toBe(true);
+    expect(body.result?.structuredContent).toMatchObject({ error: "AUTHORING_MCP_SCOPE_REQUIRED", detail: "authoring:stage" });
+    await server.close();
   });
 
   it("does not dereference a missing conflict when staging a new Idea Bundle", () => {

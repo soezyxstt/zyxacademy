@@ -1,5 +1,9 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
+import { createHash } from "node:crypto";
+import { storage, type StorageProvider } from "@/lib/storage";
+import { buildSourcePageImageKey } from "@/lib/storage/keys";
+import { resolveAuthBaseUrl } from "@/lib/auth-site-url";
 import { and, asc, desc, eq, inArray, like, or, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { aiQuestionBank, asalIde, artikel, artikelIde, assessmentSources, bab, bagianArtikel, blokArtikel, buktiPdfBundle, diktatIde, diktatMateri, flashcard, flashcardIde, ide, ketergantunganProduk, mataKuliah, pembahasanSoal, potonganSumber, questionReferenceLinks, relasiIde, reviewPedagogiBundle, setFlashcard, soal, soalIde, soalItbReferensi, sumberMateri } from "@/db/schema";
@@ -114,7 +118,7 @@ type ToolPayload = Record<string, unknown>;
 
 type ExtraToolContent =
   | { type: "text"; text: string }
-  | { type: "image"; data: string; mimeType: "image/png" }
+  | { type: "resource_link"; uri: string; name: string; mimeType: "image/png" }
   | { type: "resource"; resource: { uri: string; mimeType: "application/pdf"; blob: string } };
 
 function serializeMcpTimestamp(value: Date | number | string | null | undefined): string | null {
@@ -166,7 +170,10 @@ function toolError(error: unknown) {
   return toolResult({ ok: false, error: code, detail: detail || undefined, ...(safeIssues ? { issues: safeIssues } : {}) }, true);
 }
 
-export function formatSourceFileReadResult(result: Awaited<ReturnType<typeof readStoredSourceFile>>) {
+export async function formatSourceFileReadResult(
+  result: Awaited<ReturnType<typeof readStoredSourceFile>>,
+  imageStorage: Pick<StorageProvider, "upload" | "getUrl"> & Partial<Pick<StorageProvider, "exists">> = storage,
+) {
   const safeChecksum = normalizeSha256Checksum(result.checksum);
   const safeSize = typeof result.size === "number" && Number.isFinite(result.size) && result.size > 0 ? result.size : null;
   if (result.mode === "blob") {
@@ -187,6 +194,32 @@ export function formatSourceFileReadResult(result: Awaited<ReturnType<typeof rea
       },
     }]);
   }
+  if (!safeChecksum) throw new Error("AUTHORING_MCP_SOURCE_IMAGE_CHECKSUM_REQUIRED");
+  const pages = [];
+  for (const page of result.pages) {
+    const imageChecksum = createHash("sha256").update(page.png).digest("hex");
+    const key = buildSourcePageImageKey({
+      ...result.imageSource,
+      documentChecksum: safeChecksum,
+      imageChecksum,
+      pageNumber: page.pageNumber,
+    });
+    if (!imageStorage.exists || !await imageStorage.exists(key)) {
+      await imageStorage.upload(page.png, key.split("/").pop()!, "image/png", {
+        key,
+        metadata: { "document-sha256": safeChecksum, "page-number": String(page.pageNumber) },
+      });
+    }
+    pages.push({
+      pageNumber: page.pageNumber,
+      text: page.text,
+      width: page.width,
+      height: page.height,
+      imageUrl: new URL(imageStorage.getUrl(key), resolveAuthBaseUrl()).href,
+      citation: { title: result.title, pageNumber: page.pageNumber, documentChecksum: safeChecksum,
+        label: `Sumber: ${result.title}, hlm. ${page.pageNumber}` },
+    });
+  }
   const payload = {
     ok: true,
     mode: result.mode,
@@ -194,16 +227,12 @@ export function formatSourceFileReadResult(result: Awaited<ReturnType<typeof rea
     checksum: safeChecksum,
     size: safeSize,
     totalPages: result.totalPages,
-    pages: result.pages.map((page) => ({
-      pageNumber: page.pageNumber,
-      text: page.text,
-      width: page.width,
-      height: page.height,
-    })),
+    pages,
   };
-  return toolResult(payload, false, result.pages.map((page) => ({
-    type: "image" as const,
-    data: Buffer.from(page.png).toString("base64"),
+  return toolResult(payload, false, pages.map((page) => ({
+    type: "resource_link" as const,
+    uri: page.imageUrl,
+    name: page.citation.label,
     mimeType: "image/png" as const,
   })));
 }
@@ -1331,18 +1360,19 @@ function registerWorkflowTools(server: McpServer, principal: McpPrincipal): void
 
   (server as any).registerTool("source.read_file", {
     title: "Read stored PDF",
-    description: "Membaca PDF tersimpan sebagai teks dan gambar halaman. Gunakan mode blob hanya sebagai fallback eksplisit setelah pembacaan halaman gagal atau timeout.",
+    description: "Membaca PDF sebagai teks dan URL gambar halaman tersimpan di R2 beserta kutipan sumber. Mode pages memerlukan authoring:stage. Gunakan mode blob hanya sebagai fallback eksplisit.",
     inputSchema: {
       fileKey: z.string().min(1),
       mode: z.enum(["pages", "blob"]).default("pages"),
       pages: z.array(z.number().int().positive()).min(1).max(4).optional(),
     },
-    annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
+    annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
   }, async ({ fileKey, mode, pages }: any) => {
     try {
       requireMcpScope(principal, "authoring:read");
+      if (mode !== "blob") requireMcpScope(principal, "authoring:stage");
       const result = await readStoredSourceFile({ fileKey, mode, pages });
-      return formatSourceFileReadResult(result);
+      return await formatSourceFileReadResult(result);
     } catch (error) {
       return toolError(error);
     }

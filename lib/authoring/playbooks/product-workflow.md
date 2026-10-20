@@ -21,6 +21,7 @@ Create a `product-bundle.v3` ZIP archive containing learner-ready structured `ar
    - Call `knowledge.list_sources` and `knowledge.search_source_chunks` (or `source.get_pack`) to obtain active `sourceId`, `version`, `checksum`, and `excerptIds`.
    - Call `knowledge.list_products` and `authoring.list_imports` (`bundleType: "product"`) to check existing drafts or published products in the chapter.
 4. **Draft Content (Creator Role):**
+   - Reuse PDF page images from `source.read_file` using `![descriptive alt text](imageUrl)` in `contentMarkdown`, followed by the returned citation label, for example `Sumber: Judul buku, hlm. 12`. Preserve the title, PDF page number, and document checksum in source provenance. Never invent author, edition, publication year, or printed page numbering. Do not treat a page render as an isolated figure or a typed interactive visual.
    - Draft the structured `article` (with `sections`, semantic `blocks`, `pedagogy`, `workedExamplePayload`, `formativeCheckPayload`, and typed `visuals`), the linked `diktat` (1 to 4 pages A4 self-study summary), and atomic `flashcard_set` + `flashcard` items.
    - Follow `product/editorial`, `product/quality-rubric`, `product/flashcards`, and `product/derivation-audit`.
 5. **Independent Subagent Verification (Critic and Student POV):**
