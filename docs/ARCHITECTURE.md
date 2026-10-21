@@ -1197,6 +1197,9 @@ The compute PDF page reader caches extracted text and PNG bytes by current docum
 3. **Async Layout and Loading Boundary Semantics**:
    - An async parent layout (such as `CourseLayout`) must resolve its own top-level async dependencies (including session validation and course existence checks) before rendering its `{children}` slot.
    - Placing nested `<Suspense>` boundaries or `loading.tsx` files inside or below an async layout streams child components only after the parent layout's own async operations finish resolving; child loading boundaries do not eliminate or bypass the parent layout's execution time.
+4. **Worker and Cross-Runtime Boundary (`lib/course-utils.ts` and `lib/auth-session.ts`):**
+   - Core data resolvers in `lib/` (including `lib/term-index.ts`, `lib/student/course-catalog.ts`, `lib/student/course-access.ts`, and `lib/articles/structured-repository.ts`) are reachable from Deno background jobs (`workers/deno-background/main.ts`) and must remain strictly framework-neutral with zero React imports to pass `worker:deno:audit`.
+   - Request-scoped memoization via React `cache()` is isolated exclusively in Next.js web consumer wrappers (`lib/course-utils.ts` and `lib/auth-session.ts`), which cache-decorate public resolvers for RSC renders while keeping worker modules React-free.
 
 ### Catalogue Count and Metric Projections
 

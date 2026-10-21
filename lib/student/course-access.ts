@@ -1,4 +1,3 @@
-import { cache } from "react";
 import { and, asc, eq, gt, inArray, isNull, or } from "drizzle-orm";
 import { db } from "@/db";
 import {
@@ -679,10 +678,11 @@ export async function resolveDemoCourse(
  * Free lane for every active course. Enrolled and staff users retain their
  * broader access tier.
  */
-async function resolveCourseAccessInternal(
+export async function resolveCourseAccess(
   input: ResolveCourseAccessInput,
-  client: typeof db,
+  executor?: CourseAccessDbExecutor,
 ): Promise<CourseAccessResult> {
+  const client = (executor ?? db) as typeof db;
   const requestedCourseId = normalizeId(input.courseId);
   const userId = normalizeId(input.userId);
   const normalizedInput = { ...input, courseId: requestedCourseId };
@@ -762,51 +762,4 @@ async function resolveCourseAccessInternal(
   };
 }
 
-
-/**
- * Request-scoped primitive cached resolver.
- * Caches by primitive keys (courseId, userId, roleHint, nowMs)
- * to deduplicate calls with separate object literal inputs.
- */
-const cachedResolveCourseAccessPrimitive = cache(
-  async (
-    courseId: string,
-    userId: string,
-    roleHint: string,
-    nowMs: number | undefined,
-  ): Promise<CourseAccessResult> => {
-    return resolveCourseAccessInternal(
-      {
-        courseId,
-        userId: userId || undefined,
-        roleHint: roleHint || undefined,
-        now: typeof nowMs === "number" ? new Date(nowMs) : undefined,
-      },
-      db,
-    );
-  },
-);
-
-/**
- * Central course policy. Deduplicates repeated reads within the same request
- * when using the default database; bypasses caching when a custom executor is passed.
- */
-export async function resolveCourseAccess(
-  input: ResolveCourseAccessInput,
-  executor?: CourseAccessDbExecutor,
-): Promise<CourseAccessResult> {
-  if (executor) {
-    return resolveCourseAccessInternal(input, executor as typeof db);
-  }
-
-  const courseId = normalizeId(input.courseId);
-  const userId = normalizeId(input.userId);
-  const roleHint = normalizeId(input.roleHint);
-  const nowMs =
-    input.now instanceof Date
-      ? input.now.getTime()
-      : undefined;
-
-  return cachedResolveCourseAccessPrimitive(courseId, userId, roleHint, nowMs);
-}
 export const resolveStudentCourseAccess = resolveCourseAccess;

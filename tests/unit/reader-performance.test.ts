@@ -287,10 +287,11 @@ const {
   getCanonicalPublishedArticle,
   getCanonicalPublishedArticlesForCourse,
   getCanonicalPublishedTextProduct,
-  findCanonicalMataKuliah,
-} = await import("@/lib/articles/structured-repository");
+  getCachedCanonicalMataKuliah: findCanonicalMataKuliah,
+  getCourseTermIndex: buildCourseTermIndex,
+} = await import("@/lib/course-utils");
 
-const { buildCourseTermIndex, buildTermIndex } = await import("@/lib/term-index");
+const { buildTermIndex } = await import("@/lib/term-index");
 const { MathText } = await import("@/components/course/math-text");
 const { MarkdownRenderer } = await import("@/components/course/markdown-renderer");
 const {

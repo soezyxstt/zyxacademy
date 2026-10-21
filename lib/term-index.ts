@@ -4,8 +4,8 @@
  * Maps normalized concept terms (display names + aliases) to their concept, so
  * the material reader can match a selected term to a concept and open the
  * KO-backed popover. Pure DB read, no AI. Built at material publish time.
+ * Framework-neutral and compatible with both Node and Deno worker runtimes.
  */
-import { cache } from "react";
 import { db } from "@/db";
 import { knowledgeObjects, conceptLocalizations } from "@/db/schema";
 import { and, eq, inArray } from "drizzle-orm";
@@ -14,8 +14,8 @@ import { normalizeTerm, type TermIndexEntry } from "./term-match";
 export type { TermIndexEntry } from "./term-match";
 export { normalizeTerm, matchTerm } from "./term-match";
 
-/** Builds a course-wide term index (all active concepts in the course), deduplicated per-request via React cache. */
-export const buildCourseTermIndex = cache(async (courseId: string): Promise<TermIndexEntry[]> => {
+/** Builds a course-wide term index (all active concepts in the course). */
+export async function buildCourseTermIndex(courseId: string): Promise<TermIndexEntry[]> {
   if (!courseId || typeof courseId !== "string" || !courseId.trim()) return [];
   const normalizedCourseId = courseId.trim();
 
@@ -49,14 +49,13 @@ export const buildCourseTermIndex = cache(async (courseId: string): Promise<Term
     for (const a of ((loc.aliases as string[] | null) ?? [])) add(a, loc.conceptId);
   }
   return [...byTerm.values()].sort((a, b) => b.term.length - a.term.length);
-});
+}
 
 /**
  * Builds a normalized, deduped term index for a chapter's concepts. Longest
  * terms come first so a longest-match wins at lookup time.
- * Deduplicated per-request via React cache.
  */
-export const buildTermIndex = cache(async (chapterId: string): Promise<TermIndexEntry[]> => {
+export async function buildTermIndex(chapterId: string): Promise<TermIndexEntry[]> {
   if (!chapterId || typeof chapterId !== "string" || !chapterId.trim()) return [];
   const normalizedChapterId = chapterId.trim();
 
@@ -97,4 +96,4 @@ export const buildTermIndex = cache(async (chapterId: string): Promise<TermIndex
   }
 
   return [...byTerm.values()].sort((a, b) => b.term.length - a.term.length);
-});
+}

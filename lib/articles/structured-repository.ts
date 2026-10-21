@@ -1,4 +1,3 @@
-import { cache } from "react";
 import { hydrateSourceFiguresForReader } from "./source-figure-resolver";
 import { articlePartsSchema } from "@/lib/materials/article-parts";
 import { db } from "@/db";
@@ -45,9 +44,9 @@ export interface CanonicalTextProduct {
 
 /**
  * Resolves a canonical course record from either mataKuliah.id or mataKuliah.legacyCourseId.
- * Deduplicated per-request via React cache using primitive string courseId.
+ * Web consumers may memoize this framework-neutral resolver per request.
  */
-export const findCanonicalMataKuliah = cache(async (courseId: string) => {
+export async function findCanonicalMataKuliah(courseId: string) {
   if (!courseId || typeof courseId !== "string" || !courseId.trim()) return undefined;
   try {
     const trimmedId = courseId.trim();
@@ -61,9 +60,9 @@ export const findCanonicalMataKuliah = cache(async (courseId: string) => {
     console.error("Error finding canonical mataKuliah:", error);
     return undefined;
   }
-});
+}
 
-interface SharedCanonicalArticle {
+export interface SharedCanonicalArticle {
   articleRecord: typeof artikel.$inferSelect;
   chapterRecord: typeof bab.$inferSelect | null;
   resolvedChapterId: string | null;
@@ -86,11 +85,12 @@ interface SharedCanonicalArticle {
 
 /**
  * Shared non-personalized article data fetcher.
- * Uses primitive keys (courseId, articleIdOrSlug) to leverage React cache per-request deduplication.
- * This guarantees metadata generation and page rendering in the same request share the exact same DB queries.
+ * Web consumers memoize this reader separately from user progress.
  */
-const fetchSharedCanonicalArticle = cache(
-  async (courseId: string, articleIdOrSlug: string): Promise<SharedCanonicalArticle | null> => {
+export async function fetchSharedCanonicalArticle(
+  courseId: string,
+  articleIdOrSlug: string,
+): Promise<SharedCanonicalArticle | null> {
     try {
       const decodedArticleIdOrSlug = decodeURIComponent(articleIdOrSlug);
       const matchedCourse = await findCanonicalMataKuliah(courseId);
@@ -255,8 +255,7 @@ const fetchSharedCanonicalArticle = cache(
       console.error("Error fetching shared canonical article:", error);
       return null;
     }
-  },
-);
+  }
 
 /**
  * Fetches a single published canonical article with all its sections, blocks,
@@ -267,13 +266,14 @@ export async function getCanonicalPublishedArticle(
   courseId: string,
   articleIdOrSlug: string,
   userId?: string,
+  fetchShared: (courseId: string, articleIdOrSlug: string) => Promise<SharedCanonicalArticle | null> = fetchSharedCanonicalArticle,
 ): Promise<PublicArticleReadModel | null> {
   try {
     const normalizedCourseId = courseId?.trim() ?? "";
     const normalizedArticleIdOrSlug = articleIdOrSlug?.trim() ?? "";
     if (!normalizedCourseId || !normalizedArticleIdOrSlug) return null;
 
-    const shared = await fetchSharedCanonicalArticle(normalizedCourseId, normalizedArticleIdOrSlug);
+    const shared = await fetchShared(normalizedCourseId, normalizedArticleIdOrSlug);
     if (!shared) return null;
 
     const {
@@ -336,10 +336,12 @@ export async function getCanonicalPublishedArticle(
 }
 
 /**
- * Canonical text product lookup (cached per request for non-personalized product access).
+ * Framework-neutral canonical text product lookup.
  */
-export const getCanonicalPublishedTextProduct = cache(
-  async (courseId: string, productId: string): Promise<CanonicalTextProduct | null> => {
+export async function getCanonicalPublishedTextProduct(
+  courseId: string,
+  productId: string,
+): Promise<CanonicalTextProduct | null> {
     try {
       const normalizedCourseId = courseId?.trim() ?? "";
       const normalizedProductId = productId ? decodeURIComponent(productId).trim() : "";
@@ -412,10 +414,9 @@ export const getCanonicalPublishedTextProduct = cache(
       console.error("Error fetching canonical text product:", error);
       return null;
     }
-  },
-);
+  }
 
-interface SharedCourseArticlesData {
+export interface SharedCourseArticlesData {
   articles: Array<typeof artikel.$inferSelect>;
   babMap: Map<string, typeof bab.$inferSelect>;
   sectionsByArticle: Map<string, Array<typeof bagianArtikel.$inferSelect>>;
@@ -423,10 +424,11 @@ interface SharedCourseArticlesData {
 
 /**
  * Shared non-personalized articles data for course.
- * Deduplicated per-request via React cache using primitive courseId.
+ * Web consumers may memoize this framework-neutral reader per request.
  */
-const fetchSharedCourseArticlesData = cache(
-  async (courseId: string): Promise<SharedCourseArticlesData | null> => {
+export async function fetchSharedCourseArticlesData(
+  courseId: string,
+): Promise<SharedCourseArticlesData | null> {
     try {
       const matchedCourse = await findCanonicalMataKuliah(courseId);
       const validCourseIds = matchedCourse
@@ -483,8 +485,7 @@ const fetchSharedCourseArticlesData = cache(
       console.error("Error fetching shared course articles data:", error);
       return null;
     }
-  },
-);
+  }
 
 /**
  * Fetches all canonical published articles for a course, with progress and chapter mapping.
@@ -493,12 +494,13 @@ const fetchSharedCourseArticlesData = cache(
 export async function getCanonicalPublishedArticlesForCourse(
   courseId: string,
   userId?: string,
+  fetchShared: (courseId: string) => Promise<SharedCourseArticlesData | null> = fetchSharedCourseArticlesData,
 ): Promise<CanonicalArticleSummary[]> {
   try {
     const normalizedCourseId = courseId?.trim() ?? "";
     if (!normalizedCourseId) return [];
 
-    const shared = await fetchSharedCourseArticlesData(normalizedCourseId);
+    const shared = await fetchShared(normalizedCourseId);
     if (!shared) return [];
 
     const { articles, babMap, sectionsByArticle } = shared;

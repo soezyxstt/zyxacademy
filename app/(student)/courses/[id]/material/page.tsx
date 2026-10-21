@@ -11,6 +11,7 @@ import {
   extractFreeQuizChapterScope,
   isFreeChapterScoped,
   isFreeQuizTemplate,
+  getCachedCanonicalPublishedArticlesForCourse,
 } from "@/lib/course-utils";
 import { CourseDocumentsClient } from "./course-documents-client";
 import { EnrollmentForm } from "@/components/enrollment-form";
@@ -19,7 +20,6 @@ import { aiMaterialInstances, websiteMaterials, diktats, diktatMateri, bab, cour
 import { eq, and, notLike, ne, desc } from "drizzle-orm";
 import { storage } from "@/lib/storage";
 import { getAuthSession } from "@/lib/auth-session";
-import { getCanonicalPublishedArticlesForCourse } from "@/lib/articles/structured-repository";
 
 type Props = {
   params: Promise<{ id: string }>;
@@ -123,7 +123,7 @@ export default async function CourseMaterialListPage({ params, searchParams }: P
   ] = await Promise.all([
     getStudentCourseAccess(studentId, id),
     progressPromise,
-    getCanonicalPublishedArticlesForCourse(id, studentId),
+    getCachedCanonicalPublishedArticlesForCourse(id, studentId),
     getCourseChapterOutline(id),
     db
       .select({ id: aiMaterialInstances.id, title: aiMaterialInstances.title, chapterIds: aiMaterialInstances.chapterIds, thumbnailUrl: aiMaterialInstances.thumbnailUrl })

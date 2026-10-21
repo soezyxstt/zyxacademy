@@ -10,13 +10,18 @@ import { StructuredArticleReader } from "@/components/course/structured-article-
 import { EnrollmentForm } from "@/components/enrollment-form";
 import { createMetadata, pageTitle } from "@/lib/site";
 import { getMaterial, type CourseMaterial } from "@/lib/student-course-fixtures";
-import { getCourse, getStudentCourseAccess, isFreeChapterScoped } from "@/lib/course-utils";
-import { getCanonicalPublishedArticle, getCanonicalPublishedTextProduct } from "@/lib/articles/structured-repository";
+import {
+  getCourse,
+  getStudentCourseAccess,
+  isFreeChapterScoped,
+  getCanonicalPublishedArticle,
+  getCanonicalPublishedTextProduct,
+  getCourseTermIndex,
+} from "@/lib/course-utils";
 import { db } from "@/db";
 import { aiMaterialInstances, diktats, courseMaterials, websiteMaterials, progress, studentMaterialProgress } from "@/db/schema";
 import { eq, and, notLike } from "drizzle-orm";
 import { storage } from "@/lib/storage";
-import { buildCourseTermIndex } from "@/lib/term-index";
 import { getAuthSession } from "@/lib/auth-session";
 
 type Props = { params: Promise<{ id: string; materialId: string }> };
@@ -378,7 +383,7 @@ export default async function CourseMaterialDetailPage({ params }: Props) {
     );
   }
 
-  const termIndex = await buildCourseTermIndex(id);
+  const termIndex = await getCourseTermIndex(id);
 
   return (
     <Suspense fallback={<div className="p-8 flex justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}>

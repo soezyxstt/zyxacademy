@@ -4,7 +4,7 @@ The `ACTIVE` [Product Bundle V4 contract](bundle/product-bundle-v4.md) describes
 
 The `ACTIVE` [MCP skills distribution runbook](operations/authoring-mcp-skills.md) documents pinned external builds, full and compact catalogs, local V4 candidate provenance, attested web/Deno builds, Cloudflare Browser Run verification, resource integrity and host acceptance. The `ACTIVE` deployment and development guides describe the Deno runtime identity, browser configuration and read-only `/v4` preview. Local package checks remain separate from installed-host, OAuth and deployment evidence.
 
-The `ACTIVE` architecture guide records request-scoped session deduplication via `getAuthSession` and React `cache` (RSC request context only, object identity keys, no cross-HTTP/action memoization), bounded catalogue count batch projections retaining all sources (including zero counts and PKA), and layout rendering boundaries where nested async layouts must resolve before child loading streams.
+The `ACTIVE` architecture guide records request-scoped session and read deduplication in Next.js consumer wrappers, framework-neutral Deno data resolvers, bounded catalogue count projections retaining zero counts and PKA, and parent layout boundaries for child loading streams.
 
 The `ACTIVE` architecture guide records integer PNG dimensions, source checksum metadata, explicit PDF page citations, and visual review markers for damaged extracted text. The source playbook includes polling fallback for stale connector catalogs.
 

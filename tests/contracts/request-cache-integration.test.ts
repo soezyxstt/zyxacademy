@@ -33,9 +33,7 @@ function select() {
 mock.module("@/db", () => ({ db: { select } }));
 
 const { getAuthSession, getAuthUser, requireAuthUser } = await import("@/lib/auth-session");
-const { getCourse } = await import("@/lib/course-utils");
-const { resolveStudentCourse } = await import("@/lib/student/course-catalog");
-const { resolveCourseAccess } = await import("@/lib/student/course-access");
+const { getCourse, resolveStudentCourse, getCachedCourseAccess } = await import("@/lib/course-utils");
 
 beforeEach(() => { store = new Map(); queries = 0; sessionCalls = 0; actor = "alice"; });
 afterAll(() => { internals.A = previousDispatcher; mock.restore(); });
@@ -60,18 +58,18 @@ test("production course helpers deduplicate normalized IDs and reset per request
 
 test("access cache keys include user, course, role, and explicit time", async () => {
   const input = { courseId: "missing", userId: "alice" };
-  await Promise.all([resolveCourseAccess(input), resolveCourseAccess({ ...input })]);
+  await Promise.all([getCachedCourseAccess(input), getCachedCourseAccess({ ...input })]);
   const first = queries;
   expect(first).toBeGreaterThan(0);
-  await resolveCourseAccess({ ...input });
+  await getCachedCourseAccess({ ...input });
   expect(queries).toBe(first);
   for (const change of [{ userId: "bob" }, { courseId: "another" }, { roleHint: "admin" }, { now: new Date(0) }, { now: new Date(-86400000) }]) {
     const before = queries;
-    await resolveCourseAccess({ ...input, ...change });
+    await getCachedCourseAccess({ ...input, ...change });
     expect(queries).toBeGreaterThan(before);
   }
   const before = queries;
   store = new Map();
-  await resolveCourseAccess(input);
+  await getCachedCourseAccess(input);
   expect(queries).toBeGreaterThan(before);
 });

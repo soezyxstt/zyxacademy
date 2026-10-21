@@ -1,4 +1,3 @@
-import { cache } from "react";
 import { and, asc, eq, gt, inArray, isNull, or } from "drizzle-orm";
 import { db } from "@/db";
 import { courses, enrollments, mataKuliah, pendaftaranMurid } from "@/db/schema";
@@ -58,101 +57,90 @@ async function findLegacyCourseCandidates(courseId: string) {
     .limit(2);
 }
 
-const resolveStudentCourseCached = cache(
-  async (cleanCourseId: string): Promise<StudentCourseRecord | null> => {
-    const [canonicalRows, legacyRows] = await Promise.all([
-      findCanonicalCourseCandidates(cleanCourseId),
-      findLegacyCourseCandidates(cleanCourseId),
-    ]);
-    if (canonicalRows.length > 1 || legacyRows.length > 1) return null;
-
-    const canonical = canonicalRows[0] ?? null;
-    const directLegacy = legacyRows[0] ?? null;
-
-    if (canonical) {
-      if (canonical.status !== "active") return null;
-      // A direct legacy match is valid only when the canonical row explicitly
-      // maps to it. This rejects canonical IDs that collide with an unrelated
-      // legacy course instead of silently choosing one representation.
-      if (directLegacy && canonical.legacyCourseId !== directLegacy.id) return null;
-
-      let legacy = directLegacy;
-      if (!legacy && canonical.legacyCourseId) {
-        const linkedLegacyRows = await findLegacyCourseCandidates(canonical.legacyCourseId);
-        if (linkedLegacyRows.length > 1) return null;
-        legacy = linkedLegacyRows[0] ?? null;
-      }
-      return projectCanonicalCourse(canonical, legacy ?? undefined);
-    }
-
-    return directLegacy ? projectLegacyCourse(directLegacy) : null;
-  },
-);
-
 export async function resolveStudentCourse(
   courseId: string,
 ): Promise<StudentCourseRecord | null> {
   const cleanCourseId = typeof courseId === "string" ? courseId.trim() : "";
   if (!cleanCourseId) return null;
-  return resolveStudentCourseCached(cleanCourseId);
+
+  const [canonicalRows, legacyRows] = await Promise.all([
+    findCanonicalCourseCandidates(cleanCourseId),
+    findLegacyCourseCandidates(cleanCourseId),
+  ]);
+  if (canonicalRows.length > 1 || legacyRows.length > 1) return null;
+
+  const canonical = canonicalRows[0] ?? null;
+  const directLegacy = legacyRows[0] ?? null;
+
+  if (canonical) {
+    if (canonical.status !== "active") return null;
+    // A direct legacy match is valid only when the canonical row explicitly
+    // maps to it. This rejects canonical IDs that collide with an unrelated
+    // legacy course instead of silently choosing one representation.
+    if (directLegacy && canonical.legacyCourseId !== directLegacy.id) return null;
+
+    let legacy = directLegacy;
+    if (!legacy && canonical.legacyCourseId) {
+      const linkedLegacyRows = await findLegacyCourseCandidates(canonical.legacyCourseId);
+      if (linkedLegacyRows.length > 1) return null;
+      legacy = linkedLegacyRows[0] ?? null;
+    }
+    return projectCanonicalCourse(canonical, legacy ?? undefined);
+  }
+
+  return directLegacy ? projectLegacyCourse(directLegacy) : null;
 }
 
-const listStudentCoursesCached = cache(
-  async (): Promise<StudentCourseRecord[]> => {
-    const [allCanonicalRows, legacyRows] = await Promise.all([
-      db.select().from(mataKuliah).orderBy(asc(mataKuliah.title)),
-      db.select().from(courses).orderBy(asc(courses.title)),
-    ]);
-    const canonicalRows = allCanonicalRows.filter((course) => course.status === "active");
-    const legacyById = new Map(legacyRows.map((course) => [course.id, course]));
-    const canonicalIds = new Set(allCanonicalRows.map((course) => course.id));
-    const canonicalLegacyCounts = new Map<string, number>();
-    for (const course of allCanonicalRows) {
-      if (course.legacyCourseId) {
-        canonicalLegacyCounts.set(
-          course.legacyCourseId,
-          (canonicalLegacyCounts.get(course.legacyCourseId) ?? 0) + 1,
-        );
-      }
-    }
-    const ambiguousLegacyIds = new Set(
-      [...canonicalLegacyCounts.entries()]
-        .filter(([, count]) => count > 1)
-        .map(([legacyId]) => legacyId),
-    );
-    const collidingAliasIds = new Set(
-      allCanonicalRows.flatMap((course) =>
-        course.legacyCourseId
-          && course.legacyCourseId !== course.id
-          && canonicalIds.has(course.legacyCourseId)
-          ? [course.id, course.legacyCourseId]
-          : [],
-      ),
-    );
-    const safeCanonicalRows = canonicalRows.filter((course) =>
-      !collidingAliasIds.has(course.id)
-        && (!course.legacyCourseId
-          || (!ambiguousLegacyIds.has(course.legacyCourseId) && !collidingAliasIds.has(course.legacyCourseId))),
-    );
-    const projected = safeCanonicalRows.map((course) =>
-      projectCanonicalCourse(course, course.legacyCourseId ? legacyById.get(course.legacyCourseId) : undefined),
-    );
-    // Suppress every mapped legacy identity, including mappings that are
-    // archived, ambiguous, or otherwise excluded from the active projection.
-    // Otherwise an inactive canonical row can reappear as a public legacy card.
-    const representedLegacyIds = new Set(allCanonicalRows.flatMap((course) => course.legacyCourseId ? [course.legacyCourseId] : []));
-
-    for (const legacy of legacyRows) {
-      if (representedLegacyIds.has(legacy.id) || collidingAliasIds.has(legacy.id)) continue;
-      projected.push(projectLegacyCourse(legacy));
-    }
-
-    return projected.sort((left, right) => left.title.localeCompare(right.title, "id"));
-  },
-);
-
 export async function listStudentCourses(): Promise<StudentCourseRecord[]> {
-  return listStudentCoursesCached();
+  const [allCanonicalRows, legacyRows] = await Promise.all([
+    db.select().from(mataKuliah).orderBy(asc(mataKuliah.title)),
+    db.select().from(courses).orderBy(asc(courses.title)),
+  ]);
+  const canonicalRows = allCanonicalRows.filter((course) => course.status === "active");
+  const legacyById = new Map(legacyRows.map((course) => [course.id, course]));
+  const canonicalIds = new Set(allCanonicalRows.map((course) => course.id));
+  const canonicalLegacyCounts = new Map<string, number>();
+  for (const course of allCanonicalRows) {
+    if (course.legacyCourseId) {
+      canonicalLegacyCounts.set(
+        course.legacyCourseId,
+        (canonicalLegacyCounts.get(course.legacyCourseId) ?? 0) + 1,
+      );
+    }
+  }
+  const ambiguousLegacyIds = new Set(
+    [...canonicalLegacyCounts.entries()]
+      .filter(([, count]) => count > 1)
+      .map(([legacyId]) => legacyId),
+  );
+  const collidingAliasIds = new Set(
+    allCanonicalRows.flatMap((course) =>
+      course.legacyCourseId
+        && course.legacyCourseId !== course.id
+        && canonicalIds.has(course.legacyCourseId)
+        ? [course.id, course.legacyCourseId]
+        : [],
+    ),
+  );
+  const safeCanonicalRows = canonicalRows.filter((course) =>
+    !collidingAliasIds.has(course.id)
+      && (!course.legacyCourseId
+        || (!ambiguousLegacyIds.has(course.legacyCourseId) && !collidingAliasIds.has(course.legacyCourseId))),
+  );
+  const projected = safeCanonicalRows.map((course) =>
+    projectCanonicalCourse(course, course.legacyCourseId ? legacyById.get(course.legacyCourseId) : undefined),
+  );
+  // Suppress every mapped legacy identity, including mappings that are
+  // archived, ambiguous, or otherwise excluded from the active projection.
+  // Otherwise an inactive canonical row can reappear as a public legacy card.
+  const representedLegacyIds = new Set(allCanonicalRows.flatMap((course) => course.legacyCourseId ? [course.legacyCourseId] : []));
+
+  for (const legacy of legacyRows) {
+    if (representedLegacyIds.has(legacy.id) || collidingAliasIds.has(legacy.id)) continue;
+    projected.push(projectLegacyCourse(legacy));
+  }
+
+  return projected.sort((left, right) => left.title.localeCompare(right.title, "id"));
 }
 
 export async function isStudentEnrolled(userId: string, courseId: string): Promise<boolean> {

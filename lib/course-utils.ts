@@ -21,13 +21,28 @@ import {
 } from "@/db/schema";
 import { eq, and, desc, asc, notLike, inArray, ne, or } from "drizzle-orm";
 // Fixture imports removed
-import { getCanonicalPublishedArticlesForCourse } from "@/lib/articles/structured-repository";
-import { isStudentEnrolled, resolveStudentCourse } from "@/lib/student/course-catalog";
+import {
+  getCanonicalPublishedArticlesForCourse as getCanonicalPublishedArticlesForCourseRaw,
+  getCanonicalPublishedArticle as getCanonicalPublishedArticleRaw,
+  getCanonicalPublishedTextProduct as getCanonicalPublishedTextProductRaw,
+  fetchSharedCanonicalArticle,
+  fetchSharedCourseArticlesData,
+  findCanonicalMataKuliah as findCanonicalMataKuliahRaw,
+} from "@/lib/articles/structured-repository";
+import {
+  isStudentEnrolled,
+  resolveStudentCourse as resolveStudentCourseRaw,
+  listStudentCourses,
+  type StudentCourseRecord,
+} from "@/lib/student/course-catalog";
 import {
   hasChapterScopeWithin,
   resolveCourseAccess,
   type CourseAccessResult,
+  type ResolveCourseAccessInput,
+  type CourseAccessDbExecutor,
 } from "@/lib/student/course-access";
+import { buildCourseTermIndex, type TermIndexEntry } from "@/lib/term-index";
 
 /**
  * True when the user holds an active enrollment for the course. Access control
@@ -59,12 +74,126 @@ export type StudentCourseAccess = {
  * demo selection, and chapter scope to the central resolver. The compatibility
  * shape is kept for existing student read models while the migration settles.
  */
+
+// React memoization belongs in web consumers, outside the Deno dependency graph.
+
+/**
+ * Request-scoped deduplicated course access resolver for Next.js / RSC consumers.
+ * Caches by primitive keys (courseId, userId, roleHint, nowMs) to deduplicate calls
+ * with separate object literal inputs, preserving user isolation and custom executors.
+ */
+const cachedResolveCourseAccessPrimitive = cache(
+  async (
+    courseId: string,
+    userId: string,
+    roleHint: string,
+    nowMs: number | undefined,
+  ): Promise<CourseAccessResult> => {
+    return resolveCourseAccess({
+      courseId,
+      userId: userId || undefined,
+      roleHint: roleHint || undefined,
+      now: typeof nowMs === "number" ? new Date(nowMs) : undefined,
+    });
+  },
+);
+
+export async function getCachedCourseAccess(
+  input: ResolveCourseAccessInput,
+  executor?: CourseAccessDbExecutor,
+): Promise<CourseAccessResult> {
+  if (executor) {
+    return resolveCourseAccess(input, executor);
+  }
+  const courseId = typeof input.courseId === "string" ? input.courseId.trim() : "";
+  const userId = typeof input.userId === "string" ? input.userId.trim() : "";
+  const roleHint = typeof input.roleHint === "string" ? input.roleHint.trim() : "";
+  const nowMs = input.now instanceof Date ? input.now.getTime() : undefined;
+  return cachedResolveCourseAccessPrimitive(courseId, userId, roleHint, nowMs);
+}
+
+/**
+ * Request-scoped deduplicated course term index builder for RSC reader surfaces.
+ */
+const getCourseTermIndexCached = cache(async (cleanCourseId: string): Promise<TermIndexEntry[]> => {
+  return buildCourseTermIndex(cleanCourseId);
+});
+
+export async function getCourseTermIndex(courseId: string): Promise<TermIndexEntry[]> {
+  if (!courseId || typeof courseId !== "string" || !courseId.trim()) return [];
+  return getCourseTermIndexCached(courseId.trim());
+}
+
+/**
+ * Request-scoped deduplicated student course resolver and catalog list for RSC consumers.
+ */
+const resolveStudentCourseCached = cache(
+  async (cleanCourseId: string): Promise<StudentCourseRecord | null> => {
+    return resolveStudentCourseRaw(cleanCourseId);
+  },
+);
+
+export async function resolveStudentCourse(
+  courseId: string,
+): Promise<StudentCourseRecord | null> {
+  const clean = typeof courseId === "string" ? courseId.trim() : "";
+  if (!clean) return null;
+  return resolveStudentCourseCached(clean);
+}
+
+const getStudentCoursesCached = cache(async (): Promise<StudentCourseRecord[]> => {
+  return listStudentCourses();
+});
+
+export async function getStudentCourses(): Promise<StudentCourseRecord[]> {
+  return getStudentCoursesCached();
+}
+
+/**
+ * Request-scoped deduplicated canonical article fetchers for Next.js RSC reader & metadata.
+ */
+const cachedFetchSharedCanonicalArticle = cache(fetchSharedCanonicalArticle);
+const cachedFetchSharedCourseArticlesData = cache(fetchSharedCourseArticlesData);
+const cachedGetCanonicalPublishedTextProduct = cache(getCanonicalPublishedTextProductRaw);
+const cachedFindCanonicalMataKuliah = cache(findCanonicalMataKuliahRaw);
+
+export async function getCachedCanonicalPublishedArticle(
+  courseId: string,
+  articleIdOrSlug: string,
+  userId?: string,
+) {
+  return getCanonicalPublishedArticleRaw(courseId, articleIdOrSlug, userId, cachedFetchSharedCanonicalArticle);
+}
+
+export async function getCachedCanonicalPublishedArticlesForCourse(
+  courseId: string,
+  userId?: string,
+) {
+  return getCanonicalPublishedArticlesForCourseRaw(courseId, userId, cachedFetchSharedCourseArticlesData);
+}
+
+export async function getCachedCanonicalPublishedTextProduct(
+  courseId: string,
+  productId: string,
+) {
+  return cachedGetCanonicalPublishedTextProduct(courseId, productId);
+}
+
+export async function getCachedCanonicalMataKuliah(courseId: string) {
+  return cachedFindCanonicalMataKuliah(courseId);
+}
+
+export const getCanonicalPublishedArticle = getCachedCanonicalPublishedArticle;
+export const getCanonicalPublishedArticlesForCourse = getCachedCanonicalPublishedArticlesForCourse;
+export const getCanonicalPublishedTextProduct = getCachedCanonicalPublishedTextProduct;
+export const findCanonicalMataKuliah = getCachedCanonicalMataKuliah;
+
 const getStudentCourseAccessCached = cache(
   async (
     userId: string,
     courseId: string,
   ): Promise<StudentCourseAccess | null> => {
-    const policy = await resolveCourseAccess({ courseId, userId, roleHint: "murid" });
+    const policy = await getCachedCourseAccess({ courseId, userId, roleHint: "murid" });
     if (!policy.isAuthenticated || !policy.hasCourseAccess || policy.tier === "anonymous") return null;
 
     return {
@@ -291,7 +420,7 @@ export async function getCourseMaterials(courseId: string, studentId?: string, p
   const course = await resolveStudentCourse(courseId);
   const legacyCourseId = course?.legacyId ?? courseId;
   const canonicalCourseId = course?.canonicalId;
-  const canonicalArticles = await getCanonicalPublishedArticlesForCourse(courseId, studentId);
+  const canonicalArticles = await getCachedCanonicalPublishedArticlesForCourse(courseId, studentId);
 
   // AI material instances (active only ; drafts and archived stay hidden)
   const dbMaterials = await db
@@ -535,7 +664,7 @@ const getCourseChapterOutlineCached = cache(
       ))
     : chapterRows;
 
-  const canonicalArticles = await getCanonicalPublishedArticlesForCourse(courseId, studentId);
+  const canonicalArticles = await getCachedCanonicalPublishedArticlesForCourse(courseId, studentId);
   const canonicalByChapter = new Map<string, (typeof canonicalArticles)[number]>();
   for (const article of canonicalArticles) {
     for (const chapterId of [article.babId, article.chapterId, article.legacyChapterId]) {

@@ -59,6 +59,7 @@ const mockGetStudentCourseAccess = mock();
 const mockExtractFreeQuizChapterScope = mock(() => new Set());
 const mockIsFreeChapterScoped = mock(() => false);
 const mockIsFreeQuizTemplate = mock(() => false);
+const mockGetCanonicalPublishedArticlesForCourse = mock();
 
 mock.module("@/lib/course-utils", () => ({
   getCourse: mockGetCourse,
@@ -67,6 +68,8 @@ mock.module("@/lib/course-utils", () => ({
   extractFreeQuizChapterScope: mockExtractFreeQuizChapterScope,
   isFreeChapterScoped: mockIsFreeChapterScoped,
   isFreeQuizTemplate: mockIsFreeQuizTemplate,
+  getCachedCanonicalPublishedArticlesForCourse: mockGetCanonicalPublishedArticlesForCourse,
+  getCanonicalPublishedArticlesForCourse: mockGetCanonicalPublishedArticlesForCourse,
 }));
 
 // Mock learning analytics
@@ -88,7 +91,6 @@ mock.module("@/lib/storage", () => ({
 }));
 
 // Mock articles structured repository
-const mockGetCanonicalPublishedArticlesForCourse = mock();
 mock.module("@/lib/articles/structured-repository", () => ({
   getCanonicalPublishedArticlesForCourse: mockGetCanonicalPublishedArticlesForCourse,
 }));
