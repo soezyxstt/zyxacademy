@@ -7,7 +7,7 @@ import { validateSourcePack, type ValidatedSourcePack } from "@/lib/authoring/so
 import { evaluateSourcePackQuality, type SourcePackQualityReport } from "@/lib/authoring/quality/source-pack";
 import { ZipSecurityError } from "@/lib/bundle/zip-reader";
 import { resolveAuthSecret } from "@/lib/auth-secret";
-import { authoringValidationSnapshot } from "@/lib/authoring/mcp-contract-revision";
+import { authoringValidationSnapshot, productV4SchemaDocuments } from "@/lib/authoring/mcp-contract-revision";
 import {
   AUTHORING_MCP_BOOTSTRAP_PROTOCOL,
   buildPlaybookResponse,
@@ -1243,6 +1243,18 @@ export function productBundleV3Contract() {
     schemaVersion: "product-bundle.v3",
     compatibleReadVersions: ["product-bundle.v2", "product-bundle.v3", "product-bundle.v4"],
     pilot: { schemaVersion: "product-bundle.v4", articleSchemaVersion: "article.v4", orderedPartKinds: ["markdown", "math_unit", "visual_ref", "worked_example"], publicationReady: "derived from current trusted verification, explicit section review and PDF evidence", articleCount: 1, diktatCount: "at most one in draft, required for publication", scopedSymbolDefinitions: true,
+      schemaDocuments: productV4SchemaDocuments().map(({ body: _body, ...document }) => document),
+      schemaRetrieval: "GET each path on the same origin as this MCP endpoint. Public type definitions only, no credentials required. Verify the SHA-256 of the response bytes; on 409 refresh the playbook and contract. product is the shared structural entity schema; apply all V4 semantic rules below and use authoring.validate_product_bundle for final validation.",
+      semanticRules: {
+        envelope: "Use product-bundle.v4, article.v4 and diktat.v4 explicitly. Exactly one Article; at most one Diktat in a draft, required for publication. Only article, diktat, flashcard_set and flashcard may be authored.",
+        article: "Require nonempty sections, empty top-level blocks, and nonempty ordered parts in every section block. Part, relation and worked-step IDs are unique across the Article. A supplied contentMarkdown must equal the projection derived from parts; omit it to let the server derive it.",
+        mathematics: "Each math_unit has meaningMarkdown and exactly one of latex or relations. Cases require conditionLatex for each relation. symbolRefs resolve within that math_unit. Use explicit math delimiters in prose and scientific multiplication by powers of ten, never numeric e notation.",
+        references: "visual_ref.visualId resolves in the Article visuals registry. focusRefs resolve to Article elements. Worked-step sourceElementRefs resolve to previously available elements, not forward references.",
+        visuals: "Use the visual schema for the exact family, parameters, controls and bindings. Renderer-owned behavior only; no executable code or persistent remote image URLs. A valid structural visual still requires model, domain, state and print verification.",
+        diktat: "Require authored units and matching sourceArticleId, sourceArticleVersion, sourceArticleHash and locked product dependency. Unit sourceElementRefs resolve to Article elements, and aggregate Idea coverage matches. contentMarkdown equals the projection of units. Each top-level visual_ref requires staticMarkdown; omit staticSnapshot for server derivation or provide the current exact pin.",
+        review: "Combine the pedagogicReview schema with v4ReviewContext for authoring.review_product_bundle. Approval requires current revision, content fingerprint, policy, verification plan and receipt signature, all rubric criteria, and an approved semanticHash decision for every section. Read current context through authoring.get_import.",
+        verification: "After authorized staging, read the content hash and plan from authoring.get_import, request authoring.verify_product_bundle and poll authoring.get_verification. Structural JSON Schema does not encode cross-reference, lineage, security, numerical, editorial or readiness refinements. Never infer publication readiness from schema validation alone.",
+      },
       capabilities: VISUAL_CAPABILITIES, unsupportedCapabilities: UNSUPPORTED_VISUAL_CAPABILITIES,
       verification: { policyVersion: PRODUCT_V4_VERIFICATION_POLICY, requestTool: "authoring.verify_product_bundle", getTool: "authoring.get_verification", origin: "server_observed", localReportsGrantReadiness: false, reviewContextTool: "authoring.get_import" },
       sourceFigures: { extractTool: "source.extract_figure", getTool: "source.get_figure", provenanceRequired: true },
