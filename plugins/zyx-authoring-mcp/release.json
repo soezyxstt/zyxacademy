@@ -1,6 +1,6 @@
 {
   "schemaVersion": "authoring-plugin-release.v1",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "bootstrapProtocol": 1,
   "minCompatibleVersion": "0.2.0",
   "skills": [

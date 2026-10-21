@@ -1,4 +1,5 @@
-﻿import katex, { type KatexOptions } from "katex";
+import type { KatexOptions } from "katex";
+import katex from "@/lib/math/katex";
 
 export const KATEX_CACHE_MAX_ENTRIES = 500;
 export const KATEX_CACHE_MAX_INPUT_LENGTH = 2000;

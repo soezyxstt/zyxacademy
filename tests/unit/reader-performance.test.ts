@@ -52,6 +52,9 @@ export const queryCounters = {
   diktatMateri: 0,
 };
 
+export const queryTimestamps: Array<{ table: string; phase: "start" | "end"; timestamp: number }> = [];
+let queryDelayMs = 0;
+
 function resetQueryCounters() {
   queryCounters.mataKuliah = 0;
   queryCounters.artikel = 0;
@@ -60,6 +63,12 @@ function resetQueryCounters() {
   queryCounters.blokArtikel = 0;
   queryCounters.kemajuanBacaArtikel = 0;
   queryCounters.diktatMateri = 0;
+  queryTimestamps.length = 0;
+  queryDelayMs = 0;
+  activeBlocks = mockData.blocks;
+  activeSections = mockData.sections;
+  activeArticle = mockData.article;
+  activeChapter = mockData.chapter;
 }
 
 let activeUserForProgress: string | null = null;
@@ -174,6 +183,11 @@ export const mockData = {
   ],
 };
 
+let activeBlocks = mockData.blocks;
+let activeSections = mockData.sections;
+let activeArticle = mockData.article;
+let activeChapter: typeof mockData.chapter | null = mockData.chapter;
+
 // Mock @/db
 mock.module("@/db", () => {
   return {
@@ -190,8 +204,8 @@ mock.module("@/db", () => {
                       queryCounters.artikel++;
                       return [
                         {
-                          ...mockData.article,
-                          legacyChapterId: mockData.chapter.legacyChapterId,
+                          ...activeArticle,
+                          legacyChapterId: activeChapter?.legacyChapterId,
                         },
                       ];
                     }
@@ -204,48 +218,50 @@ mock.module("@/db", () => {
                 }),
               }),
               where: (whereCond: any) => {
+                const startTimestamp = performance.now();
+                queryTimestamps.push({ table: tableName, phase: "start", timestamp: startTimestamp });
                 const queryPromise = (async () => {
+                  if (queryDelayMs > 0) {
+                    await new Promise((resolve) => setTimeout(resolve, queryDelayMs));
+                  }
+                  let result: any[] = [];
                   if (tableName === "mata_kuliah") {
                     queryCounters.mataKuliah++;
-                    return [mockData.course];
-                  }
-                  if (tableName === "artikel") {
+                    result = [mockData.course];
+                  } else if (tableName === "artikel") {
                     queryCounters.artikel++;
-                    return [mockData.article];
-                  }
-                  if (tableName === "bab") {
+                    result = [activeArticle];
+                  } else if (tableName === "bab") {
                     queryCounters.bab++;
-                    return [mockData.chapter];
-                  }
-                  if (tableName === "bagian_artikel") {
+                    result = activeChapter ? [activeChapter] : [];
+                  } else if (tableName === "bagian_artikel") {
                     queryCounters.bagianArtikel++;
-                    return mockData.sections;
-                  }
-                  if (tableName === "blok_artikel") {
+                    result = activeSections;
+                  } else if (tableName === "blok_artikel") {
                     queryCounters.blokArtikel++;
-                    return mockData.blocks;
-                  }
-                  if (tableName === "kemajuan_baca_artikel") {
+                    result = activeBlocks;
+                  } else if (tableName === "kemajuan_baca_artikel") {
                     queryCounters.kemajuanBacaArtikel++;
                     if (activeUserForProgress === "user-alice") {
-                      return mockData.userProgressAlice;
+                      result = mockData.userProgressAlice;
+                    } else if (activeUserForProgress === "user-bob") {
+                      result = mockData.userProgressBob;
+                    } else {
+                      result = [];
                     }
-                    if (activeUserForProgress === "user-bob") {
-                      return mockData.userProgressBob;
-                    }
-                    return [];
-                  }
-                  if (tableName === "knowledge_objects") {
-                    return [
+                  } else if (tableName === "knowledge_objects") {
+                    result = [
                       { conceptId: "concept-1", conceptName: "Turunan dan Integral" },
                     ];
-                  }
-                  if (tableName === "concept_localizations") {
-                    return [
+                  } else if (tableName === "concept_localizations") {
+                    result = [
                       { conceptId: "concept-1", displayName: "Turunan", aliases: ["Derivatif"] },
                     ];
                   }
-                  return [];
+
+                  const endTimestamp = performance.now();
+                  queryTimestamps.push({ table: tableName, phase: "end", timestamp: endTimestamp });
+                  return result;
                 })();
 
                 return Object.assign(queryPromise, {
@@ -490,6 +506,151 @@ describe("Structured Article Repository - Production Queries & RSC Deduplication
 
     // Article visuals
     expect(article!.visuals).toBeUndefined();
+  });
+
+  it("accepts valid V4 payload and parses article parts according to schema", async () => {
+    const validV4Parts = [
+      {
+        id: "part-md-1",
+        kind: "markdown",
+        markdown: "Penjelasan konsep diferensial",
+      },
+      {
+        id: "part-math-1",
+        kind: "math_unit",
+        latex: "\\frac{df}{dx} = \\lim_{h \\to 0} \\frac{f(x+h) - f(x)}{h}",
+        meaningMarkdown: "Definisi limit turunan",
+      },
+    ];
+    const validV4Payload = Buffer.from(
+      JSON.stringify({
+        parts: validV4Parts,
+        visualIds: ["vis-v4"],
+      }),
+    ).toString("base64url");
+
+    activeBlocks = [
+      {
+        id: "blk-v4-1",
+        artikelId: "art-uuid-1",
+        bagianArtikelId: "sec-uuid-1",
+        version: 1,
+        status: "published",
+        orderIndex: 1,
+        blockType: "article_parts",
+        content: `Konten V4 <!--__ZYX_V4_BLOCK_PAYLOAD__:${validV4Payload}-->`,
+      },
+    ];
+
+    const article = await getCanonicalPublishedArticle("kalkulus-1", "teorema-dasar");
+    expect(article).not.toBeNull();
+    const sec1 = article!.sections[0];
+    expect(sec1.blocks.length).toBe(1);
+    const v4Block = sec1.blocks[0];
+    expect(v4Block.content).toContain("Penjelasan konsep diferensial");
+    expect(v4Block.content).toContain("\\frac{df}{dx} = \\lim_{h \\to 0} \\frac{f(x+h) - f(x)}{h}");
+    expect(v4Block.content).not.toContain("<!--__ZYX_V4_BLOCK_PAYLOAD__:");
+    expect((v4Block as any).parts).toBeDefined();
+    expect((v4Block as any).parts.length).toBe(2);
+    expect((v4Block as any).parts[0].id).toBe("part-md-1");
+    expect((v4Block as any).parts[1].latex).toBe(
+      "\\frac{df}{dx} = \\lim_{h \\to 0} \\frac{f(x+h) - f(x)}{h}",
+    );
+  });
+
+  it("fails closed and returns null on invalid V4 payload (corrupt, malformed, or invalid schema)", async () => {
+    // 1. Corrupted base64 payload
+    activeBlocks = [
+      {
+        id: "blk-v4-bad-1",
+        artikelId: "art-uuid-1",
+        bagianArtikelId: "sec-uuid-1",
+        version: 1,
+        status: "published",
+        orderIndex: 1,
+        blockType: "article_parts",
+        content: "Konten V4 <!--__ZYX_V4_BLOCK_PAYLOAD__:invalid-not-base64-json!--->",
+      },
+    ];
+    expect(await getCanonicalPublishedArticle("kalkulus-1", "teorema-dasar")).toBeNull();
+
+    // 2. Valid JSON base64url, but violates articlePartsSchema (invalid part kind)
+    resetRequestCache();
+    const badSchemaPayload = Buffer.from(
+      JSON.stringify({
+        parts: [
+          {
+            id: "part-invalid-1",
+            kind: "unknown_illegal_kind",
+          },
+        ],
+      }),
+    ).toString("base64url");
+    activeBlocks = [
+      {
+        id: "blk-v4-bad-2",
+        artikelId: "art-uuid-1",
+        bagianArtikelId: "sec-uuid-1",
+        version: 1,
+        status: "published",
+        orderIndex: 1,
+        blockType: "article_parts",
+        content: `Konten V4 <!--__ZYX_V4_BLOCK_PAYLOAD__:${badSchemaPayload}-->`,
+      },
+    ];
+    expect(await getCanonicalPublishedArticle("kalkulus-1", "teorema-dasar")).toBeNull();
+
+    // 3. Truncated V4 payload marker without regex match
+    resetRequestCache();
+    activeBlocks = [
+      {
+        id: "blk-v4-bad-3",
+        artikelId: "art-uuid-1",
+        bagianArtikelId: "sec-uuid-1",
+        version: 1,
+        status: "published",
+        orderIndex: 1,
+        blockType: "article_parts",
+        content: "Konten V4 <!--__ZYX_V4_BLOCK_PAYLOAD__: truncated without closing",
+      },
+    ];
+    expect(await getCanonicalPublishedArticle("kalkulus-1", "teorema-dasar")).toBeNull();
+  });
+
+  it("starts chapter, sections, and blocks queries concurrently after article resolution", async () => {
+    queryDelayMs = 20;
+    const result = await getCanonicalPublishedArticle("kalkulus-1", "teorema-dasar");
+    expect(result).not.toBeNull();
+
+    // Locate the start events for chapter (bab), sections (bagian_artikel), and blocks (blok_artikel)
+    const babStart = queryTimestamps.find((e) => e.table === "bab" && e.phase === "start");
+    const sectionsStart = queryTimestamps.find(
+      (e) => e.table === "bagian_artikel" && e.phase === "start",
+    );
+    const blocksStart = queryTimestamps.find(
+      (e) => e.table === "blok_artikel" && e.phase === "start",
+    );
+
+    expect(babStart).toBeDefined();
+    expect(sectionsStart).toBeDefined();
+    expect(blocksStart).toBeDefined();
+
+    // Find the earliest end event among the concurrent queries
+    const concurrentEnds = queryTimestamps
+      .filter((e) => ["bab", "bagian_artikel", "blok_artikel"].includes(e.table) && e.phase === "end")
+      .map((e) => e.timestamp);
+    const earliestEnd = Math.min(...concurrentEnds);
+
+    // All three queries must start BEFORE the first one completes, proving actual concurrent overlap
+    expect(babStart!.timestamp).toBeLessThan(earliestEnd);
+    expect(sectionsStart!.timestamp).toBeLessThan(earliestEnd);
+    expect(blocksStart!.timestamp).toBeLessThan(earliestEnd);
+  });
+
+  it("returns null safely when an article has no published sections, preserving empty sections behavior", async () => {
+    activeSections = [];
+    const result = await getCanonicalPublishedArticle("kalkulus-1", "teorema-dasar");
+    expect(result).toBeNull();
   });
 
   it("returns null safely for invalid or whitespace course and article IDs", async () => {

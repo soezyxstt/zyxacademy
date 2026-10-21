@@ -201,7 +201,7 @@ export const epsilonDeltaGraphSpecSchema = z
 
     const evaluated = evaluateVisualFunction(spec.functionModel, spec.limitPoint);
     const diff = Math.abs(evaluated - spec.limitValue);
-    if (diff > EPSILON_DELTA_TOLERANCE) {
+    if (!Number.isFinite(evaluated) || !Number.isFinite(diff) || diff > EPSILON_DELTA_TOLERANCE) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message: `Function evaluated at limitPoint ${spec.limitPoint} yields ${evaluated}, which deviates from declared limitValue ${spec.limitValue} by ${diff} exceeding tolerance ${EPSILON_DELTA_TOLERANCE}`,
@@ -246,12 +246,6 @@ export const learningCanvasVisualSpecSchema = z
   });
 export type LearningCanvasVisualSpec = z.infer<typeof learningCanvasVisualSpecSchema>;
 
-export const visualSpecSchema = z.discriminatedUnion("kind", [
-  epsilonDeltaGraphSpecSchema,
-  learningCanvasVisualSpecSchema,
-]);
-export type VisualSpec = z.infer<typeof visualSpecSchema>;
-
 export type ProductCanvasSpec = CanvasSpec;
 
 export function evaluateVisualFunction(model: VisualFunctionModel, x: number): number {
@@ -264,3 +258,75 @@ export function evaluateVisualFunction(model: VisualFunctionModel, x: number): n
       return model.a * x * x + model.b * x + model.c;
   }
 }
+
+const geometryId = z.string().trim().min(1).max(100);
+const geometryCoordinate = z.number().finite().min(-1e9).max(1e9);
+const geometryLabel = z.string().trim().min(1).max(240).optional();
+export const geometry2dVisualSpecSchema = z.object({
+  id: geometryId, kind: z.literal("geometry_2d"), label: z.string().trim().min(1), description: z.string().trim().min(1),
+  interactive: z.literal(false).default(false), bounds: visualNumericBoundsSchema, staticFallback: visualStaticFallbackSchema,
+  geometry: z.object({
+    points: z.array(z.object({ id: geometryId, x: geometryCoordinate, y: geometryCoordinate, labelLatex: geometryLabel }).strict()).min(1).max(100),
+    segments: z.array(z.object({ id: geometryId, from: geometryId, to: geometryId, labelLatex: geometryLabel }).strict()).max(100).default([]),
+    circles: z.array(z.object({ id: geometryId, center: geometryId, radius: z.number().finite().positive().max(1e9), labelLatex: geometryLabel }).strict()).max(30).default([]),
+    polygons: z.array(z.object({ id: geometryId, pointIds: z.array(geometryId).min(3).max(30), labelLatex: geometryLabel }).strict()).max(30).default([]),
+  }).strict(),
+}).strict().superRefine((spec, ctx) => {
+  const fail = (message: string) => ctx.addIssue({ code: "custom", message });
+  if (!inspectPayloadSecurity(spec).safe) fail("GEOMETRY_UNSAFE");
+  const { points, segments, circles, polygons } = spec.geometry;
+  const ids = [...points, ...segments, ...circles, ...polygons].map((item) => item.id);
+  if (new Set(ids).size !== ids.length) fail("GEOMETRY_ID_DUPLICATE");
+  const pointsById = new Map(points.map((point) => [point.id, point]));
+  const inside = (x: number, y: number) => x >= spec.bounds.xMin && x <= spec.bounds.xMax && y >= spec.bounds.yMin && y <= spec.bounds.yMax;
+  if (points.some((point) => !inside(point.x, point.y))) fail("GEOMETRY_POINT_OUTSIDE_BOUNDS");
+  for (const segment of segments) {
+    if (!pointsById.has(segment.from) || !pointsById.has(segment.to)) fail("GEOMETRY_POINT_REF_MISSING");
+    const from = pointsById.get(segment.from);
+    const to = pointsById.get(segment.to);
+    if (segment.from === segment.to || (from && to && from.x === to.x && from.y === to.y)) fail("GEOMETRY_SEGMENT_DEGENERATE");
+  }
+  for (const polygon of polygons) {
+    if (polygon.pointIds.some((id) => !pointsById.has(id))) fail("GEOMETRY_POINT_REF_MISSING");
+    if (new Set(polygon.pointIds).size !== polygon.pointIds.length) fail("GEOMETRY_POLYGON_VERTEX_DUPLICATE");
+    const vertices = polygon.pointIds.map((id) => pointsById.get(id));
+    if (vertices.every((point) => point !== undefined)) {
+      const origin = vertices[0];
+      const area = vertices.reduce((sum, point, index) => {
+        const next = vertices[(index + 1) % vertices.length];
+        return sum + (point.x - origin.x) * (next.y - origin.y) - (next.x - origin.x) * (point.y - origin.y);
+      }, 0);
+      if (!Number.isFinite(area) || area === 0) fail("GEOMETRY_POLYGON_DEGENERATE");
+    }
+  }
+  for (const circle of circles) {
+    const center = pointsById.get(circle.center);
+    if (!center) fail("GEOMETRY_POINT_REF_MISSING");
+    else if (circle.radius <= Math.max(Math.abs(center.x), Math.abs(center.y)) * Number.EPSILON * 32) fail("GEOMETRY_CIRCLE_UNREPRESENTABLE");
+    else if (!inside(center.x - circle.radius, center.y - circle.radius) || !inside(center.x + circle.radius, center.y + circle.radius)) fail("GEOMETRY_CIRCLE_OUTSIDE_BOUNDS");
+  }
+  if (polygons.reduce((total, polygon) => total + polygon.pointIds.length, 0) > 300) fail("GEOMETRY_VERTEX_BUDGET_EXCEEDED");
+  const width = spec.bounds.xMax - spec.bounds.xMin;
+  const height = spec.bounds.yMax - spec.bounds.yMin;
+  const magnitude = Math.max(Math.abs(spec.bounds.xMin), Math.abs(spec.bounds.xMax), Math.abs(spec.bounds.yMin), Math.abs(spec.bounds.yMax));
+  if (magnitude > 1e9 || !Number.isFinite(510 / width) || !Number.isFinite(310 / height) || !Number.isFinite(width + height) || Math.min(width, height) <= magnitude * Number.EPSILON * 32 || Math.max(width / height, height / width) > 1000) fail("GEOMETRY_BOUNDS_UNREPRESENTABLE");
+});
+export type Geometry2dVisualSpec = z.infer<typeof geometry2dVisualSpecSchema>;
+
+export const sourceFigureVisualSpecSchema = z.object({
+  id: geometryId, kind: z.literal("source_figure"), label: z.string().trim().min(1), description: z.string().trim().min(1),
+  interactive: z.literal(false).default(false), assetId: z.string().regex(/^[a-f0-9]{64}$/), materialId: geometryId,
+  sourceChecksum: z.string().regex(/^[a-f0-9]{64}$/), captionMarkdown: z.string().trim().min(1).optional(),
+  staticFallback: visualStaticFallbackSchema,
+}).strict().superRefine((spec, ctx) => {
+  if (!inspectPayloadSecurity(spec).safe || /!\[[^\]]*\]\(|<img[\s>]/i.test(JSON.stringify(spec))) ctx.addIssue({ code: "custom", message: "SOURCE_FIGURE_UNSAFE" });
+});
+export type SourceFigureVisualSpec = z.infer<typeof sourceFigureVisualSpecSchema>;
+
+export const visualSpecSchema = z.discriminatedUnion("kind", [
+  epsilonDeltaGraphSpecSchema,
+  learningCanvasVisualSpecSchema,
+  geometry2dVisualSpecSchema,
+  sourceFigureVisualSpecSchema,
+]);
+export type VisualSpec = z.infer<typeof visualSpecSchema>;

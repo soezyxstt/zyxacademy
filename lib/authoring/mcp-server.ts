@@ -5,6 +5,8 @@ import { resolveStoredSourceFile } from "@/lib/authoring/mcp-source-files";
 import { isSourceReadTimeout, timePdfStage } from "@/lib/compute/pdf-read-options";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { registerAuthoringSkills } from "./mcp-skills";
+import { registerProductV4Tools } from "./mcp-v4-tools";
+import { computeProductV4SectionSemanticHash, productV4ReviewContextShape } from "@/lib/bundle/product-v4-review";
 import type { SkillCatalogProfile } from "./skill-catalog";
 import { z } from "zod";
 import { createHash } from "node:crypto";
@@ -320,7 +322,7 @@ function ideaStageItems(bundle: ValidatedIdeaBundle) {
     ...bundle.entities.ideas.map((entity) => ({ entityType: "idea", entityId: entity.id, entityVersion: entity.version, entityHash: sha256Text(serializeDeterministically(entity)) })),
     ...bundle.entities.provenance.map((entity) => ({ entityType: "provenance", entityId: entity.id, entityVersion: 1, entityHash: sha256Text(serializeDeterministically(entity)) })),
     ...bundle.entities.relations.map((entity) => ({ entityType: "relation", entityId: entity.id, entityVersion: entity.version, entityHash: sha256Text(serializeDeterministically(entity)) })),
-    ...bundle.entities.learningSections.map((entity) => ({ entityType: "learning_section", entityId: entity.id, entityVersion: entity.version ?? 1, entityHash: sha256Text(serializeDeterministically(entity)) })),
+    ...bundle.entities.learningSections.map((entity) => ({ entityType: "learning_section", entityId: entity.id, entityVersion: 1, entityHash: sha256Text(serializeDeterministically(entity)) })),
   ];
 }
 
@@ -1168,7 +1170,7 @@ async function stageProductArtifact(input: {
     );
     return { ok: false, valid: false, staged: false, publicationReady: false, filename: input.filename, issues: mappedIssues };
   }
-  if (isStructuredArticleReaderEnabled() && validation.data.manifest.schemaVersion !== "product-bundle.v3") {
+  if (isStructuredArticleReaderEnabled() && !["product-bundle.v3", "product-bundle.v4"].includes(validation.data.manifest.schemaVersion)) {
     return {
       ok: false,
       valid: false,
@@ -1994,7 +1996,7 @@ function registerValidationTools(server: McpServer, principal: McpPrincipal): vo
         next: "agent_revision",
       };
     }
-    if (isStructuredArticleReaderEnabled() && validation.data.manifest.schemaVersion !== "product-bundle.v3") {
+    if (isStructuredArticleReaderEnabled() && !["product-bundle.v3", "product-bundle.v4"].includes(validation.data.manifest.schemaVersion)) {
       return {
         ok: false,
         valid: false,
@@ -2706,6 +2708,20 @@ function registerLifecycleTools(server: McpServer, principal: McpPrincipal): voi
         .from(buktiPdfBundle)
         .where(eq(buktiPdfBundle.imporBundleId, importId))
         .orderBy(desc(buktiPdfBundle.createdAt), desc(buktiPdfBundle.id));
+      if (row.version === 4) {
+        const { parseStagedProductBundle } = await import("@/lib/bundle/product-staging");
+        const bundle = await parseStagedProductBundle(importId);
+        const article = bundle.products.find(product => product.productType === "article");
+        const ref = row.validationReport.productV4Verification as { runId?: unknown } | undefined;
+        const verification = typeof ref?.runId === "string" ? await (await import("@/lib/bundle/product-v4-verification-service")).getProductV4VerificationReadiness(importId, ref.runId) : null;
+        const quality = await evaluateProductBundleQualityPolicy({ bundle }, { imporBundleId: importId, v4Verification: verification });
+        return { ok: true, import: { ...publicBundleImport(row, pedReviews, pdfEvidenceRows), publicationReady: quality.publicationReady, quality,
+          reviewContext: { expectedRevision: row.checksum, policyVersion: quality.policyVersion, contentFingerprint: quality.contentFingerprint,
+            verificationPlanHash: verification?.plan.planHash ?? null, verificationReceiptSignature: (verification?.receipt as { signature?: string } | null)?.signature ?? null,
+            sections: article?.productType === "article" ? article.sections.map(section => ({ sectionId: section.id, semanticHash: computeProductV4SectionSemanticHash(article, section.id) })) : [],
+          }, verification,
+        } };
+      }
       return { ok: true, import: publicBundleImport(row, pedReviews, pdfEvidenceRows) };
     }
     return { ok: true, import: publicBundleImport(row) };
@@ -2787,6 +2803,7 @@ function registerLifecycleTools(server: McpServer, principal: McpPrincipal): voi
     title: "Review Product Bundle",
     description: "Mencatat keputusan review Product Bundle draft tanpa mempublikasikannya.",
     inputSchema: {
+      ...productV4ReviewContextShape,
       importId: z.string().trim().min(1),
       runToken: z.string().min(1).optional(),
       decision: z.enum(["approved", "rejected", "changes_requested"]),
@@ -2829,6 +2846,9 @@ function registerLifecycleTools(server: McpServer, principal: McpPrincipal): voi
       criteria: input.criteria,
       exceptions: input.exceptions,
       expectedRevision: input.expectedRevision,
+      verificationPlanHash: input.verificationPlanHash,
+      verificationReceiptSignature: input.verificationReceiptSignature,
+      sectionDecisions: input.sectionDecisions,
       notes: input.notes,
       reason: input.reason,
     });
@@ -4199,6 +4219,7 @@ export function createAuthoringMcpServer(principal: McpPrincipal, requestId?: st
     },
   );
   registerWorkflowTools(server, principal, requestId);
+  registerProductV4Tools(server, principal);
   registerAuthoringSkills(server, skillsProfile, undefined, resolveAuthoringMcpEnvironment());
   registerValidationTools(server, principal);
   registerReferenceQuestionTools(server, principal);

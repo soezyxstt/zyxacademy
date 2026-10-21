@@ -1,4 +1,6 @@
-﻿import { cache } from "react";
+import { cache } from "react";
+import { hydrateSourceFiguresForReader } from "./source-figure-resolver";
+import { articlePartsSchema } from "@/lib/materials/article-parts";
 import { db } from "@/db";
 import {
   artikel,
@@ -76,6 +78,7 @@ interface SharedCanonicalArticle {
       workedExamplePayload?: unknown;
       formativeCheckPayload?: unknown;
       visualIds?: unknown;
+      parts?: unknown;
     }
   >;
   articleVisuals: unknown[];
@@ -114,23 +117,16 @@ const fetchSharedCanonicalArticle = cache(
 
       if (articleRecord.structureStatus !== "structured") return null;
 
-      // Resolve chapter ID if babId is present
-      let chapterRecord: typeof bab.$inferSelect | null = null;
-      let resolvedChapterId: string | null = articleRecord.babId ?? null;
-      if (articleRecord.babId) {
-        const [matchedChapter] = await db
-          .select()
-          .from(bab)
-          .where(eq(bab.id, articleRecord.babId))
-          .limit(1);
-        chapterRecord = matchedChapter ?? null;
-        if (matchedChapter?.legacyChapterId) {
-          resolvedChapterId = matchedChapter.legacyChapterId;
-        }
-      }
+      // Fetch chapter, published sections, and published blocks concurrently after article resolution
+      const chapterPromise = articleRecord.babId
+        ? db
+            .select()
+            .from(bab)
+            .where(eq(bab.id, articleRecord.babId))
+            .limit(1)
+        : Promise.resolve([] as Array<typeof bab.$inferSelect>);
 
-      // Fetch published sections for this article version
-      const sections = await db
+      const sectionsPromise = db
         .select()
         .from(bagianArtikel)
         .where(
@@ -142,10 +138,7 @@ const fetchSharedCanonicalArticle = cache(
         )
         .orderBy(asc(bagianArtikel.orderIndex));
 
-      if (sections.length === 0) return null;
-
-      // Fetch published blocks for this article version
-      const blocks = await db
+      const blocksPromise = db
         .select()
         .from(blokArtikel)
         .where(
@@ -156,6 +149,24 @@ const fetchSharedCanonicalArticle = cache(
           ),
         )
         .orderBy(asc(blokArtikel.orderIndex));
+
+      const [matchedChapters, sections, blocks] = await Promise.all([
+        chapterPromise,
+        sectionsPromise,
+        blocksPromise,
+      ]);
+
+      let chapterRecord: typeof bab.$inferSelect | null = null;
+      let resolvedChapterId: string | null = articleRecord.babId ?? null;
+      if (articleRecord.babId) {
+        const matchedChapter = matchedChapters[0];
+        chapterRecord = matchedChapter ?? null;
+        if (matchedChapter?.legacyChapterId) {
+          resolvedChapterId = matchedChapter.legacyChapterId;
+        }
+      }
+
+      if (sections.length === 0) return null;
 
       // Extract visuals from article contentMarkdown if present
       let articleVisuals: unknown[] = [];
@@ -199,9 +210,11 @@ const fetchSharedCanonicalArticle = cache(
         let workedExamplePayload: unknown = undefined;
         let formativeCheckPayload: unknown = undefined;
         let visualIds: unknown = undefined;
+        let parts: unknown = undefined;
+        const isV4 = b.content.includes("<!--__ZYX_V4_BLOCK_PAYLOAD__:");
         let cleanContent = b.content;
         const payloadMatch = b.content?.match(
-          /<!--__ZYX_V3_BLOCK_PAYLOAD__:([A-Za-z0-9_-]+)-->/,
+          /<!--__ZYX_V[34]_BLOCK_PAYLOAD__:([A-Za-z0-9_-]+)-->/,
         );
         if (payloadMatch) {
           try {
@@ -209,19 +222,23 @@ const fetchSharedCanonicalArticle = cache(
             workedExamplePayload = parsed.workedExamplePayload;
             formativeCheckPayload = parsed.formativeCheckPayload;
             visualIds = parsed.visualIds;
+            parts = isV4 ? articlePartsSchema.parse(parsed.parts) : parsed.parts;
             cleanContent = b.content
-              .replace(/<!--__ZYX_V3_BLOCK_PAYLOAD__:[A-Za-z0-9_-]+-->/, "")
+              .replace(/<!--__ZYX_V[34]_BLOCK_PAYLOAD__:[A-Za-z0-9_-]+-->/, "")
               .trim();
           } catch {
+            if (isV4) throw new Error("ARTICLE_V4_PAYLOAD_INVALID");
             // Fallback to undefined payloads
           }
         }
+        if (isV4 && !payloadMatch) throw new Error("ARTICLE_V4_PAYLOAD_INVALID");
         return {
           ...b,
           content: cleanContent,
           workedExamplePayload,
           formativeCheckPayload,
           visualIds,
+          parts,
         };
       });
 
@@ -285,7 +302,7 @@ export async function getCanonicalPublishedArticle(
         );
     }
 
-    return buildPublicArticleReadModel(
+    const publicArticle = buildPublicArticleReadModel(
       {
         id: articleRecord.id,
         courseId: normalizedCourseId,
@@ -307,6 +324,11 @@ export async function getCanonicalPublishedArticle(
         courseTitle: matchedCourse?.title ?? null,
       },
     );
+    return await hydrateSourceFiguresForReader(publicArticle, articleVisuals, {
+      courseId: normalizedCourseId,
+      legacyCourseId: matchedCourse?.legacyCourseId ?? null,
+      userId,
+    });
   } catch (error) {
     console.error("Error fetching canonical published article:", error);
     return null;

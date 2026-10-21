@@ -8,6 +8,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { MathText } from "@/components/course/math-text";
+import { MarkdownRenderer } from "@/components/course/markdown-renderer";
+import { previewProduct } from "@/lib/bundle/product-preview";
 import type { ProductEntity } from "@/lib/bundle/product-validator";
 import type { ProductPreview } from "@/lib/bundle/product-preview";
 
@@ -35,6 +37,23 @@ function productTitle(product: ProductEntity) {
 }
 
 export function ProductDraftEditor({ product, index, preview, onChange }: { product: ProductEntity; index: number; preview?: ProductPreview; onChange: (product: ProductEntity) => void }) {
+  if ((product.productType === "article" && product.schemaVersion === "article.v4") || (product.productType === "diktat" && product.units)) {
+    const readOnlyPreview = preview ?? previewProduct(product);
+    return (
+      <article aria-label={`${humanProductLabel(product.productType)} V4, hanya baca`} className="space-y-4 rounded-xl border border-border bg-card p-4">
+        <div className="space-y-1 border-b border-border pb-3">
+          <h3 className="font-heading text-body-base font-bold">{readOnlyPreview.title}</h3>
+          <p role="status" className="text-body-sm text-muted-foreground">Revisi {humanProductLabel(product.productType).toLowerCase()} melalui bundle V4 dan unggah ulang.</p>
+        </div>
+        {readOnlyPreview.sections.map((section, sectionIndex) => (
+          <section key={sectionIndex} className="space-y-2">
+            {product.productType === "article" ? <h4 className="font-heading text-body-sm font-bold">{section.label}</h4> : null}
+            <MarkdownRenderer content={section.content} density="compact" />
+          </section>
+        ))}
+      </article>
+    );
+  }
   const updateLink = (linkId: string, changes: Partial<ProductEntity["ideaLinks"][number]>) => onChange({ ...product, ideaLinks: product.ideaLinks.map((link) => link.id === linkId ? { ...link, ...changes } : link) } as ProductEntity);
   const normalizeWeights = () => {
     if (product.ideaLinks.length === 0) return;

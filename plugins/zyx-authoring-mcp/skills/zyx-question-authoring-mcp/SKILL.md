@@ -8,7 +8,7 @@ description: Menyusun atau merevisi soal `zyx_original` yang wajib terhubung ke 
 Skill ini menyusun dan merevisi draft soal kuis `zyx_original` yang terhubung ke Idea published pada workflow `quiz_bank`. Seluruh urutan tool analisis bank soal, skema `question-bank-draft.v2`, aturan bobot `ideaLinks`, dan rubrik kualitas soal/distraktor disajikan oleh server saat runtime melalui `workflow.get_playbook` dan `workflow.get_contract`.
 
 <!-- BEGIN:environment-connection -->
-Gunakan koneksi MCP `zyx-authoring-staging` untuk environment `staging` di endpoint `https://staging.zyxacademy.com/api/mcp/authoring` (`pluginVersion: "0.3.0"`, `bootstrapProtocol: 1`). Jangan gunakan koneksi Zyx dari environment lain. Verifikasi identitas koneksi sebelum memulai run atau melakukan staging.
+Gunakan koneksi MCP `zyx-authoring-staging` untuk environment `staging` di endpoint `https://staging.zyxacademy.com/api/mcp/authoring` (`pluginVersion: "0.4.0"`, `bootstrapProtocol: 1`). Jangan gunakan koneksi Zyx dari environment lain. Verifikasi identitas koneksi sebelum memulai run atau melakukan staging.
 <!-- END:environment-connection -->
 
 ## Identitas bootstrap dan protokol
@@ -16,7 +16,7 @@ Gunakan koneksi MCP `zyx-authoring-staging` untuk environment `staging` di endpo
 - **Skill ID**: `zyx-question-authoring-mcp`
 - **Stage**: `quiz`
 - **Bootstrap protocol**: `1`
-- **Plugin version**: `0.3.0`
+- **Plugin version**: `0.4.0`
 - **Modul playbook wajib**: `common/execution`, `quiz/workflow`, `quiz/quality`
 
 ## Langkah bootstrap wajib (fail-closed)
@@ -27,7 +27,7 @@ Gunakan koneksi MCP `zyx-authoring-staging` untuk environment `staging` di endpo
      "skill": "zyx-question-authoring-mcp",
      "stage": "quiz",
      "bootstrapProtocol": 1,
-     "pluginVersion": "0.3.0",
+     "pluginVersion": "0.4.0",
      "clientCapabilities": {
        "independentSubagents": true,
        "localArtifactFiles": true,

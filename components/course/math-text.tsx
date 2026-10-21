@@ -1,13 +1,9 @@
 import type { ReactNode } from "react";
-import katex from "katex";
 import { renderKatexToString } from "@/lib/math/katex-render";
 import { cn } from "@/lib/utils";
 import { normalizeMathInText } from "@/lib/math/math-normalizer";
+import { splitScientificText } from "@/lib/math/text-segments";
 import { QuestionImage } from "@/components/course/question-image";
-
-type Segment =
-  | { type: "text"; value: string }
-  | { type: "math"; value: string; display: boolean };
 
 type MathTextProps = {
   children: string | null | undefined;
@@ -25,60 +21,11 @@ const katexOptions = {
 
 const IMAGE_MARKDOWN_REGEX = /!\[(.*?)\]\(((?:data:image\/[a-zA-Z0-9.+_-]+;base64,[A-Za-z0-9+/=\s]+)|(?:https?:\/\/[^\s)]+)|\/api\/storage\/[^\s)]+|[^\s)]+)\)/g;
 
-function isEscaped(input: string, index: number) {
-  let slashCount = 0;
-  for (let i = index - 1; i >= 0 && input[i] === "\\"; i--) slashCount++;
-  return slashCount % 2 === 1;
-}
-
-function findDelimiter(input: string, delimiter: string, from: number) {
-  for (let i = from; i < input.length; i++) {
-    if (input.startsWith(delimiter, i) && !isEscaped(input, i)) return i;
-  }
-  return -1;
-}
-
-function pushText(segments: Segment[], value: string) {
-  if (value) segments.push({ type: "text", value });
-}
-
-function parseMathText(input: string): Segment[] {
-  const segments: Segment[] = [];
-  let cursor = 0;
-
-  while (cursor < input.length) {
-    const startsDisplayDollar = input.startsWith("$$", cursor) && !isEscaped(input, cursor);
-    const startsInlineDollar = input[cursor] === "$" && !startsDisplayDollar && !isEscaped(input, cursor);
-    const startsDisplayBracket = input.startsWith("\\[", cursor) && !isEscaped(input, cursor);
-    const startsInlineParen = input.startsWith("\\(", cursor) && !isEscaped(input, cursor);
-
-    if (startsDisplayDollar || startsInlineDollar || startsDisplayBracket || startsInlineParen) {
-      const open = startsDisplayDollar ? "$$" : startsInlineDollar ? "$" : startsDisplayBracket ? "\\[" : "\\(";
-      const close = startsDisplayDollar ? "$$" : startsInlineDollar ? "$" : startsDisplayBracket ? "\\]" : "\\)";
-      const display = startsDisplayDollar || startsDisplayBracket;
-      const closeIndex = findDelimiter(input, close, cursor + open.length);
-
-      if (closeIndex !== -1) {
-        pushText(segments, input.slice(0, cursor));
-        const math = input.slice(cursor + open.length, closeIndex).trim();
-        if (math) segments.push({ type: "math", value: math, display });
-
-        const rest = input.slice(closeIndex + close.length);
-        return [...segments, ...parseMathText(rest)];
-      }
-    }
-
-    cursor++;
-  }
-
-  pushText(segments, input);
-  return segments;
-}
-
 const MARKDOWN_TOKEN_REGEX = /(?:\[([^\]]+)\]\(((?:https?:\/\/|\/)[^\s)]+)\))|(?:(https?:\/\/[^\s<)]+))|(?:\*\*([^\*]+?)\*\*)|(?:\*([^\*]+?)\*)|(?:`([^`]+?)`)/g;
 
 function renderInlineMarkdown(text: string, baseKey: string): ReactNode[] {
   if (!text) return [];
+  text = text.replace(/\\\$/g, "$");
 
   const nodes: ReactNode[] = [];
   const regex = new RegExp(MARKDOWN_TOKEN_REGEX);
@@ -154,11 +101,18 @@ function renderMath(value: string, displayMode: boolean): string {
 }
 
 function renderMathSegments(text: string, bareMath = false): ReactNode[] {
-  const normalized = bareMath ? text : normalizeMathInText(text);
-  const mathReadyText = bareMath && normalized.trim() ? `$$${normalized.trim()}$$` : normalized;
-  const segments = parseMathText(mathReadyText);
+  const segments = bareMath && text.trim()
+    ? [{ type: "math" as const, value: text.trim(), display: true }]
+    : splitScientificText(text).flatMap((segment) => segment.type === "text"
+      ? splitScientificText(normalizeMathInText(segment.value))
+      : [segment]);
 
   return segments.map((segment, index): ReactNode => {
+    if (segment.type === "code") {
+      return segment.display
+        ? <span key={index} className="block overflow-x-auto whitespace-pre-wrap"><code>{segment.value}</code></span>
+        : <code key={index} className="rounded bg-muted px-1.5 py-0.5 font-mono text-body-xs">{segment.value}</code>;
+    }
     if (segment.type === "text") {
       const rendered = renderInlineMarkdown(segment.value, `seg-${index}`);
       return <span key={index}>{rendered}</span>;

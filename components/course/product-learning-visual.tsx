@@ -10,6 +10,13 @@ import type {
   PublicVisualSpec,
 } from "@/lib/articles/structured-read-model";
 import { evaluateVisualFunction } from "@/lib/materials/visual-contract";
+import { deriveEpsilonDelta, sampleEpsilonDeltaCurve } from "@/lib/materials/epsilon-delta";
+import { QuestionImage } from "@/components/course/question-image";
+import { MarkdownRenderer } from "@/components/course/markdown-renderer";
+import { Geometry2dVisual } from "@/components/course/geometry-2d-visual";
+import { MathText } from "@/components/course/math-text";
+import { scientificNumberToLatex, scientificValueToMathText } from "@/lib/math/scientific-format";
+import { visualFunctionToLatex } from "@/lib/math/visual-function-latex";
 
 const LazyLearningCanvasRenderer = dynamic(
   () => import("@/components/course/learning-canvas/learning-canvas-renderer").then((module) => module.LearningCanvasRenderer),
@@ -19,22 +26,34 @@ const LazyLearningCanvasRenderer = dynamic(
   },
 );
 
+const LazyEpsilonDeltaBoard = dynamic(
+  () => import("@/components/course/epsilon-delta-board").then((module) => module.EpsilonDeltaBoard),
+  { ssr: false, loading: () => <p role="status" className="text-body-sm text-muted-foreground">Memuat grafik...</p> },
+);
+
 export interface ProductLearningVisualProps {
   spec: PublicVisualSpec;
   className?: string;
+  engine?: "legacy" | "jsxgraph";
+}
+
+function SvgMathLabel({ x, y, width = 88, children }: { x: number; y: number; width?: number; children: string }) {
+  return <foreignObject x={x - width / 2} y={y - 13} width={width} height={30}>
+    <div className="flex h-full items-center justify-center text-foreground" style={{ fontSize: 20 }}><MathText>{`$${children}$`}</MathText></div>
+  </foreignObject>;
 }
 
 function CanvasFallback({ spec }: { spec: PublicLearningCanvasVisualSpec }) {
   return (
-    <div className="space-y-3 rounded-lg border border-border bg-muted/20 p-3">
-      <p className="text-body-sm text-muted-foreground">{spec.canvas.fallback.summary}</p>
+    <div data-visual-fallback className="space-y-3 rounded-lg border border-border bg-muted/20 p-3">
+      <MathText as="p" className="text-body-sm text-muted-foreground">{spec.canvas.fallback.summary}</MathText>
       <div className="overflow-x-auto rounded-md border border-border bg-card">
         <table className="w-full border-collapse text-body-xs">
           <caption className="sr-only">{spec.canvas.altText}</caption>
           <thead>
             <tr className="border-b border-border bg-muted/40 text-left">
               {spec.canvas.fallback.columns.map((column) => (
-                <th key={column.id} className="px-2 py-1.5 font-semibold text-foreground">{column.label}</th>
+                <th key={column.id} className="px-2 py-1.5 font-semibold text-foreground"><MathText>{column.label}</MathText></th>
               ))}
             </tr>
           </thead>
@@ -42,7 +61,7 @@ function CanvasFallback({ spec }: { spec: PublicLearningCanvasVisualSpec }) {
             {spec.canvas.fallback.rows.map((row, rowIndex) => (
               <tr key={rowIndex} className="border-b border-border/60 last:border-b-0">
                 {spec.canvas.fallback.columns.map((column, columnIndex) => (
-                  <td key={column.id} className="px-2 py-1 font-mono text-foreground">{row[columnIndex] ?? ""}</td>
+                  <td key={column.id} className="px-2 py-1 text-foreground"><MathText>{scientificValueToMathText(row[columnIndex] ?? "")}</MathText></td>
                 ))}
               </tr>
             ))}
@@ -55,6 +74,8 @@ function CanvasFallback({ spec }: { spec: PublicLearningCanvasVisualSpec }) {
 
 function LearningCanvasVisual({ spec, className }: { spec: PublicLearningCanvasVisualSpec; className?: string }) {
   const [isVisible, setIsVisible] = useState(false);
+  const [showFallback, setShowFallback] = useState(false);
+  const fallbackId = useId();
   const containerRef = React.useRef<HTMLDivElement | null>(null);
 
   React.useEffect(() => {
@@ -80,7 +101,9 @@ function LearningCanvasVisual({ spec, className }: { spec: PublicLearningCanvasV
 
   return (
     <figure id={spec.id} ref={containerRef} aria-label={spec.label} className={`space-y-2 ${className ?? ""}`}>
-      {isVisible ? <LazyLearningCanvasRenderer spec={spec.canvas} embedded /> : <CanvasFallback spec={spec} />}
+      <Button type="button" variant="outline" size="sm" aria-pressed={showFallback} aria-controls={fallbackId} onClick={() => setShowFallback((value) => !value)}><TableIcon className="mr-2 size-4" />{showFallback ? "Tampilkan visual" : "Tampilkan tabel nilai"}</Button>
+      <div hidden={showFallback}>{isVisible ? <LazyLearningCanvasRenderer spec={spec.canvas} embedded /> : null}</div>
+      <div id={fallbackId} hidden={isVisible && !showFallback}><CanvasFallback spec={spec} /></div>
       {!isVisible && spec.interactive ? (
         <p className="sr-only">{spec.description}</p>
       ) : null}
@@ -88,7 +111,7 @@ function LearningCanvasVisual({ spec, className }: { spec: PublicLearningCanvasV
   );
 }
 
-function EpsilonDeltaVisual({ spec, className }: { spec: PublicEpsilonDeltaGraphSpec; className?: string }) {
+function EpsilonDeltaVisual({ spec, className, engine }: { spec: PublicEpsilonDeltaGraphSpec; className?: string; engine?: "legacy" | "jsxgraph" }) {
   const titleId = useId();
   const descId = useId();
   const clipId = useId().replace(/:/g, "");
@@ -96,25 +119,12 @@ function EpsilonDeltaVisual({ spec, className }: { spec: PublicEpsilonDeltaGraph
   const [epsilon, setEpsilon] = useState<number>(spec.defaultEpsilon);
   const [showFallback, setShowFallback] = useState<boolean>(false);
 
-  // Compute delta dynamically based on epsilon
-  const delta = useMemo(() => {
-    if (spec.functionModel.kind === "linear" && spec.functionModel.m !== 0) {
-      const computed = epsilon / Math.abs(spec.functionModel.m);
-      // Ensure delta does not extend beyond bounds
-      const maxDelta = Math.min(
-        spec.limitPoint - spec.bounds.xMin,
-        spec.bounds.xMax - spec.limitPoint,
-      );
-      return Math.min(computed, Math.max(0.001, maxDelta));
-    }
-    // Proportional scaling for other models
-    const ratio = spec.defaultDelta / spec.defaultEpsilon;
-    const maxDelta = Math.min(
-      spec.limitPoint - spec.bounds.xMin,
-      spec.bounds.xMax - spec.limitPoint,
-    );
-    return Math.min(epsilon * ratio, Math.max(0.001, maxDelta));
-  }, [epsilon, spec]);
+  React.useEffect(() => {
+    setEpsilon(spec.defaultEpsilon);
+  }, [spec]);
+
+  const deltaResult = useMemo(() => deriveEpsilonDelta(spec, epsilon), [epsilon, spec]);
+  const delta = deltaResult.delta ?? 0;
 
   // ViewBox geometry
   const width = 500;
@@ -140,20 +150,10 @@ function EpsilonDeltaVisual({ spec, className }: { spec: PublicEpsilonDeltaGraph
   );
 
   // Generate curve path
-  const curvePath = useMemo(() => {
-    const points: string[] = [];
-    const sampleCount = 80;
-    for (let i = 0; i <= sampleCount; i++) {
-      const xVal = xMin + (i / sampleCount) * (xMax - xMin);
-      const yVal = evaluateVisualFunction(spec.functionModel, xVal);
-      if (yVal >= yMin && yVal <= yMax) {
-        const sx = scaleX(xVal);
-        const sy = scaleY(yVal);
-        points.push(`${points.length === 0 ? "M" : "L"} ${sx.toFixed(1)} ${sy.toFixed(1)}`);
-      }
-    }
-    return points.join(" ");
-  }, [spec.functionModel, xMin, xMax, yMin, yMax, scaleX, scaleY]);
+  const curvePath = useMemo(() => sampleEpsilonDeltaCurve(spec)
+    .map((segment) => segment.map(({ x, y }, index) =>
+      `${index === 0 ? "M" : "L"} ${scaleX(x).toFixed(1)} ${scaleY(y).toFixed(1)}`,
+    ).join(" ")).join(" "), [spec, scaleX, scaleY]);
 
   // Strip coordinates
   const xDeltaMin = Math.max(xMin, c - delta);
@@ -168,11 +168,11 @@ function EpsilonDeltaVisual({ spec, className }: { spec: PublicEpsilonDeltaGraph
   const epsBoxHeight = scaleY(yEpsMin) - epsBoxTop;
 
   // Min and max allowable epsilon for slider
-  const minEps = Math.max(0.05, Number((spec.defaultEpsilon * 0.1).toFixed(2)));
+  const minEps = spec.defaultEpsilon * 0.1 || spec.defaultEpsilon;
   const maxEps = Math.min(
     yMax - L,
     L - yMin,
-    Number((spec.defaultEpsilon * 2.2).toFixed(2)),
+    spec.defaultEpsilon * 2.2,
   );
 
   return (
@@ -187,12 +187,12 @@ function EpsilonDeltaVisual({ spec, className }: { spec: PublicEpsilonDeltaGraph
         <div className="min-w-0">
           <div className="flex items-center gap-2">
             <LineChart className="size-4 text-primary shrink-0" />
-            <h3 id={titleId} className="font-heading text-body-sm font-bold text-foreground truncate">
-              {spec.label}
+            <h3 id={titleId} className="min-w-0 break-words font-heading text-body-sm font-bold text-foreground">
+              <MathText>{spec.label}</MathText>
             </h3>
           </div>
           <p id={descId} className="mt-1 text-body-xs text-muted-foreground">
-            {spec.description}
+            <MathText>{spec.description}</MathText>
           </p>
         </div>
         <Button
@@ -200,7 +200,7 @@ function EpsilonDeltaVisual({ spec, className }: { spec: PublicEpsilonDeltaGraph
           variant="outline"
           size="sm"
           onClick={() => setShowFallback(!showFallback)}
-          className="gap-1.5 text-body-xs shrink-0"
+          className="gap-1.5 text-body-sm shrink-0"
           aria-pressed={showFallback}
         >
           <TableIcon className="size-3.5" />
@@ -214,13 +214,13 @@ function EpsilonDeltaVisual({ spec, className }: { spec: PublicEpsilonDeltaGraph
             <div className="overflow-x-auto rounded-lg border border-border">
               <table className="w-full text-body-xs border-collapse">
                 <caption className="text-left font-semibold p-3 text-body-xs text-muted-foreground bg-muted/40 border-b border-border">
-                  {spec.staticFallback.summary}
+                  <MathText>{spec.staticFallback.summary}</MathText>
                 </caption>
                 <thead>
                   <tr className="border-b border-border bg-muted/20">
                     {spec.staticFallback.headers.map((head, idx) => (
                       <th key={idx} className="p-2.5 text-left font-semibold text-foreground">
-                        {head}
+                        <MathText>{head}</MathText>
                       </th>
                     ))}
                   </tr>
@@ -229,8 +229,8 @@ function EpsilonDeltaVisual({ spec, className }: { spec: PublicEpsilonDeltaGraph
                   {spec.staticFallback.rows.map((row, rIdx) => (
                     <tr key={rIdx} className="border-b border-border/60 last:border-0 hover:bg-muted/10">
                       {row.map((cell, cIdx) => (
-                        <td key={cIdx} className="p-2.5 font-mono text-body-xs text-foreground">
-                          {cell}
+                        <td key={cIdx} className="p-2.5 text-body-sm text-foreground">
+                          <MathText>{scientificValueToMathText(cell)}</MathText>
                         </td>
                       ))}
                     </tr>
@@ -240,15 +240,19 @@ function EpsilonDeltaVisual({ spec, className }: { spec: PublicEpsilonDeltaGraph
             </div>
           ) : (
             <div className="rounded-lg border border-border bg-muted/20 p-4 space-y-1.5 text-body-xs">
-              <p className="font-semibold text-foreground">{spec.staticFallback.summary}</p>
-              <p className="text-muted-foreground leading-relaxed">{spec.staticFallback.content}</p>
+              <MathText as="p" className="font-semibold text-foreground">{spec.staticFallback.summary}</MathText>
+              <MathText as="p" className="text-muted-foreground leading-relaxed">{spec.staticFallback.content}</MathText>
             </div>
           )}
         </div>
       ) : (
         <div className="space-y-4">
           {/* SVG Graph Canvas */}
-          <div className="w-full overflow-x-auto rounded-lg border border-border bg-background p-2">
+          {deltaResult.status === "resolution_limited" ? (
+            <p role="status" className="text-body-sm text-muted-foreground">
+              Delta belum dapat dijamin pada toleransi ini karena batas presisi numerik atau nilai target. Perbesar epsilon atau periksa model.
+            </p>
+          ) : engine === "jsxgraph" ? <LazyEpsilonDeltaBoard spec={spec} epsilon={epsilon} delta={deltaResult.delta} /> : <div className="w-full overflow-x-auto rounded-lg border border-border bg-background p-2">
             <svg
               viewBox={`0 0 ${width} ${height}`}
               className="w-full max-w-[500px] mx-auto block select-none"
@@ -316,14 +320,7 @@ function EpsilonDeltaVisual({ spec, className }: { spec: PublicEpsilonDeltaGraph
                 strokeWidth="1.5"
                 strokeDasharray="4 3"
               />
-              <text
-                x={padLeft - 8}
-                y={scaleY(yEpsMax) + 4}
-                textAnchor="end"
-                className="fill-primary font-mono text-[11px] font-semibold"
-              >
-                L + ε ({yEpsMax.toFixed(2)})
-              </text>
+              <SvgMathLabel x={padLeft / 2} y={scaleY(L + epsilon)} width={62}>{"L+\\varepsilon"}</SvgMathLabel>
 
               {/* L Center Line */}
               <line
@@ -336,14 +333,7 @@ function EpsilonDeltaVisual({ spec, className }: { spec: PublicEpsilonDeltaGraph
                 strokeWidth="1.5"
                 strokeDasharray="2 2"
               />
-              <text
-                x={padLeft - 8}
-                y={scaleY(L) + 4}
-                textAnchor="end"
-                className="fill-foreground font-mono text-[11px] font-bold"
-              >
-                L ({L})
-              </text>
+              <SvgMathLabel x={padLeft / 2} y={scaleY(L)} width={62}>{"L"}</SvgMathLabel>
 
               {/* L - epsilon */}
               <line
@@ -355,14 +345,7 @@ function EpsilonDeltaVisual({ spec, className }: { spec: PublicEpsilonDeltaGraph
                 strokeWidth="1.5"
                 strokeDasharray="4 3"
               />
-              <text
-                x={padLeft - 8}
-                y={scaleY(yEpsMin) + 4}
-                textAnchor="end"
-                className="fill-primary font-mono text-[11px] font-semibold"
-              >
-                L - ε ({yEpsMin.toFixed(2)})
-              </text>
+              <SvgMathLabel x={padLeft / 2} y={scaleY(L - epsilon)} width={62}>{"L-\\varepsilon"}</SvgMathLabel>
 
               {/* Vertical Delta Dashed Lines & Labels */}
               {/* c - delta */}
@@ -375,22 +358,8 @@ function EpsilonDeltaVisual({ spec, className }: { spec: PublicEpsilonDeltaGraph
                 strokeWidth="1.5"
                 strokeDasharray="4 3"
               />
-              <text
-                x={scaleX(xDeltaMin)}
-                y={padTop + plotHeight + 16}
-                textAnchor="middle"
-                className="fill-foreground font-mono text-[10px]"
-              >
-                c - δ
-              </text>
-              <text
-                x={scaleX(xDeltaMin)}
-                y={padTop + plotHeight + 28}
-                textAnchor="middle"
-                className="fill-muted-foreground font-mono text-[9px]"
-              >
-                {xDeltaMin.toFixed(2)}
-              </text>
+              {deltaBoxWidth > 110 ? <SvgMathLabel x={scaleX(c - delta)} y={padTop + plotHeight + 19}>{"c-\\delta"}</SvgMathLabel> : null}
+
 
               {/* c Center Line */}
               <line
@@ -403,14 +372,7 @@ function EpsilonDeltaVisual({ spec, className }: { spec: PublicEpsilonDeltaGraph
                 strokeWidth="1.5"
                 strokeDasharray="2 2"
               />
-              <text
-                x={scaleX(c)}
-                y={padTop + plotHeight + 16}
-                textAnchor="middle"
-                className="fill-foreground font-mono text-[10px] font-bold"
-              >
-                c ({c})
-              </text>
+              <SvgMathLabel x={scaleX(c)} y={padTop + plotHeight + 19}>{"c"}</SvgMathLabel>
 
               {/* c + delta */}
               <line
@@ -422,22 +384,8 @@ function EpsilonDeltaVisual({ spec, className }: { spec: PublicEpsilonDeltaGraph
                 strokeWidth="1.5"
                 strokeDasharray="4 3"
               />
-              <text
-                x={scaleX(xDeltaMax)}
-                y={padTop + plotHeight + 16}
-                textAnchor="middle"
-                className="fill-foreground font-mono text-[10px]"
-              >
-                c + δ
-              </text>
-              <text
-                x={scaleX(xDeltaMax)}
-                y={padTop + plotHeight + 28}
-                textAnchor="middle"
-                className="fill-muted-foreground font-mono text-[9px]"
-              >
-                {xDeltaMax.toFixed(2)}
-              </text>
+              {deltaBoxWidth > 110 ? <SvgMathLabel x={scaleX(c + delta)} y={padTop + plotHeight + 19}>{"c+\\delta"}</SvgMathLabel> : null}
+
 
               {/* Plotted Function Curve */}
               <path
@@ -450,47 +398,37 @@ function EpsilonDeltaVisual({ spec, className }: { spec: PublicEpsilonDeltaGraph
               />
 
               {/* Function Label */}
-              <text
-                x={padLeft + plotWidth - 10}
-                y={padTop + 20}
-                textAnchor="end"
-                className="fill-foreground font-mono text-[12px] font-semibold"
-              >
-                {spec.functionModel.kind === "linear"
-                  ? `f(x) = ${spec.functionModel.m}x + ${spec.functionModel.b}`
-                  : spec.functionModel.kind === "quadratic"
-                    ? `f(x) = ${spec.functionModel.a}x² + ${spec.functionModel.b}x + ${spec.functionModel.c}`
-                    : `f(x) = ${spec.functionModel.c}`}
-              </text>
+              <SvgMathLabel x={padLeft + plotWidth - 100} y={padTop + 20} width={200}>{visualFunctionToLatex(spec.functionModel)}</SvgMathLabel>
 
-              {/* Limit Point Marker (c, L) */}
+              {/* Polynomial models are defined at c; the punctured neighborhood does not create a hole. */}
               <circle
                 cx={scaleX(c)}
-                cy={scaleY(L)}
+                cy={scaleY(evaluateVisualFunction(spec.functionModel, c))}
                 r="5"
-                fill="var(--background)"
+                fill="var(--primary)"
                 stroke="var(--primary)"
                 strokeWidth="2.5"
-              />
-              <text
-                x={scaleX(c) + 8}
-                y={scaleY(L) - 8}
-                className="fill-primary font-mono text-[11px] font-bold"
               >
-                (c, L)
-              </text>
+                <title>{`Nilai fungsi terdefinisi: f(${c}) = ${evaluateVisualFunction(spec.functionModel, c)}. Sasaran limit L = ${L}.`}</title>
+              </circle>
+
             </svg>
-          </div>
+          </div>}
+
+          {deltaResult.delta !== null ? <div className="grid gap-2 text-body-sm" aria-label="Batas lingkungan dan toleransi">
+            <MathText>{`$c-\\delta\\approx ${scientificNumberToLatex(c - delta)},\\quad c+\\delta\\approx ${scientificNumberToLatex(c + delta)}$`}</MathText>
+            <MathText>{`$L-\\varepsilon\\approx ${scientificNumberToLatex(L - epsilon)},\\quad L+\\varepsilon\\approx ${scientificNumberToLatex(L + epsilon)}$`}</MathText>
+          </div> : null}
 
           {/* Interactive Controls */}
           <div className="rounded-lg border border-border bg-muted/20 p-3 sm:p-4 space-y-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <label htmlFor={sliderId} className="text-body-xs font-semibold text-foreground">
-                Toleransi Epsilon (ε): <span className="font-mono text-primary">{epsilon.toFixed(2)}</span>
+              <label htmlFor={sliderId} className="text-body-sm font-semibold text-foreground">
+                Toleransi <MathText className="text-primary">{`$\\varepsilon=${scientificNumberToLatex(epsilon)}$`}</MathText>
               </label>
               <div className="flex items-center gap-3">
-                <span className="text-body-xs text-muted-foreground font-mono">
-                  Maka Delta (δ) = <strong className="text-foreground">{delta.toFixed(2)}</strong>
+                <span className="text-body-sm text-muted-foreground">
+                  <MathText>{deltaResult.delta === null ? "$\\delta$: belum tersedia" : `$\\delta\\approx ${scientificNumberToLatex(delta)}$`}</MathText>
                 </span>
                 {epsilon !== spec.defaultEpsilon ? (
                   <Button
@@ -498,7 +436,7 @@ function EpsilonDeltaVisual({ spec, className }: { spec: PublicEpsilonDeltaGraph
                     variant="ghost"
                     size="sm"
                     onClick={() => setEpsilon(spec.defaultEpsilon)}
-                    className="h-7 px-2 text-body-xs gap-1 text-muted-foreground hover:text-foreground"
+                    className="h-7 px-2 text-body-sm gap-1 text-muted-foreground hover:text-foreground"
                   >
                     <RotateCcw className="size-3" />
                     <span>Reset</span>
@@ -512,7 +450,7 @@ function EpsilonDeltaVisual({ spec, className }: { spec: PublicEpsilonDeltaGraph
               type="range"
               min={minEps}
               max={maxEps}
-              step={0.05}
+              step={spec.defaultEpsilon / 100 || "any"}
               value={epsilon}
               onChange={(e) => setEpsilon(Number(e.target.value))}
               aria-label="Toleransi epsilon"
@@ -522,9 +460,11 @@ function EpsilonDeltaVisual({ spec, className }: { spec: PublicEpsilonDeltaGraph
               className="w-full accent-primary cursor-pointer h-2 bg-muted rounded-lg"
             />
 
-            <p className="text-body-2xs text-muted-foreground leading-relaxed">
-              Saat toleransi epsilon dipersempit, jendela delta otomatis menyesuaikan agar seluruh nilai input di dalam pita menghasilkan keluaran dalam toleransi jarak epsilon ke target limit L.
-            </p>
+            {deltaResult.status === "guaranteed" ? (
+              <MathText as="p" className="text-body-sm text-muted-foreground leading-relaxed">
+                {"Untuk $0<|x-c|<\\delta$, model menjamin $|f(x)-L|<\\varepsilon$. Nilai $\\delta$ ini cukup dan tidak harus terbesar; nilainya diturunkan dari batas analitis fungsi."}
+              </MathText>
+            ) : null}
           </div>
         </div>
       )}
@@ -532,9 +472,21 @@ function EpsilonDeltaVisual({ spec, className }: { spec: PublicEpsilonDeltaGraph
   );
 }
 
-export function ProductLearningVisual({ spec, className }: ProductLearningVisualProps) {
+export function ProductLearningVisual({ spec, className, engine }: ProductLearningVisualProps) {
+  if (spec.kind === "geometry_2d") return <Geometry2dVisual spec={spec} className={className} />;
+  if (spec.kind === "source_figure") return <figure className={`space-y-3 ${className ?? ""}`} aria-label={spec.label} data-source-figure>
+    <figcaption className="font-heading text-body-base font-bold"><MathText>{spec.label}</MathText></figcaption>
+    <MathText as="p" className="text-body-sm">{spec.description}</MathText>
+    {spec.asset ? <QuestionImage src={spec.asset.imageUrl} alt={spec.label} showCaption={false} /> : <p role="status" className="rounded-lg border border-border p-3 text-body-sm text-muted-foreground">Gambar belum tersedia.</p>}
+    {spec.captionMarkdown ? <MarkdownRenderer content={spec.captionMarkdown} /> : null}
+    {spec.asset?.attribution ? <p className="text-body-xs text-muted-foreground">{spec.asset.attribution}</p> : null}
+    <div data-visual-fallback className="space-y-2">
+    <MathText as="p" className="text-body-sm">{spec.staticFallback.summary}</MathText>
+    {spec.staticFallback.type === "text" ? <MathText as="p" className="text-body-sm">{spec.staticFallback.content}</MathText> : <div className="overflow-x-auto"><table className="w-full text-left text-body-sm"><thead><tr>{spec.staticFallback.headers.map((header, index) => <th key={index} className="border-b border-border px-2 py-1 font-semibold"><MathText>{header}</MathText></th>)}</tr></thead><tbody>{spec.staticFallback.rows.map((row, index) => <tr key={index}>{row.map((cell, column) => <td key={column} className="border-b border-border px-2 py-1"><MathText>{scientificValueToMathText(cell)}</MathText></td>)}</tr>)}</tbody></table></div>}
+    </div>
+  </figure>;
   if (spec.kind === "learning_canvas") {
     return <LearningCanvasVisual spec={spec} className={className} />;
   }
-  return <EpsilonDeltaVisual spec={spec} className={className} />;
+  return <EpsilonDeltaVisual spec={spec} className={className} engine={engine} />;
 }

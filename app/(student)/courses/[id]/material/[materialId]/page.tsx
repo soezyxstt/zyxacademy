@@ -276,21 +276,24 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   });
 }
 
-
 export default async function CourseMaterialDetailPage({ params }: Props) {
   const { id, materialId } = await params;
-  const course = await getCourse(id);
   const session = await getAuthSession();
   const studentId = session?.user?.id;
   if (!studentId) {
     redirect(`/sign-in?next=${encodeURIComponent(`/courses/${id}/material/${materialId}`)}`);
   }
 
+  // Overlap canonical article, course, and access queries only once session is verified
+  const [course, canonicalArticle, access] = await Promise.all([
+    getCourse(id),
+    getCanonicalPublishedArticle(id, materialId, studentId),
+    getStudentCourseAccess(studentId, id),
+  ]);
+
   // 1. Canonical structured article first. Published V2 Article and Diktat
   // content falls through to the canonical text product reader below.
-  const canonicalArticle = await getCanonicalPublishedArticle(id, materialId, studentId);
   if (canonicalArticle && course) {
-    const access = studentId ? await getStudentCourseAccess(studentId, id) : null;
     const isEnrolled = access?.tier === "standard";
     const articleChapterIds = [
       canonicalArticle.chapterId,
@@ -335,7 +338,6 @@ export default async function CourseMaterialDetailPage({ params }: Props) {
   const material = await fetchMaterial(id, materialId, studentId);
   if (!course || !material) notFound();
 
-  const access = studentId ? await getStudentCourseAccess(studentId, id) : null;
   const isEnrolled = access?.tier === "standard";
   const isFreePdf = material.kind === "pdf" && material.docCategory !== "diktat";
   const materialChapterIds = [

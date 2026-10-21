@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, type ReactNode } from "react";
-import katex from "katex";
 import { renderKatexToString } from "@/lib/math/katex-render";
 import { 
   Info, 
@@ -19,6 +18,7 @@ import dynamic from "next/dynamic";
 import { compileMarkdown } from "@/lib/markdown-compiler";
 import { ASTBlock } from "@/lib/ast-validator";
 import { compileSafeExpression, normalizeLegacyGraphExpression } from "@/lib/zyra/canvas";
+import { splitScientificText } from "@/lib/math/text-segments";
 import { MathText } from "@/components/course/math-text";
 
 const ChartRenderer = dynamic(
@@ -156,6 +156,25 @@ function parseInline(text: string): ReactNode[] {
 
   while (index < text.length) {
     const remaining = text.slice(index);
+    if (remaining.startsWith("\\$") || remaining.startsWith("\\[") || remaining.startsWith("\\(")) {
+      let slashCount = 1;
+      for (let before = index - 1; before >= 0 && text[before] === "\\"; before--) slashCount++;
+      if (remaining.startsWith("\\$") ? slashCount % 2 === 1 : slashCount % 2 === 0) {
+        textAccumulator += remaining.slice(0, 2);
+        index += 2;
+        continue;
+      }
+    }
+    if (remaining.startsWith("`")) {
+      const first = splitScientificText(remaining)[0];
+      if (first?.type === "code") {
+        flushText();
+        result.push(<code key={`literal-code-${index}`} className={cn("rounded bg-muted px-1.5 py-0.5 font-mono text-body-sm", first.display && "block whitespace-pre-wrap overflow-x-auto")}>{first.value}</code>);
+        index += first.sourceLength;
+        continue;
+      }
+    }
+
 
     // Typed inline emphasis. This is intentionally allowlisted and rendered
     // as text, so author content cannot inject HTML or CSS. Example:

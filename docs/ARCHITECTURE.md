@@ -1210,3 +1210,15 @@ The compute PDF page reader caches extracted text and PNG bytes by current docum
 - Structured article content and parsing are request-deduplicated separately from user-keyed reading progress.
 - `lib/math/katex-render.ts` shares deterministic KaTeX HTML with a 500-entry FIFO cap. Inputs over 2,000 characters, outputs over 10,000 characters, and mutable or callback options bypass caching.
 - Sidebar activity refresh runs on account mount, successful learning mutations, and focus or visibility changes after 60 seconds. Each account effect owns its abort controller; a mutation during a request queues one follow-up refresh. Route changes alone do not trigger it.
+
+### Explicit-version Product Bundle V4
+
+V4 retains the canonical Product envelope and existing tables. Ordered Article parts, scoped mathematical meanings and symbols, worked steps, visual references and authored Diktat units survive compilation, persistence and public hydration. Source figures bind a validated SourcePack and PDF crop to immutable checked variants; learner image delivery authorizes the stored course and chapter before returning private bytes. See [the V4 contract](bundle/product-bundle-v4.md).
+
+Verification jobs derive their required checks on the server and bind the bundle, dependencies, source assets, renderer sources, installed fonts, browser and print profile. The authenticated renderer executes application-owned browser and PDF code. Signed attempt receipts and artifact byte hashes cannot be replaced by author-supplied local reports. PDF promotion reuses the verified PDF with a transaction and compare-and-swap. Explicit section decisions and an anchored pedagogic rubric bind the current receipt and semantic hashes before publication. Polling is read-only. The local implementation and tests do not certify deployment or installed MCP hosts.
+
+### First-content streaming
+
+- Student route content is visible in server HTML without waiting for the page entrance animation. Marketing and reduced-motion behavior remain unchanged.
+- Course session and identity reads overlap while authentication rejection retains priority. Independent document-list queries overlap after authentication and course resolution.
+- Course overview analytics stream inside a Suspense boundary, allowing the chapter outline to appear before recommendations finish. This changes query scheduling, not the number of SQL statements.

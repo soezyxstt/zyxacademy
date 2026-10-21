@@ -30,6 +30,11 @@ function filesUnder(root: string, path = ""): string[] {
   });
 }
 
+export function localSkillSourceDigest(source: string): string {
+  const paths = ["release.json", ...filesUnder(resolve(source, "skills")).map((path) => `skills/${path}`)];
+  return skillDigest(Buffer.from(JSON.stringify(paths.map((path) => [path, skillDigest(readFileSync(safeSkillPath(source, path)))]))));
+}
+
 export function buildSkillArtifact(source: string, output: string, provenance: SkillManifest["source"]): SkillManifest {
   const sourceRoot = resolve(source, "skills");
   const outputRelative = relative(sourceRoot, resolve(output));
@@ -90,7 +95,8 @@ function git(args: string[], cwd: string): string {
 }
 
 if (import.meta.main) {
-  const { values } = parseArgs({ options: { environment: { type: "string" }, source: { type: "string" }, output: { type: "string", default: "dist/skills" } }, strict: true });
+  const { values } = parseArgs({ options: { environment: { type: "string" }, source: { type: "string" }, output: { type: "string" }, "local-candidate": { type: "boolean", default: false } }, strict: true });
+  if (values["local-candidate"] && (!values.source || !values.output || process.env.CI || process.env.VERCEL)) throw new Error("Local candidate requires explicit source/output outside CI and deployment");
   const environment = values.environment ?? process.env.ZYX_MCP_ENVIRONMENT ?? (process.env.VERCEL_GIT_COMMIT_REF === "main" ? "production" : process.env.VERCEL_GIT_COMMIT_REF === "staging" ? "staging" : process.env.VERCEL_ENV === "production" ? "production" : "staging");
   if (environment !== "staging" && environment !== "production") throw new Error("Unknown skills environment");
   const commit = lock[environment];
@@ -101,13 +107,17 @@ if (import.meta.main) {
     git(["fetch", "--depth=1", lock.repository, commit], source);
     git(["checkout", "--detach", "FETCH_HEAD"], source);
   }
-  if (git(["rev-parse", "HEAD"], source) !== commit || git(["status", "--porcelain", "--untracked-files=all"], source)) throw new Error("Skills source must be clean at locked commit");
-  const output = resolve(values.output!);
+  if (!values["local-candidate"] && (git(["rev-parse", "HEAD"], source) !== commit || git(["status", "--porcelain", "--untracked-files=all"], source))) throw new Error("Skills source must be clean at locked commit");
+  const output = resolve(values.output ?? "dist/skills");
+  if (values["local-candidate"] && output === resolve("dist/skills")) throw new Error("Local candidate must use a separate output");
   const parent = resolve(output, "..");
   mkdirSync(parent, { recursive: true });
   const temporary = mkdtempSync(resolve(parent, ".skills-build-"));
   const staged = resolve(temporary, "skills");
-  const manifest = buildSkillArtifact(source, staged, { repository: lock.repository, commit, environment });
+  const provenance: SkillManifest["source"] = values["local-candidate"]
+    ? { kind: "local-candidate", repository: `workspace:${relative(process.cwd(), source).split(sep).join("/")}`, baseCommit: git(["rev-parse", "HEAD"], process.cwd()), digest: localSkillSourceDigest(source), environment }
+    : { repository: lock.repository, commit, environment };
+  const manifest = buildSkillArtifact(source, staged, provenance);
   const previous = resolve(temporary, "previous");
   if (existsSync(output)) {
     const old = loadSkillCatalog(output, "all").manifest;

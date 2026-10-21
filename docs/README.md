@@ -1,6 +1,8 @@
 # Zyx Academy Documentation Index
 
-The `ACTIVE` [MCP skills distribution runbook](operations/authoring-mcp-skills.md) documents pinned external-repository builds, full and ChatGPT import catalogs, protocol handlers, resource integrity, limits, CI, rollback, and deployment acceptance, including the verified developer identity required for Scan Tools draft creation.
+The `ACTIVE` [Product Bundle V4 contract](bundle/product-bundle-v4.md) describes ordered scientific content, authored Diktat static exports, source assets, trusted verification and explicit review gates implemented locally. V3 remains the creation default. Local HTTP/browser/PDF verification has passed; deployment, full-chapter acceptance, remote executor and installed-host acceptance remain separate boundaries.
+
+The `ACTIVE` [MCP skills distribution runbook](operations/authoring-mcp-skills.md) documents pinned external builds, full and compact catalogs, local V4 candidate provenance, attested web/Deno builds, Cloudflare Browser Run verification, resource integrity and host acceptance. The `ACTIVE` deployment and development guides describe the Deno runtime identity, browser configuration and read-only `/v4` preview. Local package checks remain separate from installed-host, OAuth and deployment evidence.
 
 The `ACTIVE` architecture guide records request-scoped session deduplication via `getAuthSession` and React `cache` (RSC request context only, object identity keys, no cross-HTTP/action memoization), bounded catalogue count batch projections retaining all sources (including zero counts and PKA), and layout rendering boundaries where nested async layouts must resolve before child loading streams.
 
@@ -43,7 +45,8 @@ docs/
 │   ├── idea-bundle-v2.md                     # Transitional Idea Bundle V2 Contract
 │   ├── idea-bundle-v3.md                     # Structured Idea Bundle V3 Contract
 │   ├── product-bundle-v2.md                  # Transitional Product Bundle V2 Contract
-│   └── product-bundle-v3.md                  # Structured Product Bundle V3 Contract
+│   ├── product-bundle-v3.md                  # Structured Product Bundle V3 Contract
+│   └── product-bundle-v4.md                  # Explicit-version V4 Source Contract
 │
 ├── operations/                               # Operational Runbooks, Checklists, and Allowances
 │   ├── authoring-mcp-skills.md                # Pinned MCP Skills Build and Import Acceptance
@@ -53,11 +56,6 @@ docs/
 │   ├── structured-article-v3-rollout.md       # Structured Article V3 Migration and Rollout
 │   ├── visual-audit-capture.md               # Procedure for Staging Visual Capture Audits
 │   └── zyra-ops-runbooks.md                  # Zyra AI Alert Runbooks and Incident Handling
-│
-├── audit/                                    # Quality, Security, and Visual Audits
-│   ├── admin-visual-quality-audit.md         # Admin Visual Quality and Responsive Audit
-│   ├── heavy-api-routes-audit.md             # Heavy API Routes and Compute Audit
-│   └── student-deep-ui-ux-audit.md           # Student Deep UI/UX Quality and Design Audit
 │
 └── handoffs/                                 # Milestone Handoff Records and Checkpoints
     └── zyra-ai-plans-001-007.md              # Zyra AI Plans 001-007 Staging Checkpoint
@@ -83,31 +81,28 @@ Every document in this repository has one of the following explicit statuses:
 
 | Document | Category | Status | Updated / Date | Purpose and Scope |
 |---|---|---|---|---|
-| [operations/authoring-mcp-skills.md](operations/authoring-mcp-skills.md) | Operations | `ACTIVE` | 2026-10-21 | Pinned external skills snapshots, MCP extension, full catalog and compact importer profile, validation, CI, and rollout acceptance. |
 | [README.md](README.md) | Index | `ACTIVE` | 2026-09-24 | Master documentation index, hierarchy map, course workspace compatibility status, marketing improvement plan, and lifecycle status ledger. |
-| [ARCHITECTURE.md](ARCHITECTURE.md) | Core Architecture | `ACTIVE` | 2026-10-20 | Core platform architecture, request-scoped session deduplication and caching contracts (RSC-scoped React.cache, object identity keys, no cross-HTTP/action memoization), bounded catalogue count batch projections retaining all sources (zero/PKA), async layout loading boundary semantics, canonical-first student reads, fail-closed public demo read boundary, historical reference authoring, Product Bundle V3 boundaries, course workspace hierarchy, reader modes, compatibility redirects, Idea Bundle withdrawal, and manual browser authoring retirement. MCP playbook transport uses one complete JSON text block; quiz authoring enforces published in-scope Idea links and exactly one primary. |
+| [ARCHITECTURE.md](ARCHITECTURE.md) | Core Architecture | `ACTIVE` | 2026-10-21 | Request-scoped read deduplication, catalogue projections, first-content streaming, V4 representation, trusted verification and publication boundaries. |
+| [operations/authoring-mcp-skills.md](operations/authoring-mcp-skills.md) | Operations | `ACTIVE` | 2026-10-21 | Pinned external snapshots, local V4 candidates, build-attested renderer, MCP resource integrity and separate installed-host acceptance. |
 | [DATABASE.md](DATABASE.md) | Core Database | `ACTIVE` | Current | Database topology (Turso remote, SQLite local), Drizzle workflows, and driver adapters. |
 | [DB_SCHEMA.md](DB_SCHEMA.md) | Core Database | `ACTIVE` | 2026-09-16 | Comprehensive schema catalog including the singleton public demo marker, tutorial scheduling lifecycle, dated tutor slots, normalized booking resources, historical assessment provenance, question reference links, retryable Idea Bundle cleanup, Product Bundle pedagogic review, and PDF evidence. |
 | [DEPLOYMENT.md](DEPLOYMENT.md) | Core Infrastructure | `ACTIVE` | 2026-10-10 | Vercel, Cloudflare Workers/R2/Vectorize deployment processes, Diktat runtime asset checks, secrets, and environments. |
-| [DEVELOPMENT.md](DEVELOPMENT.md) | Core Development | `ACTIVE` | 2026-09-16 | Local development guide, scripts, environment variables, public marketing CTA configuration, V3 authoring rollout flag boundaries, admin-only Idea Bundle withdrawal, and required quiz Idea links. |
+| [DEVELOPMENT.md](DEVELOPMENT.md) | Core Development | `ACTIVE` | 2026-10-21 | Local development, environment boundaries, pinned scientific dependencies and attested V4 verification commands. |
 | [FILE_NAMING_CONVENTIONS.md](FILE_NAMING_CONVENTIONS.md) | Standards | `ACTIVE` | Current | Standard file naming formula, taxonomy, and directory hierarchy for academic assets. |
-| [features.md](features.md) | Product | `ACTIVE` | 2026-10-08 | Authoritative catalog of student, tutor, admin, MCP authoring with mandatory published Idea links and exactly one primary for quiz drafts and updates, and public marketing workflows, including course-scoped Admin tryouts with typed or file-based essay responses, Product Bundle V3 boundaries, course workspace hierarchy, reader modes, and compatibility redirects. |
+| [features.md](features.md) | Product | `ACTIVE` | 2026-10-21 | Student, tutor, admin and public workflows; Idea-linked quizzes, explicit-version V4 Article/Diktat authoring, scientific rendering and review gates. |
 | [bundle/authoring-context-pack-v1.md](bundle/authoring-context-pack-v1.md) | Bundle Contract | `ACTIVE` | Current | Specification for authoring context pack export format and security boundaries. |
 | [bundle/authoring-job-pack-v1.md](bundle/authoring-job-pack-v1.md) | Bundle Contract | `ACTIVE` | 2026-10-11 | Specification for authoring job packs, Source Pack provenance, and local or stored-original ingestion and persistence. |
 | [bundle/idea-bundle-v2.md](bundle/idea-bundle-v2.md) | Bundle Contract | `TRANSITIONAL / LEGACY` | Current | Read and rollback submission contract for Idea Bundle V2. |
 | [bundle/idea-bundle-v3.md](bundle/idea-bundle-v3.md) | Bundle Contract | `ACTIVE` | 2026-08-31 | Learning section hierarchy, Idea membership, validation, editing, and MCP transition contract. |
 | [bundle/product-bundle-v2.md](bundle/product-bundle-v2.md) | Bundle Contract | `TRANSITIONAL / LEGACY` | Current | Read compatibility and Article block review adapter for Product Bundle V2. |
 | [bundle/product-bundle-v3.md](bundle/product-bundle-v3.md) | Bundle Contract | `ACTIVE` | 2026-10-11 | Structured Article, fixed readable Diktat typography, pagination, and numbered contact footer, typed visuals with geometric axis scaling and domain boundaries, simplified revision-bound review, publication, and student reads. |
+| [bundle/product-bundle-v4.md](bundle/product-bundle-v4.md) | Bundle Contract | `ACTIVE` | 2026-10-21 | Explicit-version V4 source contract: scientific parts, authored graphical Diktat, source figures, trusted verification, unmarked scientific prose blockers and current explicit review. Operational rollout is separate. |
 | [operations/production-readiness-checklist.md](operations/production-readiness-checklist.md) | Operations | `ACTIVE` | Current | Pre-deployment gates, quality criteria, staging validation checklist, and mandatory Idea links with exactly one primary for MCP quiz drafts and edits. |
 | [operations/zyra-ops-runbooks.md](operations/zyra-ops-runbooks.md) | Operations | `ACTIVE` | 2026-09-02 | Operational runbooks, health metrics, alert responses, and Admin Ops AI v2 operational procedures (Vectorize sync, rollback without flag, provider mitigation, proposal retention). |
 | [operations/visual-audit-capture.md](operations/visual-audit-capture.md) | Operations | `ACTIVE` | Current | Safe procedure for capturing staging visual audits and screenshots. |
 | [operations/structured-article-v3-rollout.md](operations/structured-article-v3-rollout.md) | Operations | `ACTIVE` | 2026-09-01 | Additive migration, authoring rollout gates, rollback, and published student visibility for structured Articles. |
 | [operations/manual-test-plan-bundles-v2.md](operations/manual-test-plan-bundles-v2.md) | Operations | `ACTIVE` | Current | Manual test procedure for Idea Bundle V2 and Product Bundle V2 ingestion, block review, and destructive confirmation flows. |
 | [operations/legacy-vector-contract-allowlist.md](operations/legacy-vector-contract-allowlist.md) | Operations | `TRANSITIONAL / LEGACY` | Current | Non-runtime vector matches permitted during the Vectorize 768d migration cutover. |
-| [audit/admin-visual-quality-audit.md](audit/admin-visual-quality-audit.md) | Audit | `COMPLETED / RESOLVED` | 2026-08-24 | Visual and responsive quality audit for admin pages. All 14 findings (F1-F14) resolved and verified. |
-| [audit/heavy-api-routes-audit.md](audit/heavy-api-routes-audit.md) | Audit | `COMPLETED / RESOLVED` | 2026-09-07 | Heavy API routes audit, synchronous compute and native module elimination, asynchronous thumbnail pipeline, and zero-native web tier policy. |
-
-| [audit/student-deep-ui-ux-audit.md](audit/student-deep-ui-ux-audit.md) | Audit | `COMPLETED / RESOLVED` | 2026-09-03 | Comprehensive UI/UX and system audit for student pages. All 8 findings (AUD-STU-01 through 08) resolved and verified. |
 | [handoffs/zyra-ai-plans-001-007.md](handoffs/zyra-ai-plans-001-007.md) | Milestone Handoff | `HISTORICAL CHECKPOINT` | 2026-08-11 | Staging checkpoint and test evidence summary for Zyra AI system Plans 001 through 007. |
 
 ---
@@ -118,6 +113,8 @@ Implementation plans reside in `plans/` with detailed specifications:
 
 | Plan Track | Path | Status | Summary |
 |---|---|---|---|
+| Article and Diktat system design | [article-diktat-authoring-system-design.md](../plans/article-diktat-authoring-system-design.md) | `OPEN / IN PROGRESS` | System design with local implementation status. Full chapter, live executor, staging and host-by-host rollout acceptance remain open. |
+| Authoring MCP distribution and playbooks | [authoring-mcp-distribution-and-playbooks.md](../plans/authoring-mcp-distribution-and-playbooks.md) | `OPEN / IN PROGRESS` | Local review fixes validated by 95 Bun contracts, 11 Python tests, a production build with local fixtures, and 15 traced playbook assets. Repository lint/typecheck still have unrelated errors; Staging and production deployment/runtime smoke are verified; CP5 host verification and strict bootstrap enforcement remain open. |
 | Marketing conversion and portfolio | [marketing-conversion-and-portfolio.md](../plans/marketing-conversion-and-portfolio.md) | `OPEN / IN PROGRESS` | M01 through M03 and M05 through M09 are implemented locally in a separate worktree. M04 and CP5 remain partial because the public study-case URL, external runtime configuration, and clean full validation are still open. |
 | Product Bundle sebagai sumber belajar mandiri | [product-bundle-sumber-belajar-mandiri.md](../plans/product-bundle-sumber-belajar-mandiri.md) | `COMPLETED / RESOLVED` | Locally completed CP0 through CP8 implementation for self-study Articles, review Diktat PDF export, revision-bound pedagogic review, shared MCP gates, UI, skills, and four authoring rehearsals. Ready for a separately authorized guarded staging rollout. |
 
@@ -132,6 +129,7 @@ Audits are created to systematically identify architectural, quality, or securit
 | Audit | Date Logged | Resolution Status | Resolution Details |
 |---|---|---|---|
 | `heavy-api-routes-audit.md` | 2026-09-06 | `COMPLETED / RESOLVED` | Resolved by decoupling heavy compute into Deno background worker tier: Inngest physical entrypoint separation (jobs/web vs jobs/compute), asynchronous thumbnail generation via pdf/thumbnail.requested, async Diktat compilation via diktat/pdf.generate.requested, compute RPC endpoints (/internal/pdf/pages and /internal/authoring/source-pack/resolve), and static web tier boundary guards (audit:web-boundaries). |
+| `student-deep-ui-ux-audit.md` | 2026-09-03 | `COMPLETED / RESOLVED` | All 8 student UI/UX findings (AUD-STU-01 through AUD-STU-08) resolved: functional `/feedback` server action and `/calendar` agenda, normalized `CoursePageShell` and `PageHeader` navigation, Indonesian copy across settings and reflections, structured empty states with CTAs, `FormattedDate` and `lib/date-utils.ts` standardization, parallelized leaderboard queries, post-quiz review navigation alignment, and mobile bottom navigation. |
 | `admin-visual-quality-audit.md` | 2026-08-24 | `COMPLETED / RESOLVED` | All 14 visual findings resolved: F1 (push notification dialog gated from admin surfaces), F2 (normalizeDate applied to prevent year 58604 bug), F3 (defensive image error fallbacks for PKA and blog thumbnails), F4 (error sanitization and explainBundleError mapping), F5 (instant top scroll on quiz form mount), F6 (persistent AdminPageHeader on all data states), F7 (standardized AdminEmptyState and Indonesian copy), F8 (sentence-case table headers without all-caps), F9 (DOM pagination for question bank), F10 (concise sidebar labels without truncation), F11 (semantic status tokens instead of raw Tailwind palettes), F12 (Lucide icons replacing emojis in notifications), F13 (styled file upload dropzone), F14 (--text-body-2xs declared for 10px micro UI). |
 
 | `00-master-summary.md` | 2026-08-01 | `COMPLETED / RESOLVED` | Master audit recommendations resolved by Overhaul Plans 001 through 016. |

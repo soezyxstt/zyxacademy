@@ -1,3 +1,5 @@
+import { articlePartsSchema, collectArticleVisualIds, materializeArticleParts } from "@/lib/materials/article-parts";
+import { authoredDiktatUnitsSchema, materializeAuthoredDiktat, prepareAuthoredDiktatVisuals } from "@/lib/materials/diktat-v4";
 import { createHash } from "node:crypto";
 import { strToU8, zipSync } from "fflate";
 import { sha256Bytes } from "@/lib/bundle/validator";
@@ -72,12 +74,15 @@ function mergeProduct(original: ProductEntity, submitted: ProductEntity): Produc
           }
           const mergedBlocks = originalSection.blocks.map((originalBlock) => {
             const submittedBlock = submittedBlocks.get(originalBlock.id)!;
+            const parts = original.schemaVersion === "article.v4" ? articlePartsSchema.parse(submittedBlock.parts) : undefined;
             return {
               ...originalBlock,
               title: submittedBlock.title?.trim() || undefined,
               blockType: submittedBlock.blockType,
               orderIndex: submittedBlock.orderIndex,
-              contentMarkdown: submittedBlock.contentMarkdown.trim(),
+              parts,
+              visualIds: parts ? collectArticleVisualIds(parts) : originalBlock.visualIds,
+              contentMarkdown: parts ? materializeArticleParts(parts) : submittedBlock.contentMarkdown.trim(),
             };
           });
           return {
@@ -101,7 +106,7 @@ function mergeProduct(original: ProductEntity, submitted: ProductEntity): Produc
     }
     case "diktat":
       if (submitted.productType !== "diktat") throw new Error("PRODUCT_DRAFT_IDENTITY_CHANGED");
-      return productEntitySchema.parse({ ...common, title: submitted.title.trim(), contentMarkdown: submitted.contentMarkdown.trim() });
+      return productEntitySchema.parse({ ...common, title: submitted.title.trim(), units: submitted.units ? authoredDiktatUnitsSchema.parse(submitted.units) : undefined, contentMarkdown: submitted.units ? materializeAuthoredDiktat(submitted.units) : submitted.contentMarkdown.trim() });
     case "question": {
       if (submitted.productType !== "question" || original.options.length !== submitted.options.length) throw new Error("PRODUCT_DRAFT_OPTION_CHANGED");
       const options = new Map(submitted.options.map((option) => [option.id, option]));
@@ -176,7 +181,9 @@ export function finalizeProductBundleDraft(original: ValidProductBundle, draft: 
   products = products.map((product) => {
     if (product.productType !== "diktat") return product;
     const article = articles.get(product.sourceArticleId);
-    const withLineage = article ? { ...product, sourceArticleHash: article.generationHash } : product;
+    const withLineage = article ? { ...product, sourceArticleHash: article.generationHash,
+      units: product.units ? prepareAuthoredDiktatVisuals(product.units, article.visuals ?? []) : undefined,
+    } : product;
     return productEntitySchema.parse({ ...withLineage, generationHash: generationHash(withLineage) });
   });
   const dependencies = refreshDraftDependencies(original.dependencies, products, changedArticleIds);

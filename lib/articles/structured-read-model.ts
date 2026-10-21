@@ -1,7 +1,12 @@
+import { articlePartsSchema, materializeArticleParts, collectArticleVisualIds, validateArticlePartReferences, articlePartSearchEntries, type ArticlePart } from "@/lib/materials/article-parts";
 import {
   inspectPayloadSecurity,
   epsilonDeltaGraphSpecSchema,
   learningCanvasVisualSpecSchema,
+  geometry2dVisualSpecSchema,
+  sourceFigureVisualSpecSchema,
+  type Geometry2dVisualSpec,
+  type SourceFigureVisualSpec,
 } from "@/lib/materials/visual-contract";
 import type { CanvasSpec } from "@/lib/zyra/canvas";
 import {
@@ -80,7 +85,11 @@ export interface PublicLearningCanvasVisualSpec {
   canvas: CanvasSpec;
 }
 
-export type PublicVisualSpec = PublicEpsilonDeltaGraphSpec | PublicLearningCanvasVisualSpec;
+export type PublicGeometry2dVisualSpec = Geometry2dVisualSpec;
+export type PublicSourceFigureVisualSpec = Omit<SourceFigureVisualSpec, "materialId" | "sourceChecksum"> & {
+  asset?: { assetId: string; imageUrl: string; attribution: string; width: number; height: number };
+};
+export type PublicVisualSpec = PublicEpsilonDeltaGraphSpec | PublicLearningCanvasVisualSpec | PublicGeometry2dVisualSpec | PublicSourceFigureVisualSpec;
 
 export interface PublicLearningTimeEstimate {
   readingMinutes: number;
@@ -105,6 +114,7 @@ export interface PublicBlockReadModel {
   title: string | null;
   orderIndex: number;
   content: string;
+  parts?: ArticlePart[];
   visuals?: PublicVisualSpec[];
   workedExample?: PublicWorkedExamplePayload | null;
   formativeCheck?: PublicFormativeCheckPayload | null;
@@ -165,6 +175,7 @@ export interface SearchMatchResult {
   snippet: string;
   matchType: "title" | "objective" | "block";
   blockTitle?: string | null;
+  elementId?: string;
 }
 
 /**
@@ -337,6 +348,12 @@ export function searchArticleContent(
         break;
       }
 
+      const partMatch = block.parts ? articlePartSearchEntries(block.parts).find((entry) => normalizeSearchText(entry.text).includes(lowerQuery)) : undefined;
+      if (partMatch) {
+        results.push({ sectionId: section.id, sectionSlug: section.slug, sectionTitle: section.title, sectionNumber: section.sectionNumber, snippet: extractSnippet(partMatch.text, trimmed), matchType: "block", blockTitle: block.title, elementId: partMatch.id });
+        break;
+      }
+
       if (block.content && normalizeSearchText(block.content).includes(lowerQuery)) {
         // Strip markdown code fences or symbols for cleaner snippet preview
         const cleanContent = block.content.replace(/[`#*_~]/g, " ");
@@ -446,6 +463,17 @@ export function sanitizeVisualSpec(payload: unknown): PublicVisualSpec | null {
   const secCheck = inspectPayloadSecurity(payload);
   if (!secCheck.safe) return null;
 
+  if (p.kind === "geometry_2d") {
+    const geometry = geometry2dVisualSpecSchema.safeParse(payload);
+    return geometry.success ? geometry.data : null;
+  }
+  if (p.kind === "source_figure") {
+    const figure = sourceFigureVisualSpecSchema.safeParse(payload);
+    if (!figure.success) return null;
+    const { materialId: _materialId, sourceChecksum: _sourceChecksum, ...publicFigure } = figure.data;
+    return publicFigure;
+  }
+
   if (p.kind === "learning_canvas") {
     const parsedCanvas = learningCanvasVisualSpecSchema.safeParse(payload);
     if (!parsedCanvas.success) return null;
@@ -531,6 +559,7 @@ export function buildPublicArticleReadModel(
     workedExamplePayload?: unknown;
     formativeCheckPayload?: unknown;
     visualIds?: unknown;
+    parts?: unknown;
     [key: string]: unknown;
   }>,
   rawProgress?: Array<{
@@ -592,7 +621,8 @@ export function buildPublicArticleReadModel(
       blockType: b.blockType,
       title: b.title ?? null,
       orderIndex: b.orderIndex ?? 0,
-      content: b.content,
+      content: b.parts === undefined ? b.content : materializeArticleParts(articlePartsSchema.parse(b.parts)),
+      parts: b.parts === undefined ? undefined : articlePartsSchema.parse(b.parts),
       workedExample: workedExample ?? undefined,
       formativeCheck: formativeCheck ?? undefined,
     });
@@ -610,12 +640,17 @@ export function buildPublicArticleReadModel(
   const visualMap = new Map(sanitizedArticleVisuals.map((v) => [v.id, v]));
   for (const sectionBlocks of blocksBySection.values()) {
     for (const block of sectionBlocks) {
-      const visuals = (rawVisualIdsByBlock.get(block.id) ?? [])
+      const partVisualIds = block.parts ? collectArticleVisualIds(block.parts) : undefined;
+      if (partVisualIds?.some((id) => !visualMap.has(id))) throw new Error("ARTICLE_PART_VISUAL_UNAVAILABLE");
+      const visuals = (partVisualIds ?? rawVisualIdsByBlock.get(block.id) ?? [])
         .map((id) => visualMap.get(id))
         .filter((visual): visual is PublicVisualSpec => Boolean(visual));
       if (visuals.length > 0) block.visuals = visuals;
     }
   }
+
+  const partErrors = validateArticlePartReferences([...blocksBySection.values()].flatMap((blocks) => blocks.flatMap((block) => block.parts ?? [])), [...visualMap.keys()]);
+  if (partErrors.length) throw new Error(partErrors.join(", "));
 
   // Build public sections
   const publicSections: PublicSectionReadModel[] = validSections.map((s, idx) => {

@@ -1,3 +1,4 @@
+import { normalizeDate } from "@/lib/date-utils";
 import { createHash } from "node:crypto";
 import { and, desc, eq, inArray, or } from "drizzle-orm";
 import { db } from "@/db";
@@ -302,7 +303,20 @@ export async function getIdeaBundleImport(importId: string) {
     db.select().from(itemImporBundle).where(eq(itemImporBundle.imporBundleId, importId)),
     db.select().from(reviewBundle).where(eq(reviewBundle.imporBundleId, importId)).orderBy(desc(reviewBundle.createdAt)),
   ]);
-  return { ...row, items, reviews };
+  return {
+    ...row,
+    createdAt: normalizeDate(row.createdAt),
+    updatedAt: normalizeDate(row.updatedAt),
+    items: items.map((item) => ({
+      ...item,
+      createdAt: normalizeDate(item.createdAt),
+    })),
+    reviews: reviews.map((review) => ({
+      ...review,
+      reviewedAt: review.reviewedAt === null ? null : normalizeDate(review.reviewedAt),
+      createdAt: normalizeDate(review.createdAt),
+    })),
+  };
 }
 
 export async function listIdeaBundleImports(options?: number | { limit?: number; courseIds?: string[] }) {

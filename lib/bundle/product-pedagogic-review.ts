@@ -19,6 +19,11 @@ import {
   type PedagogicException,
 } from "@/lib/materials/quality-policy";
 
+import { claimProductReviewSnapshot } from "./product-review-snapshot";
+import { getProductV4VerificationReadiness } from "./product-v4-verification-service";
+import { getProductV4VerificationReceiptSignature } from "./product-v4-verification";
+import { assertProductV4ReviewCardinality, validateProductV4ReviewContext, type ProductV4SectionDecision } from "./product-v4-review";
+
 function stableId(prefix: string, value: string): string {
   return `${prefix}-${crypto.createHash("sha256").update(value).digest("hex").slice(0, 16)}`;
 }
@@ -32,6 +37,9 @@ export interface ExecutePedagogicReviewInput {
   criteria?: PedagogicRubricItem[];
   exceptions?: PedagogicException[];
   expectedRevision?: string | number | null;
+  verificationPlanHash?: string;
+  verificationReceiptSignature?: string;
+  sectionDecisions?: ProductV4SectionDecision[];
   notes?: string | null;
   reason?: string | null;
 }
@@ -101,6 +109,7 @@ export async function executePedagogicReview(
   }
 
   const stagedBundle = await parseStagedProductBundle(input.importId);
+  if (stagedBundle.manifest.schemaVersion === "product-bundle.v4") assertProductV4ReviewCardinality(stagedBundle.products);
   const article = stagedBundle.products.find((p) => p.productType === "article");
   if (!article) throw new Error("PRODUCT_BUNDLE_ARTICLE_MISSING");
   const diktat = stagedBundle.products.find((p) => p.productType === "diktat");
@@ -164,118 +173,136 @@ export async function executePedagogicReview(
     }
   }
 
+  const isV4 = stagedBundle.manifest.schemaVersion === "product-bundle.v4";
+  let sectionDecisions: ProductV4SectionDecision[] = [];
+  if (isV4) {
+    const registered = row.validationReport.productV4Verification as { runId?: unknown; planHash?: unknown } | undefined;
+    const evidence = input.decision === "approved" && typeof registered?.runId === "string"
+      ? await getProductV4VerificationReadiness(input.importId, registered.runId) : null;
+    sectionDecisions = validateProductV4ReviewContext({ article, importId: input.importId, checksum: row.checksum, fingerprint: freshFingerprint, review: input,
+      verification: evidence ? { ready: evidence.evaluation.ready && registered?.planHash === evidence.plan.planHash, planHash: evidence.plan.planHash, importId: evidence.plan.binding.importId, receiptSignature: getProductV4VerificationReceiptSignature(evidence.receipt) } : undefined });
+  }
+  const rubric = { criteria, ...(isV4 ? { verificationPlanHash: input.verificationPlanHash ?? null, verificationReceiptSignature: input.verificationReceiptSignature ?? null, sectionDecisions } : {}) };
   const reviewPedId = stableId(
     "rev-ped",
     `${input.importId}:${input.reviewerId}:${freshFingerprint}:${QUALITY_POLICY_VERSION}`,
   );
   const now = new Date();
 
-  await db
-    .insert(reviewPedagogiBundle)
-    .values({
-      id: reviewPedId,
-      imporBundleId: input.importId,
-      reviewerId: input.reviewerId,
-      contentFingerprint: freshFingerprint,
-      policyVersion: QUALITY_POLICY_VERSION,
-      status: input.decision,
-      rubric: { criteria },
-      exceptions: input.exceptions ?? [],
-      notes: reviewNotes,
-      createdAt: now,
-    })
-    .onConflictDoUpdate({
-      target: [
-        reviewPedagogiBundle.imporBundleId,
-        reviewPedagogiBundle.reviewerId,
-        reviewPedagogiBundle.contentFingerprint,
-        reviewPedagogiBundle.policyVersion,
-      ],
-      set: {
+  await db.transaction(async (tx) => {
+    await claimProductReviewSnapshot(tx, row, now);
+    await tx
+      .insert(reviewPedagogiBundle)
+      .values({
+        id: reviewPedId,
+        imporBundleId: input.importId,
+        reviewerId: input.reviewerId,
+        contentFingerprint: freshFingerprint,
+        policyVersion: QUALITY_POLICY_VERSION,
         status: input.decision,
-        rubric: { criteria },
+        rubric,
         exceptions: input.exceptions ?? [],
         notes: reviewNotes,
         createdAt: now,
-      },
-    });
+      })
+      .onConflictDoUpdate({
+        target: [
+          reviewPedagogiBundle.imporBundleId,
+          reviewPedagogiBundle.reviewerId,
+          reviewPedagogiBundle.contentFingerprint,
+          reviewPedagogiBundle.policyVersion,
+        ],
+        set: {
+          status: input.decision,
+          rubric,
+          exceptions: input.exceptions ?? [],
+          notes: reviewNotes,
+          createdAt: now,
+        },
+      });
 
-  const reviewId = stableId("review-product", `${input.importId}:${input.reviewerId}`);
-  await db
-    .insert(reviewBundle)
-    .values({
-      id: reviewId,
-      imporBundleId: input.importId,
-      reviewerId: input.reviewerId,
-      status: input.decision === "approved" ? "approved" : "rejected",
-      notes: reviewNotes,
-      reviewedAt: now,
-    })
-    .onConflictDoUpdate({
-      target: [reviewBundle.imporBundleId, reviewBundle.reviewerId],
-      set: {
+    const reviewId = stableId("review-product", `${input.importId}:${input.reviewerId}`);
+    await tx
+      .insert(reviewBundle)
+      .values({
+        id: reviewId,
+        imporBundleId: input.importId,
+        reviewerId: input.reviewerId,
         status: input.decision === "approved" ? "approved" : "rejected",
         notes: reviewNotes,
         reviewedAt: now,
-      },
-    });
+      })
+      .onConflictDoUpdate({
+        target: [reviewBundle.imporBundleId, reviewBundle.reviewerId],
+        set: {
+          status: input.decision === "approved" ? "approved" : "rejected",
+          notes: reviewNotes,
+          reviewedAt: now,
+        },
+      });
 
-  if (input.decision === "approved") {
-    const articles = stagedBundle.products.filter(
-      (p): p is Extract<ProductEntity, { productType: "article" }> => p.productType === "article",
-    );
-    for (const art of articles) {
-      const sections = art.sections ?? [];
-      for (const section of sections) {
-        const itemReviewId = stableId(
-          "review-product-item",
-          `${input.importId}:${input.reviewerId}:article_section:${section.id}`,
-        );
-        const [existing] = await db
-          .select({ status: reviewItemBundle.status })
-          .from(reviewItemBundle)
-          .where(
-            and(
-              eq(reviewItemBundle.imporBundleId, input.importId),
-              eq(reviewItemBundle.reviewerId, input.reviewerId),
-              eq(reviewItemBundle.targetType, "article_section"),
-              eq(reviewItemBundle.targetId, section.id),
-            ),
-          )
-          .limit(1);
+    if (isV4) {
+      for (const decision of sectionDecisions) {
+        await tx.insert(reviewItemBundle).values({ id: stableId("review-product-item", `${input.importId}:${input.reviewerId}:article_section:${decision.sectionId}`), imporBundleId: input.importId, reviewerId: input.reviewerId, productId: article.id, blockId: decision.sectionId, targetType: "article_section", targetId: decision.sectionId, status: decision.decision, notes: decision.notes ?? null, createdAt: now, updatedAt: now }).onConflictDoUpdate({ target: [reviewItemBundle.imporBundleId, reviewItemBundle.reviewerId, reviewItemBundle.targetType, reviewItemBundle.targetId], set: { status: decision.decision, notes: decision.notes ?? null, updatedAt: now } });
+      }
+    } else if (input.decision === "approved") {
+      const articles = stagedBundle.products.filter(
+        (p): p is Extract<ProductEntity, { productType: "article" }> => p.productType === "article",
+      );
+      for (const art of articles) {
+        const sections = art.sections ?? [];
+        for (const section of sections) {
+          const itemReviewId = stableId(
+            "review-product-item",
+            `${input.importId}:${input.reviewerId}:article_section:${section.id}`,
+          );
+          const [existing] = await tx
+            .select({ status: reviewItemBundle.status })
+            .from(reviewItemBundle)
+            .where(
+              and(
+                eq(reviewItemBundle.imporBundleId, input.importId),
+                eq(reviewItemBundle.reviewerId, input.reviewerId),
+                eq(reviewItemBundle.targetType, "article_section"),
+                eq(reviewItemBundle.targetId, section.id),
+              ),
+            )
+            .limit(1);
 
-        if (!existing || existing.status !== "changes_requested") {
-          await db
-            .insert(reviewItemBundle)
-            .values({
-              id: itemReviewId,
-              imporBundleId: input.importId,
-              reviewerId: input.reviewerId,
-              productId: art.id,
-              blockId: section.id,
-              targetType: "article_section",
-              targetId: section.id,
-              status: "approved",
-              notes: null,
-              createdAt: now,
-              updatedAt: now,
-            })
-            .onConflictDoUpdate({
-              target: [
-                reviewItemBundle.imporBundleId,
-                reviewItemBundle.reviewerId,
-                reviewItemBundle.targetType,
-                reviewItemBundle.targetId,
-              ],
-              set: {
+          if (!existing || existing.status !== "changes_requested") {
+            await tx
+              .insert(reviewItemBundle)
+              .values({
+                id: itemReviewId,
+                imporBundleId: input.importId,
+                reviewerId: input.reviewerId,
+                productId: art.id,
+                blockId: section.id,
+                targetType: "article_section",
+                targetId: section.id,
                 status: "approved",
+                notes: null,
+                createdAt: now,
                 updatedAt: now,
-              },
-            });
+              })
+              .onConflictDoUpdate({
+                target: [
+                  reviewItemBundle.imporBundleId,
+                  reviewItemBundle.reviewerId,
+                  reviewItemBundle.targetType,
+                  reviewItemBundle.targetId,
+                ],
+                set: {
+                  status: "approved",
+                  updatedAt: now,
+                },
+              });
+          }
         }
       }
     }
-  }
+
+  });
 
   return {
     ok: true,

@@ -26,6 +26,9 @@ export const WorkerEnvSchema = z.object({
   // Diktat PDF renderer (Cloudflare Browser Run Quick Action Worker)
   DIKTAT_RENDERER_URL: optionalUrl,
   DIKTAT_RENDERER_SECRET: optionalString,
+  BETTER_AUTH_SECRET: optionalString,
+  CF_API_TOKEN: optionalString,
+  NEXT_PUBLIC_APP_URL: optionalUrl,
 
   // AI & Vector
   GEMINI_API_KEY: optionalString,

@@ -1,5 +1,5 @@
 import { DiktatStructure, FormulaHandbookEntry } from "./diktat-generator";
-import katex from "katex";
+import katex from "@/lib/math/katex";
 
 export interface ValidationResult {
   success: boolean;

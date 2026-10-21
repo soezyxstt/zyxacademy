@@ -28,6 +28,7 @@ import {
   publikasiBundle,
   reviewBundle,
   reviewItemBundle,
+  reviewPedagogiBundle,
   setFlashcard,
   soal,
   soalIde,
@@ -46,7 +47,11 @@ import type { CanonicalEntityType, CanonicalNamespace } from "@/lib/vectorize/co
 import { resolveBundleIdentity } from "./attribution";
 import { dispatchVectorSync } from "@/lib/vector-sync-dispatch";
 import { parseStagedProductBundle, getProductBundleImport, productBundleLifecycleStatus } from "./product-staging";
-import type { ProductDependency, ProductEntity } from "./product-validator";
+import { deterministicProductSerialization, type ProductDependency, type ProductEntity } from "./product-validator";
+import { z } from "zod";
+import { productV4ReviewContextShape, validateProductV4ReviewContext } from "./product-v4-review";
+import { QUALITY_POLICY_VERSION, pedagogicRubricItemSchema } from "@/lib/materials/quality-policy";
+import type { getProductV4VerificationReadiness } from "./product-v4-verification-service";
 import { compileArticleProduct } from "@/lib/materials/compiler";
 import { assertProductSectionReviews, evaluateProductBundleQualityPolicy } from "./product-review-gate";
 
@@ -321,12 +326,13 @@ async function insertArticle(tx: Tx, product: Extract<ProductEntity, { productTy
     for (const block of section.blocks) {
       const blockId = id("artikel-block", `${articleId}:${block.id}`);
       let blockContent = block.contentMarkdown;
-      if (block.workedExamplePayload || block.formativeCheckPayload || block.visualIds?.length) {
+      if (block.workedExamplePayload || block.formativeCheckPayload || block.visualIds?.length || block.parts) {
         const payloadMeta: Record<string, unknown> = {};
+        if (block.parts) { payloadMeta.parts = block.parts; payloadMeta.schemaVersion = "article.v4"; }
         if (block.workedExamplePayload) payloadMeta.workedExamplePayload = block.workedExamplePayload;
         if (block.formativeCheckPayload) payloadMeta.formativeCheckPayload = block.formativeCheckPayload;
         if (block.visualIds?.length) payloadMeta.visualIds = block.visualIds;
-        blockContent = `${block.contentMarkdown}\n\n<!--__ZYX_V3_BLOCK_PAYLOAD__:${Buffer.from(JSON.stringify(payloadMeta)).toString("base64url")}-->`;
+        blockContent = `${block.contentMarkdown}\n\n<!--__ZYX_${block.parts ? "V4" : "V3"}_BLOCK_PAYLOAD__:${Buffer.from(JSON.stringify(payloadMeta)).toString("base64url")}-->`;
       }
       blockValues.push({
           id: blockId,
@@ -500,11 +506,20 @@ export async function publishProductBundle(input: { importId: string; publishedB
   }
   if (snapshot.status !== "draft") throw new Error("PRODUCT_BUNDLE_DRAFT_REQUIRED");
   const bundle = await parseStagedProductBundle(input.importId);
-  if (bundle.publicationBlocked) throw new Error("PRODUCT_BUNDLE_DEPENDENCY_NEEDS_REVIEW");
+  const isV4 = bundle.manifest.schemaVersion === "product-bundle.v4";
+  if (bundle.publicationBlocked && (!isV4 || bundle.dependencies.some(dependency => dependency.freshness !== "UP_TO_DATE"))) throw new Error("PRODUCT_BUNDLE_DEPENDENCY_NEEDS_REVIEW");
+  let v4Verification: Awaited<ReturnType<typeof getProductV4VerificationReadiness>> | undefined;
+  if (isV4) {
+    const ref = snapshot.validationReport.productV4Verification as { runId?: unknown; planHash?: unknown } | undefined;
+    if (typeof ref?.runId !== "string" || typeof ref.planHash !== "string") throw new Error("PRODUCT_V4_VERIFICATION_REQUIRED");
+    v4Verification = await (await import("./product-v4-verification-service")).getProductV4VerificationReadiness(input.importId, ref.runId);
+    if (!v4Verification.evaluation.ready || v4Verification.plan.planHash !== ref.planHash) throw new Error("PRODUCT_V4_VERIFICATION_REQUIRED");
+  }
   let courseLegacyId: string | undefined;
   const result = await db.transaction(async (tx) => {
     const [row] = await tx.select().from(imporBundle).where(eq(imporBundle.id, input.importId)).limit(1);
     if (!row || row.bundleType !== "product") throw new Error("PRODUCT_BUNDLE_NOT_FOUND");
+    if (row.checksum !== snapshot.checksum || row.sourceUriOrKey !== snapshot.sourceUriOrKey || deterministicProductSerialization(row.validationReport) !== deterministicProductSerialization(snapshot.validationReport)) throw new Error("PRODUCT_BUNDLE_PUBLICATION_CONFLICT");
     if (row.status === "published") {
       const [publication] = await tx.select({ id: publikasiBundle.id }).from(publikasiBundle).where(and(eq(publikasiBundle.imporBundleId, input.importId), eq(publikasiBundle.status, "published"))).limit(1);
       if (!publication) throw new Error("PRODUCT_BUNDLE_PUBLISHED_RECORD_MISSING");
@@ -539,12 +554,26 @@ export async function publishProductBundle(input: { importId: string; publishedB
           imporBundleId: input.importId,
           publisherId: input.publishedBy,
           tx,
+          v4Verification,
         },
       );
 
       if (!qualityEvaluation.publicationReady) {
         const blocking = qualityEvaluation.issues.find((i) => i.severity === "blocking");
         throw new Error(`PRODUCT_BUNDLE_PUBLICATION_BLOCKED:${blocking ? blocking.code : "QUALITY_POLICY_FAILED"}`);
+      }
+      if (isV4) {
+        const article = bundle.products.find(product => product.productType === "article");
+        const [approval] = await tx.select({ rubric: reviewPedagogiBundle.rubric }).from(reviewPedagogiBundle).where(and(
+          eq(reviewPedagogiBundle.imporBundleId, input.importId), eq(reviewPedagogiBundle.reviewerId, input.publishedBy),
+          eq(reviewPedagogiBundle.contentFingerprint, qualityEvaluation.contentFingerprint), eq(reviewPedagogiBundle.policyVersion, QUALITY_POLICY_VERSION), eq(reviewPedagogiBundle.status, "approved"),
+        )).limit(1);
+        if (!article || article.productType !== "article" || !approval || !v4Verification) throw new Error("PRODUCT_V4_REVIEW_REQUIRED");
+        const recorded = z.object({ ...productV4ReviewContextShape, criteria: z.array(pedagogicRubricItemSchema) }).parse(approval.rubric);
+        validateProductV4ReviewContext({ article, importId: input.importId, checksum: row.checksum, fingerprint: qualityEvaluation.contentFingerprint,
+          review: { ...recorded, decision: "approved", expectedRevision: row.checksum, policyVersion: QUALITY_POLICY_VERSION, contentFingerprint: qualityEvaluation.contentFingerprint },
+          verification: { ready: v4Verification.evaluation.ready, planHash: v4Verification.plan.planHash, importId: input.importId, receiptSignature: (v4Verification.receipt as { signature?: string } | null)?.signature ?? "" },
+        });
       }
     }
     if (!review) {
@@ -666,7 +695,8 @@ export async function publishProductBundle(input: { importId: string; publishedB
     const publicationHash = createHash("sha256").update(serializeDeterministically({ bundleChecksum: bundle.manifest.bundleChecksum, productIds: bundle.products.map((product) => `${product.id}:${product.version}`).sort() }), "utf8").digest("hex");
     await tx.insert(publikasiBundle).values({ id: publicationId, imporBundleId: input.importId, approvedReviewId: review.id, version: 1, publicationHash, status: "published", publishedBy: input.publishedBy, publishedAt: now, createdAt: now });
     await tx.update(itemImporBundle).set({ status: "published" }).where(eq(itemImporBundle.imporBundleId, input.importId));
-    await tx.update(imporBundle).set({ status: "published", updatedAt: now }).where(eq(imporBundle.id, input.importId));
+    const publishedRows = await tx.update(imporBundle).set({ status: "published", updatedAt: now }).where(and(eq(imporBundle.id, input.importId), eq(imporBundle.status, "draft"), eq(imporBundle.checksum, snapshot.checksum), eq(imporBundle.sourceUriOrKey, snapshot.sourceUriOrKey), eq(imporBundle.validationReport, row.validationReport))).returning({ id: imporBundle.id });
+    if (publishedRows.length !== 1) throw new Error("PRODUCT_BUNDLE_PUBLICATION_CONFLICT");
     const itbSources = bundle.products.flatMap((product) => product.productType === "question" ? [{ questionId: product.id, referenceId: product.itbSource.referenceId, eventName: product.itbSource.eventName }] : []);
     const itbCuration = bundle.products.flatMap((product) => product.productType === "question" ? product.itbCuration.map((curation) => ({ questionId: product.id, referenceId: curation.referenceId, dimensions: curation.dimensions })) : []);
     await tx.insert(auditMutasi).values({ id: id("audit-product", `${input.importId}:published`), actorId: input.publishedBy, entityType: "product_bundle", entityId: input.importId, action: "published", beforeSnapshot: { status: "draft" }, afterSnapshot: { status: "published", productCount: bundle.products.length, vectorJobCount: vectorJobs.length, publicationHash, itbSources, itbCuration }, correlationId: input.importId });

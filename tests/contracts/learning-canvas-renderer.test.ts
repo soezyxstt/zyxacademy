@@ -25,6 +25,26 @@ const spec: FunctionPlotCanvas = {
 };
 
 describe("Learning Canvas renderer contracts", () => {
+  test("samples the viewport intersection without changing the authored domain", () => {
+    const originalDomain = { ...spec.domain };
+    const result = evaluateFunctionPlot(spec, {}, {}, { min: -1, max: 1, sampleCount: 3 });
+    expect(result[0].points.map(point => point.x)).toEqual([0, 0.5, 1]);
+    expect(spec.domain).toEqual(originalDomain);
+    const within = evaluateFunctionPlot(spec, {}, {}, { min: 0.5, max: 1.5, sampleCount: 3 });
+    expect(within[0].points.map(point => point.x)).toEqual([0.5, 1, 1.5]);
+  });
+
+  test("returns no curve or table samples for a disjoint or touching viewport", () => {
+    for (const viewport of [{ min: 3, max: 4 }, { min: -2, max: -1 }, { min: 2, max: 3 }]) {
+      expect(evaluateFunctionPlot(spec, {}, {}, viewport)[0].points).toEqual([]);
+    }
+  });
+
+  test("keeps excluded points outside the viewport out of curve and table samples", () => {
+    const result = evaluateFunctionPlot({ ...spec, series: [{ ...spec.series[0], excludedX: [0.25, 1.75] }] }, {}, {}, { min: 0.5, max: 1.5, sampleCount: 3 });
+    expect(result[0].points.map(point => point.x)).toEqual([0.5, 1, 1.5]);
+  });
+
   test("breaks the curve at an excluded point even when sampling misses its x coordinate", () => {
     const result = evaluateFunctionPlot({ ...spec, variables: [], series: [{ id: "f", label: "f(x)", expression: "x+1" }], pointMarkers: [{ seriesId: "f", x: 0.3, y: 1.3, kind: "open", label: "Excluded" }] });
     expect(result[0].points.find(point => point.x === 0.3)?.y).toBeNull();

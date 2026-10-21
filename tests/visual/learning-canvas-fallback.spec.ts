@@ -1,0 +1,34 @@
+import { test, expect } from "@playwright/test";
+
+test("Learning Canvas fallback remains reachable after mount and preserves controls", async ({ page }, testInfo) => {
+  const failures: string[] = [];
+  page.on("pageerror", (error) => failures.push(error.message));
+  page.on("console", (message) => { if (message.type() === "error") failures.push(message.text()); });
+  page.on("response", (response) => { if (response.status() >= 400) failures.push(`${response.status()} ${response.url()}`); });
+  await page.route("**/api/student/articles/ordered-parts-article/progress", (route) => route.fulfill({ json: { maxReadPercent: 0, completed: false, timeSpentSeconds: 0 } }));
+  const response = await page.goto("/visual-fixtures/structured-article?orderedParts=1");
+  expect(response?.status()).toBe(200);
+  expect(new URL(page.url()).pathname).toBe("/visual-fixtures/structured-article");
+  const visual = page.locator("#visual-line-shift");
+  await visual.scrollIntoViewIfNeeded();
+  await expect(visual.locator('svg[role="img"]')).toBeVisible();
+  await visual.getByRole("button", { name: "Parameter", exact: true }).click();
+  const slider = visual.getByRole("slider", { name: "Ubah nilai Vertikal", exact: true });
+  await slider.fill("2");
+  await expect(slider).toHaveValue("2");
+  await page.evaluate(async () => { await document.fonts.ready; });
+  await page.addStyleTag({ content: "nextjs-portal { display: none !important; }" });
+  await visual.screenshot({ path: testInfo.outputPath("screenshots/canvas-before-fallback.png"), animations: "disabled" });
+  await visual.getByRole("button", { name: "Tampilkan tabel nilai", exact: true }).click();
+  await expect(visual.getByRole("table")).toBeVisible();
+  await expect(visual.locator('svg[role="img"]')).toBeHidden();
+  await visual.screenshot({ path: testInfo.outputPath("screenshots/canvas-table-fallback.png"), animations: "disabled" });
+  const back = visual.getByRole("button", { name: "Tampilkan visual", exact: true });
+  await back.focus();
+  await back.press("Enter");
+  await expect(visual.locator('svg[role="img"]')).toBeVisible();
+  await expect(slider).toHaveValue("2");
+  await visual.screenshot({ path: testInfo.outputPath("screenshots/canvas-after-fallback.png"), animations: "disabled" });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+  expect(failures).toEqual([]);
+});

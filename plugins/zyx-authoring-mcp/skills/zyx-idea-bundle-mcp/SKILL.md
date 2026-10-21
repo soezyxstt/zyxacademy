@@ -8,7 +8,7 @@ description: Menghasilkan Idea Bundle V3 dari Source Pack tervalidasi dengan Ide
 Skill ini menyusun, memvalidasi, dan men-stage `idea-bundle.v3` dari Source Pack tervalidasi pada workflow `idea_product`. Seluruh aturan dekomposisi split/merge, skema JSON, perhitungan offset chunk, dan relasi bebas siklus disajikan oleh server saat runtime melalui `workflow.get_playbook` dan `workflow.get_contract`.
 
 <!-- BEGIN:environment-connection -->
-Gunakan koneksi MCP `zyx-authoring-staging` untuk environment `staging` di endpoint `https://staging.zyxacademy.com/api/mcp/authoring` (`pluginVersion: "0.3.0"`, `bootstrapProtocol: 1`). Jangan gunakan koneksi Zyx dari environment lain. Verifikasi identitas koneksi sebelum memulai run atau melakukan staging.
+Gunakan koneksi MCP `zyx-authoring-staging` untuk environment `staging` di endpoint `https://staging.zyxacademy.com/api/mcp/authoring` (`pluginVersion: "0.4.0"`, `bootstrapProtocol: 1`). Jangan gunakan koneksi Zyx dari environment lain. Verifikasi identitas koneksi sebelum memulai run atau melakukan staging.
 <!-- END:environment-connection -->
 
 ## Identitas bootstrap dan protokol
@@ -16,7 +16,7 @@ Gunakan koneksi MCP `zyx-authoring-staging` untuk environment `staging` di endpo
 - **Skill ID**: `zyx-idea-bundle-mcp`
 - **Stage**: `idea`
 - **Bootstrap protocol**: `1`
-- **Plugin version**: `0.3.0`
+- **Plugin version**: `0.4.0`
 - **Modul playbook wajib**: `common/execution`, `idea/workflow`, `idea/decomposition`
 
 ## Langkah bootstrap wajib (fail-closed)
@@ -27,7 +27,7 @@ Gunakan koneksi MCP `zyx-authoring-staging` untuk environment `staging` di endpo
      "skill": "zyx-idea-bundle-mcp",
      "stage": "idea",
      "bootstrapProtocol": 1,
-     "pluginVersion": "0.3.0",
+     "pluginVersion": "0.4.0",
      "clientCapabilities": {
        "independentSubagents": true,
        "localArtifactFiles": true,

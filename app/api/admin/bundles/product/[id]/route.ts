@@ -1,3 +1,6 @@
+import { computeProductV4SectionSemanticHash } from "@/lib/bundle/product-v4-review";
+import { getProductV4VerificationReadiness } from "@/lib/bundle/product-v4-verification-service";
+import { getProductV4VerificationReceiptSignature } from "@/lib/bundle/product-v4-verification";
 import { headers } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 import { eq, desc } from "drizzle-orm";
@@ -122,6 +125,18 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
           : ("complete" as const),
     };
 
+    let v4ReviewContext = null;
+    if (bundle.manifest.schemaVersion === "product-bundle.v4" && article?.productType === "article") {
+      const ref = row.validationReport.productV4Verification as { runId?: unknown; planHash?: unknown } | undefined;
+      const verification = typeof ref?.runId === "string" ? await getProductV4VerificationReadiness(id, ref.runId).catch(() => null) : null;
+      v4ReviewContext = {
+        expectedRevision: row.checksum, policyVersion: QUALITY_POLICY_VERSION, contentFingerprint: currentFingerprint,
+        verificationReady: Boolean(verification?.evaluation.ready && ref?.planHash === verification.plan.planHash),
+        verificationPlanHash: verification?.plan.planHash ?? null,
+        verificationReceiptSignature: getProductV4VerificationReceiptSignature(verification?.receipt),
+        sections: article.sections.map((section) => ({ sectionId: section.id, title: section.title, semanticHash: computeProductV4SectionSemanticHash(article, section.id) })),
+      };
+    }
     const blockingIssues = qualityEvaluation.issues.filter((i) => i.severity === "blocking");
 
     return NextResponse.json({
@@ -153,6 +168,7 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
       pdfStatus,
       blockingIssues,
       revisionFreshness,
+      v4ReviewContext,
     });
   } catch (error) {
     const code = error instanceof Error ? error.message.split(":", 1)[0] : "PRODUCT_BUNDLE_DETAIL_FAILED";

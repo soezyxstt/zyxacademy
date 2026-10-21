@@ -1,3 +1,4 @@
+import { articlePartsSchema } from "./article-parts";
 import { z } from "zod";
 import {
   formativeCheckPayloadSchema,
@@ -59,6 +60,7 @@ export const articleBlockSchema = z
     title: z.string().trim().min(1).optional(),
     orderIndex: z.number().int().nonnegative(),
     content: z.string().trim().min(1),
+    parts: articlePartsSchema.optional(),
     ideaIds: z.array(z.string().min(1)),
     sourceRefs: z.array(articleSourceReferenceSchema),
     learningPurpose: z.string().trim().min(1),
