@@ -169,7 +169,7 @@ export async function executeBrowserProductV4Check(input: {
         return issues;
       });
       if (failures.length || errors.length) throw new Error([...failures, ...errors].join(","));
-      result.artifacts = [{ id: `web-${requirement.id}`, mediaType: "image/png", bytes: await page.screenshot({ fullPage: true, animations: "disabled" }) }];
+      result.artifacts = [{ id: `web-${requirement.id}`, mediaType: "image/png", bytes: await page.screenshot({ fullPage: true, animations: "disabled", timeout: 60_000 }) }];
     } else {
       const diktat = bundle.products.find((product) => product.productType === "diktat" && product.id === requirement.target);
       const article = diktat?.productType === "diktat" ? bundle.products.find((product) => product.productType === "article" && product.id === diktat.sourceArticleId) : undefined;
