@@ -28,6 +28,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 function CourseOverviewHighlightsSkeleton() {
   return (
+    <>
     <div
       data-testid="course-overview-highlights-skeleton"
       className="mb-6 grid grid-cols-3 divide-x divide-border/60 overflow-hidden rounded-xl border border-border/70 bg-card"
@@ -42,6 +43,8 @@ function CourseOverviewHighlightsSkeleton() {
         </div>
       ))}
     </div>
+      <Skeleton className="mb-6 h-40 rounded-xl sm:h-22" />
+    </>
   );
 }
 
