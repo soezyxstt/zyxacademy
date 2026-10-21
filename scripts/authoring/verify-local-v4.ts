@@ -63,6 +63,7 @@ assert.equal(objects.size, 0);
 const requested = await service.request({ importId: row.id, runId });
 await writeFile(path.join(root, "plan.json"), JSON.stringify(requested.plan, null, 2));
 assert.equal(queue.length, 1);
+try {
 const result = await service.process(queue[0]);
 await writeFile(path.join(root, "result.json"), JSON.stringify(result, null, 2));
 if (!result.evaluation.ready) throw new Error(`LOCAL_VERIFICATION_NOT_READY:${result.evaluation.missingCheckIds.join(",")}`);
@@ -81,4 +82,6 @@ const summary = { status: "PASS", requirementCount: result.plan.requirements.len
   review: "Missing explicit section decisions correctly rejected; no pedagogic approval generated.", boundaries: { fixture: "Synthetic canonical V4 ZIP", storage: "Local memory and files", databasePromotion: "Not exercised", mcpTransport: "Not exercised", production: "Not accessed" } };
 await writeFile(path.join(root, "summary.json"), JSON.stringify(summary, null, 2));
 console.log(JSON.stringify({ status: summary.status, requirementCount: summary.requirementCount, outputDirectory: root }));
-await closeProductV4BrowserRunner();
+} finally {
+  await closeProductV4BrowserRunner();
+}

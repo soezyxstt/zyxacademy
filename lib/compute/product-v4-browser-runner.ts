@@ -143,7 +143,7 @@ export async function executeBrowserProductV4Check(input: {
         visuals: previewVisuals, ...(selected ? { visualId: selected.id } : {}) });
       const response = await page.goto(`${baseUrl}/authoring-verification`, { waitUntil: "networkidle" });
       if (response?.status() !== 200 || new URL(page.url()).pathname !== "/authoring-verification") throw new Error("VERIFICATION_PREVIEW_REDIRECT");
-      await page.waitForSelector("html[data-verification-ready='true']");
+      await page.waitForSelector("html[data-verification-ready='true']", { state: "attached" });
       const webRuntime = await page.locator("html").getAttribute("data-verification-runtime");
       if (!webRuntime) throw new Error("VERIFICATION_WEB_BUILD_UNATTESTED");
       assertProductV4RuntimeFingerprint(input.plan.binding, JSON.parse(webRuntime));
