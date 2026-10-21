@@ -58,6 +58,8 @@ import {
   resolveActiveSection,
   searchArticleContent,
 } from "@/lib/articles/structured-read-model";
+import { ArticleParts } from "@/components/course/article-parts";
+import { MathText } from "@/components/course/math-text";
 import { ProductLearningVisual } from "@/components/course/product-learning-visual";
 import {
   ProductWorkedExample,
@@ -228,10 +230,12 @@ export function StructuredArticleSectionContent({
           <span className="rounded-md bg-primary/10 px-2.5 py-0.5 text-primary">
             {section.sectionNumber}
           </span>
-          <span className="flex items-center gap-1">
-            <Clock className="size-3.5" />
-            {section.estimatedReadingMinutes} menit baca
-          </span>
+          {!section.learningTimeEstimate ? (
+            <span className="flex items-center gap-1">
+              <Clock className="size-3.5" />
+              {section.estimatedReadingMinutes} menit baca
+            </span>
+          ) : null}
           {showProgress && completed ? (
             <span className="flex items-center gap-1 text-status-success">
               <CheckCircle2 className="size-3.5" />
@@ -239,8 +243,8 @@ export function StructuredArticleSectionContent({
             </span>
           ) : null}
         </div>
-        <h2 className="font-heading text-h4 font-bold tracking-tight text-foreground sm:text-h3">
-          {section.title}
+        <h2 className={cn("font-heading font-bold tracking-tight text-foreground", section.blocks.some((block) => block.parts?.length) ? "text-h5" : "text-h4 sm:text-h3")}>
+          <MathText className="normal-case">{section.title}</MathText>
         </h2>
 
         {/* Learning Time Estimate Heuristics */}
@@ -254,14 +258,14 @@ export function StructuredArticleSectionContent({
         {section.learningObjective ? (
           <div className="mt-3 border-l-2 border-primary/60 pl-3.5 py-1">
             <p className="text-body-base leading-relaxed text-muted-foreground">
-              {section.learningObjective}
+              <MathText className="normal-case">{section.learningObjective}</MathText>
             </p>
           </div>
         ) : null}
       </header>
 
       {/* Typed Visuals */}
-      {section.visuals && section.visuals.length > 0 ? (
+      {!section.blocks.some((block) => block.parts?.length) && section.visuals && section.visuals.length > 0 ? (
         <div className="space-y-4 py-2">
           {section.visuals.map((visual) => (
             <ProductLearningVisual key={visual.id} spec={visual} />
@@ -283,9 +287,10 @@ export function StructuredArticleSectionContent({
                 <ProductWorkedExample
                   title={block.title}
                   content={block.content}
+                  contentNode={block.parts?.length ? <ArticleParts parts={block.parts} visuals={block.visuals} /> : undefined}
                   workedExample={block.workedExample}
                 />
-                <BlockVisuals visuals={block.visuals} />
+                {!block.parts?.length ? <BlockVisuals visuals={block.visuals} /> : null}
               </div>
             );
           }
@@ -305,6 +310,7 @@ export function StructuredArticleSectionContent({
                 <ProductFormativeCheck
                   title={block.title}
                   content={block.content}
+                  contentNode={block.parts?.length ? <ArticleParts parts={block.parts} visuals={block.visuals} /> : undefined}
                   formativeCheck={block.formativeCheck}
                   locator={{
                     articleId,
@@ -313,7 +319,7 @@ export function StructuredArticleSectionContent({
                     blockId: block.id,
                   }}
                 />
-                <BlockVisuals visuals={block.visuals} />
+                {!block.parts?.length ? <BlockVisuals visuals={block.visuals} /> : null}
               </div>
             );
           }
@@ -344,14 +350,14 @@ export function StructuredArticleSectionContent({
                 displayTitle !== "Penjelasan" &&
                 displayTitle !== "Representasi Konseptual" &&
                 displayTitle !== "Representasi Matematis" ? (
-                  <h3 className="font-heading text-h5 font-bold tracking-tight text-foreground pt-3">
-                    {displayTitle}
+                  <h3 className={cn("font-heading font-bold tracking-tight text-foreground pt-3", block.parts?.length ? "text-body-base" : "text-h5")}>
+                    <MathText className="normal-case">{displayTitle}</MathText>
                   </h3>
                 ) : null}
                 <div className="text-body-base leading-relaxed text-foreground">
-                  <MarkdownRenderer content={block.content} density="default" />
+                  {block.parts?.length ? <ArticleParts parts={block.parts} visuals={block.visuals} /> : <MarkdownRenderer content={block.content} density="default" />}
                 </div>
-                <BlockVisuals visuals={block.visuals} />
+                {!block.parts?.length ? <BlockVisuals visuals={block.visuals} /> : null}
               </div>
             );
           }
@@ -378,14 +384,14 @@ export function StructuredArticleSectionContent({
                     <Icon className="size-3.5" />
                   </span>
                   <h3 className="font-heading text-body-sm font-bold text-foreground">
-                    {displayTitle}
+                    <MathText className="normal-case">{displayTitle}</MathText>
                   </h3>
                 </div>
               </div>
               <div className="text-body-base leading-relaxed text-foreground">
-                <MarkdownRenderer content={block.content} density="compact" />
+                {block.parts?.length ? <ArticleParts parts={block.parts} visuals={block.visuals} /> : <MarkdownRenderer content={block.content} density="compact" />}
               </div>
-              <BlockVisuals visuals={block.visuals} />
+              {!block.parts?.length ? <BlockVisuals visuals={block.visuals} /> : null}
             </div>
           );
         })}
@@ -665,9 +671,11 @@ export function StructuredArticleReader({
   }, [article.sections]);
 
   const openSearchResult = useCallback(
-    (section: PublicSectionReadModel, query: string, blockId?: string) => {
+    (section: PublicSectionReadModel, query: string, blockId?: string, elementId?: string) => {
       navigateToSection(section);
-      if (blockId) {
+      if (elementId) {
+        setTimeout(() => document.getElementById(elementId)?.scrollIntoView({ behavior: "auto", block: "start" }), 150);
+      } else if (blockId) {
         setTimeout(() => navigateToBlock(blockId), 150);
       }
       setTemporaryHighlight(query);
@@ -1072,7 +1080,7 @@ export function StructuredArticleReader({
                     <button
                       key={`${res.sectionId}-${idx}`}
                       type="button"
-                      onClick={() => targetSec && openSearchResult(targetSec, searchQuery)}
+                      onClick={() => targetSec && openSearchResult(targetSec, searchQuery, undefined, res.elementId)}
                       className={cn(
                         "w-full text-left p-2.5 rounded-lg border transition-colors text-body-xs",
                         isCurrent
@@ -1081,7 +1089,7 @@ export function StructuredArticleReader({
                       )}
                     >
                       <p className="font-semibold line-clamp-1">
-                        {formatReaderTocTitle(res.sectionTitle)}
+                        <MathText className="normal-case">{formatReaderTocTitle(res.sectionTitle)}</MathText>
                       </p>
                       <p className="mt-0.5 line-clamp-2 text-body-xs font-normal text-muted-foreground">
                         {res.snippet}
@@ -1133,7 +1141,7 @@ export function StructuredArticleReader({
                       </div>
                       <div className="min-w-0 flex-1 py-0.5">
                         <p className="text-body-xs font-semibold line-clamp-2 leading-snug">
-                          {formatReaderTocTitle(section.title)}
+                          <MathText className="normal-case">{formatReaderTocTitle(section.title)}</MathText>
                         </p>
                       </div>
                     </button>
@@ -1148,7 +1156,7 @@ export function StructuredArticleReader({
                               onClick={() => navigateToBlock(b.id)}
                               className="block w-full text-left text-body-2xs text-muted-foreground hover:text-foreground line-clamp-1 py-1 transition-colors"
                             >
-                              {title}
+                              <MathText className="normal-case">{title}</MathText>
                             </button>
                           ))}
                       </div>
@@ -1176,7 +1184,7 @@ export function StructuredArticleReader({
                 </span>
                 <h1 className="text-body-sm font-bold text-foreground truncate font-heading leading-tight">
                   {article.chapterNumber ? `Bab ${article.chapterNumber}: ` : ""}
-                  {article.title}
+                  <MathText className="normal-case">{article.title}</MathText>
                 </h1>
               </div>
               <Button
@@ -1224,11 +1232,11 @@ export function StructuredArticleReader({
 
                   <div className="min-w-0">
                     <p className="truncate text-body-2xs font-medium text-muted-foreground uppercase tracking-wider">
-                      {courseTitle}
+                      <MathText className="normal-case">{courseTitle}</MathText>
                     </p>
                     <h1 className="text-body-sm font-bold text-foreground truncate font-heading leading-tight">
                       {article.chapterNumber ? `Bab ${article.chapterNumber}: ` : ""}
-                      {article.title}
+                      <MathText className="normal-case">{article.title}</MathText>
                     </h1>
                   </div>
                 </div>
@@ -1326,7 +1334,7 @@ export function StructuredArticleReader({
         <SheetContent side="right" className="w-[300px] sm:w-[360px] p-0 flex flex-col">
           <SheetHeader className="p-4 border-b border-border/80">
             <SheetTitle className="text-body-sm font-bold font-heading">
-              {article.title}
+              <MathText className="normal-case">{article.title}</MathText>
             </SheetTitle>
           </SheetHeader>
           <div className="flex-1 overflow-hidden">{renderTocContent()}</div>
@@ -1390,11 +1398,11 @@ export function StructuredArticleReader({
                     Bab Selesai
                   </h2>
                   <p className="text-body-sm text-muted-foreground max-w-md mx-auto">
-                    Anda telah menyelesaikan seluruh materi dalam bab {article.title}.
+                    Anda telah menyelesaikan seluruh materi dalam bab <MathText className="normal-case">{article.title}</MathText>.
                   </p>
                   {nextMaterial && (
                     <p className="text-body-xs text-muted-foreground pt-1">
-                      Materi berikutnya: <span className="font-semibold text-foreground">{nextMaterial.title}</span>
+                      Materi berikutnya: <span className="font-semibold text-foreground"><MathText className="normal-case">{nextMaterial.title}</MathText></span>
                     </p>
                   )}
                 </div>

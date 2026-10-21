@@ -1,3 +1,4 @@
+import { claimProductReviewSnapshot } from "./product-review-snapshot";
 import { createHash } from "node:crypto";
 import { and, desc, eq, inArray, or, sql } from "drizzle-orm";
 import { db } from "@/db";
@@ -127,7 +128,7 @@ export async function stageProductBundle(input: ProductStageInput) {
     if (!row) throw new Error(`PRODUCT_BUNDLE_CURATOR_UNKNOWN:${curatorId}`);
   }
 
-  const schemaVersion = input.bundle.manifest.schemaVersion === "product-bundle.v3" ? 3 : 2;
+  const schemaVersion = input.bundle.manifest.schemaVersion === "product-bundle.v4" ? 4 : input.bundle.manifest.schemaVersion === "product-bundle.v3" ? 3 : 2;
   const legacyCourseId = await storedCourseId(input.courseId);
   const [same] = await db.select().from(imporBundle).where(and(eq(imporBundle.bundleId, input.bundleId), eq(imporBundle.checksum, input.checksum))).limit(1);
   if (same) {
@@ -449,9 +450,10 @@ export async function reviewProductBundle(input: { importId: string; reviewerId:
   const status = "draft" as const;
   const now = new Date();
   const bundle = input.decision === "approved" ? await parseStagedProductBundle(input.importId) : null;
+  if (bundle?.manifest.schemaVersion === "product-bundle.v4") throw new Error("PRODUCT_V4_EXPLICIT_REVIEW_REQUIRED");
   await db.transaction(async (tx) => {
+    await claimProductReviewSnapshot(tx, row, now);
     await tx.insert(reviewBundle).values({ id: reviewId, imporBundleId: input.importId, reviewerId: input.reviewerId, status: input.decision, notes: input.notes ?? null, reviewedAt: now });
-    await tx.update(imporBundle).set({ status, updatedAt: now }).where(eq(imporBundle.id, input.importId));
     await tx.insert(auditMutasi).values({ id: stableId("audit-product", `${input.importId}:review:${input.reviewerId}`), actorId: input.reviewerId, entityType: "product_bundle", entityId: input.importId, action: input.decision === "approved" ? "reviewed" : "rejected", beforeSnapshot: null, afterSnapshot: { decision: input.decision, reviewerRole: role }, correlationId: input.importId });
 
     if (bundle) {

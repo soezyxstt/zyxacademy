@@ -630,3 +630,9 @@ A section completes at 90 percent read depth or when the reader proceeds from it
 - Streaks, recommendations, study paths, reflections ; all deterministic SQL
 - Students capped at 30 AI requests/day
 - KV writes capped at 900/day; reads unrestricted
+
+### Article and Diktat V4
+
+Authors select V4 explicitly; V3 remains the creation default. Article parts keep explanations, formulas, conditions, symbols, examples and visuals in reading order. Mathematical prose, headings, scientific values, chemistry and units use the shared mathematical renderer. Diktat units are authored separately with references to Article elements and verified static figures. Existing V2/V3 content keeps its compatibility path.
+
+MCP exposes scoped source-figure extraction and resumable jobs, plus `authoring.verify_product_bundle` and `authoring.get_verification`. Approval requires current server verification, explicit decisions for every section, an anchored eight-criterion rubric and the same verified PDF artifact. V4 content is revised through its bundle rather than a lossy legacy editor. See [the V4 source contract](bundle/product-bundle-v4.md) and [the MCP skills runbook](operations/authoring-mcp-skills.md). Deployment and installation remain separate actions.

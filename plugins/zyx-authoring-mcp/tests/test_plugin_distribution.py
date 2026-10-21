@@ -64,7 +64,7 @@ class PluginDistributionTest(unittest.TestCase):
             summary_a = ce.configure_plugin(self.source_copy, env_name, output_dir=out_a)
             summary_b = ce.configure_plugin(self.source_copy, env_name, output_dir=out_b)
             self.assertEqual(summary_a["payloadHash"], summary_b["payloadHash"])
-            self.assertEqual(summary_a["version"], "0.3.0")
+            self.assertEqual(summary_a["version"], "0.4.0")
             self.assertEqual(summary_a["bootstrapProtocol"], 1)
 
             cfg = ce.ENVIRONMENTS[env_name]
@@ -137,7 +137,7 @@ class PluginDistributionTest(unittest.TestCase):
 
         for rel in ("release.json", ".codex-plugin/plugin.json", ".claude-plugin/plugin.json"):
             data = ce.read_json(candidate / rel)
-            data["version"] = "0.4.0"
+            data["version"] = "0.5.0"
             ce.write_json(candidate / rel, data)
         advance_res = ce.verify_release_progression(candidate, baseline)
         self.assertTrue(advance_res["ok"])

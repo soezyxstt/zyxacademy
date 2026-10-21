@@ -15,7 +15,10 @@ export const skillEntrySchema = z.object({
 });
 export const skillManifestSchema = z.object({
   schemaVersion: z.literal(1),
-  source: z.object({ repository: z.string(), commit: z.string().regex(/^[a-f0-9]{40}$/), environment: z.enum(["staging", "production"]) }),
+  source: z.union([
+    z.object({ repository: z.string(), commit: z.string().regex(/^[a-f0-9]{40}$/), environment: z.enum(["staging", "production"]) }),
+    z.object({ kind: z.literal("local-candidate"), repository: z.string(), baseCommit: z.string().regex(/^[a-f0-9]{40}$/), digest: z.string().regex(/^sha256:[a-f0-9]{64}$/), environment: z.enum(["staging", "production"]) }),
+  ]),
   catalogs: z.object({ all: z.array(skillEntrySchema).min(1), chatgpt: z.array(skillEntrySchema).min(1).max(5) }),
 });
 export type SkillEntry = z.infer<typeof skillEntrySchema>;

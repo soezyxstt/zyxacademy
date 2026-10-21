@@ -1,4 +1,12 @@
 const explanations: Record<string, string> = {
+  PRODUCT_V4_REVIEW_CONTEXT_STALE: "Revisi atau kebijakan review berubah. Muat ulang lalu periksa bagian yang berubah.",
+  PRODUCT_V4_REVIEW_SECTION_STALE: "Isi bagian berubah setelah diperiksa. Muat ulang dan tinjau bagian tersebut.",
+  PRODUCT_V4_REVIEW_ALL_SECTIONS_REQUIRED: "Setujui setiap bagian secara terpisah sebelum menyetujui bundle.",
+  PRODUCT_V4_REVIEW_COMPLETE_RUBRIC_REQUIRED: "Lengkapi seluruh kriteria dengan alasan dan bagian bukti.",
+  PRODUCT_V4_REVIEW_VERIFICATION_REQUIRED: "Verifikasi revisi ini belum lengkap atau sudah berubah. Muat ulang setelah pemeriksaan selesai.",
+  PRODUCT_V4_REVIEW_SECTION_DUPLICATE: "Ada keputusan bagian yang berulang. Muat ulang review.",
+  PRODUCT_V4_REVIEW_SECTION_NOT_FOUND: "Bagian yang direview sudah tidak tersedia. Muat ulang review.",
+  PRODUCT_V4_REVIEW_SECTION_REASON_REQUIRED: "Tuliskan alasan permintaan revisi bagian.",
   IDEA_BUNDLE_FILE_REQUIRED: "Pilih file ZIP Idea Bundle terlebih dahulu.",
   PRODUCT_BUNDLE_FILE_REQUIRED: "Pilih file ZIP Product Bundle terlebih dahulu.",
   IDEA_BUNDLE_FILE_LIMIT: "Ukuran ZIP Idea Bundle melewati batas 32 MiB.",

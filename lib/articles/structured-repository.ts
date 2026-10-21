@@ -1,3 +1,5 @@
+import { hydrateSourceFiguresForReader } from "./source-figure-resolver";
+import { articlePartsSchema } from "@/lib/materials/article-parts";
 import { db } from "@/db";
 import {
   artikel,
@@ -186,29 +188,35 @@ export async function getCanonicalPublishedArticle(
       let workedExamplePayload: unknown = undefined;
       let formativeCheckPayload: unknown = undefined;
       let visualIds: unknown = undefined;
+      let parts: unknown = undefined;
       let cleanContent = b.content;
-      const payloadMatch = b.content.match(/<!--__ZYX_V3_BLOCK_PAYLOAD__:([A-Za-z0-9_-]+)-->/);
+      const isV4 = b.content.includes("<!--__ZYX_V4_BLOCK_PAYLOAD__:");
+      const payloadMatch = b.content.match(/<!--__ZYX_V[34]_BLOCK_PAYLOAD__:([A-Za-z0-9_-]+)-->/);
       if (payloadMatch) {
         try {
           const parsed = JSON.parse(Buffer.from(payloadMatch[1], "base64url").toString("utf8"));
           workedExamplePayload = parsed.workedExamplePayload;
           formativeCheckPayload = parsed.formativeCheckPayload;
           visualIds = parsed.visualIds;
-          cleanContent = b.content.replace(/<!--__ZYX_V3_BLOCK_PAYLOAD__:[A-Za-z0-9_-]+-->/, "").trim();
+          parts = isV4 ? articlePartsSchema.parse(parsed.parts) : parsed.parts;
+          cleanContent = b.content.replace(/<!--__ZYX_V[34]_BLOCK_PAYLOAD__:[A-Za-z0-9_-]+-->/, "").trim();
         } catch {
+          if (isV4) throw new Error("ARTICLE_V4_PAYLOAD_INVALID");
           // Fallback to undefined payloads
         }
       }
+      if (isV4 && !payloadMatch) throw new Error("ARTICLE_V4_PAYLOAD_INVALID");
       return {
         ...b,
         content: cleanContent,
         workedExamplePayload,
         formativeCheckPayload,
         visualIds,
+        parts,
       };
     });
 
-    return buildPublicArticleReadModel(
+    const publicArticle = buildPublicArticleReadModel(
       {
         id: articleRecord.id,
         courseId,
@@ -229,6 +237,7 @@ export async function getCanonicalPublishedArticle(
         courseTitle: matchedCourse?.title ?? null,
       },
     );
+    return await hydrateSourceFiguresForReader(publicArticle, articleVisuals, { courseId, legacyCourseId: matchedCourse?.legacyCourseId ?? null, userId });
   } catch (error) {
     console.error("Error fetching canonical published article:", error);
     return null;

@@ -1,4 +1,4 @@
 interface:
   display_name: "Zyx Authoring Pipeline"
-  short_description: "Orchestrate Source, Idea, and Product V3 authoring"
-  default_prompt: "Use $zyx-authoring-pipeline and call workflow.get_playbook first to run or resume Source -> Idea -> Product V3 with server-delivered stage playbooks and signed bootstrap context. Keep Product V3 learning-only (Article, Diktat, flashcards) and respect all publication and staging checkpoints."
+  short_description: "Orchestrate Source, Idea, and Product V3/V4 authoring"
+  default_prompt: "Use $zyx-authoring-pipeline and call workflow.get_playbook first to run or resume Source -> Idea -> Product V3/V4 with server-delivered stage playbooks and signed bootstrap context. Keep Product V3/V4 learning-only (Article, Diktat, flashcards) and respect all publication and staging checkpoints."

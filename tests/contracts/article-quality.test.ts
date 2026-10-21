@@ -125,6 +125,17 @@ function validV3Article(): ArticleDocument {
 }
 
 describe("Article V3 quality contract", () => {
+  it("keeps formula meaning and conditions together without bypassing prose density", () => {
+    const article = validV3Article();
+    const formula = block("formula-with-meaning", "mathematical_representation", ["idea-1"], "$$f(x)=x^2$$\n\nNilai $f(x)$ adalah kuadrat input $x$, untuk setiap bilangan real.");
+    article.sections[1].blocks.push(formula);
+    article.blocks.push(formula);
+    expect(evaluateArticleQuality(article).passed).toBe(true);
+
+    formula.content += `\n\n${"penjelasan ".repeat(701)}`;
+    expect(evaluateArticleQuality(article).issues.map((entry) => entry.code)).toContain("ARTICLE_TOPIC_PROSE_DENSITY_HIGH");
+  });
+
   it("passes valid V3 article with overview, topic, summary, and final check", () => {
     const result = evaluateArticleQuality(validV3Article());
     expect(result.passed).toBe(true);

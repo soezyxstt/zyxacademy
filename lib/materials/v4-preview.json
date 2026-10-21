@@ -1,0 +1,256 @@
+{
+  "type": "zyx-verification-preview.v1",
+  "title": "Limit fungsi",
+  "sections": [
+    {
+      "id": "sec-overview",
+      "title": "Pengantar dan Intuisi Limit",
+      "blocks": [
+        {
+          "id": "block-ov-pka",
+          "parts": [
+            {
+              "id": "block-ov-pka-prose",
+              "kind": "markdown",
+              "markdown": "Sebelumnya kita memahami limit secara intuitif: $f(x)$ mendekati $L$ saat $x$ mendekati $c$. Namun kata mendekati masih menyisakan ambiguitas matematis."
+            }
+          ]
+        },
+        {
+          "id": "block-ov-exp",
+          "parts": [
+            {
+              "id": "block-ov-exp-prose",
+              "kind": "markdown",
+              "markdown": "Fungsi dapat berosilasi atau memiliki lompatan. Kita memerlukan batas jarak yang menjamin perilaku semua input dalam lingkungan, bukan hanya beberapa titik sampel."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sec-epsilon-delta",
+      "title": "Definisi formal $\\varepsilon$ dan $\\delta$",
+      "blocks": [
+        {
+          "id": "block-ed-pka",
+          "parts": [
+            {
+              "id": "block-ed-pka-prose",
+              "kind": "markdown",
+              "markdown": "Jarak antara $x$ dan $c$ dinyatakan oleh nilai mutlak $|x-c|$. Syarat $0<|x-c|$ mengecualikan titik $x=c$."
+            }
+          ]
+        },
+        {
+          "id": "block-ed-exp-def",
+          "parts": [
+            {
+              "id": "block-ed-exp-def-prose",
+              "kind": "markdown",
+              "markdown": "Pernyataan $\\lim_{x\\to c}f(x)=L$ berarti untuk setiap $\\varepsilon>0$ terdapat $\\delta>0$ sehingga $0<|x-c|<\\delta$ mengakibatkan $|f(x)-L|<\\varepsilon$."
+            },
+            {
+              "id": "local-epsilon-distance",
+              "kind": "math_unit",
+              "latex": "|f(x)-7|=2|x-3|,\\quad\\delta=\\frac{\\varepsilon}{2}",
+              "meaningMarkdown": "Jarak keluaran dua kali jarak masukan. Pilihan $\\delta=\\varepsilon/2$ cukup untuk membatasi seluruh lingkungan input.",
+              "conditionsMarkdown": "Untuk $\\varepsilon>0$ dan $0<|x-3|<\\delta$, berlaku $|f(x)-7|<\\varepsilon$."
+            },
+            {
+              "id": "block-ed-exp-def-visual",
+              "kind": "visual_ref",
+              "visualId": "visual-limit-linear-2x-plus-1"
+            }
+          ]
+        },
+        {
+          "id": "block-ed-exp-dep",
+          "parts": [
+            {
+              "id": "block-ed-exp-dep-prose",
+              "kind": "markdown",
+              "markdown": "Penantang memberikan $\\varepsilon$ terlebih dahulu; kemudian kita mencari $\\delta$ yang cocok. Syarat $0<|x-c|$ mengecualikan $x=c$, sehingga nilai $f(c)$ tidak menentukan nilai limit."
+            }
+          ]
+        },
+        {
+          "id": "block-ed-example-linear",
+          "parts": [
+            {
+              "id": "block-ed-example-linear-prose",
+              "kind": "markdown",
+              "markdown": "Buktikan dengan definisi formal bahwa $\\lim_{x\\to3}(2x+1)=7$."
+            }
+          ]
+        },
+        {
+          "id": "block-ed-chk-mcq",
+          "parts": [
+            {
+              "id": "block-ed-chk-mcq-prose",
+              "kind": "markdown",
+              "markdown": "Manakah urutan penentuan $\\varepsilon$ dan $\\delta$ yang sesuai dengan definisi limit?"
+            }
+          ]
+        },
+        {
+          "id": "block-ed-chk-short",
+          "parts": [
+            {
+              "id": "block-ed-chk-short-prose",
+              "kind": "markdown",
+              "markdown": "Untuk $f(x)=4x-3$, buktikan $\\lim_{x\\to2}f(x)=5$. Jika $\\varepsilon=0.04$, tentukan nilai $\\delta$ terbesar yang memenuhi syarat."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sec-summary",
+      "title": "Rangkuman dan Evaluasi Mandiri",
+      "blocks": [
+        {
+          "id": "block-sum-content",
+          "parts": [
+            {
+              "id": "block-sum-content-prose",
+              "kind": "markdown",
+              "markdown": "Definisi limit menghubungkan jarak input dan toleransi keluaran. Untuk fungsi konstan $f(x)=k$ pada $\\mathbb{R}$, sembarang $\\delta>0$ menjamin limit $k$. Pada titik lompatan, kedua sisi tidak mendekati nilai yang sama."
+            }
+          ]
+        },
+        {
+          "id": "block-sum-close",
+          "parts": [
+            {
+              "id": "block-sum-close-prose",
+              "kind": "markdown",
+              "markdown": "Mengapa definisi limit mensyaratkan $0<|x-c|$ dan bukan hanya $|x-c|<\\delta$?"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "worked-proof",
+      "title": "Contoh dengan alasan setiap langkah",
+      "blocks": [
+        {
+          "id": "worked-proof-block",
+          "parts": [
+            {
+              "id": "factor-example",
+              "kind": "worked_example",
+              "title": "Menghilangkan bentuk tak tentu",
+              "problemMarkdown": "Tentukan $\\lim_{x\\to1}\\frac{x^2-1}{x-1}$. Substitusi langsung menghasilkan bentuk $0/0$.",
+              "steps": [
+                {
+                  "id": "factor-step",
+                  "operationMarkdown": "Faktorkan pembilang",
+                  "reasonMarkdown": "Identitas selisih kuadrat $a^2-b^2=(a-b)(a+b)$ berlaku untuk semua bilangan real.",
+                  "sourceElementRefs": [
+                    "continuity"
+                  ],
+                  "parts": [
+                    {
+                      "id": "factor-relation",
+                      "kind": "math_unit",
+                      "latex": "\\frac{x^2-1}{x-1}=\\frac{(x-1)(x+1)}{x-1}",
+                      "meaningMarkdown": "Pembilang ditulis sebagai hasil kali tanpa mengubah nilainya.",
+                      "conditionsMarkdown": "$x\\ne1$."
+                    }
+                  ]
+                },
+                {
+                  "id": "cancel-step",
+                  "operationMarkdown": "Sederhanakan faktor yang sama",
+                  "reasonMarkdown": "Faktor $x-1$ dapat dicoret karena bernilai bukan nol dalam lingkungan berlubang.",
+                  "conditionsMarkdown": "Pembagian oleh nol tetap dilarang.",
+                  "sourceElementRefs": [
+                    "factor-step"
+                  ],
+                  "parts": [
+                    {
+                      "id": "cancel-relation",
+                      "kind": "math_unit",
+                      "latex": "\\frac{(x-1)(x+1)}{x-1}=x+1",
+                      "meaningMarkdown": "Di sekitar titik limit, fungsi asal sama dengan fungsi linear ini.",
+                      "conditionsMarkdown": "$x\\ne1$."
+                    }
+                  ]
+                }
+              ],
+              "verificationMarkdown": "Untuk $x$ yang mendekati $1$, $x+1$ mendekati $2$. Nilai fungsi asal di $x=1$ tetap tidak terdefinisi."
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "visuals": [
+    {
+      "id": "visual-limit-linear-2x-plus-1",
+      "kind": "epsilon_delta_graph",
+      "label": "Lingkungan $\\delta$ dan toleransi $\\varepsilon$",
+      "description": "Uji $f(x)=2x+1$ pada $c=3$ dan $L=7$.",
+      "bounds": {
+        "xMin": 0,
+        "xMax": 6,
+        "yMin": 0,
+        "yMax": 10
+      },
+      "staticFallback": {
+        "type": "table",
+        "summary": "Nilai $x$ dan $f(x)$ di dalam lingkungan $\\delta$ dan pita $\\varepsilon$.",
+        "headers": [
+          "$x$",
+          "$f(x)$",
+          "$|x-3|$",
+          "$|f(x)-7|$"
+        ],
+        "rows": [
+          [
+            2.6,
+            6.2,
+            0.4,
+            0.8
+          ],
+          [
+            2.8,
+            6.6,
+            0.2,
+            0.4
+          ],
+          [
+            3,
+            7,
+            0,
+            0
+          ],
+          [
+            3.2,
+            7.4,
+            0.2,
+            0.4
+          ],
+          [
+            3.4,
+            7.8,
+            0.4,
+            0.8
+          ]
+        ]
+      },
+      "limitPoint": 3,
+      "limitValue": 7,
+      "defaultEpsilon": 1,
+      "defaultDelta": 0.5,
+      "functionModel": {
+        "kind": "linear",
+        "m": 2,
+        "b": 1
+      }
+    }
+  ]
+}

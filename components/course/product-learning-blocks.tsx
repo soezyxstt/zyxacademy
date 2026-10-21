@@ -30,6 +30,7 @@ import { cn } from "@/lib/utils";
 export interface ProductWorkedExampleProps {
   title?: string | null;
   content: string;
+  contentNode?: React.ReactNode;
   workedExample: PublicWorkedExamplePayload;
   className?: string;
 }
@@ -39,6 +40,7 @@ export function ProductWorkedExample({
   title,
   content,
   workedExample,
+  contentNode,
   className,
 }: ProductWorkedExampleProps) {
   return (
@@ -52,14 +54,14 @@ export function ProductWorkedExample({
           <BookOpen className="size-3.5" />
         </span>
         <h3 className="font-heading text-body-base font-bold text-foreground">
-          {title || "Contoh dan Pembahasan Bertahap"}
+          <MathText className="normal-case">{title || "Contoh dan Pembahasan Bertahap"}</MathText>
         </h3>
       </div>
 
       {/* Problem Prompt */}
-      {content ? (
+      {contentNode || content ? (
         <div className="rounded-lg border border-border/60 bg-muted/20 p-3.5 text-body-base leading-relaxed text-foreground">
-          <MarkdownRenderer content={content} density="compact" />
+          {contentNode ?? <MarkdownRenderer content={content} density="compact" />}
         </div>
       ) : null}
 
@@ -74,7 +76,7 @@ export function ProductWorkedExample({
 
             <div className="space-y-1">
               <h4 className="font-heading text-body-sm font-bold text-foreground">
-                {step.label}
+                <MathText className="normal-case">{step.label}</MathText>
               </h4>
 
               <div className="text-body-sm leading-relaxed text-foreground">
@@ -82,9 +84,9 @@ export function ProductWorkedExample({
               </div>
 
               {step.reason ? (
-                <p className="text-body-xs leading-relaxed text-muted-foreground italic">
-                  {step.reason}
-                </p>
+                <div className="text-body-sm leading-relaxed text-muted-foreground">
+                  <MarkdownRenderer content={step.reason} density="compact" />
+                </div>
               ) : null}
             </div>
           </li>
@@ -110,6 +112,7 @@ export function ProductWorkedExample({
 export interface ProductFormativeCheckProps {
   title?: string | null;
   content: string;
+  contentNode?: React.ReactNode;
   formativeCheck: PublicFormativeCheckPayload;
   locator: {
     articleId: string;
@@ -154,6 +157,7 @@ export function ProductFormativeCheck({
   title,
   content,
   formativeCheck,
+  contentNode,
   locator,
   className,
 }: ProductFormativeCheckProps) {
@@ -289,7 +293,7 @@ export function ProductFormativeCheck({
             <HelpCircle className="size-3.5" />
           </span>
           <h3 className="font-heading text-body-sm font-bold text-foreground">
-            {title || "Cek Pemahaman Mandiri"}
+            <MathText className="normal-case">{title || "Cek Pemahaman Mandiri"}</MathText>
           </h3>
         </div>
         <span className="rounded-md px-2 py-0.5 text-body-xs font-semibold uppercase tracking-wider text-status-warning bg-status-warning/10">
@@ -298,9 +302,9 @@ export function ProductFormativeCheck({
       </div>
 
       {/* Question prompt */}
-      {content ? (
+      {contentNode || content ? (
         <div className="text-body-base leading-relaxed text-foreground">
-          <MarkdownRenderer content={content} density="compact" />
+          {contentNode ?? <MarkdownRenderer content={content} density="compact" />}
         </div>
       ) : null}
 

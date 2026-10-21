@@ -1,0 +1,36 @@
+import { expect, test } from "@playwright/test";
+
+test("source figure shows verified image, mathematical caption, fallback and zoom", async ({ page, context }, testInfo) => {
+  const failures: string[] = [];
+  page.on("pageerror", (error) => failures.push(error.message));
+  page.on("console", (message) => { if (message.type() === "error") failures.push(message.text()); });
+  page.on("response", (response) => { if (response.status() >= 400) failures.push(`${response.status()} ${response.url()}`); });
+  const source = await context.newPage();
+  await source.goto("/visual-fixtures/geometry-2d");
+  await source.evaluate(async () => { await Promise.all([...document.fonts].filter((font) => font.family.includes("KaTeX")).map((font) => font.load())); await document.fonts.ready; });
+  const image = await source.locator("[data-geometry-2d] > div").first().screenshot({ path: testInfo.outputPath("screenshots/source-input.png"), animations: "disabled" });
+  await source.close();
+  await page.route("**/api/courses/fixture/articles/article/source-figures/loaded", (route) => route.fulfill({ contentType: "image/png", body: image }));
+  await page.route("**/api/courses/fixture/articles/article/source-figures/broken", (route) => route.fulfill({ contentType: "image/png", body: Buffer.from("invalid image") }));
+  const response = await page.goto("/visual-fixtures/source-figures");
+  expect(response?.status()).toBe(200);
+  expect(new URL(page.url()).pathname).toBe("/visual-fixtures/source-figures");
+  const figures = page.locator("[data-source-figure]");
+  await expect(figures).toHaveCount(3);
+  const loaded = figures.nth(0);
+  await expect(loaded.locator("img")).toBeVisible();
+  await loaded.locator("img").evaluate((image) => (image as HTMLImageElement).decode());
+  await expect(figures.nth(1).getByRole("status")).toBeVisible();
+  await figures.nth(2).scrollIntoViewIfNeeded();
+  await expect(figures.nth(2).getByRole("alert")).toBeVisible();
+  await expect(page.locator(".katex-error")).toHaveCount(0);
+  await page.evaluate(async () => { await Promise.all([...document.fonts].filter((font) => font.family.includes("KaTeX")).map((font) => font.load())); await document.fonts.ready; window.scrollTo(0, 0); });
+  await page.addStyleTag({ content: "nextjs-portal { display: none !important; }" });
+  await page.screenshot({ path: testInfo.outputPath("screenshots/source-figure-states.png"), fullPage: true, animations: "disabled" });
+  await loaded.getByRole("button", { name: "Perbesar gambar diagram" }).click();
+  await expect(page.getByRole("dialog")).toBeVisible();
+  await page.screenshot({ path: testInfo.outputPath("screenshots/source-figure-zoom.png"), animations: "disabled" });
+  await page.keyboard.press("Escape");
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+  expect(failures).toEqual([]);
+});

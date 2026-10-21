@@ -34,7 +34,7 @@ const lineShiftVisual: PublicLearningCanvasVisualSpec = {
     fallback: {
       summary: "Persamaan kurva awal dan hasil perubahan posisi serta skala.",
       columns: [{ id: "keadaan", label: "Keadaan" }, { id: "rumus", label: "Rumus" }],
-      rows: [["awal", "y=x^2"], ["hasil", "y=a*(c*(x-k))^2"]],
+      rows: [["awal", "$y=x^2$"], ["hasil", "$y=a\\bigl(c(x-k)\\bigr)^2$"]],
     },
     domain: { min: -4, max: 4, sampleCount: 48 },
     series: [
@@ -203,12 +203,46 @@ const sourceArticle: PublicArticleReadModel = {
   ],
 };
 
-export function StructuredArticleVisualFixture({ mode, catalogueTitle = false, editorialArticle }: { mode: "student" | "idea" | "product"; catalogueTitle?: boolean; editorialArticle?: PublicArticleReadModel }) {
+const orderedPartsArticle: PublicArticleReadModel = {
+  ...sourceArticle,
+  id: "ordered-parts-article",
+  title: "Fungsi dan Limit",
+  chapterId: "bab-2",
+  chapterNumber: 2,
+  version: 4,
+  sections: [{
+    ...sourceArticle.sections[1],
+    id: "ordered-limit",
+    slug: "jarak-input-dan-output",
+    title: "Jarak input dan keluaran",
+    sectionNumber: "2.1",
+    learningObjective: "Menghubungkan batas jarak input dengan batas jarak keluaran.",
+    visuals: [lineShiftVisual],
+    blocks: [{
+      id: "ordered-definition", blockKey: "ordered-definition", blockType: "explanation", title: "Membaca syarat limit", orderIndex: 0,
+      content: "Isi kompatibilitas tidak boleh dirender dua kali.",
+      visuals: [lineShiftVisual],
+      parts: [
+        { id: "opening", kind: "markdown", markdown: "Kita mulai dari jarak keluaran terhadap nilai limit $L$. Lalu kita memilih jarak input yang cukup kecil." },
+        { id: "condition", kind: "math_unit", latex: "0<|x-c|<\\delta\\implies|f(x)-L|<\\varepsilon", meaningMarkdown: "Setiap input di sekitar $c$, selain $c$ sendiri, menghasilkan keluaran yang berjarak kurang dari $\\varepsilon$ terhadap $L$.", conditionsMarkdown: "Syarat: $x$ berada dalam domain, $\\varepsilon>0$, dan $\\delta>0$." },
+        { id: "bridge", kind: "markdown", markdown: "Perhatikan bagaimana posisi dan skala kurva mengubah jarak keluaran. Ubah kontrol berikut, lalu hubungkan perubahan grafik dengan rumus di atas." },
+        { id: "bound-visual", kind: "visual_ref", visualId: lineShiftVisual.id },
+        { id: "closing", kind: "markdown", markdown: "Grafik membantu membandingkan jarak. Pembuktian tetap harus menjamin syarat untuk semua input dalam lingkungan yang dipilih." },
+      ],
+    }, {
+      id: "ordered-example", blockKey: "ordered-example", blockType: "worked_example", title: "Memilih delta untuk fungsi linear", orderIndex: 1,
+      content: "Untuk $f(x)=2x$, tentukan batas input ketika nilai limitnya $L=0$ di $c=0$.",
+      workedExample: { steps: [{ stepIndex: 0, label: "Hubungkan kedua jarak", explanation: "$$|f(x)-0|=2|x|$$", reason: "Karena $|2x|=2|x|$, memilih $\\delta=\\varepsilon/2$ memberi $2|x|<\\varepsilon$." }], verification: "Untuk setiap $0<|x|<\\delta$, jarak keluaran kurang dari $\\varepsilon$." },
+    }],
+  }],
+};
+
+export function StructuredArticleVisualFixture({ mode, catalogueTitle = false, editorialArticle, orderedParts = false }: { mode: "student" | "idea" | "product"; catalogueTitle?: boolean; editorialArticle?: PublicArticleReadModel; orderedParts?: boolean }) {
   const [ready, setReady] = useState(false);
 
   useEffect(() => setReady(true), []);
 
-  const catalogueArticle = editorialArticle ?? (catalogueTitle ? {
+  const catalogueArticle = orderedParts ? orderedPartsArticle : editorialArticle ?? (catalogueTitle ? {
     ...sourceArticle,
     ...buildPublicArticleReadModel({ ...sourceArticle, title: "Matematika I Bab 3: Fungsi dan Limit, Grafik, dan Kekontinuan" }, [], [], [], { id: "bab-2", title: "Fungsi dan Limit", number: 2 }),
     sections: sourceArticle.sections,

@@ -1,3 +1,4 @@
+import { materializeArticleParts } from "./article-parts";
 import { createHash } from "node:crypto";
 import { z } from "zod";
 import type { ProductEntity } from "@/lib/bundle/product-validator";
@@ -392,7 +393,8 @@ export function compileArticleProduct(
           blockType,
           title: blockInput.title,
           orderIndex: blockInput.orderIndex ?? blockIndex,
-          content: blockInput.contentMarkdown,
+          content: blockInput.parts ? materializeArticleParts(blockInput.parts) : blockInput.contentMarkdown,
+          parts: blockInput.parts,
           ideaIds: [...blockInput.ideaIds].sort(),
           sourceRefs: [...blockInput.sourceRefs].sort((left, right) => left.sourceId.localeCompare(right.sourceId)),
           visualIds: blockInput.visualIds ? [...new Set(blockInput.visualIds)] : undefined,

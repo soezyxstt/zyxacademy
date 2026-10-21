@@ -1,6 +1,6 @@
 import { DiktatStructure, FormulaHandbookEntry } from "./diktat-generator";
 import type { ConceptImportanceScore, ExamPattern, QuickMethod, ExamTrap, ReviewChecklist } from "./diktat-exam-intelligence";
-import katex from "katex";
+import katex from "@/lib/math/katex";
 
 /**
  * Pre-renders all LaTeX math blocks inside a markdown string into static KaTeX HTML nodes.

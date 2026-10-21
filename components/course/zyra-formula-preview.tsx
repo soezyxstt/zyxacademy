@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useMemo } from "react";
-import katex from "katex";
+import katex from "@/lib/math/katex";
 import "katex/dist/katex.min.css";
 import { Calculator } from "lucide-react";
 import { cn } from "@/lib/utils";

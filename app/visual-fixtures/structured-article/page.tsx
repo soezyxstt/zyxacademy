@@ -8,10 +8,10 @@ export const dynamic = "force-dynamic";
 export default async function StructuredArticleVisualFixturePage({
   searchParams,
 }: {
-  searchParams: Promise<{ mode?: string; catalogueTitle?: string; editorialChapter?: string }>;
+  searchParams: Promise<{ mode?: string; catalogueTitle?: string; editorialChapter?: string; orderedParts?: string }>;
 }) {
   if (process.env.NODE_ENV !== "development") notFound();
-  const { mode, catalogueTitle, editorialChapter } = await searchParams;
+  const { mode, catalogueTitle, editorialChapter, orderedParts } = await searchParams;
   let editorialArticle;
   if (editorialChapter && /^[1-5]$/.test(editorialChapter)) {
     const candidate = JSON.parse(await readFile(`${process.cwd()}/.temp/math-editorial/bab${editorialChapter}/candidate.json`, "utf8"));
@@ -24,5 +24,5 @@ export default async function StructuredArticleVisualFixturePage({
       { id: article.chapterId, number: Number(editorialChapter), title: article.title.replace(/^Bab \d+: /, "") },
     );
   }
-  return <StructuredArticleVisualFixture mode={mode === "idea" || mode === "product" ? mode : "student"} catalogueTitle={catalogueTitle === "1"} editorialArticle={editorialArticle} />;
+  return <StructuredArticleVisualFixture mode={mode === "idea" || mode === "product" ? mode : "student"} catalogueTitle={catalogueTitle === "1"} editorialArticle={editorialArticle} orderedParts={orderedParts === "1"} />;
 }

@@ -12,6 +12,7 @@ import {
   type MouseEvent as ReactMouseEvent,
   type PointerEvent as ReactPointerEvent,
   type SetStateAction,
+  type RefObject,
 } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,6 +20,8 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { MathText } from "@/components/course/math-text";
 import { cn } from "@/lib/utils";
+import { fitNumericRange, isRepresentableRange, normalizedVectorComponent, zoomNumericRange } from "@/lib/zyra/canvas/viewport";
+import { scientificNumberToLatex, scientificNumberToText, scientificValueToMathText } from "@/lib/math/scientific-format";
 import { ChevronDown, RotateCcw, SlidersHorizontal, ZoomIn, ZoomOut } from "lucide-react";
 import {
   evaluateFunctionPlot,
@@ -45,24 +48,18 @@ function getSeriesColor(index: number): string {
 }
 
 const GRAPH_BLUE = SERIES_PALETTE[0];
-const GRAPH_SECONDARY = SERIES_PALETTE[1];
 const BG = "transparent";
-const MINOR_GRID = "var(--color-border)";
-const MAJOR_GRID = "var(--color-border-strong)";
-const AXIS = "var(--color-muted-foreground)";
-const LABEL = "var(--color-muted-foreground)";
 
-const PAD_L = 46;
+const PAD_L = 84;
 const PAD_R = 18;
-const PAD_T = 16;
-const PAD_B = 36;
+const PAD_T = 30;
+const PAD_B = 62;
 const SVG_W = 600;
 const SVG_H = 312;
 const PLOT_W = SVG_W - PAD_L - PAD_R;
 const PLOT_H = SVG_H - PAD_T - PAD_B;
 
-const VIEW_SPAN_MIN = 1e-2;
-const VIEW_SPAN_MAX = 1e6;
+const UNAVAILABLE_VIEW: Viewport = { xMin: 0, xMax: 1, yMin: 0, yMax: 1 };
 
 interface Viewport {
   xMin: number;
@@ -80,28 +77,23 @@ function clamp01(value: number) {
 }
 
 function finiteSpan(min: number, max: number): number {
-  const span = max - min;
-  if (!Number.isFinite(span) || span <= 0) return 1;
-  return Math.min(VIEW_SPAN_MAX, Math.max(VIEW_SPAN_MIN, span));
+  return max - min;
 }
 
 function anchoredZoom(view: Viewport, factor: number, fx: number, fy: number): Viewport {
-  const spanX = clamp(finiteSpan(view.xMin, view.xMax) * factor, VIEW_SPAN_MIN, VIEW_SPAN_MAX);
-  const spanY = clamp(finiteSpan(view.yMin, view.yMax) * factor, VIEW_SPAN_MIN, VIEW_SPAN_MAX);
-  const anchorX = view.xMin + fx * (view.xMax - view.xMin);
-  const anchorY = view.yMax - fy * (view.yMax - view.yMin);
-  const xMin = anchorX - fx * spanX;
-  const yMax = anchorY + fy * spanY;
-  return { xMin, xMax: xMin + spanX, yMin: yMax - spanY, yMax };
+  const x = zoomNumericRange({ min: view.xMin, max: view.xMax }, factor, fx);
+  const y = zoomNumericRange({ min: view.yMin, max: view.yMax }, factor, 1 - fy);
+  return x && y ? { xMin: x.min, xMax: x.max, yMin: y.min, yMax: y.max } : view;
 }
 
 function translated(view: Viewport, dx: number, dy: number): Viewport {
-  return {
+  const result = {
     xMin: view.xMin + dx,
     xMax: view.xMax + dx,
     yMin: view.yMin + dy,
     yMax: view.yMax + dy,
   };
+  return isRepresentableRange({ min: result.xMin, max: result.xMax }) && isRepresentableRange({ min: result.yMin, max: result.yMax }) ? result : view;
 }
 
 type PlotGesture =
@@ -292,7 +284,7 @@ function useInteractiveViewport(defaultView: Viewport, enabled = true) {
     bind: {
       ref: svgRef,
       className: cn(
-        "h-[260px] w-full max-w-full select-none md:h-[300px]",
+        "h-auto w-full max-w-full select-none",
         enabled ? (isDragging ? "touch-none cursor-grabbing" : "touch-none cursor-grab") : "touch-auto",
       ),
       onPointerDown,
@@ -310,16 +302,34 @@ function valuesForSpec(spec: CanvasSpec): Record<string, number> {
 }
 
 function formatNum(n: number) {
-  const r = Math.round(n * 100) / 100;
-  if (Object.is(r, -0)) return "0";
-  return Number.isInteger(r) ? String(r) : r.toFixed(2).replace(/\.?0+$/, "");
+  return scientificNumberToText(n);
 }
 
-function formatTick(value: number, step: number): string {
-  const decimals = clamp(Math.ceil(-Math.log10(step) + 1e-9), 0, 4);
-  const rounded = Number(value.toFixed(decimals));
-  if (Object.is(rounded, -0)) return "0";
-  return rounded.toFixed(decimals);
+function mathNumber(value: number): string {
+  return `$${scientificNumberToLatex(value)}$`;
+}
+
+function quantityLabel(label: string, unit?: string | null): string {
+  return unit ? `${label} ($\\pu{${unit}}$)` : label;
+}
+
+function SvgMathLabel({ x, y, width = 152, height = 64, fontSize = 14, children }: { x: number; y: number; width?: number; height?: number; fontSize?: number; children: string }) {
+  return <foreignObject x={x - width / 2} y={y - height / 2} width={width} height={height}>
+    <div style={{ fontSize }} className="flex h-full items-center justify-center break-words px-1 text-center text-foreground"><MathText>{children}</MathText></div>
+  </foreignObject>;
+}
+
+function usePlotLabelSize(ref: RefObject<SVGSVGElement | null>) {
+  const [size, setSize] = useState(12);
+  useEffect(() => {
+    if (!ref.current) return;
+    const observer = new ResizeObserver(([entry]) => {
+      if (entry.contentRect.width > 0) setSize(Math.max(6, 12 * SVG_W / entry.contentRect.width));
+    });
+    observer.observe(ref.current);
+    return () => observer.disconnect();
+  }, [ref]);
+  return size;
 }
 
 function niceStep(range: number) {
@@ -338,43 +348,24 @@ function tickValues(min: number, max: number, step: number): number[] {
   for (let value = Math.ceil((min + epsilon) / step) * step; value <= max + epsilon; value += step) {
     ticks.push(Math.round(value / step) * step);
     if (ticks.length > 64) break;
+    if (value + step === value) break;
   }
   return ticks;
 }
 
-function fitFunctionViewport(spec: FunctionPlotCanvas): Viewport {
-  const evaluated = evaluateFunctionPlot(spec, {}, {});
-  const allY = evaluated.flatMap((series) =>
-    series.points.flatMap((point) => (point.y !== null && Number.isFinite(point.y) ? [point.y] : [])),
-  );
-  let yMin = -8;
-  let yMax = 8;
-  if (allY.length > 0) {
-    const sorted = [...allY].sort((a, b) => a - b);
-    const q05 = sorted[Math.floor(sorted.length * 0.05)] ?? -8;
-    const q95 = sorted[Math.floor(sorted.length * 0.95)] ?? 8;
-    let min = Math.max(Math.min(...allY), q05 - Math.abs(q95 - q05) * 0.5);
-    let max = Math.min(Math.max(...allY), q95 + Math.abs(q95 - q05) * 0.5);
-    if (min === max) {
-      min -= 4;
-      max += 4;
-    }
-    const span = Math.max(1, max - min);
-    let plotMin = Math.floor(min - span * 0.12);
-    let plotMax = Math.ceil(max + span * 0.12);
-    if (plotMin > -1 && plotMax > 1) plotMin = -2;
-    if (plotMax < 1 && plotMin < -1) plotMax = 2;
-    yMin = clamp(plotMin, -100, 100);
-    yMax = clamp(plotMax, -100, 100);
-  }
+function fitFunctionViewport(spec: FunctionPlotCanvas): Viewport | null {
+  const allY = evaluateFunctionPlot(spec).flatMap(series => series.points.flatMap(point => point.y === null ? [] : [point.y]));
+  const x = fitNumericRange([spec.domain.min, spec.domain.max], 0.05);
+  const y = fitNumericRange(allY, 0.12);
+  if (!x || !y) return null;
   if (spec.equalAxisScale) {
-    const scale = Math.max((spec.domain.max - spec.domain.min) / PLOT_W, (yMax - yMin) / PLOT_H);
-    const cx = (spec.domain.min + spec.domain.max) / 2;
-    const cy = (yMin + yMax) / 2;
-    return { xMin: cx - scale * PLOT_W / 2, xMax: cx + scale * PLOT_W / 2, yMin: cy - scale * PLOT_H / 2, yMax: cy + scale * PLOT_H / 2 };
+    const scale = Math.max((x.max - x.min) / PLOT_W, (y.max - y.min) / PLOT_H);
+    const cx = x.min + (x.max - x.min) / 2;
+    const cy = y.min + (y.max - y.min) / 2;
+    const result = { xMin: cx - scale * PLOT_W / 2, xMax: cx + scale * PLOT_W / 2, yMin: cy - scale * PLOT_H / 2, yMax: cy + scale * PLOT_H / 2 };
+    return isRepresentableRange({ min: result.xMin, max: result.xMax }) && isRepresentableRange({ min: result.yMin, max: result.yMax }) ? result : null;
   }
-  const paddingX = (spec.domain.max - spec.domain.min) * 0.05;
-  return { xMin: spec.domain.min - paddingX, xMax: spec.domain.max + paddingX, yMin, yMax };
+  return { xMin: x.min, xMax: x.max, yMin: y.min, yMax: y.max };
 }
 
 function GridLayer({
@@ -382,11 +373,15 @@ function GridLayer({
   mapX,
   mapY,
   labelSize = 10,
+  xLabel,
+  yLabel,
 }: {
   view: Viewport;
   mapX: (x: number) => number;
   mapY: (y: number) => number;
   labelSize?: number;
+  xLabel?: string;
+  yLabel?: string;
 }) {
   const xSpan = finiteSpan(view.xMin, view.xMax);
   const ySpan = finiteSpan(view.yMin, view.yMax);
@@ -396,6 +391,12 @@ function GridLayer({
   const yTicks = useMemo(() => tickValues(view.yMin, view.yMax, yStep), [view.yMin, view.yMax, yStep]);
   const showXAxis = view.yMin < 0 && view.yMax > 0;
   const showYAxis = view.xMin < 0 && view.xMax > 0;
+  const axisExponent = (min: number, max: number) => {
+    const magnitude = Math.max(Math.abs(min), Math.abs(max));
+    return magnitude > 0 && (magnitude < 0.01 || magnitude >= 10000) ? Math.floor(Math.log10(magnitude)) : 0;
+  };
+  const xExponent = axisExponent(view.xMin, view.xMax);
+  const yExponent = axisExponent(view.yMin, view.yMax);
   const y0 = mapY(0);
   const x0 = mapX(0);
 
@@ -471,59 +472,20 @@ function GridLayer({
         />
       )}
 
-      {/* Axis symbols */}
-      <text
-        x={PAD_L + PLOT_W + 6}
-        y={showXAxis ? y0 + 3.5 : PAD_T + PLOT_H + 18}
-        fill="var(--color-foreground)"
-        fontSize={labelSize + 1}
-        fontWeight={600}
-        fontFamily='system-ui, "Segoe UI", sans-serif'
-      >
-        x
-      </text>
-      <text
-        x={showYAxis ? x0 - 10 : PAD_L - 22}
-        y={PAD_T + 2}
-        fill="var(--color-foreground)"
-        fontSize={labelSize + 1}
-        fontWeight={600}
-        fontFamily='system-ui, "Segoe UI", sans-serif'
-      >
-        y
-      </text>
-
+      {/* Axis quantities stay separate from numeric ticks. */}
+      <SvgMathLabel x={PAD_L + PLOT_W / 2} y={PAD_T + PLOT_H + 43} width={300} height={38} fontSize={labelSize}>{`${xLabel ?? "$x$"}${xExponent ? ` $\\times10^{${xExponent}}$` : ""}`}</SvgMathLabel>
+      <SvgMathLabel x={PAD_L + 110} y={16} width={300} height={38} fontSize={labelSize}>{`${yLabel ?? "$y$"}${yExponent ? ` $\\times10^{${yExponent}}$` : ""}`}</SvgMathLabel>
       {/* Numbers */}
       {xTicks.map((xv) => {
-        if (Math.abs(xv) < 1e-9 && showYAxis) return null;
+        if (xv === 0 && showYAxis) return null;
         return (
-          <text
-            key={`xt-${xv}`}
-            x={mapX(xv)}
-            y={PAD_T + PLOT_H + 18}
-            textAnchor="middle"
-            fill="var(--color-muted-foreground)"
-            fontSize={labelSize}
-            fontFamily='system-ui, "Segoe UI", sans-serif'
-          >
-            {formatTick(xv, xStep)}
-          </text>
+          <SvgMathLabel key={`xt-${xv}`} x={mapX(xv)} y={PAD_T + PLOT_H + 18} width={80} height={38} fontSize={labelSize}>{mathNumber(xv / 10 ** xExponent)}</SvgMathLabel>
         );
       })}
       {yTicks.map((yv) => {
-        if (Math.abs(yv) < 1e-9 && showXAxis) return null;
+        if (yv === 0 && showXAxis) return null;
         return (
-          <text
-            key={`yt-${yv}`}
-            x={PAD_L - 8}
-            y={mapY(yv) + 3}
-            textAnchor="end"
-            fill="var(--color-muted-foreground)"
-            fontSize={labelSize}
-            fontFamily='system-ui, "Segoe UI", sans-serif'
-          >
-            {formatTick(yv, yStep)}
-          </text>
+          <SvgMathLabel key={`yt-${yv}`} x={PAD_L - 42} y={mapY(yv)} width={84} height={38} fontSize={labelSize}>{mathNumber(yv / 10 ** yExponent)}</SvgMathLabel>
         );
       })}
 
@@ -536,7 +498,7 @@ function GridLayer({
           fill="var(--color-muted-foreground)"
           fontSize={labelSize}
           opacity={0.8}
-          fontFamily='system-ui, "Segoe UI", sans-serif'
+          fontFamily="KaTeX_Main, serif"
         >
           0
         </text>
@@ -600,7 +562,7 @@ function SeriesLegend({
             </span>
             <span id={`graph-equation-${legendId}-${idx}`} className="min-w-0 max-w-full overflow-x-auto">
               <MathText as="span" className={cn("text-body-sm font-semibold tracking-tight text-foreground", !isVisible && "line-through opacity-60")}>
-                {`y = \\(${latexFormatted}\\)`}
+                {`$y = ${latexFormatted}${series.unit ? `\\quad [\\pu{${series.unit}}]` : ""}$`}
               </MathText>
             </span>
           </button>
@@ -635,7 +597,7 @@ function VariableControls({
             <div key={control.variableId} className={compact ? "space-y-2" : "space-y-1.5 rounded-lg border border-border/60 bg-muted/20 p-2.5"}>
               <div className="flex items-center justify-between gap-2">
                 <span className="font-mono text-body-sm font-semibold text-foreground">
-                  {control.label}: <span className="text-brand-primary font-bold">{formatNum(value)}</span>
+                  <MathText>{`${quantityLabel(control.label, variable.unit)}: ${mathNumber(value)}`}</MathText>
                 </span>
                 {control.presets && control.presets.length > 0 && (
                   <div className="flex gap-1">
@@ -653,7 +615,7 @@ function VariableControls({
                             : "bg-muted text-muted-foreground hover:text-foreground",
                         )}
                       >
-                        {p}
+                        <MathText>{mathNumber(p)}</MathText>
                       </button>
                     ))}
                   </div>
@@ -700,7 +662,6 @@ function FunctionPlot({ spec, embedded = false }: { spec: FunctionPlotCanvas; em
   const interactive = !embedded || interactionActive;
   const interactionButtonRef = useRef<HTMLButtonElement | null>(null);
   const [showParameters, setShowParameters] = useState(false);
-  const [labelSize, setLabelSize] = useState(10);
   const [values, setValues] = useState(() => valuesForSpec(spec));
   const [expressions, setExpressions] = useState<Record<string, string>>(() => (
     Object.fromEntries(spec.series.map((series) => [series.id, series.expression]))
@@ -720,18 +681,8 @@ function FunctionPlot({ spec, embedded = false }: { spec: FunctionPlotCanvas; em
   } | null>(null);
 
   const defaultView = useMemo(() => fitFunctionViewport(spec), [spec]);
-  const { view, isDragging, resetView, nudge, zoomBy, bind } = useInteractiveViewport(defaultView, interactive);
-
-  useEffect(() => {
-    const svg = bind.ref.current;
-    if (!embedded || !svg) return;
-    const observer = new ResizeObserver(([entry]) => {
-      const width = entry?.contentRect.width;
-      if (width) setLabelSize(Math.max(10, Math.min(20, 11 * SVG_W / width)));
-    });
-    observer.observe(svg);
-    return () => observer.disconnect();
-  }, [embedded, bind.ref]);
+  const { view, isDragging, resetView, nudge, zoomBy, bind } = useInteractiveViewport(defaultView ?? UNAVAILABLE_VIEW, interactive);
+  const labelSize = usePlotLabelSize(bind.ref);
 
   const finishInteraction = () => {
     setInteractionActive(false);
@@ -739,38 +690,30 @@ function FunctionPlot({ spec, embedded = false }: { spec: FunctionPlotCanvas; em
     interactionButtonRef.current?.focus();
   };
 
-  const sampledSpec = useMemo(
-    () => ({
-      ...spec,
-      domain: { ...spec.domain, min: view.xMin, max: view.xMax, sampleCount: 241 },
-    }),
-    [spec, view.xMin, view.xMax],
-  );
-
   const evaluated = useMemo(
-    () => evaluateFunctionPlot(sampledSpec, values, expressions),
-    [sampledSpec, values, expressions],
+    () => evaluateFunctionPlot(spec, values, expressions, { min: view.xMin, max: view.xMax, sampleCount: 241 }),
+    [spec, values, expressions, view.xMin, view.xMax],
   );
 
   const valueTableSpec = useMemo(() => {
-    const tableSeries = evaluateFunctionPlot({ ...sampledSpec, domain: { ...sampledSpec.domain, sampleCount: 7 } }, values, expressions);
+    const tableSeries = evaluateFunctionPlot(spec, values, expressions, { min: view.xMin, max: view.xMax, sampleCount: 7 });
     return {
       ...spec,
       fallback: {
         summary: "Nilai fungsi untuk rumus, parameter, dan rentang grafik saat ini.",
         columns: [{ id: "x", label: "x" }, ...spec.series.map(series => ({ id: series.id, label: series.label }))],
         rows: (tableSeries[0]?.points ?? []).map(point => [
-          formatNum(point.x),
+          mathNumber(point.x),
           ...tableSeries.map(series => {
             const value = series.points.find(sample => sample.x === point.x)?.y;
-            return value === null || value === undefined ? "N/A" : formatNum(value);
+            return value === null || value === undefined ? "N/A" : mathNumber(value);
           }),
         ]),
       },
     };
-  }, [sampledSpec, spec, values, expressions]);
+  }, [spec, values, expressions, view.xMin, view.xMax]);
 
-  const invalidSeries = evaluated.filter((series) => series.points.every((point) => point.y === null));
+  const invalidSeries = evaluated.filter((series) => series.points.length > 0 && series.points.every((point) => point.y === null));
 
   const mapX = useCallback((x: number) => PAD_L + ((x - view.xMin) / (view.xMax - view.xMin)) * PLOT_W, [view.xMin, view.xMax]);
   const mapY = useCallback((y: number) => PAD_T + ((view.yMax - y) / (view.yMax - view.yMin)) * PLOT_H, [view.yMin, view.yMax]);
@@ -983,6 +926,8 @@ function FunctionPlot({ spec, embedded = false }: { spec: FunctionPlotCanvas; em
     resetView();
   }, [spec, resetView]);
 
+  if (!defaultView) return <div className="space-y-2"><p role="status" className="text-body-sm text-muted-foreground">Rentang grafik melampaui presisi numerik yang tersedia. Gunakan tabel nilai.</p><FallbackTable spec={spec} /></div>;
+
   return (
     <div
       className="relative mx-auto w-full min-w-0 max-w-full space-y-2"
@@ -1122,16 +1067,7 @@ function FunctionPlot({ spec, embedded = false }: { spec: FunctionPlotCanvas; em
                     stroke="var(--color-border)"
                     strokeWidth={0.75}
                   />
-                  <text
-                    x={2}
-                    y={1}
-                    fill="var(--color-foreground)"
-                    fontSize={10}
-                    fontWeight={600}
-                    fontFamily="system-ui, sans-serif"
-                  >
-                    {`(${formatNum(pt.x)}, ${formatNum(pt.y)})`}
-                  </text>
+                  <SvgMathLabel x={42} y={0} width={100} height={24} fontSize={11}>{`$(${scientificNumberToLatex(pt.x)}, ${scientificNumberToLatex(pt.y)})$`}</SvgMathLabel>
                 </g>
               </g>
             );
@@ -1148,13 +1084,7 @@ function FunctionPlot({ spec, embedded = false }: { spec: FunctionPlotCanvas; em
                 stroke={GRAPH_BLUE}
                 strokeWidth={2.5}
               ><title>{marker.label}</title></circle>
-              <text
-                x={mapX(marker.x) + (mapX(marker.x) > PAD_L + PLOT_W * 0.75 ? -10 : 10)}
-                y={Math.max(PAD_T + 14, Math.min(PAD_T + PLOT_H - 4, mapY(marker.y) + (marker.kind === "open" || index % 2 === 1 ? 18 : -10)))}
-                textAnchor={mapX(marker.x) > PAD_L + PLOT_W * 0.75 ? "end" : "start"}
-                fill={LABEL}
-                fontSize={14}
-              >{marker.label}</text>
+              <SvgMathLabel x={Math.max(PAD_L + 65, Math.min(PAD_L + PLOT_W - 65, mapX(marker.x)))} y={mapY(marker.y) - 22} width={130} height={32}>{marker.label}</SvgMathLabel>
             </g>
           ))}
           {roots.map((root) => (
@@ -1202,8 +1132,34 @@ function FunctionPlot({ spec, embedded = false }: { spec: FunctionPlotCanvas; em
           )}
         </svg>
 
-        {/* Floating Navigation Controls (Zoom / Reset) */}
-        {interactive && <TooltipProvider><div className={cn("absolute bottom-2 right-2 flex items-center gap-0.5 rounded-lg border border-border/60 bg-background/95 p-1 shadow-xs", !hasPlottableCurve && "bottom-auto top-2")}>
+
+
+        {!hasPlottableCurve && (
+          <div className="m-2 rounded-lg border border-status-warning/30 bg-background/95 p-2.5 text-left text-body-xs text-foreground">
+            {visibleSeriesIds.size === 0
+              ? "Tidak ada fungsi yang ditampilkan. Aktifkan fungsi di atas untuk melihat kurvanya."
+              : "Grafik belum dapat digambar pada tampilan ini. Coba geser atau atur ulang tampilan, atau periksa kembali rumusnya."}
+          </div>
+        )}
+
+        {hoverData && (
+          <div
+            id={`graph-tooltip-${uid}`}
+            role="tooltip"
+            className="pointer-events-none absolute z-10 w-max max-w-[calc(100%-1.5rem)] rounded-md border border-border bg-popover/95 px-2.5 py-1.5 text-body-xs text-popover-foreground shadow-sm backdrop-blur-xs"
+            style={{
+              left: `clamp(0.75rem, ${((hoverData.px / SVG_W) * 100).toFixed(2)}%, calc(100% - 12rem))`,
+              top: `clamp(0.75rem, calc(${((hoverData.py / SVG_H) * 100).toFixed(2)}% - 3.25rem), calc(100% - 3rem))`,
+            }}
+          >
+            <span className="block font-semibold" style={{ color: hoverData.color }}>{hoverData.label}</span>
+            <MathText>{`$x = ${scientificNumberToLatex(hoverData.x)},\\quad y = ${scientificNumberToLatex(hoverData.y)}$`}</MathText>
+          </div>
+        )}
+      </div>
+
+      {/* Keep navigation outside the plotted quantities and ticks. */}
+        {interactive && <TooltipProvider><div className="ml-auto flex w-fit items-center gap-0.5 rounded-lg border border-border/60 bg-background/95 p-1 shadow-xs">
           <Tooltip>
           <TooltipTrigger asChild>
           <button
@@ -1245,30 +1201,6 @@ function FunctionPlot({ spec, embedded = false }: { spec: FunctionPlotCanvas; em
           <TooltipContent>Reset tampilan</TooltipContent>
           </Tooltip>
         </div></TooltipProvider>}
-
-        {!hasPlottableCurve && (
-          <div className="m-2 rounded-lg border border-status-warning/30 bg-background/95 p-2.5 text-left text-body-xs text-foreground">
-            {visibleSeriesIds.size === 0
-              ? "Tidak ada fungsi yang ditampilkan. Aktifkan fungsi di atas untuk melihat kurvanya."
-              : "Grafik belum dapat digambar pada tampilan ini. Coba geser atau atur ulang tampilan, atau periksa kembali rumusnya."}
-          </div>
-        )}
-
-        {hoverData && (
-          <div
-            id={`graph-tooltip-${uid}`}
-            role="tooltip"
-            className="pointer-events-none absolute z-10 w-max max-w-[calc(100%-1.5rem)] rounded-md border border-border bg-popover/95 px-2.5 py-1.5 text-body-xs text-popover-foreground shadow-sm backdrop-blur-xs"
-            style={{
-              left: `clamp(0.75rem, ${((hoverData.px / SVG_W) * 100).toFixed(2)}%, calc(100% - 12rem))`,
-              top: `clamp(0.75rem, calc(${((hoverData.py / SVG_H) * 100).toFixed(2)}% - 3.25rem), calc(100% - 3rem))`,
-            }}
-          >
-            <span className="block font-semibold" style={{ color: hoverData.color }}>{hoverData.label}</span>
-            <span className="font-mono">x: {formatNum(hoverData.x)}, y: {formatNum(hoverData.y)}</span>
-          </div>
-        )}
-      </div>
 
       {!embedded && <VariableControls
         spec={spec}
@@ -1342,7 +1274,7 @@ function FallbackTable({ spec, className }: { spec: CanvasSpec; className?: stri
             <tr className="border-b border-border text-left">
               {spec.fallback.columns.map((column) => (
                 <th key={column.id} className="px-2 py-1.5 font-semibold text-foreground">
-                  {column.label}
+                  <MathText>{quantityLabel(column.label, column.unit)}</MathText>
                 </th>
               ))}
             </tr>
@@ -1352,7 +1284,7 @@ function FallbackTable({ spec, className }: { spec: CanvasSpec; className?: stri
               <tr key={rowIndex} className="border-b border-border/60">
                 {spec.fallback.columns.map((column, columnIndex) => (
                   <td key={column.id} className="px-2 py-1 font-mono">
-                    <MathText>{row[columnIndex] ?? ""}</MathText>
+                    <MathText>{scientificValueToMathText(row[columnIndex] ?? "")}</MathText>
                   </td>
                 ))}
               </tr>
@@ -1364,21 +1296,10 @@ function FallbackTable({ spec, className }: { spec: CanvasSpec; className?: stri
   );
 }
 
-function fitDataViewport(spec: DataPlotCanvas): Viewport {
-  const xValues = spec.points.map((point) => point.x);
-  const yValues = spec.points.map((point) => point.y);
-  const rawXMin = Math.min(...xValues);
-  const rawXMax = Math.max(...xValues);
-  const rawYMin = Math.min(...yValues);
-  const rawYMax = Math.max(...yValues);
-  const xSpan = Math.max(1, rawXMax - rawXMin);
-  const ySpan = Math.max(1, rawYMax - rawYMin);
-  return {
-    xMin: rawXMin - xSpan * 0.15,
-    xMax: rawXMax + xSpan * 0.15,
-    yMin: rawYMin - ySpan * 0.15,
-    yMax: rawYMax + ySpan * 0.15,
-  };
+function fitDataViewport(spec: DataPlotCanvas): Viewport | null {
+  const x = fitNumericRange(spec.points.map(point => point.x));
+  const y = fitNumericRange(spec.points.map(point => point.y));
+  return x && y ? { xMin: x.min, xMax: x.max, yMin: y.min, yMax: y.max } : null;
 }
 
 function DataPlot({ spec }: { spec: DataPlotCanvas }) {
@@ -1386,7 +1307,8 @@ function DataPlot({ spec }: { spec: DataPlotCanvas }) {
   const [hoverPoint, setHoverPoint] = useState<{ x: number; y: number; px: number; py: number } | null>(null);
 
   const defaultView = useMemo(() => fitDataViewport(spec), [spec]);
-  const { view, isDragging, resetView, bind } = useInteractiveViewport(defaultView);
+  const { view, isDragging, resetView, bind } = useInteractiveViewport(defaultView ?? UNAVAILABLE_VIEW);
+  const labelSize = usePlotLabelSize(bind.ref);
 
   const mapX = useCallback((x: number) => PAD_L + ((x - view.xMin) / (view.xMax - view.xMin)) * PLOT_W, [view.xMin, view.xMax]);
   const mapY = useCallback((y: number) => PAD_T + ((view.yMax - y) / (view.yMax - view.yMin)) * PLOT_H, [view.yMin, view.yMax]);
@@ -1400,11 +1322,13 @@ function DataPlot({ spec }: { spec: DataPlotCanvas }) {
     }, "");
   }, [spec.points, mapX, mapY]);
 
+  if (!defaultView) return <div className="space-y-2"><p role="status" className="text-body-sm text-muted-foreground">Rentang data melampaui presisi numerik yang tersedia. Gunakan tabel nilai.</p><FallbackTable spec={{ ...spec, fallback: { summary: "Nilai data asli.", columns: [{ id: "x", label: spec.xLabel, unit: spec.xUnit }, { id: "y", label: spec.yLabel, unit: spec.yUnit }], rows: spec.points.map(point => [mathNumber(point.x), mathNumber(point.y)]) } }} /></div>;
+
   return (
     <div className="relative mx-auto w-full max-w-full overflow-hidden rounded-xl border border-border bg-card shadow-md ring-1 ring-black/5">
       <div className="flex max-w-full min-w-0 items-center justify-between gap-2 border-b border-border bg-muted/40 px-3.5 py-2.5">
-        <span className="min-w-0 truncate font-mono text-body-sm font-semibold text-foreground">
-          {spec.xLabel} vs {spec.yLabel}
+        <span className="min-w-0 text-body-sm font-semibold text-foreground">
+          <MathText>{`${quantityLabel(spec.yLabel, spec.yUnit)} terhadap ${quantityLabel(spec.xLabel, spec.xUnit)}`}</MathText>
         </span>
         <button
           type="button"
@@ -1423,7 +1347,7 @@ function DataPlot({ spec }: { spec: DataPlotCanvas }) {
         >
           <rect x="0" y="0" width={SVG_W} height={SVG_H} fill={BG} />
 
-          <GridLayer view={view} mapX={mapX} mapY={mapY} />
+          <GridLayer view={view} mapX={mapX} mapY={mapY} labelSize={labelSize} xLabel={quantityLabel(spec.xLabel, spec.xUnit)} yLabel={quantityLabel(spec.yLabel, spec.yUnit)} />
 
           <clipPath id={`data-clip-${uid}`}>
             <rect x={PAD_L} y={PAD_T} width={PLOT_W} height={PLOT_H} />
@@ -1446,7 +1370,7 @@ function DataPlot({ spec }: { spec: DataPlotCanvas }) {
                 fill={GRAPH_BLUE}
                 stroke="var(--color-card)"
                 strokeWidth={2}
-                className="cursor-pointer transition-transform hover:scale-125"
+                className="cursor-pointer hover:opacity-80"
                 style={{ pointerEvents: isDragging ? "none" : undefined }}
                 onMouseEnter={() => setHoverPoint({ x: pt.x, y: pt.y, px, py })}
                 onMouseLeave={() => setHoverPoint(null)}
@@ -1456,8 +1380,8 @@ function DataPlot({ spec }: { spec: DataPlotCanvas }) {
         </svg>
 
         {hoverPoint && (
-          <div className="pointer-events-none absolute right-3 top-3 rounded-md border border-border bg-popover/90 px-2.5 py-1 text-body-xs font-mono font-medium text-popover-foreground shadow-sm backdrop-blur-xs">
-            {spec.xLabel}: {formatNum(hoverPoint.x)}, {spec.yLabel}: {formatNum(hoverPoint.y)}
+          <div role="tooltip" className="pointer-events-none absolute right-3 top-3 rounded-md border border-border bg-popover/90 px-2.5 py-1 text-body-xs font-mono font-medium text-popover-foreground shadow-sm backdrop-blur-xs">
+            <MathText>{`${quantityLabel(spec.xLabel, spec.xUnit)}: ${mathNumber(hoverPoint.x)}, ${quantityLabel(spec.yLabel, spec.yUnit)}: ${mathNumber(hoverPoint.y)}`}</MathText>
           </div>
         )}
       </div>
@@ -1471,15 +1395,15 @@ function DataPlot({ spec }: { spec: DataPlotCanvas }) {
             <table className="w-full border-collapse text-body-sm">
               <thead>
                 <tr className="border-b border-border text-left">
-                  <th className="px-2 py-1 font-semibold">{spec.xLabel}</th>
-                  <th className="px-2 py-1 font-semibold">{spec.yLabel}</th>
+                  <th className="px-2 py-1 font-semibold"><MathText>{quantityLabel(spec.xLabel, spec.xUnit)}</MathText></th>
+                  <th className="px-2 py-1 font-semibold"><MathText>{quantityLabel(spec.yLabel, spec.yUnit)}</MathText></th>
                 </tr>
               </thead>
               <tbody>
                 {spec.points.map((point, index) => (
                   <tr key={`${point.x}-${point.y}-${index}`} className="border-b border-border/60">
-                    <td className="px-2 py-1 font-mono">{point.x}</td>
-                    <td className="px-2 py-1 font-mono">{point.y}</td>
+                    <td className="px-2 py-1 font-mono"><MathText>{mathNumber(point.x)}</MathText></td>
+                    <td className="px-2 py-1 font-mono"><MathText>{mathNumber(point.y)}</MathText></td>
                   </tr>
                 ))}
               </tbody>
@@ -1498,9 +1422,9 @@ function Derivation({ spec }: { spec: DerivationCanvas }) {
         <li key={step.id} className="grid gap-1 rounded-lg border border-border bg-background p-3 md:grid-cols-[2rem_1fr]">
           <span className="font-semibold text-muted-foreground">{index + 1}.</span>
           <div className="space-y-1">
-            <p className="font-semibold text-foreground">{step.label}</p>
+            <MathText as="p" className="font-semibold text-foreground">{step.label}</MathText>
             <MathText as="div" className="overflow-x-auto text-body-sm text-foreground">{`$$${step.expression}$$`}</MathText>
-            <p className="text-body-sm text-muted-foreground">{step.explanation}</p>
+            <MathText as="p" className="text-body-sm text-muted-foreground">{step.explanation}</MathText>
           </div>
         </li>
       ))}
@@ -1510,90 +1434,108 @@ function Derivation({ spec }: { spec: DerivationCanvas }) {
 
 function Diagram({ spec }: { spec: DiagramCanvas }) {
   const markerId = useId().replace(/:/g, "");
-  const width = 720;
-  const columns = spec.direction === "down" ? 1 : Math.min(4, Math.max(1, Math.ceil(Math.sqrt(spec.nodes.length))));
-  const rows = Math.ceil(spec.nodes.length / columns);
-  const height = Math.max(180, rows * 84 + 36);
-  const positions = new Map(spec.nodes.map((node, index) => [
-    node.id,
-    {
-      x: columns === 1 ? width / 2 : ((index % columns) + 0.5) * (width / columns),
-      y: (Math.floor(index / columns) + 0.5) * (height / rows),
-    },
-  ]));
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [geometry, setGeometry] = useState<{
+    width: number; height: number;
+    nodes: Record<string, { x: number; y: number; width: number; height: number }>;
+  }>({ width: 360, height: 0, nodes: {} });
+  const columns = spec.direction === "down" ? 1 : Math.min(4, spec.nodes.length, Math.max(1, Math.floor(geometry.width / 260)));
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    const measure = () => {
+      const bounds = container.getBoundingClientRect();
+      const nodes: Record<string, { x: number; y: number; width: number; height: number }> = {};
+      container.querySelectorAll<HTMLElement>("[data-diagram-node]").forEach(element => {
+        const node = element.getBoundingClientRect();
+        nodes[element.dataset.diagramNode!] = { x: node.left - bounds.left + node.width / 2, y: node.top - bounds.top + node.height / 2, width: node.width, height: node.height };
+      });
+      const next = { width: bounds.width, height: bounds.height, nodes };
+      setGeometry(current => JSON.stringify(current) === JSON.stringify(next) ? current : next);
+    };
+    measure();
+    if (typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(measure);
+    observer.observe(container);
+    container.querySelectorAll("[data-diagram-node]").forEach(node => observer.observe(node));
+    return () => observer.disconnect();
+  }, [spec.nodes]);
 
   return (
     <div className="space-y-3">
-      <div className="overflow-x-auto rounded-lg border border-border bg-background">
-        <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label={spec.altText} className="h-auto min-w-[560px] w-full">
-          <title>{spec.altText}</title>
-          <defs>
-            <marker id={`${markerId}-arrow`} viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
-              <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--color-muted-foreground)" />
-            </marker>
-          </defs>
+      <div ref={containerRef} role="group" aria-label={spec.altText}
+        className={cn("relative grid w-full gap-x-32 gap-y-20 py-4", spec.direction === "down" && "mx-auto max-w-[360px]")}
+        style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}>
+        <svg width={geometry.width} height={geometry.height} role="img" aria-label="Hubungan antar konsep" className="pointer-events-none absolute inset-0 h-full w-full overflow-visible">
+          <defs><marker id={`${markerId}-arrow`} viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="var(--color-muted-foreground)" /></marker></defs>
           {spec.edges.map((edge, index) => {
-            const source = positions.get(edge.source);
-            const target = positions.get(edge.target);
+            const source = geometry.nodes[edge.source];
+            const target = geometry.nodes[edge.target];
             if (!source || !target) return null;
-            return (
-              <g key={`${edge.source}-${edge.target}-${index}`}>
-                <line x1={source.x} y1={source.y} x2={target.x} y2={target.y} stroke="var(--color-muted-foreground)" strokeWidth="2" markerEnd={`url(#${markerId}-arrow)`} />
-                {edge.label && (
-                  <text x={(source.x + target.x) / 2} y={(source.y + target.y) / 2 - 6} textAnchor="middle" fill="var(--color-muted-foreground)" fontSize="11">
-                    {edge.label.slice(0, 28)}
-                  </text>
-                )}
-              </g>
-            );
-          })}
-          {spec.nodes.map((node) => {
-            const position = positions.get(node.id);
-            if (!position) return null;
-            return (
-              <g key={node.id}>
-                <rect x={position.x - 76} y={position.y - 22} width="152" height="44" rx="8" fill="var(--color-muted)" stroke="var(--color-primary)" />
-                <text x={position.x} y={position.y + 5} textAnchor="middle" fill="var(--color-foreground)" fontSize="13">
-                  {node.label.slice(0, 24)}
-                </text>
-              </g>
-            );
+            const dx = target.x - source.x;
+            const dy = target.y - source.y;
+            if (dx === 0 && dy === 0) return null;
+            const sourceInset = Math.min(source.width / 2 / Math.abs(dx), source.height / 2 / Math.abs(dy));
+            const targetInset = Math.min(target.width / 2 / Math.abs(dx), target.height / 2 / Math.abs(dy));
+            const start = { x: source.x + dx * sourceInset, y: source.y + dy * sourceInset };
+            const end = { x: target.x - dx * targetInset, y: target.y - dy * targetInset };
+            return <g key={`${edge.source}-${edge.target}-${index}`}>
+              <line x1={start.x} y1={start.y} x2={end.x} y2={end.y} stroke="var(--color-muted-foreground)" strokeWidth="2" markerEnd={`url(#${markerId}-arrow)`} />
+              {edge.label ? <foreignObject x={(start.x + end.x) / 2 - 120} y={(start.y + end.y) / 2 - (Math.abs(dx) > Math.abs(dy) ? 48 : 16)} width={240} height={32}>
+                <div className="flex h-full items-center justify-center text-body-sm"><MathText as="span" className="bg-background px-1">{edge.label}</MathText></div>
+              </foreignObject> : null}
+            </g>;
           })}
         </svg>
+        {spec.nodes.map(node => <div key={node.id} data-diagram-node={node.id}
+          className="relative z-10 flex min-h-20 min-w-0 items-center justify-center rounded-lg border border-primary bg-muted px-3 py-4 text-center text-body-sm">
+          <MathText as="div" className="min-w-0 max-w-full overflow-x-auto break-words">{node.label}</MathText>
+        </div>)}
       </div>
+      <ul className="space-y-1 text-body-sm">
+        {spec.edges.filter(edge => edge.label).map((edge, index) => <li key={`${edge.source}-${edge.target}-${index}`}>
+          <MathText as="div" className="overflow-x-auto">{`${spec.nodes.find(node => node.id === edge.source)?.label ?? edge.source} menuju ${spec.nodes.find(node => node.id === edge.target)?.label ?? edge.target}: ${edge.label}`}</MathText>
+        </li>)}
+      </ul>
       <FallbackTable spec={spec} />
     </div>
   );
 }
 
 function VectorDiagram({ spec }: { spec: VectorCanvas }) {
+  const markerId = useId().replace(/:/g, "");
   const width = 720;
   const height = 320;
-  const max = Math.max(1, ...spec.vectors.flatMap((vector) => [Math.abs(vector.x), Math.abs(vector.y)]));
+  const max = Math.max(...spec.vectors.flatMap((vector) => [Math.abs(vector.x), Math.abs(vector.y)]));
   const origin = { x: width / 2, y: height / 2 };
-  const scale = (Math.min(width, height) * 0.34) / max;
+  const scale = Math.min(width, height) * 0.34;
   return (
     <div className="space-y-3">
       <div className="overflow-x-auto rounded-lg border border-border bg-background">
-        <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label={spec.altText} className="h-auto min-w-[560px] w-full">
+        <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label={spec.altText} className="h-auto w-full">
           <title>{spec.altText}</title>
+          <defs><marker id={`${markerId}-vector`} viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" fill="context-stroke" /></marker></defs>
           <line x1={origin.x} y1="20" x2={origin.x} y2={height - 20} stroke="var(--color-border)" />
           <line x1="20" y1={origin.y} x2={width - 20} y2={origin.y} stroke="var(--color-border)" />
           {spec.vectors.map((vector, index) => {
-            const endX = origin.x + vector.x * scale;
-            const endY = origin.y - vector.y * scale;
+            const endX = origin.x + normalizedVectorComponent(vector.x, max) * scale;
+            const endY = origin.y - normalizedVectorComponent(vector.y, max) * scale;
             return (
               <g key={vector.id}>
-                <line x1={origin.x} y1={origin.y} x2={endX} y2={endY} stroke={index % 2 === 0 ? "var(--color-primary)" : "var(--color-secondary)"} strokeWidth="3" />
-                <circle cx={endX} cy={endY} r="5" fill="var(--color-primary)" />
+                <line x1={origin.x} y1={origin.y} x2={endX} y2={endY} stroke={index % 2 === 0 ? "var(--color-primary)" : "var(--color-secondary)"} strokeWidth="3" markerEnd={`url(#${markerId}-vector)`} />
                 <text x={endX + 7} y={endY - 7} fill="var(--color-foreground)" fontSize="13">
-                  {vector.label.slice(0, 20)}
+                  {index + 1}
                 </text>
               </g>
             );
           })}
         </svg>
       </div>
+      {spec.originLabel ? <MathText as="p" className="text-body-sm">{spec.originLabel}</MathText> : null}
+      <ol className="list-decimal space-y-1 pl-5 text-body-sm">
+        {spec.vectors.map(vector => <li key={vector.id}><MathText>{`${vector.label}: $(${scientificNumberToLatex(vector.x)}, ${scientificNumberToLatex(vector.y)})\\,\\pu{${vector.unit}}$`}</MathText></li>)}
+      </ol>
       <FallbackTable spec={spec} />
     </div>
   );
@@ -1604,9 +1546,9 @@ function ChemistryReaction({ spec }: { spec: ChemistryCanvas }) {
     items.map((item) => `${item.coefficient === 1 ? "" : `${item.coefficient} `}${item.formula}`).join(" + ");
   return (
     <div className="space-y-3">
-      <p className="rounded-lg border border-border bg-background p-4 text-center font-mono text-body-base text-foreground" aria-label={spec.altText}>
-        {format(spec.reactants)} → {format(spec.products)}
-      </p>
+      <MathText as="div" className="overflow-x-auto rounded-lg border border-border bg-background p-4 text-center text-body-base text-foreground">
+        {`$$\\ce{${format(spec.reactants)} -> ${format(spec.products)}}$$`}
+      </MathText>
       <FallbackTable spec={spec} />
     </div>
   );
@@ -1625,9 +1567,9 @@ export function LearningCanvasRenderer({ spec, embedded = false }: { spec: Canva
       {!compactPlot && !isFunctionPlot ? (
         <div>
           <h3 id={titleId} className="font-heading text-body-base font-semibold text-foreground">
-            {spec.title}
+            <MathText>{spec.title}</MathText>
           </h3>
-          <p className="mt-1 text-body-sm text-muted-foreground">{spec.purpose}</p>
+          <MathText as="p" className="mt-1 text-body-sm text-muted-foreground">{spec.purpose}</MathText>
         </div>
       ) : null}
       {spec.type === "function_plot" ? (
@@ -1643,7 +1585,7 @@ export function LearningCanvasRenderer({ spec, embedded = false }: { spec: Canva
       ) : spec.type === "chemistry_reaction" ? (
         <ChemistryReaction spec={spec} />
       ) : (
-        <FallbackTable spec={spec} />
+        <FallbackTable spec={spec.type === "table" ? { ...spec, fallback: { ...spec.fallback, rows: spec.rows } } : spec} />
       )}
     </section>
   );

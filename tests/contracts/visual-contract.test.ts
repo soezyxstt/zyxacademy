@@ -11,6 +11,17 @@ import {
 import { LIMIT_EPSILON_DELTA_GRAPH } from "../fixtures/product-learning/limit-epsilon-delta";
 
 describe("visual contract specification", () => {
+  test("rejects nonfinite polynomial evaluation at the claimed limit", () => {
+    expect(epsilonDeltaGraphSpecSchema.safeParse({
+      ...LIMIT_EPSILON_DELTA_GRAPH,
+      bounds: { xMin: 0, xMax: 4, yMin: -2, yMax: 2 },
+      limitPoint: 2,
+      limitValue: 0,
+      defaultEpsilon: 1,
+      defaultDelta: 1,
+      functionModel: { kind: "quadratic", a: 1e308, b: -1e308, c: 0 },
+    }).success).toBe(false);
+  });
   describe("visualNumericBoundsSchema", () => {
     test("accepts valid numeric bounds", () => {
       const bounds = visualNumericBoundsSchema.parse({
