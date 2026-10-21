@@ -54,12 +54,16 @@ import { adminOpsKnowledgeSyncWorker } from "./admin-knowledge";
 import { diktatPdfWorker } from "./diktat-pdf";
 import { pdfThumbnailWorker } from "./pdf-thumbnail";
 import { sourceReadPageWorker } from "./source-read";
+import { sourceFigureWorker } from "./source-figure";
+import { productVerificationWorker } from "./product-verification";
 
 /**
  * All background functions for Deno/compute Inngest execution.
  */
 export const computeFunctions = [
   sourceReadPageWorker,
+  sourceFigureWorker,
+  productVerificationWorker,
   vectorSyncWorker,
   vectorSyncCronWorker,
   bulkChapterGenerator,

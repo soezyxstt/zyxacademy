@@ -2,7 +2,7 @@
 
 ## 1. Eight-Criterion Pedagogic Rubric
 
-Every Product Bundle V3 Article is evaluated against eight mandatory criteria in `evaluateProductBundleQualityPolicy` and `authoring.review_product_bundle`:
+Use these eight criteria for independent editorial review. Current V3 accepts a bundle decision without detailed `criteria`; when supplied, the detailed rubric must be complete and valid. This protocol guides authoring and does not introduce a new V4 publication gate.
 
 1. **`concept_accuracy` (Ketepatan Konsep dan Kebenaran Ilmiah)**
    - Definitions, theorems, formulas, and domain conditions are mathematically and scientifically exact.
@@ -46,6 +46,7 @@ Keep review records outside the bundle ZIP with `PASS`, `FAIL`, `NOT_APPLICABLE`
   1. Audit all 8 criteria above with concrete block/section anchors (`targetType: "document" | "section" | "block" | "visual"`, `targetId`).
   2. Perform the full mathematical derivation audit (`product/derivation-audit`).
   3. Scan all learner-visible strings for leaked internal IDs (`idea-`, `source-`, `ex-`, `ls-`, `blk-`, `sec-`), untranslated raw English fragments where Indonesian is expected, or broken LaTeX delimiters.
+  4. Inspect the rendered formulas, graph axes, annotations, controls, diagram nodes and tables. Mathematical symbols must be typeset, scientific numbers must use powers of ten rather than raw `e` notation, chemistry must retain subscripts and coefficients, and units must retain dimensions. Confirm readable glyph sizes at mobile width, no overlapping labels, no KaTeX errors and no nonzero quantities rounded silently to zero. Source code inspection alone does not pass this check.
 
 ### 2.2 Student POV Subagent Pass
 - **Input:** Only the learner-visible Article sections, blocks, visuals, Diktat Markdown, and Flashcards (without internal Idea/source metadata).
@@ -58,5 +59,5 @@ Keep review records outside the bundle ZIP with `PASS`, `FAIL`, `NOT_APPLICABLE`
 
 When recording a review decision with `authoring.review_product_bundle`:
 - Pass the exact `policyVersion` and `contentFingerprint` from the staged bundle.
-- Provide all 8 criteria in `criteria`, each with `criterion`, `status: "met" | "needs_revision" | "not_met"`, `summary`, and at least one concrete `anchors` entry (`{ targetType, targetId, note }`).
-- Any criterion not marked `"met"` requires an explicit entry in `exceptions` with a substantive `reason`, or the bundle cannot be approved.
+- When submitting detailed evidence, provide all 8 items in `criteria`, each with `criterionId`, `status: "met" | "needs_revision" | "not_met"`, `reason`, and at least one `contentAnchors` entry (`{ targetType, targetId }`). Anchor objects have no `note` field.
+- For approval with detailed evidence, each criterion not marked `"met"` requires an explicit `exceptions` entry `{ criterionId, approved: true, reason }` with a substantive reason.

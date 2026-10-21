@@ -8,7 +8,7 @@ description: Mengimpor soal historis verbatim dari PDF soal/pembahasan tersimpan
 Skill ini mengimpor soal referensi historis verbatim (`historical_reference`) dari PDF soal dan pembahasan tersimpan pada level course melalui workflow `reference_question_ingest`. Seluruh aturan urutan tool, skema `reference-question-draft.v1`, matriks provenance jawaban/solusi, dan preflight per-part disajikan oleh server saat runtime melalui `workflow.get_playbook` dan `workflow.get_contract`.
 
 <!-- BEGIN:environment-connection -->
-Gunakan koneksi MCP `zyx-authoring-staging` untuk environment `staging` di endpoint `https://staging.zyxacademy.com/api/mcp/authoring` (`pluginVersion: "0.3.0"`, `bootstrapProtocol: 1`). Jangan gunakan koneksi Zyx dari environment lain. Verifikasi identitas koneksi sebelum memulai run atau melakukan staging.
+Gunakan koneksi MCP `zyx-authoring-staging` untuk environment `staging` di endpoint `https://staging.zyxacademy.com/api/mcp/authoring` (`pluginVersion: "0.4.0"`, `bootstrapProtocol: 1`). Jangan gunakan koneksi Zyx dari environment lain. Verifikasi identitas koneksi sebelum memulai run atau melakukan staging.
 <!-- END:environment-connection -->
 
 ## Identitas bootstrap dan protokol
@@ -16,7 +16,7 @@ Gunakan koneksi MCP `zyx-authoring-staging` untuk environment `staging` di endpo
 - **Skill ID**: `reference-question-ingest`
 - **Stage**: `reference`
 - **Bootstrap protocol**: `1`
-- **Plugin version**: `0.3.0`
+- **Plugin version**: `0.4.0`
 - **Modul playbook wajib**: `common/execution`, `reference/workflow`, `reference/payload-preflight`
 
 ## Langkah bootstrap wajib (fail-closed)
@@ -27,7 +27,7 @@ Gunakan koneksi MCP `zyx-authoring-staging` untuk environment `staging` di endpo
      "skill": "reference-question-ingest",
      "stage": "reference",
      "bootstrapProtocol": 1,
-     "pluginVersion": "0.3.0",
+     "pluginVersion": "0.4.0",
      "clientCapabilities": {
        "independentSubagents": true,
        "localArtifactFiles": true,

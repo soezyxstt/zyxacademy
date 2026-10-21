@@ -1,7 +1,7 @@
 import { db } from "@/db";
 import { knowledgeObjects } from "@/db/schema";
 import { eq } from "drizzle-orm";
-import katex from "katex";
+import katex from "@/lib/math/katex";
 import { z } from "zod";
 import { validateDistractorMap } from "@/lib/distractor-mapper";
 

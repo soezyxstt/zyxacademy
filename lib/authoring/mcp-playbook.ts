@@ -5,7 +5,7 @@ import { z } from "zod";
 
 export const AUTHORING_MCP_BOOTSTRAP_PROTOCOL = 1;
 export const SUPPORTED_BOOTSTRAP_PROTOCOLS = [1] as const;
-export const RECOMMENDED_PLUGIN_VERSION = "0.3.0";
+export const RECOMMENDED_PLUGIN_VERSION = "0.4.0";
 export const MIN_COMPATIBLE_PLUGIN_VERSION = "0.2.0";
 
 export const AUTHORING_MCP_SKILLS = [

@@ -113,16 +113,6 @@ function hasUnwrappedLatex(value: string): boolean {
 }
 
 function addSectionMathQualityIssues(issues: AuthoringQualityIssue[], articleId: string, section: ArticleSection): void {
-  for (const formulaBlock of section.blocks.filter((block) => block.blockType === "mathematical_representation")) {
-    if (!isDisplayMathOnly(formulaBlock.contentMarkdown)) {
-      issues.push(qualityIssue(
-        "ARTICLE_FORMULA_PROSE_MIXED",
-        `Blok rumus ${formulaBlock.id} harus berisi display math saja; simbol, syarat, dan makna ditulis pada blok penjelasan terpisah.`,
-        "blocking",
-        { entity: `${articleId}:${section.id}:${formulaBlock.id}`, expected: "standalone display math", observed: formulaBlock.contentMarkdown.slice(0, 120) },
-      ));
-    }
-  }
   for (const block of section.blocks) {
     if (hasUnwrappedLatex(block.contentMarkdown)) {
       issues.push(qualityIssue(
@@ -295,7 +285,7 @@ export function evaluateProductBundleQuality(data: { products: readonly ProductE
         if (section.proseWords > 700) {
             issues.push(qualityIssue(
               "ARTICLE_TOPIC_PROSE_DENSITY_HIGH",
-              `Bagian ${section.id} terlalu padat prose (${section.proseWords} kata di luar blok rumus); ringkas kalimat dan prioritaskan notasi, simbol, serta syarat.`,
+              `Bagian ${section.id} terlalu padat prose (${section.proseWords} kata di luar notasi matematika); ringkas kalimat dan prioritaskan notasi, simbol, serta syarat.`,
               "blocking",
               { entity: `${article.id}:${section.id}`, expected: 700, observed: section.proseWords },
             ));

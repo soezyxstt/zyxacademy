@@ -236,7 +236,10 @@ describe("canonical authoring quality gates", () => {
     expect(report.metrics.articles[0]?.sections[0]?.wordCount).toBeGreaterThan(150);
   });
 
-  test("accepts a short list of separate display formulas", () => {
+  test.each([
+    "- $$f(x)+k$$\n- $$f(x-k)$$",
+    "$$f(x)+k$$\n\nNilai $k$ menggeser keluaran fungsi secara vertikal; domain fungsi tetap.",
+  ])("accepts display formulas with nearby meaning: %s", (contentMarkdown) => {
     const article = {
       id: "article-formula-list",
       productType: "article",
@@ -246,7 +249,7 @@ describe("canonical authoring quality gates", () => {
         id: "section-formula-list",
         kind: "topic",
         blocks: [
-          { id: "formula-list", blockType: "mathematical_representation", contentMarkdown: "- $$f(x)+k$$\n- $$f(x-k)$$", ideaIds: ["idea-formula-list"] },
+          { id: "formula-list", blockType: "mathematical_representation", contentMarkdown, ideaIds: ["idea-formula-list"] },
           { id: "explanation", blockType: "explanation", contentMarkdown: "Perubahan di luar dan di dalam argumen menggeser grafik pada arah berbeda.", ideaIds: ["idea-formula-list"] },
           { id: "retrieval", blockType: "retrieval_prompt", contentMarkdown: "Ke mana grafik bergeser?", ideaIds: ["idea-formula-list"] },
         ],

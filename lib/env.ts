@@ -112,6 +112,8 @@ export const env = createEnv({
   DIKTAT_RENDERER_URL: z.string().url().optional(),
   /** Shared secret matching SHARED_SECRET set on the diktat-renderer service */
   DIKTAT_RENDERER_SECRET: z.string().optional(),
+  AUTHORING_VERIFICATION_RENDERER_URL: z.string().url().optional(),
+  AUTHORING_VERIFICATION_RENDERER_SECRET: z.string().optional(),
   // ── Sentry Error Monitoring ───────────────────────────────────────────
   /** Sentry auth token for source map uploads */
   SENTRY_AUTH_TOKEN: z.string().optional(),
@@ -154,7 +156,7 @@ export const env = createEnv({
   },
   runtimeEnv: {
   NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
-  NEXT_PUBLIC_SENTRY_DSN: process.env.NEXT_PUBLIC_SENTRY_DSN,
+  NEXT_PUBLIC_SENTRY_DSN: process.env.NEXT_PUBLIC_SENTRY_DSN || undefined,
   NEXT_PUBLIC_DESMOS_API_KEY: process.env.NEXT_PUBLIC_DESMOS_API_KEY,
   NEXT_PUBLIC_WHATSAPP_NUMBER: process.env.NEXT_PUBLIC_WHATSAPP_NUMBER,
   NEXT_PUBLIC_BRAND_EMAIL: process.env.NEXT_PUBLIC_BRAND_EMAIL,
@@ -214,6 +216,8 @@ export const env = createEnv({
   // Diktat PDF Renderer
   DIKTAT_RENDERER_URL: process.env.DIKTAT_RENDERER_URL,
   DIKTAT_RENDERER_SECRET: process.env.DIKTAT_RENDERER_SECRET,
+  AUTHORING_VERIFICATION_RENDERER_URL: process.env.AUTHORING_VERIFICATION_RENDERER_URL,
+  AUTHORING_VERIFICATION_RENDERER_SECRET: process.env.AUTHORING_VERIFICATION_RENDERER_SECRET,
   // Sentry Error Monitoring
   SENTRY_AUTH_TOKEN: process.env.SENTRY_AUTH_TOKEN,
   SENTRY_ORG: process.env.SENTRY_ORG,

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { usePathname } from "next/navigation";
 import posthog from "posthog-js";
 import { PostHogProvider as PHProvider } from "posthog-js/react";
 import { env } from "@/lib/env";
@@ -9,11 +10,12 @@ const isDev = process.env.NODE_ENV === "development";
 const enableInDev = process.env.NEXT_PUBLIC_POSTHOG_DEV === "true";
 
 export function PostHogProvider({ children }: { children: React.ReactNode }) {
+  const verification = ["/authoring-verification", "/v4"].includes(usePathname() ?? "");
   useEffect(() => {
     const posthogKey = env.NEXT_PUBLIC_POSTHOG_KEY;
     const posthogHost = env.NEXT_PUBLIC_POSTHOG_HOST;
 
-    if (!posthogKey || (isDev && !enableInDev)) {
+    if (verification || !posthogKey || (isDev && !enableInDev)) {
       return;
     }
 
@@ -27,9 +29,9 @@ export function PostHogProvider({ children }: { children: React.ReactNode }) {
         }
       },
     });
-  }, []);
+  }, [verification]);
 
-  if (!env.NEXT_PUBLIC_POSTHOG_KEY || (isDev && !enableInDev)) {
+  if (verification || !env.NEXT_PUBLIC_POSTHOG_KEY || (isDev && !enableInDev)) {
     return <>{children}</>;
   }
 

@@ -1,7 +1,24 @@
 import { deterministicProductSerialization, type ProductBundleValidation } from "@/lib/bundle/product-validator";
 import { computePedagogyContentFingerprint } from "@/lib/materials/quality-policy";
+import { collectArticleVisualIds } from "@/lib/materials/article-parts";
 
 type ValidProductBundle = Extract<ProductBundleValidation, { success: true }>["data"];
+type ArticleProduct = Extract<ValidProductBundle["products"][number], { productType: "article" }>;
+
+export function sectionReviewFingerprint(section: ArticleProduct["sections"][number], visuals: ArticleProduct["visuals"]): string {
+  const visualIds = new Set(section.blocks.flatMap((block) => [
+    ...(block.visualIds ?? []),
+    ...collectArticleVisualIds(block.parts ?? []),
+  ]));
+  if (section.pedagogy?.visualRequirement.status === "required") {
+    for (const id of section.pedagogy.visualRequirement.visualIds) visualIds.add(id);
+  }
+  const visualRegistry = new Map((visuals ?? []).map((visual) => [visual.id, visual]));
+  return deterministicProductSerialization({
+    section,
+    visuals: [...visualIds].sort().map((id) => ({ id, visual: visualRegistry.get(id) ?? null })),
+  });
+}
 
 export function unchangedArticleSectionIds(previous: ValidProductBundle, next: ValidProductBundle): Set<string> {
   const previousArticles = new Map(
@@ -17,7 +34,7 @@ export function unchangedArticleSectionIds(previous: ValidProductBundle, next: V
     const previousSections = new Map(previousArticle.sections.map((section) => [section.id, section]));
     for (const section of product.sections) {
       const previousSection = previousSections.get(section.id);
-      if (previousSection && deterministicProductSerialization(previousSection) === deterministicProductSerialization(section)) {
+      if (previousSection && sectionReviewFingerprint(previousSection, previousArticle.visuals) === sectionReviewFingerprint(section, product.visuals)) {
         unchanged.add(section.id);
       }
     }

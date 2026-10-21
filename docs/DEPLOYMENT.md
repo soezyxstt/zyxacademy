@@ -63,6 +63,10 @@ The old production-to-staging sync is not part of the overhaul. Any exceptional 
 
 ## Vercel Deployment
 
+V4 verification uses the existing Deno Deploy worker and Cloudflare Browser Run over CDP. Sync `BETTER_AUTH_SECRET`, `CF_API_TOKEN`, `CF_ACCOUNT_ID` and `NEXT_PUBLIC_APP_URL` from the exact GitHub environment. The browser token needs Browser Rendering Edit permission. Each plan pins the deployed browser version; drift fails closed until reviewed and released. The Deno workflow regenerates the V4 build identity before uploading it with the worker. Source crops pin the same PDF.js and native canvas versions in both Deno import maps. The local Node verification adapter is a test utility, not another hosting requirement.
+
+The read-only `/v4` page presents a version-specific Article preview and its inspected static Diktat PDF. It does not convert or publish existing course content. Existing Articles adopt V4 through an explicitly authored and reviewed V4 bundle.
+
 1. Connect repo to Vercel
 2. Set all env vars from `lib/env.ts` in Vercel dashboard
 3. Deploy ; App Router + Server Actions work natively

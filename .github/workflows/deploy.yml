@@ -16,6 +16,11 @@ on:
       - 'deno.json'
       - 'deno.lock'
       - 'package.json'
+      - 'bun.lock'
+      - 'next.config.ts'
+      - 'app/**'
+      - 'components/**'
+      - 'scripts/authoring/**'
       - 'scripts/audit-worker-dependencies.ts'
       - '.github/workflows/deploy.yml'
   pull_request:
@@ -32,6 +37,11 @@ on:
       - 'deno.json'
       - 'deno.lock'
       - 'package.json'
+      - 'bun.lock'
+      - 'next.config.ts'
+      - 'app/**'
+      - 'components/**'
+      - 'scripts/authoring/**'
       - 'scripts/audit-worker-dependencies.ts'
       - '.github/workflows/deploy.yml'
   workflow_dispatch:
@@ -124,7 +134,7 @@ jobs:
 
           # These files affect worker resolution/deploy behavior even when they
           # are not regular source imports in the dependency graph.
-          if grep -Eq '^(workers/deno-background/|deno\.json$|deno\.lock$|package\.json$|scripts/audit-worker-dependencies\.ts$|\.github/workflows/deploy\.yml$)' artifacts/changed-files.txt; then
+          if grep -Eq '^(app/|components/|lib/|scripts/authoring/|next\.config\.ts$|bun\.lock$|workers/deno-background/|deno\.json$|deno\.lock$|package\.json$|scripts/audit-worker-dependencies\.ts$|\.github/workflows/deploy\.yml$)' artifacts/changed-files.txt; then
             echo "should_deploy=true" >> "$GITHUB_OUTPUT"
             echo "Worker runtime/configuration changed: deploying worker."
             exit 0
@@ -161,6 +171,17 @@ jobs:
             echo "APP_NAME=zyx-background-staging" >> $GITHUB_ENV
             echo "APP_URL=https://zyx-background-staging.soezyxst.deno.net" >> $GITHUB_ENV
           fi
+
+      - uses: oven-sh/setup-bun@v2
+        if: steps.impact.outputs.should_deploy == 'true'
+        with:
+          bun-version: '1.2.21'
+
+      - name: Prepare V4 build identity for Deno
+        if: steps.impact.outputs.should_deploy == 'true'
+        run: |
+          bun install --frozen-lockfile --ignore-scripts
+          bun scripts/authoring/prepare-web-verification.ts
 
       - name: Provision Deno Deploy App (if not exists)
         if: steps.impact.outputs.should_deploy == 'true'
@@ -208,6 +229,9 @@ jobs:
           SECRET_RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
           SECRET_DIKTAT_RENDERER_URL: ${{ secrets.DIKTAT_RENDERER_URL }}
           SECRET_DIKTAT_RENDERER_SECRET: ${{ secrets.DIKTAT_RENDERER_SECRET }}
+          SECRET_BETTER_AUTH_SECRET: ${{ secrets.BETTER_AUTH_SECRET }}
+          SECRET_CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          SECRET_NEXT_PUBLIC_APP_URL: ${{ secrets.NEXT_PUBLIC_APP_URL }}
         run: |
           R2_BUCKET_RESOLVED="${SECRET_R2_BUCKET:-$SECRET_LEGACY_CF_R2_BUCKET}"
           R2_ACCESS_KEY_ID_RESOLVED="${SECRET_R2_ACCESS_KEY_ID:-$SECRET_LEGACY_CF_R2_ACCESS_KEY_ID}"
@@ -238,6 +262,9 @@ jobs:
           COMPUTE_SERVICE_SECRET=${SECRET_COMPUTE_SERVICE_SECRET}
           RESEND_API_KEY=${SECRET_RESEND_API_KEY}
           DIKTAT_RENDERER_URL=${SECRET_DIKTAT_RENDERER_URL}
+          BETTER_AUTH_SECRET=${SECRET_BETTER_AUTH_SECRET}
+          CF_API_TOKEN=${SECRET_CF_API_TOKEN}
+          NEXT_PUBLIC_APP_URL=${SECRET_NEXT_PUBLIC_APP_URL}
           DIKTAT_RENDERER_SECRET=${SECRET_DIKTAT_RENDERER_SECRET}
           EOF
 

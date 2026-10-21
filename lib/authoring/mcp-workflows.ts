@@ -1,5 +1,7 @@
 import { createCipheriv, createDecipheriv, createHash, createHmac, randomBytes, randomUUID, timingSafeEqual } from "node:crypto";
 import { z } from "zod";
+import { VISUAL_CAPABILITIES, UNSUPPORTED_VISUAL_CAPABILITIES } from "@/lib/materials/visual-capabilities";
+import { PRODUCT_V4_VERIFICATION_POLICY } from "@/lib/bundle/product-v4-verification";
 import { getAuthoringCourseOption, listAuthoringCourseOptions } from "@/lib/authoring/catalog";
 import { validateSourcePack, type ValidatedSourcePack } from "@/lib/authoring/source-pack";
 import { evaluateSourcePackQuality, type SourcePackQualityReport } from "@/lib/authoring/quality/source-pack";
@@ -1239,7 +1241,12 @@ export function quizBankScopeGuidance() {
 export function productBundleV3Contract() {
   return {
     schemaVersion: "product-bundle.v3",
-    compatibleReadVersions: ["product-bundle.v2", "product-bundle.v3"],
+    compatibleReadVersions: ["product-bundle.v2", "product-bundle.v3", "product-bundle.v4"],
+    pilot: { schemaVersion: "product-bundle.v4", articleSchemaVersion: "article.v4", orderedPartKinds: ["markdown", "math_unit", "visual_ref", "worked_example"], publicationReady: "derived from current trusted verification, explicit section review and PDF evidence", articleCount: 1, diktatCount: "at most one in draft, required for publication", scopedSymbolDefinitions: true,
+      capabilities: VISUAL_CAPABILITIES, unsupportedCapabilities: UNSUPPORTED_VISUAL_CAPABILITIES,
+      verification: { policyVersion: PRODUCT_V4_VERIFICATION_POLICY, requestTool: "authoring.verify_product_bundle", getTool: "authoring.get_verification", origin: "server_observed", localReportsGrantReadiness: false, reviewContextTool: "authoring.get_import" },
+      sourceFigures: { extractTool: "source.extract_figure", getTool: "source.get_figure", provenanceRequired: true },
+    },
     writeEntityTypes: ["article", "diktat", "flashcard_set", "flashcard"],
     forbiddenAssessmentEntityTypes: ["question", "solution", "assessment_blueprint"],
     scopeBoundary: {

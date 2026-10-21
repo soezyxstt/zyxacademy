@@ -10,6 +10,7 @@ import {
   type ProductEntity,
 } from "@/lib/bundle/product-validator";
 import { createProductBundleDraft, finalizeProductBundleDraft, refreshDraftDependencies } from "@/lib/bundle/product-draft";
+import { LIMIT_EPSILON_DELTA_GRAPH } from "../fixtures/product-learning/limit-epsilon-delta";
 import { unchangedArticleSectionIds } from "@/lib/bundle/product-review-preservation";
 
 const now = "2026-08-02T00:00:00.000Z";
@@ -149,7 +150,7 @@ function createV3ArticleProduct(): ProductEntity {
   };
 }
 
-function buildTestBundleBytes(products: ProductEntity[], schemaVersion: "product-bundle.v2" | "product-bundle.v3" = "product-bundle.v3"): Uint8Array {
+function buildTestBundleBytes(products: ProductEntity[], schemaVersion: "product-bundle.v2" | "product-bundle.v3" | "product-bundle.v4" = "product-bundle.v3"): Uint8Array {
   const encode = (value: unknown) => new TextEncoder().encode(`${deterministicProductSerialization(value)}\n`);
   const files = new Map<string, Uint8Array>();
   const productBytes = encode(products);
@@ -193,7 +194,7 @@ describe("Product Bundle V3 contract", () => {
     };
     expect(productBundleManifestSchema.safeParse(manifestV3).success).toBe(true);
 
-    const manifestInvalid = { ...manifestV3, schemaVersion: "product-bundle.v4" };
+    const manifestInvalid = { ...manifestV3, schemaVersion: "product-bundle.v5" };
     expect(productBundleManifestSchema.safeParse(manifestInvalid).success).toBe(false);
   });
 
@@ -278,6 +279,49 @@ describe("Product Bundle V3 contract", () => {
     expect([...unchangedArticleSectionIds(parsed.data, next)].sort()).toEqual(["sec-overview", "sec-summary"]);
   });
 
+  it.each(["block", "pedagogy", "part"])("invalidates only sections depending on changed visuals through %s bindings", (binding) => {
+    const parsed = validateProductBundle(buildTestBundleBytes([createV3ArticleProduct()]));
+    if (!parsed.success) throw new Error("expected valid fixture");
+    const article = parsed.data.products[0];
+    if (article.productType !== "article") throw new Error("expected article");
+    const section = article.sections[1];
+    article.visuals = [{
+      id: "visual-bound", kind: "epsilon_delta_graph", label: "Limit linear", description: "Nilai mendekati nol",
+      bounds: { xMin: -3, xMax: 3, yMin: -3, yMax: 3 },
+      limitPoint: 0, limitValue: 0, defaultDelta: 1, defaultEpsilon: 1,
+      functionModel: { kind: "linear", m: 1, b: 0 },
+      staticFallback: { type: "text", summary: "Limit", content: "Nilai mendekati nol." },
+    }];
+    if (binding === "block") section.blocks[0].visualIds = ["visual-bound"];
+    if (binding === "part") Object.assign(section.blocks[0], { parts: [{ id: "part-visual", kind: "visual_ref", visualId: "visual-bound" }] });
+    if (binding === "pedagogy") {
+      section.pedagogy = {
+        objectives: [{ id: "objective", description: "Memahami limit", explanationBlockIds: ["b-top-1"], formativeCheckBlockIds: ["b-top-2"] }],
+        prerequisites: [], symbols: [], timeEstimate: { readingMinutes: 1, examplesMinutes: 0, practiceMinutes: 1 },
+        visualRequirement: { status: "required", visualIds: ["visual-bound"] },
+      };
+    }
+    const next = structuredClone(parsed.data);
+    const nextArticle = next.products[0];
+    if (nextArticle.productType !== "article" || !nextArticle.visuals) throw new Error("expected visual registry");
+    nextArticle.visuals[0].description = "Penjelasan visual direvisi";
+    expect([...unchangedArticleSectionIds(parsed.data, next)].sort()).toEqual(["sec-overview", "sec-summary"]);
+
+    nextArticle.visuals = [...article.visuals, { ...article.visuals[0], id: "visual-unrelated" }];
+    expect(unchangedArticleSectionIds(parsed.data, next).size).toBe(3);
+
+    nextArticle.visuals = [];
+    expect(unchangedArticleSectionIds(parsed.data, next).has("sec-topic")).toBe(false);
+    expect(unchangedArticleSectionIds(next, parsed.data).has("sec-topic")).toBe(false);
+
+    nextArticle.visuals = structuredClone(article.visuals);
+    const nextSection = nextArticle.sections[1];
+    delete nextSection.blocks[0].visualIds;
+    if (binding === "part") Object.assign(nextSection.blocks[0], { parts: [] });
+    if (nextSection.pedagogy) nextSection.pedagogy.visualRequirement = { status: "not_required", reason: "Tujuan direvisi" };
+    expect(unchangedArticleSectionIds(parsed.data, next).has("sec-topic")).toBe(false);
+  });
+
   it("rejects V3 article with duplicate section IDs or invalid section hierarchy", () => {
     const dupSection = createV3ArticleProduct();
     if (dupSection.productType === "article") {
@@ -298,5 +342,96 @@ describe("Product Bundle V3 contract", () => {
     const result = validateProductBundle(buildTestBundleBytes([first, second]));
     expect(result.success).toBe(false);
     if (!result.success) expect(result.issues[0]?.code).toBe("PRODUCT_SECTION_INVALID");
+  });
+});
+
+
+describe("Product Bundle V4 pilot", () => {
+  it("rejects missing parts, unresolved visuals, and legacy manifests carrying V4", () => {
+    const article = createV3ArticleProduct();
+    if (article.productType !== "article") throw new Error("expected article");
+    article.schemaVersion = "article.v4";
+    const missing = validateProductBundle(buildTestBundleBytes([article], "product-bundle.v4"));
+    expect(missing.success).toBe(false);
+    if (!missing.success) expect(missing.issues[0].code).toBe("PRODUCT_ARTICLE_PARTS_REQUIRED");
+    for (const block of article.sections.flatMap((section) => section.blocks)) {
+      block.parts = [{ id: `${block.id}-text`, kind: "markdown", markdown: block.contentMarkdown }];
+      block.contentMarkdown = "";
+    }
+    article.sections[0].blocks[0].parts = [{ id: "unresolved", kind: "visual_ref", visualId: "missing-visual" }];
+    const unresolved = validateProductBundle(buildTestBundleBytes([article], "product-bundle.v4"));
+    expect(unresolved.success).toBe(false);
+    if (!unresolved.success) expect(unresolved.issues[0].code).toBe("PRODUCT_BLOCK_VISUAL_REFERENCE_INVALID");
+    expect(validateProductBundle(buildTestBundleBytes([article], "product-bundle.v3")).success).toBe(false);
+  });
+
+  it("materializes ordered parts and keeps publication blocked until trusted verification", () => {
+    const article = createV3ArticleProduct();
+    if (article.productType !== "article") throw new Error("expected article");
+    article.schemaVersion = "article.v4";
+    for (const block of article.sections.flatMap((section) => section.blocks)) {
+      block.parts = [{ id: `${block.id}-text`, kind: "markdown", markdown: block.contentMarkdown }];
+      block.contentMarkdown = "";
+    }
+    const result = validateProductBundle(buildTestBundleBytes([article], "product-bundle.v4"));
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect(result.data.publicationBlocked).toBe(true);
+    expect(result.data.issues[0].code).toBe("PRODUCT_V4_VERIFICATION_REQUIRED");
+    const normalized = result.data.products[0];
+    if (normalized.productType !== "article") throw new Error("expected article");
+    expect(normalized.sections[0].blocks[0].contentMarkdown.length).toBeGreaterThan(0);
+    const draft = createProductBundleDraft(result.data);
+    const edited = draft.products[0];
+    if (edited.productType !== "article") throw new Error("expected article");
+    edited.sections[0].blocks[0].parts = [{ id: "replacement", kind: "markdown", markdown: "Updated authoritative explanation" }];
+    const finalized = finalizeProductBundleDraft(result.data, draft);
+    const updated = finalized.bundle.products[0];
+    if (updated.productType !== "article") throw new Error("expected article");
+    expect(updated.sections[0].blocks[0].contentMarkdown).toBe("Updated authoritative explanation");
+    expect(updated.sections[0].blocks[0].parts?.[0].id).toBe("replacement");
+  });
+});
+
+
+describe("V4 draft integration invariants", () => {
+  function article() {
+    const value = createV3ArticleProduct();
+    if (value.productType !== "article") throw new Error("expected article");
+    value.schemaVersion = "article.v4";
+    for (const block of value.sections.flatMap((section) => section.blocks)) {
+      block.parts = [{ id: `${block.id}-part`, kind: "markdown", markdown: block.contentMarkdown }];
+      block.contentMarkdown = "";
+    }
+    return value;
+  }
+
+  it("rejects part anchors reused by different blocks before Diktat authoring", () => {
+    const value = article();
+    const blocks = value.sections.flatMap((section) => section.blocks);
+    blocks[1].parts![0].id = blocks[0].parts![0].id;
+    const result = validateProductBundle(buildTestBundleBytes([value], "product-bundle.v4"));
+    expect(result.success).toBe(false);
+    if (!result.success) expect(result.issues[0].code).toBe("ARTICLE_PART_ID_DUPLICATE");
+  });
+
+  it("hashes canonical visual references before returning an edited draft", () => {
+    const value = article();
+    value.visuals = [{ ...structuredClone(LIMIT_EPSILON_DELTA_GRAPH), id: "visual-a" }, { ...structuredClone(LIMIT_EPSILON_DELTA_GRAPH), id: "visual-b" }];
+    value.sections[0].blocks[0].parts!.push({ id: "visual-part", kind: "visual_ref", visualId: "visual-a" });
+    const parsed = validateProductBundle(buildTestBundleBytes([value], "product-bundle.v4"));
+    if (!parsed.success) throw new Error(JSON.stringify(parsed.issues));
+    const draft = createProductBundleDraft(parsed.data);
+    const edited = draft.products[0];
+    if (edited.productType !== "article") throw new Error("expected article");
+    const part = edited.sections[0].blocks[0].parts!.find((part) => part.kind === "visual_ref");
+    if (!part || part.kind !== "visual_ref") throw new Error("expected visual");
+    part.visualId = "visual-b";
+    const finalized = finalizeProductBundleDraft(parsed.data, draft);
+    const second = finalizeProductBundleDraft(finalized.bundle, createProductBundleDraft(finalized.bundle));
+    expect(second.bundle.products[0].generationHash).toBe(finalized.bundle.products[0].generationHash);
+    const updated = finalized.bundle.products[0];
+    if (updated.productType !== "article") throw new Error("expected article");
+    expect(updated.sections[0].blocks[0].visualIds).toEqual(["visual-b"]);
   });
 });

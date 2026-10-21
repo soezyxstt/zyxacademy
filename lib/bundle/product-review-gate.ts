@@ -1,6 +1,9 @@
+import { findUnmarkedScientificProse } from "@/lib/math/unmarked-scientific";
 import { desc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { reviewPedagogiBundle, buktiPdfBundle } from "@/db/schema";
+import { createHash } from "node:crypto";
+import { deterministicProductSerialization } from "./product-validator";
 import type {
   ProductBundleManifest,
   ProductDependency,
@@ -50,6 +53,7 @@ export interface ProductBundleEvaluationContext {
   pedagogicReview?: PedagogicReviewDecision | null;
   pdfEvidence?: readonly PdfArtifactEvidence[] | null;
   tx?: any;
+  v4Verification?: { plan: { contentHash: string; planHash: string }; evaluation: { ready: boolean } } | null;
 }
 
 export interface ProductBundleEvaluationInput {
@@ -378,6 +382,36 @@ export async function evaluateProductBundleQualityPolicy(
     reviewRows,
     pdfEvidenceRows: pdfEvidenceList,
   });
+
+  const manifest = bundleInput?.bundle?.manifest ?? bundleInput?.manifest;
+  if (manifest?.schemaVersion === "product-bundle.v4" || products.some((product) => product.productType === "article" && product.schemaVersion === "article.v4")) {
+    for (const product of products) for (const finding of findUnmarkedScientificProse(product)) issues.push({
+      code: "PRODUCT_V4_UNMARKED_SCIENTIFIC_NOTATION", severity: "blocking", target: { targetType: "document", targetId: product.id },
+      reason: `Unmarked mathematical notation in ${finding.path}: ${finding.notation}`,
+      remediation: "Use explicit inline or display math. Write scientific numbers with \\times 10^{...}, never a numeric e notation literal, and verify the rendered meaning.",
+    });
+    if (!diktat) issues.push({ code: "PRODUCT_V4_DIKTAT_REQUIRED", severity: "blocking", target: { targetType: "document", targetId: article?.id ?? "manifest.json" }, reason: "V4 publication requires the authored Diktat for the same Article revision.", remediation: "Add a traced Diktat with complete essential formula and Idea coverage." });
+    let verification = context.v4Verification;
+    if (!verification && context.imporBundleId) {
+      try {
+        const { getProductBundleImport } = await import("./product-staging");
+        const row = await getProductBundleImport(context.imporBundleId);
+        const ref = row?.validationReport.productV4Verification as { runId?: unknown; planHash?: unknown } | undefined;
+        if (typeof ref?.runId === "string" && typeof ref.planHash === "string") {
+          const current = await (await import("./product-v4-verification-service")).getProductV4VerificationReadiness(context.imporBundleId, ref.runId);
+          if (current.plan.planHash === ref.planHash) verification = current;
+        }
+      } catch { verification = null; }
+    }
+    const expectedContentHash = manifest ? createHash("sha256").update(deterministicProductSerialization({ manifest, products, dependencies })).digest("hex") : null;
+    if (!verification?.evaluation.ready || verification.plan.contentHash !== expectedContentHash) issues.push({
+      code: "PRODUCT_V4_VERIFICATION_REQUIRED",
+      severity: "blocking",
+      target: { targetType: "document", targetId: manifest?.bundleId ?? article?.id ?? "manifest.json" },
+      reason: "The complete current V4 verification matrix has not passed with trusted artifacts.",
+      remediation: "Request verification for this exact revision and resolve every missing, failed or stale check.",
+    });
+  }
 
   const reviewDecision = gateResult.reviewDecision;
   issues.push(...gateResult.issues);

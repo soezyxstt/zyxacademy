@@ -2,12 +2,16 @@
 
 This package connects an MCP host to one explicitly named Zyx Authoring environment and provides thin local skill entrypoints that fetch stage playbooks at runtime via `workflow.get_playbook`.
 
+The local 0.4.0 candidate adds explicit Product V4 selection, ordered mathematical parts, Diktat lineage and renderer verification guidance. V3 remains the default. Runtime contracts and trusted verification gates decide whether a V4 artifact can advance. This directory is the local publishing mirror; editing it does not change the external commits pinned by `authoring-skills.lock.json` or any installed host package.
+
+For a local MCP snapshot, render an environment package with `scripts/configure_environment.py build`, then run `bun scripts/build-authoring-skills.ts --local-candidate --environment staging --source <rendered-package> --output <separate-artifact>`. Candidate manifests record the workspace base commit and exact source digest. They cannot replace `dist/skills`, run in CI/deployment, or be served by a deployed environment. Normal builds still require the clean external locked source. Promote through the owning repository's review/release process and update its pin only after the actual upstream commit exists.
+
 <!-- BEGIN:environment-config -->
 ## Active environment
 
 - Environment: `staging`
 - Plugin ID: `zyx-authoring-mcp-staging`
-- Release version: `0.3.0`
+- Release version: `0.4.0`
 - Bootstrap protocol: `1`
 - MCP server ID: `zyx-authoring-staging`
 - Endpoint: `https://staging.zyxacademy.com/api/mcp/authoring`
@@ -35,11 +39,11 @@ This package includes six active authoring skills:
 
 Each local `SKILL.md` carries only trigger metadata, environment connection identity, bootstrap protocol `1`, host subagent execution mechanics, and fail-closed safety boundaries. Detailed editorial rubrics, schema contracts, reconciliation checklists, and stage workflows are served dynamically by the MCP server through `workflow.get_playbook` and `workflow.get_contract`.
 
-Before drafting, validating, or submitting any artifact (and upon resuming any checkpoint), the agent must call `workflow.get_playbook` with its literal skill ID, `bootstrapProtocol: 1`, `pluginVersion: "0.3.0"`, and accurate `clientCapabilities`, then pass the returned `bootstrapToken` into `workflow.start` and stage-transition tools. If `workflow.get_playbook` fails or reports `status: "incompatible"`, the agent must stop immediately and never fall back to stale cached instructions.
+Before drafting, validating, or submitting any artifact (and upon resuming any checkpoint), the agent must call `workflow.get_playbook` with its literal skill ID, `bootstrapProtocol: 1`, `pluginVersion: "0.4.0"`, and accurate `clientCapabilities`, then pass the returned `bootstrapToken` into `workflow.start` and stage-transition tools. If `workflow.get_playbook` fails or reports `status: "incompatible"`, the agent must stop immediately and never fall back to stale cached instructions.
 
 ## Host manifests and CLI helpers
 
-- `release.json` is the single canonical source of truth for `version` (`0.3.0`) and `bootstrapProtocol` (`1`).
+- `release.json` is the single canonical source of truth for `version` (`0.4.0`) and `bootstrapProtocol` (`1`).
 - `.codex-plugin/plugin.json` is the Codex Desktop plugin manifest.
 - `.claude-plugin/plugin.json` is the Claude Code plugin manifest.
 - `.mcp.json` is shared by Codex and Claude Code plugin manifests and contains the environment-specific server ID (`type: "http"`).
