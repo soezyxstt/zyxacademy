@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { FileText } from "lucide-react";
 import { CoursePageShell } from "@/components/course/course-page-shell";
-import { createMetadata, pageTitle } from "@/lib/site";
+import { createMetadata } from "@/lib/site";
 import {
   getCourse,
   getCourseChapterOutline,
@@ -39,45 +39,138 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   });
 }
 
-
 export default async function CourseMaterialListPage({ params, searchParams }: Props) {
   const { id } = await params;
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
   const initialTab = resolvedSearchParams?.tab;
-  const course = await getCourse(id);
-  if (!course) return null;
-  const compatibilityCourseId = course.legacyId ?? id;
 
-  const session = await getAuthSession();
+  // Run session check and course lookup concurrently while preserving strict auth priority.
+  const sessionPromise = getAuthSession();
+  const coursePromise = getCourse(id).then(
+    (data) => ({ ok: true as const, data }),
+    (err: unknown) => ({ ok: false as const, error: err }),
+  );
+
+  const session = await sessionPromise;
   const studentId = session?.user?.id;
   if (!studentId) {
     redirect(`/sign-in?next=${encodeURIComponent(`/courses/${id}/material`)}`);
   }
-  const studentAccess = studentId ? await getStudentCourseAccess(studentId, id) : null;
+
+  const courseResult = await coursePromise;
+  if (!courseResult.ok) {
+    throw courseResult.error;
+  }
+  const course = courseResult.data;
+  if (!course) return null;
+  const compatibilityCourseId = course.legacyId ?? id;
+
+  // Progress loads with its own error boundary preserving existing error logging
+  const progressPromise = (async () => {
+    const completedSet = new Set<string>();
+    if (!studentId) return completedSet;
+    try {
+      const [userProgressResult, legacyProgressResult] = await Promise.allSettled([
+        db
+          .select({ materialId: studentMaterialProgress.materialId, completionPercent: studentMaterialProgress.completionPercent })
+          .from(studentMaterialProgress)
+          .where(eq(studentMaterialProgress.studentId, studentId)),
+        db
+          .select({ materialId: progress.materialId })
+          .from(progress)
+          .where(and(eq(progress.userId, studentId), eq(progress.status, "completed"))),
+      ]);
+      if (userProgressResult.status === "rejected") throw userProgressResult.reason;
+      for (const p of userProgressResult.value) if (p.completionPercent >= 90) completedSet.add(p.materialId);
+      if (legacyProgressResult.status === "rejected") throw legacyProgressResult.reason;
+      for (const p of legacyProgressResult.value) if (p.materialId) completedSet.add(p.materialId);
+    } catch (err) {
+      console.error("Error loading progress in materials list:", err);
+    }
+    return completedSet;
+  })();
+
+  // User quiz attempts load with its own error boundary preserving existing error logging
+  const attemptsPromise = (async () => {
+    const completedSet = new Set<string>();
+    if (!studentId) return completedSet;
+    try {
+      const userAttempts = await db
+        .select({ templateId: studentQuizAttempts.templateId, status: studentQuizAttempts.status })
+        .from(studentQuizAttempts)
+        .where(eq(studentQuizAttempts.studentId, studentId));
+      for (const a of userAttempts) if (a.status === "completed") completedSet.add(a.templateId);
+    } catch (err) {
+      console.error("Error loading student quiz attempts:", err);
+    }
+    return completedSet;
+  })();
+
+  // Independent queries run concurrently in parallel after auth and course resolution
+  const [
+    studentAccess,
+    completedMaterialIds,
+    canonicalArticles,
+    rawCourseChapters,
+    dbMaterials,
+    courseDiktats,
+    canonicalDiktats,
+    webMaterials,
+    manualMaterials,
+    courseQuizzes,
+    courseTryouts,
+    completedQuizIds,
+  ] = await Promise.all([
+    getStudentCourseAccess(studentId, id),
+    progressPromise,
+    getCanonicalPublishedArticlesForCourse(id, studentId),
+    getCourseChapterOutline(id),
+    db
+      .select({ id: aiMaterialInstances.id, title: aiMaterialInstances.title, chapterIds: aiMaterialInstances.chapterIds, thumbnailUrl: aiMaterialInstances.thumbnailUrl })
+      .from(aiMaterialInstances)
+      .where(and(eq(aiMaterialInstances.courseId, compatibilityCourseId), notLike(aiMaterialInstances.title, "[DRAF]%"))),
+    db
+      .select({ id: diktats.id, title: diktats.title, fileUrl: diktats.fileUrl, updatedAt: diktats.updatedAt, chapterIds: diktats.chapterIds, thumbnailUrl: diktats.thumbnailUrl })
+      .from(diktats)
+      .where(and(eq(diktats.courseId, compatibilityCourseId), eq(diktats.status, "ready"))),
+    course.canonicalId
+      ? db
+          .select({ id: diktatMateri.id, title: diktatMateri.title, fileKey: diktatMateri.fileKey, babId: diktatMateri.babId, legacyChapterId: bab.legacyChapterId })
+          .from(diktatMateri)
+          .leftJoin(bab, eq(diktatMateri.babId, bab.id))
+          .where(and(eq(diktatMateri.mataKuliahId, course.canonicalId), eq(diktatMateri.status, "published")))
+      : Promise.resolve([]),
+    db
+      .select({ id: websiteMaterials.id, title: websiteMaterials.title, chapterId: websiteMaterials.chapterId, canonicalMarkdown: websiteMaterials.canonicalMarkdown, thumbnailUrl: websiteMaterials.thumbnailUrl })
+      .from(websiteMaterials)
+      .where(and(eq(websiteMaterials.courseId, compatibilityCourseId), eq(websiteMaterials.status, "published"))),
+    db
+      .select({ id: courseMaterials.id, title: courseMaterials.title, type: courseMaterials.type, subcategory: courseMaterials.subcategory, year: courseMaterials.year, fileUrl: courseMaterials.fileUrl, chapterIds: courseMaterials.chapterIds, updatedAt: courseMaterials.updatedAt, thumbnailUrl: courseMaterials.thumbnailUrl })
+      .from(courseMaterials)
+      .where(eq(courseMaterials.courseId, compatibilityCourseId)),
+    db
+      .select({
+        id: quizTemplates.id,
+        title: quizTemplates.title,
+        category: quizTemplates.category,
+        visibility: quizTemplates.visibility,
+        status: quizTemplates.status,
+        selectionRules: quizTemplates.selectionRules,
+      })
+      .from(quizTemplates)
+      .where(and(eq(quizTemplates.courseId, compatibilityCourseId), eq(quizTemplates.status, "published"), ne(quizTemplates.category, "simulation")))
+      .orderBy(desc(quizTemplates.createdAt)),
+    db
+      .select({ id: exams.id, title: exams.title, settings: exams.settings })
+      .from(exams)
+      .where(and(eq(exams.courseId, compatibilityCourseId), eq(exams.type, "tryout"), eq(exams.status, "published"))),
+    attemptsPromise,
+  ]);
+
   const isFreeAccess = studentAccess?.tier === "free";
   const canDownloadDiktat = Boolean(studentAccess?.policy.capabilities.canDownloadDiktat);
   const freeChapterIds = new Set(studentAccess?.freeChapterIds ?? []);
 
-  const completedMaterialIds = new Set<string>();
-  if (studentId) {
-    try {
-      const userProgress = await db
-        .select({ materialId: studentMaterialProgress.materialId, completionPercent: studentMaterialProgress.completionPercent })
-        .from(studentMaterialProgress)
-        .where(eq(studentMaterialProgress.studentId, studentId));
-      for (const p of userProgress) if (p.completionPercent >= 90) completedMaterialIds.add(p.materialId);
-
-      const legacyProgress = await db
-        .select({ materialId: progress.materialId })
-        .from(progress)
-        .where(and(eq(progress.userId, studentId), eq(progress.status, "completed")));
-      for (const p of legacyProgress) if (p.materialId) completedMaterialIds.add(p.materialId);
-    } catch (err) {
-      console.error("Error loading progress in materials list:", err);
-    }
-  }
-
-  const canonicalArticles = await getCanonicalPublishedArticlesForCourse(id, studentId);
   const canonicalMappedChapterIds = new Set<string>();
   for (const art of canonicalArticles) {
     if (art.chapterId) canonicalMappedChapterIds.add(art.chapterId);
@@ -85,69 +178,13 @@ export default async function CourseMaterialListPage({ params, searchParams }: P
     if (art.babId) canonicalMappedChapterIds.add(art.babId);
   }
 
-  const courseChapters = (await getCourseChapterOutline(id)).map((chapter) => ({
+  const courseChapters = rawCourseChapters.map((chapter) => ({
     id: chapter.id,
     title: chapter.title,
     orderIndex: chapter.orderIndex,
     canonicalId: chapter.canonicalId,
     legacyChapterId: chapter.legacyChapterId,
   }));
-
-  const dbMaterials = await db
-    .select({ id: aiMaterialInstances.id, title: aiMaterialInstances.title, chapterIds: aiMaterialInstances.chapterIds, thumbnailUrl: aiMaterialInstances.thumbnailUrl })
-    .from(aiMaterialInstances)
-    .where(and(eq(aiMaterialInstances.courseId, compatibilityCourseId), notLike(aiMaterialInstances.title, "[DRAF]%")));
-
-  const courseDiktats = await db
-    .select({ id: diktats.id, title: diktats.title, fileUrl: diktats.fileUrl, updatedAt: diktats.updatedAt, chapterIds: diktats.chapterIds, thumbnailUrl: diktats.thumbnailUrl })
-    .from(diktats)
-    .where(and(eq(diktats.courseId, compatibilityCourseId), eq(diktats.status, "ready")));
-
-  const canonicalDiktats = course.canonicalId
-    ? await db
-        .select({ id: diktatMateri.id, title: diktatMateri.title, fileKey: diktatMateri.fileKey, babId: diktatMateri.babId, legacyChapterId: bab.legacyChapterId })
-        .from(diktatMateri)
-        .leftJoin(bab, eq(diktatMateri.babId, bab.id))
-        .where(and(eq(diktatMateri.mataKuliahId, course.canonicalId), eq(diktatMateri.status, "published")))
-    : [];
-
-  const webMaterials = await db
-    .select({ id: websiteMaterials.id, title: websiteMaterials.title, chapterId: websiteMaterials.chapterId, canonicalMarkdown: websiteMaterials.canonicalMarkdown, thumbnailUrl: websiteMaterials.thumbnailUrl })
-    .from(websiteMaterials)
-    .where(and(eq(websiteMaterials.courseId, compatibilityCourseId), eq(websiteMaterials.status, "published")));
-
-  const manualMaterials = await db
-    .select({ id: courseMaterials.id, title: courseMaterials.title, type: courseMaterials.type, subcategory: courseMaterials.subcategory, year: courseMaterials.year, fileUrl: courseMaterials.fileUrl, chapterIds: courseMaterials.chapterIds, updatedAt: courseMaterials.updatedAt, thumbnailUrl: courseMaterials.thumbnailUrl })
-    .from(courseMaterials)
-    .where(eq(courseMaterials.courseId, compatibilityCourseId));
-
-  const courseQuizzes = await db
-    .select({
-      id: quizTemplates.id,
-      title: quizTemplates.title,
-      category: quizTemplates.category,
-      visibility: quizTemplates.visibility,
-      status: quizTemplates.status,
-      selectionRules: quizTemplates.selectionRules,
-    })
-    .from(quizTemplates)
-    .where(and(eq(quizTemplates.courseId, compatibilityCourseId), eq(quizTemplates.status, "published"), ne(quizTemplates.category, "simulation")))
-    .orderBy(desc(quizTemplates.createdAt));
-
-  const courseTryouts = await db
-    .select({ id: exams.id, title: exams.title, settings: exams.settings })
-    .from(exams)
-    .where(and(eq(exams.courseId, compatibilityCourseId), eq(exams.type, "tryout"), eq(exams.status, "published")));
-
-  const completedQuizIds = new Set<string>();
-  if (studentId) {
-    try {
-      const userAttempts = await db.select({ templateId: studentQuizAttempts.templateId, status: studentQuizAttempts.status }).from(studentQuizAttempts).where(eq(studentQuizAttempts.studentId, studentId));
-      for (const a of userAttempts) if (a.status === "completed") completedQuizIds.add(a.templateId);
-    } catch (err) {
-      console.error("Error loading student quiz attempts:", err);
-    }
-  }
 
   function sanitizeMaterialTitle(rawTitle: string): string {
     const trimmed = rawTitle.replace(/^\[DRAF\]\s*/i, "").trim();

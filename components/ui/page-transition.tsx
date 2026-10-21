@@ -25,13 +25,13 @@ export function getTransitionConfig(pathname: string | null, reduceMotion: boole
 export function PageTransition({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const reduceMotion = Boolean(useReducedMotion());
-  const { duration, initialY } = getTransitionConfig(pathname, reduceMotion);
+  const { duration, initialY, isStudent } = getTransitionConfig(pathname, reduceMotion);
 
   return (
     <motion.div
       key={pathname}
       suppressHydrationWarning
-      initial={reduceMotion ? false : { opacity: 0, y: initialY }}
+      initial={reduceMotion || isStudent ? false : { opacity: 0, y: initialY }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration, ease: "easeOut" }}
       className="min-w-0"

@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { BookOpen, ArrowRight } from "lucide-react";
@@ -6,7 +7,8 @@ import { ChapterOutline } from "@/components/course/chapter-outline";
 import { CoursePrimaryActions } from "@/components/course/course-primary-actions";
 import { CourseAttentionStrip } from "@/components/course/course-attention-strip";
 import { EnrollmentForm } from "@/components/enrollment-form";
-import { createMetadata, pageTitle } from "@/lib/site";
+import { Skeleton } from "@/components/ui/skeleton";
+import { createMetadata } from "@/lib/site";
 import { getCourse, getCourseChapterOutline, getStudentCourseAccess } from "@/lib/course-utils";
 import { getAuthSession } from "@/lib/auth-session";
 import { getCourseOverviewData } from "@/lib/learning-analytics";
@@ -24,30 +26,85 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   });
 }
 
+function CourseOverviewHighlightsSkeleton() {
+  return (
+    <div
+      data-testid="course-overview-highlights-skeleton"
+      className="mb-6 grid grid-cols-3 divide-x divide-border/60 overflow-hidden rounded-xl border border-border/70 bg-card"
+    >
+      {[1, 2, 3].map((i) => (
+        <div key={i} className="flex min-w-0 items-center gap-2 p-2.5">
+          <Skeleton className="hidden size-7 shrink-0 rounded-lg sm:flex" />
+          <div className="min-w-0 flex-1 space-y-1.5">
+            <Skeleton className="h-4 w-16" />
+            <Skeleton className="h-3 w-24" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+async function CourseOverviewHighlights({
+  studentId,
+  courseId,
+  chapterOutline,
+}: {
+  studentId: string;
+  courseId: string;
+  chapterOutline: Awaited<ReturnType<typeof getCourseChapterOutline>>;
+}) {
+  const overviewData = await getCourseOverviewData(studentId, courseId, chapterOutline);
+  if (!overviewData) return null;
+
+  return (
+    <>
+      <CoursePrimaryActions
+        reading={overviewData.reading}
+        quiz={overviewData.quiz}
+        schedule={overviewData.schedule}
+        className="mb-6"
+      />
+      {overviewData.attention && (
+        <CourseAttentionStrip
+          attention={overviewData.attention}
+          className="mb-6"
+        />
+      )}
+    </>
+  );
+}
 
 export default async function CourseOverviewPage({ params }: Props) {
   const { id } = await params;
-  const course = await getCourse(id);
-  if (!course) return null;
 
-  const session = await getAuthSession();
+  // Run session check and course lookup concurrently while preserving strict auth priority.
+  const sessionPromise = getAuthSession();
+  const coursePromise = getCourse(id).then(
+    (data) => ({ ok: true as const, data }),
+    (err: unknown) => ({ ok: false as const, error: err }),
+  );
+
+  const session = await sessionPromise;
   const studentId = session?.user?.id;
   if (!studentId) {
     redirect(`/sign-in?next=${encodeURIComponent(`/courses/${id}`)}`);
   }
 
+  const courseResult = await coursePromise;
+  if (!courseResult.ok) {
+    throw courseResult.error;
+  }
+  const course = courseResult.data;
+  if (!course) return null;
+
   // Independent reads run together to keep TTFB low.
   const [studentAccess, chapterOutline] = await Promise.all([
-    studentId ? getStudentCourseAccess(studentId, id) : Promise.resolve(null),
+    getStudentCourseAccess(studentId, id),
     getCourseChapterOutline(id, studentId),
   ]);
   const isEnrolled = studentAccess?.tier === "standard";
   const hasCourseAccess = Boolean(studentAccess);
-
-  const overviewData =
-    studentId && isEnrolled
-      ? await getCourseOverviewData(studentId, id, chapterOutline)
-      : null;
 
   const jsonLd = {
     "@context": "https://schema.org",
@@ -100,22 +157,15 @@ export default async function CourseOverviewPage({ params }: Props) {
           </div>
         )}
 
-        {/* Primary learning actions: Dokumen, Kuis, Jadwal */}
-        {isEnrolled && overviewData && (
-          <CoursePrimaryActions
-            reading={overviewData.reading}
-            quiz={overviewData.quiz}
-            schedule={overviewData.schedule}
-            className="mb-6"
-          />
-        )}
-
-        {/* Attention strip: flashcards due or weak concepts needing practice */}
-        {isEnrolled && overviewData?.attention && (
-          <CourseAttentionStrip
-            attention={overviewData.attention}
-            className="mb-6"
-          />
+        {/* Primary learning actions and attention strip streamed via Suspense */}
+        {isEnrolled && (
+          <Suspense fallback={<CourseOverviewHighlightsSkeleton />}>
+            <CourseOverviewHighlights
+              studentId={studentId}
+              courseId={id}
+              chapterOutline={chapterOutline}
+            />
+          </Suspense>
         )}
 
         {/* Syllabus: the chapters and their materials, with progress */}
