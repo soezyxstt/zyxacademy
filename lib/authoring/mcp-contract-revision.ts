@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { V4_SCIENTIFIC_PROSE_POLICY } from "@/lib/math/unmarked-scientific";
 import { sourcePackManifestSchema } from "@/lib/authoring/source-pack";
 import { ideaBundleManifestSchema, learningSectionSchema } from "@/lib/bundle/idea-bundle-v2";
 import { ideaSchema, ideaProvenanceSchema, ideaRelationSchema } from "@/lib/ide/contracts";
@@ -32,6 +33,7 @@ export function authoringValidationSnapshot() {
   return {
     // shortcut: custom refinements are not representable in JSON Schema, bump the policy version when changing semantic validation.
     qualityPolicyVersion: QUALITY_POLICY_VERSION,
+    v4ScientificProsePolicy: V4_SCIENTIFIC_PROSE_POLICY,
     schemas: Object.fromEntries(Object.entries(schemas).map(([key, schema]) => [
       key, z.toJSONSchema(schema, { io: "input", unrepresentable: "any" }),
     ])),

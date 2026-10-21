@@ -1,3 +1,5 @@
+import { articlePartsSchema, collectArticleVisualIds, materializeArticleParts, validateArticlePartReferences } from "@/lib/materials/article-parts";
+import { authoredDiktatUnitsSchema, materializeAuthoredDiktat, prepareAuthoredDiktatVisuals, validateAuthoredDiktat } from "@/lib/materials/diktat-v4";
 import { createHash } from "node:crypto";
 import { z } from "zod";
 import { BundleValidationError, parseSchema, parseStrictJson, sha256Bytes } from "@/lib/bundle/validator";
@@ -84,7 +86,8 @@ export const productArticleV3BlockSchema = z.object({
   blockType: id,
   title: z.string().min(1).optional(),
   orderIndex: z.number().int().nonnegative(),
-  contentMarkdown: z.string().min(1),
+  contentMarkdown: z.string().default(""),
+  parts: articlePartsSchema.optional(),
   ideaIds: z.array(id).min(1),
   sourceRefs: z.array(productSourceRefSchema).min(1),
   visualIds: z.array(id).max(8).optional(),
@@ -118,7 +121,7 @@ export const productEntitySchema = z.discriminatedUnion("productType", [
     sections: z.array(productArticleV3SectionSchema).default([]),
     visuals: z.array(visualSpecSchema).default([]).optional(),
   }),
-  commonProduct.extend({ productType: z.literal("diktat"), title: z.string().min(1), contentMarkdown: z.string().min(1), sourceArticleId: id, sourceArticleVersion: positive, sourceArticleHash: hash }),
+  commonProduct.extend({ productType: z.literal("diktat"), title: z.string().min(1), contentMarkdown: z.string().min(1), sourceArticleId: id, sourceArticleVersion: positive, sourceArticleHash: hash, units: authoredDiktatUnitsSchema.optional() }),
   commonProduct.extend({ productType: z.literal("question"), questionType: z.enum(["multiple_choice", "multiple_choices", "short_answer", "essay"]), prompt: z.string().min(1), options: z.array(productQuestionOptionSchema), difficulty: z.enum(["easy", "medium", "hard"]), cognitiveLevel: z.enum(["remember", "understand", "apply", "analyze", "evaluate", "create"]), reasoningPattern: id, relationTypes: z.array(questionRelationTypeSchema).default([]), ideaRelations: z.array(productIdeaRelationSchema).default([]), itbSource: productItbSourceSchema, itbCuration: z.array(productItbCurationSchema).min(1) }),
   commonProduct.extend({ productType: z.literal("solution"), questionId: id, content: z.string().min(1) }),
   commonProduct.extend({ productType: z.literal("flashcard_set"), title: z.string().min(1), cards: z.array(id).min(1) }),
@@ -144,7 +147,7 @@ export type ProductDependency = z.infer<typeof productDependencySchema>;
 export const productBundleManifestSchema = z.object({
   bundleId: id,
   bundleType: z.literal("product"),
-  schemaVersion: z.enum(["product-bundle.v2", "product-bundle.v3"]),
+  schemaVersion: z.enum(["product-bundle.v2", "product-bundle.v3", "product-bundle.v4"]),
   courseId: id,
   entityFiles: z.array(z.object({ path: id, entityType: productBundleEntityTypeSchema, checksum: hash, stableIds: z.array(id) }).strict()).length(2),
   creatorId: id,
@@ -213,12 +216,13 @@ export function parseProductBundle(input: SecureZipArchive | ProductBundleFiles)
     };
     const products = readEntities("products", productEntitySchema);
     const dependencies = readEntities("dependencies", productDependencySchema);
+    if (manifest.schemaVersion === "product-bundle.v4" && (products.filter(product => product.productType === "article").length !== 1 || products.filter(product => product.productType === "diktat").length > 1)) return { success: false, issues: [issue("PRODUCT_V4_SINGLE_ARTICLE_REQUIRED", "V4 bundles contain one chapter Article and at most one traced Diktat")] };
     const productKeys = new Set<string>();
     const bundleSectionIds = new Set<string>();
     const bundleV3BlockIds = new Set<string>();
     for (const product of products) {
       if (
-        manifest.schemaVersion === "product-bundle.v3"
+        manifest.schemaVersion !== "product-bundle.v2"
         && (product.productType === "question" || product.productType === "solution" || product.productType === "assessment_blueprint")
       ) {
         return {
@@ -237,6 +241,27 @@ export function parseProductBundle(input: SecureZipArchive | ProductBundleFiles)
       const weightSum = product.ideaLinks.reduce((sum, link) => sum + link.weight, 0);
       if (Math.abs(weightSum - 1) > 0.000001) return { success: false, issues: [issue("PRODUCT_IDEA_WEIGHT_SUM_INVALID", `product ${product.id} Idea-link weights must sum to 1`)] };
       if (product.productType === "article") {
+        const isV4 = manifest.schemaVersion === "product-bundle.v4";
+        if (!isV4 && product.visuals?.some(visual => visual.kind === "geometry_2d" || visual.kind === "source_figure")) return { success: false, issues: [issue("PRODUCT_VISUAL_REQUIRES_V4", "Geometry and source figures require an explicit V4 bundle")] };
+        if (isV4 && (product.blocks.length > 0 || !product.sections.length)) return { success: false, issues: [issue("PRODUCT_ARTICLE_V4_SHAPE_INVALID", "V4 requires sections and ordered parts")] };
+        if (isV4 !== (product.schemaVersion === "article.v4")) return { success: false, issues: [issue("PRODUCT_ARTICLE_VERSION_MISMATCH", "V4 Articles require the V4 manifest and article.v4 schema")] };
+        const articleParts = product.sections.flatMap((section) => section.blocks.flatMap((block) => block.parts ?? []));
+        const partErrors = isV4 ? validateArticlePartReferences(articleParts, (product.visuals ?? []).map(visual => visual.id)) : [];
+        if (partErrors.length) return { success: false, issues: partErrors.map(code => issue(code, "V4 Article references must resolve in authoring order")) };
+        for (const block of product.sections.flatMap((section) => section.blocks)) {
+          if (isV4 && !block.parts) return { success: false, issues: [issue("PRODUCT_ARTICLE_PARTS_REQUIRED", `block ${block.id} requires ordered parts`)] };
+          if (!isV4 && !block.contentMarkdown.trim()) return { success: false, issues: [issue("PRODUCT_BLOCK_CONTENT_REQUIRED", `block ${block.id} requires contentMarkdown`)] };
+          if (!isV4 && block.parts) return { success: false, issues: [issue("PRODUCT_ARTICLE_PARTS_VERSION_INVALID", "Ordered parts require V4")] };
+          if (block.parts) {
+            const derived = materializeArticleParts(block.parts);
+            if (block.contentMarkdown && block.contentMarkdown !== derived) return { success: false, issues: [issue("PRODUCT_ARTICLE_PROJECTION_MISMATCH", `block ${block.id} contentMarkdown differs from parts`)] };
+            block.contentMarkdown = derived;
+            if (block.workedExamplePayload && block.parts.some(part => part.kind === "worked_example")) return { success: false, issues: [issue("PRODUCT_WORKED_EXAMPLE_CONFLICT", "V4 worked parts cannot also supply a legacy workedExamplePayload")] };
+            const refs = collectArticleVisualIds(block.parts);
+            if (refs.some((ref) => !product.visuals?.some((visual) => visual.id === ref))) return { success: false, issues: [issue("PRODUCT_BLOCK_VISUAL_REFERENCE_INVALID", `block ${block.id} references an unknown visual`)] };
+            block.visualIds = [...new Set(refs)];
+          }
+        }
         const isV2 = product.blocks.length > 0 && product.sections.length === 0;
         const isV3 = product.blocks.length === 0 && product.sections.length > 0;
         if (!isV2 && !isV3) {
@@ -470,6 +495,13 @@ export function parseProductBundle(input: SecureZipArchive | ProductBundleFiles)
     for (const product of products) {
       if (product.productType !== "diktat") continue;
       const sourceArticle = products.find((candidate) => candidate.productType === "article" && candidate.id === product.sourceArticleId && candidate.version === product.sourceArticleVersion);
+      if (manifest.schemaVersion === "product-bundle.v4") {
+        if (!sourceArticle || sourceArticle.productType !== "article") return { success: false, issues: [issue("DIKTAT_SOURCE_ARTICLE_REQUIRED", "V4 Diktat requires its source Article in the same bundle")] };
+        if (product.units) product.units = prepareAuthoredDiktatVisuals(product.units, sourceArticle.visuals ?? []);
+        const errors = validateAuthoredDiktat(sourceArticle, product);
+        if (errors.length) return { success: false, issues: errors.map((code) => issue(code, `V4 Diktat ${product.id} fails structural coverage`)) };
+        if (product.contentMarkdown !== materializeAuthoredDiktat(product.units!)) return { success: false, issues: [issue("DIKTAT_CONTENT_MISMATCH", "V4 Diktat Markdown must match its authored units")] };
+      } else if (product.units) return { success: false, issues: [issue("DIKTAT_UNITS_REQUIRE_V4", "Authored Diktat units require Product Bundle V4")] };
       if (sourceArticle && sourceArticle.generationHash !== product.sourceArticleHash) return { success: false, issues: [issue("PRODUCT_DIKTAT_LINEAGE_HASH_MISMATCH", `diktat ${product.id} does not match the referenced Article generation hash`)] };
       const lineageDependency = dependencies.find((dependency) =>
         dependency.upstreamEntityType === "product" &&
@@ -498,10 +530,11 @@ export function parseProductBundle(input: SecureZipArchive | ProductBundleFiles)
       }
       if (product.productType === "assessment_blueprint" && product.questionIds.some((questionId) => productById.get(questionId)?.productType !== "question")) return { success: false, issues: [issue("PRODUCT_ASSESSMENT_QUESTION_MISSING", `assessment ${product.id} references a missing question`)] };
     }
-    const blocked = dependencies.some((dependency) => dependency.freshness !== "UP_TO_DATE");
+    const v4Pilot = manifest.schemaVersion === "product-bundle.v4";
+    const blocked = v4Pilot || dependencies.some((dependency) => dependency.freshness !== "UP_TO_DATE");
     const checksum = computeProductBundleChecksum(manifest, files);
     if (checksum !== manifest.bundleChecksum) return { success: false, issues: [issue("PRODUCT_BUNDLE_CHECKSUM_MISMATCH", "bundle checksum does not match", "manifest.json")] };
-    return { success: true, data: { manifest, products, dependencies, files, checksum, publicationBlocked: blocked, issues: blocked ? [issue("PRODUCT_DEPENDENCY_NEEDS_REVIEW", "one or more product dependencies need review")] : [] } };
+    return { success: true, data: { manifest, products, dependencies, files, checksum, publicationBlocked: blocked, issues: v4Pilot ? [issue("PRODUCT_V4_VERIFICATION_REQUIRED", "V4 pilot drafts require the authored Diktat and trusted render verification gates before publication")] : blocked ? [issue("PRODUCT_DEPENDENCY_NEEDS_REVIEW", "one or more product dependencies need review")] : [] } };
   } catch (error) {
     const issueValue = error instanceof ProductValidationError ? error.issue : error instanceof BundleValidationError ? issue(error.code, error.message, error.path) : issue("PRODUCT_INVALID", error instanceof Error ? error.message : String(error));
     return { success: false, issues: [issueValue] };

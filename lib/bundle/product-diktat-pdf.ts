@@ -1,11 +1,14 @@
 import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
-import katex from "katex";
+import katex from "@/lib/math/katex";
+import { splitScientificText } from "@/lib/math/text-segments";
 import type { ProductEntity } from "./product-validator";
+import { materializeAuthoredDiktat, validateAuthoredDiktat } from "@/lib/materials/diktat-v4";
+import { renderDiktatStaticVisual, type DiktatSourceFigureAssets } from "@/lib/materials/diktat-static-visual";
 
 
-export const PRODUCT_DIKTAT_RENDERER_VERSION = "zyx-diktat-worker-v4";
+export const PRODUCT_DIKTAT_RENDERER_VERSION = "zyx-diktat-worker-v6";
 export const PRODUCT_DIKTAT_PRINT_PROFILE = "a4-self-study-readable-v3";
 
 export function buildSelfContainedKatexCss(): string {
@@ -25,12 +28,15 @@ type DiktatProduct = Extract<ProductEntity, { productType: "diktat" }>;
 export interface ProductDiktatRenderSource {
   article: ArticleProduct;
   diktat: DiktatProduct;
+  staticFigureAssets?: DiktatSourceFigureAssets;
 }
 
 export interface InspectedPdf {
   pageCount: number;
   text: string;
 }
+
+export { inspectDiktatPrintReadiness } from "@/lib/materials/diktat-print-readiness";
 
 /** Escapes authored text before inserting it into printable HTML. */
 function escapeHtml(value: string): string {
@@ -88,6 +94,7 @@ const WATERMARK_CSS = `
 
 /** Compiles the authored Diktat into a compact print layout. */
 export function compileProductDiktatHtml(source: ProductDiktatRenderSource): string {
+  if (source.article.schemaVersion === "article.v4" && !source.diktat.units) throw new Error("DIKTAT_UNITS_REQUIRED");
   if (
     source.diktat.sourceArticleId !== source.article.id ||
     source.diktat.sourceArticleVersion !== source.article.version ||
@@ -96,11 +103,36 @@ export function compileProductDiktatHtml(source: ProductDiktatRenderSource): str
     throw new Error("PRODUCT_DIKTAT_LINEAGE_MISMATCH");
   }
 
+  if (source.diktat.units) {
+    const errors = validateAuthoredDiktat(source.article, source.diktat);
+    if (errors.length) throw new Error(errors.join(":"));
+  }
   const title = escapeHtml(source.diktat.title);
-  const content = parseCanonicalDiktatMarkdownToHtml(withoutRepeatedDocumentHeading(source.diktat.contentMarkdown), source.diktat.title);
+  const markdown = source.diktat.units ? materializeAuthoredDiktat(source.diktat.units) : source.diktat.contentMarkdown;
+  const content = source.diktat.units
+    ? source.diktat.units.map((unit) => `<section class="diktat-unit">${unit.parts.map((part) => {
+      if (part.kind === "visual_ref") {
+        const visual = source.article.visuals?.find((visual) => visual.id === part.visualId);
+        if (!visual) throw new Error("DIKTAT_VISUAL_SOURCE_MISSING");
+        return renderDiktatStaticVisual(visual, source.staticFigureAssets) + parseCanonicalDiktatMarkdownToHtml(part.staticMarkdown, source.diktat.title);
+      }
+      const markerMap = new Map<string, string>();
+      const markdown = withoutRepeatedDocumentHeading(materializeAuthoredDiktat([{ ...unit, parts: [part] }])).replace(/<!-- visual:([^>]+) -->/g, (_marker, id: string) => {
+        const visual = source.article.visuals?.find((visual) => visual.id === id);
+        if (!visual) throw new Error("DIKTAT_VISUAL_SOURCE_MISSING");
+        const token = `ZYXSTATICVISUAL${markerMap.size}TOKEN`;
+        markerMap.set(token, renderDiktatStaticVisual(visual, source.staticFigureAssets));
+        return `\n\n${token}\n\n`;
+      });
+      let html = parseCanonicalDiktatMarkdownToHtml(markdown, source.diktat.title);
+      for (const [token, visualHtml] of markerMap) html = html.replace(`<p>${token}</p>`, visualHtml);
+      return html;
+    }).join("\n")}</section>`).join("\n")
+    : parseCanonicalDiktatMarkdownToHtml(withoutRepeatedDocumentHeading(markdown), source.diktat.title);
+  if (source.diktat.units && content.includes('class="katex-error"')) throw new Error("DIKTAT_MATH_RENDER_INVALID");
 
   return `<!doctype html>
-<html lang="id"><head><meta charset="utf-8"><title>${title}</title>
+<html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${title}</title>
 <style>${KATEX_CSS}
 ${WATERMARK_CSS}
 @page { size: A4; margin: 9mm 12mm 15mm; }
@@ -111,6 +143,10 @@ body { margin: 0; color: #172033; font-family: Arial, sans-serif; font-size: 10.
 .eyebrow { color: #b94c16; font-size: 7pt; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; }
 h1 { color: #172033; font-size: 15pt; line-height: 1.2; margin: 1mm 0 0; }
 .diktat { column-count: 2; column-gap: 7mm; }
+.diktat-unit { break-inside: avoid; }
+.diktat-static-visual { break-inside: avoid; margin: 2mm 0; }
+.diktat-static-visual figcaption { font-weight: 700; margin-bottom: 1mm; }
+.diktat:has(.diktat-unit) .diktat-header { column-span: all; }
 
 @media screen { .diktat { padding-top: 2mm; } }
 @media screen and (max-width: 600px) { .diktat { column-count: 1; } }
@@ -178,19 +214,15 @@ export function parseCanonicalDiktatMarkdownToHtml(markdown: string, documentTit
     return id;
   }
 
-  // 1. Protect and pre-render block equations: $$ ... $$ and \[ ... \]
-  let text = markdown
-    .replace(/\\\[\s*([\s\S]*?)\s*\\\]/g, (_m, eq) => storeMath(eq, true))
-    .replace(/\$\$([\s\S]+?)\$\$/g, (_m, eq) => storeMath(eq, true));
-
-  // 2. Protect and pre-render inline equations: \( ... \) and $ ... $
-  text = text
-    .replace(/\\\(\s*([\s\S]*?)\s*\\\)/g, (_m, eq) => storeMath(eq, false))
-    .replace(/\$([^\$\n]+?)\$/g, (orig, eq) => {
-      const trimmed = eq.trim();
-      if (!trimmed) return orig;
-      return storeMath(trimmed, false);
-    });
+  const text = splitScientificText(markdown).map((segment) => {
+    if (segment.type === "math") return storeMath(segment.value, segment.display);
+    if (segment.type === "text") return segment.value.replace(/\\\$/g, "$");
+    const id = `%%ZYXMATH${tokenCounter++}%%`;
+    mathMap.set(id, segment.display
+      ? `<pre><code>${escapeHtml(segment.value)}</code></pre>`
+      : `<code class="inline-code">${escapeHtml(segment.value)}</code>`);
+    return id;
+  }).join("");
 
   function formatInline(str: string): string {
     const html = escapeHtml(str)

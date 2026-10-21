@@ -4,6 +4,7 @@ import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { hasAnyPeran } from "@/lib/auth/authorization";
 import { executePedagogicReview } from "@/lib/bundle/product-pedagogic-review";
+import { productV4ReviewContextShape } from "@/lib/bundle/product-v4-review";
 import {
   pedagogicRubricItemSchema,
   pedagogicExceptionSchema,
@@ -13,6 +14,7 @@ export const runtime = "nodejs";
 
 const pedagogicReviewRequestSchema = z
   .object({
+    ...productV4ReviewContextShape,
     decision: z.enum(["approved", "rejected", "changes_requested"]),
     policyVersion: z.string().trim().min(1).optional(),
     contentFingerprint: z.string().trim().min(1).optional(),

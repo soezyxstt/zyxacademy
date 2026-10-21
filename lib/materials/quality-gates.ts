@@ -58,17 +58,6 @@ function isFormulaBearing(block: { blockType: ArticleBlockType; content: string 
   return block.blockType === "mathematical_representation" || /\$\$|(?<!\\)\$[^$]+\$|\\\[[\s\S]+?\\\]/u.test(block.content);
 }
 
-function isStandaloneDisplayMath(value: string): boolean {
-  const trimmed = value.trim();
-  if (!trimmed) return false;
-  const remainder = trimmed
-    .replace(/\$\$[\s\S]*?\$\$/g, "")
-    .replace(/\\\[[\s\S]*?\\\]/g, "")
-    .replace(/^\s*(?:[-*+]\s*|\d+\.\s*)/gm, "")
-    .trim();
-  return remainder.length === 0 && /\$\$[\s\S]*?\$\$|\\\[[\s\S]*?\\\]/.test(trimmed);
-}
-
 function proseWordCount(value: string): number {
   return value
     .replace(/\$\$[\s\S]*?\$\$/g, " ")
@@ -207,10 +196,9 @@ function evaluateArticleQualityV3(article: ArticleDocument, context: ArticleQual
       issues.push(issue("ARTICLE_TOPIC_WORD_COUNT_EXCEEDED", `topic section ${topic.id} exceeds maximum 1500 words (${topicWords} words)`, { blockId: topic.id, ideaId: topic.ideaIds[0] }));
     }
     const proseWords = topic.blocks
-      .filter((block) => block.blockType !== "mathematical_representation")
       .reduce((sum, block) => sum + proseWordCount(block.content), 0);
     if (proseWords > 700) {
-      issues.push(issue("ARTICLE_TOPIC_PROSE_DENSITY_HIGH", `topic section ${topic.id} contains ${proseWords} prose words outside formula blocks; separate and condense the explanation`, { blockId: topic.id, ideaId: topic.ideaIds[0] }));
+      issues.push(issue("ARTICLE_TOPIC_PROSE_DENSITY_HIGH", `topic section ${topic.id} contains ${proseWords} prose words outside mathematical notation; condense the explanation`, { blockId: topic.id, ideaId: topic.ideaIds[0] }));
     }
   }
 
@@ -228,9 +216,6 @@ function evaluateArticleQualityV3(article: ArticleDocument, context: ArticleQual
     const factual = ["explanation", "verbal_representation", "mathematical_representation", "worked_example", "misconception", "application", "cross_idea_synthesis", "summary"].includes(block.blockType);
     if (factual && (!block.ideaIds.length || !block.sourceRefs.length)) issues.push(issue("ARTICLE_SOURCE_TRACE_MISSING", "factual blocks require Idea and source references", { blockId: block.id }));
     if (isFormulaBearing(block) && (!block.ideaIds.length || !block.sourceRefs.length)) issues.push(issue("ARTICLE_FORMULA_TRACE_MISSING", "formula-bearing blocks require Idea and source references", { blockId: block.id }));
-    if (block.blockType === "mathematical_representation" && !isStandaloneDisplayMath(block.content)) {
-      issues.push(issue("ARTICLE_FORMULA_PROSE_MIXED", "mathematical representation blocks must contain standalone display math; put symbols, conditions, and meaning in a separate verbal block", { blockId: block.id }));
-    }
     if (hasUnwrappedLatex(block.content)) {
       issues.push(issue("ARTICLE_RAW_LATEX_UNWRAPPED", "raw LaTeX commands must be wrapped in math delimiters", { blockId: block.id }));
     }

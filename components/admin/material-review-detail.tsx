@@ -55,6 +55,7 @@ import {
   type PublicSectionReadModel,
 } from "@/lib/articles/structured-read-model";
 import { explainBundleError } from "@/lib/bundle/admin-errors";
+import { ProductV4ReviewForm, type ProductV4AdminReviewContext, type ProductV4AdminReviewInput } from "@/components/admin/product-v4-review-form";
 import { ProductDraftEditor } from "@/components/admin/product-draft-editor";
 import type { PedagogicCriterionId } from "@/lib/materials/quality-policy";
 import type { ProductPreview } from "@/lib/bundle/product-preview";
@@ -197,6 +198,7 @@ export type ProductDetailPayload = {
   pdfStatus?: PdfEvidenceState;
   blockingIssues?: QualityIssue[];
   revisionFreshness?: RevisionFreshnessState;
+  v4ReviewContext?: ProductV4AdminReviewContext | null;
 };
 
 type IdeaDraftItem = IdeaPreview["ideas"][number] & {
@@ -2293,6 +2295,7 @@ function ProductBundleMetadataPanel({
 export function ProductBundleReviewDetail({ detailId, courseLabels = {}, backHref, backLabel, showBackButton = true }: DetailProps) {
   const router = useRouter();
   const [payload, setPayload] = useState<ProductDetailPayload | null>(null);
+  const [v4ReviewInput, setV4ReviewInput] = useState<ProductV4AdminReviewInput | null>(null);
   const [draftProducts, setDraftProducts] = useState<ProductEntity[]>([]);
   const [activeType, setActiveType] = useUrlTab("productType", "all");
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
@@ -2317,6 +2320,7 @@ export function ProductBundleReviewDetail({ detailId, courseLabels = {}, backHre
       const nextPayload = await response.json() as ProductDetailPayload & { error?: string };
       if (!response.ok || !nextPayload.bundle) throw new Error(nextPayload.error || "PRODUCT_BUNDLE_DETAIL_FAILED");
       setPayload(nextPayload);
+      setV4ReviewInput(null);
       setDraftProducts(nextPayload.draft?.products ?? []);
       setEditing(false);
       setSelectedProductId((current) => nextPayload.previews.some((preview) => preview.id === current) ? current : nextPayload.previews[0]?.id ?? null);
@@ -2352,6 +2356,7 @@ export function ProductBundleReviewDetail({ detailId, courseLabels = {}, backHre
           reason: reviewNote.trim() || undefined,
           expectedRevision: payload.bundle.checksum,
           contentFingerprint: payload.revisionFreshness?.currentFingerprint,
+          ...(payload.v4ReviewContext ? v4ReviewInput?.request : {}),
         }),
       });
       const result = await response.json() as { error?: string };
@@ -2715,6 +2720,8 @@ export function ProductBundleReviewDetail({ detailId, courseLabels = {}, backHre
 
       {payload.bundle.status === "draft" && <BundleReadinessPanel payload={payload} onRefresh={load} />}
 
+      {payload.bundle.status === "draft" && payload.v4ReviewContext ? <ProductV4ReviewForm key={`${payload.bundle.checksum}:${payload.v4ReviewContext.verificationReceiptSignature ?? "pending"}`} context={payload.v4ReviewContext} onChange={setV4ReviewInput} /> : null}
+
       {/* Review Actions Sticky Footer */}
       <section className="sticky bottom-0 z-50 rounded-xl border border-border bg-card p-3 shadow-lg space-y-2 md:static md:z-auto md:p-4 md:space-y-3">
         {/* Block Review Summary Strip */}
@@ -2802,7 +2809,7 @@ export function ProductBundleReviewDetail({ detailId, courseLabels = {}, backHre
                 >
                   Tolak
                 </Button>
-                <Button type="button" size="sm" disabled={saving} onClick={() => void decide("approved")}>
+                <Button type="button" size="sm" disabled={saving || (draftProducts.some((product) => product.productType === "article" && product.schemaVersion === "article.v4") && !v4ReviewInput?.ready)} onClick={() => void decide("approved")}>
                   <Check className="size-3.5" />Setujui bundle
                 </Button>
               </>

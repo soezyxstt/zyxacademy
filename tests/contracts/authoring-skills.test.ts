@@ -6,8 +6,9 @@ import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/
 import { unzipSync } from "fflate";
 import { registerAuthoringSkills } from "../../lib/authoring/mcp-skills";
 import { loadSkillCatalog, safeSkillPath, skillDigest, validateSkillEntry, type SkillCatalogProfile } from "../../lib/authoring/skill-catalog";
-import { buildSkillArtifact, parseSkillFrontmatter } from "../../scripts/build-authoring-skills";
+import { buildSkillArtifact, localSkillSourceDigest, parseSkillFrontmatter } from "../../scripts/build-authoring-skills";
 import { smokeAuthoringSkills } from "../../scripts/smoke-authoring-skills";
+import { evaluatePlaybookCompatibility } from "../../lib/authoring/mcp-playbook";
 
 mkdirSync(resolve("artifacts/authoring-skills-tests"), { recursive: true });
 const temporary = mkdtempSync(resolve("artifacts/authoring-skills-tests", "run-"));
@@ -25,9 +26,9 @@ const root = resolve(temporary, "artifact");
 const provenance = { repository: "https://github.com/soezyxstt/zyx-authoring-mcp.git", commit: "a".repeat(40), environment: "staging" as const };
 const manifest = buildSkillArtifact(source, root, provenance);
 
-async function rpc(profile: SkillCatalogProfile, method: string, params: object = {}) {
+async function rpc(profile: SkillCatalogProfile, method: string, params: object = {}, artifactRoot = root, environment?: "local" | "staging" | "production") {
   const server = new McpServer({ name: "skills-test", version: "1.0.0" });
-  registerAuthoringSkills(server, profile, root);
+  registerAuthoringSkills(server, profile, artifactRoot, environment);
   const transport = new WebStandardStreamableHTTPServerTransport({ sessionIdGenerator: undefined, enableJsonResponse: true });
   await server.connect(transport);
   try {
@@ -97,7 +98,6 @@ describe("authoring skills distribution", () => {
     }
     expect((await rpc("chatgpt", "skills/get", { uri: manifest.catalogs.all[0].uri })).error.code).toBe(-32602);
     for (const cursor of ["-1", "NaN", "1", "999", "05", ""]) {
-      if (!cursor) continue;
       expect((await rpc("all", "skills/list", { cursor })).error.code).toBe(-32602);
     }
     for (const path of ["../secret", "/secret", "x\\secret", "x/%2e%2e", "x/./a", "x//a", "x/a.", "x/a?b", "x/cafe\u0301"]) expect(() => safeSkillPath(root, path)).toThrow();
@@ -164,4 +164,36 @@ describe("authoring skills distribution", () => {
     expect(actual.entries.length).toBeGreaterThan(5);
     expect(loadSkillCatalog(resolve("dist/skills"), "chatgpt").entries.length).toBeLessThanOrEqual(5);
   });
+
+  it("builds and serves the real local V4 skills, rejecting candidate serving in deployed environments", async () => {
+    const candidateSource = resolve("plugins/zyx-authoring-mcp");
+    const candidateRoot = resolve(temporary, "v4-candidate");
+    const candidate = buildSkillArtifact(candidateSource, candidateRoot, {
+      kind: "local-candidate", repository: "workspace:plugins/zyx-authoring-mcp", baseCommit: "b".repeat(40),
+      digest: localSkillSourceDigest(candidateSource), environment: "staging",
+    });
+    expect(candidate.catalogs.all).toHaveLength(6);
+    const product = loadSkillCatalog(candidateRoot, "all").resources.get("skill://zyx-authoring/all/zyx-product-bundle-mcp/SKILL.md")!.text!;
+    for (const required of ["product-bundle.v4", "math_unit", "visual_ref", "workflow.get_contract", "receipt tepercaya", "0.4.0"]) expect(product).toContain(required);
+    expect(candidate.source).toHaveProperty("kind", "local-candidate");
+    const release = JSON.parse(readFileSync(resolve(candidateSource, "release.json"), "utf8"));
+    expect(evaluatePlaybookCompatibility({ bootstrapProtocol: release.bootstrapProtocol, pluginVersion: release.version, stage: "product", clientCapabilities: { independentSubagents: true, localArtifactFiles: true, pdfRendering: false } }).status).toBe("compatible");
+    expect((await rpc("all", "skills/list", {}, candidateRoot, "staging")).error).toBeDefined();
+    for (const profile of ["all", "chatgpt"] as const) {
+      const entries = candidate.catalogs[profile];
+      expect((await rpc(profile, "skills/list", {}, candidateRoot, "local")).result.skills).toEqual(entries.slice(0, 5));
+      for (const entry of entries) {
+        expect((await rpc(profile, "skills/get", { uri: entry.uri }, candidateRoot, "local")).result.skill).toEqual(entry);
+        for (const resource of entry.resources) {
+          const content = (await rpc(profile, "resources/read", { uri: resource.uri }, candidateRoot, "local")).result.contents[0];
+          expect(skillDigest(Buffer.from(content.text))).toBe(resource.digest);
+        }
+      }
+    }
+    const before = localSkillSourceDigest(source);
+    const changed = resolve(source, "skills", names[0], "references", "evidence.bin");
+    const bytes = readFileSync(changed);
+    try { writeFileSync(changed, "changed"); expect(localSkillSourceDigest(source)).not.toBe(before); }
+    finally { writeFileSync(changed, bytes); }
+  }, 30000);
 });

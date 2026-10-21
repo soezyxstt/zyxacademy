@@ -135,6 +135,7 @@ https://<zyx-origin>/api/mcp/authoring
 
 ### Optional ; Production Services
 - `DIKTAT_RENDERER_URL`, `DIKTAT_RENDERER_SECRET` ; Puppeteer PDF service
+- `AUTHORING_VERIFICATION_RENDERER_URL`, `AUTHORING_VERIFICATION_RENDERER_SECRET` ; private V4 browser/PDF verification service, separate from the existing PDF renderer
 - `NEXT_PUBLIC_REALTIME_URL`, `LIVE_HMAC_SECRET` ; Live quiz Worker
 - `WHATSAPP_ADMIN_NUMBER` ; Admin WhatsApp notifications
 - `NEXT_PUBLIC_WHATSAPP_NUMBER` ; Public browser WhatsApp number for paid and Custom plan CTAs. Required to enable those links; if absent, the CTAs stay disabled or hidden. It is not a fallback for admin notifications.
@@ -396,3 +397,9 @@ The compute reader caches results at `overhaul/pdf-page-cache/{documentSha256}/{
 Stage logs are JSON with `event: "source.read_file"`, `requestId`, `stage`, `status`, and completed-stage `durationMs`. Stages cover source fetch, parser info/text, render, cache, persisted output, MCP formatting, and transport response preparation. `started` identifies a stage still running when the connection ends. `send.transport` measures server response preparation, not client receipt. Pending responses expose the processing request ID for worker correlation. The internal synchronous RPC still has a 15-second request budget; timeouts map to `SOURCE_READ_TIMEOUT`, not invalid arguments. MCP page reads use the job path and do not hold this RPC connection open.
 
 For the original file, call `source.read_file` with `mode: "download"` and save its payload to an ignored local descriptor JSON file. Run `bun scripts/download-source-pdf.ts descriptor.json output.pdf`. The client stores a `.part` file and `.resume.json` containing ETag, total size, and checksum, without persisting the signed URL. It downloads in 1 MiB HTTP Range chunks, validates Content-Range and ETag, and verifies SHA-256 when known. After interruption, rerun the command. After URL expiry, request a new descriptor for the same source and rerun. Changed sources or an existing destination are rejected. A client without binary download support continues using page reads and job polling. Remote R2 Range behavior and Inngest registration require separate deployment verification.
+
+### Local V4 verification
+
+V4 uses JSXGraph, KaTeX/mhchem, pinned `pdfjs-dist` and `@napi-rs/canvas`. Local browser verification uses installed Playwright Chromium. Deployment uses the existing Deno worker and Cloudflare Browser Run over CDP, with its browser version bound to the plan. PDF page evidence uses the existing PDF parser and needs no Poppler. Keep the traced source closure, package manifests, KaTeX assets and PDF standard fonts available.
+
+Build the private renderer with `bun scripts/authoring/build-local-verification-renderer.ts`; start its emitted Node module against the authorized local web server as described in [the runbook](operations/authoring-mcp-skills.md). Supply `AUTHORING_VERIFICATION_RENDERER_SECRET` only through the environment. `bun scripts/authoring/verify-local-v4.ts --renderer http://127.0.0.1:3101` exercises a synthetic canonical ZIP and local storage ports, saving evidence under ignored `artifacts/authoring-verification/local-run/`. It performs no deployment or remote storage mutation. SQLite boundary tests and MCP transport tests exercise their separate boundaries.

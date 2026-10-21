@@ -24,14 +24,18 @@ export function evaluateFunctionPlot(
   spec: FunctionPlotCanvas,
   values: Record<string, number> = {},
   expressionOverrides: Record<string, string> = {},
+  viewport?: { min: number; max: number; sampleCount?: number },
 ): EvaluatedSeries[] {
+  const min = Math.max(spec.domain.min, viewport?.min ?? spec.domain.min);
+  const max = Math.min(spec.domain.max, viewport?.max ?? spec.domain.max);
+  if (!(min < max)) return spec.series.map(({ id, label }) => ({ id, label, points: [] }));
   const variableDefaults = defaultValues(spec.variables);
   const variables = Object.fromEntries(spec.variables.map((variable) => [
     variable.id,
     boundedValue(values[variable.id] ?? variableDefaults[variable.id], variable),
   ]));
-  const sampleCount = Math.min(400, Math.max(2, spec.domain.sampleCount));
-  const step = (spec.domain.max - spec.domain.min) / (sampleCount - 1);
+  const sampleCount = Math.min(400, Math.max(2, viewport?.sampleCount ?? spec.domain.sampleCount));
+  const step = (max - min) / (sampleCount - 1);
 
   return spec.series.map((series) => {
     let compiled: ReturnType<typeof compileSafeExpression> | null = null;
@@ -44,7 +48,7 @@ export function evaluateFunctionPlot(
     }
     const points: PlotPoint[] = [];
     for (let index = 0; index < sampleCount; index += 1) {
-      const x = spec.domain.min + index * step;
+      const x = min + index * step;
       if (!compiled) {
         points.push({ x, y: null });
         continue;
@@ -76,7 +80,7 @@ export function evaluateFunctionPlot(
     }
     const excludedX = [...(series.excludedX ?? []), ...(spec.pointMarkers ?? []).filter(marker => marker.seriesId === series.id && marker.kind === "open").map(marker => marker.x)];
     for (const x of excludedX) {
-      if (x < spec.domain.min || x > spec.domain.max) continue;
+      if (x < min || x > max) continue;
       const point = points.find(point => point.x === x);
       if (point) point.y = null;
       else points.push({ x, y: null });

@@ -1,6 +1,6 @@
 {
   "name": "zyx-authoring-mcp-staging",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Author staging Zyx content through MCP quality gates.",
   "author": {
     "name": "Zyx Academy"

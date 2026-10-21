@@ -1,4 +1,4 @@
-import katex from "katex";
+import katex from "@/lib/math/katex";
 
 /**
  * Validates a string and compiles any LaTeX math blocks with KaTeX to verify syntax validity.

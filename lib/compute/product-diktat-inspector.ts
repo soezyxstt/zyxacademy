@@ -105,7 +105,10 @@ export async function generateProductDiktatPdfEvidence(input: {
   });
 
   try {
-    const html = compileProductDiktatHtml({ article, diktat });
+    const staticFigureAssets = article.schemaVersion === "article.v4"
+      ? await (await import("./product-v4-runtime-binding")).loadProductV4StaticFigureAssets(bundle)
+      : undefined;
+    const html = compileProductDiktatHtml({ article, diktat, staticFigureAssets });
     const bytes = await (input.renderer ?? renderProductDiktatPdf)(html);
     const inspection = await inspectProductDiktatPdf(bytes).catch((error) => {
       console.error("Product Diktat PDF inspection failed:", error instanceof Error ? error.message : String(error));

@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { MathText } from "@/components/course/math-text";
 import { cn } from "@/lib/utils";
 import { MarkdownRenderer, type MarkdownDensity } from "@/components/course/markdown-renderer";
 import type { ASTBlock } from "@/lib/ast-validator";
@@ -60,7 +61,7 @@ export function ArticleReadingCanvas({
               <React.Fragment key={idx}>
                 {idx > 0 && <span>&rarr;</span>}
                 <span className={cn(isLast && "text-foreground font-semibold")}>
-                  {item}
+                  <MathText className="normal-case">{item}</MathText>
                 </span>
               </React.Fragment>
             );
@@ -68,16 +69,16 @@ export function ArticleReadingCanvas({
         </div>
       ) : hasBreadcrumb ? (
         <div className="flex items-center gap-1.5 text-body-xs text-muted-foreground mb-1 select-none font-medium flex-wrap">
-          {courseTitle && <span>{courseTitle}</span>}
+          {courseTitle && <span><MathText className="normal-case">{courseTitle}</MathText></span>}
           {courseTitle && (chapterTitle || sectionTitle) && <span>&rarr;</span>}
           {chapterTitle && (
             <span className={cn(!sectionTitle && "text-foreground font-semibold")}>
-              {chapterTitle}
+              <MathText className="normal-case">{chapterTitle}</MathText>
             </span>
           )}
           {chapterTitle && sectionTitle && <span>&rarr;</span>}
           {sectionTitle && (
-            <span className="text-foreground font-semibold">{sectionTitle}</span>
+            <span className="text-foreground font-semibold"><MathText className="normal-case">{sectionTitle}</MathText></span>
           )}
         </div>
       ) : null}
@@ -85,7 +86,7 @@ export function ArticleReadingCanvas({
       {/* Chapter Title */}
       {chapterTitle && (
         <h1 className="text-h5 font-bold text-primary font-heading tracking-tight mt-1 mb-2">
-          {chapterTitle}
+          <MathText className="normal-case">{chapterTitle}</MathText>
         </h1>
       )}
 
@@ -97,7 +98,7 @@ export function ArticleReadingCanvas({
               key={tag}
               className="bg-primary/5 text-primary text-body-xs font-semibold px-2 py-0.5 rounded-md"
             >
-              {tag}
+              <MathText className="normal-case">{tag}</MathText>
             </span>
           ))}
         </div>
@@ -111,7 +112,7 @@ export function ArticleReadingCanvas({
       {/* Section heading below divider */}
       {sectionTitle && (
         <h2 className="font-heading text-body-sm font-semibold uppercase tracking-wide text-muted-foreground mb-2">
-          {sectionTitle}
+          <MathText className="normal-case">{sectionTitle}</MathText>
         </h2>
       )}
 

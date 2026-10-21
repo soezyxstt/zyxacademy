@@ -75,12 +75,22 @@ Never embed executable JavaScript, raw HTML, raw `<svg>`, `<iframe>`, or remote 
 - Worked examples are conditional: use one when a procedure, strategy choice, application, or verification needs a concrete case. Misconceptions and limits are conditional: include them when a predictable error, domain restriction, ambiguity, or source conflict changes understanding or correctness. Do not manufacture examples, traps, applications, or visuals to fill a template, page count, or word target.
 - When an optional block is omitted, update all explanation, formative-check, support, and visual references to avoid dangling IDs. Diktat must not reintroduce examples or misconceptions that the Article deliberately omitted as irrelevant.
 
-### Formula-first presentation
+### Formula and explanation sequence
 
-- After a short orientation, put mathematical relations in `mathematical_representation` blocks as separate display math (`$$...$$`). These blocks contain formulas only, with no prose on the delimiter line or after the closing delimiter.
-- Explain symbols, domain, assumptions, validity conditions, and meaning in separate verbal blocks before students use them. Avoid repeated boilerplate labels and do not repeat the same formula in every explanatory sentence.
+- Put each core relation in display math on its own delimiter lines. Introduce its symbols and explain its meaning, domain, assumptions, and validity conditions immediately before or after it. A `mathematical_representation` block may include this prose; use adjacent verbal blocks only when the reading sequence stays clear.
+- Explain one relation before introducing the next independent relation. Keep derivation steps together with their reasons. Use short formula lists only for intentional comparisons whose labels and conditions are locally clear.
 - Reviewers must flag formulas hidden only in prose, raw unrendered LaTeX, undefined symbols, missing conditions, and paragraphs mixing several mathematical decisions. Use only fields and semantic tokens supported by the active contract, never raw HTML, CSS, executable expressions, SVG, or remote embeds.
-- Report prose words per topic, formula block count, mixed formula block count, and typed visual count. These metrics identify readability problems; they are not targets that justify filler.
+- Typeset mathematical symbols and expressions in prose, control labels, diagram nodes, legends and table cells with supported math delimiters. Formula-only fields contain bare LaTeX. Do not substitute Unicode or ASCII approximations for mathematical typesetting. Keep ordinary prose outside math delimiters.
+- Write scientific quantities with a coefficient and power of ten, such as `$1.7\times10^{-5}$`, instead of learner-visible `1.7e-5`. Use supported `\pu{}` for units and `\ce{}` for chemical formulas or reactions. Preserve significant figures from the source, and verify subscripts, superscripts, signs and unit dimensions in the actual rendered output.
+- Report prose words per topic, formula block count, mixed formula block count, and typed visual count. Mixed formula/prose is descriptive, not a failure; inspect whether each relation has a readable local explanation. Metrics never justify filler.
+
+### Representation decisions and verification
+
+- Before drafting, record outside the ZIP: objective, relationship to understand, prerequisite, chosen representation, reason, learner action, expected observation, formative check, and source anchors. Choose prose, annotated mathematics, a static visual, or an interaction according to what the learner must understand.
+- Use a visual when shape, spatial relation, comparison, or parameter change materially explains the objective. For an interaction, state what becomes clearer after the learner changes a parameter. Record a specific reason when no visual is needed; slider count is not evidence of quality.
+- For epsilon-delta, distinguish the input neighborhood around $c$ from output tolerance around $L$. Explain the bands $c \pm \delta$ and $L \pm \varepsilon$, show successful and failing choices, and keep $L$ consistent with the function and approach point unless deliberately teaching a false limit claim.
+- Verify the supported function model analytically over the declared domain and parameter range. Test nonlinear cases, domain boundaries, and strict inequalities; sampling illustrates behavior but does not prove the epsilon-delta implication. Scale delta with epsilon only when justified by a valid model-specific bound.
+- Inspect the exact final learner render and each changed interaction state. Record hash, state, expected/observed result, and evidence location as `PASS`, `FAIL`, `NOT_APPLICABLE`, or `NOT_TESTED`. A schema pass or reviewer claim alone does not establish mathematical, browser, or PDF correctness.
 
 ### Review sheet and PDF evidence
 

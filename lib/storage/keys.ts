@@ -92,6 +92,11 @@ export function buildSourceReadJobKey(jobId: string, pageNumber?: number): strin
   return joinKey("overhaul", "source-read-jobs", jobId, pageNumber === undefined ? "request.json" : `page-${pageNumber}.json`);
 }
 
+export function buildSourceFigureKey(input: { courseId: string; materialId: string; assetId: string; leaf: "manifest.json" | "preview.png" | "print.png" | "request.json" | "state.json" }) {
+  if (!/^[a-f0-9]{64}$/.test(input.assetId)) throw new Error(INVALID_OBJECT_KEY);
+  return joinKey("courses", slugifySegment(input.courseId), "source-figures", slugifySegment(input.materialId), input.assetId, input.leaf);
+}
+
 export function buildSourceFileMetadataKey(fingerprint: string): string {
   if (!/^[a-f0-9]{64}$/.test(fingerprint)) throw new Error(INVALID_OBJECT_KEY);
   return joinKey("overhaul", "source-file-metadata", `${fingerprint}.json`);
@@ -383,6 +388,11 @@ export function buildCourseVideoThumbnailKey(params: {
     "thumbnails",
     userFileLeaf(params.filename),
   );
+}
+
+export function buildProductVerificationKey(planHash: string, leaf = "manifest.json"): string {
+  if (!/^[a-f0-9]{64}$/.test(planHash) || !/^(manifest|receipt|state)(-[a-f0-9-]{36})?\.json$|^artifact-([a-f0-9-]{36}-)?[a-f0-9]{64}-\d+\.(png|pdf|json)$/.test(leaf)) throw new Error("INVALID_VERIFICATION_KEY");
+  return joinKey("overhaul", "product-verification", planHash, leaf);
 }
 
 

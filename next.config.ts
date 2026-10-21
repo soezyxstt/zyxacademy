@@ -1,11 +1,27 @@
 import type { NextConfig } from "next";
+import { existsSync, readFileSync } from "node:fs";
+
+const webRuntimePath = `${process.cwd()}/artifacts/authoring-verification/web-runtime.json`;
 
 const nextConfig: NextConfig = {
-  serverExternalPackages: ["puppeteer", "katex"],
+  env: { NEXT_PUBLIC_V4_WEB_RUNTIME: existsSync(webRuntimePath) ? readFileSync(webRuntimePath, "utf8") : "" },
+  serverExternalPackages: ["puppeteer", "@napi-rs/canvas", "pdfjs-dist", "pdf-parse"],
   outputFileTracingIncludes: {
     "/api/**": [
       "./node_modules/katex/dist/**",
       "./node_modules/katex/package.json",
+      "./node_modules/pdfjs-dist/{package.json,standard_fonts/**}", "./node_modules/@napi-rs/canvas*/**",
+      "./lib/{authoring,materials,math,bundle,compute,articles,zyra,ide,sumber}/**/*.ts",
+      "./lib/question-authoring-contract.ts", "./lib/authoring/playbooks/**/*",
+      "./next.config.ts", "./scripts/authoring/prepare-web-verification.ts",
+      "./deno.json", "./workers/deno-background/deno.json",
+      "./components/course/**/*.tsx", "./components/ui/{slider,scientific-input}.tsx",
+      "./app/globals.css", "./app/layout.tsx", "./app/authoring-verification/page.tsx",
+      "./components/providers/{telemetry-boundary,posthog-provider}.tsx", "./lib/env.ts",
+      "./app/api/courses/**/source-figures/**/route.ts", "./jobs/product-verification.ts", "./scripts/authoring/{verification-renderer,build-local-verification-renderer}.ts",
+      "./node_modules/{react,react-dom,next,jsxgraph,zod,mathjs,tailwindcss,playwright-core}/package.json",
+      "./node_modules/playwright-core/browsers.json", "./node_modules/@tailwindcss/postcss/package.json", "./node_modules/@playwright/test/package.json",
+      "./node_modules/jsxgraph/distrib/**",
     ],
     "/api/mcp/authoring": ["./lib/authoring/playbooks/**/*", "./dist/skills/**/*"],
   },

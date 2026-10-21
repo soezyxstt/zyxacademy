@@ -122,11 +122,12 @@ describe("authoring MCP bootstrap token, compatibility matrix, and drift checks 
   it("evaluates protocol, version, and capability compatibility accurately", () => {
     const okStatus = evaluatePlaybookCompatibility({
       bootstrapProtocol: AUTHORING_MCP_BOOTSTRAP_PROTOCOL,
-      pluginVersion: "0.3.0",
+      pluginVersion: "0.4.0",
       stage: "product",
       clientCapabilities: fullCapabilities,
     });
     expect(okStatus.status).toBe("compatible");
+    expect(evaluatePlaybookCompatibility({ stage: "common", pluginVersion: "0.3.0" }).status).toBe("warning");
 
     const olderCompatible = evaluatePlaybookCompatibility({
       bootstrapProtocol: AUTHORING_MCP_BOOTSTRAP_PROTOCOL,
@@ -139,7 +140,7 @@ describe("authoring MCP bootstrap token, compatibility matrix, and drift checks 
 
     const unsupportedProtocol = evaluatePlaybookCompatibility({
       bootstrapProtocol: 99,
-      pluginVersion: "0.3.0",
+      pluginVersion: "0.4.0",
       stage: "idea",
       clientCapabilities: fullCapabilities,
     });
@@ -148,7 +149,7 @@ describe("authoring MCP bootstrap token, compatibility matrix, and drift checks 
 
     const missingSubagents = evaluatePlaybookCompatibility({
       bootstrapProtocol: AUTHORING_MCP_BOOTSTRAP_PROTOCOL,
-      pluginVersion: "0.3.0",
+      pluginVersion: "0.4.0",
       stage: "product",
       clientCapabilities: { ...fullCapabilities, independentSubagents: false },
     });
@@ -161,7 +162,7 @@ describe("authoring MCP bootstrap token, compatibility matrix, and drift checks 
     const body = await callMcpTool(testPrincipal, "workflow.get_playbook", {
       skill: "zyx-product-bundle-mcp",
       bootstrapProtocol: 1,
-      pluginVersion: "0.3.0",
+      pluginVersion: "0.4.0",
       clientCapabilities: fullCapabilities,
     });
     expect(body.result?.isError).toBeUndefined();
@@ -203,7 +204,7 @@ describe("authoring MCP bootstrap token, compatibility matrix, and drift checks 
     const body = await callMcpTool(testPrincipal, "workflow.get_playbook", {
       skill: "zyx-product-bundle-mcp",
       bootstrapProtocol: 1,
-      pluginVersion: "0.3.0",
+      pluginVersion: "0.4.0",
       clientCapabilities: { ...fullCapabilities, independentSubagents: false },
     });
     expect(body.result?.isError).toBe(true);
@@ -220,7 +221,7 @@ describe("authoring MCP bootstrap token, compatibility matrix, and drift checks 
       actorId: testPrincipal.actorId,
       skill: "zyx-idea-bundle-mcp",
       bootstrapProtocol: 1,
-      pluginVersion: "0.3.0",
+      pluginVersion: "0.4.0",
       clientCapabilities: fullCapabilities,
     });
     expect(playbook.bootstrapToken).toBeTruthy();
@@ -270,7 +271,7 @@ describe("authoring MCP bootstrap token, compatibility matrix, and drift checks 
       actorId: testPrincipal.actorId,
       skill: "zyx-idea-bundle-mcp",
       bootstrapProtocol: 1,
-      pluginVersion: "0.3.0",
+      pluginVersion: "0.4.0",
       clientCapabilities: fullCapabilities,
     });
 
@@ -286,7 +287,7 @@ describe("authoring MCP bootstrap token, compatibility matrix, and drift checks 
       actorId: testPrincipal.actorId,
       skill: "zyx-idea-bundle-mcp",
       stage: "idea",
-      pluginVersion: "0.3.0",
+      pluginVersion: "0.4.0",
       bootstrapProtocol: 1,
       environment: "production",
       playbookRevision: playbook.playbookRevision,
@@ -307,7 +308,7 @@ describe("authoring MCP bootstrap token, compatibility matrix, and drift checks 
       actorId: testPrincipal.actorId,
       skill: "zyx-idea-bundle-mcp",
       stage: "idea",
-      pluginVersion: "0.3.0",
+      pluginVersion: "0.4.0",
       bootstrapProtocol: 1,
       environment: playbook.environment,
       playbookRevision: "pb-v1-idea-000000000000",
@@ -328,7 +329,7 @@ describe("authoring MCP bootstrap token, compatibility matrix, and drift checks 
       actorId: testPrincipal.actorId,
       skill: "zyx-idea-bundle-mcp",
       stage: "idea",
-      pluginVersion: "0.3.0",
+      pluginVersion: "0.4.0",
       bootstrapProtocol: 1,
       environment: playbook.environment,
       playbookRevision: playbook.playbookRevision,
@@ -353,7 +354,7 @@ describe("authoring MCP bootstrap token, compatibility matrix, and drift checks 
       skill: "zyx-authoring-pipeline",
       stage: "idea",
       bootstrapProtocol: 1,
-      pluginVersion: "0.3.0",
+      pluginVersion: "0.4.0",
       clientCapabilities: fullCapabilities,
     });
     const { kind: _kind, issuedAt: _issuedAt, expiresAt: _expiresAt, ...ideaBootstrap } = readMcpBootstrapToken(
@@ -379,7 +380,7 @@ describe("authoring MCP bootstrap token, compatibility matrix, and drift checks 
       stage: "product",
       runToken,
       bootstrapProtocol: 1,
-      pluginVersion: "0.3.0",
+      pluginVersion: "0.4.0",
       clientCapabilities: fullCapabilities,
     });
     const verified = verifyMcpExecutionBootstrap({
@@ -423,13 +424,13 @@ describe("authoring MCP bootstrap token, compatibility matrix, and drift checks 
   it("rejects missing and false required capabilities, while keeping read-only common access available", async () => {
     for (const capabilities of [undefined, {}, { independentSubagents: true }, { localArtifactFiles: true }]) {
       const result = await callMcpTool(testPrincipal, "workflow.get_playbook", {
-        skill: "zyx-product-bundle-mcp", bootstrapProtocol: 1, pluginVersion: "0.3.0", clientCapabilities: capabilities,
+        skill: "zyx-product-bundle-mcp", bootstrapProtocol: 1, pluginVersion: "0.4.0", clientCapabilities: capabilities,
       });
       expect(result.result?.isError).toBe(true);
       expect(result.result?.structuredContent?.bootstrapToken).toBeNull();
     }
     expect(evaluatePlaybookCompatibility({ stage: "source", clientCapabilities: {} }).status).toBe("incompatible");
-    expect(evaluatePlaybookCompatibility({ stage: "common", pluginVersion: "0.3.0" }).status).toBe("compatible");
+    expect(evaluatePlaybookCompatibility({ stage: "common", pluginVersion: "0.4.0" }).status).toBe("compatible");
   });
 
   it("refreshes stale runs through the MCP contract tool without changing identity, scope, source, or expiry", async () => {

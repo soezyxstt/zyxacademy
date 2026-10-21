@@ -8,6 +8,7 @@ import { SpeedInsights } from "@vercel/speed-insights/next";
 import { Analytics } from "@vercel/analytics/next";
 import { QueryProvider } from "@/components/providers/query-provider";
 import { PostHogProvider } from "@/components/providers/posthog-provider";
+import { TelemetryBoundary } from "@/components/providers/telemetry-boundary";
 import { ThemeProvider } from "next-themes";
 import Script from "next/script";
 import NextTopLoader from "nextjs-toploader";
@@ -73,7 +74,7 @@ export default function RootLayout({
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
         <NextTopLoader color="var(--primary)" showSpinner={false} shadow="0 0 10px var(--primary), 0 0 5px var(--primary)" />
         {process.env.NODE_ENV === "production" && (
-          <>
+          <TelemetryBoundary>
             <Script
               src="https://www.googletagmanager.com/gtag/js?id=G-ENY8EJ44WD"
               strategy="afterInteractive"
@@ -86,7 +87,7 @@ export default function RootLayout({
               gtag('config', 'G-ENY8EJ44WD');
               `}
             </Script>
-          </>
+          </TelemetryBoundary>
         )}
         <a
         href="#main-content"
@@ -97,10 +98,10 @@ export default function RootLayout({
         {children}
         <AppToaster />
         {process.env.NODE_ENV === "production" && (
-          <>
+          <TelemetryBoundary>
             <SpeedInsights />
             <Analytics />
-          </>
+          </TelemetryBoundary>
         )}
         </ThemeProvider>
       </QueryProvider>
