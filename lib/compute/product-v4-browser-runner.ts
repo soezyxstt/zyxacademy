@@ -143,7 +143,7 @@ export async function executeBrowserProductV4Check(input: {
         visuals: previewVisuals, ...(selected ? { visualId: selected.id } : {}) });
       const response = await page.goto(`${baseUrl}/authoring-verification`, { waitUntil: "networkidle" });
       if (response?.status() !== 200 || new URL(page.url()).pathname !== "/authoring-verification") throw new Error("VERIFICATION_PREVIEW_REDIRECT");
-      await page.waitForSelector("html[data-verification-ready='true']");
+      await page.waitForSelector("html[data-verification-ready='true']", { state: "attached" });
       const webRuntime = await page.locator("html").getAttribute("data-verification-runtime");
       if (!webRuntime) throw new Error("VERIFICATION_WEB_BUILD_UNATTESTED");
       assertProductV4RuntimeFingerprint(input.plan.binding, JSON.parse(webRuntime));
@@ -169,7 +169,7 @@ export async function executeBrowserProductV4Check(input: {
         return issues;
       });
       if (failures.length || errors.length) throw new Error([...failures, ...errors].join(","));
-      result.artifacts = [{ id: `web-${requirement.id}`, mediaType: "image/png", bytes: await page.screenshot({ fullPage: true, animations: "disabled" }) }];
+      result.artifacts = [{ id: `web-${requirement.id}`, mediaType: "image/png", bytes: await page.screenshot({ fullPage: true, animations: "disabled", timeout: 60_000 }) }];
     } else {
       const diktat = bundle.products.find((product) => product.productType === "diktat" && product.id === requirement.target);
       const article = diktat?.productType === "diktat" ? bundle.products.find((product) => product.productType === "article" && product.id === diktat.sourceArticleId) : undefined;
