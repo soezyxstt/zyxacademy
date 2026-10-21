@@ -46,7 +46,7 @@ docs/
 │   ├── idea-bundle-v3.md                     # Structured Idea Bundle V3 Contract
 │   ├── product-bundle-v2.md                  # Transitional Product Bundle V2 Contract
 │   ├── product-bundle-v3.md                  # Structured Product Bundle V3 Contract
-│   └── product-bundle-v4.md                  # Explicit-version V4 Source Contract
+│   └── product-bundle-v4.md                  # Explicit-version V4 Source Contract and generated JSON Schema delivery
 │
 ├── operations/                               # Operational Runbooks, Checklists, and Allowances
 │   ├── authoring-mcp-skills.md                # Pinned MCP Skills Build and Import Acceptance
@@ -96,7 +96,7 @@ Every document in this repository has one of the following explicit statuses:
 | [bundle/idea-bundle-v3.md](bundle/idea-bundle-v3.md) | Bundle Contract | `ACTIVE` | 2026-08-31 | Learning section hierarchy, Idea membership, validation, editing, and MCP transition contract. |
 | [bundle/product-bundle-v2.md](bundle/product-bundle-v2.md) | Bundle Contract | `TRANSITIONAL / LEGACY` | Current | Read compatibility and Article block review adapter for Product Bundle V2. |
 | [bundle/product-bundle-v3.md](bundle/product-bundle-v3.md) | Bundle Contract | `ACTIVE` | 2026-10-11 | Structured Article, fixed readable Diktat typography, pagination, and numbered contact footer, typed visuals with geometric axis scaling and domain boundaries, simplified revision-bound review, publication, and student reads. |
-| [bundle/product-bundle-v4.md](bundle/product-bundle-v4.md) | Bundle Contract | `ACTIVE` | 2026-10-21 | Explicit-version V4 source contract: scientific parts, authored graphical Diktat, source figures, trusted verification, unmarked scientific prose blockers and current explicit review. Operational rollout is separate. |
+| [bundle/product-bundle-v4.md](bundle/product-bundle-v4.md) | Bundle Contract | `ACTIVE` | 2026-10-21 | Explicit-version V4 source contract: scientific parts, authored graphical Diktat, source figures, trusted verification, unmarked scientific prose blockers, current explicit review and checksum-pinned schema delivery. Operational rollout is separate. |
 | [operations/production-readiness-checklist.md](operations/production-readiness-checklist.md) | Operations | `ACTIVE` | Current | Pre-deployment gates, quality criteria, staging validation checklist, and mandatory Idea links with exactly one primary for MCP quiz drafts and edits. |
 | [operations/zyra-ops-runbooks.md](operations/zyra-ops-runbooks.md) | Operations | `ACTIVE` | 2026-09-02 | Operational runbooks, health metrics, alert responses, and Admin Ops AI v2 operational procedures (Vectorize sync, rollback without flag, provider mitigation, proposal retention). |
 | [operations/visual-audit-capture.md](operations/visual-audit-capture.md) | Operations | `ACTIVE` | Current | Safe procedure for capturing staging visual audits and screenshots. |
