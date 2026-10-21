@@ -8,12 +8,11 @@ import { QuizListClient } from "./quiz-list-client";
 import { Reveal } from "@/components/ui/reveal";
 import { db } from "@/db";
 import { studentQuizAttempts } from "@/db/schema";
-import { auth } from "@/lib/auth";
 import { eq } from "drizzle-orm";
-import { headers } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 import { EnrollmentForm } from "@/components/enrollment-form";
 import { getCourse, getStudentCourseAccess, getStudentVisibleCourseQuizzes, isFreeQuizTemplate } from "@/lib/course-utils";
+import { getAuthSession } from "@/lib/auth-session";
 import { cn } from "@/lib/utils";
 
 type QuizAccessFilter = "all" | "free" | "premium";
@@ -48,7 +47,7 @@ export default async function CourseQuizListPage({ params, searchParams }: Props
   if (!course) notFound();
 
   // Retrieve previous attempts
-  const session = await auth.api.getSession({ headers: await headers() });
+  const session = await getAuthSession();
   const studentId = session?.user?.id;
   if (!studentId) {
     redirect(`/sign-in?next=${encodeURIComponent(`/courses/${id}/quiz`)}`);

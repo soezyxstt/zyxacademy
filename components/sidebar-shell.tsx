@@ -72,7 +72,7 @@ export function NavItem({
   className,
   collapsed,
   isChild,
-  prefetch = true,
+  prefetch,
   trailing,
   badge,
   onPin,
@@ -499,7 +499,6 @@ function SidebarUserMenu({ collapsed }: { collapsed: boolean }) {
           <DropdownMenu.Item asChild>
             <Link
               href="/profile"
-              prefetch={true}
               className="flex cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2 text-body-sm text-foreground outline-none transition-colors hover:bg-muted data-[highlighted]:bg-muted"
             >
               <User className="size-4 shrink-0 text-muted-foreground" />
@@ -510,7 +509,6 @@ function SidebarUserMenu({ collapsed }: { collapsed: boolean }) {
           <DropdownMenu.Item asChild>
             <Link
               href="/dashboard"
-              prefetch={true}
               className="flex cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2 text-body-sm text-foreground outline-none transition-colors hover:bg-muted data-[highlighted]:bg-muted"
             >
               <LayoutDashboard className="size-4 shrink-0 text-muted-foreground" />
@@ -522,7 +520,6 @@ function SidebarUserMenu({ collapsed }: { collapsed: boolean }) {
             <DropdownMenu.Item asChild>
               <Link
                 href="/tutor"
-                prefetch={true}
                 className="flex cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2 text-body-sm text-foreground outline-none transition-colors hover:bg-muted data-[highlighted]:bg-muted"
               >
                 <GraduationCap className="size-4 shrink-0 text-muted-foreground" />
@@ -535,7 +532,6 @@ function SidebarUserMenu({ collapsed }: { collapsed: boolean }) {
             <DropdownMenu.Item asChild>
               <Link
                 href="/admin"
-                prefetch={true}
                 className="flex cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2 text-body-sm text-foreground outline-none transition-colors hover:bg-muted data-[highlighted]:bg-muted"
               >
                 <ShieldCheck className="size-4 shrink-0 text-muted-foreground" />

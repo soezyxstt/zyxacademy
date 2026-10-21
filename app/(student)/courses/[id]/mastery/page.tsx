@@ -1,9 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { headers } from "next/headers";
 import { Lock, Target, ArrowRight } from "lucide-react";
 import { and, asc, eq, inArray } from "drizzle-orm";
-import { auth } from "@/lib/auth";
 import { db } from "@/db";
 import {
   chapters,
@@ -21,6 +19,7 @@ import { EnrollmentForm } from "@/components/enrollment-form";
 import { Reveal } from "@/components/ui/reveal";
 import { Button } from "@/components/ui/button";
 import { getCourse } from "@/lib/course-utils";
+import { getAuthSession } from "@/lib/auth-session";
 import { createMetadata, pageTitle } from "@/lib/site";
 import {
   getStudentIdeaMasteryReadModel,
@@ -149,7 +148,7 @@ export default async function CourseMasteryPage({ params }: Props) {
     );
   }
 
-  const session = await auth.api.getSession({ headers: await headers() });
+  const session = await getAuthSession();
   if (!session?.user?.id) return null;
   const readModel =
     (await getStudentIdeaMasteryReadModel(session.user.id, id))
