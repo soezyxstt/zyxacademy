@@ -2,8 +2,7 @@ import type { ReactNode } from "react";
 import { notFound, redirect } from "next/navigation";
 import { MobileNavTitle } from "@/components/mobile-nav-title";
 import { getCourse } from "@/lib/course-utils";
-import { auth } from "@/lib/auth";
-import { headers } from "next/headers";
+import { getAuthSession } from "@/lib/auth-session";
 
 type Props = {
   children: ReactNode;
@@ -13,7 +12,7 @@ type Props = {
 export default async function CourseLayout({ children, params }: Props) {
   const { id } = await params;
 
-  const session = await auth.api.getSession({ headers: await headers() });
+  const session = await getAuthSession();
   if (!session?.user?.id) {
     redirect(`/sign-in?next=${encodeURIComponent(`/courses/${id}`)}`);
   }

@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { db } from "@/db";
 import {
   aiMaterialInstances,
@@ -58,22 +59,31 @@ export type StudentCourseAccess = {
  * demo selection, and chapter scope to the central resolver. The compatibility
  * shape is kept for existing student read models while the migration settles.
  */
+const getStudentCourseAccessCached = cache(
+  async (
+    userId: string,
+    courseId: string,
+  ): Promise<StudentCourseAccess | null> => {
+    const policy = await resolveCourseAccess({ courseId, userId, roleHint: "murid" });
+    if (!policy.isAuthenticated || !policy.hasCourseAccess || policy.tier === "anonymous") return null;
+
+    return {
+      courseId: policy.courseId ?? courseId,
+      canonicalCourseId: policy.canonicalCourseId,
+      legacyCourseId: policy.legacyCourseId,
+      tier: policy.tier === "free" ? "free" : "standard",
+      isEnrolled: policy.isEnrolled,
+      freeChapterIds: policy.freeChapterIds,
+      policy,
+    };
+  },
+);
+
 export async function getStudentCourseAccess(
   userId: string,
   courseId: string,
 ): Promise<StudentCourseAccess | null> {
-  const policy = await resolveCourseAccess({ courseId, userId, roleHint: "murid" });
-  if (!policy.isAuthenticated || !policy.hasCourseAccess || policy.tier === "anonymous") return null;
-
-  return {
-    courseId: policy.courseId ?? courseId,
-    canonicalCourseId: policy.canonicalCourseId,
-    legacyCourseId: policy.legacyCourseId,
-    tier: policy.tier === "free" ? "free" : "standard",
-    isEnrolled: policy.isEnrolled,
-    freeChapterIds: policy.freeChapterIds,
-    policy,
-  };
+  return getStudentCourseAccessCached(userId, courseId);
 }
 
 export function isFreeChapterScoped(
@@ -259,7 +269,7 @@ export async function getStudentMaterialAccess(
   return null;
 }
 
-export async function getCourse(id: string) {
+const getCourseCached = cache(async (id: string) => {
   const course = await resolveStudentCourse(id);
   return course
     ? {
@@ -271,6 +281,10 @@ export async function getCourse(id: string) {
         description: course.description,
       }
     : undefined;
+});
+
+export async function getCourse(id: string) {
+  return getCourseCached(id);
 }
 
 export async function getCourseMaterials(courseId: string, studentId?: string, preloadedCompletedSet?: Set<string>) {
@@ -477,10 +491,11 @@ export type ChapterOutlineItem = {
  * overview syllabus outline. Returns [] when the course has no published
  * chapters yet.
  */
-export async function getCourseChapterOutline(
-  courseId: string,
-  studentId?: string
-): Promise<ChapterOutlineItem[]> {
+const getCourseChapterOutlineCached = cache(
+  async (
+    courseId: string,
+    studentId?: string,
+  ): Promise<ChapterOutlineItem[]> => {
   const course = await resolveStudentCourse(courseId);
   const legacyCourseId = course?.legacyId ?? courseId;
   const canonicalRows = course?.canonicalId
@@ -601,6 +616,13 @@ export async function getCourseChapterOutline(
       completionPercent,
     };
   });
+});
+
+export async function getCourseChapterOutline(
+  courseId: string,
+  studentId?: string,
+): Promise<ChapterOutlineItem[]> {
+  return getCourseChapterOutlineCached(courseId, studentId);
 }
 
 export type SortableQuizTemplate = {

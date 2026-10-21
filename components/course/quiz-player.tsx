@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "@/components/ui/toast";
+import { emitActivityUpdated } from "@/lib/activity-signal";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Flag, Timer, Clock, BookOpen, AlertCircle, ChevronLeft, ChevronRight, Loader2, UploadCloud, FileText, Trash2, Check, CheckSquare, CircleDot } from "lucide-react";
@@ -413,6 +414,7 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
 
       isSubmittedRef.current = true;
       setIsSubmitted(true);
+      emitActivityUpdated({ type: "quiz", attemptId, courseId });
       window.localStorage.removeItem(timerStorageKey);
       window.localStorage.removeItem(`zyx-quiz-answers-${attemptId}`);
       window.localStorage.removeItem(`zyx-quiz-flags-${attemptId}`);

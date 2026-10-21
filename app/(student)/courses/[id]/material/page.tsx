@@ -14,13 +14,11 @@ import {
 } from "@/lib/course-utils";
 import { CourseDocumentsClient } from "./course-documents-client";
 import { EnrollmentForm } from "@/components/enrollment-form";
-import { Reveal } from "@/components/ui/reveal";
 import { db } from "@/db";
 import { aiMaterialInstances, websiteMaterials, diktats, diktatMateri, bab, courseMaterials, progress, studentMaterialProgress, quizTemplates, studentQuizAttempts, exams } from "@/db/schema";
 import { eq, and, notLike, ne, desc } from "drizzle-orm";
 import { storage } from "@/lib/storage";
-import { auth } from "@/lib/auth";
-import { headers } from "next/headers";
+import { getAuthSession } from "@/lib/auth-session";
 import { getCanonicalPublishedArticlesForCourse } from "@/lib/articles/structured-repository";
 
 type Props = {
@@ -50,7 +48,7 @@ export default async function CourseMaterialListPage({ params, searchParams }: P
   if (!course) return null;
   const compatibilityCourseId = course.legacyId ?? id;
 
-  const session = await auth.api.getSession({ headers: await headers() });
+  const session = await getAuthSession();
   const studentId = session?.user?.id;
   if (!studentId) {
     redirect(`/sign-in?next=${encodeURIComponent(`/courses/${id}/material`)}`);
@@ -314,33 +312,31 @@ export default async function CourseMaterialListPage({ params, searchParams }: P
 
   return (
     <CoursePageShell title={`Materi Belajar: ${course.title}`} icon={FileText}>
-      <Reveal>
-        {!isEnrolled && (
-          <div className="mb-6 rounded-lg border border-brand-secondary/25 bg-brand-secondary/5 p-4">
-            <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(280px,420px)] md:items-center">
-              <div>
-                <h3 className="font-heading text-body-base font-bold text-brand-secondary">
-                  Aktivasi token kelas
-                </h3>
-                <p className="mt-1 max-w-2xl text-body-sm text-muted-foreground">
-                  Materi artikel, diktat, dan kuis bab pertama terbuka gratis. Masukkan token kelas untuk membuka seluruh materi, tryout ujian, dan flashcard.
-                </p>
-              </div>
-              <EnrollmentForm className="w-full" />
+      {!isEnrolled && (
+        <div className="mb-6 rounded-lg border border-brand-secondary/25 bg-brand-secondary/5 p-4">
+          <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(280px,420px)] md:items-center">
+            <div>
+              <h3 className="font-heading text-body-base font-bold text-brand-secondary">
+                Aktivasi token kelas
+              </h3>
+              <p className="mt-1 max-w-2xl text-body-sm text-muted-foreground">
+                Materi artikel, diktat, dan kuis bab pertama terbuka gratis. Masukkan token kelas untuk membuka seluruh materi, tryout ujian, dan flashcard.
+              </p>
             </div>
+            <EnrollmentForm className="w-full" />
           </div>
-        )}
-        <Suspense fallback={null}>
-          <CourseDocumentsClient
-            courseId={id}
-            materials={materialsWithLockState}
-            chapters={courseChapters}
-            defaultTab={initialTab}
-            accessTier={studentAccess?.tier}
-            lockedMaterialCount={lockedMaterialCount}
-          />
-        </Suspense>
-      </Reveal>
+        </div>
+      )}
+      <Suspense fallback={null}>
+        <CourseDocumentsClient
+          courseId={id}
+          materials={materialsWithLockState}
+          chapters={courseChapters}
+          defaultTab={initialTab}
+          accessTier={studentAccess?.tier}
+          lockedMaterialCount={lockedMaterialCount}
+        />
+      </Suspense>
     </CoursePageShell>
   );
 }

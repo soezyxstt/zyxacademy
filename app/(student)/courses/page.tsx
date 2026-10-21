@@ -18,11 +18,7 @@ import {
   getStudentTargetCategory,
   isCourseMatchingMajor,
 } from "@/lib/student/itb-academic-data";
-import {
-  getCourseMaterials,
-  getCourseQuizzes,
-  getCourseTryouts,
-} from "@/lib/course-utils";
+import { attachCourseCatalogStats } from "@/lib/student/course-catalog-stats";
 import { listStudentCourses } from "@/lib/student/course-catalog";
 import { getWhatsAppAdminChatHref } from "@/lib/whatsapp-admin";
 import { CourseCatalogClient, type CourseGroup } from "./course-catalog-client";
@@ -88,25 +84,7 @@ export default async function CoursesPage() {
     (c) => !TEST_COURSE_IDS.has(c.id) && (c.id !== PKA_COURSE_ID || env.FEATURE_PKA === "1")
   );
 
-  const coursesWithStats = await Promise.all(
-    courses.map(async (c) => {
-      // Tutorial PKA is a lean campaign course with no standard materials/quizzes/tryouts to count.
-      if (c.id === PKA_COURSE_ID) {
-        return { ...c, materialsCount: 0, quizzesCount: 0, tryoutsCount: 0 };
-      }
-      const [materials, quizzes, tryouts] = await Promise.all([
-        getCourseMaterials(c.id),
-        getCourseQuizzes(c.id),
-        getCourseTryouts(c.id),
-      ]);
-      return {
-        ...c,
-        materialsCount: materials.length,
-        quizzesCount: quizzes.length,
-        tryoutsCount: tryouts.length,
-      };
-    })
-  );
+  const coursesWithStats = await attachCourseCatalogStats(courses);
 
   const groupsMap = new Map<string, typeof coursesWithStats>();
   for (const course of coursesWithStats) {

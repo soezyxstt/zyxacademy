@@ -7,12 +7,11 @@ import { Reveal } from "@/components/ui/reveal";
 import { createMetadata, pageTitle } from "@/lib/site";
 import { db } from "@/db";
 import { studentQuizAttempts } from "@/db/schema";
-import { auth } from "@/lib/auth";
-import { headers } from "next/headers";
 import { and, eq } from "drizzle-orm";
 import { QuizAnalyticsView } from "@/components/course/quiz-analytics-view";
 import { ArrowLeft } from "lucide-react";
 import { getCourse } from "@/lib/course-utils";
+import { getAuthSession } from "@/lib/auth-session";
 
 type Props = {
   params: Promise<{ id: string; submissionId: string }>;
@@ -33,7 +32,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function SubmissionSummaryPage({ params }: Props) {
   const { id, submissionId } = await params;
 
-  const session = await auth.api.getSession({ headers: await headers() });
+  const session = await getAuthSession();
   if (!session?.user) notFound();
 
   const course = await getCourse(id);

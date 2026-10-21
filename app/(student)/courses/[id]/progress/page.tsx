@@ -1,15 +1,14 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { BarChart3, Target, History, ArrowRight } from "lucide-react";
-import { headers } from "next/headers";
 import { notFound } from "next/navigation";
-import { auth } from "@/lib/auth";
 import { checkEnrollment } from "@/app/(student)/dashboard/actions";
 import { CoursePageShell } from "@/components/course/course-page-shell";
 import { EnrollmentForm } from "@/components/enrollment-form";
 import { Reveal } from "@/components/ui/reveal";
 import { createMetadata, pageTitle } from "@/lib/site";
 import { getCourse } from "@/lib/course-utils";
+import { getAuthSession } from "@/lib/auth-session";
 import { getCourseLearningSummary } from "@/lib/learning-analytics";
 import { StudyStatisticsCard } from "@/components/course/study-statistics-card";
 import { RecentActivityCard } from "@/components/course/recent-activity-card";
@@ -35,7 +34,7 @@ export default async function CourseProgressPage({ params }: Props) {
   const course = await getCourse(id);
   if (!course) notFound();
 
-  const session = await auth.api.getSession({ headers: await headers() });
+  const session = await getAuthSession();
   const studentId = session?.user?.id;
   const isEnrolled = await checkEnrollment(id);
 

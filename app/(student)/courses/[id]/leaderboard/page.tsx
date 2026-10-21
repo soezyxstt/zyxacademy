@@ -5,11 +5,10 @@ import { CoursePageShell } from "@/components/course/course-page-shell";
 import { studentCardClass } from "@/components/course/course-surfaces";
 import { createMetadata, pageTitle } from "@/lib/site";
 import { getCourse, getCourseLeaderboard } from "@/lib/course-utils";
+import { getAuthSession } from "@/lib/auth-session";
 import { checkEnrollment } from "@/app/(student)/dashboard/actions";
 import { EnrollmentForm } from "@/components/enrollment-form";
 import { Reveal } from "@/components/ui/reveal";
-import { headers } from "next/headers";
-import { auth } from "@/lib/auth";
 import { tabListClassName, tabTriggerClassName, tabTriggerActiveClassName } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { PKA_COURSE_ID } from "@/lib/pka-config";
@@ -80,7 +79,7 @@ export default async function CourseLeaderboardPage({ params, searchParams }: Pr
   }
 
   // Get session to find current user's rank
-  const session = await auth.api.getSession({ headers: await headers() });
+  const session = await getAuthSession();
   const userId = session?.user?.id;
 
   let rankedRows: Awaited<ReturnType<typeof getCourseLeaderboard>> = [];

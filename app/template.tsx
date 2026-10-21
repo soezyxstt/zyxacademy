@@ -4,11 +4,11 @@ import React, { useEffect, useState } from "react";
 import { motion } from "motion/react";
 import { usePathname } from "next/navigation";
 
-// Global tracker for initial bundle load to prevent hydration mismatch
+// Global tracker for initial bundle load
 let isInitialLoad = true;
 
 // Determine layout group from pathname
-function getLayoutGroup(pathname: string): string {
+export function getLayoutGroup(pathname: string): string {
   if (pathname.startsWith("/admin")) return "admin";
   if (pathname.startsWith("/tutor")) return "tutor";
 
@@ -35,32 +35,46 @@ export default function RouteTemplate({
 }) {
   const pathname = usePathname();
   const currentGroup = getLayoutGroup(pathname);
-  
-  // Decide whether to animate based on whether it is initial load OR if layout group changed
-  const [shouldAnimate, setShouldAnimate] = useState(true);
+
+  // Deterministic SSR and initial client hydration: start hidden without reading browser-only state
+  const [shouldAnimate, setShouldAnimate] = useState(false);
 
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-        setShouldAnimate(false);
-        return;
-      }
-      const prevGroup = window.sessionStorage.getItem("zyx_last_layout_group");
+    if (typeof window === "undefined") return;
 
-      if (isInitialLoad) {
-        // Always play on hard refresh / initial website load
-        setShouldAnimate(true);
-        isInitialLoad = false;
-      } else if (prevGroup !== null && prevGroup === currentGroup) {
-        // Skip animation if navigating within the same layout group
-        setShouldAnimate(false);
-      } else {
-        // Trigger animation if moving to a different layout group
-        setShouldAnimate(true);
-      }
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      setShouldAnimate(false);
+      return;
+    }
 
-      // Save the current layout group for subsequent navigations
+    let prevGroup: string | null = null;
+    try {
+      prevGroup = window.sessionStorage.getItem("zyx_last_layout_group");
+    } catch {
+      // Ignore sessionStorage access errors
+    }
+
+
+    if (currentGroup === "student") {
+      // Student navigation: never show the full-screen overlay, never hide student initial navigation
+      setShouldAnimate(false);
+      isInitialLoad = false;
+    } else if (isInitialLoad) {
+      // First client hydration: mark initial load done, no animation overlay on same-surface hydration
+      isInitialLoad = false;
+      setShouldAnimate(false);
+    } else if (prevGroup !== null && prevGroup !== currentGroup) {
+      // Opt into animation only when transitioning across different layout groups
+      setShouldAnimate(true);
+    } else {
+      // Same layout group navigation: keep overlay hidden
+      setShouldAnimate(false);
+    }
+
+    try {
       window.sessionStorage.setItem("zyx_last_layout_group", currentGroup);
+    } catch {
+      // Ignore sessionStorage write errors
     }
   }, [currentGroup]);
 

@@ -36,6 +36,7 @@ import {
 } from "lucide-react";
 import { SearchBar } from "@/components/ui/search-bar";
 import { toast } from "@/components/ui/toast";
+import { emitActivityUpdated } from "@/lib/activity-signal";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -1074,6 +1075,7 @@ export function MaterialViewer({
       if (res.success) {
         setDone(true);
         toast.success("Materi berhasil ditandai selesai!");
+        emitActivityUpdated({ type: "material", courseId: material.courseId, materialId: material.id });
       } else {
         toast.error("Gagal menyimpan progres.");
       }
