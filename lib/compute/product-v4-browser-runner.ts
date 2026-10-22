@@ -130,6 +130,45 @@ export async function exerciseProductV4WebState(page: Page, state: string): Prom
   return true;
 }
 
+export function inspectProductV4DisplayMath(state: string): string[] {
+  for (const formula of document.querySelectorAll<HTMLElement>("main .katex-display, main .katex-display .katex-html")) {
+    let overflowing = false;
+    let scrollable = false;
+    for (let element: HTMLElement | null = formula; element && element.tagName !== "MAIN"; element = element.parentElement) {
+      if (element.clientWidth === 0 || element.scrollWidth <= element.clientWidth + 1) continue;
+      if (state === "reading-order-and-math") return ["DISPLAY_MATH_OVERFLOW"];
+      overflowing = true;
+      const style = getComputedStyle(element);
+      if (style.overflowX === "visible") continue;
+      if (!["auto", "scroll"].includes(style.overflowX) || element.tabIndex < 0 || !element.getAttribute("aria-label")?.trim() || style.scrollbarWidth === "none") return ["DISPLAY_MATH_SCROLL_INACCESSIBLE"];
+      scrollable = true;
+    }
+    if (overflowing && !scrollable) return ["DISPLAY_MATH_SCROLL_INACCESSIBLE"];
+  }
+  return [];
+}
+
+export async function exerciseProductV4MathScroll(page: Page): Promise<void> {
+  for (const formula of await page.locator("main .katex-display").all()) {
+    const overflowing = await formula.evaluate(element => {
+      for (let current: HTMLElement | null = element as HTMLElement; current && current.tagName !== "MAIN"; current = current.parentElement) {
+        if (current.clientWidth > 0 && current.scrollWidth > current.clientWidth + 1 && ["auto", "scroll"].includes(getComputedStyle(current).overflowX)) {
+          current.focus();
+          current.scrollLeft = 0;
+          return true;
+        }
+      }
+      return false;
+    });
+    if (!overflowing) continue;
+    await page.keyboard.press("ArrowRight");
+    await page.waitForFunction(() => document.activeElement instanceof HTMLElement && document.activeElement.scrollLeft > 0);
+    await formula.evaluate(element => {
+      for (let current: HTMLElement | null = element as HTMLElement; current && current.tagName !== "MAIN"; current = current.parentElement) current.scrollLeft = 0;
+    });
+  }
+}
+
 export async function executeBrowserProductV4Check(input: {
   plan: ProductV4VerificationPlan;
   bundle: { manifest: unknown; products: readonly ProductEntity[]; dependencies: readonly unknown[] };
@@ -202,6 +241,9 @@ export async function executeBrowserProductV4Check(input: {
         const observedAnchors = await page.locator("main [data-part-id]").evaluateAll((elements) => elements.map((element) => element.getAttribute("data-part-id")));
         if (JSON.stringify(expectedAnchors) !== JSON.stringify(observedAnchors)) throw new Error("VERIFICATION_ARTICLE_READING_ORDER_INVALID");
       }
+      const mathFailures = await page.evaluate(inspectProductV4DisplayMath, requirement.state);
+      if (mathFailures.length) throw new Error(mathFailures.join(","));
+      if (requirement.state === "keyboard-and-text-zoom") await exerciseProductV4MathScroll(page);
       const failures = await page.evaluate(() => {
         const issues: string[] = [];
         if (document.querySelector(".katex-error")) issues.push("MATH_RENDER_ERROR");
