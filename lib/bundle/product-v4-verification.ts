@@ -109,7 +109,7 @@ export function getProductV4VerificationReceiptSignature(value: unknown): string
   const parsed = receiptSchema.safeParse(value);
   return parsed.success ? parsed.data.signature : null;
 }
-export type ProductV4VerificationResult = z.infer<typeof resultSchema>;
+export type ProductV4VerificationResult = z.infer<typeof resultSchema> & { captureTotal?: number };
 export interface ProductV4ObservedArtifact { id: string; mediaType: z.infer<typeof artifactSchema>["mediaType"]; bytes: Uint8Array; pageNumber?: number }
 export interface ProductV4ObservedCheck {
   checkId: string;
@@ -118,6 +118,7 @@ export interface ProductV4ObservedCheck {
   observed: string;
   artifacts: ProductV4ObservedArtifact[];
   pageCount?: number;
+  captureTotal?: number;
 }
 export interface ProductV4VerificationAuthority { signingKey: string; executorId: string }
 
@@ -126,13 +127,15 @@ function sign(body: unknown, authority: ProductV4VerificationAuthority): string 
   return createHmac("sha256", authority.signingKey).update("zyx-product-v4-verification\n").update(deterministicProductSerialization(body)).digest("hex");
 }
 
-function issue(plan: ProductV4VerificationPlan, checks: readonly ProductV4ObservedCheck[], origin: ProductV4VerificationReceipt["origin"], authority: ProductV4VerificationAuthority): ProductV4VerificationReceipt {
+function issue(plan: ProductV4VerificationPlan, checks: readonly (ProductV4ObservedCheck | ProductV4VerificationResult)[], origin: ProductV4VerificationReceipt["origin"], authority: ProductV4VerificationAuthority): ProductV4VerificationReceipt {
   assertPlanIntegrity(plan);
   const ids = new Set<string>();
-  const results = checks.map((check) => {
+  const results = checks.map(({ captureTotal: _captureTotal, ...check }) => {
     if (ids.has(check.checkId) || !plan.requirements.some((required) => required.id === check.checkId)) throw new Error("PRODUCT_V4_VERIFICATION_CHECK_INVALID");
     ids.add(check.checkId);
-    return { ...check, artifacts: check.artifacts.map(({ id, mediaType, bytes, pageNumber }) => {
+    return { ...check, artifacts: check.artifacts.map(artifact => {
+      if (!("bytes" in artifact)) return artifactSchema.parse(artifact);
+      const { id, mediaType, bytes, pageNumber } = artifact;
       if (bytes.length === 0 || bytes.length > 50 * 1024 * 1024) throw new Error("PRODUCT_V4_VERIFICATION_ARTIFACT_INVALID");
       if (mediaType === "image/png" && !Buffer.from(bytes.subarray(0, 8)).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))) throw new Error("PRODUCT_V4_VERIFICATION_ARTIFACT_INVALID");
       if (mediaType === "application/pdf" && Buffer.from(bytes.subarray(0, 5)).toString() !== "%PDF-") throw new Error("PRODUCT_V4_VERIFICATION_ARTIFACT_INVALID");
@@ -148,8 +151,8 @@ function issue(plan: ProductV4VerificationPlan, checks: readonly ProductV4Observ
 }
 
 /** The executor is application-owned. No MCP input may supply this callback or authority. */
-export async function runProductV4Verification(plan: ProductV4VerificationPlan, authority: ProductV4VerificationAuthority, execute: (requirement: ProductV4VerificationRequirement) => Promise<ProductV4ObservedCheck>): Promise<ProductV4VerificationReceipt> {
-  const checks: ProductV4ObservedCheck[] = [];
+export async function runProductV4Verification(plan: ProductV4VerificationPlan, authority: ProductV4VerificationAuthority, execute: (requirement: ProductV4VerificationRequirement) => Promise<ProductV4ObservedCheck | ProductV4VerificationResult>): Promise<ProductV4VerificationReceipt> {
+  const checks: (ProductV4ObservedCheck | ProductV4VerificationResult)[] = [];
   for (const requirement of plan.requirements) {
     const observed = await execute(requirement);
     if (observed.checkId !== requirement.id) throw new Error("PRODUCT_V4_VERIFICATION_CHECK_INVALID");

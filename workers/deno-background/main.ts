@@ -22,6 +22,7 @@ app.on(
   serve({
     client: inngest,
     functions: computeFunctions,
+    streaming: true,
     serveOrigin: env.INNGEST_SERVE_ORIGIN,
     servePath: env.INNGEST_SERVE_PATH,
   })

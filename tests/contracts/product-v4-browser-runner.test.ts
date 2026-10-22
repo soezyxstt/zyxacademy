@@ -87,6 +87,10 @@ test("long chapter captures cover every row at the required viewport", async () 
   expect(options).toEqual(Array(3).fill({ format: "png", captureBeyondViewport: false }));
   expect(new Set(artifacts.map(artifact => artifact.id)).size).toBe(3);
   expect(detached).toBe(true);
+  offsets.length = 0;
+  const batch = await captureProductV4WebState(page, "chapter", 1, 1);
+  expect(offsets).toEqual([4000]);
+  expect(batch.map(artifact => artifact.id)).toEqual(["web-chapter-4000"]);
 });
 
 

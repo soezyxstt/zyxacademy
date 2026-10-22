@@ -52,7 +52,7 @@ export async function fontsReady(page: Page) {
     }));
   });
 }
-export async function captureProductV4WebState(page: Page, checkId: string) {
+export async function captureProductV4WebState(page: Page, checkId: string, offset = 0, limit = 300) {
   const height = await page.evaluate(() => Math.max(document.documentElement.scrollHeight, document.body.scrollHeight));
   const viewport = page.viewportSize();
   if (!viewport || height <= 0 || Math.ceil(height / viewport.height) > 300) throw new Error("VERIFICATION_CAPTURE_HEIGHT_INVALID");
@@ -60,7 +60,7 @@ export async function captureProductV4WebState(page: Page, checkId: string) {
   const session = await page.context().newCDPSession(page);
   try {
     // Capture exact viewport slices, including long chapters with 200 percent text.
-    for (let y = 0; y < height; y += viewport.height) {
+    for (let y = offset * viewport.height; y < Math.min(height, (offset + limit) * viewport.height); y += viewport.height) {
       await page.evaluate(top => window.scrollTo(0, top), y);
       let timer: ReturnType<typeof setTimeout> | undefined;
       try {
@@ -184,6 +184,8 @@ export async function executeBrowserProductV4Check(input: {
   requirement: ProductV4VerificationRequirement;
   baseUrl: string;
   staticFigureAssets?: DiktatSourceFigureAssets;
+  captureOffset?: number;
+  captureLimit?: number;
 }): Promise<ProductV4ObservedCheck> {
   const bundle = bundleSchema.parse(input.bundle);
   assertProductV4RuntimeFingerprint(input.plan.binding, await loadedRuntime);
@@ -266,7 +268,8 @@ export async function executeBrowserProductV4Check(input: {
         return issues;
       });
       if (failures.length || errors.length) throw new Error([...failures, ...errors].join(","));
-      result.artifacts = await captureProductV4WebState(page, requirement.id);
+      result.artifacts = await captureProductV4WebState(page, requirement.id, input.captureOffset, input.captureLimit);
+      result.captureTotal = await page.evaluate(() => Math.ceil(Math.max(document.documentElement.scrollHeight, document.body.scrollHeight) / window.innerHeight));
     } else {
       const diktat = bundle.products.find((product) => product.productType === "diktat" && product.id === requirement.target);
       const article = diktat?.productType === "diktat" ? bundle.products.find((product) => product.productType === "article" && product.id === diktat.sourceArticleId) : undefined;

@@ -2,7 +2,7 @@ import { expect, test } from "bun:test";
 import { productBundleManifestSchema, productEntitySchema } from "@/lib/bundle/product-validator";
 import { createProductV4VerificationService, type ProductV4VerificationPorts, type ProductV4VerificationSnapshot } from "@/lib/bundle/product-v4-verification-service";
 import { buildProductVerificationKey } from "@/lib/storage/keys";
-import { assertProductV4VerificationCurrent, deriveProductV4VerificationPlan, evaluateProductV4Verification, PRODUCT_V4_VERIFICATION_POLICY, recordProductV4VerificationReport, runProductV4Verification, type ProductV4ObservedCheck, type ProductV4VerificationRequirement } from "@/lib/bundle/product-v4-verification";
+import { assertProductV4VerificationCurrent, deriveProductV4VerificationPlan, evaluateProductV4Verification, PRODUCT_V4_VERIFICATION_POLICY, recordProductV4VerificationReport, runProductV4Verification, type ProductV4ObservedCheck, type ProductV4VerificationResult, type ProductV4VerificationRequirement } from "@/lib/bundle/product-v4-verification";
 
 const hash = "a".repeat(64);
 const authority = { signingKey: "test-only-secret-with-at-least-32-bytes", executorId: "server-test-runner" };
@@ -108,7 +108,7 @@ function serviceFixture() {
     },
     authority: () => authority,
   };
-  return { service: createProductV4VerificationService(ports), mutable, objects };
+  return { service: createProductV4VerificationService(ports), mutable, objects, ports };
 }
 
 test("persisted job only becomes ready after actual execution and intact artifact readback", async () => {
@@ -130,6 +130,57 @@ test("persisted job only becomes ready after actual execution and intact artifac
   const artifact = result.receipt.results[0].artifacts[0];
   objects.set(buildProductVerificationKey(input.planHash, artifact.id), new TextEncoder().encode("changed bytes"));
   await expect(service.get(input)).rejects.toThrow("ARTIFACT_MISSING_OR_CHANGED");
+});
+
+test("interrupted verification resumes memoized checks and reports bounded progress", async () => {
+  const { service, mutable, objects } = serviceFixture();
+  const requested = await service.request({ importId: "import", runId: "run" });
+  const input = { importId: "import", runId: "run", planHash: requested.jobId };
+  const saved = new Map<string, ProductV4VerificationResult>();
+  let interrupt = true;
+  const checkpoint = async (id: string, execute: () => Promise<ProductV4VerificationResult>) => {
+    if (saved.has(id)) return saved.get(id)!;
+    if (interrupt && saved.size === 2) throw new Error("WORKER_INTERRUPTED");
+    const value = await execute();
+    expect(value.artifacts[0].bytes).toBeUndefined();
+    saved.set(id, value);
+    return value;
+  };
+  await expect(service.process(input, checkpoint)).rejects.toThrow("WORKER_INTERRUPTED");
+  expect(mutable.executeCount).toBe(2);
+  interrupt = false;
+  const result = await service.process(input, checkpoint);
+  expect(result.evaluation.ready).toBe(true);
+  expect(mutable.executeCount).toBe(result.plan.requirements.length);
+  expect(result.state.completedChecks).toBe(result.plan.requirements.length);
+  const key = buildProductVerificationKey(input.planHash, `state-${result.attemptId}.json`);
+  objects.set(key, new TextEncoder().encode(JSON.stringify({ attemptId: result.attemptId, status: "running", updatedAt: Date.now() - 21 * 60_000 })));
+  expect((await service.get(input)).state.failureCode).toBe("PRODUCT_V4_VERIFICATION_LEASE_EXPIRED");
+  const retry = await service.request({ ...input, retry: true });
+  expect(retry.attemptId).not.toBe(result.attemptId);
+  await service.fail({ ...input, attemptId: result.attemptId });
+  expect((await service.get(input)).state.status).toBe("pending");
+  await service.fail({ ...input, attemptId: retry.attemptId });
+  expect((await service.get(input)).state.failureCode).toBe("PRODUCT_V4_VERIFICATION_WORKER_FAILED");
+});
+
+test("chapter capture batches retain every image under unique persisted identities", async () => {
+  const { service, ports } = serviceFixture();
+  const execute = ports.execute;
+  ports.execute = async input => {
+    const result = await execute(input);
+    if (input.requirement.layer !== "web") return result;
+    const offset = input.captureOffset ?? 0;
+    return { ...result, captureTotal: 17, artifacts: Array.from({ length: Math.min(input.captureLimit ?? 17, 17 - offset) }, () => ({ ...result.artifacts[0] })) };
+  };
+  const requested = await service.request({ importId: "import", runId: "run" });
+  const result = await service.process({ importId: "import", runId: "run", planHash: requested.jobId });
+  expect(result.evaluation.ready).toBe(true);
+  const webIds = new Set(result.plan.requirements.filter(check => check.layer === "web").map(check => check.id));
+  for (const check of result.receipt.results.filter(check => webIds.has(check.checkId))) {
+    expect(check.artifacts).toHaveLength(17);
+    expect(new Set(check.artifacts.map(artifact => artifact.id)).size).toBe(17);
+  }
 });
 
 test("concurrent edits and failed conditional attachment cannot mark a receipt complete", async () => {
