@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import katex from "@/lib/math/katex";
+import { renderKatexToString } from "@/lib/math/katex-render";
 import { cn } from "@/lib/utils";
 import { normalizeMathInText } from "@/lib/math/math-normalizer";
 import { splitScientificText } from "@/lib/math/text-segments";
@@ -96,8 +96,8 @@ function renderInlineMarkdown(text: string, baseKey: string): ReactNode[] {
   return nodes;
 }
 
-function renderMath(value: string, displayMode: boolean) {
-  return katex.renderToString(value, { ...katexOptions, displayMode });
+function renderMath(value: string, displayMode: boolean): string {
+  return renderKatexToString(value, { ...katexOptions, displayMode });
 }
 
 function renderMathSegments(text: string, bareMath = false): ReactNode[] {

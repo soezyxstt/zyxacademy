@@ -4,6 +4,7 @@ import { GraduationCap } from "lucide-react";
 import { CoursePageShell } from "@/components/course/course-page-shell";
 import { pageTitle } from "@/lib/site";
 import { getCourse } from "@/lib/course-utils";
+import { getAuthSession } from "@/lib/auth-session";
 import { checkEnrollment } from "@/app/(student)/dashboard/actions";
 import { TryoutListClient } from "./tryout-list-client";
 import { EnrollmentForm } from "@/components/enrollment-form";
@@ -11,8 +12,6 @@ import { Reveal } from "@/components/ui/reveal";
 import { db } from "@/db";
 import { exams, questions } from "@/db/schema";
 import { and, count, eq, inArray } from "drizzle-orm";
-import { auth } from "@/lib/auth";
-import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
 type Props = { params: Promise<{ id: string }> };
@@ -33,7 +32,7 @@ export default async function CourseTryoutListPage({ params }: Props) {
   const course = await getCourse(id);
   if (!course) return null;
 
-  const session = await auth.api.getSession({ headers: await headers() });
+  const session = await getAuthSession();
   const studentId = session?.user?.id;
   if (!studentId) {
     redirect(`/sign-in?next=${encodeURIComponent(`/courses/${id}/tryout`)}`);

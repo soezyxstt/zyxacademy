@@ -57,7 +57,9 @@ async function findLegacyCourseCandidates(courseId: string) {
     .limit(2);
 }
 
-export async function resolveStudentCourse(courseId: string): Promise<StudentCourseRecord | null> {
+export async function resolveStudentCourse(
+  courseId: string,
+): Promise<StudentCourseRecord | null> {
   const cleanCourseId = typeof courseId === "string" ? courseId.trim() : "";
   if (!cleanCourseId) return null;
 

@@ -33,6 +33,8 @@ import { useSession } from "@/lib/auth-client";
 import { getStudentEnrollments, getCourseAction } from "@/app/(student)/dashboard/actions";
 import { cn } from "@/lib/utils";
 import { SidebarShell, NavItem } from "@/components/sidebar-shell";
+import { createActivityRefresh } from "@/lib/student/activity-refresh";
+import { ZYX_ACTIVITY_UPDATED_EVENT } from "@/lib/activity-signal";
 import { StreakCalendarStrip } from "@/components/dashboard/streak-calendar-strip";
 import { SidebarTooltip } from "@/components/sidebar-shell";
 import {
@@ -130,15 +132,34 @@ export function StudentSidebar({
   }, [session?.user?.id]);
 
   useEffect(() => {
+    setStreakCurrent(null);
+    setWeeklyActivity([]);
     if (!session?.user?.id) return;
-    fetch("/api/student/today")
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => {
-        if (d?.streak?.current != null) setStreakCurrent(d.streak.current);
-        if (d?.weeklyActivity != null) setWeeklyActivity(d.weeklyActivity);
-      })
-      .catch(() => {});
-  }, [session?.user?.id, pathname]);
+
+    const activity = createActivityRefresh(async (signal) => {
+      const response = await fetch("/api/student/today", { signal });
+      if (!response.ok) throw new Error("Activity request failed");
+      const data = await response.json();
+      if (signal.aborted) return;
+      if (data?.streak?.current != null) setStreakCurrent(data.streak.current);
+      if (data?.weeklyActivity != null) setWeeklyActivity(data.weeklyActivity);
+    });
+    void activity.refresh(true);
+    const handleFocus = () => { void activity.refresh(); };
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") handleFocus();
+    };
+    const handleMutation = () => { void activity.refresh(true); };
+    window.addEventListener("focus", handleFocus);
+    document.addEventListener("visibilitychange", handleVisibility);
+    window.addEventListener(ZYX_ACTIVITY_UPDATED_EVENT, handleMutation);
+    return () => {
+      activity.dispose();
+      window.removeEventListener("focus", handleFocus);
+      document.removeEventListener("visibilitychange", handleVisibility);
+      window.removeEventListener(ZYX_ACTIVITY_UPDATED_EVENT, handleMutation);
+    };
+  }, [session?.user?.id]);
 
   const coursesToDisplay = useMemo(() => {
     const list: Array<{ id: string; title: string }> = [];

@@ -6,9 +6,13 @@ import * as schema from "@/db/schema";
 import {
   canAccessCourseContent,
   hasChapterScopeWithin,
-  resolveCourseAccess,
+  resolveCourseAccess as resolveCourseAccessAt,
   selectFreeChapters,
 } from "@/lib/student/course-access";
+
+// Enrollment fixtures expire in October 2026, so resolve at their fixed study date.
+const resolveCourseAccess: typeof resolveCourseAccessAt = (input, executor) =>
+  resolveCourseAccessAt({ now: new Date("2026-09-14T00:00:00.000Z"), ...input }, executor);
 
 async function createTestDb() {
   const client = createClient({ url: ":memory:" });

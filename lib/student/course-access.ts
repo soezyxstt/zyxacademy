@@ -541,7 +541,7 @@ async function resolveEnrollment(
   now: Date,
   client: typeof db,
 ): Promise<boolean> {
-  if (!userId || identity.status !== "active") return false;
+  if (!userId || identity.status !== "active" || Number.isNaN(now.getTime())) return false;
 
   if (identity.canonicalCourseId) {
     const [canonicalEnrollment] = await client
