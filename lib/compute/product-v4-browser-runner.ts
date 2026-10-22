@@ -36,10 +36,51 @@ async function launchVerificationBrowser() {
 }
 export async function closeProductV4BrowserRunner() { if (browser) { await (await browser).close(); browser = undefined; } }
 
-async function fontsReady(page: Page) {
-  await page.evaluate(async () => { await document.fonts.ready; await Promise.all([...document.fonts].map((font) => font.load())); });
+export async function fontsReady(page: Page) {
+  await page.evaluate(async () => {
+    await document.fonts.ready;
+    const used = new Map<string, string>();
+    for (const element of document.querySelectorAll("main, main p, main button, main input, main h1, main h2, main h3, main h4, main h5, main h6, main dt, main dd, main th, main td, main li, main label, main summary, main strong, main em, main .katex span")) {
+      const style = getComputedStyle(element);
+      const family = style.fontFamily.split(",")[0];
+      used.set(`${style.fontStyle} ${style.fontWeight} ${style.fontSize} ${family}`, element.textContent?.slice(0, 200) || "x");
+    }
+    // Unused local fallback faces can be absent on Linux; required rendered fonts must load.
+    await Promise.all([...used].map(async ([font, text]) => {
+      await document.fonts.load(font, text);
+      if (!document.fonts.check(font, text)) throw new Error("VERIFICATION_REQUIRED_FONT_UNAVAILABLE");
+    }));
+  });
+}
+export async function captureProductV4WebState(page: Page, checkId: string) {
+  const height = await page.evaluate(() => Math.max(document.documentElement.scrollHeight, document.body.scrollHeight));
+  const viewport = page.viewportSize();
+  if (!viewport || height <= 0 || Math.ceil(height / viewport.height) > 300) throw new Error("VERIFICATION_CAPTURE_HEIGHT_INVALID");
+  const artifacts: ProductV4ObservedCheck["artifacts"] = [];
+  const session = await page.context().newCDPSession(page);
+  try {
+    // Capture exact viewport slices, including long chapters with 200 percent text.
+    for (let y = 0; y < height; y += viewport.height) {
+      await page.evaluate(top => window.scrollTo(0, top), y);
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      try {
+        const capture = await Promise.race([session.send("Page.captureScreenshot", { format: "png", captureBeyondViewport: false }), new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error("VERIFICATION_CAPTURE_TIMEOUT")), 60_000); })]);
+        artifacts.push({ id: `web-${checkId}-${y}`, mediaType: "image/png", bytes: Buffer.from(capture.data, "base64") });
+      } finally { clearTimeout(timer); }
+    }
+  } finally { await session.detach(); }
+  return artifacts;
 }
 export async function exerciseProductV4WebState(page: Page, state: string): Promise<boolean> {
+  const interactiveStates = ["changed", "reset", "keyboard"];
+  if (interactiveStates.includes(state)) {
+    const parameters = page.getByRole("button", { name: "Parameter", exact: true });
+    if (await parameters.count() && await parameters.getAttribute("aria-expanded") !== "true") await parameters.click();
+    if (!await page.getByRole("slider").count()) {
+      const activate = page.getByRole("button", { name: "Interaksi grafik", exact: true });
+      if (await activate.count()) await activate.click();
+    }
+  }
   const epsilon = page.getByRole("slider", { name: "Toleransi epsilon", exact: true });
   const slider = await epsilon.count() ? epsilon : page.getByRole("slider").first();
   if (["changed", "epsilon-minimum", "epsilon-maximum", "resolution-limited", "reset", "keyboard"].includes(state)) {
@@ -82,11 +123,59 @@ export async function exerciseProductV4WebState(page: Page, state: string): Prom
     if (!await page.locator("main [data-visual-fallback]:visible").count() && !await page.getByRole("table").count()) return false;
   }
   if (state === "keyboard-and-text-zoom") {
-    await page.evaluate(() => { document.documentElement.style.fontSize = "200%"; });
+    await page.evaluate(async () => {
+      const sample = document.querySelector("main p") ?? document.querySelector("main");
+      const originalSize = sample ? parseFloat(getComputedStyle(sample).fontSize) : 0;
+      // Pixel typography tokens need explicit text scaling; diagram coordinates retain their own zoom controls.
+      const sizes = [...document.querySelectorAll<HTMLElement>("main, main *")].filter(element => !element.closest(".katex, svg, .jxgbox")).map(element => {
+        const style = getComputedStyle(element);
+        return { element, fontSize: parseFloat(style.fontSize), lineHeight: parseFloat(style.lineHeight) };
+      });
+      for (const { element, fontSize, lineHeight } of sizes) {
+        element.style.fontSize = `${fontSize * 2}px`;
+        if (Number.isFinite(lineHeight)) element.style.lineHeight = `${lineHeight * 2}px`;
+      }
+      await new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+      if (sample && parseFloat(getComputedStyle(sample).fontSize) < originalSize * 1.99) throw new Error(`VERIFICATION_TEXT_ZOOM_NOT_APPLIED:${originalSize}:${getComputedStyle(sample).fontSize}:${sample.getAttribute("style")}`);
+    });
     const control = page.locator("main button,main input,main [tabindex='0']").first();
     if (await control.count()) { await control.focus(); await page.keyboard.press("Tab"); }
   }
   return true;
+}
+
+export function inspectProductV4DisplayMath(state: string): string[] {
+  for (const formula of document.querySelectorAll<HTMLElement>("main .katex-display, main .katex-display .katex-html")) {
+    for (let element: HTMLElement | null = formula; element && element.tagName !== "MAIN"; element = element.parentElement) {
+      if (element.clientWidth === 0 || element.scrollWidth <= element.clientWidth + 1) continue;
+      const style = getComputedStyle(element);
+      if (style.overflowX === "visible") continue;
+      if (state === "reading-order-and-math") return ["DISPLAY_MATH_OVERFLOW"];
+      if (!["auto", "scroll"].includes(style.overflowX) || element.tabIndex < 0 || !element.getAttribute("aria-label")?.trim() || style.scrollbarWidth === "none") return [`DISPLAY_MATH_SCROLL_INACCESSIBLE:${element.closest?.("[data-part-id]")?.id ?? element.tagName}:${style.overflowX}`];
+    }
+  }
+  return [];
+}
+
+export async function exerciseProductV4MathScroll(page: Page): Promise<void> {
+  for (const formula of await page.locator("main .katex-display").all()) {
+    const overflowing = await formula.evaluate(element => {
+      for (let current: HTMLElement | null = element as HTMLElement; current && current.tagName !== "MAIN"; current = current.parentElement) {
+        if (current.clientWidth > 0 && current.scrollWidth > current.clientWidth + 1 && ["auto", "scroll"].includes(getComputedStyle(current).overflowX)) {
+          current.focus();
+          current.scrollLeft = 0;
+          return true;
+        }
+      }
+      return false;
+    });
+    if (!overflowing) continue;
+    await page.keyboard.press("ArrowRight");
+    await page.waitForFunction(() => document.activeElement instanceof HTMLElement && document.activeElement.scrollLeft > 0);
+    await formula.evaluate(element => {
+      for (let current: HTMLElement | null = element as HTMLElement; current && current.tagName !== "MAIN"; current = current.parentElement) current.scrollLeft = 0;
+    });
+  }
 }
 
 export async function executeBrowserProductV4Check(input: {
@@ -112,7 +201,7 @@ export async function executeBrowserProductV4Check(input: {
   const launched = await browser;
   const expectedBrowserVersion = input.plan.binding.browserVersion ?? (deployed ? undefined : loadedBrowserRuntime?.browserVersion);
   if (!expectedBrowserVersion || launched.version() !== expectedBrowserVersion) throw new Error("PRODUCT_V4_BROWSER_VERSION_MISMATCH");
-  const context = await launched.newContext({ viewport: requirement.viewport ?? { width: 794, height: 1123 }, reducedMotion: "reduce" });
+  const context = await launched.newContext({ viewport: requirement.viewport ?? { width: 703, height: 1032 }, reducedMotion: "reduce" });
   const errors: string[] = [];
   const page = await context.newPage();
   page.setDefaultTimeout(20_000);
@@ -161,15 +250,23 @@ export async function executeBrowserProductV4Check(input: {
         const observedAnchors = await page.locator("main [data-part-id]").evaluateAll((elements) => elements.map((element) => element.getAttribute("data-part-id")));
         if (JSON.stringify(expectedAnchors) !== JSON.stringify(observedAnchors)) throw new Error("VERIFICATION_ARTICLE_READING_ORDER_INVALID");
       }
+      const mathFailures = await page.evaluate(inspectProductV4DisplayMath, requirement.state);
+      if (mathFailures.length) throw new Error(mathFailures.join(","));
+      if (requirement.state === "keyboard-and-text-zoom") await exerciseProductV4MathScroll(page);
       const failures = await page.evaluate(() => {
         const issues: string[] = [];
         if (document.querySelector(".katex-error")) issues.push("MATH_RENDER_ERROR");
         if (document.documentElement.scrollWidth > document.documentElement.clientWidth) issues.push("PAGE_OVERFLOW");
+        const width = document.documentElement.clientWidth;
+        if ([...document.querySelectorAll("main [data-article-parts], main [data-part-id], main .markdown-article, main p, main dl, main dd")].some(element => {
+          const box = element.getBoundingClientRect();
+          return box.width > 0 && (box.left < -1 || box.right > width + 1);
+        })) issues.push("CONTENT_CLIPPED_BY_VIEWPORT");
         if ([...document.images].some((image) => !image.complete || image.naturalWidth === 0)) issues.push("IMAGE_NOT_READY");
         return issues;
       });
       if (failures.length || errors.length) throw new Error([...failures, ...errors].join(","));
-      result.artifacts = [{ id: `web-${requirement.id}`, mediaType: "image/png", bytes: await page.screenshot({ fullPage: true, animations: "disabled", timeout: 60_000 }) }];
+      result.artifacts = await captureProductV4WebState(page, requirement.id);
     } else {
       const diktat = bundle.products.find((product) => product.productType === "diktat" && product.id === requirement.target);
       const article = diktat?.productType === "diktat" ? bundle.products.find((product) => product.productType === "article" && product.id === diktat.sourceArticleId) : undefined;

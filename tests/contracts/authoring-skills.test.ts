@@ -174,9 +174,9 @@ describe("authoring skills distribution", () => {
     });
     expect(candidate.catalogs.all).toHaveLength(6);
     const product = loadSkillCatalog(candidateRoot, "all").resources.get("skill://zyx-authoring/all/zyx-product-bundle-mcp/SKILL.md")!.text!;
-    for (const required of ["product-bundle.v4", "math_unit", "visual_ref", "workflow.get_contract", "receipt tepercaya", "0.4.0"]) expect(product).toContain(required);
-    expect(candidate.source).toHaveProperty("kind", "local-candidate");
     const release = JSON.parse(readFileSync(resolve(candidateSource, "release.json"), "utf8"));
+    for (const required of ["product-bundle.v4", "math_unit", "visual_ref", "workflow.get_contract", "receipt tepercaya", release.version]) expect(product).toContain(required);
+    expect(candidate.source).toHaveProperty("kind", "local-candidate");
     expect(evaluatePlaybookCompatibility({ bootstrapProtocol: release.bootstrapProtocol, pluginVersion: release.version, stage: "product", clientCapabilities: { independentSubagents: true, localArtifactFiles: true, pdfRendering: false } }).status).toBe("compatible");
     expect((await rpc("all", "skills/list", {}, candidateRoot, "staging")).error).toBeDefined();
     for (const profile of ["all", "chatgpt"] as const) {

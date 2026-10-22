@@ -218,7 +218,8 @@ function parseInline(text: string): ReactNode[] {
       result.push(
         <span
           key={`mathblk-${index}`}
-          className="my-2 block max-w-full overflow-x-auto overflow-y-hidden no-scrollbar py-1 text-left [&_.katex-display]:my-0 [&_.katex-display]:text-left"
+          data-math-scroll role="region" aria-label="Rumus matematika" tabIndex={0}
+          className="my-2 block max-w-full overflow-x-auto overflow-y-hidden py-1 text-left [&_.katex-display]:my-0 [&_.katex-display]:text-left"
           dangerouslySetInnerHTML={{ __html: renderMath(content, true) }}
         />
       );
@@ -877,10 +878,11 @@ function ASTBlockRenderer({ block, density }: { block: ASTBlock; density?: Markd
         return (
           <div
             className={cn(
-              "formula-focus max-w-full overflow-x-auto overflow-y-hidden no-scrollbar rounded-lg border-l-3 border-primary bg-primary/[0.03] px-3.5 py-2 text-left [&_.katex-display]:my-0 [&_.katex-display]:py-0 [&_.katex-display]:text-left",
+              "formula-focus max-w-full overflow-x-auto overflow-y-hidden rounded-lg border-l-3 border-primary bg-primary/[0.03] px-3.5 py-2 text-left [&_.katex-display]:my-0 [&_.katex-display]:py-0 [&_.katex-display]:text-left",
               isCompact ? "my-1.5" : "my-2.5",
             )}
             data-content-kind="formula"
+            data-math-scroll role="region" tabIndex={0}
             aria-label="Rumus utama"
           >
             <span dangerouslySetInnerHTML={{ __html: renderMath(standaloneMathSource(block.content), true) }} />
@@ -956,7 +958,8 @@ function ASTBlockRenderer({ block, density }: { block: ASTBlock; density?: Markd
                     key={itemIdx}
                     className="min-w-0 space-y-1"
                   >
-                    <div className="article-formula-row">
+                    <div className="article-formula-row"
+                    data-math-scroll role="region" aria-label="Rumus matematika" tabIndex={0}>
                       <span className="block" dangerouslySetInnerHTML={{ __html: renderMath(parsed.math, true) }} />
                     </div>
                     {parsed.note ? (
@@ -995,7 +998,8 @@ function ASTBlockRenderer({ block, density }: { block: ASTBlock; density?: Markd
                   className="list-none my-2 rounded-lg border border-border/60 bg-muted/20 px-3 py-2"
                 >
                   <span
-                    className="block max-w-full overflow-x-auto overflow-y-hidden no-scrollbar [&_.katex-display]:my-0 [&_.katex-display]:text-left"
+                    data-math-scroll role="region" aria-label="Rumus matematika" tabIndex={0}
+                    className="block max-w-full overflow-x-auto overflow-y-hidden [&_.katex-display]:my-0 [&_.katex-display]:text-left"
                     dangerouslySetInnerHTML={{ __html: renderMath(standaloneMathSource(item.text), true) }}
                   />
                 </li>
@@ -1448,7 +1452,7 @@ export function ASTRenderer({ blocks, className, density }: ASTRendererProps) {
     <MarkdownDensityContext.Provider value={activeDensity}>
       <div
         className={cn(
-          "markdown-article text-left font-sans select-text",
+          "markdown-article min-w-0 max-w-full text-left font-sans select-text",
           activeDensity === "compact" ? "space-y-3" : "space-y-6",
           !hasTextColor && "text-foreground/90",
           className
@@ -1469,6 +1473,7 @@ export function ASTRenderer({ blocks, className, density }: ASTRendererProps) {
                   <div
                     key={mathBlock.id || bIdx}
                     className="article-formula-row"
+                    data-math-scroll role="region" aria-label="Rumus matematika" tabIndex={0}
                   >
                     <span className="block" dangerouslySetInnerHTML={{ __html: renderMath(standaloneMathSource(mathBlock.content), true) }} />
                   </div>

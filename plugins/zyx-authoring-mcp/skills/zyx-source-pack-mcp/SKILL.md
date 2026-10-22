@@ -8,7 +8,7 @@ description: Membuat Source Pack Zyx yang lossless dari dokumen akademik dengan 
 Skill ini menyiapkan dan memvalidasi arsip `source-pack.v1` yang lossless dari PDF course tersimpan atau dokumen asli lokal. Seluruh aturan rekonsiliasi halaman, struktur manifest, coverage ledger, dan penomoran `documentId` disajikan oleh server saat runtime melalui `workflow.get_playbook`.
 
 <!-- BEGIN:environment-connection -->
-Gunakan koneksi MCP `zyx-authoring-staging` untuk environment `staging` di endpoint `https://staging.zyxacademy.com/api/mcp/authoring` (`pluginVersion: "0.4.0"`, `bootstrapProtocol: 1`). Jangan gunakan koneksi Zyx dari environment lain. Verifikasi identitas koneksi sebelum memulai run atau melakukan staging.
+Gunakan koneksi MCP `zyx-authoring-staging` untuk environment `staging` di endpoint `https://staging.zyxacademy.com/api/mcp/authoring` (`pluginVersion: "0.4.1"`, `bootstrapProtocol: 1`). Jangan gunakan koneksi Zyx dari environment lain. Verifikasi identitas koneksi sebelum memulai run atau melakukan staging.
 <!-- END:environment-connection -->
 
 ## Identitas bootstrap dan protokol
@@ -16,7 +16,7 @@ Gunakan koneksi MCP `zyx-authoring-staging` untuk environment `staging` di endpo
 - **Skill ID**: `zyx-source-pack-mcp`
 - **Stage**: `source`
 - **Bootstrap protocol**: `1`
-- **Plugin version**: `0.4.0`
+- **Plugin version**: `0.4.1`
 - **Modul playbook wajib**: `common/execution`, `source/workflow`, `source/reconciliation`
 
 ## Langkah bootstrap wajib (fail-closed)
@@ -27,7 +27,7 @@ Gunakan koneksi MCP `zyx-authoring-staging` untuk environment `staging` di endpo
      "skill": "zyx-source-pack-mcp",
      "stage": "source",
      "bootstrapProtocol": 1,
-     "pluginVersion": "0.4.0",
+     "pluginVersion": "0.4.1",
      "clientCapabilities": {
        "independentSubagents": true,
        "localArtifactFiles": true,

@@ -2,7 +2,7 @@ import { expect, test } from "bun:test";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
-import { registerProductV4Tools } from "@/lib/authoring/mcp-v4-tools";
+import { productV4RequestErrorCode, registerProductV4Tools } from "@/lib/authoring/mcp-v4-tools";
 import { issueMcpBootstrapToken, issueMcpRunToken } from "@/lib/authoring/mcp-workflows";
 
 const principal = { actorId: "actor", sessionId: "session", userId: "actor", authMethod: "session" as const, scopes: ["authoring:read", "authoring:stage"] };
@@ -78,3 +78,9 @@ test("MCP verification accepts canonical aliases and rejects stale content and f
 });
 
 
+
+test("V4 diagnostics expose safe codes without runtime paths or identifiers", () => {
+  expect(productV4RequestErrorCode(Object.assign(new Error("secret/path"), { code: "ENOENT" }))).toBe("PRODUCT_V4_RUNTIME_ASSET_UNAVAILABLE");
+  expect(productV4RequestErrorCode(new Error("PRODUCT_V4_VERIFICATION_CONFLICT:private-id"))).toBe("PRODUCT_V4_VERIFICATION_CONFLICT");
+  expect(productV4RequestErrorCode(new Error("private credentials"))).toBe("AUTHORING_MCP_V4_REQUEST_FAILED");
+});

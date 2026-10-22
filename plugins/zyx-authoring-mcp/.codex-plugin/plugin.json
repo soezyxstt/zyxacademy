@@ -1,13 +1,23 @@
 {
   "name": "zyx-authoring-mcp-staging",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "Author staging Zyx content through MCP quality gates.",
   "author": {
     "name": "Zyx Academy"
   },
   "homepage": "https://staging.zyxacademy.com/",
   "license": "UNLICENSED",
-  "keywords": ["zyx", "authoring", "pipeline", "mcp", "source-pack", "idea-bundle", "product-bundle", "question-bank", "historical-reference"],
+  "keywords": [
+    "zyx",
+    "authoring",
+    "pipeline",
+    "mcp",
+    "source-pack",
+    "idea-bundle",
+    "product-bundle",
+    "question-bank",
+    "historical-reference"
+  ],
   "skills": "./skills/",
   "mcpServers": "./.mcp.json",
   "interface": {
@@ -16,7 +26,10 @@
     "longDescription": "Provides one end-to-end authoring pipeline and five independently invocable specialist skills for prompt-only Source Pack, Idea Bundle, Product Bundle, Question Bank, and historical reference authoring. The remote MCP server serves active stage playbooks via workflow.get_playbook and remains the authority for authentication, schema validation, provenance, quality gates, and staging.",
     "developerName": "Zyx Academy",
     "category": "Productivity",
-    "capabilities": ["Interactive", "Write"],
+    "capabilities": [
+      "Interactive",
+      "Write"
+    ],
     "websiteURL": "https://staging.zyxacademy.com/",
     "defaultPrompt": [
       "Use only the zyx-authoring-staging MCP connection for this task. Do not substitute another Zyx environment.",

@@ -41,6 +41,12 @@ export interface ProductV4VerificationPlan {
   planHash: string;
 }
 
+export function computeProductV4VerificationContentHash(bundle: {
+  manifest: ProductBundleManifest; products: readonly ProductEntity[]; dependencies: readonly ProductDependency[];
+}): string {
+  return digest({ manifest: bundle.manifest, products: bundle.products, dependencies: bundle.dependencies });
+}
+
 /** Called with the server-loaded bundle and dependency closure, never a caller's matrix. */
 export function deriveProductV4VerificationPlan(input: {
   bundle: { manifest: ProductBundleManifest; products: readonly ProductEntity[]; dependencies: readonly ProductDependency[] };
@@ -82,13 +88,13 @@ export function deriveProductV4VerificationPlan(input: {
       add(product.id, "print", "every-page-rendering-and-overflow", null, "image/png");
     }
   }
-  const contentHash = digest({ manifest: bundle.manifest, products: bundle.products, dependencies: bundle.dependencies });
+  const contentHash = computeProductV4VerificationContentHash(bundle);
   const body = { schemaVersion: "product-v4-verification-plan.v1" as const, binding: { ...binding }, contentHash, requirements };
   return { ...body, planHash: digest(body) };
 }
 
 const artifactSchema = z.object({ id: name, checksum: sha256, mediaType: z.enum(["application/json", "image/png", "application/pdf"]), byteLength: z.number().int().positive(), pageNumber: z.number().int().min(1).max(4).optional() }).strict();
-const resultSchema = z.object({ checkId: sha256, status: z.enum(["PASS", "FAIL", "NOT_TESTED"]), expected: name, observed: name, artifacts: z.array(artifactSchema).max(100), pageCount: z.number().int().min(1).max(4).optional() }).strict();
+const resultSchema = z.object({ checkId: sha256, status: z.enum(["PASS", "FAIL", "NOT_TESTED"]), expected: name, observed: name, artifacts: z.array(artifactSchema).max(300), pageCount: z.number().int().min(1).max(4).optional() }).strict();
 const receiptBodySchema = z.object({
   schemaVersion: z.literal("product-v4-verification-receipt.v1"),
   planHash: sha256,

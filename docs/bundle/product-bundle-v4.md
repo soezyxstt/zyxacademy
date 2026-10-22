@@ -1,12 +1,12 @@
 # Product Bundle V4
 
-Status: `ACTIVE`, source contract. Updated: 2026-10-21.
+Status: `ACTIVE`, source contract. Updated: 2026-10-22.
 
-V4 is selected explicitly with `product-bundle.v4`, `article.v4` and `diktat.v4`. MCP creation remains V3 by default. V2/V3 retain their readers and strict contracts. There is no additional feature flag or database migration. This document describes the local implementation, not deployment, installation on every host, or permission to publish a particular bundle.
+New Article/Diktat authoring uses `product-bundle.v4`, `article.v4` and `diktat.v4` by default. Existing V3 bundles keep their version during legacy revisions unless a reviewed V4 conversion is requested. V2/V3 retain their readers and strict contracts. There is no additional feature flag or database migration. This document describes the local implementation, not deployment, installation on every host, or permission to publish a particular bundle.
 
 ## Machine-readable schema delivery
 
-`workflow.get_contract` exposes `productBundle.pilot.schemaDocuments`, with exact same-origin GET paths, SHA-256 checksums and byte lengths. `/api/authoring/contracts/product-v4` lists those documents. Each `?schema=<name>` returns the full JSON Schema generated from the running Zod validator, including Product envelopes, dependencies, ordered parts, Diktat units, visual controls and bindings, review context and PDF evidence. The public endpoint contains type definitions only; it does not return any run or course data and requires no credential.
+`workflow.get_contract` exposes primary `productBundle.schemaDocuments` and retains `productBundle.pilot.schemaDocuments` as a compatibility alias, with exact same-origin GET paths, SHA-256 checksums and byte lengths. `/api/authoring/contracts/product-v4` lists those documents. Each `?schema=<name>` returns the full JSON Schema generated from the running Zod validator, including Product envelopes, dependencies, ordered parts, Diktat units, visual controls and bindings, review context and PDF evidence. The public endpoint contains type definitions only; it does not return any run or course data and requires no credential.
 
 Use the checksum-pinned path returned by MCP and verify the response bytes. A stale pin returns HTTP 409; refresh the playbook and contract before continuing. `product` is the shared structural schema, so apply the explicit V4 `semanticRules` as well. JSON Schema cannot encode every cross-reference, lineage, security, model or readiness refinement. Complete validation still uses `authoring.validate_product_bundle`; validation success alone does not establish visual quality or publication readiness.
 
@@ -43,7 +43,7 @@ A Diktat has 1 to 100 units. Each unit requires `id`, nonempty `sourceElementRef
 
 Diktat parts reuse Article Markdown, math units and worked examples. A top-level `visual_ref` adds `staticMarkdown` as an accessible caption, not as a replacement for the graphic. The server derives a `staticSnapshot` containing renderer version, visual hash and default-state hash when absent from a draft; a supplied stale pin is rejected. Static export renders actual validated plots, analytic epsilon/delta bands, diagrams, vectors, tables, chemistry and geometry. Source figures require trusted checksum-verified PNG or JPEG bytes supplied by the server. Missing assets, invalid math or unsupported export states fail closed.
 
-`contentMarkdown` remains the derived textual projection. PDF compilation resolves graphical exports separately and validates lineage again. The print profile remains A4, 10.5 pt body text, 1 to 4 pages, without automatic shrinking. Browser readiness checks wait for fonts and assets, reject math errors, clipped visual labels, horizontal overflow and units taller than the printable page. Oversized content requires splitting or revising its scope. Every generated PDF page must be inspected and represented in the verification receipt. PDF text extraction, screenshots and fixed typography do not establish tagged-PDF accessibility or educational effectiveness.
+`contentMarkdown` remains the derived textual projection. PDF compilation resolves graphical exports separately and validates lineage again. The print profile remains A4, 10.5 pt body text, 1 to 4 pages, without automatic shrinking. V4 units use a 1 mm paragraph gap while retaining the body font size and line height. Browser readiness checks wait for fonts and assets, reject math errors, clipped visual labels, horizontal overflow and units taller than the printable page. Oversized content requires splitting or revising its scope. Every generated PDF page must be inspected and represented in the verification receipt. PDF text extraction, screenshots and fixed typography do not establish tagged-PDF accessibility or educational effectiveness.
 
 ## Trusted verification and explicit review
 
