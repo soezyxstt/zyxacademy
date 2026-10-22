@@ -100,6 +100,7 @@ function mergeProduct(original: ProductEntity, submitted: ProductEntity): Produc
           slug: original.slug,
           blocks: [],
           sections: mergedSections,
+          visuals: original.schemaVersion === "article.v4" ? submitted.visuals : original.visuals,
         });
       }
       throw new Error("PRODUCT_DRAFT_ARTICLE_INVALID");
@@ -181,8 +182,12 @@ export function finalizeProductBundleDraft(original: ValidProductBundle, draft: 
   products = products.map((product) => {
     if (product.productType !== "diktat") return product;
     const article = articles.get(product.sourceArticleId);
+    const originalArticle = original.products.find(candidate => candidate.id === product.sourceArticleId && candidate.productType === "article");
+    const originalVisuals = originalArticle?.productType === "article" ? originalArticle.visuals ?? [] : [];
+    const changedVisualIds = new Set((article?.visuals ?? []).filter(visual => hash(visual) !== hash(originalVisuals.find(candidate => candidate.id === visual.id) ?? null)).map(visual => visual.id));
+    const units = product.units?.map(unit => ({ ...unit, parts: unit.parts.map(part => part.kind === "visual_ref" && changedVisualIds.has(part.visualId) ? { ...part, staticSnapshot: undefined } : part) }));
     const withLineage = article ? { ...product, sourceArticleHash: article.generationHash,
-      units: product.units ? prepareAuthoredDiktatVisuals(product.units, article.visuals ?? []) : undefined,
+      units: units ? prepareAuthoredDiktatVisuals(units, article.visuals ?? []) : undefined,
     } : product;
     return productEntitySchema.parse({ ...withLineage, generationHash: generationHash(withLineage) });
   });

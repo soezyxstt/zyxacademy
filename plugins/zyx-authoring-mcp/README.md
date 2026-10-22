@@ -2,7 +2,7 @@
 
 This package connects an MCP host to one explicitly named Zyx Authoring environment and provides thin local skill entrypoints that fetch stage playbooks at runtime via `workflow.get_playbook`.
 
-The local 0.4.0 candidate adds explicit Product V4 selection, ordered mathematical parts, Diktat lineage and renderer verification guidance. V3 remains the default. Runtime contracts and trusted verification gates decide whether a V4 artifact can advance. This directory is the local publishing mirror; editing it does not change the external commits pinned by `authoring-skills.lock.json` or any installed host package.
+The local 0.4.0 candidate adds default Product V4 authoring, ordered mathematical parts, Diktat lineage and renderer verification guidance. V4 is the default for new Article/Diktat authoring; explicit legacy V3 revisions remain supported. Runtime contracts and trusted verification gates decide whether a V4 artifact can advance. This directory is the local publishing mirror; editing it does not change the external commits pinned by `authoring-skills.lock.json` or any installed host package.
 
 For a local MCP snapshot, render an environment package with `scripts/configure_environment.py build`, then run `bun scripts/build-authoring-skills.ts --local-candidate --environment staging --source <rendered-package> --output <separate-artifact>`. Candidate manifests record the workspace base commit and exact source digest. They cannot replace `dist/skills`, run in CI/deployment, or be served by a deployed environment. Normal builds still require the clean external locked source. Promote through the owning repository's review/release process and update its pin only after the actual upstream commit exists.
 
@@ -11,7 +11,7 @@ For a local MCP snapshot, render an environment package with `scripts/configure_
 
 - Environment: `staging`
 - Plugin ID: `zyx-authoring-mcp-staging`
-- Release version: `0.4.0`
+- Release version: `0.4.1`
 - Bootstrap protocol: `1`
 - MCP server ID: `zyx-authoring-staging`
 - Endpoint: `https://staging.zyxacademy.com/api/mcp/authoring`

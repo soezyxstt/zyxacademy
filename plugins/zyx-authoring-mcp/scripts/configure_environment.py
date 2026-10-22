@@ -573,6 +573,8 @@ def configure_plugin(
             raise ValueError(
                 f"skills/{skill}/SKILL.md must contain exactly one environment connection block"
             )
+        updated_skill = re.sub(r'(\*\*Plugin version\*\*: `)[^`]+(`)', lambda m: f"{m[1]}{version}{m[2]}", updated_skill)
+        updated_skill = re.sub(r'("pluginVersion":\s*")[^"]+(")', lambda m: f"{m[1]}{version}{m[2]}", updated_skill)
         write_text_lf(skill_path, updated_skill)
 
     summary = validate_rendered_package(target_root, environment)

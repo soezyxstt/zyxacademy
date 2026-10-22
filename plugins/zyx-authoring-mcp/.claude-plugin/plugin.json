@@ -1,12 +1,22 @@
 {
   "name": "zyx-authoring-mcp-staging",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "Author staging Zyx content through MCP quality gates.",
   "author": {
     "name": "Zyx Academy"
   },
   "homepage": "https://staging.zyxacademy.com/",
   "license": "UNLICENSED",
-  "keywords": ["zyx", "authoring", "pipeline", "mcp", "source-pack", "idea-bundle", "product-bundle", "question-bank", "historical-reference"],
+  "keywords": [
+    "zyx",
+    "authoring",
+    "pipeline",
+    "mcp",
+    "source-pack",
+    "idea-bundle",
+    "product-bundle",
+    "question-bank",
+    "historical-reference"
+  ],
   "mcpServers": "./.mcp.json"
 }

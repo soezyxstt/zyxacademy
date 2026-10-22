@@ -38,18 +38,18 @@ function plot(groups: { label: string; points: { x: number; y: number | null }[]
   if (!xr || !yr) throw new Error("DIKTAT_VISUAL_DOMAIN_EMPTY");
   if (functionSpec?.equalAxisScale) {
     const xSpan = xr.max - xr.min, ySpan = yr.max - yr.min;
-    if (xSpan / ySpan < 410 / 200) { const mid = (xr.min + xr.max) / 2; xr.min = mid - ySpan * 410 / 400; xr.max = mid + ySpan * 410 / 400; }
-    else { const mid = (yr.min + yr.max) / 2; yr.min = mid - xSpan * 200 / 820; yr.max = mid + xSpan * 200 / 820; }
+    if (xSpan / ySpan < 350 / 200) { const mid = (xr.min + xr.max) / 2; xr.min = mid - ySpan * 350 / 400; xr.max = mid + ySpan * 350 / 400; }
+    else { const mid = (yr.min + yr.max) / 2; yr.min = mid - xSpan * 200 / 700; yr.max = mid + xSpan * 200 / 700; }
   }
-  const px = (x: number) => 75 + (x - xr.min) / (xr.max - xr.min) * 410;
+  const px = (x: number) => 135 + (x - xr.min) / (xr.max - xr.min) * 350;
   const py = (y: number) => 240 - (y - yr.min) / (yr.max - yr.min) * 200;
   const exponent = (min: number, max: number) => { const magnitude = Math.max(Math.abs(min), Math.abs(max)); return magnitude > 0 && (magnitude < 0.01 || magnitude >= 10000) ? Math.max(-323, Math.min(308, Math.floor(Math.log10(magnitude)))) : 0; };
   const xe = exponent(xr.min, xr.max), ye = exponent(yr.min, yr.max);
-  let content = bands ? `<rect x="${px(bands.c - bands.delta)}" y="40" width="${px(bands.c + bands.delta) - px(bands.c - bands.delta)}" height="200" fill="#fff1b8"/><rect x="75" y="${py(bands.l + bands.epsilon)}" width="410" height="${py(bands.l - bands.epsilon) - py(bands.l + bands.epsilon)}" fill="#dbeafe" fill-opacity=".65"/>` : "";
+  let content = bands ? `<rect x="${px(bands.c - bands.delta)}" y="40" width="${px(bands.c + bands.delta) - px(bands.c - bands.delta)}" height="200" fill="#fff1b8"/><rect x="135" y="${py(bands.l + bands.epsilon)}" width="350" height="${py(bands.l - bands.epsilon) - py(bands.l + bands.epsilon)}" fill="#dbeafe" fill-opacity=".65"/>` : "";
   for (let i = 0; i <= 2; i++) {
     const x = xr.min + i / 2 * (xr.max - xr.min), y = yr.min + i / 2 * (yr.max - yr.min);
-    content += `<path d="M${px(x)} 40V240 M75 ${py(y)}H485" stroke="#d4d8de"/>`;
-    content += label(px(x) - 55, 247, math(scientificNumberToLatex(x / 10 ** xe)), 110) + label(0, py(y) - 9, math(scientificNumberToLatex(y / 10 ** ye)), 70);
+    content += `<path d="M${px(x)} 40V240 M135 ${py(y)}H485" stroke="#d4d8de"/>`;
+    content += label(px(x) - 55, 247, math(scientificNumberToLatex(x / 10 ** xe)), 110) + label(0, py(y) - 9, math(scientificNumberToLatex(y / 10 ** ye)), 130);
   }
   content += label(150, 290, xLabel, 220) + label(0, 0, yLabel, 220);
   if (xe) content += label(400, 290, math(`\\times10^{${xe}}`), 140);

@@ -1,79 +1,43 @@
-# Zyx Product Bundle V3: Workflow and Contract Playbook
+# Zyx Product Bundle V4: Workflow and Contract Playbook
 
-## 1. Stage Objective
+## 1. Stage objective and compatibility
 
-Create a `product-bundle.v3` ZIP archive containing learner-ready structured `article`, review `diktat`, and atomic `flashcard_set` / `flashcard` entities grounded in a validated Source Pack and published Ideas, verified by independent Critic and Student POV subagents, and staged via MCP for admin review and Diktat PDF verification.
+Create new Article/Diktat products as `product-bundle.v4`, `article.v4` and `diktat.v4`. V2/V3 remain readable and their existing validators remain available for explicit legacy revisions. Keep an existing bundle's version when revising it unless the operator requests a reviewed V4 conversion. A V3-to-V4 conversion reconstructs ordered parts and Diktat lineage; changing a version marker is insufficient.
 
-## 2. Capability and Prerequisite Gate
+Product bundles contain only `article`, `diktat`, `flashcard_set` and `flashcard`. Questions and assessments use `quiz_bank` or `reference_question_ingest`. Publication is an admin UI action, never an MCP action.
 
-1. **Independent Subagents Required:** `product` stage authoring requires `clientCapabilities.independentSubagents: true`. If the host cannot launch independent subagents for Critic and Student POV verification, stop before drafting and report `AUTHORING_MCP_CAPABILITY_MISSING`.
-2. **Published Ideas Required:** Every Idea and `learningSectionId` referenced by the Product Bundle must already be `published` in the database (`ideaPublicationRequired: true`). Verify via `knowledge.search_ideas` and `analysis.get_coverage` before drafting.
-3. **Learner Products Only:** `product-bundle.v3` permits only `article`, `diktat`, `flashcard_set`, and `flashcard`. Never include `question`, `solution`, or `assessment_blueprint` in a Product Bundle; assessment items belong exclusively to `quiz_bank` or `reference_question_ingest`.
+## 2. Bootstrap, scope and upstream gate
 
-## 3. Step-by-Step Tool Sequence
+1. Call `workflow.get_playbook` for `zyx-product-bundle-mcp`, stage `product`, with actual host capabilities. Independent Critic and Student POV subagents are required.
+2. Start or resume `idea_product` with the selected course, chapter, validated Source Pack and bootstrap token. Fetch `workflow.get_contract` before authoring and after contract drift.
+3. Use the primary `productBundle.schemaDocuments` descriptors to retrieve complete JSON Schema from the same MCP origin. Check exact response SHA-256 and refresh the contract on HTTP 409. `productBundle.pilot` remains a compatibility alias; it is not a separate schema.
+4. Read published Ideas, learning sections and active source excerpts. Inspect existing imports/products to avoid duplicate drafts. Referenced Ideas and learning sections must be published before Product staging.
 
-1. **Bootstrap:** Call `workflow.get_playbook` with `skill: "zyx-product-bundle-mcp"`, `stage: "product"`, and client metadata. Save `bootstrapToken`.
-2. **Start Run and Read Contract:**
-   - Call `workflow.start` with `workflow: "idea_product"`, `courseKey`, `chapterKey`, `sourcePackId` (or `sourcePackToken`), and `bootstrapToken`.
-   - Call `workflow.get_contract` with `runToken` and `bootstrapToken` to inspect live `product-bundle.v3` rules, `pedagogyFields`, `typedVisuals`, `reviewRubric`, and `pdfEvidenceStates`.
-3. **Load Upstream Context:**
-   - Call `knowledge.search_ideas` (and `knowledge.get_idea` for key Ideas) to retrieve published Idea `id`, `code`, `version`, `semanticHash`, and `learningSection` mappings.
-   - Call `knowledge.list_sources` and `knowledge.search_source_chunks` (or `source.get_pack`) to obtain active `sourceId`, `version`, `checksum`, and `excerptIds`.
-   - Call `knowledge.list_products` and `authoring.list_imports` (`bundleType: "product"`) to check existing drafts or published products in the chapter.
-4. **Draft Content (Creator Role):**
-   - Request `representation: "image"` or `"both"` in `source.read_file`, poll `source.get_read_job` when pending, and reuse PDF page images using `![descriptive alt text](imageUrl)` in `contentMarkdown`, followed by the returned citation label, for example `Sumber: Judul buku, hlm. 12`. Preserve the title, PDF page number, and document checksum in source provenance. Never invent author, edition, publication year, or printed page numbering. Do not treat a page render as an isolated figure or a typed interactive visual.
-   - Draft the structured `article` (with `sections`, semantic `blocks`, `pedagogy`, `workedExamplePayload`, `formativeCheckPayload`, and typed `visuals`), the linked `diktat` (1 to 4 pages A4 self-study summary), and atomic `flashcard_set` + `flashcard` items.
-   - Follow `product/editorial`, `product/quality-rubric`, `product/flashcards`, and `product/derivation-audit`.
-5. **Independent Subagent Verification (Critic and Student POV):**
-   - Spawn an independent **Critic** subagent to audit the draft against all 8 rubric criteria, derivation steps (`product/derivation-audit`), and zero internal ID leakage.
-   - Spawn an independent **Student POV** subagent to read the Article and Diktat cold as a learner, testing whether every symbol is defined before use, every worked example step is justified, and every formative check is solvable from the preceding explanation.
-   - Apply all revisions required by Critic and Student POV before packaging.
-6. **Validate and Stage:**
-   - Call `authoring.validate_product_bundle` with `runToken`, `filename`, `bundleBase64`, and `bootstrapToken`.
-   - Note the distinction between `valid` and `publicationReady`:
-     - `valid: true` means deterministic content, schema, scope, and quality policy checks passed.
-     - Before staging and review, `PEDAGOGIC_REVIEW_MISSING` and `PDF_EVIDENCE_MISSING` will keep `publicationReady: false`; this is expected prior to submission.
-   - Once `valid: true`, call `authoring.submit_product_bundle` (or `authoring.restage_product_bundle` with `importId` to update an existing draft).
-7. **Pedagogic Review and Post-Stage Inspection:**
-   - When authorized with `authoring:review`, call `authoring.review_product_bundle` with `importId`, `runToken`, `decision`, `policyVersion`, `contentFingerprint` (matching the staged bundle), and anchored `criteria` across all 8 rubric items.
-   - Call `authoring.get_import` (`bundleType: "product"`, `importId`) to inspect `currentReadiness`. Final publication and Diktat PDF rendering happen through the admin review UI (`/admin/materials/review/product/[slug]`).
+Completion: the run scope, current contract, exact schemas, source anchors and published Idea versions/hashes are known. If a server only advertises a legacy default, report the contract mismatch before creating new V4 content.
 
-## 4. `product-bundle.v3` Archive Contract
+## 3. Author and independently review
 
-The ZIP archive contains `manifest.json`, `entities/products.json`, and `entities/dependencies.json`.
+1. Record representation choices outside the ZIP: objective, relationship to understand, chosen representation, reason, learner action, expected observation, formative check and source anchors.
+2. Build one Article with nonempty `sections`, empty top-level `blocks`, and ordered `parts` in every section block. Use `product/editorial` for mathematics, visuals and reasoning. A supplied block `contentMarkdown` must equal the projection of parts; omit it when allowing server derivation.
+3. Author Diktat `units` as a selective review sheet, using `sourceElementRefs`, `ideaIds` and printable `parts`. Preserve complete Idea coverage, essential formulas, conditions and method choices. Keep sourceArticleId/version/hash and the locked product dependency current. Each top-level visual_ref requires staticMarkdown; snapshot pins are derived by the server or must match exactly. Diktat contentMarkdown must equal the official units projection.
+4. Build optional atomic flashcards using `product/flashcards`. Every flashcard links to exactly one published Idea with weight 1; Article, Diktat and set Idea weights sum to 1.
+5. Send the same final artifact and checksum to independent Critic and Student POV subagents. Apply required revisions and obtain their rereads of the exact merged revision before staging. Keep review records outside the ZIP.
 
-### 4.1 `manifest.json` Schema
+Completion: ordered parts, local references, lineage, mathematical meaning/conditions and source coverage are complete, and both reviewers have checked the final revision. Schema success alone does not prove readability or mathematical correctness.
 
-```json
-{
-  "bundleId": "product-bundle-ma1101-bab01-v1",
-  "bundleType": "product",
-  "schemaVersion": "product-bundle.v3",
-  "courseId": "<courseId>",
-  "creatorId": "$UPLOADER",
-  "curatorId": "$APPROVING_REVIEWER",
-  "createdAt": "2026-09-05T00:00:00.000Z",
-  "conflicts": [],
-  "entityFiles": [
-    {
-      "path": "entities/products.json",
-      "entityType": "products",
-      "checksum": "<sha256-of-products-json>",
-      "stableIds": ["article-ma1101-bab01", "diktat-ma1101-bab01", "fcset-ma1101-bab01", "fc-ma1101-bab01-01"]
-    },
-    {
-      "path": "entities/dependencies.json",
-      "entityType": "dependencies",
-      "checksum": "<sha256-of-dependencies-json>",
-      "stableIds": ["dep-diktat-article-ma1101-bab01"]
-    }
-  ],
-  "bundleChecksum": "<sha256-of-deterministic-manifest-and-entity-files>"
-}
-```
+## 4. Package, validate and stage
 
-### 4.2 Lineage and Dependency Rules
+The ZIP contains `manifest.json`, `entities/products.json` and `entities/dependencies.json`. Follow the manifest and entity schemas delivered by the contract, including entity-file and bundle checksums. Use the official projection/checksum helper when available; do not invent a serialization algorithm. Keep tokens, credentials and storage delivery URLs outside the ZIP.
 
-1. **Article to Diktat Lineage:** Every `diktat` must specify `sourceArticleId`, `sourceArticleVersion`, and `sourceArticleHash` matching the `article.id`, `article.version`, and `article.generationHash` in the same bundle, plus a matching `UP_TO_DATE` entry in `entities/dependencies.json` (`upstreamEntityType: "product"`, `downstreamEntityType: "diktat"`).
-2. **Idea Links Weight Rule:** On every `article`, `diktat`, and `flashcard_set`, `ideaLinks` weights must be positive and sum to `1`. Each individual `flashcard` must link to exactly one Idea (`ideaLinks.length === 1` with `weight: 1`).
-3. **Zero Internal ID Leakage:** Learner-visible fields (`title`, `contentMarkdown`, `learningObjective`, `explanation`, `prompt`, `answer`, visual labels, and hints) must never contain internal IDs (`idea-...`, `source-...`, `ex-...`, `ls-...`, `blk-...`, `sec-...`) or raw JSON/enum codes.
+1. Call `authoring.validate_product_bundle` with runToken, bootstrapToken, filename and bundleBase64. Resolve deterministic content errors until valid is true.
+2. With staging authorized, submit a new draft or restage the existing import. Staging does not publish learner content.
+3. Read `authoring.get_import` for verificationContentHash, current content identity and review context. The verification request returns its derived plan. Missing verification, review or PDF evidence is expected before those stages, but it prevents publicationReady.
+
+## 5. Trusted rendering and exact-revision approval
+
+1. Request `authoring.verify_product_bundle` with the current import, content hash and plan hash required by the tool. Poll `authoring.get_verification` for that exact plan. The server derives structure, model, mobile/desktop interaction and print checks; an author's matrix cannot remove requirements.
+2. Inspect every required browser state and PDF page from the exact revision. Test the visible parameter panel, interaction activation, keyboard, reset, domain bounds and static alternatives. PDF body remains 10.5 pt with no auto-shrink and must fit 1 to 4 A4 pages. Resolve clipping, unreadable labels, missing assets, failed/stale checks and page-budget conflicts through content or renderer fixes.
+3. With review authorized, read fresh `authoring.get_import` context and submit the complete eight-criterion review, exact expectedRevision, policyVersion, contentFingerprint, current verificationPlanHash and verificationReceiptSignature, plus an explicit semanticHash decision for every section.
+4. Read currentReadiness again. Report import ID, exact revision, publicationReady and remaining blockers. Only the admin UI can publish.
+
+Completion: current trusted verification is ready, independent visual inspection is complete, review and PDF evidence match the same revision, and currentReadiness reports publicationReady. If any boundary fails or is unavailable, report it explicitly and retain the draft; local screenshots and agent assertions cannot replace a server receipt.

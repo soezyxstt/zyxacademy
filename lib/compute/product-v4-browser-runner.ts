@@ -36,10 +36,44 @@ async function launchVerificationBrowser() {
 }
 export async function closeProductV4BrowserRunner() { if (browser) { await (await browser).close(); browser = undefined; } }
 
-async function fontsReady(page: Page) {
-  await page.evaluate(async () => { await document.fonts.ready; await Promise.all([...document.fonts].map((font) => font.load())); });
+export async function fontsReady(page: Page) {
+  await page.evaluate(async () => {
+    await document.fonts.ready;
+    const used = new Map<string, string>();
+    for (const element of document.querySelectorAll("main, main p, main button, main input, main h1, main h2, main h3, main h4, main h5, main h6, main dt, main dd, main th, main td, main li, main label, main summary, main strong, main em, main .katex span")) {
+      const style = getComputedStyle(element);
+      const family = style.fontFamily.split(",")[0];
+      used.set(`${style.fontStyle} ${style.fontWeight} ${style.fontSize} ${family}`, element.textContent?.slice(0, 200) || "x");
+    }
+    // Unused local fallback faces can be absent on Linux; required rendered fonts must load.
+    await Promise.all([...used].map(async ([font, text]) => {
+      await document.fonts.load(font, text);
+      if (!document.fonts.check(font, text)) throw new Error("VERIFICATION_REQUIRED_FONT_UNAVAILABLE");
+    }));
+  });
+}
+export async function captureProductV4WebState(page: Page, checkId: string) {
+  const height = await page.evaluate(() => Math.max(document.documentElement.scrollHeight, document.body.scrollHeight));
+  const viewport = page.viewportSize();
+  if (!viewport || height <= 0 || Math.ceil(height / viewport.height) > 100) throw new Error("VERIFICATION_CAPTURE_HEIGHT_INVALID");
+  const artifacts: ProductV4ObservedCheck["artifacts"] = [];
+  // Capture the real viewport while scrolling; giant document surfaces can stall Chromium.
+  for (let y = 0; y < height; y += viewport.height) {
+    await page.evaluate(top => window.scrollTo(0, top), y);
+    artifacts.push({ id: `web-${checkId}-${y}`, mediaType: "image/png", bytes: await page.screenshot({ fullPage: false, animations: "disabled", timeout: 60_000 }) });
+  }
+  return artifacts;
 }
 export async function exerciseProductV4WebState(page: Page, state: string): Promise<boolean> {
+  const interactiveStates = ["changed", "reset", "keyboard"];
+  if (interactiveStates.includes(state)) {
+    const parameters = page.getByRole("button", { name: "Parameter", exact: true });
+    if (await parameters.count() && await parameters.getAttribute("aria-expanded") !== "true") await parameters.click();
+    if (!await page.getByRole("slider").count()) {
+      const activate = page.getByRole("button", { name: "Interaksi grafik", exact: true });
+      if (await activate.count()) await activate.click();
+    }
+  }
   const epsilon = page.getByRole("slider", { name: "Toleransi epsilon", exact: true });
   const slider = await epsilon.count() ? epsilon : page.getByRole("slider").first();
   if (["changed", "epsilon-minimum", "epsilon-maximum", "resolution-limited", "reset", "keyboard"].includes(state)) {
@@ -165,11 +199,16 @@ export async function executeBrowserProductV4Check(input: {
         const issues: string[] = [];
         if (document.querySelector(".katex-error")) issues.push("MATH_RENDER_ERROR");
         if (document.documentElement.scrollWidth > document.documentElement.clientWidth) issues.push("PAGE_OVERFLOW");
+        const width = document.documentElement.clientWidth;
+        if ([...document.querySelectorAll("main [data-article-parts], main [data-part-id], main .markdown-article, main p, main dl, main dd")].some(element => {
+          const box = element.getBoundingClientRect();
+          return box.width > 0 && (box.left < -1 || box.right > width + 1);
+        })) issues.push("CONTENT_CLIPPED_BY_VIEWPORT");
         if ([...document.images].some((image) => !image.complete || image.naturalWidth === 0)) issues.push("IMAGE_NOT_READY");
         return issues;
       });
       if (failures.length || errors.length) throw new Error([...failures, ...errors].join(","));
-      result.artifacts = [{ id: `web-${requirement.id}`, mediaType: "image/png", bytes: await page.screenshot({ fullPage: true, animations: "disabled", timeout: 60_000 }) }];
+      result.artifacts = await captureProductV4WebState(page, requirement.id);
     } else {
       const diktat = bundle.products.find((product) => product.productType === "diktat" && product.id === requirement.target);
       const article = diktat?.productType === "diktat" ? bundle.products.find((product) => product.productType === "article" && product.id === diktat.sourceArticleId) : undefined;

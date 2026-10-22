@@ -4,7 +4,7 @@
 
 Before extracting individual Ideas, partition the chapter into a coherent sequence of `learningSections`:
 1. **Learner-Centric Progression:** Order sections (`orderIndex: 0, 1, 2, ...`) from foundational intuition and definitions to core theorems/methods, then applications and synthesis.
-2. **Scope per Section:** A section should represent one focused study session (typically 15 to 35 minutes, 3 to 10 atomic Ideas) that will later map 1-to-1 to a `topic` section in Product Bundle V3 Articles.
+2. **Scope per Section:** A section should represent one focused study session (typically 15 to 35 minutes, 3 to 10 atomic Ideas) that will later map 1-to-1 to a `topic` section in Product Bundle V4 Articles (or explicit legacy V3 revisions).
 3. **Clear Learning Objective:** Write `learningObjective` in Indonesian using measurable action verbs (for example, "Menjelaskan definisi formal limit $\varepsilon$-$\delta$ dan membuktikan limit fungsi linier serta kuadratik").
 
 ## 2. Atomic Idea Granularity Rules

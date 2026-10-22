@@ -23,7 +23,7 @@ Transform a validated Source Pack into an `idea-bundle.v3` ZIP archive containin
    - Resolve all blocking issues and warnings until `ok: true` and `valid: true`.
    - Call `authoring.submit_idea_bundle` (or `authoring.restage_idea_bundle` with `importId` if replacing an existing unapproved staged bundle).
    - If the operator explicitly requests recording a review decision and the principal holds `authoring:review`, call `authoring.review_idea_bundle`.
-   - Remind the operator that an admin must publish the approved Idea Bundle in `/admin/materials/review` before Product Bundle V3 authoring can reference its Ideas.
+   - Remind the operator that an admin must publish the approved Idea Bundle in `/admin/materials/review` before Product Bundle V4 authoring can reference its Ideas.
 
 ## 3. `idea-bundle.v3` Archive Contract
 

@@ -539,8 +539,8 @@ describe("PB-CP3 Authoring MCP Contract and Quality Parity", () => {
       const localContract = workflowContract(runToken);
       expect(localContract.workflow.key).toBe("idea_product");
       const pbContract = localContract.outputs.productBundle;
-      expect(pbContract.schemaVersion).toBe("product-bundle.v3");
-      expect(pbContract.compatibleReadVersions).toEqual(["product-bundle.v2", "product-bundle.v3"]);
+      expect(pbContract.schemaVersion).toBe("product-bundle.v4");
+      expect(pbContract.compatibleReadVersions).toEqual(["product-bundle.v2", "product-bundle.v3", "product-bundle.v4"]);
       expect(pbContract.publicationPermitted).toBe(false);
       expect(pbContract.reviewRequired).toBe(true);
       expect(pbContract.ideaPublicationRequired).toBe(true);
@@ -550,6 +550,8 @@ describe("PB-CP3 Authoring MCP Contract and Quality Parity", () => {
         "authoring.validate_product_bundle",
         "authoring.submit_product_bundle",
         "authoring.restage_product_bundle",
+        "authoring.verify_product_bundle",
+        "authoring.get_verification",
         "authoring.review_product_bundle",
       ]);
 
@@ -568,7 +570,7 @@ describe("PB-CP3 Authoring MCP Contract and Quality Parity", () => {
       expect(pbContract.pedagogyFields.section).toHaveProperty("symbols");
       expect(pbContract.pedagogyFields.section).toHaveProperty("timeEstimate");
       expect(pbContract.pedagogyFields.section).toHaveProperty("visualRequirement");
-      expect(pbContract.pedagogyFields.blocks).toHaveProperty("workedExamplePayload");
+      expect(pbContract.pedagogyFields.blocks).toHaveProperty("workedExample");
       expect(pbContract.pedagogyFields.blocks).toHaveProperty("formativeCheckPayload");
 
       // Typed visual specifications
@@ -599,7 +601,7 @@ describe("PB-CP3 Authoring MCP Contract and Quality Parity", () => {
       const toolRes = await callMcpTool(readOnlyPrincipal, "workflow.get_contract", { runToken });
       expect(toolRes.isError).toBe(false);
       expect(toolRes.data.ok).toBe(true);
-      expect(toolRes.data.outputs.productBundle.schemaVersion).toBe("product-bundle.v3");
+      expect(toolRes.data.outputs.productBundle.schemaVersion).toBe("product-bundle.v4");
       expect(toolRes.data.outputs.productBundle.publicationPermitted).toBe(false);
     });
   });
