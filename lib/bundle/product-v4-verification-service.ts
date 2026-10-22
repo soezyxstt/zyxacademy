@@ -26,7 +26,7 @@ const hash = z.string().regex(/^[a-f0-9]{64}$/);
 const jobSchema = z.object({ importId: z.string().min(1), runId: z.string().min(1), planHash: hash }).strict();
 const attemptSchema = jobSchema.extend({ attemptId: z.string().uuid() });
 const stateSchema = z.object({ attemptId: z.string().uuid(), status: z.enum(["pending", "running", "complete", "failed", "stale"]), receiptKey: z.string().optional(), failureCode: z.string().max(100).optional(), updatedAt: z.number().int().optional(), completedChecks: z.number().int().nonnegative().optional(), totalChecks: z.number().int().positive().optional(), currentCheckId: hash.optional() }).strict();
-export type ProductV4VerificationCheckpoint = (id: string, execute: () => Promise<ProductV4VerificationResult>) => Promise<ProductV4VerificationResult>;
+export type ProductV4VerificationCheckpoint = <T>(id: string, execute: () => Promise<T>) => Promise<T>;
 const encode = (value: unknown) => new TextEncoder().encode(JSON.stringify(value));
 
 /** Storage manifest is written after artifacts; only an atomic import attachment makes it current. */
@@ -115,18 +115,20 @@ export function createProductV4VerificationService(ports: ProductV4VerificationP
     },
     async process(input: { importId: string; runId: string; planHash: string; attemptId?: string }, checkpoint: ProductV4VerificationCheckpoint = (_id, execute) => execute()) {
       jobSchema.parse({ importId: input.importId, runId: input.runId, planHash: input.planHash });
-      const { snapshot, plan } = await current(input.importId, input.runId);
+      const { snapshot, plan, existing } = await checkpoint("prepare-verification", async () => ({
+        ...await current(input.importId, input.runId),
+        existing: await get({ importId: input.importId, runId: input.runId, planHash: input.planHash }),
+      }));
       if (plan.planHash !== input.planHash) throw new Error("PRODUCT_V4_VERIFICATION_CONFLICT");
       const attemptId = z.string().uuid().parse(input.attemptId ?? snapshot.verificationAttemptId);
+      if (attemptId !== snapshot.verificationAttemptId) throw new Error("PRODUCT_V4_VERIFICATION_ATTEMPT_STALE");
       const getInput = { importId: input.importId, runId: input.runId, planHash: input.planHash };
       const assertAttempt = async () => {
         const fresh = await current(input.importId, input.runId);
         assertProductV4VerificationCurrent(plan, fresh.plan);
         if (fresh.snapshot.verificationAttemptId !== attemptId) throw new Error("PRODUCT_V4_VERIFICATION_ATTEMPT_STALE");
       };
-      await assertAttempt();
       const stateKey = buildProductVerificationKey(plan.planHash, `state-${attemptId}.json`);
-      const existing = await get(getInput);
       if (existing.state.status === "complete") return existing;
       let completedChecks = 0;
       try {
@@ -163,13 +165,15 @@ export function createProductV4VerificationService(ports: ProductV4VerificationP
           return observed;
 
         });
-        await assertAttempt();
-        if (!await ports.attach(snapshot, plan.planHash, attemptId, attemptId)) throw new Error("PRODUCT_V4_VERIFICATION_CONFLICT");
-        const receiptKey = `receipt-${attemptId}.json`;
-        await ports.write(buildProductVerificationKey(plan.planHash, receiptKey), encode(receipt), "application/json");
-        await assertAttempt();
-        await ports.write(stateKey, encode({ attemptId, status: "complete", receiptKey, updatedAt: Date.now(), completedChecks, totalChecks: plan.requirements.length }), "application/json");
-        return get(getInput);
+        return await checkpoint("finalize-verification", async () => {
+          await assertAttempt();
+          if (!await ports.attach(snapshot, plan.planHash, attemptId, attemptId)) throw new Error("PRODUCT_V4_VERIFICATION_CONFLICT");
+          const receiptKey = `receipt-${attemptId}.json`;
+          await ports.write(buildProductVerificationKey(plan.planHash, receiptKey), encode(receipt), "application/json");
+          await assertAttempt();
+          await ports.write(stateKey, encode({ attemptId, status: "complete", receiptKey, updatedAt: Date.now(), completedChecks, totalChecks: plan.requirements.length }), "application/json");
+          return get(getInput);
+        });
       } catch (error) {
         const stale = error instanceof Error && ["PRODUCT_V4_VERIFICATION_CONFLICT", "PRODUCT_V4_VERIFICATION_ATTEMPT_STALE"].includes(error.message);
         await ports.write(stateKey, encode({ attemptId, status: stale ? "stale" : "failed", failureCode: stale ? "PRODUCT_V4_VERIFICATION_CONFLICT" : "PRODUCT_V4_VERIFICATION_EXECUTION_FAILED" }), "application/json");
@@ -229,22 +233,24 @@ export async function getProductV4Verification(input: { importId: string; runId:
 export async function failProductV4VerificationJob(input: { importId: string; runId: string; planHash: string; attemptId: string }) {
   return (await applicationService()).fail(input);
 }
-export async function processProductV4VerificationJob(input: { importId: string; runId: string; planHash: string; attemptId?: string }, checkpoint?: ProductV4VerificationCheckpoint) {
+export async function processProductV4VerificationJob(input: { importId: string; runId: string; planHash: string; attemptId?: string }, checkpoint: ProductV4VerificationCheckpoint = (_id, execute) => execute()) {
   const service = await applicationService();
   const result = await service.process(input, checkpoint);
   if (result.evaluation.ready) {
-    const { persistProductV4PdfEvidence } = await import("@/lib/compute/product-v4-pdf-evidence");
-    try {
-      await persistProductV4PdfEvidence({ snapshot: (await service.current(input.importId, input.runId)).snapshot, plan: result.plan, attemptId: result.attemptId, receipt: result.receipt });
-    } catch (error) {
-      const fresh = await service.current(input.importId, input.runId);
-      if (fresh.plan.planHash === result.plan.planHash && fresh.snapshot.verificationAttemptId === result.attemptId) {
-        const { storage } = await import("@/lib/storage");
-        const key = buildProductVerificationKey(result.plan.planHash, `state-${result.attemptId}.json`);
-        await storage.upload(encode({ attemptId: result.attemptId, status: "failed", receiptKey: `receipt-${result.attemptId}.json`, failureCode: "PRODUCT_V4_PDF_EVIDENCE_PERSIST_FAILED" }), key.split("/").pop()!, "application/json", { key });
+    await checkpoint("persist-pdf-evidence", async () => {
+      const { persistProductV4PdfEvidence } = await import("@/lib/compute/product-v4-pdf-evidence");
+      try {
+        await persistProductV4PdfEvidence({ snapshot: (await service.current(input.importId, input.runId)).snapshot, plan: result.plan, attemptId: result.attemptId, receipt: result.receipt });
+      } catch (error) {
+        const fresh = await service.current(input.importId, input.runId);
+        if (fresh.plan.planHash === result.plan.planHash && fresh.snapshot.verificationAttemptId === result.attemptId) {
+          const { storage } = await import("@/lib/storage");
+          const key = buildProductVerificationKey(result.plan.planHash, `state-${result.attemptId}.json`);
+          await storage.upload(encode({ attemptId: result.attemptId, status: "failed", receiptKey: `receipt-${result.attemptId}.json`, failureCode: "PRODUCT_V4_PDF_EVIDENCE_PERSIST_FAILED" }), key.split("/").pop()!, "application/json", { key });
+        }
+        throw error;
       }
-      throw error;
-    }
+    });
   }
   return result;
 }
