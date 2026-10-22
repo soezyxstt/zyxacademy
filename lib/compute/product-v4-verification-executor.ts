@@ -19,6 +19,7 @@ const responseSchema = z.object({
   checkId: z.string().regex(/^[a-f0-9]{64}$/), status: z.enum(["PASS", "FAIL", "NOT_TESTED"]),
   expected: z.string().min(1).max(500), observed: z.string().min(1).max(500),
   pageCount: z.number().int().positive().max(4).optional(), artifacts: z.array(artifact).max(300),
+  captureTotal: z.number().int().positive().max(300).optional(),
 }).strict();
 
 /** The endpoint and credentials are server configuration, never MCP parameters. */
