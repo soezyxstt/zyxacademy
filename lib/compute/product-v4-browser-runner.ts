@@ -153,7 +153,7 @@ export async function executeBrowserProductV4Check(input: {
   const launched = await browser;
   const expectedBrowserVersion = input.plan.binding.browserVersion ?? (deployed ? undefined : loadedBrowserRuntime?.browserVersion);
   if (!expectedBrowserVersion || launched.version() !== expectedBrowserVersion) throw new Error("PRODUCT_V4_BROWSER_VERSION_MISMATCH");
-  const context = await launched.newContext({ viewport: requirement.viewport ?? { width: 794, height: 1123 }, reducedMotion: "reduce" });
+  const context = await launched.newContext({ viewport: requirement.viewport ?? { width: 703, height: 1032 }, reducedMotion: "reduce" });
   const errors: string[] = [];
   const page = await context.newPage();
   page.setDefaultTimeout(20_000);
