@@ -78,10 +78,13 @@ test("verification opens parameter panels before changing and resetting a graph"
 
 test("long chapter captures cover every row at the required viewport", async () => {
   const offsets: number[] = [];
-  const fullPage: boolean[] = [];
-  const page = { viewportSize: () => ({ width: 380, height: 4000 }), evaluate: async (_callback: unknown, top?: number) => { if (top !== undefined) offsets.push(top); return 9000; }, screenshot: async (options: { fullPage: boolean }) => { fullPage.push(options.fullPage); return Buffer.from("png"); } } as unknown as Page;
+  const options: unknown[] = [];
+  let detached = false;
+  const session = { send: async (method: string, input: unknown) => { expect(method).toBe("Page.captureScreenshot"); options.push(input); return { data: Buffer.from("png").toString("base64") }; }, detach: async () => { detached = true; } };
+  const page = { context: () => ({ newCDPSession: async () => session }), viewportSize: () => ({ width: 380, height: 4000 }), evaluate: async (_callback: unknown, top?: number) => { if (top !== undefined) offsets.push(top); return 9000; } } as unknown as Page;
   const artifacts = await captureProductV4WebState(page, "chapter");
   expect(offsets).toEqual([0, 4000, 8000]);
-  expect(fullPage).toEqual([false, false, false]);
+  expect(options).toEqual(Array(3).fill({ format: "png", captureBeyondViewport: false }));
   expect(new Set(artifacts.map(artifact => artifact.id)).size).toBe(3);
+  expect(detached).toBe(true);
 });
