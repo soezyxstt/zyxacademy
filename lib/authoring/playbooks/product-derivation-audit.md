@@ -1,4 +1,4 @@
-# Zyx Product Bundle V3: Mathematical and Scientific Derivation Audit Guide
+# Zyx Product Bundle V4: Mathematical and Scientific Derivation Audit Guide
 
 ## 1. Purpose
 

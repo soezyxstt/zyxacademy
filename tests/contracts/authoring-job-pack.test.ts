@@ -104,6 +104,7 @@ describe("Authoring Job Pack", () => {
     expect(validated.job.sectionMappings).toHaveLength(3);
     expect(validated.job.attribution).toEqual({ creatorId: "$UPLOADER", curatorId: "$APPROVING_REVIEWER" });
     expect(validated.job.workflow.ideaPublicationRequiredBeforeProducts).toBe(true);
+    expect(validated.job.workflow.productBundleSchemaVersion).toBe("product-bundle.v4");
     expect(unzipSync(pack.bytes)["contracts/product-bundle/product.schema.json"]).toBeDefined();
   });
 

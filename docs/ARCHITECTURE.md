@@ -1214,7 +1214,7 @@ The compute PDF page reader caches extracted text and PNG bytes by current docum
 - `lib/math/katex-render.ts` shares deterministic KaTeX HTML with a 500-entry FIFO cap. Inputs over 2,000 characters, outputs over 10,000 characters, and mutable or callback options bypass caching.
 - Sidebar activity refresh runs on account mount, successful learning mutations, and focus or visibility changes after 60 seconds. Each account effect owns its abort controller; a mutation during a request queues one follow-up refresh. Route changes alone do not trigger it.
 
-### Explicit-version Product Bundle V4
+### Product Bundle V4 authoring default
 
 V4 retains the canonical Product envelope and existing tables. Ordered Article parts, scoped mathematical meanings and symbols, worked steps, visual references and authored Diktat units survive compilation, persistence and public hydration. Source figures bind a validated SourcePack and PDF crop to immutable checked variants; learner image delivery authorizes the stored course and chapter before returning private bytes. See [the V4 contract](bundle/product-bundle-v4.md).
 

@@ -198,8 +198,8 @@ export async function PUT(request: NextRequest, context: { params: Promise<{ id:
       bytes: finalized.bytes,
       requestedBy: session.user.id,
       bundle,
-      filename: bundle.manifest.schemaVersion === "product-bundle.v3" ? "product-bundle-v3.zip" : "product-bundle-v2.zip",
-      preserveUnchangedItemReviews: bundle.manifest.schemaVersion === "product-bundle.v3",
+      filename: `${bundle.manifest.schemaVersion.replace(".", "-")}.zip`,
+      preserveUnchangedItemReviews: bundle.manifest.schemaVersion !== "product-bundle.v2",
     });
     return NextResponse.json({ result });
   } catch (error) {

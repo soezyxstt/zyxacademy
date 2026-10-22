@@ -5,7 +5,7 @@ import { z } from "zod";
 
 export const AUTHORING_MCP_BOOTSTRAP_PROTOCOL = 1;
 export const SUPPORTED_BOOTSTRAP_PROTOCOLS = [1] as const;
-export const RECOMMENDED_PLUGIN_VERSION = "0.4.0";
+export const RECOMMENDED_PLUGIN_VERSION = "0.4.1";
 export const MIN_COMPATIBLE_PLUGIN_VERSION = "0.2.0";
 
 export const AUTHORING_MCP_SKILLS = [
@@ -85,7 +85,7 @@ const PLAYBOOK_MODULE_ALLOWLIST: Record<AuthoringPlaybookModuleKey, PlaybookModu
     filename: "pipeline-orchestration.md",
     title: "End-to-End Authoring Pipeline Orchestration",
     stage: "pipeline",
-    summary: "Checkpoint sequence from Source Pack to Idea Bundle V3, admin Idea publication gate, and Product Bundle V3 staging.",
+    summary: "Checkpoint sequence from Source Pack to Idea Bundle V3, admin Idea publication gate, and Product Bundle V4 staging with trusted verification.",
   },
   "source/workflow": {
     key: "source/workflow",
@@ -118,9 +118,9 @@ const PLAYBOOK_MODULE_ALLOWLIST: Record<AuthoringPlaybookModuleKey, PlaybookModu
   "product/workflow": {
     key: "product/workflow",
     filename: "product-workflow.md",
-    title: "Product Bundle V3 Workflow and Archive Contract",
+    title: "Product Bundle V4 Workflow and Archive Contract",
     stage: "product",
-    summary: "Capability gates, Creator/Critic/Student POV verification, product-bundle.v3 schema, lineage, and staging rules.",
+    summary: "Capability gates, Creator/Critic/Student POV verification, product-bundle.v4 schema, ordered parts, lineage, trusted verification and staging rules.",
   },
   "product/editorial": {
     key: "product/editorial",

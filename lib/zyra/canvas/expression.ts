@@ -1,3 +1,5 @@
+import { scientificLiteralToLatex } from "@/lib/math/scientific-format";
+
 export type SafeExpressionNode =
   | { kind: "number"; value: number }
   | { kind: "variable"; name: string }
@@ -284,10 +286,13 @@ export function compileSafeExpression(
 }
 
 function expressionNodeToLatex(node: SafeExpressionNode, parentPrecedence = 0): string {
-  if (node.kind === "number") return String(node.value);
+  if (node.kind === "number") {
+    const literal = scientificLiteralToLatex(String(node.value));
+    return literal && parentPrecedence > 2 ? `\\left(${literal}\\right)` : literal ?? String(node.value);
+  }
   if (node.kind === "variable") return node.name;
   if (node.kind === "call") {
-    const name = node.name === "sqrt" ? "sqrt" : node.name;
+    const name = node.name === "log" ? "ln" : node.name;
     if (name === "sqrt") return `\\sqrt{${expressionNodeToLatex(node.args[0])}}`;
     return `\\${name}\\left(${node.args.map((arg) => expressionNodeToLatex(arg)).join(", ")}\\right)`;
   }

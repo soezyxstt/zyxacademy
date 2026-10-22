@@ -42,7 +42,7 @@ export const authoringJobSchema = z.object({
     ideaPublicationRequiredBeforeProducts: z.literal(true),
     freshAuthoringContextRequired: z.literal(true),
     ideaBundleSchemaVersion: z.literal("idea-bundle.v3"),
-    productBundleSchemaVersion: z.literal("product-bundle.v3"),
+    productBundleSchemaVersion: z.enum(["product-bundle.v3", "product-bundle.v4"]),
   }).strict(),
 }).strict().superRefine((job, context) => {
   const products = new Set(job.requestedProducts);
@@ -163,7 +163,7 @@ export function buildAuthoringJobPack(input: AuthoringJobPackInput): AuthoringJo
     sectionMappings,
     requestedProducts: input.requestedProducts,
     attribution: { creatorId: "$UPLOADER", curatorId: "$APPROVING_REVIEWER" },
-    workflow: { ideaPublicationRequiredBeforeProducts: true, freshAuthoringContextRequired: true, ideaBundleSchemaVersion: "idea-bundle.v3", productBundleSchemaVersion: "product-bundle.v3" },
+    workflow: { ideaPublicationRequiredBeforeProducts: true, freshAuthoringContextRequired: true, ideaBundleSchemaVersion: "idea-bundle.v3", productBundleSchemaVersion: "product-bundle.v4" },
   });
 
   const files = new Map<string, Uint8Array>();

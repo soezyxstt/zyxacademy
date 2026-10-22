@@ -35,7 +35,7 @@ describe("Learning Canvas safe expressions", () => {
   });
 
   test("normalizes legacy graph notation before safe evaluation", () => {
-    const normalized = normalizeLegacyGraphExpression("$y = 2x² - 4$");
+    const normalized = normalizeLegacyGraphExpression("$y = 2x\u00b2 - 4$");
     expect(normalized).toBe("2*x^2 - 4");
     expect(compileSafeExpression(normalized, { variables: ["x"] }).evaluate({ x: 2 })).toBe(4);
   });
@@ -68,4 +68,14 @@ describe("Learning Canvas safe expressions", () => {
     expect(safeExpressionToLatex("(x^2 - 1)/(x - 1)", ["x"]))
       .toBe("\\frac{x^{2} - 1}{x - 1}");
   });
+});
+
+
+test("scientific graph labels preserve natural logarithms and coefficient precision", () => {
+  expect(safeExpressionToLatex("log(x)", ["x"])).toContain("\\ln");
+  expect(compileSafeExpression("log(x)", { variables: ["x"] }).evaluate({ x: Math.E })).toBeCloseTo(1);
+  const label = safeExpressionToLatex("0.0000001234567*x", ["x"]);
+  expect(label).toContain("1.234567\\times 10^{-7}");
+  expect(label).not.toContain("e-7");
+  expect(safeExpressionToLatex("(0.0000001234567)^x", ["x"])).toContain("\\left(1.234567\\times 10^{-7}\\right)");
 });

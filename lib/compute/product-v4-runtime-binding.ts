@@ -43,7 +43,7 @@ export const PRODUCT_V4_RUNTIME_FILES = [
   "lib/articles/structured-read-model.ts", "lib/articles/structured-repository.ts", "lib/materials/compiler.ts", "lib/materials/pedagogy-contract.ts",
   "lib/authoring/source-figures.ts", "lib/compute/source-figure.ts", "lib/authoring/mcp-contract-revision.ts", "lib/authoring/mcp-workflows.ts", "lib/authoring/mcp-playbook.ts",
   "lib/authoring/source-pack.ts", "lib/authoring/question-bank-draft.ts", "lib/authoring/reference-question-draft.ts", "lib/question-authoring-contract.ts", "lib/ide/contracts.ts", "lib/sumber/contracts.ts", "lib/bundle/idea-bundle-v2.ts", "lib/bundle/validator.ts", "lib/bundle/zip-reader.ts", "lib/materials/quality-policy.ts", "lib/materials/quality-policy-constants.ts", "lib/materials/pdf-artifact-contract.ts",
-  "lib/math/katex.ts", "lib/math/scientific-format.ts", "lib/math/text-segments.ts", "lib/math/unmarked-scientific.ts", "lib/math/visual-function-latex.ts", "lib/math/math-normalizer.ts", "lib/math/scientific-answer-normalizer.ts",
+  "lib/math/katex.ts", "lib/math/katex-render.ts", "lib/math/scientific-format.ts", "lib/math/text-segments.ts", "lib/math/unmarked-scientific.ts", "lib/math/visual-function-latex.ts", "lib/math/math-normalizer.ts", "lib/math/scientific-answer-normalizer.ts",
   "lib/materials/article-parts.ts", "lib/materials/article-contract.ts", "lib/materials/visual-contract.ts", "lib/materials/epsilon-delta.ts",
   "lib/materials/diktat-v4.ts", "lib/materials/diktat-static-visual.ts", "lib/materials/diktat-print-readiness.ts", "lib/materials/verification-preview.ts",
   "lib/zyra/canvas/contracts.ts", "lib/zyra/canvas/expression.ts", "lib/zyra/canvas/evaluator.ts", "lib/zyra/canvas/viewport.ts",

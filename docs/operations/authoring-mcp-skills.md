@@ -42,7 +42,7 @@ To update, inspect the external commit, update its matching lock entry, and revi
 
 ## Local V4 candidate packages
 
-The workspace mirror `plugins/zyx-authoring-mcp` contains a local `0.4.0` candidate, bootstrap protocol 1. Product V3 remains the default; V4 requires explicit version selection. Product/Pipeline skills require runtime contracts, ordered mathematical representations, traced Diktat, independent review roles and trusted renderer evidence. Runtime playbooks remain authoritative.
+The workspace mirror `plugins/zyx-authoring-mcp` contains a local `0.4.1` candidate, bootstrap protocol 1. Product V4 is the default for new Article/Diktat authoring. Existing V3 revisions retain their version unless the operator requests a reviewed conversion. The primary runtime contract exposes V4 schemas and verification; the pilot descriptor remains a compatibility alias. Product/Pipeline skills require runtime contracts, ordered mathematical representations, traced Diktat, independent review roles and trusted renderer evidence. Runtime playbooks remain authoritative.
 
 Render each environment package before building its MCP catalog:
 
@@ -73,6 +73,8 @@ The build resolves workspace aliases and leaves installed packages external. It 
 The application build runs `prepare-web-verification.ts`, embeds its public fingerprint in the verification preview, and generates `lib/compute/product-v4-build-runtime.json` for Deno. The Deno release pipeline regenerates that identity from the exact source and locked packages before upload. Deno consumes the build identity instead of reading frontend files excluded from its deployment. A stale web build cannot satisfy trusted checks.
 
 The controlled `/authoring-verification` preview excludes site telemetry. Its executor rejects unexpected external requests rather than suppressing their errors. A local production build, Node HTTP renderer and synthetic canonical V4 ZIP have exercised all 22 derived checks, including web states and PDF page capture. This is local evidence; it does not certify deployed endpoints, installed plugin imports or a complete chapter's pedagogic acceptance.
+
+Reader checks reject display-math scrolling at normal text size and require named, keyboard-accessible scroll regions at doubled text size. Pixel-based typography is explicitly doubled and measured; scientific diagram coordinates retain their existing zoom controls. Chapter captures preserve the configured CSS viewport and allow at most 300 slices per check.
 
 Machine render receipts and independent pedagogic/visual review are separate gates. A passing browser job establishes the recorded machine checks, not mathematical equivalence or human readability by itself.
 

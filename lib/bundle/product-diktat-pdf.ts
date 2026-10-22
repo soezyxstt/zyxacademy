@@ -144,6 +144,7 @@ body { margin: 0; color: #172033; font-family: Arial, sans-serif; font-size: 10.
 h1 { color: #172033; font-size: 15pt; line-height: 1.2; margin: 1mm 0 0; }
 .diktat { column-count: 2; column-gap: 7mm; }
 .diktat-unit { break-inside: avoid; }
+.diktat-unit p { margin-bottom: 1mm; }
 .diktat-static-visual { break-inside: avoid; margin: 2mm 0; }
 .diktat-static-visual figcaption { font-weight: 700; margin-bottom: 1mm; }
 .diktat:has(.diktat-unit) .diktat-header { column-span: all; }

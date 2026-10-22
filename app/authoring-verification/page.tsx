@@ -21,7 +21,7 @@ export default function AuthoringVerificationPage() {
   }, []);
   if (!preview) return <main data-verification-empty />;
   const selected = preview.visualId ? preview.visuals.find((visual) => visual.id === preview.visualId) : null;
-  return <main data-verification-loaded className="mx-auto max-w-3xl space-y-6 p-4">
+  return <main data-verification-loaded className="mx-auto w-full min-w-0 max-w-3xl space-y-6 p-4">
     {selected ? <ProductLearningVisual spec={selected} engine="jsxgraph" /> : <>
       <h1 className="font-heading text-h5"><MathText className="normal-case">{preview.title}</MathText></h1>
       {preview.sections.map((section) => <section key={section.id} data-verification-section={section.id} className="space-y-5">

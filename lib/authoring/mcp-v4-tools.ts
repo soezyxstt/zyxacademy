@@ -26,6 +26,14 @@ type Registrar = { registerTool(name: string, config: { description: string; inp
 const result = (payload: Record<string, unknown>, isError = false): CallToolResult => ({ content: [{ type: "text", text: JSON.stringify(payload) }], structuredContent: payload, ...(isError ? { isError: true } : {}) });
 const safeCodes = /^(AUTHORING_MCP_(TOKEN_INVALID|TOKEN_EXPIRED|SCOPE_REQUIRED|BOOTSTRAP_[A-Z_]+|WORKFLOW_MISMATCH)|SOURCE_FIGURE_[A-Z_]+|PRODUCT_V4_VERIFICATION_CONFLICT|PRODUCT_BUNDLE_NOT_FOUND)$/;
 
+export function productV4RequestErrorCode(error: unknown): string {
+  const message = error instanceof Error ? error.message : "";
+  const code = message.split(":")[0];
+  if (/^PRODUCT_V4_[A-Z_]+$/.test(code)) return code;
+  if (error && typeof error === "object" && "code" in error && ["ENOENT", "MODULE_NOT_FOUND", "ERR_MODULE_NOT_FOUND", "ERR_PACKAGE_PATH_NOT_EXPORTED"].includes(String(error.code))) return "PRODUCT_V4_RUNTIME_ASSET_UNAVAILABLE";
+  return safeCodes.test(message) ? message : message.startsWith("AUTHORING_MCP_SCOPE_REQUIRED") ? "AUTHORING_MCP_SCOPE_REQUIRED" : "AUTHORING_MCP_V4_REQUEST_FAILED";
+}
+
 export function registerProductV4Tools(server: McpServer, principal: McpPrincipal, overrides: Partial<Ports> = {}) {
   const ports = { ...defaults, ...overrides };
   // SDK schema declarations lag the installed Zod version; runtime consumes these Zod schemas directly.
@@ -42,8 +50,8 @@ export function registerProductV4Tools(server: McpServer, principal: McpPrincipa
         if (bootstrap.mode !== "verified") throw new Error("AUTHORING_MCP_BOOTSTRAP_REQUIRED");
         return result({ ok: true, result: await execute(input, run) });
       } catch (error) {
-        const message = error instanceof Error ? error.message : "";
-        const code = safeCodes.test(message) ? message : message.startsWith("AUTHORING_MCP_SCOPE_REQUIRED") ? "AUTHORING_MCP_SCOPE_REQUIRED" : "AUTHORING_MCP_V4_REQUEST_FAILED";
+        const code = productV4RequestErrorCode(error);
+        console.error("[authoring-v4]", { operation: name, code });
         return result({ ok: false, error: code }, true);
       }
     });

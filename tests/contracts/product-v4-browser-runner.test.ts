@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { exerciseProductV4WebState, validateVerificationBaseUrl, validateDeployedVerificationBaseUrl } from "@/lib/compute/product-v4-browser-runner";
+import { captureProductV4WebState, exerciseProductV4WebState, inspectProductV4DisplayMath, exerciseProductV4MathScroll, validateVerificationBaseUrl, validateDeployedVerificationBaseUrl } from "@/lib/compute/product-v4-browser-runner";
 import type { Page } from "@playwright/test";
 import { verificationPreviewSchema } from "@/lib/materials/verification-preview";
 
@@ -43,7 +43,7 @@ test("epsilon states operate the named tolerance slider rather than the earlier 
       tolerance = key === "Home" ? 0.1 : key === "End" ? 2.2 : tolerance + 0.01;
     } });
   const page = { getByRole: (role: string, options?: { name?: string | RegExp }) => role === "button"
-    ? { count: async () => 1, first() { return this; }, click: async () => { tolerance = 1; } }
+    ? { count: async () => options?.name === "Parameter" ? 0 : 1, first() { return this; }, click: async () => { tolerance = 1; } }
     : slider(options?.name === "Toleransi epsilon") } as unknown as Page;
   expect(await exerciseProductV4WebState(page, "changed")).toBe(true);
   expect(tolerance).toBe(1.01);
@@ -56,4 +56,76 @@ test("epsilon states operate the named tolerance slider rather than the earlier 
   expect(await exerciseProductV4WebState(page, "epsilon-maximum")).toBe(true);
   expect(tolerance).toBe(2.2);
   expect(probe).toBe(0);
+});
+
+test("verification opens parameter panels before changing and resetting a graph", async () => {
+  let open = false;
+  let value = 2;
+  const slider = { count: async () => open ? 1 : 0, first() { return this; }, focus: async () => {}, inputValue: async () => String(value), press: async () => { value += 0.25; } };
+  const page = { getByRole: (role: string, options?: { name?: string | RegExp }) => {
+    if (role === "slider" && options?.name === "Toleransi epsilon") return { count: async () => 0 };
+    if (role === "slider") return slider;
+    if (options?.name === "Parameter") return { count: async () => 1, getAttribute: async () => String(open), click: async () => { open = true; } };
+    return { count: async () => 1, first() { return this; }, click: async () => { value = 2; } };
+  } } as unknown as Page;
+  expect(await exerciseProductV4WebState(page, "changed")).toBe(true);
+  expect(open).toBe(true);
+  expect(value).toBe(2.25);
+  value = 2;
+  expect(await exerciseProductV4WebState(page, "reset")).toBe(true);
+  expect(value).toBe(2);
+});
+
+test("long chapter captures cover every row at the required viewport", async () => {
+  const offsets: number[] = [];
+  const options: unknown[] = [];
+  let detached = false;
+  const session = { send: async (method: string, input: unknown) => { expect(method).toBe("Page.captureScreenshot"); options.push(input); return { data: Buffer.from("png").toString("base64") }; }, detach: async () => { detached = true; } };
+  const page = { context: () => ({ newCDPSession: async () => session }), viewportSize: () => ({ width: 380, height: 4000 }), evaluate: async (_callback: unknown, top?: number) => { if (top !== undefined) offsets.push(top); return 9000; } } as unknown as Page;
+  const artifacts = await captureProductV4WebState(page, "chapter");
+  expect(offsets).toEqual([0, 4000, 8000]);
+  expect(options).toEqual(Array(3).fill({ format: "png", captureBeyondViewport: false }));
+  expect(new Set(artifacts.map(artifact => artifact.id)).size).toBe(3);
+  expect(detached).toBe(true);
+});
+
+
+test("normal reading rejects internal math overflow, zoom requires an accessible actual scrollport", () => {
+  const originalDocument = Object.getOwnPropertyDescriptor(globalThis, "document");
+  const originalStyle = Object.getOwnPropertyDescriptor(globalThis, "getComputedStyle");
+  const main = { tagName: "MAIN" };
+  const scrollport = { tagName: "DIV", clientWidth: 300, scrollWidth: 500, tabIndex: 0, getAttribute: () => "Rumus", parentElement: main };
+  const formula = { tagName: "SPAN", clientWidth: 300, scrollWidth: 300, parentElement: scrollport };
+  let scrollbarWidth = "thin";
+  Object.defineProperty(globalThis, "document", { configurable: true, value: { querySelectorAll: () => [formula] } });
+  Object.defineProperty(globalThis, "getComputedStyle", { configurable: true, value: () => ({ overflowX: "auto", scrollbarWidth }) });
+  try {
+    expect(inspectProductV4DisplayMath("reading-order-and-math")).toEqual(["DISPLAY_MATH_OVERFLOW"]);
+    expect(inspectProductV4DisplayMath("keyboard-and-text-zoom")).toEqual([]);
+    scrollport.tabIndex = -1;
+    expect(inspectProductV4DisplayMath("keyboard-and-text-zoom")).toEqual([expect.stringContaining("DISPLAY_MATH_SCROLL_INACCESSIBLE")]);
+    scrollport.tabIndex = 0;
+    scrollbarWidth = "none";
+    expect(inspectProductV4DisplayMath("keyboard-and-text-zoom")).toEqual([expect.stringContaining("DISPLAY_MATH_SCROLL_INACCESSIBLE")]);
+    scrollport.scrollWidth = 300;
+    Object.defineProperty(globalThis, "getComputedStyle", { configurable: true, value: () => ({ overflowX: "visible", scrollbarWidth: "thin" }) });
+    scrollport.scrollWidth = 500;
+    expect(inspectProductV4DisplayMath("keyboard-and-text-zoom")).toEqual([]);
+    scrollport.scrollWidth = 300;
+    expect(inspectProductV4DisplayMath("reading-order-and-math")).toEqual([]);
+  } finally {
+    if (originalDocument) Object.defineProperty(globalThis, "document", originalDocument); else Reflect.deleteProperty(globalThis, "document");
+    if (originalStyle) Object.defineProperty(globalThis, "getComputedStyle", originalStyle); else Reflect.deleteProperty(globalThis, "getComputedStyle");
+  }
+});
+
+test("zoom math scroll checks the focused container with a real keyboard action", async () => {
+  const pressed: string[] = [];
+  let evaluated = 0;
+  let checked = false;
+  const page = { locator: () => ({ all: async () => [{ evaluate: async () => ++evaluated === 1 }] }), keyboard: { press: async (key: string) => { pressed.push(key); } }, waitForFunction: async () => { checked = true; } } as unknown as Page;
+  await exerciseProductV4MathScroll(page);
+  expect(pressed).toEqual(["ArrowRight"]);
+  expect(checked).toBe(true);
+  expect(evaluated).toBe(2);
 });
