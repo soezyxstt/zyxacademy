@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { serve } from "inngest/hono";
+import { serve } from "inngest/cloudflare";
 import { inngest } from "@/jobs/client";
 import { computeFunctions } from "@/jobs/compute";
 import { healthHandler } from "./health";
@@ -16,17 +16,15 @@ app.get("/health", healthHandler);
 app.post("/internal/pdf/pages", handlePdfPagesRpc);
 app.post("/internal/authoring/source-pack/resolve", handleSourcePackResolveRpc);
 
-app.on(
-  ["GET", "POST", "PUT"],
-  "/api/inngest",
-  serve({
+// This SDK Web API transport supports streamed responses, unlike its Hono and edge adapters.
+const inngestHandler = serve({
     client: inngest,
     functions: computeFunctions,
     streaming: true,
     serveOrigin: env.INNGEST_SERVE_ORIGIN,
     servePath: env.INNGEST_SERVE_PATH,
-  })
-);
+  });
+app.on(["GET", "POST", "PUT"], "/api/inngest", (context) => inngestHandler(context.req.raw, process.env));
 
 export default app;
 
