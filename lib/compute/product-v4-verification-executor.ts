@@ -18,7 +18,7 @@ const artifact = z.object({
 const responseSchema = z.object({
   checkId: z.string().regex(/^[a-f0-9]{64}$/), status: z.enum(["PASS", "FAIL", "NOT_TESTED"]),
   expected: z.string().min(1).max(500), observed: z.string().min(1).max(500),
-  pageCount: z.number().int().positive().max(4).optional(), artifacts: z.array(artifact).max(100),
+  pageCount: z.number().int().positive().max(4).optional(), artifacts: z.array(artifact).max(300),
 }).strict();
 
 /** The endpoint and credentials are server configuration, never MCP parameters. */

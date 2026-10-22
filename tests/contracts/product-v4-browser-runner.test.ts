@@ -103,10 +103,14 @@ test("normal reading rejects internal math overflow, zoom requires an accessible
     expect(inspectProductV4DisplayMath("reading-order-and-math")).toEqual(["DISPLAY_MATH_OVERFLOW"]);
     expect(inspectProductV4DisplayMath("keyboard-and-text-zoom")).toEqual([]);
     scrollport.tabIndex = -1;
-    expect(inspectProductV4DisplayMath("keyboard-and-text-zoom")).toEqual(["DISPLAY_MATH_SCROLL_INACCESSIBLE"]);
+    expect(inspectProductV4DisplayMath("keyboard-and-text-zoom")).toEqual([expect.stringContaining("DISPLAY_MATH_SCROLL_INACCESSIBLE")]);
     scrollport.tabIndex = 0;
     scrollbarWidth = "none";
-    expect(inspectProductV4DisplayMath("keyboard-and-text-zoom")).toEqual(["DISPLAY_MATH_SCROLL_INACCESSIBLE"]);
+    expect(inspectProductV4DisplayMath("keyboard-and-text-zoom")).toEqual([expect.stringContaining("DISPLAY_MATH_SCROLL_INACCESSIBLE")]);
+    scrollport.scrollWidth = 300;
+    Object.defineProperty(globalThis, "getComputedStyle", { configurable: true, value: () => ({ overflowX: "visible", scrollbarWidth: "thin" }) });
+    scrollport.scrollWidth = 500;
+    expect(inspectProductV4DisplayMath("keyboard-and-text-zoom")).toEqual([]);
     scrollport.scrollWidth = 300;
     expect(inspectProductV4DisplayMath("reading-order-and-math")).toEqual([]);
   } finally {

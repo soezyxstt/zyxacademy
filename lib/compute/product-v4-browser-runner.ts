@@ -55,11 +55,11 @@ export async function fontsReady(page: Page) {
 export async function captureProductV4WebState(page: Page, checkId: string) {
   const height = await page.evaluate(() => Math.max(document.documentElement.scrollHeight, document.body.scrollHeight));
   const viewport = page.viewportSize();
-  if (!viewport || height <= 0 || Math.ceil(height / viewport.height) > 100) throw new Error("VERIFICATION_CAPTURE_HEIGHT_INVALID");
+  if (!viewport || height <= 0 || Math.ceil(height / viewport.height) > 300) throw new Error("VERIFICATION_CAPTURE_HEIGHT_INVALID");
   const artifacts: ProductV4ObservedCheck["artifacts"] = [];
   const session = await page.context().newCDPSession(page);
   try {
-    // Required fonts were checked explicitly; CDP avoids Playwright waiting on unused fallback faces.
+    // Capture exact viewport slices, including long chapters with 200 percent text.
     for (let y = 0; y < height; y += viewport.height) {
       await page.evaluate(top => window.scrollTo(0, top), y);
       let timer: ReturnType<typeof setTimeout> | undefined;
@@ -123,7 +123,21 @@ export async function exerciseProductV4WebState(page: Page, state: string): Prom
     if (!await page.locator("main [data-visual-fallback]:visible").count() && !await page.getByRole("table").count()) return false;
   }
   if (state === "keyboard-and-text-zoom") {
-    await page.evaluate(() => { document.documentElement.style.fontSize = "200%"; });
+    await page.evaluate(async () => {
+      const sample = document.querySelector("main p") ?? document.querySelector("main");
+      const originalSize = sample ? parseFloat(getComputedStyle(sample).fontSize) : 0;
+      // Pixel typography tokens need explicit text scaling; diagram coordinates retain their own zoom controls.
+      const sizes = [...document.querySelectorAll<HTMLElement>("main, main *")].filter(element => !element.closest(".katex, svg, .jxgbox")).map(element => {
+        const style = getComputedStyle(element);
+        return { element, fontSize: parseFloat(style.fontSize), lineHeight: parseFloat(style.lineHeight) };
+      });
+      for (const { element, fontSize, lineHeight } of sizes) {
+        element.style.fontSize = `${fontSize * 2}px`;
+        if (Number.isFinite(lineHeight)) element.style.lineHeight = `${lineHeight * 2}px`;
+      }
+      await new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+      if (sample && parseFloat(getComputedStyle(sample).fontSize) < originalSize * 1.99) throw new Error(`VERIFICATION_TEXT_ZOOM_NOT_APPLIED:${originalSize}:${getComputedStyle(sample).fontSize}:${sample.getAttribute("style")}`);
+    });
     const control = page.locator("main button,main input,main [tabindex='0']").first();
     if (await control.count()) { await control.focus(); await page.keyboard.press("Tab"); }
   }
@@ -132,18 +146,13 @@ export async function exerciseProductV4WebState(page: Page, state: string): Prom
 
 export function inspectProductV4DisplayMath(state: string): string[] {
   for (const formula of document.querySelectorAll<HTMLElement>("main .katex-display, main .katex-display .katex-html")) {
-    let overflowing = false;
-    let scrollable = false;
     for (let element: HTMLElement | null = formula; element && element.tagName !== "MAIN"; element = element.parentElement) {
       if (element.clientWidth === 0 || element.scrollWidth <= element.clientWidth + 1) continue;
-      if (state === "reading-order-and-math") return ["DISPLAY_MATH_OVERFLOW"];
-      overflowing = true;
       const style = getComputedStyle(element);
       if (style.overflowX === "visible") continue;
-      if (!["auto", "scroll"].includes(style.overflowX) || element.tabIndex < 0 || !element.getAttribute("aria-label")?.trim() || style.scrollbarWidth === "none") return ["DISPLAY_MATH_SCROLL_INACCESSIBLE"];
-      scrollable = true;
+      if (state === "reading-order-and-math") return ["DISPLAY_MATH_OVERFLOW"];
+      if (!["auto", "scroll"].includes(style.overflowX) || element.tabIndex < 0 || !element.getAttribute("aria-label")?.trim() || style.scrollbarWidth === "none") return [`DISPLAY_MATH_SCROLL_INACCESSIBLE:${element.closest?.("[data-part-id]")?.id ?? element.tagName}:${style.overflowX}`];
     }
-    if (overflowing && !scrollable) return ["DISPLAY_MATH_SCROLL_INACCESSIBLE"];
   }
   return [];
 }

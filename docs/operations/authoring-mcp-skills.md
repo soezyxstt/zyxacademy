@@ -74,6 +74,8 @@ The application build runs `prepare-web-verification.ts`, embeds its public fing
 
 The controlled `/authoring-verification` preview excludes site telemetry. Its executor rejects unexpected external requests rather than suppressing their errors. A local production build, Node HTTP renderer and synthetic canonical V4 ZIP have exercised all 22 derived checks, including web states and PDF page capture. This is local evidence; it does not certify deployed endpoints, installed plugin imports or a complete chapter's pedagogic acceptance.
 
+Reader checks reject display-math scrolling at normal text size and require named, keyboard-accessible scroll regions at doubled text size. Pixel-based typography is explicitly doubled and measured; scientific diagram coordinates retain their existing zoom controls. Chapter captures preserve the configured CSS viewport and allow at most 300 slices per check.
+
 Machine render receipts and independent pedagogic/visual review are separate gates. A passing browser job establishes the recorded machine checks, not mathematical equivalence or human readability by itself.
 
 ## Acceptance and rollout

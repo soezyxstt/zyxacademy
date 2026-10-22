@@ -94,7 +94,7 @@ export function deriveProductV4VerificationPlan(input: {
 }
 
 const artifactSchema = z.object({ id: name, checksum: sha256, mediaType: z.enum(["application/json", "image/png", "application/pdf"]), byteLength: z.number().int().positive(), pageNumber: z.number().int().min(1).max(4).optional() }).strict();
-const resultSchema = z.object({ checkId: sha256, status: z.enum(["PASS", "FAIL", "NOT_TESTED"]), expected: name, observed: name, artifacts: z.array(artifactSchema).max(100), pageCount: z.number().int().min(1).max(4).optional() }).strict();
+const resultSchema = z.object({ checkId: sha256, status: z.enum(["PASS", "FAIL", "NOT_TESTED"]), expected: name, observed: name, artifacts: z.array(artifactSchema).max(300), pageCount: z.number().int().min(1).max(4).optional() }).strict();
 const receiptBodySchema = z.object({
   schemaVersion: z.literal("product-v4-verification-receipt.v1"),
   planHash: sha256,
