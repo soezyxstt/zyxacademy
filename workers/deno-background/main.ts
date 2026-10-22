@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { serve } from "inngest/hono";
+import { serve } from "inngest/edge";
 import { inngest } from "@/jobs/client";
 import { computeFunctions } from "@/jobs/compute";
 import { healthHandler } from "./health";
@@ -16,17 +16,14 @@ app.get("/health", healthHandler);
 app.post("/internal/pdf/pages", handlePdfPagesRpc);
 app.post("/internal/authoring/source-pack/resolve", handleSourcePackResolveRpc);
 
-app.on(
-  ["GET", "POST", "PUT"],
-  "/api/inngest",
-  serve({
+const inngestHandler = serve({
     client: inngest,
     functions: computeFunctions,
     streaming: true,
     serveOrigin: env.INNGEST_SERVE_ORIGIN,
     servePath: env.INNGEST_SERVE_PATH,
-  })
-);
+  });
+app.on(["GET", "POST", "PUT"], "/api/inngest", (context) => inngestHandler(context.req.raw));
 
 export default app;
 
