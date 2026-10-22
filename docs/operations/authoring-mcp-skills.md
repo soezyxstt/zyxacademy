@@ -76,7 +76,7 @@ The controlled `/authoring-verification` preview excludes site telemetry. Its ex
 
 Reader checks reject display-math scrolling at normal text size and require named, keyboard-accessible scroll regions at doubled text size. Pixel-based typography is explicitly doubled and measured; scientific diagram coordinates retain their existing zoom controls. Chapter captures preserve the configured CSS viewport and allow at most 300 slices per check.
 
-Verification checkpoints each requirement as separate Inngest steps, batches long web captures into at most 16 viewport slices per step, streams SDK responses through the official Web API adapter to avoid an idle Deno request, stores only artifact metadata in step outputs, and reports completed/total checks plus an update timestamp. Pending or running attempts without a timestamp or without updates for 20 minutes are expired and can be retried. Artifacts and dependency/attempt checks remain mandatory before a passing receipt.
+Verification checkpoints each requirement as separate Inngest steps, batches long web captures into at most 8 viewport slices per step on the existing Hono transport, stores only artifact metadata in step outputs, and reports completed/total checks plus an update timestamp. Pending or running attempts without a timestamp or without updates for 20 minutes are expired and can be retried. Artifacts and dependency/attempt checks remain mandatory before a passing receipt.
 
 Machine render receipts and independent pedagogic/visual review are separate gates. A passing browser job establishes the recorded machine checks, not mathematical equivalence or human readability by itself.
 

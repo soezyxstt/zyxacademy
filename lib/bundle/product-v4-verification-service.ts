@@ -138,7 +138,7 @@ export function createProductV4VerificationService(ports: ProductV4VerificationP
             const stored = await checkpoint(`verify-${requirement.id}-${offset}`, async () => {
               await assertAttempt();
               await ports.write(stateKey, encode({ attemptId, status: "running", updatedAt: Date.now(), completedChecks, totalChecks: plan.requirements.length, currentCheckId: requirement.id }), "application/json");
-              const result = await ports.execute({ plan, bundle: snapshot.bundle, requirement, ...(requirement.layer === "web" ? { captureOffset: offset, captureLimit: 16 } : {}) });
+              const result = await ports.execute({ plan, bundle: snapshot.bundle, requirement, ...(requirement.layer === "web" ? { captureOffset: offset, captureLimit: 8 } : {}) });
               await assertAttempt();
               const artifacts: ProductV4ObservedCheck["artifacts"] = [];
               for (let start = 0; start < result.artifacts.length; start += 8) {
