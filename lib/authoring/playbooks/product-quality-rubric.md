@@ -1,8 +1,8 @@
-# Zyx Product Bundle V3: Pedagogic Quality Rubric and Verification Protocol
+# Zyx Product Bundle V4: Pedagogic Quality Rubric and Verification Protocol
 
 ## 1. Eight-Criterion Pedagogic Rubric
 
-Use these eight criteria for independent editorial review. Current V3 accepts a bundle decision without detailed `criteria`; when supplied, the detailed rubric must be complete and valid. This protocol guides authoring and does not introduce a new V4 publication gate.
+Use all eight criteria for independent editorial review. V4 approval requires the full rubric, the exact revision and content fingerprint, current verification plan/receipt, and an explicit current semantic decision for every section. Read the review context from authoring.get_import. Legacy V3 decisions retain their existing compatibility rules; they do not approve V4 content.
 
 1. **`concept_accuracy` (Ketepatan Konsep dan Kebenaran Ilmiah)**
    - Definitions, theorems, formulas, and domain conditions are mathematically and scientifically exact.
@@ -21,7 +21,7 @@ Use these eight criteria for independent editorial review. Current V3 accepts a 
    - Notation is consistent across the Article, Diktat, visuals, and flashcards.
 
 5. **`example_reasoning` (Penalaran Contoh Terkerja / Worked Example)**
-   - Every `worked_example` block includes a complete `workedExamplePayload` with contiguous `0..N-1` steps, explicit `reason` for *why* each step is taken (not just restating the algebra), and a concrete `verification` sanity check.
+   - Every V4 worked_example part includes ordered steps with operationMarkdown, reasonMarkdown, sourceElementRefs and parts, plus a concrete verificationMarkdown sanity check. Legacy V3 workedExamplePayload is only for explicit V3 revisions.
 
 6. **`representation_or_visual` (Representasi Ganda atau Visual Terketik)**
    - Abstract relationships are supported by either a valid typed visual (`epsilon_delta_graph` or `learning_canvas` with complete `staticFallback`) or an explicit, justified `visualRequirement: { status: "not_required", reason: "..." }`.
@@ -59,5 +59,5 @@ Keep review records outside the bundle ZIP with `PASS`, `FAIL`, `NOT_APPLICABLE`
 
 When recording a review decision with `authoring.review_product_bundle`:
 - Pass the exact `policyVersion` and `contentFingerprint` from the staged bundle.
-- When submitting detailed evidence, provide all 8 items in `criteria`, each with `criterionId`, `status: "met" | "needs_revision" | "not_met"`, `reason`, and at least one `contentAnchors` entry (`{ targetType, targetId }`). Anchor objects have no `note` field.
-- For approval with detailed evidence, each criterion not marked `"met"` requires an explicit `exceptions` entry `{ criterionId, approved: true, reason }` with a substantive reason.
+- V4 requires expectedRevision, current verificationPlanHash and verificationReceiptSignature, plus an explicit semanticHash decision for every section from the fresh review context. Provide all 8 items in `criteria`, each with `criterionId`, `status: "met" | "needs_revision" | "not_met"`, `reason`, and at least one `contentAnchors` entry (`{ targetType, targetId }`). Anchor objects have no `note` field.
+- Each criterion not marked `"met"` requires an explicit `exceptions` entry `{ criterionId, approved: true, reason }` with a substantive reason.

@@ -1448,7 +1448,7 @@ export function ASTRenderer({ blocks, className, density }: ASTRendererProps) {
     <MarkdownDensityContext.Provider value={activeDensity}>
       <div
         className={cn(
-          "markdown-article text-left font-sans select-text",
+          "markdown-article min-w-0 max-w-full text-left font-sans select-text",
           activeDensity === "compact" ? "space-y-3" : "space-y-6",
           !hasTextColor && "text-foreground/90",
           className

@@ -1,8 +1,8 @@
-# Zyx Product Bundle V3: Structured Article, Diktat, and Typed Visuals Editorial Guide
+# Zyx Product Bundle V4: Structured Article, Diktat, and Typed Visuals Editorial Guide
 
 ## 1. Structured Article Architecture (`productType: "article"`)
 
-In `product-bundle.v3`, an Article uses structured `sections` (with `blocks: []` at the top level) so the student reader can render interactive section navigation, learning time estimates, typed visuals, worked examples, and formative checks.
+New Articles use `article.v4` inside `product-bundle.v4`: structured `sections`, empty top-level `blocks`, and ordered `parts` in every section block. Parts determine reading order; Markdown is a derived projection. V3 remains available only for explicit legacy revisions.
 
 ### 1.1 Section Hierarchy (`sections`)
 
@@ -24,37 +24,20 @@ Every section with instructional content requires a complete `pedagogy` object:
 5. **`visualRequirement`:**
    - Either `{ status: "required", visualIds: ["vis-..."] }` referencing valid entries in `article.visuals`, or `{ status: "not_required", reason: "..." }` with a substantive pedagogical justification.
 
-### 1.3 Semantic Blocks (`blocks`) and Payloads
+### 1.3 Ordered V4 parts
 
-Order blocks within each section (`orderIndex: 0, 1, 2, ...`) so concepts build naturally before testing the learner:
-- **Concept & Intuition Blocks** (such as `concept_intro`, `definition`, `theorem`, `derivation`, `intuition`, `visual_explainer`, `misconception_trap`, `summary_box`):
-  - Write clear, self-contained Indonesian explanations in `contentMarkdown`.
-  - Define every symbol before or at its first formula appearance.
-  - Include explicit misconception/boundary analysis explaining what happens when a theorem's condition is violated.
-- **Worked Example Blocks (`blockType: "worked_example"`):**
-  - Must include `workedExamplePayload`:
-    ```json
-    {
-      "steps": [
-        {
-          "stepIndex": 0,
-          "label": "Identifikasi bentuk limit dan syarat domain",
-          "explanation": "Substitusi langsung $x = 2$ menghasilkan bentuk $0/0$, sehingga kita faktorkan pembilang untuk mencari faktor $(x - 2)$ pada domain $x \\neq 2$.",
-          "reason": "Pada definisi limit $x \\to 2$, nilai fungsi di $x = 2$ tidak diperlukan; yang dianalisis adalah perilaku di sekitar $x = 2$."
-        }
-      ],
-      "verification": "Substitusi nilai mendekati $x = 2$, misalnya $x = 2.001$, menghasilkan $f(2.001) = 4.001 \\approx 4$, konsisten dengan hasil limit."
-    }
-    ```
-  - `stepIndex` must be contiguous starting at `0` (`0, 1, 2, ...`). Every step requires a non-empty `label`, `explanation`, and `reason`, plus a non-empty `verification`.
-- **Formative Check Blocks (`blockType: "retrieval_prompt"` or `"retrieval_close"`):**
-  - Must include `formativeCheckPayload`:
-    - `checkKind`: `"multiple_choice" | "short_answer" | "numeric_answer" | "conceptual_explanation"`
-    - `answer`: Canonical answer string.
-    - `explanation`: Complete self-study walkthrough explaining why the answer is correct and why common traps fail.
-    - `options`: Required when `checkKind === "multiple_choice"`; at least 2 options `{ id, text, isCorrect }` with exactly one option marked `isCorrect: true`.
-    - `evaluation`: Optional typed evaluator (`choice`, `text_exact`, `numeric`, or `ai_rubric`) matching `checkKind`.
-    - `feedbackPolicy`: Optional `{ hints: ["..."], allowRetry: true }` with at most 3 progressive hints.
+Read the complete `articleParts` schema from `productBundle.schemaDocuments`. Every part has a stable id. Use:
+
+- `markdown` with markdown for narrative, motivation and transitions.
+- `math_unit` with meaningMarkdown and exactly one of latex or relations. Define symbols in symbolDefinitions and resolve symbolRefs within the unit. Explain domain, units and conditions near the relation. For derivations/comparisons use separate relations with their own meanings and conditions; cases require conditionLatex on every relation.
+- `visual_ref` with visualId pointing to the Article registry. Place it beside the concept it explains; focusRefs must resolve to Article elements.
+- `worked_example` with title, problemMarkdown, ordered steps and verificationMarkdown. Each step has id, operationMarkdown, reasonMarkdown, sourceElementRefs and leaf parts. Reference previously available elements, not future steps.
+
+Keep formativeCheckPayload on learning-check blocks. It contains the answer and self-study explanation, with a matching typed evaluator where applicable. V4 examples use worked_example parts rather than the legacy workedExamplePayload representation.
+
+### 1.4 Legacy V3 revision only
+
+When explicitly revising an existing V3 bundle, preserve its version and legacy contentMarkdown/workedExamplePayload contract. Never mix legacy payload instructions into newly authored V4 parts. A conversion must be rebuilt and reviewed against the complete V4 contract.
 
 ## 2. Typed Visuals (`article.visuals`)
 
@@ -77,7 +60,7 @@ Never embed executable JavaScript, raw HTML, raw `<svg>`, `<iframe>`, or remote 
 
 ### Formula and explanation sequence
 
-- Put each core relation in display math on its own delimiter lines. Introduce its symbols and explain its meaning, domain, assumptions, and validity conditions immediately before or after it. A `mathematical_representation` block may include this prose; use adjacent verbal blocks only when the reading sequence stays clear.
+- Put each core relation in display math on its own delimiter lines. Introduce its symbols and explain its meaning, domain, assumptions, and validity conditions immediately before or after it. Use math_unit meaningMarkdown and conditionsMarkdown for local explanation; keep adjacent narrative parts only when the reading sequence stays clear.
 - Explain one relation before introducing the next independent relation. Keep derivation steps together with their reasons. Use short formula lists only for intentional comparisons whose labels and conditions are locally clear.
 - Reviewers must flag formulas hidden only in prose, raw unrendered LaTeX, undefined symbols, missing conditions, and paragraphs mixing several mathematical decisions. Use only fields and semantic tokens supported by the active contract, never raw HTML, CSS, executable expressions, SVG, or remote embeds.
 - Typeset mathematical symbols and expressions in prose, control labels, diagram nodes, legends and table cells with supported math delimiters. Formula-only fields contain bare LaTeX. Do not substitute Unicode or ASCII approximations for mathematical typesetting. Keep ordinary prose outside math delimiters.
@@ -107,5 +90,5 @@ Never embed executable JavaScript, raw HTML, raw `<svg>`, `<iframe>`, or remote 
 - Admin preview and learner rendering must preserve the same section/block visual references. Verify parity at the runtime boundary before claiming it; schema success alone is insufficient.
 
 1. **Purpose:** A Diktat is a high-density, print-ready A4 review sheet (target 1 to 4 rendered PDF pages) linked to its source Article (`sourceArticleId`, `sourceArticleVersion`, `sourceArticleHash`).
-2. **Structure:** Organize `contentMarkdown` into compact definitions, key theorems with explicit validity conditions, canonical problem-solving algorithms, common exam traps, and a concise worked reference example.
+2. **Structure:** Author V4 units with sourceElementRefs, ideaIds and ordered printable parts. Select compact definitions, formulas with validity conditions, method choices, exam traps and short reference examples. Derive contentMarkdown from units rather than maintaining a second prose document.
 3. **PDF Page Budget:** Keep Markdown length, table widths, and display formulas compact so the A4 print renderer produces between 1 and 4 pages (`readyPageRange: { minPages: 1, maxPages: 4 }`) without `PAGE_BUDGET_EXCEEDED` or `LAYOUT_OVERFLOW`.

@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { validateProductBundle } from "../../lib/bundle/product-validator";
 import path from "node:path";
 import { buildLocalVerificationFixture } from "./local-verification-fixture";
 import { createProductV4VerificationService, type ProductV4VerificationSnapshot } from "../../lib/bundle/product-v4-verification-service";
@@ -23,9 +24,16 @@ if (typeof (globalThis as { Deno?: unknown }).Deno !== "undefined") {
   if (!process.env.AUTHORING_VERIFICATION_RENDERER_SECRET) throw new Error("AUTHORING_VERIFICATION_RENDERER_SECRET_REQUIRED");
   process.env.AUTHORING_VERIFICATION_RENDERER_URL = renderer.origin;
 }
-const root = path.resolve("artifacts/authoring-verification/local-run");
+const outputFlag = process.argv.indexOf("--output");
+const root = path.resolve(outputFlag >= 0 ? process.argv[outputFlag + 1] : "artifacts/authoring-verification/local-run");
 await mkdir(root, { recursive: true });
-const fixture = buildLocalVerificationFixture();
+const bundleFlag = process.argv.indexOf("--bundle");
+const fixture = bundleFlag < 0 ? buildLocalVerificationFixture() : await (async () => {
+  const bytes = new Uint8Array(await readFile(process.argv[bundleFlag + 1]));
+  const parsed = validateProductBundle(bytes);
+  if (!parsed.success) throw new Error(`LOCAL_BUNDLE_INVALID:${parsed.issues.map(issue => issue.code).join(",")}`);
+  return { bytes, bundle: parsed.data };
+})();
 await writeFile(path.join(root, "bundle.zip"), fixture.bytes);
 const bundle = { manifest: fixture.bundle.manifest, products: fixture.bundle.products, dependencies: fixture.bundle.dependencies };
 const live = new Map<string, ProductV4LiveDependency>();
@@ -79,7 +87,7 @@ assert.throws(() => validateProductV4ReviewContext({ article, importId: row.id, 
   review: { decision: "approved", expectedRevision: row.checksum, policyVersion: QUALITY_POLICY_VERSION, contentFingerprint: fingerprint, verificationPlanHash: result.plan.planHash, verificationReceiptSignature: getProductV4VerificationReceiptSignature(result.receipt) ?? undefined },
   verification: { ready: true, importId: row.id, planHash: result.plan.planHash, receiptSignature: getProductV4VerificationReceiptSignature(result.receipt) } }), /ALL_SECTIONS_REQUIRED/);
 const summary = { status: "PASS", requirementCount: result.plan.requirements.length, planHash: result.plan.planHash, attemptId: result.attemptId, pdfEvidence,
-  review: "Missing explicit section decisions correctly rejected; no pedagogic approval generated.", boundaries: { fixture: "Synthetic canonical V4 ZIP", storage: "Local memory and files", databasePromotion: "Not exercised", mcpTransport: "Not exercised", production: "Not accessed" } };
+  review: "Missing explicit section decisions correctly rejected; no pedagogic approval generated.", boundaries: { fixture: bundleFlag < 0 ? "Synthetic canonical V4 ZIP" : "Supplied canonical V4 ZIP with simulated local dependency records", storage: "Local memory and files", databasePromotion: "Not exercised", mcpTransport: "Not exercised", production: "Not accessed" } };
 await writeFile(path.join(root, "summary.json"), JSON.stringify(summary, null, 2));
 console.log(JSON.stringify({ status: summary.status, requirementCount: summary.requirementCount, outputDirectory: root }));
 } finally {

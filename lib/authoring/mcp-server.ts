@@ -6,6 +6,7 @@ import { isSourceReadTimeout, timePdfStage } from "@/lib/compute/pdf-read-option
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { registerAuthoringSkills } from "./mcp-skills";
 import { registerProductV4Tools } from "./mcp-v4-tools";
+import { computeProductV4VerificationContentHash } from "@/lib/bundle/product-v4-verification";
 import { computeProductV4SectionSemanticHash, productV4ReviewContextShape } from "@/lib/bundle/product-v4-review";
 import type { SkillCatalogProfile } from "./skill-catalog";
 import { z } from "zod";
@@ -1182,7 +1183,7 @@ async function stageProductArtifact(input: {
         severity: "blocking",
         target: { targetType: "document", targetId: "manifest.json.schemaVersion" },
         reason: "Submission baru wajib memakai Product Bundle V3 saat structured reader aktif.",
-        remediation: "Update manifest schemaVersion to product-bundle.v3.",
+        remediation: "Use product-bundle.v4 for new authoring; preserve V3 only for an explicit legacy revision.",
       }],
     };
   }
@@ -2009,7 +2010,7 @@ function registerValidationTools(server: McpServer, principal: McpPrincipal): vo
           severity: "blocking",
           target: { targetType: "document", targetId: "manifest.json.schemaVersion" },
           reason: "Submission baru wajib memakai Product Bundle V3 saat structured reader aktif.",
-          remediation: "Update manifest schemaVersion to product-bundle.v3.",
+          remediation: "Use product-bundle.v4 for new authoring; preserve V3 only for an explicit legacy revision.",
         }],
         next: "agent_revision",
       };
@@ -2716,6 +2717,7 @@ function registerLifecycleTools(server: McpServer, principal: McpPrincipal): voi
         const verification = typeof ref?.runId === "string" ? await (await import("@/lib/bundle/product-v4-verification-service")).getProductV4VerificationReadiness(importId, ref.runId) : null;
         const quality = await evaluateProductBundleQualityPolicy({ bundle }, { imporBundleId: importId, v4Verification: verification });
         return { ok: true, import: { ...publicBundleImport(row, pedReviews, pdfEvidenceRows), publicationReady: quality.publicationReady, quality,
+          verificationContentHash: computeProductV4VerificationContentHash(bundle),
           reviewContext: { expectedRevision: row.checksum, policyVersion: quality.policyVersion, contentFingerprint: quality.contentFingerprint,
             verificationPlanHash: verification?.plan.planHash ?? null, verificationReceiptSignature: (verification?.receipt as { signature?: string } | null)?.signature ?? null,
             sections: article?.productType === "article" ? article.sections.map(section => ({ sectionId: section.id, semanticHash: computeProductV4SectionSemanticHash(article, section.id) })) : [],

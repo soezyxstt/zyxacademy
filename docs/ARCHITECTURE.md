@@ -1180,7 +1180,7 @@ Browser / Client
 
 The compute PDF page reader caches extracted text and PNG bytes by current document SHA-256, PDF page position, renderer revision, and render width. Each image page has JSON metadata and PNG under `overhaul/pdf-page-cache/`; text-only pages have JSON only in a separate renderer namespace. Image-only reads skip text extraction, while text-only reads skip rendering. Cache hits bypass parsing and rendering; partial requests render only missing or corrupt entries. Current PDF bytes are still read to establish the checksum. Cache writes commit PNG before metadata and storage failures remain visible.
 
-### Explicit-version Product Bundle V4
+### Product Bundle V4 authoring default
 
 V4 retains the canonical Product envelope and existing tables. Ordered Article parts, scoped mathematical meanings and symbols, worked steps, visual references and authored Diktat units survive compilation, persistence and public hydration. Source figures bind a validated SourcePack and PDF crop to immutable checked variants; learner image delivery authorizes the stored course and chapter before returning private bytes. See [the V4 contract](bundle/product-bundle-v4.md).
 

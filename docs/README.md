@@ -1,6 +1,6 @@
 # Zyx Academy Documentation Index
 
-The `ACTIVE` [Product Bundle V4 contract](bundle/product-bundle-v4.md) describes ordered scientific content, authored Diktat static exports, source assets, trusted verification and explicit review gates implemented locally. V3 remains the creation default. Local HTTP/browser/PDF verification has passed; deployment, full-chapter acceptance, remote executor and installed-host acceptance remain separate boundaries.
+The `ACTIVE` [Product Bundle V4 contract](bundle/product-bundle-v4.md) describes ordered scientific content, authored Diktat static exports, source assets, trusted verification and explicit review gates implemented locally. V4 is the creation default for new Article/Diktat; V3 readers, validators and explicit legacy revisions remain supported. Synthetic-fixture HTTP/browser/PDF checks do not establish full-chapter acceptance. Deployment, trusted remote verification and installed-host acceptance remain separate boundaries.
 
 The `ACTIVE` [MCP skills distribution runbook](operations/authoring-mcp-skills.md) documents pinned external builds, full and compact catalogs, local V4 candidate provenance, attested web/Deno builds, Cloudflare Browser Run verification, resource integrity and host acceptance. The `ACTIVE` deployment and development guides describe the Deno runtime identity, browser configuration and read-only `/v4` preview. Local package checks remain separate from installed-host, OAuth and deployment evidence.
 
@@ -44,7 +44,7 @@ docs/
 │   ├── idea-bundle-v3.md                     # Structured Idea Bundle V3 Contract
 │   ├── product-bundle-v2.md                  # Transitional Product Bundle V2 Contract
 │   ├── product-bundle-v3.md                  # Structured Product Bundle V3 Contract
-│   └── product-bundle-v4.md                  # Explicit-version V4 Source Contract and generated JSON Schema delivery
+│   └── product-bundle-v4.md                  # Default V4 authoring contract, legacy compatibility and generated JSON Schema delivery
 │
 ├── operations/                               # Operational Runbooks, Checklists, and Allowances
 │   ├── authoring-mcp-skills.md                # Pinned MCP Skills Build and Import Acceptance
@@ -80,21 +80,21 @@ Every document in this repository has one of the following explicit statuses:
 | Document | Category | Status | Updated / Date | Purpose and Scope |
 |---|---|---|---|---|
 | [README.md](README.md) | Index | `ACTIVE` | 2026-09-24 | Master documentation index, hierarchy map, course workspace compatibility status, marketing improvement plan, and lifecycle status ledger. |
-| [ARCHITECTURE.md](ARCHITECTURE.md) | Core Architecture | `ACTIVE` | 2026-10-21 | Canonical platform boundaries, explicit-version V4 representation, trusted verification, source figures and publication gates. Local verification is separate from rollout. |
-| [operations/authoring-mcp-skills.md](operations/authoring-mcp-skills.md) | Operations | `ACTIVE` | 2026-10-21 | Pinned external snapshots, local V4 candidates, build-attested renderer, MCP resource integrity and separate installed-host acceptance. |
+| [ARCHITECTURE.md](ARCHITECTURE.md) | Core Architecture | `ACTIVE` | 2026-10-22 | Canonical platform boundaries, V4 authoring default representation, trusted verification, source figures and publication gates. Local verification is separate from rollout. |
+| [operations/authoring-mcp-skills.md](operations/authoring-mcp-skills.md) | Operations | `ACTIVE` | 2026-10-22 | Pinned external snapshots, local V4 candidates, build-attested renderer, MCP resource integrity and separate installed-host acceptance. |
 | [DATABASE.md](DATABASE.md) | Core Database | `ACTIVE` | Current | Database topology (Turso remote, SQLite local), Drizzle workflows, and driver adapters. |
 | [DB_SCHEMA.md](DB_SCHEMA.md) | Core Database | `ACTIVE` | 2026-09-16 | Comprehensive schema catalog including the singleton public demo marker, tutorial scheduling lifecycle, dated tutor slots, normalized booking resources, historical assessment provenance, question reference links, retryable Idea Bundle cleanup, Product Bundle pedagogic review, and PDF evidence. |
 | [DEPLOYMENT.md](DEPLOYMENT.md) | Core Infrastructure | `ACTIVE` | 2026-10-10 | Vercel, Cloudflare Workers/R2/Vectorize deployment processes, Diktat runtime asset checks, secrets, and environments. |
 | [DEVELOPMENT.md](DEVELOPMENT.md) | Core Development | `ACTIVE` | 2026-10-21 | Local development, environment boundaries, pinned scientific dependencies and attested V4 verification commands. |
 | [FILE_NAMING_CONVENTIONS.md](FILE_NAMING_CONVENTIONS.md) | Standards | `ACTIVE` | Current | Standard file naming formula, taxonomy, and directory hierarchy for academic assets. |
-| [features.md](features.md) | Product | `ACTIVE` | 2026-10-21 | Student, tutor, admin and public workflows; Idea-linked quizzes, explicit-version V4 Article/Diktat authoring, scientific rendering and review gates. |
+| [features.md](features.md) | Product | `ACTIVE` | 2026-10-22 | Student, tutor, admin and public workflows; Idea-linked quizzes, V4 authoring default Article/Diktat authoring, scientific rendering and review gates. |
 | [bundle/authoring-context-pack-v1.md](bundle/authoring-context-pack-v1.md) | Bundle Contract | `ACTIVE` | Current | Specification for authoring context pack export format and security boundaries. |
 | [bundle/authoring-job-pack-v1.md](bundle/authoring-job-pack-v1.md) | Bundle Contract | `ACTIVE` | 2026-10-11 | Specification for authoring job packs, Source Pack provenance, and local or stored-original ingestion and persistence. |
 | [bundle/idea-bundle-v2.md](bundle/idea-bundle-v2.md) | Bundle Contract | `TRANSITIONAL / LEGACY` | Current | Read and rollback submission contract for Idea Bundle V2. |
 | [bundle/idea-bundle-v3.md](bundle/idea-bundle-v3.md) | Bundle Contract | `ACTIVE` | 2026-08-31 | Learning section hierarchy, Idea membership, validation, editing, and MCP transition contract. |
 | [bundle/product-bundle-v2.md](bundle/product-bundle-v2.md) | Bundle Contract | `TRANSITIONAL / LEGACY` | Current | Read compatibility and Article block review adapter for Product Bundle V2. |
 | [bundle/product-bundle-v3.md](bundle/product-bundle-v3.md) | Bundle Contract | `ACTIVE` | 2026-10-11 | Structured Article, fixed readable Diktat typography, pagination, and numbered contact footer, typed visuals with geometric axis scaling and domain boundaries, simplified revision-bound review, publication, and student reads. |
-| [bundle/product-bundle-v4.md](bundle/product-bundle-v4.md) | Bundle Contract | `ACTIVE` | 2026-10-21 | Explicit-version V4 source contract: scientific parts, authored graphical Diktat, source figures, trusted verification, unmarked scientific prose blockers, current explicit review and checksum-pinned schema delivery. Operational rollout is separate. |
+| [bundle/product-bundle-v4.md](bundle/product-bundle-v4.md) | Bundle Contract | `ACTIVE` | 2026-10-22 | Default V4 authoring contract with legacy compatibility: scientific parts, authored graphical Diktat, source figures, trusted verification, unmarked scientific prose blockers, current explicit review and checksum-pinned schema delivery. Operational rollout is separate. |
 | [operations/production-readiness-checklist.md](operations/production-readiness-checklist.md) | Operations | `ACTIVE` | Current | Pre-deployment gates, quality criteria, staging validation checklist, and mandatory Idea links with exactly one primary for MCP quiz drafts and edits. |
 | [operations/zyra-ops-runbooks.md](operations/zyra-ops-runbooks.md) | Operations | `ACTIVE` | 2026-09-02 | Operational runbooks, health metrics, alert responses, and Admin Ops AI v2 operational procedures (Vectorize sync, rollback without flag, provider mitigation, proposal retention). |
 | [operations/visual-audit-capture.md](operations/visual-audit-capture.md) | Operations | `ACTIVE` | Current | Safe procedure for capturing staging visual audits and screenshots. |

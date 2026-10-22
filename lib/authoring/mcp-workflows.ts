@@ -1239,10 +1239,7 @@ export function quizBankScopeGuidance() {
 }
 
 export function productBundleV3Contract() {
-  return {
-    schemaVersion: "product-bundle.v3",
-    compatibleReadVersions: ["product-bundle.v2", "product-bundle.v3", "product-bundle.v4"],
-    pilot: { schemaVersion: "product-bundle.v4", articleSchemaVersion: "article.v4", orderedPartKinds: ["markdown", "math_unit", "visual_ref", "worked_example"], publicationReady: "derived from current trusted verification, explicit section review and PDF evidence", articleCount: 1, diktatCount: "at most one in draft, required for publication", scopedSymbolDefinitions: true,
+  const v4 = { schemaVersion: "product-bundle.v4", articleSchemaVersion: "article.v4", orderedPartKinds: ["markdown", "math_unit", "visual_ref", "worked_example"], publicationReady: "derived from current trusted verification, explicit section review and PDF evidence", articleCount: 1, diktatCount: "at most one in draft, required for publication", scopedSymbolDefinitions: true,
       schemaDocuments: productV4SchemaDocuments().map(({ body: _body, ...document }) => document),
       schemaRetrieval: "GET each path on the same origin as this MCP endpoint. Public type definitions only, no credentials required. Verify the SHA-256 of the response bytes; on 409 refresh the playbook and contract. product is the shared structural entity schema; apply all V4 semantic rules below and use authoring.validate_product_bundle for final validation.",
       semanticRules: {
@@ -1253,12 +1250,17 @@ export function productBundleV3Contract() {
         visuals: "Use the visual schema for the exact family, parameters, controls and bindings. Renderer-owned behavior only; no executable code or persistent remote image URLs. A valid structural visual still requires model, domain, state and print verification.",
         diktat: "Require authored units and matching sourceArticleId, sourceArticleVersion, sourceArticleHash and locked product dependency. Unit sourceElementRefs resolve to Article elements, and aggregate Idea coverage matches. contentMarkdown equals the projection of units. Each top-level visual_ref requires staticMarkdown; omit staticSnapshot for server derivation or provide the current exact pin.",
         review: "Combine the pedagogicReview schema with v4ReviewContext for authoring.review_product_bundle. Approval requires current revision, content fingerprint, policy, verification plan and receipt signature, all rubric criteria, and an approved semanticHash decision for every section. Read current context through authoring.get_import.",
-        verification: "After authorized staging, read the content hash and plan from authoring.get_import, request authoring.verify_product_bundle and poll authoring.get_verification. Structural JSON Schema does not encode cross-reference, lineage, security, numerical, editorial or readiness refinements. Never infer publication readiness from schema validation alone.",
+        verification: "After authorized staging, read verificationContentHash from authoring.get_import; the request returns the derived plan, request authoring.verify_product_bundle and poll authoring.get_verification. Structural JSON Schema does not encode cross-reference, lineage, security, numerical, editorial or readiness refinements. Never infer publication readiness from schema validation alone.",
       },
       capabilities: VISUAL_CAPABILITIES, unsupportedCapabilities: UNSUPPORTED_VISUAL_CAPABILITIES,
       verification: { policyVersion: PRODUCT_V4_VERIFICATION_POLICY, requestTool: "authoring.verify_product_bundle", getTool: "authoring.get_verification", origin: "server_observed", localReportsGrantReadiness: false, reviewContextTool: "authoring.get_import" },
       sourceFigures: { extractTool: "source.extract_figure", getTool: "source.get_figure", provenanceRequired: true },
-    },
+    };
+  return {
+    ...v4,
+    diktatSchemaVersion: "diktat.v4",
+    compatibleReadVersions: ["product-bundle.v2", "product-bundle.v3", "product-bundle.v4"],
+    pilot: v4,
     writeEntityTypes: ["article", "diktat", "flashcard_set", "flashcard"],
     forbiddenAssessmentEntityTypes: ["question", "solution", "assessment_blueprint"],
     scopeBoundary: {
@@ -1273,6 +1275,8 @@ export function productBundleV3Contract() {
       "authoring.validate_product_bundle",
       "authoring.submit_product_bundle",
       "authoring.restage_product_bundle",
+      "authoring.verify_product_bundle",
+      "authoring.get_verification",
       "authoring.review_product_bundle",
     ],
     validationTool: "authoring.validate_product_bundle",
@@ -1298,31 +1302,16 @@ export function productBundleV3Contract() {
         visualRequirement: "Required with visualIds or not_required with justification reason.",
       },
       blocks: {
-        workedExamplePayload: {
-          targetBlockType: "worked_example",
-          fields: {
-            steps: "Contiguous 0-indexed steps with stepIndex, label, explanation, and reason.",
-            verification: "Explicit verification or sanity check of the solution.",
-          },
-        },
-        formativeCheckPayload: {
-          targetBlockTypes: ["retrieval_prompt", "retrieval_close"],
-          fields: {
-            checkKind: "multiple_choice, short_answer, numeric_answer, or conceptual_explanation. These are learning checks, not assessment products.",
-            answer: "Canonical answer key.",
-            explanation: "Self-study explanation or solution walkthrough.",
-            options: "For multiple_choice, at least 2 options with id, text, and exactly 1 marked isCorrect.",
-            evaluation: "Optional typed evaluator: choice, text_exact, numeric, or ai_rubric. The mode must match checkKind; omitted evaluation keeps the check readable and reveal-only.",
-            feedbackPolicy: "Optional learner feedback policy with at most 3 progressive hints and an allowRetry boolean.",
-          },
-        },
+        parts: "Every V4 block has ordered parts: markdown, math_unit, visual_ref or worked_example. Read articleParts in schemaDocuments for complete fields.",
+        workedExample: "Use a worked_example part with title, problemMarkdown, ordered steps (id, operationMarkdown, reasonMarkdown, sourceElementRefs, parts) and verificationMarkdown.",
+        formativeCheckPayload: "Use the block formativeCheckPayload for learning checks, with answer, explanation and a matching typed evaluator when needed.",
       },
     },
     typedVisuals: {
-      supportedKinds: ["epsilon_delta_graph", "learning_canvas"],
+      supportedKinds: Object.keys(VISUAL_CAPABILITIES),
       specFields: {
         id: "Unique visual identifier within article registry.",
-        kind: "epsilon_delta_graph for epsilon-delta limits, or learning_canvas for bounded application-owned 2D learning plots.",
+        kind: "Use a kind declared in capabilities: epsilon_delta_graph, learning_canvas, geometry_2d or source_figure.",
         label: "Accessible visual title or label.",
         description: "Detailed description for screen readers and search.",
         bounds: "For epsilon_delta_graph, numeric bounding box xMin, xMax, yMin, yMax with strict ordering.",

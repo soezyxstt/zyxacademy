@@ -1,14 +1,14 @@
 ---
 name: zyx-product-bundle-mcp
-description: Menghasilkan Product Bundle V3 atau V4 draft yang hanya berisi Artikel, Diktat, flashcard set, dan flashcard. Artikel adalah bacaan utama mandiri mahasiswa, Diktat adalah review pra-ujian, dan flashcard hanya untuk recall. Gunakan setelah Source Pack valid dan Idea published. Jangan gunakan untuk membuat soal atau produk asesmen.
+description: Menghasilkan Product Bundle V4 draft baru atau merevisi bundle V3 yang ada yang hanya berisi Artikel, Diktat, flashcard set, dan flashcard. Artikel adalah bacaan utama mandiri mahasiswa, Diktat adalah review pra-ujian, dan flashcard hanya untuk recall. Gunakan setelah Source Pack valid dan Idea published. Jangan gunakan untuk membuat soal atau produk asesmen.
 ---
 
 # Zyx Product Bundle MCP
 
-Skill ini menyusun, mengaudit secara multi-agent, memvalidasi, dan men-stage `product-bundle.v3` atau pilot eksplisit `product-bundle.v4` (Artikel, Diktat, dan Flashcard) dari Source Pack valid serta Idea yang sudah published. Seluruh panduan editorial, rubrik kualitas 8 kriteria, aturan flashcard, dan matriks audit derivasi disajikan oleh server saat runtime melalui `workflow.get_playbook` dan `workflow.get_contract`.
+Skill ini menyusun, mengaudit secara multi-agent, memvalidasi, dan men-stage `product-bundle.v4` untuk materi baru dan menjaga kompatibilitas revisi V3 (Artikel, Diktat, dan Flashcard) dari Source Pack valid serta Idea yang sudah published. Seluruh panduan editorial, rubrik kualitas 8 kriteria, aturan flashcard, dan matriks audit derivasi disajikan oleh server saat runtime melalui `workflow.get_playbook` dan `workflow.get_contract`.
 
 <!-- BEGIN:environment-connection -->
-Gunakan koneksi MCP `zyx-authoring-staging` untuk environment `staging` di endpoint `https://staging.zyxacademy.com/api/mcp/authoring` (`pluginVersion: "0.4.0"`, `bootstrapProtocol: 1`). Jangan gunakan koneksi Zyx dari environment lain. Verifikasi identitas koneksi sebelum memulai run atau melakukan staging.
+Gunakan koneksi MCP `zyx-authoring-staging` untuk environment `staging` di endpoint `https://staging.zyxacademy.com/api/mcp/authoring` (`pluginVersion: "0.4.1"`, `bootstrapProtocol: 1`). Jangan gunakan koneksi Zyx dari environment lain. Verifikasi identitas koneksi sebelum memulai run atau melakukan staging.
 <!-- END:environment-connection -->
 
 ## Identitas bootstrap dan protokol
@@ -16,7 +16,7 @@ Gunakan koneksi MCP `zyx-authoring-staging` untuk environment `staging` di endpo
 - **Skill ID**: `zyx-product-bundle-mcp`
 - **Stage**: `product`
 - **Bootstrap protocol**: `1`
-- **Plugin version**: `0.4.0`
+- **Plugin version**: `0.4.1`
 - **Modul playbook wajib**: `common/execution`, `product/workflow`, `product/editorial`, `product/quality-rubric`, `product/flashcards`, `product/derivation-audit`
 
 ## Langkah bootstrap wajib (fail-closed)
@@ -27,7 +27,7 @@ Gunakan koneksi MCP `zyx-authoring-staging` untuk environment `staging` di endpo
      "skill": "zyx-product-bundle-mcp",
      "stage": "product",
      "bootstrapProtocol": 1,
-     "pluginVersion": "0.4.0",
+     "pluginVersion": "0.4.1",
      "clientCapabilities": {
        "independentSubagents": true,
        "localArtifactFiles": true,
@@ -43,7 +43,7 @@ Gunakan koneksi MCP `zyx-authoring-staging` untuk environment `staging` di endpo
 
 ## Pemilihan versi dan verifikasi representasi
 
-Gunakan V3 sebagai default. Pilih `product-bundle.v4` hanya jika pengguna memilih pilot versi eksplisit dan kontrak runtime mengizinkannya. Setelah bootstrap, ambil schema serta capabilities aktif melalui `workflow.get_contract`; gunakan nama field persis dari kontrak, termasuk bukti dan tool verifikasi yang diwajibkan. Jika server tidak mendukung V4, hentikan cabang V4 dan laporkan kapabilitas yang kurang.
+Gunakan `product-bundle.v4`, `article.v4` dan `diktat.v4` untuk authoring Artikel/Diktat baru. Pertahankan versi V3 untuk revisi materi lama kecuali pengguna meminta konversi V4 yang disusun dan direview ulang. Kontrak runtime harus menyatakan V4 sebagai jalur utama; bila kontrak masih menyatakan default V3, laporkan ketidaksesuaian sebelum membuat materi baru. Setelah bootstrap, ambil schema serta capabilities aktif melalui `workflow.get_contract`; gunakan nama field persis dari kontrak, termasuk bukti dan tool verifikasi yang diwajibkan. Jika server tidak mendukung V4, hentikan cabang V4 dan laporkan kapabilitas yang kurang.
 
 Untuk V4, susun bagian Artikel dalam urutan baca dengan `parts`: narasi, `math_unit` beserta makna dan syaratnya, lalu `visual_ref` pada lokasi penjelasan yang relevan. Tulis semua variabel, label grafik, satuan, dan notasi ilmiah dengan delimiter matematika. Gunakan `\times 10^{n}` untuk pangkat sepuluh, `\ce{}` untuk reaksi kimia, dan `\pu{}` untuk satuan ketika didukung renderer aktif. Tautkan setiap visual ke tujuan pemahaman, besaran, domain, kontrol, dan fallback cetaknya. Turunkan Diktat dari Artikel final dengan lineage yang diwajibkan schema, bukan menyalin seluruh Artikel.
 

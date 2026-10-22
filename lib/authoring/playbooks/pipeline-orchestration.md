@@ -2,7 +2,7 @@
 
 ## 1. Scope and Purpose
 
-Use this playbook when orchestrating the complete Zyx authoring pipeline from raw course documents to a validated Source Pack, a staged Idea Bundle V3, and a validated or staged Product Bundle V3, or when resuming the pipeline from an existing checkpoint.
+Use this playbook when orchestrating the complete Zyx authoring pipeline from raw course documents to a validated Source Pack, a staged Idea Bundle V3, and a validated or staged Product Bundle V4, or when resuming the pipeline from an existing checkpoint.
 
 Do not use this pipeline for standalone Question Bank authoring (`quiz_bank`) or Historical Reference ingestion (`reference_question_ingest`); those workflows have dedicated stage playbooks (`quiz` and `reference`).
 
@@ -33,19 +33,19 @@ Execute the pipeline in strict checkpoint order. Never skip a gate or start a do
 
 4. **Checkpoint 3 (Human Admin Publication Gate for Idea Bundle)**
    - **Hard Stop:** MCP cannot publish an Idea Bundle (`authoring.review_idea_bundle` only records review decisions `approved` or `rejected`).
-   - Product Bundle V3 validation (`authoring.validate_product_bundle`) requires all referenced Ideas and `learningSections` to be `published` in the database.
+   - Product Bundle V4 validation (`authoring.validate_product_bundle`) requires all referenced Ideas and `learningSections` to be `published` in the database.
    - If the staged Idea Bundle has not yet been published by an admin in `/admin/materials/review`, pause the pipeline after staging/reviewing the Idea Bundle, report the `importId`, `bundleId`, and checksum to the operator, and wait for admin publication before proceeding to Checkpoint 4.
 
-5. **Checkpoint 4 (Product Bundle V3 Stage: `product`)**
+5. **Checkpoint 4 (Product Bundle V4 Stage: `product`)**
    - Fetch stage modules via `workflow.get_playbook` with `stage: "product"`.
    - Verify that `compatibility.status` allows `product` authoring (`independentSubagents: true` is required).
    - Start or resume the `idea_product` run and verify published Ideas via `knowledge.search_ideas` / `analysis.get_coverage`.
-   - Draft the structured Article (`sections`, semantic `blocks`, `pedagogy`, `workedExamplePayload`, `formativeCheckPayload`, typed `visuals`), linked `diktat`, and atomic `flashcard_set` / `flashcard` items.
+   - Fetch the primary V4 schemaDocuments. Draft article.v4 with ordered parts, authored diktat.v4 units and exact lineage; keep existing V3 bundles in V3 unless a reviewed conversion was requested. Use the Product playbook for complete representation rules and optional flashcards.
    - Run the independent Critic and Student POV subagent reviews against the draft files and incorporate all required revisions.
    - Validate with `authoring.validate_product_bundle` until `ok: true` and `valid: true` (deterministic content validity). Note that `publicationReady` will remain `false` until pedagogic review and Diktat PDF evidence are completed after staging.
    - Stage with `authoring.submit_product_bundle` (or `authoring.restage_product_bundle`).
-   - If the operator requested MCP-assisted pedagogic review and the principal has `authoring:review` scope, record the 8-criterion anchored review via `authoring.review_product_bundle` using the exact `policyVersion` and `contentFingerprint` returned by staging.
+   - Request authoring.verify_product_bundle and poll authoring.get_verification for the current content/plan. Inspect required states and PDF pages. When review is authorized, use fresh authoring.get_import context to record all eight criteria, exact revision/fingerprint, current plan/receipt, and explicit semantic decisions for every section.
 
 6. **Checkpoint 5 (Post-Stage Readiness and Admin Handoff)**
    - Call `authoring.get_import` with `bundleType: "product"` and `importId` to inspect `currentReadiness` (`valid`, `reviewStatus`, `pdfEvidenceStatus`, `publicationReady`).
-   - Report the final status, `importId`, `contentFingerprint`, and any remaining admin UI actions (Diktat PDF render verification and final publication in `/admin/materials/review/product/[slug]`).
+   - Report the final status, `importId`, `contentFingerprint`, and any remaining verification/review blockers and final publication in the admin UI. Completion requires current trusted verification, PDF evidence and exact-revision review; staging alone is incomplete.

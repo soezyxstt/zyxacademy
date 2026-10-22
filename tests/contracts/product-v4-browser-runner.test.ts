@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { exerciseProductV4WebState, validateVerificationBaseUrl, validateDeployedVerificationBaseUrl } from "@/lib/compute/product-v4-browser-runner";
+import { captureProductV4WebState, exerciseProductV4WebState, validateVerificationBaseUrl, validateDeployedVerificationBaseUrl } from "@/lib/compute/product-v4-browser-runner";
 import type { Page } from "@playwright/test";
 import { verificationPreviewSchema } from "@/lib/materials/verification-preview";
 
@@ -43,7 +43,7 @@ test("epsilon states operate the named tolerance slider rather than the earlier 
       tolerance = key === "Home" ? 0.1 : key === "End" ? 2.2 : tolerance + 0.01;
     } });
   const page = { getByRole: (role: string, options?: { name?: string | RegExp }) => role === "button"
-    ? { count: async () => 1, first() { return this; }, click: async () => { tolerance = 1; } }
+    ? { count: async () => options?.name === "Parameter" ? 0 : 1, first() { return this; }, click: async () => { tolerance = 1; } }
     : slider(options?.name === "Toleransi epsilon") } as unknown as Page;
   expect(await exerciseProductV4WebState(page, "changed")).toBe(true);
   expect(tolerance).toBe(1.01);
@@ -56,4 +56,32 @@ test("epsilon states operate the named tolerance slider rather than the earlier 
   expect(await exerciseProductV4WebState(page, "epsilon-maximum")).toBe(true);
   expect(tolerance).toBe(2.2);
   expect(probe).toBe(0);
+});
+
+test("verification opens parameter panels before changing and resetting a graph", async () => {
+  let open = false;
+  let value = 2;
+  const slider = { count: async () => open ? 1 : 0, first() { return this; }, focus: async () => {}, inputValue: async () => String(value), press: async () => { value += 0.25; } };
+  const page = { getByRole: (role: string, options?: { name?: string | RegExp }) => {
+    if (role === "slider" && options?.name === "Toleransi epsilon") return { count: async () => 0 };
+    if (role === "slider") return slider;
+    if (options?.name === "Parameter") return { count: async () => 1, getAttribute: async () => String(open), click: async () => { open = true; } };
+    return { count: async () => 1, first() { return this; }, click: async () => { value = 2; } };
+  } } as unknown as Page;
+  expect(await exerciseProductV4WebState(page, "changed")).toBe(true);
+  expect(open).toBe(true);
+  expect(value).toBe(2.25);
+  value = 2;
+  expect(await exerciseProductV4WebState(page, "reset")).toBe(true);
+  expect(value).toBe(2);
+});
+
+test("long chapter captures cover every row at the required viewport", async () => {
+  const offsets: number[] = [];
+  const fullPage: boolean[] = [];
+  const page = { viewportSize: () => ({ width: 380, height: 4000 }), evaluate: async (_callback: unknown, top?: number) => { if (top !== undefined) offsets.push(top); return 9000; }, screenshot: async (options: { fullPage: boolean }) => { fullPage.push(options.fullPage); return Buffer.from("png"); } } as unknown as Page;
+  const artifacts = await captureProductV4WebState(page, "chapter");
+  expect(offsets).toEqual([0, 4000, 8000]);
+  expect(fullPage).toEqual([false, false, false]);
+  expect(new Set(artifacts.map(artifact => artifact.id)).size).toBe(3);
 });

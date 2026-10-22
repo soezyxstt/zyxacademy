@@ -1,12 +1,12 @@
 # Product Bundle V4
 
-Status: `ACTIVE`, source contract. Updated: 2026-10-21.
+Status: `ACTIVE`, source contract. Updated: 2026-10-22.
 
-V4 is selected explicitly with `product-bundle.v4`, `article.v4` and `diktat.v4`. MCP creation remains V3 by default. V2/V3 retain their readers and strict contracts. There is no additional feature flag or database migration. This document describes the local implementation, not deployment, installation on every host, or permission to publish a particular bundle.
+New Article/Diktat authoring uses `product-bundle.v4`, `article.v4` and `diktat.v4` by default. Existing V3 bundles keep their version during legacy revisions unless a reviewed V4 conversion is requested. V2/V3 retain their readers and strict contracts. There is no additional feature flag or database migration. This document describes the local implementation, not deployment, installation on every host, or permission to publish a particular bundle.
 
 ## Machine-readable schema delivery
 
-`workflow.get_contract` exposes `productBundle.pilot.schemaDocuments`, with exact same-origin GET paths, SHA-256 checksums and byte lengths. `/api/authoring/contracts/product-v4` lists those documents. Each `?schema=<name>` returns the full JSON Schema generated from the running Zod validator, including Product envelopes, dependencies, ordered parts, Diktat units, visual controls and bindings, review context and PDF evidence. The public endpoint contains type definitions only; it does not return any run or course data and requires no credential.
+`workflow.get_contract` exposes primary `productBundle.schemaDocuments` and retains `productBundle.pilot.schemaDocuments` as a compatibility alias, with exact same-origin GET paths, SHA-256 checksums and byte lengths. `/api/authoring/contracts/product-v4` lists those documents. Each `?schema=<name>` returns the full JSON Schema generated from the running Zod validator, including Product envelopes, dependencies, ordered parts, Diktat units, visual controls and bindings, review context and PDF evidence. The public endpoint contains type definitions only; it does not return any run or course data and requires no credential.
 
 Use the checksum-pinned path returned by MCP and verify the response bytes. A stale pin returns HTTP 409; refresh the playbook and contract before continuing. `product` is the shared structural schema, so apply the explicit V4 `semanticRules` as well. JSON Schema cannot encode every cross-reference, lineage, security, model or readiness refinement. Complete validation still uses `authoring.validate_product_bundle`; validation success alone does not establish visual quality or publication readiness.
 

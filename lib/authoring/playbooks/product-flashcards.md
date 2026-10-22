@@ -1,10 +1,10 @@
-# Zyx Product Bundle V3: Atomic Flashcard Authoring Guide
+# Zyx Product Bundle V4: Atomic Flashcard Authoring Guide
 
 ## 1. Purpose and Structure
 
 Flashcards in Zyx use spaced repetition (SM-2) to reinforce long-term retention of atomic concepts, definitions, conditions, and misconception traps after a student reads the Article.
 
-In `product-bundle.v3`:
+In `product-bundle.v4` (the same flashcard rules apply to legacy V3 revisions):
 - Create one `flashcard_set` entity for the chapter (`productType: "flashcard_set"`).
 - Create individual `flashcard` entities (`productType: "flashcard"`, `setId` referencing the `flashcard_set.id`).
 

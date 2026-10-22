@@ -64,8 +64,12 @@ class PluginDistributionTest(unittest.TestCase):
             summary_a = ce.configure_plugin(self.source_copy, env_name, output_dir=out_a)
             summary_b = ce.configure_plugin(self.source_copy, env_name, output_dir=out_b)
             self.assertEqual(summary_a["payloadHash"], summary_b["payloadHash"])
-            self.assertEqual(summary_a["version"], "0.4.0")
+            self.assertEqual(summary_a["version"], "0.4.1")
             self.assertEqual(summary_a["bootstrapProtocol"], 1)
+            for skill in ce.EXPECTED_SKILLS:
+                content = (out_a / "skills" / skill / "SKILL.md").read_text(encoding="utf-8")
+                self.assertIn('"pluginVersion": "0.4.1"', content)
+                self.assertNotIn('"pluginVersion": "0.4.0"', content)
 
             cfg = ce.ENVIRONMENTS[env_name]
             mcp_json = ce.read_json(out_a / ".mcp.json")
