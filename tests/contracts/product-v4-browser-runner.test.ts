@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { captureProductV4WebState, exerciseProductV4WebState, validateVerificationBaseUrl, validateDeployedVerificationBaseUrl } from "@/lib/compute/product-v4-browser-runner";
+import { captureProductV4WebState, exerciseProductV4WebState, inspectProductV4DisplayMath, exerciseProductV4MathScroll, validateVerificationBaseUrl, validateDeployedVerificationBaseUrl } from "@/lib/compute/product-v4-browser-runner";
 import type { Page } from "@playwright/test";
 import { verificationPreviewSchema } from "@/lib/materials/verification-preview";
 
@@ -87,4 +87,41 @@ test("long chapter captures cover every row at the required viewport", async () 
   expect(options).toEqual(Array(3).fill({ format: "png", captureBeyondViewport: false }));
   expect(new Set(artifacts.map(artifact => artifact.id)).size).toBe(3);
   expect(detached).toBe(true);
+});
+
+
+test("normal reading rejects internal math overflow, zoom requires an accessible actual scrollport", () => {
+  const originalDocument = Object.getOwnPropertyDescriptor(globalThis, "document");
+  const originalStyle = Object.getOwnPropertyDescriptor(globalThis, "getComputedStyle");
+  const main = { tagName: "MAIN" };
+  const scrollport = { tagName: "DIV", clientWidth: 300, scrollWidth: 500, tabIndex: 0, getAttribute: () => "Rumus", parentElement: main };
+  const formula = { tagName: "SPAN", clientWidth: 300, scrollWidth: 300, parentElement: scrollport };
+  let scrollbarWidth = "thin";
+  Object.defineProperty(globalThis, "document", { configurable: true, value: { querySelectorAll: () => [formula] } });
+  Object.defineProperty(globalThis, "getComputedStyle", { configurable: true, value: () => ({ overflowX: "auto", scrollbarWidth }) });
+  try {
+    expect(inspectProductV4DisplayMath("reading-order-and-math")).toEqual(["DISPLAY_MATH_OVERFLOW"]);
+    expect(inspectProductV4DisplayMath("keyboard-and-text-zoom")).toEqual([]);
+    scrollport.tabIndex = -1;
+    expect(inspectProductV4DisplayMath("keyboard-and-text-zoom")).toEqual(["DISPLAY_MATH_SCROLL_INACCESSIBLE"]);
+    scrollport.tabIndex = 0;
+    scrollbarWidth = "none";
+    expect(inspectProductV4DisplayMath("keyboard-and-text-zoom")).toEqual(["DISPLAY_MATH_SCROLL_INACCESSIBLE"]);
+    scrollport.scrollWidth = 300;
+    expect(inspectProductV4DisplayMath("reading-order-and-math")).toEqual([]);
+  } finally {
+    if (originalDocument) Object.defineProperty(globalThis, "document", originalDocument); else Reflect.deleteProperty(globalThis, "document");
+    if (originalStyle) Object.defineProperty(globalThis, "getComputedStyle", originalStyle); else Reflect.deleteProperty(globalThis, "getComputedStyle");
+  }
+});
+
+test("zoom math scroll checks the focused container with a real keyboard action", async () => {
+  const pressed: string[] = [];
+  let evaluated = 0;
+  let checked = false;
+  const page = { locator: () => ({ all: async () => [{ evaluate: async () => ++evaluated === 1 }] }), keyboard: { press: async (key: string) => { pressed.push(key); } }, waitForFunction: async () => { checked = true; } } as unknown as Page;
+  await exerciseProductV4MathScroll(page);
+  expect(pressed).toEqual(["ArrowRight"]);
+  expect(checked).toBe(true);
+  expect(evaluated).toBe(2);
 });

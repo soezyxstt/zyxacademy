@@ -42,7 +42,7 @@ To update, inspect the external commit, update its matching lock entry, and revi
 
 ## Local V4 candidate packages
 
-The workspace mirror `plugins/zyx-authoring-mcp` contains a local `0.4.0` candidate, bootstrap protocol 1. Product V4 is the default for new Article/Diktat authoring. Existing V3 revisions retain their version unless the operator requests a reviewed conversion. The primary runtime contract exposes V4 schemas and verification; the pilot descriptor remains a compatibility alias. Product/Pipeline skills require runtime contracts, ordered mathematical representations, traced Diktat, independent review roles and trusted renderer evidence. Runtime playbooks remain authoritative.
+The workspace mirror `plugins/zyx-authoring-mcp` contains a local `0.4.1` candidate, bootstrap protocol 1. Product V4 is the default for new Article/Diktat authoring. Existing V3 revisions retain their version unless the operator requests a reviewed conversion. The primary runtime contract exposes V4 schemas and verification; the pilot descriptor remains a compatibility alias. Product/Pipeline skills require runtime contracts, ordered mathematical representations, traced Diktat, independent review roles and trusted renderer evidence. Runtime playbooks remain authoritative.
 
 Render each environment package before building its MCP catalog:
 
