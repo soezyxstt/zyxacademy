@@ -80,7 +80,7 @@ export function createProductV4VerificationService(ports: ProductV4VerificationP
     async fail(input: { importId: string; runId: string; planHash: string; attemptId: string }) {
       const { snapshot, plan } = await current(input.importId, input.runId);
       if (plan.planHash !== input.planHash || snapshot.verificationAttemptId !== input.attemptId) return;
-      const previous = await get(input);
+      const previous = await get({ importId: input.importId, runId: input.runId, planHash: input.planHash });
       if (previous.state.status === "complete") return;
       await ports.write(buildProductVerificationKey(plan.planHash, `state-${input.attemptId}.json`), encode({ ...previous.state, status: "failed", updatedAt: Date.now(), failureCode: "PRODUCT_V4_VERIFICATION_WORKER_FAILED" }), "application/json");
     },
