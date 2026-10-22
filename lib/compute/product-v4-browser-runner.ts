@@ -57,11 +57,18 @@ export async function captureProductV4WebState(page: Page, checkId: string) {
   const viewport = page.viewportSize();
   if (!viewport || height <= 0 || Math.ceil(height / viewport.height) > 100) throw new Error("VERIFICATION_CAPTURE_HEIGHT_INVALID");
   const artifacts: ProductV4ObservedCheck["artifacts"] = [];
-  // Capture the real viewport while scrolling; giant document surfaces can stall Chromium.
-  for (let y = 0; y < height; y += viewport.height) {
-    await page.evaluate(top => window.scrollTo(0, top), y);
-    artifacts.push({ id: `web-${checkId}-${y}`, mediaType: "image/png", bytes: await page.screenshot({ fullPage: false, animations: "disabled", timeout: 60_000 }) });
-  }
+  const session = await page.context().newCDPSession(page);
+  try {
+    // Required fonts were checked explicitly; CDP avoids Playwright waiting on unused fallback faces.
+    for (let y = 0; y < height; y += viewport.height) {
+      await page.evaluate(top => window.scrollTo(0, top), y);
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      try {
+        const capture = await Promise.race([session.send("Page.captureScreenshot", { format: "png", captureBeyondViewport: false }), new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error("VERIFICATION_CAPTURE_TIMEOUT")), 60_000); })]);
+        artifacts.push({ id: `web-${checkId}-${y}`, mediaType: "image/png", bytes: Buffer.from(capture.data, "base64") });
+      } finally { clearTimeout(timer); }
+    }
+  } finally { await session.detach(); }
   return artifacts;
 }
 export async function exerciseProductV4WebState(page: Page, state: string): Promise<boolean> {
