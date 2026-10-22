@@ -934,8 +934,11 @@
   outline: 2px solid var(--ring);
   outline-offset: 2px;
 }
-[data-math-scroll] .katex-display,
-[data-math-scroll] .katex-html {
-  overflow: visible !important;
-  max-width: none;
+@layer components {
+  /* Match the layer of the global important overflow rule. */
+  [data-math-scroll] .katex-display,
+  [data-math-scroll] .katex-html {
+    overflow: visible !important;
+    max-width: none;
+  }
 }
