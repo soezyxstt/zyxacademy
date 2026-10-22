@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import { createHash } from "node:crypto";
 import { productBundleManifestSchema, productEntitySchema } from "@/lib/bundle/product-validator";
-import { assertProductV4RuntimeFingerprint, buildProductV4RuntimeBinding, expectedChromiumRuntime, loadProductV4StaticFigureAssets, productV4DependencyChecksum, resolveProductV4LoadedRuntime, type ProductV4LiveDependency } from "@/lib/compute/product-v4-runtime-binding";
+import { readProductV4RuntimeFingerprint, assertProductV4RuntimeFingerprint, buildProductV4RuntimeBinding, expectedChromiumRuntime, loadProductV4StaticFigureAssets, productV4DependencyChecksum, resolveProductV4LoadedRuntime, type ProductV4LiveDependency } from "@/lib/compute/product-v4-runtime-binding";
 
 const hash = "a".repeat(64);
 const manifest = productBundleManifestSchema.parse({ bundleId: "bundle", bundleType: "product", schemaVersion: "product-bundle.v4", courseId: "course", creatorId: "creator", createdAt: "2026-10-21T00:00:00.000Z", entityFiles: ["products", "dependencies"].map(entityType => ({ entityType, path: `${entityType}.json`, checksum: hash, stableIds: [] })), bundleChecksum: hash });
@@ -90,3 +90,16 @@ test("source figures resolve through the DB course alias, verify bytes and omit 
   await expect(loadProductV4StaticFigureAssets(figureBundle, figurePorts)).rejects.toThrow("NOT_AUTHORIZED");
 });
 
+
+test("Next serverless verification uses its validated embedded build identity", async () => {
+  const previous = process.env.NEXT_PUBLIC_V4_WEB_RUNTIME;
+  try {
+    process.env.NEXT_PUBLIC_V4_WEB_RUNTIME = JSON.stringify(runtime);
+    expect(await readProductV4RuntimeFingerprint()).toEqual(runtime);
+    process.env.NEXT_PUBLIC_V4_WEB_RUNTIME = JSON.stringify({ ...runtime, fontChecksum: "invalid" });
+    await expect(readProductV4RuntimeFingerprint()).rejects.toThrow("PRODUCT_V4_BUILD_RUNTIME_INVALID");
+  } finally {
+    if (previous === undefined) delete process.env.NEXT_PUBLIC_V4_WEB_RUNTIME;
+    else process.env.NEXT_PUBLIC_V4_WEB_RUNTIME = previous;
+  }
+});

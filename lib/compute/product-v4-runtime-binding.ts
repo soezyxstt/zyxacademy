@@ -159,8 +159,11 @@ function runtimePackageManifest(name: string): string {
 }
 
 export async function readProductV4RuntimeFingerprint(): Promise<ProductV4RuntimeFingerprint> {
-  if (typeof (globalThis as { Deno?: unknown }).Deno !== "undefined") {
-    const fingerprint = JSON.parse(readFileSync(new URL("./product-v4-build-runtime.json", import.meta.url), "utf8"));
+  if (typeof (globalThis as { Deno?: unknown }).Deno !== "undefined" || process.env.NEXT_PUBLIC_V4_WEB_RUNTIME) {
+    // Next embeds the build identity; serverless bundles do not retain source module URLs.
+    const fingerprint = JSON.parse(typeof (globalThis as { Deno?: unknown }).Deno !== "undefined"
+      ? readFileSync(new URL("./product-v4-build-runtime.json", import.meta.url), "utf8")
+      : process.env.NEXT_PUBLIC_V4_WEB_RUNTIME!);
     for (const key of ["rendererChecksum", "fontChecksum", "contractChecksum", "playbookChecksum"]) if (!/^[a-f0-9]{64}$/.test(fingerprint[key] ?? "")) throw new Error("PRODUCT_V4_BUILD_RUNTIME_INVALID");
     if (!fingerprint.printProfile) throw new Error("PRODUCT_V4_BUILD_RUNTIME_INVALID");
     return fingerprint;
