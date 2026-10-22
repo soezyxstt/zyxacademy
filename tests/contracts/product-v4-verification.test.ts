@@ -136,13 +136,13 @@ test("interrupted verification resumes memoized checks and reports bounded progr
   const { service, mutable, objects } = serviceFixture();
   const requested = await service.request({ importId: "import", runId: "run" });
   const input = { importId: "import", runId: "run", planHash: requested.jobId };
-  const saved = new Map<string, ProductV4VerificationResult>();
+  const saved = new Map<string, unknown>();
   let interrupt = true;
-  const checkpoint = async (id: string, execute: () => Promise<ProductV4VerificationResult>) => {
-    if (saved.has(id)) return saved.get(id)!;
-    if (interrupt && saved.size === 2) throw new Error("WORKER_INTERRUPTED");
+  const checkpoint = async <T>(id: string, execute: () => Promise<T>): Promise<T> => {
+    if (saved.has(id)) return saved.get(id) as T;
+    if (interrupt && saved.size === 3) throw new Error("WORKER_INTERRUPTED");
     const value = await execute();
-    expect(value.artifacts[0].bytes).toBeUndefined();
+    if (id.startsWith("verify-")) expect((value as ProductV4VerificationResult).artifacts[0].bytes).toBeUndefined();
     saved.set(id, value);
     return value;
   };
@@ -162,6 +162,25 @@ test("interrupted verification resumes memoized checks and reports bounded progr
   expect((await service.get(input)).state.status).toBe("pending");
   await service.fail({ ...input, attemptId: retry.attemptId });
   expect((await service.get(input)).state.failureCode).toBe("PRODUCT_V4_VERIFICATION_WORKER_FAILED");
+});
+
+test("step discovery performs no storage or database IO outside checkpoints", async () => {
+  const { service, ports } = serviceFixture();
+  const requested = await service.request({ importId: "import", runId: "run" });
+  let insideCheckpoint = false;
+  const original = { ...ports };
+  ports.load = (...args) => { expect(insideCheckpoint).toBe(true); return original.load(...args); };
+  ports.read = (...args) => { expect(insideCheckpoint).toBe(true); return original.read(...args); };
+  ports.write = (...args) => { expect(insideCheckpoint).toBe(true); return original.write(...args); };
+  ports.attach = (...args) => { expect(insideCheckpoint).toBe(true); return original.attach(...args); };
+  ports.execute = (...args) => { expect(insideCheckpoint).toBe(true); return original.execute(...args); };
+  const checkpoint = async <T>(_id: string, execute: () => Promise<T>): Promise<T> => {
+    insideCheckpoint = true;
+    try { return await execute(); }
+    finally { insideCheckpoint = false; }
+  };
+  const result = await service.process({ importId: "import", runId: "run", planHash: requested.jobId }, checkpoint);
+  expect(result.evaluation.ready).toBe(true);
 });
 
 test("chapter capture batches retain every image under unique persisted identities", async () => {

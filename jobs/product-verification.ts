@@ -10,11 +10,11 @@ export const productVerificationWorker = inngest.createFunction({
   concurrency: { limit: 1 },
   onFailure: async ({ event }) => failProductV4VerificationJob(input.parse(event.data.event.data)),
 }, async ({ event, step }) => {
-  return processProductV4VerificationJob(input.parse(event.data), (id, execute) => step.run(id, async () => {
+  return processProductV4VerificationJob(input.parse(event.data), async <T>(id: string, execute: () => Promise<T>) => await step.run(id, async () => {
     try { return await execute(); }
     finally {
       const { closeProductV4BrowserRunner } = await import("@/lib/compute/product-v4-browser-runner");
       await closeProductV4BrowserRunner();
     }
-  }));
+  }) as T);
 });
