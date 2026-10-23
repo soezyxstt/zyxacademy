@@ -1,5 +1,6 @@
 import { acquireVerificationBrowser } from "@/lib/compute/product-v4-browser-session";
 import { RetryAfterError } from "inngest";
+import { chromium } from "playwright-core";
 
 let stage = "acquire";
 async function main() {
@@ -7,7 +8,15 @@ async function main() {
   if (!["https://www.zyxacademy.com", "https://staging.zyxacademy.com"].includes(origin ?? "")) throw new Error("VERIFICATION_BROWSER_ORIGIN_INVALID");
   const acquire = async () => {
     for (let attempt = 0; ; attempt++) {
-      try { return await acquireVerificationBrowser(process.env.CF_ACCOUNT_ID ?? "", process.env.CF_API_TOKEN ?? ""); }
+      try { return await acquireVerificationBrowser(process.env.CF_ACCOUNT_ID ?? "", process.env.CF_API_TOKEN ?? "", { fetch, connect: async (endpoint: string, options?: Parameters<typeof chromium.connectOverCDP>[1]) => {
+        try { return await chromium.connectOverCDP(endpoint, options); }
+        catch (error) {
+          const token = process.env.CF_API_TOKEN ?? "";
+          const message = error instanceof Error ? error.message : "CDP_CONNECTION_FAILED";
+          console.error(JSON.stringify({ probe: "cdp-error", message: message.replaceAll(token, "[redacted]").replace(/https?:\/\/[^\s"<>]+|wss:\/\/[^\s"<>]+/g, "[url]").slice(0, 2000) }));
+          throw error;
+        }
+      } }); }
       catch (error) {
         if (!(error instanceof RetryAfterError) || attempt >= 2) throw error;
         console.log(JSON.stringify({ probe: "cdp-retry", attempt: attempt + 1, delaySeconds: Number(error.retryAfter) }));
