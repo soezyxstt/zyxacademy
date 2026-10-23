@@ -1,3 +1,4 @@
+import { CODING_COACHING_INSTRUCTIONS } from "@/lib/coding/zyra";
 /**
  * P3 grounded tutor pipeline. Three tiers:
  *
@@ -314,6 +315,15 @@ Generate a single JSON object:
  "matchedConcepts": ["[concept names this question is about]"],
  "confidence": [0.0 to 1.0, how well the excerpts cover the question]
 }`,
+};
+
+const codingGroundedAnswer: SystemPrompt<GroundedVars> = {
+  ...tutorGroundedAnswer,
+  version: "tutor_rag/coding_coaching/v1.0.0",
+  systemInstruction: `${tutorGroundedAnswer.systemInstruction}
+CODING COACHING CONTRACT:
+${CODING_COACHING_INSTRUCTIONS}
+Put the complete coaching in the answer field. The current code, stdin and execution snapshot override older recentConversation messages, including a previous successful attempt. Never describe an old correction as if it already happened in the current code. When the current execution is an error, explain that error before suggesting changes. Treat browser execution as reported practice, never official grading. Use Markdown backticks for Python code and names, overriding the general math presentation rule for code.`,
 };
 
 interface UngroundedVars {
@@ -1062,7 +1072,7 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
             const [baselineResult, candidateResult] = await Promise.all([
               PromptExecutor.run({
                 userId: studentId,
-                prompt: tutorGroundedAnswer,
+                prompt: hasCodingContext ? codingGroundedAnswer : tutorGroundedAnswer,
                 variables: {
                   question: sanitizedQuestion,
                   contextBlock,
@@ -1109,7 +1119,7 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
             if (pedagogyResult.usedFallback) {
               const legacyFallback = await PromptExecutor.run({
                 userId: studentId,
-                prompt: tutorGroundedAnswer,
+                prompt: hasCodingContext ? codingGroundedAnswer : tutorGroundedAnswer,
                 variables: {
                   question: sanitizedQuestion,
                   contextBlock,
@@ -1163,7 +1173,7 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
         } else {
           result = await PromptExecutor.run({
             userId: studentId,
-            prompt: tutorGroundedAnswer,
+            prompt: hasCodingContext ? codingGroundedAnswer : tutorGroundedAnswer,
             variables: {
               question: sanitizedQuestion,
               contextBlock,

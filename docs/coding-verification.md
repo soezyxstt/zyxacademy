@@ -513,3 +513,57 @@ contain the synthetic result and sanitized lifecycle evidence. The initial final
 harness rerun reused an already revealed local room and failed at control start;
 using a fresh synthetic local room corrected the harness state, without changing
 application behavior or grading results.
+
+
+## Guided error-coaching follow-up, 2026-10-23
+
+The missing visual scenario now covers one continuous learning loop: a decimal
+input causes `ValueError` in `int(input())`; Zyra explains the observed cause and
+a tentative misconception; the synthetic learner states that they expected `int`
+to drop the decimal portion; Zyra gives a small conversion hint; the learner edits
+to `float`, observes `5.0` for `2.5`, and asks for feedback and another experiment.
+The response connects the changed conversion to the new reported output and asks
+for another input. The first response explicitly normalizes trying and correcting
+errors as part of learning.
+
+Coaching is now explicitly requested by the existing Jelaskan error action and
+shared prompt instructions. The same instructions reach structured pedagogy and
+the coding-only legacy fallback. Ordinary course prompts are unchanged. The
+current code/execution snapshot is serialized after bounded older conversation.
+Early probes showed historical successful-code responses bleeding into a new
+error request; the final button request and instruction/order revisions were
+verified with a current-error-after-success turn in the same session. No model
+response is a deterministic guarantee of diagnostic correctness or learner
+understanding; a hypothesis still needs confirmation.
+
+Four final calls through the actual authenticated `/api/zyra/chat` returned HTTP
+200 with real Gemini responses: three connected coaching turns and a fourth
+current-error check after success. The fourth correctly discussed the current
+error and did not praise a correction absent from the current code. Synthetic
+local SQLite accounts and course were used; no remote application data was read
+or written. Development used the existing provider, allowance and policy path.
+Private-test canaries were absent in the response assertions.
+
+The ten inspected screenshot artifacts live under
+`/workspace/zyxacademy/artifacts/coding-coaching-screenshots/`, five states at
+380x844 and 1536x864. The UI harness renders the actual components/styles and
+replays the recorded real AI SSE responses to keep both viewports identical.
+Run/error/output are deterministic fixtures. These images do not certify real
+Python execution or successful Steel grading. Steel explicitly released both
+viewer sessions. The provider's injected serviceWorker access in opaque fixture
+iframes remains a capture-environment console diagnostic, not an application
+visual-quality pass. No overflow assertion failed.
+
+Validation commands and final outcomes:
+
+- `bun test tests/contracts/coding-pedagogy.test.ts tests/contracts/coding-foundation.test.ts tests/contracts/coding-answer-sanitizer.test.ts tests/contracts/pedagogy-contract.test.ts tests/contracts/zyra-pedagogy-state.test.ts tests/contracts/tutor-rag.test.ts`: exit 0, 79 tests.
+- `npm run typecheck`: exit 0 on the final sequential rerun.
+- Focused ESLint on changed application sources: exit 0.
+- Local `NODE_ENV=production bun run build` through `scripts/coding/local-env.py`: exit 0.
+- `npm run lint`: exit 1, the existing voucher `Date.now()` render error and 257 warnings.
+- Real three-turn coaching probe and current-error-after-success probe: exit 0.
+- Playwright capture harness: exit 0, ten screenshots. This is component-harness evidence with real AI replay and fixture Run, not an application route sign-off.
+
+Ignored logs and transcripts are in `artifacts/coding-live/coaching-*`; screenshot
+and shareable response artifacts contain only synthetic learner content. Earlier
+Steel Python grading blockers still apply. No PR merge or deployment occurred.

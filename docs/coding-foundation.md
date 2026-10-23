@@ -143,7 +143,13 @@ or timeout, returning to neutral when code or stdin changes.
 Helper actions cover hints, decomposition, error explanation, review and
 flowcharts. Zyra is instructed to separate observations from hypotheses, support
 suspected misconceptions with evidence, ask diagnostic questions and propose
-small next steps. It must identify a flowchart as a solution plan or student-code
+small next steps. Error coaching asks the learner to predict a result, make one
+small change and try Run again, with brief encouragement tied to that attempt.
+Learner explanations should refine the diagnosis; a suspected misconception is
+not a claim about the learner's ability or motivation. Current code and execution
+take precedence over older conversation, including an earlier successful Run.
+The coaching instructions are shared by the structured pedagogy path and coding
+legacy fallback. It must identify a flowchart as a solution plan or student-code
 logic. Existing typed visual generation and flowchart rendering are reused.
 Flowchart nodes carry an optional `kind`: `start`, `end`, `input`, `output`,
 `process`, or `decision`. Zyra must provide it for new diagrams. The renderer

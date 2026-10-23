@@ -642,3 +642,9 @@ Course Playground, runnable V4 Article examples, repeated coding submissions,
 Zyra decomposition/flowchart help and Python Live Quiz are implemented locally
 without a new feature flag. Existing Live Quiz gating remains unchanged. See
 [coding contract](coding-foundation.md) for authoring, access and runtime limits.
+
+Error help guides trial and error: explain the observed failure, offer a tentative
+concept diagnosis, let the learner clarify their reasoning, give one small next
+step, and encourage another predicted Run. After an edit, old explanations are
+marked stale until a new consultation. A successful browser Run remains practice,
+not an official Submit grade.

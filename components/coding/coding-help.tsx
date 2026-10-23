@@ -26,7 +26,7 @@ export function CodingHelp({ courseId, context, disabled = false }: { courseId: 
     { intent: "hint", label: "Petunjuk", icon: Lightbulb, message: "Beri saya petunjuk berikutnya, tanpa langsung memberikan seluruh solusi." },
     { intent: "decompose", label: "Pecah masalah", icon: ListTree, message: "Bantu pecah masalah ini menjadi langkah kecil dengan bahasa sederhana." },
     { intent: "flowchart", label: "Flowchart", icon: GitBranch, message: "Buat flowchart untuk langkah penyelesaian. Jelaskan apakah ini rencana solusi atau logika kode saya." },
-    { intent: "explain_error", label: "Jelaskan error", icon: Bug, message: "Jelaskan kesalahan kode saya berdasarkan hasil yang ada. Jika menduga miskonsepsi, nyatakan sebagai kemungkinan dan tanyakan untuk memastikan." },
+    { intent: "explain_error", label: "Jelaskan error", icon: Bug, message: "Jelaskan penyebab error dari kode dan hasil Run saya. Bedakan temuan yang terlihat dari kemungkinan cara berpikir saya, lalu ajukan satu pertanyaan untuk memastikan dugaan itu. Beri satu petunjuk kecil tanpa menuliskan seluruh solusi. Ajak saya memprediksi hasil dan mencoba Run lagi, lalu tutup dengan dorongan yang konkret." },
   ] as const;
   const controller = useRef<AbortController | null>(null);
   useEffect(() => () => controller.current?.abort(), []);
