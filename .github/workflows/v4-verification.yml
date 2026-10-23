@@ -10,7 +10,7 @@ on:
         required: true
       action:
         type: choice
-        options: [inspect, retry, evidence]
+        options: [inspect, retry, evidence, cancel]
         default: inspect
         required: true
       revision:

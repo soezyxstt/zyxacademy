@@ -12,6 +12,18 @@ if not re.fullmatch(r"[a-fA-F0-9]{32}", account) or not token:
     sys.exit("VERIFICATION_BROWSER_CONFIGURATION_REQUIRED")
 base = f"https://api.cloudflare.com/client/v4/accounts/{account}/browser-run/devtools"
 
+# Optional read-only plan evidence. A Browser Rendering token may lack billing read access.
+subscription_request = urllib.request.Request(f"https://api.cloudflare.com/client/v4/accounts/{account}/subscriptions", headers={"Authorization": "Bearer " + token})
+try:
+    with urllib.request.urlopen(subscription_request, timeout=15) as subscription_response:
+        subscriptions = json.load(subscription_response).get("result", [])
+        plans = [str(item.get("rate_plan", {}).get("public_name", "")) for item in subscriptions if isinstance(item, dict)]
+        print(json.dumps({"probe": "plans", "httpStatus": subscription_response.status, "subscriptionCount": len(subscriptions), "workerPlans": [name for name in plans if re.search(r"workers|browser", name, re.I)]}))
+except urllib.error.HTTPError as subscription_error:
+    print(json.dumps({"probe": "plans", "httpStatus": subscription_error.code}))
+except (urllib.error.URLError, TimeoutError):
+    print(json.dumps({"probe": "plans", "available": False}))
+
 
 def request(path, method="GET"):
     req = urllib.request.Request(base + path, method=method, headers={"Authorization": "Bearer " + token})

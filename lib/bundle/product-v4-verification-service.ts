@@ -1,5 +1,6 @@
 import { createHash, randomUUID } from "node:crypto";
 import { z } from "zod";
+import { RetryAfterError } from "inngest";
 import { buildProductVerificationKey } from "@/lib/storage/keys";
 import { assertProductV4VerificationCurrent, deriveProductV4VerificationPlan, evaluateProductV4Verification, recordProductV4VerificationReport, runProductV4Verification, type ProductV4ObservedCheck, type ProductV4VerificationAuthority, type ProductV4VerificationBinding, type ProductV4VerificationPlan, type ProductV4VerificationReceipt, type ProductV4VerificationRequirement, type ProductV4VerificationResult } from "./product-v4-verification";
 import type { ProductBundleManifest, ProductDependency, ProductEntity } from "./product-validator";
@@ -25,7 +26,7 @@ export interface ProductV4VerificationPorts {
 const hash = z.string().regex(/^[a-f0-9]{64}$/);
 const jobSchema = z.object({ importId: z.string().min(1), runId: z.string().min(1), planHash: hash }).strict();
 const attemptSchema = jobSchema.extend({ attemptId: z.string().uuid() });
-const stateSchema = z.object({ attemptId: z.string().uuid(), status: z.enum(["pending", "running", "complete", "failed", "stale"]), receiptKey: z.string().optional(), failureCode: z.string().max(100).optional(), updatedAt: z.number().int().optional(), completedChecks: z.number().int().nonnegative().optional(), totalChecks: z.number().int().positive().optional(), currentCheckId: hash.optional() }).strict();
+const stateSchema = z.object({ attemptId: z.string().uuid(), status: z.enum(["pending", "running", "complete", "failed", "stale"]), receiptKey: z.string().optional(), failureCode: z.string().max(100).optional(), updatedAt: z.number().int().optional(), retryAt: z.number().int().optional(), completedChecks: z.number().int().nonnegative().optional(), totalChecks: z.number().int().positive().optional(), currentCheckId: hash.optional() }).strict();
 export type ProductV4VerificationCheckpoint = <T>(id: string, execute: () => Promise<T>) => Promise<T>;
 const encode = (value: unknown) => new TextEncoder().encode(JSON.stringify(value));
 
@@ -54,7 +55,7 @@ export function createProductV4VerificationService(ports: ProductV4VerificationP
     const job = attemptSchema.parse(manifest);
     if (job.importId !== input.importId || job.runId !== input.runId || job.planHash !== plan.planHash) throw new Error("PRODUCT_V4_VERIFICATION_SCOPE_MISMATCH");
     const state = stateSchema.parse(await json(buildProductVerificationKey(plan.planHash, `state-${attemptId}.json`)) ?? { attemptId, status: "pending" });
-    if (["pending", "running"].includes(state.status) && (!state.updatedAt || Date.now() - state.updatedAt > 20 * 60_000)) {
+    if (["pending", "running"].includes(state.status) && (!state.updatedAt || Date.now() - Math.max(state.updatedAt, state.retryAt ?? 0) > 20 * 60_000)) {
       state.status = "failed";
       state.failureCode = "PRODUCT_V4_VERIFICATION_LEASE_EXPIRED";
     }
@@ -140,7 +141,17 @@ export function createProductV4VerificationService(ports: ProductV4VerificationP
             const stored = await checkpoint(`verify-${requirement.id}-${offset}`, async () => {
               await assertAttempt();
               await ports.write(stateKey, encode({ attemptId, status: "running", updatedAt: Date.now(), completedChecks, totalChecks: plan.requirements.length, currentCheckId: requirement.id }), "application/json");
-              const result = await ports.execute({ plan, bundle: snapshot.bundle, requirement, ...(requirement.layer === "web" ? { captureOffset: offset, captureLimit: 8 } : {}) });
+              let result: ProductV4ObservedCheck;
+              try {
+                result = await ports.execute({ plan, bundle: snapshot.bundle, requirement, ...(requirement.layer === "web" ? { captureOffset: offset, captureLimit: 2 } : {}) });
+              } catch (error) {
+                if (error instanceof RetryAfterError) {
+                  const retryAt = /^\d+$/.test(error.retryAfter) ? Date.now() + Number(error.retryAfter) * 1000 : Date.parse(error.retryAfter);
+                  if (!Number.isSafeInteger(retryAt) || retryAt <= Date.now()) throw new Error("PRODUCT_V4_VERIFICATION_RETRY_TIME_INVALID");
+                  await ports.write(stateKey, encode({ attemptId, status: "pending", updatedAt: Date.now(), retryAt, completedChecks, totalChecks: plan.requirements.length, currentCheckId: requirement.id, failureCode: "VERIFICATION_BROWSER_RATE_LIMITED" }), "application/json");
+                }
+                throw error;
+              }
               await assertAttempt();
               const artifacts: ProductV4ObservedCheck["artifacts"] = [];
               for (let start = 0; start < result.artifacts.length; start += 8) {
@@ -175,8 +186,9 @@ export function createProductV4VerificationService(ports: ProductV4VerificationP
           return get(getInput);
         });
       } catch (error) {
+        if (error instanceof RetryAfterError) throw error;
         const stale = error instanceof Error && ["PRODUCT_V4_VERIFICATION_CONFLICT", "PRODUCT_V4_VERIFICATION_ATTEMPT_STALE"].includes(error.message);
-        const browserFailure = error instanceof Error ? error.message.match(/\bVERIFICATION_BROWSER_(?:RATE_LIMITED|DAILY_QUOTA_EXCEEDED|ACCESS_DENIED|ACQUIRE_FAILED|CONNECT_FAILED|RELEASE_FAILED|SESSION_INVALID|CONFIGURATION_REQUIRED)\b/)?.[0] : undefined;
+        const browserFailure = error instanceof Error ? error.message.match(/\b(?:VERIFICATION_BROWSER_(?:RATE_LIMITED|DAILY_QUOTA_EXCEEDED|ACCESS_DENIED|ACQUIRE_FAILED|CONNECT_FAILED|RELEASE_FAILED|RELEASE_TIMEOUT|SESSION_INVALID|CONFIGURATION_REQUIRED|OPERATION_TIMEOUT|DISCONNECT_TIMEOUT)|VERIFICATION_CAPTURE_TIMEOUT)\b/)?.[0] : undefined;
         await ports.write(stateKey, encode({ attemptId, status: stale ? "stale" : "failed", updatedAt: Date.now(), completedChecks, totalChecks: plan.requirements.length, failureCode: stale ? "PRODUCT_V4_VERIFICATION_CONFLICT" : browserFailure ?? "PRODUCT_V4_VERIFICATION_EXECUTION_FAILED" }), "application/json");
         throw error;
       }

@@ -1,14 +1,14 @@
 import { expect, test } from "bun:test";
 import { NonRetriableError, RetryAfterError } from "inngest";
 import type { Browser } from "playwright-core";
-import { acquireVerificationBrowser } from "@/lib/compute/product-v4-browser-session";
+import { acquireVerificationBrowser, runVerificationBrowserOperation } from "@/lib/compute/product-v4-browser-session";
 
 const account = "a".repeat(32), token = "private-test-token";
 const sessionId = "00000000-0000-4000-8000-000000000001";
 const endpoint = `https://api.cloudflare.com/client/v4/accounts/${account}/browser-run/devtools/browser`;
 
 test("CDP acquisition honors Retry-After and sanitizes rate-limit errors", async () => {
-  for (const [header, expected] of [["45", "45"], [null, "25"], ["garbage", "25"]]) {
+  for (const [header, expected] of [["45", "45"], ["60000", "60000"], [null, "25"], ["garbage", "25"]]) {
     const ports = { fetch: (async () => new Response(`Rate limit exceeded ${token}`, { status: 429, headers: header ? { "Retry-After": header } : {} })) as typeof fetch, connect: async () => { throw new Error("must not connect"); } };
     try { await acquireVerificationBrowser(account, token, ports); throw new Error("expected rejection"); }
     catch (error) {
@@ -17,6 +17,19 @@ test("CDP acquisition honors Retry-After and sanitizes rate-limit errors", async
       expect((error as Error).message).toBe("VERIFICATION_BROWSER_RATE_LIMITED");
     }
   }
+});
+
+test("a remote operation deadline releases the browser before propagating timeout", async () => {
+  let closed = false;
+  let signal: AbortSignal | undefined;
+  await expect(runVerificationBrowserOperation(input => { signal = input; return new Promise<never>(() => {}); }, async () => { expect(signal?.aborted).toBe(true); closed = true; }, 5)).rejects.toThrow("VERIFICATION_BROWSER_OPERATION_TIMEOUT");
+  expect(closed).toBe(true);
+});
+
+test("browser cleanup preserves the operation error and blocks success if cleanup fails", async () => {
+  const close = async () => { throw new Error("CLEANUP_FAILED"); };
+  await expect(runVerificationBrowserOperation(async () => { throw new Error("RENDER_FAILED"); }, close)).rejects.toThrow("RENDER_FAILED");
+  await expect(runVerificationBrowserOperation(async () => "evidence", close)).rejects.toThrow("CLEANUP_FAILED");
 });
 
 test("daily quota and denied access fail without spending transient retries", async () => {
