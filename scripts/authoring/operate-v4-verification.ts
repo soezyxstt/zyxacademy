@@ -36,7 +36,8 @@ async function main() {
   const report = () => console.log(JSON.stringify({ status: result.state.status, completedChecks: "completedChecks" in result.state ? result.state.completedChecks : 0, totalChecks: result.plan.requirements.length, ready: result.evaluation.ready, failureCode: "failureCode" in result.state ? result.state.failureCode : null }));
   report();
   if (action === "inspect") {
-    const currentCheck = "currentCheckId" in result.state ? result.plan.requirements.find(check => check.id === result.state.currentCheckId) : undefined;
+    const currentCheckId = "currentCheckId" in result.state ? result.state.currentCheckId : undefined;
+    const currentCheck = result.plan.requirements.find(check => check.id === currentCheckId);
     const root = buildProductVerificationKey(result.plan.planHash).replace(/manifest\.json$/, "");
     const attemptId = "attemptId" in result ? result.attemptId : null;
     const artifacts = attemptId && storage.list ? (await storage.list(root)).filter(item => item.key.startsWith(`${root}artifact-${attemptId}-`)) : [];
