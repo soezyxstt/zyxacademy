@@ -8,6 +8,42 @@ import { parseStagedProductBundle } from "@/lib/bundle/product-staging";
 import { buildProductVerificationKey } from "@/lib/storage/keys";
 import { storage } from "@/lib/storage";
 
+async function inspectRunTrace(planHash: string, attemptId: string) {
+  const signingKey = process.env.INNGEST_SIGNING_KEY, apiKey = process.env.INNGEST_API_KEY;
+  if (!signingKey || !apiKey) return;
+  const get = async (path: string, key: string) => {
+    const response = await fetch(`https://api.inngest.com${path}`, { headers: { Authorization: `Bearer ${key}` }, redirect: "error", signal: AbortSignal.timeout(30_000) });
+    if (!response.ok) { console.log(JSON.stringify({ traceHttpStatus: response.status })); return null; }
+    return response.json();
+  };
+  const events = await get("/v1/events?name=product.verification.requested&limit=100", signingKey);
+  const event = events?.data?.find((item: { data?: { planHash?: string; attemptId?: string } }) => item.data?.planHash === planHash && item.data?.attemptId === attemptId);
+  if (!event?.internal_id) return;
+  const runs = await get(`/v1/events/${encodeURIComponent(event.internal_id)}/runs`, signingKey);
+  const run = runs?.data?.[0];
+  if (!run?.run_id) return;
+  console.log(JSON.stringify({ inngestStatus: run.status }));
+  const trace = await get(`/v2/runs/${encodeURIComponent(run.run_id)}/trace?include=output`, apiKey);
+  const sanitize = (value: string) => {
+    let result = value;
+    for (const secret of [signingKey, apiKey, process.env.BETTER_AUTH_SECRET, process.env.TURSO_AUTH_TOKEN, process.env.R2_SECRET_ACCESS_KEY]) if (secret) result = result.replaceAll(secret, "[redacted]");
+    return result.replace(/https?:\/\/[^\s"<>]+/g, "[url]").replace(/[a-f0-9]{32,}/gi, "[hash]").replace(/[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}/gi, "[id]").slice(0, 1500);
+  };
+  const errors = (output: unknown): string[] => {
+    if (typeof output === "string") {
+      try { return errors(JSON.parse(output)); } catch { return /error|fail|timeout|timed out|limit/i.test(output) ? [sanitize(output)] : []; }
+    }
+    if (!output || typeof output !== "object") return [];
+    return Object.entries(output).flatMap(([key, value]) => key === "message" && typeof value === "string" ? [sanitize(value)] : ["error", "message", "cause", "name"].includes(key) ? errors(value) : []);
+  };
+  interface Span { name?: string; status?: string; durationMs?: number; output?: unknown; children?: Span[] }
+  const walk = (span: Span) => {
+    console.log(JSON.stringify({ step: sanitize(span.name ?? ""), status: span.status, durationMs: span.durationMs, errors: errors(span.output) }));
+    for (const child of span.children ?? []) walk(child);
+  };
+  if (trace?.data?.rootSpan) walk(trace.data.rootSpan);
+}
+
 // Maintenance entrypoint. No review or publication writes are available here.
 async function main() {
   const action = process.env.V4_OPERATION;
@@ -43,6 +79,7 @@ async function main() {
     const artifacts = attemptId && storage.list ? (await storage.list(root)).filter(item => item.key.startsWith(`${root}artifact-${attemptId}-`)) : [];
     console.log(JSON.stringify({ currentLayer: currentCheck?.layer, currentState: currentCheck?.state, viewport: currentCheck?.viewport,
       updatedAt: "updatedAt" in result.state ? result.state.updatedAt : null, persistedArtifacts: artifacts.length, persistedBytes: artifacts.reduce((sum, item) => sum + item.size, 0) }));
+    if (attemptId) await inspectRunTrace(result.plan.planHash, attemptId);
     return;
   }
   if (action === "retry") {
