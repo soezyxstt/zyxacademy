@@ -18,7 +18,7 @@ try:
     with urllib.request.urlopen(subscription_request, timeout=15) as subscription_response:
         subscriptions = json.load(subscription_response).get("result", [])
         plans = [str(item.get("rate_plan", {}).get("public_name", "")) for item in subscriptions if isinstance(item, dict)]
-        print(json.dumps({"probe": "plans", "httpStatus": subscription_response.status, "workerPlans": [name for name in plans if re.search(r"workers|browser", name, re.I)]}))
+        print(json.dumps({"probe": "plans", "httpStatus": subscription_response.status, "subscriptionCount": len(subscriptions), "workerPlans": [name for name in plans if re.search(r"workers|browser", name, re.I)]}))
 except urllib.error.HTTPError as subscription_error:
     print(json.dumps({"probe": "plans", "httpStatus": subscription_error.code}))
 except (urllib.error.URLError, TimeoutError):

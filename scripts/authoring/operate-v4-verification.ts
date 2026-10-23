@@ -7,9 +7,9 @@ import { getProductV4VerificationReadiness, requestProductV4Verification } from 
 import { parseStagedProductBundle } from "@/lib/bundle/product-staging";
 import { buildProductVerificationKey } from "@/lib/storage/keys";
 import { storage } from "@/lib/storage";
-import { toIsoTimestamp } from "@/lib/date-utils";
+import { normalizeDate, toIsoTimestamp } from "@/lib/date-utils";
 
-async function inspectRunTrace(planHash: string, attemptId: string) {
+async function inspectRunTrace(planHash: string, attemptId: string, createdAt: Date) {
   const signingKey = process.env.INNGEST_SIGNING_KEY, apiKey = process.env.INNGEST_API_KEY;
   if (!signingKey || !apiKey) return;
   const get = async (path: string, key: string) => {
@@ -17,7 +17,7 @@ async function inspectRunTrace(planHash: string, attemptId: string) {
     if (!response.ok) { console.log(JSON.stringify({ traceHttpStatus: response.status })); return null; }
     return response.json();
   };
-  const events = await get("/v1/events?name=product.verification.requested&limit=100", signingKey);
+  const events = await get(`/v1/events?name=product.verification.requested&limit=100&received_after=${encodeURIComponent(normalizeDate(createdAt).toISOString())}`, signingKey);
   const event = events?.data?.find((item: { data?: { planHash?: string; attemptId?: string } }) => item.data?.planHash === planHash && item.data?.attemptId === attemptId);
   if (!event?.internal_id) return;
   const runs = await get(`/v1/events/${encodeURIComponent(event.internal_id)}/runs`, signingKey);
@@ -75,7 +75,7 @@ async function main() {
   console.log(JSON.stringify({ course, title: row.validationReport.bundleTitle, revision: row.checksum, status: row.status }));
   if (action === "cancel") {
     if (typeof ref.planHash !== "string" || !/^[a-f0-9]{64}$/.test(ref.planHash) || typeof ref.attemptId !== "string" || !/^[a-f0-9-]{36}$/.test(ref.attemptId)) throw new Error("V4_OPERATION_ATTEMPT_INVALID");
-    const current = await inspectRunTrace(ref.planHash, ref.attemptId);
+    const current = await inspectRunTrace(ref.planHash, ref.attemptId, row.createdAt);
     if (!current || !["Running", "Queued"].includes(current.status) || !process.env.INNGEST_API_KEY) throw new Error("V4_OPERATION_CANCELLABLE_RUN_REQUIRED");
     const endpoint = `https://api.inngest.com/v2/runs/${encodeURIComponent(current.runId)}`;
     const headers = { Authorization: `Bearer ${process.env.INNGEST_API_KEY}`, "Content-Type": "application/json" };
@@ -97,7 +97,7 @@ async function main() {
     const artifacts = attemptId && storage.list ? (await storage.list(root)).filter(item => item.key.startsWith(`${root}artifact-${attemptId}-`)) : [];
     console.log(JSON.stringify({ currentLayer: currentCheck?.layer, currentState: currentCheck?.state, viewport: currentCheck?.viewport,
       updatedAt: "updatedAt" in result.state ? result.state.updatedAt : null, persistedArtifacts: artifacts.length, persistedBytes: artifacts.reduce((sum, item) => sum + item.size, 0) }));
-    if (attemptId) await inspectRunTrace(result.plan.planHash, attemptId);
+    if (attemptId) await inspectRunTrace(result.plan.planHash, attemptId, row.createdAt);
     return;
   }
   if (action === "retry") {
