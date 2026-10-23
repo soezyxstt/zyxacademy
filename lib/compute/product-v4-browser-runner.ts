@@ -72,7 +72,7 @@ export async function captureProductV4WebState(page: Page, checkId: string, offs
       await page.evaluate(top => window.scrollTo(0, top), y);
       let timer: ReturnType<typeof setTimeout> | undefined;
       try {
-        const capture = await Promise.race([session.send("Page.captureScreenshot", { format: "png", captureBeyondViewport: false }), new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error("VERIFICATION_CAPTURE_TIMEOUT")), 60_000); })]);
+        const capture = await Promise.race([session.send("Page.captureScreenshot", { format: "png", captureBeyondViewport: false }), new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error("VERIFICATION_CAPTURE_TIMEOUT")), 15_000); })]);
         artifacts.push({ id: `web-${checkId}-${y}`, mediaType: "image/png", bytes: Buffer.from(capture.data, "base64") });
       } finally { clearTimeout(timer); }
     }
@@ -194,6 +194,7 @@ export async function executeBrowserProductV4Check(input: {
   staticFigureAssets?: DiktatSourceFigureAssets;
   captureOffset?: number;
   captureLimit?: number;
+  signal?: AbortSignal;
 }): Promise<ProductV4ObservedCheck> {
   const bundle = bundleSchema.parse(input.bundle);
   assertProductV4RuntimeFingerprint(input.plan.binding, await loadedRuntime);
@@ -204,9 +205,11 @@ export async function executeBrowserProductV4Check(input: {
   const baseUrl = deployed ? validateDeployedVerificationBaseUrl(input.baseUrl) : validateVerificationBaseUrl(input.baseUrl);
   const result: ProductV4ObservedCheck = { checkId: requirement.id, status: "NOT_TESTED", expected: `${requirement.layer}:${requirement.state}`, observed: "The requested state has no supported browser executor.", artifacts: [] };
   if (!["web", "print"].includes(requirement.layer)) return result;
+  input.signal?.throwIfAborted();
   if (browser && !(await browser).browser.isConnected()) await closeProductV4BrowserRunner();
   browser ??= launchVerificationBrowser().catch(error => { browser = undefined; throw error; });
   const launched = (await browser).browser;
+  input.signal?.throwIfAborted();
   const expectedBrowserVersion = input.plan.binding.browserVersion ?? (deployed ? undefined : loadedBrowserRuntime?.browserVersion);
   if (!expectedBrowserVersion || launched.version() !== expectedBrowserVersion) throw new Error("PRODUCT_V4_BROWSER_VERSION_MISMATCH");
   const context = await launched.newContext({ viewport: requirement.viewport ?? { width: 703, height: 1032 }, reducedMotion: "reduce" });
@@ -298,6 +301,7 @@ export async function executeBrowserProductV4Check(input: {
     }
     return { ...result, status: "PASS", observed: "The exact bundle state rendered without runtime, math, image, HTTP or overflow errors. Artifacts record machine output; visual review remains separate." };
   } catch (error) {
+    if (error instanceof Error && error.message === "VERIFICATION_CAPTURE_TIMEOUT") throw error;
     return { ...result, status: "FAIL", observed: (error instanceof Error ? error.message : "VERIFICATION_EXECUTION_FAILED").slice(0, 490) };
   } finally { await context.close(); }
 }

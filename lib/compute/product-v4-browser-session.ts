@@ -7,6 +7,23 @@ interface Ports {
   connect: typeof chromium.connectOverCDP;
 }
 
+/** Bound remote work, then release capacity before the caller writes DB/R2 evidence. */
+export async function runVerificationBrowserOperation<T>(execute: (signal: AbortSignal) => Promise<T>, close: () => Promise<void>, timeoutMs = 60_000): Promise<T> {
+  const controller = new AbortController();
+  let timer: ReturnType<typeof setTimeout> | undefined, failed = false;
+  try {
+    return await Promise.race([execute(controller.signal), new Promise<never>((_, reject) => { timer = setTimeout(() => { const error = new Error("VERIFICATION_BROWSER_OPERATION_TIMEOUT"); controller.abort(error); reject(error); }, timeoutMs); })]);
+  } catch (error) { failed = true; throw error; }
+  finally {
+    clearTimeout(timer);
+    controller.abort();
+    let closeTimer: ReturnType<typeof setTimeout> | undefined;
+    try { await Promise.race([close(), new Promise<never>((_, reject) => { closeTimer = setTimeout(() => reject(new Error("VERIFICATION_BROWSER_RELEASE_TIMEOUT")), 15_000); })]); }
+    catch (error) { if (!failed) throw error; }
+    finally { clearTimeout(closeTimer); }
+  }
+}
+
 /** Acquire over HTTP so quota responses and Retry-After survive the CDP handshake. */
 export async function acquireVerificationBrowser(account: string, token: string, ports: Ports = { fetch, connect: chromium.connectOverCDP.bind(chromium) }): Promise<VerificationBrowserSession> {
   if (!/^[a-f0-9]{32}$/i.test(account) || !token) throw new NonRetriableError("VERIFICATION_BROWSER_CONFIGURATION_REQUIRED");
@@ -44,7 +61,11 @@ export async function acquireVerificationBrowser(account: string, token: string,
       // Playwright's CDP browser.close() disconnects the client. DELETE also
       // terminates the Cloudflare session instead of billing its keep-alive.
       try { await release(); }
-      finally { await browser.close(); }
+      finally {
+        let timer: ReturnType<typeof setTimeout> | undefined;
+        try { await Promise.race([browser.close(), new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error("VERIFICATION_BROWSER_DISCONNECT_TIMEOUT")), 5000); })]); }
+        finally { clearTimeout(timer); }
+      }
     } };
   } catch (error) {
     await release().catch(() => {});
