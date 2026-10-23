@@ -21,6 +21,7 @@ async function main() {
   const url = process.env.TURSO_DATABASE_URL || process.env.TURSO_CONNECTION_URL || process.env.DATABASE_URL;
   if (!url || !/^(libsql|https):/.test(url)) throw Error("FIXTURE_REMOTE_DATABASE_REQUIRED");
   const host = new URL(url).hostname;
+  console.log(JSON.stringify({ mode, environment: process.env.ZYX_ENVIRONMENT, databaseHost: host }));
   if (mode === "export") {
     if (process.env.ZYX_ENVIRONMENT !== "production" || process.env.NEXT_PUBLIC_APP_URL !== "https://www.zyxacademy.com" || /staging/.test(host)) throw Error("FIXTURE_SOURCE_ENVIRONMENT_INVALID");
   } else if (mode === "import") {
@@ -28,7 +29,6 @@ async function main() {
   } else throw Error("FIXTURE_MODE_INVALID");
   const client = createClient({ url, authToken: process.env.TURSO_AUTH_TOKEN });
   const select = async (table: string, column: string, value: string | number) => (await client.execute({ sql: `SELECT * FROM ${quote(table)} WHERE ${quote(column)} = ?`, args: [value] })).rows as unknown as Row[];
-  console.log(JSON.stringify({ mode, environment: process.env.ZYX_ENVIRONMENT, databaseHost: host }));
   try {
     if (mode === "export") {
       // Only SELECTs are issued on production. No accounts, sessions, learner data or old evidence are exported.
