@@ -12,7 +12,7 @@ const path = "artifacts/v4-fixture";
 const allowed = new Set(["courses", "chapters", "concepts", "mata_kuliah", "bab", "sumber_materi", "potongan_sumber", "ide"]);
 type Row = Record<string, string | number | null>;
 type Entry = { table: string; row: Row };
-const quote = (s: string) => { if (!/^[a-z_]+$/.test(s)) throw Error("FIXTURE_IDENTIFIER_INVALID"); return `"${s}"`; };
+const quote = (s: string) => { if (!/^[a-z_][a-z0-9_]*$/.test(s)) throw Error("FIXTURE_IDENTIFIER_INVALID"); return `"${s}"`; };
 const digest = (bytes: Uint8Array) => createHash("sha256").update(bytes).digest("hex");
 
 async function main() {
