@@ -115,3 +115,10 @@ Repeat on the exact authorized production hostname after staging passes. The smo
 In the plugin draft, use Scan Tools against the default endpoint, confirm `zyx-authoring` and all workflow references, then review and submit the new plugin version. Adding a custom MCP URL does not guarantee installation. Native package uploads and MCP snapshots require separate host acceptance evidence.
 
 Deployment evidence is recorded in per-rollout smoke receipts. ChatGPT Scan Tools acceptance requires an observed successful scan and confirmation of the imported draft. OpenAI Platform requires a verified developer identity before creating or uploading that draft.
+
+
+## Exact production draft fixture in staging
+
+The manual `Operate V4 verification` workflow with action `prepare-fixture` runs only from `staging`, with an explicitly inspected revision checksum. Use it only after the operator authorizes copying that draft and its required learning dependencies to staging. Its production job issues SELECTs and downloads the exact ZIP; it exports no account rows, sessions, learner data, reviews or receipts. The private transfer artifact expires after 1 day.
+
+The staging job uses the existing staging guard, checks all identity references and current dependency pins before writes, inserts only missing parent/Idea/source/chunk rows, and refuses conflicts. Account identities must already exist in staging. Source-figure assets and external product dependencies are deliberately unsupported by this focused transfer. Existing drafts are left for native inspection and retry rather than creating another attempt. A new draft is staged through `stageProductBundle`, keeps the original bundle checksum, and requests the normal deployed trusted worker. Polling waits for all checks, a ready receipt and matching persisted PDF evidence; it does not execute checks or sign receipts locally. Pedagogic approval and publication remain separate.
