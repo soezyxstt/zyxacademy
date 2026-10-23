@@ -1,10 +1,21 @@
 import { acquireVerificationBrowser } from "@/lib/compute/product-v4-browser-session";
+import { RetryAfterError } from "inngest";
 
 let stage = "acquire";
 async function main() {
   const origin = process.env.NEXT_PUBLIC_APP_URL;
   if (!["https://www.zyxacademy.com", "https://staging.zyxacademy.com"].includes(origin ?? "")) throw new Error("VERIFICATION_BROWSER_ORIGIN_INVALID");
-  const session = await acquireVerificationBrowser(process.env.CF_ACCOUNT_ID ?? "", process.env.CF_API_TOKEN ?? "");
+  const acquire = async () => {
+    for (let attempt = 0; ; attempt++) {
+      try { return await acquireVerificationBrowser(process.env.CF_ACCOUNT_ID ?? "", process.env.CF_API_TOKEN ?? ""); }
+      catch (error) {
+        if (!(error instanceof RetryAfterError) || attempt >= 2) throw error;
+        console.log(JSON.stringify({ probe: "cdp-retry", attempt: attempt + 1, delaySeconds: Number(error.retryAfter) }));
+        await new Promise(resolve => setTimeout(resolve, Number(error.retryAfter) * 1000));
+      }
+    }
+  };
+  const session = await acquire();
   try {
     console.log(JSON.stringify({ probe: "cdp", browserVersion: session.browser.version() }));
     stage = "context";

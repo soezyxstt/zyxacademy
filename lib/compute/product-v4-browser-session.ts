@@ -35,10 +35,11 @@ export async function acquireVerificationBrowser(account: string, token: string,
   };
   try {
     const expected = sessionEndpoint.replace("https:", "wss:");
+    const socket = typeof session.webSocketDebuggerUrl === "string" ? session.webSocketDebuggerUrl : "";
     // Browser Run accepts the renamed HTTP route but returns the canonical
     // browser-rendering CDP route. Both must bind the exact account/session.
-    if (![expected, expected.replace("/browser-run/", "/browser-rendering/")].includes(String(session.webSocketDebuggerUrl))) throw new NonRetriableError("VERIFICATION_BROWSER_SESSION_INVALID");
-    const browser = await ports.connect(session.webSocketDebuggerUrl, { headers, timeout: 30_000 });
+    if (![expected, expected.replace("/browser-run/", "/browser-rendering/")].includes(socket)) throw new NonRetriableError("VERIFICATION_BROWSER_SESSION_INVALID");
+    const browser = await ports.connect(socket, { headers, timeout: 30_000 });
     return { browser, async close() {
       // Playwright's CDP browser.close() disconnects the client. DELETE also
       // terminates the Cloudflare session instead of billing its keep-alive.
