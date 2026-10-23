@@ -17,8 +17,19 @@ subscription_request = urllib.request.Request(f"https://api.cloudflare.com/clien
 try:
     with urllib.request.urlopen(subscription_request, timeout=15) as subscription_response:
         subscriptions = json.load(subscription_response).get("result", [])
-        plans = [str(item.get("rate_plan", {}).get("public_name", "")) for item in subscriptions if isinstance(item, dict)]
-        print(json.dumps({"probe": "plans", "httpStatus": subscription_response.status, "subscriptionCount": len(subscriptions), "workerPlans": [name for name in plans if re.search(r"workers|browser", name, re.I)]}))
+        def plan_labels(value):
+            if isinstance(value, list):
+                return [label for item in value for label in plan_labels(item)]
+            if not isinstance(value, dict):
+                return []
+            labels = []
+            for key, item in value.items():
+                if key in ("rate_plan", "ratePlan") and isinstance(item, dict):
+                    labels.append({"plan": item.get("id"), "label": item.get("public_name", item.get("publicName"))})
+                else:
+                    labels.extend(plan_labels(item))
+            return labels
+        print(json.dumps({"probe": "plans", "httpStatus": subscription_response.status, "resultType": type(subscriptions).__name__, "resultFields": sorted(subscriptions.keys()) if isinstance(subscriptions, dict) else None, "plans": plan_labels(subscriptions)}))
 except urllib.error.HTTPError as subscription_error:
     print(json.dumps({"probe": "plans", "httpStatus": subscription_error.code}))
 except (urllib.error.URLError, TimeoutError):
