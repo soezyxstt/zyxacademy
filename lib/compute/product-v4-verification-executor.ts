@@ -8,6 +8,7 @@ import { visualSpecSchema } from "@/lib/materials/visual-contract";
 import { deriveEpsilonDelta } from "@/lib/materials/epsilon-delta";
 import { validateAuthoredDiktat } from "@/lib/materials/diktat-v4";
 import { compileArticleProduct } from "@/lib/materials/compiler";
+import { runVerificationBrowserOperation } from "./product-v4-browser-session";
 
 export { buildProductV4RuntimeBinding } from "./product-v4-runtime-binding";
 
@@ -19,6 +20,7 @@ const responseSchema = z.object({
   checkId: z.string().regex(/^[a-f0-9]{64}$/), status: z.enum(["PASS", "FAIL", "NOT_TESTED"]),
   expected: z.string().min(1).max(500), observed: z.string().min(1).max(500),
   pageCount: z.number().int().positive().max(4).optional(), artifacts: z.array(artifact).max(300),
+  captureTotal: z.number().int().positive().max(300).optional(),
 }).strict();
 
 /** The endpoint and credentials are server configuration, never MCP parameters. */
@@ -62,8 +64,12 @@ export const executeProductV4VerificationCheck: ProductV4VerificationPorts["exec
       artifacts: [{ id: `${input.requirement.id}.json`, mediaType: "application/json", bytes: new TextEncoder().encode(JSON.stringify({ findings, observations })) }] };
   }
   if (typeof (globalThis as { Deno?: unknown }).Deno !== "undefined") {
-    const { executeBrowserProductV4Check } = await import("./product-v4-browser-runner");
-    return executeBrowserProductV4Check({ ...input, baseUrl: process.env.NEXT_PUBLIC_APP_URL ?? "", staticFigureAssets: await loadProductV4StaticFigureAssets(input.bundle) });
+    const { executeBrowserProductV4Check, closeProductV4BrowserRunner } = await import("./product-v4-browser-runner");
+    return runVerificationBrowserOperation(async (signal) => {
+      const staticFigureAssets = await loadProductV4StaticFigureAssets(input.bundle);
+      signal.throwIfAborted();
+      return executeBrowserProductV4Check({ ...input, signal, baseUrl: process.env.NEXT_PUBLIC_APP_URL ?? "", staticFigureAssets });
+    }, closeProductV4BrowserRunner);
   }
   const endpoint = process.env.AUTHORING_VERIFICATION_RENDERER_URL;
   const secret = process.env.AUTHORING_VERIFICATION_RENDERER_SECRET;

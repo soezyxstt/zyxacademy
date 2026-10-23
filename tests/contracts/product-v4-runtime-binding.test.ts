@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import { createHash } from "node:crypto";
 import { productBundleManifestSchema, productEntitySchema } from "@/lib/bundle/product-validator";
-import { assertProductV4RuntimeFingerprint, buildProductV4RuntimeBinding, expectedChromiumRuntime, loadProductV4StaticFigureAssets, productV4DependencyChecksum, resolveProductV4LoadedRuntime, type ProductV4LiveDependency } from "@/lib/compute/product-v4-runtime-binding";
+import { readProductV4RuntimeFingerprint, assertProductV4RuntimeFingerprint, buildProductV4RuntimeBinding, expectedChromiumRuntime, loadProductV4StaticFigureAssets, productV4DependencyChecksum, resolveProductV4LoadedRuntime, type ProductV4LiveDependency } from "@/lib/compute/product-v4-runtime-binding";
 
 const hash = "a".repeat(64);
 const manifest = productBundleManifestSchema.parse({ bundleId: "bundle", bundleType: "product", schemaVersion: "product-bundle.v4", courseId: "course", creatorId: "creator", createdAt: "2026-10-21T00:00:00.000Z", entityFiles: ["products", "dependencies"].map(entityType => ({ entityType, path: `${entityType}.json`, checksum: hash, stableIds: [] })), bundleChecksum: hash });
@@ -90,3 +90,41 @@ test("source figures resolve through the DB course alias, verify bytes and omit 
   await expect(loadProductV4StaticFigureAssets(figureBundle, figurePorts)).rejects.toThrow("NOT_AUTHORIZED");
 });
 
+
+test("Next serverless verification uses its validated embedded build identity", async () => {
+  const previous = process.env.NEXT_PUBLIC_V4_WEB_RUNTIME;
+  try {
+    process.env.NEXT_PUBLIC_V4_WEB_RUNTIME = JSON.stringify(runtime);
+    expect(await readProductV4RuntimeFingerprint()).toEqual(runtime);
+    process.env.NEXT_PUBLIC_V4_WEB_RUNTIME = JSON.stringify({ ...runtime, fontChecksum: "invalid" });
+    await expect(readProductV4RuntimeFingerprint()).rejects.toThrow("PRODUCT_V4_BUILD_RUNTIME_INVALID");
+  } finally {
+    if (previous === undefined) delete process.env.NEXT_PUBLIC_V4_WEB_RUNTIME;
+    else process.env.NEXT_PUBLIC_V4_WEB_RUNTIME = previous;
+  }
+});
+
+test("provider and reviewed browser version bind separate plans and cannot reuse receipts", async () => {
+  const { deriveProductV4VerificationPlan } = await import("@/lib/bundle/product-v4-verification");
+  const beforeProvider = process.env.AUTHORING_VERIFICATION_BROWSER_PROVIDER;
+  const beforeVersion = process.env.AUTHORING_VERIFICATION_STEEL_BROWSER_VERSION;
+  try {
+    process.env.AUTHORING_VERIFICATION_BROWSER_PROVIDER = "cloudflare";
+    const cf = await buildProductV4RuntimeBinding({ row, bundle, runId: "run" }, ports);
+    process.env.AUTHORING_VERIFICATION_BROWSER_PROVIDER = "steel";
+    process.env.AUTHORING_VERIFICATION_STEEL_BROWSER_VERSION = cf.browserVersion;
+    const steel = await buildProductV4RuntimeBinding({ row, bundle, runId: "run" }, ports);
+    const cfPlan = deriveProductV4VerificationPlan({ bundle, binding: cf });
+    const steelPlan = deriveProductV4VerificationPlan({ bundle, binding: steel });
+    expect(steel.browserProvider).toBe("steel");
+    expect(steelPlan.planHash).not.toBe(cfPlan.planHash);
+    process.env.AUTHORING_VERIFICATION_STEEL_BROWSER_VERSION = "140.0.1.2";
+    const changed = await buildProductV4RuntimeBinding({ row, bundle, runId: "run" }, ports);
+    expect(deriveProductV4VerificationPlan({ bundle, binding: changed }).planHash).not.toBe(steelPlan.planHash);
+  } finally {
+    if (beforeProvider === undefined) delete process.env.AUTHORING_VERIFICATION_BROWSER_PROVIDER;
+    else process.env.AUTHORING_VERIFICATION_BROWSER_PROVIDER = beforeProvider;
+    if (beforeVersion === undefined) delete process.env.AUTHORING_VERIFICATION_STEEL_BROWSER_VERSION;
+    else process.env.AUTHORING_VERIFICATION_STEEL_BROWSER_VERSION = beforeVersion;
+  }
+});

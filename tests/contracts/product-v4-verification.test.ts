@@ -1,8 +1,9 @@
 import { expect, test } from "bun:test";
+import { RetryAfterError } from "inngest";
 import { productBundleManifestSchema, productEntitySchema } from "@/lib/bundle/product-validator";
 import { createProductV4VerificationService, type ProductV4VerificationPorts, type ProductV4VerificationSnapshot } from "@/lib/bundle/product-v4-verification-service";
 import { buildProductVerificationKey } from "@/lib/storage/keys";
-import { assertProductV4VerificationCurrent, deriveProductV4VerificationPlan, evaluateProductV4Verification, PRODUCT_V4_VERIFICATION_POLICY, recordProductV4VerificationReport, runProductV4Verification, type ProductV4ObservedCheck, type ProductV4VerificationRequirement } from "@/lib/bundle/product-v4-verification";
+import { assertProductV4VerificationCurrent, deriveProductV4VerificationPlan, evaluateProductV4Verification, PRODUCT_V4_VERIFICATION_POLICY, recordProductV4VerificationReport, runProductV4Verification, type ProductV4ObservedCheck, type ProductV4VerificationResult, type ProductV4VerificationRequirement } from "@/lib/bundle/product-v4-verification";
 
 const hash = "a".repeat(64);
 const authority = { signingKey: "test-only-secret-with-at-least-32-bytes", executorId: "server-test-runner" };
@@ -108,7 +109,7 @@ function serviceFixture() {
     },
     authority: () => authority,
   };
-  return { service: createProductV4VerificationService(ports), mutable, objects };
+  return { service: createProductV4VerificationService(ports), mutable, objects, ports };
 }
 
 test("persisted job only becomes ready after actual execution and intact artifact readback", async () => {
@@ -130,6 +131,110 @@ test("persisted job only becomes ready after actual execution and intact artifac
   const artifact = result.receipt.results[0].artifacts[0];
   objects.set(buildProductVerificationKey(input.planHash, artifact.id), new TextEncoder().encode("changed bytes"));
   await expect(service.get(input)).rejects.toThrow("ARTIFACT_MISSING_OR_CHANGED");
+});
+
+test("interrupted verification resumes memoized checks and reports bounded progress", async () => {
+  const { service, mutable, objects } = serviceFixture();
+  const requested = await service.request({ importId: "import", runId: "run" });
+  const input = { importId: "import", runId: "run", planHash: requested.jobId };
+  const saved = new Map<string, unknown>();
+  let interrupt = true;
+  const checkpoint = async <T>(id: string, execute: () => Promise<T>): Promise<T> => {
+    if (saved.has(id)) return saved.get(id) as T;
+    if (interrupt && saved.size === 3) throw new Error("WORKER_INTERRUPTED");
+    const value = await execute();
+    if (id.startsWith("verify-")) expect((value as ProductV4VerificationResult).artifacts[0].bytes).toBeUndefined();
+    saved.set(id, value);
+    return value;
+  };
+  await expect(service.process(input, checkpoint)).rejects.toThrow("WORKER_INTERRUPTED");
+  expect(mutable.executeCount).toBe(2);
+  interrupt = false;
+  const result = await service.process(input, checkpoint);
+  expect(result.evaluation.ready).toBe(true);
+  expect(mutable.executeCount).toBe(result.plan.requirements.length);
+  expect(result.state.completedChecks).toBe(result.plan.requirements.length);
+  const key = buildProductVerificationKey(input.planHash, `state-${result.attemptId}.json`);
+  objects.set(key, new TextEncoder().encode(JSON.stringify({ attemptId: result.attemptId, status: "running", updatedAt: Date.now() - 21 * 60_000 })));
+  expect((await service.get(input)).state.failureCode).toBe("PRODUCT_V4_VERIFICATION_LEASE_EXPIRED");
+  const retry = await service.request({ ...input, retry: true });
+  expect(retry.attemptId).not.toBe(result.attemptId);
+  await service.fail({ ...input, attemptId: result.attemptId });
+  expect((await service.get(input)).state.status).toBe("pending");
+  await service.fail({ ...input, attemptId: retry.attemptId });
+  expect((await service.get(input)).state.failureCode).toBe("PRODUCT_V4_VERIFICATION_WORKER_FAILED");
+});
+
+test("step discovery performs no storage or database IO outside checkpoints", async () => {
+  const { service, ports } = serviceFixture();
+  const requested = await service.request({ importId: "import", runId: "run" });
+  let insideCheckpoint = false;
+  const original = { ...ports };
+  ports.load = (...args) => { expect(insideCheckpoint).toBe(true); return original.load(...args); };
+  ports.read = (...args) => { expect(insideCheckpoint).toBe(true); return original.read(...args); };
+  ports.write = (...args) => { expect(insideCheckpoint).toBe(true); return original.write(...args); };
+  ports.attach = (...args) => { expect(insideCheckpoint).toBe(true); return original.attach(...args); };
+  ports.execute = (...args) => { expect(insideCheckpoint).toBe(true); return original.execute(...args); };
+  const checkpoint = async <T>(_id: string, execute: () => Promise<T>): Promise<T> => {
+    insideCheckpoint = true;
+    try { return await execute(); }
+    finally { insideCheckpoint = false; }
+  };
+  const result = await service.process({ importId: "import", runId: "run", planHash: requested.jobId }, checkpoint);
+  expect(result.evaluation.ready).toBe(true);
+});
+
+test("terminal browser failures retain actionable codes through the failure callback", async () => {
+  for (const code of ["VERIFICATION_BROWSER_DAILY_QUOTA_EXCEEDED", "VERIFICATION_STEEL_ACQUIRE_CREDITS_EXHAUSTED", "VERIFICATION_STEEL_ACQUIRE_ACCESS_DENIED", "VERIFICATION_STEEL_CONNECT_FAILED", "VERIFICATION_STEEL_RELEASE_RESPONSE_INVALID"]) {
+    const { service, ports } = serviceFixture();
+    const requested = await service.request({ importId: "import", runId: "run" });
+    ports.execute = async () => { throw new Error(code); };
+    const input = { importId: "import", runId: "run", planHash: requested.jobId, attemptId: requested.attemptId };
+    await expect(service.process(input)).rejects.toThrow(code);
+    await service.fail(input);
+    const result = await service.get({ importId: "import", runId: "run", planHash: requested.jobId });
+    expect(result.state.failureCode).toBe(code);
+    expect(result.state.completedChecks).toBe(0);
+    expect(result.evaluation.ready).toBe(false);
+  }
+});
+
+test("provider backoff survives a 20-minute lease window and never implies readiness", async () => {
+  const { service, ports, objects } = serviceFixture();
+  const requested = await service.request({ importId: "import", runId: "run" });
+  ports.execute = async () => { throw new RetryAfterError("VERIFICATION_BROWSER_RATE_LIMITED", 17 * 60 * 60_000); };
+  const input = { importId: "import", runId: "run", planHash: requested.jobId };
+  await expect(service.process(input)).rejects.toThrow("VERIFICATION_BROWSER_RATE_LIMITED");
+  const waiting = await service.get(input);
+  expect(waiting.state.status).toBe("pending");
+  expect(waiting.state.retryAt).toBeGreaterThan(Date.now());
+  expect(waiting.evaluation.ready).toBe(false);
+  const key = buildProductVerificationKey(input.planHash, `state-${requested.attemptId}.json`);
+  objects.set(key, new TextEncoder().encode(JSON.stringify({ ...waiting.state, updatedAt: Date.now() - 21 * 60_000 })));
+  expect((await service.get(input)).state.status).toBe("pending");
+  await expect(service.request({ ...input, retry: true })).rejects.toThrow("RETRY_NOT_ALLOWED");
+  objects.set(key, new TextEncoder().encode(JSON.stringify({ ...waiting.state, updatedAt: Date.now() - 30 * 60_000, retryAt: Date.now() - 21 * 60_000 })));
+  expect((await service.get(input)).state.failureCode).toBe("PRODUCT_V4_VERIFICATION_LEASE_EXPIRED");
+});
+
+test("chapter capture batches retain every image under unique persisted identities", async () => {
+  const { service, ports } = serviceFixture();
+  const execute = ports.execute;
+  ports.execute = async input => {
+    const result = await execute(input);
+    if (input.requirement.layer !== "web") return result;
+    expect(input.captureLimit).toBe(2);
+    const offset = input.captureOffset ?? 0;
+    return { ...result, captureTotal: 17, artifacts: Array.from({ length: Math.min(input.captureLimit ?? 17, 17 - offset) }, () => ({ ...result.artifacts[0] })) };
+  };
+  const requested = await service.request({ importId: "import", runId: "run" });
+  const result = await service.process({ importId: "import", runId: "run", planHash: requested.jobId });
+  expect(result.evaluation.ready).toBe(true);
+  const webIds = new Set(result.plan.requirements.filter(check => check.layer === "web").map(check => check.id));
+  for (const check of result.receipt.results.filter(check => webIds.has(check.checkId))) {
+    expect(check.artifacts).toHaveLength(17);
+    expect(new Set(check.artifacts.map(artifact => artifact.id)).size).toBe(17);
+  }
 });
 
 test("concurrent edits and failed conditional attachment cannot mark a receipt complete", async () => {
@@ -233,4 +338,18 @@ test("a superseded attempt cannot write completion or a current receipt", async 
   expect(objects.has(buildProductVerificationKey(first.jobId, `receipt-${first.attemptId}.json`))).toBe(false);
   const state = JSON.parse(new TextDecoder().decode(objects.get(buildProductVerificationKey(first.jobId, `state-${first.attemptId}.json`))));
   expect(state.status).toBe("stale");
+});
+
+test("Steel capacity backoff preserves provider category and never produces a receipt", async () => {
+  const { service, ports } = serviceFixture();
+  const requested = await service.request({ importId: "import", runId: "run" });
+  ports.execute = async () => { throw new RetryAfterError("VERIFICATION_STEEL_ACQUIRE_CAPACITY_UNAVAILABLE", 45000); };
+  const input = { importId: "import", runId: "run", planHash: requested.jobId };
+  await expect(service.process(input)).rejects.toThrow("CAPACITY_UNAVAILABLE");
+  const waiting = await service.get(input);
+  expect(waiting.state.status).toBe("pending");
+  expect(waiting.state.failureCode).toBe("VERIFICATION_STEEL_ACQUIRE_CAPACITY_UNAVAILABLE");
+  expect(waiting.state.retryAt).toBeGreaterThan(Date.now());
+  expect(waiting.receipt).toBeNull();
+  expect(waiting.evaluation.ready).toBe(false);
 });

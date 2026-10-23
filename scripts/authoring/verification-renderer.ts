@@ -16,6 +16,8 @@ const wireSchema = z.object({
   plan: z.custom<ProductV4VerificationPlan>((value) => Boolean(value && typeof value === "object")),
   bundle: z.object({ manifest: z.unknown(), products: z.array(z.custom<ProductEntity>()).max(500), dependencies: z.array(z.unknown()).max(5000) }),
   requirement: z.custom<ProductV4VerificationRequirement>((value) => Boolean(value && typeof value === "object")),
+  captureOffset: z.number().int().min(0).max(299).optional(),
+  captureLimit: z.number().int().min(1).max(300).optional(),
   staticFigureAssets: z.record(z.string(), z.object({ base64: z.string().max(30_000_000), mimeType: z.enum(["image/png", "image/jpeg"]), sourceChecksum: z.string().regex(/^[a-f0-9]{64}$/), attribution: z.string().max(2000).optional() }).strict()).optional(),
 }).strict();
 

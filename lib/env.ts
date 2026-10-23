@@ -77,6 +77,9 @@ export const env = createEnv({
  /** Server-only bearer token for the Zyra control-plane Worker. */
  ZYRA_CONTROL_PLANE_TOKEN: z.string().optional(),
  /** Cloudflare account ID (used for KV REST API and Workers) */
+ AUTHORING_VERIFICATION_BROWSER_PROVIDER: z.enum(["cloudflare", "steel"]).optional(),
+ AUTHORING_VERIFICATION_STEEL_BROWSER_VERSION: z.string().regex(/^\d+\.\d+\.\d+\.\d+$/).optional(),
+ STEEL_API_KEY: z.string().optional(),
  CF_ACCOUNT_ID: z.string().optional(),
  /** Cloudflare Workers KV namespace ID for zyx-ai-cache */
  CF_KV_NAMESPACE_ID: z.string().optional(),
@@ -199,6 +202,9 @@ export const env = createEnv({
   ZYRA_CONTROL_PLANE_TOKEN: process.env.ZYRA_CONTROL_PLANE_TOKEN,
   CF_API_TOKEN: process.env.CF_API_TOKEN,
   CF_KV_NAMESPACE_ID: process.env.CF_KV_NAMESPACE_ID,
+  AUTHORING_VERIFICATION_BROWSER_PROVIDER: process.env.AUTHORING_VERIFICATION_BROWSER_PROVIDER,
+  AUTHORING_VERIFICATION_STEEL_BROWSER_VERSION: process.env.AUTHORING_VERIFICATION_STEEL_BROWSER_VERSION,
+  STEEL_API_KEY: process.env.STEEL_API_KEY,
   CF_ACCOUNT_ID: process.env.CF_ACCOUNT_ID,
   FEATURE_LIVE: process.env.FEATURE_LIVE,
   LIVE_HMAC_SECRET: process.env.LIVE_HMAC_SECRET,
