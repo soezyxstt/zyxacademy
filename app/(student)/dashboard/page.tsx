@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { headers } from "next/headers";
 import {
   ClipboardList,
   GraduationCap,
@@ -19,9 +18,9 @@ import { Button } from "@/components/ui/button";
 import { FormattedDate } from "@/components/ui/formatted-date";
 import { Reveal } from "@/components/ui/reveal";
 import { createMetadata, pageTitle } from "@/lib/site";
+import { getAuthSession } from "@/lib/auth-session";
 
 
-import { auth } from "@/lib/auth";
 import {
   getStudentEnrollments,
   getMaterialsProgress,
@@ -87,8 +86,7 @@ export const metadata: Metadata = createMetadata({
  * Server-rendered dashboard page displaying student course enrollments, learning progress, recommendations, and academic prompts.
  */
 export default async function DashboardPage() {
-  const h = await headers();
-  const session = await auth.api.getSession({ headers: h });
+  const session = await getAuthSession();
   const user = session?.user;
   const userName = user?.name || "Siswa";
 

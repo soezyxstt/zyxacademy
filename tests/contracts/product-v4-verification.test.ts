@@ -1,4 +1,5 @@
 import { expect, test } from "bun:test";
+import { RetryAfterError } from "inngest";
 import { productBundleManifestSchema, productEntitySchema } from "@/lib/bundle/product-validator";
 import { createProductV4VerificationService, type ProductV4VerificationPorts, type ProductV4VerificationSnapshot } from "@/lib/bundle/product-v4-verification-service";
 import { buildProductVerificationKey } from "@/lib/storage/keys";
@@ -183,12 +184,46 @@ test("step discovery performs no storage or database IO outside checkpoints", as
   expect(result.evaluation.ready).toBe(true);
 });
 
+test("terminal browser failures retain actionable codes through the failure callback", async () => {
+  for (const code of ["VERIFICATION_BROWSER_DAILY_QUOTA_EXCEEDED", "VERIFICATION_STEEL_ACQUIRE_CREDITS_EXHAUSTED", "VERIFICATION_STEEL_ACQUIRE_ACCESS_DENIED", "VERIFICATION_STEEL_CONNECT_FAILED", "VERIFICATION_STEEL_RELEASE_RESPONSE_INVALID"]) {
+    const { service, ports } = serviceFixture();
+    const requested = await service.request({ importId: "import", runId: "run" });
+    ports.execute = async () => { throw new Error(code); };
+    const input = { importId: "import", runId: "run", planHash: requested.jobId, attemptId: requested.attemptId };
+    await expect(service.process(input)).rejects.toThrow(code);
+    await service.fail(input);
+    const result = await service.get({ importId: "import", runId: "run", planHash: requested.jobId });
+    expect(result.state.failureCode).toBe(code);
+    expect(result.state.completedChecks).toBe(0);
+    expect(result.evaluation.ready).toBe(false);
+  }
+});
+
+test("provider backoff survives a 20-minute lease window and never implies readiness", async () => {
+  const { service, ports, objects } = serviceFixture();
+  const requested = await service.request({ importId: "import", runId: "run" });
+  ports.execute = async () => { throw new RetryAfterError("VERIFICATION_BROWSER_RATE_LIMITED", 17 * 60 * 60_000); };
+  const input = { importId: "import", runId: "run", planHash: requested.jobId };
+  await expect(service.process(input)).rejects.toThrow("VERIFICATION_BROWSER_RATE_LIMITED");
+  const waiting = await service.get(input);
+  expect(waiting.state.status).toBe("pending");
+  expect(waiting.state.retryAt).toBeGreaterThan(Date.now());
+  expect(waiting.evaluation.ready).toBe(false);
+  const key = buildProductVerificationKey(input.planHash, `state-${requested.attemptId}.json`);
+  objects.set(key, new TextEncoder().encode(JSON.stringify({ ...waiting.state, updatedAt: Date.now() - 21 * 60_000 })));
+  expect((await service.get(input)).state.status).toBe("pending");
+  await expect(service.request({ ...input, retry: true })).rejects.toThrow("RETRY_NOT_ALLOWED");
+  objects.set(key, new TextEncoder().encode(JSON.stringify({ ...waiting.state, updatedAt: Date.now() - 30 * 60_000, retryAt: Date.now() - 21 * 60_000 })));
+  expect((await service.get(input)).state.failureCode).toBe("PRODUCT_V4_VERIFICATION_LEASE_EXPIRED");
+});
+
 test("chapter capture batches retain every image under unique persisted identities", async () => {
   const { service, ports } = serviceFixture();
   const execute = ports.execute;
   ports.execute = async input => {
     const result = await execute(input);
     if (input.requirement.layer !== "web") return result;
+    expect(input.captureLimit).toBe(2);
     const offset = input.captureOffset ?? 0;
     return { ...result, captureTotal: 17, artifacts: Array.from({ length: Math.min(input.captureLimit ?? 17, 17 - offset) }, () => ({ ...result.artifacts[0] })) };
   };
@@ -303,4 +338,18 @@ test("a superseded attempt cannot write completion or a current receipt", async 
   expect(objects.has(buildProductVerificationKey(first.jobId, `receipt-${first.attemptId}.json`))).toBe(false);
   const state = JSON.parse(new TextDecoder().decode(objects.get(buildProductVerificationKey(first.jobId, `state-${first.attemptId}.json`))));
   expect(state.status).toBe("stale");
+});
+
+test("Steel capacity backoff preserves provider category and never produces a receipt", async () => {
+  const { service, ports } = serviceFixture();
+  const requested = await service.request({ importId: "import", runId: "run" });
+  ports.execute = async () => { throw new RetryAfterError("VERIFICATION_STEEL_ACQUIRE_CAPACITY_UNAVAILABLE", 45000); };
+  const input = { importId: "import", runId: "run", planHash: requested.jobId };
+  await expect(service.process(input)).rejects.toThrow("CAPACITY_UNAVAILABLE");
+  const waiting = await service.get(input);
+  expect(waiting.state.status).toBe("pending");
+  expect(waiting.state.failureCode).toBe("VERIFICATION_STEEL_ACQUIRE_CAPACITY_UNAVAILABLE");
+  expect(waiting.state.retryAt).toBeGreaterThan(Date.now());
+  expect(waiting.receipt).toBeNull();
+  expect(waiting.evaluation.ready).toBe(false);
 });

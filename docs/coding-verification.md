@@ -361,3 +361,24 @@ by the existing ESLint configuration. Python execution was real in the browser;
 AI responses, authentication and persistence were controlled local fixtures for
 this UI-only check. No new live AI integration, remote service, deployed route or
 database mutation is certified by these screenshots.
+
+
+### Staging integration before PR
+
+Merged staging `bf8a5649` into the recovery branch, preserving newer navigation,
+request-cache and Steel browser verification changes. Only `ARCHITECTURE.md` and
+`README.md` needed manual conflict resolution; both sides were
+retained. The build regenerated the runtime fingerprint from the merged sources.
+
+Post-merge local validation:
+
+- `npm run typecheck`: exit 0.
+- Focused contract suite: exit 0, 99 tests across 14 files, including runtime binding and request-cache integration.
+- Renderer, isolated Python runtime and SQLite publication suite: exit 0, 15 tests across 3 files.
+- `python scripts/coding/local-env.py env NODE_ENV=production npm exec --cache /tmp/zyx-npm-cache --offline --package=bun -- bun run build`: exit 0.
+- `git diff --check` and `git diff --cached --check`: exit 0.
+
+Logs are in ignored `artifacts/coding-live/post-staging-{typecheck,contracts,runtime,build}.log`.
+The earlier visual and live AI evidence predates this merge; those external calls
+were not repeated for PR creation. Existing global lint and Cloudflare grading
+limitations above still apply. No deployment or remote database mutation occurred.

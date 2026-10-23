@@ -48,6 +48,7 @@ import {
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { MarkdownRenderer } from "@/components/course/markdown-renderer";
+import { emitActivityUpdated } from "@/lib/activity-signal";
 import { useTutor } from "@/components/course/tutor-drawer";
 import { isZyraSelectionAskEnabled, normalizeZyraSelection } from "@/lib/zyra/murid";
 import { extractZyraSelection, type ZyraSelectionContext } from "@/lib/zyra/selection-serializer";
@@ -721,6 +722,9 @@ export function StructuredArticleReader({
               timeSpentSeconds: data.timeSpentSeconds,
             },
           }));
+          if (data.completed || markCompleted) {
+            emitActivityUpdated({ type: "article", courseId: course?.id, materialId: article.id, sectionId });
+          }
         }
       } catch {}
     },

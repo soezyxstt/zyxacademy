@@ -11,10 +11,9 @@ import { Badge } from "@/components/ui/badge";
 import { MarkdownRenderer } from "@/components/course/markdown-renderer";
 import { MathText } from "@/components/course/math-text";
 import { createMetadata, pageTitle } from "@/lib/site";
-import { auth } from "@/lib/auth";
-import { headers } from "next/headers";
 import { getConceptExplorerData, type ConceptRef } from "@/lib/concept-explorer-service";
 import { getCourse } from "@/lib/course-utils";
+import { getAuthSession } from "@/lib/auth-session";
 
 type Props = { params: Promise<{ id: string; slug: string }> };
 
@@ -90,7 +89,7 @@ export default async function ConceptExplorerPage({ params }: Props) {
     );
   }
 
-  const session = await auth.api.getSession({ headers: await headers() });
+  const session = await getAuthSession();
   const studentId = session?.user?.id;
 
   const data = await getConceptExplorerData(id, slug, studentId);

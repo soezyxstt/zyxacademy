@@ -9,9 +9,7 @@ import { Reveal } from "@/components/ui/reveal";
 import { createMetadata, pageTitle } from "@/lib/site";
 import { db } from "@/db";
 import { quizTemplates, studentQuizAttempts, aiQuestionBank, knowledgeObjects, chapters } from "@/db/schema";
-import { auth } from "@/lib/auth";
 import { and, or, eq, desc, sql, inArray } from "drizzle-orm";
-import { headers } from "next/headers";
 import { Button } from "@/components/ui/button";
 import { QuizStartButton } from "./quiz-start-button";
 import { MarkdownRenderer } from "@/components/course/markdown-renderer";
@@ -23,6 +21,7 @@ import { normalizeDate } from "@/lib/date-utils";
 import { isShortAnswerCorrect, deduplicateAcceptableAnswers } from "@/lib/quiz/short-answer";
 import { QuestionSourceCitation } from "@/components/course/question-source-citation";
 import { extractFreeQuizChapterScope, getCourse, isFreeQuizTemplate } from "@/lib/course-utils";
+import { getAuthSession } from "@/lib/auth-session";
 import { resolveCourseAccess } from "@/lib/student/course-access";
 import { AdminStatStrip, AdminStatStripItem } from "@/components/admin/stat-card";
 
@@ -106,7 +105,7 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
   const { id, quizId } = await params;
   const { attemptId, viewDiscussion } = await searchParams;
 
-  const session = await auth.api.getSession({ headers: await headers() });
+  const session = await getAuthSession();
   const studentId = session?.user?.id;
   if (!studentId) {
     return redirect(`/sign-in?next=${encodeURIComponent(`/courses/${id}/quiz/${quizId}`)}`);

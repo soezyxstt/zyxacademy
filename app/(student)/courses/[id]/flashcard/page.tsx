@@ -6,12 +6,11 @@ import { studentCardClass } from "@/components/course/course-surfaces";
 import { createMetadata, pageTitle } from "@/lib/site";
 import { FlashcardClient } from "./flashcard-client";
 import { Reveal } from "@/components/ui/reveal";
-import { auth } from "@/lib/auth";
-import { headers } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 import { getReviewQueue } from "@/lib/flashcard-actions";
 import { EnrollmentForm } from "@/components/enrollment-form";
 import { getCourse, getStudentCourseAccess } from "@/lib/course-utils";
+import { getAuthSession } from "@/lib/auth-session";
 
 type Props = { params: Promise<{ id: string }> };
 
@@ -35,7 +34,7 @@ export default async function CourseFlashcardPage({ params }: Props) {
   if (!course) notFound();
 
   // Retrieve user session
-  const session = await auth.api.getSession({ headers: await headers() });
+  const session = await getAuthSession();
   const studentId = session?.user?.id;
   if (!studentId) {
     redirect(`/sign-in?next=${encodeURIComponent(`/courses/${id}/flashcard`)}`);

@@ -45,12 +45,55 @@ on:
       - 'scripts/audit-worker-dependencies.ts'
       - '.github/workflows/deploy.yml'
   workflow_dispatch:
+    inputs:
+      browser_diagnostics:
+        description: "Probe Browser Run only, without deploying or changing application data"
+        type: boolean
+        default: false
+      diagnostic_environment:
+        description: "Environment for the read-only Browser Run probe"
+        type: choice
+        options: [staging, production]
+        default: staging
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
+  browser-diagnostics:
+    if: github.event_name == 'workflow_dispatch' && inputs.browser_diagnostics
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.diagnostic_environment }}
+    permissions:
+      contents: read
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Inspect Browser Run capacity and session cleanup
+        if: vars.AUTHORING_VERIFICATION_BROWSER_PROVIDER != 'steel'
+        env:
+          CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+          CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+        run: python .github/scripts/browser_run_diagnostics.py
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: '1.2.21'
+      - run: bun install --frozen-lockfile --ignore-scripts
+      - name: Exercise Playwright CDP and the deployed preview
+        env:
+          AUTHORING_VERIFICATION_BROWSER_PROVIDER: ${{ vars.AUTHORING_VERIFICATION_BROWSER_PROVIDER || 'cloudflare' }}
+          AUTHORING_VERIFICATION_STEEL_BROWSER_VERSION: ${{ vars.AUTHORING_VERIFICATION_STEEL_BROWSER_VERSION }}
+          STEEL_API_KEY: ${{ secrets.STEEL_API_KEY }}
+          CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+          CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          NEXT_PUBLIC_APP_URL: ${{ inputs.diagnostic_environment == 'production' && 'https://www.zyxacademy.com' || 'https://staging.zyxacademy.com' }}
+        run: |
+          bun build scripts/authoring/probe-v4-browser.ts --target=node --packages=external --outfile=artifacts/authoring-verification/browser-probe.mjs
+          node artifacts/authoring-verification/browser-probe.mjs
+
   dependency-audit:
     name: Validate Deno Worker Dependencies
     if: github.event_name == 'pull_request'
@@ -80,7 +123,7 @@ jobs:
 
   deploy:
     name: Deploy Background Worker (${{ github.ref_name }})
-    if: github.event_name != 'pull_request'
+    if: github.event_name != 'pull_request' && !inputs.browser_diagnostics
     runs-on: ubuntu-latest
     environment: ${{ github.ref_name == 'main' && 'production' || 'staging' }}
 
@@ -230,6 +273,9 @@ jobs:
           SECRET_DIKTAT_RENDERER_URL: ${{ secrets.DIKTAT_RENDERER_URL }}
           SECRET_DIKTAT_RENDERER_SECRET: ${{ secrets.DIKTAT_RENDERER_SECRET }}
           SECRET_BETTER_AUTH_SECRET: ${{ secrets.BETTER_AUTH_SECRET }}
+          SECRET_STEEL_API_KEY: ${{ secrets.STEEL_API_KEY }}
+          VERIFICATION_BROWSER_PROVIDER: ${{ vars.AUTHORING_VERIFICATION_BROWSER_PROVIDER || 'cloudflare' }}
+          VERIFICATION_STEEL_BROWSER_VERSION: ${{ vars.AUTHORING_VERIFICATION_STEEL_BROWSER_VERSION }}
           SECRET_CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
           SECRET_NEXT_PUBLIC_APP_URL: ${{ secrets.NEXT_PUBLIC_APP_URL }}
         run: |
@@ -263,6 +309,9 @@ jobs:
           RESEND_API_KEY=${SECRET_RESEND_API_KEY}
           DIKTAT_RENDERER_URL=${SECRET_DIKTAT_RENDERER_URL}
           BETTER_AUTH_SECRET=${SECRET_BETTER_AUTH_SECRET}
+          AUTHORING_VERIFICATION_BROWSER_PROVIDER=${VERIFICATION_BROWSER_PROVIDER}
+          AUTHORING_VERIFICATION_STEEL_BROWSER_VERSION=${VERIFICATION_STEEL_BROWSER_VERSION}
+          STEEL_API_KEY=${SECRET_STEEL_API_KEY}
           CF_API_TOKEN=${SECRET_CF_API_TOKEN}
           NEXT_PUBLIC_APP_URL=${SECRET_NEXT_PUBLIC_APP_URL}
           DIKTAT_RENDERER_SECRET=${SECRET_DIKTAT_RENDERER_SECRET}

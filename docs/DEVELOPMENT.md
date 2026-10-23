@@ -135,6 +135,9 @@ https://<zyx-origin>/api/mcp/authoring
 
 ### Optional ; Production Services
 - `DIKTAT_RENDERER_URL`, `DIKTAT_RENDERER_SECRET` ; Puppeteer PDF service
+- `AUTHORING_VERIFICATION_BROWSER_PROVIDER` ; `cloudflare` (default) or `steel`, only for V4 verification
+- `STEEL_API_KEY` ; server-only Steel key, never a public variable
+- `AUTHORING_VERIFICATION_STEEL_BROWSER_VERSION` ; reviewed exact four-part Chromium version, required for Steel plans and execution
 - `AUTHORING_VERIFICATION_RENDERER_URL`, `AUTHORING_VERIFICATION_RENDERER_SECRET` ; private V4 browser/PDF verification service, separate from the existing PDF renderer
 - `NEXT_PUBLIC_REALTIME_URL`, `LIVE_HMAC_SECRET` ; Live quiz Worker
 - `WHATSAPP_ADMIN_NUMBER` ; Admin WhatsApp notifications
@@ -400,7 +403,7 @@ For the original file, call `source.read_file` with `mode: "download"` and save 
 
 ### Local V4 verification
 
-V4 uses JSXGraph, KaTeX/mhchem, pinned `pdfjs-dist` and `@napi-rs/canvas`. Local browser verification uses installed Playwright Chromium. Deployment uses the existing Deno worker and Cloudflare Browser Run over CDP, with its browser version bound to the plan. PDF page evidence uses the existing PDF parser and needs no Poppler. Keep the traced source closure, package manifests, KaTeX assets and PDF standard fonts available.
+V4 uses JSXGraph, KaTeX/mhchem, pinned `pdfjs-dist` and `@napi-rs/canvas`. Local browser verification uses installed Playwright Chromium. Deployment uses the existing Deno worker and the configured Cloudflare Browser Run or Steel provider over CDP. Provider and exact browser version bind the plan. Local verification keeps installed Chromium unless a remote provider is explicitly configured; remote providers require the allowed deployed preview origin. PDF page evidence uses the existing PDF parser and needs no Poppler. Keep the traced source closure, package manifests, KaTeX assets and PDF standard fonts available.
 
 Build the private renderer with `bun scripts/authoring/build-local-verification-renderer.ts`; start its emitted Node module against the authorized local web server as described in [the runbook](operations/authoring-mcp-skills.md). Supply `AUTHORING_VERIFICATION_RENDERER_SECRET` only through the environment. `bun scripts/authoring/verify-local-v4.ts --renderer http://127.0.0.1:3101` exercises a synthetic canonical ZIP and local storage ports, saving evidence under ignored `artifacts/authoring-verification/local-run/`. It performs no deployment or remote storage mutation. SQLite boundary tests and MCP transport tests exercise their separate boundaries.
 

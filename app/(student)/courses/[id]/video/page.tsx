@@ -4,10 +4,9 @@ import { redirect, notFound } from "next/navigation";
 import { Video as VideoIcon } from "lucide-react";
 import { CoursePageShell } from "@/components/course/course-page-shell";
 import { createMetadata, pageTitle } from "@/lib/site";
+import { getAuthSession } from "@/lib/auth-session";
 import { getCourseVideosData } from "@/app/actions/video-actions";
 import { CourseVideosClient } from "@/components/course/video/course-videos-client";
-import { auth } from "@/lib/auth";
-import { headers } from "next/headers";
 import { Reveal } from "@/components/ui/reveal";
 
 import { EnrollmentForm } from "@/components/enrollment-form";
@@ -40,7 +39,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function StudentCourseVideosPage({ params }: Props) {
   const { id } = await params;
 
-  const session = await auth.api.getSession({ headers: await headers() });
+  const session = await getAuthSession();
   if (!session?.user) {
     redirect(`/sign-in?next=${encodeURIComponent(`/courses/${id}/video`)}`);
   }
