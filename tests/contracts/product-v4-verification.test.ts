@@ -183,6 +183,19 @@ test("step discovery performs no storage or database IO outside checkpoints", as
   expect(result.evaluation.ready).toBe(true);
 });
 
+test("terminal browser failures retain actionable codes through the failure callback", async () => {
+  const { service, ports } = serviceFixture();
+  const requested = await service.request({ importId: "import", runId: "run" });
+  ports.execute = async () => { throw new Error("VERIFICATION_BROWSER_DAILY_QUOTA_EXCEEDED"); };
+  const input = { importId: "import", runId: "run", planHash: requested.jobId, attemptId: requested.attemptId };
+  await expect(service.process(input)).rejects.toThrow("DAILY_QUOTA_EXCEEDED");
+  await service.fail(input);
+  const result = await service.get({ importId: "import", runId: "run", planHash: requested.jobId });
+  expect(result.state.failureCode).toBe("VERIFICATION_BROWSER_DAILY_QUOTA_EXCEEDED");
+  expect(result.state.completedChecks).toBe(0);
+  expect(result.evaluation.ready).toBe(false);
+});
+
 test("chapter capture batches retain every image under unique persisted identities", async () => {
   const { service, ports } = serviceFixture();
   const execute = ports.execute;
