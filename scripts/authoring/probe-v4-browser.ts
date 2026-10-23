@@ -1,32 +1,15 @@
-import { acquireVerificationBrowser } from "../../lib/compute/product-v4-browser-session";
-import { RetryAfterError } from "inngest";
-import { chromium } from "playwright-core";
+import { verificationBrowserProvider, verificationBrowserIdentity } from "../../lib/compute/product-v4-browser-config";
+import { acquireConfiguredVerificationBrowser, runVerificationBrowserOperation } from "../../lib/compute/product-v4-browser-session";
 
 let stage = "acquire";
 async function main() {
   const origin = process.env.NEXT_PUBLIC_APP_URL;
   if (!["https://www.zyxacademy.com", "https://staging.zyxacademy.com"].includes(origin ?? "")) throw new Error("VERIFICATION_BROWSER_ORIGIN_INVALID");
-  const acquire = async () => {
-    for (let attempt = 0; ; attempt++) {
-      try { return await acquireVerificationBrowser(process.env.CF_ACCOUNT_ID ?? "", process.env.CF_API_TOKEN ?? "", { fetch, connect: async (endpoint: string, options?: Parameters<typeof chromium.connectOverCDP>[1]) => {
-        try { return await chromium.connectOverCDP(endpoint, options); }
-        catch (error) {
-          const token = process.env.CF_API_TOKEN ?? "";
-          const message = error instanceof Error ? error.message : "CDP_CONNECTION_FAILED";
-          console.error(JSON.stringify({ probe: "cdp-error", message: message.replaceAll(token, "[redacted]").replace(/https?:\/\/[^\s"<>]+|wss:\/\/[^\s"<>]+/g, "[url]").slice(0, 2000) }));
-          throw error;
-        }
-      } }); }
-      catch (error) {
-        if (!(error instanceof RetryAfterError) || attempt >= 2) throw error;
-        console.log(JSON.stringify({ probe: "cdp-retry", attempt: attempt + 1, delaySeconds: Number(error.retryAfter) }));
-        await new Promise(resolve => setTimeout(resolve, Number(error.retryAfter) * 1000));
-      }
-    }
-  };
-  const session = await acquire();
-  try {
+  const session = await acquireConfiguredVerificationBrowser();
+  await runVerificationBrowserOperation(async () => {
     console.log(JSON.stringify({ probe: "cdp", browserVersion: session.browser.version() }));
+    const pin = verificationBrowserProvider() === "cloudflare" || process.env.AUTHORING_VERIFICATION_STEEL_BROWSER_VERSION ? verificationBrowserIdentity().browserVersion : undefined;
+    if (pin && session.browser.version() !== pin) throw new Error("PRODUCT_V4_BROWSER_VERSION_MISMATCH");
     stage = "context";
     const context = await session.browser.newContext({ viewport: { width: 380, height: 844 } });
     try {
@@ -34,13 +17,19 @@ async function main() {
       page.setDefaultTimeout(30_000);
       stage = "preview";
       const response = await page.goto(`${origin}/authoring-verification`, { waitUntil: "networkidle" });
+      if (response?.status() !== 200 || new URL(page.url()).pathname !== "/authoring-verification") throw new Error("VERIFICATION_PREVIEW_REDIRECT");
       await page.waitForSelector("html[data-verification-ready='true']", { state: "attached" });
-      console.log(JSON.stringify({ probe: "preview", httpStatus: response?.status(), attested: Boolean(await page.locator("html").getAttribute("data-verification-runtime")) }));
+      if (!await page.locator("html").getAttribute("data-verification-runtime") || !await page.locator("main[data-verification-empty]").count()) throw new Error("VERIFICATION_PROBE_PREVIEW_INVALID");
+      console.log(JSON.stringify({ probe: "preview", httpStatus: response.status(), attested: true }));
       stage = "screenshot";
       const bytes = await page.screenshot();
       console.log(JSON.stringify({ probe: "screenshot", byteLength: bytes.byteLength }));
+      stage = "pdf";
+      const pdf = await page.pdf({ format: "A4", printBackground: true });
+      if (pdf.byteLength < 5 || pdf.subarray(0, 5).toString() !== "%PDF-") throw new Error("VERIFICATION_PROBE_PDF_INVALID");
+      console.log(JSON.stringify({ probe: "pdf", byteLength: pdf.byteLength }));
     } finally { await context.close(); }
-  } finally { await session.close(); }
+  }, () => session.close());
   console.log(JSON.stringify({ probe: "cdp-cleanup", complete: true }));
 }
 main().catch(error => {

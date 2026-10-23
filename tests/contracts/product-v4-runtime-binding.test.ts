@@ -103,3 +103,28 @@ test("Next serverless verification uses its validated embedded build identity", 
     else process.env.NEXT_PUBLIC_V4_WEB_RUNTIME = previous;
   }
 });
+
+test("provider and reviewed browser version bind separate plans and cannot reuse receipts", async () => {
+  const { deriveProductV4VerificationPlan } = await import("@/lib/bundle/product-v4-verification");
+  const beforeProvider = process.env.AUTHORING_VERIFICATION_BROWSER_PROVIDER;
+  const beforeVersion = process.env.AUTHORING_VERIFICATION_STEEL_BROWSER_VERSION;
+  try {
+    process.env.AUTHORING_VERIFICATION_BROWSER_PROVIDER = "cloudflare";
+    const cf = await buildProductV4RuntimeBinding({ row, bundle, runId: "run" }, ports);
+    process.env.AUTHORING_VERIFICATION_BROWSER_PROVIDER = "steel";
+    process.env.AUTHORING_VERIFICATION_STEEL_BROWSER_VERSION = cf.browserVersion;
+    const steel = await buildProductV4RuntimeBinding({ row, bundle, runId: "run" }, ports);
+    const cfPlan = deriveProductV4VerificationPlan({ bundle, binding: cf });
+    const steelPlan = deriveProductV4VerificationPlan({ bundle, binding: steel });
+    expect(steel.browserProvider).toBe("steel");
+    expect(steelPlan.planHash).not.toBe(cfPlan.planHash);
+    process.env.AUTHORING_VERIFICATION_STEEL_BROWSER_VERSION = "140.0.1.2";
+    const changed = await buildProductV4RuntimeBinding({ row, bundle, runId: "run" }, ports);
+    expect(deriveProductV4VerificationPlan({ bundle, binding: changed }).planHash).not.toBe(steelPlan.planHash);
+  } finally {
+    if (beforeProvider === undefined) delete process.env.AUTHORING_VERIFICATION_BROWSER_PROVIDER;
+    else process.env.AUTHORING_VERIFICATION_BROWSER_PROVIDER = beforeProvider;
+    if (beforeVersion === undefined) delete process.env.AUTHORING_VERIFICATION_STEEL_BROWSER_VERSION;
+    else process.env.AUTHORING_VERIFICATION_STEEL_BROWSER_VERSION = beforeVersion;
+  }
+});

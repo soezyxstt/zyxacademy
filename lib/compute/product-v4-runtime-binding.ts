@@ -1,9 +1,10 @@
+import { verificationBrowserIdentity } from "./product-v4-browser-config";
 import { createHash } from "node:crypto";
 import { readFileSync, readdirSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, join, resolve } from "node:path";
 import { deterministicProductSerialization } from "@/lib/bundle/product-validator";
-import { PRODUCT_V4_VERIFICATION_POLICY, PRODUCT_V4_DEPLOYED_BROWSER_VERSION, type ProductV4VerificationBinding } from "@/lib/bundle/product-v4-verification";
+import { PRODUCT_V4_VERIFICATION_POLICY, type ProductV4VerificationBinding } from "@/lib/bundle/product-v4-verification";
 import type { ProductV4VerificationSnapshot } from "@/lib/bundle/product-v4-verification-service";
 import type { getProductBundleImport } from "@/lib/bundle/product-staging";
 import type { DiktatSourceFigureAssets } from "@/lib/materials/diktat-static-visual";
@@ -48,7 +49,7 @@ export const PRODUCT_V4_RUNTIME_FILES = [
   "lib/materials/diktat-v4.ts", "lib/materials/diktat-static-visual.ts", "lib/materials/diktat-print-readiness.ts", "lib/materials/verification-preview.ts",
   "lib/zyra/canvas/contracts.ts", "lib/zyra/canvas/expression.ts", "lib/zyra/canvas/evaluator.ts", "lib/zyra/canvas/viewport.ts",
   "lib/bundle/product-diktat-pdf.ts", "lib/bundle/product-validator.ts", "lib/bundle/product-v4-verification.ts", "lib/bundle/product-v4-verification-service.ts", "lib/bundle/product-review-gate.ts", "lib/compute/product-v4-runtime-binding.ts",
-  "lib/compute/product-v4-pdf-evidence.ts", "lib/compute/product-v4-verification-executor.ts", "lib/compute/product-v4-browser-runner.ts", "lib/compute/product-v4-browser-session.ts", "scripts/authoring/verification-renderer.ts", "scripts/authoring/build-local-verification-renderer.ts", "jobs/product-verification.ts",
+  "lib/compute/product-v4-pdf-evidence.ts", "lib/compute/product-v4-verification-executor.ts", "lib/compute/product-v4-browser-runner.ts", "lib/compute/product-v4-browser-session.ts", "lib/compute/product-v4-browser-config.ts", "scripts/authoring/verification-renderer.ts", "scripts/authoring/build-local-verification-renderer.ts", "jobs/product-verification.ts",
 ] as const;
 
 function figureSpecs(bundle: Bundle): SourceFigureVisualSpec[] {
@@ -127,7 +128,7 @@ export async function buildProductV4RuntimeBinding(input: { row: ImportRow; bund
   if (course.id !== bundle.manifest.courseId || row.courseId !== course.legacyCourseId) throw new Error("PRODUCT_V4_COURSE_MISMATCH");
   const [rows, figures, runtime] = await Promise.all([ports.dependencies(bundle), verifiedFigures(bundle, ports), ports.runtime()]);
   return { importId: row.id, courseId: course.id, runId, revision: Number.parseInt(row.checksum.slice(0, 8), 16) + 1,
-    ...(process.env.NODE_ENV === "production" || typeof (globalThis as { Deno?: unknown }).Deno !== "undefined" ? { browserVersion: PRODUCT_V4_DEPLOYED_BROWSER_VERSION } : {}),
+    ...(process.env.NODE_ENV === "production" || typeof (globalThis as { Deno?: unknown }).Deno !== "undefined" || process.env.AUTHORING_VERIFICATION_BROWSER_PROVIDER ? verificationBrowserIdentity() : {}),
     ...runtime, policyRevision: PRODUCT_V4_VERIFICATION_POLICY, dependencyChecksum: productV4DependencyChecksum(bundle, rows),
     assetChecksum: hash(figures.map(figure => ({ metadata: figure.metadata, variants: figure.variants.map(({ bytes, ...variant }) => ({ ...variant, byteLength: bytes.length, readbackChecksum: bytesHash(bytes) })) }))),
   };
