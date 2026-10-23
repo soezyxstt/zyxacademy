@@ -20,7 +20,7 @@ async function main() {
   if (!databaseUrl || !/^(?:libsql|https):\/\//.test(databaseUrl)) throw new Error("V4_OPERATION_REMOTE_DATABASE_REQUIRED");
   console.log(JSON.stringify({ environment, origin: expectedOrigin, databaseHost: new URL(databaseUrl).hostname, action }));
   const rows = await db.select({ row: imporBundle, course: courses.title }).from(imporBundle).leftJoin(courses, eq(courses.id, imporBundle.courseId)).where(and(eq(imporBundle.bundleType, "product"), eq(imporBundle.version, 4), eq(imporBundle.status, "draft")));
-  if (action === "inspect") {
+  if (action === "inspect" && !revision) {
     for (const { row, course } of rows) console.log(JSON.stringify({ course, title: row.validationReport.bundleTitle, revision: row.checksum, status: row.status, hasVerification: Boolean(row.validationReport.productV4Verification) }));
     return;
   }
@@ -35,6 +35,16 @@ async function main() {
   let result = await getProductV4VerificationReadiness(row.id, runId);
   const report = () => console.log(JSON.stringify({ status: result.state.status, completedChecks: "completedChecks" in result.state ? result.state.completedChecks : 0, totalChecks: result.plan.requirements.length, ready: result.evaluation.ready, failureCode: "failureCode" in result.state ? result.state.failureCode : null }));
   report();
+  if (action === "inspect") {
+    const currentCheckId = "currentCheckId" in result.state ? result.state.currentCheckId : undefined;
+    const currentCheck = result.plan.requirements.find(check => check.id === currentCheckId);
+    const root = buildProductVerificationKey(result.plan.planHash).replace(/manifest\.json$/, "");
+    const attemptId = "attemptId" in result ? result.attemptId : null;
+    const artifacts = attemptId && storage.list ? (await storage.list(root)).filter(item => item.key.startsWith(`${root}artifact-${attemptId}-`)) : [];
+    console.log(JSON.stringify({ currentLayer: currentCheck?.layer, currentState: currentCheck?.state, viewport: currentCheck?.viewport,
+      updatedAt: "updatedAt" in result.state ? result.state.updatedAt : null, persistedArtifacts: artifacts.length, persistedBytes: artifacts.reduce((sum, item) => sum + item.size, 0) }));
+    return;
+  }
   if (action === "retry") {
     await requestProductV4Verification({ importId: row.id, runId, expectedPlanHash: result.plan.planHash, retry: true });
     const deadline = Date.now() + 35 * 60_000;
