@@ -86,7 +86,9 @@ jobs:
           CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
           CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
           NEXT_PUBLIC_APP_URL: ${{ inputs.diagnostic_environment == 'production' && 'https://www.zyxacademy.com' || 'https://staging.zyxacademy.com' }}
-        run: bun scripts/authoring/probe-v4-browser.ts
+        run: |
+          bun build scripts/authoring/probe-v4-browser.ts --target=node --packages=external --outfile=artifacts/authoring-verification/browser-probe.mjs
+          node artifacts/authoring-verification/browser-probe.mjs
 
   dependency-audit:
     name: Validate Deno Worker Dependencies
