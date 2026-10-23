@@ -82,7 +82,7 @@ export function createProductV4VerificationService(ports: ProductV4VerificationP
       if (plan.planHash !== input.planHash || snapshot.verificationAttemptId !== input.attemptId) return;
       const previous = await get({ importId: input.importId, runId: input.runId, planHash: input.planHash });
       if (previous.state.status === "complete") return;
-      await ports.write(buildProductVerificationKey(plan.planHash, `state-${input.attemptId}.json`), encode({ ...previous.state, status: "failed", updatedAt: Date.now(), failureCode: "PRODUCT_V4_VERIFICATION_WORKER_FAILED" }), "application/json");
+      await ports.write(buildProductVerificationKey(plan.planHash, `state-${input.attemptId}.json`), encode({ ...previous.state, status: "failed", updatedAt: Date.now(), failureCode: previous.state.failureCode ?? "PRODUCT_V4_VERIFICATION_WORKER_FAILED" }), "application/json");
     },
     async readiness(importId: string, runId: string) {
       const { snapshot, plan } = await current(importId, runId);
@@ -176,7 +176,8 @@ export function createProductV4VerificationService(ports: ProductV4VerificationP
         });
       } catch (error) {
         const stale = error instanceof Error && ["PRODUCT_V4_VERIFICATION_CONFLICT", "PRODUCT_V4_VERIFICATION_ATTEMPT_STALE"].includes(error.message);
-        await ports.write(stateKey, encode({ attemptId, status: stale ? "stale" : "failed", failureCode: stale ? "PRODUCT_V4_VERIFICATION_CONFLICT" : "PRODUCT_V4_VERIFICATION_EXECUTION_FAILED" }), "application/json");
+        const browserFailure = error instanceof Error ? error.message.match(/\bVERIFICATION_BROWSER_(?:RATE_LIMITED|DAILY_QUOTA_EXCEEDED|ACCESS_DENIED|ACQUIRE_FAILED|CONNECT_FAILED|RELEASE_FAILED|SESSION_INVALID|CONFIGURATION_REQUIRED)\b/)?.[0] : undefined;
+        await ports.write(stateKey, encode({ attemptId, status: stale ? "stale" : "failed", updatedAt: Date.now(), completedChecks, totalChecks: plan.requirements.length, failureCode: stale ? "PRODUCT_V4_VERIFICATION_CONFLICT" : browserFailure ?? "PRODUCT_V4_VERIFICATION_EXECUTION_FAILED" }), "application/json");
         throw error;
       }
     },

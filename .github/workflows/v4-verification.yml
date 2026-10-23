@@ -1,0 +1,63 @@
+name: Operate V4 verification
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        type: choice
+        options: [staging, production]
+        default: staging
+        required: true
+      action:
+        type: choice
+        options: [inspect, retry, evidence]
+        default: inspect
+        required: true
+      revision:
+        description: Exact bundle checksum from the inspect operation
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    if: (inputs.environment == 'production' && github.ref == 'refs/heads/main') || (inputs.environment == 'staging' && github.ref == 'refs/heads/staging')
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: '1.2.21'
+      - run: bun install --frozen-lockfile --ignore-scripts
+      - run: bun scripts/authoring/prepare-web-verification.ts
+      - name: Operate exact staged revision
+        env:
+          NODE_ENV: production
+          SKIP_ENV_VALIDATION: '1'
+          ZYX_ENVIRONMENT: ${{ inputs.environment }}
+          NEXT_PUBLIC_APP_URL: ${{ inputs.environment == 'production' && 'https://www.zyxacademy.com' || 'https://staging.zyxacademy.com' }}
+          V4_OPERATION: ${{ inputs.action }}
+          V4_REVISION: ${{ inputs.revision }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          TURSO_CONNECTION_URL: ${{ secrets.TURSO_CONNECTION_URL }}
+          TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}
+          BETTER_AUTH_SECRET: ${{ secrets.BETTER_AUTH_SECRET }}
+          INNGEST_EVENT_KEY: ${{ secrets.INNGEST_EVENT_KEY }}
+          STORAGE_PROVIDER_MODE: r2
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET || secrets.CF_R2_BUCKET }}
+          R2_PUBLIC_URL: ${{ secrets.R2_PUBLIC_URL }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID || secrets.CF_R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY || secrets.CF_R2_SECRET_ACCESS_KEY }}
+        run: bun scripts/authoring/operate-v4-verification.ts
+      - uses: actions/upload-artifact@v4
+        if: success() && inputs.action == 'evidence'
+        with:
+          name: v4-verification-evidence
+          path: artifacts/v4-operations/
+          retention-days: 3

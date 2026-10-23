@@ -6,15 +6,18 @@ const input = z.object({ importId: z.string().min(1), runId: z.string().min(1), 
 export const productVerificationWorker = inngest.createFunction({
   id: "product-v4-verification",
   triggers: [{ event: "product.verification.requested" }],
-  retries: 2,
+  retries: 5,
   concurrency: { limit: 1 },
   onFailure: async ({ event }) => failProductV4VerificationJob(input.parse(event.data.event.data)),
 }, async ({ event, step }) => {
   return processProductV4VerificationJob(input.parse(event.data), async <T>(id: string, execute: () => Promise<T>) => await step.run(id, async () => {
+    let failed = false;
     try { return await execute(); }
+    catch (error) { failed = true; throw error; }
     finally {
       const { closeProductV4BrowserRunner } = await import("@/lib/compute/product-v4-browser-runner");
-      await closeProductV4BrowserRunner();
+      try { await closeProductV4BrowserRunner(); }
+      catch (error) { if (!failed) throw error; }
     }
   }) as T);
 });

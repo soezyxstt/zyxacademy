@@ -1,4 +1,4 @@
-import { chromium, type Browser, type Page } from "playwright-core";
+import { chromium, type Page } from "playwright-core";
 import { parseStoredPdfPages } from "./pdf-pages";
 import { deriveProductV4VerificationPlan, assertProductV4VerificationCurrent, type ProductV4ObservedCheck, type ProductV4VerificationPlan, type ProductV4VerificationRequirement } from "@/lib/bundle/product-v4-verification";
 import { productBundleManifestSchema, productEntitySchema, productDependencySchema, deterministicProductSerialization, type ProductEntity } from "@/lib/bundle/product-validator";
@@ -8,6 +8,7 @@ import { compileProductDiktatHtml, PRODUCT_DIKTAT_FOOTER_TEMPLATE } from "@/lib/
 import { inspectDiktatPrintReadiness } from "@/lib/materials/diktat-print-readiness";
 import type { DiktatSourceFigureAssets } from "@/lib/materials/diktat-static-visual";
 import { z } from "zod";
+import { acquireVerificationBrowser, type VerificationBrowserSession } from "./product-v4-browser-session";
 import { assertProductV4RuntimeFingerprint, expectedChromiumRuntime, resolveProductV4LoadedRuntime, type ProductV4RuntimeFingerprint } from "./product-v4-runtime-binding";
 
 declare const __ZYX_VERIFICATION_BUILD_RUNTIME__: { fingerprint: ProductV4RuntimeFingerprint; chromium: { browserVersion: string; revision: string } } | undefined;
@@ -16,7 +17,7 @@ const deployed = typeof (globalThis as { Deno?: unknown }).Deno !== "undefined";
 const embeddedRuntime = typeof __ZYX_VERIFICATION_BUILD_RUNTIME__ === "undefined" ? undefined : __ZYX_VERIFICATION_BUILD_RUNTIME__;
 const loadedRuntime = resolveProductV4LoadedRuntime(embeddedRuntime?.fingerprint);
 const loadedBrowserRuntime = embeddedRuntime?.chromium ?? (deployed ? undefined : expectedChromiumRuntime());
-let browser: Promise<Browser> | undefined;
+let browser: Promise<VerificationBrowserSession> | undefined;
 const bundleSchema = z.object({ manifest: productBundleManifestSchema, products: z.array(productEntitySchema).max(500), dependencies: z.array(productDependencySchema).max(5000) });
 export function validateVerificationBaseUrl(value: string): string {
   const url = new URL(value);
@@ -29,12 +30,19 @@ export function validateDeployedVerificationBaseUrl(value: string): string {
   return url.origin;
 }
 async function launchVerificationBrowser() {
-  if (!deployed) return chromium.launch({ headless: true });
+  if (!deployed) {
+    const browser = await chromium.launch({ headless: true });
+    return { browser, close: () => browser.close() };
+  }
   const account = process.env.CF_ACCOUNT_ID, token = process.env.CF_API_TOKEN;
   if (!account || !/^[a-f0-9]{32}$/i.test(account) || !token) throw new Error("VERIFICATION_BROWSER_CONFIGURATION_REQUIRED");
-  return chromium.connectOverCDP(`wss://api.cloudflare.com/client/v4/accounts/${account}/browser-run/devtools/browser?keep_alive=600000`, { headers: { Authorization: `Bearer ${token}` }, timeout: 30_000 });
+  return acquireVerificationBrowser(account, token);
 }
-export async function closeProductV4BrowserRunner() { if (browser) { await (await browser).close(); browser = undefined; } }
+export async function closeProductV4BrowserRunner() {
+  const pending = browser;
+  browser = undefined;
+  if (pending) await (await pending).close();
+}
 
 export async function fontsReady(page: Page) {
   await page.evaluate(async () => {
@@ -196,11 +204,9 @@ export async function executeBrowserProductV4Check(input: {
   const baseUrl = deployed ? validateDeployedVerificationBaseUrl(input.baseUrl) : validateVerificationBaseUrl(input.baseUrl);
   const result: ProductV4ObservedCheck = { checkId: requirement.id, status: "NOT_TESTED", expected: `${requirement.layer}:${requirement.state}`, observed: "The requested state has no supported browser executor.", artifacts: [] };
   if (!["web", "print"].includes(requirement.layer)) return result;
-  browser ??= launchVerificationBrowser().then(instance => {
-    instance.on("disconnected", () => { browser = undefined; });
-    return instance;
-  }).catch(error => { browser = undefined; throw error; });
-  const launched = await browser;
+  if (browser && !(await browser).browser.isConnected()) await closeProductV4BrowserRunner();
+  browser ??= launchVerificationBrowser().catch(error => { browser = undefined; throw error; });
+  const launched = (await browser).browser;
   const expectedBrowserVersion = input.plan.binding.browserVersion ?? (deployed ? undefined : loadedBrowserRuntime?.browserVersion);
   if (!expectedBrowserVersion || launched.version() !== expectedBrowserVersion) throw new Error("PRODUCT_V4_BROWSER_VERSION_MISMATCH");
   const context = await launched.newContext({ viewport: requirement.viewport ?? { width: 703, height: 1032 }, reducedMotion: "reduce" });
