@@ -197,10 +197,11 @@ export function canvasToLegacyVisualSpec(spec: CanvasSpec): VisualSpec | null {
       type: "flowchart",
       title: spec.title,
       semanticLabels: spec.nodes.map((node) => node.label),
+      nodeKinds: Object.fromEntries(spec.nodes.filter(node => node.kind).map(node => [node.label, node.kind!])),
       values: {},
       relationships: spec.edges.map((edge) => ({
-        sourceNode: edge.source,
-        targetNode: edge.target,
+        sourceNode: spec.nodes.find(node => node.id === edge.source)!.label,
+        targetNode: spec.nodes.find(node => node.id === edge.target)!.label,
         label: edge.label,
       })),
       sourceClaimIds: spec.claimRefs,

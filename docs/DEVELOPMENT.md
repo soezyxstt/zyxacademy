@@ -403,3 +403,13 @@ For the original file, call `source.read_file` with `mode: "download"` and save 
 V4 uses JSXGraph, KaTeX/mhchem, pinned `pdfjs-dist` and `@napi-rs/canvas`. Local browser verification uses installed Playwright Chromium. Deployment uses the existing Deno worker and Cloudflare Browser Run over CDP, with its browser version bound to the plan. PDF page evidence uses the existing PDF parser and needs no Poppler. Keep the traced source closure, package manifests, KaTeX assets and PDF standard fonts available.
 
 Build the private renderer with `bun scripts/authoring/build-local-verification-renderer.ts`; start its emitted Node module against the authorized local web server as described in [the runbook](operations/authoring-mcp-skills.md). Supply `AUTHORING_VERIFICATION_RENDERER_SECRET` only through the environment. `bun scripts/authoring/verify-local-v4.ts --renderer http://127.0.0.1:3101` exercises a synthetic canonical ZIP and local storage ports, saving evidence under ignored `artifacts/authoring-verification/local-run/`. It performs no deployment or remote storage mutation. SQLite boundary tests and MCP transport tests exercise their separate boundaries.
+
+## Python coding runtime
+
+Install pinned dependencies with Bun. Browser Python assets are served locally
+from the Pyodide package; no CDN or Python server is needed for Run. Local Submit
+requires Playwright Chromium with a functioning kernel sandbox. Run
+`bun run test:visual:install` when browsers are missing. Production Submit reuses
+`CF_ACCOUNT_ID` and `CF_API_TOKEN` for Cloudflare Browser Run, as described in
+[coding contract](coding-foundation.md). No coding feature flag is introduced.
+Apply generated migrations only to the selected database environment.

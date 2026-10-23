@@ -1,0 +1,74 @@
+import "server-only";
+import { chromium, type Browser } from "playwright-core";
+import { createRequire } from "node:module";
+import { readFile } from "node:fs/promises";
+import { dirname, join } from "node:path";
+import { PYTHON_RUNTIME_ASSETS, PYTHON_RUNTIME_REVISION } from "./runtime-assets";
+import { executionResultSchema } from "./contracts";
+import type { PythonRuntime } from "./runtime";
+
+/** No learner code runs in Node. Each case gets a new context and a disposable Worker.
+ * Route all browser traffic to fixed local assets; deny all other requests and sockets.
+ */
+export async function createTrustedPythonRuntime(): Promise<PythonRuntime & { close(): Promise<void> }> {
+  let browser: Browser;
+  if (process.env.NODE_ENV === "production") {
+    const account = process.env.CF_ACCOUNT_ID, token = process.env.CF_API_TOKEN;
+    if (!account || !/^[a-f0-9]{32}$/i.test(account) || !token) throw new Error("CODING_RUNTIME_CONFIGURATION_REQUIRED");
+    browser = await chromium.connectOverCDP(`wss://api.cloudflare.com/client/v4/accounts/${account}/browser-run/devtools/browser`, { headers: { Authorization: `Bearer ${token}` }, timeout: 15_000 });
+  } else {
+    browser = await chromium.launch({ headless: true, chromiumSandbox: true });
+  }
+  try { return await createIsolatedBrowserPythonRuntime(browser); }
+  catch (error) { await browser.close(); throw error; }
+}
+
+/** Shared implementation; injected browsers are used only by trusted server callers and tests. */
+export async function createIsolatedBrowserPythonRuntime(browser: Browser): Promise<PythonRuntime & { close(): Promise<void> }> {
+  const root = dirname(createRequire(join(process.cwd(), "package.json")).resolve(["pyo", "dide"].join("")));
+  const workerSource = await readFile(join(process.cwd(), "public/coding/worker.js"), "utf8");
+  return {
+    close: () => browser.close(),
+    async execute({ code, stdin, limits, signal }) {
+      const context = await browser.newContext({ serviceWorkers: "block", acceptDownloads: false });
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      let aborted = false;
+      const stop = () => { aborted = true; void context.close().catch(() => {}); };
+      signal?.addEventListener("abort", stop, { once: true });
+      try {
+        if (signal?.aborted) { stop(); return { status: "stopped", stdout: "", stderr: "", truncated: false }; }
+        await context.route("**/*", async (route) => {
+          const url = new URL(route.request().url());
+          const asset = url.pathname.slice(1);
+          if (url.origin === "https://python.zyx.invalid" && url.pathname === "/runner") return route.fulfill({ contentType: "text/html", headers: { "Content-Security-Policy": "default-src 'none'; script-src blob: 'wasm-unsafe-eval' https://python.zyx.invalid/; connect-src https://python.zyx.invalid/; worker-src blob:; object-src 'none'; base-uri 'none'; form-action 'none'" }, body: "<!doctype html><html><body></body></html>" });
+          if (url.origin !== "https://python.zyx.invalid" || !Object.hasOwn(PYTHON_RUNTIME_ASSETS, asset) || route.request().method() !== "GET") return route.abort();
+          await route.fulfill({ body: await readFile(join(root, asset)), headers: { "Access-Control-Allow-Origin": "*" }, contentType: PYTHON_RUNTIME_ASSETS[asset as keyof typeof PYTHON_RUNTIME_ASSETS] });
+        });
+        await context.routeWebSocket(/.*/, (socket) => socket.close());
+        const page = await context.newPage();
+        await page.goto("https://python.zyx.invalid/runner");
+        timer = setTimeout(() => { void context.close().catch(() => {}); }, 30_000);
+        const result = await page.evaluate(({ source, code, stdin, limits, revision }) => new Promise((resolve) => {
+          const worker = new Worker(URL.createObjectURL(new Blob([source], { type: "text/javascript" })), { type: "module" });
+          let executionTimer: ReturnType<typeof setTimeout> | undefined;
+          worker.onmessage = ({ data }) => {
+            if (data.type === "ready") {
+              executionTimer = setTimeout(() => { worker.terminate(); resolve({ status: "timeout", stdout: "", stderr: "Eksekusi melewati batas waktu.", truncated: false }); }, limits.timeoutMs);
+              worker.postMessage({ type: "execute" });
+            }
+            if (data.type === "result") { clearTimeout(executionTimer); worker.terminate(); resolve(data.result); }
+          };
+          worker.onerror = () => { clearTimeout(executionTimer); worker.terminate(); resolve({ status: "unavailable", stdout: "", stderr: "", truncated: false }); };
+          worker.postMessage({ type: "run", code, stdin, ...limits, assetBase: "https://python.zyx.invalid/", revision });
+        }), { source: workerSource, code, stdin, limits, revision: PYTHON_RUNTIME_REVISION });
+        return executionResultSchema.parse(result);
+      } catch {
+        return { status: aborted ? "stopped" : "unavailable", stdout: "", stderr: "", truncated: false };
+      } finally {
+        clearTimeout(timer);
+        signal?.removeEventListener("abort", stop);
+        await context.close().catch(() => {});
+      }
+    },
+  };
+}

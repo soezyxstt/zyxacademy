@@ -45,10 +45,9 @@ export function serializeVisualSpec(
 
   if (spec.type === "flowchart" || spec.type === "graph") {
     const edgeLines = spec.relationships.map((rel) => {
-      const src = escapeLabel(rel.sourceNode);
-      const tgt = escapeLabel(rel.targetNode);
+      const node = (label: string) => `"${escapeLabel(label)}"${spec.type === "flowchart" && spec.nodeKinds?.[label] ? ` [${spec.nodeKinds[label]}]` : ""}`;
       const lbl = rel.label ? ` : "${escapeLabel(rel.label)}"` : "";
-      return `  "${src}" --> "${tgt}"${lbl}`;
+      return `  ${node(rel.sourceNode)} --> ${node(rel.targetNode)}${lbl}`;
     });
 
     const blockType = spec.type === "flowchart" ? "flowchart" : "graph";

@@ -1,5 +1,7 @@
 "use server";
 
+import { resolveCodingTutorContext, CODING_TUTOR_INSTRUCTIONS } from "@/lib/coding/tutor-context-server";
+import { getConversationMemory } from "@/lib/zyra/conversation-memory";
 import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
 import { TutorActionService } from "@/lib/tutor-actions";
@@ -424,6 +426,7 @@ export async function askTutorRagAction(
     chapterTitle?: string;
     intent?: string;
   } | null,
+  codingRequest?: unknown,
 ) {
   const { user, access } = await requireCourseAccess(courseId);
   const normalizedQuestion = typeof question === "string" ? question.trim() : "";
@@ -717,6 +720,23 @@ export async function askTutorRagAction(
       : `Jelaskan kutipan materi: "${selectionContext.snippet}"`;
   }
 
+  let codingHintOnly = false;
+  let codingPedagogyAction: "hint_request" | "follow_up" | undefined;
+  if (codingRequest) {
+    if ((codingRequest as { kind?: unknown }).kind === "exercise" && access.tier !== "enrolled" && access.tier !== "staff") throw new Error("NOT_ENROLLED");
+    if (!access.canonicalCourseId) throw new Error("COURSE_SCOPE_REQUIRED");
+    const coding = await resolveCodingTutorContext({ courseId: access.canonicalCourseId, userId: user.id, request: codingRequest });
+    codingHintOnly = coding.assistance === "hints";
+    codingPedagogyAction = codingHintOnly || (codingRequest as { intent?: unknown }).intent === "hint"
+      ? "hint_request" : "follow_up";
+    if (codingHintOnly && coding.protectedSolution) protectedAnswers = { ...protectedAnswers, explanationText: [protectedAnswers?.explanationText, coding.protectedSolution].filter(Boolean).join("\n") };
+    const memory = await getConversationMemory({ studentId: user.id, courseId, sessionId: sid, limit: 4 });
+    const recentConversation = memory.recentMessages
+      .filter((message) => !codingHintOnly || message.role === "student")
+      .map((message) => ({ role: message.role, content: message.content.slice(0, 600) }));
+    pageContext = { id: `coding:${user.id}:${sid}`, label: "Python", href: pagePath ?? `/courses/${courseId}/playground`, content: `${CODING_TUTOR_INSTRUCTIONS}\n\n${JSON.stringify({ ...coding.context, recentConversation })}` };
+  }
+
   const result = await askTutorRag({
     studentId: user.id,
     courseId,
@@ -726,11 +746,14 @@ export async function askTutorRagAction(
     accessTier: access?.tier === "free" ? "free" : "standard",
     freeChapterIds: access?.freeChapterIds,
     idempotencyKey,
-    attemptState: hasActiveAttempt ? "in_progress" : "none",
-    activityKind: hasActiveAttempt ? "quiz" : "study",
+    attemptState: hasActiveAttempt || codingHintOnly ? "in_progress" : "none",
+    activityKind: hasActiveAttempt || codingHintOnly ? "quiz" : "study",
+    matchState: codingHintOnly ? "strong" : undefined,
+    answerReleaseState: codingHintOnly ? "hidden" : undefined,
     protectedAnswers,
     imageParts,
     pageContext,
+    pedagogyAction: codingPedagogyAction,
   });
 
   if (requestedAttachmentIds.length > 0 && result.answer) {

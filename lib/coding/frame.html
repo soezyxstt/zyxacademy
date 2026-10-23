@@ -1,0 +1,29 @@
+<!doctype html><html lang="id"><head><meta charset="utf-8"><title>Python runtime</title></head><body><script>
+// This document has no same-origin permission. It cannot read application cookies/storage.
+let port, worker, timer;
+window.addEventListener("message", (event) => {
+  if (port || event.source !== parent || event.data?.type !== "connect" || !event.ports[0]) return;
+  port = event.ports[0];
+  port.onmessage = async ({ data }) => {
+    if (data.type === "stop") { worker?.terminate(); clearTimeout(timer); return; }
+    if (data.type !== "run") return;
+    try {
+      const source = await fetch(data.workerUrl, { credentials: "omit" }).then((res) => { if (!res.ok) throw Error(); return res.text(); });
+      worker = new Worker("data:text/javascript," + encodeURIComponent(source), { type: "module" });
+
+      timer = setTimeout(() => { worker.terminate(); port.postMessage({ type: "result", result: { status: "unavailable", stdout: "", stderr: "Python belum dapat dimuat. Coba lagi.", truncated: false } }); }, 45000);
+      worker.onmessage = ({ data: message }) => {
+        if (message.type === "ready") {
+          clearTimeout(timer);
+          port.postMessage({ type: "running" });
+          timer = setTimeout(() => { worker.terminate(); port.postMessage({ type: "result", result: { status: "timeout", stdout: "", stderr: "Eksekusi melewati batas waktu.", truncated: false } }); }, data.timeoutMs);
+          worker.postMessage({ type: "execute" });
+        } else if (message.type === "result") { clearTimeout(timer); worker.terminate(); port.postMessage(message); }
+      };
+      worker.onerror = () => { clearTimeout(timer); worker.terminate(); port.postMessage({ type: "result", result: { status: "unavailable", stdout: "", stderr: "Python belum dapat dimuat. Coba lagi.", truncated: false } }); };
+      worker.postMessage(data);
+    } catch { port.postMessage({ type: "result", result: { status: "unavailable", stdout: "", stderr: "Python belum dapat dimuat. Coba lagi.", truncated: false } }); }
+  };
+  port.start(); port.postMessage({ type: "connected" });
+});
+</script></body></html>

@@ -1,5 +1,7 @@
 "use client";
 
+import type { z } from "zod";
+import type { liveCodingConfigSchema } from "@/lib/coding/live-server";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 export type SessionState = "lobby" | "question" | "reveal" | "ended";
@@ -18,7 +20,7 @@ export interface LiveQuizState {
   // lobby
   participantCount: number;
   // question
-  currentQuestion: { prompt: string; options: string[]; deadline: number; total: number; questionIndex: number; origin?: "zyx_original" | "itb_example"; sourceEventName?: string | null; sourceReferenceId?: string | null } | null;
+  currentQuestion: { coding?: z.infer<typeof liveCodingConfigSchema>; prompt: string; options: string[]; deadline: number; total: number; questionIndex: number; origin?: "zyx_original" | "itb_example"; sourceEventName?: string | null; sourceReferenceId?: string | null } | null;
   myAnswer: number | null;
   countdown: number;
   // host-only: answer counts during question
@@ -124,6 +126,7 @@ export function useLiveQuizSocket(
                     deadline: msg.deadline as number,
                     total: msg.total as number,
                     questionIndex: msg.currentQuestionIndex as number,
+                    coding: msg.coding as z.infer<typeof liveCodingConfigSchema> | undefined,
                     origin: msg.origin as "zyx_original" | "itb_example" | undefined,
                     sourceEventName: typeof msg.sourceEventName === "string" ? msg.sourceEventName : null,
                     sourceReferenceId: typeof msg.sourceReferenceId === "string" ? msg.sourceReferenceId : null,
@@ -168,6 +171,7 @@ export function useLiveQuizSocket(
             ...s,
             sessionState: "question",
             currentQuestion: {
+              coding: msg.coding as z.infer<typeof liveCodingConfigSchema> | undefined,
               prompt: msg.prompt as string,
               options: opts,
               deadline: msg.deadline as number,

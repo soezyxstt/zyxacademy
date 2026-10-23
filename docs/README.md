@@ -80,6 +80,8 @@ Every document in this repository has one of the following explicit statuses:
 | Document | Category | Status | Updated / Date | Purpose and Scope |
 |---|---|---|---|---|
 | [README.md](README.md) | Index | `ACTIVE` | 2026-09-24 | Master documentation index, hierarchy map, course workspace compatibility status, marketing improvement plan, and lifecycle status ledger. |
+| [coding-foundation.md](coding-foundation.md) | Coding | `ACTIVE` | 2026-10-23 | Python Article/Playground/Live Quiz implementation, private grading, persistence and Zyra coaching with semantic flowchart symbols and compact mobile controls. Deployment remains separate. |
+| [coding-verification.md](coding-verification.md) | Coding verification | `ACTIVE` | 2026-10-23 | Three-way recovery, 15 accepted live AI turns, 103 focused tests, inspected mobile/desktop screenshots, compact-toolbar visual verification and explicit service/deployment boundaries. |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Core Architecture | `ACTIVE` | 2026-10-22 | Canonical platform boundaries, V4 authoring default representation, trusted verification, source figures and publication gates. Local verification is separate from rollout. |
 | [operations/authoring-mcp-skills.md](operations/authoring-mcp-skills.md) | Operations | `ACTIVE` | 2026-10-22 | Pinned external snapshots, 0.4.1 V4 defaults, bounded resumable verification with IO inside checkpoints, measured text zoom, math overflow gates, build-attested renderer, MCP resource integrity and separate installed-host acceptance. |
 | [DATABASE.md](DATABASE.md) | Core Database | `ACTIVE` | Current | Database topology (Turso remote, SQLite local), Drizzle workflows, and driver adapters. |
