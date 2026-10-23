@@ -48,6 +48,8 @@ jobs:
           TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}
           BETTER_AUTH_SECRET: ${{ secrets.BETTER_AUTH_SECRET }}
           INNGEST_EVENT_KEY: ${{ secrets.INNGEST_EVENT_KEY }}
+          INNGEST_SIGNING_KEY: ${{ secrets.INNGEST_SIGNING_KEY }}
+          INNGEST_API_KEY: ${{ secrets.INNGEST_API_KEY }}
           STORAGE_PROVIDER_MODE: r2
           R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
           R2_BUCKET: ${{ secrets.R2_BUCKET || secrets.CF_R2_BUCKET }}
