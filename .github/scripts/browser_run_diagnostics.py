@@ -37,6 +37,7 @@ def sessions():
 sessions()
 status, headers, body = request("/browser?keep_alive=60000", "POST")
 result = body.get("result", body) if isinstance(body, dict) else {}
+print(json.dumps({"probe": "acquire-shape", "fields": sorted(body.keys()) if isinstance(body, dict) else [], "sessionFields": sorted(result.keys()) if isinstance(result, dict) else []}))
 print(json.dumps({"probe": "acquire", "httpStatus": status,
                   "retryAfter": headers.get("Retry-After") if re.fullmatch(r"[0-9]+", headers.get("Retry-After", "")) else None,
                   "dailyQuotaExceeded": bool(re.search(r"browser time limit exceeded|daily.*(?:limit|quota)|(?:limit|quota).*today", json.dumps(body), re.I)),
