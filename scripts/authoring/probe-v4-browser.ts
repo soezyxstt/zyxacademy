@@ -1,4 +1,4 @@
-import { acquireVerificationBrowser } from "@/lib/compute/product-v4-browser-session";
+import { acquireVerificationBrowser } from "../../lib/compute/product-v4-browser-session";
 import { RetryAfterError } from "inngest";
 import { chromium } from "playwright-core";
 
