@@ -45,6 +45,10 @@ jobs:
           DENO_DEPLOY_TOKEN: ${{ secrets.DENO_DEPLOY_TOKEN }}
         run: |
           set -euo pipefail
+          if [ -z "${DENO_DEPLOY_TOKEN:-}" ]; then
+            echo "Deno context metadata unavailable: deployment token is not provided to this workflow."
+            exit 0
+          fi
           umask 077
           trap 'rm -f .v4-worker-env.json' EXIT
           deno run -A jsr:@deno/deploy@0.0.9904 env list --json --org soezyxst --app zyx-background-staging --non-interactive > .v4-worker-env.json
