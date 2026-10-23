@@ -77,6 +77,16 @@ jobs:
           CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
           CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
         run: python .github/scripts/browser_run_diagnostics.py
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: '1.2.21'
+      - run: bun install --frozen-lockfile --ignore-scripts
+      - name: Exercise Playwright CDP and the deployed preview
+        env:
+          CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+          CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          NEXT_PUBLIC_APP_URL: ${{ inputs.diagnostic_environment == 'production' && 'https://www.zyxacademy.com' || 'https://staging.zyxacademy.com' }}
+        run: bun scripts/authoring/probe-v4-browser.ts
 
   dependency-audit:
     name: Validate Deno Worker Dependencies

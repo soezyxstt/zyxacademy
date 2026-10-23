@@ -50,6 +50,16 @@ test("connection failures release acquired capacity and cannot leak authenticati
   expect(released).toBe(true);
 });
 
+test("Browser Run acquisition accepts Cloudflare's canonical browser-rendering CDP alias", async () => {
+  const canonical = `${endpoint.replace("https:", "wss:").replace("/browser-run/", "/browser-rendering/")}/${sessionId}`;
+  let connected = false;
+  const ports = { fetch: (async (_url, options) => options?.method === "POST" ? Response.json({ sessionId, webSocketDebuggerUrl: canonical }) : new Response(null, { status: 204 })) as typeof fetch,
+    connect: async (url: string) => { expect(url).toBe(canonical); connected = true; return { close: async () => {} } as unknown as Browser; } };
+  const acquired = await acquireVerificationBrowser(account, token, ports);
+  await acquired.close();
+  expect(connected).toBe(true);
+});
+
 test("provider WebSocket locations cannot redirect credentials to another origin", async () => {
   let connected = false, released = false;
   const ports = { fetch: (async (_url, options) => {

@@ -27,14 +27,17 @@ export async function acquireVerificationBrowser(account: string, token: string,
   }
   const body: unknown = await response.json();
   const session = body as { sessionId?: unknown; webSocketDebuggerUrl?: unknown };
-  if (!session || typeof session.sessionId !== "string" || !/^[a-f0-9-]{36}$/i.test(session.sessionId)) throw new Error("VERIFICATION_BROWSER_SESSION_INVALID");
+  if (!session || typeof session.sessionId !== "string" || !/^[a-f0-9-]{36}$/i.test(session.sessionId)) throw new NonRetriableError("VERIFICATION_BROWSER_SESSION_INVALID");
   const sessionEndpoint = `${endpoint}/${session.sessionId}`;
   const release = async () => {
     const result = await ports.fetch(sessionEndpoint, { method: "DELETE", headers, redirect: "error", signal: AbortSignal.timeout(10_000) });
     if (!result.ok && result.status !== 404) throw new Error(`VERIFICATION_BROWSER_RELEASE_FAILED:${result.status}`);
   };
   try {
-    if (session.webSocketDebuggerUrl !== sessionEndpoint.replace("https:", "wss:")) throw new Error("VERIFICATION_BROWSER_SESSION_INVALID");
+    const expected = sessionEndpoint.replace("https:", "wss:");
+    // Browser Run accepts the renamed HTTP route but returns the canonical
+    // browser-rendering CDP route. Both must bind the exact account/session.
+    if (![expected, expected.replace("/browser-run/", "/browser-rendering/")].includes(String(session.webSocketDebuggerUrl))) throw new NonRetriableError("VERIFICATION_BROWSER_SESSION_INVALID");
     const browser = await ports.connect(session.webSocketDebuggerUrl, { headers, timeout: 30_000 });
     return { browser, async close() {
       // Playwright's CDP browser.close() disconnects the client. DELETE also
