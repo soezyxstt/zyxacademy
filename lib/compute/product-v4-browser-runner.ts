@@ -204,6 +204,7 @@ export async function executeBrowserProductV4Check(input: {
   const baseUrl = deployed ? validateDeployedVerificationBaseUrl(input.baseUrl) : validateVerificationBaseUrl(input.baseUrl);
   const result: ProductV4ObservedCheck = { checkId: requirement.id, status: "NOT_TESTED", expected: `${requirement.layer}:${requirement.state}`, observed: "The requested state has no supported browser executor.", artifacts: [] };
   if (!["web", "print"].includes(requirement.layer)) return result;
+  if (browser && !(await browser).browser.isConnected()) await closeProductV4BrowserRunner();
   browser ??= launchVerificationBrowser().catch(error => { browser = undefined; throw error; });
   const launched = (await browser).browser;
   const expectedBrowserVersion = input.plan.binding.browserVersion ?? (deployed ? undefined : loadedBrowserRuntime?.browserVersion);
