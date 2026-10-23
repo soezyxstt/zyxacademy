@@ -495,3 +495,21 @@ and Deno workflow checks passed. Build workflow `39934301696` failed solely in
 SonarQube job `120349938386`: `Not authorized or organization not found`, scanner
 exit 3 before analysis. This is independent of Python verification. CI was not
 weakened. Check the pushed head again before merge.
+
+
+Final follow-up: staging advanced during testing to `140d5e3c`. A second three-way
+merge retained PRs #220, #221 and #222, affecting the V4 fixture preparation script,
+workflow and operations documentation. No Python application/runtime source changed
+in that second staging merge. The final Python production build and typecheck
+exited 0. Additional binding/pedagogy tests passed 12/12, bringing the focused total
+to 67. Focused application ESLint exited 0.
+
+The final built application repeated all four real Steel API failures successfully:
+Article requests took 33.2 and 33.6 seconds; Live requests took 32.4 and 31.7 seconds.
+Each request logged a confirmed Steel REST acquisition (HTTP 201) and confirmed
+release (HTTP 200, `success: true`). Both Live retries with `maxAttempts=1` remained
+ungradable and reveal returned 200. `api-probe-final.log` and `server-final.log`
+contain the synthetic result and sanitized lifecycle evidence. The initial final
+harness rerun reused an already revealed local room and failed at control start;
+using a fresh synthetic local room corrected the harness state, without changing
+application behavior or grading results.
