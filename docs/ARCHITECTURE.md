@@ -1180,8 +1180,48 @@ Browser / Client
 
 The compute PDF page reader caches extracted text and PNG bytes by current document SHA-256, PDF page position, renderer revision, and render width. Each image page has JSON metadata and PNG under `overhaul/pdf-page-cache/`; text-only pages have JSON only in a separate renderer namespace. Image-only reads skip text extraction, while text-only reads skip rendering. Cache hits bypass parsing and rendering; partial requests render only missing or corrupt entries. Current PDF bytes are still read to establish the checksum. Cache writes commit PNG before metadata and storage failures remain visible.
 
+---
+
+## 17. Request-Scoped Caching and Student Catalogue Architecture
+
+### Request-Scoped Session and Read Deduplication
+
+1. **React `cache()` RSC Context Scope**:
+   - `React.cache()` memoization is valid strictly within the execution lifetime of a single React Server Component (RSC) request render pass.
+   - Cache keys are evaluated strictly by shallow argument identity (`Object.is`). Passing newly instantiated objects, arrays, or unmemoized object literals as arguments results in distinct cache entries rather than cache hits.
+   - `React.cache()` provides no cross-HTTP request caching and no cross-action caching guarantee across separate Server Action or Route Handler invocations. Each incoming HTTP request operates within its own isolated RSC cache store, ensuring complete request and user isolation without cross-request state leakage.
+2. **Session Deduplication (`lib/auth-session.ts`)**:
+   - Both parent route layouts (such as `app/(student)/courses/[id]/layout.tsx`) and descendant leaf pages (`page.tsx` across overview, material, quiz, tryout, flashcards, progress, mastery, leaderboard, video, and dashboard) invoke the shared helper `getAuthSession()`.
+   - In RSC render contexts, multiple layout and leaf page boundaries within the same request share the same cached promise, invoking Better Auth's `auth.api.getSession` at most once per render pass.
+   - Authentication mutations, sign-in, sign-out, or session invalidation operations bypass request-level cache reuse to prevent stale credentials.
+3. **Async Layout and Loading Boundary Semantics**:
+   - An async parent layout (such as `CourseLayout`) must resolve its own top-level async dependencies (including session validation and course existence checks) before rendering its `{children}` slot.
+   - Placing nested `<Suspense>` boundaries or `loading.tsx` files inside or below an async layout streams child components only after the parent layout's own async operations finish resolving; child loading boundaries do not eliminate or bypass the parent layout's execution time.
+4. **Worker and Cross-Runtime Boundary (`lib/course-utils.ts` and `lib/auth-session.ts`):**
+   - Core data resolvers in `lib/` (including `lib/term-index.ts`, `lib/student/course-catalog.ts`, `lib/student/course-access.ts`, and `lib/articles/structured-repository.ts`) are reachable from Deno background jobs (`workers/deno-background/main.ts`) and must remain strictly framework-neutral with zero React imports to pass `worker:deno:audit`.
+   - Request-scoped memoization via React `cache()` is isolated exclusively in Next.js web consumer wrappers (`lib/course-utils.ts` and `lib/auth-session.ts`), which cache-decorate public resolvers for RSC renders while keeping worker modules React-free.
+
+### Catalogue Count and Metric Projections
+
+1. **Bounded Batch Projections**:
+   - Student course listings and catalog views compute material, quiz, and tryout counts through bounded batch aggregation queries rather than N+1 per-card fetches.
+   - Projections retain zero-count entries across all course sources (both canonical `mata_kuliah` and compatibility `courses`), ensuring accurate counts without dropping unpopulated or newly drafted offerings.
+   - PKA campaign cards retain the existing zero-count bypass. Canonical and legacy chapter aliases preserve material deduplication.
+
+### Reader and sidebar refresh
+
+- Structured article content and parsing are request-deduplicated separately from user-keyed reading progress.
+- `lib/math/katex-render.ts` shares deterministic KaTeX HTML with a 500-entry FIFO cap. Inputs over 2,000 characters, outputs over 10,000 characters, and mutable or callback options bypass caching.
+- Sidebar activity refresh runs on account mount, successful learning mutations, and focus or visibility changes after 60 seconds. Each account effect owns its abort controller; a mutation during a request queues one follow-up refresh. Route changes alone do not trigger it.
+
 ### Product Bundle V4 authoring default
 
 V4 retains the canonical Product envelope and existing tables. Ordered Article parts, scoped mathematical meanings and symbols, worked steps, visual references and authored Diktat units survive compilation, persistence and public hydration. Source figures bind a validated SourcePack and PDF crop to immutable checked variants; learner image delivery authorizes the stored course and chapter before returning private bytes. See [the V4 contract](bundle/product-bundle-v4.md).
 
 Verification jobs derive their required checks on the server and bind the bundle, dependencies, source assets, renderer sources, installed fonts, browser and print profile. The authenticated renderer executes application-owned browser and PDF code. Signed attempt receipts and artifact byte hashes cannot be replaced by author-supplied local reports. PDF promotion reuses the verified PDF with a transaction and compare-and-swap. Explicit section decisions and an anchored pedagogic rubric bind the current receipt and semantic hashes before publication. Polling is read-only. The local implementation and tests do not certify deployment or installed MCP hosts.
+
+### First-content streaming
+
+- Student route content is visible in server HTML without waiting for the page entrance animation. Marketing and reduced-motion behavior remain unchanged.
+- Course session and identity reads overlap while authentication rejection retains priority. Independent document-list queries overlap after authentication and course resolution.
+- Course overview analytics stream inside a Suspense boundary, allowing the chapter outline to appear before recommendations finish. This changes query scheduling, not the number of SQL statements.

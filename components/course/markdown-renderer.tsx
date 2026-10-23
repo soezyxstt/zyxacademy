@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, type ReactNode } from "react";
-import katex from "@/lib/math/katex";
+import { renderKatexToString } from "@/lib/math/katex-render";
 import { 
   Info, 
   BookOpenCheck,
@@ -128,7 +128,7 @@ function standaloneMathSource(content: string): string {
 
 function renderMath(value: string, displayMode: boolean): string {
   try {
-    return katex.renderToString(value, { ...katexOptions, displayMode });
+    return renderKatexToString(value, { ...katexOptions, displayMode });
   } catch (err) {
     console.error("KaTeX render error:", err);
     return value;
@@ -1203,7 +1203,7 @@ function ASTBlockRenderer({ block, density }: { block: ASTBlock; density?: Markd
       );
 
     case "formula":
-      const formulaHtml = katex.renderToString(block.content.latex, { throwOnError: false, displayMode: true });
+      const formulaHtml = renderKatexToString(block.content.latex, { throwOnError: false, displayMode: true });
       return (
         <div id={block.id} className={cn(
           "border border-border bg-card shadow-xs text-left",
@@ -1242,7 +1242,7 @@ function ASTBlockRenderer({ block, density }: { block: ASTBlock; density?: Markd
       );
 
     case "formula_reference":
-      const refHtml = katex.renderToString(block.content.latex, { throwOnError: false, displayMode: false });
+      const refHtml = renderKatexToString(block.content.latex, { throwOnError: false, displayMode: false });
       return (
         <div className={cn(
           "inline-flex items-center border border-border bg-muted/30 font-medium",

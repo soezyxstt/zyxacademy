@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 import { MathText } from "@/components/course/math-text";
 import { submitReviewAction } from "./actions";
 import { toast } from "@/components/ui/toast";
+import { emitActivityUpdated } from "@/lib/activity-signal";
 import { appendFlashcardRetry, skipFlashcardInSession } from "@/lib/flashcard-session";
 
 interface Flashcard {
@@ -110,6 +111,7 @@ export function FlashcardClient({ courseId, initialQueue, studentId }: Flashcard
 
       toast.success("Penilaian berhasil disimpan");
       setCompletedCount((prev) => prev + 1);
+      emitActivityUpdated({ type: "flashcard", courseId, cardId: currentItem.card.id });
 
       // If user selected "Again / Ulangi" (grade 1), put the card back at the end of the queue for retry
       if (grade === 1) {

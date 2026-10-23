@@ -4,6 +4,8 @@ The `ACTIVE` [Product Bundle V4 contract](bundle/product-bundle-v4.md) describes
 
 The `ACTIVE` [MCP skills distribution runbook](operations/authoring-mcp-skills.md) documents pinned external builds, full and compact catalogs, local V4 candidate provenance, attested web/Deno builds, configurable Cloudflare Browser Run or Steel verification, resource integrity and host acceptance. The `ACTIVE` deployment and development guides and Product Bundle V4 contract describe provider/version-bound plans, Steel session cleanup and failure categories, Deno runtime identity, and the read-only `/v4` preview. Full chapter verification remains unproven by local code checks. Local package checks remain separate from installed-host, OAuth and deployment evidence.
 
+The `ACTIVE` architecture guide records request-scoped session and read deduplication in Next.js consumer wrappers, framework-neutral Deno data resolvers, bounded catalogue count projections retaining zero counts and PKA, and parent layout boundaries for child loading streams.
+
 The `ACTIVE` architecture guide records integer PNG dimensions, source checksum metadata, explicit PDF page citations, and visual review markers for damaged extracted text. The source playbook includes polling fallback for stale connector catalogs.
 
 The `ACTIVE` architecture, deployment, development, and feature guides document all four MCP OAuth default scopes, all four consent checkboxes even for narrower client requests, and reauthorization for existing tokens.
@@ -80,7 +82,7 @@ Every document in this repository has one of the following explicit statuses:
 | Document | Category | Status | Updated / Date | Purpose and Scope |
 |---|---|---|---|---|
 | [README.md](README.md) | Index | `ACTIVE` | 2026-09-24 | Master documentation index, hierarchy map, course workspace compatibility status, marketing improvement plan, and lifecycle status ledger. |
-| [ARCHITECTURE.md](ARCHITECTURE.md) | Core Architecture | `ACTIVE` | 2026-10-22 | Canonical platform boundaries, V4 authoring default representation, trusted verification, source figures and publication gates. Local verification is separate from rollout. |
+| [ARCHITECTURE.md](ARCHITECTURE.md) | Core Architecture | `ACTIVE` | 2026-10-22 | Request-scoped read deduplication, catalogue projections, first-content streaming, V4 authoring default, trusted verification and publication boundaries. |
 | [operations/authoring-mcp-skills.md](operations/authoring-mcp-skills.md) | Operations | `ACTIVE` | 2026-10-23 | Pinned external snapshots, 0.4.1 V4 defaults, browser deadlines and 2-slice checkpoints, early remote cleanup, backoff-aware leases, canonical CDP validation, scoped diagnostics and exact-revision recovery/cancellation, attested renderer and separate installed-host acceptance. |
 | [DATABASE.md](DATABASE.md) | Core Database | `ACTIVE` | Current | Database topology (Turso remote, SQLite local), Drizzle workflows, and driver adapters. |
 | [DB_SCHEMA.md](DB_SCHEMA.md) | Core Database | `ACTIVE` | 2026-09-16 | Comprehensive schema catalog including the singleton public demo marker, tutorial scheduling lifecycle, dated tutor slots, normalized booking resources, historical assessment provenance, question reference links, retryable Idea Bundle cleanup, Product Bundle pedagogic review, and PDF evidence. |

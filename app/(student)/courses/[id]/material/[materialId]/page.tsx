@@ -8,18 +8,21 @@ import { CoursePageShell } from "@/components/course/course-page-shell";
 import { MaterialViewer } from "@/components/course/material-viewer";
 import { StructuredArticleReader } from "@/components/course/structured-article-reader";
 import { EnrollmentForm } from "@/components/enrollment-form";
-import { Reveal } from "@/components/ui/reveal";
 import { createMetadata, pageTitle } from "@/lib/site";
 import { getMaterial, type CourseMaterial } from "@/lib/student-course-fixtures";
-import { getCourse, getStudentCourseAccess, isFreeChapterScoped } from "@/lib/course-utils";
-import { getCanonicalPublishedArticle, getCanonicalPublishedTextProduct } from "@/lib/articles/structured-repository";
+import {
+  getCourse,
+  getStudentCourseAccess,
+  isFreeChapterScoped,
+  getCanonicalPublishedArticle,
+  getCanonicalPublishedTextProduct,
+  getCourseTermIndex,
+} from "@/lib/course-utils";
 import { db } from "@/db";
 import { aiMaterialInstances, diktats, courseMaterials, websiteMaterials, progress, studentMaterialProgress } from "@/db/schema";
 import { eq, and, notLike } from "drizzle-orm";
 import { storage } from "@/lib/storage";
-import { buildCourseTermIndex } from "@/lib/term-index";
-import { auth } from "@/lib/auth";
-import { headers } from "next/headers";
+import { getAuthSession } from "@/lib/auth-session";
 
 type Props = { params: Promise<{ id: string; materialId: string }> };
 
@@ -278,21 +281,24 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   });
 }
 
-
 export default async function CourseMaterialDetailPage({ params }: Props) {
   const { id, materialId } = await params;
-  const course = await getCourse(id);
-  const session = await auth.api.getSession({ headers: await headers() });
+  const session = await getAuthSession();
   const studentId = session?.user?.id;
   if (!studentId) {
     redirect(`/sign-in?next=${encodeURIComponent(`/courses/${id}/material/${materialId}`)}`);
   }
 
+  // Overlap canonical article, course, and access queries only once session is verified
+  const [course, canonicalArticle, access] = await Promise.all([
+    getCourse(id),
+    getCanonicalPublishedArticle(id, materialId, studentId),
+    getStudentCourseAccess(studentId, id),
+  ]);
+
   // 1. Canonical structured article first. Published V2 Article and Diktat
   // content falls through to the canonical text product reader below.
-  const canonicalArticle = await getCanonicalPublishedArticle(id, materialId, studentId);
   if (canonicalArticle && course) {
-    const access = studentId ? await getStudentCourseAccess(studentId, id) : null;
     const isEnrolled = access?.tier === "standard";
     const articleChapterIds = [
       canonicalArticle.chapterId,
@@ -310,24 +316,22 @@ export default async function CourseMaterialDetailPage({ params }: Props) {
               </Link>
             </Button>
           </div>
-          <Reveal>
-            <div className="rounded-lg border border-border/70 bg-card/75 p-4 backdrop-blur-sm">
-              <div className="flex items-start gap-3">
-                <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground ring-1 ring-border">
-                  <Lock className="size-5" />
-                </div>
-                <div>
-                  <h3 className="font-heading text-body-base font-bold text-foreground">Butuh token kelas</h3>
-                  <p className="mt-1 text-body-sm text-muted-foreground">
-                    Aktifkan kelas untuk membuka &ldquo;{canonicalArticle.title}&rdquo;.
-                  </p>
-                </div>
+          <div className="rounded-lg border border-border/70 bg-card/75 p-4 backdrop-blur-sm">
+            <div className="flex items-start gap-3">
+              <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground ring-1 ring-border">
+                <Lock className="size-5" />
               </div>
-              <div className="mt-4">
-                <EnrollmentForm />
+              <div>
+                <h3 className="font-heading text-body-base font-bold text-foreground">Butuh token kelas</h3>
+                <p className="mt-1 text-body-sm text-muted-foreground">
+                  Aktifkan kelas untuk membuka &ldquo;{canonicalArticle.title}&rdquo;.
+                </p>
               </div>
             </div>
-          </Reveal>
+            <div className="mt-4">
+              <EnrollmentForm />
+            </div>
+          </div>
         </CoursePageShell>
       );
     }
@@ -339,7 +343,6 @@ export default async function CourseMaterialDetailPage({ params }: Props) {
   const material = await fetchMaterial(id, materialId, studentId);
   if (!course || !material) notFound();
 
-  const access = studentId ? await getStudentCourseAccess(studentId, id) : null;
   const isEnrolled = access?.tier === "standard";
   const isFreePdf = material.kind === "pdf" && material.docCategory !== "diktat";
   const materialChapterIds = [
@@ -360,29 +363,27 @@ export default async function CourseMaterialDetailPage({ params }: Props) {
             </Link>
           </Button>
         </div>
-        <Reveal>
-          <div className="rounded-lg border border-border/70 bg-card/75 p-4 backdrop-blur-sm">
-            <div className="flex items-start gap-3">
-              <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground ring-1 ring-border">
-                <Lock className="size-5" />
-              </div>
-              <div>
-                <h3 className="font-heading text-body-base font-bold text-foreground">Butuh token kelas</h3>
-                <p className="mt-1 text-body-sm text-muted-foreground">
-                  Aktifkan kelas untuk membuka &ldquo;{material.title}&rdquo;.
-                </p>
-              </div>
+        <div className="rounded-lg border border-border/70 bg-card/75 p-4 backdrop-blur-sm">
+          <div className="flex items-start gap-3">
+            <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground ring-1 ring-border">
+              <Lock className="size-5" />
             </div>
-            <div className="mt-4">
-              <EnrollmentForm />
+            <div>
+              <h3 className="font-heading text-body-base font-bold text-foreground">Butuh token kelas</h3>
+              <p className="mt-1 text-body-sm text-muted-foreground">
+                Aktifkan kelas untuk membuka &ldquo;{material.title}&rdquo;.
+              </p>
             </div>
           </div>
-        </Reveal>
+          <div className="mt-4">
+            <EnrollmentForm />
+          </div>
+        </div>
       </CoursePageShell>
     );
   }
 
-  const termIndex = await buildCourseTermIndex(id);
+  const termIndex = await getCourseTermIndex(id);
 
   return (
     <Suspense fallback={<div className="p-8 flex justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}>

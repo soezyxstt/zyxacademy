@@ -7,12 +7,11 @@ import { Reveal } from "@/components/ui/reveal";
 import { createMetadata, pageTitle } from "@/lib/site";
 import { db } from "@/db";
 import { studentQuizAttempts, submissions, exams } from "@/db/schema";
-import { auth } from "@/lib/auth";
-import { headers } from "next/headers";
 import { and, eq } from "drizzle-orm";
 import { AttemptReview } from "@/components/course/attempt-review";
 import { ReviewClient } from "./review-client";
 import { getCourse } from "@/lib/course-utils";
+import { getAuthSession } from "@/lib/auth-session";
 
 type Props = { params: Promise<{ id: string; submissionId: string }> };
 
@@ -35,7 +34,7 @@ export default async function SubmissionReviewPage({ params }: Props) {
 
   if (!course) notFound();
 
-  const session = await auth.api.getSession({ headers: await headers() });
+  const session = await getAuthSession();
   if (!session?.user) notFound();
 
   // 1. Check if it's a quiz attempt

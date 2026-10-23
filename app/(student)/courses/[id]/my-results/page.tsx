@@ -12,10 +12,9 @@ import { createMetadata, pageTitle } from "@/lib/site";
 import { cn } from "@/lib/utils";
 import { db } from "@/db";
 import { studentQuizAttempts, quizTemplates, submissions, exams } from "@/db/schema";
-import { auth } from "@/lib/auth";
-import { headers } from "next/headers";
 import { and, eq } from "drizzle-orm";
 import { getCourse } from "@/lib/course-utils";
+import { getAuthSession } from "@/lib/auth-session";
 
 type Props = { params: Promise<{ id: string }> };
 
@@ -81,7 +80,7 @@ export default async function CourseMyResultsPage({ params }: Props) {
     );
   }
 
-  const session = await auth.api.getSession({ headers: await headers() });
+  const session = await getAuthSession();
   const studentId = session?.user?.id;
 
   let allSubmissions: Array<{

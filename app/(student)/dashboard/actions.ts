@@ -26,16 +26,10 @@ import { listStudentEnrollments, resolveStudentCourse } from "@/lib/student/cour
 import { getStudentMaterialAccess, isFreeChapterScoped } from "@/lib/course-utils";
 import { resolveCourseAccess } from "@/lib/student/course-access";
 import { recordLearningEvidence } from "@/lib/pemahaman/evidence";
+import { requireAuthUser } from "@/lib/auth-session";
 
 async function requireUser() {
-  const h = await headers();
-  const session = await auth.api.getSession({
-    headers: h,
-  });
-  if (!session?.user?.id) {
-    throw new Error("Unauthorized");
-  }
-  return session.user;
+  return requireAuthUser();
 }
 
 /**
