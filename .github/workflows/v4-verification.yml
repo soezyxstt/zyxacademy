@@ -41,8 +41,8 @@ jobs:
           SKIP_ENV_VALIDATION: '1'
           ZYX_ENVIRONMENT: ${{ inputs.environment }}
           NEXT_PUBLIC_APP_URL: ${{ inputs.environment == 'production' && 'https://www.zyxacademy.com' || 'https://staging.zyxacademy.com' }}
-          AUTHORING_VERIFICATION_BROWSER_PROVIDER: ${{ vars.AUTHORING_VERIFICATION_BROWSER_PROVIDER || 'cloudflare' }}
-          AUTHORING_VERIFICATION_STEEL_BROWSER_VERSION: ${{ vars.AUTHORING_VERIFICATION_STEEL_BROWSER_VERSION }}
+          AUTHORING_VERIFICATION_BROWSER_PROVIDER: ${{ vars.AUTHORING_VERIFICATION_BROWSER_PROVIDER || secrets.AUTHORING_VERIFICATION_BROWSER_PROVIDER || 'cloudflare' }}
+          AUTHORING_VERIFICATION_STEEL_BROWSER_VERSION: ${{ vars.AUTHORING_VERIFICATION_STEEL_BROWSER_VERSION || secrets.AUTHORING_VERIFICATION_STEEL_BROWSER_VERSION }}
           V4_OPERATION: ${{ inputs.action }}
           V4_REVISION: ${{ inputs.revision }}
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
