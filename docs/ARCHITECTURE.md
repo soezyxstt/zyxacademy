@@ -1232,7 +1232,11 @@ CodeMirror 6 and self-hosted Pyodide power shared Article, Playground and Live
 Quiz coding surfaces. Browser execution uses an opaque-origin iframe and a
 disposable Worker. Server grading uses isolated Playwright browser contexts,
 fixed runtime assets and denied external network access, with Cloudflare Browser
-Run in production. Drizzle/Turso stores versioned private problems, owner-scoped
+Run as the production default. Explicit `CODING_BROWSER_PROVIDER=steel` reuses
+the existing remote session adapter independently of V4 provider selection.
+Provider release precedes grade acceptance; release failure is ungradable.
+Real Steel Python initialization is still blocked, as recorded in
+[coding verification](coding-verification.md). Drizzle/Turso stores versioned private problems, owner-scoped
 drafts and leased immutable attempts. Zyra resolves problem/attempt context
 server-side through its existing policy, allowance and provider boundaries.
 See [Python learning](coding-foundation.md) for contracts, public/private data

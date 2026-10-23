@@ -413,6 +413,21 @@ Install pinned dependencies with Bun. Browser Python assets are served locally
 from the Pyodide package; no CDN or Python server is needed for Run. Local Submit
 requires Playwright Chromium with a functioning kernel sandbox. Run
 `bun run test:visual:install` when browsers are missing. Production Submit reuses
-`CF_ACCOUNT_ID` and `CF_API_TOKEN` for Cloudflare Browser Run, as described in
-[coding contract](coding-foundation.md). No coding feature flag is introduced.
+`CF_ACCOUNT_ID` and `CF_API_TOKEN` for Cloudflare Browser Run. Explicit
+`CODING_BROWSER_PROVIDER=steel` uses the existing session adapter and
+`STEEL_API_KEY`, independently of `AUTHORING_VERIFICATION_BROWSER_PROVIDER`.
+`local` is permitted only outside production. No automatic provider fallback or
+coding feature flag is introduced. Steel Python execution remains unverified;
+do not infer readiness from the successful V4 browser probe. See the
+[coding contract](coding-foundation.md) and [verification evidence](coding-verification.md).
+
+For an opt-in real runtime probe, run
+`RUN_CODING_RUNTIME_PROBE=1 CODING_BROWSER_PROVIDER=steel bun --conditions=react-server scripts/coding/probe-runtime.ts`
+or bundle it with
+`bun build scripts/coding/probe-runtime.ts --target=node --packages=external --outfile=artifacts/coding-live/probe-runtime.mjs`
+and run Node with `--conditions=react-server`. Supply credentials only through the
+server environment. The probe asserts real Python results and always releases its
+session. It touches no database. A failed assertion is a failed verification,
+not a passing provider smoke test. Managed environments must preserve the policy
+proxy and TLS trust for REST and CDP.
 Apply generated migrations only to the selected database environment.

@@ -382,3 +382,116 @@ Logs are in ignored `artifacts/coding-live/post-staging-{typecheck,contracts,run
 The earlier visual and live AI evidence predates this merge; those external calls
 were not repeated for PR creation. Existing global lint and Cloudflare grading
 limitations above still apply. No deployment or remote database mutation occurred.
+
+
+## PR #217 real-provider follow-up, 2026-10-23
+
+Status: `OPEN / IN PROGRESS`. PR is **not ready to merge**. No merge, deployment,
+remote migration or remote database write was performed. Temporary Steel browser
+sessions were the only provider mutations. Work continued in an isolated clone
+at `/tmp/zyxacademy-python-217` because the original checkout's Git metadata was
+read-only. Latest staging `af63f7de` was merged with Git's three-way `ort` strategy,
+retaining both environment-secret configuration commits without conflicts.
+
+### Provider configuration and cleanup
+
+`CODING_BROWSER_PROVIDER` is explicitly independent of the V4 verifier, as approved
+by the user. Defaults remain Cloudflare in production and sandboxed Chromium in
+development. Steel reuses `acquireSteelVerificationBrowser`; Cloudflare now reuses
+`acquireVerificationBrowser`. Neither credentials nor learner requests select a
+fallback. Production rejects local Chromium. Runtime initialization failures log
+safe categories and execution phases, never provider errors, headers or CDP URLs.
+The context deadline now begins before routing/navigation. Submit closes the
+provider session before accepting its evaluation; a failed close returns
+`ungradable`. Finally still retries cleanup on failure.
+
+### Real connectors and application API
+
+Cloudflare REST acquisition returned `VERIFICATION_BROWSER_RATE_LIMITED`. This
+establishes a current rate-limit response, not the cause of the earlier unavailable
+probe, nor a successful Cloudflare grading execution.
+
+Steel REST acquisition worked. Direct Playwright CDP from this managed environment
+failed with `ECONNREFUSED`; a local test preload sent only `connect.steel.dev`
+through the inherited HTTP policy proxy, preserving TLS validation. With that
+transport adaptation, real Steel CDP connected to Chromium `155.0.8059.79` and its
+REST release completed. The adaptation changes transport only and was not added
+to application provider selection. It is not evidence of deployed connectivity.
+
+The real Python probe exited **1**: its first stdin/stdout assertion received
+`unavailable`, not `completed`, after Worker initialization reached the context
+deadline. A minimal Worker successfully exchanged messages. Separate synthetic
+module-import probes did not complete. The exact underlying import/runtime cause
+remains unresolved. A temporary self-contained asset experiment also failed and
+was not adopted. Do not claim that Steel rejects all Workers, that its connector
+is unavailable, or that its Python sandbox/network isolation has passed.
+The probe's final REST session release passed, including after failed execution.
+No browser sandbox was disabled. A fresh local Chromium launch with
+`chromiumSandbox: true` failed with `No usable sandbox`, exit 1.
+
+The application ran from a production build against synthetic local SQLite
+`/tmp/zyx-coding-live.db`. Its authenticated API used real Steel sessions and real
+Pyodide, with no grading mocks. The realtime Worker ran locally under Wrangler.
+
+| Real application API case | HTTP | Result |
+| --- | --- | --- |
+| Published problem, authenticated local learner | 200 | Private tests, reference solution and canaries absent |
+| Article Submit, two distinct requests | 200 each | `ungradable`, about 32 to 33 seconds each |
+| Live Quiz Submit, `maxAttempts=1`, two distinct requests | 200 each | Both `ungradable`; retry did not spend the attempt limit |
+| Live reveal after both failed submissions | 200 | No pending grading reservation blocked reveal |
+
+Neither Article nor Live Quiz produced a valid score through Steel. All four
+Submit responses omitted private test/solution canaries. This does **not** verify
+correct/incorrect, syntax/runtime-error, learner timeout, output-limit,
+interpreter/filesystem isolation, network denial, or post-timeout recovery through
+Steel: those require a successfully initialized Python runtime. The committed
+opt-in probe enumerates these assertions but stopped on its first failure.
+Playground Run and live Zyra UI were not re-certified in this follow-up; earlier
+browser and live AI evidence remains a separate checkpoint. Hints redaction is
+covered by contract tests, not a new live AI attestation.
+
+### Local checks and evidence
+
+Commands used Bun from `/tmp/zyx-tools/node_modules/.bin/bun` and Node 24.19.0.
+The local environment wrapper clears remote DB, storage, event and analytics
+bindings and retains injected provider credentials and proxy/CA configuration.
+Authentication state is ignored and contains only synthetic local sessions.
+
+| Command | Outcome |
+| --- | --- |
+| `bun install --frozen-lockfile` | Exit 0, lockfile unchanged |
+| `python scripts/coding/local-env.py bun db/migrate.ts` | Exit 0, local SQLite only |
+| `python scripts/coding/local-env.py python scripts/coding/seed-live.py 1 5` | Exit 0, synthetic local data only |
+| Real Steel runtime probe, Node bundle with `--conditions=react-server` and policy-proxy preload | Exit 1, first execution unavailable; release passed |
+| Ignored `node artifacts/coding-live/api-probe.mjs` | Exit 0, real authenticated Article/Live failure and retry assertions above |
+| Focused contracts listed below | Exit 0, 55 tests across 9 files |
+| `bun test tests/contracts/product-v4-runtime-binding.test.ts tests/contracts/coding-pedagogy.test.ts` | Exit 0, 12 additional tests |
+| Focused ESLint over runtime, environment, Submit route and probe | Exit 0 |
+| `npm run typecheck` | Exit 0 on sequential rerun |
+| `npm run lint` | Exit 1, existing voucher render-time `Date.now()` error; 257 warnings |
+| `python scripts/coding/local-env.py env NODE_ENV=production bun run build` | Exit 0, final production build after cleanup-result correction |
+| `git diff --check` | Exit 0 |
+
+Focused command: `bun test` with `tests/contracts/coding-runtime-provider.test.ts`,
+`coding-http.test.ts`, `coding-foundation.test.ts`, `coding-repository.test.ts`,
+`coding-live-room.test.ts`, `article-parts.test.ts`, `diktat-v4.test.ts`,
+`product-v4-schema-delivery.test.ts`, and `product-v4-browser-session.test.ts`.
+Provider selection and HTTP failure regression tests use dependency injection;
+they are distinct from the real connector/API tests above. HTTP child fixture
+additionally checks release failure, provider recovery and redaction. Existing
+repository tests check that infrastructure failure does not spend an attempt.
+No UI was changed, so no new visual sign-off is claimed.
+
+Ignored evidence: `artifacts/coding-live/steel-runtime.log`, `api-probe.log`,
+`server-final.log`, `api-probe-final.log`, `contracts-final.log`, `lint.log`, `typecheck-final.log`,
+`build-final.log`, and synthetic worker diagnostic logs in the same directory.
+The final successful typecheck rerun exited 0 and emitted no diagnostics; the earlier parallel
+run had a nonzero result without TypeScript diagnostics and is not counted as a
+pass. The wrapper test initially expected the old child-test count; it was updated
+for the added regression and reran successfully.
+
+At original PR head `44d1cf99`, Schedule Regression Suite, MCP skills distribution
+and Deno workflow checks passed. Build workflow `39934301696` failed solely in
+SonarQube job `120349938386`: `Not authorized or organization not found`, scanner
+exit 3 before analysis. This is independent of Python verification. CI was not
+weakened. Check the pushed head again before merge.

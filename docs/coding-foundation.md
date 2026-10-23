@@ -56,8 +56,15 @@ sessions, browser permissions, downloads or service workers. Output is bounded;
 learner Python errors show user-code frames rather than interpreter internals.
 An outage or cancellation is ungradable, not an incorrect answer.
 
-Production connects to Cloudflare Browser Run using existing CF_ACCOUNT_ID and
-CF_API_TOKEN. Development launches Chromium with its kernel sandbox enabled.
+`CODING_BROWSER_PROVIDER` selects the Submit provider independently of V4 authoring
+verification. Production defaults to Cloudflare Browser Run using existing
+`CF_ACCOUNT_ID` and `CF_API_TOKEN`; development defaults to Chromium with its
+kernel sandbox enabled. Explicit `steel` reuses the V4 session adapter and
+server-only `STEEL_API_KEY`. `local` is rejected in production. There is no
+credential-based fallback or new feature flag. Both remote providers acquire a
+session through REST and explicitly release it before accepting a grade.
+A release failure makes the submission ungradable. Steel selection is available
+for diagnostics, but real Python grading through Steel has not passed verification.
 The service fails closed if that environment is unavailable. Synthetic runtime
 tests can inject a local Playwright browser without changing the service launch
 policy. Browser platform memory/process limits remain external; this code does

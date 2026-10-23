@@ -430,6 +430,12 @@ The always-on PDF page reader requires `source-read-page` in the Deno compute ap
 Python coding requires the generated coding table migration and a paired release
 of the Next application and `workers/realtime` for graded Live Quiz. Production
 Submit requires working Cloudflare Browser Run credentials through existing
-`CF_ACCOUNT_ID` and `CF_API_TOKEN`. Runtime package assets and Worker/frame files
+`CF_ACCOUNT_ID` and `CF_API_TOKEN` by default. `CODING_BROWSER_PROVIDER=steel`
+selects the shared Steel session adapter using server-only `STEEL_API_KEY`.
+This is independent of V4 verification settings. Steel Python initialization
+has not passed real-provider verification; the option must not be treated as a
+verified rollout. Local Chromium is rejected in production. Neither provider
+falls back automatically, and provider release failures remain ungradable.
+Runtime package assets and Worker/frame files
 are included in Next output tracing. See [coding contract](coding-foundation.md).
 Local implementation/testing does not establish remote rollout or credentials.

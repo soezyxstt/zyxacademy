@@ -1,5 +1,7 @@
 import "server-only";
 import { chromium, type Browser } from "playwright-core";
+import { acquireSteelVerificationBrowser, acquireVerificationBrowser, type VerificationBrowserSession } from "../compute/product-v4-browser-session";
+import { verificationBrowserFailureCode } from "../compute/product-v4-browser-config";
 import { createRequire } from "node:module";
 import { readFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
@@ -11,32 +13,48 @@ import type { PythonRuntime } from "./runtime";
  * Route all browser traffic to fixed local assets; deny all other requests and sockets.
  */
 export async function createTrustedPythonRuntime(): Promise<PythonRuntime & { close(): Promise<void> }> {
-  let browser: Browser;
-  if (process.env.NODE_ENV === "production") {
-    const account = process.env.CF_ACCOUNT_ID, token = process.env.CF_API_TOKEN;
-    if (!account || !/^[a-f0-9]{32}$/i.test(account) || !token) throw new Error("CODING_RUNTIME_CONFIGURATION_REQUIRED");
-    browser = await chromium.connectOverCDP(`wss://api.cloudflare.com/client/v4/accounts/${account}/browser-run/devtools/browser`, { headers: { Authorization: `Bearer ${token}` }, timeout: 15_000 });
-  } else {
-    browser = await chromium.launch({ headless: true, chromiumSandbox: true });
+  const provider = process.env.CODING_BROWSER_PROVIDER ?? (process.env.NODE_ENV === "production" ? "cloudflare" : "local");
+  let session: VerificationBrowserSession;
+  try {
+    if (provider === "steel") session = await acquireSteelVerificationBrowser(process.env.STEEL_API_KEY ?? "");
+    else if (provider === "cloudflare") session = await acquireVerificationBrowser(process.env.CF_ACCOUNT_ID ?? "", process.env.CF_API_TOKEN ?? "");
+    else if (provider === "local" && process.env.NODE_ENV !== "production") {
+      const browser = await chromium.launch({ headless: true, chromiumSandbox: true });
+      session = { browser, close: () => browser.close() };
+    } else throw new Error("CODING_RUNTIME_CONFIGURATION_REQUIRED");
+  } catch (error) {
+    // Provider errors can contain credentials. Log categories only, never the error itself.
+    console.warn("CODING_RUNTIME_ACQUIRE_FAILED", verificationBrowserFailureCode(error) ?? "CODING_RUNTIME_UNAVAILABLE");
+    throw new Error("CODING_RUNTIME_UNAVAILABLE");
   }
-  try { return await createIsolatedBrowserPythonRuntime(browser); }
-  catch (error) { await browser.close(); throw error; }
+  const close = async () => {
+    try { await session.close(); }
+    catch (error) {
+      console.warn("CODING_RUNTIME_RELEASE_FAILED", verificationBrowserFailureCode(error) ?? "CODING_RUNTIME_UNAVAILABLE");
+      throw new Error("CODING_RUNTIME_RELEASE_FAILED");
+    }
+  };
+  try { return await createIsolatedBrowserPythonRuntime(session.browser, close); }
+  catch (error) { await close(); throw error; }
 }
 
 /** Shared implementation; injected browsers are used only by trusted server callers and tests. */
-export async function createIsolatedBrowserPythonRuntime(browser: Browser): Promise<PythonRuntime & { close(): Promise<void> }> {
+export async function createIsolatedBrowserPythonRuntime(browser: Browser, close = () => browser.close()): Promise<PythonRuntime & { close(): Promise<void> }> {
   const root = dirname(createRequire(join(process.cwd(), "package.json")).resolve(["pyo", "dide"].join("")));
   const workerSource = await readFile(join(process.cwd(), "public/coding/worker.js"), "utf8");
   return {
-    close: () => browser.close(),
+    close,
     async execute({ code, stdin, limits, signal }) {
       const context = await browser.newContext({ serviceWorkers: "block", acceptDownloads: false });
       let timer: ReturnType<typeof setTimeout> | undefined;
       let aborted = false;
+      let phase = "routing";
       const stop = () => { aborted = true; void context.close().catch(() => {}); };
       signal?.addEventListener("abort", stop, { once: true });
       try {
         if (signal?.aborted) { stop(); return { status: "stopped", stdout: "", stderr: "", truncated: false }; }
+        context.setDefaultTimeout(15_000);
+        timer = setTimeout(() => { void context.close().catch(() => {}); }, 30_000);
         await context.route("**/*", async (route) => {
           const url = new URL(route.request().url());
           const asset = url.pathname.slice(1);
@@ -45,9 +63,10 @@ export async function createIsolatedBrowserPythonRuntime(browser: Browser): Prom
           await route.fulfill({ body: await readFile(join(root, asset)), headers: { "Access-Control-Allow-Origin": "*" }, contentType: PYTHON_RUNTIME_ASSETS[asset as keyof typeof PYTHON_RUNTIME_ASSETS] });
         });
         await context.routeWebSocket(/.*/, (socket) => socket.close());
+        phase = "page";
         const page = await context.newPage();
         await page.goto("https://python.zyx.invalid/runner");
-        timer = setTimeout(() => { void context.close().catch(() => {}); }, 30_000);
+        phase = "worker";
         const result = await page.evaluate(({ source, code, stdin, limits, revision }) => new Promise((resolve) => {
           const worker = new Worker(URL.createObjectURL(new Blob([source], { type: "text/javascript" })), { type: "module" });
           let executionTimer: ReturnType<typeof setTimeout> | undefined;
@@ -63,6 +82,7 @@ export async function createIsolatedBrowserPythonRuntime(browser: Browser): Prom
         }), { source: workerSource, code, stdin, limits, revision: PYTHON_RUNTIME_REVISION });
         return executionResultSchema.parse(result);
       } catch {
+        console.warn("CODING_RUNTIME_EXECUTION_UNAVAILABLE", phase);
         return { status: aborted ? "stopped" : "unavailable", stdout: "", stderr: "", truncated: false };
       } finally {
         clearTimeout(timer);

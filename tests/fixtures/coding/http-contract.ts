@@ -7,13 +7,13 @@ import * as schema from "@/db/schema";
 import type { CodingProblemPrivate } from "@/lib/coding/contracts";
 const file = `/tmp/zyx-coding-http-${randomUUID()}.db`, client = createClient({ url: `file:${file}` });
 const testDb = drizzle(client, { schema });
-let userId: string | null = "student", executions = 0;
+let userId: string | null = "student", executions = 0, providerFailure = false, cleanupFailure = false;
 mock.module("server-only", () => ({}));
 mock.module("@/db", () => ({ db: testDb }));
 mock.module("@/lib/auth", () => ({ auth: { api: { getSession: async () => userId ? { user: { id: userId } } : null } } }));
 mock.module("@/lib/env", () => ({ env: {} }));
 mock.module("@/lib/student/course-access", () => ({ resolveCourseAccess: async ({ courseId }: { courseId: string }) => ({ hasCourseAccess: courseId === "course", canonicalCourseId: "course", tier: "enrolled" }) }));
-mock.module("@/lib/coding/server-runtime", () => ({ createTrustedPythonRuntime: async () => ({ async close() {}, async execute({ stdin }: { stdin: string }) { executions++; return { status: "completed", stdout: stdin === "public" ? "public-result\n" : "PRIVATE-RESULT\n", stderr: "", truncated: false }; } }) }));
+mock.module("@/lib/coding/server-runtime", () => ({ createTrustedPythonRuntime: async () => { if (providerFailure) throw new Error("provider failure"); return ({ async close() { if (cleanupFailure) throw new Error("cleanup failure"); }, async execute({ stdin }: { stdin: string }) { executions++; return { status: "completed", stdout: stdin === "public" ? "public-result\n" : "PRIVATE-RESULT\n", stderr: "", truncated: false }; } }); } }));
 const publicProblemRoute = await import("@/app/api/coding/problems/[problemId]/route");
 const submissions = await import("@/app/api/coding/submissions/route");
 const drafts = await import("@/app/api/coding/drafts/route");
@@ -64,6 +64,21 @@ describe("authenticated coding HTTP integration", () => {
     const other = await submissions.GET(request("/api/coding/submissions?courseId=course&problemId=problem&version=1"));
     expect((await other.json()).attempts).toEqual([]);
     userId = "student";
+  });
+  it("keeps provider and cleanup failures ungradable and retryable", async () => {
+    for (const mode of ["acquire", "release"]) {
+      providerFailure = mode === "acquire";
+      cleanupFailure = mode === "release";
+      const response = await submissions.POST(request("/api/coding/submissions", { courseId: "course", surface, submission: { ...submission, requestId: `failed-${mode}` } }));
+      expect(response.status).toBe(200);
+      const result = await response.json();
+      expect(result.feedback.verdict).toBe("ungradable");
+      expect(result.feedback.publicCases).toEqual([]);
+      expect(JSON.stringify(result)).not.toContain("PRIVATE");
+    }
+    providerFailure = cleanupFailure = false;
+    const response = await submissions.POST(request("/api/coding/submissions", { courseId: "course", surface, submission: { ...submission, requestId: "recovered" } }));
+    expect((await response.json()).feedback.verdict).toBe("correct");
   });
   it("scopes draft revisions to the learner and rejects stale writes", async () => {
     const body = { courseId: "course", draftKey: "playground", code: "print(1)", stdin: "", revision: 0 };

@@ -38,7 +38,11 @@ export async function POST(request: Request) {
       try {
         if (surface.kind === "live_quiz") await reserveLiveCodingExecution(surface, actor.userId, input.requestId);
         runtime = await createTrustedPythonRuntime();
-        return await evaluateCodingSubmission(problem, input, runtime, AbortSignal.timeout(45_000));
+        const evaluation = await evaluateCodingSubmission(problem, input, runtime, AbortSignal.timeout(45_000));
+        // A leaked provider session is an infrastructure failure, never a graded success.
+        await runtime.close();
+        runtime = undefined;
+        return evaluation;
       } catch {
         return { problem: input.problem, authority: "trusted_server", verdict: "ungradable", cases: [] };
       } finally { await runtime?.close().catch(() => {}); }
