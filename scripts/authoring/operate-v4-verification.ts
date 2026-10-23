@@ -29,16 +29,17 @@ async function inspectRunTrace(planHash: string, attemptId: string) {
     for (const secret of [signingKey, apiKey, process.env.BETTER_AUTH_SECRET, process.env.TURSO_AUTH_TOKEN, process.env.R2_SECRET_ACCESS_KEY]) if (secret) result = result.replaceAll(secret, "[redacted]");
     return result.replace(/https?:\/\/[^\s"<>]+/g, "[url]").replace(/[a-f0-9]{32,}/gi, "[hash]").replace(/[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}/gi, "[id]").slice(0, 1500);
   };
-  const errors = (output: unknown): string[] => {
+  const errors = (output: unknown, depth = 0): string[] => {
+    if (depth > 8) return [];
     if (typeof output === "string") {
-      try { return errors(JSON.parse(output)); } catch { return /error|fail|timeout|timed out|limit/i.test(output) ? [sanitize(output)] : []; }
+      try { return errors(JSON.parse(output), depth + 1); } catch { return /error|fail|timeout|timed out|limit/i.test(output) ? [sanitize(output)] : []; }
     }
     if (!output || typeof output !== "object") return [];
-    return Object.entries(output).flatMap(([key, value]) => key === "message" && typeof value === "string" ? [sanitize(value)] : ["error", "message", "cause", "name"].includes(key) ? errors(value) : []);
+    return Object.entries(output).flatMap(([key, value]) => /authorization|headers|token|secret/i.test(key) ? [] : key === "message" && typeof value === "string" ? [sanitize(value)] : errors(value, depth + 1));
   };
   interface Span { name?: string; status?: string; durationMs?: number; output?: unknown; children?: Span[] }
   const walk = (span: Span) => {
-    console.log(JSON.stringify({ step: sanitize(span.name ?? ""), status: span.status, durationMs: span.durationMs, errors: errors(span.output) }));
+    console.log(JSON.stringify({ step: sanitize(span.name ?? ""), status: span.status, durationMs: span.durationMs, errors: span.status === "FAILED" ? errors(span.output).slice(0, 5) : [], outputFields: span.status === "FAILED" && span.output && typeof span.output === "object" ? Object.keys(span.output) : undefined }));
     for (const child of span.children ?? []) walk(child);
   };
   if (trace?.data?.rootSpan) walk(trace.data.rootSpan);
