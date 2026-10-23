@@ -23,7 +23,9 @@ async function inspectRunTrace(planHash: string, attemptId: string) {
   const run = runs?.data?.[0];
   if (!run?.run_id) return;
   console.log(JSON.stringify({ inngestStatus: run.status }));
-  const trace = await get(`/v2/runs/${encodeURIComponent(run.run_id)}/trace?include=output`, apiKey);
+  const queued = await get(`/v1/runs/${encodeURIComponent(run.run_id)}/jobs`, signingKey);
+  for (const job of queued?.data ?? []) console.log(JSON.stringify({ retryScheduledAt: job.at, queuePosition: job.position, retryAttempt: job.attempt }));
+  const trace = await get(`/v2/runs/${encodeURIComponent(run.run_id)}/trace?include=output&includeOutput=true`, apiKey);
   const sanitize = (value: string) => {
     let result = value;
     for (const secret of [signingKey, apiKey, process.env.BETTER_AUTH_SECRET, process.env.TURSO_AUTH_TOKEN, process.env.R2_SECRET_ACCESS_KEY]) if (secret) result = result.replaceAll(secret, "[redacted]");
