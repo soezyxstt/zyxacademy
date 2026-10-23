@@ -84,7 +84,7 @@ jobs:
           V4_FIXTURE_MODE: export
           ZYX_ENVIRONMENT: production
           NEXT_PUBLIC_APP_URL: https://www.zyxacademy.com
-          TURSO_DATABASE_URL: ${{ secrets.TURSO_DATABASE_URL || secrets.TURSO_CONNECTION_URL || secrets.DATABASE_URL }}
+          TURSO_DATABASE_URL: ${{ secrets.TURSO_CONNECTION_URL || secrets.DATABASE_URL || secrets.TURSO_DATABASE_URL }}
           TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}
           R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
           R2_BUCKET: ${{ secrets.R2_BUCKET || secrets.CF_R2_BUCKET }}
@@ -126,7 +126,7 @@ jobs:
           ALLOW_STAGING_MUTATION: "1"
           BETTER_AUTH_URL: https://staging.zyxacademy.com
           NEXT_PUBLIC_APP_URL: https://staging.zyxacademy.com
-          TURSO_DATABASE_URL: ${{ secrets.TURSO_DATABASE_URL || secrets.TURSO_CONNECTION_URL || secrets.DATABASE_URL }}
+          TURSO_DATABASE_URL: ${{ secrets.TURSO_CONNECTION_URL || secrets.DATABASE_URL || secrets.TURSO_DATABASE_URL }}
           TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}
           BETTER_AUTH_SECRET: ${{ secrets.BETTER_AUTH_SECRET }}
           INNGEST_EVENT_KEY: ${{ secrets.INNGEST_EVENT_KEY }}
