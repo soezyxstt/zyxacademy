@@ -35,6 +35,29 @@ jobs:
           bun-version: '1.2.21'
       - run: bun install --frozen-lockfile --ignore-scripts
       - run: bun scripts/authoring/prepare-web-verification.ts
+      - uses: denoland/setup-deno@v2
+        if: inputs.action == 'inspect' && inputs.environment == 'staging'
+        with:
+          deno-version: v2.x
+      - name: Inspect staging worker variable contexts without values
+        if: inputs.action == 'inspect' && inputs.environment == 'staging'
+        env:
+          DENO_DEPLOY_TOKEN: ${{ secrets.DENO_DEPLOY_TOKEN }}
+        run: |
+          set -euo pipefail
+          umask 077
+          trap 'rm -f .v4-worker-env.json' EXIT
+          deno run -A jsr:@deno/deploy@0.0.9904 env list --json --org soezyxst --app zyx-background-staging --non-interactive > .v4-worker-env.json
+          python - <<'PYTHON'
+          import json
+          data = json.load(open('.v4-worker-env.json'))
+          if isinstance(data, dict):
+              data = data.get('data', data.get('result', data))
+          if not isinstance(data, list):
+              raise SystemExit('VERIFICATION_WORKER_ENV_METADATA_INVALID')
+          keys = {'BETTER_AUTH_SECRET', 'STEEL_API_KEY', 'AUTHORING_VERIFICATION_BROWSER_PROVIDER', 'AUTHORING_VERIFICATION_STEEL_BROWSER_VERSION', 'INNGEST_SIGNING_KEY', 'NEXT_PUBLIC_APP_URL'}
+          print(json.dumps({'worker': 'zyx-background-staging', 'variables': [{'key': item['key'], 'contexts': item.get('contexts')} for item in data if item.get('key') in keys]}))
+          PYTHON
       - name: Operate exact staged revision
         env:
           NODE_ENV: production
