@@ -8,7 +8,7 @@ The `ACTIVE` architecture guide records request-scoped session and read deduplic
 
 The `ACTIVE` architecture guide records integer PNG dimensions, source checksum metadata, explicit PDF page citations, and visual review markers for damaged extracted text. The source playbook includes polling fallback for stale connector catalogs.
 
-The `ACTIVE` architecture, deployment, development, and feature guides document all four MCP OAuth default scopes, all four consent checkboxes even for narrower client requests, and reauthorization for existing tokens.
+The `ACTIVE` architecture, deployment, development, and feature guides document the four default MCP OAuth scopes, three optional transfer scopes, all seven consent choices, and explicit reauthorization for additional token permissions.
 
 The `ACTIVE` development, architecture, and Product Bundle V3 guides document R2-backed MCP PDF page images, deterministic course/document/checksum folders, citation metadata, the page-read stage-scope requirement, the compute text/PNG cache keyed by document checksum, page, renderer revision, and resolution, plus text/image representation, request timings, per-page Inngest jobs and polling, and resumable signed binary downloads. The `ACTIVE` deployment guide records worker registration and remote Range verification required for this always-on change.
 
@@ -40,6 +40,7 @@ docs/
 ├── features.md                               # Product Feature Catalog and Workflows
 │
 ├── bundle/                                   # Bundle Specifications and Authoring Contracts
+│   ├── authoring-transfer-v1.md              # Direct Peer API and MCP Transfer Contract
 │   ├── authoring-context-pack-v1.md          # Authoring Context Pack V1 Contract
 │   ├── authoring-job-pack-v1.md              # Authoring Job Pack V1 Contract
 │   ├── idea-bundle-v2.md                     # Transitional Idea Bundle V2 Contract
@@ -49,6 +50,7 @@ docs/
 │   └── product-bundle-v4.md                  # Default V4 authoring contract, legacy compatibility and generated JSON Schema delivery
 │
 ├── operations/                               # Operational Runbooks, Checklists, and Allowances
+│   ├── authoring-transfer.md                  # Transfer Peer Setup, Recovery and Rollout Boundaries
 │   ├── authoring-mcp-skills.md                # Pinned MCP Skills Build and Import Acceptance
 │   ├── legacy-vector-contract-allowlist.md   # Allowed Legacy Vector References during Cutover
 │   ├── manual-test-plan-bundles-v2.md       # Human-driven Verification for Bundle Ingestion
@@ -81,16 +83,18 @@ Every document in this repository has one of the following explicit statuses:
 
 | Document | Category | Status | Updated / Date | Purpose and Scope |
 |---|---|---|---|---|
-| [README.md](README.md) | Index | `ACTIVE` | 2026-09-24 | Master documentation index, hierarchy map, course workspace compatibility status, marketing improvement plan, and lifecycle status ledger. |
-| [ARCHITECTURE.md](ARCHITECTURE.md) | Core Architecture | `ACTIVE` | 2026-10-22 | Request-scoped read deduplication, catalogue projections, first-content streaming, V4 authoring default, trusted verification and publication boundaries. |
+| [README.md](README.md) | Index | `ACTIVE` | 2026-10-23 | Master documentation hierarchy and lifecycle status ledger, including the proposed bundle environment transfer plan. |
+| [ARCHITECTURE.md](ARCHITECTURE.md) | Core Architecture | `ACTIVE` | 2026-10-23 | Request-scoped read deduplication, catalogue projections, first-content streaming, V4 authoring default, trusted verification and publication boundaries. Includes the local authoring transfer boundary and separate remote acceptance. |
 | [operations/authoring-mcp-skills.md](operations/authoring-mcp-skills.md) | Operations | `ACTIVE` | 2026-10-23 | Pinned external snapshots, 0.4.1 V4 defaults, browser deadlines and 2-slice checkpoints, early remote cleanup, backoff-aware leases, canonical CDP validation, scoped diagnostics and exact-revision recovery/cancellation, attested renderer and separate installed-host acceptance. |
 | [DATABASE.md](DATABASE.md) | Core Database | `ACTIVE` | Current | Database topology (Turso remote, SQLite local), Drizzle workflows, and driver adapters. |
-| [DB_SCHEMA.md](DB_SCHEMA.md) | Core Database | `ACTIVE` | 2026-09-16 | Comprehensive schema catalog including the singleton public demo marker, tutorial scheduling lifecycle, dated tutor slots, normalized booking resources, historical assessment provenance, question reference links, retryable Idea Bundle cleanup, Product Bundle pedagogic review, and PDF evidence. |
-| [DEPLOYMENT.md](DEPLOYMENT.md) | Core Infrastructure | `ACTIVE` | 2026-10-10 | Vercel, Cloudflare Workers/R2/Vectorize deployment processes, Diktat runtime asset checks, secrets, and environments. |
-| [DEVELOPMENT.md](DEVELOPMENT.md) | Core Development | `ACTIVE` | 2026-10-21 | Local development, environment boundaries, pinned scientific dependencies and attested V4 verification commands. |
+| [DB_SCHEMA.md](DB_SCHEMA.md) | Core Database | `ACTIVE` | 2026-10-23 | Comprehensive schema catalog including the singleton public demo marker, tutorial scheduling lifecycle, dated tutor slots, normalized booking resources, historical assessment provenance, question reference links, retryable Idea Bundle cleanup, Product Bundle pedagogic review, and PDF evidence. Includes the local authoring transfer boundary and separate remote acceptance. |
+| [DEPLOYMENT.md](DEPLOYMENT.md) | Core Infrastructure | `ACTIVE` | 2026-10-23 | Vercel, Cloudflare Workers/R2/Vectorize deployment processes, Diktat runtime asset checks, secrets, and environments. Includes the local authoring transfer boundary and separate remote acceptance. |
+| [DEVELOPMENT.md](DEVELOPMENT.md) | Core Development | `ACTIVE` | 2026-10-23 | Local development, environment boundaries, pinned scientific dependencies and attested V4 verification commands. Includes the local authoring transfer boundary and separate remote acceptance. |
 | [FILE_NAMING_CONVENTIONS.md](FILE_NAMING_CONVENTIONS.md) | Standards | `ACTIVE` | Current | Standard file naming formula, taxonomy, and directory hierarchy for academic assets. |
-| [features.md](features.md) | Product | `ACTIVE` | 2026-10-22 | Student, tutor, admin and public workflows; Idea-linked quizzes, V4 authoring default Article/Diktat authoring, scientific rendering and review gates. |
+| [features.md](features.md) | Product | `ACTIVE` | 2026-10-23 | Student, tutor, admin and public workflows; Idea-linked quizzes, V4 authoring default Article/Diktat authoring, scientific rendering and review gates. Includes the local authoring transfer boundary and separate remote acceptance. |
 | [bundle/authoring-context-pack-v1.md](bundle/authoring-context-pack-v1.md) | Bundle Contract | `ACTIVE` | Current | Specification for authoring context pack export format and security boundaries. |
+| [bundle/authoring-transfer-v1.md](bundle/authoring-transfer-v1.md) | Bundle Contract | `ACTIVE` | 2026-10-23 | Local direct peer API/MCP transfer, opt-in scopes, exact identity/embedded-source boundary, snapshot/checksum integrity, atomic draft checkpoints, bounded key rotation, retention cleanup, recovery, MCP playbook, and explicit unsupported assets. Remote rollout remains unverified. |
+| [operations/authoring-transfer.md](operations/authoring-transfer.md) | Operations | `ACTIVE` | 2026-10-23 | Local key generation, peer/direction setup, separate remote authorization, MCP operation, recovery, cleanup, and remaining identity/figure adapters. |
 | [bundle/authoring-job-pack-v1.md](bundle/authoring-job-pack-v1.md) | Bundle Contract | `ACTIVE` | 2026-10-11 | Specification for authoring job packs, Source Pack provenance, and local or stored-original ingestion and persistence. |
 | [bundle/idea-bundle-v2.md](bundle/idea-bundle-v2.md) | Bundle Contract | `TRANSITIONAL / LEGACY` | Current | Read and rollback submission contract for Idea Bundle V2. |
 | [bundle/idea-bundle-v3.md](bundle/idea-bundle-v3.md) | Bundle Contract | `ACTIVE` | 2026-08-31 | Learning section hierarchy, Idea membership, validation, editing, and MCP transition contract. |
@@ -113,6 +117,7 @@ Implementation plans reside in `plans/` with detailed specifications:
 
 | Plan Track | Path | Status | Summary |
 |---|---|---|---|
+| Bundle environment transfer | [bundle-environment-transfer.md](../plans/bundle-environment-transfer.md) | `OPEN / IN PROGRESS` | Local peer API/MCP, grants, ledger/outbox, checksum/snapshot validation, exact-identity Idea/Product draft transfer and recovery implemented. Identity conversion, source figures/Source Pack asset adapters, complete fault matrix, installed hosts, and remote rollout remain open. |
 | Article and Diktat system design | [article-diktat-authoring-system-design.md](../plans/article-diktat-authoring-system-design.md) | `OPEN / IN PROGRESS` | System design with local implementation status. Full chapter, live executor, staging and host-by-host rollout acceptance remain open. |
 | Authoring MCP distribution and playbooks | [authoring-mcp-distribution-and-playbooks.md](../plans/authoring-mcp-distribution-and-playbooks.md) | `OPEN / IN PROGRESS` | Local review fixes validated by 95 Bun contracts, 11 Python tests, a production build with local fixtures, and 15 traced playbook assets. Repository lint/typecheck still have unrelated errors; Staging and production deployment/runtime smoke are verified; CP5 host verification and strict bootstrap enforcement remain open. |
 | Marketing conversion and portfolio | [marketing-conversion-and-portfolio.md](../plans/marketing-conversion-and-portfolio.md) | `OPEN / IN PROGRESS` | M01 through M03 and M05 through M09 are implemented locally in a separate worktree. M04 and CP5 remain partial because the public study-case URL, external runtime configuration, and clean full validation are still open. |
@@ -167,3 +172,5 @@ To prevent confusion when navigating code or documentation, the active vs legacy
 5. **Accurate Cross-Linking**: Ensure all markdown links use relative paths that correctly resolve from the referencing file.
 
 | Authoring MCP distribution and playbooks | [authoring-mcp-distribution-and-playbooks.md](../plans/authoring-mcp-distribution-and-playbooks.md) | `OPEN / IN PROGRESS` | Local review fixes validated by 95 Bun contracts, 11 Python tests, a production build with local fixtures, and 15 traced playbook assets. Repository lint/typecheck still have unrelated errors; HTTP smoke, CP5 host verification, and CP6 rollout remain open. |
+
+Transfer follow-up on `mcp/bundle-environment-transfer`: 78 local contract/regression tests cover atomic checkpoints, delegated renewal/logout, retained key deadlines, MCP playbook access, and cleanup preserving normal imports. Full identity/source-figure adapters and remote acceptance remain `OPEN / IN PROGRESS`.

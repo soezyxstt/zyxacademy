@@ -1,5 +1,6 @@
 {
   "lockfileVersion": 1,
+  "configVersion": 0,
   "workspaces": {
     "": {
       "name": "zyx-edu",
@@ -34,6 +35,7 @@
         "firebase-admin": "^14.0.0",
         "fuse.js": "^7.4.2",
         "inngest": "^4.6.0",
+        "jose": "6.2.2",
         "jsxgraph": "^1.14.0",
         "katex": "^0.17.0",
         "lucide-react": "^1.20.0",

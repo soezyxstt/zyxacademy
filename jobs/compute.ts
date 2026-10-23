@@ -1,4 +1,5 @@
 export { inngest } from "./client";
+import { authoringTransferWorker, authoringTransferMaintenance, authoringTransferCleanup } from "./authoring-transfer";
 
 export {
   vectorSyncWorker,
@@ -61,6 +62,9 @@ import { productVerificationWorker } from "./product-verification";
  * All background functions for Deno/compute Inngest execution.
  */
 export const computeFunctions = [
+  authoringTransferWorker,
+  authoringTransferMaintenance,
+  authoringTransferCleanup,
   sourceReadPageWorker,
   sourceFigureWorker,
   productVerificationWorker,

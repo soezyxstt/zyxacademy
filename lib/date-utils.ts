@@ -15,7 +15,19 @@
  * - For UTC date strings in DB columns (streaks, recommendations), use `todayUtc()`.
  */
 
-import { addDays, format, subDays, subWeeks, startOfDay as fnsStartOfDay, startOfWeek as fnsStartOfWeek } from "date-fns";
+import { addDays, addSeconds, format, subDays, subWeeks, startOfDay as fnsStartOfDay, startOfWeek as fnsStartOfWeek } from "date-fns";
+
+/** Absolute millisecond deadline for bounded job leases and delegated authorization. */
+export function deadlineInSeconds(seconds: number, from = new Date()): number {
+  return addSeconds(from, seconds).getTime();
+}
+
+/** Retry-After accepts delta seconds or an HTTP date. Bound it to the job's maximum delegation. */
+export function retryAfterSeconds(value: string | null, now = Date.now()): number {
+  if (!value) return 0;
+  const seconds = /^\d+$/.test(value) ? Number(value) : Math.ceil((Date.parse(value) - now) / 1000);
+  return Number.isFinite(seconds) ? Math.max(0, Math.min(86400, seconds)) : 0;
+}
 
 const CALENDAR_DATE_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;
 const JAKARTA_TIME_ZONE = "Asia/Jakarta";

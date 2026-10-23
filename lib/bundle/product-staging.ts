@@ -30,6 +30,9 @@ import { hasPeran } from "@/lib/auth/authorization";
 import { checkTutorCourseAccess } from "@/lib/auth/tutor-access";
 
 export type ProductStageInput = {
+  createOrReuseExact?: boolean;
+  beforePersist?: (tx: Parameters<Parameters<typeof db.transaction>[0]>[0]) => Promise<void>;
+  afterPersist?: (tx: Parameters<Parameters<typeof db.transaction>[0]>[0], importId: string) => Promise<void>;
   runId: string;
   bundleId: string;
   courseId: string;
@@ -136,6 +139,7 @@ export async function stageProductBundle(input: ProductStageInput) {
     return { importId: same.id, bundleId: same.bundleId, checksum: same.checksum, sourceKey: same.sourceUriOrKey, created: false, replaced: false, status: productBundleLifecycleStatus(same.status), itemCount: items.length };
   }
   const [conflict] = await db.select().from(imporBundle).where(eq(imporBundle.bundleId, input.bundleId)).limit(1);
+  if (input.createOrReuseExact && conflict) throw new Error("IDENTITY_CONFLICT");
   if (conflict && productBundleLifecycleStatus(conflict.status) !== "draft") throw new Error(`PRODUCT_BUNDLE_CONFLICT:${input.bundleId}`);
   let preservedItemReviews: Array<typeof reviewItemBundle.$inferSelect> = [];
   let stalePdfProductIds = new Set<string>();
@@ -170,6 +174,9 @@ export async function stageProductBundle(input: ProductStageInput) {
   ];
   try {
     await db.transaction(async (tx) => {
+      if (input.beforePersist) await input.beforePersist(tx);
+      const [live] = await tx.select().from(imporBundle).where(eq(imporBundle.bundleId, input.bundleId)).limit(1);
+      if ((!conflict && live) || (conflict && (!live || live.id !== conflict.id || live.checksum !== conflict.checksum || live.status !== conflict.status))) throw new Error("PRODUCT_BUNDLE_REVISION_CONFLICT");
       const targetImportId = conflict?.id ?? importId;
       const mutationAt = new Date();
       if (conflict) {
@@ -243,9 +250,11 @@ export async function stageProductBundle(input: ProductStageInput) {
       await tx.insert(itemImporBundle).values(items.map((item) => ({ id: stableId("impor-product-item", `${targetImportId}:${item.entityType}:${item.entityId}:${item.entityVersion}`), imporBundleId: targetImportId, entityType: item.entityType, entityId: item.entityId, entityVersion: item.entityVersion, entityHash: item.entityHash, status: "draft" as const })));
       if (preservedItemReviews.length > 0) await tx.insert(reviewItemBundle).values(preservedItemReviews);
       await tx.insert(auditMutasi).values({ id: stableId("audit-product", `${targetImportId}:draft:${input.checksum}:${mutationAt.getTime()}`), actorId: input.requestedBy, entityType: "product_bundle", entityId: targetImportId, action: conflict ? "draft_replaced" : "draft_created", beforeSnapshot: conflict ? { checksum: conflict.checksum, status: productBundleLifecycleStatus(conflict.status) } : null, afterSnapshot: { status: "draft", bundleId: input.bundleId, checksum: input.checksum, productCount: input.bundle.products.length, dependencyCount: input.bundle.dependencies.length }, correlationId: input.runId, createdAt: mutationAt });
+      if (input.afterPersist) await input.afterPersist(tx, targetImportId);
     });
   } catch (error) {
-    await storage.delete(sourceKey).catch(() => undefined);
+    const [owner] = await db.select({ id: imporBundle.id }).from(imporBundle).where(eq(imporBundle.sourceUriOrKey, sourceKey)).limit(1);
+    if (!owner) await storage.delete(sourceKey).catch(() => undefined);
     throw error;
   }
   if (conflict && conflict.sourceUriOrKey !== sourceKey) await storage.delete(conflict.sourceUriOrKey).catch(() => undefined);

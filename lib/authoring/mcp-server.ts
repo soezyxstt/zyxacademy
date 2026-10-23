@@ -1,3 +1,4 @@
+import { registerTransferTools } from "@/lib/authoring/transfer/mcp";
 import { sourceReadJob } from "@/lib/authoring/source-read-jobs";
 import { sourcePageMetadata } from "@/lib/authoring/source-page-metadata";
 import { readSourceFileMetadata } from "@/lib/authoring/source-file-metadata";
@@ -1315,7 +1316,12 @@ function registerWorkflowTools(server: McpServer, principal: McpPrincipal, trace
     annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
   }, async () => {
     requireMcpScope(principal, "authoring:read");
-    return toolResult({ version: "authoring-mcp.v1", workflows: listAuthoringWorkflows(), sourceReader: {
+    return toolResult({ version: "authoring-mcp.v1", workflows: listAuthoringWorkflows(), transfers: {
+      protocol: "authoring-transfer.v1", capabilitiesTool: "transfer.capabilities", mode: "draft_only",
+      playbookUri: "zyx://authoring/transfer/v1",
+      optInScopes: ["authoring:transfer:source", "authoring:transfer:read", "authoring:transfer:execute"],
+      instructions: "Use separately authorized source and destination connections. Create a scoped source grant, inspect transfer.plan at the destination, then execute and poll. Never echo grants or move artifact bytes through chat. No automatic publication or overwrite.",
+    }, sourceReader: {
       version: "pdf-reader.v2", representations: ["text", "image", "both"], imageWidth: { min: 320, max: 2048, default: 1280 },
       jobTool: "source.get_read_job", pollingFallback: "Repeat source.read_file with the same arguments if the host tool catalog is stale.",
     } });
@@ -4221,6 +4227,7 @@ export function createAuthoringMcpServer(principal: McpPrincipal, requestId?: st
     },
   );
   registerWorkflowTools(server, principal, requestId);
+  registerTransferTools(server, principal);
   registerProductV4Tools(server, principal);
   registerAuthoringSkills(server, skillsProfile, undefined, resolveAuthoringMcpEnvironment());
   registerValidationTools(server, principal);

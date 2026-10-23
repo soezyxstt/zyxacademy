@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import {
-  MCP_AUTHORING_SCOPES,
   MCP_CONNECTION_TOKEN_TTL_SECONDS,
   issueMcpConnectionToken,
 } from "@/lib/authoring/mcp-workflows";
 import { resolveMcpAdmin } from "@/lib/authoring/mcp-auth";
+import { connectionScopes } from "@/lib/authoring/mcp-oauth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -15,10 +15,14 @@ async function createConnection(request: NextRequest): Promise<NextResponse> {
   if (!session?.user) return NextResponse.json({ error: "AUTHORING_MCP_LOGIN_REQUIRED" }, { status: 401 });
 
   try {
+    const body = await request.text();
+    let scopes: string[];
+    try { scopes = connectionScopes(body); }
+    catch { return NextResponse.json({ error: "invalid_scope" }, { status: 400 }); }
     const principal = await resolveMcpAdmin({
       userId: session.user.id,
       sessionId: session.session.id,
-      scopes: [...MCP_AUTHORING_SCOPES],
+      scopes,
       authMethod: "session",
     });
     const resource = `${request.nextUrl.origin}/api/mcp/authoring`;

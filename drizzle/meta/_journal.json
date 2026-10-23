@@ -687,6 +687,20 @@
       "when": 1791991177294,
       "tag": "0097_mushy_bushwacker",
       "breakpoints": true
+    },
+    {
+      "idx": 98,
+      "version": "6",
+      "when": 1792751782970,
+      "tag": "0098_fluffy_azazel",
+      "breakpoints": true
+    },
+    {
+      "idx": 99,
+      "version": "6",
+      "when": 1792752263294,
+      "tag": "0099_white_snowbird",
+      "breakpoints": true
     }
   ]
 }

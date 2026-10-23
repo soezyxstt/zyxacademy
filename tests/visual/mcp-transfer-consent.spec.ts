@@ -1,0 +1,31 @@
+import { expect, test } from "@playwright/test";
+
+test("transfer consent keeps new scopes optional, readable and keyboard accessible", async ({ page }, testInfo) => {
+  const failures: string[] = [];
+  page.on("pageerror", e => failures.push(e.message));
+  page.on("console", message => { if (message.type() === "error") failures.push(message.text()); });
+  page.on("response", response => { if (response.status() >= 400) failures.push(`${response.status()} ${response.url()}`); });
+  const response = await page.goto("/visual-fixtures/mcp-transfer-consent");
+  expect(response?.status()).toBe(200);
+  expect(new URL(page.url()).pathname).toBe("/visual-fixtures/mcp-transfer-consent");
+  const scopes = ["Izinkan penyalinan materi", "Periksa transfer materi", "Jalankan transfer materi"];
+  for (const label of scopes) await expect(page.getByRole("checkbox", { name: label, exact: true })).not.toBeChecked();
+  await expect(page.getByText("4 dari 7 izin")).toBeVisible();
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.evaluate(async () => { await document.fonts.ready; });
+  await page.addStyleTag({ content: "nextjs-portal { display: none !important; }" });
+  await page.screenshot({ path: testInfo.outputPath("screenshots/transfer-consent-default.png"), fullPage: true, animations: "disabled" });
+  for (const label of scopes) await page.getByRole("checkbox", { name: label, exact: true }).check();
+  await expect(page.getByText("7 dari 7 izin")).toBeVisible();
+  const execute = page.getByRole("checkbox", { name: "Jalankan transfer materi", exact: true });
+  await execute.focus(); await page.keyboard.press("Space");
+  await expect(execute).not.toBeChecked(); await expect(execute).toBeFocused();
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await page.screenshot({ path: testInfo.outputPath("screenshots/transfer-consent-selected.png"), fullPage: true, animations: "disabled" });
+  for (const checkbox of await page.getByRole("checkbox").all()) await checkbox.uncheck();
+  await expect(page.getByText("0 dari 7 izin")).toBeVisible();
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await page.screenshot({ path: testInfo.outputPath("screenshots/transfer-consent-empty.png"), fullPage: true, animations: "disabled" });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+  expect(failures).toEqual([]);
+});

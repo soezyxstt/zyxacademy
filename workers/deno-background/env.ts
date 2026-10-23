@@ -11,6 +11,8 @@ const optionalUrl = z.preprocess(
 );
 
 export const WorkerEnvSchema = z.object({
+  AUTHORING_TRANSFER_IDENTITY: optionalString,
+  AUTHORING_TRANSFER_PEERS: optionalString,
   // Database
   DATABASE_URL: optionalString,
   TURSO_CONNECTION_URL: optionalString,

@@ -2793,6 +2793,61 @@ export const imporBundle = sqliteTable(
  ],
 );
 
+/** Direct authoring transfers. Payloads never contain plaintext peer grants or credentials. */
+export const authoringTransfer = sqliteTable("authoring_transfer", {
+  id: text("id").primaryKey(),
+  actorId: text("actor_id").notNull().references(() => pengguna.id, { onDelete: "restrict" }),
+  sessionId: text("session_id").notNull(),
+  sourcePeerId: text("source_peer_id").notNull(),
+  idempotencyKey: text("idempotency_key").notNull(),
+  requestHash: text("request_hash").notNull(),
+  planHash: text("plan_hash").notNull(),
+  plan: text("plan", { mode: "json" }).$type<Record<string, unknown>>().notNull(),
+  sealedGrant: text("sealed_grant").notNull(),
+  state: text("state").notNull().default("queued"),
+  stateVersion: integer("state_version").notNull().default(0),
+  leaseUntil: integer("lease_until").notNull().default(0),
+  attempts: integer("attempts").notNull().default(0),
+  nextAttemptAt: integer("next_attempt_at").notNull().default(0),
+  expiresAt: integer("expires_at").notNull(),
+  reasonCode: text("reason_code"),
+  receipt: text("receipt", { mode: "json" }).$type<Record<string, unknown>>(),
+  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).defaultNow().$onUpdate(() => new Date()).notNull(),
+}, table => [uniqueIndex("authoring_transfer_request_idx").on(table.actorId, table.idempotencyKey), index("authoring_transfer_state_idx").on(table.state, table.nextAttemptAt)]);
+
+export const authoringTransferItem = sqliteTable("authoring_transfer_item", {
+  transferId: text("transfer_id").notNull().references(() => authoringTransfer.id, { onDelete: "cascade" }),
+  artifactId: text("artifact_id").notNull(),
+  descriptor: text("descriptor", { mode: "json" }).$type<Record<string, unknown>>().notNull(),
+  quarantineKey: text("quarantine_key").notNull(),
+  state: text("state").notNull().default("pending"),
+  targetImportId: text("target_import_id"),
+  owned: integer("owned", { mode: "boolean" }).notNull().default(false),
+}, table => [primaryKey({ columns: [table.transferId, table.artifactId] })]);
+
+export const authoringTransferGrant = sqliteTable("authoring_transfer_grant", {
+  id: text("id").primaryKey(),
+  actorId: text("actor_id").notNull().references(() => pengguna.id, { onDelete: "restrict" }),
+  sessionId: text("session_id").notNull(),
+  targetPeerId: text("target_peer_id").notNull(),
+  inventory: text("inventory", { mode: "json" }).$type<Record<string, unknown>>().notNull(),
+  claimUntil: integer("claim_until").notNull(),
+  expiresAt: integer("expires_at").notNull(),
+  revoked: integer("revoked", { mode: "boolean" }).notNull().default(false),
+  claimedTransferId: text("claimed_transfer_id"),
+  snapshotReady: integer("snapshot_ready", { mode: "boolean" }).notNull().default(false),
+  artifactsCleaned: integer("artifacts_cleaned", { mode: "boolean" }).notNull().default(false),
+  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+}, table => [index("authoring_transfer_grant_expiry_idx").on(table.expiresAt)]);
+
+export const authoringTransferOutbox = sqliteTable("authoring_transfer_outbox", {
+  id: text("id").primaryKey(),
+  transferId: text("transfer_id").notNull().references(() => authoringTransfer.id, { onDelete: "cascade" }),
+  delivered: integer("delivered", { mode: "boolean" }).notNull().default(false),
+  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+}, table => [index("authoring_transfer_outbox_pending_idx").on(table.delivered)]);
+
 export const itemImporBundle = sqliteTable(
  "item_impor_bundle",
  {

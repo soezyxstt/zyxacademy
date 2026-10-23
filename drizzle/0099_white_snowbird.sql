@@ -1,0 +1,1 @@
+ALTER TABLE `authoring_transfer_grant` ADD `artifacts_cleaned` integer DEFAULT false NOT NULL;

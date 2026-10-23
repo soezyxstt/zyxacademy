@@ -8,6 +8,8 @@ export const env = createEnv({
     Boolean(process.env.SKIP_ENV_VALIDATION) ||
     process.env.npm_lifecycle_event === 'lint',
  server: {
+ AUTHORING_TRANSFER_IDENTITY: z.string().optional(),
+ AUTHORING_TRANSFER_PEERS: z.string().optional(),
  DATABASE_URL: z.string().min(1),
  TURSO_CONNECTION_URL: z.string().optional(),
  TURSO_AUTH_TOKEN: z.string().optional(),
@@ -189,6 +191,8 @@ export const env = createEnv({
   INNGEST_EVENT_KEY: process.env.INNGEST_EVENT_KEY,
   INNGEST_SIGNING_KEY: process.env.INNGEST_SIGNING_KEY,
   // R2
+  AUTHORING_TRANSFER_IDENTITY: process.env.AUTHORING_TRANSFER_IDENTITY,
+  AUTHORING_TRANSFER_PEERS: process.env.AUTHORING_TRANSFER_PEERS,
   R2_ENDPOINT: process.env.R2_ENDPOINT,
   R2_BUCKET: process.env.R2_BUCKET,
   R2_PUBLIC_URL: process.env.R2_PUBLIC_URL,

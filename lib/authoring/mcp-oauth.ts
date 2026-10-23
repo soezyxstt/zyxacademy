@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { z } from "zod";
 import { and, eq, gt } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { verification } from "@/db/schema";
@@ -14,6 +15,15 @@ import {
 export const MCP_OAUTH_SCOPES = MCP_AUTHORING_SCOPES;
 export const MCP_OAUTH_RESOURCE_PATH = "/api/mcp/authoring";
 export const MCP_OAUTH_CODE_TTL_MS = 5 * 60 * 1000;
+
+/** Connection tokens retain legacy defaults; transfer authority requires an explicit selection. */
+export function connectionScopes(body: string): string[] {
+  if (body.length > 8192) throw new Error("invalid_scope");
+  if (!body.trim()) return [...MCP_AUTHORING_DEFAULT_SCOPES];
+  try {
+    return [...new Set(z.object({ scopes: z.array(z.enum(MCP_AUTHORING_SCOPES)).min(1).max(MCP_AUTHORING_SCOPES.length) }).strict().parse(JSON.parse(body)).scopes)];
+  } catch { throw new Error("invalid_scope"); }
+}
 
 export type McpAuthorizationCode = {
   clientId: string;

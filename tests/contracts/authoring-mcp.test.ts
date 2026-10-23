@@ -21,7 +21,7 @@ import {
   type CatalogIdeaRecord,
 } from "@/lib/authoring/question-catalog";
 import { reviewQuestionBankDraft } from "@/lib/authoring/question-draft-review";
-import { MCP_OAUTH_SCOPES, approvedScopes, requestedScopes } from "@/lib/authoring/mcp-oauth";
+import { MCP_OAUTH_SCOPES, approvedScopes, connectionScopes, requestedScopes } from "@/lib/authoring/mcp-oauth";
 import { GET as mcpGet, DELETE as mcpDelete } from "@/app/api/mcp/authoring/route";
 
 const testPrincipal = {
@@ -109,6 +109,9 @@ describe("provider-neutral authoring MCP workflow registry", () => {
       "authoring:stage",
       "authoring:review",
       "authoring:withdraw",
+      "authoring:transfer:source",
+      "authoring:transfer:read",
+      "authoring:transfer:execute",
     ]);
     expect(requestedScopes("authoring:read authoring:review authoring:withdraw")).toEqual([
       "authoring:read",
@@ -122,11 +125,18 @@ describe("provider-neutral authoring MCP workflow registry", () => {
     expect(approvedScopes(null, ["authoring:read", "authoring:withdraw"])).toEqual(["authoring:read", "authoring:withdraw"]);
     expect(approvedScopes(null, ["authoring:read", "authoring:read"])).toEqual(["authoring:read"]);
     expect(() => approvedScopes(null, [])).toThrow("invalid_scope");
-    expect(approvedScopes("authoring:read authoring:stage authoring:review", ["authoring:read", "authoring:stage", "authoring:review", "authoring:withdraw"])).toEqual([...MCP_OAUTH_SCOPES]);
+    expect(approvedScopes("authoring:read authoring:stage authoring:review", ["authoring:read", "authoring:stage", "authoring:review", "authoring:withdraw"])).toEqual([...MCP_AUTHORING_DEFAULT_SCOPES]);
+    expect(approvedScopes("authoring:read", ["authoring:read", "authoring:transfer:execute"])).toEqual(["authoring:read", "authoring:transfer:execute"]);
     expect(approvedScopes("authoring:read", ["authoring:withdraw"])).toEqual(["authoring:withdraw"]);
     expect(() => approvedScopes("authoring:publish", ["authoring:read"])).toThrow("invalid_scope");
     expect(() => approvedScopes(null, ["authoring:publish"])).toThrow("invalid_scope");
     expect(() => approvedScopes(null, [new File(["authoring:read"], "scope.txt")])).toThrow("invalid_scope");
+  });
+
+  it("requires explicit transfer scopes when creating a connection token", () => {
+    expect(connectionScopes("")).toEqual([...MCP_AUTHORING_DEFAULT_SCOPES]);
+    expect(connectionScopes('{"scopes":["authoring:transfer:execute"]}')).toEqual(["authoring:transfer:execute"]);
+    for (const body of ['{"scopes":[]}', '{"scopes":["unknown"]}', '{"scopes":["authoring:read"],"force":true}', "invalid"]) expect(() => connectionScopes(body)).toThrow("invalid_scope");
   });
 
   it("preserves a reduced consent scope in the issued token", () => {

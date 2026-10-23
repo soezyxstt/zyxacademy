@@ -119,7 +119,7 @@ async function resolveChapter(tx: Tx, chapterId: string | undefined, courseTarge
   return row.id;
 }
 
-async function verifyTraceability(tx: Tx, products: readonly ProductEntity[]): Promise<void> {
+export async function verifyTraceability(tx: Tx, products: readonly ProductEntity[]): Promise<void> {
   const ideaIds = [...new Set(products.flatMap((product) => product.ideaLinks.map((link) => link.id)))];
   const sourceRefs = products.flatMap((product) => product.sourceRefs);
   const sourceIds = [...new Set(sourceRefs.map((source) => source.sourceId))];
@@ -151,7 +151,7 @@ async function verifyTraceability(tx: Tx, products: readonly ProductEntity[]): P
   }
 }
 
-async function verifyDependencies(tx: Tx, dependencies: readonly ProductDependency[], products: readonly ProductEntity[]): Promise<void> {
+export async function verifyDependencies(tx: Tx, dependencies: readonly ProductDependency[], products: readonly ProductEntity[]): Promise<void> {
   for (const dependency of dependencies) {
     if (dependency.freshness !== "UP_TO_DATE") throw new Error(`PRODUCT_BUNDLE_DEPENDENCY_NEEDS_REVIEW:${dependency.id}`);
   }

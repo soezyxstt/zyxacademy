@@ -29,6 +29,18 @@ interface ScopeInfo {
 }
 
 const SCOPE_DETAILS: Record<string, ScopeInfo> = {
+  "authoring:transfer:source": {
+    key: "authoring:transfer:source", title: "Izinkan penyalinan materi",
+    description: "Memberi dan mencabut izin transfer bundle tertentu ke environment lain.", icon: ArrowRightLeft,
+  },
+  "authoring:transfer:read": {
+    key: "authoring:transfer:read", title: "Periksa transfer materi",
+    description: "Memeriksa kompatibilitas, konflik, dan progres transfer antar-environment.", icon: BookOpen,
+  },
+  "authoring:transfer:execute": {
+    key: "authoring:transfer:execute", title: "Jalankan transfer materi",
+    description: "Menyalin bundle sebagai draf, melanjutkan, dan membatalkan transfer.", icon: UploadCloud,
+  },
   "authoring:read": {
     key: "authoring:read",
     title: "Baca silabus dan katalog ide",
@@ -324,10 +336,10 @@ export function McpAuthorizeView({
           </div>
 
           {/* Host & Target metadata */}
-          <div className="flex items-center justify-between rounded-lg bg-muted/40 px-3 py-2 text-body-xs text-muted-foreground">
-            <div className="flex items-center gap-1.5 truncate">
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-muted/40 px-3 py-2 text-body-xs text-muted-foreground">
+            <div className="flex min-w-0 items-center gap-1.5">
               <Globe className="size-3.5 shrink-0" />
-              <span className="truncate">Tujuan: <span className="font-mono text-foreground">{redirectHostname}</span></span>
+              <span>Tujuan: <span className="break-all font-mono text-foreground">{redirectHostname}</span></span>
             </div>
             <span className="shrink-0 text-body-2xs font-medium">Sesi 30 hari</span>
           </div>

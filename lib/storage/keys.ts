@@ -170,6 +170,11 @@ export function buildQuestionAssetKey(input: {
 }
 
 
+export function buildTransferArtifactKey(ownerId: string, artifactHash: string): string {
+  if (!/^[a-zA-Z0-9_-]{1,160}$/.test(ownerId) || !/^[a-f0-9]{64}$/.test(artifactHash)) throw new Error("INVALID_OBJECT_KEY");
+  return `overhaul/transfers/${ownerId}/${artifactHash}.zip`;
+}
+
 export function buildIdeaBundleKey(input: {
   runId: string;
   bundleId: string;

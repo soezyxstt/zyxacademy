@@ -1,5 +1,7 @@
 # Zyx Database Schema Reference
 
+The additive authoring transfer ledger is implemented locally in `db/schema.ts`: `authoring_transfer` stores actor/session, signed-plan hashes, encrypted handoff, state/version/lease, retry/deadline, and receipt; `authoring_transfer_item` tracks unique transfer/artifact descriptors, owned quarantine, and local import checkpoints; `authoring_transfer_grant` binds source actor/session, peer, inventory, claim/expiry/revocation, snapshot and cleanup state; `authoring_transfer_outbox` records durable dispatch IDs. Actor references restrict deletion; item/outbox rows cascade with their transfer. Generated migrations `0098` and `0099` are additive. See [the transfer contract](bundle/authoring-transfer-v1.md); remote migration status is unverified.
+
 This document provides a detailed reference of the SQLite/Turso database schema defined in [db/schema.ts](../db/schema.ts). 
 
 ---

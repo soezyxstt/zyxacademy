@@ -19,7 +19,7 @@ import { parseIdeaBundle, type ValidatedIdeaBundle } from "@/lib/bundle/idea-bun
 import { readSecureZip } from "@/lib/bundle/zip-reader";
 import { isBundleIdentitySentinelOrPlaceholder } from "@/lib/bundle/attribution";
 import { hasPeran } from "@/lib/auth/authorization";
-import { hasAdminAuthorization } from "@/lib/auth/admin-guards";
+import { hasAdminAuthorization } from "@/lib/auth/role-authorization";
 import { checkTutorCourseAccess } from "@/lib/auth/tutor-access";
 
 export type IdeaBundleStageItem = {
@@ -44,6 +44,8 @@ export type IdeaBundleValidationReport = {
 };
 
 export type IdeaBundleStageInput = {
+  beforePersist?: (tx: Parameters<Parameters<typeof db.transaction>[0]>[0]) => Promise<void>;
+  afterPersist?: (tx: Parameters<Parameters<typeof db.transaction>[0]>[0], importId: string) => Promise<void>;
   runId: string;
   bundleId: string;
   courseId: string;
@@ -223,6 +225,11 @@ export async function stageIdeaBundle(input: IdeaBundleStageInput): Promise<Idea
     };
 
     await db.transaction(async (tx) => {
+      if (input.beforePersist) await input.beforePersist(tx);
+      if (!input.replaceImportId) {
+        const [live] = await tx.select({ id: imporBundle.id }).from(imporBundle).where(eq(imporBundle.bundleId, input.bundleId)).limit(1);
+        if (live) throw new Error("IDEA_BUNDLE_REVISION_CONFLICT");
+      }
       const mutationAt = new Date();
       if (input.replaceImportId) {
         const [current] = await tx.select({ status: imporBundle.status }).from(imporBundle).where(eq(imporBundle.id, importId)).limit(1);
@@ -278,9 +285,11 @@ export async function stageIdeaBundle(input: IdeaBundleStageInput): Promise<Idea
         },
         correlationId: input.runId,
       });
+      if (input.afterPersist) await input.afterPersist(tx, importId);
     });
   } catch (error) {
-    await deleteArtifact(sourceKey);
+    const [owner] = await db.select({ id: imporBundle.id }).from(imporBundle).where(eq(imporBundle.sourceUriOrKey, sourceKey)).limit(1);
+    if (!owner) await deleteArtifact(sourceKey);
     throw error;
   }
   if (previousSourceKey && previousSourceKey !== sourceKey) await deleteArtifact(previousSourceKey);
