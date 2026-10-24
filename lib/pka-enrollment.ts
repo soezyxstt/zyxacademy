@@ -8,8 +8,8 @@ import { auth } from "@/lib/auth";
 import { getSemesterEndDate } from "@/lib/utils";
 import { PKA_COURSE_ID } from "@/lib/pka-config";
 import { sendToUser } from "@/lib/notifications/send";
-import { pkaAnnouncementPayload } from "@/lib/notifications/templates";
-import { pkaAnnouncementEmailHtml, scheduleEmailHtml } from "@/lib/pka-email-template";
+import { pkaAnnouncementPayload, pkaSchedulePayload } from "@/lib/notifications/templates";
+import { pkaAnnouncementEmailHtml, pkaAnnouncementEmailSubject, pkaScheduleEmailSubject, scheduleEmailHtml } from "@/lib/pka-email-template";
 import { dualWriteEnrollment } from "@/lib/migrasi/repository-kompatibilitas";
 import { sendOptionalEmail } from "@/lib/email-preferences/send";
 
@@ -86,12 +86,14 @@ export async function ensurePkaEnrollment(userId: string, notify = true): Promis
       sendOptionalEmail({
         userId,
         category: "events_and_schedules",
-        subject: `Sesi Review PKA - ${sched.title}`,
-        html: scheduleEmailHtml(sched.title, sched.sessionAt, sched.meetLink),
+        render: (locale) => ({
+          subject: pkaScheduleEmailSubject(sched.title, locale),
+          html: scheduleEmailHtml(sched.title, sched.sessionAt, sched.meetLink, locale),
+        }),
       }),
       sendToUser(
         userId,
-        pkaAnnouncementPayload(sched.title, "Jadwal sesi tutorial PKA.", `/courses/${PKA_COURSE_ID}/jadwal`),
+        pkaSchedulePayload(sched.title, sched.sessionAt, `/courses/${PKA_COURSE_ID}/jadwal`),
       ),
     );
   }
@@ -101,8 +103,10 @@ export async function ensurePkaEnrollment(userId: string, notify = true): Promis
       sendOptionalEmail({
         userId,
         category: "course_updates",
-        subject: `Pengumuman PKA - ${ann.title}`,
-        html: pkaAnnouncementEmailHtml(ann.title, ann.body),
+        render: (locale) => ({
+          subject: pkaAnnouncementEmailSubject(ann.title, locale),
+          html: pkaAnnouncementEmailHtml(ann.title, ann.body, locale),
+        }),
       }),
       sendToUser(userId, pkaAnnouncementPayload(ann.title, ann.body, `/courses/${PKA_COURSE_ID}`)),
     );

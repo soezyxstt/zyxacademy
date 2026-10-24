@@ -7,6 +7,7 @@ import * as Sentry from "@sentry/nextjs";
 import { Button } from "@/components/ui/button";
 import { PageOrnaments } from "@/components/ui/page-ornaments";
 import { RefreshCw, Home } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 function isChunkLoadError(error: Error): boolean {
   const message = error?.message ?? "";
@@ -26,6 +27,7 @@ export default function ErrorPage({
   retry?: () => void;
 }) {
   const router = useRouter();
+  const t = useTranslations("core");
   const [isPending, startTransition] = useTransition();
   const hasRetriedRef = useRef(false);
 
@@ -66,12 +68,12 @@ export default function ErrorPage({
 
           {/* Heading */}
           <h2 className="font-heading text-h5 font-bold tracking-tight text-foreground -mt-2">
-            Waduh, sistemnya lagi ngambek nih!
+            {t("error.description")}
           </h2>
 
           {/* Subtext */}
           <p className="text-body-base text-muted-foreground leading-relaxed max-w-sm">
-            Ternyata ada sedikit masalah di server kita. Jangan panik, kamu bisa coba muat ulang halamannya atau balik ke dashboard.
+            {t("error.title")}
           </p>
 
           {/* Action Buttons */}
@@ -84,7 +86,7 @@ export default function ErrorPage({
               className="font-semibold gap-1.5"
             >
               <RefreshCw className={isPending ? "size-4 animate-spin" : "size-4"} />
-              Coba Lagi
+              {t("error.retry")}
             </Button>
 
             <Button
@@ -95,7 +97,7 @@ export default function ErrorPage({
             >
               <Link href="/dashboard">
                 <Home className="size-4" />
-                Ke Dashboard
+                {t("error.home")}
               </Link>
             </Button>
           </div>

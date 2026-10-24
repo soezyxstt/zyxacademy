@@ -1,0 +1,930 @@
+{
+  "nav": {
+    "plans": "Paket",
+    "about": "Tentang kami",
+    "testimonials": "Testimoni",
+    "blog": "Blog",
+    "primary": "Navigasi utama",
+    "mainMenu": "Menu utama",
+    "search": "Cari",
+    "searchShortcut": "Cari di situs (pintasan Ctrl+K atau ⌘K)",
+    "closeMenu": "Tutup menu",
+    "openMenu": "Buka menu",
+    "navigationMenu": "Menu navigasi",
+    "navigationDescription": "Menu navigasi utama situs",
+    "home": "Beranda",
+    "homeBrand": "Beranda Zyx Academy",
+    "searchPlaceholder": "Cari di situs…",
+    "mobileMenu": "Menu seluler",
+    "account": "Akun",
+    "dashboardFor": "Dashboard ({name})",
+    "signOut": "Keluar",
+    "profile": "Profil",
+    "learningDashboard": "Dashboard Belajar",
+    "tutorPanel": "Panel Tutor",
+    "adminPanel": "Panel Admin",
+    "signInGoogle": "Masuk dengan Google",
+    "signIn": "Login"
+  },
+  "footer": {
+    "description": "Zyx Academy membantu mahasiswa S1 ITB tahun pertama dan kedua (TPB dan jurusan) menguasai materi dengan modul selaras kampus, latihan terarah, dan tutorial bersama tutor ITB.",
+    "tagline": "Dibuat oleh mahasiswa ITB. Belajar dengan arah yang lebih jelas.",
+    "companyLinks": "Tautan perusahaan",
+    "company": "Perusahaan",
+    "plans": "Paket layanan",
+    "legalLinks": "Tautan legal",
+    "legal": "Legal",
+    "privacy": "Kebijakan privasi",
+    "terms": "Syarat dan ketentuan",
+    "instagram": "Zyx Academy di Instagram",
+    "tiktok": "Zyx Academy di TikTok",
+    "copyright": "© {year} Zyx Academy. Hak cipta dilindungi undang-undang."
+  },
+  "meta": {
+    "home": {
+      "title": "Zyx Academy",
+      "description": "Tutorial dan pembelajaran untuk mahasiswa ITB tahun pertama dan kedua, dengan materi, kuis, dan pendampingan yang terstruktur."
+    },
+    "about": {
+      "title": "Tentang kami",
+      "description": "Kami membangun pengalaman belajar yang tenang dan terukur dari TPB hingga jurusan."
+    },
+    "plans": {
+      "title": "Pilihan paket",
+      "description": "Paket tutorial Zyx Academy, kombinasi kursus, jadwal pertemuan, dan akses materi akademik."
+    },
+    "testimonial": {
+      "title": "Testimoni",
+      "description": "Cerita dari siswa Zyx Academy tentang proses belajar yang mereka jalani."
+    },
+    "blog": {
+      "title": "Blog",
+      "description": "Artikel terbaru seputar tips kuliah, pojok kampus, fakta seru, dan kegiatan Zyx Academy."
+    },
+    "privacy": {
+      "title": "Kebijakan privasi",
+      "description": "Pelajari cara Zyx Academy mengumpulkan, menggunakan, menyimpan, dan melindungi data pribadi pengguna."
+    },
+    "terms": {
+      "title": "Syarat dan ketentuan",
+      "description": "Ketentuan penggunaan situs, materi, akun, dan layanan pembelajaran Zyx Academy."
+    },
+    "demo": {
+      "title": "Demo belajar",
+      "description": "Jelajahi alur belajar Zyx Academy sebelum membuat akun."
+    },
+    "v4Preview": {
+      "title": "Pratinjau artikel V4",
+      "description": "Pratinjau format artikel V4 dan konten kelas yang telah dipublikasikan."
+    }
+  },
+  "home": {
+    "coursesTitle": "Selaras silabus ITB.",
+    "coursesDescription": "Kalkulus, Fisika Dasar, Kimia Dasar, sampai mata kuliah jurusan; materi mengikuti urutan kuliahmu, bukan urutan buku teks.",
+    "coursesCta": "Lihat katalog",
+    "pathTitle": "Dua mahasiswa, dua jalur berbeda.",
+    "flashcardsTitle": "Diulang tepat sebelum kamu lupa.",
+    "flashcardsDescription": "Algoritma SM-2 menjadwalkan tiap kartu; yang sulit muncul lebih cepat, yang lancar muncul dengan jeda lebih panjang.",
+    "flashcardsFrameTitle": "Review Harian · Kalkulus IA",
+    "days": {
+      "mon": "Sen",
+      "tue": "Sel",
+      "wed": "Rab",
+      "thu": "Kam",
+      "fri": "Jum",
+      "sat": "Sab",
+      "sun": "Min"
+    },
+    "streakDone": "selesai",
+    "streakPending": "belum selesai",
+    "streakDayStatus": "{day}: {status}",
+    "streakDays": "{count} hari beruntun",
+    "flashcardToday": "muncul lagi hari ini",
+    "flashcardLater": "diulang {days} hari lagi",
+    "flashcardFlipBack": "Kartu terbalik, klik untuk kembali",
+    "flashcardFlip": "Klik untuk membalik kartu",
+    "flashcardCounter": "Kartu {current} / {total}",
+    "flashcardFlipHint": "klik untuk membalik",
+    "flashcardAnswer": "Jawaban",
+    "flashcardGrades": {
+      "again": "Lagi",
+      "hard": "Sulit",
+      "good": "Bagus",
+      "easy": "Mudah"
+    },
+    "quizCorrect": "Benar!",
+    "quizWhyWrong": "Kenapa salah?",
+    "quizMisconception": "Miskonsepsi: lupa mengevaluasi batas integral",
+    "quizReview": "Ulas kembali",
+    "quizTitle": "Salah itu bagian dari rencana.",
+    "quizDescription": "Setiap jawaban salah dijelaskan: di mana keliru, miskonsepsi apa yang terjadi, dan harus mengulang materi yang mana.",
+    "quizChecklistMaterial": "Disusun dari materi kuliah yang dipilih dan konsep yang sedang dilatih.",
+    "quizChecklistExplanation": "Pembahasan langkah demi langkah untuk tiap jawaban salah.",
+    "quizChecklistReview": "Terhubung ke bab materi untuk ulasan cepat.",
+    "weeklyQuizFrameTitle": "Kuis Mingguan · Kalkulus IA",
+    "quizTryAgain": "Coba lagi",
+    "tutorQuestion1": "Kenapa jawabanku salah di soal volume benda putar kemarin?",
+    "tutorAnswer1": "Kamu memakai metode cakram, padahal daerahnya diputar mengelilingi sumbu $y$; di kasus ini metode cangkang lebih tepat: $V = 2\\pi\\int_a^b x\\,f(x)\\,dx$.",
+    "tutorQuestion2": "Bedanya kapan pakai cakram vs cangkang?",
+    "tutorAnswer2": "Irisan tegak lurus sumbu putar menggunakan cakram; irisan sejajar sumbu putar menggunakan cangkang.",
+    "tutorTitle": "Jawaban bertumpu pada materi yang tersedia.",
+    "tutorDescription": "Zyra dapat menjawab berdasarkan materi kuliah yang tersedia dan menyebutkan sumbernya: bab, contoh soal, sampai kuis yang terkait.",
+    "tutorCaveat": "Jika materi yang tersedia belum cukup, batas jawabannya perlu diperiksa kembali.",
+    "tutorFrameTitle": "Zyra",
+    "tutorTyping": "Zyra sedang mengetik",
+    "sourceLabel": "Sumber",
+    "replay": "Putar ulang",
+    "pricingTitle": "Pilih dukungan belajar yang cocok",
+    "pricingDescription": "Mulai dari akses belajar mandiri, lalu tambah tutorial dan konsultasi sesuai kebutuhan kelompokmu.",
+    "path": {
+      "profileA": "Mahasiswa A",
+      "profileB": "Mahasiswa B",
+      "profileLabel": "Pilih profil mahasiswa",
+      "lockedNote": "Kuasai {topic} terlebih dahulu",
+      "status": {
+        "done": "dikuasai",
+        "active": "sedang dipelajari",
+        "open": "terbuka",
+        "locked": "terkunci"
+      }
+    },
+    "loop": {
+      "masteryTitle": "Peta Penguasaan · Kalkulus IA",
+      "trend": {
+        "up": "Tren naik",
+        "flat": "Tren stabil",
+        "down": "Tren turun"
+      },
+      "dailyPlanTitle": "Rencana Hari Ini",
+      "greeting": "Halo, {name}",
+      "tasks": {
+        "flashcards": "12 flashcard jatuh tempo",
+        "quiz": "Kuis: Integral Parsial",
+        "material": "Materi: Volume Benda Putar"
+      },
+      "meta": {
+        "5_minutes": "± 5 mnt",
+        "10_questions": "10 soal",
+        "12_minutes": "12 mnt baca"
+      },
+      "weeklyQuizTitle": "Kuis Mingguan #4",
+      "correctAnswer": "Jawaban benar",
+      "weakConcept": "Soal dipilih dari konsep terlemahmu minggu ini: {concept}.",
+      "pathTitle": "Jalur Belajar · Kalkulus IA",
+      "nodeNotes": {
+        "done": "dikuasai · {score}",
+        "active": "sedang dipelajari · {score}",
+        "locked": "terbuka setelah {topic}"
+      },
+      "unlockDescription": "Skor stabil di atas 70 membuka konsep berikutnya secara otomatis.",
+      "steps": {
+        "diagnosis": {
+          "title": "Diagnosa",
+          "body": "Setiap kuis dan flashcard yang kamu kerjakan memperbarui skor penguasaan per konsep, bukan sekadar nilai akhir."
+        },
+        "plan": {
+          "title": "Rencana harian",
+          "body": "Dashboard merangkum agenda: 12 flashcard, 1 kuis, dan 1 materi, supaya kamu punya titik mulai yang jelas."
+        },
+        "practice": {
+          "title": "Latihan terarah",
+          "body": "Kuis disusun dari materi kuliahmu sendiri, menyesuaikan konsep yang paling lemah, lengkap dengan pembahasan."
+        },
+        "mastery": {
+          "title": "Kuasai, lalu lanjut",
+          "body": "Konsep dianggap dikuasai saat skornya stabil di atas 70. Jalur belajarmu membuka konsep berikutnya secara otomatis."
+        }
+      },
+      "title": "Belajar dari apa yang perlu kamu kuasai."
+    },
+    "heroTitle": "Belajar lebih terarah",
+    "heroEmphasis": "setiap hari.",
+    "heroDescription": "Temukan alur belajar yang membantumu memahami materi, berlatih, dan melihat kemajuanmu.",
+    "startFree": "Mulai gratis",
+    "tryDemo": "Coba demo",
+    "closingTitle": "Mulai belajar dengan langkah yang jelas",
+    "closingDescription": "Bangun kebiasaan belajar yang lebih terarah bersama Zyx Academy.",
+    "viewPlans": "Lihat paket",
+    "proofTitle": "Belajar lebih baik, bersama Zyx",
+    "proofDescription": "Dengarkan pengalaman mahasiswa yang belajar bersama Zyx Academy.",
+    "readStories": "Baca cerita mahasiswa"
+  },
+  "about": {
+    "title": "Tentang Zyx",
+    "intro": "Kami membangun ruang belajar yang membantu mahasiswa ITB memahami materi, berlatih dengan arah, dan mencari bantuan saat dibutuhkan.",
+    "storyTitle": "Belajar lebih terarah, tanpa kehilangan kedalaman.",
+    "storyOne": "Zyx lahir dari pengalaman menghadapi materi TPB yang padat dan kebutuhan akan pendampingan yang lebih terstruktur. Kami ingin mahasiswa dapat melihat hubungan antar konsep, bukan hanya mengumpulkan catatan untuk ujian berikutnya.",
+    "storyTwo": "Karena itu, produk Zyx menghubungkan materi, latihan, pembahasan, dan pilihan tutorial dalam satu alur. Sasaran utamanya adalah mahasiswa ITB tahun pertama dan kedua yang membutuhkan fondasi belajar yang lebih jelas.",
+    "principlesTitle": "Prinsip yang terlihat di produk.",
+    "principlesIntro": "Praktik ini menjadi batas yang bisa diperiksa dari alur belajar Zyx, bukan janji hasil akademik.",
+    "principleAligned": "Materi yang selaras",
+    "principleAlignedDescription": "Konten mengikuti mata kuliah dan bab yang sedang dipelajari mahasiswa.",
+    "principlePractice": "Latihan yang terarah",
+    "principlePracticeDescription": "Kuis, flashcard, dan pembahasan membantu mahasiswa melihat konsep yang perlu diulang.",
+    "principleSupport": "Bantuan saat dibutuhkan",
+    "principleSupportDescription": "Akses belajar mandiri dapat dilengkapi tutorial sesuai paket yang dipilih.",
+    "founderSectionTitle": "Arah akademik dan pengembangan berjalan bersama.",
+    "founderSectionDescription": "Peran pendiri dibedakan berdasarkan tanggung jawabnya. Kontribusi Adi berfokus pada hubungan antara kebutuhan belajar, struktur konten, dan pengalaman web yang dipakai mahasiswa.",
+    "productContribution": "Kontribusi produk:",
+    "founderPortfolio": "Portofolio pendiri",
+    "authoringTools": "Tooling authoring publik",
+    "peopleTitle": "Orang di balik arah akademik dan teknologi.",
+    "peopleDescription": "Setiap anggota membawa tanggung jawab yang berbeda, dari akademik dan konten sampai sistem teknologi dan robotika.",
+    "founderPhoto": "Foto {name}",
+    "founderAdiBio": "Mahasiswa Teknik Mesin ITB angkatan 2022, asisten akademik untuk mata kuliah sains dan teknik, serta pengarah akademik Zyx.",
+    "founderAdiContribution": "Memimpin arah akademik dan ikut membentuk produk web Zyx, termasuk struktur materi, alur belajar, dan tooling authoring yang mendukung konten.",
+    "founderDawamRole": "Co-Founder & Hardware Systems Lead",
+    "founderDawamBio": "Mahasiswa Teknik Elektro dengan fokus pada FPGA, mikrokontroler, desain sistem digital, dan embedded systems.",
+    "founderHeidiRole": "Co-Founder & Robotics Specialist",
+    "founderHeidiBio": "Mahasiswa Teknik Elektro dengan fokus pada robotika, sistem otonom, UAV, ROV, ROS, dan vision-based control.",
+    "founderRaihanRole": "Co-Founder & Fullstack Tech Lead",
+    "founderRaihanBio": "Mahasiswa Teknik Informatika dengan fokus pada blockchain development, smart contracts, dan fullstack web development.",
+    "founderAdiRole": "Co-Founder & Academic Lead"
+  },
+  "privacy": {
+    "pageDescription": "Cara Zyx Academy mengelola dan melindungi data pribadi Anda.",
+    "termsLink": "Syarat dan Ketentuan",
+    "sections": [
+      {
+        "title": "Cakupan kebijakan",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "Kebijakan ini menjelaskan cara Zyx Academy mengelola data pribadi saat Anda menggunakan situs, akun, materi belajar, kuis, tutorial, Zyra, notifikasi, dan fitur lain yang kami sediakan."
+          },
+          {
+            "type": "p",
+            "text": "Dengan menggunakan layanan, Anda memahami bahwa data akan diproses sesuai kebijakan ini dan ketentuan hukum yang berlaku."
+          }
+        ]
+      },
+      {
+        "title": "Data yang kami kumpulkan",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "Kami dapat mengumpulkan kategori data berikut:"
+          },
+          {
+            "type": "list",
+            "items": [
+              "Data akun, seperti nama, alamat email, foto profil, peran, serta informasi autentikasi dan sesi.",
+              "Data akademik, seperti kelas yang diikuti, progres materi, jawaban kuis, hasil asesmen, riwayat flashcard, jadwal, dan aktivitas belajar.",
+              "Konten dan komunikasi, seperti pertanyaan kepada Zyra, pesan terkait tutorial, umpan balik, dan berkas yang Anda unggah melalui fitur yang tersedia.",
+              "Data teknis, seperti informasi perangkat dan peramban, alamat IP, catatan akses, token notifikasi, serta data diagnostik dan analitik penggunaan.",
+              "Data lokal perangkat, seperti preferensi tampilan, catatan belajar, penanda, dan status fitur yang disimpan melalui penyimpanan peramban."
+            ]
+          }
+        ]
+      },
+      {
+        "title": "Cara kami menggunakan data",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "Kami menggunakan data secara wajar dan terbatas untuk:"
+          },
+          {
+            "type": "list",
+            "items": [
+              "menyediakan, mengamankan, dan memelihara layanan;",
+              "mengelola akun, akses kelas, jadwal, dan komunikasi layanan;",
+              "menampilkan progres, rekomendasi belajar, umpan balik, dan fitur pembelajaran yang relevan;",
+              "memproses permintaan yang melibatkan tutor, kecerdasan buatan, atau integrasi layanan lain;",
+              "mencegah penyalahgunaan, menangani gangguan, dan meningkatkan mutu serta keandalan layanan;",
+              "memenuhi kewajiban hukum yang berlaku."
+            ]
+          },
+          {
+            "type": "p",
+            "text": "Dasar pemrosesan dapat berupa persetujuan, pelaksanaan layanan yang Anda minta, kepentingan sah yang seimbang, atau kewajiban hukum, sesuai konteks pemrosesan."
+          }
+        ]
+      },
+      {
+        "title": "Kecerdasan buatan dan penyedia layanan",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "Sebagian fitur menggunakan penyedia layanan untuk autentikasi, hosting, penyimpanan, basis data, analitik, notifikasi, integrasi akademik, dan pemrosesan kecerdasan buatan. Data hanya dibagikan sejauh diperlukan untuk menjalankan fungsi tersebut atau memenuhi kewajiban hukum."
+          },
+          {
+            "type": "p",
+            "text": "Masukan yang Anda kirim ke fitur kecerdasan buatan dapat diproses bersama konteks pembelajaran yang relevan untuk menghasilkan jawaban. Jangan mengirim data pribadi sensitif atau informasi rahasia yang tidak diperlukan untuk kegiatan belajar."
+          },
+          {
+            "type": "p",
+            "text": "Penyedia layanan dapat memproses data di lokasi yang berbeda. Jika terjadi pemrosesan lintas batas, kami akan menerapkan langkah yang diperlukan sesuai hukum yang berlaku."
+          }
+        ]
+      },
+      {
+        "title": "Cookie dan penyimpanan lokal",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "Kami menggunakan cookie dan teknologi serupa untuk menjaga sesi masuk, menyimpan preferensi, mengaktifkan fitur, mengingat pilihan, dan memahami penggunaan layanan. Sebagian data disimpan hanya di perangkat Anda melalui penyimpanan lokal peramban."
+          },
+          {
+            "type": "p",
+            "text": "Anda dapat mengatur cookie melalui peramban. Pemblokiran cookie atau penghapusan penyimpanan lokal dapat membuat sesi berakhir atau menyebabkan sebagian fitur tidak berfungsi sebagaimana mestinya."
+          }
+        ]
+      },
+      {
+        "title": "Penyimpanan dan keamanan",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "Kami menyimpan data selama diperlukan untuk menyediakan layanan, memenuhi kewajiban hukum, menyelesaikan sengketa, dan menjaga keamanan. Masa penyimpanan dapat berbeda berdasarkan jenis data dan tujuan pemrosesan."
+          },
+          {
+            "type": "p",
+            "text": "Kami menerapkan langkah teknis dan organisasi yang wajar untuk melindungi data. Namun, tidak ada sistem elektronik yang sepenuhnya bebas risiko. Segera hubungi kami jika Anda menduga ada akses tidak sah terhadap akun Anda."
+          }
+        ]
+      },
+      {
+        "title": "Hak dan pilihan Anda",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "Sesuai hukum yang berlaku, Anda dapat meminta informasi mengenai pemrosesan data, akses, koreksi, penghapusan, penghentian atau pembatasan pemrosesan, penarikan persetujuan, serta mengajukan keberatan. Hak tertentu dapat memiliki batasan atau memerlukan verifikasi identitas."
+          },
+          {
+            "type": "p",
+            "text": "Preferensi komunikasi tertentu dapat dikelola melalui pengaturan notifikasi akun. Permintaan lain dapat diajukan melalui kontak yang tercantum di bawah."
+          }
+        ]
+      },
+      {
+        "title": "Pengguna di bawah umur",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "Jika menurut hukum Anda memerlukan persetujuan orang tua atau wali untuk menggunakan layanan atau memberikan data pribadi, pastikan persetujuan tersebut telah diperoleh sebelum menggunakan Zyx Academy."
+          }
+        ]
+      },
+      {
+        "title": "Perubahan kebijakan",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "Kami dapat memperbarui kebijakan ini ketika layanan, praktik data, atau ketentuan hukum berubah. Tanggal pembaruan terbaru akan ditampilkan di halaman ini. Untuk perubahan material, kami dapat memberikan pemberitahuan tambahan melalui layanan atau kanal komunikasi yang tersedia."
+          }
+        ]
+      },
+      {
+        "title": "Kontak",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "Untuk pertanyaan atau permintaan terkait privasi, hubungi kami di {email}."
+          },
+          {
+            "type": "link",
+            "before": "Penggunaan layanan juga tunduk pada ",
+            "after": " Zyx Academy.",
+            "href": "/terms"
+          }
+        ]
+      }
+    ]
+  },
+  "terms": {
+    "pageDescription": "Ketentuan yang berlaku saat Anda menggunakan layanan Zyx Academy.",
+    "privacyLink": "Kebijakan Privasi",
+    "sections": [
+      {
+        "title": "Penerimaan ketentuan",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "Syarat dan Ketentuan ini mengatur penggunaan situs, akun, materi belajar, kuis, tutorial, Zyra, dan layanan lain yang disediakan oleh Zyx Academy."
+          },
+          {
+            "type": "privacyLink",
+            "before": "Dengan membuat akun atau menggunakan layanan, Anda menyatakan telah membaca dan menyetujui ketentuan ini serta ",
+            "after": " kami. Jika Anda tidak setuju, jangan menggunakan layanan.",
+            "href": "/privacy"
+          }
+        ]
+      },
+      {
+        "title": "Akun dan kelayakan pengguna",
+        "blocks": [
+          {
+            "type": "list",
+            "items": [
+              "Anda wajib memberikan informasi yang akurat dan menjaga keamanan akun serta sesi masuk.",
+              "Akun, tautan akses, kode, atau token pendaftaran tidak boleh dipindahtangankan tanpa izin.",
+              "Anda bertanggung jawab atas aktivitas yang dilakukan melalui akun Anda, kecuali aktivitas tersebut terjadi akibat kesalahan Zyx Academy.",
+              "Jika menurut hukum Anda memerlukan persetujuan orang tua atau wali, Anda harus memperoleh persetujuan tersebut sebelum menggunakan layanan."
+            ]
+          }
+        ]
+      },
+      {
+        "title": "Penggunaan yang diperbolehkan",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "Layanan hanya boleh digunakan untuk tujuan belajar dan tujuan sah lain yang sesuai dengan fungsi yang tersedia. Anda dilarang:"
+          },
+          {
+            "type": "list",
+            "items": [
+              "mengakses akun, data, kelas, atau sistem tanpa kewenangan;",
+              "mengganggu keamanan, kinerja, atau ketersediaan layanan;",
+              "melakukan scraping, penyalinan massal, rekayasa balik, atau pengujian kerentanan tanpa izin tertulis;",
+              "mengunggah malware, konten melanggar hukum, atau materi yang melanggar hak pihak lain;",
+              "menggunakan layanan untuk menipu, menyamar, melecehkan, atau merugikan pengguna lain."
+            ]
+          }
+        ]
+      },
+      {
+        "title": "Integritas akademik",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "Materi, latihan, kuis, dan fitur bantuan belajar dirancang untuk mendukung proses belajar. Anda tetap bertanggung jawab mematuhi aturan akademik kampus, dosen, kelas, dan penyelenggara asesmen."
+          },
+          {
+            "type": "p",
+            "text": "Anda tidak boleh menggunakan Zyx Academy untuk melakukan kecurangan, membagikan jawaban asesmen aktif, menyamarkan karya orang lain sebagai karya sendiri, atau menghindari ketentuan evaluasi akademik."
+          }
+        ]
+      },
+      {
+        "title": "Fitur kecerdasan buatan",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "Jawaban yang dihasilkan oleh kecerdasan buatan dapat tidak lengkap, tidak akurat, atau tidak sesuai dengan konteks terbaru. Gunakan hasil tersebut sebagai bantuan belajar, periksa kembali sumber dan perhitungan, serta jangan menjadikannya satu-satunya dasar untuk keputusan penting."
+          },
+          {
+            "type": "p",
+            "text": "Anda tidak boleh mencoba melewati pembatasan keamanan, kuota, akses, atau instruksi sistem. Kami dapat membatasi penggunaan untuk menjaga mutu, biaya, keamanan, dan ketersediaan layanan."
+          }
+        ]
+      },
+      {
+        "title": "Konten dan kekayaan intelektual",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "Situs, merek, perangkat lunak, desain, bank soal, diktat, dan materi yang disediakan melalui layanan dilindungi oleh hak kekayaan intelektual Zyx Academy atau pemberi lisensinya. Akses yang diberikan bersifat terbatas, pribadi, tidak eksklusif, dan tidak dapat dialihkan."
+          },
+          {
+            "type": "p",
+            "text": "Anda tetap memiliki hak atas konten yang Anda kirimkan. Anda memberi kami izin terbatas untuk menyimpan, memproses, menampilkan, dan mengirimkan konten tersebut sejauh diperlukan untuk menyediakan dan mengamankan layanan. Anda bertanggung jawab memastikan bahwa Anda berhak mengirimkan konten tersebut."
+          }
+        ]
+      },
+      {
+        "title": "Layanan pihak ketiga",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "Sebagian fungsi bergantung pada layanan pihak ketiga, seperti autentikasi, konferensi video, penyimpanan, notifikasi, analitik, dan pemrosesan kecerdasan buatan. Penggunaan layanan pihak ketiga dapat tunduk pada syarat dan kebijakan privasi mereka sendiri. Kami tidak mengendalikan layanan pihak ketiga tersebut."
+          }
+        ]
+      },
+      {
+        "title": "Paket dan pembayaran",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "Jika Anda memilih layanan berbayar, harga, masa akses, cakupan, dan ketentuan pembayaran yang ditampilkan pada saat pemesanan menjadi bagian dari ketentuan ini. Anda bertanggung jawab memeriksa rincian pesanan sebelum menyetujui pembayaran."
+          },
+          {
+            "type": "p",
+            "text": "Ketentuan pembatalan atau pengembalian dana, jika tersedia, mengikuti informasi yang diberikan untuk paket atau transaksi terkait dan ketentuan hukum yang berlaku."
+          }
+        ]
+      },
+      {
+        "title": "Ketersediaan dan penghentian akses",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "Kami dapat memelihara, mengubah, membatasi, atau menghentikan bagian layanan untuk alasan operasional, keamanan, hukum, atau pengembangan produk. Jika memungkinkan, perubahan material akan diberitahukan melalui kanal yang tersedia."
+          },
+          {
+            "type": "p",
+            "text": "Kami dapat menangguhkan atau menghentikan akses yang melanggar ketentuan ini, membahayakan pengguna lain, atau menimbulkan risiko bagi layanan. Tindakan akan dilakukan secara proporsional sesuai keadaan."
+          }
+        ]
+      },
+      {
+        "title": "Batas tanggung jawab",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "Zyx Academy menyediakan sarana pendukung belajar dan tidak menjamin nilai, kelulusan, penerimaan, atau hasil akademik tertentu. Hasil belajar dipengaruhi oleh banyak faktor di luar kendali layanan."
+          },
+          {
+            "type": "p",
+            "text": "Sejauh diizinkan hukum, layanan disediakan berdasarkan ketersediaan. Ketentuan ini tidak membatasi hak konsumen atau tanggung jawab yang tidak dapat dikecualikan berdasarkan hukum yang berlaku."
+          }
+        ]
+      },
+      {
+        "title": "Perubahan ketentuan",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "Kami dapat memperbarui ketentuan ini agar sesuai dengan perubahan layanan atau hukum. Tanggal pembaruan terbaru akan ditampilkan di halaman ini. Penggunaan layanan setelah ketentuan baru berlaku berarti Anda menerima ketentuan yang diperbarui, sejauh diizinkan hukum."
+          }
+        ]
+      },
+      {
+        "title": "Hukum yang berlaku dan kontak",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "Ketentuan ini diatur oleh hukum Republik Indonesia. Perselisihan akan diupayakan terlebih dahulu melalui komunikasi dan musyawarah, tanpa mengurangi hak para pihak berdasarkan hukum yang berlaku."
+          },
+          {
+            "type": "p",
+            "text": "Untuk pertanyaan mengenai ketentuan ini, hubungi kami di {email}."
+          }
+        ]
+      }
+    ]
+  },
+  "legal": {
+    "localeTag": "id-ID",
+    "updatedAt": "Terakhir diperbarui",
+    "tableOfContents": "Daftar isi {title}",
+    "tableOfContentsHeading": "Daftar isi"
+  },
+  "demo": {
+    "views": {
+      "dashboard": "Ringkasan",
+      "article": "Artikel",
+      "diktat": "Diktat",
+      "flashcards": "Flashcard",
+      "quiz": "Kuis",
+      "zyra": "Zyra"
+    },
+    "authCta": "Masuk untuk lanjut",
+    "chapter": "Bab {number}, {title}",
+    "navLabel": "Navigasi demo",
+    "emptyTitle": "Demo belum tersedia",
+    "emptyDescription": "Coba lagi nanti atau buat akun untuk melihat materi yang tersedia.",
+    "readMore": "Lihat materi",
+    "continue": "Lanjutkan",
+    "backToDemo": "Kembali ke demo",
+    "dashboard": {
+      "title": "Ringkasan demo",
+      "subtitle": "Jelajahi pengalaman belajar di Zyx Academy.",
+      "startArticle": "Mulai membaca",
+      "saveTitle": "Simpan kemajuanmu",
+      "saveDescription": "Masuk untuk melanjutkan belajar dan menyimpan kemajuanmu.",
+      "googleCta": "Masuk dengan Google"
+    },
+    "article": {
+      "readTime": "{count} menit baca",
+      "back": "Kembali ke demo",
+      "readingInfo": "{count} menit baca",
+      "objective": "Tujuan belajar",
+      "ctaTitle": "Lanjutkan perjalanan belajarmu",
+      "ctaDescription": "Buat akun untuk menyimpan kemajuan dan mengakses pengalaman belajar lengkap."
+    },
+    "diktat": {
+      "title": "Diktat",
+      "start": "Mulai latihan",
+      "empty": "Belum ada latihan yang tersedia.",
+      "ctaTitle": "Latihan lebih lengkap menantimu",
+      "ctaDescription": "Masuk untuk mencoba latihan dan menyimpan kemajuan."
+    },
+    "flashcards": {
+      "title": "Flashcards",
+      "flip": "Balik kartu",
+      "next": "Berikutnya",
+      "previous": "Sebelumnya",
+      "empty": "Belum ada kartu untuk ditampilkan.",
+      "counter": "Kartu {current} dari {total}",
+      "answer": "Jawaban",
+      "question": "Pertanyaan",
+      "flipBack": "Balik ke pertanyaan",
+      "saveTitle": "Simpan kartu belajarmu",
+      "saveDescription": "Masuk untuk menyimpan kemajuan flashcard."
+    },
+    "quiz": {
+      "title": "Kuis",
+      "submit": "Kirim jawaban",
+      "retry": "Coba lagi",
+      "empty": "Belum ada soal untuk ditampilkan.",
+      "error": "Kuis demo tidak dapat dimuat saat ini.",
+      "description": "Uji pemahamanmu dengan latihan singkat ini.",
+      "correct": "Benar",
+      "incorrect": "Belum tepat",
+      "score": "Skor: {score} dari {total}",
+      "checking": "Memeriksa jawaban...",
+      "saveTitle": "Simpan hasil latihanmu",
+      "saveDescription": "Masuk untuk menyimpan kemajuan latihan."
+    },
+    "zyra": {
+      "title": "Tutor AI",
+      "send": "Kirim",
+      "placeholder": "Tulis pertanyaan...",
+      "empty": "Mulai percakapan dengan tutor AI.",
+      "student": "Mahasiswa",
+      "prompt": "Bisa bantu saya memahami konsep ini?",
+      "reply": "Tentu. Mari kita uraikan konsep ini langkah demi langkah.",
+      "followup": "Bisa beri contoh lain?",
+      "signInReply": "Masuk untuk melanjutkan percakapan dengan tutor AI.",
+      "conversationLabel": "Contoh percakapan dengan tutor AI",
+      "ctaTitle": "Belajar bersama tutor AI",
+      "ctaDescription": "Masuk untuk melanjutkan percakapan dan menyimpan kemajuan."
+    }
+  },
+  "testimonial": {
+    "title": "Testimoni",
+    "intro": "Cerita dari siswa Zyx Academy tentang proses belajar yang mereka jalani.",
+    "storiesTitle": "Cerita dari proses belajar",
+    "studentPhoto": "Foto {name}",
+    "ctaTitle": "Lihat cara belajar di Zyx",
+    "ctaDescription": "Mulai dari materi dan latihan mandiri, lalu pilih pendampingan tambahan jika sesuai kebutuhanmu."
+  },
+  "support": {
+    "title": "Saat belajar mandiri belum cukup, pilih dukungan yang tepat.",
+    "selfStudyTitle": "Belajar mandiri",
+    "selfStudyBody": "Free membuka bab pertama di setiap mata kuliah, termasuk Artikel, Diktat, Kuis, dan Flashcard. Diktat hanya dapat dibaca, Zyra 5 pertanyaan per hari.",
+    "scheduledTitle": "Tutorial terjadwal",
+    "scheduledBody": "Essential menambahkan 15 kali tutorial tatap muka untuk satu semester.",
+    "intensiveTitle": "Intensitas penuh",
+    "intensiveBody": "Premium menambahkan konsultasi tugas kuliah on-demand dan total 30 kali tutorial tatap muka.",
+    "comparePlans": "Bandingkan semua paket"
+  },
+  "faq": {
+    "title": "Pertanyaan tentang akses dan paket.",
+    "free": {
+      "question": "Apa yang termasuk akses Free?",
+      "answer": "Paket Free memberi akses penuh ke bab pertama setiap mata kuliah, termasuk Artikel, Diktat, Kuis, dan Flashcard. Diktat dapat dibaca tanpa unduhan. Zyra tersedia 5 pertanyaan per hari."
+    },
+    "preview": {
+      "question": "Bisa melihat fitur sebelum membuat akun?",
+      "answer": "Bisa. Coba demo untuk melihat satu mata kuliah pilihan dengan Artikel lengkap, dua bagian pertama Diktat, lima Flashcard, tiga soal Kuis, dan contoh percakapan Zyra."
+    },
+    "paid": {
+      "question": "Apa perbedaan paket berbayar?",
+      "answer": "Minimal berfokus pada akses belajar mandiri. Essential menambahkan pembahasan video dan 15 kali tutorial tatap muka untuk satu semester. Premium menambahkan konsultasi tugas kuliah on-demand dan total 30 kali tutorial tatap muka."
+    },
+    "pricing": {
+      "question": "Harga yang ditampilkan dihitung bagaimana?",
+      "answer": "Harga utama ditampilkan per orang per semester. Total mengikuti jumlah orang dan mata kuliah yang dipilih."
+    },
+    "tutorial": {
+      "question": "Bagaimana tutorial berlangsung?",
+      "answer": "Essential dan Premium mencantumkan tutorial tatap muka. Detail jadwal, kebutuhan kelompok, dan aktivasi dibahas dengan admin."
+    },
+    "activation": {
+      "question": "Bagaimana cara mengaktifkan paket?",
+      "answer": "Pembayaran dilakukan di luar website melalui admin. Hubungi admin untuk membahas konfigurasi kelompok, konfirmasi harga yang berlaku, lalu akses diaktifkan sesuai paket."
+    }
+  },
+  "subjects": {
+    "calculus": "Kalkulus",
+    "calculusTitle": "Kalkulus & metode numerik",
+    "calculusDescription": "Limit, turunan, integral, dan aplikasi ke model sederhana.",
+    "physics": "Fisika",
+    "physicsTitle": "Fisika dasar",
+    "physicsDescription": "Mekanika, gelombang, termodinamika pengantar, dengan latihan terarah.",
+    "chemistry": "Kimia",
+    "chemistryTitle": "Kimia dasar",
+    "chemistryDescription": "Stokiometri, kesetimbangan, dan dasar laboratorium.",
+    "algebra": "Aljabar",
+    "algebraTitle": "Aljabar linear",
+    "algebraDescription": "Vektor, matriks, dan ruang vektor untuk persiapan kuliah lanjut.",
+    "regionLabel": "Bidang studi",
+    "diagramLabel": "Diagram konsep & latihan interaktif",
+    "topics": "Topik",
+    "catalogLink": "Lihat katalog lengkap"
+  },
+  "tutors": {
+    "liveQuizTitle": "Kuis Langsung",
+    "joinCode": "Kode gabung",
+    "start": "Mulai",
+    "analyticsTitle": "Analitik Kohort",
+    "weakestConcepts": "Konsep paling bermasalah:",
+    "averageScore": "rata-rata {score}",
+    "pageCount": "{count} halaman",
+    "downloadPdf": "Unduh PDF",
+    "sectionTitle": "Bantu kelas melihat konsep yang perlu dibahas."
+  },
+  "plans": {
+    "title": "Paket & layanan",
+    "description": "Pilih kombinasi mata kuliah dan intensitas pendampingan. Pembayaran dilakukan di luar website; admin akan mengaktifkan akses sesuai paket.",
+    "priceConfiguration": "Konfigurasi harga: {people} orang dan {courses} mata kuliah.",
+    "peopleLabel": "Jumlah anggota kelompok",
+    "group": "Grup",
+    "decreasePeople": "Kurangi jumlah orang",
+    "peopleCount": "{count} orang",
+    "increasePeople": "Tambah jumlah orang",
+    "coursesLabel": "Jumlah mata kuliah",
+    "courseShort": "Matkul",
+    "decreaseCourses": "Kurangi mata kuliah",
+    "courseCount": "{count} matkul",
+    "increaseCourses": "Tambah mata kuliah",
+    "courseList": "Daftar matkul ({count})",
+    "coveredCourses": "Mata kuliah yang ditanggung ({count}/{max})",
+    "decreaseOtherCourse": "Kurangi mata kuliah lain-lain",
+    "increaseOtherCourse": "Tambah mata kuliah lain-lain",
+    "close": "Tutup",
+    "startWithFree": "Mulai dengan Free",
+    "free": "Gratis",
+    "contactAdmin": "Hubungi admin",
+    "contactUnavailable": "Kontak belum tersedia"
+  },
+  "pricing": {
+    "loading": "Memuat harga...",
+    "regularPriceLabel": "Harga reguler mulai {date}: {price} {unit}",
+    "regularPriceDate": "1 November 2026",
+    "perPerson": "per orang",
+    "perSemester": "per semester",
+    "person": "orang",
+    "totalPerSemester": "Total {price} per semester",
+    "totalSemester": "Total per semester",
+    "introPriceUntil": "Harga perkenalan sampai 31 Oktober 2026, 23.59 WIB.",
+    "regularPriceStarts": "Harga coret berlaku mulai 1 November 2026.",
+    "recommended": "Rekomendasi",
+    "askPlanWhatsapp": "Tanya paket via WhatsApp",
+    "askWhatsapp": "Tanya via WhatsApp",
+    "learnPlan": "Pelajari paket {plan}",
+    "otherCourse": "Mata Kuliah Lain-Lain",
+    "otherCourseCount": "Mata Kuliah Lain-Lain ({count})",
+    "tiers": {
+      "minimal": {
+        "name": "Minimal",
+        "note": "Pendampingan platform mandiri lengkap.",
+        "features": [
+          "Bank Materi dan Soal",
+          "Solusi Soal",
+          "Diktat Lengkap",
+          "Kuis Harian & Mingguan + Pembahasan",
+          "Tryout Sebelum Ujian + Pembahasan"
+        ]
+      },
+      "essential": {
+        "name": "Essential",
+        "note": "Sesi tutorial tatap muka & pembahasan video.",
+        "features": [
+          "Semua fitur pada paket Minimal",
+          "Akses pembahasan soal berbasis Video",
+          "Tutorial Tatap Muka 15x untuk Satu Semester"
+        ]
+      },
+      "premium": {
+        "name": "Premium",
+        "note": "Konsultasi on-demand & intensitas penuh.",
+        "features": [
+          "Semua fitur pada paket Essential",
+          "Konsultasi Tugas Kuliah (On-Demand)",
+          "Plus Tambahan 15x Tutorial (Total 30x Tatap Muka untuk Satu Semester)"
+        ]
+      },
+      "free": {
+        "name": "Free",
+        "note": "Akses materi dasar tanpa biaya.",
+        "features": [
+          "Bab pertama di setiap mata kuliah",
+          "Artikel, Diktat, Kuis, dan Flashcard terkait",
+          "Diktat dapat dibaca, tanpa unduhan",
+          "1 pertanyaan Zyra per hari",
+          "Progres belajar tersimpan"
+        ]
+      },
+      "custom": {
+        "name": "Custom",
+        "note": "Sesuaikan kelompok, tutor, dan kurikulum.",
+        "features": [
+          "Ada kebutuhan spesifik di luar paket? (e.g., kelompok > 5 orang, persiapan khusus, atau penyesuaian kurikulum)"
+        ]
+      }
+    }
+  },
+  "blog": {
+    "heroTitle": "Blog",
+    "heroDescription": "Artikel untuk membantu kamu belajar, memahami kehidupan kampus, dan mengenal kegiatan Zyx.",
+    "categories": {
+      "all": "Semua",
+      "studyTips": "Tips Kuliah",
+      "campusCorner": "Pojok Kampus",
+      "funFacts": "Fakta Seru",
+      "zyxActivities": "Kegiatan Zyx"
+    },
+    "categoryNav": "Kategori blog",
+    "categoryCount": "Menampilkan {count} artikel pada kategori ini.",
+    "latest": "Artikel terbaru",
+    "latestDescription": "Baca artikel terbaru sebelum menjelajahi fitur belajar.",
+    "available": "{count} artikel tersedia",
+    "emptyTitle": "Belum ada artikel",
+    "emptyCategory": "Artikel untuk kategori ini akan segera hadir.",
+    "emptyLatest": "Artikel baru akan muncul di sini setelah diterbitkan.",
+    "viewAll": "Lihat semua",
+    "featuresTitle": "Fitur untuk menemani belajar",
+    "featuresDescription": "Setelah membaca, lihat ruang belajar dan course yang tersedia di Zyx.",
+    "zyraTitle": "Zyra",
+    "zyraDescription": "Teman belajar AI untuk membantu memahami materi.",
+    "handoutsTitle": "Materi belajar",
+    "handoutsDescription": "Kumpulan materi untuk mendukung proses belajar.",
+    "examsTitle": "Latihan ujian",
+    "examsDescription": "Berlatih dengan soal untuk menguji pemahaman.",
+    "flashcardsTitle": "Flashcards",
+    "flashcardsDescription": "Kartu belajar untuk membantu mengingat konsep penting.",
+    "studyPathTitle": "Jalur belajar",
+    "studyPathDescription": "Rencana belajar yang membantu kamu berkembang.",
+    "courses": "Buka katalog course",
+    "draft": "Draf",
+    "blogName": "Blog Zyx",
+    "minutes": "{count} menit baca",
+    "back": "Kembali ke Blog",
+    "authorFallback": "Zyx Academy",
+    "dateLocale": "id-ID",
+    "share": "Bagikan",
+    "preview": "Mode pratinjau (Status: {status})",
+    "others": "Artikel Lainnya",
+    "noneOthers": "Tidak ada artikel lain.",
+    "minutesShort": "{count} menit baca",
+    "shareCopied": "Tautan berhasil disalin.",
+    "shareCopyFailed": "Tautan gagal disalin.",
+    "shareFailed": "Tautan gagal dibagikan.",
+    "shareArticleTitle": "Bagikan artikel ini",
+    "shareArticleDescription": "Bantu orang lain mendapatkan wawasan dengan membagikan artikel ini.",
+    "copyUrl": "Salin tautan",
+    "clickToCopy": "Klik untuk menyalin",
+    "copy": "Salin",
+    "shareTo": "Bagikan ke",
+    "shareToPlatform": "Bagikan ke {platform}",
+    "shareViaSystem": "Bagikan melalui sistem",
+    "shareDialogTitle": "Bagikan artikel",
+    "shareDialogDescription": "Bagikan artikel ini ke media sosial atau salin tautan langsung.",
+    "articleNotFoundTitle": "Artikel",
+    "articleNotFoundDescription": "Artikel blog Zyx Academy.",
+    "articleMetaDescription": "Baca “{title}” di Blog Zyx Academy."
+  },
+  "signOut": {
+    "title": "Keluar",
+    "pending": "Sedang mengeluarkan akun...",
+    "done": "Kamu sudah keluar.",
+    "error": "Terjadi masalah. Coba lagi atau kembali ke beranda.",
+    "retry": "Coba lagi",
+    "home": "Kembali ke beranda",
+    "signIn": "Masuk",
+    "description": "Keluar dari akun Zyx Academy."
+  },
+  "tautan": {
+    "title": "Tautan Zyx Academy",
+    "description": "Kumpulan tautan penting dari Zyx Academy dalam satu tempat.",
+    "emptyTitle": "Belum ada tautan",
+    "emptyDescription": "Tautan penting akan muncul di halaman ini."
+  },
+  "public": {
+    "meetTitle": "Google Meet",
+    "meetDescription": "Tautan sesi Google Meet Zyx Academy.",
+    "meetNotFound": "Tautan meeting tidak ditemukan",
+    "meetUnavailable": "Tautan Zyx Meet yang kamu buka tidak tersedia atau sudah dihapus. Periksa kembali tautan yang dikirim atau hubungi admin.",
+    "home": "Kembali ke beranda",
+    "meetFor": "Google Meet: {title}",
+    "meetForDescription": "Ruang pertemuan Google Meet untuk {title}."
+  },
+  "publicForm": {
+    "loading": "Memuat formulir...",
+    "loginRequired": "Login diperlukan",
+    "loginDescription": "Masuk ke akun Zyx terlebih dahulu untuk mengisi formulir ini.",
+    "loginAction": "Masuk ke akun Zyx",
+    "notFoundTitle": "Formulir tidak ditemukan",
+    "notFoundDescription": "Formulir mungkin telah dihapus atau tautannya tidak valid.",
+    "home": "Kembali ke beranda",
+    "closed": "Formulir ditutup",
+    "closedDescription": "Formulir ini telah ditutup dan tidak lagi menerima tanggapan baru.",
+    "thankYou": "Terima kasih!",
+    "previewAgain": "Ulangi pratinjau",
+    "fillAgain": "Isi formulir lagi",
+    "done": "Selesai",
+    "formTitle": "Formulir",
+    "formDescription": "Formulir Zyx Academy.",
+    "formFor": "Formulir {title} di Zyx Academy.",
+    "loadError": "Terjadi kesalahan jaringan saat memuat formulir.",
+    "other": "Lainnya",
+    "clearedAnswer": "Pilihan jawaban telah dikosongkan.",
+    "uploadSuccess": "Berkas berhasil diunggah.",
+    "uploadFailed": "Berkas gagal diunggah.",
+    "uploadError": "Terjadi kesalahan saat mengunggah berkas.",
+    "emailInvalid": "Masukkan alamat email dengan format yang benar.",
+    "otherRequired": "Jelaskan jawaban opsi lainnya untuk pertanyaan ini.",
+    "required": "Pertanyaan ini wajib diisi sebelum melanjutkan.",
+    "otherRequiredNamed": "Jelaskan pilihan lainnya untuk: {title}",
+    "requiredNamed": "Isi pertanyaan wajib: {title}",
+    "previewSuccess": "Jawaban berhasil disimpan (Mode Pratinjau).",
+    "previewSubmitted": "Mode Pratinjau: Simulasi pengisian berhasil.",
+    "submitSuccess": "Tanggapan berhasil disimpan.",
+    "submitFailed": "Formulir gagal dikirim.",
+    "networkError": "Terjadi kesalahan jaringan."
+  }
+}

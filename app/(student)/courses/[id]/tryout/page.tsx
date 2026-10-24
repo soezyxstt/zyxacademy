@@ -13,17 +13,18 @@ import { db } from "@/db";
 import { exams, questions } from "@/db/schema";
 import { and, count, eq, inArray } from "drizzle-orm";
 import { redirect } from "next/navigation";
+import { TranslatedText } from "@/components/i18n/translated-text";
+import { getTranslations } from "@/lib/i18n/server";
 
 type Props = { params: Promise<{ id: string }> };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params;
   const course = await getCourse(id);
+  const t = await getTranslations("learning");
   return {
-    title: pageTitle(course ? `${course.title} - Tryout` : "Tryout"),
-    description: course
-      ? `Daftar tryout ${course.title}; simulasi ujian untuk persiapan UTS dan UAS.`
-      : "Daftar tryout; simulasi ujian untuk persiapan UTS dan UAS.",
+    title: pageTitle(course ? t("metadata.tryoutTitle", { course: course.title }) : t("metadata.tryoutTitleFallback")),
+    description: t("metadata.tryoutDescription"),
   };
 }
 
@@ -78,7 +79,7 @@ export default async function CourseTryoutListPage({ params }: Props) {
 
   return (
     <CoursePageShell
-      title={`Tryout Ujian: ${course.title}`}
+      title={<TranslatedText namespace="learning" messageKey="tryoutPage.title" values={{ course: course.title }} />}
 
       icon={GraduationCap}
     >
@@ -88,10 +89,10 @@ export default async function CourseTryoutListPage({ params }: Props) {
             <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(280px,420px)] md:items-center">
               <div>
                 <h3 className="font-heading text-body-base font-bold text-brand-secondary">
-                  Aktivasi token kelas
+                  <TranslatedText namespace="learning" messageKey="quizPage.activationTitle" />
                 </h3>
                 <p className="mt-1 max-w-2xl text-body-sm text-muted-foreground">
-                  Tryout ujian resmi hanya dapat diakses oleh siswa terdaftar. Masukkan token kelas untuk membuka seluruh tryout ujian, materi, dan fitur lengkap.
+                  <TranslatedText namespace="learning" messageKey="tryoutPage.activationDescription" />
                 </p>
               </div>
               <EnrollmentForm className="w-full" />

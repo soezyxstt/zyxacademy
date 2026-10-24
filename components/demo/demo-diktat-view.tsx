@@ -3,8 +3,9 @@ import { Card } from "@/components/ui/card";
 import { MarkdownRenderer } from "@/components/course/markdown-renderer";
 import type { DemoDiktatSection } from "@/app/(marketing)/demo/demo-data";
 import { DemoAuthCta } from "./demo-shell";
+import { getTranslations } from "@/lib/i18n/server";
 
-export function DemoDiktatView({
+export async function DemoDiktatView({
   title,
   sections,
   nextPath,
@@ -13,6 +14,7 @@ export function DemoDiktatView({
   sections: DemoDiktatSection[];
   nextPath: string;
 }) {
+  const t = await getTranslations("marketing");
   return (
     <article className="mx-auto max-w-3xl">
       <Card variant="solid" className="p-5 sm:p-8">
@@ -39,8 +41,8 @@ export function DemoDiktatView({
         <div className="flex items-start gap-3">
           <LockKeyhole className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
           <div>
-            <h2 className="font-heading text-body-sm font-bold text-foreground">Baca Diktat lengkap setelah masuk</h2>
-            <p className="mt-1 text-body-xs text-muted-foreground">Diktat tersedia untuk dibaca, tanpa unduhan.</p>
+            <h2 className="font-heading text-body-sm font-bold text-foreground">{t("demo.diktat.ctaTitle")}</h2>
+            <p className="mt-1 text-body-xs text-muted-foreground">{t("demo.diktat.ctaDescription")}</p>
           </div>
         </div>
         <DemoAuthCta nextPath={nextPath} />

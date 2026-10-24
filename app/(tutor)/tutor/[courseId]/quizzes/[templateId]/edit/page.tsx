@@ -8,15 +8,17 @@ import { TutorQuizForm } from "@/components/tutor/tutor-quiz-form";
 import { ApplicationPage } from "@/components/application-page";
 import { Reveal } from "@/components/ui/reveal";
 import { pageTitle } from "@/lib/site";
+import { getTranslations } from "@/lib/i18n/server";
 
 type Props = { params: Promise<{ courseId: string; templateId: string }> };
 
 export async function generateMetadata({ params }: Props) {
   const { courseId, templateId } = await params;
+  const t = await getTranslations("tutor.routeTitles");
   const template = await getTutorQuizWithAttribution(courseId, templateId);
 
   return {
-    title: pageTitle(template ? `Edit Kuis: ${template.title}` : "Edit Kuis"),
+    title: pageTitle(template ? `${t("editQuiz")}: ${template.title}` : t("editQuiz")),
   };
 }
 

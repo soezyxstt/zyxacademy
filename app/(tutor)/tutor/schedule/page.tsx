@@ -10,11 +10,12 @@ import { getTutorialWeekRange } from "@/lib/schedule/week-policy";
 import { TutorScheduleView } from "@/components/tutor/tutor-schedule-view";
 import { ApplicationPage } from "@/components/application-page";
 import { pageTitle } from "@/lib/site";
+import { getTranslations } from "@/lib/i18n/server";
 
-export const metadata: Metadata = {
-  title: pageTitle("Jadwal Pengajar"),
-  description: "Kelola slot ketersediaan 90 menit, sesi tutorial kelompok, dan tiket reschedule.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("tutor.routeTitles");
+  return { title: pageTitle(t("scheduleTitle")), description: t("scheduleDescription") };
+}
 
 function parseWeekOffset(value: string | string[] | undefined): number {
   const raw = Array.isArray(value) ? value[0] : value;

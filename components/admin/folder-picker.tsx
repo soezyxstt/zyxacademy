@@ -21,13 +21,15 @@ export function FolderPicker({
   value,
   onSelect,
   disabled = new Set<string>(),
+  rootLabel = "Media (root)",
 }: {
   folders: FlatFolder[];
   value: string;
   onSelect: (path: string) => void;
   disabled?: Set<string>;
+  rootLabel?: string;
 }) {
-  const options = useMemo(() => [{ path: "", label: "Media (root)", depth: 0 }, ...folders], [folders]);
+  const options = useMemo(() => [{ path: "", label: rootLabel, depth: 0 }, ...folders], [folders, rootLabel]);
   return (
     <div className="border-border bg-background max-h-64 overflow-auto rounded-lg border p-1">
       {options.map((option) => {

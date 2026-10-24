@@ -5,6 +5,9 @@ import { computeWeeklyReflection, getPreviousWeekRange, formatDateStr } from "@/
 import { sendOptionalEmail } from "@/lib/email-preferences/send";
 import { mapConcurrent } from "./vector-sync";
 import { gte, lte, and, eq } from "drizzle-orm";
+import { getUserLocalePreference } from "@/lib/i18n/preferences";
+import { DEFAULT_LOCALE, type Locale } from "@/lib/i18n/locale";
+import { renderReflectionEmail } from "@/lib/reflection-email-template";
 
 export const weeklyReflectionCron = inngest.createFunction(
   {
@@ -47,6 +50,13 @@ export const weeklyReflectionCron = inngest.createFunction(
 
     const isEmailEnabled = process.env.FEATURE_REFLECTION_EMAIL === "1";
     if (isEmailEnabled && activeStudentIds.length > 0) {
+      const deliveryLocales = await step.run("resolve-reflection-email-locales", async () => {
+        const entries = await Promise.all(activeStudentIds.map(async (studentId) => [
+          studentId,
+          (await getUserLocalePreference(studentId)) ?? DEFAULT_LOCALE,
+        ] as const));
+        return Object.fromEntries(entries) as Record<string, Locale>;
+      });
       await step.run("send-reflection-emails-batch", async () => {
         const weekStartStr = formatDateStr(monday);
         // Process in bounded waves to respect email throughput without arbitrary <=90 cutoff
@@ -84,48 +94,22 @@ export const weeklyReflectionCron = inngest.createFunction(
             const payload = reflection.payload;
             const completed = payload.completed;
             const streak = payload.streak;
+            const locale = deliveryLocales[studentId] ?? DEFAULT_LOCALE;
 
-            // 3. Construct email html and send
             await sendOptionalEmail({
               userId: studentId,
               category: "learning_reminders",
-              subject: `Weekly Learning Reflection: ${weekStartStr}`,
-              html: `
-                <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e5e7eb; border-radius: 12px; background-color: #ffffff;">
-                  <h1 style="font-family: 'Lexend', sans-serif; font-size: 24px; color: #0f172a; margin-top: 0; font-weight: 700;">Halo ${student.name},</h1>
-                  <p style="font-size: 16px; line-height: 1.5; color: #475569;">Berikut adalah ringkasan pembelajaran kamu untuk minggu yang dimulai pada <strong>${weekStartStr}</strong>.</p>
-                  
-                  <div style="margin: 24px 0; padding: 16px; background-color: #f8fafc; border-radius: 8px;">
-                    <h2 style="font-family: 'Lexend', sans-serif; font-size: 18px; color: #1e293b; margin-top: 0; margin-bottom: 12px; font-weight: 600;">Aktivitas Terhitung:</h2>
-                    <ul style="margin: 0; padding-left: 20px; color: #334155; font-size: 15px; line-height: 1.6;">
-                      <li>Kuis diselesaikan: <strong>${completed.quizzes}</strong></li>
-                      <li>Kartu hafalan dipelajari: <strong>${completed.flashcards}</strong></li>
-                      <li>Modul diselesaikan: <strong>${completed.modules}</strong></li>
-                    </ul>
-                  </div>
-
-                  <div style="margin: 24px 0; padding: 16px; background-color: #f8fafc; border-radius: 8px;">
-                    <h2 style="font-family: 'Lexend', sans-serif; font-size: 18px; color: #1e293b; margin-top: 0; margin-bottom: 12px; font-weight: 600;">Kemajuan Materi:</h2>
-                    <ul style="margin: 0; padding-left: 20px; color: #334155; font-size: 15px; line-height: 1.6;">
-                      <li>Pertumbuhan Pemahaman: <strong>${payload.masteryGrowth > 0 ? "+" : ""}${payload.masteryGrowth}%</strong></li>
-                      ${payload.mostImproved ? `<li>Topik Paling Meningkat: <strong>${payload.mostImproved}</strong></li>` : ""}
-                    </ul>
-                  </div>
-
-                  <div style="margin: 24px 0; padding: 16px; background-color: #f8fafc; border-radius: 8px;">
-                    <h2 style="font-family: 'Lexend', sans-serif; font-size: 18px; color: #1e293b; margin-top: 0; margin-bottom: 12px; font-weight: 600;">Streak Belajar:</h2>
-                    <ul style="margin: 0; padding-left: 20px; color: #334155; font-size: 15px; line-height: 1.6;">
-                      <li>Streak Saat Ini: <strong>${streak.currentStreak} hari</strong></li>
-                      <li>Streak Terpanjang: <strong>${streak.longestStreak} hari</strong></li>
-                    </ul>
-                  </div>
-
-                  <hr style="border: 0; border-top: 1px solid #e5e7eb; margin: 32px 0;" />
-                  <p style="font-size: 14px; color: #64748b; line-height: 1.4; margin-bottom: 0; text-align: center;">
-                    Terus tingkatkan belajarmu di <strong>Zyx Academy</strong>!
-                  </p>
-                </div>
-              `
+              locale,
+              render: (resolvedLocale) => renderReflectionEmail({
+                locale: resolvedLocale,
+                name: student.name,
+                weekStart: weekStartStr,
+                completed,
+                masteryGrowth: payload.masteryGrowth,
+                mostImproved: payload.mostImproved,
+                currentStreak: streak.currentStreak,
+                longestStreak: streak.longestStreak,
+              }),
             });
           } catch (err) {
             console.error(`Failed to send reflection email to student ${studentId}:`, err);

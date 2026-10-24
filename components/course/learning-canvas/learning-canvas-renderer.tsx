@@ -23,6 +23,7 @@ import { cn } from "@/lib/utils";
 import { fitNumericRange, isRepresentableRange, normalizedVectorComponent, zoomNumericRange } from "@/lib/zyra/canvas/viewport";
 import { scientificNumberToLatex, scientificNumberToText, scientificValueToMathText } from "@/lib/math/scientific-format";
 import { ChevronDown, RotateCcw, SlidersHorizontal, ZoomIn, ZoomOut } from "lucide-react";
+import { useTranslations } from "@/lib/i18n/client";
 import {
   evaluateFunctionPlot,
   resetCanvasValues,
@@ -521,9 +522,10 @@ function SeriesLegend({
   onToggleSeries: (seriesId: string) => void;
   compact?: boolean;
 }) {
+  const t = useTranslations("studentCourse");
   const legendId = useId().replace(/:/g, "");
   return (
-    <div role="group" aria-label="Fungsi pada grafik" className="flex min-w-0 flex-wrap items-center gap-2">
+    <div role="group" aria-label={t("learningCanvas.functionsOnGraph")} className="flex min-w-0 flex-wrap items-center gap-2">
       {spec.series.map((series, idx) => {
         const rawExpr = expressions[series.id] ?? series.expression;
         const latexFormatted = safeExpressionToLatex(
@@ -536,7 +538,7 @@ function SeriesLegend({
           <button
             key={series.id}
             type="button"
-            aria-label={`${isVisible ? "Sembunyikan" : "Tampilkan"} ${series.label}`}
+            aria-label={t(isVisible ? "learningCanvas.hideSeries" : "learningCanvas.showSeries", { series: series.label })}
             aria-describedby={`graph-equation-${legendId}-${idx}`}
             aria-pressed={isVisible}
             onClick={() => onToggleSeries(series.id)}
@@ -585,6 +587,7 @@ function VariableControls({
   onResetAll: () => void;
   compact?: boolean;
 }) {
+  const t = useTranslations("studentCourse");
   if (spec.controls.length === 0) return null;
   return (
     <div className={compact ? "space-y-3 border-t border-border py-3" : "border-t border-border bg-card px-4 py-3.5 md:px-5 space-y-3"}>
@@ -605,7 +608,7 @@ function VariableControls({
                       <button
                         key={p}
                         type="button"
-                        aria-label={`${control.label}: ${p}`}
+                aria-label={t("learningCanvas.setParameter", { parameter: control.label, value: p })}
                         aria-pressed={value === p}
                         onClick={() => setValues((curr) => ({ ...curr, [variable.id]: p }))}
                         className={cn(
@@ -627,7 +630,7 @@ function VariableControls({
                 max={control.max}
                 step={control.step}
                 value={value}
-                aria-label={`Ubah nilai ${control.label}`}
+                aria-label={t("learningCanvas.changeValue", { parameter: control.label })}
                 className="h-6 w-full cursor-pointer accent-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 onChange={(event) => setValues((current) => ({
                   ...current,
@@ -639,7 +642,7 @@ function VariableControls({
         })}
       </div>
       <div className="flex items-center justify-between gap-2 pt-1 text-body-xs text-muted-foreground">
-        {!compact && <span>Geser koefisien untuk melihat perubahan kurva secara interaktif.</span>}
+        {!compact && <span>{t("learningCanvas.dragCoefficients")}</span>}
         <Button
           type="button"
           variant="outline"
@@ -647,7 +650,7 @@ function VariableControls({
           className={compact ? "text-body-sm" : undefined}
           onClick={onResetAll}
         >
-          {compact ? "Reset parameter" : "Reset visual"}
+          {compact ? t("learningCanvas.resetParameters") : t("learningCanvas.resetVisualization")}
         </Button>
       </div>
     </div>
@@ -656,6 +659,7 @@ function VariableControls({
 
 /** Renders an interactive function plot with editable formulas and series visibility. */
 function FunctionPlot({ spec, embedded = false }: { spec: FunctionPlotCanvas; embedded?: boolean }) {
+  const t = useTranslations("studentCourse");
   const uid = useId().replace(/:/g, "");
   const editable = !embedded;
   const [interactionActive, setInteractionActive] = useState(false);
@@ -700,7 +704,7 @@ function FunctionPlot({ spec, embedded = false }: { spec: FunctionPlotCanvas; em
     return {
       ...spec,
       fallback: {
-        summary: "Nilai fungsi untuk rumus, parameter, dan rentang grafik saat ini.",
+        summary: t("learningCanvas.functionTableSummary"),
         columns: [{ id: "x", label: "x" }, ...spec.series.map(series => ({ id: series.id, label: series.label }))],
         rows: (tableSeries[0]?.points ?? []).map(point => [
           mathNumber(point.x),
@@ -711,7 +715,7 @@ function FunctionPlot({ spec, embedded = false }: { spec: FunctionPlotCanvas; em
         ]),
       },
     };
-  }, [spec, values, expressions, view.xMin, view.xMax]);
+  }, [spec, values, expressions, view.xMin, view.xMax, t]);
 
   const invalidSeries = evaluated.filter((series) => series.points.length > 0 && series.points.every((point) => point.y === null));
 
@@ -926,7 +930,7 @@ function FunctionPlot({ spec, embedded = false }: { spec: FunctionPlotCanvas; em
     resetView();
   }, [spec, resetView]);
 
-  if (!defaultView) return <div className="space-y-2"><p role="status" className="text-body-sm text-muted-foreground">Rentang grafik melampaui presisi numerik yang tersedia. Gunakan tabel nilai.</p><FallbackTable spec={spec} /></div>;
+  if (!defaultView) return <div className="space-y-2"><p role="status" className="text-body-sm text-muted-foreground">{t("learningCanvas.rangePrecisionWarning")}</p><FallbackTable spec={spec} /></div>;
 
   return (
     <div
@@ -958,7 +962,7 @@ function FunctionPlot({ spec, embedded = false }: { spec: FunctionPlotCanvas; em
               className="h-8 text-body-xs text-muted-foreground hover:text-foreground"
             >
               <SlidersHorizontal className="mr-1.5 h-3.5 w-3.5" />
-              {showFormulaInput ? "Sembunyikan edit rumus" : "Ubah rumus"}
+              {showFormulaInput ? t("learningCanvas.hideFormulaEditor") : t("learningCanvas.editFormula")}
             </Button>
           ) : null}
         </div>
@@ -1137,8 +1141,8 @@ function FunctionPlot({ spec, embedded = false }: { spec: FunctionPlotCanvas; em
         {!hasPlottableCurve && (
           <div className="m-2 rounded-lg border border-status-warning/30 bg-background/95 p-2.5 text-left text-body-xs text-foreground">
             {visibleSeriesIds.size === 0
-              ? "Tidak ada fungsi yang ditampilkan. Aktifkan fungsi di atas untuk melihat kurvanya."
-              : "Grafik belum dapat digambar pada tampilan ini. Coba geser atau atur ulang tampilan, atau periksa kembali rumusnya."}
+              ? t("learningCanvas.noSeriesVisible")
+              : t("learningCanvas.plotUnavailable")}
           </div>
         )}
 
@@ -1164,41 +1168,41 @@ function FunctionPlot({ spec, embedded = false }: { spec: FunctionPlotCanvas; em
           <TooltipTrigger asChild>
           <button
             type="button"
-            aria-label="Perbesar tampilan grafik"
+            aria-label={t("learningCanvas.zoomIn")}
             onClick={() => zoomBy(0.8)}
             className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             <ZoomIn className="h-3.5 w-3.5" />
           </button>
           </TooltipTrigger>
-          <TooltipContent>Perbesar</TooltipContent>
+          <TooltipContent>{t("learningCanvas.zoomInShort")}</TooltipContent>
           </Tooltip>
           <Tooltip>
           <TooltipTrigger asChild>
           <button
             type="button"
-            aria-label="Perkecil tampilan grafik"
+            aria-label={t("learningCanvas.zoomOut")}
             onClick={() => zoomBy(1.25)}
             className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             <ZoomOut className="h-3.5 w-3.5" />
           </button>
           </TooltipTrigger>
-          <TooltipContent>Perkecil</TooltipContent>
+          <TooltipContent>{t("learningCanvas.zoomOutShort")}</TooltipContent>
           </Tooltip>
           <div className="mx-0.5 h-3.5 w-[1px] bg-border/60" />
           <Tooltip>
           <TooltipTrigger asChild>
           <button
             type="button"
-            aria-label="Atur ulang tampilan grafik"
+            aria-label={t("learningCanvas.resetGraphView")}
             onClick={resetView}
             className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             <RotateCcw className="h-3.5 w-3.5" />
           </button>
           </TooltipTrigger>
-          <TooltipContent>Reset tampilan</TooltipContent>
+          <TooltipContent>{t("learningCanvas.resetView")}</TooltipContent>
           </Tooltip>
         </div></TooltipProvider>}
 
@@ -1222,14 +1226,14 @@ function FunctionPlot({ spec, embedded = false }: { spec: FunctionPlotCanvas; em
             aria-controls={`graph-plot-${uid}`}
             onClick={() => interactionActive ? finishInteraction() : setInteractionActive(true)}
           >
-            {interactionActive ? "Selesai" : "Interaksi grafik"}
+            {interactionActive ? t("learningCanvas.done") : t("learningCanvas.graphInteraction")}
           </Button>
         )}
         {embedded && spec.controls.length > 0 && (
           <CollapsibleTrigger asChild>
             <Button variant="ghost" size="sm" className="text-body-sm">
               <ChevronDown className={cn("mr-1.5 h-3.5 w-3.5", showParameters && "rotate-180")} />
-              Parameter
+              {t("learningCanvas.parameters")}
             </Button>
           </CollapsibleTrigger>
         )}
@@ -1242,10 +1246,10 @@ function FunctionPlot({ spec, embedded = false }: { spec: FunctionPlotCanvas; em
           className="h-8 text-body-sm text-muted-foreground hover:text-foreground"
         >
           <ChevronDown className={cn("mr-1.5 h-3.5 w-3.5 transition-transform duration-200", showValues && "rotate-180")} />
-          {showValues ? "Sembunyikan nilai grafik" : "Nilai grafik"}
+          {showValues ? t("learningCanvas.hideGraphValues") : t("learningCanvas.graphValues")}
         </Button>
         {!embedded && <span className="text-body-xs text-muted-foreground/60">
-          Seret untuk menggeser • Scroll / tombol untuk zoom
+          {t("learningCanvas.graphHelp")}
         </span>}
       </div>
       {embedded && spec.controls.length > 0 && (
@@ -1303,6 +1307,7 @@ function fitDataViewport(spec: DataPlotCanvas): Viewport | null {
 }
 
 function DataPlot({ spec }: { spec: DataPlotCanvas }) {
+  const t = useTranslations("studentCourse");
   const uid = useId().replace(/:/g, "");
   const [hoverPoint, setHoverPoint] = useState<{ x: number; y: number; px: number; py: number } | null>(null);
 
@@ -1322,7 +1327,7 @@ function DataPlot({ spec }: { spec: DataPlotCanvas }) {
     }, "");
   }, [spec.points, mapX, mapY]);
 
-  if (!defaultView) return <div className="space-y-2"><p role="status" className="text-body-sm text-muted-foreground">Rentang data melampaui presisi numerik yang tersedia. Gunakan tabel nilai.</p><FallbackTable spec={{ ...spec, fallback: { summary: "Nilai data asli.", columns: [{ id: "x", label: spec.xLabel, unit: spec.xUnit }, { id: "y", label: spec.yLabel, unit: spec.yUnit }], rows: spec.points.map(point => [mathNumber(point.x), mathNumber(point.y)]) } }} /></div>;
+  if (!defaultView) return <div className="space-y-2"><p role="status" className="text-body-sm text-muted-foreground">{t("learningCanvas.rangePrecisionWarning")}</p><FallbackTable spec={{ ...spec, fallback: { summary: t("learningCanvas.dataValuesSummary"), columns: [{ id: "x", label: spec.xLabel, unit: spec.xUnit }, { id: "y", label: spec.yLabel, unit: spec.yUnit }], rows: spec.points.map(point => [mathNumber(point.x), mathNumber(point.y)]) } }} /></div>;
 
   return (
     <div className="relative mx-auto w-full max-w-full overflow-hidden rounded-xl border border-border bg-card shadow-md ring-1 ring-black/5">
@@ -1335,7 +1340,7 @@ function DataPlot({ spec }: { spec: DataPlotCanvas }) {
           onClick={resetView}
           className="shrink-0 pl-3 text-body-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
         >
-          Reset tampilan
+          {t("learningCanvas.resetView")}
         </button>
       </div>
       <div className="relative w-full bg-card overflow-hidden select-none">
@@ -1343,7 +1348,7 @@ function DataPlot({ spec }: { spec: DataPlotCanvas }) {
           {...bind}
           viewBox={`0 0 ${SVG_W} ${SVG_H}`}
           role="img"
-          aria-label={`${spec.altText} Seret untuk menggeser, scroll untuk memperbesar, klik dua kali untuk mengatur ulang.`}
+            aria-label={`${spec.altText} ${t("learningCanvas.dataPlotHelp")}`}
         >
           <rect x="0" y="0" width={SVG_W} height={SVG_H} fill={BG} />
 
@@ -1389,7 +1394,7 @@ function DataPlot({ spec }: { spec: DataPlotCanvas }) {
       <div className="border-t border-border bg-muted/10 px-4 py-3">
         <details className="text-body-sm group">
           <summary className="cursor-pointer font-medium text-muted-foreground hover:text-foreground transition-colors select-none">
-            Lihat tabel data ({spec.points.length} titik)
+            {t("learningCanvas.showDataTable", { count: spec.points.length })}
           </summary>
           <div className="mt-3 overflow-x-auto max-h-48">
             <table className="w-full border-collapse text-body-sm">
@@ -1433,6 +1438,7 @@ function Derivation({ spec }: { spec: DerivationCanvas }) {
 }
 
 function Diagram({ spec }: { spec: DiagramCanvas }) {
+  const t = useTranslations("studentCourse");
   const markerId = useId().replace(/:/g, "");
   const containerRef = useRef<HTMLDivElement>(null);
   const [geometry, setGeometry] = useState<{
@@ -1467,7 +1473,7 @@ function Diagram({ spec }: { spec: DiagramCanvas }) {
       <div ref={containerRef} role="group" aria-label={spec.altText}
         className={cn("relative grid w-full gap-x-32 gap-y-20 py-4", spec.direction === "down" && "mx-auto max-w-[360px]")}
         style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}>
-        <svg width={geometry.width} height={geometry.height} role="img" aria-label="Hubungan antar konsep" className="pointer-events-none absolute inset-0 h-full w-full overflow-visible">
+        <svg width={geometry.width} height={geometry.height} role="img" aria-label={t("learningCanvas.conceptRelationships")} className="pointer-events-none absolute inset-0 h-full w-full overflow-visible">
           <defs><marker id={`${markerId}-arrow`} viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="var(--color-muted-foreground)" /></marker></defs>
           {spec.edges.map((edge, index) => {
             const source = geometry.nodes[edge.source];

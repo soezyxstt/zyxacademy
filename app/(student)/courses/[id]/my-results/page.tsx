@@ -15,18 +15,19 @@ import { studentQuizAttempts, quizTemplates, submissions, exams } from "@/db/sch
 import { and, eq } from "drizzle-orm";
 import { getCourse } from "@/lib/course-utils";
 import { getAuthSession } from "@/lib/auth-session";
+import { TranslatedText } from "@/components/i18n/translated-text";
+import { getTranslations } from "@/lib/i18n/server";
 
 type Props = { params: Promise<{ id: string }> };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params;
   const course = await getCourse(id);
+  const t = await getTranslations("learning");
 
   return createMetadata({
-    title: course ? `Hasil Belajar ${course.title}` : "Hasil Belajar",
-    description: course
-      ? `Riwayat nilai kuis dan tryout ${course.title}; pantau perkembangan belajarmu.`
-      : "Riwayat nilai kuis dan tryout; pantau perkembangan belajarmu.",
+    title: course ? t("metadata.resultsTitle", { course: course.title }) : t("metadata.resultsTitleFallback"),
+    description: t("metadata.resultsDescription"),
     path: `/courses/${id}/my-results`,
   });
 }
@@ -34,12 +35,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 function statusBadge(status: string) {
   const map: Record<string, string> = {
-    completed: "Selesai",
-    pending_review: "Menunggu dinilai",
-    graded: "Sudah dinilai",
-    late: "Terlambat",
+    completed: "completed",
+    pending_review: "pendingReview",
+    graded: "graded",
+    late: "late",
   };
-  return map[status] ?? status;
+  const key = map[status];
+  return key ? <TranslatedText namespace="learning" messageKey={`results.status.${key}`} /> : status;
 }
 
 export default async function CourseMyResultsPage({ params }: Props) {
@@ -54,7 +56,7 @@ export default async function CourseMyResultsPage({ params }: Props) {
   if (!isEnrolled) {
     return (
       <CoursePageShell
-        title={`Hasil Ujian: ${course.title}`}
+        title={<TranslatedText namespace="learning" messageKey="results.title" values={{ course: course.title }} />}
 
         icon={History}
       >
@@ -65,9 +67,9 @@ export default async function CourseMyResultsPage({ params }: Props) {
                 <Lock className="size-5" />
               </div>
               <div>
-                <h3 className="font-heading text-body-base font-bold text-foreground">Butuh token kelas</h3>
+                <h3 className="font-heading text-body-base font-bold text-foreground"><TranslatedText namespace="learning" messageKey="results.needToken" /></h3>
                 <p className="mt-1 text-body-sm text-muted-foreground">
-                  Aktifkan kelas untuk melihat skor dan pembahasan.
+                  <TranslatedText namespace="learning" messageKey="results.activateToView" />
                 </p>
               </div>
             </div>
@@ -155,7 +157,7 @@ export default async function CourseMyResultsPage({ params }: Props) {
 
   return (
     <CoursePageShell
-      title={`Hasil Ujian: ${course.title}`}
+      title={<TranslatedText namespace="learning" messageKey="results.title" values={{ course: course.title }} />}
 
       icon={History}
     >
@@ -169,7 +171,7 @@ export default async function CourseMyResultsPage({ params }: Props) {
                     {submission.examTitle}
                   </h2>
                   <p className="mt-1 text-body-sm text-muted-foreground">
-                    {submission.examType === "quiz" ? "Kuis" : "Tryout"} ·{" "}
+                    <TranslatedText namespace="learning" messageKey={submission.examType === "quiz" ? "results.quiz" : "results.tryout"} /> ·{" "}
                     <FormattedDate
                       date={submission.submittedAt}
                       options={{
@@ -191,7 +193,7 @@ export default async function CourseMyResultsPage({ params }: Props) {
                 </div>
                 <div className="shrink-0 text-right">
                   <p className="font-heading text-h6 font-bold tabular-nums text-foreground">
-                    {submission.score != null ? `${submission.score}%` : "Pending"}
+                    {submission.score != null ? `${submission.score}%` : <TranslatedText namespace="learning" messageKey="results.pending" />}
                   </p>
 
                 </div>
@@ -207,14 +209,14 @@ export default async function CourseMyResultsPage({ params }: Props) {
           <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border bg-card/50 p-8 sm:p-12 text-center max-w-md mx-auto">
             <History className="size-10 text-muted-foreground/40 mb-3" aria-hidden />
             <h3 className="font-heading text-body-base font-bold text-foreground">
-              Belum ada riwayat ujian
+              <TranslatedText namespace="learning" messageKey="results.emptyTitle" />
             </h3>
             <p className="mt-1 text-body-xs text-muted-foreground leading-relaxed">
-              Selesaikan kuis atau tryout untuk melihat hasil.
+              <TranslatedText namespace="learning" messageKey="results.emptyDescription" />
             </p>
             <Button asChild size="sm" className="mt-5 rounded-md text-body-xs">
               <Link href={`/courses/${id}/quiz`}>
-                Mulai Kuis Latihan
+                <TranslatedText namespace="learning" messageKey="results.startPractice" />
               </Link>
             </Button>
           </div>

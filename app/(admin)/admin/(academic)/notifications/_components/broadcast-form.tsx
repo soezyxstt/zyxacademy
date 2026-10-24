@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/select";
 import { Bell, Send, CheckCircle2, AlertCircle } from "lucide-react";
 import { toast } from "@/components/ui/toast";
+import { useTranslations } from "@/lib/i18n/client";
 
 interface Course {
  id: string;
@@ -35,6 +36,7 @@ interface Props {
 const initialState: BroadcastFormState = {};
 
 export function NotificationBroadcastForm({ courses }: Props) {
+ const t = useTranslations("adminOps");
  const [state, formAction, isPending] = useActionState(sendBroadcastAction, initialState);
 
  // Controlled fields for live preview
@@ -47,13 +49,13 @@ export function NotificationBroadcastForm({ courses }: Props) {
  useEffect(() => {
  if (state.success) {
  toast.success(
- `Notifikasi terkirim ke ${state.result?.succeeded ?? 0} perangkat!`,
- { description: `${state.result?.failedCount ?? 0} token gagal (sudah dihapus otomatis).` }
+ t("notificationUI.sentTo", { count: state.result?.succeeded ?? 0 }),
+ { description: t("notificationUI.failedTokens", { count: state.result?.failedCount ?? 0 }) }
  );
  } else if (state.error) {
- toast.error("Gagal mengirim notifikasi", { description: state.error });
+ toast.error(t("notificationUI.sendFailure"));
  }
- }, [state]);
+ }, [state, t]);
 
  return (
  <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
@@ -65,16 +67,16 @@ export function NotificationBroadcastForm({ courses }: Props) {
  {/* Target selection */}
  <div className="space-y-1.5">
  <Label htmlFor="notif-target" className="text-body-sm font-medium text-foreground">
- Target Penerima
+ {t("notificationUI.target")}
  </Label>
  <Select value={target} onValueChange={(v) => { setTarget(v); setTargetId(""); }}>
  <SelectTrigger id="notif-target" className="rounded-md">
- <SelectValue placeholder="Pilih target..." />
+ <SelectValue placeholder={t("notificationUI.selectTarget")} />
  </SelectTrigger>
  <SelectContent>
- <SelectItem value="all">Semua Pengguna</SelectItem>
- <SelectItem value="course">Kelas Tertentu</SelectItem>
- <SelectItem value="user">Satu Pengguna (User ID)</SelectItem>
+ <SelectItem value="all">{t("notificationUI.allUsers")}</SelectItem>
+ <SelectItem value="course">{t("notificationUI.specificCourse")}</SelectItem>
+ <SelectItem value="user">{t("notificationUI.singleUser")}</SelectItem>
  </SelectContent>
  </Select>
  </div>
@@ -83,11 +85,11 @@ export function NotificationBroadcastForm({ courses }: Props) {
  {target === "course" && (
  <div className="space-y-1.5">
  <Label htmlFor="notif-course" className="text-body-sm font-medium text-foreground">
- Pilih Kelas
+ {t("notificationUI.specificCourse")}
  </Label>
  <Select value={targetId} onValueChange={setTargetId}>
  <SelectTrigger id="notif-course" className="rounded-md">
- <SelectValue placeholder="Pilih kelas..." />
+ <SelectValue placeholder={t("notificationUI.selectCourse")} />
  </SelectTrigger>
  <SelectContent>
  {courses.map((c) => (
@@ -117,14 +119,14 @@ export function NotificationBroadcastForm({ courses }: Props) {
  {/* Title */}
  <div className="space-y-1.5">
  <Label htmlFor="notif-title" className="text-body-sm font-medium text-foreground">
- Judul <span className="text-muted-foreground font-normal">({title.length}/100)</span>
+ {t("notificationUI.title")} <span className="text-muted-foreground font-normal">({title.length}/100)</span>
  </Label>
  <Input
  id="notif-title"
  name="title"
  value={title}
  onChange={(e) => setTitle(e.target.value.slice(0, 100))}
- placeholder="e.g. 📝 Kuis Baru Tersedia"
+ placeholder="e.g. 📝 New quiz available"
  required
  className="rounded-md"
  />
@@ -133,26 +135,26 @@ export function NotificationBroadcastForm({ courses }: Props) {
  {/* Body */}
  <div className="space-y-1.5">
  <Label htmlFor="notif-body" className="text-body-sm font-medium text-foreground">
- Pesan <span className="text-muted-foreground font-normal">({body.length}/500)</span>
+ {t("notificationUI.body")} <span className="text-muted-foreground font-normal">({body.length}/500)</span>
  </Label>
  <Textarea
  id="notif-body"
  name="body"
  value={body}
  onChange={(e) => setBody(e.target.value.slice(0, 500))}
- placeholder="Tulis isi notifikasi di sini..."
+ placeholder={t("notificationUI.writeBody")}
  rows={3}
  required
  className="rounded-md resize-none"
  />
  </div>
 
- <p className="text-body-xs text-muted-foreground">Hanya pengguna yang mengizinkan notifikasi browser yang menerima pesan. Token tidak valid dihapus otomatis.</p>
+ <p className="text-body-xs text-muted-foreground">{t("notificationUI.deliveryNote")}</p>
 
  {/* Link */}
  <div className="space-y-1.5">
  <Label htmlFor="notif-link" className="text-body-sm font-medium text-foreground">
- Link <span className="text-muted-foreground font-normal">(opsional)</span>
+ Link <span className="text-muted-foreground font-normal">({t("notificationUI.optional")})</span>
  </Label>
  <Input
  id="notif-link"
@@ -167,7 +169,7 @@ export function NotificationBroadcastForm({ courses }: Props) {
  {(title || body) && (
  <div className="border-t border-border pt-3">
  <p className="text-body-xs text-muted-foreground font-medium mb-2">
- Pratinjau
+ {t("notificationUI.preview")}
  </p>
  <div className="flex gap-3 items-start">
  <div className="flex size-9 shrink-0 items-center justify-center rounded-md bg-brand-primary/15">
@@ -175,10 +177,10 @@ export function NotificationBroadcastForm({ courses }: Props) {
  </div>
  <div>
  <p className="text-body-sm font-semibold text-foreground leading-tight">
- {title || "Judul notifikasi..."}
+ {title || t("notificationUI.titlePlaceholder")}
  </p>
  <p className="text-body-xs text-muted-foreground mt-0.5 leading-relaxed">
- {body || "Isi pesan..."}
+ {body || t("notificationUI.bodyPlaceholder")}
  </p>
  </div>
  </div>
@@ -190,10 +192,10 @@ export function NotificationBroadcastForm({ courses }: Props) {
  <div className="flex items-center gap-2 rounded-md border border-status-success/30 bg-status-success/8 px-4 py-3">
  <CheckCircle2 className="size-4 text-status-success shrink-0" />
  <p className="text-body-sm text-status-success">
- Berhasil dikirim ke <strong>{state.result?.succeeded}</strong> perangkat.
+ {t("notificationUI.sentTo", { count: state.result?.succeeded ?? 0 })}
  {(state.result?.failedCount ?? 0) > 0 && (
  <span className="text-muted-foreground ml-1">
- ({state.result?.failedCount} token tidak valid, sudah dihapus.)
+ {t("notificationUI.failedTokens", { count: state.result?.failedCount ?? 0 })}
  </span>
  )}
  </p>
@@ -203,7 +205,7 @@ export function NotificationBroadcastForm({ courses }: Props) {
  {state.error && (
  <div className="flex items-center gap-2 rounded-md border border-status-error/30 bg-status-error/8 px-4 py-3">
  <AlertCircle className="size-4 text-status-error shrink-0" />
- <p className="text-body-sm text-status-error">{state.error}</p>
+ <p className="text-body-sm text-status-error">{t("notificationUI.sendFailure")}</p>
  </div>
  )}
 
@@ -215,7 +217,7 @@ export function NotificationBroadcastForm({ courses }: Props) {
  id="send-notification-btn"
  >
  <Send className="size-4" />
- Kirim Notifikasi
+ {isPending ? t("notificationUI.sending") : t("notificationUI.send")}
  </Button>
  </form>
  </div>

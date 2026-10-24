@@ -8,11 +8,13 @@ import { TutorQuizForm } from "@/components/tutor/tutor-quiz-form";
 import { ApplicationPage } from "@/components/application-page";
 import { Reveal } from "@/components/ui/reveal";
 import { pageTitle } from "@/lib/site";
+import { getTranslations } from "@/lib/i18n/server";
 
 type Props = { params: Promise<{ courseId: string }> };
 
 export async function generateMetadata({ params }: Props) {
   const { courseId } = await params;
+  const t = await getTranslations("tutor.routeTitles");
   const [mk] = await db
     .select({ title: mataKuliah.title })
     .from(mataKuliah)
@@ -24,7 +26,7 @@ export async function generateMetadata({ params }: Props) {
   const title = mk?.title ?? c?.title;
 
   return {
-    title: pageTitle(title ? `Buat Kuis Baru: ${title}` : "Buat Kuis Baru"),
+    title: pageTitle(title ? `${t("createQuiz")}: ${title}` : t("createQuiz")),
   };
 }
 

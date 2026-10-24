@@ -1,13 +1,10 @@
 import type { Metadata } from "next";
 import { AboutClient } from "./about-client";
-import { createMetadata } from "@/lib/site";
+import { createLocalizedMetadata } from "@/lib/site-metadata";
 
-export const metadata: Metadata = createMetadata({
-  title: "Tentang Kami",
-  description:
-    "Kami membangun pengalaman belajar yang tenang dan terukur dari TPB hingga jurusan.",
-  path: "/about",
-});
+export async function generateMetadata(): Promise<Metadata> {
+  return createLocalizedMetadata({ path: "/about", titleKey: "meta.about.title", descriptionKey: "meta.about.description" });
+}
 
 
 export default function AboutPage() {

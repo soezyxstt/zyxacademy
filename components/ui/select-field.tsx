@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/select";
 import { FormFieldWrapper } from "@/components/ui/form-field-wrapper";
 import { cn } from "@/lib/utils";
+import { useTranslations } from "next-intl";
 
 interface SelectOption {
   value: string;
@@ -37,7 +38,7 @@ function SelectField({
   description,
   error,
   required,
-  placeholder = "Select an option",
+  placeholder,
   options,
   value,
   onValueChange,
@@ -47,6 +48,7 @@ function SelectField({
   className,
   id,
 }: SelectFieldProps) {
+  const t = useTranslations("ui");
   const uniqueId = React.useId();
   const selectId = id || uniqueId;
 
@@ -74,7 +76,7 @@ function SelectField({
           )}
           aria-invalid={!!error}
         >
-          <SelectValue placeholder={placeholder} />
+          <SelectValue placeholder={placeholder ?? t("selectPlaceholder")} />
         </SelectTrigger>
         <SelectContent>
           {options.map((option) => (

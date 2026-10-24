@@ -50,6 +50,24 @@ export const emailNotificationPreferences = sqliteTable("email_notification_pref
   .notNull(),
 });
 
+/** Account presentation preference, kept separate from authorization and learning settings. */
+export const accountLocalePreferences = sqliteTable(
+ "account_locale_preferences",
+ {
+  userId: text("user_id")
+   .primaryKey()
+   .references(() => user.id, { onDelete: "cascade" }),
+  locale: text("locale").$type<"id" | "en">().notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp" })
+   .defaultNow()
+   .$onUpdate(() => new Date())
+   .notNull(),
+ },
+ (table) => [
+  check("account_locale_preferences_locale_check", sql`${table.locale} in ('id', 'en')`),
+ ],
+);
+
 /** Canonical domain identity for a Better Auth user. */
 export const pengguna = sqliteTable(
  "pengguna",
@@ -866,6 +884,10 @@ export const userRelations = relations(user, ({ many, one }) => ({
     fields: [user.id],
     references: [emailNotificationPreferences.userId],
   }),
+  accountLocalePreference: one(accountLocalePreferences, {
+   fields: [user.id],
+   references: [accountLocalePreferences.userId],
+  }),
   pengguna: one(pengguna, {
     fields: [user.id],
     references: [pengguna.id],
@@ -877,6 +899,13 @@ export const emailNotificationPreferencesRelations = relations(emailNotification
     fields: [emailNotificationPreferences.userId],
     references: [user.id],
   }),
+}));
+
+export const accountLocalePreferencesRelations = relations(accountLocalePreferences, ({ one }) => ({
+ user: one(user, {
+  fields: [accountLocalePreferences.userId],
+  references: [user.id],
+ }),
 }));
 
 // Relations for groups & enrollment tokens

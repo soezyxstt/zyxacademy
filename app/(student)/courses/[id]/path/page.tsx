@@ -10,15 +10,18 @@ import { Reveal } from "@/components/ui/reveal";
 import { createMetadata, pageTitle } from "@/lib/site";
 import { getCourse } from "@/lib/course-utils";
 import { StudyPathTimeline } from "@/components/course/study-path-timeline";
+import { TranslatedText } from "@/components/i18n/translated-text";
+import { getTranslations } from "@/lib/i18n/server";
 
 type Props = { params: Promise<{ id: string }> };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params;
   const course = await getCourse(id);
+  const t = await getTranslations("learning");
   return createMetadata({
-    title: course ? `Alur Belajar ${course.title}` : "Alur Belajar",
-    description: course?.description ?? "Rencana alur belajar personal terstruktur.",
+    title: course ? t("metadata.pathTitle", { course: course.title }) : t("metadata.pathTitleFallback"),
+    description: course?.description ?? t("metadata.pathDescription"),
     path: `/courses/${id}/path`,
   });
 }
@@ -34,15 +37,15 @@ export default async function CoursePathPage({ params }: Props) {
   if (!isEnrolled) {
     return (
       <CoursePageShell
-        title={`Alur Belajar: ${course.title}`}
+        title={<TranslatedText namespace="learning" messageKey="path.title" values={{ course: course.title }} />}
 
         icon={Compass}
       >
         <Reveal>
           <div className={studentCardClass("mx-auto max-w-xl text-center py-12")}>
-            <h3 className="font-heading text-body-base font-bold text-foreground">Alur Belajar Terkunci</h3>
+            <h3 className="font-heading text-body-base font-bold text-foreground"><TranslatedText namespace="learning" messageKey="path.lockedTitle" /></h3>
             <p className="mt-2 text-body-sm text-muted-foreground leading-relaxed">
-              Anda perlu mendaftar kelas ini untuk melihat alur belajar personal Anda. Aktifkan kelas menggunakan token pendaftaran di bawah ini.
+              <TranslatedText namespace="learning" messageKey="path.lockedDescription" />
             </p>
             <div className="mt-6 flex justify-center">
               <EnrollmentForm className="w-full max-w-sm" />
@@ -55,7 +58,7 @@ export default async function CoursePathPage({ params }: Props) {
 
   return (
     <CoursePageShell
-      title={`Alur Belajar: ${course.title}`}
+      title={<TranslatedText namespace="learning" messageKey="path.title" values={{ course: course.title }} />}
 
       icon={Compass}
     >

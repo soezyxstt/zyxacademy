@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { SheetClose } from "@/components/ui/sheet";
 import { signOut, useSession } from "@/lib/auth-client";
 import { cn } from "@/lib/utils";
+import { useTranslations } from "@/lib/i18n/client";
 
 type NavProfileOrSignInProps = {
   variant?: "toolbar" | "sheet";
@@ -24,6 +25,7 @@ export function NavProfileOrSignIn({
   onNavigate,
   showSignIn = true,
 }: NavProfileOrSignInProps) {
+  const t = useTranslations("marketing");
   const { data: session, isPending } = useSession();
   const sheet = variant === "sheet";
 
@@ -47,7 +49,7 @@ export function NavProfileOrSignIn({
   if (session?.user) {
     const name = session.user.name?.trim();
     const email = session.user.email;
-    const label = name || email?.split("@")[0] || "Akun";
+    const label = name || email?.split("@")[0] || t("nav.account");
 
     if (sheet) {
       return (
@@ -57,7 +59,7 @@ export function NavProfileOrSignIn({
               href="/dashboard"
               prefetch={true}
               title={email ?? label}
-              aria-label={`Dashboard (${label})`}
+              aria-label={t("nav.dashboardFor", { name: label })}
               onClick={onNavigate}
               className={cn(
                 "border-border hover:bg-muted/70 flex min-h-14 w-full items-center gap-3 rounded-xl border bg-background px-3 py-2.5 shadow-none transition-colors",
@@ -101,7 +103,7 @@ export function NavProfileOrSignIn({
             }}
           >
             <LogOut className="size-4" aria-hidden />
-            Keluar
+            {t("nav.signOut")}
           </Button>
         </div>
       );
@@ -153,7 +155,7 @@ export function NavProfileOrSignIn({
               >
                 <Link href="/profile" prefetch={true} onClick={onNavigate}>
                   <User className="size-4 shrink-0 text-muted-foreground" aria-hidden />
-                  <span>Profil</span>
+                  <span>{t("nav.profile")}</span>
                 </Link>
               </DropdownMenu.Item>
               <DropdownMenu.Item
@@ -162,7 +164,7 @@ export function NavProfileOrSignIn({
               >
                 <Link href="/dashboard" prefetch={true} onClick={onNavigate}>
                   <LayoutDashboard className="size-4 shrink-0 text-muted-foreground" aria-hidden />
-                  <span>Dashboard Belajar</span>
+                  <span>{t("nav.learningDashboard")}</span>
                 </Link>
               </DropdownMenu.Item>
               {(userRole === "teacher" || userRole === "tutor" || userRole === "admin") && (
@@ -172,7 +174,7 @@ export function NavProfileOrSignIn({
                 >
                   <Link href="/tutor" prefetch={true} onClick={onNavigate}>
                     <GraduationCap className="size-4 shrink-0 text-muted-foreground" aria-hidden />
-                    <span>Panel Tutor</span>
+                    <span>{t("nav.tutorPanel")}</span>
                   </Link>
                 </DropdownMenu.Item>
               )}
@@ -183,7 +185,7 @@ export function NavProfileOrSignIn({
                 >
                   <Link href="/admin" prefetch={true} onClick={onNavigate}>
                     <ShieldCheck className="size-4 shrink-0 text-muted-foreground" aria-hidden />
-                    <span>Panel Admin</span>
+                    <span>{t("nav.adminPanel")}</span>
                   </Link>
                 </DropdownMenu.Item>
               )}
@@ -198,7 +200,7 @@ export function NavProfileOrSignIn({
                 }}
               >
                 <LogOut className="size-4 shrink-0" aria-hidden />
-                <span>Keluar</span>
+                <span>{t("nav.signOut")}</span>
               </DropdownMenu.Item>
             </DropdownMenu.Content>
           </DropdownMenu.Portal>
@@ -211,7 +213,7 @@ export function NavProfileOrSignIn({
 
   return (
     <GoogleSignInButton
-      label={sheet ? "Masuk dengan Google" : "Login"}
+      label={sheet ? t("nav.signInGoogle") : t("nav.signIn")}
       callbackURL={callbackURL}
       onBeforeOAuth={onNavigate}
       containerClassName={sheet ? "w-full" : "max-lg:hidden shrink-0"}

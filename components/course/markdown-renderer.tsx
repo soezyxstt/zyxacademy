@@ -12,6 +12,7 @@ import {
   Copy, 
   Check 
 } from "lucide-react";
+import { useTranslations } from "@/lib/i18n/client";
 import { cn } from "@/lib/utils";
 import { getYoutubeEmbedUrl } from "@/lib/youtube";
 import dynamic from "next/dynamic";
@@ -21,15 +22,20 @@ import { compileSafeExpression, normalizeLegacyGraphExpression } from "@/lib/zyr
 import { splitScientificText } from "@/lib/math/text-segments";
 import { MathText } from "@/components/course/math-text";
 
+function CanvasLoading({ labelKey }: { labelKey: "chartLoading" | "diagramLoading" | "interactiveGraphLoading" }) {
+  const t = useTranslations("studentCourse");
+  return (
+    <div className="w-full h-[350px] flex items-center justify-center text-muted-foreground text-body-sm font-sans">
+      {t(`learningCanvas.${labelKey}`)}
+    </div>
+  );
+}
+
 const ChartRenderer = dynamic(
   () => import("@/components/course/markdown/chart-renderer").then((m) => m.ChartRenderer),
   {
     ssr: false,
-    loading: () => (
-      <div className="w-full h-[300px] flex items-center justify-center text-muted-foreground text-body-sm font-sans">
-        Memuat grafik...
-      </div>
-    ),
+    loading: () => <CanvasLoading labelKey="chartLoading" />,
   }
 );
 
@@ -37,11 +43,7 @@ const FlowchartDiagramRenderer = dynamic(
   () => import("@/components/course/markdown/flowchart-diagram-renderer").then((m) => m.FlowchartDiagramRenderer),
   {
     ssr: false,
-    loading: () => (
-      <div className="w-full h-[350px] flex items-center justify-center text-muted-foreground text-body-sm font-sans">
-        Memuat diagram...
-      </div>
-    ),
+    loading: () => <CanvasLoading labelKey="diagramLoading" />,
   }
 );
 
@@ -49,11 +51,7 @@ const InteractiveGraphWidget = dynamic(
   () => import("@/components/course/interactive-graph-widget").then((m) => m.InteractiveGraphWidget),
   {
     ssr: false,
-    loading: () => (
-      <div className="w-full h-[380px] flex items-center justify-center text-muted-foreground text-body-sm font-sans">
-        Memuat grafik interaktif...
-      </div>
-    ),
+    loading: () => <CanvasLoading labelKey="interactiveGraphLoading" />,
   }
 );
 
@@ -1489,6 +1487,7 @@ export function ASTRenderer({ blocks, className, density }: ASTRendererProps) {
 }
 
 export function MarkdownRenderer({ content, className, density }: MarkdownRendererProps) {
+  const t = useTranslations("studentCourse");
   const contextDensity = useMarkdownDensity();
   const activeDensity = density ?? contextDensity;
 
@@ -1514,11 +1513,10 @@ export function MarkdownRenderer({ content, className, density }: MarkdownRender
   if (!compiled) return null;
 
   if (!compiled.ok) {
-    const err = compiled.error;
     return (
       <div className="p-4 bg-status-error/10 border border-status-error/25 text-status-error rounded-xl text-body-sm font-sans">
-        <strong>Visual Compiler Error:</strong>
-        <p className="mt-1 font-mono text-body-xs">{err instanceof Error ? err.message : String(err)}</p>
+        <strong>{t("learningCanvas.visualCompilerError")}</strong>
+        <p className="mt-1 text-body-xs">{t("learningCanvas.visualCompilerUnavailable")}</p>
       </div>
     );
   }

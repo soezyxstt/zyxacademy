@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useCallback, useEffect, useState, useTransition } from "react";
+import { useTranslations } from "next-intl";
 import {
   AlertCircle,
-  Calendar,
   CheckCircle2,
   Loader2,
   Plus,
@@ -12,7 +12,6 @@ import {
   Tag,
   Ticket,
   Trash2,
-  Users,
 } from "lucide-react";
 import { AdminConfirmDialog } from "@/components/admin/confirm-dialog";
 import { AdminSectionTitle } from "@/components/admin/section-title";
@@ -42,6 +41,8 @@ export function VoucherManagementTab({
 }: {
   onVouchersUpdated?: () => void;
 }) {
+  const t = useTranslations("adminMedia");
+  const [now] = useState(() => Date.now());
   const [vouchers, setVouchers] = useState<DiscountVoucherItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -65,21 +66,21 @@ export function VoucherManagementTab({
   const [actionError, setActionError] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
-  const fetchVouchers = async () => {
+  const fetchVouchers = useCallback(async () => {
     setLoading(true);
     setError(null);
     const res = await getDiscountVouchers();
     if (res.success && res.data) {
       setVouchers(res.data);
     } else {
-      setError(res.error || "Gagal memuat daftar voucher.");
+      setError(t("voucher.loadError"));
     }
     setLoading(false);
-  };
+  }, [t]);
 
   useEffect(() => {
     fetchVouchers();
-  }, []);
+  }, [fetchVouchers]);
 
   const handleCreateVoucher = (e: React.FormEvent) => {
     e.preventDefault();
@@ -97,7 +98,7 @@ export function VoucherManagementTab({
       });
 
       if (res.success && res.data) {
-        setFormSuccess(`Voucher ${res.data.code} berhasil dibuat.`);
+        setFormSuccess(t("voucher.created", { code: res.data.code }));
         setCode("");
         setDescription("");
         setDiscountPercent("10");
@@ -107,7 +108,7 @@ export function VoucherManagementTab({
         fetchVouchers();
         onVouchersUpdated?.();
       } else {
-        setFormError(res.error || "Gagal membuat voucher.");
+        setFormError(t("voucher.createError"));
       }
     });
   };
@@ -122,7 +123,7 @@ export function VoucherManagementTab({
         fetchVouchers();
         onVouchersUpdated?.();
       } else {
-        setActionError(res.error || "Gagal mengubah status voucher.");
+        setActionError(t("voucher.statusError"));
       }
     });
   };
@@ -141,19 +142,19 @@ export function VoucherManagementTab({
       fetchVouchers();
       onVouchersUpdated?.();
     } else {
-      setDeleteError(res.error || "Gagal menghapus voucher.");
-      setActionError(res.error || "Gagal menghapus voucher.");
+      setDeleteError(t("voucher.deleteError"));
+      setActionError(t("voucher.deleteError"));
     }
   };
 
-  const isExpired = (date: Date) => new Date(date).getTime() <= Date.now();
+  const isExpired = (date: Date) => new Date(date).getTime() <= now;
 
   return (
     <div className="space-y-6" data-voucher-management>
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="font-heading text-body-base font-bold text-foreground">
-            Daftar voucher & kode referal
+            {t("voucher.title")}
           </h2>
         </div>
 
@@ -167,7 +168,7 @@ export function VoucherManagementTab({
             className="gap-1.5"
           >
             <RefreshCw className={`size-3.5 ${loading ? "animate-spin" : ""}`} />
-            Refresh
+            {t("voucher.refresh")}
           </Button>
 
           <Button
@@ -182,7 +183,7 @@ export function VoucherManagementTab({
             className="gap-1.5"
           >
             <Plus className="size-3.5" />
-            {showForm ? "Tutup form" : "Buat voucher"}
+            {showForm ? t("voucher.closeForm") : t("voucher.create")}
           </Button>
         </div>
       </div>
@@ -205,29 +206,29 @@ export function VoucherManagementTab({
         <section className="rounded-xl border border-border bg-card p-4">
           <AdminSectionTitle
             icon={Tag}
-            title="Voucher baru"
+            title={t("voucher.new")}
           />
 
           <form onSubmit={handleCreateVoucher} className="mt-5 space-y-4">
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               <div className="space-y-2">
-                <Label htmlFor="voucher-code">Kode voucher</Label>
+                <Label htmlFor="voucher-code">{t("voucher.code")}</Label>
                 <Input
                   id="voucher-code"
                   type="text"
-                  placeholder="Contoh: HEMAT10"
+                  placeholder={t("voucher.codePlaceholder")}
                   value={code}
                   onChange={(e) => setCode(e.target.value.toUpperCase())}
                   required
                   className="font-mono uppercase tracking-wider"
                 />
                 <p className="text-body-xs text-muted-foreground">
-                  3-30 huruf atau angka.
+                  {t("voucher.codeHelp")}
                 </p>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="voucher-discount">Persentase diskon (%)</Label>
+                <Label htmlFor="voucher-discount">{t("voucher.discount")}</Label>
                 <Input
                   id="voucher-discount"
                   type="number"
@@ -239,12 +240,12 @@ export function VoucherManagementTab({
                   required
                 />
                 <p className="text-body-xs text-muted-foreground">
-                  Potongan dari harga setelah diskon 40%.
+                  {t("voucher.discountHelp")}
                 </p>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="voucher-quota">Kuota penggunaan</Label>
+                <Label htmlFor="voucher-quota">{t("voucher.quota")}</Label>
                 <Input
                   id="voucher-quota"
                   type="number"
@@ -255,12 +256,12 @@ export function VoucherManagementTab({
                   required
                 />
                 <p className="text-body-xs text-muted-foreground">
-                  Maksimal kelompok.
+                  {t("voucher.quotaHelp")}
                 </p>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="voucher-expiry">Tanggal kedaluwarsa</Label>
+                <Label htmlFor="voucher-expiry">{t("voucher.expiry")}</Label>
                 <Input
                   id="voucher-expiry"
                   type="date"
@@ -272,11 +273,11 @@ export function VoucherManagementTab({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="voucher-desc">Keterangan / pemilik referal (opsional)</Label>
+              <Label htmlFor="voucher-desc">{t("voucher.description")}</Label>
               <Input
                 id="voucher-desc"
                 type="text"
-                placeholder="Contoh: Kode referal Ketua Angkatan TPB 2026"
+                placeholder={t("voucher.descriptionPlaceholder")}
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
               />
@@ -297,11 +298,11 @@ export function VoucherManagementTab({
                 onClick={() => setShowForm(false)}
                 disabled={isPending}
               >
-                Batal
+                {t("voucher.cancel")}
               </Button>
               <Button type="submit" size="sm" disabled={isPending} className="gap-1.5">
                 {isPending && <Loader2 className="size-3.5 animate-spin" />}
-                Simpan voucher
+                {t("voucher.save")}
               </Button>
             </div>
           </form>
@@ -317,8 +318,8 @@ export function VoucherManagementTab({
       ) : vouchers.length === 0 ? (
         <AdminEmptyState
           icon={Ticket}
-          title="Belum ada voucher"
-          description="Tambahkan kode diskon atau referal."
+          title={t("voucher.empty")}
+          description={t("voucher.emptyHelp")}
           action={
             <Button
               type="button"
@@ -327,7 +328,7 @@ export function VoucherManagementTab({
               className="mt-2 gap-1.5"
             >
               <Plus className="size-3.5" />
-              Buat voucher pertama
+              {t("voucher.createFirst")}
             </Button>
           }
         />
@@ -336,12 +337,12 @@ export function VoucherManagementTab({
           <table className="w-full text-left text-body-xs">
             <AdminTableHead>
               <tr>
-                <th className="px-4 py-3 font-semibold text-foreground">Kode voucher</th>
-                <th className="px-4 py-3 font-semibold text-foreground">Diskon</th>
-                <th className="px-4 py-3 font-semibold text-foreground">Kuota</th>
-                <th className="px-4 py-3 font-semibold text-foreground">Masa aktif</th>
-                <th className="px-4 py-3 font-semibold text-foreground">Status</th>
-                <th className="px-4 py-3 text-right font-semibold text-foreground">Aksi</th>
+                <th className="px-4 py-3 font-semibold text-foreground">{t("voucher.codeColumn")}</th>
+                <th className="px-4 py-3 font-semibold text-foreground">{t("voucher.discountColumn")}</th>
+                <th className="px-4 py-3 font-semibold text-foreground">{t("voucher.quotaColumn")}</th>
+                <th className="px-4 py-3 font-semibold text-foreground">{t("voucher.activePeriod")}</th>
+                <th className="px-4 py-3 font-semibold text-foreground">{t("voucher.status")}</th>
+                <th className="px-4 py-3 text-right font-semibold text-foreground">{t("voucher.actions")}</th>
               </tr>
             </AdminTableHead>
             <tbody className="divide-y divide-border/60">
@@ -383,7 +384,7 @@ export function VoucherManagementTab({
                           {v.usedQuota} / {v.maxQuota}
                         </span>
                         <span className="text-body-xs text-muted-foreground">
-                          ({Math.max(0, v.maxQuota - v.usedQuota)} sisa)
+                          {t("voucher.remaining", { count: Math.max(0, v.maxQuota - v.usedQuota) })}
                         </span>
                       </div>
                     </td>
@@ -397,7 +398,7 @@ export function VoucherManagementTab({
                           />
                         </span>
                         {expired && (
-                          <span className="text-body-2xs text-status-error">Sudah kedaluwarsa</span>
+                          <span className="text-body-2xs text-status-error">{t("voucher.expired")}</span>
                         )}
                       </div>
                     </td>
@@ -405,19 +406,19 @@ export function VoucherManagementTab({
                     <td className="px-4 py-3">
                       {expired ? (
                         <Badge variant="outline" className="border-status-error/30 bg-status-error/10 text-status-error">
-                          Kedaluwarsa
+                          {t("voucher.expired")}
                         </Badge>
                       ) : exhausted ? (
                         <Badge variant="outline" className="border-status-warning/30 bg-status-warning/10 text-status-warning">
-                          Kuota Habis
+                          {t("voucher.quotaUsed")}
                         </Badge>
                       ) : v.isActive ? (
                         <Badge variant="outline" className="border-status-success/30 bg-status-success/10 text-status-success">
-                          Aktif
+                          {t("voucher.active")}
                         </Badge>
                       ) : (
                         <Badge variant="outline" className="border-border bg-muted text-muted-foreground">
-                          Nonaktif
+                          {t("voucher.inactive")}
                         </Badge>
                       )}
                     </td>
@@ -430,11 +431,11 @@ export function VoucherManagementTab({
                           size="xs"
                           onClick={() => handleToggleStatus(v)}
                           disabled={isPending}
-                          title={v.isActive ? "Nonaktifkan voucher" : "Aktifkan voucher"}
+                          title={v.isActive ? t("voucher.disable") : t("voucher.enable")}
                           className="h-7 px-2 text-body-2xs gap-1"
                         >
                           <Power className="size-3" />
-                          {v.isActive ? "Nonaktifkan" : "Aktifkan"}
+                          {v.isActive ? t("voucher.disableAction") : t("voucher.enableAction")}
                         </Button>
 
                         <Button
@@ -443,7 +444,7 @@ export function VoucherManagementTab({
                           size="icon-xs"
                           onClick={() => setDeleteTarget(v)}
                           disabled={isPending}
-                          title="Hapus voucher"
+                          title={t("voucher.delete")}
                           className="text-status-error hover:bg-status-error/10"
                         >
                           <Trash2 className="size-3.5" />
@@ -466,12 +467,12 @@ export function VoucherManagementTab({
             setDeleteError(null);
           }
         }}
-        title="Hapus voucher"
+        title={t("voucher.delete")}
         description={
           deleteTarget ? (
             <span className="block space-y-2">
               <span className="block">
-                Apakah Anda yakin ingin menghapus voucher &quot;{deleteTarget.code}&quot;? Tindakan ini tidak dapat dibatalkan.
+                {t("voucher.deleteDescription", { code: deleteTarget.code })}
               </span>
               {deleteError && (
                 <span className="block rounded-md border border-status-error/30 bg-status-error/10 p-2 text-body-xs font-medium text-status-error">
@@ -483,8 +484,8 @@ export function VoucherManagementTab({
             ""
           )
         }
-        confirmLabel="Ya, Hapus"
-        cancelLabel="Batal"
+        confirmLabel={t("voucher.confirmDelete")}
+        cancelLabel={t("voucher.cancel")}
         destructive
         loading={isDeleting}
         onConfirm={handleDeleteConfirm}

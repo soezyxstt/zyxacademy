@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { AlertCircle, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useTranslations } from "@/lib/i18n/client";
 import { ActivityFilters } from "./activity-filters";
 import { ActivityTable } from "./activity-table";
 import {
@@ -22,6 +23,7 @@ export function TutorActivityClient({
   initialResult,
   options,
 }: TutorActivityClientProps) {
+  const t = useTranslations("adminOps");
   const [filters, setFilters] = useState<TutorActivityFilterInput>({
     limit: initialResult.limit,
   });
@@ -43,8 +45,8 @@ export function TutorActivityClient({
         setNextCursor(res.nextCursor);
         setHasNextPage(res.hasNextPage);
       } catch (err) {
-        console.error("Gagal memuat log aktivitas tutor:", err);
-        setErrorMessage("Gagal memuat catatan aktivitas tutor. Silakan coba lagi.");
+        console.error("Failed to load tutor activity logs:", err);
+        setErrorMessage(t("tutorActivityUI.loadError"));
       }
     });
   };
@@ -128,7 +130,7 @@ export function TutorActivityClient({
             className="h-8 gap-1 text-body-xs shrink-0"
           >
             <RotateCcw className="size-3" aria-hidden />
-            <span>Coba lagi</span>
+            <span>{t("tutorActivityUI.retry")}</span>
           </Button>
         </div>
       )}
@@ -137,7 +139,7 @@ export function TutorActivityClient({
         {isPending && (
           <div className="absolute inset-0 bg-background/50 backdrop-blur-xs z-10 rounded-xl flex items-center justify-center pointer-events-none">
             <span className="text-body-xs font-semibold text-muted-foreground bg-card px-3 py-1.5 rounded-lg border border-border shadow-xs">
-              Memuat data...
+              {t("tutorActivityUI.loading")}
             </span>
           </div>
         )}

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { pageTitle } from "@/lib/site";
+import { getTranslations } from "@/lib/i18n/server";
 import { db } from "@/db";
 import { aiGenerationJobs, courses, chapters, mataKuliah, bab, knowledgeObjects } from "@/db/schema";
 import { desc, eq, asc } from "drizzle-orm";
@@ -7,10 +8,12 @@ import { assertTutorOrAdmin } from "@/lib/auth/admin-guards";
 import { GenerationJobsClient } from "./jobs-client";
 import { AdminPageHeader } from "@/components/admin/page-header";
 import { Zap } from "lucide-react";
+import { TranslatedText } from "@/components/i18n/translated-text";
 
-export const metadata: Metadata = {
-  title: pageTitle("Generation Jobs"),
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("adminEval");
+  return { title: pageTitle(t("metadata.generationJobs")) };
+}
 
 export default async function GenerationJobsPage() {
   await assertTutorOrAdmin();
@@ -63,7 +66,7 @@ export default async function GenerationJobsPage() {
     <div className="space-y-5">
       <AdminPageHeader
         icon={Zap}
-        title="Generasi Soal"
+        title={<TranslatedText namespace="adminEval" messageKey="routes.generationJobs" />}
       />
       <GenerationJobsClient
         jobs={jobs}

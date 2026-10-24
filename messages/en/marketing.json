@@ -1,0 +1,930 @@
+{
+  "nav": {
+    "plans": "Plans",
+    "about": "About us",
+    "testimonials": "Testimonials",
+    "blog": "Blog",
+    "primary": "Primary navigation",
+    "mainMenu": "Main menu",
+    "search": "Search",
+    "searchShortcut": "Search the site (Ctrl+K or ⌘K)",
+    "closeMenu": "Close menu",
+    "openMenu": "Open menu",
+    "navigationMenu": "Navigation menu",
+    "navigationDescription": "Main site navigation",
+    "home": "Home",
+    "homeBrand": "Zyx Academy home",
+    "searchPlaceholder": "Search the site…",
+    "mobileMenu": "Mobile menu",
+    "account": "Account",
+    "dashboardFor": "Dashboard ({name})",
+    "signOut": "Sign out",
+    "profile": "Profile",
+    "learningDashboard": "Learning dashboard",
+    "tutorPanel": "Tutor panel",
+    "adminPanel": "Admin panel",
+    "signInGoogle": "Sign in with Google",
+    "signIn": "Sign in"
+  },
+  "footer": {
+    "description": "Zyx Academy helps first- and second-year ITB undergraduate students master their courses with campus-aligned modules, focused practice, and tutorials with ITB tutors.",
+    "tagline": "Built by ITB students. Learn with a clearer direction.",
+    "companyLinks": "Company links",
+    "company": "Company",
+    "plans": "Plans",
+    "legalLinks": "Legal links",
+    "legal": "Legal",
+    "privacy": "Privacy policy",
+    "terms": "Terms and conditions",
+    "instagram": "Zyx Academy on Instagram",
+    "tiktok": "Zyx Academy on TikTok",
+    "copyright": "© {year} Zyx Academy. All rights reserved."
+  },
+  "meta": {
+    "home": {
+      "title": "Zyx Academy",
+      "description": "Tutorials and learning for first- and second-year ITB students, with structured materials, quizzes, and guidance."
+    },
+    "about": {
+      "title": "About us",
+      "description": "We are building a calm, measurable learning experience from the first-year common program through the major."
+    },
+    "plans": {
+      "title": "Choose a plan",
+      "description": "Zyx Academy tutorial plans combine courses, meeting schedules, and access to academic materials."
+    },
+    "testimonial": {
+      "title": "Testimonials",
+      "description": "Stories from Zyx Academy students about their learning process."
+    },
+    "blog": {
+      "title": "Blog",
+      "description": "Recent articles with study tips, campus notes, interesting facts, and Zyx Academy activities."
+    },
+    "privacy": {
+      "title": "Privacy policy",
+      "description": "Learn how Zyx Academy collects, uses, stores, and protects users' personal data."
+    },
+    "terms": {
+      "title": "Terms and conditions",
+      "description": "Terms for using the Zyx Academy website, materials, accounts, and learning services."
+    },
+    "demo": {
+      "title": "Learning demo",
+      "description": "Explore the Zyx Academy learning flow before creating an account."
+    },
+    "v4Preview": {
+      "title": "V4 article preview",
+      "description": "Preview the V4 article format and its published classroom content."
+    }
+  },
+  "home": {
+    "coursesTitle": "Aligned with the ITB syllabus.",
+    "coursesDescription": "From Calculus, Basic Physics, and Basic Chemistry to major courses, materials follow your course sequence rather than a textbook's order.",
+    "coursesCta": "View catalog",
+    "pathTitle": "Two students, two different paths.",
+    "flashcardsTitle": "Review just before you forget.",
+    "flashcardsDescription": "The SM-2 algorithm schedules each card: difficult cards return sooner, while familiar cards appear after longer intervals.",
+    "flashcardsFrameTitle": "Daily review · Calculus IA",
+    "days": {
+      "mon": "Mon",
+      "tue": "Tue",
+      "wed": "Wed",
+      "thu": "Thu",
+      "fri": "Fri",
+      "sat": "Sat",
+      "sun": "Sun"
+    },
+    "streakDone": "complete",
+    "streakPending": "incomplete",
+    "streakDayStatus": "{day}: {status}",
+    "streakDays": "{count}-day streak",
+    "flashcardToday": "shown again today",
+    "flashcardLater": "reviewed again in {days} days",
+    "flashcardFlipBack": "Card flipped, click to return",
+    "flashcardFlip": "Click to flip the card",
+    "flashcardCounter": "Card {current} / {total}",
+    "flashcardFlipHint": "click to flip",
+    "flashcardAnswer": "Answer",
+    "flashcardGrades": {
+      "again": "Again",
+      "hard": "Hard",
+      "good": "Good",
+      "easy": "Easy"
+    },
+    "quizCorrect": "Correct!",
+    "quizWhyWrong": "Why is this wrong?",
+    "quizMisconception": "Misconception: the integral bounds were not evaluated",
+    "quizReview": "Review",
+    "quizTitle": "Mistakes are part of the plan.",
+    "quizDescription": "Each incorrect answer explains what went wrong, which misconception caused it, and what to review.",
+    "quizChecklistMaterial": "Built from the selected course materials and the concept being practiced.",
+    "quizChecklistExplanation": "Step-by-step explanations for each incorrect answer.",
+    "quizChecklistReview": "Linked to a chapter for a quick review.",
+    "weeklyQuizFrameTitle": "Weekly quiz · Calculus IA",
+    "quizTryAgain": "Try again",
+    "tutorQuestion1": "Why was my answer to yesterday's solids of revolution problem wrong?",
+    "tutorAnswer1": "You used the disk method, but the region is rotated around the $y$-axis. In this case, the shell method is a better fit: $V = 2\\pi\\int_a^b x\\,f(x)\\,dx$.",
+    "tutorQuestion2": "When should I use disks versus shells?",
+    "tutorAnswer2": "Use disks when slices are perpendicular to the axis of rotation; use shells when slices are parallel to the axis.",
+    "tutorTitle": "Answers grounded in available materials.",
+    "tutorDescription": "Zyra can answer from available course materials and cite its sources, including chapters, example questions, and related quizzes.",
+    "tutorCaveat": "If the available material is not enough, check the limits of the answer.",
+    "tutorFrameTitle": "Zyra",
+    "tutorTyping": "Zyra is typing",
+    "sourceLabel": "Sources",
+    "replay": "Replay",
+    "pricingTitle": "Choose the learning support that fits",
+    "pricingDescription": "Start with self-paced access, then add tutorials and consultation to fit your group's needs.",
+    "path": {
+      "profileA": "Student A",
+      "profileB": "Student B",
+      "profileLabel": "Choose a student profile",
+      "lockedNote": "Master {topic} first",
+      "status": {
+        "done": "mastered",
+        "active": "in progress",
+        "open": "available",
+        "locked": "locked"
+      }
+    },
+    "loop": {
+      "masteryTitle": "Mastery map · Calculus IA",
+      "trend": {
+        "up": "Trending up",
+        "flat": "Stable trend",
+        "down": "Trending down"
+      },
+      "dailyPlanTitle": "Today's plan",
+      "greeting": "Hello, {name}",
+      "tasks": {
+        "flashcards": "12 flashcards due",
+        "quiz": "Quiz: Integration by parts",
+        "material": "Material: Solids of revolution"
+      },
+      "meta": {
+        "5_minutes": "about 5 min",
+        "10_questions": "10 questions",
+        "12_minutes": "12 min read"
+      },
+      "weeklyQuizTitle": "Weekly quiz #4",
+      "correctAnswer": "Correct answer",
+      "weakConcept": "Selected from your weakest concept this week: {concept}.",
+      "pathTitle": "Learning path · Calculus IA",
+      "nodeNotes": {
+        "done": "mastered · {score}",
+        "active": "in progress · {score}",
+        "locked": "unlocks after {topic}"
+      },
+      "unlockDescription": "A stable score above 70 automatically unlocks the next concept.",
+      "steps": {
+        "diagnosis": {
+          "title": "Diagnosis",
+          "body": "Each quiz and flashcard you complete updates mastery scores by concept, not just an overall grade."
+        },
+        "plan": {
+          "title": "Daily plan",
+          "body": "The dashboard brings together 12 flashcards, one quiz, and one topic, giving you a clear place to start."
+        },
+        "practice": {
+          "title": "Focused practice",
+          "body": "Quizzes use your course materials, focus on your weakest concepts, and include explanations."
+        },
+        "mastery": {
+          "title": "Master it, then move on",
+          "body": "A concept is mastered when its score stays above 70. Your learning path then unlocks the next concept automatically."
+        }
+      },
+      "title": "Learn from what you need to master."
+    },
+    "heroTitle": "Make learning more focused",
+    "heroEmphasis": "every day.",
+    "heroDescription": "Find a learning path that helps you understand material, practice, and see your progress.",
+    "startFree": "Get started for free",
+    "tryDemo": "Try the demo",
+    "closingTitle": "Take a clear next step in your learning",
+    "closingDescription": "Build a more focused study habit with Zyx Academy.",
+    "viewPlans": "View plans",
+    "proofTitle": "Learn better, with Zyx",
+    "proofDescription": "Hear from students who study with Zyx Academy.",
+    "readStories": "Read student stories"
+  },
+  "about": {
+    "title": "About Zyx",
+    "intro": "We are building a learning space that helps ITB students understand their coursework, practice with direction, and get help when they need it.",
+    "storyTitle": "Learn with more direction and depth.",
+    "storyOne": "Zyx grew from the experience of facing a demanding first-year common program and the need for more structured guidance. We want students to see how concepts connect, rather than only collect notes for the next exam.",
+    "storyTwo": "That is why Zyx brings materials, practice, explanations, and tutorial options into one flow. We focus on first- and second-year ITB students who need a clearer foundation for learning.",
+    "principlesTitle": "Principles you can see in the product.",
+    "principlesIntro": "These practices are visible in Zyx's learning flow. They are not promises of academic results.",
+    "principleAligned": "Aligned materials",
+    "principleAlignedDescription": "Content follows the courses and chapters students are studying.",
+    "principlePractice": "Focused practice",
+    "principlePracticeDescription": "Quizzes, flashcards, and explanations help students identify concepts to review.",
+    "principleSupport": "Help when you need it",
+    "principleSupportDescription": "Self-paced learning can be supplemented with tutorials based on the chosen plan.",
+    "founderSectionTitle": "Academic direction and product development work together.",
+    "founderSectionDescription": "Each founder has a distinct area of responsibility. Adi focuses on connecting learning needs, content structure, and the web experience students use.",
+    "productContribution": "Product contribution:",
+    "founderPortfolio": "Founder portfolio",
+    "authoringTools": "Public authoring tools",
+    "peopleTitle": "The people behind our academic and technical direction.",
+    "peopleDescription": "Each member brings a different responsibility, from academics and content to technology systems and robotics.",
+    "founderPhoto": "Photo of {name}",
+    "founderAdiBio": "A 2022 Mechanical Engineering student at ITB, academic assistant for science and engineering courses, and Zyx's academic lead.",
+    "founderAdiContribution": "Leads academic direction and helps shape Zyx's web product, including its material structure, learning flow, and content authoring tools.",
+    "founderDawamRole": "Co-Founder & Hardware Systems Lead",
+    "founderDawamBio": "An Electrical Engineering student focused on FPGA, microcontrollers, digital system design, and embedded systems.",
+    "founderHeidiRole": "Co-Founder & Robotics Specialist",
+    "founderHeidiBio": "An Electrical Engineering student focused on robotics, autonomous systems, UAVs, ROVs, ROS, and vision-based control.",
+    "founderRaihanRole": "Co-Founder & Fullstack Tech Lead",
+    "founderRaihanBio": "An Informatics Engineering student focused on blockchain development, smart contracts, and full-stack web development.",
+    "founderAdiRole": "Co-Founder & Academic Lead"
+  },
+  "testimonial": {
+    "title": "Testimonials",
+    "intro": "Stories from Zyx Academy students about their learning process.",
+    "storiesTitle": "Stories from the learning process",
+    "studentPhoto": "Photo of {name}",
+    "ctaTitle": "See how learning works at Zyx",
+    "ctaDescription": "Start with independent materials and practice, then choose additional guidance if it fits your needs."
+  },
+  "privacy": {
+    "pageDescription": "How Zyx Academy manages and protects your personal data.",
+    "termsLink": "Terms and Conditions",
+    "sections": [
+      {
+        "title": "Policy scope",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "This policy explains how Zyx Academy manages personal data when you use our website, account, learning materials, quizzes, tutorials, Zyra, notifications, and other features we provide."
+          },
+          {
+            "type": "p",
+            "text": "By using the service, you understand that data will be processed under this policy and applicable law."
+          }
+        ]
+      },
+      {
+        "title": "Data we collect",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "We may collect the following categories of data:"
+          },
+          {
+            "type": "list",
+            "items": [
+              "Account data, such as your name, email address, profile photo, role, and authentication and session information.",
+              "Academic data, such as enrolled classes, material progress, quiz answers, assessment results, flashcard history, schedules, and learning activity.",
+              "Content and communications, such as questions to Zyra, tutorial messages, feedback, and files you upload through available features.",
+              "Technical data, such as device and browser information, IP address, access records, notification tokens, and diagnostic and usage analytics data.",
+              "Local device data, such as display preferences, study notes, bookmarks, and feature status saved in your browser storage."
+            ]
+          }
+        ]
+      },
+      {
+        "title": "How we use data",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "We use data fairly and only as needed to:"
+          },
+          {
+            "type": "list",
+            "items": [
+              "provide, secure, and maintain the service;",
+              "manage accounts, class access, schedules, and service communications;",
+              "show relevant progress, learning recommendations, feedback, and learning features;",
+              "process requests involving tutors, artificial intelligence, or other service integrations;",
+              "prevent misuse, address disruptions, and improve service quality and reliability;",
+              "meet legal obligations."
+            ]
+          },
+          {
+            "type": "p",
+            "text": "Processing may be based on consent, providing a service you requested, balanced legitimate interests, or legal obligations, depending on the context."
+          }
+        ]
+      },
+      {
+        "title": "Artificial intelligence and service providers",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "Some features use service providers for authentication, hosting, storage, databases, analytics, notifications, academic integrations, and artificial intelligence processing. Data is shared only as needed to provide those functions or meet legal obligations."
+          },
+          {
+            "type": "p",
+            "text": "Input you send to artificial intelligence features may be processed with relevant learning context to produce a response. Do not send sensitive personal data or confidential information that is not needed for learning."
+          },
+          {
+            "type": "p",
+            "text": "Service providers may process data in different locations. If cross-border processing occurs, we will take the steps required by applicable law."
+          }
+        ]
+      },
+      {
+        "title": "Cookies and local storage",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "We use cookies and similar technologies to maintain sign-in sessions, save preferences, enable features, remember choices, and understand how the service is used. Some data is stored only on your device through browser storage."
+          },
+          {
+            "type": "p",
+            "text": "You can manage cookies through your browser. Blocking cookies or clearing local storage may end your session or prevent some features from working as intended."
+          }
+        ]
+      },
+      {
+        "title": "Storage and security",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "We keep data for as long as needed to provide the service, meet legal obligations, resolve disputes, and maintain security. Retention periods may vary by data type and processing purpose."
+          },
+          {
+            "type": "p",
+            "text": "We use reasonable technical and organizational measures to protect data. However, no electronic system is entirely risk-free. Contact us promptly if you suspect unauthorized access to your account."
+          }
+        ]
+      },
+      {
+        "title": "Your rights and choices",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "Under applicable law, you may request information about data processing, access, correction, deletion, suspension or restriction of processing, withdrawal of consent, and may raise an objection. Some rights may be limited or require identity verification."
+          },
+          {
+            "type": "p",
+            "text": "You can manage some communication preferences in your account notification settings. You can send other requests through the contact details below."
+          }
+        ]
+      },
+      {
+        "title": "Minors",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "If applicable law requires parent or guardian consent for you to use the service or provide personal data, make sure that consent is obtained before using Zyx Academy."
+          }
+        ]
+      },
+      {
+        "title": "Policy changes",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "We may update this policy when our service, data practices, or applicable law changes. The latest update date will appear on this page. For material changes, we may provide additional notice through the service or available communication channels."
+          }
+        ]
+      },
+      {
+        "title": "Contact",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "For privacy questions or requests, contact us at {email}."
+          },
+          {
+            "type": "link",
+            "before": "Your use of the service is also subject to the ",
+            "after": " Zyx Academy.",
+            "href": "/terms"
+          }
+        ]
+      }
+    ]
+  },
+  "terms": {
+    "pageDescription": "Terms that apply when you use Zyx Academy services.",
+    "privacyLink": "Privacy Policy",
+    "sections": [
+      {
+        "title": "Acceptance of terms",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "These Terms and Conditions govern your use of the Zyx Academy website, account, learning materials, quizzes, tutorials, Zyra, and other services."
+          },
+          {
+            "type": "privacyLink",
+            "before": "By creating an account or using the service, you confirm that you have read and agree to these terms and our ",
+            "after": ". If you do not agree, do not use the service.",
+            "href": "/privacy"
+          }
+        ]
+      },
+      {
+        "title": "Accounts and eligibility",
+        "blocks": [
+          {
+            "type": "list",
+            "items": [
+              "You must provide accurate information and keep your account and sign-in session secure.",
+              "Accounts, access links, codes, and registration tokens may not be transferred without permission.",
+              "You are responsible for activity carried out through your account, unless it results from an error by Zyx Academy.",
+              "If applicable law requires parent or guardian consent, you must obtain that consent before using the service."
+            ]
+          }
+        ]
+      },
+      {
+        "title": "Acceptable use",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "You may use the service only for learning and other lawful purposes supported by its available functions. You must not:"
+          },
+          {
+            "type": "list",
+            "items": [
+              "access accounts, data, classes, or systems without authorization;",
+              "disrupt the security, performance, or availability of the service;",
+              "scrape, copy at scale, reverse engineer, or test for vulnerabilities without written permission;",
+              "upload malware, unlawful content, or material that infringes another party's rights;",
+              "use the service to deceive, impersonate, harass, or harm another user."
+            ]
+          }
+        ]
+      },
+      {
+        "title": "Academic integrity",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "Materials, practice, quizzes, and learning support features are designed to support learning. You remain responsible for following the academic rules set by your campus, instructors, classes, and assessment providers."
+          },
+          {
+            "type": "p",
+            "text": "You must not use Zyx Academy to cheat, share answers to active assessments, present someone else's work as your own, or evade academic evaluation requirements."
+          }
+        ]
+      },
+      {
+        "title": "Artificial intelligence features",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "Artificial intelligence responses may be incomplete, inaccurate, or out of date. Use them as learning support, check sources and calculations, and do not rely on them as the sole basis for important decisions."
+          },
+          {
+            "type": "p",
+            "text": "You must not try to bypass security, quota, access, or system instruction limits. We may limit use to maintain service quality, cost, security, and availability."
+          }
+        ]
+      },
+      {
+        "title": "Content and intellectual property",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "The website, brand, software, designs, question bank, Diktat, and other materials provided through the service are protected by intellectual property rights owned by Zyx Academy or its licensors. Access is limited, personal, non-exclusive, and non-transferable."
+          },
+          {
+            "type": "p",
+            "text": "You retain your rights to content you submit. You grant us limited permission to store, process, display, and transmit that content as needed to provide and secure the service. You are responsible for ensuring you have the right to submit it."
+          }
+        ]
+      },
+      {
+        "title": "Third-party services",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "Some functions depend on third-party services, such as authentication, video conferencing, storage, notifications, analytics, and artificial intelligence processing. Those services may have their own terms and privacy policies. We do not control those third-party services."
+          }
+        ]
+      },
+      {
+        "title": "Plans and payments",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "If you choose a paid service, the price, access period, scope, and payment terms shown when you place the order become part of these terms. You are responsible for reviewing the order details before approving payment."
+          },
+          {
+            "type": "p",
+            "text": "Cancellation or refund terms, if available, follow the information provided for the relevant plan or transaction and applicable law."
+          }
+        ]
+      },
+      {
+        "title": "Availability and suspension of access",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "We may maintain, change, restrict, or discontinue parts of the service for operational, security, legal, or product development reasons. Where possible, we will notify you of material changes through available channels."
+          },
+          {
+            "type": "p",
+            "text": "We may suspend or end access that violates these terms, endangers other users, or creates a risk to the service. We will act proportionately to the circumstances."
+          }
+        ]
+      },
+      {
+        "title": "Limitation of liability",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "Zyx Academy provides learning support tools and does not guarantee grades, graduation, admission, or any particular academic outcome. Learning outcomes depend on many factors outside the service's control."
+          },
+          {
+            "type": "p",
+            "text": "To the extent permitted by law, the service is provided as available. These terms do not limit consumer rights or liability that cannot be excluded under applicable law."
+          }
+        ]
+      },
+      {
+        "title": "Changes to these terms",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "We may update these terms to reflect changes to the service or applicable law. The latest update date will appear on this page. Your use of the service after updated terms take effect means you accept them, to the extent permitted by law."
+          }
+        ]
+      },
+      {
+        "title": "Governing law and contact",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "These terms are governed by the laws of the Republic of Indonesia. We will first try to resolve disputes through communication and discussion, without limiting either party's rights under applicable law."
+          },
+          {
+            "type": "p",
+            "text": "For questions about these terms, contact us at {email}."
+          }
+        ]
+      }
+    ]
+  },
+  "legal": {
+    "localeTag": "en-US",
+    "updatedAt": "Last updated",
+    "tableOfContents": "Table of contents for {title}",
+    "tableOfContentsHeading": "Table of contents"
+  },
+  "demo": {
+    "views": {
+      "dashboard": "Overview",
+      "article": "Article",
+      "diktat": "Diktat",
+      "flashcards": "Flashcards",
+      "quiz": "Quiz",
+      "zyra": "Zyra"
+    },
+    "authCta": "Sign in to continue",
+    "chapter": "Chapter {number}, {title}",
+    "navLabel": "Demo navigation",
+    "emptyTitle": "Demo unavailable",
+    "emptyDescription": "Try again later or create an account to view available materials.",
+    "readMore": "View material",
+    "continue": "Continue",
+    "backToDemo": "Back to demo",
+    "dashboard": {
+      "title": "Demo overview",
+      "subtitle": "Explore the learning experience at Zyx Academy.",
+      "startArticle": "Start reading",
+      "saveTitle": "Save your progress",
+      "saveDescription": "Sign in to continue learning and save your progress.",
+      "googleCta": "Sign in with Google"
+    },
+    "article": {
+      "readTime": "{count} min read",
+      "back": "Back to demo",
+      "readingInfo": "{count} min read",
+      "objective": "Learning objective",
+      "ctaTitle": "Continue your learning journey",
+      "ctaDescription": "Create an account to save your progress and access the full learning experience."
+    },
+    "diktat": {
+      "title": "Dictation",
+      "start": "Start practice",
+      "empty": "No practice is available yet.",
+      "ctaTitle": "More practice is waiting",
+      "ctaDescription": "Sign in to try more practice and save your progress."
+    },
+    "flashcards": {
+      "title": "Flashcards",
+      "flip": "Flip card",
+      "next": "Next",
+      "previous": "Previous",
+      "empty": "No cards to display yet.",
+      "counter": "Card {current} of {total}",
+      "answer": "Answer",
+      "question": "Question",
+      "flipBack": "Flip back to question",
+      "saveTitle": "Save your study cards",
+      "saveDescription": "Sign in to save your flashcard progress."
+    },
+    "quiz": {
+      "title": "Quiz",
+      "submit": "Submit answers",
+      "retry": "Try again",
+      "empty": "No questions to display yet.",
+      "error": "The demo quiz could not be loaded right now.",
+      "description": "Check your understanding with this short practice quiz.",
+      "correct": "Correct",
+      "incorrect": "Not quite",
+      "score": "Score: {score} of {total}",
+      "checking": "Checking answers...",
+      "saveTitle": "Save your practice result",
+      "saveDescription": "Sign in to save your practice progress."
+    },
+    "zyra": {
+      "title": "AI tutor",
+      "send": "Send",
+      "placeholder": "Write a question...",
+      "empty": "Start a conversation with the AI tutor.",
+      "student": "Student",
+      "prompt": "Can you help me understand this concept?",
+      "reply": "Of course. Let’s break the concept down step by step.",
+      "followup": "Can you give another example?",
+      "signInReply": "Sign in to continue chatting with the AI tutor.",
+      "conversationLabel": "Sample AI tutor conversation",
+      "ctaTitle": "Study with an AI tutor",
+      "ctaDescription": "Sign in to continue the conversation and save your progress."
+    }
+  },
+  "support": {
+    "title": "When self-study is not enough, choose the right support.",
+    "selfStudyTitle": "Self-study",
+    "selfStudyBody": "Free opens the first chapter of every course, including articles, Diktat materials, quizzes, and flashcards. Diktat materials are read-only, and Zyra includes 5 questions per day.",
+    "scheduledTitle": "Scheduled tutorials",
+    "scheduledBody": "Essential adds 15 in-person tutorials for one semester.",
+    "intensiveTitle": "More intensive support",
+    "intensiveBody": "Premium adds on-demand assignment consultations and 30 in-person tutorials in total.",
+    "comparePlans": "Compare all plans"
+  },
+  "faq": {
+    "title": "Questions about access and plans.",
+    "free": {
+      "question": "What comes with Free access?",
+      "answer": "Free gives full access to the first chapter of each course, including articles, Diktat materials, quizzes, and flashcards. Diktat materials can be read without downloading. Zyra includes 5 questions per day."
+    },
+    "preview": {
+      "question": "Can I see the features before creating an account?",
+      "answer": "Yes. Try the demo for one selected course with a full article, the first two Diktat sections, five flashcards, three quiz questions, and a sample Zyra conversation."
+    },
+    "paid": {
+      "question": "How do the paid plans differ?",
+      "answer": "Minimal focuses on self-paced learning. Essential adds video explanations and 15 in-person tutorials per semester. Premium adds on-demand assignment consultations and 30 in-person tutorials in total."
+    },
+    "pricing": {
+      "question": "How are the displayed prices calculated?",
+      "answer": "The main price is shown per person per semester. The total depends on the selected number of people and courses."
+    },
+    "tutorial": {
+      "question": "How do tutorials work?",
+      "answer": "Essential and Premium include in-person tutorials. Discuss scheduling, group needs, and activation with an administrator."
+    },
+    "activation": {
+      "question": "How do I activate a plan?",
+      "answer": "Payment is handled outside the website through an administrator. Discuss your group setup, confirm the current price, and access will be activated for the selected plan."
+    }
+  },
+  "subjects": {
+    "calculus": "Calculus",
+    "calculusTitle": "Calculus and numerical methods",
+    "calculusDescription": "Limits, derivatives, integrals, and applications to simple models.",
+    "physics": "Physics",
+    "physicsTitle": "Basic physics",
+    "physicsDescription": "Mechanics, waves, introductory thermodynamics, with focused practice.",
+    "chemistry": "Chemistry",
+    "chemistryTitle": "Basic chemistry",
+    "chemistryDescription": "Stoichiometry, equilibrium, and laboratory fundamentals.",
+    "algebra": "Linear algebra",
+    "algebraTitle": "Linear algebra",
+    "algebraDescription": "Vectors, matrices, and vector spaces for advanced coursework.",
+    "regionLabel": "Study areas",
+    "diagramLabel": "Concept map and interactive practice",
+    "topics": "Topics",
+    "catalogLink": "View full catalog"
+  },
+  "tutors": {
+    "liveQuizTitle": "Live quiz",
+    "joinCode": "Join code",
+    "start": "Start",
+    "analyticsTitle": "Cohort analytics",
+    "weakestConcepts": "Most challenging concepts:",
+    "averageScore": "average {score}",
+    "pageCount": "{count} pages",
+    "downloadPdf": "Download PDF",
+    "sectionTitle": "Help the class see which concepts need discussion."
+  },
+  "plans": {
+    "title": "Plans and services",
+    "description": "Choose a combination of courses and support. Payment takes place outside the website; an administrator activates access for the selected plan.",
+    "priceConfiguration": "Price configuration: {people} people and {courses} courses.",
+    "peopleLabel": "Group size",
+    "group": "Group",
+    "decreasePeople": "Decrease group size",
+    "peopleCount": "{count} people",
+    "increasePeople": "Increase group size",
+    "coursesLabel": "Number of courses",
+    "courseShort": "Courses",
+    "decreaseCourses": "Remove a course",
+    "courseCount": "{count} courses",
+    "increaseCourses": "Add a course",
+    "courseList": "Course list ({count})",
+    "coveredCourses": "Courses covered ({count}/{max})",
+    "decreaseOtherCourse": "Remove other course",
+    "increaseOtherCourse": "Add other course",
+    "close": "Close",
+    "startWithFree": "Start with Free",
+    "free": "Free",
+    "contactAdmin": "Contact admin",
+    "contactUnavailable": "Contact details are unavailable"
+  },
+  "pricing": {
+    "loading": "Loading price...",
+    "regularPriceLabel": "Regular price from {date}: {price} {unit}",
+    "regularPriceDate": "November 1, 2026",
+    "perPerson": "per person",
+    "perSemester": "per semester",
+    "person": "person",
+    "totalPerSemester": "Total {price} per semester",
+    "totalSemester": "Total per semester",
+    "introPriceUntil": "Introductory price through October 31, 2026, 11:59 PM WIB.",
+    "regularPriceStarts": "The regular price applies from November 1, 2026.",
+    "recommended": "Recommended",
+    "askPlanWhatsapp": "Ask about this plan on WhatsApp",
+    "askWhatsapp": "Ask on WhatsApp",
+    "learnPlan": "Learn about the {plan} plan",
+    "otherCourse": "Other courses",
+    "otherCourseCount": "Other courses ({count})",
+    "tiers": {
+      "minimal": {
+        "name": "Minimal",
+        "note": "A complete self-paced learning platform.",
+        "features": [
+          "Materials and question bank",
+          "Worked solutions",
+          "Complete Diktat materials",
+          "Daily and weekly quizzes with explanations",
+          "Pre-exam practice tests with explanations"
+        ]
+      },
+      "essential": {
+        "name": "Essential",
+        "note": "In-person tutorials and video explanations.",
+        "features": [
+          "Everything in Minimal",
+          "Access to video-based question explanations",
+          "15 in-person tutorials per semester"
+        ]
+      },
+      "premium": {
+        "name": "Premium",
+        "note": "On-demand consultation and more support.",
+        "features": [
+          "Everything in Essential",
+          "On-demand assignment consultations",
+          "15 additional tutorials, 30 in-person tutorials per semester"
+        ]
+      },
+      "free": {
+        "name": "Free",
+        "note": "Basic material access at no cost.",
+        "features": [
+          "The first chapter of every course",
+          "Related articles, Diktat materials, quizzes, and flashcards",
+          "Diktat materials are read-only, with no downloads",
+          "1 Zyra question per day",
+          "Learning progress is saved"
+        ]
+      },
+      "custom": {
+        "name": "Custom",
+        "note": "Tailor the group, tutor, and curriculum.",
+        "features": [
+          "Have a specific need outside these plans? For example, a group of more than 5, targeted preparation, or curriculum adjustments."
+        ]
+      }
+    }
+  },
+  "blog": {
+    "heroTitle": "Blog",
+    "heroDescription": "Articles to help you study, understand campus life, and learn about Zyx activities.",
+    "categories": {
+      "all": "All",
+      "studyTips": "Study Tips",
+      "campusCorner": "Campus Corner",
+      "funFacts": "Fun Facts",
+      "zyxActivities": "Zyx Activities"
+    },
+    "categoryNav": "Blog categories",
+    "categoryCount": "Showing {count} articles in this category.",
+    "latest": "Latest articles",
+    "latestDescription": "Read the latest articles before exploring study features.",
+    "available": "{count} articles available",
+    "emptyTitle": "No articles yet",
+    "emptyCategory": "Articles in this category will be here soon.",
+    "emptyLatest": "New articles will appear here after they are published.",
+    "viewAll": "View all",
+    "featuresTitle": "Features to support your studies",
+    "featuresDescription": "After reading, explore the study space and courses available at Zyx.",
+    "zyraTitle": "Zyra",
+    "zyraDescription": "An AI study companion to help you understand course material.",
+    "handoutsTitle": "Diktat materials",
+    "handoutsDescription": "Diktat materials to support your learning.",
+    "examsTitle": "Exam practice",
+    "examsDescription": "Practice with questions to check your understanding.",
+    "flashcardsTitle": "Flashcards",
+    "flashcardsDescription": "Study cards to help you remember key concepts.",
+    "studyPathTitle": "Study path",
+    "studyPathDescription": "A study plan that helps you make progress.",
+    "courses": "Open course catalog",
+    "draft": "Draft",
+    "blogName": "Zyx Blog",
+    "minutes": "{count} min read",
+    "back": "Back to Blog",
+    "authorFallback": "Zyx Academy",
+    "dateLocale": "en-US",
+    "share": "Share",
+    "preview": "Preview mode (Status: {status})",
+    "others": "More articles",
+    "noneOthers": "No other articles.",
+    "minutesShort": "{count} min read",
+    "shareCopied": "Link copied.",
+    "shareCopyFailed": "Could not copy the link.",
+    "shareFailed": "Could not share the link.",
+    "shareArticleTitle": "Share this article",
+    "shareArticleDescription": "Help others discover these ideas by sharing this article.",
+    "copyUrl": "Copy link",
+    "clickToCopy": "Click to copy",
+    "copy": "Copy",
+    "shareTo": "Share to",
+    "shareToPlatform": "Share to {platform}",
+    "shareViaSystem": "Share using system options",
+    "shareDialogTitle": "Share article",
+    "shareDialogDescription": "Share this article on social media or copy the direct link.",
+    "articleNotFoundTitle": "Article",
+    "articleNotFoundDescription": "Zyx Academy blog article.",
+    "articleMetaDescription": "Read “{title}” on the Zyx Academy blog."
+  },
+  "signOut": {
+    "title": "Sign out",
+    "pending": "Signing you out...",
+    "done": "You are signed out.",
+    "error": "Something went wrong. Try again or return home.",
+    "retry": "Try again",
+    "home": "Back to home",
+    "signIn": "Sign in",
+    "description": "Sign out of your Zyx Academy account."
+  },
+  "tautan": {
+    "title": "Zyx Academy links",
+    "description": "Important links from Zyx Academy, all in one place.",
+    "emptyTitle": "No links yet",
+    "emptyDescription": "Important links will appear here."
+  },
+  "public": {
+    "meetTitle": "Google Meet",
+    "meetDescription": "Zyx Academy Google Meet session link.",
+    "meetNotFound": "Meeting link not found",
+    "meetUnavailable": "The Zyx Meet link you opened is unavailable or has been deleted. Check the link you received or contact an administrator.",
+    "home": "Back to home",
+    "meetFor": "Google Meet: {title}",
+    "meetForDescription": "Google Meet room for {title}."
+  },
+  "publicForm": {
+    "loading": "Loading form...",
+    "loginRequired": "Sign-in required",
+    "loginDescription": "Sign in to your Zyx account before filling out this form.",
+    "loginAction": "Sign in to Zyx",
+    "notFoundTitle": "Form not found",
+    "notFoundDescription": "This form may have been deleted or the link may be invalid.",
+    "home": "Back to home",
+    "closed": "Form closed",
+    "closedDescription": "This form is closed and no longer accepts responses.",
+    "thankYou": "Thank you!",
+    "previewAgain": "Preview again",
+    "fillAgain": "Fill out the form again",
+    "done": "Done",
+    "formTitle": "Form",
+    "formDescription": "Zyx Academy form.",
+    "formFor": "Form {title} on Zyx Academy.",
+    "loadError": "A network error occurred while loading the form.",
+    "other": "Other",
+    "clearedAnswer": "Your answers have been cleared.",
+    "uploadSuccess": "File uploaded successfully.",
+    "uploadFailed": "The file could not be uploaded.",
+    "uploadError": "An error occurred while uploading the file.",
+    "emailInvalid": "Enter a valid email address.",
+    "otherRequired": "Please explain your other answer for this question.",
+    "required": "This question is required before continuing.",
+    "otherRequiredNamed": "Please explain your other choice for: {title}",
+    "requiredNamed": "Please answer the required question: {title}",
+    "previewSuccess": "Your answers were saved (Preview Mode).",
+    "previewSubmitted": "Preview mode: Form simulation submitted successfully.",
+    "submitSuccess": "Your response was saved successfully.",
+    "submitFailed": "The form could not be submitted.",
+    "networkError": "A network error occurred."
+  }
+}

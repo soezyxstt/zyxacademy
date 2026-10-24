@@ -73,13 +73,13 @@ import {
   isCourseMatchingMajor,
   getStudentTargetCategory,
 } from "@/lib/student/itb-academic-data";
+import { TranslatedText } from "@/components/i18n/translated-text";
+import { getTranslations } from "@/lib/i18n/server";
 
-export const metadata: Metadata = createMetadata({
-  title: "Dashboard Siswa",
-  description:
-    "Pantau progres belajar, materi, kuis, tryout ITB TPB; semua dalam satu ruang belajar personal.",
-  path: "/dashboard",
-});
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("student");
+  return createMetadata({ title: t("dashboard.pageTitle"), description: t("dashboard.metadataDescription"), path: "/dashboard" });
+}
 
 
 /**
@@ -88,7 +88,7 @@ export const metadata: Metadata = createMetadata({
 export default async function DashboardPage() {
   const session = await getAuthSession();
   const user = session?.user;
-  const userName = user?.name || "Siswa";
+  const userName = user?.name ?? "";
 
   const firstName = userName.split(" ")[0];
 
@@ -483,25 +483,23 @@ export default async function DashboardPage() {
               <Reveal duration="duration-500">
                 <PageHeader
                   title={
-                    <>
-                      Halo, <span className="bg-linear-to-r from-brand-primary to-brand-secondary bg-clip-text text-transparent">{userName}</span>
-                    </>
+                    <TranslatedText namespace="student" messageKey={userName ? "dashboard.hello" : "dashboard.helloFallback"} values={userName ? { name: userName } : undefined} />
                   }
                   actions={
                     <div className="flex flex-wrap items-center gap-3">
                       <div className="flex items-center gap-2 rounded-lg bg-muted/55 px-3.5 py-1.5">
                         <GraduationCap className="size-4 text-brand-primary" />
                         <div className="text-left">
-                          <p className="text-[10px] uppercase font-bold text-muted-foreground leading-none">Kelas</p>
-                          <p className="text-body-xs font-semibold text-foreground mt-0.5 leading-none">{enrollments.length} Aktif</p>
+                          <p className="text-[10px] uppercase font-bold text-muted-foreground leading-none"><TranslatedText namespace="student" messageKey="dashboard.classesLabel" /></p>
+                          <p className="text-body-xs font-semibold text-foreground mt-0.5 leading-none"><TranslatedText namespace="student" messageKey="dashboard.activeCount" values={{ count: enrollments.length }} /></p>
                         </div>
                       </div>
 
                       <div className="flex items-center gap-2 rounded-lg bg-muted/55 px-3.5 py-1.5">
                         <Bookmark className="size-4 text-brand-primary" />
                         <div className="text-left">
-                          <p className="text-[10px] uppercase font-bold text-muted-foreground leading-none">Materi</p>
-                          <p className="text-body-xs font-semibold text-foreground mt-0.5 leading-none">{inProgressDocuments.length} Dibaca</p>
+                          <p className="text-[10px] uppercase font-bold text-muted-foreground leading-none"><TranslatedText namespace="student" messageKey="dashboard.materialsLabel" /></p>
+                          <p className="text-body-xs font-semibold text-foreground mt-0.5 leading-none"><TranslatedText namespace="student" messageKey="dashboard.readCount" values={{ count: inProgressDocuments.length }} /></p>
                         </div>
                       </div>
 
@@ -509,9 +507,9 @@ export default async function DashboardPage() {
                         <div className="flex items-center gap-2 rounded-lg bg-muted/55 px-3.5 py-1.5">
                           <Flame className={cn("size-4", streakInfo.current > 0 ? "text-brand-secondary fill-brand-secondary/10" : "text-muted-foreground")} />
                           <div className="text-left">
-                            <p className="text-[10px] uppercase font-bold text-muted-foreground leading-none">Streak</p>
+                            <p className="text-[10px] uppercase font-bold text-muted-foreground leading-none"><TranslatedText namespace="student" messageKey="dashboard.streakLabel" /></p>
                             <p className="text-body-xs font-semibold text-foreground mt-0.5 leading-none">
-                              {streakInfo.current > 0 ? `${streakInfo.current} hari` : "Mulai hari ini"}
+                              {streakInfo.current > 0 ? <TranslatedText namespace="student" messageKey="dashboard.streakDays" values={{ count: streakInfo.current }} /> : <TranslatedText namespace="student" messageKey="dashboard.startToday" />}
                             </p>
                           </div>
                         </div>
@@ -531,7 +529,7 @@ export default async function DashboardPage() {
                     <div className="mb-3 flex flex-wrap items-center justify-between gap-2 border-b border-border/50 pb-2.5">
                       <h2 className="font-heading text-body-base font-bold text-foreground flex items-center gap-2">
                         <GraduationCap className="size-4 text-brand-primary" />
-                        Kelas aktif
+                        <TranslatedText namespace="student" messageKey="dashboard.classesActive" />
                       </h2>
                       <div className="flex flex-wrap items-center gap-2 sm:gap-2.5">
                         <ActivateClassModal />
@@ -539,7 +537,7 @@ export default async function DashboardPage() {
                           href="/courses"
                           className="text-body-xs font-bold text-brand-primary hover:underline flex items-center gap-0.5 shrink-0"
                         >
-                          Lihat semua
+                          <TranslatedText namespace="student" messageKey="dashboard.viewAll" />
                           <ArrowUpRight className="size-3.5" />
                         </Link>
                       </div>
@@ -581,12 +579,12 @@ export default async function DashboardPage() {
                                     />
                                   </div>
                                   <span className="text-body-xs font-semibold text-foreground shrink-0">{progressPct}%</span>
-                                  <span className="text-body-xs text-muted-foreground">({doneCount} dari {materials.length} materi)</span>
+                                  <span className="text-body-xs text-muted-foreground"><TranslatedText namespace="student" messageKey="dashboard.enrolledMaterialProgress" values={{ done: doneCount, total: materials.length }} /></span>
                                 </div>
 
                                 {nextConcepts[course.id] && (
                                   <div className="mt-2 text-body-xs font-medium text-muted-foreground break-words min-w-0">
-                                    Langkah selanjutnya:{" "}
+                                    <TranslatedText namespace="student" messageKey="dashboard.nextStep" />{" "}
                                     <span className="text-brand-primary font-semibold group-hover:underline">
                                       <MathText as="span">{nextConcepts[course.id]}</MathText>
                                     </span>
@@ -610,11 +608,11 @@ export default async function DashboardPage() {
                     <div className="mb-3 flex flex-wrap items-center justify-between gap-2 border-b border-border/50 pb-2.5">
                       <h2 className="font-heading text-body-base font-bold text-foreground flex items-center gap-2">
                         <Bookmark className="size-4 text-brand-primary" />
-                        Materi terbuka (belum selesai)
+                        <TranslatedText namespace="student" messageKey="dashboard.openMaterials" />
                       </h2>
                       {inProgressDocuments.length > 0 && (
                         <span className="text-body-xs font-semibold bg-muted px-2 py-0.5 rounded-md text-muted-foreground shrink-0">
-                          {inProgressDocuments.length} materi
+                          <TranslatedText namespace="student" messageKey="dashboard.materialCount" values={{ count: inProgressDocuments.length }} />
                         </span>
                       )}
                     </div>
@@ -660,7 +658,7 @@ export default async function DashboardPage() {
                                 </div>
                                 <Button size="sm" variant="outline" className="rounded-md gap-1.5 shrink-0 pointer-events-none group-hover:bg-muted transition-colors">
                                   <Play className="size-3 fill-current" />
-                                  Lanjutkan
+                                  <TranslatedText namespace="student" messageKey="dashboard.continue" />
                                 </Button>
                               </Link>
                             </div>
@@ -670,8 +668,8 @@ export default async function DashboardPage() {
                     ) : (
                       <div className="flex flex-col items-center justify-center py-8 text-center rounded-xl border border-dashed border-border/60 bg-muted/15">
                         <CheckCircle2 className="size-8 text-status-success/60 mb-2" />
-                        <p className="text-body-sm font-medium text-foreground">Dokumen selesai dibaca</p>
-                        <p className="text-body-xs text-muted-foreground mt-0.5">Lanjutkan ke materi baru di kelas.</p>
+                        <p className="text-body-sm font-medium text-foreground"><TranslatedText namespace="student" messageKey="dashboard.documentsRead" /></p>
+                        <p className="text-body-xs text-muted-foreground mt-0.5"><TranslatedText namespace="student" messageKey="dashboard.newClassMaterial" /></p>
                       </div>
                     )}
                   </section>
@@ -683,7 +681,7 @@ export default async function DashboardPage() {
                         <div className="flex flex-wrap items-center gap-2">
                           <Compass className="size-4 text-brand-primary" />
                           <h2 className="font-heading text-body-base font-bold text-foreground">
-                            Rekomendasi mata kuliah
+                            <TranslatedText namespace="student" messageKey="dashboard.recommendedCourses" />
                           </h2>
                           {studentTargetCategory && (
                             <span className="rounded-md bg-brand-primary/10 px-2 py-0.5 text-body-2xs font-bold uppercase tracking-wider text-brand-primary ring-1 ring-brand-primary/20 shrink-0">
@@ -695,7 +693,7 @@ export default async function DashboardPage() {
                           href="/courses"
                           className="text-body-xs font-bold text-brand-primary hover:underline flex items-center gap-0.5 shrink-0"
                         >
-                          Lihat semua
+                          <TranslatedText namespace="student" messageKey="dashboard.viewAll" />
                           <ArrowUpRight className="size-3.5" />
                         </Link>
                       </div>
@@ -716,7 +714,7 @@ export default async function DashboardPage() {
                                     {course.category}
                                   </span>
                                   <span className="text-body-xs text-muted-foreground">
-                                    {course.materialsCount} materi
+                                    <TranslatedText namespace="student" messageKey="dashboard.materialCount" values={{ count: course.materialsCount }} />
                                   </span>
                                 </div>
                                 <h3 className="font-heading text-body-sm font-bold text-foreground group-hover:text-brand-primary transition-colors truncate mt-1">
@@ -741,7 +739,7 @@ export default async function DashboardPage() {
                     <div className="mb-3 flex flex-wrap items-center justify-between gap-2 border-b border-border/50 pb-2.5">
                       <h2 className="font-heading text-body-base font-bold text-foreground flex items-center gap-2">
                         <Layers className="size-4 text-brand-primary" />
-                        Spaced repetition
+                        <TranslatedText namespace="student" messageKey="dashboard.spacedRepetition" />
                       </h2>
                       <span className={cn(
                         "text-body-xs font-semibold px-2 py-0.5 rounded-md shrink-0",
@@ -749,18 +747,22 @@ export default async function DashboardPage() {
                           ? "bg-brand-secondary/15 text-brand-secondary"
                           : "bg-status-success/15 text-status-success"
                       )}>
-                        {totalDueFlashcards > 0 ? `${totalDueFlashcards} kartu perlu diulas` : "Semua kartu tuntas"}
+                        {totalDueFlashcards > 0
+                          ? <TranslatedText namespace="student" messageKey="dashboard.cardsDue" values={{ count: totalDueFlashcards }} />
+                          : <TranslatedText namespace="student" messageKey="dashboard.allCardsDone" />}
                       </span>
                     </div>
 
                     <p className="text-body-xs text-muted-foreground leading-relaxed">
-                      Metode pengulangan berkala membantu memindahkan memori belajar jangka pendek menjadi pemahaman jangka panjang.
+                      <TranslatedText namespace="student" messageKey="dashboard.spacedRepetitionDescription" />
                     </p>
 
                     {firstCourseWithQueue && (
                       <Button asChild className="w-full mt-3 rounded-lg text-body-sm font-semibold">
                         <Link href={`/courses/${firstCourseWithQueue}/flashcard`}>
-                          {totalDueFlashcards > 0 ? "Mulai ulas flashcard" : "Buka koleksi flashcard"}
+                          {totalDueFlashcards > 0
+                            ? <TranslatedText namespace="student" messageKey="dashboard.startFlashcardReview" />
+                            : <TranslatedText namespace="student" messageKey="dashboard.openFlashcardCollection" />}
                           <ArrowRight className="ml-1.5 size-4" />
                         </Link>
                       </Button>
@@ -771,7 +773,7 @@ export default async function DashboardPage() {
                       <div className="mb-2 flex items-center justify-between">
                         <span className="text-body-xs font-semibold text-foreground flex items-center gap-1.5">
                           <History className="size-3.5 text-muted-foreground" />
-                          Aktivitas ulasan terbaru
+                          <TranslatedText namespace="student" messageKey="dashboard.recentReviews" />
                         </span>
                       </div>
 
@@ -779,10 +781,10 @@ export default async function DashboardPage() {
                         <div className="divide-y divide-border/30">
                           {recentReviews.map((review) => {
                             const gradeLabels: Record<number, string> = {
-                              1: "Ulangi",
-                              2: "Sulit",
-                              3: "Baik",
-                              4: "Mudah",
+                              1: "gradeAgain",
+                              2: "gradeHard",
+                              3: "gradeGood",
+                              4: "gradeEasy",
                             };
                             const gradeColors: Record<number, string> = {
                               1: "text-status-error bg-status-error/10 border-status-error/20",
@@ -800,7 +802,7 @@ export default async function DashboardPage() {
                                     "inline-flex rounded-md border px-1.5 py-0.2 text-[10px] font-bold uppercase tracking-wider shrink-0",
                                     gradeColors[review.grade] || "text-muted-foreground border-border bg-muted/40"
                                   )}>
-                                    {gradeLabels[review.grade] || "Ulasan"}
+                                    <TranslatedText namespace="student" messageKey={`dashboard.${gradeLabels[review.grade] || "recentReviews"}`} />
                                   </span>
                                   <span className="text-[11px] text-muted-foreground shrink-0">
                                     <FormattedDate date={review.reviewedAt} options={{ dateStyle: "medium" }} />
@@ -817,7 +819,7 @@ export default async function DashboardPage() {
                           })}
                         </div>
                       ) : (
-                        <p className="text-body-xs text-muted-foreground py-2 text-center">Belum ada ulasan baru.</p>
+                        <p className="text-body-xs text-muted-foreground py-2 text-center"><TranslatedText namespace="student" messageKey="dashboard.noRecentReviews" /></p>
                       )}
                     </div>
                   </section>
@@ -826,7 +828,7 @@ export default async function DashboardPage() {
                   <section>
                     <DashboardWeakConcepts
                       concepts={masteryConcepts}
-                      courseTitle={enrollments[0]?.title ?? "Kuliah"}
+                      courseTitle={enrollments[0]?.title}
                       showHeader={true}
                     />
                     {enrollments[0]?.id && (
@@ -834,7 +836,7 @@ export default async function DashboardPage() {
                         href={`/courses/${enrollments[0].id}/mastery`}
                         className="mt-3 pt-2.5 border-t border-border/40 inline-flex items-center gap-1 text-body-xs font-semibold text-brand-primary hover:underline"
                       >
-                        Lihat peta lengkap
+                        <TranslatedText namespace="student" messageKey="dashboard.fullMasteryMap" />
                         <ArrowUpRight className="size-3.5" />
                       </Link>
                     )}
@@ -845,11 +847,11 @@ export default async function DashboardPage() {
                     <div className="mb-3 flex flex-wrap items-center justify-between gap-2 border-b border-border/50 pb-2.5">
                       <h2 className="font-heading text-body-base font-bold text-foreground flex items-center gap-2">
                         <ClipboardList className="size-4 text-brand-primary" />
-                        Kuis & tryout tersedia
+                        <TranslatedText namespace="student" messageKey="dashboard.availableAssessments" />
                       </h2>
                       {availableExams.length > 0 && (
                         <span className="text-body-xs font-semibold bg-muted px-2 py-0.5 rounded-md text-muted-foreground shrink-0">
-                          {availableExams.length} ujian
+                          <TranslatedText namespace="student" messageKey="dashboard.examCount" values={{ count: availableExams.length }} />
                         </span>
                       )}
                     </div>
@@ -872,11 +874,11 @@ export default async function DashboardPage() {
                                 <p className="text-body-xs text-muted-foreground mt-0.5 flex items-center gap-1.5 truncate">
                                   <span className="font-semibold text-brand-primary truncate max-w-[120px]">{exam.courseTitle}</span>
                                   <span className="text-border-strong">,</span>
-                                  <span className="capitalize shrink-0">{exam.type}</span>
+                                  <span className="capitalize shrink-0"><TranslatedText namespace="student" messageKey={exam.type === "quiz" ? "dashboard.examQuiz" : "dashboard.examTryout"} /></span>
                                 </p>
                               </div>
                               <Button size="sm" className="rounded-md shrink-0 pointer-events-none group-hover:bg-brand-primary/95 transition-all text-body-xs h-7 px-2.5">
-                                Kerjakan
+                                <TranslatedText namespace="student" messageKey="dashboard.workOnIt" />
                               </Button>
                             </Link>
                           </div>
@@ -888,7 +890,7 @@ export default async function DashboardPage() {
                               href={availableExams[0] ? `/courses/${availableExams[0].courseId}/quiz` : "/courses"}
                               className="text-body-xs font-semibold text-brand-primary hover:underline inline-flex items-center gap-1"
                             >
-                              Lihat semua ({availableExams.length}) kuis & tryout
+                              <TranslatedText namespace="student" messageKey="dashboard.seeAllExams" values={{ count: availableExams.length }} />
                               <ArrowUpRight className="size-3.5" />
                             </Link>
                           </div>
@@ -897,8 +899,8 @@ export default async function DashboardPage() {
                     ) : (
                       <div className="flex flex-col items-center justify-center py-8 text-center rounded-xl border border-dashed border-border/60 bg-muted/15">
                         <Trophy className="size-8 text-brand-secondary/60 mb-2" />
-                        <p className="text-body-sm font-medium text-foreground">Semua ujian telah selesai</p>
-                        <p className="text-body-xs text-muted-foreground mt-0.5">Latihan baru tersedia saat bab berikutnya dibuka.</p>
+                        <p className="text-body-sm font-medium text-foreground"><TranslatedText namespace="student" messageKey="dashboard.allExamsDone" /></p>
+                        <p className="text-body-xs text-muted-foreground mt-0.5"><TranslatedText namespace="student" messageKey="dashboard.newPracticeLater" /></p>
                       </div>
                     )}
                   </section>

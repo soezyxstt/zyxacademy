@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { assertAdmin } from "@/lib/auth/admin-guards";
 import { pageTitle } from "@/lib/site";
+import { getTranslations } from "@/lib/i18n/server";
 import { CourseDetailHeader } from "@/components/admin/course-detail/course-detail-header";
 import { AnalyticsTab } from "@/components/admin/course-detail/analytics-tab";
 import { getCourseDetailData } from "../../actions";
@@ -10,9 +11,10 @@ type Props = {
   params: Promise<{ slug: string }>;
 };
 
-export const metadata: Metadata = {
-  title: pageTitle("Hasil Mata Kuliah"),
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("adminAcademic");
+  return { title: pageTitle(t("metadata.pages.resultsTitle")) };
+}
 
 export default async function AdminCourseResultsPage({ params }: Props) {
   try {

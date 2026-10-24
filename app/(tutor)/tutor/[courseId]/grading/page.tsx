@@ -11,11 +11,14 @@ import { PageHeader } from "@/components/page-header";
 import { ApplicationPage } from "@/components/application-page";
 import { pageTitle } from "@/lib/site";
 import { resolveActorRoles, REVIEWABLE_SUBMISSION_STATUSES } from "@/lib/tutor/assessment-policy";
+import { getTranslations } from "@/lib/i18n/server";
+import { TranslatedText } from "@/components/i18n/translated-text";
 
 type Props = { params: Promise<{ courseId: string }> };
 
 export async function generateMetadata({ params }: Props) {
   const { courseId } = await params;
+  const t = await getTranslations("tutor.routeTitles");
   const [mk] = await db
     .select({ title: mataKuliah.title })
     .from(mataKuliah)
@@ -26,10 +29,10 @@ export async function generateMetadata({ params }: Props) {
     : [null];
   const title = mk?.title ?? c?.title;
   return {
-    title: pageTitle(title ? `Penilaian Tryout: ${title}` : "Penilaian Tryout"),
+    title: pageTitle(title ? `${t("tryoutGrading")}: ${title}` : t("tryoutGrading")),
     description: title
-      ? `Nilai dan review jawaban tryout siswa untuk ${title}.`
-      : "Nilai dan review jawaban tryout siswa.",
+      ? t("tryoutGradingDescriptionWithCourse", { course: title })
+      : t("tryoutGradingDescription"),
   };
 }
 
@@ -108,7 +111,7 @@ export default async function TutorGradingPage({ params }: Props) {
   return (
     <ApplicationPage spacing="space-y-5">
       <Reveal>
-        <PageHeader title={`Penilaian: ${courseTitle}`} backHref={`/tutor/${courseId}`} backLabel="Kelas" />
+        <PageHeader title={<><TranslatedText namespace="tutor" messageKey="routeTitles.tryoutGrading" />: {courseTitle}</>} backHref={`/tutor/${courseId}`} backLabel={<TranslatedText namespace="tutor" messageKey="routeTitles.overview" />} />
       </Reveal>
 
       <Reveal>

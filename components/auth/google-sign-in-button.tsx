@@ -1,9 +1,12 @@
 "use client";
 
 import { useCallback, useState } from "react";
+import { useTranslations } from "@/lib/i18n/client";
 import { toast } from "@/components/ui/toast";
 import { Button } from "@/components/ui/button";
 import { signIn } from "@/lib/auth-client";
+import { saveLocaleSelection } from "@/lib/i18n/actions";
+import type { Locale } from "@/lib/i18n/locale";
 import { cn } from "@/lib/utils";
 
 type GoogleSignInButtonProps = {
@@ -15,45 +18,51 @@ type GoogleSignInButtonProps = {
   containerClassName?: string;
   /** Runs immediately before the OAuth redirect (e.g. close a mobile menu). */
   onBeforeOAuth?: () => void;
+  disabled?: boolean;
+  locale?: Locale;
 };
 
-function mapSignInError(err: unknown): string {
+function mapSignInError(err: unknown, t: (key: string) => string): string {
   if (err instanceof TypeError) {
-    return "Gagal jaringan. Periksa koneksi Anda lalu coba lagi.";
+    return t("networkError");
   }
   if (err instanceof Error) {
     const m = err.message.toLowerCase();
     if (m.includes("fetch") || m.includes("network") || m.includes("failed to fetch")) {
-      return "Gagal jaringan. Periksa koneksi Anda lalu coba lagi.";
+      return t("networkError");
     }
   }
-  return "Terjadi kesalahan saat masuk dengan Google. Coba lagi sebentar lagi.";
+  return t("signInError");
 }
 
 export function GoogleSignInButton({
-  label = "Lanjutkan dengan Google",
+  label,
   callbackURL = "/dashboard",
   className,
   containerClassName,
   onBeforeOAuth,
+  disabled = false,
+  locale,
 }: GoogleSignInButtonProps) {
+  const t = useTranslations("auth");
   const [loading, setLoading] = useState(false);
 
   const handleClick = useCallback(async () => {
     onBeforeOAuth?.();
     setLoading(true);
     try {
+      if (locale) await saveLocaleSelection(locale);
       // better-auth redirects the browser on success; failures surface here.
       await signIn.social({
         provider: "google",
         callbackURL,
       });
     } catch (err) {
-      toast.error(mapSignInError(err));
+      toast.error(mapSignInError(err, t));
     } finally {
       setLoading(false);
     }
-  }, [callbackURL, onBeforeOAuth]);
+  }, [callbackURL, locale, onBeforeOAuth, t]);
 
   return (
     <div className={cn(containerClassName)}>
@@ -61,6 +70,7 @@ export function GoogleSignInButton({
         type="button"
         className={cn("gap-2", className)}
         onClick={() => void handleClick()}
+        disabled={disabled}
         isLoading={loading}
       >
         <svg className="size-[18px] shrink-0" viewBox="0 0 24 24" width="18" height="18" xmlns="http://www.w3.org/2000/svg" aria-hidden>
@@ -69,7 +79,7 @@ export function GoogleSignInButton({
           <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" fill="#FBBC05"/>
           <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" fill="#EA4335"/>
         </svg>
-        <span>{label}</span>
+        <span>{label ?? t("continueWithGoogle")}</span>
       </Button>
     </div>
   );

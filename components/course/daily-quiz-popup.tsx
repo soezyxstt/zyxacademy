@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { MathText } from "@/components/course/math-text";
 import { cn } from "@/lib/utils";
 import { jakartaDay } from "@/lib/date-utils";
+import { useTranslations } from "@/lib/i18n/client";
 
 const DAILY_QUIZ_STORAGE_PREFIX = "zyx-daily-quiz";
 
@@ -62,6 +63,7 @@ export function DailyQuizPopup({
   onCloseManual,
   dailyTrivia,
 }: DailyQuizPopupProps) {
+  const t = useTranslations("studentCourse");
   const [show, setShow] = useState(false);
   const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
   const [submitted, setSubmitted] = useState(false);
@@ -128,7 +130,7 @@ export function DailyQuizPopup({
   return createPortal(
     <div className="fixed inset-0 z-50 grid min-h-dvh place-items-center overflow-y-auto bg-black/60 p-4 font-sans backdrop-blur-xs transition-opacity animate-in fade-in duration-200">
       <div className="relative my-auto w-full max-w-lg rounded-3xl border border-brand-primary/30 bg-card/95 p-6 shadow-2xl backdrop-blur-md md:p-8 animate-in zoom-in-95 duration-200">
-        <button type="button" aria-label="Tutup trivia" className="absolute top-4 right-4 flex h-8 w-8 items-center justify-center rounded-md bg-muted text-muted-foreground hover:bg-border cursor-pointer transition-colors" onClick={handleClose}><X className="size-4" /></button>
+        <button type="button" aria-label={t("course.dailyQuiz.close")} className="absolute top-4 right-4 flex h-8 w-8 items-center justify-center rounded-md bg-muted text-muted-foreground hover:bg-border cursor-pointer transition-colors" onClick={handleClose}><X className="size-4" /></button>
 
         <div className="flex items-center gap-2.5">
           <span className="flex size-10 items-center justify-center rounded-xl bg-brand-primary/10 text-brand-primary">
@@ -177,14 +179,14 @@ export function DailyQuizPopup({
 
             <div className="mt-6 flex justify-end gap-2">
               <Button variant="ghost" onClick={handleClose} className="rounded-md">
-                Nanti saja
+                {t("course.dailyQuiz.later")}
               </Button>
               <Button
                 onClick={handleSubmit}
                 disabled={selectedIdx === null}
                 className="rounded-md bg-brand-primary px-6"
               >
-                Kirim Jawaban
+                {t("course.dailyQuiz.sendAnswer")}
               </Button>
             </div>
           </div>
@@ -205,14 +207,14 @@ export function DailyQuizPopup({
               )}
               <div>
                 <p className="font-bold text-body-base leading-none">
-                  {isCorrect ? "Jawaban benar" : "Jawaban kurang tepat"}
+                  {isCorrect ? t("course.dailyQuiz.correct") : t("course.dailyQuiz.incorrect")}
                 </p>
                 <p className="text-body-xs mt-1 text-foreground/80">
                   {isCorrect
-                    ? "Kamu berhasil menjawab trivia hari ini dengan benar."
+                    ? t("course.dailyQuiz.success")
                     : (
                       <>
-                        Jawaban yang benar adalah:{" "}
+                        {t("course.dailyQuiz.correctAnswer")}{" "}
                         <MathText>{trivia.options[trivia.correctIndex]}</MathText>
                       </>
                     )}
@@ -223,7 +225,7 @@ export function DailyQuizPopup({
             <div className="rounded-2xl border border-brand-primary/20 bg-brand-primary/5 p-4">
               <h4 className="font-heading text-body-xs font-bold text-brand-primary flex items-center gap-1.5">
                 <BookOpenCheck className="size-3.5" />
-                Pembahasan:
+                {t("course.dailyQuiz.explanation")}
               </h4>
               <p className="mt-2 text-body-xs text-muted-foreground leading-relaxed">
                 <MathText>{trivia.explanation}</MathText>
@@ -232,7 +234,7 @@ export function DailyQuizPopup({
 
             <div className="flex justify-end gap-2 pt-2">
               <Button onClick={handleClose} className="rounded-md bg-foreground text-background hover:bg-foreground/90 px-6">
-                Selesai & Tutup
+                {t("course.dailyQuiz.doneClose")}
               </Button>
             </div>
           </div>

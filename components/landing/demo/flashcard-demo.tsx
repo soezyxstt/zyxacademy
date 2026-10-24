@@ -3,6 +3,7 @@
 import { useState, type ReactNode } from "react";
 import { CalendarClock } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useTranslations } from "@/lib/i18n/client";
 
 export type FlashcardDemoCard = {
  id: string;
@@ -17,10 +18,10 @@ type FlashcardDemoProps = {
 };
 
 const grades = [
- { label: "Lagi", schedule: "muncul lagi hari ini", classes: "border-status-error/45 text-status-error hover:bg-status-error/10" },
- { label: "Sulit", schedule: "diulang 3 hari lagi", classes: "border-status-warning/55 text-status-warning hover:bg-status-warning/10" },
- { label: "Bagus", schedule: "diulang 6 hari lagi", classes: "border-primary/45 text-primary hover:bg-primary/10" },
- { label: "Mudah", schedule: "diulang 14 hari lagi", classes: "border-status-success/45 text-status-success hover:bg-status-success/10" },
+ { key: "again", delay: 0, classes: "border-status-error/45 text-status-error hover:bg-status-error/10" },
+ { key: "hard", delay: 3, classes: "border-status-warning/55 text-status-warning hover:bg-status-warning/10" },
+ { key: "good", delay: 6, classes: "border-primary/45 text-primary hover:bg-primary/10" },
+ { key: "easy", delay: 14, classes: "border-status-success/45 text-status-success hover:bg-status-success/10" },
 ] as const;
 
 /**
@@ -29,13 +30,15 @@ const grades = [
  * Lagi/Sulit/Bagus/Mudah grading.
  */
 export function FlashcardDemo({ cards }: FlashcardDemoProps) {
+ const t = useTranslations("marketing");
  const [index, setIndex] = useState(0);
  const [flipped, setFlipped] = useState(false);
  const [lastSchedule, setLastSchedule] = useState<string | null>(null);
 
  const card = cards[index % cards.length];
 
- function grade(schedule: string, label: string) {
+ function grade(delay: number, label: string) {
+ const schedule = delay === 0 ? t("home.flashcardToday") : t("home.flashcardLater", { days: delay });
  setLastSchedule(`${label} → ${schedule}`);
  setFlipped(false);
  window.setTimeout(() => {
@@ -50,19 +53,19 @@ export function FlashcardDemo({ cards }: FlashcardDemoProps) {
  type="button"
  onClick={() => setFlipped((value) => !value)}
  aria-pressed={flipped}
- aria-label={flipped ? "Kartu terbalik ; klik untuk kembali" : "Klik untuk membalik kartu"}
+ aria-label={flipped ? t("home.flashcardFlipBack") : t("home.flashcardFlip")}
  className="landing-flip-inner block h-[230px] w-full cursor-pointer text-left md:h-[250px]"
  >
  <span className="landing-flip-face absolute inset-0 flex flex-col items-center justify-center gap-3 rounded-xl border border-border bg-card px-6 text-center shadow-sm">
  <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
- Kartu {(index % cards.length) + 1} / {cards.length}
+ {t("home.flashcardCounter", { current: (index % cards.length) + 1, total: cards.length })}
  </span>
  <span className="font-heading text-h5 font-semibold text-foreground">{card.front}</span>
- <span className="text-body-xs text-muted-foreground">klik untuk membalik</span>
+ <span className="text-body-xs text-muted-foreground">{t("home.flashcardFlipHint")}</span>
  </span>
  <span className="landing-flip-face landing-flip-back absolute inset-0 flex flex-col items-center justify-center gap-3 rounded-xl border border-primary/35 bg-primary/5 px-6 text-center shadow-sm">
  <span className="text-[10px] font-bold uppercase tracking-wider text-primary">
- Jawaban
+ {t("home.flashcardAnswer")}
  </span>
  <span className="font-heading text-h5 font-semibold text-foreground">{card.back}</span>
  {card.note ? <span className="text-body-sm text-muted-foreground">{card.note}</span> : null}
@@ -79,16 +82,16 @@ export function FlashcardDemo({ cards }: FlashcardDemoProps) {
  >
  {grades.map((item) => (
  <button
- key={item.label}
+ key={item.key}
  type="button"
  tabIndex={flipped ? 0 : -1}
- onClick={() => grade(item.schedule, item.label)}
+ onClick={() => grade(item.delay, t(`home.flashcardGrades.${item.key}`))}
  className={cn(
  "rounded-lg border bg-background px-2 py-2 text-body-sm font-semibold transition-colors",
  item.classes,
  )}
  >
- {item.label}
+ {t(`home.flashcardGrades.${item.key}`)}
  </button>
  ))}
  </div>

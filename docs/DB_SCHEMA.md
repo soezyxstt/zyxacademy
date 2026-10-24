@@ -37,6 +37,13 @@ The Zyx ecosystem relies on SQLite locally (`dev.db`) and Turso in production. M
 
 The row is created on the first explicit save or unsubscribe. A missing row derives initial course and event values from the legacy Tutorial PKA `receiveAnnouncements` choice; learning reminders default on and news and offers default off. This table never controls essential account, security, payment, or enrollment email.
 
+### accountLocalePreferences
+* `userId`: Primary key and cascading foreign key to `user.id`.
+* `locale`: Presentation locale constrained to `id` or `en`.
+* `updatedAt`: Last preference update time, stored as Unix milliseconds.
+
+This table keeps a user's interface language separate from authorization, course learning preferences, and authored content. It is defined by `db/schema.ts` and the additive Drizzle migration `drizzle/0098_workable_blue_blade.sql`. A guarded, read-only staging schema query on 2026-10-24 found no `0098` ledger entry and no `account_locale_preferences` table, so the migration is pending on that staging database. No staging or production migration was applied. See `artifacts/bilingual/staging-preflight-locale-0098.json` for the non-secret fingerprint, guarded query outcome, and environment-file limitation.
+
 ### session
 * `id`
 * `userId`

@@ -4,15 +4,17 @@ import { SectionContainer } from "@/components/layout/section-container";
 import { SectionHeading } from "@/components/ui/section-heading";
 import { DemoFrame } from "@/components/landing/demo/demo-frame";
 import { LandingVisible } from "@/components/landing/landing-visible";
+import { getTranslations } from "@/lib/i18n/server";
 
 /* ── Vignette 1: live classroom quiz lobby ──────────────── */
 
 const lobbyAvatars = ["DA", "RF", "NS"];
 
-function LiveQuizVignette() {
+async function LiveQuizVignette() {
+ const t = await getTranslations("marketing");
  return (
-  <DemoFrame tone="dark" title="Kuis Langsung" bodyClassName="p-4 text-center md:p-5">
- <p className="text-[10px] font-bold uppercase tracking-wider text-white/50">Kode gabung</p>
+  <DemoFrame tone="dark" title={t("tutors.liveQuizTitle")} bodyClassName="p-4 text-center md:p-5">
+ <p className="text-[10px] font-bold uppercase tracking-wider text-white/50">{t("tutors.joinCode")}</p>
  <p className="mt-1 font-heading text-h3 font-bold tracking-[0.18em] text-white">X4K2P9</p>
  <div className="mt-4 flex items-center justify-center gap-2">
  <span className="flex -space-x-2" aria-hidden>
@@ -33,7 +35,7 @@ function LiveQuizVignette() {
  </div>
  <span className="mt-5 inline-flex items-center gap-1.5 rounded-md bg-[var(--zx-accent)] px-4 py-2 text-body-sm font-bold text-white">
  <Play className="size-3.5" aria-hidden />
- Mulai
+ {t("tutors.start")}
  </span>
  </DemoFrame>
  );
@@ -47,10 +49,11 @@ const cohortRows = [
  { rank: 3, name: "Aturan Rantai", score: 61, tone: "bg-status-warning" },
 ];
 
-function AnalyticsVignette() {
+async function AnalyticsVignette() {
+ const t = await getTranslations("marketing");
  return (
-  <DemoFrame tone="dark" title="Analitik Kohort" bodyClassName="p-4 md:p-5">
- <p className="text-body-sm font-semibold text-white">Konsep paling bermasalah:</p>
+  <DemoFrame tone="dark" title={t("tutors.analyticsTitle")} bodyClassName="p-4 md:p-5">
+ <p className="text-body-sm font-semibold text-white">{t("tutors.weakestConcepts")}</p>
  <div className="mt-3 space-y-3">
  {cohortRows.map((row, index) => (
  <div key={row.name}>
@@ -59,7 +62,7 @@ function AnalyticsVignette() {
  {row.rank}. {row.name}
  </span>
  <span className="font-mono text-body-xs font-semibold text-white/60">
- rata-rata {row.score}
+ {t("tutors.averageScore", { score: row.score })}
  </span>
  </div>
  <div className="mt-1.5 h-1.5 overflow-hidden rounded-md bg-white/10">
@@ -77,9 +80,10 @@ function AnalyticsVignette() {
 
 /* ── Vignette 3: auto-compiled diktat PDF ───────────────── */
 
-function DiktatVignette() {
+async function DiktatVignette() {
+ const t = await getTranslations("marketing");
  return (
-  <DemoFrame tone="dark" title="Diktat" bodyClassName="p-4 md:p-5">
+  <DemoFrame tone="dark" title={t("demo.views.diktat")} bodyClassName="p-4 md:p-5">
  <div className="flex items-start gap-3">
  <span className="flex size-11 shrink-0 items-center justify-center rounded-lg bg-status-error/20 text-status-error" aria-hidden>
  <FileText className="size-5" />
@@ -88,7 +92,7 @@ function DiktatVignette() {
  <p className="font-heading text-body-base font-semibold text-white">
  Diktat Kalkulus IA ; Bab 1-5
  </p>
-  <p className="mt-1 text-body-xs text-white/60">48 halaman</p>
+  <p className="mt-1 text-body-xs text-white/60">{t("tutors.pageCount", { count: 48 })}</p>
  </div>
  </div>
  <div className="mt-4 space-y-1.5" aria-hidden>
@@ -97,7 +101,7 @@ function DiktatVignette() {
  <div className="h-1.5 w-11/12 rounded-sm bg-white/10" />
  </div>
  <span className="mt-5 inline-flex items-center rounded-md border border-white/25 px-4 py-2 text-body-sm font-semibold text-white">
- Unduh PDF
+ {t("tutors.downloadPdf")}
  </span>
  </DemoFrame>
  );
@@ -120,12 +124,13 @@ const vignettes = [
  },
 ];
 
-export function LandingForTutors() {
+export async function LandingForTutors() {
+ const t = await getTranslations("marketing");
  return (
  <SectionContainer className="bg-black-2" aria-labelledby="landing-tutors-heading">
  <div className="mx-auto max-w-2xl text-center">
  <SectionHeading as="h2" id="landing-tutors-heading" className="text-white">
-          Bantu kelas melihat konsep yang perlu dibahas.
+          {t("tutors.sectionTitle")}
  </SectionHeading>
  </div>
 

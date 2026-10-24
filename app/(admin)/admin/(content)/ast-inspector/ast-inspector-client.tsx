@@ -26,6 +26,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useUrlTab } from "@/hooks/use-url-tab";
+import { useTranslations } from "@/lib/i18n/client";
 
 // Demos
 const DEMO_TEMPLATES = {
@@ -88,6 +89,7 @@ Langkah 2: Latihan Soal -- Gagal --> Langkah 1: Baca MTD
 };
 
 export function ASTInspectorClient() {
+  const t = useTranslations("adminOps");
   const [markdown, setMarkdown] = useState(DEMO_TEMPLATES.standard);
   const [result, setResult] = useState<CompilerResult | null>(null);
   const [activeTab, setActiveTab] = useUrlTab("tab", "preview");
@@ -156,8 +158,8 @@ export function ASTInspectorClient() {
             }
           });
         }
-      } catch (err: any) {
-        toast.error("Gagal mengimpor file: " + err.message);
+      } catch {
+        toast.error(t("astInspectorUI.importError"));
       }
     };
     reader.readAsText(file);
@@ -186,7 +188,7 @@ export function ASTInspectorClient() {
       case "p":
         return block.content.slice(0, 60) + (block.content.length > 60 ? "..." : "");
       case "h":
-        return `Level ${block.level}: ${block.content}`;
+        return `${t("astInspectorUI.headingLevel", { level: block.level })}: ${block.content}`;
       case "concept":
         return block.content.title;
       case "formula":
@@ -196,9 +198,68 @@ export function ASTInspectorClient() {
       case "glossary_term":
         return block.content.term;
       case "learning_objective":
-        return `Objectives: ${block.content.objectives.length}`;
+        return t("astInspectorUI.objectivesCount", { count: block.content.objectives.length });
       default:
         return block.type;
+    }
+  };
+
+  const getDiagnosticMessage = (diagnostic: CompilerResult["diagnostics"][number]) => {
+    const message = diagnostic.message;
+    switch (diagnostic.code) {
+      case "AST_SCHEMA_VALIDATION_FAILED": {
+        const match = message.match(/path \[(.*?)\]: (.*)$/);
+        return match
+          ? t("astInspectorUI.schemaViolation", { path: match[1], details: match[2] })
+          : message;
+      }
+      case "FORMULA_IN_CONCEPT": {
+        const title = message.match(/Concept block "(.*?)"/)?.[1];
+        return t("astInspectorUI.formulaInConcept", { title: title || "" });
+      }
+      case "VISUAL_REFERENCE_INVALID": {
+        const id = message.match(/visual ID "(.*?)"/)?.[1];
+        return t("astInspectorUI.invalidVisualReference", { id: id || "" });
+      }
+      case "MISSING_GLOSSARY_TERM": {
+        const term = message.match(/Term "\[\[(.*?)\]\]"/)?.[1];
+        return t("astInspectorUI.missingGlossaryTerm", { term: term || "" });
+      }
+      case "VISUAL_BLOCK_PARSE_FALLBACK":
+        return t("astInspectorUI.visualParseFallback");
+      case "CONCEPT_WITHOUT_GLOSSARY": {
+        const title = message.match(/Concept title "(.*?)"/)?.[1];
+        return t("astInspectorUI.conceptWithoutGlossary", { title: title || "" });
+      }
+      case "GLOSSARY_NEVER_REFERENCED": {
+        const term = message.match(/Glossary term "(.*?)"/)?.[1];
+        return t("astInspectorUI.glossaryNeverReferenced", { term: term || "" });
+      }
+      case "UNUSED_VISUAL_BLOCK": {
+        const id = message.match(/Visual block "(.*?)"/)?.[1];
+        return t("astInspectorUI.unusedVisualBlock", { id: id || "" });
+      }
+      case "VISUAL_TOO_FAR": {
+        const match = message.match(/\[\[visual:(.*?)\]\].*located (\d+) blocks/);
+        return t("astInspectorUI.visualTooFar", { id: match?.[1] || "", distance: match?.[2] || "" });
+      }
+      default:
+        return message;
+    }
+  };
+
+  const getDiagnosticRecommendation = (diagnostic: CompilerResult["diagnostics"][number]) => {
+    switch (diagnostic.code) {
+      case "AST_SCHEMA_VALIDATION_FAILED": return t("astInspectorUI.schemaRecommendation");
+      case "FORMULA_IN_CONCEPT": return t("astInspectorUI.formulaRecommendation");
+      case "VISUAL_REFERENCE_INVALID": return t("astInspectorUI.visualReferenceRecommendation");
+      case "MISSING_GLOSSARY_TERM": return t("astInspectorUI.glossaryRecommendation");
+      case "VISUAL_BLOCK_PARSE_FALLBACK": return t("astInspectorUI.visualParseRecommendation");
+      case "CONCEPT_WITHOUT_GLOSSARY": return t("astInspectorUI.addGlossaryRecommendation");
+      case "GLOSSARY_NEVER_REFERENCED": return t("astInspectorUI.referenceGlossaryRecommendation");
+      case "UNUSED_VISUAL_BLOCK": return t("astInspectorUI.referenceVisualRecommendation");
+      case "VISUAL_TOO_FAR": return t("astInspectorUI.moveVisualRecommendation");
+      default: return diagnostic.recommendation;
     }
   };
 
@@ -216,34 +277,34 @@ export function ASTInspectorClient() {
               </span>
 
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-body-xs text-muted-foreground font-medium">Demo:</span>
+                <span className="text-body-xs text-muted-foreground font-medium">{t("astInspectorUI.demo")}</span>
                 <Button size="sm" variant="outline"
                   type="button"
                   onClick={() => loadTemplate("standard")}
                   className="px-2 py-1 rounded-md border border-border text-body-xs font-medium hover:bg-muted bg-background transition-colors cursor-pointer"
                 >
-                  Standard
+                  {t("astInspectorUI.standard")}
                 </Button>
                 <Button size="sm" variant="outline"
                   type="button"
                   onClick={() => loadTemplate("leakage")}
                   className="px-2 py-1 rounded-md border border-border text-body-xs font-medium hover:bg-muted bg-background transition-colors cursor-pointer"
                 >
-                  Leakage
+                  {t("astInspectorUI.leakage")}
                 </Button>
                 <Button size="sm" variant="outline"
                   type="button"
                   onClick={() => loadTemplate("visual")}
                   className="px-2 py-1 rounded-md border border-border text-body-xs font-medium hover:bg-muted bg-background transition-colors cursor-pointer"
                 >
-                  Visual
+                  {t("astInspectorUI.visual")}
                 </Button>
 
                 <div className="w-px h-4 bg-border mx-1" />
 
                 <label className="flex items-center gap-1 px-2 py-1 rounded-md border border-border text-body-xs font-medium hover:bg-muted bg-background cursor-pointer transition-colors">
                   <Upload className="size-3" />
-                  <span>Import</span>
+                  <span>{t("astInspectorUI.import")}</span>
                   <input type="file" accept=".json" onChange={handleImport} className="hidden" />
                 </label>
 
@@ -254,7 +315,7 @@ export function ASTInspectorClient() {
                   className="flex items-center gap-1 px-2 py-1 rounded-md border border-border text-body-xs font-medium hover:bg-muted bg-background disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer"
                 >
                   <Download className="size-3" />
-                  <span>Export</span>
+                  <span>{t("astInspectorUI.export")}</span>
                 </Button>
               </div>
 
@@ -264,7 +325,7 @@ export function ASTInspectorClient() {
                 className="flex items-center gap-1.5 px-3 py-1 rounded-md bg-brand-primary text-white text-body-xs font-semibold hover:opacity-90 transition-opacity cursor-pointer"
               >
                 <Play className="size-3" />
-                <span>Compile</span>
+                <span>{t("astInspectorUI.compile")}</span>
               </Button>
             </div>
             <div className="flex-1 p-4 overflow-hidden relative">
@@ -272,7 +333,7 @@ export function ASTInspectorClient() {
                 value={markdown}
                 onChange={(e) => setMarkdown(e.target.value)}
                 className="w-full h-full p-4 font-mono text-body-sm leading-relaxed bg-card text-foreground rounded-xl border border-border/80 focus:outline-none focus:ring-1 focus:ring-brand-primary resize-none overflow-y-auto"
-                placeholder="Tulis canonical markdown di sini..."
+                placeholder={t("astInspectorUI.markdownPlaceholder")}
               />
             </div>
           </div>
@@ -283,12 +344,12 @@ export function ASTInspectorClient() {
           <Tabs value={activeTab} onValueChange={setActiveTab}>
             <TabsList>
               {[
-                { id: "preview", label: "Live Preview", icon: <Eye className="size-3.5" /> },
-                { id: "block-explorer", label: "Block Explorer", icon: <List className="size-3.5" /> },
-                { id: "diagnostics", label: "Diagnostics", icon: <AlertTriangle className="size-3.5" /> },
-                { id: "json", label: "AST JSON", icon: <FileCode className="size-3.5" /> },
-                { id: "pipeline", label: "Pipeline", icon: <Layers className="size-3.5" /> },
-                { id: "stats", label: "Stats & Kualitas", icon: <BookOpen className="size-3.5" /> },
+                { id: "preview", label: t("astInspectorUI.livePreview"), icon: <Eye className="size-3.5" /> },
+                { id: "block-explorer", label: t("astInspectorUI.blockExplorer"), icon: <List className="size-3.5" /> },
+                { id: "diagnostics", label: t("astInspectorUI.diagnostics"), icon: <AlertTriangle className="size-3.5" /> },
+                { id: "json", label: t("astInspectorUI.astJson"), icon: <FileCode className="size-3.5" /> },
+                { id: "pipeline", label: t("astInspectorUI.pipeline"), icon: <Layers className="size-3.5" /> },
+                { id: "stats", label: t("astInspectorUI.statsQuality"), icon: <BookOpen className="size-3.5" /> },
               ].map((item) => (
                 <TabsTrigger key={item.id} value={item.id}>
                   {item.icon}
@@ -303,7 +364,7 @@ export function ASTInspectorClient() {
             {!result ? (
               <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
                 <RefreshCw className="size-8 animate-spin mb-2" />
-                <p className="text-body-sm">Belum ada hasil kompilasi. Jalankan Compile.</p>
+                <p className="text-body-sm">{t("astInspectorUI.noCompileResult")}</p>
               </div>
             ) : (
               <>
@@ -317,7 +378,7 @@ export function ASTInspectorClient() {
                 {/* 2. BLOCK EXPLORER (Point 6) */}
                 {activeTab === "block-explorer" && (
                   <div className="divide-y divide-border">
-                    <h3 className="font-heading text-body-base font-bold mb-4">Daftar blok</h3>
+                    <h3 className="font-heading text-body-base font-bold mb-4">{t("astInspectorUI.blockList")}</h3>
                     {result.ast.blocks.map((block, idx) => {
                       const isExpanded = !!expandedBlocks[block.id];
                       const isCanonical = ![
@@ -350,7 +411,7 @@ export function ASTInspectorClient() {
                               </span>
                             </div>
                             <span className="text-body-xs text-muted-foreground">
-                              {isExpanded ? "Sembunyikan" : "Tampilkan JSON"}
+                              {isExpanded ? t("astInspectorUI.hide") : t("astInspectorUI.showJson")}
                             </span>
                           </div>
 
@@ -371,7 +432,7 @@ export function ASTInspectorClient() {
                 {activeTab === "diagnostics" && (
                   <div className="space-y-4">
                     <div className="flex items-center justify-between mb-2">
-                      <h3 className="font-heading text-body-base font-bold">Kepatuhan & Diagnostik</h3>
+                      <h3 className="font-heading text-body-base font-bold">{t("astInspectorUI.complianceDiagnostics")}</h3>
                       <span className={cn(
                         "px-2.5 py-1 rounded text-body-xs font-bold",
                         result.diagnostics.some(d => d.severity === "error")
@@ -380,15 +441,15 @@ export function ASTInspectorClient() {
                           ? "bg-status-warning/15 text-status-warning"
                           : "bg-status-success/15 text-status-success"
                       )}>
-                        {result.diagnostics.length} Diagnostik ditemukan
+                        {t("astInspectorUI.diagnosticsFound", { count: result.diagnostics.length })}
                       </span>
                     </div>
 
                     {result.diagnostics.length === 0 ? (
                       <div className="flex flex-col items-center justify-center p-8 border border-dashed border-border rounded-xl bg-card text-center">
                         <CheckCircle className="size-8 text-status-success mb-2" />
-                        <h4 className="font-bold text-body-sm text-foreground">Dokumen Sempurna</h4>
-                        <p className="text-body-xs text-muted-foreground mt-0.5">Tidak ada kesalahan struktural maupun kebocoran rumus.</p>
+                        <h4 className="font-bold text-body-sm text-foreground">{t("astInspectorUI.perfectDocument")}</h4>
+                        <p className="text-body-xs text-muted-foreground mt-0.5">{t("astInspectorUI.noDiagnostics")}</p>
                       </div>
                     ) : (
                       <div className="space-y-3">
@@ -415,24 +476,24 @@ export function ASTInspectorClient() {
                                   "text-body-2xs font-bold uppercase font-heading tracking-wider",
                                   diag.severity === "error" ? "text-status-error" : "text-status-warning"
                                 )}>
-                                  {diag.severity}
+                                  {diag.severity === "error" ? t("astInspectorUI.error") : diag.severity === "warning" ? t("astInspectorUI.warning") : t("astInspectorUI.info")}
                                 </span>
                                 <span className="text-body-xs font-mono text-muted-foreground">
                                   [{diag.code}]
                                 </span>
                               </div>
                               <p className="text-body-sm font-semibold text-foreground">
-                                {diag.message}
+                                {getDiagnosticMessage(diag)}
                               </p>
                               {diag.blockId && (
                               <p className="text-body-xs text-muted-foreground font-mono mt-1">
-                                  Block ID: {diag.blockId}
+                                  {t("astInspectorUI.blockId")}: {diag.blockId}
                                 </p>
                               )}
                               {diag.recommendation && (
                                 <div className="mt-3 p-3 rounded-lg bg-background border border-border/80 text-body-xs text-foreground/90 font-sans">
-                                  <strong className="text-brand-primary block mb-0.5">Rekomendasi Auto-Fix:</strong>
-                                  {diag.recommendation}
+                              <strong className="text-brand-primary block mb-0.5">{t("astInspectorUI.autoFixRecommendation")}</strong>
+                                  {getDiagnosticRecommendation(diag)}
                                 </div>
                               )}
                             </div>
@@ -450,11 +511,11 @@ export function ASTInspectorClient() {
                       <Button size="sm" variant="outline"
                         onClick={() => {
                           navigator.clipboard.writeText(JSON.stringify(result.ast, null, 2));
-                          toast.success("AST JSON berhasil disalin!");
+                          toast.success(t("astInspectorUI.jsonCopied"));
                         }}
                         className="px-2 py-1 rounded-md bg-card hover:bg-muted border border-border text-body-2xs font-semibold cursor-pointer"
                       >
-                        Salin JSON
+                        {t("astInspectorUI.copyJson")}
                       </Button>
                     </div>
                     <pre className="p-4 bg-muted/30 text-foreground rounded-xl border border-border overflow-x-auto text-body-xs font-mono leading-relaxed">
@@ -466,37 +527,37 @@ export function ASTInspectorClient() {
                 {/* 5. PIPELINE VIEWER (Point 7) */}
                 {activeTab === "pipeline" && (
                   <div className="space-y-6">
-                    <h3 className="font-heading text-body-base font-bold mb-4">Tahapan compiler</h3>
+                    <h3 className="font-heading text-body-base font-bold mb-4">{t("astInspectorUI.compilerStages")}</h3>
                     {[
                       {
-                        title: "1. Parse Phase",
-                        desc: `Memecah berkas markdown mentah menjadi ${result.ast.blocks.length} blok AST mentah.`,
-                        status: "Selesai",
-                        details: "Parsing markdown token menggunakan regex ::: dan presenter markdown standard."
+                        title: t("astInspectorUI.parseTitle"),
+                        desc: t("astInspectorUI.parseDescription", { count: result.ast.blocks.length }),
+                        status: t("astInspectorUI.complete"),
+                        details: t("astInspectorUI.parseDetails")
                       },
                       {
-                        title: "2. Normalize Phase",
-                        desc: "Menormalisasi flowchart step numbers (e.g. Langkah 1 -> stepNumber: 1).",
-                        status: "Selesai",
-                        details: "Menyaring nama node, membersihkan label teks, dan mengekstrak relasi diagram."
+                        title: t("astInspectorUI.normalizeTitle"),
+                        desc: t("astInspectorUI.normalizeDescription"),
+                        status: t("astInspectorUI.complete"),
+                        details: t("astInspectorUI.normalizeDetails")
                       },
                       {
-                        title: "3. Validate Phase",
-                        desc: "Validasi data terstruktur menggunakan Zod schema di WebsiteMaterialASTSchema.",
-                        status: result.diagnostics.some(d => d.code === "AST_SCHEMA_VALIDATION_FAILED") ? "Gagal" : "Valid",
-                        details: "Melakukan verifikasi tipe data, bounds check parameter rumus, dan struktur Zod."
+                        title: t("astInspectorUI.validateTitle"),
+                        desc: t("astInspectorUI.validateDescription"),
+                        status: result.diagnostics.some(d => d.code === "AST_SCHEMA_VALIDATION_FAILED") ? t("astInspectorUI.failed") : t("astInspectorUI.valid"),
+                        details: t("astInspectorUI.validateDetails")
                       },
                       {
-                        title: "4. Diagnostics Phase",
-                        desc: "Static analysis: leak checks, validasi glosarium, dan visual block distance.",
-                        status: `${result.diagnostics.length} Diagnostik`,
-                        details: `Menjalankan deteksi leakage level 3, validitas target [[visual:id]], dan checking [[term]] glosarium.`
+                        title: t("astInspectorUI.diagnosticsTitle"),
+                        desc: t("astInspectorUI.diagnosticsDescription"),
+                        status: t("astInspectorUI.diagnosticsFound", { count: result.diagnostics.length }),
+                        details: t("astInspectorUI.diagnosticsDetails")
                       },
                       {
-                        title: "5. Stats Phase",
-                        desc: "Kalkulasi metrics, reading time, dan quality score breakdown.",
-                        status: `Score: ${result.stats.quality.score}/100`,
-                        details: `Menghitung Concept Length (${result.stats.averageConceptLength}ch) dan Glossary Coverage (${result.stats.quality.breakdown.glossaryCoverage}%).`
+                        title: t("astInspectorUI.statsTitle"),
+                        desc: t("astInspectorUI.statsDescription"),
+                        status: t("astInspectorUI.scoreStatus", { score: result.stats.quality.score }),
+                        details: t("astInspectorUI.statsDetails", { conceptLength: result.stats.averageConceptLength, glossaryCoverage: result.stats.quality.breakdown.glossaryCoverage })
                       },
                     ].map((step, idx) => (
                       <div key={idx} className="flex gap-4 items-start relative pb-6 last:pb-0">
@@ -529,8 +590,8 @@ export function ASTInspectorClient() {
                     {/* Quality Score Header */}
                     <div className="bg-card border border-border rounded-xl p-6 shadow-2xs flex flex-col md:flex-row items-center gap-6 justify-between">
                       <div className="space-y-1">
-                        <h4 className="font-heading text-body-base font-bold text-foreground">Skor kualitas</h4>
-                        <p className="text-body-sm text-muted-foreground">Representasi kepatuhan pedoman pedagogi visual Zyx.</p>
+                        <h4 className="font-heading text-body-base font-bold text-foreground">{t("astInspectorUI.qualityScore")}</h4>
+                        <p className="text-body-sm text-muted-foreground">{t("astInspectorUI.qualityDescription")}</p>
                       </div>
                       <div className="flex items-baseline gap-1 select-none">
                         <span className="text-h1 font-bold text-brand-primary">{result.stats.quality.score}</span>
@@ -541,10 +602,10 @@ export function ASTInspectorClient() {
                     {/* Breakdown Cards */}
                     <div className="grid grid-cols-2 gap-4">
                       {[
-                        { label: "Glosarium Coverage", val: result.stats.quality.breakdown.glossaryCoverage, desc: "Persentase tag [[term]] yang didefinisikan di glosarium." },
-                        { label: "Visual Reference", val: result.stats.quality.breakdown.visualReferenceCoverage, desc: "Persentase diagram visual yang ditautkan di dalam teks." },
-                        { label: "Formula Atomization", val: result.stats.quality.breakdown.formulaAtomization, desc: "Kebocoran penulisan persamaan matematika langsung di konsep." },
-                        { label: "Visual Coverage", val: result.stats.quality.breakdown.visualCoverage, desc: "Tingkat pemanfaatan ilustrasi visual dalam dokumen." },
+                        { label: t("astInspectorUI.glossaryCoverage"), val: result.stats.quality.breakdown.glossaryCoverage, desc: t("astInspectorUI.glossaryCoverageDescription") },
+                        { label: t("astInspectorUI.visualReference"), val: result.stats.quality.breakdown.visualReferenceCoverage, desc: t("astInspectorUI.visualReferenceDescription") },
+                        { label: t("astInspectorUI.formulaAtomization"), val: result.stats.quality.breakdown.formulaAtomization, desc: t("astInspectorUI.formulaAtomizationDescription") },
+                        { label: t("astInspectorUI.visualCoverage"), val: result.stats.quality.breakdown.visualCoverage, desc: t("astInspectorUI.visualCoverageDescription") },
                       ].map((item, idx) => (
                         <div key={idx} className="py-3 border-b border-border">
                           <div className="flex justify-between items-center mb-1 select-none">
@@ -561,39 +622,39 @@ export function ASTInspectorClient() {
 
                     {/* Structural Metrics */}
                     <div className="bg-card border border-border rounded-xl p-5 shadow-3xs space-y-4">
-                      <h4 className="font-heading text-body-sm font-bold text-foreground">Metrik struktur</h4>
+                      <h4 className="font-heading text-body-sm font-bold text-foreground">{t("astInspectorUI.structureMetrics")}</h4>
                       <div className="grid grid-cols-2 gap-y-4 gap-x-6">
                         <div className="flex justify-between items-center border-b border-border/40 pb-2">
-                          <span className="text-body-sm text-muted-foreground">Konsep Terdeteksi</span>
+                          <span className="text-body-sm text-muted-foreground">{t("astInspectorUI.conceptsDetected")}</span>
                           <span className="text-body-sm font-mono font-bold">{result.stats.conceptCount}</span>
                         </div>
                         <div className="flex justify-between items-center border-b border-border/40 pb-2">
-                          <span className="text-body-sm text-muted-foreground">Formula Terdeteksi</span>
+                          <span className="text-body-sm text-muted-foreground">{t("astInspectorUI.formulasDetected")}</span>
                           <span className="text-body-sm font-mono font-bold">{result.stats.formulaCount}</span>
                         </div>
                         <div className="flex justify-between items-center border-b border-border/40 pb-2">
-                          <span className="text-body-sm text-muted-foreground">Glosarium Terdeteksi</span>
+                          <span className="text-body-sm text-muted-foreground">{t("astInspectorUI.glossaryDetected")}</span>
                           <span className="text-body-sm font-mono font-bold">{result.stats.glossaryCount}</span>
                         </div>
                         <div className="flex justify-between items-center border-b border-border/40 pb-2">
-                          <span className="text-body-sm text-muted-foreground">Visual Diagram Terdeteksi</span>
+                          <span className="text-body-sm text-muted-foreground">{t("astInspectorUI.visualsDetected")}</span>
                           <span className="text-body-sm font-mono font-bold">{result.stats.visualCount}</span>
                         </div>
                         <div className="flex justify-between items-center border-b border-border/40 pb-2">
-                          <span className="text-body-sm text-muted-foreground">Rata-rata Panjang Konsep</span>
-                          <span className="text-body-sm font-mono font-bold">{result.stats.averageConceptLength} karakter</span>
+                          <span className="text-body-sm text-muted-foreground">{t("astInspectorUI.averageConceptLength")}</span>
+                          <span className="text-body-sm font-mono font-bold">{t("astInspectorUI.characterCount", { count: result.stats.averageConceptLength })}</span>
                         </div>
                         <div className="flex justify-between items-center border-b border-border/40 pb-2">
-                          <span className="text-body-sm text-muted-foreground">Rata-rata Panjang Rumus</span>
-                          <span className="text-body-sm font-mono font-bold">{result.stats.averageFormulaLength} karakter</span>
+                          <span className="text-body-sm text-muted-foreground">{t("astInspectorUI.averageFormulaLength")}</span>
+                          <span className="text-body-sm font-mono font-bold">{t("astInspectorUI.characterCount", { count: result.stats.averageFormulaLength })}</span>
                         </div>
                         <div className="flex justify-between items-center border-b border-border/40 pb-2">
-                          <span className="text-body-sm text-muted-foreground">Rata-rata Jarak Visual (Blok)</span>
-                          <span className="text-body-sm font-mono font-bold">{result.stats.averageVisualDistance} blok</span>
+                          <span className="text-body-sm text-muted-foreground">{t("astInspectorUI.averageVisualDistance")}</span>
+                          <span className="text-body-sm font-mono font-bold">{t("astInspectorUI.blockCount", { count: result.stats.averageVisualDistance })}</span>
                         </div>
                         <div className="flex justify-between items-center border-b border-border/40 pb-2">
-                          <span className="text-body-sm text-muted-foreground">Rata-rata Glosarium Ref</span>
-                          <span className="text-body-sm font-mono font-bold">{result.stats.averageGlossaryReferenceCount} per text</span>
+                          <span className="text-body-sm text-muted-foreground">{t("astInspectorUI.averageGlossaryReferences")}</span>
+                          <span className="text-body-sm font-mono font-bold">{t("astInspectorUI.perTextCount", { count: result.stats.averageGlossaryReferenceCount })}</span>
                         </div>
                       </div>
                     </div>

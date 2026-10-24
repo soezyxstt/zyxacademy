@@ -4,14 +4,11 @@ import { DemoEmptyState } from "@/components/demo/demo-empty-state";
 import { demoCoursePath, DemoShell } from "@/components/demo/demo-shell";
 import { getDemoContent } from "./demo-data";
 
-import { createMetadata } from "@/lib/site";
+import { createLocalizedMetadata } from "@/lib/site-metadata";
 
-export const metadata: Metadata = createMetadata({
-  title: "Demo Belajar",
-  description: "Jelajahi alur belajar Zyx Academy sebelum membuat akun.",
-  path: "/demo",
-  noIndex: true,
-});
+export async function generateMetadata(): Promise<Metadata> {
+  return createLocalizedMetadata({ path: "/demo", titleKey: "meta.demo.title", descriptionKey: "meta.demo.description", noIndex: true });
+}
 
 
 export const dynamic = "force-dynamic";

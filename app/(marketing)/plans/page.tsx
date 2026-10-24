@@ -1,13 +1,10 @@
 import type { Metadata } from "next";
-import { createMetadata } from "@/lib/site";
+import { createLocalizedMetadata } from "@/lib/site-metadata";
 import PlansClient from "./plans-client";
 
-export const metadata: Metadata = createMetadata({
-  title: "Pilihan Paket",
-  description:
-    "Paket tutorial Zyx Academy, kombinasi kursus, jadwal pertemuan, dan akses materi akademik.",
-  path: "/plans",
-});
+export async function generateMetadata(): Promise<Metadata> {
+  return createLocalizedMetadata({ path: "/plans", titleKey: "meta.plans.title", descriptionKey: "meta.plans.description" });
+}
 
 
 export default function PlansPage() {

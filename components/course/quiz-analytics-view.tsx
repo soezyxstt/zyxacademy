@@ -22,6 +22,7 @@ import {
 import Link from "next/link";
 import { MathText } from "@/components/course/math-text";
 import { AdminStatStrip, AdminStatStripItem } from "@/components/admin/stat-card";
+import { useTranslations } from "@/lib/i18n/client";
 
 interface QuizAnalyticsViewProps {
   attemptId: string;
@@ -29,6 +30,7 @@ interface QuizAnalyticsViewProps {
 }
 
 export function QuizAnalyticsView({ attemptId, courseId }: QuizAnalyticsViewProps) {
+  const t = useTranslations("studentCourse");
   const [data, setData] = useState<{
     status: string;
     computedMetrics?: ComputedQuizMetrics;
@@ -84,9 +86,9 @@ export function QuizAnalyticsView({ attemptId, courseId }: QuizAnalyticsViewProp
     return (
       <div className="flex flex-col items-center justify-center py-16 space-y-4 text-center">
         <Loader2 className="size-8 animate-spin text-brand-primary" />
-        <p className="font-heading text-body-base font-bold text-foreground">Menyiapkan Diagnosis Pembelajaran...</p>
+        <p className="font-heading text-body-base font-bold text-foreground">{t("quizAnalytics.loadingTitle")}</p>
         <p className="text-body-sm text-muted-foreground max-w-md">
-          Sistem sedang menganalisis penguasaan konsep, pola kesalahan, dan waktu pengerjaan Anda.
+          {t("quizAnalytics.loadingDescription")}
         </p>
       </div>
     );
@@ -103,9 +105,9 @@ export function QuizAnalyticsView({ attemptId, courseId }: QuizAnalyticsViewProp
           <Brain className="size-7" />
         </div>
         <div className="space-y-2 max-w-lg mx-auto">
-          <h3 className="font-heading text-body-base font-bold text-foreground">Diagnosis Pembelajaran Belum Dihasilkan</h3>
+          <h3 className="font-heading text-body-base font-bold text-foreground">{t("quizAnalytics.notGeneratedTitle")}</h3>
           <p className="text-body-sm text-muted-foreground leading-relaxed">
-            Kuis ini telah selesai dikerjakan. Klik tombol di bawah untuk menjalankan diagnosis pembelajaran terperinci, pemetaan konsep, dan rencana belajar personal secara otomatis.
+            {t("quizAnalytics.notGeneratedDescription")}
           </p>
         </div>
         <Button
@@ -114,7 +116,7 @@ export function QuizAnalyticsView({ attemptId, courseId }: QuizAnalyticsViewProp
           className="rounded-md bg-brand-primary text-white hover:bg-brand-primary/90 font-semibold px-6 py-2.5 shadow-sm"
         >
           {recomputing && <Loader2 className="mr-2 size-4 animate-spin" />}
-          {recomputing ? "Menghasilkan Diagnosis..." : "Hasilkan Diagnosis Pembelajaran Sekarang"}
+          {recomputing ? t("quizAnalytics.generating") : t("quizAnalytics.generate")}
         </Button>
       </div>
     );
@@ -128,11 +130,11 @@ export function QuizAnalyticsView({ attemptId, courseId }: QuizAnalyticsViewProp
           <div className="flex items-center gap-3">
             <Loader2 className="size-5 animate-spin shrink-0" />
             <div className="text-body-sm">
-              <span className="font-bold">Analisis Sedang Berjalan:</span> Menghasilkan diagnosis terperinci & pola kesalahan...
+              <span className="font-bold">{t("quizAnalytics.analysisInProgress")}</span> {t("quizAnalytics.analysisInProgressDescription")}
             </div>
           </div>
           <Button onClick={fetchAnalytics} variant="ghost" size="sm" className="text-brand-primary hover:bg-brand-primary/20 rounded-md">
-            Perbarui Status
+            {t("quizAnalytics.refreshStatus")}
           </Button>
         </div>
       )}
@@ -147,7 +149,7 @@ export function QuizAnalyticsView({ attemptId, courseId }: QuizAnalyticsViewProp
             <div className="space-y-2 max-w-2xl">
               <div className="flex flex-wrap items-center gap-2">
                 <Badge variant="outline" className="rounded-md border-brand-primary/40 bg-brand-primary/10 text-brand-primary text-body-xs font-semibold uppercase tracking-wider">
-                  Diagnosis Pembelajaran Zyx
+                  {t("quizAnalytics.brandLabel")}
                 </Badge>
                 {metrics && (
                   <Badge variant="outline" className="rounded-md border-border bg-card text-muted-foreground text-body-xs">
@@ -162,26 +164,26 @@ export function QuizAnalyticsView({ attemptId, courseId }: QuizAnalyticsViewProp
                   className="h-6 px-2 text-body-xs text-muted-foreground hover:text-foreground rounded-md ml-auto md:ml-0"
                 >
                   <RefreshCw className={`mr-1 size-3 ${recomputing ? "animate-spin" : ""}`} />
-                  {recomputing ? "Memproses..." : "Analisis Ulang"}
+                  {recomputing ? t("quizAnalytics.processing") : t("quizAnalytics.reanalyze")}
                 </Button>
               </div>
               <h2 className="font-heading text-body-base font-bold text-foreground">
-                <MathText as="span">{diagnosis?.headline || `Hasil Kuis: ${metrics?.score}% (${metrics?.correctCount}/${metrics?.totalQuestions} Benar)`}</MathText>
+                <MathText as="span">{diagnosis?.headline || t("quizAnalytics.quizResult", { score: metrics?.score ?? 0, correct: metrics?.correctCount ?? 0, total: metrics?.totalQuestions ?? 0 })}</MathText>
               </h2>
               <p className="text-body-base text-muted-foreground leading-relaxed">
-                <MathText as="span">{diagnosis?.overall_summary || `Anda telah menyelesaikan ${metrics?.totalQuestions} soal kuis.`}</MathText>
+                <MathText as="span">{diagnosis?.overall_summary || t("quizAnalytics.quizCompleted", { count: metrics?.totalQuestions ?? 0 })}</MathText>
               </p>
             </div>
 
             {/* Score & Performance Badge */}
             {metrics && (
               <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 border-l border-border/70 pl-5">
-                <span className="text-body-xs font-semibold text-muted-foreground">Skor total</span>
+                <span className="text-body-xs font-semibold text-muted-foreground">{t("quizAnalytics.totalScore")}</span>
                 <div className="font-heading text-h5 font-bold text-brand-primary">
                   {metrics.score}<span className="text-body-base text-muted-foreground font-normal">%</span>
                 </div>
                 <Badge className={`rounded-md ${getPerformanceBadgeClass(diagnosis?.performance_level || (metrics.score >= 75 ? "good" : "developing"))}`}>
-                  {getPerformanceLabel(diagnosis?.performance_level || (metrics.score >= 75 ? "good" : "developing"))}
+                  {t(`quizAnalytics.performance.${diagnosis?.performance_level || (metrics.score >= 75 ? "good" : "developing")}`)}
                 </Badge>
               </div>
             )}
@@ -191,12 +193,12 @@ export function QuizAnalyticsView({ attemptId, courseId }: QuizAnalyticsViewProp
         {/* Quick Facts Strip */}
         {metrics && (
           <AdminStatStrip className="grid-cols-2 sm:grid-cols-4">
-            <AdminStatStripItem icon={CheckCircle2} label="Jawaban benar" value={`${metrics.correctCount} / ${metrics.totalQuestions}`} tone="success" />
-            <AdminStatStripItem icon={TriangleAlert} label="Salah / kosong" value={metrics.incorrectCount + metrics.unansweredCount} tone="error" />
-            <AdminStatStripItem icon={Clock} label="Waktu pengerjaan" value={formatDuration(metrics.durationSeconds)} tone="info" />
+            <AdminStatStripItem icon={CheckCircle2} label={t("quizAnalytics.correctAnswers")} value={`${metrics.correctCount} / ${metrics.totalQuestions}`} tone="success" />
+            <AdminStatStripItem icon={TriangleAlert} label={t("quizAnalytics.incorrectOrBlank")} value={metrics.incorrectCount + metrics.unansweredCount} tone="error" />
+            <AdminStatStripItem icon={Clock} label={t("quizAnalytics.timeSpent")} value={formatDuration(metrics.durationSeconds, t("quizAnalytics.minuteShort"), t("quizAnalytics.secondShort"))} tone="info" />
             <AdminStatStripItem
               icon={TrendingUp}
-              label="Perkembangan"
+              label={t("quizAnalytics.progress")}
               value={metrics.historicalComparison.overallImprovementDelta >= 0 ? `+${metrics.historicalComparison.overallImprovementDelta}%` : `${metrics.historicalComparison.overallImprovementDelta}%`}
               tone="brand-secondary"
             />
@@ -210,10 +212,10 @@ export function QuizAnalyticsView({ attemptId, courseId }: QuizAnalyticsViewProp
       <div className="space-y-6">
         <div className="border-b border-border pb-3">
           <h3 className="font-heading text-body-base font-bold text-foreground flex items-center gap-2">
-            <Brain className="size-5 text-brand-primary" /> Diagnosis Pembelajaran Terperinci
+            <Brain className="size-5 text-brand-primary" /> {t("quizAnalytics.detailedTitle")}
           </h3>
           <p className="text-body-sm text-muted-foreground">
-            Pemetaan penguasaan konsep &amp; interpretasi evaluasi belajar.
+            {t("quizAnalytics.detailedDescription")}
           </p>
         </div>
 
@@ -223,10 +225,10 @@ export function QuizAnalyticsView({ attemptId, courseId }: QuizAnalyticsViewProp
             <div className="flex items-center justify-between">
               <div>
                 <h4 className="font-heading text-body-sm font-bold text-foreground flex items-center gap-2">
-                  <Target className="size-4 text-brand-primary" /> Penguasaan Konsep Utama
+                  <Target className="size-4 text-brand-primary" /> {t("quizAnalytics.conceptMastery")}
                 </h4>
                 <p className="text-body-xs text-muted-foreground">
-                  Status penguasaan dihitung secara deterministik dari proporsi ketepatan soal & bukti pengerjaan.
+                  {t("quizAnalytics.masteryDescription")}
                 </p>
               </div>
             </div>
@@ -235,11 +237,11 @@ export function QuizAnalyticsView({ attemptId, courseId }: QuizAnalyticsViewProp
               <table className="w-full text-left text-body-sm">
                 <thead>
                   <tr className="border-b border-border text-muted-foreground font-semibold text-body-xs uppercase tracking-wider">
-                    <th className="py-2.5 px-3">Konsep</th>
-                    <th className="py-2.5 px-3 text-center">Soal</th>
-                    <th className="py-2.5 px-3">Tingkat Penguasaan</th>
-                    <th className="py-2.5 px-3">Status</th>
-                    <th className="py-2.5 px-3">Tren</th>
+                    <th className="py-2.5 px-3">{t("quizAnalytics.concept")}</th>
+                    <th className="py-2.5 px-3 text-center">{t("quizAnalytics.questions")}</th>
+                    <th className="py-2.5 px-3">{t("quizAnalytics.masteryLevel")}</th>
+                    <th className="py-2.5 px-3">{t("quizAnalytics.status")}</th>
+                    <th className="py-2.5 px-3">{t("quizAnalytics.trend")}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border/60">
@@ -249,7 +251,7 @@ export function QuizAnalyticsView({ attemptId, courseId }: QuizAnalyticsViewProp
                         <div className="font-semibold text-foreground"><MathText as="span">{c.concept}</MathText></div>
                         {c.subconcepts && c.subconcepts.length > 0 && (
                           <div className="text-body-xs text-muted-foreground mt-0.5">
-                            Subkonsep: <MathText as="span">{c.subconcepts.join(", ")}</MathText>
+                            {t("quizAnalytics.subconcepts")}: <MathText as="span">{c.subconcepts.join(", ")}</MathText>
                           </div>
                         )}
                       </td>
@@ -269,11 +271,15 @@ export function QuizAnalyticsView({ attemptId, courseId }: QuizAnalyticsViewProp
                       </td>
                       <td className="py-3 px-3">
                         <Badge variant="outline" className={`rounded-md ${getMasteryBadgeClass(c.status)}`}>
-                          {getMasteryLabel(c.status)}
+                          {t(`quizAnalytics.mastery.${c.status}`)}
                         </Badge>
                       </td>
                       <td className="py-3 px-3 text-body-xs text-muted-foreground">
-                        {getTrendLabel(c.trend, c.previousAccuracyPercent)}
+                        {getTrendLabel(c.trend, c.previousAccuracyPercent, {
+                          improving: t("quizAnalytics.trendImproving", { percent: c.previousAccuracyPercent ?? 0 }),
+                          declining: t("quizAnalytics.trendDeclining", { percent: c.previousAccuracyPercent ?? 0 }),
+                          stable: t("quizAnalytics.trendStable", { percent: c.previousAccuracyPercent ?? 0 }),
+                        })}
                       </td>
                     </tr>
                   ))}
@@ -288,7 +294,7 @@ export function QuizAnalyticsView({ attemptId, courseId }: QuizAnalyticsViewProp
           {/* Strengths Card */}
           <div className="space-y-3 border-t border-border pt-4">
             <h4 className="font-heading text-body-sm font-bold text-foreground flex items-center gap-2 text-status-success">
-              <ShieldCheck className="size-5" /> Kekuatan & Keunggulan Anda
+              <ShieldCheck className="size-5" /> {t("quizAnalytics.strengths")}
             </h4>
             {diagnosis?.strengths && diagnosis.strengths.length > 0 ? (
               <div className="space-y-3">
@@ -306,7 +312,7 @@ export function QuizAnalyticsView({ attemptId, courseId }: QuizAnalyticsViewProp
               </div>
             ) : (
               <p className="text-body-sm text-muted-foreground">
-                Performa Anda stabil di beberapa konsep dasar. Lanjutkan latihan untuk membentuk keunggulan spesifik.
+                {t("quizAnalytics.strengthsEmpty")}
               </p>
             )}
           </div>
@@ -314,7 +320,7 @@ export function QuizAnalyticsView({ attemptId, courseId }: QuizAnalyticsViewProp
           {/* Focus Areas Card */}
           <div className="space-y-3 border-t border-border pt-4">
             <h4 className="font-heading text-body-sm font-bold text-foreground flex items-center gap-2 text-status-warning">
-              <Target className="size-5" /> Area yang Perlu Diperkuat
+              <Target className="size-5" /> {t("quizAnalytics.focusAreas")}
             </h4>
             {diagnosis?.focus_areas && diagnosis.focus_areas.length > 0 ? (
               <div className="space-y-3">
@@ -330,7 +336,7 @@ export function QuizAnalyticsView({ attemptId, courseId }: QuizAnalyticsViewProp
               </div>
             ) : (
               <p className="text-body-sm text-muted-foreground">
-                Tidak ada area kelemahan kritis yang terdeteksi. Pertahankan latihan soal bertingkat.
+                {t("quizAnalytics.focusAreasEmpty")}
               </p>
             )}
           </div>
@@ -340,7 +346,7 @@ export function QuizAnalyticsView({ attemptId, courseId }: QuizAnalyticsViewProp
         {diagnosis?.error_patterns && diagnosis.error_patterns.length > 0 && (
           <div className="rounded-xl border border-border/80 bg-card/70 p-5 space-y-4">
             <h4 className="font-heading text-body-sm font-bold text-foreground flex items-center gap-2">
-              <BarChart3 className="size-5 text-brand-secondary" /> Analisis Pola Kesalahan (Error Pattern Detection)
+              <BarChart3 className="size-5 text-brand-secondary" /> {t("quizAnalytics.errorPatterns")}
             </h4>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {diagnosis.error_patterns.map((errItem, idx) => (
@@ -348,12 +354,12 @@ export function QuizAnalyticsView({ attemptId, courseId }: QuizAnalyticsViewProp
                   <div className="flex items-center justify-between gap-2">
                     <span className="font-heading text-body-base font-bold text-foreground"><MathText as="span">{errItem.title}</MathText></span>
                     <Badge variant="outline" className="rounded-md border-border text-body-xs uppercase font-medium">
-                      {getErrorCategoryLabel(errItem.category)}
+                      {t(`quizAnalytics.errorCategory.${errItem.category}`)}
                     </Badge>
                   </div>
                   <p className="text-body-sm text-muted-foreground leading-snug"><MathText as="span">{errItem.description}</MathText></p>
                   <div className="rounded-md bg-muted/50 p-2.5 text-body-xs text-foreground mt-2 border border-border/50">
-                    <span className="font-bold text-brand-primary block mb-0.5">Strategi Perbaikan:</span>
+                    <span className="font-bold text-brand-primary block mb-0.5">{t("quizAnalytics.correctionStrategy")}</span>
                     <MathText as="span">{errItem.correction_strategy}</MathText>
                   </div>
                 </div>
@@ -368,7 +374,7 @@ export function QuizAnalyticsView({ attemptId, courseId }: QuizAnalyticsViewProp
             {/* Cognitive Skills Matrix */}
             <div className="rounded-xl border border-border/80 bg-card/70 p-5 space-y-4">
               <h4 className="font-heading text-body-sm font-bold text-foreground flex items-center gap-2">
-                <BarChart3 className="size-5 text-brand-primary" /> Performa Kemampuan Kognitif
+                <BarChart3 className="size-5 text-brand-primary" /> {t("quizAnalytics.cognitiveSkills")}
               </h4>
               <div className="space-y-3">
                 {metrics.cognitiveSkills.map((s, idx) => (
@@ -391,25 +397,25 @@ export function QuizAnalyticsView({ attemptId, courseId }: QuizAnalyticsViewProp
             {/* Time & Speed Insights */}
             <div className="rounded-xl border border-border/80 bg-card/70 p-5 space-y-4">
               <h4 className="font-heading text-body-sm font-bold text-foreground flex items-center gap-2">
-                <Zap className="size-5 text-tertiary-1" /> Efisiensi & Kecepatan Pengerjaan
+                <Zap className="size-5 text-tertiary-1" /> {t("quizAnalytics.speedEfficiency")}
               </h4>
               <div className="space-y-3 text-body-sm">
                 <div className="flex justify-between border-b border-border/60 pb-2">
-                  <span className="text-muted-foreground">Rata-rata Waktu Per Soal</span>
-                  <span className="font-bold text-foreground">{metrics.timeAnalysis.avgTimePerQuestionSeconds} detik</span>
+                  <span className="text-muted-foreground">{t("quizAnalytics.averageTimePerQuestion")}</span>
+                  <span className="font-bold text-foreground">{t("quizAnalytics.seconds", { count: metrics.timeAnalysis.avgTimePerQuestionSeconds })}</span>
                 </div>
                 <div className="flex justify-between border-b border-border/60 pb-2">
-                  <span className="text-muted-foreground">Jawaban Sangat Cepat (&lt; 15 detik)</span>
-                  <span className="font-bold text-foreground">{metrics.timeAnalysis.fastAnswerCount} soal</span>
+                  <span className="text-muted-foreground">{t("quizAnalytics.veryFastAnswers")}</span>
+                  <span className="font-bold text-foreground">{t("quizAnalytics.questionCount", { count: metrics.timeAnalysis.fastAnswerCount })}</span>
                 </div>
                 {metrics.timeAnalysis.fastIncorrectCount > 0 && (
                   <div className="rounded-md bg-status-warning/10 p-2.5 text-body-xs text-status-warning font-medium">
-                    ⚠️ Terdapat {metrics.timeAnalysis.fastIncorrectCount} jawaban salah yang dipilih secara sangat cepat (&lt; 15s). Indikasi terburu-buru atau ketelitian.
+                    ⚠️ {t("quizAnalytics.fastIncorrectWarning", { count: metrics.timeAnalysis.fastIncorrectCount })}
                   </div>
                 )}
                 {diagnosis?.time_insights && diagnosis.time_insights.length > 0 && (
                   <div className="text-body-xs text-muted-foreground leading-relaxed pt-1">
-                    <span className="font-semibold text-foreground block">Catatan Waktu:</span>
+                    <span className="font-semibold text-foreground block">{t("quizAnalytics.timeNotes")}</span>
                     <MathText as="span">{`${diagnosis.time_insights[0].observation} ${diagnosis.time_insights[0].suggestion}`}</MathText>
                   </div>
                 )}
@@ -425,10 +431,10 @@ export function QuizAnalyticsView({ attemptId, courseId }: QuizAnalyticsViewProp
       <div className="space-y-4 pt-4 border-t border-border">
         <div>
           <h3 className="font-heading text-body-base font-bold text-foreground flex items-center gap-2">
-            <BookOpen className="size-5 text-brand-primary" /> Rencana Belajar Personal (3 Prioritas Utama)
+            <BookOpen className="size-5 text-brand-primary" /> {t("quizAnalytics.studyPlan")}
           </h3>
           <p className="text-body-sm text-muted-foreground">
-            Langkah konkrit yang direkomendasikan untuk memperkuat pemahaman Anda setelah kuis ini.
+            {t("quizAnalytics.studyPlanDescription")}
           </p>
         </div>
 
@@ -442,9 +448,9 @@ export function QuizAnalyticsView({ attemptId, courseId }: QuizAnalyticsViewProp
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
                     <Badge variant="outline" className="rounded-md border-brand-primary/40 bg-brand-primary/10 text-brand-primary font-bold text-body-xs">
-                      Prioritas {step.priority || idx + 1}
+                      {t("quizAnalytics.priority", { number: step.priority || idx + 1 })}
                     </Badge>
-                    <span className="text-body-xs text-muted-foreground font-semibold">Langkah {idx + 1}</span>
+                    <span className="text-body-xs text-muted-foreground font-semibold">{t("quizAnalytics.step", { number: idx + 1 })}</span>
                   </div>
 
                   <h4 className="font-heading text-body-base font-bold text-foreground group-hover:text-brand-primary transition-colors">
@@ -452,25 +458,25 @@ export function QuizAnalyticsView({ attemptId, courseId }: QuizAnalyticsViewProp
                   </h4>
 
                   <p className="text-body-sm text-muted-foreground leading-snug">
-                    <span className="font-semibold text-foreground block mb-0.5">Alasan:</span>
+                    <span className="font-semibold text-foreground block mb-0.5">{t("quizAnalytics.reason")}</span>
                     <MathText as="span">{step.reason}</MathText>
                   </p>
 
                   <div className="rounded-md bg-muted/60 p-3 text-body-xs text-foreground space-y-1 border border-border/40">
-                    <span className="font-bold text-brand-primary block">Aktivitas Konkret:</span>
+                    <span className="font-bold text-brand-primary block">{t("quizAnalytics.concreteActivity")}</span>
                     <p className="leading-snug"><MathText as="span">{step.action}</MathText></p>
                   </div>
 
                   <div className="text-body-xs text-status-success font-medium flex items-start gap-1.5">
                     <CheckCircle2 className="size-4 shrink-0 mt-0.5" />
-                    <span>Cek Sukses: <MathText as="span">{step.success_check}</MathText></span>
+                    <span>{t("quizAnalytics.successCheck")} <MathText as="span">{step.success_check}</MathText></span>
                   </div>
                 </div>
 
                 <div className="pt-4 mt-4 border-t border-border/60">
                   <Button asChild className="w-full rounded-md bg-brand-primary text-white hover:bg-brand-primary/90 text-body-xs font-semibold">
                     <Link href={`/courses/${courseId}`}>
-                      Mulai Belajar
+                      {t("quizAnalytics.startLearning")}
                       <ArrowUpRight className="ml-1.5 size-3.5" />
                     </Link>
                   </Button>
@@ -481,10 +487,10 @@ export function QuizAnalyticsView({ attemptId, courseId }: QuizAnalyticsViewProp
         ) : (
           <div className="rounded-xl border border-border/80 bg-card p-5 text-center space-y-3">
             <p className="text-body-sm text-muted-foreground">
-              Pertahankan performa Anda! Lanjutkan membaca materi utama bab berikutnya.
+              {t("quizAnalytics.keepGoing")}
             </p>
             <Button asChild variant="outline" size="sm" className="rounded-md border-border">
-              <Link href={`/courses/${courseId}`}>Kembali ke Halaman Kelas</Link>
+              <Link href={`/courses/${courseId}`}>{t("quizAnalytics.backToCourse")}</Link>
             </Button>
           </div>
         )}
@@ -515,19 +521,6 @@ function getPerformanceBadgeClass(level: string): string {
   }
 }
 
-function getPerformanceLabel(level: string): string {
-  switch (level) {
-    case "excellent":
-      return "Sangat Baik";
-    case "good":
-      return "Baik & Stabil";
-    case "developing":
-      return "Sedang Berkembang";
-    default:
-      return "Perlu Pendampingan";
-  }
-}
-
 function getMasteryBadgeClass(status: string): string {
   switch (status) {
     case "strong":
@@ -543,21 +536,6 @@ function getMasteryBadgeClass(status: string): string {
   }
 }
 
-function getMasteryLabel(status: string): string {
-  switch (status) {
-    case "strong":
-      return "Kuat";
-    case "adequate":
-      return "Cukup dikuasai";
-    case "developing":
-      return "Sedang berkembang";
-    case "needs_reinforcement":
-      return "Perlu diperkuat";
-    default:
-      return "Belum cukup data";
-  }
-}
-
 function getAccuracyBarColor(acc: number): string {
   if (acc >= 85) return "bg-status-success";
   if (acc >= 70) return "bg-brand-primary";
@@ -565,37 +543,16 @@ function getAccuracyBarColor(acc: number): string {
   return "bg-status-error";
 }
 
-function getTrendLabel(trend?: string, prevAcc?: number): string {
-  if (trend === "improving") return `↗ Meningkat (${prevAcc}% -> kini)`;
-  if (trend === "declining") return `↘ Menurun (${prevAcc}% -> kini)`;
-  if (trend === "stable") return `→ Stabil (${prevAcc}%)`;
+function getTrendLabel(trend: string | undefined, _prevAcc: number | undefined, labels: { improving: string; declining: string; stable: string }): string {
+  if (trend === "improving") return `↗ ${labels.improving}`;
+  if (trend === "declining") return `↘ ${labels.declining}`;
+  if (trend === "stable") return `→ ${labels.stable}`;
   return "-";
 }
 
-function getErrorCategoryLabel(cat: string): string {
-  switch (cat) {
-    case "conceptual_misunderstanding":
-      return "Miskonsepsi Konsep";
-    case "procedural_error":
-      return "Kesalahan Prosedur";
-    case "calculation_error":
-      return "Kesalahan Perhitungan";
-    case "question_misinterpretation":
-      return "Salah Interpretasi Soal";
-    case "representation_error":
-      return "Kesalahan Representasi";
-    case "prerequisite_gap":
-      return "Prasyarat Belum Kuat";
-    case "incomplete_reasoning":
-      return "Penalaran Belum Lengkap";
-    default:
-      return "Kelemahan Konsistensi";
-  }
-}
-
-function formatDuration(totalSeconds: number): string {
+function formatDuration(totalSeconds: number, minuteLabel: string, secondLabel: string): string {
   const mins = Math.floor(totalSeconds / 60);
   const secs = totalSeconds % 60;
-  if (mins === 0) return `${secs}d`;
-  return `${mins}m ${secs}d`;
+  if (mins === 0) return `${secs} ${secondLabel}`;
+  return `${mins} ${minuteLabel} ${secs} ${secondLabel}`;
 }

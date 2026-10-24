@@ -3,6 +3,7 @@
 import { useState, useEffect, Suspense, useMemo } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { useTranslations } from "@/lib/i18n/client";
 
 import {
   LayoutDashboard,
@@ -173,7 +174,19 @@ const ALL_ADMIN_TABS: AdminTabDef[] = [
   { id: "pka-materials", label: "Materi PKA", href: "/admin/courses/tutorial-pka/documents", icon: FileText, group: "tutorial-pka" },
 ];
 
+const ADMIN_TAB_MESSAGE_KEYS: Record<string, string> = {
+  dashboard: "dashboard", blog: "blog", courses: "courses", schedules: "schedules",
+  "bank-soal": "questionBank", pricing: "pricing", forms: "forms", meet: "meet",
+  media: "media", tautan: "publicLinks", users: "users", groups: "groups", tokens: "tokens",
+  notifications: "notifications", "ops-monitor": "opsMonitor", "tutor-activity": "tutorActivity",
+  "feature-flags": "featureFlags", "ai-analytics": "zyraAnalytics", "feature-usage": "featureUsage",
+  "api-keys": "apiKeys", "short-links": "shortLinks", "web-analytics": "webAnalytics",
+  "pka-registrations": "pkaRegistrations", "pka-announcements": "pkaAnnouncements",
+  "pka-schedules": "pkaSchedules", "pka-quizzes": "pkaQuizzes", "pka-materials": "pkaMaterials",
+};
+
 function AdminSidebarInner() {
+  const t = useTranslations("admin.navigation");
   const pathname = usePathname();
   const router = useRouter();
   const { data: session } = useSession();
@@ -409,6 +422,8 @@ function AdminSidebarInner() {
   const isArchived = (id: string) => mounted && archivedTabs.includes(id);
   const isPinned = (id: string) => mounted && pinnedTabs.includes(id);
 
+  const tabLabel = (tab: AdminTabDef) => t(ADMIN_TAB_MESSAGE_KEYS[tab.id] ?? "dashboard");
+
   const renderTabItem = (tab: AdminTabDef, collapsed: boolean, isChild = false) => {
     const active = isTabActive(tab);
     const pinned = isPinned(tab.id);
@@ -418,14 +433,14 @@ function AdminSidebarInner() {
         key={tab.id}
         href={tab.href}
         icon={tab.icon}
-        label={tab.label}
+        label={tabLabel(tab)}
         badge={tab.badge}
         active={active}
         collapsed={collapsed}
         isChild={isChild}
         isPinned={pinned}
-        onPin={(e) => togglePinTab(tab.id, tab.label, e)}
-        onArchive={(e) => archiveTab(tab.id, tab.label, e)}
+        onPin={(e) => togglePinTab(tab.id, tabLabel(tab), e)}
+        onArchive={(e) => archiveTab(tab.id, tabLabel(tab), e)}
       />
     );
   };
@@ -443,17 +458,17 @@ function AdminSidebarInner() {
           )}
         >
           {/* Back link to /admin/courses */}
-          <SidebarTooltip label="Semua Mata Kuliah" collapsed={c}>
+          <SidebarTooltip label={t("allCourses")} collapsed={c}>
             <Link
               href="/admin/courses"
-              title={c ? "Semua Mata Kuliah" : undefined}
+              title={c ? t("allCourses") : undefined}
               className={cn(
                 "flex items-center gap-2.5 rounded-xl px-3 py-2 text-body-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors mb-2",
                 c && "justify-center size-10 px-0 mx-auto"
               )}
             >
               <ArrowLeft className="size-4 shrink-0" />
-              {!c && <span>Semua Mata Kuliah</span>}
+              {!c && <span>{t("allCourses")}</span>}
             </Link>
           </SidebarTooltip>
 
@@ -475,14 +490,14 @@ function AdminSidebarInner() {
                   </DropdownMenuTrigger>
                 </SidebarTooltip>
                 <DropdownMenuContent align="start" side="right" sideOffset={8} className="w-64 min-w-56 p-1">
-                  <DropdownMenuLabel>Pilih mata kuliah</DropdownMenuLabel>
+                  <DropdownMenuLabel>{t("chooseCourse")}</DropdownMenuLabel>
                   {adminCourses.length > 5 && (
                     <div className="px-2 pb-1.5 pt-0.5">
                       <div className="relative flex items-center">
                         <Search className="absolute left-2 size-3.5 text-muted-foreground" />
                         <input
                           type="text"
-                          placeholder="Cari mata kuliah..."
+                          placeholder={t("searchCourses")}
                           value={courseFilter}
                           onChange={(e) => setCourseFilter(e.target.value)}
                           className="w-full rounded-lg border border-border/60 bg-muted/40 py-1 pl-7 pr-2 text-body-xs text-foreground placeholder:text-muted-foreground focus:border-brand-primary focus:outline-none"
@@ -494,7 +509,7 @@ function AdminSidebarInner() {
                   <div className="max-h-64 overflow-y-auto space-y-0.5">
                     {filteredAdminCourses.length === 0 ? (
                       <div className="px-2 py-3 text-center text-body-xs text-muted-foreground">
-                        Mata kuliah tidak ditemukan
+                        {t("courseNotFound")}
                       </div>
                     ) : (
                       filteredAdminCourses.map((course) => {
@@ -528,7 +543,7 @@ function AdminSidebarInner() {
           ) : courseNav?.isNotFound ? (
             <div className="rounded-xl border border-destructive/40 bg-destructive/10 p-3 mb-3 text-left">
               <p className="truncate text-body-xs font-bold text-destructive font-heading leading-tight">
-                Mata Kuliah Tidak Ditemukan
+                {t("courseMissing")}
               </p>
               <p className="truncate text-[10px] text-muted-foreground uppercase tracking-widest font-semibold mt-0.5">
                 {courseSlug}
@@ -550,14 +565,14 @@ function AdminSidebarInner() {
                   </button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="start" sideOffset={4} className="w-64 min-w-56 p-1">
-                  <DropdownMenuLabel>Pilih mata kuliah</DropdownMenuLabel>
+                  <DropdownMenuLabel>{t("chooseCourse")}</DropdownMenuLabel>
                   {adminCourses.length > 5 && (
                     <div className="px-2 pb-1.5 pt-0.5">
                       <div className="relative flex items-center">
                         <Search className="absolute left-2 size-3.5 text-muted-foreground" />
                         <input
                           type="text"
-                          placeholder="Cari mata kuliah..."
+                          placeholder={t("searchCourses")}
                           value={courseFilter}
                           onChange={(e) => setCourseFilter(e.target.value)}
                           className="w-full rounded-lg border border-border/60 bg-muted/40 py-1 pl-7 pr-2 text-body-xs text-foreground placeholder:text-muted-foreground focus:border-brand-primary focus:outline-none"
@@ -569,7 +584,7 @@ function AdminSidebarInner() {
                   <div className="max-h-64 overflow-y-auto space-y-0.5">
                     {filteredAdminCourses.length === 0 ? (
                       <div className="px-2 py-3 text-center text-body-xs text-muted-foreground">
-                        Mata kuliah tidak ditemukan
+                        {t("courseNotFound")}
                       </div>
                     ) : (
                       filteredAdminCourses.map((course) => {
@@ -609,7 +624,7 @@ function AdminSidebarInner() {
                   key={item.id}
                   href={item.href}
                   icon={item.icon}
-                  label={item.label}
+                  label={t(item.id)}
                   active={active}
                   collapsed={c}
                 />
@@ -653,7 +668,7 @@ function AdminSidebarInner() {
         {/* Pinned Section */}
         {pinnedTabItems.length > 0 && (
           <>
-            <NavGroup label="Disematkan" collapsed={c} />
+            <NavGroup label={t("pinned")} collapsed={c} />
             <div className="flex flex-col gap-0.5">
               {pinnedTabItems.map((tab) => renderTabItem(tab, c, false))}
             </div>
@@ -662,32 +677,32 @@ function AdminSidebarInner() {
         )}
 
         {/* Utama */}
-        <NavGroup label="Utama" collapsed={c} />
+        <NavGroup label={t("main")} collapsed={c} />
         {!isPinned("dashboard") && !isArchived("dashboard") && (
           <NavItem
             href="/admin"
             icon={LayoutDashboard}
-            label="Panel Admin"
+            label={t("dashboard")}
             active={pathname === "/admin"}
             collapsed={c}
-            onPin={(e) => togglePinTab("dashboard", "Panel Admin", e)}
-            onArchive={(e) => archiveTab("dashboard", "Panel Admin", e)}
+            onPin={(e) => togglePinTab("dashboard", t("dashboard"), e)}
+            onArchive={(e) => archiveTab("dashboard", t("dashboard"), e)}
           />
         )}
         {!isPinned("blog") && !isArchived("blog") && (
           <NavItem
             href="/admin/blog"
             icon={Newspaper}
-            label="Kelola Blog"
+            label={t("manageBlog")}
             active={pathname === "/admin/blog" || pathname.startsWith("/admin/blog/")}
             collapsed={c}
-            onPin={(e) => togglePinTab("blog", "Kelola Blog", e)}
-            onArchive={(e) => archiveTab("blog", "Kelola Blog", e)}
+            onPin={(e) => togglePinTab("blog", t("manageBlog"), e)}
+            onArchive={(e) => archiveTab("blog", t("manageBlog"), e)}
           />
         )}
 
         {/* Modul & Fitur Grouped Sections */}
-        <NavGroup label="Modul & Fitur" collapsed={c} />
+        <NavGroup label={t("modules")} collapsed={c} />
 
         {/* Akademik & Konten */}
         {akademikTabs.length > 0 && (
@@ -695,10 +710,10 @@ function AdminSidebarInner() {
             id="akademik"
             key="akademik"
             icon={BookOpen}
-            label="Akademik & Konten"
+            label={t("academicContent")}
             collapsed={c}
             active={akademikTabs.some((t) => isTabActive(t))}
-            previewItems={akademikTabs.map((t) => t.label)}
+            previewItems={akademikTabs.map(tabLabel)}
           >
             {akademikTabs.map((tab) => renderTabItem(tab, c, true))}
           </NavCollapsible>
@@ -710,10 +725,10 @@ function AdminSidebarInner() {
             id="alat"
             key="alat"
             icon={FilePen}
-            label="Alat & Komunikasi"
+            label={t("toolsCommunication")}
             collapsed={c}
             active={alatTabs.some((t) => isTabActive(t))}
-            previewItems={alatTabs.map((t) => t.label)}
+            previewItems={alatTabs.map(tabLabel)}
           >
             {alatTabs.map((tab) => renderTabItem(tab, c, true))}
           </NavCollapsible>
@@ -725,10 +740,10 @@ function AdminSidebarInner() {
             id="pengguna"
             key="pengguna"
             icon={UserCog}
-            label="Pengguna & Akses"
+            label={t("usersAccess")}
             collapsed={c}
             active={penggunaTabs.some((t) => isTabActive(t))}
-            previewItems={penggunaTabs.map((t) => t.label)}
+            previewItems={penggunaTabs.map(tabLabel)}
           >
             {penggunaTabs.map((tab) => renderTabItem(tab, c, true))}
           </NavCollapsible>
@@ -740,10 +755,10 @@ function AdminSidebarInner() {
             id="ops"
             key="ops"
             icon={Settings}
-            label="Sistem & Ops"
+            label={t("systemOps")}
             collapsed={c}
             active={opsTabs.some((t) => isTabActive(t))}
-            previewItems={opsTabs.map((t) => t.label)}
+            previewItems={opsTabs.map(tabLabel)}
           >
             {opsTabs.map((tab) => renderTabItem(tab, c, true))}
           </NavCollapsible>
@@ -755,10 +770,10 @@ function AdminSidebarInner() {
             id="tutorial-pka"
             key="tutorial-pka"
             icon={GraduationCap}
-            label="Tutorial PKA"
+            label={t("pka")}
             collapsed={c}
             active={pkaTabs.some((t) => isTabActive(t))}
-            previewItems={pkaTabs.map((t) => t.label)}
+            previewItems={pkaTabs.map(tabLabel)}
           >
             {pkaTabs.map((tab) => renderTabItem(tab, c, true))}
           </NavCollapsible>
@@ -772,10 +787,10 @@ function AdminSidebarInner() {
               id="archived"
               key="archived"
               icon={Archive}
-              label={`Tab Diarsipkan (${archivedTabItems.length})`}
+              label={`${t("archivedTabs")} (${archivedTabItems.length})`}
               collapsed={c}
               active={archivedTabItems.some((t) => isTabActive(t))}
-              previewItems={archivedTabItems.map((t) => t.label)}
+              previewItems={archivedTabItems.map(tabLabel)}
             >
               <div className="flex flex-col gap-0.5">
                 {archivedTabItems.map((tab) => {
@@ -791,7 +806,7 @@ function AdminSidebarInner() {
                       >
                         <tab.icon className="size-3.5 shrink-0" />
                         <span className={cn("truncate", active && "text-brand-primary font-semibold")}>
-                          {tab.label}
+                          {tabLabel(tab)}
                         </span>
                         {tab.badge && (
                           <span className="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider leading-none select-none shrink-0 border border-border/60 bg-muted/60 text-muted-foreground">
@@ -801,8 +816,8 @@ function AdminSidebarInner() {
                       </Link>
                       <button
                         type="button"
-                        onClick={(e) => restoreTab(tab.id, tab.label, e)}
-                        title={`Pulihkan tab ${tab.label}`}
+                        onClick={(e) => restoreTab(tab.id, tabLabel(tab), e)}
+                        title={`${t("restoreTab")} ${tabLabel(tab)}`}
                         className="opacity-0 group-hover/item:opacity-100 p-1 hover:bg-brand-primary/10 rounded-md text-brand-primary transition-all cursor-pointer shrink-0"
                       >
                         <ArchiveRestore className="size-3.5" />

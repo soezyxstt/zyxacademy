@@ -1,8 +1,8 @@
 import { createHash } from "node:crypto";
 import { normalizeQuestion } from "@/lib/tutor-rag";
 
-export const TUTOR_PROMPT_VERSION = "v1.9.0";
-export const TUTOR_POLICY_VERSION = "v1.0.0";
+export const TUTOR_PROMPT_VERSION = "v2.0.0";
+export const TUTOR_POLICY_VERSION = "v2.0.0";
 export const TUTOR_SCHEMA_VERSION = "v1.0.0";
 export const TUTOR_DEFAULT_EVIDENCE_VERSION = "v1.0.0";
 export const SHARED_TUTOR_TTL_SECONDS = 7 * 24 * 3600;
@@ -15,6 +15,7 @@ export interface TutorCacheKeyParams {
   policyVersion?: string;
   schemaVersion?: string;
   evidenceVersion?: string;
+  responseLanguage?: "id" | "en";
 }
 
 /**
@@ -31,13 +32,14 @@ export function buildTutorCacheKey(params: TutorCacheKeyParams): string {
     policyVersion = TUTOR_POLICY_VERSION,
     schemaVersion = TUTOR_SCHEMA_VERSION,
     evidenceVersion = TUTOR_DEFAULT_EVIDENCE_VERSION,
+    responseLanguage = "id",
   } = params;
 
   const normalized = normalizeQuestion(academicQuery);
-  const compositeString = `${normalized}|${promptVersion}|${policyVersion}|${schemaVersion}|${evidenceVersion}`;
+  const compositeString = `${normalized}|${responseLanguage}|${promptVersion}|${policyVersion}|${schemaVersion}|${evidenceVersion}`;
   const hash = createHash("sha256").update(compositeString).digest("hex");
 
-  return `tutor:v2:${courseId}:${chapterId ?? "all"}:${hash}`;
+  return `tutor:v3:${courseId}:${chapterId ?? "all"}:${hash}`;
 }
 
 /**

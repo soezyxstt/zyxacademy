@@ -1,0 +1,23 @@
+{
+  "site": {
+    "name": "Zyx Academy",
+    "title": "Zyx Academy",
+    "description": "Tutorial dan pembelajaran terstruktur untuk mahasiswa ITB tahun pertama dan kedua, dengan materi, kuis, dan pendampingan."
+  },
+  "language": {
+    "label": "Bahasa",
+    "indonesian": "Bahasa Indonesia",
+    "english": "English",
+    "saveError": "Bahasa belum tersimpan. Coba lagi."
+  },
+  "skipToMain": "Langsung ke isi utama",
+  "error": {
+    "title": "Terjadi kendala",
+    "description": "Terjadi masalah tak terduga. Coba muat ulang halaman.",
+    "retry": "Coba lagi",
+    "notFound": "Halaman tidak ditemukan",
+    "notFoundDescription": "Periksa alamat halaman atau kembali ke beranda.",
+    "back": "Kembali",
+    "home": "Ke beranda"
+  }
+}

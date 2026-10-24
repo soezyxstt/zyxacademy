@@ -1,0 +1,52 @@
+{
+  "close": "Tutup",
+  "showPassword": "Tampilkan kata sandi",
+  "hidePassword": "Sembunyikan kata sandi",
+  "selectPlaceholder": "Pilih opsi",
+  "sectionNavigation": "Navigasi bagian",
+  "theme": {
+    "switch": "Ubah tema",
+    "light": "Terang",
+    "dark": "Gelap",
+    "system": "Sistem"
+  },
+  "fileUpload": {
+    "dropArea": "Unggah berkas dengan menyeretnya ke sini atau pilih berkas",
+    "dropHere": "Lepaskan berkas di sini",
+    "dropOrBrowse": "Seret dan lepas berkas atau pilih berkas",
+    "acceptedTypes": "Format yang didukung: {types}. Maksimal {maxSize} MB",
+    "anyType": "Maksimal {maxSize} MB",
+    "sizeExceeded": "Berkas {name} melebihi batas {maxSize} MB.",
+    "typeUnsupported": "Jenis berkas {name} tidak didukung. Format yang diterima: {types}",
+    "bytes": "Byte",
+    "kb": "KB",
+    "mb": "MB",
+    "gb": "GB",
+    "uploaded": "Berhasil diunggah",
+    "remove": "Hapus berkas",
+    "removeNamed": "Hapus berkas {name}"
+  },
+  "scientific": {
+    "placeholder": "Ketik jawaban...",
+    "clear": "Hapus input",
+    "togglePalette": "Buka atau tutup palet simbol",
+    "paletteLabel": "Palet simbol matematika dan sains",
+    "symbols": "Simbol",
+    "math": "Matematika",
+    "physics": "Fisika",
+    "chemistry": "Kimia",
+    "closePalette": "Tutup palet simbol",
+    "errors": {
+      "mismatchedClosing": "Tanda kurung penutup tidak cocok atau berlebih.",
+      "unclosedBrace": "Kurung kurawal belum tertutup.",
+      "unclosedBracket": "Kurung siku belum tertutup.",
+      "unclosedParenthesis": "Kurung buka belum tertutup."
+    }
+  },
+  "courseCombobox": {
+    "placeholder": "Pilih mata kuliah",
+    "allLabel": "Semua Mata Kuliah",
+    "searchPlaceholder": "Cari mata kuliah...",
+    "noResults": "Mata kuliah tidak ditemukan."
+  }
+}

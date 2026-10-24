@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Brain } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DailyQuizPopup } from "./daily-quiz-popup";
+import { useTranslations } from "@/lib/i18n/client";
 
 type DailyQuizSectionProps = {
   courseId: string;
@@ -18,6 +19,7 @@ type DailyQuizSectionProps = {
 };
 
 export function DailyQuizSection({ courseId, courseTitle, dailyTrivia }: DailyQuizSectionProps) {
+  const t = useTranslations("studentCourse");
   const [manualTrigger, setManualTrigger] = useState(false);
 
   if (!dailyTrivia) return null;
@@ -28,9 +30,9 @@ export function DailyQuizSection({ courseId, courseTitle, dailyTrivia }: DailyQu
         <div className="flex min-w-0 items-center gap-2.5">
           <Brain className="size-4 shrink-0 text-brand-primary" aria-hidden />
           <div className="min-w-0">
-            <span className="text-body-sm font-semibold text-foreground">Trivia Harian</span>
+            <span className="text-body-sm font-semibold text-foreground">{t("course.dailyQuiz.title")}</span>
             <span className="ml-2 hidden text-body-sm text-muted-foreground sm:inline">
-              Uji pemahamanmu dengan satu soal cepat.
+              {t("course.dailyQuiz.description")}
             </span>
           </div>
         </div>
@@ -42,7 +44,7 @@ export function DailyQuizSection({ courseId, courseTitle, dailyTrivia }: DailyQu
           variant="outline"
           className="interactive shrink-0 gap-1.5 rounded-md"
         >
-          Mulai
+          {t("course.dailyQuiz.start")}
         </Button>
       </div>
 

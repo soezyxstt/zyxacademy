@@ -21,6 +21,7 @@ import {
 import type { FeatureFlagStatus } from "@/lib/feature-flags";
 import { FEATURE_CATEGORIES, type FeatureCategory } from "@/lib/feature-flags";
 import { SearchBar } from "@/components/ui/search-bar";
+import { useTranslations } from "@/lib/i18n/client";
 import { AdminStatStrip, AdminStatStripItem } from "@/components/admin/stat-card";
 import {
   Select,
@@ -40,15 +41,15 @@ interface FeatureFlagsApiResponse {
   flags: FeatureFlagStatus[];
 }
 
-function relativeTime(iso: string): string {
-  if (!iso) return "belum pernah";
+function relativeTime(iso: string, t: ReturnType<typeof useTranslations<"adminOps">>): string {
+  if (!iso) return t("opsUI.never");
   const diffMs = Date.now() - new Date(iso).getTime();
   const diffMin = Math.floor(diffMs / 60_000);
-  if (diffMin < 1) return "baru saja";
-  if (diffMin < 60) return `${diffMin} menit lalu`;
+  if (diffMin < 1) return t("opsUI.justNow");
+  if (diffMin < 60) return t("opsUI.minutes", { count: diffMin });
   const diffH = Math.floor(diffMin / 60);
-  if (diffH < 24) return `${diffH} jam lalu`;
-  return `${Math.floor(diffH / 24)} hari lalu`;
+  if (diffH < 24) return t("opsUI.hours", { count: diffH });
+  return t("opsUI.days", { count: Math.floor(diffH / 24) });
 }
 
 async function fetchFeatureFlags(): Promise<FeatureFlagsApiResponse> {
@@ -60,6 +61,7 @@ async function fetchFeatureFlags(): Promise<FeatureFlagsApiResponse> {
 }
 
 export function FlagsClient() {
+  const t = useTranslations("adminOps");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("all");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
@@ -132,9 +134,9 @@ export function FlagsClient() {
         <div className="flex items-center gap-3">
           <XCircle className="size-6 shrink-0 text-status-error" />
           <div>
-          <p className="font-heading text-body-base font-semibold text-foreground">Gagal memuat data feature flag</p>
+          <p className="font-heading text-body-base font-semibold text-foreground">{t("flagsUI.failed")}</p>
             <p className="mt-1 text-body-sm text-muted-foreground">
-              {error instanceof Error ? error.message : "Terjadi kesalahan koneksi sistem"}
+              {t("flagsUI.connectionError")}
             </p>
           </div>
         </div>
@@ -144,7 +146,7 @@ export function FlagsClient() {
           className="mt-4 inline-flex items-center gap-2 rounded-lg border border-border bg-background px-4 py-2 text-body-sm font-semibold text-foreground transition-colors hover:bg-muted cursor-pointer"
         >
           <RefreshCw className="size-4" />
-          Coba lagi
+          {t("flagsUI.retry")}
         </Button>
       </div>
     );
@@ -181,7 +183,7 @@ export function FlagsClient() {
           </div>
           <div>
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-body-sm font-semibold text-foreground">Provider Layer:</span>
+              <span className="text-body-sm font-semibold text-foreground">{t("flagsUI.provider")}</span>
               <span
                 className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-0.5 text-body-xs font-semibold ${
                   data.posthogConfigured
@@ -194,11 +196,11 @@ export function FlagsClient() {
                     data.posthogConfigured ? "bg-brand-primary animate-pulse" : "bg-muted-foreground/60"
                   }`}
                 />
-                {data.posthogConfigured ? "PostHog Active" : "Local Env Fallback"}
+                {data.posthogConfigured ? t("flagsUI.posthogActive") : t("flagsUI.localFallback")}
               </span>
             </div>
             <p className="text-body-xs text-muted-foreground mt-0.5">
-              Pengecekan otomatis terakhir: {relativeTime(data.checkedAt)}
+              {t("flagsUI.checked", { time: relativeTime(data.checkedAt, t) })}
             </p>
           </div>
         </div>
@@ -208,17 +210,17 @@ export function FlagsClient() {
             type="button"
             onClick={handleCopyAllEnv}
             className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background px-3 py-1.5 text-body-sm font-semibold text-foreground transition-colors hover:bg-muted cursor-pointer"
-            title="Salin semua variabel lingkungan ke clipboard"
+            title={t("flagsUI.copyEnv")}
           >
             {copiedEnvSnippet ? (
               <>
                 <Check className="size-3.5 text-status-success" />
-                <span className="text-status-success">Tersalin!</span>
+                <span className="text-status-success">{t("flagsUI.copied")}</span>
               </>
             ) : (
               <>
                 <Terminal className="size-3.5 text-muted-foreground" />
-                <span>Salin .env Template</span>
+                <span>{t("flagsUI.copyEnvTemplate")}</span>
               </>
             )}
           </Button>
@@ -230,16 +232,16 @@ export function FlagsClient() {
             className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background px-3.5 py-1.5 text-body-sm font-semibold text-foreground transition-colors hover:bg-muted disabled:opacity-50 cursor-pointer"
           >
             <RefreshCw className={`size-3.5 ${isFetching ? "animate-spin text-brand-primary" : ""}`} />
-            <span>Refresh</span>
+            <span>{t("flagsUI.refresh")}</span>
           </Button>
         </div>
       </div>
 
       <AdminStatStrip className="lg:grid-cols-4">
-        <AdminStatStripItem label="Feature flags" value={data.total} icon={Layers} />
-        <AdminStatStripItem label="Aktif" value={data.activeCount} icon={CheckCircle2} tone="success" />
-        <AdminStatStripItem label="Nonaktif" value={data.inactiveCount} icon={XCircle} />
-        <AdminStatStripItem label="Cakupan aktif" value={`${data.coveragePercent}%`} icon={Activity} tone="brand" />
+        <AdminStatStripItem label={t("flagsUI.flags")} value={data.total} icon={Layers} />
+        <AdminStatStripItem label={t("flagsUI.active")} value={data.activeCount} icon={CheckCircle2} tone="success" />
+        <AdminStatStripItem label={t("flagsUI.inactive")} value={data.inactiveCount} icon={XCircle} />
+        <AdminStatStripItem label={t("flagsUI.coverage")} value={`${data.coveragePercent}%`} icon={Activity} tone="brand" />
       </AdminStatStrip>
 
       {/* Control Panel: Search & Filters */}
@@ -252,20 +254,20 @@ export function FlagsClient() {
           onSearch={setSearch}
           onClear={() => setSearch("")}
           shortcut="/"
-          placeholder="Cari flag..."
+          placeholder={t("flagsUI.search")}
           containerClassName="flex-1 min-w-0"
         />
 
         {/* Category Select */}
         <Select value={categoryFilter} onValueChange={(val) => setCategoryFilter(val as any)}>
           <SelectTrigger className="w-[140px] sm:w-[160px] h-9 text-body-sm rounded-lg shrink-0">
-            <SelectValue placeholder="Semua Kategori" />
+            <SelectValue placeholder={t("flagsUI.allCategories")} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Semua Kategori</SelectItem>
+            <SelectItem value="all">{t("flagsUI.allCategories")}</SelectItem>
             {(Object.keys(FEATURE_CATEGORIES) as FeatureCategory[]).map((catKey) => (
               <SelectItem key={catKey} value={catKey}>
-                {FEATURE_CATEGORIES[catKey]} ({data.flags.filter((f) => f.category === catKey).length})
+                {t(`flagsUI.categories.${catKey}`)} ({data.flags.filter((f) => f.category === catKey).length})
               </SelectItem>
             ))}
           </SelectContent>
@@ -282,7 +284,7 @@ export function FlagsClient() {
                 : "text-muted-foreground hover:text-foreground"
             }`}
           >
-            Semua ({data.total})
+            {t("flagsUI.all")} ({data.total})
           </Button>
           <Button variant="ghost" size="sm"
             type="button"
@@ -293,7 +295,7 @@ export function FlagsClient() {
                 : "text-muted-foreground hover:text-foreground"
             }`}
           >
-            Aktif ({data.activeCount})
+            {t("flagsUI.active")} ({data.activeCount})
           </Button>
           <Button variant="ghost" size="sm"
             type="button"
@@ -304,7 +306,7 @@ export function FlagsClient() {
                 : "text-muted-foreground hover:text-foreground"
             }`}
           >
-            Nonaktif ({data.inactiveCount})
+            {t("flagsUI.inactive")} ({data.inactiveCount})
           </Button>
         </div>
       </div>
@@ -315,7 +317,7 @@ export function FlagsClient() {
           <div className="flex flex-wrap items-center gap-2">
             <Zap className="size-4 text-brand-primary" />
             <h2 className="font-heading text-body-base font-semibold text-foreground">
-              Daftar Feature Flag ({filteredFlags.length})
+              {t("flagsUI.flagList", { count: filteredFlags.length })}
             </h2>
           </div>
 
@@ -330,7 +332,7 @@ export function FlagsClient() {
               className="inline-flex items-center gap-1 text-body-sm font-semibold text-brand-primary hover:underline cursor-pointer"
             >
               <X className="size-3" />
-              Reset filter
+              {t("flagsUI.reset")}
             </Button>
           )}
         </div>
@@ -342,10 +344,10 @@ export function FlagsClient() {
             </div>
             <div>
               <p className="text-body-base font-semibold text-foreground">
-                Tidak ada feature flag yang cocok
+                {t("flagsUI.noMatch")}
               </p>
               <p className="mt-1 text-body-sm text-muted-foreground max-w-md mx-auto">
-                Coba sesuaikan kata kunci pencarian atau bersihkan filter status dan kategori di atas.
+                {t("flagsUI.adjustSearch")}
               </p>
             </div>
             <Button variant="ghost" size="sm"
@@ -357,7 +359,7 @@ export function FlagsClient() {
               }}
               className="inline-flex items-center gap-2 rounded-lg border border-border bg-background px-4 py-2 text-body-sm font-semibold text-foreground hover:bg-muted transition-colors cursor-pointer"
             >
-              Tampilkan semua flag
+              {t("flagsUI.showAll")}
             </Button>
           </div>
         ) : (
@@ -377,7 +379,7 @@ export function FlagsClient() {
                         {flag.name}
                       </span>
                       <span className="rounded-md border border-border bg-muted/60 px-2 py-0.5 text-body-xs font-semibold text-muted-foreground">
-                        {flag.categoryLabel}
+                        {t(`flagsUI.categories.${flag.category}`)}
                       </span>
                     </div>
 
@@ -388,7 +390,7 @@ export function FlagsClient() {
                       <Button variant="ghost" size="sm"
                         type="button"
                         onClick={() => handleCopyKey(flag.key)}
-                        title="Salin nama variabel lingkungan"
+                        title={t("flagsUI.copyName")}
                         className="inline-flex items-center gap-1 rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors cursor-pointer"
                       >
                         {isJustCopied ? (
@@ -408,10 +410,10 @@ export function FlagsClient() {
                   <div className="flex shrink-0 items-center justify-start gap-4 self-start md:self-center border-t md:border-t-0 border-border/40 pt-3 md:pt-0 text-left">
                     <div className="text-left">
                       <span className="text-body-xs font-medium text-muted-foreground block text-left">
-                        Nilai env:
+                        {t("flagsUI.envValue")}
                       </span>
                       <code className="font-mono text-body-xs font-semibold text-foreground">
-                        {flag.rawValue !== undefined ? `"${flag.rawValue}"` : "(tidak diset)"}
+                        {flag.rawValue !== undefined ? `"${flag.rawValue}"` : t("flagsUI.unset")}
                       </code>
                     </div>
 
@@ -428,7 +430,7 @@ export function FlagsClient() {
                           flag.enabled ? "bg-status-success animate-pulse" : "bg-muted-foreground/50"
                         }`}
                       />
-                      <span>{flag.enabled ? "AKTIF" : "NONAKTIF"}</span>
+                      <span>{flag.enabled ? t("flagsUI.enabled") : t("flagsUI.disabled")}</span>
                     </div>
                   </div>
                 </div>
@@ -442,7 +444,7 @@ export function FlagsClient() {
       <div className="border-t border-border pt-4 space-y-2">
         <div className="flex items-center gap-2 text-foreground font-semibold text-body-base">
           <Info className="size-5 text-brand-primary" />
-          <span>Panduan Pengaturan Feature Flag</span>
+          <span>{t("flagsUI.guide")}</span>
         </div>
         <div className="space-y-3 text-body-sm text-muted-foreground leading-relaxed">
           <p>
@@ -451,18 +453,18 @@ export function FlagsClient() {
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="rounded-lg border border-border bg-muted/30 p-3.5 space-y-1.5">
               <p className="font-semibold text-foreground text-body-xs uppercase tracking-wider">
-                Mengaktifkan Fitur
+                {t("flagsUI.enabledTitle")}
               </p>
               <p className="text-body-xs">
-                Set nilai variabel ke <code className="font-mono bg-background px-1.5 py-0.5 rounded border border-border text-foreground">&quot;1&quot;</code> atau <code className="font-mono bg-background px-1.5 py-0.5 rounded border border-border text-foreground">&quot;true&quot;</code> di file <code className="font-mono bg-background px-1.5 py-0.5 rounded border border-border text-foreground">.env</code>.
+                {t("flagsUI.enabledHelp")}
               </p>
             </div>
             <div className="rounded-lg border border-border bg-muted/30 p-3.5 space-y-1.5">
               <p className="font-semibold text-foreground text-body-xs uppercase tracking-wider">
-                Menonaktifkan Fitur
+                {t("flagsUI.disabledTitle")}
               </p>
               <p className="text-body-xs">
-                Set nilai variabel ke <code className="font-mono bg-background px-1.5 py-0.5 rounded border border-border text-foreground">&quot;0&quot;</code> atau hapus variabel tersebut dari konfigurasi lingkungan.
+                {t("flagsUI.disabledHelp")}
               </p>
             </div>
           </div>

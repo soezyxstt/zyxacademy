@@ -5,6 +5,7 @@ import { SectionContainer } from "@/components/layout/section-container";
 import { SectionHeading } from "@/components/ui/section-heading";
 import { LandingVisible } from "@/components/landing/landing-visible";
 import { TutorChatDemo, type TutorChatMessage } from "@/components/landing/demo/tutor-chat-demo";
+import { getTranslations } from "@/lib/i18n/server";
 
 function SourceTag({ icon, children }: { icon: ReactNode; children: ReactNode }) {
  return (
@@ -15,54 +16,21 @@ function SourceTag({ icon, children }: { icon: ReactNode; children: ReactNode })
  );
 }
 
-const messages: TutorChatMessage[] = [
- {
- id: "q1",
- role: "student",
- content: <>Kenapa jawabanku salah di soal volume benda putar kemarin?</>,
- },
- {
- id: "a1",
- role: "ai",
- content: (
- <MathText>
- {"Kamu memakai metode cakram, padahal daerahnya diputar mengelilingi sumbu $y$ ; di kasus ini metode cangkang lebih tepat: $V = 2\\pi\\int_a^b x\\,f(x)\\,dx$."}
- </MathText>
- ),
- sources: (
- <>
- <SourceTag icon={<BookOpen className="size-3 text-primary" aria-hidden />}>
- Bab 5 · Volume Benda Putar
- </SourceTag>
- <SourceTag icon={<FileQuestion className="size-3 text-primary" aria-hidden />}>
- Kuis Mingguan #4 · Soal 8
- </SourceTag>
- </>
- ),
- },
- {
- id: "q2",
- role: "student",
- content: <>Bedanya kapan pakai cakram vs cangkang?</>,
- },
- {
- id: "a2",
- role: "ai",
- content: (
- <>
- Patokan cepat: irisan <em>tegak lurus</em> sumbu putar → cakram; irisan <em>sejajar</em>{" "}
- sumbu putar → cangkang.
- </>
- ),
- sources: (
- <SourceTag icon={<BookOpen className="size-3 text-primary" aria-hidden />}>
- Bab 5.2 · Memilih Metode
- </SourceTag>
- ),
- },
-];
-
-export function LandingDemoTutor() {
+export async function LandingDemoTutor() {
+ const t = await getTranslations("marketing");
+ const messages: TutorChatMessage[] = [
+  { id: "q1", role: "student", content: <>{t("home.tutorQuestion1")}</> },
+  {
+   id: "a1", role: "ai",
+   content: <MathText>{t("home.tutorAnswer1")}</MathText>,
+   sources: <>
+    <SourceTag icon={<BookOpen className="size-3 text-primary" aria-hidden />}>Bab 5 · Volume Benda Putar</SourceTag>
+    <SourceTag icon={<FileQuestion className="size-3 text-primary" aria-hidden />}>Kuis Mingguan #4 · Soal 8</SourceTag>
+   </>,
+  },
+  { id: "q2", role: "student", content: <>{t("home.tutorQuestion2")}</> },
+  { id: "a2", role: "ai", content: <>{t("home.tutorAnswer2")}</>, sources: <SourceTag icon={<BookOpen className="size-3 text-primary" aria-hidden />}>Bab 5.2 · Memilih Metode</SourceTag> },
+ ];
  return (
  <SectionContainer
  className="border-y border-border/80 bg-[var(--color-surface)]/45"
@@ -77,14 +45,13 @@ export function LandingDemoTutor() {
 
  <div className="order-1 max-w-xl lg:order-2">
  <SectionHeading as="h2" id="landing-tutor-heading" className="text-foreground">
- Jawaban bertumpu pada materi yang tersedia.
+ {t("home.tutorTitle")}
  </SectionHeading>
  <p className="mt-4 text-body-base text-muted-foreground">
- Zyra dapat menjawab berdasarkan materi kuliah yang tersedia dan menyebutkan sumbernya ; bab,
- contoh soal, sampai kuis yang terkait.
+ {t("home.tutorDescription")}
  </p>
  <p className="mt-3 text-body-sm italic text-muted-foreground">
- Jika materi yang tersedia belum cukup, batas jawabannya perlu diperiksa kembali.
+ {t("home.tutorCaveat")}
  </p>
  </div>
  </div>

@@ -1,6 +1,7 @@
 "use client";
 
 import { CalendarDays, Clock3, ExternalLink, MapPin, NotebookText } from "lucide-react";
+import { useAppLocale, useTranslations } from "@/lib/i18n/client";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -25,13 +26,6 @@ export type AcademicScheduleDetail = {
   courseTitle?: string | null;
 };
 
-const TYPE_LABELS: Record<string, string> = {
-  official_exam: "Ujian ITB",
-  tryout: "Tryout",
-  quiz: "Kuis",
-  general: "Akademik",
-};
-
 function asDate(value: Date | string | null | undefined) {
   if (!value) return null;
   const parsed = value instanceof Date ? value : new Date(value);
@@ -42,8 +36,8 @@ function isHttpUrl(value: string | null | undefined) {
   return Boolean(value && /^https?:\/\//i.test(value.trim()));
 }
 
-function formatDate(value: Date) {
-  return new Intl.DateTimeFormat("id-ID", {
+function formatDate(value: Date, locale: "id" | "en") {
+  return new Intl.DateTimeFormat(locale === "id" ? "id-ID" : "en-US", {
     weekday: "long",
     day: "numeric",
     month: "long",
@@ -52,8 +46,8 @@ function formatDate(value: Date) {
   }).format(value);
 }
 
-function formatTime(value: Date) {
-  return new Intl.DateTimeFormat("id-ID", {
+function formatTime(value: Date, locale: "id" | "en") {
+  return new Intl.DateTimeFormat(locale === "id" ? "id-ID" : "en-US", {
     hour: "2-digit",
     minute: "2-digit",
     hour12: false,
@@ -70,12 +64,15 @@ export function AcademicScheduleDetailDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
+  const t = useTranslations("schedule");
+  const { locale } = useAppLocale();
   if (!schedule) return null;
 
   const start = asDate(schedule.startDate);
   const end = asDate(schedule.endDate);
   const courseTitle = schedule.course?.title || schedule.courseTitle || null;
-  const typeLabel = TYPE_LABELS[schedule.type || ""] || "Akademik";
+  const typeKey = schedule.type && ["official_exam", "tryout", "quiz", "general"].includes(schedule.type) ? schedule.type : "general";
+  const typeLabel = t(`academic.types.${typeKey}`);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -87,7 +84,7 @@ export function AcademicScheduleDetailDialog({
           <div>
             <DialogTitle className="text-xl leading-snug">{schedule.title}</DialogTitle>
             <DialogDescription className="mt-1">
-              Detail jadwal akademik
+              {t("academic.title")}
             </DialogDescription>
           </div>
         </DialogHeader>
@@ -97,7 +94,7 @@ export function AcademicScheduleDetailDialog({
             <div className="flex items-start gap-3">
               <NotebookText className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
               <div>
-                <p className="text-xs text-muted-foreground">Mata kuliah</p>
+                <p className="text-xs text-muted-foreground">{t("academic.course")}</p>
                 <p className="font-medium">{courseTitle}</p>
               </div>
             </div>
@@ -107,8 +104,8 @@ export function AcademicScheduleDetailDialog({
             <div className="flex items-start gap-3">
               <CalendarDays className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
               <div>
-                <p className="text-xs text-muted-foreground">Tanggal</p>
-                <p className="font-medium">{formatDate(start)}</p>
+                <p className="text-xs text-muted-foreground">{t("academic.date")}</p>
+                <p className="font-medium">{formatDate(start, locale)}</p>
               </div>
             </div>
           ) : null}
@@ -117,9 +114,9 @@ export function AcademicScheduleDetailDialog({
             <div className="flex items-start gap-3">
               <Clock3 className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
               <div>
-                <p className="text-xs text-muted-foreground">Waktu</p>
+                <p className="text-xs text-muted-foreground">{t("academic.time")}</p>
                 <p className="font-medium">
-                  {formatTime(start)}{end ? ` - ${formatTime(end)}` : ""} WIB
+                  {formatTime(start, locale)}{end ? ` - ${formatTime(end, locale)}` : ""} WIB
                 </p>
               </div>
             </div>
@@ -129,7 +126,7 @@ export function AcademicScheduleDetailDialog({
             <div className="flex items-start gap-3">
               <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
               <div className="min-w-0 flex-1">
-                <p className="text-xs text-muted-foreground">Lokasi / tautan</p>
+                <p className="text-xs text-muted-foreground">{t("academic.location")}</p>
                 {isHttpUrl(schedule.location) ? (
                   <a
                     href={schedule.location}
@@ -150,7 +147,7 @@ export function AcademicScheduleDetailDialog({
           {schedule.description ? (
             <div className="border-t border-border pt-3">
               <p className="mb-2 text-body-xs font-medium text-muted-foreground">
-                Catatan
+                {t("academic.notes")}
               </p>
               <p className="whitespace-pre-wrap break-words leading-relaxed">
                 {schedule.description}
@@ -163,13 +160,13 @@ export function AcademicScheduleDetailDialog({
           {schedule.location && isHttpUrl(schedule.location) ? (
             <Button asChild>
               <a href={schedule.location} target="_blank" rel="noreferrer">
-                Buka tautan
+                {t("academic.openLink")}
                 <ExternalLink className="h-4 w-4" />
               </a>
             </Button>
           ) : (
             <Button type="button" onClick={() => onOpenChange(false)}>
-              Tutup
+              {t("academic.close")}
             </Button>
           )}
         </DialogFooter>

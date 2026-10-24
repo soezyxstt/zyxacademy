@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { StreakTag } from "@/components/dashboard/streak-tag";
 import { PageHeader } from "@/components/page-header";
 import { cn } from "@/lib/utils";
+import { useTranslations } from "@/lib/i18n/client";
 
 interface PlanItem {
   id: string;
@@ -30,6 +31,7 @@ const KIND_ICON: Record<PlanItem["kind"], React.ComponentType<{ className?: stri
 };
 
 export function TodayPlan({ firstName }: { firstName: string }) {
+  const t = useTranslations("student");
   const [data, setData] = useState<TodayData | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -63,7 +65,7 @@ export function TodayPlan({ firstName }: { firstName: string }) {
       <PageHeader
         title={
           <>
-            Halo, <span className="text-primary">{firstName}</span>
+            {t("dashboard.helloPrefix")}, <span className="text-primary">{firstName}</span>
           </>
         }
         actions={
@@ -82,11 +84,11 @@ export function TodayPlan({ firstName }: { firstName: string }) {
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2 border-b border-border/50 pb-2.5">
             <h2 className="flex items-center gap-2 font-heading text-body-base font-bold text-foreground">
               <CalendarCheck className="size-4 text-brand-primary" />
-              Rencana belajar hari ini
+              {t("dashboard.studyPlan")}
             </h2>
             {!loading && (
               <span className="rounded-md bg-brand-primary/10 px-2.5 py-0.5 text-body-xs font-semibold text-brand-primary shrink-0">
-                {doneCount} dari {total} selesai
+                {t("dashboard.completedCount", { done: doneCount, total })}
               </span>
             )}
           </div>
@@ -102,7 +104,7 @@ export function TodayPlan({ firstName }: { firstName: string }) {
             </div>
           ) : allDone ? (
             <div className="rounded-xl border border-status-success/15 bg-status-success/5 p-4 py-4 text-center text-status-success">
-              <p className="text-body-sm font-semibold">Semua target hari ini telah tercapai.</p>
+              <p className="text-body-sm font-semibold">{t("dashboard.allTargetsDone")}</p>
             </div>
           ) : (
             <ul className="divide-y divide-border/30 zebra-no-rows">
@@ -116,7 +118,7 @@ export function TodayPlan({ firstName }: { firstName: string }) {
                   >
                     <button
                       type="button"
-                      aria-label={item.done ? "Selesai" : "Tandai selesai"}
+                      aria-label={item.done ? t("dashboard.done") : t("dashboard.markDone")}
                       onClick={() => !item.done && markDone(item.id)}
                       className={cn(
                         "flex size-5 shrink-0 cursor-pointer items-center justify-center rounded-full border transition-all",
@@ -148,12 +150,12 @@ export function TodayPlan({ firstName }: { firstName: string }) {
 
                     {item.count != null && (
                       <Badge variant="outline" className="shrink-0 rounded-md border-border/50 px-1.5 py-0.2 text-[10px]">
-                        {item.count} kartu
+                        {t("dashboard.cardsCount", { count: item.count })}
                       </Badge>
                     )}
 
                     <Button variant="ghost" size="sm" asChild className="shrink-0 rounded-lg hover:bg-muted">
-                      <Link href={item.href} aria-label={`Buka ${item.title}`}>
+                      <Link href={item.href} aria-label={t("dashboard.openItem", { title: item.title })}>
                         <ArrowRight className="size-4 text-muted-foreground hover:text-foreground" />
                       </Link>
                     </Button>

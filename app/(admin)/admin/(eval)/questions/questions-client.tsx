@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { CheckSquare, Square, ChevronDown, ChevronUp, Plus, Edit2, Trash2, Upload, ChevronLeft, ChevronRight } from "lucide-react";
 import { toast } from "@/components/ui/toast";
@@ -104,15 +105,6 @@ const statusTone: Record<ReviewStatus, "muted" | "info" | "success" | "warning" 
   retired: "error",
 };
 
-const cognitiveLevelLabel: Record<CognitiveLevel, string> = {
-  remember: "Mengingat",
-  understand: "Memahami",
-  apply: "Menerapkan",
-  analyze: "Menganalisis",
-  evaluate: "Mengevaluasi",
-  create: "Mencipta",
-};
-
 /**
  * Determines the target review status from the form submit button.
  *
@@ -166,6 +158,7 @@ function hasValidIdeaWeights(links: IdeaLink[]): boolean {
  */
 export function QuestionBankClient({ questions, courses, courseMap, canonicalCourseMap, authoringCourses, authoringChapters, authoringIdeas }: Props) {
   const router = useRouter();
+  const t = useTranslations("adminEval.questionBank");
 
   const chaptersForCourse = (courseId: string) => authoringChapters.filter((chapter) => chapter.mataKuliahId === courseId);
   const ideasForSelection = (courseId: string, chapterId: string) => authoringIdeas.filter((idea) => idea.mataKuliahId === courseId && (!chapterId || idea.babId === chapterId));
@@ -325,11 +318,11 @@ export function QuestionBankClient({ questions, courses, courseMap, canonicalCou
 
   async function bulkUpdate(status: ReviewStatus) {
     if (selected.size === 0) {
-      toast.error("Pilih minimal satu soal.");
+      toast.error(t("selectAtLeastOne"));
       return;
     }
     if (localQuestions.some((question) => selected.has(question.id) && question.origin === "historical_reference")) {
-      toast.error("Soal referensi historis hanya dapat ditinjau dari tab Referensi historis.");
+      toast.error(t("historicalReviewTabOnly"));
       return;
     }
     setUpdating(true);
@@ -341,10 +334,10 @@ export function QuestionBankClient({ questions, courses, courseMap, canonicalCou
       });
       const data = await res.json();
       if (!res.ok) {
-        toast.error("Gagal update: " + JSON.stringify(data.error));
+        toast.error(t("updateFailed"));
         return;
       }
-      toast.success(`${data.updated} soal diupdate ke "${status}".`);
+      toast.success(t("updatedCount", { count: data.updated, status: t(status) }));
       setLocalQuestions((prev) =>
         prev.map((q) => (selected.has(q.id) ? { ...q, reviewStatus: status } : q)),
       );
@@ -384,16 +377,16 @@ export function QuestionBankClient({ questions, courses, courseMap, canonicalCou
 
   const handleCreateSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!createPrompt.trim()) return toast.error("Prompt soal wajib diisi.");
+    if (!createPrompt.trim()) return toast.error(t("promptRequired"));
 
     const reviewStatus = reviewStatusFromSubmit(e);
-    if (!hasValidIdeaWeights(createIdeaLinks)) return toast.error("Jika Idea dipilih, total bobotnya harus 100%.");
+    if (!hasValidIdeaWeights(createIdeaLinks)) return toast.error(t("ideaWeightMustTotal"));
     if (createQuestionType === "multiple_choice" || createQuestionType === "multiple_choices") {
-      if (createOptions.some((opt) => !opt.trim())) return toast.error("Semua empat opsi harus diisi.");
-      if (createCorrectIndices.length === 0) return toast.error("Pilih minimal satu opsi yang benar.");
-      if (createQuestionType === "multiple_choice" && createCorrectIndices.length !== 1) return toast.error("Pilihan ganda harus memiliki tepat satu jawaban benar.");
+      if (createOptions.some((opt) => !opt.trim())) return toast.error(t("allOptionsRequired"));
+      if (createCorrectIndices.length === 0) return toast.error(t("selectCorrectOption"));
+      if (createQuestionType === "multiple_choice" && createCorrectIndices.length !== 1) return toast.error(t("singleChoiceOneAnswer"));
     } else if (createQuestionType === "short_answer") {
-      if (!createAcceptableAnswers.trim()) return toast.error("Jawaban benar yang diterima wajib diisi.");
+      if (!createAcceptableAnswers.trim()) return toast.error(t("acceptedAnswerRequired"));
     }
 
     try {
@@ -423,12 +416,11 @@ export function QuestionBankClient({ questions, courses, courseMap, canonicalCou
       });
 
       if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || "Gagal membuat soal");
+        throw new Error(t("createFailed"));
       }
 
       const newQ = await res.json();
-      toast.success(reviewStatus === "published" ? "Soal manual disimpan dan diterbitkan." : "Soal manual disimpan sebagai draft.");
+      toast.success(reviewStatus === "published" ? t("manualPublished") : t("manualDraftSaved"));
 
       const createdQuestion: Question = {
         id: newQ.id,
@@ -465,8 +457,8 @@ export function QuestionBankClient({ questions, courses, courseMap, canonicalCou
       setCreateAcceptableAnswers("");
       setCreateExplanation("");
       setCreateTagsStr("");
-    } catch (err: any) {
-      toast.error(err.message || "Gagal membuat soal");
+    } catch {
+      toast.error(t("createFailed"));
     } finally {
       setSubmittingCreate(false);
     }
@@ -474,9 +466,9 @@ export function QuestionBankClient({ questions, courses, courseMap, canonicalCou
 
   const handleBulkSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!bulkCourseId) return toast.error("Silakan pilih mata kuliah.");
-    if (!hasValidIdeaWeights(bulkIdeaLinks)) return toast.error("Jika Idea dipilih, total bobotnya harus 100%.");
-    if (!bulkMarkdown.trim()) return toast.error("Konten markdown tidak boleh kosong.");
+    if (!bulkCourseId) return toast.error(t("chooseCourseFirst"));
+    if (!hasValidIdeaWeights(bulkIdeaLinks)) return toast.error(t("ideaWeightMustTotal"));
+    if (!bulkMarkdown.trim()) return toast.error(t("markdownRequired"));
     const reviewStatus = reviewStatusFromSubmit(e);
 
     try {
@@ -497,7 +489,7 @@ export function QuestionBankClient({ questions, courses, courseMap, canonicalCou
 
       const data = await res.json();
       if (res.ok) {
-        toast.success(data.message || "Berhasil mengimpor soal.");
+        toast.success(data.message || t("importSucceeded"));
         setBulkOpen(false);
         setBulkMarkdown("");
         setBulkChapterId("");
@@ -505,10 +497,10 @@ export function QuestionBankClient({ questions, courses, courseMap, canonicalCou
         // Reload page data to get the new questions in list
         router.refresh();
       } else {
-        toast.error(data.error || "Gagal mengimpor soal.");
+        toast.error(t("importFailed"));
       }
     } catch {
-      toast.error("Terjadi kesalahan koneksi.");
+      toast.error(t("connectionError"));
     } finally {
       setBulkSubmitting(false);
     }
@@ -521,7 +513,7 @@ export function QuestionBankClient({ questions, courses, courseMap, canonicalCou
     reader.onload = (event) => {
       if (event.target?.result) {
         setBulkMarkdown(event.target.result as string);
-        toast.success("File Markdown berhasil dibaca.");
+        toast.success(t("markdownRead"));
       }
     };
     reader.readAsText(file);
@@ -530,16 +522,16 @@ export function QuestionBankClient({ questions, courses, courseMap, canonicalCou
   const handleEditSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!editingQuestion) return;
-    if (!editPrompt.trim()) return toast.error("Prompt soal wajib diisi.");
+    if (!editPrompt.trim()) return toast.error(t("promptRequired"));
     const reviewStatus = reviewStatusFromSubmit(e);
-    if (!hasValidIdeaWeights(editIdeaLinks)) return toast.error("Jika Idea dipilih, total bobotnya harus 100%.");
+    if (!hasValidIdeaWeights(editIdeaLinks)) return toast.error(t("ideaWeightMustTotal"));
 
     if (editQuestionType === "multiple_choice" || editQuestionType === "multiple_choices") {
-      if (editOptions.some((opt) => !opt.trim())) return toast.error("Semua empat opsi harus diisi.");
-      if (editCorrectIndices.length === 0) return toast.error("Pilih minimal satu opsi yang benar.");
-      if (editQuestionType === "multiple_choice" && editCorrectIndices.length !== 1) return toast.error("Pilihan ganda harus memiliki tepat satu jawaban benar.");
+      if (editOptions.some((opt) => !opt.trim())) return toast.error(t("allOptionsRequired"));
+      if (editCorrectIndices.length === 0) return toast.error(t("selectCorrectOption"));
+      if (editQuestionType === "multiple_choice" && editCorrectIndices.length !== 1) return toast.error(t("singleChoiceOneAnswer"));
     } else if (editQuestionType === "short_answer") {
-      if (!editAcceptableAnswers.trim()) return toast.error("Jawaban benar yang diterima wajib diisi.");
+      if (!editAcceptableAnswers.trim()) return toast.error(t("acceptedAnswerRequired"));
     }
 
     try {
@@ -569,11 +561,10 @@ export function QuestionBankClient({ questions, courses, courseMap, canonicalCou
       });
 
       if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || "Gagal menyimpan perubahan");
+        throw new Error(t("saveFailed"));
       }
 
-      toast.success(reviewStatus === "published" ? "Soal diperbarui dan diterbitkan." : "Perubahan disimpan sebagai draft.");
+      toast.success(reviewStatus === "published" ? t("updatedPublished") : t("draftChangesSaved"));
 
       setLocalQuestions(prev =>
         prev.map(item =>
@@ -599,8 +590,8 @@ export function QuestionBankClient({ questions, courses, courseMap, canonicalCou
         )
       );
       setEditOpen(false);
-    } catch (err: any) {
-      toast.error(err.message || "Gagal menyimpan perubahan");
+    } catch {
+      toast.error(t("saveFailed"));
     } finally {
       setSubmittingEdit(false);
     }
@@ -614,14 +605,14 @@ export function QuestionBankClient({ questions, courses, courseMap, canonicalCou
         method: "DELETE",
       });
       if (res.ok) {
-        toast.success("Soal berhasil dihapus.");
+        toast.success(t("questionDeleted"));
         setLocalQuestions((prev) => prev.filter((item) => item.id !== deletingQuestion.id));
         setDeleteOpen(false);
       } else {
-        toast.error("Gagal menghapus soal.");
+        toast.error(t("deleteFailed"));
       }
     } catch {
-      toast.error("Terjadi kesalahan.");
+      toast.error(t("genericError"));
     } finally {
       setIsDeleting(false);
     }
@@ -633,7 +624,7 @@ export function QuestionBankClient({ questions, courses, courseMap, canonicalCou
       <div className="flex w-full min-w-0 flex-wrap items-center gap-2">
         <SearchBar
           size="sm"
-          placeholder="Cari isi soal, tag, sumber..."
+          placeholder={t("search")}
           value={searchQuery}
           onSearch={setSearchQuery}
           onClear={() => setSearchQuery("")}
@@ -641,70 +632,70 @@ export function QuestionBankClient({ questions, courses, courseMap, canonicalCou
         />
 
         <QuestionFilterPopover activeCount={activeFilterCount} onReset={resetFilters}>
-          <QuestionFilterField label="Status">
+          <QuestionFilterField label={t("status")}>
             <Select value={filterStatus} onValueChange={(value) => setFilterStatus(value as ReviewStatus | "all")}>
-              <SelectTrigger aria-label="Filter status" className="h-9 w-full rounded-lg text-body-sm">
-                <SelectValue placeholder="Status" />
+              <SelectTrigger aria-label={t("filterStatus")} className="h-9 w-full rounded-lg text-body-sm">
+                <SelectValue placeholder={t("status")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Semua status</SelectItem>
-                <SelectItem value="generated">Generated</SelectItem>
-                <SelectItem value="reviewed">Reviewed</SelectItem>
-                <SelectItem value="published">Published</SelectItem>
-                <SelectItem value="flagged">Flagged</SelectItem>
-                <SelectItem value="retired">Retired</SelectItem>
+                <SelectItem value="all">{t("allStatuses")}</SelectItem>
+                <SelectItem value="generated">{t("generated")}</SelectItem>
+                <SelectItem value="reviewed">{t("reviewed")}</SelectItem>
+                <SelectItem value="published">{t("published")}</SelectItem>
+                <SelectItem value="flagged">{t("flagged")}</SelectItem>
+                <SelectItem value="retired">{t("retired")}</SelectItem>
               </SelectContent>
             </Select>
           </QuestionFilterField>
-          <QuestionFilterField label="Mata kuliah">
+          <QuestionFilterField label={t("course")}>
             <Select value={filterCourse} onValueChange={setFilterCourse}>
-              <SelectTrigger aria-label="Filter mata kuliah" className="h-9 w-full rounded-lg text-body-sm">
-                <SelectValue placeholder="Mata kuliah" />
+              <SelectTrigger aria-label={t("filterCourse")} className="h-9 w-full rounded-lg text-body-sm">
+                <SelectValue placeholder={t("course")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Semua mata kuliah</SelectItem>
+                <SelectItem value="all">{t("allCourses")}</SelectItem>
                 {courses.map((c) => (
                   <SelectItem key={c.id} value={c.id}>{c.title}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </QuestionFilterField>
-          <QuestionFilterField label="Asal soal">
+          <QuestionFilterField label={t("origin")}>
             <Select value={filterOrigin} onValueChange={(value) => setFilterOrigin(value as QuestionOrigin | "all")}>
-              <SelectTrigger aria-label="Filter asal soal" className="h-9 w-full rounded-lg text-body-sm">
-                <SelectValue placeholder="Asal soal" />
+              <SelectTrigger aria-label={t("filterOrigin")} className="h-9 w-full rounded-lg text-body-sm">
+                <SelectValue placeholder={t("origin")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Semua asal</SelectItem>
-                <SelectItem value="zyx_original">Asli Zyx</SelectItem>
-                <SelectItem value="itb_example">Contoh ITB</SelectItem>
+                <SelectItem value="all">{t("allOrigins")}</SelectItem>
+                <SelectItem value="zyx_original">{t("zyxOriginal")}</SelectItem>
+                <SelectItem value="itb_example">{t("itbExample")}</SelectItem>
               </SelectContent>
             </Select>
           </QuestionFilterField>
-          <QuestionFilterField label="Tipe soal">
+          <QuestionFilterField label={t("type")}>
             <Select value={filterQuestionType} onValueChange={(value) => setFilterQuestionType(value as QuestionType | "all")}>
-              <SelectTrigger aria-label="Filter tipe soal" className="h-9 w-full rounded-lg text-body-sm">
-                <SelectValue placeholder="Tipe soal" />
+              <SelectTrigger aria-label={t("filterType")} className="h-9 w-full rounded-lg text-body-sm">
+                <SelectValue placeholder={t("type")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Semua tipe soal</SelectItem>
-                <SelectItem value="multiple_choice">Pilihan ganda</SelectItem>
-                <SelectItem value="multiple_choices">PG kompleks</SelectItem>
-                <SelectItem value="short_answer">Isian singkat</SelectItem>
-                <SelectItem value="essay">Uraian</SelectItem>
+                <SelectItem value="all">{t("allQuestionTypes")}</SelectItem>
+                <SelectItem value="multiple_choice">{t("multipleChoice")}</SelectItem>
+                <SelectItem value="multiple_choices">{t("multipleChoices")}</SelectItem>
+                <SelectItem value="short_answer">{t("shortAnswer")}</SelectItem>
+                <SelectItem value="essay">{t("essay")}</SelectItem>
               </SelectContent>
             </Select>
           </QuestionFilterField>
-          <QuestionFilterField label="Kesulitan">
+          <QuestionFilterField label={t("difficulty")}>
             <Select value={filterDifficulty} onValueChange={(value) => setFilterDifficulty(value as Difficulty | "all")}>
-              <SelectTrigger aria-label="Filter tingkat kesulitan" className="h-9 w-full rounded-lg text-body-sm">
-                <SelectValue placeholder="Kesulitan" />
+              <SelectTrigger aria-label={t("filterDifficulty")} className="h-9 w-full rounded-lg text-body-sm">
+                <SelectValue placeholder={t("difficulty")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Semua kesulitan</SelectItem>
-                <SelectItem value="easy">Easy</SelectItem>
-                <SelectItem value="medium">Medium</SelectItem>
-                <SelectItem value="hard">Hard</SelectItem>
+                <SelectItem value="all">{t("allDifficulties")}</SelectItem>
+                <SelectItem value="easy">{t("easy")}</SelectItem>
+                <SelectItem value="medium">{t("medium")}</SelectItem>
+                <SelectItem value="hard">{t("hard")}</SelectItem>
               </SelectContent>
             </Select>
           </QuestionFilterField>
@@ -717,13 +708,13 @@ export function QuestionBankClient({ questions, courses, courseMap, canonicalCou
                 onClick={() => setBulkOpen(true)}
                 variant="outline"
                 size="sm"
-                aria-label="Impor markdown"
+                aria-label={t("importMarkdown")}
                 className="size-9 p-0 rounded-lg shrink-0"
               >
                 <Upload className="size-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Impor markdown</TooltipContent>
+            <TooltipContent>{t("importMarkdown")}</TooltipContent>
           </Tooltip>
         </TooltipProvider>
 
@@ -733,13 +724,13 @@ export function QuestionBankClient({ questions, courses, courseMap, canonicalCou
               <Button
                 onClick={() => setCreateOpen(true)}
                 size="sm"
-                aria-label="Tambah soal"
+                aria-label={t("addQuestion")}
                 className="size-9 p-0 rounded-lg shrink-0 bg-brand-primary text-white hover:bg-brand-primary/95 shadow-2xs"
               >
                 <Plus className="size-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Tambah soal</TooltipContent>
+            <TooltipContent>{t("addQuestion")}</TooltipContent>
           </Tooltip>
         </TooltipProvider>
       </div>
@@ -748,7 +739,7 @@ export function QuestionBankClient({ questions, courses, courseMap, canonicalCou
         {/* Bulk actions - Floating Overlay */}
         {selected.size > 0 && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 flex items-center gap-4 rounded-xl border border-border/80 bg-background/90 backdrop-blur-md px-5 py-3.5 shadow-xl min-w-[320px] max-w-[90vw] animate-in slide-in-from-bottom-4 duration-300">
-          <span className="text-body-sm font-bold text-foreground shrink-0">{selected.size} soal dipilih</span>
+              <span className="text-body-sm font-bold text-foreground shrink-0">{selected.size} {t("selectedCountLabel")}</span>
           <div className="h-4 w-px bg-border/85 shrink-0" />
           <div className="flex gap-1.5 ml-auto flex-wrap">
             {(["reviewed", "published", "flagged", "retired"] as ReviewStatus[]).map((s) => (
@@ -774,7 +765,7 @@ export function QuestionBankClient({ questions, courses, courseMap, canonicalCou
             <button
               type="button"
               onClick={toggleAll}
-              aria-label={filtered.filter((q) => q.origin !== "historical_reference").length > 0 && filtered.filter((q) => q.origin !== "historical_reference").every((q) => selected.has(q.id)) ? "Batalkan pilih semua" : "Pilih semua soal"}
+              aria-label={filtered.filter((q) => q.origin !== "historical_reference").length > 0 && filtered.filter((q) => q.origin !== "historical_reference").every((q) => selected.has(q.id)) ? t("clearAllSelection") : t("selectAllQuestions")}
               className="shrink-0 cursor-pointer text-muted-foreground transition-colors hover:text-foreground"
             >
               {filtered.filter((q) => q.origin !== "historical_reference").length > 0 && filtered.filter((q) => q.origin !== "historical_reference").every((q) => selected.has(q.id)) ? (
@@ -790,7 +781,7 @@ export function QuestionBankClient({ questions, courses, courseMap, canonicalCou
 
           <div className="flex items-center gap-3 ml-auto flex-wrap">
             <div className="flex items-center gap-1.5 text-body-xs text-muted-foreground">
-              <span className="hidden sm:inline">Per halaman:</span>
+              <span className="hidden sm:inline">{t("perPage")}</span>
               <Select
                 value={String(pageSize)}
                 onValueChange={(value) => {
@@ -798,7 +789,7 @@ export function QuestionBankClient({ questions, courses, courseMap, canonicalCou
                   setCurrentPage(1);
                 }}
               >
-                <SelectTrigger aria-label="Jumlah soal per halaman" className="h-7 w-[68px] rounded-md text-body-xs px-2">
+                <SelectTrigger aria-label={t("pageSize")} className="h-7 w-[68px] rounded-md text-body-xs px-2">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -819,7 +810,7 @@ export function QuestionBankClient({ questions, courses, courseMap, canonicalCou
                   className="size-7 p-0 rounded-md"
                   disabled={safeCurrentPage <= 1}
                   onClick={() => goToPage(safeCurrentPage - 1)}
-                  aria-label="Halaman sebelumnya"
+                  aria-label={t("previousPage")}
                 >
                   <ChevronLeft className="size-3.5" />
                 </Button>
@@ -833,7 +824,7 @@ export function QuestionBankClient({ questions, courses, courseMap, canonicalCou
                   className="size-7 p-0 rounded-md"
                   disabled={safeCurrentPage >= totalPages}
                   onClick={() => goToPage(safeCurrentPage + 1)}
-                  aria-label="Halaman berikutnya"
+                  aria-label={t("nextPage")}
                 >
                   <ChevronRight className="size-3.5" />
                 </Button>
@@ -843,7 +834,7 @@ export function QuestionBankClient({ questions, courses, courseMap, canonicalCou
         </div>
 
         {filtered.length === 0 ? (
-          <AdminEmptyState compact title="Tidak ada soal yang cocok dengan filter." />
+          <AdminEmptyState compact title={t("empty")} />
         ) : (
           <div className="divide-y divide-border/60 overflow-hidden">
               {paginatedQuestions.map((q) => (
@@ -863,7 +854,7 @@ export function QuestionBankClient({ questions, courses, courseMap, canonicalCou
         {totalPages > 1 && (
           <div className="flex items-center justify-between border-t border-border bg-muted/30 px-4 py-3 text-body-sm">
             <span className="text-body-xs text-muted-foreground">
-              Menampilkan {(safeCurrentPage - 1) * pageSize + 1} - {Math.min(safeCurrentPage * pageSize, filtered.length)} dari {filtered.length} soal
+              {t("showingQuestions", { start: (safeCurrentPage - 1) * pageSize + 1, end: Math.min(safeCurrentPage * pageSize, filtered.length), count: filtered.length })}
             </span>
             <div className="flex items-center gap-1.5">
               <Button
@@ -873,7 +864,7 @@ export function QuestionBankClient({ questions, courses, courseMap, canonicalCou
                 className="size-8 p-0 rounded-lg"
                 disabled={safeCurrentPage <= 1}
                 onClick={() => goToPage(safeCurrentPage - 1)}
-                aria-label="Halaman sebelumnya"
+                aria-label={t("previousPage")}
               >
                 <ChevronLeft className="size-4" />
               </Button>
@@ -887,7 +878,7 @@ export function QuestionBankClient({ questions, courses, courseMap, canonicalCou
                 className="size-8 p-0 rounded-lg"
                 disabled={safeCurrentPage >= totalPages}
                 onClick={() => goToPage(safeCurrentPage + 1)}
-                aria-label="Halaman berikutnya"
+                aria-label={t("nextPage")}
               >
                 <ChevronRight className="size-4" />
               </Button>
@@ -901,17 +892,17 @@ export function QuestionBankClient({ questions, courses, courseMap, canonicalCou
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col p-0 overflow-hidden rounded-xl border border-border bg-popover shadow-xl">
           <DialogHeader className="p-6 pb-4 border-b border-border/60 shrink-0">
-            <DialogTitle className="font-heading text-body-base font-bold text-foreground">Tambah Soal Manual</DialogTitle>
-            <DialogDescription>Tambahkan soal pilihan ganda, isian singkat, atau essay ke bank soal secara manual.</DialogDescription>
+            <DialogTitle className="font-heading text-body-base font-bold text-foreground">{t("manualQuestionTitle")}</DialogTitle>
+            <DialogDescription>{t("manualQuestionDescription")}</DialogDescription>
           </DialogHeader>
           <form onSubmit={handleCreateSubmit} className="flex-1 flex flex-col min-h-0">
             <div className="flex-1 overflow-y-auto p-6 space-y-5 text-body-sm text-foreground">
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 <div className="space-y-1.5">
-                  <label className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">Mata Kuliah</label>
+                  <label className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("courseLabel")}</label>
                   <Select value={createCourseId} onValueChange={(value) => { setCreateCourseId(value); setCreateChapterId(""); setCreateIdeaLinks([]); }}>
                     <SelectTrigger className="h-10 border-border/80 bg-background/50 text-body-sm font-medium">
-                      <SelectValue placeholder="Pilih Mata Kuliah" />
+                      <SelectValue placeholder={t("chooseCourse")} />
                     </SelectTrigger>
                     <SelectContent>
                       {authoringCourses.map((course) => (
@@ -924,13 +915,13 @@ export function QuestionBankClient({ questions, courses, courseMap, canonicalCou
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">Bab</label>
+                  <label className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("chapter")}</label>
                   <Select value={createChapterId || "all"} onValueChange={(value) => { setCreateChapterId(value === "all" ? "" : value); setCreateIdeaLinks([]); }}>
                     <SelectTrigger className="h-10 border-border/80 bg-background/50 text-body-sm font-medium">
-                      <SelectValue placeholder="Semua bab" />
+                      <SelectValue placeholder={t("allChaptersLabel")} />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all">Semua bab</SelectItem>
+                      <SelectItem value="all">{t("allChaptersLabel")}</SelectItem>
                       {chaptersForCourse(createCourseId).map((chapter) => (
                         <SelectItem key={chapter.id} value={chapter.id}>
                           {chapter.code} · {chapter.title}
@@ -941,30 +932,30 @@ export function QuestionBankClient({ questions, courses, courseMap, canonicalCou
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">Tipe Soal</label>
+                  <label className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("typeLabel")}</label>
                   <Select value={createQuestionType} onValueChange={(val) => setCreateQuestionType(val as any)}>
                     <SelectTrigger className="h-10 border-border/80 bg-background/50 text-body-sm font-medium">
-                      <SelectValue placeholder="Pilih Tipe Soal" />
+                      <SelectValue placeholder={t("selectType")} />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="multiple_choice">Pilihan Ganda (1 Jawaban)</SelectItem>
-                      <SelectItem value="multiple_choices">Pilihan Ganda Kompleks</SelectItem>
-                      <SelectItem value="short_answer">Isian Singkat</SelectItem>
-                      <SelectItem value="essay">Essay / Uraian</SelectItem>
+                      <SelectItem value="multiple_choice">{t("optionChoiceOne")}</SelectItem>
+                      <SelectItem value="multiple_choices">{t("complexChoice")}</SelectItem>
+                      <SelectItem value="short_answer">{t("shortAnswerType")}</SelectItem>
+                      <SelectItem value="essay">{t("essayType")}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">Tingkat Kesulitan</label>
+                  <label className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("difficultyLabel")}</label>
                   <Select value={createDifficulty} onValueChange={(val) => setCreateDifficulty(val as any)}>
                     <SelectTrigger className="h-10 border-border/80 bg-background/50 text-body-sm font-medium">
-                      <SelectValue placeholder="Pilih Kesulitan" />
+                      <SelectValue placeholder={t("selectDifficulty")} />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="easy">Easy</SelectItem>
-                      <SelectItem value="medium">Medium</SelectItem>
-                      <SelectItem value="hard">Hard</SelectItem>
+                      <SelectItem value="easy">{t("easy")}</SelectItem>
+                      <SelectItem value="medium">{t("medium")}</SelectItem>
+                      <SelectItem value="hard">{t("hard")}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -972,17 +963,17 @@ export function QuestionBankClient({ questions, courses, courseMap, canonicalCou
 
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div className="space-y-1.5">
-                  <label className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">Level kognitif</label>
+                  <label className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("cognitiveLevelLabel")}</label>
                   <Select value={createCognitiveLevel} onValueChange={(value) => setCreateCognitiveLevel(value as CognitiveLevel)}>
                     <SelectTrigger className="h-10 border-border/80 bg-background/50 text-body-sm font-medium"><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      {(Object.keys(cognitiveLevelLabel) as CognitiveLevel[]).map((level) => <SelectItem key={level} value={level}>{cognitiveLevelLabel[level]}</SelectItem>)}
+                      {(["remember", "understand", "apply", "analyze", "evaluate", "create"] as CognitiveLevel[]).map((level) => <SelectItem key={level} value={level}>{t(`cognitive${level[0].toUpperCase()}${level.slice(1)}`)}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">Pola penalaran</label>
-                  <Input value={createReasoningPattern} onChange={(event) => setCreateReasoningPattern(event.target.value)} placeholder="Contoh: direct_application" className="h-10 border-border/80 bg-background/50 text-body-sm font-medium" />
+                  <label className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("reasoningPatternLabel")}</label>
+                  <Input value={createReasoningPattern} onChange={(event) => setCreateReasoningPattern(event.target.value)} placeholder={t("reasoningPlaceholder")} className="h-10 border-border/80 bg-background/50 text-body-sm font-medium" />
                 </div>
               </div>
 
@@ -994,11 +985,11 @@ export function QuestionBankClient({ questions, courses, courseMap, canonicalCou
               />
 
               <div className="space-y-1.5">
-                <label className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">Pertanyaan / Prompt (Mendukung LaTeX, contoh: $x^2$)</label>
+                <label className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("questionPrompt")}</label>
                 <Textarea
                   value={createPrompt}
                   onChange={(e) => setCreatePrompt(e.target.value)}
-                  placeholder="Masukkan isi pertanyaan..."
+                  placeholder={t("promptPlaceholder")}
                   rows={3}
                   className="w-full rounded-lg border border-border/80 bg-background/50 p-3 hover:border-border focus:border-brand-primary focus:ring-1 focus:ring-brand-primary/30 focus:outline-none transition-all font-sans text-body-sm font-medium"
                 />
@@ -1006,8 +997,8 @@ export function QuestionBankClient({ questions, courses, courseMap, canonicalCou
 
               {(createQuestionType === "multiple_choice" || createQuestionType === "multiple_choices") && (
                 <div className="space-y-3 border-t border-border pt-4">
-                  <label className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground block mb-1">Opsi pilihan dan kunci jawaban</label>
-                  <p className="text-body-xs text-muted-foreground">Centang satu jawaban untuk Pilihan Ganda, atau beberapa jawaban untuk PG Kompleks.</p>
+                  <label className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground block mb-1">{t("optionsAndAnswerKeyLabel")}</label>
+                  <p className="text-body-xs text-muted-foreground">{t("multipleChoiceHelp")}</p>
                   <div className="space-y-2.5">
                     {createOptions.map((opt, idx) => (
                       <div key={idx} className="flex items-center gap-3">
@@ -1033,7 +1024,7 @@ export function QuestionBankClient({ questions, courses, courseMap, canonicalCou
                             next[idx] = e.target.value;
                             setCreateOptions(next);
                           }}
-                          placeholder={`Masukkan Opsi ${String.fromCharCode(65 + idx)}`}
+                          placeholder={t("optionNumber", { number: String.fromCharCode(65 + idx) })}
                           className="h-9 border-border/85 bg-background text-body-sm font-medium"
                         />
                       </div>
@@ -1044,55 +1035,55 @@ export function QuestionBankClient({ questions, courses, courseMap, canonicalCou
 
               {createQuestionType === "short_answer" && (
                 <div className="space-y-1.5 border-t border-border pt-4">
-                  <label className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground block mb-1">Jawaban Benar yang Diterima (Pisahkan dengan koma jika ada variasi)</label>
+                  <label className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground block mb-1">{t("acceptedAnswersLabel")}</label>
                   <Input
                     type="text"
                     value={createAcceptableAnswers}
                     onChange={(e) => setCreateAcceptableAnswers(e.target.value)}
-                    placeholder="Contoh: 12, duabelas, 12.0"
+                    placeholder={t("acceptedAnswersPlaceholder")}
                     className="h-10 border-border/85 bg-background text-body-sm font-medium"
                   />
-                  <p className="text-body-xs text-muted-foreground mt-1">Jawaban benar jika cocok dengan kata kunci, tanpa membedakan huruf besar dan kecil.</p>
+                  <p className="text-body-xs text-muted-foreground mt-1">{t("acceptedAnswersHelp")}</p>
                 </div>
               )}
 
               {createQuestionType === "essay" && (
                 <div className="border-t border-border pt-4 text-body-xs text-muted-foreground">
-                  <p className="font-semibold text-foreground mb-1">Soal Tipe Essay / Uraian</p>
-                  Siswa akan menjawab dengan teks bebas. Tuliskan kunci jawaban referensi atau rubrik penilaian pada kolom Penjelasan Solusi di bawah.
+                  <p className="font-semibold text-foreground mb-1">{t("essayQuestion")}</p>
+                  {t("solutionHelpEssay")}
                 </div>
               )}
 
               <div className="space-y-1.5">
-                <label className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">Penjelasan Solusi / Rubrik (Mendukung LaTeX)</label>
+                <label className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("solutionRubricLabel")}</label>
                 <Textarea
                   value={createExplanation}
                   onChange={(e) => setCreateExplanation(e.target.value)}
-                  placeholder="Mengapa opsi ini benar atau rincian poin penilaian..."
+                  placeholder={t("solutionPlaceholder")}
                   rows={2}
                   className="w-full rounded-lg border border-border/80 bg-background/50 p-3 hover:border-border focus:border-brand-primary focus:ring-1 focus:ring-brand-primary/30 focus:outline-none transition-all font-sans text-body-sm font-medium"
                 />
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">Tags (Pisahkan dengan koma)</label>
+                <label className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("tagsLabel")}</label>
                 <Input
                   type="text"
                   value={createTagsStr}
                   onChange={(e) => setCreateTagsStr(e.target.value)}
-                  placeholder="limit, turunan, trigonometri"
+                  placeholder={t("tagsPlaceholder")}
                   className="h-10 border-border/80 bg-background text-body-sm font-medium"
                 />
               </div>
             </div>
 
             <DialogFooter className="p-6 pt-4 border-t border-border/40 bg-muted/5 flex items-center justify-end gap-2.5 shrink-0">
-              <Button type="button" variant="outline" className="rounded-lg cursor-pointer font-bold" onClick={() => setCreateOpen(false)} disabled={submittingCreate}>Batal</Button>
+              <Button type="button" variant="outline" className="rounded-lg cursor-pointer font-bold" onClick={() => setCreateOpen(false)} disabled={submittingCreate}>{t("cancel")}</Button>
               <Button type="submit" name="reviewStatus" value="generated" variant="outline" isLoading={submittingCreate} className="rounded-lg cursor-pointer font-bold">
-                Simpan draft
+                {t("saveDraft")}
               </Button>
               <Button type="submit" name="reviewStatus" value="published" isLoading={submittingCreate} className="rounded-lg cursor-pointer bg-brand-primary !text-white hover:bg-brand-primary/95 font-bold px-6 shadow-sm">
-                Simpan dan terbitkan
+                {t("savePublish")}
               </Button>
             </DialogFooter>
           </form>
@@ -1103,57 +1094,57 @@ export function QuestionBankClient({ questions, courses, courseMap, canonicalCou
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
         <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col p-0 overflow-hidden rounded-xl border border-border bg-popover shadow-xl">
           <DialogHeader className="p-6 pb-4 border-b border-border/60 shrink-0">
-            <DialogTitle className="font-heading text-body-base font-bold text-foreground">Edit Soal &amp; Kunci</DialogTitle>
-            <DialogDescription>Modifikasi detail pertanyaan. Menyimpan perubahan secara otomatis akan mengunci status peninjauan soal.</DialogDescription>
+            <DialogTitle className="font-heading text-body-base font-bold text-foreground">{t("editQuestionAnswerKey")}</DialogTitle>
+            <DialogDescription>{t("editDescription")}</DialogDescription>
           </DialogHeader>
           {editingQuestion && (
             <form onSubmit={handleEditSubmit} className="flex-1 flex flex-col min-h-0">
               <div className="flex-1 overflow-y-auto p-6 space-y-5 text-body-sm text-foreground">
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
                   <div className="space-y-1.5">
-                    <label className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">Mata Kuliah</label>
+                    <label className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("courseLabel")}</label>
                     <Select value={editCourseId} onValueChange={(value) => { setEditCourseId(value); setEditChapterId(""); setEditIdeaLinks([]); }}>
-                      <SelectTrigger className="h-10 border-border/80 bg-background/50 text-body-sm font-medium"><SelectValue placeholder="Pilih Mata Kuliah" /></SelectTrigger>
+                      <SelectTrigger className="h-10 border-border/80 bg-background/50 text-body-sm font-medium"><SelectValue placeholder={t("chooseCourse")} /></SelectTrigger>
                       <SelectContent>
                         {authoringCourses.map((course) => <SelectItem key={course.id} value={course.id}>{course.code} · {course.title}</SelectItem>)}
                       </SelectContent>
                     </Select>
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">Bab</label>
+                    <label className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("chapter")}</label>
                     <Select value={editChapterId || "all"} onValueChange={(value) => { setEditChapterId(value === "all" ? "" : value); setEditIdeaLinks([]); }}>
-                      <SelectTrigger className="h-10 border-border/80 bg-background/50 text-body-sm font-medium"><SelectValue placeholder="Semua bab" /></SelectTrigger>
+                      <SelectTrigger className="h-10 border-border/80 bg-background/50 text-body-sm font-medium"><SelectValue placeholder={t("allChaptersLabel")} /></SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="all">Semua bab</SelectItem>
+                        <SelectItem value="all">{t("allChaptersLabel")}</SelectItem>
                         {chaptersForCourse(editCourseId).map((chapter) => <SelectItem key={chapter.id} value={chapter.id}>{chapter.code} · {chapter.title}</SelectItem>)}
                       </SelectContent>
                     </Select>
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">Tipe Soal</label>
+                    <label className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("typeLabel")}</label>
                     <Select value={editQuestionType} onValueChange={(val) => setEditQuestionType(val as any)}>
                       <SelectTrigger className="h-10 border-border/80 bg-background/50 text-body-sm font-medium">
-                        <SelectValue placeholder="Pilih Tipe Soal" />
+                        <SelectValue placeholder={t("selectType")} />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="multiple_choice">Pilihan Ganda (1 Jawaban)</SelectItem>
-                        <SelectItem value="multiple_choices">Pilihan Ganda Kompleks</SelectItem>
-                        <SelectItem value="short_answer">Isian Singkat</SelectItem>
-                        <SelectItem value="essay">Essay / Uraian</SelectItem>
+                        <SelectItem value="multiple_choice">{t("optionChoiceOne")}</SelectItem>
+                        <SelectItem value="multiple_choices">{t("complexChoice")}</SelectItem>
+                        <SelectItem value="short_answer">{t("shortAnswerType")}</SelectItem>
+                        <SelectItem value="essay">{t("essayType")}</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">Tingkat Kesulitan</label>
+                    <label className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("difficultyLabel")}</label>
                     <Select value={editDifficulty} onValueChange={(val) => setEditDifficulty(val as any)}>
                       <SelectTrigger className="h-10 border-border/80 bg-background/50 text-body-sm font-medium">
-                        <SelectValue placeholder="Pilih Kesulitan" />
+                        <SelectValue placeholder={t("selectDifficulty")} />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="easy">Easy</SelectItem>
-                        <SelectItem value="medium">Medium</SelectItem>
-                        <SelectItem value="hard">Hard</SelectItem>
+                        <SelectItem value="easy">{t("easy")}</SelectItem>
+                        <SelectItem value="medium">{t("medium")}</SelectItem>
+                        <SelectItem value="hard">{t("hard")}</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -1161,17 +1152,17 @@ export function QuestionBankClient({ questions, courses, courseMap, canonicalCou
 
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <div className="space-y-1.5">
-                    <label className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">Level kognitif</label>
+                    <label className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("cognitiveLevelLabel")}</label>
                     <Select value={editCognitiveLevel} onValueChange={(value) => setEditCognitiveLevel(value as CognitiveLevel)}>
                       <SelectTrigger className="h-10 border-border/80 bg-background/50 text-body-sm font-medium"><SelectValue /></SelectTrigger>
                       <SelectContent>
-                        {(Object.keys(cognitiveLevelLabel) as CognitiveLevel[]).map((level) => <SelectItem key={level} value={level}>{cognitiveLevelLabel[level]}</SelectItem>)}
+                      {(["remember", "understand", "apply", "analyze", "evaluate", "create"] as CognitiveLevel[]).map((level) => <SelectItem key={level} value={level}>{t(`cognitive${level[0].toUpperCase()}${level.slice(1)}`)}</SelectItem>)}
                       </SelectContent>
                     </Select>
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">Pola penalaran</label>
-                    <Input value={editReasoningPattern} onChange={(event) => setEditReasoningPattern(event.target.value)} placeholder="Contoh: direct_application" className="h-10 border-border/80 bg-background/50 text-body-sm font-medium" />
+                    <label className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("reasoningPatternLabel")}</label>
+                    <Input value={editReasoningPattern} onChange={(event) => setEditReasoningPattern(event.target.value)} placeholder={t("reasoningPlaceholder")} className="h-10 border-border/80 bg-background/50 text-body-sm font-medium" />
                   </div>
                 </div>
 
@@ -1183,11 +1174,11 @@ export function QuestionBankClient({ questions, courses, courseMap, canonicalCou
                 />
 
                 <div className="space-y-1.5">
-                  <label className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">Pertanyaan / Prompt (Mendukung LaTeX)</label>
+                  <label className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("questionPrompt")}</label>
                   <Textarea
                     value={editPrompt}
                     onChange={(e) => setEditPrompt(e.target.value)}
-                    placeholder="Masukkan isi pertanyaan..."
+                    placeholder={t("promptPlaceholder")}
                     rows={3}
                     className="w-full rounded-lg border border-border/80 bg-background/50 p-3 hover:border-border focus:border-brand-primary focus:ring-1 focus:ring-brand-primary/30 focus:outline-none transition-all font-sans text-body-sm font-medium"
                   />
@@ -1195,8 +1186,8 @@ export function QuestionBankClient({ questions, courses, courseMap, canonicalCou
 
                 {(editQuestionType === "multiple_choice" || editQuestionType === "multiple_choices") && (
                   <div className="space-y-3 border-t border-border pt-4">
-                    <label className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground block mb-1">Opsi pilihan dan kunci jawaban</label>
-                    <p className="text-body-xs text-muted-foreground">Centang satu jawaban untuk Pilihan Ganda, atau beberapa jawaban untuk PG Kompleks.</p>
+                    <label className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground block mb-1">{t("optionsAndAnswerKeyLabel")}</label>
+                    <p className="text-body-xs text-muted-foreground">{t("multipleChoiceHelp")}</p>
                     <div className="space-y-2.5">
                       {editOptions.map((opt, idx) => (
                         <div key={idx} className="flex items-center gap-3">
@@ -1222,7 +1213,7 @@ export function QuestionBankClient({ questions, courses, courseMap, canonicalCou
                               next[idx] = e.target.value;
                               setEditOptions(next);
                             }}
-                            placeholder={`Opsi ${String.fromCharCode(65 + idx)}`}
+                            placeholder={t("optionNumber", { number: String.fromCharCode(65 + idx) })}
                             className="h-9 border-border/85 bg-background text-body-sm font-medium"
                           />
                         </div>
@@ -1233,12 +1224,12 @@ export function QuestionBankClient({ questions, courses, courseMap, canonicalCou
 
                 {editQuestionType === "short_answer" && (
                   <div className="space-y-1.5 border-t border-border pt-4">
-                    <label className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground block mb-1">Jawaban Benar yang Diterima (Pisahkan dengan koma)</label>
+                    <label className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground block mb-1">{t("acceptedAnswersLabel")}</label>
                     <Input
                       type="text"
                       value={editAcceptableAnswers}
                       onChange={(e) => setEditAcceptableAnswers(e.target.value)}
-                      placeholder="Contoh: 12, duabelas"
+                      placeholder={t("acceptedAnswersPlaceholder")}
                       className="h-10 border-border/85 bg-background text-body-sm font-medium"
                     />
                   </div>
@@ -1246,41 +1237,41 @@ export function QuestionBankClient({ questions, courses, courseMap, canonicalCou
 
                 {editQuestionType === "essay" && (
                   <div className="border-t border-border pt-4 text-body-xs text-muted-foreground">
-                    <p className="font-semibold text-foreground mb-1">Soal Tipe Essay / Uraian</p>
+                    <p className="font-semibold text-foreground mb-1">{t("essayQuestion")}</p>
                     Tuliskan rubrik atau kunci jawaban referensi pada kolom Penjelasan Solusi.
                   </div>
                 )}
 
                 <div className="space-y-1.5">
-                  <label className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">Penjelasan Solusi (Mendukung LaTeX)</label>
+                  <label className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("solutionRubricLabel")}</label>
                   <Textarea
                     value={editExplanation}
                     onChange={(e) => setEditExplanation(e.target.value)}
-                    placeholder="Mengapa opsi ini benar..."
+                    placeholder={t("solutionPlaceholder")}
                     rows={2}
                     className="w-full rounded-lg border border-border/80 bg-background/50 p-3 hover:border-border focus:border-brand-primary focus:ring-1 focus:ring-brand-primary/30 focus:outline-none transition-all font-sans text-body-sm font-medium"
                   />
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">Tags (Pisahkan dengan koma)</label>
+                  <label className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("tagsLabel")}</label>
                   <Input
                     type="text"
                     value={editTagsStr}
                     onChange={(e) => setEditTagsStr(e.target.value)}
-                    placeholder="limit, turunan, trigonometri"
+                    placeholder={t("tagsPlaceholder")}
                     className="h-10 border-border/80 bg-background text-body-sm font-medium"
                   />
                 </div>
               </div>
 
               <DialogFooter className="p-6 pt-4 border-t border-border/40 bg-muted/5 flex items-center justify-end gap-2.5 shrink-0">
-                <Button type="button" variant="outline" className="rounded-lg cursor-pointer font-bold" onClick={() => setEditOpen(false)} disabled={submittingEdit}>Batal</Button>
+                <Button type="button" variant="outline" className="rounded-lg cursor-pointer font-bold" onClick={() => setEditOpen(false)} disabled={submittingEdit}>{t("cancel")}</Button>
                 <Button type="submit" name="reviewStatus" value="generated" variant="outline" isLoading={submittingEdit} className="rounded-lg cursor-pointer font-bold">
-                  Simpan draft
+                  {t("saveDraft")}
                 </Button>
                 <Button type="submit" name="reviewStatus" value="published" isLoading={submittingEdit} className="rounded-lg cursor-pointer bg-brand-primary !text-white hover:bg-brand-primary/95 font-bold px-6 shadow-sm">
-                  Simpan dan terbitkan
+                  {t("savePublish")}
                 </Button>
               </DialogFooter>
             </form>
@@ -1295,9 +1286,9 @@ export function QuestionBankClient({ questions, courses, courseMap, canonicalCou
           setDeleteOpen(open);
           if (!open) setDeletingQuestion(null);
         }}
-        title="Hapus Soal"
-        description="Tindakan ini tidak dapat dibatalkan. Apakah Anda yakin ingin menghapus soal ini dari Bank Soal?"
-        confirmLabel="Ya, Hapus"
+        title={t("deleteQuestion")}
+        description={t("deleteQuestionConfirm")}
+        confirmLabel={t("confirmDelete")}
         loading={isDeleting}
         onConfirm={handleDeleteConfirm}
       />
@@ -1306,27 +1297,27 @@ export function QuestionBankClient({ questions, courses, courseMap, canonicalCou
       <Dialog open={bulkOpen} onOpenChange={setBulkOpen}>
         <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col p-0 overflow-hidden rounded-xl border border-border bg-popover shadow-xl">
           <DialogHeader className="p-6 pb-4 border-b border-border/60 shrink-0">
-            <DialogTitle className="font-heading text-body-base font-bold text-foreground">Impor Soal via Markdown</DialogTitle>
-            <DialogDescription>Impor banyak soal (Pilihan Ganda, Isian Singkat, atau Essay) sekaligus menggunakan file Markdown (.md).</DialogDescription>
+            <DialogTitle className="font-heading text-body-base font-bold text-foreground">{t("importMarkdownTitle")}</DialogTitle>
+            <DialogDescription>{t("importMarkdownDescription")}</DialogDescription>
           </DialogHeader>
           <form onSubmit={handleBulkSubmit} className="flex-1 flex flex-col min-h-0">
             <div className="flex-1 overflow-y-auto p-6 space-y-5 text-body-sm text-foreground">
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div className="space-y-1.5">
-                  <label className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">Mata Kuliah</label>
+                  <label className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("courseLabel")}</label>
                   <Select value={bulkCourseId} onValueChange={(value) => { setBulkCourseId(value); setBulkChapterId(""); setBulkIdeaLinks([]); }}>
-                    <SelectTrigger className="h-10 border-border/80 bg-background/50 text-body-sm font-medium"><SelectValue placeholder="Pilih Mata Kuliah" /></SelectTrigger>
+                    <SelectTrigger className="h-10 border-border/80 bg-background/50 text-body-sm font-medium"><SelectValue placeholder={t("chooseCourse")} /></SelectTrigger>
                     <SelectContent>
                       {authoringCourses.map((course) => <SelectItem key={course.id} value={course.id}>{course.code} · {course.title}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">Bab</label>
+                  <label className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("chapter")}</label>
                   <Select value={bulkChapterId || "all"} onValueChange={(value) => { setBulkChapterId(value === "all" ? "" : value); setBulkIdeaLinks([]); }}>
-                    <SelectTrigger className="h-10 border-border/80 bg-background/50 text-body-sm font-medium"><SelectValue placeholder="Semua bab" /></SelectTrigger>
+                    <SelectTrigger className="h-10 border-border/80 bg-background/50 text-body-sm font-medium"><SelectValue placeholder={t("allChaptersLabel")} /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all">Semua bab</SelectItem>
+                      <SelectItem value="all">{t("allChaptersLabel")}</SelectItem>
                       {chaptersForCourse(bulkCourseId).map((chapter) => <SelectItem key={chapter.id} value={chapter.id}>{chapter.code} · {chapter.title}</SelectItem>)}
                     </SelectContent>
                   </Select>
@@ -1341,7 +1332,7 @@ export function QuestionBankClient({ questions, courses, courseMap, canonicalCou
               />
 
               <div className="space-y-1.5">
-                <label className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">Pilih File Markdown (.md) (Opsional)</label>
+                <label className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("markdownFileOptional")}</label>
                 <Input
                   type="file"
                   accept=".md"
@@ -1352,14 +1343,14 @@ export function QuestionBankClient({ questions, courses, courseMap, canonicalCou
 
               <div className="space-y-1.5">
                 <label className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center justify-between">
-                  <span>Konten Markdown *</span>
-                  <span className="text-[10px] text-muted-foreground lowercase normal-case">Pisahkan soal dengan ## Soal 1, ## Soal 2, dst.</span>
+                  <span>{t("markdownContentRequired")}</span>
+                  <span className="text-[10px] text-muted-foreground lowercase normal-case">{t("markdownFormatHelp")}</span>
                 </label>
                 <Textarea
                   required
                   value={bulkMarkdown}
                   onChange={(e) => setBulkMarkdown(e.target.value)}
-                  placeholder={`## Soal 1\n**Tipe:** Pilihan Ganda\n**Kesulitan:** Sedang\n**Level Kognitif:** Menerapkan\n**Pola Penalaran:** direct_application\nTentukan hasil dari $2 + 2$.\n\nA. 3\nB. 4\nC. 5\nD. 6\n\n**Jawaban:** B\n**Pembahasan:** $2+2=4$.`}
+                  placeholder={t("markdownImportPlaceholder")}
                   rows={12}
                   className="w-full rounded-lg border border-border/80 bg-background/50 p-3 hover:border-border focus:border-brand-primary focus:ring-1 focus:ring-brand-primary/30 focus:outline-none transition-all font-mono text-body-sm leading-relaxed"
                 />
@@ -1367,12 +1358,12 @@ export function QuestionBankClient({ questions, courses, courseMap, canonicalCou
             </div>
 
             <DialogFooter className="p-6 pt-4 border-t border-border/40 bg-muted/5 flex items-center justify-end gap-2.5 shrink-0">
-              <Button type="button" variant="outline" className="rounded-lg cursor-pointer font-bold" onClick={() => setBulkOpen(false)} disabled={bulkSubmitting}>Batal</Button>
+              <Button type="button" variant="outline" className="rounded-lg cursor-pointer font-bold" onClick={() => setBulkOpen(false)} disabled={bulkSubmitting}>{t("cancel")}</Button>
               <Button type="submit" name="reviewStatus" value="generated" variant="outline" isLoading={bulkSubmitting} className="rounded-lg cursor-pointer font-bold">
-                Simpan draft
+                {t("saveDraft")}
               </Button>
               <Button type="submit" name="reviewStatus" value="published" isLoading={bulkSubmitting} className="rounded-lg cursor-pointer bg-brand-primary !text-white hover:bg-brand-primary/95 font-bold px-6 shadow-sm">
-                Simpan dan terbitkan
+                {t("savePublish")}
               </Button>
             </DialogFooter>
           </form>
@@ -1393,6 +1384,7 @@ function IdeaAssignmentFields({
   links: IdeaLink[];
   onChange: (links: IdeaLink[]) => void;
 }) {
+  const t = useTranslations("adminEval.questionBank");
   const [expanded, setExpanded] = useState(links.length > 0);
   const selected = new Map(links.map((link) => [link.ideaId, link]));
   const totalWeight = links.reduce((sum, link) => sum + link.weight, 0);
@@ -1403,11 +1395,11 @@ function IdeaAssignmentFields({
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <div className="flex items-center gap-2">
-            <h3 id={`${idPrefix}-idea-heading`} className="text-body-sm font-semibold text-foreground">Koneksi Idea</h3>
-            <StatusBadge tone="muted" subtle>Opsional</StatusBadge>
+            <h3 id={`${idPrefix}-idea-heading`} className="text-body-sm font-semibold text-foreground">{t("ideaConnection")}</h3>
+            <StatusBadge tone="muted" subtle>{t("optional")}</StatusBadge>
           </div>
           <p className="mt-1 text-body-xs text-muted-foreground">
-            {links.length > 0 ? `${links.length} Idea terhubung.` : "Biarkan kosong jika soal belum terkait Idea tertentu."}
+            {links.length > 0 ? t("ideaConnectedCount", { count: links.length }) : t("ideaCanBeUnlinked")}
           </p>
         </div>
         <Button
@@ -1419,7 +1411,7 @@ function IdeaAssignmentFields({
           aria-controls={`${idPrefix}-idea-options`}
           onClick={() => setExpanded((current) => !current)}
         >
-          {expanded ? "Tutup" : "Atur Idea"}
+          {expanded ? t("close") : t("manageIdeas")}
           {expanded ? <ChevronUp className="size-4" /> : <ChevronDown className="size-4" />}
         </Button>
       </div>
@@ -1428,12 +1420,12 @@ function IdeaAssignmentFields({
         <div id={`${idPrefix}-idea-options`} className="space-y-3">
           {links.length > 0 ? (
             <p className={cn("text-body-xs font-semibold", valid ? "text-status-success" : "text-status-warning")}>
-              Total bobot {Math.round(totalWeight * 100)}%. {valid ? "Siap disimpan." : "Bobot harus berjumlah 100%."}
+              {t("totalWeight")}: {Math.round(totalWeight * 100)}%. {valid ? t("readyToSave") : t("weightMustBe100")}
             </p>
           ) : null}
           {ideas.length === 0 ? (
             <p className="text-body-xs text-muted-foreground">
-              Belum ada Idea published untuk mata kuliah dan bab ini. Soal tetap dapat disimpan tanpa Idea.
+              {t("noPublishedIdeas")}
             </p>
           ) : (
             <div className="max-h-72 space-y-2 overflow-y-auto pr-1">
@@ -1456,7 +1448,7 @@ function IdeaAssignmentFields({
                 {link ? (
                   <div className="mt-3 grid grid-cols-2 gap-2 pl-7">
                     <div className="space-y-1">
-                      <label htmlFor={`${idPrefix}-weight-${idea.id}`} className="text-body-xs font-medium text-muted-foreground">Bobot</label>
+                      <label htmlFor={`${idPrefix}-weight-${idea.id}`} className="text-body-xs font-medium text-muted-foreground">{t("weightLabel")}</label>
                       <Input
                         id={`${idPrefix}-weight-${idea.id}`}
                         type="number"
@@ -1472,13 +1464,13 @@ function IdeaAssignmentFields({
                       />
                     </div>
                     <div className="space-y-1">
-                      <label htmlFor={`${idPrefix}-role-${idea.id}`} className="text-body-xs font-medium text-muted-foreground">Peran</label>
+                      <label htmlFor={`${idPrefix}-role-${idea.id}`} className="text-body-xs font-medium text-muted-foreground">{t("roleLabel")}</label>
                       <Select value={link.role} onValueChange={(role) => onChange(links.map((item) => item.ideaId === idea.id ? { ...item, role: role as IdeaRole } : item))}>
                         <SelectTrigger id={`${idPrefix}-role-${idea.id}`} className="h-8 bg-background text-body-xs"><SelectValue /></SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="primary">Primary</SelectItem>
-                          <SelectItem value="supporting">Supporting</SelectItem>
-                          <SelectItem value="required">Required</SelectItem>
+                          <SelectItem value="primary">{t("rolePrimary")}</SelectItem>
+                          <SelectItem value="supporting">{t("roleSupporting")}</SelectItem>
+                          <SelectItem value="required">{t("roleRequired")}</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -1510,6 +1502,7 @@ function QuestionRow({
   onEdit: (q: Question) => void;
   onDelete: (q: Question) => void;
 }) {
+  const t = useTranslations("adminEval.questionBank");
   const [expanded, setExpanded] = useState(false);
   const isHistoricalReference = question.origin === "historical_reference";
   const options = Array.isArray(question.options) ? (question.options as string[]) : [];
@@ -1524,16 +1517,15 @@ function QuestionRow({
   const tags = Array.isArray(question.tags) ? (question.tags as string[]) : [];
 
   // Question type display helper
-  const qTypeLabel =
-    question.questionType === "short_answer" ? "Isian Singkat" :
-    question.questionType === "essay" ? "Essay" :
-    question.questionType === "multiple_choices" ? "PG Kompleks" : "Pilihan Ganda";
+  const qTypeLabel = question.questionType === "short_answer" ? t("shortAnswer") :
+    question.questionType === "essay" ? t("essay") :
+    question.questionType === "multiple_choices" ? t("multipleChoices") : t("multipleChoice");
 
   return (
     <div className={cn("px-4 py-4 transition-colors", selected ? "bg-muted/15" : "hover:bg-muted/5")}>
       <div className="flex items-start gap-3">
         {isHistoricalReference ? (
-          <StatusBadge tone="info" subtle className="mt-0.5 shrink-0">Review-only</StatusBadge>
+          <StatusBadge tone="info" subtle className="mt-0.5 shrink-0">{t("reviewOnly")}</StatusBadge>
         ) : (
           <button
             onClick={onToggle}
@@ -1550,11 +1542,11 @@ function QuestionRow({
               subtle
               className={question.reviewStatus === "retired" ? "line-through" : undefined}
             >
-              {question.reviewStatus}
+              {t(question.reviewStatus)}
             </StatusBadge>
 
             <StatusBadge tone={question.origin === "zyx_original" ? "brand" : "info"} subtle>
-              {question.origin === "itb_example" ? "Contoh ITB" : question.origin === "historical_reference" ? "Referensi historis" : "Asli Zyx"}
+              {question.origin === "itb_example" ? t("itbExample") : question.origin === "historical_reference" ? t("historicalReference") : t("zyxOriginal")}
             </StatusBadge>
 
             <StatusBadge tone="brand" subtle>
@@ -1563,19 +1555,19 @@ function QuestionRow({
 
             <DifficultyBadge difficulty={question.difficulty} subtle />
             <StatusBadge tone={question.ideaLinks && question.ideaLinks.length > 0 ? "success" : "muted"} subtle>
-              {question.ideaLinks && question.ideaLinks.length > 0 ? `${question.ideaLinks.length} Idea` : "Tanpa Idea"}
+              {question.ideaLinks && question.ideaLinks.length > 0 ? t("ideaConnectedCount", { count: question.ideaLinks.length }) : t("withoutIdea")}
             </StatusBadge>
             <span className="text-muted-foreground font-medium">
               {courseMap[question.courseId] ?? question.courseId}
             </span>
 
             <span className="text-muted-foreground ml-auto font-medium text-body-xs normal-case">
-              digunakan {question.useCount}×
+              {t("used")} {question.useCount}×
             </span>
           </div>
 
           {question.sourceEventName ? (
-            <p className="mt-2 text-body-xs font-medium text-muted-foreground">Sumber: {question.sourceEventName}</p>
+            <p className="mt-2 text-body-xs font-medium text-muted-foreground">{t("source")} {question.sourceEventName}</p>
           ) : null}
 
           {expanded ? (
@@ -1632,7 +1624,7 @@ function QuestionRow({
           {/* Short answer acceptable answers */}
           {question.questionType === "short_answer" && (
             <div className="rounded-xl bg-status-success/5 p-4 border border-status-success/20">
-              <p className="text-body-xs font-bold text-status-success uppercase tracking-wider mb-1.5">Jawaban Benar Diterima</p>
+              <p className="text-body-xs font-bold text-status-success uppercase tracking-wider mb-1.5">{t("acceptedAnswerTitle")}</p>
               <div className="flex flex-wrap gap-2">
                 {acceptableAnswers.map((ans: string, idx: number) => (
                   <span key={idx} className="rounded-md bg-background px-2.5 py-1 border border-status-success/30 font-mono text-body-sm font-semibold text-foreground">
@@ -1647,7 +1639,7 @@ function QuestionRow({
           {question.explanation && (
             <div className="rounded-xl bg-muted/20 p-4 border border-border/60">
               <p className="text-body-xs font-bold text-muted-foreground uppercase tracking-wider mb-1.5">
-                {question.questionType === "essay" ? "Rubrik / Kunci Jawaban Referensi" : "Penjelasan Solusi"}
+                {question.questionType === "essay" ? t("solutionRubric") : t("solutionExplanation")}
               </p>
               <MarkdownRenderer content={question.explanation} className="text-body-sm text-foreground/80 leading-relaxed font-sans space-y-3" />
             </div>
@@ -1655,15 +1647,15 @@ function QuestionRow({
 
           {isHistoricalReference ? (
             <div className="flex items-center justify-end gap-2 border-t border-border/40 pt-3">
-              <StatusBadge tone="info" subtle>Hanya untuk peninjauan historis</StatusBadge>
+              <StatusBadge tone="info" subtle>{t("historicalReviewOnly")}</StatusBadge>
             </div>
           ) : (
             <div className="flex gap-2 justify-end pt-3 border-t border-border/40">
               <Button size="sm" variant="outline" className="rounded-lg gap-1.5 cursor-pointer text-body-sm font-bold" onClick={() => onEdit(question)}>
-                <Edit2 className="size-3.5" /> Edit Soal &amp; Kunci
+                <Edit2 className="size-3.5" /> {t("editQuestionAnswerKey")}
               </Button>
               <Button size="sm" variant="destructive" className="rounded-lg gap-1.5 cursor-pointer text-body-sm font-bold animate-colors" onClick={() => onDelete(question)}>
-                <Trash2 className="size-3.5" /> Hapus Soal
+                <Trash2 className="size-3.5" /> {t("deleteQuestion")}
               </Button>
             </div>
           )}
