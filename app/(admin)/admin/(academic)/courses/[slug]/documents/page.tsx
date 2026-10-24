@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import { notFound, redirect } from "next/navigation";
 import { assertAdmin } from "@/lib/auth/admin-guards";
 import { pageTitle } from "@/lib/site";
+import { getTranslations } from "@/lib/i18n/server";
 import { CourseDetailHeader } from "@/components/admin/course-detail/course-detail-header";
 import { CourseDocumentsClient } from "@/app/(student)/courses/[id]/material/course-documents-client";
 // DocumentListClient is composed inside CourseDocumentsClient for subcategory views
@@ -16,9 +17,10 @@ type Props = {
   searchParams: Promise<{ tab?: string }>;
 };
 
-export const metadata: Metadata = {
-  title: pageTitle("Dokumen Mata Kuliah"),
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("adminAcademic");
+  return { title: pageTitle(t("metadata.pages.documentsTitle")) };
+}
 
 export default async function AdminCourseDocumentsPage({ params, searchParams }: Props) {
   try {

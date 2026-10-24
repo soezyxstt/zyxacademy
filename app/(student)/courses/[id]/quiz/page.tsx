@@ -14,6 +14,8 @@ import { EnrollmentForm } from "@/components/enrollment-form";
 import { getCourse, getStudentCourseAccess, getStudentVisibleCourseQuizzes, isFreeQuizTemplate } from "@/lib/course-utils";
 import { getAuthSession } from "@/lib/auth-session";
 import { cn } from "@/lib/utils";
+import { TranslatedText } from "@/components/i18n/translated-text";
+import { getTranslations } from "@/lib/i18n/server";
 
 type QuizAccessFilter = "all" | "free" | "premium";
 
@@ -25,12 +27,11 @@ type Props = {
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params;
   const course = await getCourse(id);
+  const t = await getTranslations("learning");
 
   return {
-    title: pageTitle(course ? `${course.title} - Kuis` : "Kuis"),
-    description: course
-      ? `Daftar kuis ${course.title}; latihan soal interaktif untuk mengukur pemahaman.`
-      : "Daftar kuis; latihan soal interaktif untuk mengukur pemahaman.",
+    title: pageTitle(course ? t("metadata.quizTitle", { course: course.title }) : t("metadata.quizTitleFallback")),
+    description: t("metadata.quizDescription"),
   };
 }
 
@@ -87,18 +88,19 @@ export default async function CourseQuizListPage({ params, searchParams }: Props
     premium: templates.filter((template) => template.visibility === "paid").length,
   };
   const filters: Array<{ value: QuizAccessFilter; label: string }> = [
-    { value: "all", label: "Semua" },
-    { value: "free", label: "Gratis" },
-    { value: "premium", label: "Premium" },
+    { value: "all", label: "all" },
+    { value: "free", label: "free" },
+    { value: "premium", label: "premium" },
   ];
 
   return (
     <CoursePageShell
-      title={`Kuis Latihan: ${course.title}`}
+      title={<TranslatedText namespace="learning" messageKey="quizPage.title" values={{ course: course.title }} />}
 
       icon={ClipboardList}
       actions={(
-        <nav className="flex max-w-full items-center gap-1 overflow-x-auto" aria-label="Filter akses kuis">
+        <nav className="flex max-w-full items-center gap-1 overflow-x-auto" aria-labelledby="quiz-access-filter-label">
+          <span id="quiz-access-filter-label" className="sr-only"><TranslatedText namespace="learning" messageKey="quizPage.filterLabel" /></span>
           {filters.map((filter) => (
             <Link
               key={filter.value}
@@ -111,7 +113,7 @@ export default async function CourseQuizListPage({ params, searchParams }: Props
               )}
               aria-current={access === filter.value ? "page" : undefined}
             >
-              {filter.label}
+              <TranslatedText namespace="learning" messageKey={`quizPage.filters.${filter.label}`} />
               <span className={cn("text-body-xs", access === filter.value && "text-primary-foreground/80")}>{counts[filter.value]}</span>
             </Link>
           ))}
@@ -124,10 +126,10 @@ export default async function CourseQuizListPage({ params, searchParams }: Props
             <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(280px,420px)] md:items-center">
               <div>
                 <h3 className="font-heading text-body-base font-bold text-brand-secondary">
-                  Aktivasi token kelas
+                  <TranslatedText namespace="learning" messageKey="quizPage.activationTitle" />
                 </h3>
                 <p className="mt-1 max-w-2xl text-body-sm text-muted-foreground">
-                  Materi artikel, diktat, dan kuis bab pertama terbuka gratis. Masukkan token kelas untuk membuka seluruh materi, kuis, tryout ujian, dan flashcard.
+                  <TranslatedText namespace="learning" messageKey="quizPage.activationDescription" />
                 </p>
               </div>
               <EnrollmentForm className="w-full" />

@@ -13,6 +13,7 @@ import { AdminEmptyState } from "@/components/admin/state-panels";
 import { QRCodeSVG } from "qrcode.react";
 import { Link as LinkIcon, QrCode, Copy } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
+import { useTranslations } from "@/lib/i18n/client";
 
 type ShortLink = {
   id: string;
@@ -24,6 +25,7 @@ type ShortLink = {
 };
 
 export default function ShortLinksPage() {
+  const t = useTranslations("adminOps");
   const [links, setLinks] = useState<ShortLink[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -65,14 +67,13 @@ export default function ShortLinksPage() {
         setUrl("");
         setTitle("");
         setSlug("");
-        toast.success("Short link berhasil dibuat");
+        toast.success(t("shortLinksUI.created"));
       } else {
-        const err = await res.text();
-        toast.error(`Error: ${err}`);
+        toast.error(t("shortLinksUI.createFailed"));
       }
     } catch (error) {
       console.error(error);
-      toast.error("Failed to create short link");
+      toast.error(t("shortLinksUI.createFailed"));
     } finally {
       setSubmitting(false);
     }
@@ -80,7 +81,7 @@ export default function ShortLinksPage() {
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
-    toast.success("Tautan berhasil disalin");
+    toast.success(t("shortLinksUI.copied"));
   };
 
   const getFullUrl = (slug: string) => {
@@ -92,19 +93,19 @@ export default function ShortLinksPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader icon={LinkIcon} title="Short Links" />
+      <PageHeader icon={LinkIcon} title={t("shortLinks.title")} />
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
         <div className="md:col-span-1">
           <Card className="p-4 gap-4">
             <CardHeader className="p-0">
-              <CardTitle className="font-heading text-body-base font-bold">Buat Tautan</CardTitle>
+              <CardTitle className="font-heading text-body-base font-bold">{t("shortLinksUI.createTitle")}</CardTitle>
             </CardHeader>
             <CardContent className="p-0">
               <form onSubmit={handleSubmit} className="space-y-3.5">
                 <div className="space-y-1.5">
                   <Label htmlFor="url" className="text-body-sm font-semibold">
-                    URL Tujuan
+                    {t("shortLinksUI.destination")}
                   </Label>
                   <Input
                     id="url"
@@ -117,30 +118,30 @@ export default function ShortLinksPage() {
                 </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="title" className="text-body-sm font-semibold">
-                    Judul (Opsional)
+                    {t("shortLinksUI.title")}
                   </Label>
                   <Input
                     id="title"
                     type="text"
-                    placeholder="Promo Musim Semi"
+                    placeholder={t("shortLinksUI.titlePlaceholder")}
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
                   />
                 </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="slug" className="text-body-sm font-semibold">
-                    Slug Kustom (Opsional)
+                    {t("shortLinksUI.customSlug")}
                   </Label>
                   <Input
                     id="slug"
                     type="text"
-                    placeholder="promo-musim-semi"
+                    placeholder={t("shortLinksUI.slugPlaceholder")}
                     value={slug}
                     onChange={(e) => setSlug(e.target.value)}
                   />
                 </div>
                 <Button type="submit" className="w-full" disabled={submitting}>
-                  {submitting ? "Membuat..." : "Buat Tautan"}
+                  {submitting ? t("shortLinksUI.creating") : t("shortLinksUI.create")}
                 </Button>
               </form>
             </CardContent>
@@ -151,10 +152,10 @@ export default function ShortLinksPage() {
           <TooltipProvider>
             <div className="rounded-xl border border-border bg-card overflow-hidden">
               {loading ? (
-                <div className="p-6 text-center text-body-sm text-muted-foreground">Memuat...</div>
+                <div className="p-6 text-center text-body-sm text-muted-foreground">{t("shortLinksUI.loading")}</div>
               ) : links.length === 0 ? (
                 <div className="p-4">
-                  <AdminEmptyState compact title="Belum ada tautan pendek." />
+                  <AdminEmptyState compact title={t("shortLinksUI.empty")} />
                 </div>
               ) : (
                 <div className="divide-y divide-border">
@@ -177,7 +178,7 @@ export default function ShortLinksPage() {
                           {link.url}
                         </p>
                         <div className="text-body-xs text-muted-foreground flex items-center gap-1.5">
-                          <span>{link.clicks} klik</span>
+                          <span>{link.clicks} {t("shortLinksUI.clicks")}</span>
                           <span>·</span>
                           <FormattedDate
                             date={link.createdAt}
@@ -193,28 +194,28 @@ export default function ShortLinksPage() {
                               variant="outline"
                               size="icon-sm"
                               onClick={() => copyToClipboard(getFullUrl(link.slug))}
-                              aria-label="Salin tautan"
+                              aria-label={t("shortLinksUI.copy")}
                             >
                               <Copy className="size-3.5" />
                             </Button>
                           </TooltipTrigger>
-                          <TooltipContent>Salin tautan</TooltipContent>
+                          <TooltipContent>{t("shortLinksUI.copy")}</TooltipContent>
                         </Tooltip>
 
                         <Dialog>
                           <Tooltip>
                             <TooltipTrigger asChild>
                               <DialogTrigger asChild>
-                                <Button variant="outline" size="icon-sm" aria-label="Kode QR">
+                                <Button variant="outline" size="icon-sm" aria-label={t("shortLinksUI.qr")}>
                                   <QrCode className="size-3.5" />
                                 </Button>
                               </DialogTrigger>
                             </TooltipTrigger>
-                            <TooltipContent>Kode QR</TooltipContent>
+                            <TooltipContent>{t("shortLinksUI.qr")}</TooltipContent>
                           </Tooltip>
                           <DialogContent className="sm:max-w-md">
                             <DialogHeader>
-                              <DialogTitle>Kode QR untuk /s/{link.slug}</DialogTitle>
+                              <DialogTitle>{t("shortLinksUI.qrFor", { slug: link.slug })}</DialogTitle>
                             </DialogHeader>
                             <div className="flex flex-col items-center justify-center p-6 space-y-4">
                               <div className="bg-white p-4 rounded-xl border border-border shadow-sm">
@@ -249,7 +250,7 @@ export default function ShortLinksPage() {
                                   img.src = "data:image/svg+xml;base64," + btoa(svgData);
                                 }}
                               >
-                                Unduh PNG
+                                {t("shortLinksUI.downloadPng")}
                               </Button>
                             </div>
                           </DialogContent>

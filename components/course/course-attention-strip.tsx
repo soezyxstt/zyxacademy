@@ -1,8 +1,11 @@
+"use client";
+
 import Link from "next/link";
 import { AlertCircle, ArrowRight } from "lucide-react";
 import type { CourseAttentionData } from "@/types/course-learning";
 import { MathText } from "@/components/course/math-text";
 import { cn } from "@/lib/utils";
+import { useTranslations } from "@/lib/i18n/client";
 
 interface CourseAttentionStripProps {
   attention: CourseAttentionData | null;
@@ -10,6 +13,7 @@ interface CourseAttentionStripProps {
 }
 
 export function CourseAttentionStrip({ attention, className }: CourseAttentionStripProps) {
+  const t = useTranslations("studentCourse");
   if (!attention || attention.items.length === 0) {
     return null;
   }
@@ -20,12 +24,12 @@ export function CourseAttentionStrip({ attention, className }: CourseAttentionSt
         "rounded-xl border border-status-warning/30 bg-status-warning/5 p-3.5 text-left shadow-2xs",
         className,
       )}
-      aria-label="Perlu perhatian"
+      aria-label={t("course.attention.title")}
     >
       <div className="flex items-center gap-2 pb-1.5 text-status-warning">
         <AlertCircle className="size-4 shrink-0" aria-hidden="true" />
         <h3 className="font-heading text-body-sm font-bold text-foreground">
-          Perlu perhatian
+          {t("course.attention.title")}
         </h3>
       </div>
       <div className="divide-y divide-border/40">

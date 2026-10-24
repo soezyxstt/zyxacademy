@@ -68,6 +68,19 @@ describe("Zyra Stream Consumer", () => {
     expect(parts[3]).toEqual({ type: "done" });
   });
 
+  test("yields the server-resolved response language metadata", async () => {
+    const stream = createMockStream([
+      `data: ${JSON.stringify({ type: "data-response-language", responseLanguage: "en" })}\n`,
+      "data: [DONE]\n",
+    ]);
+    const parts = [];
+    for await (const part of consumeZyraStream(stream)) parts.push(part);
+    expect(parts).toEqual([
+      { type: "data-response-language", responseLanguage: "en" },
+      { type: "done" },
+    ]);
+  });
+
   test("handles aborted signal gracefully", async () => {
     const stream = createMockStream([
       "data: {\"type\":\"text-delta\",\"textDelta\":\"Part 1\"}\n\n",

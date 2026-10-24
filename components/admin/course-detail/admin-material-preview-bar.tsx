@@ -8,6 +8,7 @@ import { deleteCourseMaterial } from "@/app/(admin)/admin/(academic)/courses/act
 import { AdminConfirmDialog } from "@/components/admin/confirm-dialog";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/toast";
+import { useTranslations } from "@/lib/i18n/client";
 import type { AdminMaterialSource } from "@/lib/admin/course-material-preview";
 
 type Props = {
@@ -18,6 +19,7 @@ type Props = {
 };
 
 export function AdminMaterialPreviewBar({ source, materialId, courseSlug, title }: Props) {
+  const t = useTranslations("adminAcademic");
   const router = useRouter();
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -31,10 +33,10 @@ export function AdminMaterialPreviewBar({ source, materialId, courseSlug, title 
     const result = await deleteCourseMaterial(materialId);
     setDeleting(false);
     if (!result.success) {
-      toast.error(result.error ?? "Dokumen gagal dihapus.");
+      toast.error(t("documents.errors.delete"));
       return;
     }
-    toast.success("Dokumen berhasil dihapus.");
+    toast.success(t("documents.success.delete"));
     router.push(documentsHref);
     router.refresh();
   }
@@ -45,36 +47,36 @@ export function AdminMaterialPreviewBar({ source, materialId, courseSlug, title 
         <Button asChild variant="ghost" size="sm" className="text-body-sm">
           <Link href={documentsHref}>
             <ArrowLeft className="size-4" />
-            Dokumen
+            {t("documents.previewBar.backToDocuments")}
           </Link>
         </Button>
-        <span className="min-w-0 flex-1 truncate text-body-xs text-muted-foreground">Preview admin: {title}</span>
+        <span className="min-w-0 flex-1 truncate text-body-xs text-muted-foreground">{t("documents.previewBar.title", { title })}</span>
         <Button asChild variant="outline" size="sm" className="text-body-sm">
           <Link href={editHref}>
             <Pencil className="size-4" />
-            Edit dokumen
+            {t("documents.previewBar.edit")}
           </Link>
         </Button>
         {canonical ? (
           <Button asChild variant="outline" size="sm" className="text-body-sm">
             <Link href={reviewHref}>
               <BookOpenCheck className="size-4" />
-              Kelola lifecycle
+              {t("documents.previewBar.manageLifecycle")}
             </Link>
           </Button>
         ) : (
           <Button variant="destructive" size="sm" className="text-body-sm" onClick={() => setConfirmOpen(true)}>
             <Trash2 className="size-4" />
-            Hapus
+            {t("documents.previewBar.delete")}
           </Button>
         )}
       </div>
       <AdminConfirmDialog
         open={confirmOpen}
         onOpenChange={setConfirmOpen}
-        title="Hapus dokumen PDF"
-        description={`Dokumen ${title} akan dihapus dari mata kuliah ini.`}
-        confirmLabel="Hapus"
+        title={t("documents.previewBar.deleteTitle")}
+        description={t("documents.previewBar.deleteDescription", { title })}
+        confirmLabel={t("documents.previewBar.delete")}
         loading={deleting}
         onConfirm={() => void handleDelete()}
       />

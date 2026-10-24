@@ -1,5 +1,14 @@
-import { PKA_COURSE_ID, PKA_DISCLAIMER } from "@/lib/pka-config";
+import { PKA_COURSE_ID } from "@/lib/pka-config";
 import { getPublicAppUrl } from "@/lib/public-app-url";
+import type { Locale } from "@/lib/i18n/locale";
+import idMessages from "../messages/id/notifications.json" with { type: "json" };
+import enMessages from "../messages/en/notifications.json" with { type: "json" };
+
+const emailMessages = { id: idMessages.email, en: enMessages.email } as const;
+
+function interpolate(template: string, value: string, key: string): string {
+  return template.replace(`{${key}}`, () => value);
+}
 
 function escapeHtml(value: string): string {
   return value
@@ -214,9 +223,10 @@ function markdownToEmailHtml(markdown: string): string {
   return htmlBlocks.join("\n");
 }
 
-function emailShell(inner: string): string {
+function emailShell(inner: string, locale: Locale): string {
+  const languageText = emailMessages[locale];
   return `<!DOCTYPE html>
-<html lang="id">
+<html lang="${locale}">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -244,7 +254,7 @@ function emailShell(inner: string): string {
     
     <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 32px 0;" />
     <p style="font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; font-size: 12px; color: #64748b; line-height: 1.5; margin: 0;">
-      ${PKA_DISCLAIMER}
+      ${languageText.pkaDisclaimer}
     </p>
   </div>
 </body>
@@ -252,38 +262,52 @@ function emailShell(inner: string): string {
 }
 
 /** Email for a live tutorial schedule. Omits the join button when the Meet link is not set yet. */
-export function scheduleEmailHtml(title: string, sessionAt: Date, meetLink: string | null): string {
-  const sessionLabel = sessionAt.toLocaleString("id-ID", {
+export function scheduleEmailHtml(title: string, sessionAt: Date, meetLink: string | null, locale: Locale = "id"): string {
+  const text = emailMessages[locale].schedule;
+  const sessionLabel = sessionAt.toLocaleString(locale === "en" ? "en-US" : "id-ID", {
     dateStyle: "full",
     timeStyle: "short",
     timeZone: "Asia/Jakarta",
   });
   const meetBlock = meetLink
-    ? `<a href="${escapeHtml(meetLink)}" style="display: inline-block; margin-top: 8px; padding: 10px 20px; background-color: #2563eb; color: #ffffff; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 14px;">Gabung Google Meet</a>`
-    : `<p style="margin: 8px 0 0; font-size: 14px; color: #64748b;">Link Google Meet akan dibagikan sebelum sesi dimulai.</p>`;
+    ? `<a href="${escapeHtml(meetLink)}" style="display: inline-block; margin-top: 8px; padding: 10px 20px; background-color: #2563eb; color: #ffffff; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 14px;">${text.join}</a>`
+    : `<p style="margin: 8px 0 0; font-size: 14px; color: #64748b;">${text.meetPending}</p>`;
 
   return emailShell(`
     <h1 style="font-family: 'Lexend', -apple-system, BlinkMacSystemFont, sans-serif; font-size: 22px; color: #0f172a; margin-top: 0; font-weight: 700;">${escapeHtml(title)}</h1>
-    <p style="font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; font-size: 16px; line-height: 1.5; color: #475569;">Sesi tutorial live PKA baru telah dijadwalkan.</p>
+    <p style="font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; font-size: 16px; line-height: 1.5; color: #475569;">${text.intro}</p>
     <div style="margin: 24px 0; padding: 16px; background-color: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0;">
-      <p style="margin: 0 0 8px 0; font-size: 15px; color: #334155;"><strong>Jadwal:</strong> ${sessionLabel} WIB</p>
+      <p style="margin: 0 0 8px 0; font-size: 15px; color: #334155;"><strong>${text.scheduleLabel}</strong> ${sessionLabel} WIB</p>
       ${meetBlock}
     </div>
     <p style="font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; font-size: 14px; color: #475569;">
-      Jadwal lengkap, simulasi kuis, dan materi tersedia di
-      <a href="${getPublicAppUrl()}/courses/${PKA_COURSE_ID}/jadwal" style="color: #2563eb; font-weight: 600; text-decoration: none;">halaman Tutorial PKA</a>.
+      ${text.courseLinkIntro}
+      <a href="${getPublicAppUrl()}/courses/${PKA_COURSE_ID}/jadwal" style="color: #2563eb; font-weight: 600; text-decoration: none;">${text.courseLink}</a>.
     </p>
-  `);
+  `, locale);
 }
 
 /** Email for a Markdown announcement broadcast. */
-export function pkaAnnouncementEmailHtml(title: string, markdownBody: string): string {
+export function pkaAnnouncementEmailHtml(title: string, markdownBody: string, locale: Locale = "id"): string {
+  const text = emailMessages[locale].announcement;
   return emailShell(`
     <h1 style="font-family: 'Lexend', -apple-system, BlinkMacSystemFont, sans-serif; font-size: 22px; color: #0f172a; margin-top: 0; font-weight: 700; line-height: 1.25; margin-bottom: 16px;">${escapeHtml(title)}</h1>
     ${markdownToEmailHtml(markdownBody)}
     <p style="font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; font-size: 14px; color: #475569; margin-top: 28px; line-height: 1.5;">
-      Cek halaman kursus untuk informasi lebih lanjut:
-      <a href="${getPublicAppUrl()}/courses/${PKA_COURSE_ID}" style="color: #2563eb; font-weight: 600; text-decoration: none;">Buka Tutorial PKA</a>
+      ${text.courseLinkIntro}
+      <a href="${getPublicAppUrl()}/courses/${PKA_COURSE_ID}" style="color: #2563eb; font-weight: 600; text-decoration: none;">${text.courseLink}</a>
     </p>
-  `);
+  `, locale);
+}
+
+export function pkaScheduleEmailSubject(title: string, locale: Locale): string {
+  return interpolate(emailMessages[locale].schedule.subject, title, "title");
+}
+
+export function pkaAnnouncementEmailSubject(title: string, locale: Locale): string {
+  return interpolate(emailMessages[locale].announcement.subject, title, "title");
+}
+
+export function pkaScheduleUpdateEmailSubject(title: string, locale: Locale): string {
+  return interpolate(emailMessages[locale].scheduleUpdateSubject, title, "title");
 }

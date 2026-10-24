@@ -4,7 +4,9 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ChevronRight, Lock, GraduationCap } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { FormattedDate } from "@/components/ui/formatted-date";
 import { cn } from "@/lib/utils";
+import { useTranslations } from "@/lib/i18n/client";
 
 interface TryoutItem {
   id: string;
@@ -42,6 +44,7 @@ function readAttempts(tryouts: TryoutItem[]) {
 }
 
 export function TryoutListClient({ courseId, isEnrolled, tryouts }: TryoutListClientProps) {
+  const t = useTranslations("learning");
   const [attempts, setAttempts] = useState<Record<string, number>>(() => readAttempts(tryouts));
 
   useEffect(() => {
@@ -59,14 +62,14 @@ export function TryoutListClient({ courseId, isEnrolled, tryouts }: TryoutListCl
         <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border bg-card/50 p-8 sm:p-12 text-center max-w-md mx-auto">
           <GraduationCap className="size-10 text-muted-foreground/40 mb-3" aria-hidden />
           <h3 className="font-heading text-body-base font-bold text-foreground">
-            Belum ada tryout terjadwal
+            {t("tryoutList.emptyTitle")}
           </h3>
           <p className="mt-1 text-body-xs text-muted-foreground leading-relaxed">
-            Simulasi ujian resmi UTS dan UAS akan dibuka menjelang pekan ujian semester.
+            {t("tryoutList.emptyDescription")}
           </p>
           <Button asChild size="sm" className="mt-5 rounded-md text-body-xs">
             <Link href={`/courses/${courseId}/quiz`}>
-              Latihan dengan Kuis
+              {t("tryoutList.practiceWithQuiz")}
             </Link>
           </Button>
         </div>
@@ -109,7 +112,7 @@ export function TryoutListClient({ courseId, isEnrolled, tryouts }: TryoutListCl
                   className="interactive rounded-md md:justify-self-end border-dashed text-muted-foreground hover:text-foreground"
                 >
                   <Link href={`/courses/${courseId}/tryout/${tryout.id}`}>
-                    Buka <Lock className="ml-1 size-3.5" />
+                    {t("quizList.open")} <Lock className="ml-1 size-3.5" />
                   </Link>
                 </Button>
               );
@@ -122,7 +125,7 @@ export function TryoutListClient({ courseId, isEnrolled, tryouts }: TryoutListCl
                   size="sm"
                   className="rounded-md md:justify-self-end border-dashed"
                 >
-                  Batas habis
+                  {t("tryoutList.attemptLimitReached")}
                 </Button>
               );
             }
@@ -134,7 +137,7 @@ export function TryoutListClient({ courseId, isEnrolled, tryouts }: TryoutListCl
                   size="sm"
                   className="rounded-md md:justify-self-end border-dashed"
                 >
-                  Ditutup
+                  {t("quizList.closed")}
                 </Button>
               );
             }
@@ -146,7 +149,7 @@ export function TryoutListClient({ courseId, isEnrolled, tryouts }: TryoutListCl
                   size="sm"
                   className="rounded-md md:justify-self-end border-dashed"
                 >
-                  Belum Buka
+                  {t("quizList.notOpen")}
                 </Button>
               );
             }
@@ -158,7 +161,7 @@ export function TryoutListClient({ courseId, isEnrolled, tryouts }: TryoutListCl
                 className="interactive rounded-md md:justify-self-end bg-brand-primary text-white hover:bg-brand-primary/95"
               >
                 <Link href={`/courses/${courseId}/tryout/${tryout.id}`}>
-                  Mulai <ChevronRight className="ml-1 size-4" />
+                  {t("tryoutList.start")} <ChevronRight className="ml-1 size-4" />
                 </Link>
               </Button>
             );
@@ -180,39 +183,39 @@ export function TryoutListClient({ courseId, isEnrolled, tryouts }: TryoutListCl
                     {!accessible ? (
                       <span className="inline-flex items-center gap-1 rounded-md bg-amber-500/10 px-2 py-0.5 text-body-xs font-semibold text-amber-600 dark:text-amber-400 ring-1 ring-amber-500/20">
                         <Lock className="size-3" />
-                        Terkunci
+                        {t("quizList.locked")}
                       </span>
                     ) : (
                       <span className="inline-flex items-center gap-1 rounded-md bg-brand-primary/10 px-2 py-0.5 text-body-xs font-semibold text-brand-primary ring-1 ring-brand-primary/20">
-                        {isFree ? "Gratis" : "Premium"}
+                        {isFree ? t("quizList.free") : t("quizList.premium")}
                       </span>
                     )}
                     {isBlocked ? (
                       <span className="rounded-md bg-status-error/12 px-2 py-0.5 text-body-xs font-semibold text-status-error ring-1 ring-status-error/20">
-                        Batas habis
+                        {t("tryoutList.attemptLimitReached")}
                       </span>
                     ) : null}
                     {isUpcoming && openDate ? (
                       <span className="rounded-md bg-status-warning/12 px-2 py-0.5 text-body-xs font-semibold text-status-warning ring-1 ring-status-warning/20">
-                        Akan dibuka: {openDate.toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" })}
+                        {t("quizList.opensAt")} <FormattedDate date={openDate} options={{ dateStyle: "medium", timeStyle: "short" }} />
                       </span>
                     ) : null}
                     {isClosed ? (
                       <span className="rounded-md bg-status-error/12 px-2 py-0.5 text-body-xs font-semibold text-status-error ring-1 ring-status-error/20">
                         {closeDate
-                          ? `Telah ditutup: ${closeDate.toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" })}`
-                          : "Telah ditutup"}
+                          ? <>{t("tryoutList.closedAt")} <FormattedDate date={closeDate} options={{ dateStyle: "medium", timeStyle: "short" }} /></>
+                          : t("quizList.closed")}
                       </span>
                     ) : null}
                   </div>
                   <p className="mt-1 text-body-sm text-muted-foreground">
-                    {tryout.questionCount} soal · {tryout.settings?.timeLimitMinutes ?? 90} menit
+                    {t("quizList.questions", { count: tryout.questionCount })} · {t("quizList.minutes", { count: tryout.settings?.timeLimitMinutes ?? 90 })}
                   </p>
                 </div>
 
                 <div className="flex items-center gap-2 text-body-sm text-muted-foreground md:justify-center">
                   <span className="font-semibold text-foreground">{attemptCount}</span>
-                  <span>/ {maxAttempts} percobaan</span>
+                  <span>/ {t("tryoutList.attempts", { count: maxAttempts })}</span>
                   <div className="flex gap-1">
                     {Array.from({ length: maxAttempts }).map((_, index) => (
                       <span

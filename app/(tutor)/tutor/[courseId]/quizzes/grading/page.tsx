@@ -11,12 +11,15 @@ import { PageHeader } from "@/components/page-header";
 import { ApplicationPage } from "@/components/application-page";
 import { Reveal } from "@/components/ui/reveal";
 import { pageTitle } from "@/lib/site";
+import { getTranslations } from "@/lib/i18n/server";
+import { TranslatedText } from "@/components/i18n/translated-text";
 import { CheckSquare } from "lucide-react";
 
 type Props = { params: Promise<{ courseId: string }> };
 
 export async function generateMetadata({ params }: Props) {
   const { courseId } = await params;
+  const t = await getTranslations("tutor.routeTitles");
   const [mk] = await db
     .select({ title: mataKuliah.title })
     .from(mataKuliah)
@@ -27,8 +30,8 @@ export async function generateMetadata({ params }: Props) {
     : [null];
   const title = mk?.title ?? c?.title;
   return {
-    title: pageTitle(title ? `Penilaian Kuis: ${title}` : "Penilaian Kuis"),
-    description: "Koreksi dan nilai jawaban esai kuis siswa.",
+    title: pageTitle(title ? `${t("quizGrading")}: ${title}` : t("quizGrading")),
+    description: t("quizGradingDescription"),
   };
 }
 
@@ -69,9 +72,9 @@ export default async function TutorQuizGradingPage({ params }: Props) {
       <Reveal>
         <PageHeader
           icon={CheckSquare}
-          title="Penilaian Kuis"
+          title={<TranslatedText namespace="tutor" messageKey="routeTitles.quizGrading" />}
           backHref={`/tutor/${courseId}/quizzes`}
-          backLabel={`Kembali ke Kuis (${courseTitle})`}
+          backLabel={<><TranslatedText namespace="tutor" messageKey="routeTitles.backToQuizzes" /> ({courseTitle})</>}
         />
       </Reveal>
 

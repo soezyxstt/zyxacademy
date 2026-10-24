@@ -1,3 +1,5 @@
+"use client";
+
 import type { ReactNode } from "react";
 import Link from "next/link";
 import {
@@ -13,15 +15,17 @@ import { Button } from "@/components/ui/button";
 import { PageOrnaments } from "@/components/ui/page-ornaments";
 import { cn } from "@/lib/utils";
 import type { DemoCourseSummary } from "@/app/(marketing)/demo/demo-data";
+import { useTranslations } from "@/lib/i18n/client";
+import { LocalizedPublicLink } from "@/components/localized-public-link";
 
 export type DemoView = "dashboard" | "article" | "diktat" | "flashcards" | "quiz" | "zyra";
 
-const demoNav: Array<{ view: Exclude<DemoView, "dashboard">; label: string; icon: typeof BookOpen }> = [
-  { view: "article", label: "Artikel", icon: BookOpen },
-  { view: "diktat", label: "Diktat", icon: FileText },
-  { view: "flashcards", label: "Flashcard", icon: Layers3 },
-  { view: "quiz", label: "Kuis", icon: CheckSquare },
-  { view: "zyra", label: "Zyra", icon: MessageCircle },
+const demoNav: Array<{ view: Exclude<DemoView, "dashboard">; key: string; icon: typeof BookOpen }> = [
+  { view: "article", key: "demo.views.article", icon: BookOpen },
+  { view: "diktat", key: "demo.views.diktat", icon: FileText },
+  { view: "flashcards", key: "demo.views.flashcards", icon: Layers3 },
+  { view: "quiz", key: "demo.views.quiz", icon: CheckSquare },
+  { view: "zyra", key: "demo.views.zyra", icon: MessageCircle },
 ];
 
 export function demoSignInHref(nextPath: string): string {
@@ -37,15 +41,16 @@ export function demoCoursePath(courseId: string): string {
 
 export function DemoAuthCta({
   nextPath,
-  label = "Masuk untuk lanjut",
+  label,
 }: {
   nextPath: string;
   label?: string;
 }) {
+  const t = useTranslations("marketing");
   return (
     <Button asChild size="sm" className="gap-1.5 rounded-lg">
       <Link href={demoSignInHref(nextPath)}>
-        {label}
+        {label ?? t("demo.authCta")}
         <ArrowRight className="size-3.5" aria-hidden="true" />
       </Link>
     </Button>
@@ -61,6 +66,7 @@ export function DemoShell({
   activeView: DemoView;
   children: ReactNode;
 }) {
+  const t = useTranslations("marketing");
   return (
     <div className="relative overflow-hidden bg-muted/20">
       <PageOrnaments variant="about" />
@@ -72,7 +78,7 @@ export function DemoShell({
               {course.title}
             </h1>
             <p className="mt-1 text-body-sm text-muted-foreground">
-              Bab {course.chapterNumber}, {course.chapterTitle}
+              {t("demo.chapter", { number: course.chapterNumber, title: course.chapterTitle })}
             </p>
           </div>
           <div className="shrink-0">
@@ -81,10 +87,10 @@ export function DemoShell({
         </div>
 
         <nav
-          aria-label="Navigasi demo"
+          aria-label={t("demo.navLabel")}
           className="mt-5 flex flex-wrap gap-2 rounded-xl border border-border bg-card/70 p-2 shadow-xs"
         >
-          <Link
+          <LocalizedPublicLink
             href="/demo"
             aria-current={activeView === "dashboard" ? "page" : undefined}
             className={cn(
@@ -95,10 +101,10 @@ export function DemoShell({
             )}
           >
             <Brain className="size-4" aria-hidden="true" />
-            Ringkasan
-          </Link>
-          {demoNav.map(({ view, label, icon: Icon }) => (
-            <Link
+            {t("demo.views.dashboard")}
+          </LocalizedPublicLink>
+          {demoNav.map(({ view, key, icon: Icon }) => (
+            <LocalizedPublicLink
               key={view}
               href={`/demo/${view}`}
               aria-current={activeView === view ? "page" : undefined}
@@ -110,8 +116,8 @@ export function DemoShell({
               )}
             >
               <Icon className="size-4" aria-hidden="true" />
-              {label}
-            </Link>
+              {t(key)}
+            </LocalizedPublicLink>
           ))}
         </nav>
 

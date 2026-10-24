@@ -3,6 +3,7 @@
 import { AdminEmptyState } from "@/components/admin/state-panels";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { useAppLocale, useTranslations } from "@/lib/i18n/client";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { Plus, Edit2, Trash2, ClipboardList, HelpCircle, Loader2, Tag, Layers, Check, CheckSquare, Eye, Clock, FileSpreadsheet, UserCheck } from "lucide-react";
@@ -66,8 +67,21 @@ interface Props {
   initialQuestionBank: QuestionBankItem[];
 }
 
+function quizCategoryLabelKey(category: QuizTemplate["category"]) {
+  switch (category) {
+    case "daily": return "categoryDaily";
+    case "weekly": return "categoryWeekly";
+    case "chapter": return "categoryChapter";
+    case "premium": return "categoryPremium";
+    case "simulation": return "categorySimulation";
+  }
+}
+
 export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank }: Props) {
   const router = useRouter();
+  const tr = useTranslations("tutor.quizList");
+  const { locale } = useAppLocale();
+  const dateLocale = locale === "id" ? "id-ID" : "en-US";
   const [isPending, startTransition] = useTransition();
 
   const [deleteTplId, setDeleteTplId] = useState<string | null>(null);
@@ -88,10 +102,10 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
       if (res.success) {
         setPreviewQuestions(res.questions);
       } else {
-        toast.error("Gagal memuat pratinjau kuis.");
+        toast.error(tr("failedPreview"));
       }
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Gagal memuat pratinjau kuis.";
+    } catch {
+      const message = tr("failedPreview");
       toast.error(message);
     } finally {
       setLoadingPreview(false);
@@ -111,18 +125,23 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
   const [qTags, setQTags] = useState("");
   const [deleteQId, setDeleteQId] = useState<string | null>(null);
 
+  const quizToDelete = initialTemplates.find((quiz) => quiz.id === deleteTplId);
+  const questionToDelete = initialQuestionBank.find((question) => question.id === deleteQId);
+
   async function handleDeleteTpl() {
     if (!deleteTplId) return;
     startTransition(async () => {
       try {
         const res = await deleteQuizTemplateAction(courseId, deleteTplId);
         if (res.success) {
-          toast.success("Kuis berhasil dihapus.");
+          toast.success(tr("quizDeleted"));
           setDeleteTplId(null);
           router.refresh();
+        } else {
+          toast.error(tr("failedDeleteQuiz"));
         }
-      } catch (err: unknown) {
-        const message = err instanceof Error ? err.message : "Gagal menghapus kuis.";
+      } catch {
+        const message = tr("failedDeleteQuiz");
         toast.error(message);
       }
     });
@@ -134,11 +153,13 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
       try {
         const res = await toggleQuizTemplateStatusAction(courseId, templateId, newStatus);
         if (res.success) {
-          toast.success(`Kuis diubah menjadi ${newStatus === "published" ? "Published" : "Draft"}`);
+          toast.success(tr("quizStatusChanged", { status: newStatus === "published" ? tr("published") : tr("draft") }));
           router.refresh();
+        } else {
+          toast.error(tr("failedToggleStatus"));
         }
-      } catch (err: unknown) {
-        const message = err instanceof Error ? err.message : "Gagal mengubah status kuis.";
+      } catch {
+        const message = tr("failedToggleStatus");
         toast.error(message);
       }
     });
@@ -194,22 +215,22 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
 
   async function handleSaveQ() {
     if (!qPrompt.trim()) {
-      toast.error("Pertanyaan wajib diisi.");
+      toast.error(tr("questionRequired"));
       return;
     }
 
     if (qType === "multiple_choice" || qType === "multiple_choices") {
       if (qCorrectIndices.length === 0) {
-        toast.error("Minimal satu pilihan benar wajib diisi.");
+        toast.error(tr("correctRequired"));
         return;
       }
       if (qOptions.some((o) => !o.trim())) {
-        toast.error("Semua opsi jawaban A, B, C, D wajib diisi.");
+        toast.error(tr("optionsRequired"));
         return;
       }
     } else if (qType === "short_answer") {
       if (!qAcceptableAnswers.trim()) {
-        toast.error("Jawaban benar yang diterima wajib diisi.");
+        toast.error(tr("acceptedAnswerRequired"));
         return;
       }
     }
@@ -229,12 +250,14 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
           tags: qTags.split(",").map((t) => t.trim().toLowerCase()).filter(Boolean),
         });
         if (res.success) {
-          toast.success(editingQ ? "Soal bank diperbarui." : "Soal ditambahkan ke bank.");
+          toast.success(editingQ ? tr("questionUpdated") : tr("questionAdded"));
           setIsQOpen(false);
           router.refresh();
+        } else {
+          toast.error(tr("failedSaveQuestion"));
         }
-      } catch (err: any) {
-        toast.error(err.message || "Gagal menyimpan soal.");
+      } catch {
+        toast.error(tr("failedSaveQuestion"));
       }
     });
   }
@@ -245,12 +268,14 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
       try {
         const res = await deleteQuestionBankAction(courseId, deleteQId);
         if (res.success) {
-          toast.success("Soal berhasil dihapus dari bank.");
+          toast.success(tr("questionDeletedToast"));
           setDeleteQId(null);
           router.refresh();
+        } else {
+          toast.error(tr("failedDeleteQuestion"));
         }
-      } catch (err: any) {
-        toast.error(err.message || "Gagal menghapus soal.");
+      } catch {
+        toast.error(tr("failedDeleteQuestion"));
       }
     });
   }
@@ -261,11 +286,11 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
         <TabsList>
           <TabsTrigger value="templates">
             <ClipboardList className="size-4 mr-2" />
-            Kuis
+            {tr("quizzes")}
           </TabsTrigger>
           <TabsTrigger value="questionbank">
             <HelpCircle className="size-4 mr-2" />
-            Bank Soal
+            {tr("questionBank")}
           </TabsTrigger>
         </TabsList>
 
@@ -274,17 +299,17 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
             ===================================================================== */}
         <TabsContent value="templates" className="space-y-4">
           <div className="flex flex-wrap justify-between items-center gap-2">
-            <h2 className="font-heading text-body-base font-semibold text-foreground">Kuis ({initialTemplates.length})</h2>
+            <h2 className="font-heading text-body-base font-semibold text-foreground">{tr("quizCount", { count: initialTemplates.length })}</h2>
             <Button asChild className="bg-brand-primary text-white hover:bg-brand-primary/90 rounded-md font-semibold gap-2">
               <Link href={`/tutor/${courseId}/quizzes/new`}>
                 <Plus className="size-4" />
-                Buat kuis
+                {tr("createQuiz")}
               </Link>
             </Button>
           </div>
 
           {initialTemplates.length === 0 ? (
-            <AdminEmptyState icon={ClipboardList} title="Belum Ada Kuis" />
+            <AdminEmptyState icon={ClipboardList} title={tr("noQuizzes")} />
           ) : (
             <div className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
               {initialTemplates.map((t) => {
@@ -297,8 +322,8 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
                       <div className="flex justify-between items-start gap-2">
                         <CardTitle className="font-heading text-body-base font-bold text-foreground break-words">{t.title}</CardTitle>
                         <div className="flex gap-1.5 flex-wrap items-center">
-                          <Badge variant="secondary" className="capitalize text-[10px] rounded-md px-2 py-0.5">
-                            {t.category}
+                          <Badge variant="secondary" className="text-[10px] rounded-md px-2 py-0.5">
+                            {tr(quizCategoryLabelKey(t.category))}
                           </Badge>
                           <button
                             onClick={() => handleTogglePublishStatus(t.id, t.status)}
@@ -309,7 +334,7 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
                                 : "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20 hover:bg-amber-500/20"
                             )}
                           >
-                            {t.status === "published" ? "Published" : "Draft"}
+                            {t.status === "published" ? tr("published") : tr("draft")}
                           </button>
                         </div>
                       </div>
@@ -317,8 +342,8 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
                       {/* Creator attribution line */}
                       <div className="flex items-center gap-1.5 text-body-xs text-muted-foreground mt-1">
                         <UserCheck className="size-3 text-brand-primary shrink-0" />
-                        <span>Pembuat:</span>
-                        <span className="font-semibold text-foreground truncate">{t.creatorName || "Sistem"}</span>
+                        <span>{tr("creator")}</span>
+                        <span className="font-semibold text-foreground truncate">{t.creatorName || tr("system")}</span>
                         {t.creatorRole && (
                           <Badge variant="outline" className="capitalize text-[10px] rounded-md px-1.5 py-0">
                             {t.creatorRole}
@@ -327,18 +352,18 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
                       </div>
 
                       <p className="text-body-xs text-muted-foreground mt-0.5">
-                        Batas percobaan: {t.maxAttempts ? `${t.maxAttempts}x` : "Tak terbatas"} · Durasi: {t.timeLimitSeconds ? `${t.timeLimitSeconds / 60} menit` : "Bebas"}
+                        {tr("attemptLimit", { attempts: t.maxAttempts ? `${t.maxAttempts}x` : tr("unlimited"), duration: t.timeLimitSeconds ? `${t.timeLimitSeconds / 60} min` : tr("free") })}
                       </p>
                     </CardHeader>
                     <CardContent className="px-4 pb-3 space-y-2">
                       <div className="flex flex-wrap gap-1">
                         <span className="text-body-xs font-semibold text-muted-foreground mr-1.5 flex items-center gap-1">
                           <Layers className="size-3" />
-                          {rules?.count || 5} soal {rules?.fixedQuestionIds && rules.fixedQuestionIds.length > 0 && "(Soal Spesifik)"}
+                          {tr("questionsCount", { count: rules?.count || 5 })} {rules?.fixedQuestionIds && rules.fixedQuestionIds.length > 0 && tr("specificQuestions")}
                         </span>
                         {rules?.fixedQuestionIds && rules.fixedQuestionIds.length > 0 ? (
                           <Badge variant="outline" className="text-[10px] text-brand-primary border-brand-primary/30 rounded-md">
-                            Tipe: Fixed
+                            {tr("fixed")}
                           </Badge>
                         ) : (
                           rules?.tags?.map((tag: string) => (
@@ -355,7 +380,7 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
                         <div className="flex items-center justify-between">
                           <span className="font-semibold text-muted-foreground flex items-center gap-1">
                             <Clock className="size-3" />
-                            Akses Kuis:
+                            {tr("access")}
                           </span>
                           <span className={cn(
                             "inline-flex rounded-md border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide",
@@ -365,7 +390,7 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
                               ? "bg-destructive/10 text-destructive border-destructive/20"
                               : "bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/20"
                           )}>
-                            {t.manualStatus === "open" ? "Buka Manual" : t.manualStatus === "closed" ? "Tutup Manual" : "Ikuti Jadwal"}
+                            {t.manualStatus === "open" ? tr("manualOpen") : t.manualStatus === "closed" ? tr("manualClosed") : tr("followSchedule")}
                           </span>
                         </div>
 
@@ -373,14 +398,14 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
                           <div className="text-body-xs space-y-1 mt-1 text-foreground/80">
                             {t.openAt && (
                               <div className="flex justify-between">
-                                <span>Buka:</span>
-                                <span className="font-semibold">{new Date(t.openAt).toLocaleString("id-ID", { dateStyle: "short", timeStyle: "short" })}</span>
+                                <span>{tr("opens")}</span>
+                                <span className="font-semibold">{new Date(t.openAt).toLocaleString(dateLocale, { dateStyle: "short", timeStyle: "short" })}</span>
                               </div>
                             )}
                             {t.closeAt && (
                               <div className="flex justify-between">
-                                <span>Tutup:</span>
-                                <span className="font-semibold">{new Date(t.closeAt).toLocaleString("id-ID", { dateStyle: "short", timeStyle: "short" })}</span>
+                                <span>{tr("closes")}</span>
+                                <span className="font-semibold">{new Date(t.closeAt).toLocaleString(dateLocale, { dateStyle: "short", timeStyle: "short" })}</span>
                               </div>
                             )}
                           </div>
@@ -390,14 +415,14 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
                       {rules?.fixedQuestionIds && rules.fixedQuestionIds.length > 0 && (
                         <div className="mt-2.5 text-left border-t border-border/40 pt-2.5">
                           <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block mb-1">
-                            Daftar Soal Terpilih:
+                            {tr("selectedQuestions")}
                           </span>
                           <ol className="list-decimal pl-4 space-y-1 text-body-xs text-foreground/80 leading-normal max-h-24 overflow-y-auto pr-1">
                             {rules.fixedQuestionIds.map((qId: string) => {
                               const question = initialQuestionBank.find((q) => q.id === qId);
                               return (
-                                <li key={qId} className="truncate" title={question?.prompt || "Soal tidak ditemukan"}>
-                                  {question?.prompt || <span className="italic text-muted-foreground">Soal telah dihapus dari bank</span>}
+                                <li key={qId} className="truncate" title={question?.prompt || tr("questionMissing")}>
+                                  {question?.prompt || <span className="italic text-muted-foreground">{tr("questionDeleted")}</span>}
                                 </li>
                               );
                             })}
@@ -409,23 +434,23 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
                       <Link href={`/tutor/${courseId}/quizzes/${t.id}/attempts`}>
                         <Button variant="outline" size="sm" className="rounded-md border-border/80 text-emerald-600 hover:bg-emerald-500/10 hover:text-emerald-600 gap-1 text-body-xs">
                           <FileSpreadsheet className="size-3.5" />
-                          Hasil
+                          {tr("results")}
                         </Button>
                       </Link>
                       <Button variant="outline" size="sm" onClick={() => handleOpenPreviewTpl(t)} className="rounded-md border-border/80 text-brand-primary hover:bg-brand-primary/10 hover:text-brand-primary gap-1 text-body-xs">
                         <Eye className="size-3.5" />
-                        Preview
+                        {tr("preview")}
                       </Button>
                       {isSimulation ? (
                         <Button variant="outline" size="sm" disabled className="rounded-md border-border/80 text-muted-foreground gap-1 opacity-50 cursor-not-allowed text-body-xs">
                           <Edit2 className="size-3.5" />
-                          Edit (Admin)
+                          {tr("editAdmin")}
                         </Button>
                       ) : (
                         <Button asChild variant="outline" size="sm" className="rounded-md border-border/80 text-muted-foreground hover:text-foreground hover:bg-muted gap-1 text-body-xs">
                           <Link href={`/tutor/${courseId}/quizzes/${t.id}/edit`}>
                             <Edit2 className="size-3.5" />
-                            Edit
+                            {tr("edit")}
                           </Link>
                         </Button>
                       )}
@@ -437,7 +462,7 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
                         className="rounded-md border-border/80 text-status-error hover:bg-status-error/10 hover:text-status-error gap-1 text-body-xs disabled:opacity-50"
                       >
                         <Trash2 className="size-3.5" />
-                        Hapus
+                        {tr("delete")}
                       </Button>
                     </div>
                   </Card>
@@ -452,15 +477,15 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
             ===================================================================== */}
         <TabsContent value="questionbank" className="space-y-4">
           <div className="flex flex-wrap justify-between items-center gap-2">
-            <h2 className="font-heading text-body-base font-semibold text-foreground">Kumpulan Bank Soal ({initialQuestionBank.length})</h2>
+            <h2 className="font-heading text-body-base font-semibold text-foreground">{tr("questionBankTitle", { count: initialQuestionBank.length })}</h2>
             <Button onClick={handleOpenAddQ} className="bg-brand-primary text-white hover:bg-brand-primary/90 rounded-md font-semibold gap-2">
               <Plus className="size-4" />
-              Tambah Soal Baru
+              {tr("addQuestion")}
             </Button>
           </div>
 
           {initialQuestionBank.length === 0 ? (
-            <AdminEmptyState icon={HelpCircle} title="Bank Soal Kosong" />
+            <AdminEmptyState icon={HelpCircle} title={tr("emptyBank")} />
           ) : (
             <div className="space-y-3">
               {initialQuestionBank.map((q, idx) => {
@@ -474,18 +499,18 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
                     <div className="flex items-start justify-between gap-4">
                       <div className="space-y-1.5 flex-1 min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
-                          <span className="text-body-xs font-bold text-muted-foreground">Soal #{initialQuestionBank.length - idx}</span>
+                          <span className="text-body-xs font-bold text-muted-foreground">{tr("questionNumber", { number: initialQuestionBank.length - idx })}</span>
                           <Badge className={`text-[10px] rounded-md px-1.5 py-0.5 border ${
                             q.difficulty === "easy" ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20" :
                             q.difficulty === "medium" ? "bg-amber-500/10 text-amber-600 border-amber-500/20" :
                             "bg-rose-500/10 text-rose-600 border-rose-500/20"
                           }`}>
-                            {q.difficulty}
+                            {tr(q.difficulty)}
                           </Badge>
                           <Badge variant="outline" className="text-[10px] rounded-md text-muted-foreground">
-                            {q.questionType === "short_answer" ? "Isian Singkat" :
-                             q.questionType === "essay" ? "Essay" :
-                             q.questionType === "multiple_choices" ? "Multi Select" : "Single Choice"}
+                            {q.questionType === "short_answer" ? tr("shortAnswer") :
+                             q.questionType === "essay" ? tr("essay") :
+                             q.questionType === "multiple_choices" ? tr("multiSelect") : tr("singleChoice")}
                           </Badge>
                         </div>
                         <MathText className="text-body-base font-medium text-foreground leading-relaxed pt-1" as="p">{q.prompt}</MathText>
@@ -493,14 +518,14 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
                       
                       {isImmutableReference ? (
                         <Badge variant="outline" className="rounded-md text-body-2xs text-muted-foreground">
-                          Referensi, hanya tinjau
+                          {tr("referenceOnly")}
                         </Badge>
                       ) : (
                         <div className="flex gap-1.5">
-                          <Button variant="ghost" size="xs" onClick={() => handleOpenEditQ(q)} className="rounded-md text-muted-foreground hover:text-foreground" aria-label="Edit soal">
+                          <Button variant="ghost" size="xs" onClick={() => handleOpenEditQ(q)} className="rounded-md text-muted-foreground hover:text-foreground" aria-label={tr("editQuestion")}>
                             <Edit2 className="size-3.5" />
                           </Button>
-                          <Button variant="ghost" size="xs" onClick={() => setDeleteQId(q.id)} className="rounded-md text-status-error hover:bg-status-error/10 hover:text-status-error" aria-label="Hapus soal">
+                          <Button variant="ghost" size="xs" onClick={() => setDeleteQId(q.id)} className="rounded-md text-status-error hover:bg-status-error/10 hover:text-status-error" aria-label={tr("deleteQuestion")}>
                             <Trash2 className="size-3.5" />
                           </Button>
                         </div>
@@ -532,7 +557,7 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
 
                     {q.questionType === "short_answer" && (
                       <div className="mt-3 pl-2">
-                        <span className="text-body-xs font-semibold text-muted-foreground block mb-1">Jawaban Benar Diterima:</span>
+                        <span className="text-body-xs font-semibold text-muted-foreground block mb-1">{tr("acceptedAnswers")}</span>
                         <div className="flex flex-wrap gap-1.5">
                           {(Array.isArray(q.acceptableAnswers)
                             ? q.acceptableAnswers
@@ -570,52 +595,52 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
         <DialogContent className="max-w-2xl rounded-2xl border-border bg-card">
           <DialogHeader>
             <DialogTitle className="font-heading text-body-base font-bold text-foreground">
-              {editingQ ? "Edit Soal Bank" : "Tambah Soal Baru ke Bank"}
+              {editingQ ? tr("editBankQuestion") : tr("addToBank")}
             </DialogTitle>
           </DialogHeader>
 
           <div className="space-y-4 my-2 font-sans overflow-y-auto max-h-[70vh] pr-1">
             <div className="grid gap-2">
-              <Label htmlFor="q-prompt" className="text-body-sm font-semibold">Pertanyaan / Soal</Label>
+              <Label htmlFor="q-prompt" className="text-body-sm font-semibold">{tr("question")}</Label>
               <Textarea
                 id="q-prompt"
                 value={qPrompt}
                 onChange={(e) => setQPrompt(e.target.value)}
                 rows={4}
-                placeholder="Gunakan LaTeX untuk rumus matematika, misal: Berapakah hasil dari $\lim_{x \to 0} \frac{\sin x}{x}$?"
+                placeholder={tr("questionPlaceholder")}
                 className="rounded-lg border-input bg-background"
               />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
-                <Label htmlFor="q-type" className="text-body-sm font-semibold">Tipe Soal</Label>
+                <Label htmlFor="q-type" className="text-body-sm font-semibold">{tr("questionType")}</Label>
                 <Select value={qType} onValueChange={(val: any) => {
                   setQType(val);
                   setQCorrectIndices([]);
                 }}>
                   <SelectTrigger className="rounded-lg border-input bg-background">
-                    <SelectValue placeholder="Pilih tipe" />
+                    <SelectValue placeholder={tr("chooseType")} />
                   </SelectTrigger>
                   <SelectContent className="bg-card border-border">
-                    <SelectItem value="multiple_choice">Pilihan Ganda Tunggal</SelectItem>
-                    <SelectItem value="multiple_choices">Pilihan Ganda Kompleks</SelectItem>
-                    <SelectItem value="short_answer">Isian Singkat</SelectItem>
-                    <SelectItem value="essay">Essay / Uraian</SelectItem>
+                    <SelectItem value="multiple_choice">{tr("singleChoiceType")}</SelectItem>
+                    <SelectItem value="multiple_choices">{tr("multipleChoiceType")}</SelectItem>
+                    <SelectItem value="short_answer">{tr("shortAnswerType")}</SelectItem>
+                    <SelectItem value="essay">{tr("essayType")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
               <div className="grid gap-2">
-                <Label htmlFor="q-diff" className="text-body-sm font-semibold">Tingkat Kesulitan</Label>
+                <Label htmlFor="q-diff" className="text-body-sm font-semibold">{tr("difficulty")}</Label>
                 <Select value={qDifficulty} onValueChange={(val: any) => setQDifficulty(val)}>
                   <SelectTrigger className="rounded-lg border-input bg-background">
-                    <SelectValue placeholder="Pilih tingkat" />
+                    <SelectValue placeholder={tr("chooseDifficulty")} />
                   </SelectTrigger>
                   <SelectContent className="bg-card border-border">
-                    <SelectItem value="easy">Easy (Mudah)</SelectItem>
-                    <SelectItem value="medium">Medium (Sedang)</SelectItem>
-                    <SelectItem value="hard">Hard (Sulit)</SelectItem>
+                    <SelectItem value="easy">{tr("easy")}</SelectItem>
+                    <SelectItem value="medium">{tr("medium")}</SelectItem>
+                    <SelectItem value="hard">{tr("hard")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -624,9 +649,9 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
             {/* Options Input Block for Multiple Choice */}
             {(qType === "multiple_choice" || qType === "multiple_choices") && (
               <div className="space-y-3">
-                <Label className="text-body-sm font-semibold block">Opsi Jawaban & Kunci Jawaban</Label>
+                <Label className="text-body-sm font-semibold block">{tr("answerOptions")}</Label>
                 <span className="text-[10px] text-muted-foreground block -mt-2">
-                  Pilih tombol bulat/kotak di sebelah kiri sebagai kunci jawaban yang benar.
+                  {tr("selectCorrect")}
                 </span>
                 
                 {qOptions.map((opt, i) => {
@@ -653,7 +678,7 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
                           copy[i] = e.target.value;
                           setQOptions(copy);
                         }}
-                        placeholder={`Opsi ${String.fromCharCode(65 + i)}`}
+                        placeholder={tr("option", { letter: String.fromCharCode(65 + i) })}
                         className="rounded-lg border-input bg-background flex-1"
                       />
                     </div>
@@ -665,45 +690,45 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
             {/* Input Block for Short Answer */}
             {qType === "short_answer" && (
               <div className="space-y-2 rounded-xl border border-border bg-muted/5 p-4">
-                <Label htmlFor="q-short-ans" className="text-body-sm font-semibold">Jawaban Benar yang Diterima (Pisahkan dengan koma)</Label>
+                <Label htmlFor="q-short-ans" className="text-body-sm font-semibold">{tr("acceptedAnswerInput")}</Label>
                 <Input
                   id="q-short-ans"
                   value={qAcceptableAnswers}
                   onChange={(e) => setQAcceptableAnswers(e.target.value)}
-                  placeholder="Contoh: 12, duabelas, 12.0"
+                  placeholder={tr("acceptedAnswerExample")}
                   className="rounded-lg border-input bg-background"
                 />
-                <p className="text-body-xs text-muted-foreground">Jawaban benar jika cocok dengan salah satu kata kunci.</p>
+                <p className="text-body-xs text-muted-foreground">{tr("matchingAnswerHint")}</p>
               </div>
             )}
 
             {/* Input Block for Essay */}
             {qType === "essay" && (
               <div className="p-4 rounded-xl border border-border bg-muted/5 text-body-xs text-muted-foreground space-y-1">
-                <p className="font-semibold text-foreground">Soal Tipe Essay / Uraian</p>
-                <p>Tuliskan rubrik atau kunci jawaban di Pembahasan.</p>
+                <p className="font-semibold text-foreground">{tr("essayTitle")}</p>
+                <p>{tr("essayHint")}</p>
               </div>
             )}
 
             <div className="grid gap-2">
-              <Label htmlFor="q-explanation" className="text-body-sm font-semibold">Pembahasan / Penjelasan (Optional)</Label>
+              <Label htmlFor="q-explanation" className="text-body-sm font-semibold">{tr("explanationOptional")}</Label>
               <Textarea
                 id="q-explanation"
                 value={qExplanation}
                 onChange={(e) => setQExplanation(e.target.value)}
                 rows={3}
-                placeholder="Penjelasan pengerjaan untuk ditampilkan saat siswa me-review kuis..."
+                placeholder={tr("explanationPlaceholder")}
                 className="rounded-lg border-input bg-background text-body-sm"
               />
             </div>
 
             <div className="grid gap-2">
-              <Label htmlFor="q-tags" className="text-body-sm font-semibold">Tag Soal (Pisahkan Koma)</Label>
+              <Label htmlFor="q-tags" className="text-body-sm font-semibold">{tr("tags")}</Label>
               <Input
                 id="q-tags"
                 value={qTags}
                 onChange={(e) => setQTags(e.target.value)}
-                placeholder="Contoh: limit, aljabar, kalkulus"
+                placeholder={tr("tagsPlaceholder")}
                 className="rounded-lg border-input bg-background"
               />
             </div>
@@ -711,10 +736,10 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
 
           <DialogFooter className="gap-2 pt-2">
             <Button variant="outline" onClick={() => setIsQOpen(false)} disabled={isPending} className="rounded-md border-border/80">
-              Batal
+              {tr("cancel")}
             </Button>
             <Button onClick={handleSaveQ} isLoading={isPending} className="bg-brand-primary text-white hover:bg-brand-primary/90 rounded-md font-semibold gap-1.5">
-              Simpan Soal
+              {tr("saveQuestion")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -724,17 +749,17 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
       <Dialog open={deleteTplId !== null} onOpenChange={(open) => !open && setDeleteTplId(null)}>
         <DialogContent className="max-w-md rounded-2xl border-border bg-card">
           <DialogHeader>
-            <DialogTitle className="font-heading text-body-base font-bold text-foreground">Hapus Kuis?</DialogTitle>
+            <DialogTitle className="font-heading text-body-base font-bold text-foreground">{tr("deleteQuizTitle", { title: quizToDelete?.title ?? "" })}</DialogTitle>
             <DialogDescription className="text-body-xs text-muted-foreground">
-              Apakah Anda yakin ingin menghapus template kuis ini? Percobaan pengerjaan siswa yang terkait juga dapat terpengaruh.
+              {tr("deleteQuizDescription")}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2 mt-4">
             <Button variant="outline" onClick={() => setDeleteTplId(null)} disabled={isPending} className="rounded-md border-border/80">
-              Batal
+              {tr("cancel")}
             </Button>
             <Button onClick={handleDeleteTpl} isLoading={isPending} className="bg-status-error hover:bg-status-error/90 text-white rounded-md font-semibold gap-1.5">
-              Hapus Kuis
+              {tr("confirmDeleteQuiz")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -743,17 +768,17 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
       <Dialog open={deleteQId !== null} onOpenChange={(open) => !open && setDeleteQId(null)}>
         <DialogContent className="max-w-md rounded-2xl border-border bg-card">
           <DialogHeader>
-            <DialogTitle className="font-heading text-body-base font-bold text-foreground">Hapus Soal?</DialogTitle>
+            <DialogTitle className="font-heading text-body-base font-bold text-foreground">{tr("deleteQuestionTitle", { question: questionToDelete?.prompt.slice(0, 80) ?? "" })}</DialogTitle>
             <DialogDescription className="text-body-xs text-muted-foreground">
-              Apakah Anda yakin ingin menghapus soal ini dari bank soal? Soal tidak akan terpilih lagi untuk kuis baru.
+              {tr("deleteQuestionDescription")}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2 mt-4">
             <Button variant="outline" onClick={() => setDeleteQId(null)} disabled={isPending} className="rounded-md border-border/80">
-              Batal
+              {tr("cancel")}
             </Button>
             <Button onClick={handleDeleteQ} isLoading={isPending} className="bg-status-error hover:bg-status-error/90 text-white rounded-md font-semibold gap-1.5">
-              Hapus Soal
+              {tr("confirmDeleteQuestion")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -764,12 +789,12 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
         <DialogContent className="max-w-3xl max-h-[85vh] flex flex-col p-0 overflow-hidden rounded-xl border border-border bg-popover shadow-xl">
           <DialogHeader className="p-6 pb-4 border-b border-border shrink-0">
             <DialogTitle className="font-heading text-body-base font-bold text-foreground">
-              Pratinjau Kuis: {previewTpl?.title}
+              {tr("previewTitle", { title: previewTpl?.title ?? "" })}
             </DialogTitle>
             <DialogDescription className="text-left text-body-xs text-muted-foreground flex gap-3 flex-wrap items-center mt-1">
-              <span className="bg-muted px-2 py-0.5 rounded-md border border-border">Kategori: {previewTpl?.category}</span>
-              <span className="bg-muted px-2 py-0.5 rounded-md border border-border">Batas Waktu: {previewTpl?.timeLimitSeconds ? `${previewTpl.timeLimitSeconds / 60} menit` : "Bebas"}</span>
-              <span className="bg-muted px-2 py-0.5 rounded-md border border-border">Percobaan: {previewTpl?.maxAttempts ? `${previewTpl.maxAttempts}x` : "Bebas"}</span>
+              <span className="bg-muted px-2 py-0.5 rounded-md border border-border">{tr("categoryLabel", { category: previewTpl ? tr(quizCategoryLabelKey(previewTpl.category)) : "" })}</span>
+              <span className="bg-muted px-2 py-0.5 rounded-md border border-border">{tr("timeLimit", { duration: previewTpl?.timeLimitSeconds ? `${previewTpl.timeLimitSeconds / 60} min` : tr("free") })}</span>
+              <span className="bg-muted px-2 py-0.5 rounded-md border border-border">{tr("attempts", { count: previewTpl?.maxAttempts ? `${previewTpl.maxAttempts}x` : tr("free") })}</span>
             </DialogDescription>
           </DialogHeader>
 
@@ -777,30 +802,30 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
             {loadingPreview ? (
               <div className="py-12 flex flex-col items-center justify-center gap-3">
                 <Loader2 className="size-8 animate-spin text-brand-primary" />
-                <p className="text-body-sm text-muted-foreground">Memuat soal...</p>
+                <p className="text-body-sm text-muted-foreground">{tr("loadingQuestion")}</p>
               </div>
             ) : previewQuestions.length === 0 ? (
               <div className="py-12 text-center text-muted-foreground text-body-sm">
-                Tidak ada soal yang tersedia untuk aturan seleksi kuis ini.
+                {tr("noPreviewQuestions")}
               </div>
             ) : (
               <div className="space-y-4">
                 {previewQuestions.map((q, idx) => (
                   <div key={q.id} className="p-5 rounded-xl border border-border bg-card space-y-4">
                     <div className="flex items-center justify-between gap-2 border-b border-border/40 pb-2">
-                      <span className="text-body-sm font-bold text-foreground">Soal {idx + 1}</span>
+                      <span className="text-body-sm font-bold text-foreground">{tr("questionNumberPreview", { number: idx + 1 })}</span>
                       <div className="flex items-center gap-2">
                         <span className="capitalize text-[10px] bg-muted/80 text-muted-foreground px-2 py-0.5 rounded border border-border font-medium">
-                          {q.difficulty}
+                          {tr(q.difficulty)}
                         </span>
                         <span className="capitalize text-[10px] bg-muted/80 text-muted-foreground px-2 py-0.5 rounded border border-border font-medium">
                           {q.questionType === "multiple_choice"
-                            ? "Single Choice"
+                            ? tr("singleChoice")
                             : q.questionType === "multiple_choices"
-                              ? "Multi Choice"
+                              ? tr("multipleChoicePreview")
                               : q.questionType === "short_answer"
-                                ? "Short Answer"
-                                : "Essay"}
+                                ? tr("shortAnswer")
+                                : tr("essay")}
                         </span>
                       </div>
                     </div>
@@ -842,7 +867,7 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
 
                     {q.explanation && (
                       <div className="mt-2 text-body-xs bg-muted/50 p-3 rounded-lg border border-border/50 text-muted-foreground space-y-1">
-                        <span className="font-semibold text-foreground block">Pembahasan:</span>
+                        <span className="font-semibold text-foreground block">{tr("explanation")}</span>
                         <MathText as="p">{q.explanation}</MathText>
                       </div>
                     )}
@@ -854,7 +879,7 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
 
           <div className="p-4 border-t border-border flex justify-end bg-card shrink-0">
             <Button variant="outline" onClick={() => setIsPreviewOpen(false)} className="rounded-md border-border">
-              Tutup Pratinjau
+              {tr("closePreview")}
             </Button>
           </div>
         </DialogContent>

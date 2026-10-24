@@ -9,7 +9,7 @@ import { demoCoursePath, DemoShell, type DemoView } from "@/components/demo/demo
 import { DemoZyra } from "@/components/demo/demo-zyra";
 import { getDemoContent } from "../demo-data";
 
-import { createMetadata } from "@/lib/site";
+import { createLocalizedMetadata } from "@/lib/site-metadata";
 
 type Props = {
   params: Promise<{ view: string }>;
@@ -18,23 +18,10 @@ type Props = {
 const supportedViews = ["article", "diktat", "flashcards", "quiz", "zyra"] as const;
 type SupportedView = (typeof supportedViews)[number];
 
-const VIEW_LABELS: Record<SupportedView, string> = {
-  article: "Demo Artikel Materi",
-  diktat: "Demo Diktat Kuliah",
-  flashcards: "Demo Flashcard",
-  quiz: "Demo Kuis Interaktif",
-  zyra: "Demo Asisten Zyra",
-};
-
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { view } = await params;
-  const label = isSupportedView(view) ? VIEW_LABELS[view] : "Demo";
-  return createMetadata({
-    title: label,
-    description: `Jelajahi fitur ${label} di Zyx Academy.`,
-    path: `/demo/${view}`,
-    noIndex: true,
-  });
+  const key = isSupportedView(view) ? `demo.views.${view}` : "meta.demo.title";
+  return createLocalizedMetadata({ path: `/demo/${view}`, titleKey: key, descriptionKey: "meta.demo.description", noIndex: true });
 }
 
 

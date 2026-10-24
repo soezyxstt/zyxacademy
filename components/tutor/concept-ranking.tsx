@@ -1,3 +1,6 @@
+"use client";
+
+import { useTranslations } from "@/lib/i18n/client";
 import type { WeakConcept } from "@/lib/cohort-analytics";
 import { DistributionBar } from "./distribution-bar";
 
@@ -8,10 +11,11 @@ export function ConceptRanking({
   concepts: WeakConcept[];
   barWidth?: string;
 }) {
+  const t = useTranslations("tutor.analytics");
   if (concepts.length === 0) {
     return (
       <p className="text-body-sm text-muted-foreground">
-        Analitik akan muncul setelah siswa mengerjakan kuis.
+        {t("noAnalytics")}
       </p>
     );
   }
@@ -29,7 +33,7 @@ export function ConceptRanking({
           </span>
           <div className="min-w-0">
             <p className="text-body-base font-medium truncate">{concept.conceptName}</p>
-            <p className="text-body-sm text-muted-foreground">{concept.studentCount} siswa</p>
+            <p className="text-body-sm text-muted-foreground">{t("students", { count: concept.studentCount })}</p>
           </div>
           <span className="tabular-nums text-body-base">{concept.avgMastery}</span>
           <DistributionBar

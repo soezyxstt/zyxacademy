@@ -17,6 +17,7 @@ import {
 } from "@/db/schema";
 import { sql, eq, gte, ne } from "drizzle-orm";
 import { pageTitle } from "@/lib/site";
+import { getTranslations } from "@/lib/i18n/server";
 import {
   KeyRound,
   Zap,
@@ -46,10 +47,10 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 export const dynamic = "force-dynamic";
 
-export const metadata: Metadata = {
-  title: pageTitle("Admin"),
-  description: "Panel admin Zyx Academy.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("admin");
+  return { title: pageTitle(t("metadata.homeTitle")), description: t("metadata.homeDescription") };
+}
 
 export default async function AdminHomePage() {
   const todayStart = new Date();

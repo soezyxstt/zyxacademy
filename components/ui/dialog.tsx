@@ -6,6 +6,7 @@ import { Dialog as DialogNs } from "radix-ui";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { XIcon } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 function Dialog({ ...props }: React.ComponentProps<typeof DialogNs.Root>) {
   return <DialogNs.Root data-slot="dialog" {...props} />;
@@ -49,10 +50,13 @@ function DialogContent({
   className,
   children,
   showCloseButton = true,
+  closeLabel,
   ...props
 }: React.ComponentProps<typeof DialogNs.Content> & {
   showCloseButton?: boolean;
+  closeLabel?: string;
 }) {
+  const t = useTranslations("ui");
   return (
     <DialogPortal>
       <DialogOverlay />
@@ -74,7 +78,7 @@ function DialogContent({
                 size="icon-sm"
               >
                 <XIcon />
-                <span className="sr-only">Close</span>
+                <span className="sr-only">{closeLabel ?? t("close")}</span>
               </Button>
             </DialogNs.Close>
           )}

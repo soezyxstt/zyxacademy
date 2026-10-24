@@ -66,6 +66,7 @@ import { matchTerm, type TermIndexEntry } from "@/lib/term-match";
 import { isZyraSelectionAskEnabled, normalizeZyraSelection } from "@/lib/zyra/murid";
 import { formatReaderTocTitle } from "@/lib/materials/reader-toc";
 import { isLearnerReaderMode, type MaterialReaderMode } from "@/lib/materials/reader-mode";
+import { useTranslations } from "@/lib/i18n/client";
 import type { CourseAccessTier } from "@/lib/student/course-access";
 import type { StudentCourseAccessTier } from "@/lib/course-utils";
 
@@ -144,6 +145,7 @@ function ChapterSummarySheet({
   chapterId: string;
   chapterTitle: string;
 }) {
+  const t = useTranslations("learning");
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [summary, setSummary] = useState<ChapterSummary | null>(null);
@@ -163,12 +165,12 @@ function ChapterSummarySheet({
       if (!res.ok) throw new Error("request failed");
       const data = await res.json();
       if (data.budgetExhausted) {
-        setError("Batas harian tercapai. Disetel ulang tengah malam.");
+        setError(t("reader.dailyLimit"));
       } else {
         setSummary(data.summary as ChapterSummary);
       }
     } catch {
-      setError("Gagal memuat ringkasan.");
+      setError(t("reader.summaryFailed"));
     } finally {
       setLoading(false);
     }
@@ -183,7 +185,7 @@ function ChapterSummarySheet({
         onClick={loadSummary}
       >
         {loading ? <Loader2 className="size-4 mr-1.5 animate-spin" /> : <FileText className="size-4 mr-1.5" />}
-        Ringkas
+        {t("reader.summary")}
       </Button>
 
       <Sheet open={open} onOpenChange={setOpen}>
@@ -201,10 +203,10 @@ function ChapterSummarySheet({
             )}
             {!loading && !error && summary && (
               <div className="space-y-6">
-                <SummarySection title="Konsep utama" items={summary.keyConcepts} />
-                <SummarySection title="Kesalahan umum" items={summary.commonMistakes} />
-                <SummarySection title="Rumus penting" items={summary.importantFormulas} asMath />
-                <SummarySection title="Latihan" items={summary.practiceRecommendations} />
+                <SummarySection title={t("reader.keyConcepts")} items={summary.keyConcepts} />
+                <SummarySection title={t("reader.commonMistakes")} items={summary.commonMistakes} />
+                <SummarySection title={t("reader.importantFormulas")} items={summary.importantFormulas} asMath />
+                <SummarySection title={t("reader.practice")} items={summary.practiceRecommendations} />
               </div>
             )}
           </div>
@@ -597,6 +599,7 @@ export function MaterialViewer({
   hideHeader = false,
   canDownload = true,
 }: MaterialViewerProps) {
+  const t = useTranslations("learning");
   const learnerMode = isLearnerReaderMode(mode);
   const [done, setDone] = useState(material.completed);
   const doneRef = useRef(material.completed);
@@ -810,7 +813,7 @@ export function MaterialViewer({
     if (selectionAskEnabled) {
       const selection = normalizeZyraSelection(query);
       if (selection.length >= 3) {
-        openChatWithQuestion(`Kutipan dari materi ${material.title}: "${selection}"\n\nJelaskan bagian ini secara bertahap.`);
+        openChatWithQuestion(t("reader.askSelection", { title: material.title, selection }));
         return;
       }
     }
@@ -825,9 +828,9 @@ export function MaterialViewer({
         }
       })(),
       {
-        loading: "Menganalisis konsep...",
-        success: "Zyra siap menjelaskan!",
-        error: "Gagal memproses konsep.",
+        loading: t("reader.analyzingConcept"),
+        success: t("reader.zyraReady"),
+        error: t("reader.conceptFailed"),
       },
     );
   };
@@ -1057,10 +1060,10 @@ export function MaterialViewer({
     
     // Auto complete triggers when reading all pages
     if (learnerMode && progress === 100 && !done) {
-      toast("Kamu telah membaca seluruh halaman!", {
-        description: "Klik tombol 'Tandai Selesai' untuk mencatat progres kelasmu.",
+      toast(t("reader.allPagesRead"), {
+        description: t("reader.markDoneToSave"),
         action: {
-          label: "Selesaikan",
+          label: t("reader.finish"),
           onClick: () => markDone()
         }
       });
@@ -1074,14 +1077,14 @@ export function MaterialViewer({
       const res = await updateMaterialProgress(material.id, "completed");
       if (res.success) {
         setDone(true);
-        toast.success("Materi berhasil ditandai selesai!");
+toast.success(t("reader.markedComplete"));
         emitActivityUpdated({ type: "material", courseId: material.courseId, materialId: material.id });
       } else {
-        toast.error("Gagal menyimpan progres.");
+        toast.error(t("reader.saveProgressFailed"));
       }
     } catch (err) {
       console.error(err);
-      toast.error("Terjadi kesalahan koneksi.");
+      toast.error(t("reader.connectionError"));
     }
   }
 
@@ -1116,11 +1119,11 @@ export function MaterialViewer({
     let newBookmarks = [...bookmarks];
     if (newBookmarks.includes(pNum)) {
       newBookmarks = newBookmarks.filter((p) => p !== pNum);
-      toast.success(`Halaman ${pNum} dihapus dari penanda.`);
+      toast.success(t("reader.bookmarkRemoved", { page: pNum }));
     } else {
       newBookmarks.push(pNum);
       newBookmarks.sort((a, b) => a - b);
-      toast.success(`Halaman ${pNum} ditambahkan ke penanda.`);
+      toast.success(t("reader.bookmarkAdded", { page: pNum }));
     }
     setBookmarks(newBookmarks);
     localStorage.setItem(`zyx-bookmarks-${material.id}`, JSON.stringify(newBookmarks));
@@ -1153,7 +1156,7 @@ export function MaterialViewer({
     setNotes(newNotes);
     localStorage.setItem(`zyx-notes-${material.id}`, JSON.stringify(newNotes));
     if (pNum === page) setActiveNoteText("");
-    toast.success(`Catatan pada halaman ${pNum} berhasil dihapus.`);
+    toast.success(t("reader.noteRemoved", { page: pNum }));
   };
 
   // Save layout states to storage
@@ -1308,7 +1311,7 @@ export function MaterialViewer({
           type="button"
           onClick={dismissPopover}
           className="absolute -top-2 -right-2 flex size-5 items-center justify-center rounded-full bg-muted text-muted-foreground hover:bg-border hover:text-foreground shadow-sm transition-colors"
-          aria-label="Tutup"
+          aria-label={t("reader.close")}
         >
           <X className="size-3" />
         </button>
@@ -1326,8 +1329,8 @@ export function MaterialViewer({
             value={articleTocSearchQuery}
             onSearch={setArticleTocSearchQuery}
             onClear={() => setArticleTocSearchQuery("")}
-            aria-label={material.docCategory === "diktat" ? "Cari dalam diktat" : "Cari dalam artikel"}
-            placeholder={material.docCategory === "diktat" ? "Cari dalam diktat" : "Cari dalam artikel"}
+            aria-label={material.docCategory === "diktat" ? t("reader.searchDiktat") : t("reader.searchArticle")}
+            placeholder={material.docCategory === "diktat" ? t("reader.searchDiktat") : t("reader.searchArticle")}
             variant="bordered"
             size="sm"
           />
@@ -1397,15 +1400,15 @@ export function MaterialViewer({
                 asChild
                 className="shrink-0 gap-1.5 text-body-xs font-semibold text-muted-foreground hover:text-foreground"
               >
-                <Link href={backHref ?? `/courses/${material.courseId}/material`} aria-label="Kembali ke daftar materi">
+                <Link href={backHref ?? `/courses/${material.courseId}/material`} aria-label={t("reader.backToMaterials")}>
                   <ArrowLeft className="size-4" />
-                  <span className="hidden sm:inline">Kembali ke Materi</span>
+                  <span className="hidden sm:inline">{t("reader.backToMaterial")}</span>
                 </Link>
               </Button>
               <div className="hidden h-4 w-px shrink-0 bg-border sm:block" />
               <div className="min-w-0">
                 <p className="truncate text-body-xs font-medium text-muted-foreground">
-                  {course?.title ?? "Materi Kuliah"}
+                  {course?.title ?? t("reader.courseMaterials")}
                 </p>
                 <h1 className="truncate font-heading text-body-sm font-bold text-foreground">
                   {material.title}
@@ -1429,8 +1432,8 @@ export function MaterialViewer({
                 >
                   <a href={material.url} download target="_blank" rel="noopener noreferrer">
                     <Download className="size-3.5" aria-hidden />
-                    <span className="hidden sm:inline">Unduh PDF</span>
-                    <span className="sm:hidden">Unduh</span>
+                    <span className="hidden sm:inline">{t("reader.downloadPdf")}</span>
+                    <span className="sm:hidden">{t("reader.download")}</span>
                   </a>
                 </Button>
               )}
@@ -1441,7 +1444,7 @@ export function MaterialViewer({
                 className="gap-1.5 text-body-xs md:hidden"
               >
                 <Menu className="size-4" />
-                <span>Daftar Isi</span>
+                <span>{t("reader.tableOfContents")}</span>
               </Button>
               <Button
                 variant="outline"
@@ -1450,7 +1453,7 @@ export function MaterialViewer({
                 className="hidden gap-1.5 text-body-xs md:flex"
               >
                 {isArticleTocOpen ? <PanelRightClose className="size-4" /> : <PanelRight className="size-4" />}
-                <span>{isArticleTocOpen ? "Sembunyikan Menu" : "Buka Menu"}</span>
+                <span>{isArticleTocOpen ? t("reader.hideMenu") : t("reader.openMenu")}</span>
               </Button>
               {learnerMode && accessTier !== "free" && ragEnabled && chapterId && (
                 <ChapterSummarySheet chapterId={chapterId} chapterTitle={material.title} />
@@ -1464,7 +1467,7 @@ export function MaterialViewer({
                   className="interactive gap-1.5 text-body-xs font-semibold"
                 >
                   <CheckCircle2 className={cn("size-3.5", done ? "text-emerald-500 fill-emerald-500/10" : "text-muted-foreground")} />
-                  <span className="hidden lg:inline">{done ? "Selesai" : "Tandai Selesai"}</span>
+                  <span className="hidden lg:inline">{done ? t("reader.complete") : t("reader.markComplete")}</span>
                 </Button>
               )}
             </div>
@@ -1497,7 +1500,7 @@ export function MaterialViewer({
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div className="flex flex-wrap items-center gap-2 text-body-xs font-semibold text-muted-foreground">
                       <span className="rounded-md bg-primary/10 px-2.5 py-0.5 text-primary">
-                        {material.docCategory === "diktat" ? "Diktat Materi" : "Catatan Materi"}
+                      {material.docCategory === "diktat" ? t("reader.diktatTitle") : t("reader.articleTitle")}
                       </span>
                       {course?.title && <span>· {course.title}</span>}
                     </div>
@@ -1510,7 +1513,7 @@ export function MaterialViewer({
                       >
                         <a href={material.url} download target="_blank" rel="noopener noreferrer">
                           <Download className="size-3.5" aria-hidden />
-                          <span>Unduh PDF</span>
+                          <span>{t("reader.downloadPdf")}</span>
                         </a>
                       </Button>
                     )}
@@ -1589,7 +1592,7 @@ export function MaterialViewer({
                   </div>
                   <div className="space-y-1">
                     <h2 className="font-heading text-h5 font-bold text-foreground">
-                      {material.docCategory === "diktat" ? "Diktat Selesai" : "Materi Selesai"}
+                      {material.docCategory === "diktat" ? t("reader.diktatComplete") : t("reader.materialComplete")}
                     </h2>
                     <p className="text-body-sm text-muted-foreground max-w-md mx-auto">
                       Anda telah membaca seluruh isi {material.docCategory === "diktat" ? "diktat" : "materi"} {chapterTitle || material.title}.
@@ -1604,7 +1607,7 @@ export function MaterialViewer({
                         className="gap-2 bg-status-success hover:bg-status-success/95 text-white font-bold"
                       >
                         <CheckCircle2 className="size-4" />
-                        <span>{done ? "Sudah Selesai" : "Tandai Selesai & Simpan"}</span>
+                        <span>{done ? t("reader.complete") : t("reader.markAndSave")}</span>
                       </Button>
                       {material.url && canDownload && (
                         <Button
@@ -1614,7 +1617,7 @@ export function MaterialViewer({
                         >
                           <a href={material.url} download target="_blank" rel="noopener noreferrer">
                             <Download className="size-4" />
-                            <span>Unduh Salinan PDF</span>
+                            <span>{t("reader.downloadCopy")}</span>
                           </a>
                         </Button>
                       )}
@@ -1649,9 +1652,9 @@ export function MaterialViewer({
               asChild
               className="h-7 px-2 text-body-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-muted"
             >
-              <Link href={backHref ?? `/courses/${material.courseId}/material`} aria-label="Kembali ke daftar materi">
+                <Link href={backHref ?? `/courses/${material.courseId}/material`} aria-label={t("reader.backToMaterials")}>
                 <ArrowLeft className="size-3.5 mr-1" />
-                <span>Kembali</span>
+                <span>{t("reader.back")}</span>
               </Link>
             </Button>
             <span className="text-border">|</span>
@@ -1673,7 +1676,7 @@ export function MaterialViewer({
                 className="h-7 text-body-sm font-semibold flex items-center gap-1.5 rounded-md interactive"
               >
                 <CheckCircle2 className={cn("size-3.5", done ? "text-status-success fill-status-success/10" : "text-muted-foreground")} />
-                <span>{done ? "Selesai" : "Tandai Selesai"}</span>
+                <span>{done ? t("reader.complete") : t("reader.markComplete")}</span>
               </Button>
             )}
           </div>
@@ -1724,16 +1727,16 @@ export function MaterialViewer({
                       <Button asChild variant="outline" size="xs" className="rounded-md text-[10px] font-semibold h-7">
                         <a href={material.url} download target="_blank" rel="noopener noreferrer">
                           <Download className="mr-1 size-3" aria-hidden />
-                          <span className="hidden sm:inline">Unduh PDF</span>
-                          <span className="sm:hidden">Unduh</span>
+                          <span className="hidden sm:inline">{t("reader.downloadPdf")}</span>
+                          <span className="sm:hidden">{t("reader.download")}</span>
                         </a>
                       </Button>
                     )}
                     <Button asChild variant="outline" size="xs" className="rounded-md text-[10px] font-semibold h-7">
                       <a href={openUrl} target="_blank" rel="noopener noreferrer">
                         <ExternalLink className="mr-1 size-3" aria-hidden />
-                        <span className="hidden sm:inline">Buka Berkas Asli</span>
-                        <span className="sm:hidden">Buka</span>
+                        <span className="hidden sm:inline">{t("reader.openOriginal")}</span>
+                        <span className="sm:hidden">{t("reader.open")}</span>
                       </a>
                     </Button>
                   </>
@@ -1778,7 +1781,7 @@ export function MaterialViewer({
                       <button
                         onClick={handleSidebarToggle}
                         className="p-1 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground md:hidden"
-                        title="Sembunyikan Sidebar"
+                        title={t("reader.hideSidebar")}
                       >
                         <X className="size-4" />
                       </button>
@@ -1792,10 +1795,10 @@ export function MaterialViewer({
                           "py-1.5 rounded-lg flex flex-col items-center justify-center text-[10px] font-semibold transition-all gap-0.5",
                           sidebarTab === "outline" ? "bg-card text-brand-primary shadow-xs" : "text-muted-foreground hover:text-foreground"
                         )}
-                        title="Daftar Isi"
+                        title={t("reader.tableOfContents")}
                       >
                         <BookOpen className="size-3.5" />
-                        <span>Outline</span>
+                        <span>{t("reader.outline")}</span>
                       </button>
                       <button
                         onClick={() => setSidebarTab("thumbnails")}
@@ -1803,10 +1806,10 @@ export function MaterialViewer({
                           "py-1.5 rounded-lg flex flex-col items-center justify-center text-[10px] font-semibold transition-all gap-0.5",
                           sidebarTab === "thumbnails" ? "bg-card text-brand-primary shadow-xs" : "text-muted-foreground hover:text-foreground"
                         )}
-                        title="Miniatur Halaman"
+                        title={t("reader.pageThumbnails")}
                       >
                         <Layers className="size-3.5" />
-                        <span>Miniatur</span>
+                        <span>{t("reader.pageThumbnails")}</span>
                       </button>
                       <button
                         onClick={() => setSidebarTab("search")}
@@ -1814,10 +1817,10 @@ export function MaterialViewer({
                           "py-1.5 rounded-lg flex flex-col items-center justify-center text-[10px] font-semibold transition-all gap-0.5 relative",
                           sidebarTab === "search" ? "bg-card text-brand-primary shadow-xs" : "text-muted-foreground hover:text-foreground"
                         )}
-                        title="Cari Kata"
+                        title={t("reader.searchWords")}
                       >
                         <Search className="size-3.5" />
-                        <span>Cari</span>
+                        <span>{t("reader.searchWords")}</span>
                         {activeHighlightQuery && (
                           <span className="absolute top-1 right-3 size-1.5 rounded-full bg-brand-secondary animate-pulse" />
                         )}
@@ -1828,10 +1831,10 @@ export function MaterialViewer({
                           "py-1.5 rounded-lg flex flex-col items-center justify-center text-[10px] font-semibold transition-all gap-0.5 relative",
                           sidebarTab === "notes" ? "bg-card text-brand-primary shadow-xs" : "text-muted-foreground hover:text-foreground"
                         )}
-                        title="Catatan & Penanda"
+                        title={t("reader.notesAndBookmarks")}
                       >
                         <NotebookPen className="size-3.5" />
-                        <span>Catatan</span>
+                        <span>{t("reader.notes")}</span>
                         {(Object.keys(notes).length > 0 || bookmarks.length > 0) && (
                           <span className="absolute top-1 right-2 bg-brand-secondary/90 text-white rounded-md px-1 text-[10px] font-mono leading-none">
                             {Object.keys(notes).length + bookmarks.length}
@@ -1942,7 +1945,7 @@ export function MaterialViewer({
                                 setSearchQuery("");
                                 setActiveHighlightQuery("");
                               }}
-                              placeholder="Ketik kata kunci (e.g. limit, turunan)..."
+                              placeholder={t("reader.searchPlaceholder")}
                             />
                           </div>
 
@@ -2038,7 +2041,7 @@ export function MaterialViewer({
                                         "p-0.5 rounded-full hover:bg-black/10 text-muted-foreground",
                                         page === pNum ? "text-white/80 hover:text-white" : "hover:text-destructive"
                                       )}
-                                      title="Hapus Penanda"
+                                      title={t("reader.removeBookmark")}
                                     >
                                       <X className="size-3" />
                                     </button>
@@ -2065,12 +2068,12 @@ export function MaterialViewer({
                                   setActiveNoteText(e.target.value);
                                   saveNote(e.target.value);
                                 }}
-                                placeholder="Tulis catatan penting untuk halaman ini..."
+                                placeholder={t("reader.notePlaceholder")}
                                 rows={4}
                                 className="w-full bg-muted/40 text-body-xs border border-border rounded-xl p-2.5 focus:bg-card focus:outline-none focus:ring-1 focus:ring-brand-primary transition-all text-foreground resize-none leading-relaxed"
                               />
                               <div className="flex items-center justify-between text-[10px] text-muted-foreground px-1">
-                                <span>{isSavingNote ? "Menyimpan catatan..." : "Tersimpan di browser"}</span>
+                                <span>{isSavingNote ? t("reader.savingNote") : t("reader.savedInBrowser")}</span>
                                 {notes[page] && (
                                   <button
                                     onClick={() => deleteNote(page)}
@@ -2110,7 +2113,7 @@ export function MaterialViewer({
                                         <button
                                           onClick={() => deleteNote(pNum)}
                                           className="p-1 text-muted-foreground hover:text-destructive rounded-md hover:bg-muted"
-                                          title="Hapus Catatan"
+                                          title={t("reader.removeNote")}
                                         >
                                           <Trash2 className="size-3.5" />
                                         </button>
@@ -2143,7 +2146,7 @@ export function MaterialViewer({
                       <button
                         onClick={handleSidebarToggle}
                         className="absolute top-4 left-4 p-2.5 rounded-xl bg-card border border-border shadow-md text-foreground hover:bg-muted transition-all duration-200 z-10"
-                        title="Tampilkan Sidebar"
+                        title={t("reader.showSidebar")}
                       >
                         <PanelLeft className="size-4" />
                       </button>
@@ -2160,17 +2163,17 @@ export function MaterialViewer({
                               ? "bg-brand-secondary text-white border-brand-secondary"
                               : "bg-card text-muted-foreground border-border hover:text-foreground"
                           )}
-                          title={bookmarks.includes(page) ? "Hapus Penanda" : "Tandai Halaman Ini"}
+                          title={bookmarks.includes(page) ? t("reader.removeBookmark") : t("reader.bookmarkPage")}
                         >
                           {bookmarks.includes(page) ? (
                             <>
                               <BookmarkCheck className="size-3.5 text-white" />
-                              <span>Ditandai</span>
+                              <span>{t("reader.bookmarked")}</span>
                             </>
                           ) : (
                             <>
                               <Bookmark className="size-3.5" />
-                              <span>Tandai Halaman</span>
+                              <span>{t("reader.markPage")}</span>
                             </>
                           )}
                         </button>
@@ -2220,7 +2223,7 @@ export function MaterialViewer({
                           "p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors hidden md:block",
                           showSidebar && "text-brand-primary"
                         )}
-                        title={showSidebar ? "Sembunyikan Menu" : "Tampilkan Menu"}
+                        title={showSidebar ? t("reader.hideMenu") : t("reader.showSidebar")}
                       >
                         <PanelLeftClose className="size-4" />
                       </button>
@@ -2233,7 +2236,7 @@ export function MaterialViewer({
                           disabled={page === 1}
                           onClick={() => setPage(page - 1)}
                           className="p-1 rounded-md bg-muted/60 hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed transition-all"
-                          title="Halaman Sebelumnya"
+                        title={t("reader.previousPage")}
                         >
                           <ChevronLeft className="size-4 text-foreground" />
                         </button>
@@ -2244,7 +2247,7 @@ export function MaterialViewer({
                           disabled={page === MOCK_PAGES_META.length}
                           onClick={() => setPage(page + 1)}
                           className="p-1 rounded-md bg-muted/60 hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed transition-all"
-                          title="Halaman Selanjutnya"
+                        title={t("reader.nextPage")}
                         >
                           <ChevronRight className="size-4 text-foreground" />
                         </button>
@@ -2257,7 +2260,7 @@ export function MaterialViewer({
                         <button
                           onClick={() => setZoom(Math.max(50, zoom - 25))}
                           className="p-1 rounded-md bg-muted/60 hover:bg-muted transition-all"
-                          title="Perkecil"
+                        title={t("reader.zoomOut")}
                         >
                           <ZoomOut className="size-3.5 text-foreground" />
                         </button>
@@ -2267,7 +2270,7 @@ export function MaterialViewer({
                         <button
                           onClick={() => setZoom(Math.min(150, zoom + 25))}
                           className="p-1 rounded-md bg-muted/60 hover:bg-muted transition-all"
-                          title="Perbesar"
+                        title={t("reader.zoomIn")}
                         >
                           <ZoomIn className="size-3.5 text-foreground" />
                         </button>
@@ -2280,7 +2283,7 @@ export function MaterialViewer({
                         <button
                           onClick={toggleFullscreen}
                           className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-all"
-                          title={isFullscreen ? "Keluar Layar Penuh" : "Layar Penuh"}
+                        title={isFullscreen ? t("reader.exitFullscreen") : t("reader.fullscreen")}
                         >
                           {isFullscreen ? <Minimize2 className="size-4" /> : <Maximize2 className="size-4" />}
                         </button>
@@ -2289,7 +2292,7 @@ export function MaterialViewer({
                             href={material.url}
                             download
                             className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-all"
-                            title="Unduh Berkas PDF"
+                            title={t("reader.downloadPdfFile")}
                           >
                             <Download className="size-4" />
                           </a>

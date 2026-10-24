@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useTranslations } from "@/lib/i18n/client";
 import {
   CheckCircle2,
   ExternalLink,
@@ -95,7 +96,7 @@ function legacyResources(booking: any, phase: "pre" | "post"): DrawerResource[] 
       id: "legacy-post-link",
       phase,
       kind: "link",
-      label: booking.postSessionLinkTitle || "Link sesi",
+      label: booking.postSessionLinkTitle || "",
       url: booking.postSessionLinkUrl,
       fileName: null,
       mimeType: null,
@@ -122,7 +123,7 @@ function formatSize(size: number | null | undefined) {
 }
 
 function formatDate(value: string | Date | null | undefined) {
-  if (!value) return "Tanggal belum tersedia";
+  if (!value) return "";
   try {
     return formatIsoDate(value instanceof Date ? value : new Date(`${value}T12:00:00`));
   } catch {
@@ -161,6 +162,7 @@ export function SessionDetailDrawer({
   onPendingResourcesChange,
   onSuccess,
 }: SessionDetailDrawerProps) {
+  const t = useTranslations("schedule");
   const effectiveRole = isAdmin ? "admin" : role || "student";
   const effectiveCurrentUserId = currentUserId;
   const isStudent = effectiveRole === "student";
@@ -216,7 +218,7 @@ export function SessionDetailDrawer({
 
     const response = await fetch("/api/upload", { method: "POST", body: formData });
     const payload = await response.json().catch(() => null);
-    if (!response.ok || !payload?.url) throw new Error("Berkas gagal diunggah.");
+    if (!response.ok || !payload?.url) throw new Error(t("session.errors.upload"));
 
     const result = await addSessionResourceAction({
       bookingId: booking.id,
@@ -228,7 +230,7 @@ export function SessionDetailDrawer({
       mimeType: payload.type || file.type || null,
       sizeBytes: file.size,
     });
-    if (!result.success) throw new Error("Berkas gagal ditautkan ke sesi.");
+    if (!result.success) throw new Error(t("session.errors.attach"));
     setResources((current) => ({
       ...current,
       [phase]: [...current[phase], result.resource],
@@ -255,9 +257,9 @@ export function SessionDetailDrawer({
       }
       if (uploadedCount > 0) await refreshParent();
       if (failedCount > 0) {
-        toast.error(`${failedCount} berkas belum berhasil ditambahkan. Coba lagi.`);
+        toast.error(t("session.uploadFailed", { count: failedCount }));
       } else {
-        toast.success(`${uploadedCount} berkas berhasil ditambahkan ke sesi.`);
+        toast.success(t("session.uploaded", { count: uploadedCount }));
       }
     } finally {
       setBusyAction(null);
@@ -267,7 +269,7 @@ export function SessionDetailDrawer({
   const handleAddLink = async (phase: "pre" | "post", kind: "link" | "recording") => {
     const value = (kind === "recording" ? recordingUrl : phase === "pre" ? preLink : postLink).trim();
     if (!validHttpUrl(value)) {
-      toast.error("Masukkan URL http atau https yang valid.");
+      toast.error(t("session.errors.invalidUrl"));
       return;
     }
 
@@ -277,22 +279,22 @@ export function SessionDetailDrawer({
         bookingId: booking.id,
         phase,
         kind,
-        label: kind === "recording" ? "Rekaman sesi" : value,
+        label: kind === "recording" ? t("session.recording") : value,
         url: value,
       });
       if (!result.success) {
-        toast.error("Link belum berhasil ditambahkan.");
+        toast.error(t("session.errors.addLink"));
         return;
       }
       updateLocalResources(phase, [...resources[phase], result.resource]);
       if (kind === "recording") setRecordingUrl("");
       else if (phase === "pre") setPreLink("");
       else setPostLink("");
-      toast.success("Link berhasil ditambahkan.");
+      toast.success(t("session.linkAdded"));
       await refreshParent();
     } catch (error) {
       console.error("Session resource link error:", error);
-      toast.error("Link belum berhasil ditambahkan.");
+      toast.error(t("session.errors.addLink"));
     } finally {
       setBusyAction(null);
     }
@@ -304,15 +306,15 @@ export function SessionDetailDrawer({
     try {
       const result = await deleteSessionResourceAction(resource.id);
       if (!result.success) {
-        toast.error("Resource belum berhasil dihapus.");
+        toast.error(t("session.errors.deleteResource"));
         return;
       }
       updateLocalResources("pre", resources.pre.filter((item) => item.id !== resource.id));
-      toast.success("Resource dihapus.");
+      toast.success(t("session.resourceDeleted"));
       await refreshParent();
     } catch (error) {
       console.error("Session resource delete error:", error);
-      toast.error("Resource belum berhasil dihapus.");
+      toast.error(t("session.errors.deleteResource"));
     } finally {
       setBusyAction(null);
     }
@@ -323,14 +325,14 @@ export function SessionDetailDrawer({
     try {
       const result = await updatePreSessionContextAction(booking.id, topic, studentNote);
       if (!result.success) {
-        toast.error(result.error || "Konteks sebelum sesi gagal disimpan.");
+        toast.error(t("session.errors.saveContext"));
         return;
       }
-      toast.success("Konteks sebelum sesi disimpan.");
+      toast.success(t("session.contextSaved"));
       await refreshParent();
     } catch (error) {
       console.error("Pre-session context error:", error);
-      toast.error("Konteks sebelum sesi gagal disimpan.");
+      toast.error(t("session.errors.saveContext"));
     } finally {
       setBusyAction(null);
     }
@@ -341,14 +343,14 @@ export function SessionDetailDrawer({
     try {
       const result = await completeTutorSessionAction(booking.id, summary);
       if (!result.success) {
-        toast.error(result.error || "Ringkasan sesi gagal disimpan.");
+        toast.error(t("session.errors.saveSummary"));
         return;
       }
-      toast.success("Ringkasan sesi disimpan dan sesi ditandai selesai.");
+      toast.success(t("session.summaryCompleted"));
       await refreshParent();
     } catch (error) {
       console.error("Complete session error:", error);
-      toast.error("Ringkasan sesi gagal disimpan.");
+      toast.error(t("session.errors.saveSummary"));
     } finally {
       setBusyAction(null);
     }
@@ -367,19 +369,19 @@ export function SessionDetailDrawer({
           label: pending.label,
           url: pending.url,
         });
-        if (!result.success) throw new Error("Link gagal disimpan.");
+        if (!result.success) throw new Error(t("session.errors.addLink"));
         updateLocalResources("pre", [...resources.pre, result.resource]);
       } else {
-        throw new Error("Resource tidak lengkap.");
+        throw new Error(t("session.errors.incompleteResource"));
       }
 
       const remaining = pendingResources.filter((item) => item !== pending);
       onPendingResourcesChange?.(remaining);
-      toast.success(`${pending.label} berhasil ditambahkan.`);
+      toast.success(t("session.pendingAdded", { label: pending.label }));
       await refreshParent();
     } catch (error) {
       console.error("Retry session resource error:", error);
-      toast.error(`${pending.label} belum berhasil ditambahkan.`);
+      toast.error(t("session.pendingFailed", { label: pending.label }));
     } finally {
       setBusyAction(null);
     }
@@ -387,7 +389,7 @@ export function SessionDetailDrawer({
 
   const renderResources = (phase: "pre" | "post") => {
     const list = resources[phase];
-    if (list.length === 0) return <p className="text-body-xs text-muted-foreground">Belum ada resource.</p>;
+    if (list.length === 0) return <p className="text-body-xs text-muted-foreground">{t("session.noResources")}</p>;
 
     return (
       <ul className="space-y-1.5">
@@ -402,7 +404,7 @@ export function SessionDetailDrawer({
                 className="inline-flex min-w-0 flex-1 items-center gap-1.5 text-body-xs font-semibold text-brand-primary hover:underline"
               >
                 {resourceIcon(resource.kind)}
-                <span className="truncate">{resource.label}</span>
+                <span className="truncate">{resource.label || t("session.sessionLink")}</span>
                 {formatSize(resource.sizeBytes) ? <span className="shrink-0 font-normal text-muted-foreground">{formatSize(resource.sizeBytes)}</span> : null}
                 <ExternalLink className="size-3 shrink-0" />
               </a>
@@ -413,7 +415,7 @@ export function SessionDetailDrawer({
                   size="icon-xs"
                   disabled={busyAction === `delete-${resource.id}`}
                   onClick={() => handleDeleteResource(resource)}
-                  aria-label={`Hapus ${resource.label}`}
+                  aria-label={t("session.deleteResourceLabel", { label: resource.label })}
                   className="text-muted-foreground hover:text-status-error"
                 >
                   {busyAction === `delete-${resource.id}` ? <Loader2 className="size-3 animate-spin" /> : <Trash2 className="size-3" />}
@@ -431,7 +433,7 @@ export function SessionDetailDrawer({
       <div className="flex flex-wrap items-center gap-2">
         <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-border bg-background px-2.5 py-1.5 text-body-xs font-semibold text-foreground hover:bg-muted">
           <Upload className="size-3.5" />
-          Tambah berkas
+          {t("session.addFile")}
           <input
             type="file"
             accept=".pdf,.png,.jpg,.jpeg,.webp"
@@ -450,18 +452,18 @@ export function SessionDetailDrawer({
           placeholder="https://..."
           className="h-8 text-body-xs"
           disabled={Boolean(busyAction)}
-          aria-label={`Tambah link ${phase === "pre" ? "sebelum" : "sesudah"} sesi`}
+          aria-label={t("session.addLinkLabel", { phase: t(phase === "pre" ? "session.before" : "session.after") })}
         />
         <Button type="button" size="sm" variant="outline" disabled={Boolean(busyAction)} onClick={() => handleAddLink(phase, "link")} className="h-8 text-body-xs">
-          <Link2 className="size-3.5" /> Tambah link
+          <Link2 className="size-3.5" /> {t("session.addLink")}
         </Button>
       </div>
     </div>
   );
 
-  const tutorDisplayName = slot?.tutor?.name || booking.tutor?.name || tutorName || "Tutor";
-  const groupDisplayName = booking.group?.name || "Kelompok";
-  const courseDisplayName = booking.course?.title || "Tutorial";
+  const tutorDisplayName = slot?.tutor?.name || booking.tutor?.name || tutorName || t("session.tutorFallback");
+  const groupDisplayName = booking.group?.name || t("session.groupFallback");
+  const courseDisplayName = booking.course?.title || t("session.courseFallback");
   const meetingUrl = booking.googleMeetUrl || slot?.googleMeetUrl;
   const auditLogs = Array.isArray(booking.auditLogs) ? booking.auditLogs : [];
   const tickets = Array.isArray(booking.rescheduleTickets) ? booking.rescheduleTickets : [];
@@ -474,8 +476,8 @@ export function SessionDetailDrawer({
       <Sheet open={open} onOpenChange={(nextOpen) => !busyAction && onOpenChange(nextOpen)}>
         <SheetContent side="right" className="w-full sm:max-w-xl">
           <SheetHeader className="border-b border-border pr-12">
-            <SheetTitle>Detail sesi tutorial</SheetTitle>
-            <SheetDescription className="sr-only">Detail sesi tutorial</SheetDescription>
+            <SheetTitle>{t("session.title")}</SheetTitle>
+            <SheetDescription className="sr-only">{t("session.title")}</SheetDescription>
           </SheetHeader>
 
           <div className="flex-1 space-y-4 overflow-y-auto px-4 py-4">
@@ -483,33 +485,33 @@ export function SessionDetailDrawer({
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <div className="min-w-0">
                   <h2 className="font-heading text-body-base font-bold text-foreground">{courseDisplayName}</h2>
-                  <p className="text-body-xs text-muted-foreground">{formatDate(booking.sessionDate)}, {booking.startTime || slot?.startTime || "-"} - {booking.endTime || slot?.endTime || "-"}</p>
+                  <p className="text-body-xs text-muted-foreground">{formatDate(booking.sessionDate) || t("session.dateUnavailable")}, {booking.startTime || slot?.startTime || "-"} - {booking.endTime || slot?.endTime || "-"}</p>
                 </div>
                 <Badge variant="outline" className="text-body-xs">
-                  {booking.status === "completed" ? "Selesai" : booking.status === "cancelled" ? "Batal" : "Terjadwal"}
+                  {booking.status === "completed" ? t("session.status.completed") : booking.status === "cancelled" ? t("session.status.cancelled") : t("session.status.scheduled")}
                 </Badge>
               </div>
               <div className="grid gap-2 text-body-xs text-muted-foreground sm:grid-cols-2">
                 <span className="inline-flex items-center gap-1.5"><Video className="size-3.5" />{tutorDisplayName}</span>
                 <span className="inline-flex items-center gap-1.5"><MessageSquare className="size-3.5" />{groupDisplayName}</span>
-                <span className="inline-flex items-center gap-1.5"><Paperclip className="size-3.5" />{booking.student?.name || "Perwakilan kelompok"}</span>
-                <span className="inline-flex items-center gap-1.5">{booking.mode === "online" ? <Video className="size-3.5" /> : <MapPin className="size-3.5" />}{booking.mode === "online" ? "Online" : booking.location || slot?.location || "Tatap muka"}</span>
+                <span className="inline-flex items-center gap-1.5"><Paperclip className="size-3.5" />{booking.student?.name || t("session.groupRepresentative")}</span>
+                <span className="inline-flex items-center gap-1.5">{booking.mode === "online" ? <Video className="size-3.5" /> : <MapPin className="size-3.5" />}{booking.mode === "online" ? t("session.online") : booking.location || slot?.location || t("session.inPerson")}</span>
               </div>
             </section>
 
             <section className="space-y-3 border-b border-border pb-4">
-              <h3 className="font-heading text-body-sm font-bold text-foreground">Sebelum sesi</h3>
+              <h3 className="font-heading text-body-sm font-bold text-foreground">{t("session.before")}</h3>
               <div className="space-y-2">
-                <Label htmlFor="session-topic" className="text-body-sm font-semibold">Topik</Label>
-                <Input id="session-topic" value={topic} onChange={(event) => setTopic(event.target.value)} readOnly={!canEditPre} className="h-9 text-body-sm" placeholder="Topik yang ingin dibahas" />
+                <Label htmlFor="session-topic" className="text-body-sm font-semibold">{t("session.topic")}</Label>
+                <Input id="session-topic" value={topic} onChange={(event) => setTopic(event.target.value)} readOnly={!canEditPre} className="h-9 text-body-sm" placeholder={t("session.topicPlaceholder")} />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="session-note" className="text-body-sm font-semibold">Catatan mahasiswa</Label>
-                <Textarea id="session-note" value={studentNote} onChange={(event) => setStudentNote(event.target.value)} readOnly={!canEditPre} className="min-h-20 text-body-sm" placeholder="Catatan untuk tutor" />
+                <Label htmlFor="session-note" className="text-body-sm font-semibold">{t("session.studentNote")}</Label>
+                <Textarea id="session-note" value={studentNote} onChange={(event) => setStudentNote(event.target.value)} readOnly={!canEditPre} className="min-h-20 text-body-sm" placeholder={t("session.studentNotePlaceholder")} />
               </div>
               {canEditPre ? (
                 <Button type="button" size="sm" variant="outline" disabled={Boolean(busyAction)} onClick={handleSavePreContext} className="text-body-xs">
-                  {busyAction === "pre-context" ? <Loader2 className="size-3.5 animate-spin" /> : <CheckCircle2 className="size-3.5" />} Simpan konteks
+                  {busyAction === "pre-context" ? <Loader2 className="size-3.5 animate-spin" /> : <CheckCircle2 className="size-3.5" />} {t("session.saveContext")}
                 </Button>
               ) : null}
               {renderResources("pre")}
@@ -517,25 +519,25 @@ export function SessionDetailDrawer({
             </section>
 
             <section className="space-y-3 border-b border-border pb-4">
-              <h3 className="font-heading text-body-sm font-bold text-foreground">Sesi</h3>
+              <h3 className="font-heading text-body-sm font-bold text-foreground">{t("session.session")}</h3>
               {meetingUrl ? (
                 <a href={meetingUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-body-sm font-semibold text-brand-primary hover:underline">
-                  <Video className="size-4" /> Buka Google Meet <ExternalLink className="size-3.5" />
+                  <Video className="size-4" /> {t("session.openMeet")} <ExternalLink className="size-3.5" />
                 </a>
               ) : (
-                <p className="text-body-xs text-muted-foreground">{booking.mode === "online" ? "Link Google Meet belum tersedia." : booking.location || slot?.location || "Lokasi tatap muka belum diisi."}</p>
+                <p className="text-body-xs text-muted-foreground">{booking.mode === "online" ? t("session.meetUnavailable") : booking.location || slot?.location || t("session.locationUnavailable")}</p>
               )}
             </section>
 
             <section className="space-y-3 border-b border-border pb-4">
-              <h3 className="font-heading text-body-sm font-bold text-foreground">Sesudah sesi</h3>
+              <h3 className="font-heading text-body-sm font-bold text-foreground">{t("session.after")}</h3>
               <div className="space-y-2">
-                <Label htmlFor="session-summary" className="text-body-sm font-semibold">Ringkasan tutor</Label>
-                <Textarea id="session-summary" value={summary} onChange={(event) => setSummary(event.target.value)} readOnly={!canEditPost} className="min-h-24 text-body-sm" placeholder="Ringkasan pembahasan dan tindak lanjut" />
+                <Label htmlFor="session-summary" className="text-body-sm font-semibold">{t("session.tutorSummary")}</Label>
+                <Textarea id="session-summary" value={summary} onChange={(event) => setSummary(event.target.value)} readOnly={!canEditPost} className="min-h-24 text-body-sm" placeholder={t("session.summaryPlaceholder")} />
               </div>
               {canEditPost ? (
                 <Button type="button" size="sm" disabled={Boolean(busyAction)} onClick={handleCompleteSession} className="text-body-xs bg-brand-primary text-white hover:bg-brand-primary/90">
-                  {busyAction === "complete" ? <Loader2 className="size-3.5 animate-spin" /> : <CheckCircle2 className="size-3.5" />} {booking.status === "completed" ? "Simpan ringkasan" : "Simpan & selesaikan"}
+                  {busyAction === "complete" ? <Loader2 className="size-3.5 animate-spin" /> : <CheckCircle2 className="size-3.5" />} {booking.status === "completed" ? t("session.saveSummary") : t("session.saveAndComplete")}
                 </Button>
               ) : null}
               {renderResources("post")}
@@ -543,8 +545,8 @@ export function SessionDetailDrawer({
                 <>
                   {renderAddControls("post")}
                   <div className="flex items-end gap-2 border-t border-border/70 pt-2">
-                    <Input value={recordingUrl} onChange={(event) => setRecordingUrl(event.target.value)} placeholder="URL rekaman sesi" className="h-8 text-body-xs" disabled={Boolean(busyAction)} aria-label="URL rekaman sesi" />
-                    <Button type="button" size="sm" variant="outline" disabled={Boolean(busyAction)} onClick={() => handleAddLink("post", "recording")} className="h-8 text-body-xs"><Video className="size-3.5" /> Tambah rekaman</Button>
+                    <Input value={recordingUrl} onChange={(event) => setRecordingUrl(event.target.value)} placeholder={t("session.recordingUrl")} className="h-8 text-body-xs" disabled={Boolean(busyAction)} aria-label={t("session.recordingUrl")} />
+                    <Button type="button" size="sm" variant="outline" disabled={Boolean(busyAction)} onClick={() => handleAddLink("post", "recording")} className="h-8 text-body-xs"><Video className="size-3.5" /> {t("session.addRecording")}</Button>
                   </div>
                 </>
               ) : null}
@@ -552,14 +554,14 @@ export function SessionDetailDrawer({
 
             {pendingResources.length > 0 ? (
               <section className="space-y-2 border border-status-error/30 bg-status-error/5 p-3">
-                <h3 className="text-body-sm font-semibold text-status-error">Resource belum terunggah</h3>
-                <p className="text-body-xs text-muted-foreground">Booking tetap berhasil. Coba unggah ulang resource berikut.</p>
+                <h3 className="text-body-sm font-semibold text-status-error">{t("session.pendingResources")}</h3>
+                <p className="text-body-xs text-muted-foreground">{t("session.pendingResourcesDescription")}</p>
                 <ul className="space-y-1.5">
                   {pendingResources.map((pending, index) => (
                     <li key={`${pending.kind}-${pending.label}-${index}`} className="flex items-center justify-between gap-2 text-body-xs">
                       <span className="truncate">{pending.label}</span>
                       <Button type="button" size="sm" variant="outline" disabled={Boolean(busyAction)} onClick={() => retryPendingResource(pending)} className="h-7 text-body-xs">
-                        {busyAction === `retry-${pending.label}` ? <Loader2 className="size-3 animate-spin" /> : <RefreshCcw className="size-3" />} Coba lagi
+                        {busyAction === `retry-${pending.label}` ? <Loader2 className="size-3 animate-spin" /> : <RefreshCcw className="size-3" />} {t("session.retry")}
                       </Button>
                     </li>
                   ))}
@@ -568,9 +570,9 @@ export function SessionDetailDrawer({
             ) : null}
 
             <section className="space-y-2 border-b border-border pb-4">
-              <h3 className="flex items-center gap-1.5 font-heading text-body-sm font-bold text-foreground"><History className="size-3.5" /> Aktivitas</h3>
+              <h3 className="flex items-center gap-1.5 font-heading text-body-sm font-bold text-foreground"><History className="size-3.5" /> {t("session.activity")}</h3>
               {auditLogs.length === 0 ? (
-                <p className="text-body-xs text-muted-foreground">Belum ada catatan aktivitas sesi.</p>
+                <p className="text-body-xs text-muted-foreground">{t("session.noActivity")}</p>
               ) : (
                 <ul className="space-y-2">
                   {auditLogs.slice(0, 12).map((log: any) => (
@@ -582,30 +584,30 @@ export function SessionDetailDrawer({
 
             {effectiveRole === "admin" && (onAdminMove || onAdminCancel) ? (
               <section className="space-y-2 border-b border-border pb-4">
-                <h3 className="font-heading text-body-sm font-bold text-foreground">Override admin</h3>
+                <h3 className="font-heading text-body-sm font-bold text-foreground">{t("session.adminOverride")}</h3>
                 <div className="flex flex-wrap gap-2">
-                  {onAdminMove ? <Button type="button" variant="outline" size="sm" onClick={() => onAdminMove(booking)} className="text-body-xs"><RefreshCcw className="size-3.5" /> Pindah sesi</Button> : null}
-                  {onAdminCancel ? <Button type="button" variant="outline" size="sm" onClick={() => onAdminCancel(booking)} className="text-body-xs text-status-error hover:text-status-error"><Trash2 className="size-3.5" /> Batalkan sesi</Button> : null}
+                  {onAdminMove ? <Button type="button" variant="outline" size="sm" onClick={() => onAdminMove(booking)} className="text-body-xs"><RefreshCcw className="size-3.5" /> {t("session.moveSession")}</Button> : null}
+                  {onAdminCancel ? <Button type="button" variant="outline" size="sm" onClick={() => onAdminCancel(booking)} className="text-body-xs text-status-error hover:text-status-error"><Trash2 className="size-3.5" /> {t("session.cancelSession")}</Button> : null}
                 </div>
               </section>
             ) : null}
 
             <section className="space-y-2">
-              <h3 className="font-heading text-body-sm font-bold text-foreground">Reschedule atau pembatalan</h3>
+              <h3 className="font-heading text-body-sm font-bold text-foreground">{t("session.changeOrCancel")}</h3>
               {tickets.length > 0 ? (
                 <ul className="space-y-1.5 text-body-xs text-muted-foreground">
-                  {tickets.slice(0, 3).map((ticket: any) => <li key={ticket.id}>{ticket.type === "reschedule" ? "Reschedule" : "Pembatalan"}: {ticket.status}, {ticket.reason}</li>)}
+                  {tickets.slice(0, 3).map((ticket: any) => <li key={ticket.id}>{ticket.type === "reschedule" ? t("ticket.reschedule") : t("ticket.cancellation")}: {ticket.status === "approved" ? t("ticket.status.approved") : ticket.status === "rejected" ? t("ticket.status.rejected") : t("ticket.status.pending")}, {ticket.reason}</li>)}
                 </ul>
-              ) : <p className="text-body-xs text-muted-foreground">Belum ada permohonan terkait sesi ini.</p>}
+              ) : <p className="text-body-xs text-muted-foreground">{t("session.noTickets")}</p>}
               {canOpenTicket ? (
-                <Button type="button" variant="outline" size="sm" onClick={() => setTicketOpen(true)} className="text-body-xs"><MessageSquare className="size-3.5" /> {isTutor ? "Tinjau permohonan" : "Ajukan perubahan"}</Button>
+                <Button type="button" variant="outline" size="sm" onClick={() => setTicketOpen(true)} className="text-body-xs"><MessageSquare className="size-3.5" /> {isTutor ? t("session.reviewRequest") : t("session.requestChange")}</Button>
               ) : null}
-              {onOpenAuditLog ? <Button type="button" variant="ghost" size="sm" onClick={() => onOpenAuditLog(booking)} className="text-body-xs"><History className="size-3.5" /> Buka riwayat lengkap</Button> : null}
+              {onOpenAuditLog ? <Button type="button" variant="ghost" size="sm" onClick={() => onOpenAuditLog(booking)} className="text-body-xs"><History className="size-3.5" /> {t("session.openFullHistory")}</Button> : null}
             </section>
           </div>
 
           <SheetFooter className="border-t border-border">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Tutup</Button>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>{t("session.close")}</Button>
           </SheetFooter>
         </SheetContent>
       </Sheet>

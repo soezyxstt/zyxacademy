@@ -6,92 +6,109 @@ import { Menu, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { openMobileSidebar } from "@/components/sidebar-shell";
 import { useCommandMenu } from "@/components/command-menu";
+import { useTranslations } from "@/lib/i18n/client";
 
 export function getRouteTitle(
   pathname: string,
-  surface?: "admin" | "student" | "tutor"
+  surface?: "admin" | "student" | "tutor",
+  translate?: (key: string) => string
 ): string {
-  if (pathname === "/admin") return "Panel Admin";
-  if (pathname.startsWith("/admin/blog")) return "Kelola Blog";
+  const roleTitle = (namespace: "admin" | "tutor", key: string, fallback: string) =>
+    translate?.(`${namespace}.routeTitles.${key}`) ?? fallback;
+  if (pathname === "/admin") return roleTitle("admin", "dashboard", "Admin dashboard");
+  if (pathname.startsWith("/admin/blog")) return roleTitle("admin", "blog", "Manage blog");
   if (pathname.startsWith("/admin/courses/")) {
     const match = pathname.match(/^\/admin\/courses\/([^/]+)(.*)$/);
     if (match && match[1]) {
       const subpath = match[2] || "";
-      if (subpath.startsWith("/documents")) return "Dokumen";
-      if (subpath.startsWith("/videos")) return "Video";
-      if (subpath.startsWith("/quizzes")) return "Kuis";
-      if (subpath.startsWith("/tryouts")) return "Tryout";
-      if (subpath.startsWith("/questions")) return "Soal";
-      if (subpath.startsWith("/flashcards")) return "Flashcard";
-      if (subpath.startsWith("/results")) return "Hasil";
-      if (subpath.startsWith("/leaderboard")) return "Papan Peringkat";
-      if (subpath.startsWith("/analytics")) return "Analitik";
-      if (subpath.startsWith("/review")) return "Review Materi";
-      if (subpath.startsWith("/settings")) return "Pengaturan";
-      if (subpath === "" || subpath === "/") return "Bab";
-      return "Mata Kuliah";
+      if (subpath.startsWith("/documents")) return roleTitle("admin", "documents", "Documents");
+      if (subpath.startsWith("/videos")) return roleTitle("admin", "videos", "Videos");
+      if (subpath.startsWith("/quizzes")) return roleTitle("admin", "quizzes", "Quizzes");
+      if (subpath.startsWith("/tryouts")) return roleTitle("admin", "tryouts", "Tryouts");
+      if (subpath.startsWith("/questions")) return roleTitle("admin", "questions", "Questions");
+      if (subpath.startsWith("/flashcards")) return roleTitle("admin", "flashcards", "Flashcards");
+      if (subpath.startsWith("/results")) return roleTitle("admin", "results", "Results");
+      if (subpath.startsWith("/leaderboard")) return roleTitle("admin", "leaderboard", "Leaderboard");
+      if (subpath.startsWith("/analytics")) return roleTitle("admin", "analytics", "Analytics");
+      if (subpath.startsWith("/review")) return roleTitle("admin", "review", "Material review");
+      if (subpath.startsWith("/settings")) return roleTitle("admin", "settings", "Settings");
+      if (subpath === "" || subpath === "/") return roleTitle("admin", "chapters", "Chapters");
+      return roleTitle("admin", "courses", "Courses");
     }
   }
-  if (pathname.startsWith("/admin/courses")) return "Mata Kuliah";
-  if (pathname.startsWith("/admin/schedules")) return "Jadwal";
-  if (pathname.startsWith("/admin/materials/review")) return "Review Materi";
-  if (pathname.startsWith("/admin/materials")) return "Materi Kuliah";
-  if (pathname.startsWith("/admin/questions")) return "Bank Soal";
-  if (pathname.startsWith("/admin/quizzes")) return "Kuis";
-  if (pathname.startsWith("/admin/leaderboard")) return "Papan Peringkat";
-  if (pathname.startsWith("/admin/quiz-insights")) return "Analisis Kuis";
-  if (pathname.startsWith("/admin/jobs")) return "Generasi Soal";
-  if (pathname.startsWith("/admin/distractors")) return "Distraktor";
-  if (pathname.startsWith("/admin/pricing")) return "Kalkulator Harga";
-  if (pathname.startsWith("/admin/forms")) return "Form Studio";
-  if (pathname.startsWith("/admin/meet")) return "Meet";
-  if (pathname.startsWith("/admin/media")) return "Pustaka Media";
-  if (pathname.startsWith("/admin/tautan")) return "Tautan Publik";
-  if (pathname.startsWith("/admin/users")) return "Pengguna";
-  if (pathname.startsWith("/admin/groups")) return "Kelompok Belajar";
-  if (pathname.startsWith("/admin/tokens")) return "Token Aktivasi";
-  if (pathname.startsWith("/admin/notifications")) return "Notifikasi";
-  if (pathname.startsWith("/admin/ops/analytics")) return "Analitik Zyra";
-  if (pathname.startsWith("/admin/ops/feature-usage")) return "Fitur";
-  if (pathname.startsWith("/admin/ops/flags")) return "Feature Flags";
-  if (pathname.startsWith("/admin/ops/keys")) return "API Keys";
-  if (pathname.startsWith("/admin/ops/short-links")) return "Short Links";
-  if (pathname.startsWith("/admin/ops/tutor-activity")) return "Aktivitas Tutor";
-  if (pathname.startsWith("/admin/ops/web-analytics")) return "Web Analytics";
-  if (pathname.startsWith("/admin/ops")) return "Monitor Ops";
-  if (pathname.startsWith("/admin/tutorial-pka/registrations")) return "Pendaftar PKA";
-  if (pathname.startsWith("/admin/tutorial-pka/announcements")) return "Pengumuman PKA";
-  if (pathname.startsWith("/admin/tutorial-pka/schedules")) return "Jadwal Live PKA";
-  if (pathname.startsWith("/admin/tutorial-pka")) return "Tutorial PKA";
-  if (pathname.startsWith("/admin/bundles/idea")) return "Idea Bundles";
-  if (pathname.startsWith("/admin/bundles/product")) return "Product Bundles";
+  if (pathname.startsWith("/admin/courses")) return roleTitle("admin", "courses", "Courses");
+  if (pathname.startsWith("/admin/schedules")) return roleTitle("admin", "schedules", "Shared schedule");
+  if (pathname.startsWith("/admin/materials/review")) return roleTitle("admin", "review", "Material review");
+  if (pathname.startsWith("/admin/materials")) return roleTitle("admin", "materials", "Course materials");
+  if (pathname.startsWith("/admin/questions")) return roleTitle("admin", "questions", "Questions");
+  if (pathname.startsWith("/admin/quizzes")) return roleTitle("admin", "quizzes", "Quizzes");
+  if (pathname.startsWith("/admin/leaderboard")) return roleTitle("admin", "leaderboard", "Leaderboard");
+  if (pathname.startsWith("/admin/quiz-insights")) return roleTitle("admin", "quizInsights", "Quiz insights");
+  if (pathname.startsWith("/admin/jobs")) return roleTitle("admin", "jobs", "Question generation");
+  if (pathname.startsWith("/admin/distractors")) return roleTitle("admin", "distractors", "Distractors");
+  if (pathname.startsWith("/admin/pricing")) return roleTitle("admin", "pricing", "Pricing calculator");
+  if (pathname.startsWith("/admin/forms")) return roleTitle("admin", "forms", "Form Studio");
+  if (pathname.startsWith("/admin/meet")) return roleTitle("admin", "meet", "Meet");
+  if (pathname.startsWith("/admin/media")) return roleTitle("admin", "media", "Media library");
+  if (pathname.startsWith("/admin/tautan")) return roleTitle("admin", "links", "Public links");
+  if (pathname.startsWith("/admin/users")) return roleTitle("admin", "users", "Users");
+  if (pathname.startsWith("/admin/groups")) return roleTitle("admin", "groups", "Study groups");
+  if (pathname.startsWith("/admin/tokens")) return roleTitle("admin", "tokens", "Activation tokens");
+  if (pathname.startsWith("/admin/notifications")) return roleTitle("admin", "notifications", "Notifications");
+  if (pathname.startsWith("/admin/ops/analytics")) return roleTitle("admin", "zyraAnalytics", "Zyra analytics");
+  if (pathname.startsWith("/admin/ops/feature-usage")) return roleTitle("admin", "featureUsage", "Feature usage");
+  if (pathname.startsWith("/admin/ops/flags")) return roleTitle("admin", "featureFlags", "Feature flags");
+  if (pathname.startsWith("/admin/ops/keys")) return roleTitle("admin", "apiKeys", "API keys");
+  if (pathname.startsWith("/admin/ops/short-links")) return roleTitle("admin", "shortLinks", "Short links");
+  if (pathname.startsWith("/admin/ops/tutor-activity")) return roleTitle("admin", "tutorActivity", "Tutor activity");
+  if (pathname.startsWith("/admin/ops/web-analytics")) return roleTitle("admin", "webAnalytics", "Web analytics");
+  if (pathname.startsWith("/admin/ops")) return roleTitle("admin", "ops", "Ops monitor");
+  if (pathname.startsWith("/admin/tutorial-pka/registrations")) return roleTitle("admin", "pkaRegistrations", "PKA registrations");
+  if (pathname.startsWith("/admin/tutorial-pka/announcements")) return roleTitle("admin", "pkaAnnouncements", "PKA announcements");
+  if (pathname.startsWith("/admin/tutorial-pka/schedules")) return roleTitle("admin", "pkaSchedules", "PKA live schedule");
+  if (pathname.startsWith("/admin/tutorial-pka")) return roleTitle("admin", "pka", "PKA tutorials");
+  if (pathname.startsWith("/admin/bundles/idea")) return roleTitle("admin", "ideaBundles", "Idea Bundles");
+  if (pathname.startsWith("/admin/bundles/product")) return roleTitle("admin", "productBundles", "Product Bundles");
 
-  if (pathname === "/tutor") return "Panel Pengajar";
-  if (pathname.startsWith("/tutor/schedule")) return "Jadwal Mengajar";
+  if (pathname === "/tutor") return roleTitle("tutor", "dashboardTitle", "Tutor dashboard");
+  if (pathname.startsWith("/tutor/schedule")) return roleTitle("tutor", "scheduleTitle", "Teaching schedule");
   if (pathname.startsWith("/tutor")) {
-    if (pathname.includes("/videos")) return "Video";
-    if (pathname.includes("/materials")) return "Dokumen";
-    return "Panel Pengajar";
+    if (pathname.includes("/videos")) return roleTitle("tutor", "videos", "Videos");
+    if (pathname.includes("/materials")) return roleTitle("tutor", "documents", "Documents");
+    if (pathname.includes("/participants")) return roleTitle("tutor", "participants", "Participants and groups");
+    if (pathname.includes("/quizzes")) return roleTitle("tutor", "quizzes", "Quizzes");
+    if (pathname.includes("/live")) return roleTitle("tutor", "liveQuiz", "Live quiz");
+    if (pathname.includes("/grading")) return roleTitle("tutor", "tryoutGrading", "Tryout grading");
+    return roleTitle("tutor", "overview", "Overview");
   }
 
-  if (pathname === "/dashboard/schedule") return "Jadwal Belajar";
-  if (pathname.startsWith("/dashboard/groups")) return "Kelompok Belajar";
-  if (pathname === "/dashboard") return "Dashboard Siswa";
+  const t = (key: string, fallback: string) => translate?.(`routeTitles.${key}`) ?? fallback;
+  if (pathname === "/dashboard/schedule") return t("schedule", "Jadwal Belajar");
+  if (pathname.startsWith("/dashboard/groups")) return t("groups", "Kelompok Belajar");
+  if (pathname === "/dashboard") return t("dashboard", "Dashboard Siswa");
   if (pathname.startsWith("/courses/tutorial-pka")) return "Tutorial PKA";
   if (pathname.startsWith("/courses")) {
-    if (pathname.includes("/video")) return "Video";
-    if (pathname.includes("/material")) return "Dokumen";
-    return "Kelas";
+    if (pathname.includes("/video")) return t("video", "Video");
+    if (pathname.includes("/material")) return t("documents", "Dokumen");
+    if (pathname.includes("/quiz")) return t("quiz", "Kuis");
+    if (pathname.includes("/flashcard")) return t("flashcard", "Flashcard");
+    if (pathname.includes("/tryout")) return t("tryout", "Tryout");
+    if (pathname.includes("/progress")) return t("progress", "Progres");
+    if (pathname.includes("/mastery")) return t("mastery", "Penguasaan");
+    if (pathname.includes("/path")) return t("studyPath", "Alur Belajar");
+    if (pathname.includes("/my-results")) return t("examResults", "Hasil Ujian");
+    if (pathname.includes("/live")) return t("liveQuiz", "Kuis Langsung");
+    return t("course", "Kelas");
   }
-  if (pathname.startsWith("/leaderboard")) return "Papan Peringkat";
-  if (pathname.startsWith("/calendar")) return "Kalender";
-  if (pathname.startsWith("/feedback")) return "Umpan Balik";
-  if (pathname.startsWith("/profile")) return "Profil";
-  if (pathname.startsWith("/settings")) return "Pengaturan";
+  if (pathname.startsWith("/leaderboard")) return t("leaderboard", "Papan Peringkat");
+  if (pathname.startsWith("/calendar")) return t("calendar", "Kalender");
+  if (pathname.startsWith("/feedback")) return t("feedback", "Umpan Balik");
+  if (pathname.startsWith("/profile")) return t("profile", "Profil");
+  if (pathname.startsWith("/settings")) return t("settings", "Pengaturan");
 
   if (surface === "admin") return "Panel Admin";
   if (surface === "tutor") return "Panel Pengajar";
-  return "Dashboard Siswa";
+  return t("dashboard", "Dashboard Siswa");
 }
 
 export function setMobileNavTitle(title: string) {
@@ -116,6 +133,9 @@ function isMobileSidebarBackdrop(target: EventTarget | null): target is HTMLElem
 
 export function MobileNavbar({ surface, className }: MobileNavbarProps) {
   const pathname = usePathname();
+  const t = useTranslations("student");
+  const tAdmin = useTranslations("admin");
+  const tTutor = useTranslations("tutor");
   const { setOpen: setSearchOpen } = useCommandMenu();
   const [customTitle, setCustomTitle] = useState<string | null>(null);
   const [isTitleOverflowing, setIsTitleOverflowing] = useState(false);
@@ -153,7 +173,12 @@ export function MobileNavbar({ surface, className }: MobileNavbarProps) {
     titleRef.current?.scrollTo({ left: 0 });
   }, [pathname]);
 
-  const displayTitle = customTitle || getRouteTitle(pathname, surface);
+  const translateRoute = (key: string) => {
+    if (key.startsWith("admin.")) return tAdmin(key.slice("admin.".length));
+    if (key.startsWith("tutor.")) return tTutor(key.slice("tutor.".length));
+    return t(key);
+  };
+  const displayTitle = customTitle || getRouteTitle(pathname, surface, translateRoute);
 
   useEffect(() => {
     const checkOverflow = () => {
@@ -201,7 +226,7 @@ export function MobileNavbar({ surface, className }: MobileNavbarProps) {
         <button
           type="button"
           onClick={openMobileSidebar}
-          aria-label="Buka navigasi"
+          aria-label={t("mobile.openNavigation")}
           className="flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-border bg-card text-muted-foreground shadow-xs transition-colors hover:bg-muted hover:text-foreground active:scale-95"
         >
           <Menu className="size-4.5" />
@@ -211,7 +236,7 @@ export function MobileNavbar({ surface, className }: MobileNavbarProps) {
           <button
             type="button"
             onClick={revealFullTitle}
-            aria-label={`Tampilkan judul lengkap: ${displayTitle}`}
+            aria-label={t("mobile.showFullTitle", { title: displayTitle })}
             title={displayTitle}
             className="min-w-0 flex-1 cursor-pointer overflow-hidden text-left"
           >
@@ -228,7 +253,7 @@ export function MobileNavbar({ surface, className }: MobileNavbarProps) {
         <button
           type="button"
           onClick={() => setSearchOpen(true)}
-          aria-label="Cari"
+          aria-label={t("mobile.search")}
           className="flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-border bg-card text-muted-foreground shadow-xs transition-colors hover:bg-muted hover:text-foreground active:scale-95"
         >
           <Search className="size-4" />

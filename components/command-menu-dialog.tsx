@@ -1,9 +1,7 @@
 "use client";
 
 import {
-  createContext,
   useCallback,
-  useContext,
   useEffect,
   useMemo,
   useRef,
@@ -50,6 +48,7 @@ import {
 } from "@/lib/search/parser";
 import { rankSearchDocuments } from "@/lib/search/ranking";
 import Fuse from "fuse.js";
+import { useTranslations } from "@/lib/i18n/client";
 
 export interface SearchItem {
   id: string;
@@ -140,6 +139,16 @@ function getCategoryIcon(category: NormalizedCategory) {
   }
 }
 
+function categoryMessageKey(category: NormalizedCategory) {
+  switch (category) {
+    case "Course & Modul": return "courseModules";
+    case "Materi & Artikel": return "materialsArticles";
+    case "Kuis & Evaluasi": return "quizzesEvaluations";
+    case "Navigasi": return "navigation";
+    case "Administrasi": return "administration";
+  }
+}
+
 function groupIcon(group?: string) {
   if (!group) return Layers;
   switch (group) {
@@ -176,10 +185,10 @@ function getNavigationSurface(href: string) {
   return "Publik";
 }
 
-function NavigationSurfaceBadge({ href }: { href: string }) {
+function NavigationSurfaceBadge({ label }: { label: string }) {
   return (
     <span className="shrink-0 rounded-md border border-border bg-background/70 px-1.5 py-0.5 text-body-xs font-semibold text-muted-foreground group-aria-selected:border-primary-foreground/30 group-aria-selected:bg-primary-foreground/15 group-aria-selected:text-primary-foreground">
-      {getNavigationSurface(href)}
+      {label}
     </span>
   );
 }
@@ -332,6 +341,7 @@ function HighlightText({ text, query }: { text: string; query: string }) {
 
 const SUGGESTED_TOPICS = [
   {
+    key: "calculus",
     title: "Kalkulus & Metode Numerik",
     subtitle: "Bidang studi TPB",
     href: "/courses",
@@ -339,6 +349,7 @@ const SUGGESTED_TOPICS = [
     group: "Course",
   },
   {
+    key: "physics",
     title: "Fisika Dasar",
     subtitle: "Bidang studi TPB",
     href: "/courses",
@@ -346,6 +357,7 @@ const SUGGESTED_TOPICS = [
     group: "Course",
   },
   {
+    key: "quizPractice",
     title: "Kuis & Latihan Soal",
     subtitle: "Bank soal dan evaluasi",
     href: "/courses",
@@ -353,6 +365,7 @@ const SUGGESTED_TOPICS = [
     group: "Evaluasi",
   },
   {
+    key: "courseCatalog",
     title: "Katalog Course",
     subtitle: "Daftar seluruh kurikulum",
     href: "/courses",
@@ -363,6 +376,7 @@ const SUGGESTED_TOPICS = [
 
 const MARKETING_SUGGESTED_TOPICS = [
   {
+    key: "plans",
     title: "Paket Belajar & Harga",
     subtitle: "Pilihan langganan dan biaya",
     href: "/plans",
@@ -370,6 +384,7 @@ const MARKETING_SUGGESTED_TOPICS = [
     group: "Halaman",
   },
   {
+    key: "about",
     title: "Tentang Zyx Academy",
     subtitle: "Profil, visi, dan pengajar",
     href: "/about",
@@ -377,6 +392,7 @@ const MARKETING_SUGGESTED_TOPICS = [
     group: "Halaman",
   },
   {
+    key: "testimonials",
     title: "Testimoni Mahasiswa",
     subtitle: "Pengalaman dan ulasan alumni",
     href: "/testimonial",
@@ -384,6 +400,7 @@ const MARKETING_SUGGESTED_TOPICS = [
     group: "Halaman",
   },
   {
+    key: "learningArticles",
     title: "Artikel & Panduan Belajar",
     subtitle: "Tips, trik, dan wawasan edukasi",
     href: "/blog",
@@ -400,8 +417,21 @@ export function CommandMenuDialog({
   onOpenChange: (open: boolean) => void;
 }) {
   const router = useRouter();
+  const t = useTranslations("search");
   const { data: session } = useSession();
   const isAuthenticated = Boolean(session?.user);
+
+  const getCuratedTopicLabels = (title: string, subtitle: string) => {
+    const topic = [...SUGGESTED_TOPICS, ...MARKETING_SUGGESTED_TOPICS].find(
+      (item) => item.title === title && item.subtitle === subtitle
+    );
+    return topic
+      ? {
+          title: t(`suggestedTopics.${topic.key}.title`),
+          subtitle: t(`suggestedTopics.${topic.key}.subtitle`),
+        }
+      : { title, subtitle };
+  };
 
   const [search, setSearch] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -417,6 +447,30 @@ export function CommandMenuDialog({
     const allStatic = getSiteSearchDocuments();
     return isAuthenticated ? allStatic : allStatic.filter((d) => isMarketingHref(d.href));
   });
+
+  const addNavigationAliases = useCallback((items: SiteSearchDocument[]) => items.map((item) => {
+    const href = item.href;
+    const aliasKey = href === "/" ? "home"
+      : href === "/courses" ? "courses"
+      : href === "/plans" ? "plans"
+      : href === "/about" ? "about"
+      : href.startsWith("/testimonial") ? "testimonial"
+      : href.startsWith("/blog") ? "blog"
+      : href === "/dashboard" ? "dashboard"
+      : href.includes("schedule") ? "schedule"
+      : href.includes("groups") ? "groups"
+      : href.startsWith("/leaderboard") ? "leaderboard"
+      : href === "/calendar" ? "calendar"
+      : href.includes("reflection") ? "reflections"
+      : href === "/profile" ? "profile"
+      : href.startsWith("/settings") ? "settings"
+      : href === "/feedback" ? "feedback"
+      : href.includes("tutorial-pka") ? "pka"
+      : null;
+    return aliasKey
+      ? { ...item, keywords: `${item.keywords} ${t(`aliases.${aliasKey}`)}` }
+      : item;
+  }), [t]);
 
   // Sync recent and favorites from localStorage when opened
   useEffect(() => {
@@ -438,18 +492,18 @@ export function CommandMenuDialog({
   useEffect(() => {
     if (isAuthenticated) {
       getStudentSearchDocuments()
-        .then(setDocs)
+        .then((items) => setDocs(addNavigationAliases(items)))
         .catch(() => {
           setDocs(getSiteSearchDocuments());
         });
     } else {
       getMarketingSearchDocuments()
-        .then(setDocs)
+        .then((items) => setDocs(addNavigationAliases(items)))
         .catch(() => {
           setDocs(getSiteSearchDocuments().filter((d) => isMarketingHref(d.href)));
         });
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, addNavigationAliases]);
 
   // Client Fuse instance
   const fuse = useMemo(() => {
@@ -482,6 +536,9 @@ export function CommandMenuDialog({
 
   const trimmed = search.trim();
   const parsedQuery = useMemo(() => parseSearchQueryString(trimmed), [trimmed]);
+  const activePrefixLabel = parsedQuery.prefixType
+    ? t(`prefixLabels.${parsedQuery.prefixType}`)
+    : parsedQuery.prefixLabel;
   const isHelpMode = trimmed === "?";
 
   useEffect(() => {
@@ -693,17 +750,17 @@ export function CommandMenuDialog({
 
           {/* Centering wrapper */}
           <div className="fixed inset-0 z-[201] flex items-start justify-center p-4 pt-[8vh] md:pt-[12vh] pointer-events-none overflow-y-auto">
-            <Dialog.Content
-              aria-label="Pencarian situs"
+      <Dialog.Content
+              aria-label={t("dialogLabel")}
               className={cn(
                 "pointer-events-auto relative w-full max-w-2xl overflow-hidden rounded-xl border border-border bg-popover text-popover-foreground shadow-2xl outline-none",
                 "data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95",
                 "data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95"
               )}
             >
-              <Dialog.Title className="sr-only">Pencarian situs</Dialog.Title>
+              <Dialog.Title className="sr-only">{t("dialogLabel")}</Dialog.Title>
               <Dialog.Description className="sr-only">
-                Cari materi, soal, modul, atau halaman di Zyx Academy.
+                {t("description")}
               </Dialog.Description>
 
               <Command
@@ -717,14 +774,14 @@ export function CommandMenuDialog({
                     className="text-muted-foreground size-5 shrink-0"
                     aria-hidden
                   />
-                  {parsedQuery.isScoped && parsedQuery.prefixLabel && (
+                  {parsedQuery.isScoped && activePrefixLabel && (
                     <div className="inline-flex items-center gap-1 rounded-md bg-primary/10 text-primary border border-primary/20 px-2 py-0.5 text-body-xs font-semibold shrink-0 select-none animate-in fade-in zoom-in-95 duration-150">
-                      <span>{parsedQuery.prefixLabel}</span>
+                      <span>{activePrefixLabel}</span>
                       <button
                         type="button"
                         onClick={() => setSearch(parsedQuery.cleanQuery)}
                         className="ml-0.5 rounded hover:bg-primary/20 p-0.5 transition-colors cursor-pointer text-primary/80 hover:text-primary"
-                        aria-label="Hapus filter prefiks"
+                        aria-label={t("clearPrefix")}
                       >
                         <X className="size-3" />
                       </button>
@@ -732,9 +789,9 @@ export function CommandMenuDialog({
                   )}
                   <Command.Input
                     placeholder={
-                      parsedQuery.isScoped && parsedQuery.prefixLabel
-                        ? `Cari dalam ${parsedQuery.prefixLabel.toLowerCase()}...`
-                        : "Cari di Zyx, atau ketik ? untuk bantuan..."
+                      parsedQuery.isScoped && activePrefixLabel
+                        ? t("scopedPlaceholder", { prefix: activePrefixLabel.toLowerCase() })
+                        : t("placeholder")
                     }
                     value={parsedQuery.isScoped ? parsedQuery.cleanQuery : search}
                     onValueChange={(val) => {
@@ -752,7 +809,7 @@ export function CommandMenuDialog({
                   {isLoading && (
                     <Loader2
                       className="size-4 shrink-0 animate-spin text-primary"
-                      aria-label="Memuat hasil pencarian"
+                      aria-label={t("loading")}
                     />
                   )}
 
@@ -762,7 +819,7 @@ export function CommandMenuDialog({
                       type="button"
                       onClick={() => setSearch("")}
                       className="rounded p-1 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
-                      aria-label="Bersihkan pencarian"
+                      aria-label={t("clear")}
                     >
                       <X className="size-4" />
                     </button>
@@ -785,12 +842,13 @@ export function CommandMenuDialog({
                       {/* Section 1: Recent */}
                       {recentItems.length > 0 && (
                         <Command.Group
-                          heading="Recent"
+                          heading={t("recent")}
                           className="[&_[cmdk-group-heading]]:text-muted-foreground [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:text-body-xs [&_[cmdk-group-heading]]:font-semibold [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-wider"
                         >
                           {recentItems.map((item) => {
                             const Icon = groupIcon(item.group);
                             const favorited = isFavorite(item.id, item.href);
+                            const labels = getCuratedTopicLabels(item.title, item.subtitle);
                             return (
                               <Command.Item
                                 key={`recent:${item.id}`}
@@ -815,10 +873,10 @@ export function CommandMenuDialog({
                                   </div>
                                   <div className="min-w-0 flex-1 flex flex-col justify-center">
                                     <span className="truncate font-medium text-foreground text-body-sm leading-snug group-aria-selected:text-primary-foreground">
-                                      {item.title}
+                                      {labels.title}
                                     </span>
                                     <span className="truncate text-body-xs text-muted-foreground leading-tight mt-0.5 group-aria-selected:text-primary-foreground/80">
-                                      {item.subtitle}
+                                      {labels.subtitle}
                                     </span>
                                   </div>
                                 </div>
@@ -843,13 +901,13 @@ export function CommandMenuDialog({
                                     )}
                                     aria-label={
                                       favorited
-                                        ? "Hapus dari favorit"
-                                        : "Tambah ke favorit"
+                                        ? t("removeFavorite")
+                                        : t("addFavorite")
                                     }
                                     title={
                                       favorited
-                                        ? "Hapus dari favorit"
-                                        : "Tambah ke favorit"
+                                        ? t("removeFavorite")
+                                        : t("addFavorite")
                                     }
                                   >
                                     <Star
@@ -877,8 +935,8 @@ export function CommandMenuDialog({
                                       "hover:bg-destructive/10 text-muted-foreground/60 hover:text-destructive",
                                       "group-aria-selected:hover:bg-primary-foreground/20 group-aria-selected:text-primary-foreground/70 group-aria-selected:hover:text-red-200"
                                     )}
-                                    aria-label="Hapus dari recent"
-                                    title="Hapus dari recent"
+                                    aria-label={t("removeRecent")}
+                                    title={t("removeRecent")}
                                   >
                                     <X className="size-3.5" />
                                   </button>
@@ -892,11 +950,12 @@ export function CommandMenuDialog({
                       {/* Section 2: Favorite */}
                       {favoriteItems.length > 0 && (
                         <Command.Group
-                          heading="Favorite"
+                          heading={t("favorite")}
                           className="mt-2 [&_[cmdk-group-heading]]:text-muted-foreground [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:text-body-xs [&_[cmdk-group-heading]]:font-semibold [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-wider"
                         >
                           {favoriteItems.map((item) => {
                             const Icon = groupIcon(item.group);
+                            const labels = getCuratedTopicLabels(item.title, item.subtitle);
                             return (
                               <Command.Item
                                 key={`fav:${item.id}`}
@@ -921,10 +980,10 @@ export function CommandMenuDialog({
                                   </div>
                                   <div className="min-w-0 flex-1 flex flex-col justify-center">
                                     <span className="truncate font-medium text-foreground text-body-sm leading-snug group-aria-selected:text-primary-foreground">
-                                      {item.title}
+                                      {labels.title}
                                     </span>
                                     <span className="truncate text-body-xs text-muted-foreground leading-tight mt-0.5 group-aria-selected:text-primary-foreground/80">
-                                      {item.subtitle}
+                                      {labels.subtitle}
                                     </span>
                                   </div>
                                 </div>
@@ -944,8 +1003,8 @@ export function CommandMenuDialog({
                                       "p-1.5 rounded-md transition-colors cursor-pointer text-amber-500 hover:text-amber-600",
                                       "group-aria-selected:hover:bg-primary-foreground/20 group-aria-selected:text-amber-300"
                                     )}
-                                    aria-label="Hapus dari favorit"
-                                    title="Hapus dari favorit"
+                                    aria-label={t("removeFavorite")}
+                                    title={t("removeFavorite")}
                                   >
                                     <Star className="size-3.5 fill-amber-500 text-amber-500 group-aria-selected:text-amber-300 group-aria-selected:fill-amber-300" />
                                   </button>
@@ -966,8 +1025,8 @@ export function CommandMenuDialog({
                                       "hover:bg-destructive/10 text-muted-foreground/60 hover:text-destructive",
                                       "group-aria-selected:hover:bg-primary-foreground/20 group-aria-selected:text-primary-foreground/70 group-aria-selected:hover:text-red-200"
                                     )}
-                                    aria-label="Hapus dari favorit"
-                                    title="Hapus dari favorit"
+                                    aria-label={t("removeFavorite")}
+                                    title={t("removeFavorite")}
                                   >
                                     <X className="size-3.5" />
                                   </button>
@@ -981,7 +1040,7 @@ export function CommandMenuDialog({
                       {/* Akses Cepat if recent and favorites are empty */}
                       {recentItems.length === 0 && favoriteItems.length === 0 && (
                         <Command.Group
-                          heading="Akses cepat"
+                          heading={t("quickAccess")}
                           className="[&_[cmdk-group-heading]]:text-muted-foreground [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:text-body-xs [&_[cmdk-group-heading]]:font-semibold [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-wider"
                         >
                           {shortcutDocs.map((doc) => {
@@ -1035,8 +1094,8 @@ export function CommandMenuDialog({
                                       "group-aria-selected:hover:bg-primary-foreground/20 group-aria-selected:text-primary-foreground/70",
                                       favorited && "text-amber-500 fill-amber-500"
                                     )}
-                                    aria-label="Tambah ke favorit"
-                                    title="Tambah ke favorit"
+                                    aria-label={t("addFavorite")}
+                                    title={t("addFavorite")}
                                   >
                                     <Star
                                       className={cn(
@@ -1068,17 +1127,17 @@ export function CommandMenuDialog({
                           aria-hidden
                         />
                         <div className="text-body-sm font-medium text-foreground">
-                          Tidak ada hasil untuk &ldquo;{search}&rdquo;
+                          {t("noResults", { query: search })}
                         </div>
                         <div className="max-w-[28ch] text-body-xs text-muted-foreground">
-                          Coba periksa ejaan atau gunakan istilah lain.
+                          {t("noResultsHelp")}
                         </div>
                       </div>
 
                       {/* Quick pick recommendations */}
                       <div className="mt-2 border-t border-border/60 pt-3">
                         <div className="px-2 pb-2 text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                          Coba cari topik berikut:
+                          {t("suggestions")}
                         </div>
                         <div className="flex flex-col gap-1">
                           {(isAuthenticated ? SUGGESTED_TOPICS : MARKETING_SUGGESTED_TOPICS).map((topic) => (
@@ -1116,10 +1175,10 @@ export function CommandMenuDialog({
                                 </div>
                                 <div className="min-w-0 flex flex-col justify-center">
                                   <span className="truncate font-medium text-foreground text-body-sm leading-snug group-aria-selected:text-primary-foreground">
-                                    {topic.title}
+                                    {t(`suggestedTopics.${topic.key}.title`)}
                                   </span>
                                   <span className="truncate text-body-xs text-muted-foreground leading-tight mt-0.5 group-aria-selected:text-primary-foreground/80">
-                                    {topic.subtitle}
+                                    {t(`suggestedTopics.${topic.key}.subtitle`)}
                                   </span>
                                 </div>
                               </div>
@@ -1143,19 +1202,19 @@ export function CommandMenuDialog({
                         />
                         <div className="min-w-0">
                           <div className="font-heading text-body-sm font-bold text-foreground">
-                            Panduan pencarian
+                            {t("helpTitle")}
                           </div>
                           <p className="mt-1 text-body-xs text-muted-foreground">
                             {isAuthenticated
-                              ? "Cari langsung untuk semua hasil, atau pilih prefiks untuk membatasi pencarian."
-                              : "Cari informasi di situs Zyx Academy seperti paket belajar, tentang kami, testimoni, atau artikel blog."}
+                              ? t("helpAuthenticated")
+                              : t("helpGuest")}
                           </p>
                         </div>
                       </div>
 
                       {isAuthenticated ? (
                         <Command.Group
-                          heading="Prefiks"
+                          heading={t("prefixes")}
                           className="[&_[cmdk-group-heading]]:text-muted-foreground [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:text-body-xs [&_[cmdk-group-heading]]:font-semibold [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-wider"
                         >
                           {SEARCH_PREFIX_DEFINITIONS.map((definition) => (
@@ -1176,18 +1235,18 @@ export function CommandMenuDialog({
                               </kbd>
                               <div className="min-w-0 flex-1">
                                 <div className="truncate font-medium text-body-sm">
-                                  {definition.label}
+                                  {t(`prefixLabels.${definition.type}`)}
                                 </div>
                                 {definition.aliases.length > 1 && (
                                   <div className="text-body-xs text-muted-foreground group-aria-selected:text-primary-foreground/80">
-                                    Alias lain: {definition.aliases
+                                    {t("otherAliases")} {definition.aliases
                                       .slice(1)
                                       .map((alias) => `${alias}:`)
                                       .join(", ")}
                                   </div>
                                 )}
                                 <div className="truncate text-body-xs text-muted-foreground group-aria-selected:text-primary-foreground/80">
-                                  Contoh: {definition.example}
+                                  {t("example")} {definition.example}
                                 </div>
                               </div>
                               <ChevronRight
@@ -1199,7 +1258,7 @@ export function CommandMenuDialog({
                         </Command.Group>
                       ) : (
                         <Command.Group
-                          heading="Halaman utama"
+                          heading={t("mainPages")}
                           className="[&_[cmdk-group-heading]]:text-muted-foreground [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:text-body-xs [&_[cmdk-group-heading]]:font-semibold [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-wider"
                         >
                           {MARKETING_SUGGESTED_TOPICS.map((topic) => (
@@ -1234,10 +1293,10 @@ export function CommandMenuDialog({
                                 </div>
                                 <div className="min-w-0 flex flex-col justify-center">
                                   <span className="truncate font-medium text-foreground text-body-sm leading-snug group-aria-selected:text-primary-foreground">
-                                    {topic.title}
+                                    {t(`suggestedTopics.${topic.key}.title`)}
                                   </span>
                                   <span className="truncate text-body-xs text-muted-foreground leading-tight mt-0.5 group-aria-selected:text-primary-foreground/80">
-                                    {topic.subtitle}
+                                    {t(`suggestedTopics.${topic.key}.subtitle`)}
                                   </span>
                                 </div>
                               </div>
@@ -1251,7 +1310,7 @@ export function CommandMenuDialog({
                       )}
 
                       <div className="mx-2 mt-3 border-t border-border/60 px-1 pt-3 text-body-xs text-muted-foreground">
-                        Gunakan tombol panah untuk memilih, Enter untuk membuka, dan Esc untuk menutup.
+                        {t("keyboardHelp")}
                       </div>
                     </div>
                   )}
@@ -1269,7 +1328,7 @@ export function CommandMenuDialog({
                       return (
                         <Command.Group
                           key={cat}
-                          heading={cat}
+                          heading={t(`categories.${categoryMessageKey(cat)}`)}
                           className="mt-2 first:mt-0 [&_[cmdk-group-heading]]:text-muted-foreground [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:text-body-xs [&_[cmdk-group-heading]]:font-semibold [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-wider"
                         >
                           {clusters.map((cluster) => {
@@ -1309,7 +1368,7 @@ export function CommandMenuDialog({
                                           </div>
                                           {cat === "Navigasi" && (
                                             <NavigationSurfaceBadge
-                                              href={cluster.parent.href}
+                                              label={t(`surface.${getNavigationSurface(cluster.parent.href) === "Admin" ? "admin" : getNavigationSurface(cluster.parent.href) === "Tutor" ? "tutor" : getNavigationSurface(cluster.parent.href) === "Murid" ? "student" : "public"}`)}
                                             />
                                           )}
                                         </div>
@@ -1384,7 +1443,7 @@ export function CommandMenuDialog({
                                               </div>
                                               {cat === "Navigasi" && (
                                                 <NavigationSurfaceBadge
-                                                  href={child.href}
+                                                  label={t(`surface.${getNavigationSurface(child.href) === "Admin" ? "admin" : getNavigationSurface(child.href) === "Tutor" ? "tutor" : getNavigationSurface(child.href) === "Murid" ? "student" : "public"}`)}
                                                 />
                                               )}
                                             </div>
@@ -1414,12 +1473,12 @@ export function CommandMenuDialog({
                       type="button"
                       onClick={() => setSearch("?")}
                       className="inline-flex items-center gap-1 rounded-md text-muted-foreground transition-colors hover:text-foreground cursor-pointer"
-                      aria-label="Buka panduan pencarian"
+                      aria-label={t("helpTitle")}
                     >
                       <kbd className="rounded border border-border bg-background px-1.5 py-0.5 text-[10px] font-mono font-medium shadow-2xs text-foreground">
                         ?
                       </kbd>
-                      <span className="ml-0.5">Bantuan</span>
+                      <span className="ml-0.5">{t("helpButton")}</span>
                     </button>
                     <span className="inline-flex items-center gap-1">
                       <kbd className="rounded border border-border bg-background px-1 py-0.5 text-[10px] font-mono font-medium shadow-2xs text-foreground">
@@ -1429,26 +1488,26 @@ export function CommandMenuDialog({
                         ↓
                       </kbd>
                       <span className="ml-0.5 text-muted-foreground">
-                        Navigasi
+                        {t("navigate")}
                       </span>
                     </span>
                     <span className="inline-flex items-center gap-1">
                       <kbd className="rounded border border-border bg-background px-1.5 py-0.5 text-[10px] font-mono font-medium shadow-2xs text-foreground">
                         ↵
                       </kbd>
-                      <span className="ml-0.5 text-muted-foreground">Buka</span>
+                      <span className="ml-0.5 text-muted-foreground">{t("open")}</span>
                     </span>
                     <span className="inline-flex items-center gap-1">
                       <kbd className="rounded border border-border bg-background px-1.5 py-0.5 text-[10px] font-mono font-medium shadow-2xs text-foreground">
                         esc
                       </kbd>
                       <span className="ml-0.5 text-muted-foreground">
-                        Tutup
+                        {t("close")}
                       </span>
                     </span>
                   </div>
                   <div className="flex items-center gap-1 text-muted-foreground/90">
-                    <span>Search powered by</span>
+                    <span>{t("poweredBy")}</span>
                     <span className="font-semibold text-foreground">
                       Zyx AI
                     </span>

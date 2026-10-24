@@ -1,0 +1,110 @@
+{
+  "dialogLabel": "Site search",
+  "description": "Search materials, questions, modules, or pages in Zyx Academy.",
+  "placeholder": "Search Zyx, or type ? for help...",
+  "scopedPlaceholder": "Search in {prefix}...",
+  "clearPrefix": "Clear prefix filter",
+  "loading": "Loading search results",
+  "clear": "Clear search",
+  "recent": "Recent",
+  "favorite": "Favorites",
+  "removeFavorite": "Remove from favorites",
+  "addFavorite": "Add to favorites",
+  "removeRecent": "Remove from recent",
+  "quickAccess": "Quick access",
+  "helpButton": "Help",
+  "navigate": "Navigate",
+  "open": "Open",
+  "close": "Close",
+  "surface": {
+    "admin": "Admin",
+    "tutor": "Tutor",
+    "student": "Student",
+    "public": "Public"
+  },
+  "noResults": "No results for “{query}”",
+  "noResultsHelp": "Check the spelling or try another term.",
+  "suggestions": "Try searching for one of these topics:",
+  "helpTitle": "Search help",
+  "helpAuthenticated": "Search to see results, or choose a prefix to narrow your search.",
+  "helpGuest": "Search the Zyx Academy site for plans, about information, testimonials, or blog articles.",
+  "prefixes": "Prefixes",
+  "prefixLabels": {
+    "group": "Study Groups",
+    "meet": "Google Meet and Sessions",
+    "user": "User Accounts",
+    "form": "Forms",
+    "token": "Activation Tokens",
+    "schedule": "Schedules and Events"
+  },
+  "otherAliases": "Other aliases:",
+  "example": "Example:",
+  "mainPages": "Main pages",
+  "keyboardHelp": "Use the arrow keys to select, Enter to open, and Esc to close.",
+  "categories": {
+    "courseModules": "Courses and modules",
+    "materialsArticles": "Materials and articles",
+    "quizzesEvaluations": "Quizzes and assessments",
+    "navigation": "Navigation",
+    "administration": "Administration"
+  },
+  "surfaces": {
+    "admin": "Admin",
+    "tutor": "Tutor",
+    "student": "Student",
+    "public": "Public"
+  },
+  "aliases": {
+    "home": "home homepage",
+    "courses": "course courses catalog catalogue curriculum",
+    "plans": "plans pricing subscription membership",
+    "about": "about team mission profile",
+    "testimonial": "testimonial testimonials reviews stories",
+    "blog": "articles blog guides tips",
+    "dashboard": "dashboard progress learning overview",
+    "schedule": "schedule calendar sessions bookings meetings",
+    "groups": "groups study group cohort",
+    "leaderboard": "leaderboard ranking standings",
+    "calendar": "academic calendar events deadlines",
+    "reflections": "reflection learning journal study review",
+    "profile": "profile account identity",
+    "settings": "settings preferences notifications",
+    "feedback": "feedback suggestions bug report",
+    "pka": "tutorial preparation course registration schedule exam simulation report"
+  },
+  "poweredBy": "Search powered by",
+  "suggestedTopics": {
+    "calculus": {
+      "title": "Calculus & Numerical Methods",
+      "subtitle": "TPB study area"
+    },
+    "physics": {
+      "title": "Basic Physics",
+      "subtitle": "TPB study area"
+    },
+    "quizPractice": {
+      "title": "Quizzes & Practice Questions",
+      "subtitle": "Question bank and assessments"
+    },
+    "courseCatalog": {
+      "title": "Course catalog",
+      "subtitle": "Browse the full curriculum"
+    },
+    "plans": {
+      "title": "Study plans & pricing",
+      "subtitle": "Subscription and pricing options"
+    },
+    "about": {
+      "title": "About Zyx Academy",
+      "subtitle": "Profile, mission, and instructors"
+    },
+    "testimonials": {
+      "title": "Student testimonials",
+      "subtitle": "Learner and alumni reviews"
+    },
+    "learningArticles": {
+      "title": "Articles & study guides",
+      "subtitle": "Learning tips and insights"
+    }
+  }
+}

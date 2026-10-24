@@ -21,11 +21,14 @@ import { CheckSquare, ClipboardList, Radio, Users, Video } from "lucide-react";
 import { db } from "@/db";
 import { mataKuliah } from "@/db/schema";
 import { eq } from "drizzle-orm";
+import { getTranslations } from "@/lib/i18n/server";
+import { TranslatedText } from "@/components/i18n/translated-text";
 
 type Props = { params: Promise<{ courseId: string }> };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { courseId } = await params;
+  const t = await getTranslations("tutor.routeTitles");
   const mkRows = await db
     .select({ title: mataKuliah.title, legacyCourseId: mataKuliah.legacyCourseId })
     .from(mataKuliah)
@@ -36,10 +39,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const snapshot = await readCourseSnapshot(legacyCourseId);
   const title = mkRows[0]?.title ?? snapshot?.payload.courseTitle;
   return {
-    title: pageTitle(title ? `Analitik: ${title}` : "Analitik"),
+    title: pageTitle(title ? `${t("analytics")}: ${title}` : t("analytics")),
     description: title
-      ? `Analitik cohort dan performa siswa untuk ${title}.`
-      : "Analitik cohort dan performa siswa.",
+      ? t("analyticsDescriptionWithCourse", { course: title })
+      : t("analyticsDescription"),
   };
 }
 
@@ -99,38 +102,38 @@ export default async function TutorCoursePage({ params }: Props) {
           <PageHeader
             title={analytics.courseTitle}
             backHref="/tutor"
-            backLabel="Pengajaran"
+            backLabel={<TranslatedText namespace="tutor" messageKey="routeTitles.teaching" />}
             divider={false}
           />
           <div className="mt-4 flex flex-wrap items-center gap-2">
             <Button variant="outline" size="sm" asChild className="h-8 rounded-lg">
               <Link href={`/tutor/${courseId}/videos`}>
                 <Video className="size-4 mr-1.5" />
-                Kelola Video
+                <TranslatedText namespace="tutor" messageKey="routeTitles.manageVideos" />
               </Link>
             </Button>
             <Button variant="outline" size="sm" asChild className="h-8 rounded-lg">
               <Link href={`/tutor/${courseId}/quizzes`}>
                 <ClipboardList className="size-4 mr-1.5" />
-                Kelola Kuis
+                <TranslatedText namespace="tutor" messageKey="routeTitles.manageQuizzes" />
               </Link>
             </Button>
             <Button variant="outline" size="sm" asChild className="h-8 rounded-lg">
               <Link href={`/tutor/${courseId}/live`}>
                 <Radio className="size-4 mr-1.5" />
-                Kuis Langsung
+                <TranslatedText namespace="tutor" messageKey="routeTitles.liveQuiz" />
               </Link>
             </Button>
             <Button variant="outline" size="sm" asChild className="h-8 rounded-lg">
               <Link href={`/tutor/${courseId}/grading`}>
                 <CheckSquare className="size-4 mr-1.5" />
-                Penilaian
+                <TranslatedText namespace="tutor" messageKey="routeTitles.assessment" />
               </Link>
             </Button>
             <Button variant="outline" size="sm" asChild className="h-8 rounded-lg">
               <Link href={`/tutor/${courseId}/participants`}>
                 <Users className="size-4 mr-1.5" />
-                Peserta & Kelompok
+                <TranslatedText namespace="tutor" messageKey="routeTitles.participants" />
               </Link>
             </Button>
           </div>
@@ -139,20 +142,20 @@ export default async function TutorCoursePage({ params }: Props) {
               <p className="font-heading text-h5 font-bold tabular-nums">
                 {analytics.enrolledCount}
               </p>
-              <p className="text-body-sm text-muted-foreground">terdaftar</p>
+              <p className="text-body-sm text-muted-foreground"><TranslatedText namespace="tutor" messageKey="routeTitles.enrolled" /></p>
             </div>
             <div>
               <p className="font-heading text-h5 font-bold tabular-nums">
                 {analytics.activeCount}
               </p>
-              <p className="text-body-sm text-muted-foreground">aktif minggu ini</p>
+              <p className="text-body-sm text-muted-foreground"><TranslatedText namespace="tutor" messageKey="routeTitles.activeThisWeek" /></p>
             </div>
             {analytics.engagement.quizParticipationPct > 0 && (
               <div>
                 <p className="font-heading text-h5 font-bold tabular-nums">
                   {analytics.engagement.quizParticipationPct}%
                 </p>
-                <p className="text-body-sm text-muted-foreground">partisipasi kuis</p>
+                <p className="text-body-sm text-muted-foreground"><TranslatedText namespace="tutor" messageKey="routeTitles.quizParticipation" /></p>
               </div>
             )}
           </div>

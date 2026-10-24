@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import { useTranslations } from "@/lib/i18n/client";
 import { ExternalLink, GraduationCap } from "lucide-react";
 import { AdminPageHeader, type BreadcrumbItem } from "@/components/admin/page-header";
 import { Badge } from "@/components/ui/badge";
@@ -17,8 +20,9 @@ type Props = {
 };
 
 export function CourseDetailHeader({ course, breadcrumbs }: Props) {
+  const t = useTranslations("adminAcademic");
   const resolvedBreadcrumbs: BreadcrumbItem[] = breadcrumbs ?? [
-    { label: "Mata Kuliah", href: "/admin/courses" },
+    { label: t("courses.pageTitle"), href: "/admin/courses" },
     { label: course.title },
   ];
 
@@ -37,7 +41,7 @@ export function CourseDetailHeader({ course, breadcrumbs }: Props) {
           </Badge>
           <Button asChild size="sm" variant="outline" className="h-8 gap-1.5 rounded-lg text-body-sm">
             <Link href={`/courses/${course.id}`} target="_blank">
-              <span>Tampilan siswa</span>
+              <span>{t("courses.studentView")}</span>
               <ExternalLink className="size-3.5" />
             </Link>
           </Button>

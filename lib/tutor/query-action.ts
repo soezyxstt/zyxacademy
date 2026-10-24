@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { PromptExecutor, type SystemPrompt } from "@/lib/prompt-executor";
 import { USE_CASES } from "@/lib/ai-router";
+import type { Locale } from "@/lib/i18n/locale";
 
 export type QueryActionType =
   | "retrieve"
@@ -17,6 +18,34 @@ export type ResponseModifier =
   | "english"
   | "graph"
   | "flowchart";
+
+export type ResponseLanguage = Locale;
+
+export function resolveResponseLanguage(input: {
+  requestedLanguage?: unknown;
+  responseModifiers?: readonly ResponseModifier[];
+}): ResponseLanguage {
+  const requested = input.requestedLanguage === "en" ? "en" : "id";
+  if (input.responseModifiers?.includes("english")) return "en";
+  if (input.responseModifiers?.includes("indonesian")) return "id";
+  return requested;
+}
+
+export function responseLanguageFromHistory(history: readonly ConversationTurn[]): ResponseLanguage | null {
+  for (const turn of [...history].reverse()) {
+    if (turn.role !== "student") continue;
+    const modifiers = extractStyleModifiers(turn.content).modifiers;
+    if (modifiers.includes("english")) return "en";
+    if (modifiers.includes("indonesian")) return "id";
+  }
+  return null;
+}
+
+export function responseLanguageInstruction(language: ResponseLanguage): string {
+  return language === "en"
+    ? "Write all learner-facing prose and generated canvas labels, captions, alt text, and fallback summaries in clear international English. Keep source titles, source text, citations, formulas, symbols, and assessment controls unchanged."
+    : "Tulis semua prosa untuk pelajar serta label canvas, teks alternatif, dan ringkasan fallback dalam Bahasa Indonesia yang jelas. Pertahankan judul dan isi sumber, sitasi, rumus, simbol, dan batasan asesmen apa adanya.";
+}
 
 export type TopicContinuity = "same" | "changed" | "uncertain";
 

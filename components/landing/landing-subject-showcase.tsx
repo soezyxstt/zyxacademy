@@ -5,14 +5,15 @@ import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { useTranslations } from "@/lib/i18n/client";
 
 const subjects = [
   {
     id: "calc",
-    label: "Kalkulus",
-    title: "Kalkulus & metode numerik",
+    labelKey: "subjects.calculus",
+    titleKey: "subjects.calculusTitle",
     tag: "TPB",
-    blurb: "Limit, turunan, integral, dan aplikasi ke model sederhana.",
+    blurbKey: "subjects.calculusDescription",
     courses: [
       "Limit & kontinuitas",
       "Turunan & aplikasi",
@@ -24,37 +25,37 @@ const subjects = [
   },
   {
     id: "phys",
-    label: "Fisika",
-    title: "Fisika dasar",
+    labelKey: "subjects.physics",
+    titleKey: "subjects.physicsTitle",
     tag: "TPB",
-    blurb: "Mekanika, gelombang, termodinamika pengantar - dengan latihan terarah.",
+    blurbKey: "subjects.physicsDescription",
     courses: ["Kinematika & dinamika", "Energi & momentum", "Fluida & gelombang", "Termodinamika pengantar"],
     accent: "from-status-info/35 to-brand-primary/20",
     bar: "bg-status-info",
   },
   {
     id: "chem",
-    label: "Kimia",
-    title: "Kimia dasar",
+    labelKey: "subjects.chemistry",
+    titleKey: "subjects.chemistryTitle",
     tag: "TPB",
-    blurb: "Stokiometri, kesetimbangan, dan dasar laboratorium.",
+    blurbKey: "subjects.chemistryDescription",
     courses: ["Atom & stoikiometri", "Ikatan & struktur", "Larutan & kesetimbangan", "Elektrokimia pengantar"],
     accent: "from-tertiary-1/40 to-status-success/20",
     bar: "bg-tertiary-1",
   },
   {
     id: "linalg",
-    label: "Aljabar",
-    title: "Aljabar linear",
+    labelKey: "subjects.algebra",
+    titleKey: "subjects.algebraTitle",
     tag: "Jurusan",
-    blurb: "Vektor, matriks, dan ruang vektor untuk persiapan kuliah lanjut.",
+    blurbKey: "subjects.algebraDescription",
     courses: ["Sistem linear", "Matriks & determinan", "Ruang vektor", "Nilai eigen pengantar"],
     accent: "from-tertiary-3/40 to-brand-secondary/25",
     bar: "bg-tertiary-3",
   },
 ] as const;
 
-function SubjectVisual({ accent, bar }: { accent: string; bar: string }) {
+function SubjectVisual({ accent, bar, label }: { accent: string; bar: string; label: string }) {
   return (
       <div className={cn("relative flex min-h-[220px] flex-col justify-between rounded-2xl p-6 md:min-h-[260px]", "bg-linear-to-br", accent)}>
         <div className="flex items-center gap-2">
@@ -65,18 +66,19 @@ function SubjectVisual({ accent, bar }: { accent: string; bar: string }) {
           <div key={i} className="aspect-square rounded-md bg-white/15" />
         ))}
       </div>
-      <p className="text-body-sm font-medium text-white/85">Diagram konsep & latihan interaktif</p>
+      <p className="text-body-sm font-medium text-white/85">{label}</p>
     </div>
   );
 }
 
 export function LandingSubjectShowcase() {
+  const t = useTranslations("marketing");
   const [active, setActive] = useState(0);
   const s = subjects[active];
 
   return (
     <div>
-      <div className="rounded-2xl bg-background p-4 md:p-6" role="region" aria-label="Bidang studi">
+      <div className="rounded-2xl bg-background p-4 md:p-6" role="region" aria-label={t("subjects.regionLabel")}>
         <div className="w-full overflow-x-auto scrollbar-hide">
           <ToggleGroup
             type="single"
@@ -90,7 +92,7 @@ export function LandingSubjectShowcase() {
           >
             {subjects.map((sub) => (
               <ToggleGroupItem key={sub.id} value={sub.id} className="whitespace-nowrap">
-                {sub.label}
+                {t(sub.labelKey)}
               </ToggleGroupItem>
             ))}
           </ToggleGroup>
@@ -98,9 +100,9 @@ export function LandingSubjectShowcase() {
 
         <div className="mt-6 grid gap-6 rounded-2xl border border-border bg-card p-4 shadow-sm transition-opacity duration-200 md:grid-cols-2 md:p-6">
           <div className="flex min-h-0 flex-col">
-            <h3 className="font-heading text-body-base font-bold text-card-foreground">{s.title}</h3>
-            <p className="mt-2 text-body-base text-muted-foreground">{s.blurb}</p>
-            <p className="mt-4 font-heading text-body-sm font-semibold text-card-foreground">Topik</p>
+            <h3 className="font-heading text-body-base font-bold text-card-foreground">{t(s.titleKey)}</h3>
+            <p className="mt-2 text-body-base text-muted-foreground">{t(s.blurbKey)}</p>
+            <p className="mt-4 font-heading text-body-sm font-semibold text-card-foreground">{t("subjects.topics")}</p>
             <ul className="mt-2 flex flex-1 flex-col gap-2 overflow-y-auto">
               {s.courses.map((c) => (
                 <li
@@ -112,13 +114,13 @@ export function LandingSubjectShowcase() {
               ))}
             </ul>
           </div>
-          <SubjectVisual accent={s.accent} bar={s.bar} />
+          <SubjectVisual accent={s.accent} bar={s.bar} label={t("subjects.diagramLabel")} />
         </div>
       </div>
 
       <p className="mt-6 text-center text-body-sm text-muted-foreground">
         <Link href="/courses" className="interactive inline-flex items-center gap-1 font-medium text-primary underline-offset-4 hover:text-primary/80 hover:underline">
-          Lihat katalog lengkap
+          {t("subjects.catalogLink")}
           <ArrowUpRight className="size-4" aria-hidden />
         </Link>
       </p>

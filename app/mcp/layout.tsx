@@ -3,8 +3,10 @@ import Link from "next/link";
 import { ShieldCheck } from "lucide-react";
 import { Logo } from "@/components/logo";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { getTranslations } from "@/lib/i18n/server";
 
-export default function McpLayout({ children }: { children: ReactNode }) {
+export default async function McpLayout({ children }: { children: ReactNode }) {
+  const t = await getTranslations("consent");
   return (
     <div className="relative min-h-screen flex flex-col bg-background text-foreground selection:bg-primary/20">
       {/* Minimalist Top Header */}
@@ -16,7 +18,7 @@ export default function McpLayout({ children }: { children: ReactNode }) {
           <div className="flex items-center gap-3">
             <div className="hidden sm:flex items-center gap-1.5 rounded-md border border-border/80 bg-muted/50 px-2.5 py-1 text-body-xs font-medium text-muted-foreground">
               <ShieldCheck className="size-3.5 text-status-success" />
-              <span>Otorisasi aman MCP</span>
+              <span>{t("shell.secureMcpAuthorization")}</span>
             </div>
             <ThemeToggle mode="navbar" />
           </div>
@@ -31,16 +33,16 @@ export default function McpLayout({ children }: { children: ReactNode }) {
       {/* Minimalist Footer */}
       <footer className="w-full border-t border-border/60 py-6 text-center text-body-xs text-muted-foreground">
         <div className="container mx-auto flex max-w-5xl flex-col sm:flex-row items-center justify-between gap-3 px-4 sm:px-6">
-          <p>Zyx Academy. Model Context Protocol authoring gateway.</p>
+          <p>{t("shell.footerDescription")}</p>
           <div className="flex items-center gap-4">
             <Link href="/privacy" className="hover:text-foreground transition-colors">
-              Privasi
+              {t("shell.privacy")}
             </Link>
             <Link href="/terms" className="hover:text-foreground transition-colors">
-              Ketentuan
+              {t("shell.terms")}
             </Link>
             <Link href="/about" className="hover:text-foreground transition-colors">
-              Tentang Zyx
+              {t("shell.about")}
             </Link>
           </div>
         </div>

@@ -9,9 +9,10 @@ import { hasAnyPeran } from "@/lib/auth/authorization";
 import { MarkdownRenderer } from "@/components/course/markdown-renderer";
 import Image from "next/image";
 import { Calendar, Clock, ChevronLeft, User, Share2 } from "lucide-react";
-import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { ShareDialog, ShareBlock } from "@/components/blog/share-widget";
+import { getAppLocale, getTranslations } from "@/lib/i18n/server";
+import { LocalizedPublicLink } from "@/components/localized-public-link";
 
 const getArticleBySlug = cache(async (slug: string) => {
   return db.query.blogArticles.findFirst({
@@ -24,27 +25,33 @@ import { createMetadata, siteOgImage } from "@/lib/site";
 import type { Metadata } from "next";
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
+  const locale = await getAppLocale();
+  const t = await getTranslations("marketing");
   const { slug } = await params;
   const article = await getArticleBySlug(slug);
   if (!article || article.status !== "published") {
     return createMetadata({
-      title: "Artikel",
-      description: "Artikel blog Zyx Academy.",
+      title: t("blog.articleNotFoundTitle"),
+      description: t("blog.articleNotFoundDescription"),
       path: `/blog/${slug}`,
+      locale,
     });
   }
 
   return createMetadata({
     title: article.title,
-    description: article.summary || `Baca artikel ${article.title} di Blog Zyx Academy.`,
+    description: article.summary || t("blog.articleMetaDescription", { title: article.title }),
     path: `/blog/${article.slug}`,
     image: article.thumbnailUrl || siteOgImage,
     type: "article",
+    locale,
   });
 }
 
 
 export default async function BlogDetailPage({ params }: { params: Promise<{ slug: string }> }) {
+  const t = await getTranslations("marketing");
+  const locale = await getAppLocale();
   const { slug } = await params;
   const article = await getArticleBySlug(slug);
 
@@ -80,61 +87,62 @@ export default async function BlogDetailPage({ params }: { params: Promise<{ slu
     <article className="min-h-screen bg-background pb-20">
       {/* Outer Wrapper with tight top padding (SiteMain handles header space) */}
       <div className="max-w-7xl mx-auto px-6 sm:px-10 lg:px-16 py-6 md:py-8">
-        
+
         {/* Back Button */}
         <Button variant="ghost" className="mb-6 -ml-4 text-muted-foreground hover:text-foreground" asChild>
-          <Link href="/blog">
+          <LocalizedPublicLink href="/blog">
             <ChevronLeft className="w-4 h-4 mr-2" />
-            Kembali ke Blog
-          </Link>
+            {t("blog.back")}
+          </LocalizedPublicLink>
         </Button>
 
         {/* 2-Column Grid on Large Screens */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-start">
-          
+
           {/* Left Column: Article content (consistent width!) */}
           <div className="lg:col-span-9 space-y-6">
             <div className="container mx-auto px-4 md:px-8 space-y-6">
               {/* Header info */}
               <div className="space-y-4">
-                
+
                 <h1 className="text-h4 md:text-h3 font-heading font-bold text-foreground leading-tight">
                   {article.title}
                 </h1>
-                
+
                 <div className="flex flex-wrap items-center gap-5 text-body-sm text-muted-foreground">
                   <div className="flex items-center">
                     <User className="w-4 h-4 mr-2" />
-                    {article.author?.name || "Zyx Academy"}
+                    {article.author?.name || t("blog.authorFallback")}
                   </div>
                   {article.publishedAt && (
                     <div className="flex items-center">
                       <Calendar className="w-4 h-4 mr-2" />
-                      {new Intl.DateTimeFormat("en-US", { month: "long", day: "numeric", year: "numeric" }).format(new Date(article.publishedAt))}
+                      {new Intl.DateTimeFormat(locale === "en" ? "en-US" : "id-ID", { month: "long", day: "numeric", year: "numeric" }).format(new Date(article.publishedAt))}
                     </div>
                   )}
                   <div className="flex items-center">
                     <Clock className="w-4 h-4 mr-2" />
-                    {article.readMinutes} min read
+                    {t("blog.minutes", { count: article.readMinutes })}
                   </div>
                   <div className="flex items-center border-l border-border pl-5">
                     <ShareDialog
                       slug={article.slug}
                       title={article.title}
                       description={article.summary || ""}
+                      locale={locale}
                       trigger={
                         <button className="flex items-center hover:text-foreground transition-colors outline-none cursor-pointer">
                           <Share2 className="w-4 h-4 mr-2" />
-                          Bagikan
+                          {t("blog.share")}
                         </button>
                       }
                     />
                   </div>
                 </div>
-                
+
                 {article.status !== "published" && (
                   <div className="inline-block px-3 py-1 bg-status-warning/20 text-status-warning border border-status-warning/40 rounded-md text-body-sm font-semibold">
-                    Mode Pratinjau (Status: {article.status})
+                    {t("blog.preview", { status: article.status })}
                   </div>
                 )}
               </div>
@@ -142,9 +150,9 @@ export default async function BlogDetailPage({ params }: { params: Promise<{ slu
               {/* Thumbnail Image (fluid width inside left column, matching text width!) */}
               {article.thumbnailUrl && (
                 <div className="relative aspect-[16/9] w-full rounded-xl overflow-hidden border border-border shadow-sm">
-                  <Image 
-                    src={article.thumbnailUrl} 
-                    alt={article.title} 
+                  <Image
+                    src={article.thumbnailUrl}
+                    alt={article.title}
                     fill
                     className="object-cover"
                   />
@@ -157,11 +165,12 @@ export default async function BlogDetailPage({ params }: { params: Promise<{ slu
               </div>
 
               <div className="pt-8 border-t border-border mt-12">
-                <ShareBlock 
-                  slug={article.slug} 
-                  title={article.title} 
-                  description={article.summary || ""} 
-                  inline 
+              <ShareBlock
+                  slug={article.slug}
+                  title={article.title}
+                  description={article.summary || ""}
+                  inline
+                locale={locale}
                 />
               </div>
             </div>
@@ -170,15 +179,15 @@ export default async function BlogDetailPage({ params }: { params: Promise<{ slu
           {/* Right Column: Sidebar (Sticky on desktop) */}
           <aside className="lg:col-span-3 lg:sticky lg:top-24 space-y-6">
             <h3 className="text-body-base font-heading font-bold text-foreground mb-4 border-b border-border pb-2">
-              Artikel Lainnya
+              {t("blog.others")}
             </h3>
-            
+
             {otherArticles.length === 0 ? (
-              <p className="text-body-sm text-muted-foreground">Tidak ada artikel lain.</p>
+              <p className="text-body-sm text-muted-foreground">{t("blog.noneOthers")}</p>
             ) : (
               <div className="divide-y divide-border">
                 {otherArticles.map((other) => (
-                  <Link
+                  <LocalizedPublicLink
                     key={other.id}
                     href={`/blog/${other.slug}`}
                     className="group flex gap-4 py-3 hover:text-brand-primary transition-colors items-center justify-between"
@@ -190,24 +199,24 @@ export default async function BlogDetailPage({ params }: { params: Promise<{ slu
                       <div className="flex items-center gap-2 text-body-xs text-muted-foreground">
                         {other.publishedAt && (
                           <span>
-                            {new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric" }).format(new Date(other.publishedAt))}
+                            {new Intl.DateTimeFormat(locale === "en" ? "en-US" : "id-ID", { month: "short", day: "numeric", year: "numeric" }).format(new Date(other.publishedAt))}
                           </span>
                         )}
                         <span>•</span>
-                        <span>{other.readMinutes} min read</span>
+                        <span>{t("blog.minutesShort", { count: other.readMinutes })}</span>
                       </div>
                     </div>
                     {other.thumbnailUrl && (
                       <div className="relative w-14 h-14 rounded-lg overflow-hidden shrink-0 border border-border bg-muted">
-                        <Image 
-                          src={other.thumbnailUrl} 
-                          alt={other.title} 
+                        <Image
+                          src={other.thumbnailUrl}
+                          alt={other.title}
                           fill
                           className="object-cover"
                         />
                       </div>
                     )}
-                  </Link>
+                  </LocalizedPublicLink>
                 ))}
               </div>
             )}

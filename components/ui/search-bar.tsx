@@ -3,6 +3,7 @@
 import * as React from "react";
 import { Search, X, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useTranslations } from "@/lib/i18n/client";
 
 export interface SearchBarProps
   extends Omit<React.ComponentProps<"input">, "size"> {
@@ -72,13 +73,14 @@ export const SearchBar = React.forwardRef<HTMLInputElement, SearchBarProps>(
       shortcut,
       containerClassName,
       className,
-      placeholder = "Cari...",
+      placeholder,
       disabled,
       rightSection,
       ...props
     },
     ref
   ) => {
+    const t = useTranslations("search");
     const inputRef = React.useRef<HTMLInputElement | null>(null);
     const [internalValue, setInternalValue] = React.useState(
       defaultValue ?? ""
@@ -138,7 +140,7 @@ export const SearchBar = React.forwardRef<HTMLInputElement, SearchBarProps>(
           type="text"
           value={query}
           onChange={handleChange}
-          placeholder={placeholder}
+          placeholder={placeholder ?? t("placeholder")}
           disabled={disabled}
           className={cn(
             "w-full min-w-0 bg-transparent text-foreground font-sans placeholder:text-muted-foreground/60 focus:outline-none",
@@ -158,8 +160,8 @@ export const SearchBar = React.forwardRef<HTMLInputElement, SearchBarProps>(
                 "rounded-md text-muted-foreground/70 hover:text-foreground hover:bg-muted/80 transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
                 currentSize.clear
               )}
-              aria-label="Bersihkan pencarian"
-              title="Bersihkan pencarian"
+              aria-label={t("clear")}
+              title={t("clear")}
             >
               <X className={cn(currentSize.icon)} />
             </button>

@@ -4,18 +4,7 @@ import { SectionContainer } from "@/components/layout/section-container";
 import { SectionHeading } from "@/components/ui/section-heading";
 import { LandingVisible } from "@/components/landing/landing-visible";
 import { QuizDemo, type QuizDemoOption } from "@/components/landing/demo/quiz-demo";
-
-const checklist = [
- <>
- Disusun dari <strong className="font-semibold text-foreground">materi kuliah yang dipilih</strong>
- dan konsep yang sedang dilatih
- </>,
- <>
- Pembahasan <strong className="font-semibold text-foreground">langkah demi langkah</strong> untuk
- tiap jawaban salah
- </>,
- <>Terhubung ke bab materi untuk review cepat</>,
-];
+import { getTranslations } from "@/lib/i18n/server";
 
 const options: QuizDemoOption[] = [
  { id: "a", content: <MathText>{"$2$"}</MathText>, correct: false },
@@ -24,12 +13,13 @@ const options: QuizDemoOption[] = [
  { id: "d", content: <MathText>{"$x^2$"}</MathText>, correct: false },
 ];
 
-function CorrectPanel() {
+async function CorrectPanel() {
+ const t = await getTranslations("marketing");
  return (
  <div className="rounded-lg border border-status-success/40 bg-status-success/10 px-4 py-3">
  <p className="flex items-center gap-1.5 text-body-sm font-semibold text-status-success">
  <Check className="size-4" aria-hidden />
- Benar!
+ {t("home.quizCorrect")}
  </p>
  <p className="mt-1 text-body-sm text-foreground">
  <MathText>
@@ -40,14 +30,15 @@ function CorrectPanel() {
  );
 }
 
-function WrongPanel() {
+async function WrongPanel() {
+ const t = await getTranslations("marketing");
  return (
  <div className="border-l-2 border-status-warning bg-status-warning/10 px-4 py-3">
  <p className="text-body-xs font-bold uppercase tracking-wider text-muted-foreground">
- Kenapa salah?
+ {t("home.quizWhyWrong")}
  </p>
  <p className="mt-1 font-heading text-body-sm font-semibold text-foreground">
- Miskonsepsi: lupa mengevaluasi batas integral
+ {t("home.quizMisconception")}
  </p>
  <div className="mt-2 space-y-1 text-body-sm text-foreground">
  <p>
@@ -60,23 +51,24 @@ function WrongPanel() {
  </p>
  </div>
  <p className="mt-2.5 inline-flex items-center gap-1 text-body-sm font-semibold text-primary">
- Review <ArrowRight className="size-3.5" aria-hidden /> Bab 4 · Integral Tentu
+ {t("home.quizReview")} <ArrowRight className="size-3.5" aria-hidden /> Bab 4 · Integral Tentu
  </p>
  </div>
  );
 }
 
-export function LandingDemoQuiz() {
+export async function LandingDemoQuiz() {
+ const t = await getTranslations("marketing");
+ const checklist = [t("home.quizChecklistMaterial"), t("home.quizChecklistExplanation"), t("home.quizChecklistReview")];
  return (
  <SectionContainer className="bg-background" aria-labelledby="landing-quiz-heading">
  <div className="grid min-w-0 items-center gap-12 lg:grid-cols-2 lg:gap-16">
  <div className="min-w-0 max-w-xl">
  <SectionHeading as="h2" id="landing-quiz-heading" className="text-foreground">
- Salah itu bagian dari rencana.
+ {t("home.quizTitle")}
  </SectionHeading>
  <p className="mt-4 text-body-base text-muted-foreground">
- Setiap jawaban salah dijelaskan: di mana keliru, miskonsepsi apa yang terjadi, dan
- harus review ke mana.
+ {t("home.quizDescription")}
  </p>
  <ul className="mt-6 space-y-3">
  {checklist.map((item, index) => (

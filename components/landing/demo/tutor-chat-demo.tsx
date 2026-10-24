@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { RotateCcw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { DemoFrame } from "@/components/landing/demo/demo-frame";
+import { useTranslations } from "@/lib/i18n/client";
 
 export type TutorChatMessage = {
   id: string;
@@ -21,9 +22,9 @@ type TutorChatDemoProps = {
 const STUDENT_DELAY = 700;
 const AI_DELAY = 1600;
 
-function TypingIndicator() {
+function TypingIndicator({ label }: { label: string }) {
   return (
-    <div className="flex w-fit items-center gap-1 rounded-lg bg-muted px-3 py-2.5" aria-label="Zyra sedang mengetik">
+    <div className="flex w-fit items-center gap-1 rounded-lg bg-muted px-3 py-2.5" aria-label={label}>
       {[0, 1, 2].map((dot) => (
         <span
           key={dot}
@@ -40,6 +41,7 @@ function TypingIndicator() {
  * passed in; this island only sequences the playback.
  */
 export function TutorChatDemo({ messages }: TutorChatDemoProps) {
+  const t = useTranslations("marketing");
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [shown, setShown] = useState(0);
   const [started, setStarted] = useState(false);
@@ -95,7 +97,7 @@ export function TutorChatDemo({ messages }: TutorChatDemoProps) {
   return (
     <div ref={containerRef}>
       <DemoFrame
-        title="Zyra"
+        title={t("home.tutorFrameTitle")}
         bodyClassName="flex min-h-[380px] flex-col p-4 md:p-5"
       >
         <div className="flex flex-1 flex-col justify-end gap-3" aria-live="polite">
@@ -120,14 +122,14 @@ export function TutorChatDemo({ messages }: TutorChatDemoProps) {
               {message.sources ? (
                 <div className="mt-2">
                   <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                    Sumber
+                    {t("home.sourceLabel")}
                   </p>
                   <div className="mt-1 flex flex-wrap gap-1.5">{message.sources}</div>
                 </div>
               ) : null}
             </div>
           ))}
-          {waitingForAi ? <TypingIndicator /> : null}
+          {waitingForAi ? <TypingIndicator label={t("home.tutorTyping")} /> : null}
         </div>
 
         <div className="mt-4 flex items-center justify-end gap-3 border-t border-border/80 pt-3">
@@ -138,7 +140,7 @@ export function TutorChatDemo({ messages }: TutorChatDemoProps) {
             className="inline-flex items-center gap-1.5 rounded-md text-body-sm font-semibold text-primary transition-colors hover:text-primary/80 disabled:opacity-40"
           >
             <RotateCcw className="size-3.5" aria-hidden />
-            Putar ulang
+            {t("home.replay")}
           </button>
         </div>
       </DemoFrame>

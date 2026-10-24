@@ -6,6 +6,9 @@ import { Lock, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CoursePageShell } from "@/components/course/course-page-shell";
 import { MaterialViewer } from "@/components/course/material-viewer";
+import { Reveal } from "@/components/ui/reveal";
+import { TranslatedText } from "@/components/i18n/translated-text";
+import { getTranslations } from "@/lib/i18n/server";
 import { StructuredArticleReader } from "@/components/course/structured-article-reader";
 import { EnrollmentForm } from "@/components/enrollment-form";
 import { createMetadata, pageTitle } from "@/lib/site";
@@ -256,6 +259,7 @@ function sanitizeMaterialTitle(rawTitle: string): string {
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id, materialId } = await params;
   const course = await getCourse(id);
+  const t = await getTranslations("learning");
 
   // Check canonical structured article first
   const canonicalArticle = await getCanonicalPublishedArticle(id, materialId);
@@ -263,20 +267,16 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     const title = course ? `${canonicalArticle.title} (${course.title})` : canonicalArticle.title;
     return createMetadata({
       title,
-      description: course
-        ? `Baca materi ${canonicalArticle.title}; bagian dari ${course.title}.`
-        : "Baca materi pelajaran dan materi belajar terstruktur.",
+      description: course ? t("metadata.readMaterial", { title: canonicalArticle.title, course: course.title }) : t("metadata.readMaterialFallback"),
       path: `/courses/${id}/material/${materialId}`,
     });
   }
 
   const material = await fetchMaterial(id, materialId);
-  const title = course && material ? `${material.title} (${course.title})` : material ? material.title : "Materi";
+  const title = course && material ? `${material.title} (${course.title})` : material ? material.title : t("metadata.materialTitleFallback");
   return createMetadata({
     title,
-    description: material && course
-      ? `Baca materi ${material.title}; bagian dari ${course.title}.`
-      : "Baca materi pelajaran dan diktat kuliah.",
+    description: material && course ? t("metadata.readMaterial", { title: material.title, course: course.title }) : t("metadata.readMaterialFallback"),
     path: `/courses/${id}/material/${materialId}`,
   });
 }
@@ -307,32 +307,34 @@ export default async function CourseMaterialDetailPage({ params }: Props) {
     const isAllowed = isEnrolled || isFreeChapter;
     if (!isAllowed) {
       return (
-        <CoursePageShell title="Materi terkunci" description={`${course.title}, konten premium`} hideHeader>
+        <CoursePageShell title={<TranslatedText namespace="learning" messageKey="materialDetail.locked" />} description={<TranslatedText namespace="learning" messageKey="materialDetail.premiumDescription" values={{ course: course.title }} />} hideHeader>
           <div className="mb-4">
             <Button variant="ghost" size="sm" asChild className="gap-1.5 text-body-xs font-semibold text-muted-foreground hover:text-foreground">
               <Link href={`/courses/${id}/material`}>
                 <ArrowLeft className="size-3.5" />
-                <span>Kembali ke Dokumen</span>
+                <span><TranslatedText namespace="learning" messageKey="materialDetail.backToDocuments" /></span>
               </Link>
             </Button>
           </div>
-          <div className="rounded-lg border border-border/70 bg-card/75 p-4 backdrop-blur-sm">
-            <div className="flex items-start gap-3">
-              <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground ring-1 ring-border">
-                <Lock className="size-5" />
+          <Reveal>
+            <div className="rounded-lg border border-border/70 bg-card/75 p-4 backdrop-blur-sm">
+              <div className="flex items-start gap-3">
+                <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground ring-1 ring-border">
+                  <Lock className="size-5" />
+                </div>
+                <div>
+                  <h3 className="font-heading text-body-base font-bold text-foreground"><TranslatedText namespace="learning" messageKey="courseAccess.needToken" /></h3>
+                  <p className="mt-1 text-body-sm text-muted-foreground">
+                    <TranslatedText namespace="learning" messageKey="materialDetail.activateToOpen" values={{ title: canonicalArticle.title }} />
+                  </p>
+                </div>
               </div>
-              <div>
-                <h3 className="font-heading text-body-base font-bold text-foreground">Butuh token kelas</h3>
-                <p className="mt-1 text-body-sm text-muted-foreground">
-                  Aktifkan kelas untuk membuka &ldquo;{canonicalArticle.title}&rdquo;.
-                </p>
+              <div className="mt-4">
+                <EnrollmentForm />
               </div>
             </div>
-            <div className="mt-4">
-              <EnrollmentForm />
-            </div>
-          </div>
-        </CoursePageShell>
+          </Reveal>
+          </CoursePageShell>
       );
     }
 
@@ -354,32 +356,34 @@ export default async function CourseMaterialDetailPage({ params }: Props) {
 
   if (!isAccessible) {
     return (
-      <CoursePageShell title="Materi terkunci" description={`${course.title}, konten premium`} hideHeader>
+      <CoursePageShell title={<TranslatedText namespace="learning" messageKey="materialDetail.locked" />} description={<TranslatedText namespace="learning" messageKey="materialDetail.premiumDescription" values={{ course: course.title }} />} hideHeader>
         <div className="mb-4">
           <Button variant="ghost" size="sm" asChild className="gap-1.5 text-body-xs font-semibold text-muted-foreground hover:text-foreground">
             <Link href={`/courses/${id}/material`}>
               <ArrowLeft className="size-3.5" />
-              <span>Kembali ke Dokumen</span>
+              <span><TranslatedText namespace="learning" messageKey="materialDetail.backToDocuments" /></span>
             </Link>
           </Button>
         </div>
-        <div className="rounded-lg border border-border/70 bg-card/75 p-4 backdrop-blur-sm">
-          <div className="flex items-start gap-3">
-            <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground ring-1 ring-border">
-              <Lock className="size-5" />
+        <Reveal>
+          <div className="rounded-lg border border-border/70 bg-card/75 p-4 backdrop-blur-sm">
+            <div className="flex items-start gap-3">
+              <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground ring-1 ring-border">
+                <Lock className="size-5" />
+              </div>
+              <div>
+                <h3 className="font-heading text-body-base font-bold text-foreground"><TranslatedText namespace="learning" messageKey="courseAccess.needToken" /></h3>
+                <p className="mt-1 text-body-sm text-muted-foreground">
+                  <TranslatedText namespace="learning" messageKey="materialDetail.activateToOpen" values={{ title: material.title }} />
+                </p>
+              </div>
             </div>
-            <div>
-              <h3 className="font-heading text-body-base font-bold text-foreground">Butuh token kelas</h3>
-              <p className="mt-1 text-body-sm text-muted-foreground">
-                Aktifkan kelas untuk membuka &ldquo;{material.title}&rdquo;.
-              </p>
+            <div className="mt-4">
+              <EnrollmentForm />
             </div>
           </div>
-          <div className="mt-4">
-            <EnrollmentForm />
-          </div>
-        </div>
-      </CoursePageShell>
+        </Reveal>
+        </CoursePageShell>
     );
   }
 

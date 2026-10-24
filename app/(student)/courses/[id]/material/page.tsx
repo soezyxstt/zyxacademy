@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { FileText } from "lucide-react";
 import { CoursePageShell } from "@/components/course/course-page-shell";
 import { createMetadata } from "@/lib/site";
+import { Reveal } from "@/components/ui/reveal";
 import {
   getCourse,
   getCourseChapterOutline,
@@ -20,6 +21,8 @@ import { aiMaterialInstances, websiteMaterials, diktats, diktatMateri, bab, cour
 import { eq, and, notLike, ne, desc } from "drizzle-orm";
 import { storage } from "@/lib/storage";
 import { getAuthSession } from "@/lib/auth-session";
+import { TranslatedText } from "@/components/i18n/translated-text";
+import { getTranslations } from "@/lib/i18n/server";
 
 type Props = {
   params: Promise<{ id: string }>;
@@ -29,12 +32,11 @@ type Props = {
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params;
   const course = await getCourse(id);
+  const t = await getTranslations("learning");
 
   return createMetadata({
-    title: course ? `Materi ${course.title}` : "Materi Belajar",
-    description: course
-      ? `Dokumen dan materi belajar ${course.title}; modul, diktat, dan contoh soal.`
-      : "Dokumen dan materi belajar; modul, diktat, dan contoh soal.",
+    title: course ? t("metadata.materialTitle", { course: course.title }) : t("metadata.materialTitleFallback"),
+    description: t("metadata.materialDescription"),
     path: `/courses/${id}/material`,
   });
 }
@@ -348,32 +350,34 @@ export default async function CourseMaterialListPage({ params, searchParams }: P
   const lockedMaterialCount = materialsWithLockState.filter((m) => m.locked).length;
 
   return (
-    <CoursePageShell title={`Materi Belajar: ${course.title}`} icon={FileText}>
-      {!isEnrolled && (
-        <div className="mb-6 rounded-lg border border-brand-secondary/25 bg-brand-secondary/5 p-4">
-          <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(280px,420px)] md:items-center">
-            <div>
-              <h3 className="font-heading text-body-base font-bold text-brand-secondary">
-                Aktivasi token kelas
-              </h3>
-              <p className="mt-1 max-w-2xl text-body-sm text-muted-foreground">
-                Materi artikel, diktat, dan kuis bab pertama terbuka gratis. Masukkan token kelas untuk membuka seluruh materi, tryout ujian, dan flashcard.
-              </p>
+    <CoursePageShell title={<TranslatedText namespace="learning" messageKey="materialPage.title" values={{ course: course.title }} />} icon={FileText}>
+      <Reveal>
+        {!isEnrolled && (
+          <div className="mb-6 rounded-lg border border-brand-secondary/25 bg-brand-secondary/5 p-4">
+            <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(280px,420px)] md:items-center">
+              <div>
+                <h3 className="font-heading text-body-base font-bold text-brand-secondary">
+                  <TranslatedText namespace="learning" messageKey="quizPage.activationTitle" />
+                </h3>
+                <p className="mt-1 max-w-2xl text-body-sm text-muted-foreground">
+                  <TranslatedText namespace="learning" messageKey="courseOverview.activationDescription" />
+                </p>
+              </div>
+              <EnrollmentForm className="w-full" />
             </div>
-            <EnrollmentForm className="w-full" />
           </div>
-        </div>
-      )}
-      <Suspense fallback={null}>
-        <CourseDocumentsClient
-          courseId={id}
-          materials={materialsWithLockState}
-          chapters={courseChapters}
-          defaultTab={initialTab}
-          accessTier={studentAccess?.tier}
-          lockedMaterialCount={lockedMaterialCount}
-        />
-      </Suspense>
+        )}
+        <Suspense fallback={null}>
+          <CourseDocumentsClient
+            courseId={id}
+            materials={materialsWithLockState}
+            chapters={courseChapters}
+            defaultTab={initialTab}
+            accessTier={studentAccess?.tier}
+            lockedMaterialCount={lockedMaterialCount}
+          />
+        </Suspense>
+      </Reveal>
     </CoursePageShell>
   );
 }

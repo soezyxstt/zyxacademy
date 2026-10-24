@@ -9,12 +9,13 @@ import { StudentGroupsCompactClient } from "@/components/dashboard/student-group
 import { PageHeader } from "@/components/page-header";
 import { ApplicationPage } from "@/components/application-page";
 import { Users } from "lucide-react";
+import { TranslatedText } from "@/components/i18n/translated-text";
+import { getTranslations } from "@/lib/i18n/server";
 
-export const metadata: Metadata = createMetadata({
-  title: "Kelompok Belajar",
-  description: "Informasi kelompok belajar, kuota sesi pertemuan semester, rekan belajar, dan mata kuliah Anda.",
-  path: "/dashboard/groups",
-});
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("student");
+  return createMetadata({ title: t("groups.title"), description: t("groups.metadataDescription"), path: "/dashboard/groups" });
+}
 
 
 export default async function StudentGroupsPage() {
@@ -29,7 +30,7 @@ export default async function StudentGroupsPage() {
 
   return (
     <ApplicationPage>
-      <PageHeader icon={Users} title="Kelompok Belajar" />
+      <PageHeader icon={Users} title={<TranslatedText namespace="student" messageKey="navigation.groups" />} />
       <Suspense fallback={null}>
         <StudentGroupsCompactClient initialGroups={groups} />
       </Suspense>

@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { toast } from "@/components/ui/toast";
+import { useTranslations, useAppLocale } from "@/lib/i18n/client";
 
 export type RenameableStudentGroup = {
   id: string;
@@ -30,8 +31,8 @@ type RenameStatus = {
   nextRenameAt: string | null;
 } | null;
 
-function formatDateTime(value: string) {
-  return new Intl.DateTimeFormat("id-ID", {
+function formatDateTime(value: string, locale: "id" | "en") {
+  return new Intl.DateTimeFormat(locale === "en" ? "en-US" : "id-ID", {
     dateStyle: "long",
     timeStyle: "short",
     timeZone: "Asia/Jakarta",
@@ -43,6 +44,8 @@ export function StudentGroupRenamePanel({
 }: {
   groups: RenameableStudentGroup[];
 }) {
+  const t = useTranslations("student");
+  const { locale } = useAppLocale();
   const router = useRouter();
   const [selected, setSelected] = useState<RenameableStudentGroup | null>(null);
   const [draftName, setDraftName] = useState("");
@@ -68,7 +71,7 @@ export function StudentGroupRenamePanel({
       if (requestId !== statusRequest.current) return;
 
       if (!result.success) {
-        toast.error(result.error);
+        toast.error(t("groups.renameFailed"));
         closeRename();
         return;
       }
@@ -89,9 +92,9 @@ export function StudentGroupRenamePanel({
       if (!result.success) {
         const cooldown =
           "nextRenameAt" in result && result.nextRenameAt
-            ? ` Nama dapat diganti lagi ${formatDateTime(result.nextRenameAt)}.`
+            ? ` ${t("groups.cooldownUntil", { date: formatDateTime(result.nextRenameAt, locale) })}`
             : "";
-        toast.error(`${result.error}${cooldown}`);
+        toast.error(`${t("groups.renameFailed")}${cooldown}`);
         if (
           selected?.id === selectedGroupId &&
           "nextRenameAt" in result &&
@@ -103,7 +106,7 @@ export function StudentGroupRenamePanel({
       }
 
       if (result.changed) {
-        toast.success("Nama kelompok berhasil diganti.");
+        toast.success(t("groups.renameSuccess"));
       }
       if (selected?.id === selectedGroupId) {
         closeRename();
@@ -125,7 +128,7 @@ export function StudentGroupRenamePanel({
             onClick={() => openRename(group)}
           >
             <PencilLine className="h-4 w-4" />
-            Ubah nama {groups.length > 1 ? group.name : "kelompok"}
+            {groups.length > 1 ? t("groups.renameNamed", { name: group.name }) : t("groups.renameOne")}
           </Button>
         ))}
       </div>
@@ -138,16 +141,16 @@ export function StudentGroupRenamePanel({
       >
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Ganti nama kelompok</DialogTitle>
+            <DialogTitle>{t("groups.rename")}</DialogTitle>
             <DialogDescription>
-              Nama ini terlihat oleh semua anggota, tutor, dan admin. Setiap anggota kelompok dapat mengubahnya.
+              {t("groups.visibility")}
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-1">
             <div className="space-y-2">
               <label htmlFor="student-group-name" className="text-sm font-medium">
-                Nama baru
+                {t("groups.newName")}
               </label>
               <Input
                 id="student-group-name"
@@ -157,19 +160,19 @@ export function StudentGroupRenamePanel({
                 onChange={(event) => setDraftName(event.target.value)}
                 autoComplete="off"
               />
-              <p className="text-xs text-muted-foreground">3-80 karakter.</p>
+              <p className="text-xs text-muted-foreground">{t("groups.length")}</p>
             </div>
 
             <div className="flex gap-3 rounded-lg border bg-muted/30 p-3 text-sm">
               <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
               <div className="space-y-1">
-                <p className="font-medium">Konfirmasi perubahan</p>
+                <p className="font-medium">{t("groups.confirmation")}</p>
                 <p className="text-muted-foreground">
-                  Setelah nama diganti, seluruh kelompok tidak dapat mengganti nama lagi selama 30 hari.
+                  {t("groups.cooldown")}
                 </p>
                 {status?.canRename === false && status.nextRenameAt ? (
                   <p className="font-medium text-foreground">
-                    Dapat diganti lagi {formatDateTime(status.nextRenameAt)}.
+                    {t("groups.cooldownUntil", { date: formatDateTime(status.nextRenameAt, locale) })}
                   </p>
                 ) : null}
               </div>
@@ -183,7 +186,7 @@ export function StudentGroupRenamePanel({
               disabled={saving}
               onClick={closeRename}
             >
-              Batal
+              {t("groups.cancel")}
             </Button>
             <Button
               type="button"
@@ -195,7 +198,7 @@ export function StudentGroupRenamePanel({
               }
               onClick={submitRename}
             >
-              {saving ? "Menyimpan..." : "Konfirmasi & ganti nama"}
+              {saving ? t("groups.saving") : t("groups.confirmRename")}
             </Button>
           </DialogFooter>
         </DialogContent>

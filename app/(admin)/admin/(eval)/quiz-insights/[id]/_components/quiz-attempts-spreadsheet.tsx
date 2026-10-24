@@ -42,6 +42,7 @@ import { MathText } from "@/components/course/math-text";
 import { FormattedDate } from "@/components/ui/formatted-date";
 import { toast } from "@/components/ui/toast";
 import { useSpreadsheetExport } from "@/components/admin/spreadsheet-export";
+import { useTranslations } from "next-intl";
 
 export interface StudentAttemptItem {
   id: string;
@@ -68,9 +69,11 @@ export interface StudentAttemptItem {
 interface Props {
   templateId: string;
   quizTitle: string;
+  translationNamespace?: string;
 }
 
-export function QuizAttemptsSpreadsheet({ templateId, quizTitle }: Props) {
+export function QuizAttemptsSpreadsheet({ templateId, quizTitle, translationNamespace = "adminEval" }: Props) {
+  const t = useTranslations(translationNamespace);
   const [attempts, setAttempts] = useState<StudentAttemptItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -93,16 +96,15 @@ export function QuizAttemptsSpreadsheet({ templateId, quizTitle }: Props) {
         const json = await res.json();
         setAttempts(json.attempts || []);
       } else {
-        const err = await res.json();
-        setErrorMsg(err.error || "Gagal memuat daftar attempt.");
+        setErrorMsg(t("quizAttempts.loadFailed"));
       }
     } catch (err) {
       console.error(err);
-      setErrorMsg("Terjadi kesalahan koneksi saat memuat attempt.");
+      setErrorMsg(t("quizAttempts.connectionError"));
     } finally {
       setLoading(false);
     }
-  }, [templateId, includeInProgress]);
+  }, [templateId, includeInProgress, t]);
 
   useEffect(() => {
     loadAttempts();
@@ -162,7 +164,7 @@ export function QuizAttemptsSpreadsheet({ templateId, quizTitle }: Props) {
   const handleExportCsv = (type: "matrix" | "summary") => {
     const url = `/api/admin/quiz-insights/${templateId}/attempts?export=csv&exportType=${type}&includeInProgress=${includeInProgress}`;
     window.open(url, "_blank");
-    toast.success(`Memulai pengunduhan CSV (${type === "matrix" ? "Matriks Jawaban Detail" : "Ringkasan Attempt"})...`);
+    toast.success(t("quizAttempts.csvDownloadStarted", { type: type === "matrix" ? t("quizAttempts.matrix") : t("quizAttempts.summary") }));
     setExportDialogOpen(false);
   };
 
@@ -170,7 +172,7 @@ export function QuizAttemptsSpreadsheet({ templateId, quizTitle }: Props) {
   const { exporting: exportingSheets, confirmDialog, runExport } = useSpreadsheetExport({
     onSuccess: ({ spreadsheetUrl }) => {
       window.open(spreadsheetUrl, "_blank");
-      toast.success("Google Spreadsheet berhasil dibuat!");
+      toast.success(t("quizAttempts.googleSheetCreated"));
       setExportDialogOpen(false);
     },
     onError: (message) => {
@@ -184,7 +186,7 @@ export function QuizAttemptsSpreadsheet({ templateId, quizTitle }: Props) {
     let rowsMatrix: (string | number)[][] = [];
 
     if (type === "summary") {
-      headersRow = ["Attempt ID", "Nama Siswa", "Email Siswa", "Status", "Skor (%)", "Durasi (detik)", "Mulai", "Selesai"];
+      headersRow = [t("quizAttempts.export.attemptId"), t("quizAttempts.export.studentName"), t("quizAttempts.export.studentEmail"), t("quizAttempts.export.status"), t("quizAttempts.export.score"), t("quizAttempts.export.duration"), t("quizAttempts.export.started"), t("quizAttempts.export.submitted")];
       rowsMatrix = filteredAttempts.map((att) => [
         att.id,
         att.studentName,
@@ -199,12 +201,12 @@ export function QuizAttemptsSpreadsheet({ templateId, quizTitle }: Props) {
       // Matrix export
       const allQuestions = questionsList;
       const qHeaders = allQuestions.map((q: any, idx: number) => `Q${idx + 1}: ${(q.prompt || q.content || "").slice(0, 30)}`);
-      headersRow = ["Attempt ID", "Nama Siswa", "Email Siswa", "Skor (%)", ...qHeaders];
+      headersRow = [t("quizAttempts.export.attemptId"), t("quizAttempts.export.studentName"), t("quizAttempts.export.studentEmail"), t("quizAttempts.export.score"), ...qHeaders];
 
       rowsMatrix = filteredAttempts.map((att) => {
         const itemAnswers = allQuestions.map((q: any) => {
           const userChoice = att.answersSnapshot[q.id];
-          if (userChoice === undefined || userChoice === null) return "TIDAK DIJAWAB";
+          if (userChoice === undefined || userChoice === null) return t("quizAttempts.unanswered");
           return String(userChoice);
         });
         return [att.id, att.studentName, att.studentEmail, att.score ?? 0, ...itemAnswers];
@@ -216,18 +218,18 @@ export function QuizAttemptsSpreadsheet({ templateId, quizTitle }: Props) {
       entityType: "quiz",
       entityId: `${templateId}:${type}`,
       folderSubpath: "quizzes/" + quizTitle,
-      title: `${quizTitle} (${type === "matrix" ? "Matrix" : "Summary"})`,
+      title: `${quizTitle} (${type === "matrix" ? t("quizAttempts.matrix") : t("quizAttempts.summary")})`,
       headers: headersRow,
       rows: rowsMatrix,
     });
   };
 
   const formatDuration = (secs: number) => {
-    if (!secs) return "0s";
+    if (!secs) return t("quizAttempts.durationSeconds", { seconds: 0 });
     const mins = Math.floor(secs / 60);
     const remainder = secs % 60;
-    if (mins === 0) return `${remainder}s`;
-    return `${mins}m ${remainder}s`;
+    if (mins === 0) return t("quizAttempts.durationSeconds", { seconds: remainder });
+    return t("quizAttempts.durationMinutesSeconds", { minutes: mins, seconds: remainder });
   };
 
   if (loading && attempts.length === 0) {
@@ -235,7 +237,7 @@ export function QuizAttemptsSpreadsheet({ templateId, quizTitle }: Props) {
       <Card className="border-border">
         <CardContent className="p-12 text-center text-muted-foreground space-y-3">
           <RefreshCw className="size-8 animate-spin mx-auto text-brand-primary" />
-          <p className="font-medium text-foreground">Memuat spreadsheet attempt siswa...</p>
+          <p className="font-medium text-foreground">{t("quizAttempts.loading")}</p>
         </CardContent>
       </Card>
     );
@@ -250,14 +252,14 @@ export function QuizAttemptsSpreadsheet({ templateId, quizTitle }: Props) {
         </div>
       )}
       {/* Controls Bar */}
-      <section aria-label="Filter pengerjaan">
+      <section aria-label={t("quizAttempts.filters")}>
         <div className="space-y-3">
           <div className="flex flex-wrap items-center gap-2">
             {/* Search Input */}
             <div className="min-w-[140px] flex-1">
               <SearchBar
                 size="sm"
-                placeholder="Cari nama atau email siswa..."
+                placeholder={t("quizAttempts.search")}
                 value={searchQuery}
               />
             </div>
@@ -268,13 +270,13 @@ export function QuizAttemptsSpreadsheet({ templateId, quizTitle }: Props) {
                 <Filter className="size-4 text-muted-foreground" />
                 <Select value={statusFilter} onValueChange={setStatusFilter}>
                   <SelectTrigger className="w-[160px] rounded-lg bg-background">
-                    <SelectValue placeholder="Status" />
+                    <SelectValue placeholder={t("quizAttempts.status")} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">Semua Status</SelectItem>
-                    <SelectItem value="completed">Selesai</SelectItem>
-                    <SelectItem value="in_progress">Sedang Dikerjakan</SelectItem>
-                    <SelectItem value="abandoned">Ditinggalkan</SelectItem>
+                    <SelectItem value="all">{t("quizAttempts.allStatuses")}</SelectItem>
+                    <SelectItem value="completed">{t("quizAttempts.completed")}</SelectItem>
+                    <SelectItem value="in_progress">{t("quizAttempts.inProgress")}</SelectItem>
+                    <SelectItem value="abandoned">{t("quizAttempts.abandoned")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -285,7 +287,7 @@ export function QuizAttemptsSpreadsheet({ templateId, quizTitle }: Props) {
                   onCheckedChange={(checked) => setIncludeInProgress(Boolean(checked))}
                   className="rounded-sm border-border text-brand-primary data-[state=checked]:bg-brand-primary data-[state=checked]:border-brand-primary"
                 />
-                Sertakan yang berlangsung
+                {t("quizAttempts.includeInProgress")}
               </label>
 
               <Button
@@ -293,7 +295,7 @@ export function QuizAttemptsSpreadsheet({ templateId, quizTitle }: Props) {
                 className="bg-brand-primary hover:bg-brand-primary/90 text-white rounded-lg gap-2"
               >
                 <FileSpreadsheet className="size-4" />
-                Ekspor
+                {t("quizAttempts.export")}
               </Button>
             </div>
           </div>
@@ -301,13 +303,13 @@ export function QuizAttemptsSpreadsheet({ templateId, quizTitle }: Props) {
           {/* Quick Stats Banner */}
           <div className="flex flex-wrap items-center gap-4 text-body-sm pt-2 border-t border-border/60 text-muted-foreground">
             <div>
-              Pengerjaan: <span className="font-semibold text-foreground">{attempts.length}</span>
+              {t("quizAttempts.attempts")}: <span className="font-semibold text-foreground">{attempts.length}</span>
             </div>
             <div>
-              Ditampilkan: <span className="font-semibold text-foreground">{filteredAttempts.length}</span>
+              {t("quizAttempts.displayed")}: <span className="font-semibold text-foreground">{filteredAttempts.length}</span>
             </div>
             <div>
-              Soal: <span className="font-semibold text-foreground">{questionsList.length}</span>
+              {t("quizAttempts.questions")}: <span className="font-semibold text-foreground">{questionsList.length}</span>
             </div>
           </div>
         </div>
@@ -320,19 +322,19 @@ export function QuizAttemptsSpreadsheet({ templateId, quizTitle }: Props) {
             <thead className="sticky top-0 z-20 border-b border-border bg-muted shadow-sm">
               <tr>
                 <th className="p-3 font-semibold text-foreground whitespace-nowrap min-w-[200px] sticky left-0 bg-muted z-30 border-r border-border">
-                  Siswa
+                  {t("quizAttempts.student")}
                 </th>
                 <th className="p-3 font-semibold text-foreground whitespace-nowrap text-center w-[100px]">
-                  Skor
+                  {t("quizAttempts.score")}
                 </th>
                 <th className="p-3 font-semibold text-foreground whitespace-nowrap text-center w-[110px]">
-                  Status
+                  {t("quizAttempts.status")}
                 </th>
                 <th className="p-3 font-semibold text-foreground whitespace-nowrap text-center w-[100px]">
-                  Durasi
+                  {t("quizAttempts.duration")}
                 </th>
                 <th className="p-3 font-semibold text-foreground whitespace-nowrap text-center w-[150px]">
-                  Waktu Selesai
+                  {t("quizAttempts.submittedAt")}
                 </th>
 
                 {/* Question Columns Header */}
@@ -350,14 +352,14 @@ export function QuizAttemptsSpreadsheet({ templateId, quizTitle }: Props) {
                       </PopoverTrigger>
                       <PopoverContent className="w-80 p-4 text-body-sm space-y-2 z-50">
                         <div className="font-semibold text-foreground flex items-center justify-between">
-                          <span>Soal Nomor {idx + 1}</span>
+                          <span>{t("quizAttempts.questionNumber", { number: idx + 1 })}</span>
                         </div>
                         <div className="text-muted-foreground line-clamp-3 bg-muted p-2 rounded-md">
                           <MathText>{q.prompt}</MathText>
                         </div>
                         {q.options.length > 0 && (
                           <div className="space-y-1 text-body-xs">
-                            <p className="font-medium text-foreground">Opsi Jawaban:</p>
+                            <p className="font-medium text-foreground">{t("quizAttempts.answerOptions")}</p>
                             {q.options.map((opt, oIdx) => {
                               const isCorrect = q.correctIndices.includes(oIdx);
                               return (
@@ -396,7 +398,7 @@ export function QuizAttemptsSpreadsheet({ templateId, quizTitle }: Props) {
                     colSpan={5 + questionsList.length}
                     className="p-12 text-center text-muted-foreground"
                   >
-                    Tidak ada attempt siswa yang sesuai dengan kriteria filter.
+                    {t("quizAttempts.noFilteredAttempts")}
                   </td>
                 </tr>
               ) : (
@@ -525,7 +527,7 @@ export function QuizAttemptsSpreadsheet({ templateId, quizTitle }: Props) {
                                         : "bg-muted text-muted-foreground"
                                     }`}
                                   >
-                                    {isCorrect ? "BENAR" : hasAnswered ? "SALAH" : "TIDAK DIJAWAB"}
+                                    {isCorrect ? t("quizAttempts.correct") : hasAnswered ? t("quizAttempts.incorrect") : t("quizAttempts.unanswered")}
                                   </Badge>
                                 </div>
                                 <div className="text-muted-foreground text-body-xs line-clamp-2">
@@ -533,13 +535,13 @@ export function QuizAttemptsSpreadsheet({ templateId, quizTitle }: Props) {
                                 </div>
                                 <div className="text-body-xs space-y-1 bg-muted p-2 rounded">
                                   <div>
-                                    Pilihan Siswa:{" "}
+                                    {t("quizAttempts.studentChoice")}{" "}
                                     <span className="font-bold text-foreground">
-                                      {hasAnswered ? selectedLabels : "Tidak Ada"}
+                                      {hasAnswered ? selectedLabels : t("quizAttempts.none")}
                                     </span>
                                   </div>
                                   <div>
-                                    Kunci Jawaban:{" "}
+                                    {t("quizAttempts.answerKey")}{" "}
                                     <span className="font-bold text-status-success">
                                       {q.correctIndices
                                         .map((idx) => String.fromCharCode(65 + idx))
@@ -567,10 +569,10 @@ export function QuizAttemptsSpreadsheet({ templateId, quizTitle }: Props) {
           <DialogHeader>
             <DialogTitle className="font-heading text-body-base font-semibold flex items-center gap-2">
               <FileSpreadsheet className="size-5 text-brand-primary" />
-              Export to CSV / Google Spreadsheet
+              {t("quizAttempts.exportTitle")}
             </DialogTitle>
             <DialogDescription className="text-body-xs text-muted-foreground">
-              Pilih format file CSV yang ingin diunduh untuk kuis <strong>{quizTitle}</strong>. File CSV ini kompatibel 100% dengan Google Sheets dan Microsoft Excel.
+              {t("quizAttempts.exportDescription", { quizTitle })}
             </DialogDescription>
           </DialogHeader>
 
@@ -584,13 +586,13 @@ export function QuizAttemptsSpreadsheet({ templateId, quizTitle }: Props) {
               }`}
             >
               <div className="font-semibold text-foreground text-body-base flex items-center justify-between">
-                <span>1. Matriks Jawaban Detail (Item-Response Matrix)</span>
+                <span>{t("quizAttempts.matrixTitle")}</span>
                 {exportType === "matrix" && (
                   <CheckCircle2 className="size-4 text-brand-primary" />
                 )}
               </div>
               <p className="text-body-xs text-muted-foreground">
-                Menampilkan kolom per soal (Q1, Q2, ..., QN) berisi teks soal, jawaban yang dipilih siswa, dan status kebenaran (BENAR / SALAH / TIDAK DIJAWAB). Ideal untuk item analysis mendalam!
+                {t("quizAttempts.matrixDescription")}
               </p>
             </div>
 
@@ -603,13 +605,13 @@ export function QuizAttemptsSpreadsheet({ templateId, quizTitle }: Props) {
               }`}
             >
               <div className="font-semibold text-foreground text-body-base flex items-center justify-between">
-                <span>2. Ringkasan Attempt Siswa (Summary)</span>
+                <span>{t("quizAttempts.summaryTitle")}</span>
                 {exportType === "summary" && (
                   <CheckCircle2 className="size-4 text-brand-primary" />
                 )}
               </div>
               <p className="text-body-xs text-muted-foreground">
-                Menampilkan daftar siswa, skor akhir, status attempt, durasi pengerjaan, dan tanggal selesai pengerjaan.
+                {t("quizAttempts.summaryDescription")}
               </p>
             </div>
           </div>
@@ -620,7 +622,7 @@ export function QuizAttemptsSpreadsheet({ templateId, quizTitle }: Props) {
               onClick={() => setExportDialogOpen(false)}
               className="rounded-lg"
             >
-              Batal
+              {t("quizAttempts.cancel")}
             </Button>
             <Button
               onClick={() => handleExportGoogleSheets(exportType)}
@@ -630,14 +632,14 @@ export function QuizAttemptsSpreadsheet({ templateId, quizTitle }: Props) {
             >
               <RefreshCw className={`size-4 ${exportingSheets ? "animate-spin" : "hidden"}`} />
               <FileSpreadsheet className="size-4" />
-              {exportingSheets ? "Mengekspor..." : "Export Google Sheets"}
+              {exportingSheets ? t("quizAttempts.exporting") : t("quizAttempts.exportGoogleSheets")}
             </Button>
             <Button
               onClick={() => handleExportCsv(exportType)}
               className="bg-brand-primary hover:bg-brand-primary/90 text-white rounded-lg gap-2"
             >
               <Download className="size-4" />
-              Unduh CSV
+              {t("quizAttempts.downloadCsv")}
             </Button>
           </DialogFooter>
         </DialogContent>

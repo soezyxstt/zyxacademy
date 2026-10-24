@@ -13,6 +13,7 @@ import { toast } from "@/components/ui/toast";
 import { MarkdownRenderer } from "@/components/course/markdown-renderer";
 import { cn } from "@/lib/utils";
 import { normalizeDate } from "@/lib/date-utils";
+import { useTranslations } from "@/lib/i18n/client";
 import {
   createAndSendPkaAnnouncementAction,
   archivePkaAnnouncementAction,
@@ -24,20 +25,21 @@ import {
 const TITLE_MAX = 100;
 const BODY_MAX = 4000;
 
-function formatRelative(date: Date): string {
+function formatRelative(date: Date, t: ReturnType<typeof useTranslations<"adminOps">>): string {
   const normalized = normalizeDate(date);
   const diff = Date.now() - normalized.getTime();
   const mins = Math.floor(diff / 60000);
-  if (mins < 1) return "Baru saja";
-  if (mins < 60) return `${mins}m lalu`;
+  if (mins < 1) return t("pkaAnnouncementUI.justNow");
+  if (mins < 60) return t("pkaAnnouncementUI.minutes", { count: mins });
   const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours}j lalu`;
+  if (hours < 24) return t("pkaAnnouncementUI.hours", { count: hours });
   const days = Math.floor(hours / 24);
-  return `${days}h lalu`;
+  return t("pkaAnnouncementUI.days", { count: days });
 }
 
 
 export function AnnouncementsTab({ history }: { history: PkaAnnouncementRow[] }) {
+  const t = useTranslations("adminOps");
   const [isPending, startTransition] = useTransition();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [title, setTitle] = useState("");
@@ -48,9 +50,9 @@ export function AnnouncementsTab({ history }: { history: PkaAnnouncementRow[] })
     startTransition(async () => {
       const res = await archivePkaAnnouncementAction(id, archive);
       if (res.error) {
-        toast.error(archive ? "Gagal mengarsipkan pengumuman" : "Gagal membatalkan arsip", { description: res.error });
+        toast.error(t("pkaAnnouncementUI.archiveFailure"), { description: res.error });
       } else {
-        toast.success(archive ? "Pengumuman diarsipkan." : "Arsip pengumuman dibatalkan.");
+        toast.success(t("pkaAnnouncementUI.archiveSuccess"));
         router.refresh();
       }
     });
@@ -60,9 +62,9 @@ export function AnnouncementsTab({ history }: { history: PkaAnnouncementRow[] })
     startTransition(async () => {
       const res = await togglePinPkaAnnouncementAction(id, pin);
       if (res.error) {
-        toast.error(pin ? "Gagal melakukan pin pengumuman" : "Gagal melepas pin", { description: res.error });
+        toast.error(t("pkaAnnouncementUI.pinFailure"), { description: res.error });
       } else {
-        toast.success(pin ? "Pengumuman di-pin." : "Pin pengumuman dilepas.");
+        toast.success(t("pkaAnnouncementUI.pinSuccess"));
         router.refresh();
       }
     });
@@ -84,7 +86,7 @@ export function AnnouncementsTab({ history }: { history: PkaAnnouncementRow[] })
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!title.trim() || !body.trim()) {
-      toast.error("Judul dan pesan wajib diisi.");
+      toast.error(t("pkaAnnouncementUI.required"));
       return;
     }
 
@@ -92,9 +94,9 @@ export function AnnouncementsTab({ history }: { history: PkaAnnouncementRow[] })
       if (editingId) {
         const res = await editPkaAnnouncementAction(editingId, title, body);
         if (res.error) {
-          toast.error("Gagal mengupdate pengumuman", { description: res.error });
+          toast.error(t("pkaAnnouncementUI.updateFailure"), { description: res.error });
         } else {
-          toast.success("Pengumuman berhasil diupdate.");
+          toast.success(t("pkaAnnouncementUI.updateSuccess"));
           setEditingId(null);
           setTitle("");
           setBody("");
@@ -107,10 +109,10 @@ export function AnnouncementsTab({ history }: { history: PkaAnnouncementRow[] })
 
         const res = await createAndSendPkaAnnouncementAction({}, formData);
         if (res.error) {
-          toast.error("Gagal mengirim pengumuman", { description: res.error });
+          toast.error(t("pkaAnnouncementUI.sendFailure"), { description: res.error });
         } else {
-          toast.success(`Pengumuman terkirim ke ${res.result?.recipientCount ?? 0} siswa.`, {
-            description: `${res.result?.notificationsSucceeded ?? 0} push notification, ${res.result?.emailsSucceeded ?? 0} email berhasil.`,
+          toast.success(t("pkaAnnouncementUI.sentTo", { count: res.result?.recipientCount ?? 0 }), {
+            description: t("pkaAnnouncementUI.sendResult", { push: res.result?.notificationsSucceeded ?? 0, email: res.result?.emailsSucceeded ?? 0 }),
           });
           setTitle("");
           setBody("");
@@ -129,19 +131,19 @@ export function AnnouncementsTab({ history }: { history: PkaAnnouncementRow[] })
             <div className="flex items-center gap-2">
               {editingId ? <Edit2 className="size-4 text-brand-primary" aria-hidden /> : <Megaphone className="size-4 text-brand-primary" aria-hidden />}
               <h3 className="font-heading text-body-sm font-semibold text-foreground">
-                {editingId ? "Edit Pengumuman" : "Buat Pengumuman"}
+                {editingId ? t("pkaAnnouncementUI.edit") : t("pkaAnnouncementUI.create")}
               </h3>
             </div>
             {editingId && (
               <Button type="button" variant="ghost" size="sm" onClick={handleCancelEdit} className="h-7 text-body-xs">
-                Batal Edit
+                {t("pkaAnnouncementUI.cancelEdit")}
               </Button>
             )}
           </div>
           <form onSubmit={handleSubmit} className="space-y-4 p-4">
             <div className="space-y-1.5">
               <Label htmlFor="pka-ann-title" className="text-body-sm font-medium text-foreground">
-                Judul{" "}
+                {t("pkaAnnouncementUI.title")} {" "}
                 <span className="font-normal text-muted-foreground">
                   ({title.length}/{TITLE_MAX})
                 </span>
@@ -150,7 +152,7 @@ export function AnnouncementsTab({ history }: { history: PkaAnnouncementRow[] })
                 id="pka-ann-title"
                 value={title}
                 onChange={(e) => setTitle(e.target.value.slice(0, TITLE_MAX))}
-                placeholder="Contoh: Modul baru telah rilis"
+                placeholder={t("pkaAnnouncementUI.titlePlaceholder")}
                 required
                 className="rounded-md"
               />
@@ -158,16 +160,16 @@ export function AnnouncementsTab({ history }: { history: PkaAnnouncementRow[] })
 
             <div className="space-y-1.5">
               <Label htmlFor="pka-ann-body" className="text-body-sm font-medium text-foreground">
-                Pesan{" "}
+                {t("pkaAnnouncementUI.message")} {" "}
                 <span className="font-normal text-muted-foreground">
-                  (Markdown, {body.length}/{BODY_MAX})
+                  ({t("pkaAnnouncementUI.markdown")}, {body.length}/{BODY_MAX})
                 </span>
               </Label>
               <Textarea
                 id="pka-ann-body"
                 value={body}
                 onChange={(e) => setBody(e.target.value.slice(0, BODY_MAX))}
-                placeholder={"Tulis pengumuman di sini.\n\nMarkdown didukung: **tebal**, *miring*, daftar, dan [tautan](https://...)."}
+                placeholder={t("pkaAnnouncementUI.bodyPlaceholder")}
                 required
                 className="min-h-[160px] rounded-md font-mono text-body-sm"
               />
@@ -175,11 +177,11 @@ export function AnnouncementsTab({ history }: { history: PkaAnnouncementRow[] })
 
             <Button type="submit" disabled={!title.trim() || !body.trim()} isLoading={isPending} className="gap-2 rounded-lg">
               <Send className="size-4" />
-              {editingId ? "Simpan Perubahan" : "Kirim pengumuman"}
+              {editingId ? t("pkaAnnouncementUI.save") : t("pkaAnnouncementUI.send")}
             </Button>
             {!editingId && (
               <p className="text-body-xs text-muted-foreground">
-                Dikirim lewat notifikasi dan email ke peserta Tutorial PKA.
+                {t("pkaAnnouncementUI.deliveryNote")}
               </p>
             )}
           </form>
@@ -188,24 +190,24 @@ export function AnnouncementsTab({ history }: { history: PkaAnnouncementRow[] })
         {/* Live preview */}
         {(title || body) && <div className="min-w-0 border-t border-border pt-3 lg:sticky lg:top-6">
           <div className="mb-3">
-            <h3 className="font-heading text-body-sm font-semibold text-foreground">Pratinjau</h3>
+            <h3 className="font-heading text-body-sm font-semibold text-foreground">{t("pkaAnnouncementUI.preview")}</h3>
           </div>
           <div>
             {title || body ? (
               <div className="space-y-3">
-                <h4 className="font-heading text-body-base text-foreground">{title || "Judul pengumuman"}</h4>
+                <h4 className="font-heading text-body-base text-foreground">{title || t("pkaAnnouncementUI.announcementTitlePlaceholder")}</h4>
                 {body ? (
                   <div className="prose prose-sm dark:prose-invert max-w-none">
                     <MarkdownRenderer content={body} />
                   </div>
                 ) : (
-                  <p className="text-body-sm italic text-muted-foreground/60">Belum ada pesan.</p>
+                  <p className="text-body-sm italic text-muted-foreground/60">{t("pkaAnnouncementUI.noMessage")}</p>
                 )}
               </div>
             ) : (
               <div className="py-10 text-center">
                 <p className="text-body-sm text-muted-foreground">
-                  Belum ada isi.
+                  {t("pkaAnnouncementUI.noContent")}
                 </p>
               </div>
             )}
@@ -217,19 +219,19 @@ export function AnnouncementsTab({ history }: { history: PkaAnnouncementRow[] })
       <section className="space-y-3">
         <div className="flex items-center gap-2 border-b border-border pb-2">
           <History className="size-4 text-muted-foreground" aria-hidden />
-          <h3 className="font-heading text-body-base font-semibold text-foreground">Riwayat Pengumuman</h3>
+          <h3 className="font-heading text-body-base font-semibold text-foreground">{t("pkaAnnouncementUI.history")}</h3>
         </div>
 
         {history.length === 0 ? (
-          <AdminEmptyState icon={Megaphone} title="Belum ada pengumuman" />
+          <AdminEmptyState icon={Megaphone} title={t("pkaAnnouncementUI.empty")} />
         ) : (
           <AdminTable>
             <div className="hidden md:grid grid-cols-[1fr_120px_100px_120px_100px] gap-4 border-b border-border bg-muted/30 px-5 py-3">
-              <span className="text-body-xs font-semibold text-muted-foreground">Pengumuman</span>
-              <span className="text-body-xs font-semibold text-muted-foreground">Status</span>
-              <span className="text-body-xs font-semibold text-muted-foreground">Penerima</span>
-              <span className="text-body-xs font-semibold text-muted-foreground">Waktu</span>
-              <span className="text-body-xs font-semibold text-muted-foreground text-right">Aksi</span>
+              <span className="text-body-xs font-semibold text-muted-foreground">{t("pkaAnnouncementUI.announcement")}</span>
+              <span className="text-body-xs font-semibold text-muted-foreground">{t("pkaAnnouncementUI.status")}</span>
+              <span className="text-body-xs font-semibold text-muted-foreground">{t("pkaAnnouncementUI.recipients")}</span>
+              <span className="text-body-xs font-semibold text-muted-foreground">{t("pkaAnnouncementUI.time")}</span>
+              <span className="text-body-xs font-semibold text-muted-foreground text-right">{t("pkaAnnouncementUI.actions")}</span>
             </div>
             <ul className="divide-y divide-border/60">
               {history.map((row) => (
@@ -245,12 +247,12 @@ export function AnnouncementsTab({ history }: { history: PkaAnnouncementRow[] })
                       {row.title}
                       {row.isPinned && (
                         <span className="ml-2 rounded-md bg-brand-primary/10 px-1.5 py-0.5 text-[10px] font-semibold text-brand-primary uppercase">
-                          Pinned
+                          {t("pkaAnnouncementUI.pinned")}
                         </span>
                       )}
                       {row.isArchived && (
                         <span className="ml-2 rounded-md bg-muted px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground uppercase">
-                          Arsip
+                          {t("pkaAnnouncementUI.archived")}
                         </span>
                       )}
                     </p>
@@ -260,12 +262,12 @@ export function AnnouncementsTab({ history }: { history: PkaAnnouncementRow[] })
                     {row.sentAt ? (
                       <span className="flex items-center gap-1 text-body-xs text-status-success">
                         <CheckCircle2 className="size-3.5" />
-                        Terkirim
+                        {t("pkaAnnouncementUI.sent")}
                       </span>
                     ) : (
                       <span className="flex items-center gap-1 text-body-xs text-status-error">
                         <XCircle className="size-3.5" />
-                        Gagal
+                        {t("pkaAnnouncementUI.failed")}
                       </span>
                     )}
                   </div>
@@ -278,7 +280,7 @@ export function AnnouncementsTab({ history }: { history: PkaAnnouncementRow[] })
                       className="text-body-xs text-muted-foreground"
                       title={normalizeDate(row.createdAt).toLocaleString("id-ID")}
                     >
-                      {formatRelative(row.createdAt)}
+                      {formatRelative(row.createdAt, t)}
                     </span>
                   </div>
                   <div className="flex items-center justify-end gap-1.5">
@@ -288,7 +290,7 @@ export function AnnouncementsTab({ history }: { history: PkaAnnouncementRow[] })
                       className="size-7 rounded-md"
                       disabled={isPending}
                       onClick={() => handleTogglePin(row.id, !row.isPinned)}
-                      title={row.isPinned ? "Lepas Pin" : "Pin Pengumuman"}
+                      title={row.isPinned ? t("pkaAnnouncementUI.unpin") : t("pkaAnnouncementUI.pin")}
                     >
                       <Pin className={cn("size-3.5", row.isPinned && "fill-current text-brand-primary")} />
                     </Button>
@@ -298,7 +300,7 @@ export function AnnouncementsTab({ history }: { history: PkaAnnouncementRow[] })
                       className="size-7 rounded-md"
                       disabled={isPending}
                       onClick={() => handleEditClick(row)}
-                      title="Edit Pengumuman"
+                      title={t("pkaAnnouncementUI.editAnnouncement")}
                     >
                       <Edit2 className="size-3.5" />
                     </Button>
@@ -309,7 +311,7 @@ export function AnnouncementsTab({ history }: { history: PkaAnnouncementRow[] })
                       disabled={isPending}
                       onClick={() => handleToggleArchive(row.id, !row.isArchived)}
                     >
-                      {row.isArchived ? "Batal Arsip" : "Arsipkan"}
+                      {row.isArchived ? t("pkaAnnouncementUI.unarchive") : t("pkaAnnouncementUI.archive")}
                     </Button>
                   </div>
                 </li>

@@ -7,6 +7,7 @@ import { DueFlashcardsData } from "@/types/course-learning";
 import { studentCardClass } from "@/components/course/course-surfaces";
 import { MathText } from "@/components/course/math-text";
 import { cn } from "@/lib/utils";
+import { useTranslations } from "@/lib/i18n/client";
 
 export function DueFlashcardsSkeleton() {
   return (
@@ -37,6 +38,7 @@ export function DueFlashcardsCard({
   data,
   isLoading = false,
 }: DueFlashcardsCardProps) {
+  const t = useTranslations("learning");
   if (isLoading) {
     return <DueFlashcardsSkeleton />;
   }
@@ -48,14 +50,14 @@ export function DueFlashcardsCard({
       <div>
         <h3 className="font-heading text-body-base font-bold text-foreground flex items-center gap-2 mb-3">
           <CheckCircle2 className="size-4.5 text-tertiary-3" aria-hidden="true" />
-          Ulasan Flashcard
+          {t("flashcards.reviewTitle")}
         </h3>
 
         {!isEmpty ? (
           <div className="space-y-3 animate-in fade-in slide-in-from-bottom-2 duration-300">
             <div className="">
               <p className="text-body-sm text-foreground">
-                <span className="font-bold text-brand-primary text-body-base">{data.dueCount}</span> flashcard jatuh tempo.
+                {t("flashcards.dueCount", { count: data.dueCount })}
               </p>
             </div>
             <p className="text-body-xs text-muted-foreground leading-relaxed" title={data.nextReviewRecommendation}>
@@ -67,7 +69,7 @@ export function DueFlashcardsCard({
             <div className="flex items-center gap-2">
               <Award className="size-4.5 text-status-success shrink-0" aria-hidden="true" />
               <p className="text-body-sm text-status-success font-medium">
-                Semua ulasan selesai.
+                {t("flashcards.allReviewsDone")}
               </p>
             </div>
           </div>
@@ -75,7 +77,7 @@ export function DueFlashcardsCard({
       </div>
 
       <div className="mt-4">
-        <Link href={`/courses/${courseId}/flashcard`} aria-label="Mulai mengulas flashcard">
+        <Link href={`/courses/${courseId}/flashcard`} aria-label={t("flashcards.startReviewAria")}>
           <Button
             size="sm"
             className={cn(
@@ -85,7 +87,7 @@ export function DueFlashcardsCard({
                 : "bg-muted text-muted-foreground hover:bg-muted/90"
             )}
           >
-            {!isEmpty ? "Mulai Ulasan" : "Ulas Lagi"}
+            {!isEmpty ? t("flashcards.startReview") : t("flashcards.reviewAgain")}
           </Button>
         </Link>
       </div>

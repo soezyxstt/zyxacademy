@@ -6,13 +6,17 @@ import { getAdminCourseMaterialPreview } from "@/lib/admin/course-material-previ
 import { getCourseDetailData } from "../../../actions";
 import { assertAdmin } from "@/lib/auth/admin-guards";
 import { pageTitle } from "@/lib/site";
+import { getTranslations } from "@/lib/i18n/server";
 
 type Props = {
   params: Promise<{ slug: string; materialId: string }>;
   searchParams: Promise<{ mode?: "preview" | "edit" }>;
 };
 
-export const metadata: Metadata = { title: pageTitle("Kelola Dokumen") };
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("adminAcademic");
+  return { title: pageTitle(t("metadata.pages.manageDocumentTitle")) };
+}
 
 export default async function AdminCourseMaterialPreviewPage({ params, searchParams }: Props) {
   try {

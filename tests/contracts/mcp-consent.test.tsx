@@ -1,21 +1,27 @@
 import { describe, expect, it } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
+import { NextIntlClientProvider } from "next-intl";
 import { McpAuthorizeView } from "@/components/mcp/mcp-authorize-view";
+import consentIdMessages from "@/messages/id/consent.json";
 import { approvedScopes, MCP_OAUTH_SCOPES, requestedScopes } from "@/lib/authoring/mcp-oauth";
 import { issueMcpConnectionToken, readMcpConnectionToken } from "@/lib/authoring/mcp-workflows";
 
 describe("MCP consent scope choices", () => {
   it("shows all four permissions when the client requests only three", () => {
     const requested = requestedScopes("authoring:read authoring:stage authoring:review");
-    const html = renderToStaticMarkup(<McpAuthorizeView
-      client={{ clientId: "test-client", clientName: "ChatGPT", redirectUri: "https://example.test/callback" }}
-      user={{ id: "test-admin", name: "Admin", email: "admin@example.test", image: null }}
-      isAdmin
-      scopes={[...MCP_OAUTH_SCOPES]}
-      defaultScopes={requested}
-      searchParams={{ clientId: "test-client", redirectUri: "https://example.test/callback", scope: requested.join(" "), codeChallenge: "test", codeChallengeMethod: "S256" }}
-      currentPathWithSearch="/mcp/authorize"
-    />);
+    const html = renderToStaticMarkup(
+      <NextIntlClientProvider locale="id" timeZone="UTC" messages={{ consent: consentIdMessages }}>
+        <McpAuthorizeView
+          client={{ clientId: "test-client", clientName: "ChatGPT", redirectUri: "https://example.test/callback" }}
+          user={{ id: "test-admin", name: "Admin", email: "admin@example.test", image: null }}
+          isAdmin
+          scopes={[...MCP_OAUTH_SCOPES]}
+          defaultScopes={requested}
+          searchParams={{ clientId: "test-client", redirectUri: "https://example.test/callback", scope: requested.join(" "), codeChallenge: "test", codeChallengeMethod: "S256" }}
+          currentPathWithSearch="/mcp/authorize"
+        />
+      </NextIntlClientProvider>,
+    );
     expect(html.match(/role="checkbox"/g)).toHaveLength(4);
     expect(html.match(/aria-checked="true"/g)).toHaveLength(3);
     const withdraw = [...html.matchAll(/<button\b[^>]*>/g)].find(([tag]) => tag.includes('aria-label="Tarik materi dan hapus draf"'))?.[0];

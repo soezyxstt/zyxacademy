@@ -10,6 +10,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
+import { useTranslations } from "@/lib/i18n/client";
 import { RotateCcw, Search } from "lucide-react";
 import type {
   TutorActivityFilterInput,
@@ -32,6 +33,7 @@ export function ActivityFilters({
   onReset,
   isPending = false,
 }: ActivityFiltersProps) {
+  const t = useTranslations("adminOps");
   const [localCorrelationId, setLocalCorrelationId] = useState(
     filters.correlationId ?? "",
   );
@@ -156,7 +158,7 @@ export function ActivityFilters({
         <Search className="absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground pointer-events-none" />
         <Input
           type="text"
-          placeholder="ID Korelasi..."
+          placeholder={t("tutorActivityUI.correlationId")}
           value={localCorrelationId}
           onChange={(e) => setLocalCorrelationId(e.target.value)}
           onKeyDown={handleCorrelationKeyDown}
@@ -171,10 +173,10 @@ export function ActivityFilters({
           onValueChange={handleTutorChange}
         >
           <SelectTrigger className="h-9 text-body-sm bg-background">
-            <SelectValue placeholder="Semua Tutor" />
+            <SelectValue placeholder={t("tutorActivityUI.allTutors")} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Semua Tutor</SelectItem>
+            <SelectItem value="all">{t("tutorActivityUI.allTutors")}</SelectItem>
             {options.tutors.map((t) => (
               <SelectItem key={t.id} value={t.id}>
                 {t.name}
@@ -191,10 +193,10 @@ export function ActivityFilters({
           onValueChange={handleCourseChange}
         >
           <SelectTrigger className="h-9 text-body-sm bg-background">
-            <SelectValue placeholder="Semua Kelas" />
+            <SelectValue placeholder={t("tutorActivityUI.allCourses")} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Semua Kelas</SelectItem>
+            <SelectItem value="all">{t("tutorActivityUI.allCourses")}</SelectItem>
             {options.courses.map((c) => (
               <SelectItem key={c.id} value={c.id}>
                 {c.code ? `${c.code}, ${c.title}` : c.title}
@@ -211,10 +213,10 @@ export function ActivityFilters({
           onValueChange={handleEntityTypeChange}
         >
           <SelectTrigger className="h-9 text-body-sm bg-background">
-            <SelectValue placeholder="Semua Entitas" />
+            <SelectValue placeholder={t("tutorActivityUI.allEntities")} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Semua Entitas</SelectItem>
+            <SelectItem value="all">{t("tutorActivityUI.allEntities")}</SelectItem>
             {options.entityTypes.map((et) => (
               <SelectItem key={et} value={et}>
                 {et}
@@ -231,10 +233,10 @@ export function ActivityFilters({
           onValueChange={handleActionChange}
         >
           <SelectTrigger className="h-9 text-body-sm bg-background">
-            <SelectValue placeholder="Semua Aksi" />
+            <SelectValue placeholder={t("tutorActivityUI.allActions")} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Semua Aksi</SelectItem>
+            <SelectItem value="all">{t("tutorActivityUI.allActions")}</SelectItem>
             {options.actions.map((a) => (
               <SelectItem key={a} value={a}>
                 {a}
@@ -251,14 +253,14 @@ export function ActivityFilters({
           onValueChange={handleOutcomeChange}
         >
           <SelectTrigger className="h-9 text-body-sm bg-background">
-            <SelectValue placeholder="Semua Status" />
+            <SelectValue placeholder={t("tutorActivityUI.allStatuses")} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Semua Status</SelectItem>
-            <SelectItem value="success">Sukses</SelectItem>
-            <SelectItem value="rejected">Ditolak</SelectItem>
-            <SelectItem value="failed">Gagal</SelectItem>
-            <SelectItem value="unclassified">Belum Terklasifikasi</SelectItem>
+            <SelectItem value="all">{t("tutorActivityUI.allStatuses")}</SelectItem>
+            <SelectItem value="success">{t("tutorActivityUI.success")}</SelectItem>
+            <SelectItem value="rejected">{t("tutorActivityUI.rejected")}</SelectItem>
+            <SelectItem value="failed">{t("tutorActivityUI.failed")}</SelectItem>
+            <SelectItem value="unclassified">{t("tutorActivityUI.unclassified")}</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -267,15 +269,15 @@ export function ActivityFilters({
       <div className="flex items-center gap-1 min-w-[240px] flex-1 max-w-[280px]">
         <Input
           type="date"
-          aria-label="Tanggal mulai"
+          aria-label={t("tutorActivityUI.startDate")}
           value={filters.startDate ?? ""}
           onChange={handleStartDateChange}
           className="h-9 w-full rounded-md border border-input bg-background px-2 py-1 text-body-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
         />
-        <span className="text-body-xs text-muted-foreground shrink-0">s/d</span>
+        <span className="text-body-xs text-muted-foreground shrink-0">{t("tutorActivityUI.to")}</span>
         <Input
           type="date"
-          aria-label="Tanggal selesai"
+          aria-label={t("tutorActivityUI.endDate")}
           value={filters.endDate ?? ""}
           onChange={handleEndDateChange}
           className="h-9 w-full rounded-md border border-input bg-background px-2 py-1 text-body-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
@@ -292,9 +294,9 @@ export function ActivityFilters({
             <SelectValue placeholder="25" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="25">25 / hal</SelectItem>
-            <SelectItem value="50">50 / hal</SelectItem>
-            <SelectItem value="100">100 / hal</SelectItem>
+            <SelectItem value="25">{t("tutorActivityUI.perPage", { count: 25 })}</SelectItem>
+            <SelectItem value="50">{t("tutorActivityUI.perPage", { count: 50 })}</SelectItem>
+            <SelectItem value="100">{t("tutorActivityUI.perPage", { count: 100 })}</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -310,7 +312,7 @@ export function ActivityFilters({
           className="h-9 gap-1 text-body-sm text-muted-foreground hover:text-foreground shrink-0"
         >
           <RotateCcw className="size-3.5" aria-hidden />
-          <span>Reset</span>
+          <span>{t("tutorActivityUI.reset")}</span>
         </Button>
       )}
     </div>

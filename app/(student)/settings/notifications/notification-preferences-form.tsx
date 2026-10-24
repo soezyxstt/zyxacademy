@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import { Bell, BookOpen, CalendarDays, Mail, Newspaper, ShieldCheck, BookmarkCheck } from "lucide-react";
 import { updateNotificationPreferencesAction, type NotificationPreferencesActionState } from "./actions";
 import type { EmailNotificationPreferences } from "@/lib/email-preferences/contracts";
@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "@/components/ui/toast";
+import { useTranslations } from "@/lib/i18n/client";
 
 const INITIAL_ACTION_STATE: NotificationPreferencesActionState = {
   success: false,
@@ -18,26 +19,26 @@ const INITIAL_ACTION_STATE: NotificationPreferencesActionState = {
 const CATEGORY_ROWS = [
   {
     key: "courseUpdates" as const,
-    label: "Pembaruan materi & kelas",
-    description: "Pengumuman akademik, materi baru terbit, kuis yang siap dikerjakan, dan status kelas.",
+    labelKey: "courseUpdates",
+    descriptionKey: "courseUpdatesDescription",
     icon: BookOpen,
   },
   {
     key: "eventsAndSchedules" as const,
-    label: "Jadwal & sesi pertemuan",
-    description: "Sesi kuis langsung, bimbingan tutorial kelompok, perubahan jadwal, dan tautan pertemuan.",
+    labelKey: "schedule",
+    descriptionKey: "scheduleDescription",
     icon: CalendarDays,
   },
   {
     key: "learningReminders" as const,
-    label: "Pengingat belajar berkala",
-    description: "Refleksi mingguan, pengingat kartu flashcard jatuh tempo, dan ringkasan progres belajar.",
+    labelKey: "studyReminders",
+    descriptionKey: "studyRemindersDescription",
     icon: BookmarkCheck,
   },
   {
     key: "newsAndOffers" as const,
-    label: "Informasi program & edukasi",
-    description: "Kabar fitur baru platform, artikel edukasi, dan informasi kegiatan akademik Zyx Academy.",
+    labelKey: "programUpdates",
+    descriptionKey: "programUpdatesDescription",
     icon: Newspaper,
   },
 ];
@@ -49,14 +50,17 @@ export function NotificationPreferencesForm({
   accountEmail: string;
   initialPreferences: EmailNotificationPreferences;
 }) {
+  const t = useTranslations("student");
+  const shownSubmission = useRef(0);
   const [preferences, setPreferences] = useState(initialPreferences);
   const [state, formAction, pending] = useActionState(updateNotificationPreferencesAction, INITIAL_ACTION_STATE);
 
   useEffect(() => {
-    if (!state.submittedAt) return;
-    if (state.success) toast.success(state.message);
-    else toast.error(state.message);
-  }, [state]);
+    if (!state.submittedAt || shownSubmission.current === state.submittedAt) return;
+    shownSubmission.current = state.submittedAt;
+    if (state.success) toast.success(t("notificationPreferences.saved"));
+    else toast.error(t("notificationPreferences.saveFailed"));
+  }, [state, t]);
 
   return (
     <form action={formAction} className="w-full space-y-6">
@@ -71,9 +75,9 @@ export function NotificationPreferencesForm({
               <Mail className="size-5" aria-hidden />
             </span>
             <div className="min-w-0">
-              <CardTitle className="font-heading text-body-base font-bold">Notifikasi surel</CardTitle>
+              <CardTitle className="font-heading text-body-base font-bold">{t("notificationPreferences.title")}</CardTitle>
               <CardDescription className="mt-1 text-body-xs">
-                Surel opsional dikirim ke akun Google Anda: <span className="font-semibold text-foreground">{accountEmail}</span>
+                {t("notificationPreferences.optionalDescription", { email: accountEmail })}
               </CardDescription>
             </div>
           </div>
@@ -85,21 +89,21 @@ export function NotificationPreferencesForm({
               checked={preferences.emailEnabled}
               onCheckedChange={(checked) => setPreferences((current) => ({ ...current, emailEnabled: checked === true }))}
               className="mt-1 size-5 rounded-md"
-              aria-label="Aktifkan notifikasi surel opsional"
+              aria-label={t("notificationPreferences.enableOptional")}
             />
             <span className="min-w-0">
               <span className="flex items-center gap-2 text-body-sm font-semibold text-foreground">
                 <Bell className="size-4 text-primary" aria-hidden />
-                Aktifkan notifikasi surel opsional
+                {t("notificationPreferences.enableOptional")}
               </span>
               <span className="mt-1 block text-body-xs text-muted-foreground">
-                Pilihan kategori tetap tersimpan saat dinonaktifkan.
+                {t("notificationPreferences.categoriesPersist")}
               </span>
             </span>
           </label>
 
           <div className="divide-y divide-border">
-            {CATEGORY_ROWS.map(({ key, label, description, icon: Icon }) => (
+            {CATEGORY_ROWS.map(({ key, labelKey, descriptionKey, icon: Icon }) => (
               <label
                 key={key}
                 className="flex cursor-pointer items-start gap-4 px-4 py-3 has-[:disabled]:cursor-not-allowed hover:bg-muted/20 transition-colors"
@@ -109,14 +113,14 @@ export function NotificationPreferencesForm({
                   disabled={!preferences.emailEnabled}
                   onCheckedChange={(checked) => setPreferences((current) => ({ ...current, [key]: checked === true }))}
                   className="mt-1 size-5 rounded-md"
-                  aria-label={label}
+                  aria-label={t(`notificationPreferences.${labelKey}`)}
                 />
                 <span className="min-w-0">
                   <span className="flex items-center gap-2 text-body-sm font-semibold text-foreground">
                     <Icon className="size-4 text-muted-foreground" aria-hidden />
-                    {label}
+                    {t(`notificationPreferences.${labelKey}`)}
                   </span>
-                  <span className="mt-0.5 block text-body-xs text-muted-foreground">{description}</span>
+                  <span className="mt-0.5 block text-body-xs text-muted-foreground">{t(`notificationPreferences.${descriptionKey}`)}</span>
                 </span>
               </label>
             ))}
@@ -127,16 +131,16 @@ export function NotificationPreferencesForm({
       <div className="flex items-start gap-3 px-1">
         <ShieldCheck className="mt-0.5 size-5 shrink-0 text-brand-primary" aria-hidden />
         <div>
-          <p className="text-body-sm font-semibold text-foreground">Surel penting tetap aktif</p>
+          <p className="text-body-sm font-semibold text-foreground">{t("notificationPreferences.importantEmailAlwaysOn")}</p>
           <p className="mt-1 text-body-xs text-muted-foreground">
-            Keamanan akun, aktivasi kelas, dan informasi sistem tetap dikirim.
+            {t("notificationPreferences.securityDescription")}
           </p>
         </div>
       </div>
 
       <div className="flex justify-end">
         <Button type="submit" size="default" className="rounded-lg px-6 font-semibold" disabled={pending}>
-          {pending ? "Menyimpan..." : "Simpan Preferensi"}
+          {pending ? t("notificationPreferences.saving") : t("notificationPreferences.save")}
         </Button>
       </div>
     </form>

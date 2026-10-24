@@ -14,6 +14,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { explainBundleError } from "@/lib/bundle/admin-errors";
+import { useTranslations } from "@/lib/i18n/client";
 
 type Props = {
   kind: "idea" | "product";
@@ -23,10 +24,12 @@ type Props = {
 };
 
 export function MaterialBundleUploadDialog({ kind, open, onOpenChange, onStaged }: Props) {
+  const t = useTranslations("adminAcademic");
+  const adminT = useTranslations("admin");
   const [file, setFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const label = kind === "idea" ? "Source Pack + Idea" : "Product";
+  const label = kind === "idea" ? t("materials.ideaTab") : t("materials.productTab");
   const endpoint = kind === "idea" ? "/api/admin/bundles/idea" : "/api/admin/bundles/product";
   const uploadError = kind === "idea" ? "IDEA_BUNDLE_UPLOAD_FAILED" : "PRODUCT_BUNDLE_UPLOAD_FAILED";
 
@@ -61,7 +64,7 @@ export function MaterialBundleUploadDialog({ kind, open, onOpenChange, onStaged 
       close(false);
       onStaged(stagePayload.result.importId);
     } catch (uploadFailure) {
-      setError(explainBundleError(uploadFailure instanceof Error ? uploadFailure.message : uploadError));
+      setError(explainBundleError(uploadFailure instanceof Error ? uploadFailure.message : uploadError, (key) => adminT(`bundleErrors.${key}`)));
     } finally {
       setLoading(false);
     }
@@ -71,18 +74,18 @@ export function MaterialBundleUploadDialog({ kind, open, onOpenChange, onStaged 
     <Dialog open={open} onOpenChange={close}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Upload {label}</DialogTitle>
-          <DialogDescription>ZIP akan diperiksa lalu dimasukkan ke daftar review. Perubahan isi dilakukan di halaman detail.</DialogDescription>
+          <DialogTitle>{t("materials.uploadTitle", { label })}</DialogTitle>
+          <DialogDescription>{t("materials.uploadDescription")}</DialogDescription>
         </DialogHeader>
         <div className="space-y-2">
-          <Label htmlFor={`${kind}-bundle-upload`}>File ZIP</Label>
+          <Label htmlFor={`${kind}-bundle-upload`}>{t("materials.zipFile")}</Label>
           <Input id={`${kind}-bundle-upload`} type="file" accept=".zip,application/zip" onChange={(event) => { setFile(event.target.files?.[0] ?? null); setError(null); }} />
-          <p className="text-body-xs text-muted-foreground">Maksimal 32 MB. Pastikan file berasal dari workflow MCP yang sesuai.</p>
+          <p className="text-body-xs text-muted-foreground">{t("materials.uploadHint")}</p>
         </div>
         {error && <p className="rounded-lg border border-status-error/30 bg-status-error/10 p-3 text-body-sm text-status-error">{error}</p>}
         <DialogFooter>
-          <Button type="button" variant="outline" onClick={() => close(false)} disabled={loading}>Batal</Button>
-          <Button type="button" onClick={() => void submit()} disabled={!file || loading} isLoading={loading}><Upload className="size-4" />Masukkan ke daftar review</Button>
+          <Button type="button" variant="outline" onClick={() => close(false)} disabled={loading}>{t("common.cancel")}</Button>
+          <Button type="button" onClick={() => void submit()} disabled={!file || loading} isLoading={loading}><Upload className="size-4" />{t("materials.stageForReview")}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

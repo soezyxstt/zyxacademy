@@ -67,6 +67,26 @@ bun run dev                  # http://localhost:3000
 
 Canonical vector IDs preserve the database entity identity in metadata. IDs containing `:` use the shared URI-encoded vector-ID segment and are decoded before Turso hydration. If a Gemini rate limit interrupts `vectorize:backfill`, rerun the same `--run-id` with `--resume`; the artifact checkpoint prevents already processed vector IDs from being embedded or upserted again. Do not switch models or use a 1024-dimensional fallback.
 
+## Bilingual interface development
+
+The supported interface locales are `id` and `en`. Use `lib/i18n/locale.ts` for normalization and server-safe preference resolution, `lib/i18n/client.ts` for client translations and locale state, and `lib/i18n/server.ts` for server rendering and metadata. Keep paired JSON catalogs under `messages/id/` and `messages/en/`, registered by namespace in `lib/i18n/catalogs.ts`. Use display adapters for enums, but keep API error codes, role values, search category keys, URLs, and stored content unchanged. Do not translate user-authored or published academic text in place.
+
+Run `bun scripts/check-i18n-catalogs.ts` to check paired catalog structure and consumed keys. Focused communications and search contracts can be run with:
+
+```bash
+bun test tests/contracts/email-notification-preferences.test.ts tests/contracts/notification-locale-templates.test.ts tests/marketing-cmdk-search.test.ts
+```
+
+The focused Zyra and course tests are:
+
+```bash
+bun test tests/contracts/zyra-chat-language-contract.test.ts tests/unit/zyra-stream-client.test.ts tests/contracts/student-course-overview-refactor.test.tsx
+```
+
+The account interface locale persists across visits. Conversation-specific Zyra overrides are in memory, limited to 32 sessions, and reset on drawer remount or reload and on account, course, or interface-locale changes. Do not describe that conversation override as durable storage. The final release candidate catalog gate passed 23 namespaces and 6,426 static translation calls, and the public route matrix passed 52 captures. The full role/state matrix remains incomplete; current browser evidence and its boundaries are tracked in `plans/bilingual-web-app.md`.
+
+Background dispatch imports must remain server-safe for Deno compute. Do not add Next.js or React imports to worker-consumed message, notification, preference, or email-template modules. `proxy.ts` owns only the finite public locale rewrite map; test origin preservation and `skipProxyUrlNormalize` when changing that request boundary. Full role, locale, state, and visual verification belongs to the bilingual plan's CP7 gate.
+
 ## Environment Variables
 
 Configured via `.env.local`. All vars are validated at startup by `lib/env.ts` (`@t3-oss/env-nextjs`).

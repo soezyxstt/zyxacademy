@@ -5,6 +5,7 @@ import { MessageCircle } from "lucide-react";
 import { usePlanPricingPhase } from "@/hooks/use-plan-pricing-phase";
 import { getWhatsAppPlanUrl } from "@/lib/pricing-constants";
 import type { PlanKey } from "@/lib/plan-tiers";
+import { useTranslations } from "@/lib/i18n/client";
 
 type PlanConsultationLinkProps = {
   plan: PlanKey;
@@ -21,6 +22,7 @@ export function PlanConsultationLink({
   courses,
   selectedCourses,
 }: PlanConsultationLinkProps) {
+  const t = useTranslations("marketing");
   const phase = usePlanPricingPhase();
   if (phase === null) return null;
 
@@ -39,7 +41,7 @@ export function PlanConsultationLink({
       }}
     >
       <MessageCircle className="size-3.5" aria-hidden="true" />
-      Tanya paket via WhatsApp
+      {t("pricing.askPlanWhatsapp")}
     </Link>
   );
 }

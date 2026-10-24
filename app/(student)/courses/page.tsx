@@ -22,12 +22,13 @@ import { attachCourseCatalogStats } from "@/lib/student/course-catalog-stats";
 import { listStudentCourses } from "@/lib/student/course-catalog";
 import { getWhatsAppAdminChatHref } from "@/lib/whatsapp-admin";
 import { CourseCatalogClient, type CourseGroup } from "./course-catalog-client";
+import { TranslatedText } from "@/components/i18n/translated-text";
+import { getTranslations } from "@/lib/i18n/server";
 
-export const metadata: Metadata = createMetadata({
-  title: "Katalog Kursus",
-  description: "Katalog kursus Zyx Academy; materi terstruktur, latihan soal, dan persiapan ujian akademik.",
-  path: "/courses",
-});
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("learning");
+  return createMetadata({ title: t("metadata.catalogTitle"), description: t("metadata.catalogDescription"), path: "/courses" });
+}
 
 
 /**
@@ -120,7 +121,7 @@ export default async function CoursesPage() {
   return (
     <ApplicationPage className="pb-16">
       <PageHeader
-        title="Katalog Course"
+        title={<TranslatedText namespace="learning" messageKey="catalog.pageTitle" />}
         icon={BookOpen}
         actions={
           <div className="flex flex-wrap items-center gap-2">
@@ -128,12 +129,12 @@ export default async function CoursesPage() {
               <Button asChild variant="outline" size="sm" className="rounded-lg text-body-sm gap-1.5">
                 <a href={whatsappHref} target="_blank" rel="noopener noreferrer">
                   <MessageCircle className="size-3.5 text-status-success" />
-                  Hubungi admin
+                  <TranslatedText namespace="learning" messageKey="catalog.contactAdmin" />
                 </a>
               </Button>
             )}
             <Button asChild size="sm" className="rounded-lg text-body-sm">
-              <Link href="/plans">Lihat paket</Link>
+              <Link href="/plans"><TranslatedText namespace="learning" messageKey="catalog.viewPlans" /></Link>
             </Button>
           </div>
         }
@@ -148,29 +149,29 @@ export default async function CoursesPage() {
         <div className={studentCardClass("py-12 text-center max-w-md mx-auto")}>
           <BookOpen className="mx-auto size-10 text-muted-foreground/40 mb-3" />
           <h2 className="font-heading text-body-base font-bold text-foreground">
-            Belum ada course yang tersedia
+            <TranslatedText namespace="learning" messageKey="catalog.emptyTitle" />
           </h2>
           <p className="mt-1 text-body-xs text-muted-foreground">
-            Course akan ditampilkan di sini setelah dipublikasikan.
+            <TranslatedText namespace="learning" messageKey="catalog.emptyDescription" />
           </p>
         </div>
       )}
 
         <p className="mt-8 text-body-sm text-muted-foreground">
-          Perlu akses tambahan?{" "}
+          <TranslatedText namespace="learning" messageKey="catalog.needMoreAccess" />{" "}
           <Link href="/plans" className="font-semibold text-primary underline-offset-4 hover:underline">
-            Lihat paket
+            <TranslatedText namespace="learning" messageKey="catalog.viewPlans" />
           </Link>
           {whatsappHref && (
             <>
-              {" "}atau{" "}
+              {" "}<TranslatedText namespace="learning" messageKey="catalog.or" />{" "}
               <a
                 href={whatsappHref}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="font-semibold text-primary underline-offset-4 hover:underline"
               >
-                hubungi kami di WhatsApp
+                <TranslatedText namespace="learning" messageKey="catalog.contactWhatsApp" />
               </a>
             </>
           )}

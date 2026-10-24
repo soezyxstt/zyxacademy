@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "@/lib/i18n/client";
 import { toast } from "@/components/ui/toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -70,6 +71,7 @@ export function ChaptersTab({
   materials = [],
   questions = [],
 }: Props) {
+  const t = useTranslations("adminAcademic");
   const router = useRouter();
   const [chapters, setChapters] = useState<Chapter[]>(initialChapters);
   const [loading, setLoading] = useState(false);
@@ -96,7 +98,7 @@ export function ChaptersTab({
   const handleAddChapter = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTitle.trim()) {
-      toast.error("Judul bab wajib diisi.");
+      toast.error(t("courseDetail.chapters.validation.title"));
       return;
     }
 
@@ -106,12 +108,12 @@ export function ChaptersTab({
     setAddingChapter(false);
 
     if (res.success) {
-      toast.success("Bab baru berhasil ditambahkan.");
+      toast.success(t("courseDetail.chapters.success.create"));
       setNewTitle("");
       setNewDescription("");
       router.refresh();
     } else {
-      toast.error(res.error || "Gagal menambahkan bab.");
+      toast.error(t("courseDetail.chapters.errors.create"));
     }
   };
 
@@ -124,7 +126,7 @@ export function ChaptersTab({
 
   const handleSaveEdit = async () => {
     if (!editingChapter || !editTitle.trim()) {
-      toast.error("Judul bab wajib diisi.");
+      toast.error(t("courseDetail.chapters.validation.title"));
       return;
     }
 
@@ -139,11 +141,11 @@ export function ChaptersTab({
     setLoading(false);
 
     if (res.success) {
-      toast.success("Perubahan bab disimpan.");
+      toast.success(t("courseDetail.chapters.success.update"));
       setEditingChapter(null);
       router.refresh();
     } else {
-      toast.error(res.error || "Gagal menyimpan perubahan bab.");
+      toast.error(t("courseDetail.chapters.errors.update"));
     }
   };
 
@@ -155,10 +157,10 @@ export function ChaptersTab({
     setDeletingChapter(null);
 
     if (res.success) {
-      toast.success("Bab berhasil dihapus.");
+      toast.success(t("courseDetail.chapters.success.delete"));
       router.refresh();
     } else {
-      toast.error(res.error || "Gagal menghapus bab.");
+      toast.error(t("courseDetail.chapters.errors.delete"));
     }
   };
 
@@ -177,10 +179,10 @@ export function ChaptersTab({
     setActionLoadingId(null);
 
     if (reorderRes.success) {
-      toast.success("Urutan bab diperbarui.");
+      toast.success(t("courseDetail.chapters.success.reorder"));
       router.refresh();
     } else {
-      toast.error("Gagal memperbarui urutan bab.");
+      toast.error(t("courseDetail.chapters.errors.reorder"));
       setChapters(initialChapters);
     }
   };
@@ -190,14 +192,14 @@ export function ChaptersTab({
       {/* Add New Chapter Inline Form */}
       <form onSubmit={handleAddChapter} className="flex items-center gap-2">
         <Input
-          placeholder="Judul bab baru..."
+          placeholder={t("courseDetail.chapters.newTitle")}
           value={newTitle}
           onChange={(e) => setNewTitle(e.target.value)}
           disabled={addingChapter}
           className="h-9 w-64 shrink-0 rounded-lg text-body-sm sm:w-72"
         />
         <Input
-          placeholder="Deskripsi bab (opsional)..."
+          placeholder={t("courseDetail.chapters.descriptionOptional")}
           value={newDescription}
           onChange={(e) => setNewDescription(e.target.value)}
           disabled={addingChapter}
@@ -212,12 +214,12 @@ export function ChaptersTab({
           {addingChapter ? (
             <>
               <Loader2 className="size-3.5 animate-spin" />
-              Menambahkan...
+              {t("courseDetail.chapters.adding")}
             </>
           ) : (
             <>
               <Plus className="size-3.5" />
-              Tambah Bab
+              {t("courseDetail.chapters.add")}
             </>
           )}
         </Button>
@@ -228,16 +230,16 @@ export function ChaptersTab({
         <div className="flex items-center justify-between">
           <h3 className="font-heading text-body-sm font-semibold text-foreground flex items-center gap-2">
             <Layers className="size-4 text-brand-primary" />
-            Bab ({chapters.length})
+            {t("courseDetail.chapters.count", { count: chapters.length })}
           </h3>
         </div>
 
         {chapters.length === 0 ? (
           <div className="text-center py-8 border border-dashed border-border rounded-xl bg-card">
             <BookOpen className="size-6 text-muted-foreground/40 mx-auto mb-1.5" />
-            <p className="text-body-xs font-medium text-foreground">Belum ada bab yang terdaftar</p>
+            <p className="text-body-xs font-medium text-foreground">{t("courseDetail.chapters.empty.title")}</p>
             <p className="text-body-xs text-muted-foreground mt-0.5">
-              Tambahkan bab pertama.
+              {t("courseDetail.chapters.empty.description")}
             </p>
           </div>
         ) : (
@@ -245,11 +247,11 @@ export function ChaptersTab({
             <table className="w-full text-left text-body-xs">
               <AdminTableHead>
                 <tr>
-                  <th className="px-3.5 py-2 w-20 text-center">Urutan</th>
-                  <th className="px-3.5 py-2">Judul bab</th>
-                  <th className="px-3.5 py-2 w-56">Konten terkait</th>
-                  <th className="px-3.5 py-2 w-24 text-center">Posisi</th>
-                  <th className="px-3.5 py-2 w-20 text-right">Aksi</th>
+                  <th className="px-3.5 py-2 w-20 text-center">{t("courseDetail.chapters.order")}</th>
+                  <th className="px-3.5 py-2">{t("courseDetail.chapters.title")}</th>
+                  <th className="px-3.5 py-2 w-56">{t("courseDetail.chapters.relatedContent")}</th>
+                  <th className="px-3.5 py-2 w-24 text-center">{t("courseDetail.chapters.position")}</th>
+                  <th className="px-3.5 py-2 w-20 text-right">{t("courseDetail.chapters.actions")}</th>
                 </tr>
               </AdminTableHead>
               <tbody className="divide-y divide-border/50">
@@ -272,7 +274,7 @@ export function ChaptersTab({
                           variant="outline"
                           className="font-mono font-bold text-body-xs px-2 py-0.5 rounded-md bg-muted/40"
                         >
-                          Bab {ch.orderIndex}
+                          {t("courseDetail.chapters.orderWithNumber", { number: ch.orderIndex })}
                         </Badge>
                       </td>
                       <td className="px-3.5 py-2.5">
@@ -295,7 +297,7 @@ export function ChaptersTab({
                               className="text-[10px] gap-1 px-1.5 py-0.5 rounded-md font-medium"
                             >
                               <FileText className="size-3 text-brand-secondary" />
-                              <span>{linkedMaterials} Dokumen</span>
+                              <span>{t("courseDetail.chapters.documentsWithCount", { count: linkedMaterials })}</span>
                             </Badge>
                           )}
                           {linkedQuestions > 0 && (
@@ -304,12 +306,12 @@ export function ChaptersTab({
                               className="text-[10px] gap-1 px-1.5 py-0.5 rounded-md font-medium"
                             >
                               <Library className="size-3 text-brand-primary" />
-                              <span>{linkedQuestions} Soal</span>
+                              <span>{t("courseDetail.chapters.questionsWithCount", { count: linkedQuestions })}</span>
                             </Badge>
                           )}
                           {linkedMaterials === 0 && linkedQuestions === 0 && (
                             <span className="text-muted-foreground/60 text-body-xs">
-                              0 materi terkait
+                              {t("courseDetail.chapters.noRelatedContent")}
                             </span>
                           )}
                         </div>
@@ -323,7 +325,7 @@ export function ChaptersTab({
                             className="size-6 rounded"
                             disabled={idx === 0 || actionLoadingId === ch.id}
                             onClick={() => handleMove(idx, "up")}
-                            title="Pindah ke Atas"
+                            title={t("courseDetail.chapters.moveUp")}
                           >
                             <ArrowUp className="size-3" />
                           </Button>
@@ -334,7 +336,7 @@ export function ChaptersTab({
                             className="size-6 rounded"
                             disabled={idx === chapters.length - 1 || actionLoadingId === ch.id}
                             onClick={() => handleMove(idx, "down")}
-                            title="Pindah ke Bawah"
+                            title={t("courseDetail.chapters.moveDown")}
                           >
                             <ArrowDown className="size-3" />
                           </Button>
@@ -348,7 +350,7 @@ export function ChaptersTab({
                             variant="ghost"
                             className="size-7 rounded-md hover:bg-muted"
                             onClick={() => startEditChapter(ch)}
-                            title="Edit Bab"
+                            title={t("courseDetail.chapters.edit")}
                           >
                             <Edit2 className="size-3" />
                           </Button>
@@ -358,7 +360,7 @@ export function ChaptersTab({
                             variant="ghost"
                             className="size-7 rounded-md text-destructive hover:text-destructive hover:bg-destructive/10"
                             onClick={() => setDeletingChapter(ch)}
-                            title="Hapus Bab"
+                            title={t("courseDetail.chapters.delete")}
                           >
                             <Trash2 className="size-3" />
                           </Button>
@@ -377,14 +379,14 @@ export function ChaptersTab({
       <Dialog open={!!editingChapter} onOpenChange={(open) => !open && setEditingChapter(null)}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Edit Bab</DialogTitle>
+            <DialogTitle>{t("courseDetail.chapters.edit")}</DialogTitle>
             <DialogDescription>
-              Perbarui judul, urutan, atau deskripsi bab pembelajaran.
+              {t("courseDetail.chapters.editDescription")}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="space-y-1">
-              <Label className="text-body-sm font-semibold text-foreground">Judul Bab</Label>
+              <Label className="text-body-sm font-semibold text-foreground">{t("courseDetail.chapters.title")}</Label>
               <Input
                 value={editTitle}
                 onChange={(e) => setEditTitle(e.target.value)}
@@ -393,7 +395,7 @@ export function ChaptersTab({
               />
             </div>
             <div className="space-y-1">
-              <Label className="text-body-sm font-semibold text-foreground">Nomor Urutan</Label>
+              <Label className="text-body-sm font-semibold text-foreground">{t("courseDetail.chapters.orderNumber")}</Label>
               <Input
                 type="number"
                 min={1}
@@ -404,7 +406,7 @@ export function ChaptersTab({
               />
             </div>
             <div className="space-y-1">
-              <Label className="text-body-sm font-semibold text-foreground">Deskripsi (Opsional)</Label>
+              <Label className="text-body-sm font-semibold text-foreground">{t("courseDetail.chapters.descriptionOptional")}</Label>
               <Textarea
                 rows={3}
                 value={editDescription}
@@ -417,7 +419,7 @@ export function ChaptersTab({
           <DialogFooter>
             <DialogClose asChild>
               <Button variant="outline" size="sm" disabled={loading} className="rounded-lg">
-                Batal
+                {t("common.cancel")}
               </Button>
             </DialogClose>
             <Button
@@ -427,7 +429,7 @@ export function ChaptersTab({
               isLoading={loading}
               className="rounded-lg"
             >
-              Simpan Perubahan
+              {t("common.save")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -442,15 +444,18 @@ export function ChaptersTab({
       >
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Hapus Bab Pembelajaran</DialogTitle>
+            <DialogTitle>{t("courseDetail.chapters.deleteTitle")}</DialogTitle>
             <DialogDescription>
-              Anda yakin ingin menghapus bab <strong>{deletingChapter?.title}</strong>? Tindakan ini tidak dapat dibatalkan.
+              {t.rich("courseDetail.chapters.deleteDescription", {
+                title: deletingChapter?.title ?? "",
+                strong: (chunks) => <strong>{chunks}</strong>,
+              })}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <DialogClose asChild>
               <Button variant="outline" size="sm" disabled={loading} className="rounded-lg">
-                Batal
+                {t("common.cancel")}
               </Button>
             </DialogClose>
             <Button
@@ -461,7 +466,7 @@ export function ChaptersTab({
               isLoading={loading}
               className="rounded-lg"
             >
-              Hapus Bab
+              {t("courseDetail.chapters.delete")}
             </Button>
           </DialogFooter>
         </DialogContent>

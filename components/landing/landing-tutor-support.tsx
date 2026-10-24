@@ -1,28 +1,18 @@
-import Link from "next/link";
+import { getTranslations } from "@/lib/i18n/server";
 import { ArrowUpRight, BookOpen, CalendarClock, MessageCircle } from "lucide-react";
 import { SectionContainer } from "@/components/layout/section-container";
 import { SectionHeading } from "@/components/ui/section-heading";
 import { Button } from "@/components/ui/button";
+import { LocalizedPublicLink } from "@/components/localized-public-link";
 
 const supportOptions = [
-  {
-    icon: BookOpen,
-    title: "Belajar mandiri",
-    body: "Free membuka bab pertama di setiap mata kuliah, termasuk Artikel, Diktat, Kuis, dan Flashcard. Diktat hanya dapat dibaca, Zyra 5 pertanyaan per hari.",
-  },
-  {
-    icon: CalendarClock,
-    title: "Tutorial terjadwal",
-    body: "Essential menambahkan 15 kali tutorial tatap muka untuk satu semester.",
-  },
-  {
-    icon: MessageCircle,
-    title: "Intensitas penuh",
-    body: "Premium menambahkan konsultasi tugas kuliah on-demand dan total 30 kali tutorial tatap muka.",
-  },
+  { icon: BookOpen, title: "support.selfStudyTitle", body: "support.selfStudyBody" },
+  { icon: CalendarClock, title: "support.scheduledTitle", body: "support.scheduledBody" },
+  { icon: MessageCircle, title: "support.intensiveTitle", body: "support.intensiveBody" },
 ] as const;
 
-export function LandingTutorSupport() {
+export async function LandingTutorSupport() {
+  const t = await getTranslations("marketing");
   return (
     <SectionContainer
       className="border-y border-border/80 bg-muted/45"
@@ -30,7 +20,7 @@ export function LandingTutorSupport() {
     >
       <div className="mx-auto max-w-2xl text-center">
         <SectionHeading as="h2" id="landing-tutor-support-heading" className="text-foreground">
-          Saat belajar mandiri belum cukup, pilih dukungan yang tepat.
+          {t("support.title")}
         </SectionHeading>
       </div>
 
@@ -41,9 +31,9 @@ export function LandingTutorSupport() {
             <article key={option.title} className="bg-background p-5 md:p-6">
               <Icon className="size-5 text-primary" aria-hidden="true" />
               <h3 className="mt-4 font-heading text-body-base font-semibold text-foreground">
-                {option.title}
+                {t(option.title)}
               </h3>
-              <p className="mt-2 text-body-sm leading-relaxed text-muted-foreground">{option.body}</p>
+              <p className="mt-2 text-body-sm leading-relaxed text-muted-foreground">{t(option.body)}</p>
             </article>
           );
         })}
@@ -51,10 +41,10 @@ export function LandingTutorSupport() {
 
       <div className="mt-8 text-center">
         <Button asChild variant="marketingSecondary" size="marketing" className="bg-background">
-          <Link href="/plans">
-            Bandingkan semua paket
+          <LocalizedPublicLink href="/plans">
+            {t("support.comparePlans")}
             <ArrowUpRight className="size-4" data-icon="inline-end" aria-hidden="true" />
-          </Link>
+          </LocalizedPublicLink>
         </Button>
       </div>
     </SectionContainer>

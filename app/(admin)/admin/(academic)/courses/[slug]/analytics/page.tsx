@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { assertAdmin } from "@/lib/auth/admin-guards";
 import { pageTitle } from "@/lib/site";
+import { getTranslations } from "@/lib/i18n/server";
 import { CourseDetailHeader } from "@/components/admin/course-detail/course-detail-header";
 import { QuizInsightsListClient } from "@/app/(admin)/admin/(eval)/quiz-insights/quiz-insights-list-client";
 import { getCourseDetailData } from "../../actions";
@@ -12,18 +13,19 @@ type Props = {
 };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const t = await getTranslations("adminAcademic");
   const { slug } = await params;
   try {
     const courseIdentity = await resolveCourseIdentity(slug);
     if (!courseIdentity) {
-      return { title: pageTitle("Analitik Kuis") };
+      return { title: pageTitle(t("metadata.pages.analyticsTitle")) };
     }
     return {
-      title: pageTitle(`Analitik Kuis: ${courseIdentity.title}`),
-      description: `Analisis performa kuis dan evaluasi AI untuk mata kuliah ${courseIdentity.title}.`,
+      title: pageTitle(t("metadata.pages.analyticsCourseTitle", { course: courseIdentity.title })),
+      description: t("metadata.pages.analyticsDescription", { course: courseIdentity.title }),
     };
   } catch {
-    return { title: pageTitle("Analitik Kuis") };
+    return { title: pageTitle(t("metadata.pages.analyticsTitle")) };
   }
 }
 

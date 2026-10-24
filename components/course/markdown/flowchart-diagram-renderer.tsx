@@ -5,9 +5,10 @@ import ReactFlow, { Edge, Node } from "reactflow";
 import "reactflow/dist/style.css";
 import { AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { getLayoutedGraph, type LayoutDiagnostics } from "@/lib/visual-layout-service";
+import { getLayoutedGraph } from "@/lib/visual-layout-service";
 import type { MarkdownDensity } from "@/components/course/markdown-renderer";
 import { renderRichText } from "@/components/course/markdown-renderer";
+import { useTranslations } from "@/lib/i18n/client";
 
 export function FlowchartDiagramRenderer({
   data,
@@ -20,24 +21,26 @@ export function FlowchartDiagramRenderer({
   caption?: string;
   density?: MarkdownDensity;
 }) {
+  const t = useTranslations("studentCourse");
   const isCompact = density === "compact";
   const [nodes, setNodes] = useState<Node[]>([]);
   const [edges, setEdges] = useState<Edge[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [layoutDiag, setLayoutDiag] = useState<LayoutDiagnostics | null>(null);
 
   const astNodes = data.nodes || [];
   const astEdges = data.edges || [];
 
   useEffect(() => {
     if (astNodes.length === 0) {
-      setError("VisualRenderError: No nodes generated. Confirm edge descriptions use valid 'A --> B' syntax.");
+      console.error("Flowchart has no nodes to render.");
+      setError("unavailable");
       setLoading(false);
       return;
     }
     if (astEdges.length === 0) {
-      setError("VisualRenderError: No edges generated. Confirm edge descriptions use valid 'A --> B' syntax.");
+      console.error("Flowchart has no edges to render.");
+      setError("unavailable");
       setLoading(false);
       return;
     }
@@ -78,10 +81,10 @@ export function FlowchartDiagramRenderer({
 
         setNodes(layoutResult.nodes);
         setEdges(layoutResult.edges);
-        setLayoutDiag(layoutResult.diagnostics);
+        console.debug("Flowchart layout diagnostics:", layoutResult.diagnostics);
       } catch (err: any) {
         console.error("ReactFlow layout parsing failed:", err);
-        setError(`VisualRenderError: ELK layout failed: ${err.message || err}`);
+        setError("unavailable");
       } finally {
         setLoading(false);
       }
@@ -98,14 +101,14 @@ export function FlowchartDiagramRenderer({
         {error ? (
           <div className="absolute inset-0 flex flex-col items-center justify-center p-6 bg-destructive/5 text-destructive border border-destructive/20 rounded-lg">
             <AlertTriangle className="size-8 mb-2 text-destructive" />
-            <span className="font-semibold text-body-sm">Diagram Parsing Failed</span>
+            <span className="font-semibold text-body-sm">{t("learningCanvas.diagramUnavailableTitle")}</span>
             <span className="text-body-xs text-muted-foreground mt-1 text-center max-w-[80%]">
-              {error}
+              {t("learningCanvas.diagramUnavailable")}
             </span>
           </div>
         ) : loading ? (
           <div className="absolute inset-0 flex items-center justify-center text-muted-foreground text-body-sm font-sans">
-            Menghitung tata letak...
+            {t("learningCanvas.diagramLoading")}
           </div>
         ) : (
           <ReactFlow
@@ -120,11 +123,6 @@ export function FlowchartDiagramRenderer({
           />
         )}
       </div>
-      {layoutDiag && (
-        <div className="mt-2 text-left text-[10px] text-muted-foreground font-mono">
-          Layout duration: {layoutDiag.layoutTimeMs}ms | Cache hit: {layoutDiag.cacheHit ? "YES" : "NO"} | Nodes: {layoutDiag.nodeCount} | Edges: {layoutDiag.edgeCount}
-        </div>
-      )}
       {caption && <p className={cn("text-body-sm text-muted-foreground italic", isCompact ? "mt-2" : "mt-3")}>{renderRichText(caption)}</p>}
     </div>
   );
