@@ -1,5 +1,7 @@
 "use client";
 
+import type { CodingProblemPublic } from "@/lib/coding/contracts";
+import { MarkdownRenderer } from "@/components/course/markdown-renderer";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "@/components/ui/toast";
 import { Button } from "@/components/ui/button";
@@ -36,6 +38,13 @@ export interface TutorLiveConsoleProps {
 
 export function TutorLiveConsole({ courseId, courseTitle }: TutorLiveConsoleProps) {
   const t = useTranslations("tutor.live");
+  const [codingProblems, setCodingProblems] = useState<CodingProblemPublic[]>([]);
+  const [codingChoice, setCodingChoice] = useState("none");
+  useEffect(() => {
+    const controller = new AbortController();
+    void fetch(`/api/coding/problems?${new URLSearchParams({ courseId })}`, { signal: controller.signal }).then(async (response) => { if (response.ok) setCodingProblems((await response.json()).problems); }).catch(() => {});
+    return () => controller.abort();
+  }, [courseId]);
   const [phase, setPhase] = useState<Phase>("setup");
   const [templates, setTemplates] = useState<Template[]>([]);
   const [selectedTemplateId, setSelectedTemplateId] = useState("");
@@ -124,7 +133,7 @@ export function TutorLiveConsole({ courseId, courseTitle }: TutorLiveConsoleProp
   }, [loadInitialData]);
 
   const createSession = useCallback(async () => {
-    if (!selectedTemplateId) {
+    if (!selectedTemplateId && codingChoice === "none") {
       toast.error(t("selectTemplateFirst"));
       return;
     }
@@ -133,7 +142,7 @@ export function TutorLiveConsole({ courseId, courseTitle }: TutorLiveConsoleProp
       const res = await fetch("/api/live/sessions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ courseId, templateId: selectedTemplateId }),
+        body: JSON.stringify({ courseId, ...(codingChoice === "none" ? { templateId: selectedTemplateId } : {}), ...(codingChoice !== "none" ? { codingQuestions: [{ problemId: JSON.parse(codingChoice)[0], version: JSON.parse(codingChoice)[1], maxAttempts: null, assistance: "hints", scoring: "best", durationSeconds: 300 }] } : {}) }),
       });
       if (!res.ok) {
         throw new Error(t("createFailed"));
@@ -147,7 +156,7 @@ export function TutorLiveConsole({ courseId, courseTitle }: TutorLiveConsoleProp
     } finally {
       setCreating(false);
     }
-  }, [courseId, selectedTemplateId, t]);
+  }, [courseId, selectedTemplateId, codingChoice, t]);
 
   const control = useCallback(
     async (action: "start" | "next" | "reveal" | "end") => {
@@ -223,7 +232,7 @@ export function TutorLiveConsole({ courseId, courseTitle }: TutorLiveConsoleProp
           </p>
         </div>
 
-        {templates.length === 0 ? (
+        {templates.length === 0 && codingProblems.length === 0 ? (
           <div className="rounded-lg bg-muted/40 p-4 text-body-sm text-muted-foreground">
             {t("publishQuizFirst")}
           </div>
@@ -245,9 +254,17 @@ export function TutorLiveConsole({ courseId, courseTitle }: TutorLiveConsoleProp
               </Select>
             </div>
 
+            {codingProblems.length ? <div className="space-y-1.5">
+              <label className="text-body-sm font-semibold">Soal Python</label>
+              <Select value={codingChoice} onValueChange={setCodingChoice}>
+                <SelectTrigger className="text-body-sm"><SelectValue /></SelectTrigger>
+                <SelectContent><SelectItem value="none">Gunakan soal templat</SelectItem>{codingProblems.map((problem) => <SelectItem key={`${problem.problemId}@${problem.version}`} value={JSON.stringify([problem.problemId, problem.version])}>{problem.title}, versi {problem.version}</SelectItem>)}</SelectContent>
+              </Select>
+              <p className="text-body-xs text-muted-foreground">Python: 5 menit, percobaan berulang, petunjuk Zyra, skor terbaik.</p>
+            </div> : null}
             <Button
               onClick={createSession}
-              disabled={!selectedTemplateId}
+              disabled={!selectedTemplateId && codingChoice === "none"}
               isLoading={creating}
               className="w-full rounded-lg text-body-sm font-medium"
             >
@@ -333,9 +350,7 @@ export function TutorLiveConsole({ courseId, courseTitle }: TutorLiveConsoleProp
             </span>
           </div>
 
-          <MathText className="font-sans text-body-base font-semibold text-foreground block" as="div">
-            {currentQuestion.prompt}
-          </MathText>
+          <MarkdownRenderer content={currentQuestion.prompt} />
 
           {/* Option Answer Bars */}
           <div className="space-y-3">

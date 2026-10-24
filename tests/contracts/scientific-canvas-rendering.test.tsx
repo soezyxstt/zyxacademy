@@ -55,7 +55,7 @@ describe("Scientific canvas rendering", () => {
   });
   test("keeps diagram math in naturally sized HTML nodes without SVG font scaling or truncation", () => {
     const label = "Hubungan gaya terhadap percepatan $\\vec F=m\\vec a$";
-    for (const type of ["flowchart", "concept_map"]) {
+    for (const type of ["concept_map"]) {
       const html = render({ type, direction: "down", nodes: [{ id: "source", label }, { id: "target", label: "$a=\\frac{F}{m}$" }], edges: [{ source: "source", target: "target", label: "$m>0$" }] });
       expect(html).toContain('data-diagram-node="source"');
       expect(html).toContain("Hubungan gaya terhadap percepatan");
@@ -64,5 +64,12 @@ describe("Scientific canvas rendering", () => {
       expect(html).not.toContain('class="katex-error"');
       expect(html).toContain("grid-template-columns:repeat(1");
     }
+  });
+  test("retains flowchart labels as accessible typeset text before the interactive graph loads", () => {
+    const html = render({ type: "flowchart", nodes: [{ id: "source", label: "Periksa $n>0$", kind: "decision" }, { id: "target", label: "$a=\\frac{F}{m}$", kind: "process" }], edges: [{ source: "source", target: "target", label: "Ya" }] });
+    expect(html).toContain('aria-label="Langkah flowchart"');
+    expect(html).toContain("Periksa");
+    expect(html).toContain('class="katex"');
+    expect(html).not.toContain('class="katex-error"');
   });
 });

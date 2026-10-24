@@ -128,15 +128,24 @@ export function sanitizeAnswer(
     ""
   );
 
-  // 3. Tidy leftover artefacts:
-  // Space before punctuation: "word ." -> "word."
-  out = out.replace(/[ \t]+([.,!?;:])/g, "$1");
+  // 3. Tidy prose only. Citation/ID redaction above still covers code, while
+  // whitespace, empty calls and empty lists are meaningful Python syntax.
+  const codeSegments: string[] = [];
+  out = out.replace(/```[\s\S]*?```|`[^`\n]*`/g, (segment) => {
+    const marker = `@@ZYRA_CODE_${codeSegments.length}@@`;
+    codeSegments.push(segment);
+    return marker;
+  });
   // Empty brackets or parens left behind
   out = out.replace(/\(\s*\)/g, "").replace(/\[\s*\]/g, "");
+  // Space before punctuation: "word ." -> "word."
+  out = out.replace(/[ \t]+([.,!?;:])/g, "$1");
   // Doubled punctuation e.g. ".." -> "." (preserving math dots)
   out = out.replace(/([.,;:!?])\s*\1+/g, "$1");
   // Doubled spaces
   out = out.replace(/[ \t]{2,}/g, " ");
+
+  out = out.replace(/@@ZYRA_CODE_(\d+)@@/g, (_, index: string) => codeSegments[Number(index)] ?? "");
 
   return normalizeTutorMathMarkdown(out.trim());
 }

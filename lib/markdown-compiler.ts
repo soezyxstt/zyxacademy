@@ -1,3 +1,4 @@
+import { FlowchartNodeKindSchema, type FlowchartNodeKind } from "./flowchart";
 import { 
   WebsiteMaterialAST, 
   ASTBlock, 
@@ -819,6 +820,13 @@ function parseBlockNode(
       const parsed = parseYamlLike(yamlLines);
       const edges: any[] = [];
       const nodeNames = new Set<string>();
+      const nodeKinds = new Map<string, FlowchartNodeKind>();
+      const readNode = (raw: string) => {
+        const suffix = raw.match(/\s+\[(start|end|input|output|process|decision)\]$/);
+        const name = (suffix ? raw.slice(0, suffix.index) : raw).trim().replace(/^"(.*)"$/, "$1");
+        if (suffix) nodeKinds.set(name, FlowchartNodeKindSchema.parse(suffix[1]));
+        return name;
+      };
 
       const cleanNodeName = (name: string): { label: string; stepNumber?: number } => {
         const match = name.match(/^(?:Langkah|Step|Phase|Stage)\s*(\d+)\s*[:.-]\s*(.+)$/i);
@@ -835,9 +843,11 @@ function parseBlockNode(
       edgeLines.forEach(line => {
         const match = line.match(edgeRegex);
         if (match) {
-          const rawSource = match[1].trim();
-          const label = (match[2] || match[3] || "").trim();
-          const rawTarget = match[4].trim();
+          const rawSource = readNode(match[1].trim());
+          const targetWithLabel = match[4].trim();
+          const trailingLabel = targetWithLabel.match(/\s+:\s+"([^"]*)"$/);
+          const label = (match[2] || match[3] || trailingLabel?.[1] || "").trim();
+          const rawTarget = readNode(trailingLabel ? targetWithLabel.slice(0, trailingLabel.index).trim() : targetWithLabel);
 
           const sourceId = rawSource.toLowerCase().replace(/[^a-z0-9-]/g, "-").replace(/-+/g, "-");
           const targetId = rawTarget.toLowerCase().replace(/[^a-z0-9-]/g, "-").replace(/-+/g, "-");
@@ -860,6 +870,7 @@ function parseBlockNode(
           id,
           label,
           stepNumber,
+          ...(nodeKinds.has(rawName) ? { kind: nodeKinds.get(rawName) } : {}),
         };
       });
 

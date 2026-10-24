@@ -19,6 +19,7 @@ import { Input } from "@/components/ui/input";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { MathText } from "@/components/course/math-text";
+import dynamic from "next/dynamic";
 import { cn } from "@/lib/utils";
 import { fitNumericRange, isRepresentableRange, normalizedVectorComponent, zoomNumericRange } from "@/lib/zyra/canvas/viewport";
 import { scientificNumberToLatex, scientificNumberToText, scientificValueToMathText } from "@/lib/math/scientific-format";
@@ -50,6 +51,7 @@ function getSeriesColor(index: number): string {
 
 const GRAPH_BLUE = SERIES_PALETTE[0];
 const BG = "transparent";
+const FlowchartDiagramRenderer = dynamic(() => import("@/components/course/markdown/flowchart-diagram-renderer").then(module => module.FlowchartDiagramRenderer), { ssr: false });
 
 const PAD_L = 84;
 const PAD_R = 18;
@@ -1584,7 +1586,13 @@ export function LearningCanvasRenderer({ spec, embedded = false }: { spec: Canva
         <DataPlot spec={spec} />
       ) : spec.type === "derivation" ? (
         <Derivation spec={spec} />
-      ) : spec.type === "flowchart" || spec.type === "concept_map" ? (
+      ) : spec.type === "flowchart" ? (
+        <div className="space-y-3">
+          <ol className="sr-only" aria-label="Langkah flowchart">{spec.nodes.map(node => <li key={node.id}><MathText>{node.label}</MathText></li>)}</ol>
+          <FlowchartDiagramRenderer data={spec} embedded />
+          <FallbackTable spec={spec} />
+        </div>
+      ) : spec.type === "concept_map" ? (
         <Diagram spec={spec} />
       ) : spec.type === "vector_diagram" || spec.type === "free_body" ? (
         <VectorDiagram spec={spec} />

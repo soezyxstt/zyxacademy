@@ -1796,3 +1796,13 @@ Indexes:
 * `idx_search_documents_synced`: Index on `is_synced`
 * `idx_search_documents_min_role`: Index on `min_role`
 * `idx_search_documents_course`: Index on `course_id`
+
+## Coding learning
+
+Generated migration `0099_hard_meteorite.sql` adds `coding_problems` (immutable private snapshots keyed by ID and
+version, canonical course and author), `coding_drafts` (learner/course/key with
+optimistic revision), and `coding_attempts` (owner, problem version, surface,
+idempotency request, ordinal, immutable code, evaluation, status and fenced lease).
+Public projections exclude solutions and private tests. See
+[coding contract](coding-foundation.md). Local SQLite migration is verified;
+remote migration is a separate operation.

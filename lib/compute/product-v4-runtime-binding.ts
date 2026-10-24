@@ -36,9 +36,13 @@ export const PRODUCT_V4_RUNTIME_FILES = [
   "deno.json", "workers/deno-background/deno.json", "lib/compute/pdf-pages.ts", "lib/compute/pdf-worker.ts",
   "app/globals.css", "app/layout.tsx", "app/authoring-verification/page.tsx",
   "components/providers/telemetry-boundary.tsx", "components/providers/posthog-provider.tsx", "lib/env.ts",
+  "components/coding/article-coding.tsx", "components/coding/coding-workspace.tsx", "components/coding/coding-help.tsx", "components/coding/python-editor.tsx", "components/coding/use-coding-draft.ts",
+  "lib/coding/draft-reconciliation.ts", "lib/coding/contracts.ts", "lib/coding/browser-runtime.ts", "lib/coding/runtime.ts", "lib/coding/runtime-assets.ts", "lib/coding/frame.html", "public/coding/worker.js", "lib/coding/http-contracts.ts", "lib/coding/zyra.ts",
+  "components/course/markdown/flowchart-diagram-renderer.tsx", "lib/visual-layout-service.ts",
   "components/course/article-parts.tsx", "components/course/math-text.tsx", "components/course/markdown-renderer.tsx",
   "components/course/product-learning-visual.tsx", "components/course/epsilon-delta-board.tsx", "components/course/geometry-2d-visual.tsx",
   "components/course/learning-canvas/learning-canvas-renderer.tsx", "components/ui/slider.tsx",
+  "components/course/markdown/flowchart-node.tsx", "lib/flowchart.ts",
   "components/course/product-learning-blocks.tsx", "components/course/article-reading-canvas.tsx", "components/course/structured-article-reader.tsx",
   "components/course/question-image.tsx", "lib/articles/source-figure-resolver.ts", "app/api/courses/[id]/articles/[articleId]/source-figures/[visualId]/route.ts",
   "lib/articles/structured-read-model.ts", "lib/articles/structured-repository.ts", "lib/materials/compiler.ts", "lib/materials/pedagogy-contract.ts",
@@ -171,7 +175,7 @@ export async function readProductV4RuntimeFingerprint(): Promise<ProductV4Runtim
   }
   const [{ getStagePlaybookManifest }, { PRODUCT_DIKTAT_PRINT_PROFILE }] = await Promise.all([import("@/lib/authoring/mcp-playbook"), import("@/lib/bundle/product-diktat-pdf")]);
   const require = createRequire(import.meta.url);
-  const packages = ["react", "react-dom", "next", "katex", "jsxgraph", "zod", "mathjs", "tailwindcss", "@tailwindcss/postcss", "@playwright/test", "playwright-core"];
+  const packages = ["pyodide", "@codemirror/state", "@codemirror/view", "@codemirror/language", "@codemirror/lang-python", "@codemirror/commands", "react", "react-dom", "next", "katex", "jsxgraph", "zod", "mathjs", "tailwindcss", "@tailwindcss/postcss", "@playwright/test", "playwright-core"];
   const versions = packages.map(name => [name, JSON.parse(readFileSync(runtimePackageManifest(name), "utf8")).version]);
   const katexRoot = dirname(require.resolve("katex/package.json"));
   const browsers = readFileSync(join(dirname(require.resolve("playwright-core/package.json")), "browsers.json"));
@@ -180,7 +184,7 @@ export async function readProductV4RuntimeFingerprint(): Promise<ProductV4Runtim
   // Git checkouts on Windows use CRLF; bind the same source text on Linux deployments.
   const files = PRODUCT_V4_RUNTIME_FILES.map(path => [path, bytesHash(Buffer.from(readFileSync(resolve(/* turbopackIgnore: true */ process.cwd(), path), "utf8").replace(/\r\n/g, "\n")))] as const);
   // Bun bundling expands Unicode regex escapes; bind contract source, not engine-specific JSON Schema spellings.
-  const contractFiles = files.filter(([path]) => /^lib\/(authoring|materials|bundle|ide|sumber|zyra\/canvas)\//.test(path) || path === "lib/question-authoring-contract.ts");
+  const contractFiles = files.filter(([path]) => /^lib\/(authoring|materials|bundle|ide|sumber|coding|zyra\/canvas)\//.test(path) || path === "lib/question-authoring-contract.ts");
   return { rendererChecksum: hash({ files, versions, browsers: bytesHash(browsers), chromium: expectedChromiumRuntime() }),
     fontChecksum: hash({ stylesheet: bytesHash(readFileSync(join(katexRoot, "dist/katex.min.css"))), fonts: fonts.map(name => [name, bytesHash(readFileSync(join(katexRoot, "dist/fonts", name)))]) }),
     contractChecksum: hash({ files: contractFiles, policy: PRODUCT_V4_VERIFICATION_POLICY }), playbookChecksum: getStagePlaybookManifest("product").playbookChecksum,

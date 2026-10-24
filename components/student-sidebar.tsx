@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
   BookOpen,
+  Code2,
   Check,
   ChevronDown,
   ChevronRight,
@@ -257,6 +258,7 @@ export function StudentSidebar({
             { href: base, icon: LayoutDashboard, label: t("navigation.summary"), exact: true },
             { href: `${base}/material`, icon: FileText, label: t("navigation.documents") },
             { href: `${base}/video`, icon: Video, label: t("navigation.video") },
+            { href: `${base}/playground`, icon: Code2, label: "Playground" },
             { href: `${base}/quiz`, icon: ClipboardList, label: t("navigation.quiz") },
             {
               href: `/dashboard/schedule?course=${activeCourseId}`,

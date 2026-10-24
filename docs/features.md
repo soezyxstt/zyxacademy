@@ -646,3 +646,15 @@ A section completes at 90 percent read depth or when the reader proceeds from it
 New Article/Diktat authoring defaults to V4. Existing V3 revisions and readers remain supported. Article parts keep explanations, formulas, conditions, symbols, examples and visuals in reading order. Mathematical prose, headings, scientific values, chemistry and units use the shared mathematical renderer. Diktat units are authored separately with references to Article elements and verified static figures. Existing V2/V3 content keeps its compatibility path.
 
 MCP exposes scoped source-figure extraction and resumable jobs, plus `authoring.verify_product_bundle` and `authoring.get_verification`. Approval requires current server verification, explicit decisions for every section, an anchored eight-criterion rubric and the same verified PDF artifact. V4 content is revised through its bundle rather than a lossy legacy editor. See [the V4 source contract](bundle/product-bundle-v4.md) and [the MCP skills runbook](operations/authoring-mcp-skills.md). Deployment and installation remain separate actions.
+## Python coding
+
+Course Playground, runnable V4 Article examples, repeated coding submissions,
+Zyra decomposition/flowchart help and Python Live Quiz are implemented locally
+without a new feature flag. Existing Live Quiz gating remains unchanged. See
+[coding contract](coding-foundation.md) for authoring, access and runtime limits.
+
+Error help guides trial and error: explain the observed failure, offer a tentative
+concept diagnosis, let the learner clarify their reasoning, give one small next
+step, and encourage another predicted Run. After an edit, old explanations are
+marked stale until a new consultation. A successful browser Run remains practice,
+not an official Submit grade.

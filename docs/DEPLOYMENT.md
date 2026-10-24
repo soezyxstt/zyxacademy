@@ -430,3 +430,18 @@ Plugin release order: merge and verify the server deployment first, including `w
 ### MCP PDF job rollout
 
 The always-on PDF page reader requires `source-read-page` in the Deno compute app's Inngest function registration before enabling the updated web endpoint. Use the existing environment-specific deployment and Inngest sync path. Verify a cold text read returns a job ID, polling completes with text and no image, an image request honors the requested width, and a failed page retries without rerendering completed pages. Verify a signed download with `Range: bytes=0-1023` returns HTTP 206, Content-Range, and ETag; then exercise interruption/resume with the repository client. Local fixture tests do not prove these remote boundaries. No database migration or feature flag is introduced. Job and cache objects remain private in the existing environment's R2 bucket.
+
+## Python coding deployment
+
+Python coding requires the generated coding table migration and a paired release
+of the Next application and `workers/realtime` for graded Live Quiz. Production
+Submit requires working Cloudflare Browser Run credentials through existing
+`CF_ACCOUNT_ID` and `CF_API_TOKEN` by default. `CODING_BROWSER_PROVIDER=steel`
+selects the shared Steel session adapter using server-only `STEEL_API_KEY`.
+This is independent of V4 verification settings. Real Steel Python grading has
+passed against the local app with synthetic SQLite data. This does not certify
+a deployed rollout or the deployment environment's CDP transport. Local Chromium is rejected in production. Neither provider
+falls back automatically, and provider release failures remain ungradable.
+Runtime package assets and Worker/frame files
+are included in Next output tracing. See [coding contract](coding-foundation.md).
+Local implementation/testing does not establish remote rollout or credentials.

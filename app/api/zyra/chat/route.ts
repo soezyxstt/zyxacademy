@@ -1,7 +1,8 @@
+import { codingHelpRequestSchema } from "@/lib/coding/http-contracts";
 import { headers } from "next/headers";
 import { randomUUID } from "node:crypto";
 import { auth } from "@/lib/auth";
-import { askTutorRagAction } from "@/app/actions/tutor";
+import { askTutorRagAction, saveTutorMessagesAction } from "@/app/actions/tutor";
 import { resolveCourseAccess } from "@/lib/student/course-access";
 import { FREE_ALLOWANCE_IDEMPOTENCY_PREFIX } from "@/lib/usage-budget-service";
 import { sanitizeAnswer } from "@/lib/tutor/answer-sanitizer";
@@ -81,8 +82,12 @@ export async function POST(req: Request) {
       pathname,
       requestId,
       selectionContext = null,
+      codingContext = null,
       responseLanguage,
     } = body;
+
+    const coding = codingContext === null ? null : codingHelpRequestSchema.safeParse(codingContext);
+    if (coding && !coding.success) return Response.json({ error: "Konteks coding tidak valid." }, { status: 400 });
 
     const normalizedCourseId = typeof courseId === "string" ? courseId.trim() : "";
     const normalizedQuestion = typeof question === "string" ? question.trim() : "";
@@ -179,6 +184,7 @@ export async function POST(req: Request) {
             normalizedPathname,
             idempotencyKey,
             sanitizedSelectionContext,
+            coding?.success ? coding.data : undefined,
             normalizedResponseLanguage,
           );
 
@@ -258,6 +264,15 @@ export async function POST(req: Request) {
               type: "data-canvas",
               canvasSpec: res.canvasSpec,
             });
+          }
+
+          if (coding?.success && res.sessionId && res.answer && !res.failureCode && !res.budgetExhausted && !req.signal.aborted) {
+            try {
+              await saveTutorMessagesAction(normalizedCourseId, [
+                { role: "student", content: normalizedQuestion },
+                { role: "ai", content: fullAnswer, sources: res.sources, canvasSpec: res.canvasSpec },
+              ], res.sessionId);
+            } catch { /* A history failure must not discard a completed explanation. */ }
           }
 
           // 5. Complete stream

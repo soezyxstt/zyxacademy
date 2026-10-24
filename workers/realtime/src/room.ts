@@ -32,6 +32,7 @@ interface Env {
 }
 
 export interface Question {
+  coding?: { problemId: string; version: number; maxAttempts: number | null; assistance: "disabled" | "hints" | "full"; scoring: "best" | "latest"; durationSeconds: number };
   prompt: string;
   options: string[];
   correctIndex: number;
@@ -56,6 +57,8 @@ interface RoomState {
   participants: Record<string, Participant>;
   // answersByQuestion[qi][userId] = { choice, receivedTs }
   answersByQuestion: Record<number, Record<string, { choice: number; receivedTs: number }>>;
+  codingPending?: Record<string, number>;
+  codingResults?: Record<number, Record<string, { score: number; ordinal: number }>>;
 }
 
 export interface TokenPayload {
@@ -123,6 +126,7 @@ export class LiveQuizRoom {
   async fetch(request: Request): Promise<Response> {
     const url = new URL(request.url);
 
+    if (/\/coding-(state|reserve|result)$/.test(url.pathname) && request.method === "POST") return this.handleCoding(request);
     if (url.pathname.endsWith("/init") && request.method === "POST") {
       return this.handleInit(request);
     }
@@ -134,6 +138,44 @@ export class LiveQuizRoom {
     }
 
     return new Response("Not Found", { status: 404 });
+  }
+
+  private async handleCoding(request: Request): Promise<Response> {
+    if (request.headers.get("Authorization") !== `Bearer ${this.env.LIVE_HMAC_SECRET}`) return new Response("Unauthorized", { status: 401 });
+    const data = await request.json().catch(() => null) as { userId?: string; questionIndex?: number; requestId?: string; score?: number | null; ordinal?: number } | null;
+    if (!data || typeof data.userId !== "string" || !Number.isInteger(data.questionIndex)) return new Response("Invalid body", { status: 400 });
+    const userId = data.userId, qi = data.questionIndex!;
+    const q = this.questions[qi];
+    if (!this.roomState.participants[userId]) return new Response("Forbidden", { status: 403 });
+    if (!q?.coding || qi !== this.roomState.currentQuestionIndex || this.roomState.sessionState !== "question") return new Response("Question closed", { status: 409 });
+    const operation = new URL(request.url).pathname.split("/").pop();
+    if (operation === "coding-state") return Response.json({ coding: q.coding, deadlineMs: this.roomState.deadlineTs });
+    if (typeof data.requestId !== "string" || data.requestId.length > 160) return new Response("Invalid request", { status: 400 });
+    const key = `${qi}:${userId}:${data.requestId}`;
+    this.roomState.codingPending ??= {};
+    if (operation === "coding-reserve") {
+      if (Date.now() > this.roomState.deadlineTs) return new Response("Deadline passed", { status: 409 });
+      this.roomState.codingPending[key] = Date.now() + 60_000;
+      await this.persistState();
+      return Response.json({ ok: true });
+    }
+    this.roomState.codingResults ??= {};
+    this.roomState.codingResults[qi] ??= {};
+    const previous = this.roomState.codingResults[qi][userId];
+    // Completed delivery may be replayed after an HTTP response was lost.
+    if (!this.roomState.codingPending[key]) {
+      if (previous && data.ordinal !== undefined && previous.ordinal >= data.ordinal) return Response.json({ ok: true });
+      return new Response("Reservation required", { status: 409 });
+    }
+    if (this.roomState.codingPending[key] < Date.now()) return new Response("Reservation expired", { status: 409 });
+    if (data.score !== null && (typeof data.score !== "number" || !Number.isFinite(data.score) || data.score < 0 || data.score > 1 || !Number.isInteger(data.ordinal) || data.ordinal! < 1)) return new Response("Invalid result", { status: 400 });
+    delete this.roomState.codingPending[key];
+    if (data.score !== null && data.score !== undefined && (!previous || data.ordinal! > previous.ordinal)) {
+      this.roomState.codingResults[qi][userId] = { score: data.score, ordinal: data.ordinal! };
+    }
+    await this.persistState();
+    this.sendAnswerCountsToHosts(qi);
+    return Response.json({ ok: true });
   }
 
   // ── Init ────────────────────────────────────────────────────────────────────
@@ -306,6 +348,9 @@ export class LiveQuizRoom {
     _clientTs?: number
   ): Promise<void> {
     if (this.roomState.sessionState !== "question") return;
+    if (this.questions[questionIndex]?.coding || Date.now() > this.roomState.deadlineTs) return;
+    const q = this.questions[questionIndex];
+    if (!q || !Number.isInteger(choice) || choice < 0 || choice >= q.options.length) return;
     if (questionIndex !== this.roomState.currentQuestionIndex) return;
 
     if (!this.roomState.answersByQuestion[questionIndex]) {
@@ -340,7 +385,7 @@ export class LiveQuizRoom {
 
     this.roomState.sessionState = "question";
     this.roomState.currentQuestionIndex = 0;
-    this.roomState.deadlineTs = Date.now() + QUESTION_WINDOW_MS;
+    this.roomState.deadlineTs = Date.now() + (this.questions[this.roomState.currentQuestionIndex]?.coding?.durationSeconds ?? QUESTION_WINDOW_MS / 1000) * 1000;
     const q = this.questions[0];
     this.currentOptionCounts = new Array(q.options.length).fill(0);
     await this.persistState();
@@ -349,6 +394,7 @@ export class LiveQuizRoom {
       questionIndex: 0,
       prompt: q.prompt,
       options: q.options,
+      coding: q.coding,
       origin: q.origin,
       sourceEventName: q.sourceEventName,
       sourceReferenceId: q.sourceReferenceId,
@@ -371,7 +417,7 @@ export class LiveQuizRoom {
 
     this.roomState.sessionState = "question";
     this.roomState.currentQuestionIndex = nextIndex;
-    this.roomState.deadlineTs = Date.now() + QUESTION_WINDOW_MS;
+    this.roomState.deadlineTs = Date.now() + (this.questions[this.roomState.currentQuestionIndex]?.coding?.durationSeconds ?? QUESTION_WINDOW_MS / 1000) * 1000;
     const q = this.questions[nextIndex];
     this.currentOptionCounts = new Array(q.options.length).fill(0);
     await this.persistState();
@@ -380,6 +426,7 @@ export class LiveQuizRoom {
       questionIndex: nextIndex,
       prompt: q.prompt,
       options: q.options,
+      coding: q.coding,
       origin: q.origin,
       sourceEventName: q.sourceEventName,
       sourceReferenceId: q.sourceReferenceId,
@@ -404,10 +451,17 @@ export class LiveQuizRoom {
     const questionDeadline = this.roomState.deadlineTs;
 
     const perOptionCounts = [...this.currentOptionCounts];
+    if (q.coding) {
+      const pending = Object.entries(this.roomState.codingPending ?? {}).some(([key, expiry]) => key.startsWith(`${qi}:`) && expiry > Date.now());
+      if (pending) return Response.json({ error: "Masih ada kode yang diperiksa. Coba lagi sebentar." }, { status: 409 });
+      for (const [userId, result] of Object.entries(this.roomState.codingResults?.[qi] ?? {})) {
+        if (this.roomState.participants[userId]) this.roomState.participants[userId].score += Math.round(BASE_POINTS * result.score);
+      }
+    }
 
     // Score: base + linear time bonus from server receive time
     for (const [userId, answer] of Object.entries(answersForQ)) {
-      if (answer.choice === correctIndex) {
+      if (!q.coding && answer.choice === correctIndex) {
         const elapsed = answer.receivedTs - (questionDeadline - QUESTION_WINDOW_MS);
         const timeBonus = Math.max(0, Math.round(BASE_POINTS * (1 - elapsed / QUESTION_WINDOW_MS)));
         const points = BASE_POINTS + timeBonus;
@@ -453,6 +507,10 @@ export class LiveQuizRoom {
   }
 
   private async endSession(): Promise<Response> {
+    if (this.roomState.sessionState === "question" && this.questions[this.roomState.currentQuestionIndex]?.coding) {
+      const revealed = await this.revealQuestion();
+      if (!revealed.ok) return revealed;
+    }
     this.roomState.sessionState = "ended";
     await this.persistState();
 
@@ -504,7 +562,7 @@ export class LiveQuizRoom {
     if (!q) return;
     const answersForQ = this.roomState.answersByQuestion[questionIndex] ?? {};
     const perOptionCounts = [...this.currentOptionCounts];
-    const totalAnswered = Object.keys(answersForQ).length;
+    const totalAnswered = q.coding ? Object.keys(this.roomState.codingResults?.[questionIndex] ?? {}).length : Object.keys(answersForQ).length;
     const totalParticipants = Object.values(this.roomState.participants).filter(
       (p) => p.connected
     ).length;
@@ -552,6 +610,7 @@ export class LiveQuizRoom {
           ...base,
           prompt: q.prompt,
           options: q.options,
+          coding: q.coding,
           origin: q.origin,
           sourceEventName: q.sourceEventName,
           sourceReferenceId: q.sourceReferenceId,
@@ -574,6 +633,7 @@ export class LiveQuizRoom {
           ...base,
           prompt: q.prompt,
           options: q.options,
+          coding: q.coding,
           origin: q.origin,
           sourceEventName: q.sourceEventName,
           sourceReferenceId: q.sourceReferenceId,
@@ -625,6 +685,7 @@ export class LiveQuizRoom {
             leaderboard,
             answersByQuestion: this.roomState.answersByQuestion,
             questions: this.questions,
+            codingResults: this.roomState.codingResults ?? {},
           }),
         });
 

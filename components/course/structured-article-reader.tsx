@@ -59,6 +59,7 @@ import {
   resolveActiveSection,
   searchArticleContent,
 } from "@/lib/articles/structured-read-model";
+import { ArticleCodingProvider } from "@/components/coding/article-coding";
 import { ArticleParts } from "@/components/course/article-parts";
 import { MathText } from "@/components/course/math-text";
 import { ProductLearningVisual } from "@/components/course/product-learning-visual";
@@ -1177,6 +1178,7 @@ export function StructuredArticleReader({
   );
 
   return (
+    <ArticleCodingProvider value={{ courseId: article.courseId, articleId: article.id, articleVersion: article.version, enabled: learnerMode }}>
     <div className="min-h-screen w-full min-w-0 flex-1 bg-background text-foreground flex flex-col">
       {/* Sticky Reader Header / Focus Header - only rendered in learner mode */}
       {learnerMode &&
@@ -1543,5 +1545,6 @@ export function StructuredArticleReader({
         />
       )}
     </div>
+    </ArticleCodingProvider>
   );
 }

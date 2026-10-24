@@ -1226,6 +1226,24 @@ Verification jobs derive their required checks on the server and bind the bundle
 - Course session and identity reads overlap while authentication rejection retains priority. Independent document-list queries overlap after authentication and course resolution.
 - Course overview analytics stream inside a Suspense boundary, allowing the chapter outline to appear before recommendations finish. This changes query scheduling, not the number of SQL statements.
 
+## Python learning
+
+CodeMirror 6 and self-hosted Pyodide power shared Article, Playground and Live
+Quiz coding surfaces. Browser execution uses an opaque-origin iframe and a
+disposable Worker. Server grading uses isolated Playwright browser contexts,
+fixed runtime assets and denied external network access, with Cloudflare Browser
+Run as the production default. Explicit `CODING_BROWSER_PROVIDER=steel` reuses
+the existing remote session adapter independently of V4 provider selection.
+Provider release precedes grade acceptance; release failure is ungradable.
+The page or opaque frame preloads fixed runtime bytes before starting its Worker,
+so remote CDP does not need to intercept Worker imports. The Worker serves only
+those bytes from memory; CSP and external network denial remain in force.
+Real Steel grading and browser-runtime execution passed against local synthetic
+fixtures, as recorded in [coding verification](coding-verification.md). Drizzle/Turso stores versioned private problems, owner-scoped
+drafts and leased immutable attempts. Zyra resolves problem/attempt context
+server-side through its existing policy, allowance and provider boundaries.
+See [Python learning](coding-foundation.md) for contracts, public/private data
+separation, realtime deployment pairing and validation limits.
 ## 17. Bilingual interface and request locale
 
 `lib/i18n/locale.ts` is the server-safe locale contract. It accepts only `id` and `en`, formats them as `id-ID` and `en-US`, and resolves an explicit public URL locale before account preference, the `zyx_locale` cookie, a supported `Accept-Language` value, and the Indonesian fallback. `account_locale_preferences` stores presentation choice separately from role membership, learning preference, and authored course records. The browser cookie is also used by provider-free error boundaries. Successful authenticated selection updates the current user's row and the browser cookie; sign-in mirrors an existing account choice, while signup inherits an explicit browser choice only when the new account has no saved choice.

@@ -37,6 +37,7 @@ const QuestionSchema = z.object({
   prompt: z.string(),
   options: z.array(z.string()),
   correctIndex: z.number().int().nonnegative(),
+  coding: z.object({ problemId: z.string().min(1), version: z.number().int().positive() }).passthrough().optional(),
 });
 
 const CallbackBodySchema = z.object({
@@ -45,6 +46,7 @@ const CallbackBodySchema = z.object({
   leaderboard: z.array(LeaderboardEntrySchema),
   answersByQuestion: z.record(z.string(), z.record(z.string(), AnswerEntrySchema)).default({}),
   questions: z.array(QuestionSchema).default([]),
+  codingResults: z.record(z.string(), z.record(z.string(), z.object({ score: z.number().min(0).max(1), ordinal: z.number().int().positive() }))).default({}),
 });
 
 type CallbackBody = z.infer<typeof CallbackBodySchema>;
@@ -72,7 +74,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const { sessionId, leaderboard, answersByQuestion, questions } = parsed.data;
+  const { sessionId, leaderboard, answersByQuestion, questions, codingResults } = parsed.data;
 
   type ClaimResult = {
     found: boolean;
@@ -109,7 +111,7 @@ export async function POST(req: NextRequest) {
         const answer = answers[entry.userId];
         if (!answer) continue;
         const q = questions?.[qi];
-        if (!q) continue;
+        if (!q || q.coding) continue;
         const correct = q.correctIndex === answer.choice;
         events.push({
           id: buildLiveQuizLearningEventId(sessionId, entry.userId, qi),
@@ -119,6 +121,11 @@ export async function POST(req: NextRequest) {
           correctness: correct ? 1 : 0,
           weight: 1,
         });
+      }
+      for (const [qiStr, results] of Object.entries(codingResults)) {
+        const qi = Number(qiStr), result = results[entry.userId];
+        if (!result || !questions[qi]?.coding) continue;
+        events.push({ id: buildLiveQuizLearningEventId(sessionId, entry.userId, qi), studentId: entry.userId, courseId: legacyCourseId, eventType: "quiz_answer", correctness: result.score, weight: 1 });
       }
       return events;
     });
@@ -239,16 +246,22 @@ export async function POST(req: NextRequest) {
               questionIndex: number;
               choice: number;
               correct: boolean;
+              codingScore?: number;
             }> = [];
 
             for (const [qiStr, answers] of Object.entries(answersByQuestion)) {
               const qi = Number(qiStr);
               const answer = answers[entry.userId];
-              if (!answer) continue;
+              if (!answer || questions?.[qi]?.coding) continue;
               const correct = questions?.[qi]?.correctIndex === answer.choice;
               answersForStudent.push({ questionIndex: qi, choice: answer.choice, correct });
             }
 
+            for (const [qiStr, results] of Object.entries(codingResults)) {
+              const qi = Number(qiStr), result = results[entry.userId];
+              if (!result || !questions[qi]?.coding) continue;
+              answersForStudent.push({ questionIndex: qi, choice: -1, correct: result.score === 1, codingScore: result.score });
+            }
             return {
               id: randomUUID(),
               sessionId,

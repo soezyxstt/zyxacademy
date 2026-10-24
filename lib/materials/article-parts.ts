@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { codingLocatorSchema, pythonSourceSchema } from "@/lib/coding/contracts";
 import { inspectPayloadSecurity } from "./visual-contract";
 
 const text = z.string().trim().min(1);
@@ -31,10 +32,12 @@ export const articlePartSchema = z.discriminatedUnion("kind", [
       sourceElementRefs: refs.min(1), parts: z.array(leafPartSchema).min(1).max(30),
     }).strict()).min(1).max(30), verificationMarkdown: text,
   }).strict(),
+  z.object({ id: text, kind: z.literal("code_example"), language: z.literal("python"), code: pythonSourceSchema, runnable: z.boolean().default(true) }).strict(),
+  z.object({ id: text, kind: z.literal("coding_exercise"), problem: codingLocatorSchema }).strict(),
 ]);
 export type ArticlePart = z.infer<typeof articlePartSchema>;
 export function flattenArticleParts(parts: readonly ArticlePart[]): ArticlePart[] {
-  return parts.flatMap((part) => part.kind === "worked_example" ? [part, ...part.steps.flatMap((step) => step.parts)] : [part]);
+  return parts.flatMap<ArticlePart>((part) => part.kind === "worked_example" ? [part, ...part.steps.flatMap((step) => step.parts)] : [part]);
 }
 export function collectArticlePartIds(parts: readonly ArticlePart[]): string[] {
   return flattenArticleParts(parts).flatMap((part) => [part.id,
@@ -78,6 +81,8 @@ export const articlePartsSchema = z.array(articlePartSchema).min(1).max(100).sup
 export function materializeArticleParts(parts: readonly ArticlePart[]): string {
   return parts.map((part): string => {
     if (part.kind === "markdown") return part.markdown;
+    if (part.kind === "code_example") return ["```python", part.code, "```"].join("\n");
+    if (part.kind === "coding_exercise") return `<!-- coding-exercise:${part.problem.problemId}:${part.problem.version} -->`;
     if (part.kind === "visual_ref") return `<!-- visual:${part.visualId} -->`;
     if (part.kind === "worked_example") return [part.title, part.problemMarkdown, ...part.steps.map((step, index) => [
       `### ${index + 1}. ${step.operationMarkdown}`, materializeArticleParts(step.parts), step.reasonMarkdown, step.conditionsMarkdown,

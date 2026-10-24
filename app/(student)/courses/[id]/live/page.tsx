@@ -1,5 +1,7 @@
 "use client";
 
+import { LiveCodingExercise } from "@/components/coding/live-coding-exercise";
+import { MarkdownRenderer } from "@/components/course/markdown-renderer";
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
@@ -38,6 +40,7 @@ export default function LiveStudentPage() {
 
   const title = course ? t("courseLiveTitle", { course: course.title }) : t("title");
 
+  const [liveSessionId, setLiveSessionId] = useState("");
   const [phase, setPhase] = useState<ViewPhase>("join");
   const [code, setCode] = useState("");
   const [joining, setJoining] = useState(false);
@@ -81,6 +84,7 @@ export default function LiveStudentPage() {
       if (!res.ok) throw new Error(t("joinFailed"));
       const data: JoinResponse = await res.json();
       const wsEndpoint = `${data.wsUrl}?token=${data.token}`;
+      setLiveSessionId(data.sessionId);
       setWsFullUrl(wsEndpoint);
       setPhase("live");
     } catch {
@@ -142,6 +146,8 @@ export default function LiveStudentPage() {
   return (
     <CoursePageShell title={title} icon={Play}>
       <LiveView
+        courseId={courseId}
+        sessionId={liveSessionId}
         state={state}
         sendAnswer={sendAnswer}
       />
@@ -152,11 +158,13 @@ export default function LiveStudentPage() {
 // ── Live view (after joining) ────────────────────────────────────────────────
 
 interface LiveViewProps {
+  courseId: string;
+  sessionId: string;
   state: ReturnType<typeof useLiveQuizSocket>["state"];
   sendAnswer: (qi: number, choice: number) => void;
 }
 
-function LiveView({ state, sendAnswer }: LiveViewProps) {
+function LiveView({ state, sendAnswer, courseId, sessionId }: LiveViewProps) {
   const t = useTranslations("studentExtras.live");
   const {
     connectionStatus,
@@ -235,9 +243,7 @@ function LiveView({ state, sendAnswer }: LiveViewProps) {
             )}
           </div>
 
-          <MathText className="font-sans text-body-base font-semibold text-foreground block" as="div">
-            {currentQuestion.prompt}
-          </MathText>
+          {currentQuestion.coding ? <LiveCodingExercise key={`${sessionId}:${currentQuestion.questionIndex}`} courseId={courseId} sessionId={sessionId} questionIndex={currentQuestion.questionIndex} coding={currentQuestion.coding} closed={sessionState !== "question" || countdown <= 0} /> : <MarkdownRenderer content={currentQuestion.prompt} />}
 
           <ul className="space-y-2">
             {currentQuestion.options.map((opt, i) => {

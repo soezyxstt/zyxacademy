@@ -1,3 +1,4 @@
+import { CODING_COACHING_INSTRUCTIONS } from "@/lib/coding/zyra";
 /**
  * P3 grounded tutor pipeline. Three tiers:
  *
@@ -333,7 +334,16 @@ Generate a single JSON object:
 }`,
 };
 
- interface UngroundedVars {
+const codingGroundedAnswer: SystemPrompt<GroundedVars> = {
+  ...tutorGroundedAnswer,
+  version: "tutor_rag/coding_coaching/v1.0.0",
+  systemInstruction: `${tutorGroundedAnswer.systemInstruction}
+CODING COACHING CONTRACT:
+${CODING_COACHING_INSTRUCTIONS}
+Put the complete coaching in the answer field. The current code, stdin and execution snapshot override older recentConversation messages, including a previous successful attempt. Never describe an old correction as if it already happened in the current code. When the current execution is an error, explain that error before suggesting changes. Treat browser execution as reported practice, never official grading. Use Markdown backticks for Python code and names, overriding the general math presentation rule for code.`,
+};
+
+interface UngroundedVars {
  question: string;
  conversationHistory: string;
  responseLanguage: ResponseLanguage;
@@ -606,6 +616,7 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
   const imageParts = params.imageParts ?? [];
   const pageContext = params.pageContext ?? null;
   const hasPageContext = pageContext !== null;
+  const hasCodingContext = Boolean(pageContext?.id.startsWith("coding:"));
   const hasImages = imageParts.length > 0;
   const accessTier = params.accessTier ?? "standard";
   const idempotencyKey = params.idempotencyKey;
@@ -689,7 +700,7 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
 
   // 1. Action: Clarify. Free questions still pass through the allowance
   // boundary, so deterministic clarification cannot bypass the daily limit.
-  if (classification.action === "clarify" && !hasImages && accessTier !== "free") {
+  if (classification.action === "clarify" && !hasImages && !hasCodingContext && accessTier !== "free") {
     emitOperationalOutcome("CLARIFY");
     return {
       answer: responseLanguage === "en"
@@ -708,7 +719,7 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
   }
 
   // 2. Action: Conversational greeting / meta remark
-  if (classification.action === "answer_from_conversation") {
+  if (classification.action === "answer_from_conversation" && !hasCodingContext) {
     const historyText = history.recentMessages
       .map((m) => `${m.role === "student" ? "STUDENT" : "ZYRA"}: ${m.content}`)
       .join("\n\n");
@@ -751,7 +762,7 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
   }
 
   // 3. Action: Retrieve or Reuse Previous Evidence
-  const searchQuestion = classification.contentFocus || question;
+  const searchQuestion = hasCodingContext ? question : classification.contentFocus || question;
   let cached = false;
   let budgetExhausted = false;
   let terminalFailure: TutorRagResult["failureCode"] | undefined;
@@ -810,7 +821,7 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
   };
 
   let retrieved: RetrievedSource[] = [];
-  if (!shouldRetrieveTutorEvidence(hasImages)) {
+  if (hasCodingContext || !shouldRetrieveTutorEvidence(hasImages)) {
     retrieved = [];
   } else if (classification.action === "reuse_previous_evidence") {
     // Reuse sources attached to recent conversation history instead of issuing new vector search
@@ -1023,7 +1034,9 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
         trustLabel: s.type === "ko" ? "trusted_ko" : "untrusted_retrieved",
       }));
 
-      const usesCurrentPageContext = pageContext !== null && isCurrentQuizContextQuery(searchQuestion);
+      // The coding descriptor is resolved and authorized by the server. A
+      // short help button or follow-up need not lexically repeat Python source.
+      const usesCurrentPageContext = pageContext !== null && (hasCodingContext || isCurrentQuizContextQuery(searchQuestion));
       const evidenceEval: EvidenceClassification = usesCurrentPageContext
         ? {
             state: "full",
@@ -1117,7 +1130,7 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
             const [baselineResult, candidateResult] = await Promise.all([
               PromptExecutor.run({
                 userId: studentId,
-                prompt: tutorGroundedAnswer,
+                prompt: hasCodingContext ? codingGroundedAnswer : tutorGroundedAnswer,
                 variables: {
                   question: sanitizedQuestion,
                   contextBlock,
@@ -1165,7 +1178,7 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
             if (pedagogyResult.usedFallback) {
               const legacyFallback = await PromptExecutor.run({
                 userId: studentId,
-                prompt: tutorGroundedAnswer,
+                prompt: hasCodingContext ? codingGroundedAnswer : tutorGroundedAnswer,
                 variables: {
                   question: sanitizedQuestion,
                   contextBlock,
@@ -1220,7 +1233,7 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
         } else {
           result = await PromptExecutor.run({
             userId: studentId,
-            prompt: tutorGroundedAnswer,
+            prompt: hasCodingContext ? codingGroundedAnswer : tutorGroundedAnswer,
             variables: {
               question: sanitizedQuestion,
               contextBlock,

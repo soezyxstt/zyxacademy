@@ -62,3 +62,11 @@ The test suite contains contract, model, lineage, HMAC/receipt, artifact-readbac
 Server playbooks and plugin build/host checks have separate provenance. Updating repository guidance does not establish that every installed plugin, active OAuth connection or external executor is current. Fresh live bootstrap and scoped read-only tool calls are required for each host. No deployment or remote mutation is implied by local tests.
 
 Implementation authorities: `lib/materials/article-parts.ts`, `diktat-v4.ts`, `diktat-static-visual.ts`, `diktat-print-readiness.ts`, `lib/bundle/product-validator.ts`, `product-diktat-pdf.ts`, `product-v4-verification.ts`, `product-v4-verification-service.ts`, `product-v4-review.ts`, and the [system design](../../plans/article-diktat-authoring-system-design.md). Operational acceptance and chapter rollout remain tracked separately from this active contract.
+
+## Python Article parts
+
+Article parts also accept `code_example` with Python source and a runnable boolean,
+and `coding_exercise` with a canonical problem ID/version locator. They contain
+no reference solution or private test payload. Publishing resolves every exercise
+against a published coding problem in the same course. Diktat printable parts
+retain their existing contract. See [coding contract](../coding-foundation.md).
