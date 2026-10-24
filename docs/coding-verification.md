@@ -780,3 +780,23 @@ Post-merge logs: `install-post-merge.log`, `generate-post-merge.log`,
 `playground-post-merge.log`, all under ignored `artifacts/coding-live/`. The first
 post-merge contract run failed on two fixture references to the old migration
 filename; the updated fixture paths then passed the 57-test rerun.
+
+
+### CI gate on pushed implementation
+
+Pushed implementation head `ad04ec5f` remains **not ready to merge** despite the
+passing Python acceptance checks. GitHub reported:
+
+- [Build / SonarQube, run 40094167474](https://github.com/soezyxstt/zyxacademy/actions/runs/40094167474): failure loading the server plugin list, `Not authorized or organization not found`, before code analysis.
+- [Schedule Regression Suite, run 40094167437](https://github.com/soezyxstt/zyxacademy/actions/runs/40094167437): exit 1, 13 passed and 4 failed. The failed source-text assertions expect untranslated Indonesian labels in admin navigation, calendar, tutor notes and group rename UI.
+- MCP skills distribution and Deno dependency validation passed. The deployment job and browser diagnostics were skipped; no deployment was triggered manually.
+
+The exact schedule command was reproduced locally with exit 1:
+`bun test tests/contracts/tutorial-week-policy.test.ts tests/contracts/group-name-policy.test.ts tests/contracts/schedule-calendar-regressions.test.ts`.
+The schedule test and all ten source files it reads are byte-identical to staging
+`60d58b52`; this is inherited bilingual test debt, not a Python runtime change.
+The tests and CI were left intact. No Sonar credential or organization setting was
+changed. Logs are `schedule-ci-failure.log`, `schedule-local-reproduction.log`,
+`schedule-staging-comparison.json` and `sonar-ci-failure.log` under the ignored
+coding artifacts directory. The following documentation-only push does not
+change that tested implementation.
