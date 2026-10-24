@@ -1,0 +1,24 @@
+{
+  "site": {
+    "name": "Zyx Academy",
+    "title": "Zyx Academy",
+    "description": "Tutorials and structured learning for first- and second-year ITB students, with study materials, quizzes, and guided support."
+  },
+  "language": {
+    "label": "Language",
+    "indonesian": "Bahasa Indonesia",
+    "english": "English",
+    "switchTo": "Switch language to {language}",
+    "saveError": "Your language was not saved. Try again."
+  },
+  "skipToMain": "Skip to main content",
+  "error": {
+    "title": "Something went wrong",
+    "description": "Something went wrong. Try reloading the page.",
+    "retry": "Try again",
+    "notFound": "Page not found",
+    "notFoundDescription": "Check the page address or return home.",
+    "back": "Go back",
+    "home": "Home"
+  }
+}

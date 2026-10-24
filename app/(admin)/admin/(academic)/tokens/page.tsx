@@ -1,4 +1,3 @@
-import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { pageTitle } from "@/lib/site";
 import { assertAdmin } from "@/lib/auth/admin-guards";
@@ -8,11 +7,13 @@ import { getEnrollmentTokens } from "./actions";
 import { TokensDashboard } from "@/components/admin/tokens-dashboard";
 import { AdminPageHeader } from "@/components/admin/page-header";
 import { KeyRound } from "lucide-react";
+import { getTranslations } from "@/lib/i18n/server";
+import { TranslatedText } from "@/components/i18n/translated-text";
 
-export const metadata: Metadata = {
-  title: pageTitle("Token Pendaftaran"),
-  description: "Kelola token pendaftaran siswa untuk kelas.",
-};
+export async function generateMetadata() {
+  const t = await getTranslations("adminOps");
+  return { title: pageTitle(t("tokens.title")), description: t("tokens.description") };
+}
 
 export default async function AdminTokensPage() {
   try {
@@ -36,7 +37,7 @@ export default async function AdminTokensPage() {
     <div className="space-y-4">
       <AdminPageHeader
         icon={KeyRound}
-        title="Token Aktivasi"
+        title={<TranslatedText namespace="adminOps" messageKey="tokens.title" />}
       />
       <TokensDashboard initialTokens={tokensList} coursesList={coursesList} />
     </div>

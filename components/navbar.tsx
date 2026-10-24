@@ -20,15 +20,21 @@ import { useCommandMenu } from "@/components/command-menu";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { cn } from "@/lib/utils";
 import { useSwipe } from "@/hooks/use-swipe";
+import { useAppLocale, useTranslations } from "@/lib/i18n/client";
+import { LanguageMenu } from "@/components/language-menu";
+import { localizedPublicPath } from "@/lib/public-locale-routes";
 
 const navLinks = [
- { name: "Paket", href: "/plans", icon: Tag },
- { name: "Tentang kami", href: "/about", icon: Info },
- { name: "Testimoni", href: "/testimonial", icon: Star },
- { name: "Blog", href: "/blog", icon: BookOpen },
+ { key: "nav.plans", href: "/plans", icon: Tag },
+ { key: "nav.about", href: "/about", icon: Info },
+ { key: "nav.testimonials", href: "/testimonial", icon: Star },
+ { key: "nav.blog", href: "/blog", icon: BookOpen },
 ];
 
 export function Navbar() {
+ const t = useTranslations("marketing");
+ const { locale } = useAppLocale();
+ const navHref = (href: string) => localizedPublicPath(locale, href) ?? href;
  const [mobileOpen, setMobileOpen] = useState(false);
  const { setOpen: setSearchOpen } = useCommandMenu();
  const [isScrolled, setIsScrolled] = useState(false);
@@ -67,12 +73,12 @@ export function Navbar() {
  "w-full border-b transition-all duration-200",
  isScrolled ? "backdrop-blur-md bg-background/80 border-border/40" : "bg-transparent border-transparent"
  )}
- aria-label="Primary"
+ aria-label={t("nav.primary")}
  >
  {/* Below lg: search + compact profile + drawer. lg+: centered links + Lihat paket + full profile. */}
  <div className="relative mx-auto flex min-h-14 min-w-0 w-full max-w-7xl items-center gap-2 px-4 py-3 sm:px-6 md:min-h-16 md:gap-3 md:py-3.5 lg:px-8">
  <Link
- href="/"
+ href={navHref("/")}
  prefetch={true}
  className="relative z-10 -m-px flex shrink-0 items-center p-px"
  >
@@ -83,17 +89,17 @@ export function Navbar() {
  {/* Never use unconditional `hidden` + `md:flex` ; if `hidden` wins in CSS order, desktop links disappear. Prefer max-lg:hidden. */}
  <nav
  className="max-lg:hidden lg:pointer-events-none lg:absolute lg:inset-x-0 lg:top-0 lg:bottom-0 lg:flex lg:items-center lg:justify-center"
- aria-label="Main menu"
+ aria-label={t("nav.mainMenu")}
  >
  <ul className="flex items-center gap-4 text-body-sm font-medium leading-none tracking-tight lg:pointer-events-auto lg:leading-normal xl:gap-5">
  {navLinks.map((link) => (
  <li key={link.href} className="flex shrink-0 items-center">
  <Link
- href={link.href}
+ href={navHref(link.href)}
  prefetch={true}
  className="text-foreground/90 hover:text-brand-primary inline-flex items-center justify-center px-px py-0 transition-colors lg:min-h-10"
  >
- {link.name}
+ {t(link.key)}
  </Link>
  </li>
  ))}
@@ -104,8 +110,8 @@ export function Navbar() {
   <button
   type="button"
   onClick={() => setSearchOpen(true)}
-  title="Search"
-  aria-label="Cari di situs (pintasan Ctrl+K atau ⌘K)"
+  title={t("nav.search")}
+  aria-label={t("nav.searchShortcut")}
   className="max-lg:hidden flex items-center justify-center gap-1.5 rounded-lg border border-border bg-muted/40 p-2 text-muted-foreground transition-all hover:bg-muted/70 hover:text-foreground cursor-pointer xl:px-2.5 xl:py-1.5"
   >
   <Search className="size-4 shrink-0" aria-hidden />
@@ -115,6 +121,8 @@ export function Navbar() {
   </button>
 
   <ThemeToggle />
+
+  <LanguageMenu />
 
   <NotificationBell variant="navbar" />
 
@@ -134,7 +142,7 @@ export function Navbar() {
  ) : (
  <Menu className="size-6" strokeWidth={2} />
  )}
- <span className="sr-only">{mobileOpen ? "Tutup menu" : "Buka menu"}</span>
+ <span className="sr-only">{mobileOpen ? t("nav.closeMenu") : t("nav.openMenu")}</span>
  </Button>
  </SheetTrigger>
  <SheetContent
@@ -148,20 +156,20 @@ export function Navbar() {
  )}
  >
  {/* sr-only title/description required by Radix for accessibility */}
- <SheetTitle className="sr-only">Menu navigasi</SheetTitle>
- <SheetDescription className="sr-only">Menu navigasi utama situs</SheetDescription>
+ <SheetTitle className="sr-only">{t("nav.navigationMenu")}</SheetTitle>
+ <SheetDescription className="sr-only">{t("nav.navigationDescription")}</SheetDescription>
 
  {/* Header: logo + close button ; mirrors student sidebar */}
  <div className="flex h-14 shrink-0 items-center justify-between border-b border-border px-3">
  <SheetClose asChild>
- <Link href="/" prefetch={true} className="flex items-center" aria-label="Beranda">
+ <Link href={navHref("/")} prefetch={true} className="flex items-center" aria-label={t("nav.home")}>
  <Logo variant="horizontal" className="[--logo-height:1.25rem]" />
  </Link>
  </SheetClose>
  <SheetClose asChild>
  <button
  type="button"
- aria-label="Tutup menu"
+ aria-label={t("nav.closeMenu")}
  className="flex size-8 items-center justify-center rounded-lg border border-border bg-background text-muted-foreground hover:text-foreground transition-colors"
  >
  <X className="size-4" />
@@ -180,7 +188,7 @@ export function Navbar() {
  className="flex w-full items-center gap-2 rounded-xl border border-border bg-muted/40 px-3 py-2 text-muted-foreground transition-all hover:bg-muted/70 hover:text-foreground cursor-pointer"
  >
  <Search className="size-4 shrink-0" aria-hidden />
- <span className="flex-1 text-left text-body-sm">Cari di situs…</span>
+ <span className="flex-1 text-left text-body-sm">{t("nav.searchPlaceholder")}</span>
  <kbd className="bg-muted px-1.5 py-0.5 rounded border border-border text-[10px] font-mono leading-none font-semibold">
  {modKeyHint}
  </kbd>
@@ -188,24 +196,27 @@ export function Navbar() {
  </div>
 
  {/* Nav links */}
- <nav className="flex flex-1 flex-col gap-1 px-3 py-4 overflow-y-auto" aria-label="Mobile menu">
- {navLinks.map(({ name, href, icon: Icon }) => (
+ <nav className="flex flex-1 flex-col gap-1 px-3 py-4 overflow-y-auto" aria-label={t("nav.mobileMenu")}>
+ {navLinks.map(({ key, href, icon: Icon }) => (
  <SheetClose key={href} asChild>
  <Link
- href={href}
+ href={navHref(href)}
  prefetch={true}
  className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-body-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
  >
  <Icon className="size-5 shrink-0" aria-hidden />
- {name}
+ {t(key)}
  </Link>
  </SheetClose>
  ))}
  </nav>
 
   {/* Profile / sign-in */}
-  <div className="border-t border-border px-3 py-3 shrink-0 flex items-center justify-between gap-2">
-  <ThemeToggle mode="sidebar" />
+  <div className="flex min-w-0 shrink-0 flex-col gap-3 border-t border-border px-3 py-3">
+  <div className="flex min-w-0 items-center justify-end gap-1.5">
+    <ThemeToggle />
+    <LanguageMenu />
+  </div>
   <NavProfileOrSignIn
   variant="sheet"
   callbackURL="/dashboard"

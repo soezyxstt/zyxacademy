@@ -9,9 +9,11 @@ import { ApplicationPage } from "@/components/application-page";
 import { FileText } from "lucide-react";
 import { db } from "@/db";
 import { aiMaterialInstances, aiMaterialInstanceSections, aiMaterialInstanceChunks } from "@/db/schema";
-import { eq, inArray, desc, asc } from "drizzle-orm";
+import { inArray, desc, asc } from "drizzle-orm";
 import { MaterialsClient } from "./materials-client";
 import { resolveCourseIdentity } from "@/lib/admin/course-identity";
+import { getTranslations } from "@/lib/i18n/server";
+import { TranslatedText } from "@/components/i18n/translated-text";
 
 type Props = { params: Promise<{ courseId: string }> };
 
@@ -20,9 +22,10 @@ type Props = { params: Promise<{ courseId: string }> };
  */
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { courseId } = await params;
+  const t = await getTranslations("tutor.routeTitles");
   return {
-    title: pageTitle("Dokumen & Modul"),
-    description: `Kelola modul dan materi pengajaran mata kuliah ${courseId}.`,
+    title: pageTitle(t("documents")),
+    description: t("materialsDescription", { courseId }),
   };
 }
 
@@ -104,10 +107,10 @@ export default async function TutorMaterialsPage({ params }: Props) {
   return (
     <ApplicationPage spacing="space-y-6">
       <PageHeader
-        title={`Dokumen: ${identity.title}`}
+        title={<><TranslatedText namespace="tutor" messageKey="routeTitles.documents" />: {identity.title}</>}
         icon={FileText}
         backHref={`/tutor/${courseId}`}
-        backLabel="Kembali ke Ringkasan Kelas"
+        backLabel={<TranslatedText namespace="tutor" messageKey="routeTitles.backToCourse" />}
       />
       <MaterialsClient courseId={identity.legacyId || identity.primaryId} initialMaterials={materials} />
     </ApplicationPage>

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useRef, useState, useCallback } from "react";
+import { useTranslations } from "next-intl";
 import {
   GripVertical,
   Plus,
@@ -29,6 +30,7 @@ export interface DifficultyProportionSliderProps {
   onTotalCountChange?: (newTotal: number) => void;
   disabled?: boolean;
   className?: string;
+  translationNamespace?: string;
 }
 
 export function DifficultyProportionSlider({
@@ -40,7 +42,9 @@ export function DifficultyProportionSlider({
   onTotalCountChange,
   disabled = false,
   className,
+  translationNamespace = "adminEval.quizForm",
 }: DifficultyProportionSliderProps) {
+  const t = useTranslations(translationNamespace);
   const trackRef = useRef<HTMLDivElement>(null);
   const [activeKnob, setActiveKnob] = useState<1 | 2 | null>(null);
   const [hoveredKnob, setHoveredKnob] = useState<1 | 2 | null>(null);
@@ -261,7 +265,7 @@ export function DifficultyProportionSlider({
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-1 text-body-xs font-semibold text-muted-foreground">
             <SlidersHorizontal className="size-3.5 text-brand-primary" />
-            <span>Preset Proporsi:</span>
+            <span>{t("slider.presets")}</span>
           </div>
 
           <div className="flex flex-wrap items-center gap-1.5">
@@ -273,7 +277,7 @@ export function DifficultyProportionSlider({
               onClick={() => applyPreset(0.33, 0.34, 0.33)}
               className="text-[11px] h-6 px-2 rounded-md font-medium text-foreground hover:bg-muted"
             >
-              Seimbang (33/33/33)
+              {t("slider.balanced")}
             </Button>
             <Button
               type="button"
@@ -283,7 +287,7 @@ export function DifficultyProportionSlider({
               onClick={() => applyPreset(0.5, 0.3, 0.2)}
               className="text-[11px] h-6 px-2 rounded-md font-medium text-emerald-700 dark:text-emerald-400 hover:bg-emerald-500/10 border-emerald-500/30"
             >
-              Dominan Mudah (50/30/20)
+              {t("slider.easyDominant")}
             </Button>
             <Button
               type="button"
@@ -293,7 +297,7 @@ export function DifficultyProportionSlider({
               onClick={() => applyPreset(0.2, 0.6, 0.2)}
               className="text-[11px] h-6 px-2 rounded-md font-medium text-amber-700 dark:text-amber-400 hover:bg-amber-500/10 border-amber-500/30"
             >
-              Dominan Sedang (20/60/20)
+              {t("slider.mediumDominant")}
             </Button>
             <Button
               type="button"
@@ -303,7 +307,7 @@ export function DifficultyProportionSlider({
               onClick={() => applyPreset(0.2, 0.3, 0.5)}
               className="text-[11px] h-6 px-2 rounded-md font-medium text-rose-700 dark:text-rose-400 hover:bg-rose-500/10 border-rose-500/30"
             >
-              Dominan Sulit (20/30/50)
+              {t("slider.hardDominant")}
             </Button>
           </div>
         </div>
@@ -311,9 +315,9 @@ export function DifficultyProportionSlider({
         {/* Interactive Multi-Region Progress & Knob Bar */}
         <div className="space-y-1.5">
           <div className="flex items-center justify-between text-body-xs font-semibold text-muted-foreground px-0.5">
-            <span>Distribusi Soal: 0 s.d. {safeTotal} Soal</span>
+            <span>{t("slider.questionDistribution", { count: safeTotal })}</span>
             <span>
-              Total Terbagi:{" "}
+              {t("slider.totalDistributed")}{" "}
               <strong className={cn(isSynced ? "text-foreground" : "text-status-error")}>
                 {currentSum} / {safeTotal}
               </strong>
@@ -339,7 +343,7 @@ export function DifficultyProportionSlider({
               >
                 {easyPct >= 12 && (
                   <span className="truncate drop-shadow-xs">
-                    {numEasy} Mudah ({Math.round(easyPct)}%)
+                    {numEasy} {t("slider.easy")} ({Math.round(easyPct)}%)
                   </span>
                 )}
               </div>
@@ -351,7 +355,7 @@ export function DifficultyProportionSlider({
               >
                 {mediumPct >= 12 && (
                   <span className="truncate drop-shadow-xs">
-                    {numMedium} Sedang ({Math.round(mediumPct)}%)
+                    {numMedium} {t("slider.medium")} ({Math.round(mediumPct)}%)
                   </span>
                 )}
               </div>
@@ -363,7 +367,7 @@ export function DifficultyProportionSlider({
               >
                 {hardPct >= 12 && (
                   <span className="truncate drop-shadow-xs">
-                    {numHard} Sulit ({Math.round(hardPct)}%)
+                    {numHard} {t("slider.hard")} ({Math.round(hardPct)}%)
                   </span>
                 )}
               </div>
@@ -377,7 +381,7 @@ export function DifficultyProportionSlider({
               onMouseLeave={() => setHoveredKnob(null)}
               tabIndex={disabled ? -1 : 0}
               role="slider"
-              aria-label="Pembatas Soal Mudah dan Sedang"
+              aria-label={t("slider.easyMediumDivider")}
               aria-valuenow={numEasy}
               aria-valuemin={0}
               aria-valuemax={numEasy + numMedium}
@@ -403,7 +407,7 @@ export function DifficultyProportionSlider({
               {/* Floating Value Pill on Drag/Hover */}
               {(activeKnob === 1 || hoveredKnob === 1) && (
                 <div className="absolute -top-8 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded-md bg-foreground text-background text-[10px] font-bold whitespace-nowrap shadow-md pointer-events-none">
-                  Mudah: {numEasy} Soal
+                  {t("slider.easyCount", { count: numEasy })}
                 </div>
               )}
             </div>
@@ -416,7 +420,7 @@ export function DifficultyProportionSlider({
               onMouseLeave={() => setHoveredKnob(null)}
               tabIndex={disabled ? -1 : 0}
               role="slider"
-              aria-label="Pembatas Soal Sedang dan Sulit"
+              aria-label={t("slider.mediumHardDivider")}
               aria-valuenow={numEasy + numMedium}
               aria-valuemin={numEasy}
               aria-valuemax={safeTotal}
@@ -442,7 +446,7 @@ export function DifficultyProportionSlider({
               {/* Floating Value Pill on Drag/Hover */}
               {(activeKnob === 2 || hoveredKnob === 2) && (
                 <div className="absolute -top-8 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded-md bg-foreground text-background text-[10px] font-bold whitespace-nowrap shadow-md pointer-events-none">
-                  Sedang: {numMedium} Soal
+                  {t("slider.mediumCount", { count: numMedium })}
                 </div>
               )}
             </div>
@@ -453,7 +457,7 @@ export function DifficultyProportionSlider({
             <div className="flex justify-between text-[10px] text-muted-foreground/80 px-1 pt-0.5 select-none">
               <span>0</span>
               <span>{Math.floor(safeTotal / 2)}</span>
-              <span>{safeTotal} Soal</span>
+              <span>{t("slider.questionCount", { count: safeTotal })}</span>
             </div>
           )}
         </div>
@@ -466,7 +470,7 @@ export function DifficultyProportionSlider({
               <div className="flex items-center gap-1.5">
                 <span className="size-2.5 rounded-full bg-emerald-500 shrink-0" />
                 <span className="text-body-xs font-bold text-emerald-700 dark:text-emerald-300">
-                  Mudah
+                  {t("slider.easy")}
                 </span>
               </div>
               <Badge
@@ -485,7 +489,7 @@ export function DifficultyProportionSlider({
                 disabled={disabled || numEasy <= 0}
                 onClick={() => handleStep("easy", -1)}
                 className="size-7 rounded-md border-emerald-500/30 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/20"
-                aria-label="Kurangi soal mudah"
+                aria-label={t("slider.decrease", { difficulty: t("slider.easy") })}
               >
                 <Minus className="size-3" />
               </Button>
@@ -507,7 +511,7 @@ export function DifficultyProportionSlider({
                 disabled={disabled || (isSynced && numEasy >= safeTotal)}
                 onClick={() => handleStep("easy", 1)}
                 className="size-7 rounded-md border-emerald-500/30 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/20"
-                aria-label="Tambah soal mudah"
+                aria-label={t("slider.increase", { difficulty: t("slider.easy") })}
               >
                 <Plus className="size-3" />
               </Button>
@@ -520,7 +524,7 @@ export function DifficultyProportionSlider({
               <div className="flex items-center gap-1.5">
                 <span className="size-2.5 rounded-full bg-amber-500 shrink-0" />
                 <span className="text-body-xs font-bold text-amber-700 dark:text-amber-300">
-                  Sedang
+                  {t("slider.medium")}
                 </span>
               </div>
               <Badge
@@ -539,7 +543,7 @@ export function DifficultyProportionSlider({
                 disabled={disabled || numMedium <= 0}
                 onClick={() => handleStep("medium", -1)}
                 className="size-7 rounded-md border-amber-500/30 text-amber-700 dark:text-amber-300 hover:bg-amber-500/20"
-                aria-label="Kurangi soal sedang"
+                aria-label={t("slider.decrease", { difficulty: t("slider.medium") })}
               >
                 <Minus className="size-3" />
               </Button>
@@ -561,7 +565,7 @@ export function DifficultyProportionSlider({
                 disabled={disabled || (isSynced && numMedium >= safeTotal)}
                 onClick={() => handleStep("medium", 1)}
                 className="size-7 rounded-md border-amber-500/30 text-amber-700 dark:text-amber-300 hover:bg-amber-500/20"
-                aria-label="Tambah soal sedang"
+                aria-label={t("slider.increase", { difficulty: t("slider.medium") })}
               >
                 <Plus className="size-3" />
               </Button>
@@ -574,7 +578,7 @@ export function DifficultyProportionSlider({
               <div className="flex items-center gap-1.5">
                 <span className="size-2.5 rounded-full bg-rose-500 shrink-0" />
                 <span className="text-body-xs font-bold text-rose-700 dark:text-rose-300">
-                  Sulit
+                  {t("slider.hard")}
                 </span>
               </div>
               <Badge
@@ -593,7 +597,7 @@ export function DifficultyProportionSlider({
                 disabled={disabled || numHard <= 0}
                 onClick={() => handleStep("hard", -1)}
                 className="size-7 rounded-md border-rose-500/30 text-rose-700 dark:text-rose-300 hover:bg-rose-500/20"
-                aria-label="Kurangi soal sulit"
+                aria-label={t("slider.decrease", { difficulty: t("slider.hard") })}
               >
                 <Minus className="size-3" />
               </Button>
@@ -615,7 +619,7 @@ export function DifficultyProportionSlider({
                 disabled={disabled || (isSynced && numHard >= safeTotal)}
                 onClick={() => handleStep("hard", 1)}
                 className="size-7 rounded-md border-rose-500/30 text-rose-700 dark:text-rose-300 hover:bg-rose-500/20"
-                aria-label="Tambah soal sulit"
+                aria-label={t("slider.increase", { difficulty: t("slider.hard") })}
               >
                 <Plus className="size-3" />
               </Button>
@@ -629,8 +633,7 @@ export function DifficultyProportionSlider({
             <div className="flex items-center gap-2 text-status-error font-medium">
               <AlertTriangle className="size-4 shrink-0" />
               <span>
-                Total proporsi saat ini (<strong>{currentSum}</strong> soal) berbeda dari target kuis (
-                <strong>{safeTotal}</strong> soal).
+                {t("slider.totalMismatch", { current: currentSum, target: safeTotal })}
               </span>
             </div>
 
@@ -643,7 +646,7 @@ export function DifficultyProportionSlider({
                   onClick={() => onTotalCountChange(currentSum)}
                   className="h-6 rounded-md text-[11px] font-semibold border-status-error/30 text-status-error hover:bg-status-error/10"
                 >
-                  Sesuaikan Target ke {currentSum}
+                  {t("slider.adjustTarget", { count: currentSum })}
                 </Button>
               )}
               <Button
@@ -652,7 +655,7 @@ export function DifficultyProportionSlider({
                 onClick={normalizeToTarget}
                 className="h-6 rounded-md text-[11px] font-semibold bg-brand-primary text-white hover:bg-brand-primary/90"
               >
-                Ratakan ke {safeTotal} Soal
+                {t("slider.normalize", { count: safeTotal })}
               </Button>
             </div>
           </div>

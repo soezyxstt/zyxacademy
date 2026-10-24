@@ -2,12 +2,14 @@
 
 import { Flame } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useTranslations } from "@/lib/i18n/client";
 
 interface StreakTagProps {
   current: number;
 }
 
 export function StreakTag({ current }: StreakTagProps) {
+  const t = useTranslations("student");
   const hasStreak = current > 0;
   return (
     <div className="flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1">
@@ -18,7 +20,7 @@ export function StreakTag({ current }: StreakTagProps) {
         )}
       />
       <span className="text-body-sm font-semibold tabular-nums text-foreground">
-        {hasStreak ? `${current} hari` : "Mulai hari ini"}
+        {hasStreak ? t("dashboard.streak", { count: current }) : t("dashboard.startStreakToday")}
       </span>
     </div>
   );

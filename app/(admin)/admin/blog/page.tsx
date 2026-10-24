@@ -8,8 +8,17 @@ import { Badge } from "@/components/ui/badge";
 import { ShareDialog } from "@/components/blog/share-widget";
 import { AdminPageHeader } from "@/components/admin/page-header";
 import { AdminTable, AdminTableHead } from "@/components/admin/table";
+import { getTranslations } from "@/lib/i18n/server";
+import { TranslatedText } from "@/components/i18n/translated-text";
+import { pageTitle } from "@/lib/site";
+
+export async function generateMetadata() {
+  const t = await getTranslations("adminOps");
+  return { title: pageTitle(t("blog.title")), description: t("blog.description") };
+}
 
 export default async function AdminBlogDashboard() {
+  const t = await getTranslations("adminOps");
   const articles = await db.query.blogArticles.findMany({
     orderBy: [desc(blogArticles.createdAt)],
     with: {
@@ -21,12 +30,12 @@ export default async function AdminBlogDashboard() {
     <div className="space-y-5">
       <AdminPageHeader
         icon={PenLine}
-        title="Blog"
+        title={<TranslatedText namespace="adminOps" messageKey="blog.title" />}
         actions={
           <Button asChild>
             <Link href="/admin/blog/new">
               <Plus className="size-4" />
-              Tulis artikel
+              {t("blogList.write")}
             </Link>
           </Button>
         }
@@ -36,18 +45,18 @@ export default async function AdminBlogDashboard() {
         <table className="w-full text-left text-body-sm">
           <AdminTableHead>
             <tr>
-              <th className="px-4 py-3 font-semibold text-foreground">Judul artikel</th>
-              <th className="px-4 py-3 font-semibold text-foreground">Kategori</th>
-              <th className="px-4 py-3 font-semibold text-foreground">Status</th>
-              <th className="px-4 py-3 font-semibold text-foreground">Penulis</th>
-              <th className="px-4 py-3 font-semibold text-foreground">Aksi</th>
+              <th className="px-4 py-3 font-semibold text-foreground">{t("blogList.articleTitle")}</th>
+              <th className="px-4 py-3 font-semibold text-foreground">{t("blogList.category")}</th>
+              <th className="px-4 py-3 font-semibold text-foreground">{t("blogList.status")}</th>
+              <th className="px-4 py-3 font-semibold text-foreground">{t("blogList.author")}</th>
+              <th className="px-4 py-3 font-semibold text-foreground">{t("blogList.actions")}</th>
             </tr>
           </AdminTableHead>
           <tbody className="divide-y divide-border/40">
             {articles.length === 0 ? (
               <tr>
                 <td colSpan={5} className="px-6 py-8 text-center text-muted-foreground">
-                  Belum ada artikel. Mulai tulis artikel pertamamu.
+                  {t("blogList.empty")}
                 </td>
               </tr>
             ) : (
@@ -58,7 +67,7 @@ export default async function AdminBlogDashboard() {
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap">
                     <Badge variant="outline" className="rounded-md capitalize">
-                      {article.category.replace("_", " ")}
+                      {t(`blogList.categories.${article.category}`)}
                     </Badge>
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap">
@@ -66,24 +75,24 @@ export default async function AdminBlogDashboard() {
                       variant={article.status === "published" ? "default" : "secondary"}
                       className={article.status === "published" ? "bg-status-success text-status-success-foreground hover:bg-status-success/90 rounded-md" : "rounded-md"}
                     >
-                      {article.status}
+                      {t(`blogList.${article.status === "published" ? "published" : "draft"}`)}
                     </Badge>
                   </td>
                   <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">
-                    {article.author?.name || "Anonim"}
+                    {article.author?.name || t("blogList.anonymous")}
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap">
                     <div className="flex items-center gap-1.5 shrink-0">
                       <Button variant="ghost" size="sm" asChild>
                         <Link href={`/admin/blog/${article.id}/edit`}>
                           <Edit className="size-4" />
-                          Sunting
+                          {t("blogList.edit")}
                         </Link>
                       </Button>
                       <Button variant="ghost" size="sm" asChild>
                         <Link href={`/blog/${article.slug}`} target="_blank">
                           <Eye className="size-4" />
-                          Lihat
+                          {t("blogList.view")}
                         </Link>
                       </Button>
                       <ShareDialog
@@ -93,7 +102,7 @@ export default async function AdminBlogDashboard() {
                         trigger={
                           <Button variant="ghost" size="sm">
                             <Share2 className="size-4" />
-                            Bagikan
+                            {t("blogList.share")}
                           </Button>
                         }
                       />

@@ -7,6 +7,7 @@ import { ContinueReadingData } from "@/types/course-learning";
 import { studentCardClass } from "@/components/course/course-surfaces";
 import { MathText } from "@/components/course/math-text";
 import { cn } from "@/lib/utils";
+import { useTranslations } from "@/lib/i18n/client";
 
 export function ContinueReadingSkeleton() {
   return (
@@ -41,6 +42,7 @@ export function ContinueReadingCard({
   data,
   isLoading = false,
 }: ContinueReadingCardProps) {
+  const t = useTranslations("studentCourse");
   if (isLoading) {
     return <ContinueReadingSkeleton />;
   }
@@ -52,7 +54,7 @@ export function ContinueReadingCard({
       <div>
         <h3 className="font-heading text-body-base font-bold text-foreground flex items-center gap-2 mb-3">
           <BookOpen className="size-4.5 text-brand-primary" aria-hidden="true" />
-          Lanjutkan Membaca
+          {t("course.continueReading.title")}
         </h3>
 
         {!isEmpty ? (
@@ -62,7 +64,7 @@ export function ContinueReadingCard({
                 <MathText as="span">{data.materialTitle}</MathText>
               </p>
               <p className="text-body-xs text-muted-foreground mt-0.5 truncate" title={data.chapterTitle}>
-                Bagian terakhir: <MathText as="span">{data.chapterTitle || "Awal materi"}</MathText>
+                {t("course.continueReading.lastSection")} <MathText as="span">{data.chapterTitle || t("course.continueReading.startOfMaterial")}</MathText>
               </p>
             </div>
             <div className="space-y-1">
@@ -72,12 +74,12 @@ export function ContinueReadingCard({
                   style={{ width: `${data.completionPercent}%` }}
                 />
               </div>
-              <p className="text-body-xs text-muted-foreground">{data.completionPercent}% selesai</p>
+              <p className="text-body-xs text-muted-foreground">{t("course.continueReading.percentComplete", { percent: data.completionPercent })}</p>
             </div>
           </div>
         ) : (
           <div className="py-2 text-left animate-in fade-in duration-300">
-            <p className="text-body-sm text-muted-foreground">Belum ada bacaan terakhir.</p>
+            <p className="text-body-sm text-muted-foreground">{t("course.continueReading.empty")}</p>
           </div>
         )}
       </div>
@@ -98,18 +100,18 @@ export function ContinueReadingCard({
             return (
               <Link
                 href={`/courses/${courseId}/material/${data.materialId}${query}`}
-                aria-label={`Lanjutkan membaca ${data.materialTitle}`}
+                aria-label={t("course.continueReading.continueNamed", { title: data.materialTitle })}
               >
                 <Button size="sm" className="rounded-md w-full bg-brand-primary text-white hover:bg-brand-primary/95 transition-colors duration-150">
-                  Lanjutkan
+                  {t("course.continueReading.continue")}
                 </Button>
               </Link>
             );
           })()
         ) : (
-          <Link href={`/courses/${courseId}/material`} aria-label="Mulai membaca materi kelas">
+          <Link href={`/courses/${courseId}/material`} aria-label={t("course.continueReading.startAria")}>
             <Button size="sm" variant="outline" className="rounded-md w-full transition-colors duration-150">
-              Mulai Membaca
+              {t("course.continueReading.start")}
             </Button>
           </Link>
         )}

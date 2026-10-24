@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { normalizeDate } from "@/lib/date-utils";
+import { useAppLocale } from "@/lib/i18n/client";
 
 interface FormattedDateProps {
   date: Date | string | number;
@@ -11,9 +12,10 @@ interface FormattedDateProps {
 
 export function FormattedDate({
   date,
-  locale = "id-ID",
+  locale,
   options = { dateStyle: "full", timeStyle: "short" },
 }: FormattedDateProps) {
+  const { locale: appLocale } = useAppLocale();
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -28,9 +30,10 @@ export function FormattedDate({
 
   // To prevent hydration mismatch, render using UTC on the server
   // and flip to local timezone on the client once mounted.
+  const resolvedLocale = locale ?? (appLocale === "id" ? "id-ID" : "en-US");
   const formattedStr = mounted
-    ? dateObj.toLocaleString(locale, options)
-    : dateObj.toLocaleString(locale, { ...options, timeZone: "UTC" });
+    ? dateObj.toLocaleString(resolvedLocale, options)
+    : dateObj.toLocaleString(resolvedLocale, { ...options, timeZone: "UTC" });
 
   return <span suppressHydrationWarning>{formattedStr}</span>;
 }

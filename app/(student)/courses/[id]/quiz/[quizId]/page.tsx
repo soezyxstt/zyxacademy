@@ -12,6 +12,8 @@ import { quizTemplates, studentQuizAttempts, aiQuestionBank, knowledgeObjects, c
 import { and, or, eq, desc, sql, inArray } from "drizzle-orm";
 import { Button } from "@/components/ui/button";
 import { QuizStartButton } from "./quiz-start-button";
+import { TranslatedText } from "@/components/i18n/translated-text";
+import { getTranslations } from "@/lib/i18n/server";
 import { MarkdownRenderer } from "@/components/course/markdown-renderer";
 import { MathText } from "@/components/course/math-text";
 import { cn } from "@/lib/utils";
@@ -33,6 +35,7 @@ type Props = {
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id, quizId } = await params;
   const course = await getCourse(id);
+  const t = await getTranslations("learning");
 
   const courseIds = course
     ? [...new Set([course.id, course.canonicalId, course.legacyId, id].filter((value): value is string => Boolean(value)))]
@@ -45,10 +48,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
         .limit(1)
     : [];
 
-  const title = course && template ? `${template.title} (${course.title})` : template ? template.title : "Kuis";
-  const description = course && template
-    ? `Kerjakan kuis ${template.title}; bagian dari ${course.title}.`
-    : "Kerjakan kuis interaktif untuk mengukur pemahaman materi.";
+  const title = course && template ? `${template.title} (${course.title})` : template ? template.title : t("metadata.quizTitleFallback");
+  const description = course && template ? t("metadata.quizDetailDescription", { title: template.title, course: course.title }) : t("metadata.quizDescription");
 
   return createMetadata({
     title,
@@ -234,12 +235,12 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
 
   if (!isAccessible) {
     return (
-      <CoursePageShell title="Kuis terkunci" description={`${course.title}, kuis premium`} hideHeader>
+      <CoursePageShell title={<TranslatedText namespace="learning" messageKey="quizTake.locked" />} description={<TranslatedText namespace="learning" messageKey="quizTake.premiumDescription" values={{ course: course.title }} />} hideHeader>
         <div className="mb-4">
           <Button variant="ghost" size="sm" asChild className="gap-1.5 text-body-xs font-semibold text-muted-foreground hover:text-foreground">
             <Link href={`/courses/${id}/quiz`}>
               <ArrowLeft className="size-3.5" />
-              <span>Kembali ke Daftar Kuis</span>
+              <span><TranslatedText namespace="learning" messageKey="quizTake.backToList" /></span>
             </Link>
           </Button>
         </div>
@@ -250,7 +251,7 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
                 <Lock className="size-5" />
               </div>
               <div>
-                <h3 className="font-heading text-body-base font-bold text-foreground">Butuh token kelas</h3>
+                <h3 className="font-heading text-body-base font-bold text-foreground"><TranslatedText namespace="learning" messageKey="courseAccess.needToken" /></h3>
                 <p className="mt-1 text-body-sm text-muted-foreground">
                   Aktifkan kelas untuk membuka &ldquo;{template.title}&rdquo;.
                 </p>
@@ -301,20 +302,20 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
   if (!isReview && !isViewDiscussion) {
     if (isClosedManually) {
       return (
-        <CoursePageShell title="Kuis Sudah Ditutup" description={template.title} hideHeader>
+        <CoursePageShell title={<TranslatedText namespace="learning" messageKey="quizTake.closed" />} description={template.title} hideHeader>
           <Reveal>
             <div className="rounded-lg border border-border/70 bg-card/75 p-5 backdrop-blur-sm text-center">
-                <h3 className="font-heading text-body-base font-bold text-foreground">Kuis Ditutup</h3>
+                <h3 className="font-heading text-body-base font-bold text-foreground"><TranslatedText namespace="learning" messageKey="quizTake.closed" /></h3>
               <p className="mt-2 text-body-sm text-muted-foreground">
                 Kuis ini telah ditutup secara manual oleh admin/tutor.
               </p>
               <div className="mt-5 flex items-center justify-center gap-3">
                 <Button asChild variant="outline" size="sm" className="rounded-md border-border/80">
-                  <Link href={`/courses/${id}/quiz`}>Kembali ke Daftar Kuis</Link>
+                  <Link href={`/courses/${id}/quiz`}><TranslatedText namespace="learning" messageKey="quizTake.backToList" /></Link>
                 </Button>
                 {canViewDiscussion && (
                   <Button asChild size="sm" className="rounded-md bg-brand-primary text-white">
-                    <Link href={`?viewDiscussion=true`}>Lihat Pembahasan</Link>
+                    <Link href={`?viewDiscussion=true`}><TranslatedText namespace="learning" messageKey="quizTake.viewDiscussion" /></Link>
                   </Button>
                 )}
               </div>
@@ -327,17 +328,17 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
     if (!isOpenManually) {
       if (openDate && now < openDate) {
         return (
-          <CoursePageShell title="Kuis Belum Dibuka" description={template.title} hideHeader>
+          <CoursePageShell title={<TranslatedText namespace="learning" messageKey="quizTake.notOpen" />} description={template.title} hideHeader>
             <Reveal>
               <div className="rounded-lg border border-border/70 bg-card/75 p-5 backdrop-blur-sm text-center">
-                <h3 className="font-heading text-body-base font-bold text-foreground">Kuis Belum Dibuka</h3>
+                <h3 className="font-heading text-body-base font-bold text-foreground"><TranslatedText namespace="learning" messageKey="quizTake.notOpen" /></h3>
                 <p className="mt-2 text-body-sm text-muted-foreground">
                   Kuis ini dijadwalkan untuk dibuka pada tanggal{" "}
                   <strong className="text-foreground">{openDate.toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" })}</strong>.
                 </p>
                 <div className="mt-5 flex items-center justify-center gap-3">
                   <Button asChild variant="outline" size="sm" className="rounded-md border-border/80">
-                    <Link href={`/courses/${id}/quiz`}>Kembali ke Daftar Kuis</Link>
+                    <Link href={`/courses/${id}/quiz`}><TranslatedText namespace="learning" messageKey="quizTake.backToList" /></Link>
                   </Button>
                 </div>
               </div>
@@ -348,21 +349,21 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
 
       if (closeDate && now > closeDate) {
         return (
-          <CoursePageShell title="Kuis Sudah Ditutup" description={template.title} hideHeader>
+          <CoursePageShell title={<TranslatedText namespace="learning" messageKey="quizTake.closed" />} description={template.title} hideHeader>
             <Reveal>
               <div className="rounded-lg border border-border/70 bg-card/75 p-5 backdrop-blur-sm text-center">
-                <h3 className="font-heading text-body-base font-bold text-foreground">Kuis Sudah Ditutup</h3>
+                <h3 className="font-heading text-body-base font-bold text-foreground"><TranslatedText namespace="learning" messageKey="quizTake.closed" /></h3>
                 <p className="mt-2 text-body-sm text-muted-foreground">
                   Akses kuis ini telah berakhir sejak tanggal{" "}
                   <strong className="text-foreground">{closeDate.toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" })}</strong>.
                 </p>
                 <div className="mt-5 flex items-center justify-center gap-3">
                   <Button asChild variant="outline" size="sm" className="rounded-md border-border/80">
-                    <Link href={`/courses/${id}/quiz`}>Kembali ke Daftar Kuis</Link>
+                    <Link href={`/courses/${id}/quiz`}><TranslatedText namespace="learning" messageKey="quizTake.backToList" /></Link>
                   </Button>
                   {canViewDiscussion && (
                     <Button asChild size="sm" className="rounded-md bg-brand-primary text-white">
-                      <Link href={`?viewDiscussion=true`}>Lihat Pembahasan</Link>
+                      <Link href={`?viewDiscussion=true`}><TranslatedText namespace="learning" messageKey="quizTake.viewDiscussion" /></Link>
                     </Button>
                   )}
                 </div>
@@ -584,7 +585,7 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
 
     return (
       <CoursePageShell
-        title={targetAttempt ? "Analisis Jawaban & Pembahasan" : "Pembahasan Kuis"}
+        title={<TranslatedText namespace="learning" messageKey={targetAttempt ? "quizTake.analysisTitle" : "quizTake.reviewTitle"} />}
         description={template.title}
         hideHeader
       >
@@ -609,11 +610,11 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
 
             {targetAttempt && (
               <AdminStatStrip className="sm:grid-cols-3">
-                <AdminStatStripItem icon={Award} label="Skor akhir" value={`${targetAttempt.score}%`} tone="brand" />
-                <AdminStatStripItem icon={Clock} label="Waktu pengerjaan" value={formatDuration(targetAttempt.durationSeconds)} tone="info" />
+                <AdminStatStripItem icon={Award} label={<TranslatedText namespace="learning" messageKey="quizTake.finalScore" />} value={`${targetAttempt.score}%`} tone="brand" />
+                <AdminStatStripItem icon={Clock} label={<TranslatedText namespace="learning" messageKey="quizTake.duration" />} value={formatDuration(targetAttempt.durationSeconds)} tone="info" />
                 <AdminStatStripItem
                   icon={Calendar}
-                  label="Dikumpulkan pada"
+                  label={<TranslatedText namespace="learning" messageKey="quizTake.submittedAt" />}
                   value={targetAttempt.submittedAt ? (
                     <FormattedDate
                       date={targetAttempt.submittedAt}
@@ -627,7 +628,7 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
 
             {!targetAttempt && (
               <div className="rounded-xl border border-brand-primary/30 bg-brand-primary/5 p-5 backdrop-blur-md text-center">
-                <h3 className="font-heading text-body-base font-bold text-brand-primary">Pembahasan Keseluruhan</h3>
+                <h3 className="font-heading text-body-base font-bold text-brand-primary"><TranslatedText namespace="learning" messageKey="quizTake.fullDiscussion" /></h3>
                 <p className="mt-1 text-body-sm text-brand-primary/80">
                   Anda tidak mengerjakan kuis ini. Berikut adalah seluruh kumpulan soal yang mungkin muncul pada kuis ini beserta penjelasannya.
                 </p>
@@ -817,7 +818,7 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
                                 </span>
                                 <div className="min-w-0">
                                   <p className="max-w-[200px] truncate text-body-xs font-bold text-foreground md:max-w-xs">{submittedFileName}</p>
-                                  <p className="text-body-2xs text-muted-foreground">{submittedFileSize || "PDF / Gambar"} • Cloudflare R2</p>
+                                  <p className="text-body-2xs text-muted-foreground">{submittedFileSize || <TranslatedText namespace="learning" messageKey="quizTake.pdfOrImage" />} • Cloudflare R2</p>
                                 </div>
                               </div>
                               {submittedFileKey ? (
@@ -843,7 +844,7 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
                           {isEssayPending ? (
                             <div className="flex items-center gap-2 rounded-lg border border-brand-secondary/30 bg-brand-secondary/5 p-3 text-body-xs text-brand-secondary">
                               <Clock className="size-4 shrink-0" />
-                              <span>Jawaban esai ini sedang menunggu koreksi dan penilaian oleh tutor.</span>
+                              <span><TranslatedText namespace="learning" messageKey="quizTake.essayPending" /></span>
                             </div>
                           ) : null}
                         </div>
@@ -892,7 +893,7 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
                       {/* Explanation box */}
                       {q.explanation && (
                         <div className="mt-4 ml-9 space-y-3 border-t border-border/80 pt-4">
-                          <h4 className="font-heading text-body-xs font-bold uppercase tracking-wider text-foreground">Pembahasan</h4>
+                          <h4 className="font-heading text-body-xs font-bold uppercase tracking-wider text-foreground"><TranslatedText namespace="learning" messageKey="review.explanation" /></h4>
                           <div className="text-body-sm text-muted-foreground leading-relaxed">
                             <MarkdownRenderer content={q.explanation} className="space-y-3" />
                           </div>
@@ -994,7 +995,7 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
 
                       {q.explanation && (
                         <div className="mt-4 ml-9 space-y-3 border-t border-border/80 pt-4">
-                          <h4 className="font-heading text-body-xs font-bold uppercase tracking-wider text-foreground">Pembahasan</h4>
+                          <h4 className="font-heading text-body-xs font-bold uppercase tracking-wider text-foreground"><TranslatedText namespace="learning" messageKey="review.explanation" /></h4>
                           <div className="text-body-sm text-muted-foreground leading-relaxed">
                             <MarkdownRenderer content={q.explanation} className="space-y-3" />
                           </div>
@@ -1031,37 +1032,37 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
           {/* Details Column */}
           <div className="space-y-5 lg:col-span-8">
             <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
-              <h2 className="font-heading text-body-base font-bold text-foreground">Instruksi Kuis</h2>
+              <h2 className="font-heading text-body-base font-bold text-foreground"><TranslatedText namespace="learning" messageKey="quizTake.instructionsTitle" /></h2>
 
               <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3 border-y border-border/60 py-4 text-center">
                 <div>
-                  <span className="block text-body-xs font-semibold text-muted-foreground uppercase tracking-wide">Jumlah Soal</span>
+                  <span className="block text-body-xs font-semibold text-muted-foreground uppercase tracking-wide"><TranslatedText namespace="learning" messageKey="quizTake.questionCount" /></span>
                   <span className="font-heading text-h6 font-bold text-foreground">
                     {((template.selectionRules as { count?: number })?.count ?? 10)} Soal
                   </span>
                 </div>
 
                 <div>
-                  <span className="block text-body-xs font-semibold text-muted-foreground uppercase tracking-wide">Durasi</span>
+                  <span className="block text-body-xs font-semibold text-muted-foreground uppercase tracking-wide"><TranslatedText namespace="learning" messageKey="quizTake.duration" /></span>
                   <span className="font-heading text-h6 font-bold text-foreground">
-                    {template.timeLimitSeconds ? `${Math.round(template.timeLimitSeconds / 60)} menit` : "Tanpa batas"}
+                    {template.timeLimitSeconds ? <TranslatedText namespace="learning" messageKey="quizList.minutes" values={{ count: Math.round(template.timeLimitSeconds / 60) }} /> : <TranslatedText namespace="learning" messageKey="quizList.noLimit" />}
                   </span>
                 </div>
 
                 <div className="col-span-2 sm:col-span-1">
-                  <span className="block text-body-xs font-semibold text-muted-foreground uppercase tracking-wide">Sisa Percobaan</span>
+                  <span className="block text-body-xs font-semibold text-muted-foreground uppercase tracking-wide"><TranslatedText namespace="learning" messageKey="quizTake.attemptsRemaining" /></span>
                   <span className="font-heading text-h6 font-bold text-foreground">
-                    {template.maxAttempts ? `${attemptsLeft} / ${template.maxAttempts}` : "Bebas"}
+                    {template.maxAttempts ? <TranslatedText namespace="learning" messageKey="quizTake.attemptsLeft" values={{ remaining: attemptsLeft ?? 0, total: template.maxAttempts }} /> : <TranslatedText namespace="learning" messageKey="quizTake.unlimitedAttempts" />}
                   </span>
                 </div>
               </div>
 
               <div className="mt-5 space-y-3 text-body-sm text-muted-foreground leading-relaxed">
                 <ul className="list-disc pl-5 space-y-1">
-                  <li>Kuis ini bersifat mandiri dan dinilai secara otomatis setelah pengumpulan.</li>
-                  <li>Waktu pengerjaan akan berjalan otomatis saat tombol kuis ditekan.</li>
-                  <li>Draft jawaban Anda tersimpan otomatis di browser secara berkala.</li>
-                  <li>Jika tab browser tertutup secara tidak sengaja, kuis dapat dilanjutkan kembali selama batas waktu pengerjaan belum habis.</li>
+                  <li><TranslatedText namespace="learning" messageKey="quizTake.instructions.independent" /></li>
+                  <li><TranslatedText namespace="learning" messageKey="quizTake.instructions.timer" /></li>
+                  <li><TranslatedText namespace="learning" messageKey="quizTake.instructions.autosave" /></li>
+                  <li><TranslatedText namespace="learning" messageKey="quizTake.instructions.resume" /></li>
                 </ul>
               </div>
 
@@ -1088,7 +1089,7 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
                 )}
 
                 <Button asChild variant="outline" className="border-border/80 rounded-md">
-                  <Link href={`/courses/${id}/quiz`}>Batal</Link>
+                  <Link href={`/courses/${id}/quiz`}><TranslatedText namespace="learning" messageKey="quizTake.cancel" /></Link>
                 </Button>
               </div>
             </div>
@@ -1097,19 +1098,19 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
           {/* Previous Attempts Sidebar */}
           <div className="space-y-4 lg:col-span-4 lg:border-l lg:border-border lg:pl-6">
             <div>
-              <h3 className="font-heading text-body-base font-bold text-foreground">Riwayat Percobaan</h3>
+              <h3 className="font-heading text-body-base font-bold text-foreground"><TranslatedText namespace="learning" messageKey="quizTake.attemptHistory" /></h3>
             </div>
 
             {completedAttempts.length === 0 ? (
               <div className="rounded-lg border border-dashed border-border/80 bg-muted/10 p-5 text-center">
-                <p className="text-body-xs text-muted-foreground">Belum ada percobaan selesai.</p>
+                <p className="text-body-xs text-muted-foreground"><TranslatedText namespace="learning" messageKey="quizTake.noCompletedAttempts" /></p>
               </div>
             ) : (
               <ul className="divide-y divide-border/60 overflow-hidden rounded-xl border border-border bg-card">
                 {completedAttempts.map((attempt, idx) => (
                   <li key={attempt.id} className="p-3.5 hover:bg-muted/30 transition-colors">
                     <div className="flex items-center justify-between">
-                      <span className="text-body-xs font-bold text-foreground">Percobaan #{completedAttempts.length - idx}</span>
+                      <span className="text-body-xs font-bold text-foreground"><TranslatedText namespace="learning" messageKey="quizTake.attemptNumber" values={{ number: completedAttempts.length - idx }} /></span>
                       <span className="font-heading text-body-base font-bold text-brand-primary">{attempt.score}%</span>
                     </div>
 
@@ -1124,7 +1125,7 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
                       </div>
                       <div className="flex items-center gap-1.5">
                         <Clock className="size-3" />
-                        <span>Durasi: {formatDuration(attempt.durationSeconds)}</span>
+                        <span><TranslatedText namespace="learning" messageKey="quizTake.durationValue" values={{ duration: formatDuration(attempt.durationSeconds) }} /></span>
                       </div>
                     </div>
 

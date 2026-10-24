@@ -2,6 +2,7 @@
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTransition } from "react";
+import { useTranslations } from "@/lib/i18n/client";
 import {
   Select,
   SelectContent,
@@ -10,13 +11,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-const RANGE_OPTIONS = [
-  { value: "7", label: "7 Hari Terakhir" },
-  { value: "30", label: "30 Hari Terakhir" },
-  { value: "90", label: "90 Hari Terakhir" },
-];
+const RANGE_OPTIONS = ["7", "30", "90"] as const;
 
 export function UsageRangeSelect({ current }: { current: number }) {
+  const t = useTranslations("adminOps");
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -39,15 +37,15 @@ export function UsageRangeSelect({ current }: { current: number }) {
     <Select value={String(current)} onValueChange={onValueChange}>
       <SelectTrigger
         className="w-[170px] shrink-0 text-body-sm"
-        aria-label="Rentang waktu penggunaan fitur"
+        aria-label={t("featureUsageUI.rangeLabel")}
         data-pending={pending || undefined}
       >
         <SelectValue />
       </SelectTrigger>
       <SelectContent>
-        {RANGE_OPTIONS.map((option) => (
-          <SelectItem key={option.value} value={option.value} className="text-body-sm">
-            {option.label}
+        {RANGE_OPTIONS.map((value) => (
+          <SelectItem key={value} value={value} className="text-body-sm">
+            {t(`featureUsageUI.range${value}`)}
           </SelectItem>
         ))}
       </SelectContent>

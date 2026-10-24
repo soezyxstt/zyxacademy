@@ -12,6 +12,7 @@ import {
   YAxis,
 } from "recharts";
 import type { FeatureUsageDailyPoint, FeatureUsageRow } from "@/lib/feature-usage-metrics";
+import { useTranslations } from "@/lib/i18n/client";
 
 const FEATURE_KEYS = ["materi", "flashcard", "kuis", "asesmen", "kuisLive", "zyra"] as const;
 
@@ -24,15 +25,6 @@ const FEATURE_COLORS: Record<(typeof FEATURE_KEYS)[number], string> = {
   zyra: "var(--color-status-success)",
 };
 
-const FEATURE_LABELS: Record<string, string> = {
-  materi: "Materi",
-  flashcard: "Flashcard",
-  kuis: "Kuis Mandiri",
-  asesmen: "Asesmen v2",
-  kuisLive: "Kuis Live",
-  zyra: "Zyra Chat",
-};
-
 const tooltipStyle = {
   borderRadius: "8px",
   border: "1px solid var(--color-border)",
@@ -42,16 +34,17 @@ const tooltipStyle = {
 } as const;
 
 export function FeatureRankChart({ rows }: { rows: FeatureUsageRow[] }) {
+  const t = useTranslations("adminOps");
   const data = rows.map((row) => ({
     key: row.key,
-    label: row.label,
+    label: t(`featureUsageUI.featureLabels.${row.key}`),
     aktivitas: row.events,
   }));
 
   if (data.every((d) => d.aktivitas === 0)) {
     return (
       <div className="flex h-64 items-center justify-center text-body-sm text-muted-foreground">
-        Belum ada aktivitas pada rentang waktu ini.
+        {t("featureUsageUI.noRangeActivity")}
       </div>
     );
   }
@@ -75,7 +68,7 @@ export function FeatureRankChart({ rows }: { rows: FeatureUsageRow[] }) {
             stroke="var(--color-border)"
           />
           <Tooltip contentStyle={tooltipStyle} cursor={{ fill: "var(--color-muted)", opacity: 0.4 }} />
-          <Bar dataKey="aktivitas" name="Aktivitas" radius={[0, 4, 4, 0]} maxBarSize={28}>
+          <Bar dataKey="aktivitas" name={t("featureUsageUI.activity")} radius={[0, 4, 4, 0]} maxBarSize={28}>
             {data.map((entry) => (
               <Cell
                 key={entry.key}
@@ -90,6 +83,7 @@ export function FeatureRankChart({ rows }: { rows: FeatureUsageRow[] }) {
 }
 
 export function FeatureDailyChart({ daily }: { daily: FeatureUsageDailyPoint[] }) {
+  const t = useTranslations("adminOps");
   const hasData = daily.some((point) =>
     FEATURE_KEYS.some((key) => point[key] > 0)
   );
@@ -119,7 +113,7 @@ export function FeatureDailyChart({ daily }: { daily: FeatureUsageDailyPoint[] }
                 key={key}
                 dataKey={key}
                 stackId="usage"
-                name={FEATURE_LABELS[key]}
+                name={t(`featureUsageUI.featureLabels.${key}`)}
                 fill={FEATURE_COLORS[key]}
                 maxBarSize={36}
               />
@@ -128,7 +122,7 @@ export function FeatureDailyChart({ daily }: { daily: FeatureUsageDailyPoint[] }
         </ResponsiveContainer>
       ) : (
         <div className="flex h-full items-center justify-center text-body-sm text-muted-foreground">
-          Belum ada data harian.
+          {t("featureUsageUI.noDailyData")}
         </div>
       )}
     </div>

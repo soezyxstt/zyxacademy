@@ -6,6 +6,7 @@ import { StatusBadge } from "@/components/admin/status-badges";
 import { AdminEmptyState } from "@/components/admin/state-panels";
 import { FormattedDate } from "@/components/ui/formatted-date";
 import { Button } from "@/components/ui/button";
+import { useTranslations } from "@/lib/i18n/client";
 import { ActivityDetail } from "./activity-detail";
 import {
   ChevronLeft,
@@ -35,6 +36,7 @@ export function ActivityTable({
   isPending = false,
   limit,
 }: ActivityTableProps) {
+  const t = useTranslations("adminOps");
   const [selectedItem, setSelectedItem] = useState<TutorActivityItem | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
 
@@ -46,14 +48,14 @@ export function ActivityTable({
   const getOutcomeBadge = (outcome: TutorActivityItem["outcome"]) => {
     switch (outcome) {
       case "success":
-        return <StatusBadge tone="success">Sukses</StatusBadge>;
+        return <StatusBadge tone="success">{t("tutorActivityUI.success")}</StatusBadge>;
       case "rejected":
-        return <StatusBadge tone="warning">Ditolak</StatusBadge>;
+        return <StatusBadge tone="warning">{t("tutorActivityUI.rejected")}</StatusBadge>;
       case "failed":
-        return <StatusBadge tone="error">Gagal</StatusBadge>;
+        return <StatusBadge tone="error">{t("tutorActivityUI.failed")}</StatusBadge>;
       case "unclassified":
       default:
-        return <StatusBadge tone="muted">Unclassified</StatusBadge>;
+        return <StatusBadge tone="muted">{t("tutorActivityUI.unclassified")}</StatusBadge>;
     }
   };
 
@@ -62,8 +64,8 @@ export function ActivityTable({
       <div className="rounded-xl border border-dashed border-border bg-card p-8">
         <AdminEmptyState
           icon={ScrollText}
-          title="Tidak Ada Log Aktivitas"
-          description="Belum ada catatan aktivitas tutor yang sesuai dengan filter pencarian."
+          title={t("tutorActivityUI.emptyTitle")}
+          description={t("tutorActivityUI.emptyDescription")}
         />
       </div>
     );
@@ -77,12 +79,12 @@ export function ActivityTable({
           <table className="w-full text-left text-body-sm">
             <AdminTableHead>
               <tr>
-                <th scope="col" className="px-4 py-3 font-semibold text-muted-foreground">Waktu</th>
-                <th scope="col" className="px-4 py-3 font-semibold text-muted-foreground">Tutor</th>
-                <th scope="col" className="px-4 py-3 font-semibold text-muted-foreground">Mata Kuliah</th>
-                <th scope="col" className="px-4 py-3 font-semibold text-muted-foreground">Entitas & Aksi</th>
-                <th scope="col" className="px-4 py-3 font-semibold text-muted-foreground">Status</th>
-                <th scope="col" className="px-4 py-3 text-right font-semibold text-muted-foreground">Detail</th>
+                <th scope="col" className="px-4 py-3 font-semibold text-muted-foreground">{t("tutorActivityUI.time")}</th>
+                <th scope="col" className="px-4 py-3 font-semibold text-muted-foreground">{t("tutorActivityUI.tutor")}</th>
+                <th scope="col" className="px-4 py-3 font-semibold text-muted-foreground">{t("tutorActivityUI.course")}</th>
+                <th scope="col" className="px-4 py-3 font-semibold text-muted-foreground">{t("tutorActivityUI.entityAndAction")}</th>
+                <th scope="col" className="px-4 py-3 font-semibold text-muted-foreground">{t("tutorActivityUI.status")}</th>
+                <th scope="col" className="px-4 py-3 text-right font-semibold text-muted-foreground">{t("tutorActivityUI.detail")}</th>
               </tr>
             </AdminTableHead>
             <tbody className="divide-y divide-border/60">
@@ -106,7 +108,7 @@ export function ActivityTable({
                         {item.actorName ? item.actorName.charAt(0).toUpperCase() : <User className="size-3.5" />}
                       </div>
                       <div className="min-w-0">
-                        <p className="font-medium text-foreground truncate">{item.actorName || "Sistem / Anonim"}</p>
+                        <p className="font-medium text-foreground truncate">{item.actorName || t("tutorActivityUI.systemAnonymous")}</p>
                         {item.actorEmail && (
                           <p className="text-[10px] text-muted-foreground font-mono truncate">{item.actorEmail}</p>
                         )}
@@ -117,7 +119,7 @@ export function ActivityTable({
                   {/* Course */}
                   <td className="px-4 py-3 max-w-[180px]">
                     <p className="font-medium text-foreground truncate" title={item.courseTitle || item.courseId || ""}>
-                      {item.courseTitle || item.courseId || "Lintas Kursus"}
+                      {item.courseTitle || item.courseId || t("tutorActivityUI.crossCourse")}
                     </p>
                     {item.courseCode && (
                       <span className="text-[10px] font-mono text-muted-foreground">{item.courseCode}</span>
@@ -154,7 +156,7 @@ export function ActivityTable({
                       className="h-8 gap-1 text-body-xs font-medium text-muted-foreground hover:text-foreground"
                     >
                       <Eye className="size-3.5" aria-hidden />
-                      <span>Lihat</span>
+                      <span>{t("tutorActivityUI.view")}</span>
                     </Button>
                   </td>
                 </tr>
@@ -177,7 +179,7 @@ export function ActivityTable({
                   {item.actorName ? item.actorName.charAt(0).toUpperCase() : <User className="size-3.5" />}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="font-medium text-body-sm text-foreground truncate">{item.actorName || "Sistem / Anonim"}</p>
+                  <p className="font-medium text-body-sm text-foreground truncate">{item.actorName || t("tutorActivityUI.systemAnonymous")}</p>
                   <p className="text-[10px] text-muted-foreground">
                     <FormattedDate date={item.createdAt} options={{ dateStyle: "medium", timeStyle: "short" }} />
                   </p>
@@ -188,20 +190,20 @@ export function ActivityTable({
 
             <div className="space-y-1.5 text-body-xs border-t border-border/60 pt-2 min-w-0">
               <div className="flex items-center justify-between gap-2 min-w-0">
-                <span className="text-muted-foreground shrink-0">Mata Kuliah:</span>
+                <span className="text-muted-foreground shrink-0">{t("tutorActivityUI.course")}:</span>
                 <span className="font-medium text-foreground truncate text-right min-w-0" title={item.courseTitle || item.courseId || ""}>
-                  {item.courseTitle || item.courseId || "Lintas Kursus"}
+                  {item.courseTitle || item.courseId || t("tutorActivityUI.crossCourse")}
                 </span>
               </div>
               <div className="flex items-center justify-between gap-2 min-w-0">
-                <span className="text-muted-foreground shrink-0">Entitas:</span>
+                <span className="text-muted-foreground shrink-0">{t("tutorActivityUI.entity")}:</span>
                 <span className="font-mono text-foreground truncate text-right min-w-0" title={`${item.entityType} (${item.entityId})`}>
                   <span className="font-semibold">{item.entityType}</span>{" "}
                   <span className="text-muted-foreground">({item.entityId})</span>
                 </span>
               </div>
               <div className="flex items-center justify-between gap-2 min-w-0">
-                <span className="text-muted-foreground shrink-0">Aksi:</span>
+                <span className="text-muted-foreground shrink-0">{t("tutorActivityUI.action")}:</span>
                 <span className="font-mono text-foreground truncate text-right min-w-0" title={item.action}>
                   {item.action}
                 </span>
@@ -216,7 +218,7 @@ export function ActivityTable({
               className="w-full h-8 gap-1 text-body-xs font-medium"
             >
               <Eye className="size-3.5" aria-hidden />
-              <span>Detail</span>
+              <span>{t("tutorActivityUI.detail")}</span>
             </Button>
           </div>
         ))}
@@ -225,7 +227,7 @@ export function ActivityTable({
       {/* Pagination Bar */}
       <div className="flex flex-wrap items-center justify-between gap-2 pt-2 px-1">
         <p className="text-body-xs text-muted-foreground">
-          Menampilkan {items.length} aktivitas per halaman (maks. {limit})
+          {t("tutorActivityUI.showing", { count: items.length, limit })}
         </p>
 
         <div className="flex items-center gap-1.5">
@@ -238,7 +240,7 @@ export function ActivityTable({
             className="h-8 gap-1 text-body-xs"
           >
             <ChevronLeft className="size-3.5" aria-hidden />
-            <span>Sebelumnya</span>
+            <span>{t("tutorActivityUI.previous")}</span>
           </Button>
 
           <Button
@@ -249,7 +251,7 @@ export function ActivityTable({
             disabled={!hasNextPage || isPending}
             className="h-8 gap-1 text-body-xs"
           >
-            <span>Berikutnya</span>
+            <span>{t("tutorActivityUI.next")}</span>
             <ChevronRight className="size-3.5" aria-hidden />
           </Button>
         </div>

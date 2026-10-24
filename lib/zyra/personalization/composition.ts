@@ -1,20 +1,20 @@
 import type { ZyraAdaptationDecision } from "./contracts";
 
-function firstLine(decision: ZyraAdaptationDecision): string | null {
+function firstLine(decision: ZyraAdaptationDecision, language: "id" | "en"): string | null {
   if (decision.supportIntensity === "high") {
-    return "Kita pelan-pelan dan bertahap ya.";
+    return language === "en" ? "Let's take this slowly, one step at a time." : "Kita pelan-pelan dan bertahap.";
   }
   if (decision.representation === "stepwise") {
-    return "Kita pecah penjelasannya menjadi beberapa langkah.";
+    return language === "en" ? "Let's break the explanation into a few steps." : "Kita pecah penjelasannya menjadi beberapa langkah.";
   }
   if (decision.representation === "visual") {
-    return "Coba bayangkan hubungan antarbagian ini secara visual.";
+    return language === "en" ? "Try picturing how these parts relate." : "Coba bayangkan hubungan antarbagian ini secara visual.";
   }
   if (decision.explanationLength === "concise") {
-    return "Intinya begini:";
+    return language === "en" ? "The key idea is:" : "Intinya begini:";
   }
   if (decision.explanationLength === "detailed") {
-    return "Kita uraikan dengan lebih lengkap.";
+    return language === "en" ? "Let's unpack this in more detail." : "Kita uraikan dengan lebih lengkap.";
   }
   return null;
 }
@@ -26,8 +26,9 @@ function firstLine(decision: ZyraAdaptationDecision): string | null {
 export function composePersonalizedAnswer(
   sharedAnswer: string,
   decision: ZyraAdaptationDecision,
+  responseLanguage: "id" | "en" = "id",
 ): string {
-  const lead = firstLine(decision);
+  const lead = firstLine(decision, responseLanguage);
   if (!lead || !sharedAnswer.trim()) return sharedAnswer;
   return `${lead}\n\n${sharedAnswer.trim()}`;
 }

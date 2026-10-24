@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { useTranslations } from "@/lib/i18n/client";
 
 const STORAGE_KEY = "zyx_dismiss_profile_prompt";
 
@@ -33,6 +34,7 @@ export function CompleteProfileDialog({
   isProfileIncomplete,
   missingFields,
 }: CompleteProfileDialogProps) {
+  const t = useTranslations("student");
   const router = useRouter();
   const [open, setOpen] = useState(false);
 
@@ -76,38 +78,38 @@ export function CompleteProfileDialog({
           </div>
           <div>
             <Badge variant="secondary" className="border-brand-primary/20 bg-brand-primary/10 text-brand-primary uppercase tracking-wider text-body-2xs font-semibold">
-              Profil akademis
+              {t("dashboard.profilePrompt.badge")}
             </Badge>
           </div>
         </div>
 
         <DialogHeader className="text-left space-y-1.5">
           <DialogTitle className="font-heading text-body-base font-bold text-foreground">
-            Lengkapi profil belajar Anda
+            {t("dashboard.profilePrompt.title")}
           </DialogTitle>
           <DialogDescription className="text-body-xs text-muted-foreground leading-relaxed">
-            Isi fakultas, jurusan, dan tahun masuk untuk rekomendasi kelas.
+            {t("dashboard.profilePrompt.description")}
           </DialogDescription>
         </DialogHeader>
 
         {missingFields && (
           <div className="my-2 border-y border-border py-3 space-y-1.5 text-body-xs">
             <div className="flex items-center justify-between">
-              <span className="text-muted-foreground">Fakultas ITB</span>
+              <span className="text-muted-foreground">{t("dashboard.profilePrompt.faculty")}</span>
               <span className={missingFields.faculty ? "font-semibold text-amber-600 dark:text-amber-500" : "text-status-success font-semibold"}>
-                {missingFields.faculty ? "Belum diisi" : "Sudah terisi"}
+                {missingFields.faculty ? t("dashboard.profilePrompt.missing") : t("dashboard.profilePrompt.complete")}
               </span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-muted-foreground">Jurusan / Program studi</span>
+              <span className="text-muted-foreground">{t("dashboard.profilePrompt.major")}</span>
               <span className={missingFields.major ? "font-semibold text-amber-600 dark:text-amber-500" : "text-status-success font-semibold"}>
-                {missingFields.major ? "Belum diisi" : "Sudah terisi"}
+                {missingFields.major ? t("dashboard.profilePrompt.missing") : t("dashboard.profilePrompt.complete")}
               </span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-muted-foreground">Tahun masuk ITB</span>
+              <span className="text-muted-foreground">{t("dashboard.profilePrompt.entryYear")}</span>
               <span className={missingFields.entryYear ? "font-semibold text-amber-600 dark:text-amber-500" : "text-status-success font-semibold"}>
-                {missingFields.entryYear ? "Belum diisi" : "Sudah terisi"}
+                {missingFields.entryYear ? t("dashboard.profilePrompt.missing") : t("dashboard.profilePrompt.complete")}
               </span>
             </div>
           </div>
@@ -121,7 +123,7 @@ export function CompleteProfileDialog({
             onClick={handleDismiss}
             className="text-body-sm font-semibold"
           >
-            Nanti saja
+            {t("dashboard.profilePrompt.later")}
           </Button>
           <Button
             type="button"
@@ -129,7 +131,7 @@ export function CompleteProfileDialog({
             onClick={handleCompleteNow}
             className="gap-1.5 text-body-sm font-semibold bg-brand-primary hover:bg-primary-hover text-white"
           >
-            Lengkapi sekarang
+            {t("dashboard.profilePrompt.completeNow")}
             <ArrowRight className="size-3.5" />
           </Button>
         </DialogFooter>

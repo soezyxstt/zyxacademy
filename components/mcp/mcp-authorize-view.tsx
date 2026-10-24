@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useTranslations } from "@/lib/i18n/client";
 import Link from "next/link";
 import {
   ShieldCheck,
@@ -23,34 +24,34 @@ import { submitMcpAuthorization } from "@/app/mcp/authorize/actions";
 
 interface ScopeInfo {
   key: string;
-  title: string;
-  description: string;
+  titleKey: string;
+  descriptionKey: string;
   icon: typeof BookOpen;
 }
 
 const SCOPE_DETAILS: Record<string, ScopeInfo> = {
   "authoring:read": {
     key: "authoring:read",
-    title: "Baca silabus dan katalog ide",
-    description: "Melihat struktur mata kuliah, ide pembelajaran terbitan, dan katalog bank soal.",
+    titleKey: "readTitle",
+    descriptionKey: "readDescription",
     icon: BookOpen,
   },
   "authoring:stage": {
     key: "authoring:stage",
-    title: "Unggah draf materi dan soal",
-    description: "Membuat dan mengunggah Idea Bundle baru, draf artikel terstruktur, diktat, dan soal kuis.",
+    titleKey: "stageTitle",
+    descriptionKey: "stageDescription",
     icon: UploadCloud,
   },
   "authoring:review": {
     key: "authoring:review",
-    title: "Ajukan ulasan pedagogis",
-    description: "Melakukan evaluasi 8 kriteria mutu pembelajaran dan mencatat keputusan telaah draf.",
+    titleKey: "reviewTitle",
+    descriptionKey: "reviewDescription",
     icon: ClipboardCheck,
   },
   "authoring:withdraw": {
     key: "authoring:withdraw",
-    title: "Tarik materi dan hapus draf",
-    description: "Menarik bundle materi terbit dan menghapus draf yang belum dipublikasikan.",
+    titleKey: "withdrawTitle",
+    descriptionKey: "withdrawDescription",
     icon: Archive,
   },
 };
@@ -91,6 +92,7 @@ export function McpAuthorizeView({
   searchParams,
   currentPathWithSearch,
 }: McpAuthorizeViewProps) {
+  const t = useTranslations("consent.authorize");
   const [isPending, startTransition] = useTransition();
   const [selectedScopes, setSelectedScopes] = useState(defaultScopes);
 
@@ -161,10 +163,10 @@ export function McpAuthorizeView({
         </div>
 
         <h1 className="font-heading text-h5 font-bold text-foreground">
-          Otorisasi {client.clientName}
+          {t("title", { client: client.clientName })}
         </h1>
         <p className="mt-1.5 text-body-sm text-muted-foreground max-w-md">
-          Aplikasi meminta izin untuk mengakses workspace authoring Zyx Academy Anda.
+          {t("description")}
         </p>
       </div>
 
@@ -193,11 +195,11 @@ export function McpAuthorizeView({
               </p>
               {isAdmin ? (
                 <Badge variant="default" className="text-body-2xs font-medium">
-                  Admin
+                  {t("admin")}
                 </Badge>
               ) : (
                 <Badge variant="secondary" className="text-body-2xs font-medium text-muted-foreground">
-                  Bukan admin
+                  {t("notAdmin")}
                 </Badge>
               )}
             </div>
@@ -209,7 +211,7 @@ export function McpAuthorizeView({
           href={`/sign-in?next=${encodeURIComponent(currentPathWithSearch)}`}
           className="text-body-xs font-medium text-primary hover:underline shrink-0"
         >
-          Ganti akun
+          {t("switchAccount")}
         </Link>
       </div>
 
@@ -221,10 +223,10 @@ export function McpAuthorizeView({
               <AlertTriangle className="size-5 text-status-error shrink-0 mt-0.5" />
               <div>
                 <h2 className="text-body-sm font-semibold text-foreground">
-                  Akses administrator diperlukan
+                  {t("adminRequired")}
                 </h2>
                 <p className="mt-1 text-body-xs text-muted-foreground leading-relaxed">
-                  MCP Server authoring mengelola kurikulum dan draf konten, sehingga hanya dapat diakses oleh akun dengan peran administrator. Akun Anda saat ini ({user.email}) tidak memiliki peran admin.
+                  {t("adminRequiredDescription", { email: user.email })}
                 </p>
               </div>
             </div>
@@ -233,12 +235,12 @@ export function McpAuthorizeView({
           <div className="flex flex-col sm:flex-row gap-2.5 pt-2">
             <Button asChild className="h-10 w-full sm:flex-1">
               <Link href={`/sign-in?next=${encodeURIComponent(currentPathWithSearch)}`}>
-                Masuk dengan akun admin
+                {t("signInAdmin")}
               </Link>
             </Button>
             <Button asChild variant="outline" className="h-10 w-full sm:flex-1">
               <a href={cancelUrl}>
-                Batalkan dan kembali
+                {t("cancelReturn")}
               </a>
             </Button>
           </div>
@@ -250,10 +252,10 @@ export function McpAuthorizeView({
           <div>
             <div className="flex items-center justify-between mb-2.5">
               <h2 className="text-body-sm font-semibold text-foreground">
-                Izin aplikasi
+                {t("permissions")}
               </h2>
               <span className="text-body-xs text-muted-foreground font-mono">
-                {selectedScopes.length} dari {scopes.length} izin
+                {t("permissionCount", { selected: selectedScopes.length, total: scopes.length })}
               </span>
             </div>
 
@@ -261,8 +263,8 @@ export function McpAuthorizeView({
               {scopes.map((scope) => {
                 const detail = SCOPE_DETAILS[scope] ?? {
                   key: scope,
-                  title: scope,
-                  description: "Akses ke sumber daya MCP authoring yang ditentukan.",
+                  titleKey: "unknownScopeTitle",
+                  descriptionKey: "unknownScopeDescription",
                   icon: Lock,
                 };
                 const IconComponent = detail.icon;
@@ -275,19 +277,19 @@ export function McpAuthorizeView({
                     <div className="flex-1 min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
                         <p className="text-body-sm font-medium text-foreground">
-                          {detail.title}
+                          {t(detail.titleKey)}
                         </p>
                         <code className="text-body-2xs font-mono rounded bg-muted px-1.5 py-0.5 text-muted-foreground">
                           {detail.key}
                         </code>
                       </div>
                       <p className="mt-0.5 text-body-xs text-muted-foreground leading-normal">
-                        {detail.description}
+                        {t(detail.descriptionKey)}
                       </p>
                     </div>
                     <Checkbox
                       id={`scope-${scope}`}
-                      aria-label={detail.title}
+                      aria-label={t(detail.titleKey)}
                       checked={selectedScopes.includes(scope)}
                       disabled={isPending}
                       onCheckedChange={(checked) => setSelectedScopes((current) =>
@@ -305,20 +307,20 @@ export function McpAuthorizeView({
           <div className="rounded-xl border border-border/80 bg-muted/20 p-3.5">
             <div className="flex items-center gap-2 text-body-xs font-semibold text-foreground mb-2">
               <ShieldCheck className="size-4 text-status-success" />
-              <span>Jaminan keamanan Zyx</span>
+              <span>{t("security")}</span>
             </div>
             <ul className="space-y-1.5 text-body-xs text-muted-foreground">
               <li className="flex items-center gap-2">
                 <span className="size-1 rounded-full bg-muted-foreground shrink-0" />
-                <span>Tidak dapat mengakses kata sandi atau data autentikasi Google Anda</span>
+                <span>{t("noPasswords")}</span>
               </li>
               <li className="flex items-center gap-2">
                 <span className="size-1 rounded-full bg-muted-foreground shrink-0" />
-                <span>Tidak dapat melihat informasi pribadi, nilai, atau aktivitas murid</span>
+                <span>{t("noStudentData")}</span>
               </li>
               <li className="flex items-center gap-2">
                 <span className="size-1 rounded-full bg-muted-foreground shrink-0" />
-                <span>Hanya beroperasi di dalam batasan alat authoring yang diizinkan</span>
+                <span>{t("scopeBoundary")}</span>
               </li>
             </ul>
           </div>
@@ -327,9 +329,9 @@ export function McpAuthorizeView({
           <div className="flex items-center justify-between rounded-lg bg-muted/40 px-3 py-2 text-body-xs text-muted-foreground">
             <div className="flex items-center gap-1.5 truncate">
               <Globe className="size-3.5 shrink-0" />
-              <span className="truncate">Tujuan: <span className="font-mono text-foreground">{redirectHostname}</span></span>
+              <span className="truncate">{t("target")}: <span className="font-mono text-foreground">{redirectHostname}</span></span>
             </div>
-            <span className="shrink-0 text-body-2xs font-medium">Sesi 30 hari</span>
+            <span className="shrink-0 text-body-2xs font-medium">{t("sessionDuration")}</span>
           </div>
 
           {/* Actions Form */}
@@ -362,18 +364,18 @@ export function McpAuthorizeView({
               {isPending ? (
                 <>
                   <Loader2 className="size-4 animate-spin" />
-                  Mengotorisasi...
+                  {t("authorizing")}
                 </>
               ) : (
                 <>
                   <Lock className="size-4" />
-                  Izinkan {client.clientName}
+                  {t("allow", { client: client.clientName })}
                 </>
               )}
             </Button>
 
             {selectedScopes.length === 0 && (
-              <p role="status" className="text-body-xs text-destructive">Pilih minimal 1 izin.</p>
+              <p role="status" className="text-body-xs text-destructive">{t("selectScope")}</p>
             )}
 
             <Button
@@ -385,13 +387,13 @@ export function McpAuthorizeView({
               className="h-10 w-full gap-2 text-body-sm text-muted-foreground hover:text-foreground"
             >
               <X className="size-4" />
-              Batalkan
+              {t("deny")}
             </Button>
           </form>
 
           {/* Footnote */}
           <p className="text-center text-body-2xs text-muted-foreground leading-normal">
-            Anda dapat mencabut izin integrasi ini kapan saja melalui dashboard admin Zyx.
+            {t("revoke")}
           </p>
         </div>
       )}

@@ -35,6 +35,7 @@ import { DifficultyProportionSlider } from "@/components/admin/difficulty-propor
 import { formatDatetimeLocal } from "@/lib/date-utils";
 import { cn } from "@/lib/utils";
 import { saveQuizTemplateAction } from "@/app/actions/tutor-management";
+import { useTranslations } from "@/lib/i18n/client";
 
 export interface QuestionBankItem {
   id: string;
@@ -101,6 +102,7 @@ export function TutorQuizForm({
   questionBank,
   isEdit = false,
 }: TutorQuizFormProps) {
+  const t = useTranslations("tutor.quizForm");
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
 
@@ -284,13 +286,13 @@ export function TutorQuizForm({
   const handleSubmit = (publishImmediately: boolean = false) => {
     if (!title.trim()) {
       setCurrentTab("pengaturan");
-      toast.error("Judul kuis wajib diisi.");
+      toast.error(t("titleRequired"));
       return;
     }
 
     if (selectionMode === "specific" && selectedQIds.length === 0) {
       setCurrentTab("soal");
-      toast.error("Pilih minimal 1 butir soal dari bank soal.");
+      toast.error(t("selectQuestion"));
       return;
     }
 
@@ -302,15 +304,19 @@ export function TutorQuizForm({
 
       if (qCount < 1) {
         setCurrentTab("soal");
-        toast.error("Jumlah soal kuis minimal 1.");
+        toast.error(t("minimumQuestionCount"));
         return;
       }
       if (easyCount + medCount + hardCount !== qCount) {
         setCurrentTab("soal");
         toast.error(
-          `Proporsi kesulitan (${easyCount} Mudah + ${medCount} Sedang + ${hardCount} Sulit = ${
-            easyCount + medCount + hardCount
-          }) harus sama dengan total soal (${qCount}).`
+          t("difficultyMismatch", {
+            easy: easyCount,
+            medium: medCount,
+            hard: hardCount,
+            sum: easyCount + medCount + hardCount,
+            count: qCount,
+          })
         );
         return;
       }
@@ -363,24 +369,23 @@ export function TutorQuizForm({
         if (res.success) {
           toast.success(
             publishImmediately
-              ? "Kuis berhasil dipublikasikan."
+              ? t("published")
               : isEdit
-              ? "Kuis berhasil diperbarui."
-              : "Kuis berhasil disimpan sebagai draf."
+              ? t("updated")
+              : t("savedDraft")
           );
           router.push(`/tutor/${courseId}/quizzes`);
           router.refresh();
         }
-      } catch (err: unknown) {
-        const message = err instanceof Error ? err.message : "Gagal menyimpan kuis.";
-        toast.error(message);
+      } catch {
+        toast.error(t("saveFailed"));
       }
     });
   };
 
   const headerTitle = isEdit
-    ? title ? `Edit Kuis: ${title}` : "Edit Kuis"
-    : `Buat Kuis: ${courseTitle}`;
+    ? title ? `${t("editTitle")}: ${title}` : t("editTitle")
+    : t("createTitle", { course: courseTitle });
 
   return (
     <div className="space-y-6">
@@ -388,7 +393,7 @@ export function TutorQuizForm({
         icon={NotebookPen}
         title={headerTitle}
         backHref={`/tutor/${courseId}/quizzes`}
-        backLabel="Kembali ke Daftar Kuis"
+        backLabel={t("backToQuizList")}
         actions={
           <div className="flex items-center gap-2">
             <Button
@@ -400,7 +405,7 @@ export function TutorQuizForm({
               className="h-9 rounded-md border-border font-semibold text-body-sm"
             >
               <Save className="mr-1.5 size-3.5" />
-              {isEdit ? "Simpan Perubahan" : "Simpan Draf"}
+              {isEdit ? t("saveChanges") : t("saveDraft")}
             </Button>
             <Button
               type="button"
@@ -411,12 +416,12 @@ export function TutorQuizForm({
             >
               {isPending ? (
                 <>
-                  <Loader2 className="mr-1.5 size-3.5 animate-spin" /> Menyimpan...
+                  <Loader2 className="mr-1.5 size-3.5 animate-spin" /> {t("saving")}
                 </>
               ) : (
                 <>
                   <Send className="mr-1.5 size-3.5" />
-                  {isEdit ? "Simpan & Publikasikan" : "Publikasikan Kuis"}
+                  {isEdit ? t("saveAndPublish") : t("publishQuiz")}
                 </>
               )}
             </Button>
@@ -430,9 +435,9 @@ export function TutorQuizForm({
           <CardContent className="p-4 flex flex-wrap items-center justify-between gap-3 text-body-xs">
             <div className="flex items-center gap-2 text-foreground font-medium">
               <Shield className="size-4 text-brand-primary shrink-0" />
-              <span>Pembuat:</span>
+              <span>{t("creator")}:</span>
               <span className="font-bold text-foreground">
-                {initialData.creatorName || "Sistem"}
+                {initialData.creatorName || t("system")}
               </span>
               {initialData.creatorEmail && (
                 <span className="text-muted-foreground">({initialData.creatorEmail})</span>
@@ -445,7 +450,7 @@ export function TutorQuizForm({
             </div>
             <div className="text-muted-foreground flex items-center gap-2">
               <UserCheck className="size-3.5" />
-              <span>Atribusi pembuat bersifat permanen dan tidak berubah saat kuis diedit.</span>
+              <span>{t("creatorAttribution")}</span>
             </div>
           </CardContent>
         </Card>
@@ -456,11 +461,11 @@ export function TutorQuizForm({
         <TabsList>
           <TabsTrigger value="pengaturan">
             <Settings2 className="size-4" />
-            Pengaturan Kuis
+            {t("settings")}
           </TabsTrigger>
           <TabsTrigger value="soal">
             <BookOpen className="size-4" />
-            Pilihan Soal
+            {t("questions")}
             {selectedQIds.length > 0 && (
               <Badge variant="secondary" className="ml-1 px-1.5 py-0 text-body-2xs">
                 {selectedQIds.length}
@@ -478,13 +483,13 @@ export function TutorQuizForm({
                 <div className="border-b border-border px-4 py-3">
                   <h3 className="font-heading text-body-base font-bold text-foreground flex items-center gap-2">
                     <BookOpen className="size-4 text-brand-primary" />
-                    Informasi kuis
+                    {t("quizTitle")}
                   </h3>
                 </div>
                 <div className="p-4 space-y-4">
                   <div>
                     <Label htmlFor="courseTitle" className="text-body-sm font-semibold text-foreground">
-                      Mata Kuliah
+                      {t("course")}
                     </Label>
                     <Input
                       id="courseTitle"
@@ -496,13 +501,13 @@ export function TutorQuizForm({
 
                   <div>
                     <Label htmlFor="title" className="text-body-sm font-semibold text-foreground">
-                      Judul Kuis
+                      {t("quizTitle")}
                     </Label>
                     <Input
                       id="title"
                       value={title}
                       onChange={(e) => setTitle(e.target.value)}
-                      placeholder="Contoh: Kuis 1 - Turunan dan Penerapannya"
+                      placeholder={t("titlePlaceholder")}
                       className="mt-1 rounded-lg border-border font-medium text-body-sm"
                     />
                   </div>
@@ -510,32 +515,32 @@ export function TutorQuizForm({
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     <div>
                       <Label htmlFor="category" className="text-body-sm font-semibold text-foreground">
-                        Kategori Kuis
+                        {t("category")}
                       </Label>
                       <Select value={category} onValueChange={(v: any) => setCategory(v)}>
                         <SelectTrigger id="category" className="mt-1 rounded-lg border-border text-body-sm">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent className="bg-card border-border">
-                          <SelectItem value="daily">Latihan Harian</SelectItem>
-                          <SelectItem value="weekly">Kuis Mingguan</SelectItem>
-                          <SelectItem value="chapter">Kuis Per Bab</SelectItem>
-                          <SelectItem value="premium">Kuis Khusus / Premium</SelectItem>
+                          <SelectItem value="daily">{t("dailyPractice")}</SelectItem>
+                          <SelectItem value="weekly">{t("weeklyQuiz")}</SelectItem>
+                          <SelectItem value="chapter">{t("chapterQuiz")}</SelectItem>
+                          <SelectItem value="premium">{t("premiumQuiz")}</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
 
                     <div>
                       <Label htmlFor="visibility" className="text-body-sm font-semibold text-foreground">
-                        Akses Siswa
+                        {t("visibility")}
                       </Label>
                       <Select value={visibility} onValueChange={(v: any) => setVisibility(v)}>
                         <SelectTrigger id="visibility" className="mt-1 rounded-lg border-border text-body-sm">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent className="bg-card border-border">
-                          <SelectItem value="free">Gratis (Semua Siswa Terdaftar)</SelectItem>
-                          <SelectItem value="paid">Berbayar (Butuh Token Khusus)</SelectItem>
+                          <SelectItem value="free">{t("freeAccess")}</SelectItem>
+                          <SelectItem value="paid">{t("paidAccess")}</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -548,7 +553,7 @@ export function TutorQuizForm({
                 <div className="border-b border-border px-4 py-3">
                   <h3 className="font-heading text-body-base font-bold text-foreground flex items-center gap-2">
                     <Calendar className="size-4 text-brand-primary" />
-                    Jadwal akses
+                    {t("scheduleType")}
                   </h3>
                 </div>
                 <div className="p-4 space-y-4">
@@ -579,9 +584,9 @@ export function TutorQuizForm({
                         {scheduleType === "scheduled" && <div className="size-1.5 rounded-full bg-white" />}
                       </div>
                       <div>
-                        <div className="text-body-sm font-bold text-foreground">Terjadwal</div>
+                        <div className="text-body-sm font-bold text-foreground">{t("scheduled")}</div>
                         <div className="text-body-xs text-muted-foreground mt-0.5">
-                          Otomatis buka dan tutup sesuai waktu
+                          {t("scheduledDescription")}
                         </div>
                       </div>
                     </button>
@@ -612,9 +617,9 @@ export function TutorQuizForm({
                         {scheduleType === "manual" && <div className="size-1.5 rounded-full bg-white" />}
                       </div>
                       <div>
-                        <div className="text-body-sm font-bold text-foreground">Manual</div>
+                        <div className="text-body-sm font-bold text-foreground">{t("manual")}</div>
                         <div className="text-body-xs text-muted-foreground mt-0.5">
-                          Buka atau tutup kuis kapan saja instan
+                          {t("manualDescription")}
                         </div>
                       </div>
                     </button>
@@ -624,7 +629,7 @@ export function TutorQuizForm({
                     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 pt-2 border-t border-border">
                       <div>
                         <Label htmlFor="openAt" className="text-body-sm font-semibold text-foreground">
-                          Waktu Buka Kuis
+                          {t("openAt")}
                         </Label>
                         <Input
                           id="openAt"
@@ -637,7 +642,7 @@ export function TutorQuizForm({
 
                       <div>
                         <Label htmlFor="closeAt" className="text-body-sm font-semibold text-foreground">
-                          Waktu Tutup Kuis
+                          {t("closeAt")}
                         </Label>
                         <Input
                           id="closeAt"
@@ -651,15 +656,15 @@ export function TutorQuizForm({
                   ) : (
                     <div className="pt-2 border-t border-border">
                       <Label htmlFor="manualStatus" className="text-body-sm font-semibold text-foreground">
-                        Status Kuis Manual
+                        {t("quizStatus")}
                       </Label>
                       <Select value={manualStatus} onValueChange={(v: any) => setManualStatus(v)}>
                         <SelectTrigger id="manualStatus" className="mt-1 rounded-lg border-border text-body-sm">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent className="bg-card border-border">
-                          <SelectItem value="open">Buka (Siswa dapat mengerjakan sekarang)</SelectItem>
-                          <SelectItem value="closed">Tutup (Siswa tidak dapat mengerjakan)</SelectItem>
+                          <SelectItem value="open">{t("open")}</SelectItem>
+                          <SelectItem value="closed">{t("closed")}</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -673,13 +678,13 @@ export function TutorQuizForm({
               <section>
                 <div className="border-b border-border px-4 py-3">
                   <h3 className="font-heading text-body-base font-bold text-foreground">
-                    Durasi dan percobaan
+                    {t("durationAttempts")}
                   </h3>
                 </div>
                 <div className="p-4 space-y-4">
                   <div className="flex items-center justify-between">
                     <div>
-                      <Label className="text-body-sm font-semibold text-foreground">Batas Waktu Pengerjaan</Label>
+                      <Label className="text-body-sm font-semibold text-foreground">{t("timeLimit")}</Label>
                     </div>
                     <Switch
                       checked={hasGlobalTimeLimit}
@@ -690,7 +695,7 @@ export function TutorQuizForm({
                   {hasGlobalTimeLimit && (
                     <div>
                       <Label htmlFor="timeLimit" className="text-body-sm font-semibold text-foreground">
-                        Durasi (Menit)
+                        {t("durationMinutes")}
                       </Label>
                       <Input
                         id="timeLimit"
@@ -705,13 +710,13 @@ export function TutorQuizForm({
 
                   <div>
                     <Label htmlFor="maxAttempts" className="text-body-sm font-semibold text-foreground">
-                      Maksimal Percobaan
+                      {t("maxAttempts")}
                     </Label>
                     <Input
                       id="maxAttempts"
                       type="number"
                       min="1"
-                      placeholder="Kosongkan untuk tanpa batas"
+                      placeholder={t("noLimit")}
                       value={maxAttempts}
                       onChange={(e) => setMaxAttempts(e.target.value)}
                       className="mt-1 rounded-lg border-border text-body-sm"
@@ -723,54 +728,54 @@ export function TutorQuizForm({
               <section>
                 <div className="border-b border-border px-4 py-3">
                   <h3 className="font-heading text-body-base font-bold text-foreground">
-                    Aturan dan pembahasan
+                    {t("rulesAndExplanations")}
                   </h3>
                 </div>
                 <div className="p-4 space-y-3.5">
                   <div className="flex items-center justify-between">
                     <div>
-                      <span className="text-body-sm font-semibold text-foreground block">Navigasi Bebas</span>
-                      <span className="text-body-xs text-muted-foreground">Siswa boleh kembali ke soal sebelumnya</span>
+                      <span className="text-body-sm font-semibold text-foreground block">{t("freeNavigation")}</span>
+                      <span className="text-body-xs text-muted-foreground">{t("freeNavigationDescription")}</span>
                     </div>
                     <Switch checked={canGoBack} onCheckedChange={setCanGoBack} />
                   </div>
 
                   <div className="flex items-center justify-between">
                     <div>
-                      <span className="text-body-sm font-semibold text-foreground block">Wajib Jawab Semua</span>
-                      <span className="text-body-xs text-muted-foreground">Harus mengisi semua soal sebelum submit</span>
+                      <span className="text-body-sm font-semibold text-foreground block">{t("requireAll")}</span>
+                      <span className="text-body-xs text-muted-foreground">{t("requireAllDescription")}</span>
                     </div>
                     <Switch checked={requireAllAnswered} onCheckedChange={setRequireAllAnswered} />
                   </div>
 
                   <div className="flex items-center justify-between">
                     <div>
-                      <span className="text-body-sm font-semibold text-foreground block">Acak Urutan Soal</span>
-                      <span className="text-body-xs text-muted-foreground">Urutan soal berbeda untuk setiap siswa</span>
+                      <span className="text-body-sm font-semibold text-foreground block">{t("shuffleQuestions")}</span>
+                      <span className="text-body-xs text-muted-foreground">{t("shuffleQuestionsDescription")}</span>
                     </div>
                     <Switch checked={shuffleQuestions} onCheckedChange={setShuffleQuestions} />
                   </div>
 
                   <div className="flex items-center justify-between">
                     <div>
-                      <span className="text-body-sm font-semibold text-foreground block">Acak Opsi Jawaban</span>
-                      <span className="text-body-xs text-muted-foreground">Urutan pilihan A, B, C, D diacak</span>
+                      <span className="text-body-sm font-semibold text-foreground block">{t("shuffleOptions")}</span>
+                      <span className="text-body-xs text-muted-foreground">{t("shuffleOptionsDescription")}</span>
                     </div>
                     <Switch checked={shuffleOptions} onCheckedChange={setShuffleOptions} />
                   </div>
 
                   <div className="pt-2 border-t border-border">
                     <Label htmlFor="explanationRelease" className="text-body-sm font-semibold text-foreground">
-                      Rilis Pembahasan Soal
+                      {t("discussionRelease")}
                     </Label>
                     <Select value={explanationRelease} onValueChange={(v: any) => setExplanationRelease(v)}>
                       <SelectTrigger id="explanationRelease" className="mt-1 rounded-lg border-border text-body-sm">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent className="bg-card border-border">
-                        <SelectItem value="immediate">Langsung setelah selesai kuis</SelectItem>
-                        <SelectItem value="after_close">Setelah kuis ditutup</SelectItem>
-                        <SelectItem value="never">Jangan tampilkan pembahasan</SelectItem>
+                        <SelectItem value="immediate">{t("immediate")}</SelectItem>
+                        <SelectItem value="after_close">{t("afterClose")}</SelectItem>
+                        <SelectItem value="never">{t("never")}</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -786,19 +791,19 @@ export function TutorQuizForm({
             <div className="border-b border-border px-4 py-3 flex flex-wrap items-center justify-between gap-3">
               <div>
                 <h3 className="font-heading text-body-base font-bold text-foreground">
-                  Pilihan soal ({selectedQIds.length} Terpilih)
+                  {t("questionSelection", { count: selectedQIds.length })}
                 </h3>
               </div>
 
               <div className="flex items-center gap-2">
                 <Badge variant="outline" className="text-body-xs rounded-md">
-                  Mudah: {selectedDifficultyCounts.easy}
+                  {t("easy")}: {selectedDifficultyCounts.easy}
                 </Badge>
                 <Badge variant="outline" className="text-body-xs rounded-md">
-                  Sedang: {selectedDifficultyCounts.medium}
+                  {t("medium")}: {selectedDifficultyCounts.medium}
                 </Badge>
                 <Badge variant="outline" className="text-body-xs rounded-md">
-                  Sulit: {selectedDifficultyCounts.hard}
+                  {t("hard")}: {selectedDifficultyCounts.hard}
                 </Badge>
               </div>
             </div>
@@ -808,7 +813,7 @@ export function TutorQuizForm({
               <div className="flex flex-wrap items-center gap-2">
                 <div className="flex-1 min-w-[140px]">
                   <SearchBar
-                    placeholder="Cari teks soal atau tag..."
+                    placeholder={t("searchQuestions")}
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     className="h-9 rounded-lg border-border text-body-sm"
@@ -817,26 +822,26 @@ export function TutorQuizForm({
 
                 <Select value={difficultyFilter} onValueChange={setDifficultyFilter}>
                   <SelectTrigger className="w-32 h-9 rounded-lg border-border text-body-sm shrink-0">
-                    <SelectValue placeholder="Kesulitan" />
+                    <SelectValue placeholder={t("difficulty")} />
                   </SelectTrigger>
                   <SelectContent className="bg-card border-border">
-                    <SelectItem value="all">Semua Kesulitan</SelectItem>
-                    <SelectItem value="easy">Mudah</SelectItem>
-                    <SelectItem value="medium">Sedang</SelectItem>
-                    <SelectItem value="hard">Sulit</SelectItem>
+                    <SelectItem value="all">{t("allDifficulties")}</SelectItem>
+                    <SelectItem value="easy">{t("easy")}</SelectItem>
+                    <SelectItem value="medium">{t("medium")}</SelectItem>
+                    <SelectItem value="hard">{t("hard")}</SelectItem>
                   </SelectContent>
                 </Select>
 
                 <Select value={typeFilter} onValueChange={setTypeFilter}>
                   <SelectTrigger className="w-36 h-9 rounded-lg border-border text-body-sm shrink-0">
-                    <SelectValue placeholder="Tipe Soal" />
+                    <SelectValue placeholder={t("questionType")} />
                   </SelectTrigger>
                   <SelectContent className="bg-card border-border">
-                    <SelectItem value="all">Semua Tipe</SelectItem>
-                    <SelectItem value="multiple_choice">Single Choice</SelectItem>
-                    <SelectItem value="multiple_choices">Multi Choice</SelectItem>
-                    <SelectItem value="short_answer">Isian Singkat</SelectItem>
-                    <SelectItem value="essay">Essay</SelectItem>
+                    <SelectItem value="all">{t("allTypes")}</SelectItem>
+                    <SelectItem value="multiple_choice">{t("singleChoice")}</SelectItem>
+                    <SelectItem value="multiple_choices">{t("multiChoice")}</SelectItem>
+                    <SelectItem value="short_answer">{t("shortAnswer")}</SelectItem>
+                    <SelectItem value="essay">{t("essay")}</SelectItem>
                   </SelectContent>
                 </Select>
 
@@ -851,7 +856,7 @@ export function TutorQuizForm({
                   )}
                 >
                   <Filter className="mr-1.5 size-3.5" />
-                  {onlySelectedFilter ? "Hanya Terpilih" : "Semua Soal"}
+                  {onlySelectedFilter ? t("selectedOnly") : t("allQuestions")}
                 </Button>
 
                 <div className="flex items-center gap-1.5 ml-auto">
@@ -862,7 +867,7 @@ export function TutorQuizForm({
                     onClick={selectAllFiltered}
                     className="h-9 rounded-lg border-border text-body-sm"
                   >
-                    Pilih Semua ({filteredQuestions.length})
+                    {t("selectAll", { count: filteredQuestions.length })}
                   </Button>
                   <Button
                     type="button"
@@ -871,7 +876,7 @@ export function TutorQuizForm({
                     onClick={deselectAllFiltered}
                     className="h-9 rounded-lg border-border text-body-sm"
                   >
-                    Hapus Pilihan
+                    {t("clearSelection")}
                   </Button>
                 </div>
               </div>
@@ -880,18 +885,18 @@ export function TutorQuizForm({
               {questionBank.length === 0 ? (
                 <div className="text-center py-12 border border-dashed border-border rounded-xl">
                   <HelpCircle className="size-10 text-muted-foreground/50 mx-auto mb-2" />
-                  <h4 className="font-heading text-body-base font-bold text-foreground">Bank Soal Kosong</h4>
+                  <h4 className="font-heading text-body-base font-bold text-foreground">{t("emptyBank")}</h4>
                   <p className="text-body-xs text-muted-foreground mt-1 max-w-sm mx-auto">
-                    Tambahkan soal ke bank soal kelas terlebih dahulu agar dapat dipilih untuk kuis.
+                    {t("emptyBankDescription")}
                   </p>
                 </div>
               ) : filteredQuestions.length === 0 ? (
                 <div className="text-center py-8 border border-dashed border-border rounded-xl">
-                  <p className="text-body-sm text-muted-foreground">Tidak ada soal yang cocok dengan filter.</p>
+                  <p className="text-body-sm text-muted-foreground">{t("noMatchingQuestions")}</p>
                 </div>
               ) : (
                 <div className="space-y-2.5 max-h-[600px] overflow-y-auto pr-1">
-                  {filteredQuestions.map((q, idx) => {
+                  {filteredQuestions.map((q) => {
                     const isSelected = selectedQIds.includes(q.id);
                     const qOpts = Array.isArray(q.options)
                       ? q.options
@@ -935,7 +940,7 @@ export function TutorQuizForm({
                         <div className="flex-1 min-w-0 space-y-1.5">
                           <div className="flex flex-wrap items-center gap-2">
                             <span className="text-body-xs font-bold text-muted-foreground">
-                              Soal #{questionBank.indexOf(q) + 1}
+                              {t("questionNumber", { count: questionBank.indexOf(q) + 1 })}
                             </span>
                             <Badge
                               className={cn(
@@ -947,16 +952,16 @@ export function TutorQuizForm({
                                   : "bg-rose-500/10 text-rose-600 border-rose-500/20"
                               )}
                             >
-                              {q.difficulty}
+                              {t(q.difficulty)}
                             </Badge>
                             <Badge variant="outline" className="text-[10px] rounded-md text-muted-foreground">
                               {q.questionType === "short_answer"
-                                ? "Isian Singkat"
+                                ? t("shortAnswer")
                                 : q.questionType === "essay"
-                                ? "Essay"
+                                ? t("essay")
                                 : q.questionType === "multiple_choices"
-                                ? "Multi Select"
-                                : "Single Choice"}
+                                ? t("multiChoice")
+                                : t("singleChoice")}
                             </Badge>
                           </div>
 

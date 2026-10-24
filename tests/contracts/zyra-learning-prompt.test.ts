@@ -21,4 +21,27 @@ describe("Zyra learning presentation", () => {
     expect(input.outputRules.join("\n")).toContain("approved hint level");
     expect(input.outputRules.join("\n")).toContain("unreadableRegions");
   });
+
+  it("selects English output language while preserving active-assessment limits", () => {
+    const context = buildPedagogyContext({
+      courseId: "math",
+      question: "Explain this step",
+      responseLanguage: "en",
+      action: "follow_up",
+      activityKind: "exam",
+      attemptState: "in_progress",
+      answerReleaseState: "hidden",
+      matchState: "none",
+      allowDirectAnswerReveal: false,
+      assessmentReasonCode: "SCAFFOLD",
+      evidenceSufficiency: "sufficient",
+    });
+    const input = buildPedagogyPromptInput(context, selectTeachingPlan(context), context.explicitTopic, []);
+
+    expect(context.responseLanguage).toBe("en");
+    expect(context.activeAssessment).toBe(true);
+    expect(context.allowDirectAnswerReveal).toBe(false);
+    expect(input.outputRules.join("\n")).toContain("response language selected in context.responseLanguage");
+    expect(input.outputRules.join("\n")).toContain("Never reveal a final answer");
+  });
 });

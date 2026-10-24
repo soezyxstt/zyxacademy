@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
+import { getTranslations } from "@/lib/i18n/server";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { pageTitle } from "@/lib/site";
@@ -13,10 +14,13 @@ import {
 import { McpAuthorizeView } from "@/components/mcp/mcp-authorize-view";
 import { McpAuthorizeError } from "@/components/mcp/mcp-authorize-error";
 
-export const metadata: Metadata = {
-  title: pageTitle("Otorisasi MCP"),
-  description: "Otorisasi integrasi Model Context Protocol Zyx Academy.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("consent.authorize");
+  return {
+    title: pageTitle(t("metadataTitle")),
+    description: t("metadataDescription"),
+  };
+}
 
 type SearchParams = {
   client_id?: string;
@@ -34,6 +38,7 @@ export default async function McpAuthorizePage({
 }: {
   searchParams: Promise<SearchParams>;
 }) {
+  const t = await getTranslations("consent.authorize");
   const sp = await searchParams;
   const clientId = sp.client_id ?? "";
   const redirectUri = sp.redirect_uri ?? "";
@@ -47,8 +52,8 @@ export default async function McpAuthorizePage({
   if (responseType !== "code" || codeChallengeMethod !== "S256" || !codeChallenge) {
     return (
       <McpAuthorizeError
-        title="Parameter permintaan tidak valid"
-        description="Permintaan otorisasi harus menyertakan response_type=code, code_challenge_method=S256, dan parameter code_challenge yang sah."
+        title={t("invalidRequest")}
+        description={t("invalidRequestDescription")}
         errorCode="invalid_request"
       />
     );
@@ -60,8 +65,8 @@ export default async function McpAuthorizePage({
   } catch {
     return (
       <McpAuthorizeError
-        title="Klien tidak terdaftar"
-        description="Pengenal klien (client_id) tidak dikenali atau format token pendaftaran tidak valid."
+        title={t("unknownClient")}
+        description={t("unknownClientDescription")}
         errorCode="invalid_client"
       />
     );
@@ -70,8 +75,8 @@ export default async function McpAuthorizePage({
   if (!client.redirectUris.includes(redirectUri)) {
     return (
       <McpAuthorizeError
-        title="URL pengalihan tidak sesuai"
-        description="URL pengalihan yang diminta (redirect_uri) tidak cocok dengan daftar URL pengalihan terdaftar untuk klien ini."
+        title={t("redirectMismatch")}
+        description={t("redirectMismatchDescription")}
         errorCode="invalid_redirect_uri"
       />
     );
@@ -86,8 +91,8 @@ export default async function McpAuthorizePage({
   if (requestedResource && requestedResource !== expectedResource) {
     return (
       <McpAuthorizeError
-        title="Target sumber daya tidak sesuai"
-        description="Sumber daya yang diminta tidak cocok dengan endpoint MCP authoring Zyx Academy."
+        title={t("targetMismatch")}
+        description={t("targetMismatchDescription")}
         errorCode="invalid_target"
       />
     );
@@ -99,8 +104,8 @@ export default async function McpAuthorizePage({
   } catch {
     return (
       <McpAuthorizeError
-        title="Cakupan izin tidak valid"
-        description="Satu atau lebih cakupan izin (scope) yang diminta tidak didukung oleh gateway MCP authoring Zyx."
+        title={t("invalidScope")}
+        description={t("invalidScopeDescription")}
         errorCode="invalid_scope"
       />
     );
@@ -141,8 +146,8 @@ export default async function McpAuthorizePage({
     } else {
       return (
         <McpAuthorizeError
-          title="Autentikasi sesi gagal"
-          description="Sesi Anda saat ini tidak valid atau telah kedaluwarsa. Silakan masuk kembali."
+          title={t("sessionInvalid")}
+          description={t("sessionInvalidDescription")}
           errorCode="session_invalid"
           returnUrl={`/sign-in?next=${encodeURIComponent(currentPathWithSearch)}`}
         />
@@ -154,7 +159,7 @@ export default async function McpAuthorizePage({
     <McpAuthorizeView
       client={{
         clientId,
-        clientName: client.clientName || "MCP client",
+        clientName: client.clientName || t("defaultClientName"),
         redirectUri,
       }}
       user={{

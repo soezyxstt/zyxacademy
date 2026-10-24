@@ -14,14 +14,9 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { MathText } from "@/components/course/math-text";
 import { getConceptPopover, type ConceptPopoverData } from "@/lib/learning-context-actions";
+import { useTranslations } from "@/lib/i18n/client";
 
 type Tab = "explain" | "analogy" | "example" | "mistake";
-
-const TREND_LABEL: Record<string, string> = {
-  improving: "naik",
-  stable: "stabil",
-  declining: "turun",
-};
 
 export function TermPopover({
   courseId,
@@ -32,6 +27,7 @@ export function TermPopover({
   conceptName: string;
   onAskTutor: () => void;
 }) {
+  const t = useTranslations("studentCourse");
   const [data, setData] = useState<ConceptPopoverData | null>(null);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<Tab>("explain");
@@ -54,7 +50,7 @@ export function TermPopover({
     return (
       <div className="flex items-center gap-2 p-3 text-body-sm text-muted-foreground">
         <Loader2 className="size-4 animate-spin" />
-        Memuat konsep...
+        {t("termPopover.loading")}
       </div>
     );
   }
@@ -62,19 +58,19 @@ export function TermPopover({
   if (!data) {
     return (
       <div className="p-3 space-y-2">
-        <p className="text-body-sm text-muted-foreground">Konsep tidak ditemukan.</p>
+        <p className="text-body-sm text-muted-foreground">{t("termPopover.notFound")}</p>
         <Button size="sm" variant="outline" onClick={onAskTutor}>
-          Tanya Zyra
+          {t("termPopover.askZyra")}
         </Button>
       </div>
     );
   }
 
   const tabs = ([
-    { id: "explain", label: "Penjelasan", icon: BookOpen, available: !!data.quickExplain },
-    { id: "analogy", label: "Analogi", icon: BookOpenCheck, available: !!data.analogy },
-    { id: "example", label: "Contoh", icon: FlaskConical, available: !!data.example },
-    { id: "mistake", label: "Kesalahan umum", icon: TriangleAlert, available: !!data.commonMistake },
+    { id: "explain", label: t("termPopover.explain"), icon: BookOpen, available: !!data.quickExplain },
+    { id: "analogy", label: t("termPopover.analogy"), icon: BookOpenCheck, available: !!data.analogy },
+    { id: "example", label: t("termPopover.example"), icon: FlaskConical, available: !!data.example },
+    { id: "mistake", label: t("termPopover.commonMistake"), icon: TriangleAlert, available: !!data.commonMistake },
   ] as Array<{ id: Tab; label: string; icon: typeof BookOpen; available: boolean }>).filter((t) => t.available);
 
   const activeTab = tabs.find((t) => t.id === tab) ? tab : tabs[0]?.id;
@@ -86,7 +82,7 @@ export function TermPopover({
         <span className="text-body-sm font-semibold text-foreground"><MathText as="span">{data.conceptName}</MathText></span>
         <span className="shrink-0 rounded-md bg-muted px-1.5 py-0.5 text-body-sm text-muted-foreground tabular-nums">
           {data.mastery.score}
-          {data.mastery.trend ? ` · ${TREND_LABEL[data.mastery.trend]}` : ""}
+          {data.mastery.trend ? ` · ${t(`termPopover.trend.${data.mastery.trend}`)}` : ""}
         </span>
       </div>
 
@@ -123,16 +119,16 @@ export function TermPopover({
       <div className="flex items-center gap-2 border-t border-border pt-2">
         <Button size="sm" variant="outline" asChild className="gap-1.5">
           <Link href={`/courses/${courseId}/quiz`}>
-            <ListChecks className="size-3.5" /> Uji aku
+            <ListChecks className="size-3.5" /> {t("termPopover.quizMe")}
           </Link>
         </Button>
         <Button size="sm" variant="ghost" asChild className="gap-1.5">
           <Link href={data.reviewHref}>
-            <BookOpen className="size-3.5" /> Tinjau
+            <BookOpen className="size-3.5" /> {t("termPopover.review")}
           </Link>
         </Button>
         <Button size="sm" variant="ghost" onClick={onAskTutor} className="ml-auto">
-          Tanya Zyra
+          {t("termPopover.askZyra")}
         </Button>
       </div>
     </div>

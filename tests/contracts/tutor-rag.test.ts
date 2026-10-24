@@ -10,7 +10,7 @@ import {
 import { normalizeTutorMathMarkdown } from "@/lib/tutor/math-markdown";
 import { loadAiFixture } from "../helpers/ai-fixtures";
 import { assertNoStudentTextInSharedCache, buildTutorCacheKey, computeEvidenceVersion } from "@/lib/tutor/cache-contract";
-import { classifyQueryAction, extractStyleModifiers } from "@/lib/tutor/query-action";
+import { classifyQueryAction, extractStyleModifiers, resolveResponseLanguage, responseLanguageFromHistory } from "@/lib/tutor/query-action";
 import { evaluateAssessmentAssistancePolicy } from "@/lib/assessment-assistance-policy";
 import { env } from "@/lib/env";
 import { verifyCitations } from "@/lib/tutor/citation-verifier";
@@ -58,6 +58,34 @@ describe("Tutor RAG Contract Tests", () => {
     });
 
     expect(answer).toContain("integral dari $3x^2 + 4x$?");
+  });
+
+  it("keeps the effective locale unless the current request has an explicit language modifier", () => {
+    expect(resolveResponseLanguage({ requestedLanguage: "en", responseModifiers: [] })).toBe("en");
+    expect(resolveResponseLanguage({ requestedLanguage: "id", responseModifiers: ["english"] })).toBe("en");
+    expect(resolveResponseLanguage({ requestedLanguage: "en", responseModifiers: ["indonesian"] })).toBe("id");
+    expect(resolveResponseLanguage({ requestedLanguage: "fr", responseModifiers: [] })).toBe("id");
+    expect(extractStyleModifiers("Please answer in English").modifiers).toContain("english");
+    expect(extractStyleModifiers("jelaskan konsep limit").modifiers).not.toContain("english");
+    expect(responseLanguageFromHistory([
+      { role: "student", content: "Please explain in English" },
+      { role: "ai", content: "A prior English answer" },
+      { role: "student", content: "Can you simplify this?" },
+    ])).toBe("en");
+    expect(resolveResponseLanguage({ requestedLanguage: "id", responseModifiers: [] })).toBe("id");
+  });
+
+  it("builds an English general-teaching fallback with English controls and headings", () => {
+    const answer = composeUngroundedTeachingAnswer({
+      answer: "Use the definition to compare the two values.",
+      matchedConcepts: [],
+      confidence: 0.8,
+    }, "en");
+
+    expect(answer).toContain("### Learning goal");
+    expect(answer).toContain("### Check your understanding");
+    expect(answer).toContain("In your own words");
+    expect(answer).not.toContain("Tujuan belajar");
   });
 
   it("preserves LaTeX commands beginning with n", () => {
@@ -117,7 +145,16 @@ describe("Tutor RAG Contract Tests", () => {
     });
 
     expect(key1).toBe(key2);
-    expect(key1).toContain("tutor:v2:kalkulus-1:limit:");
+    expect(key1).toContain("tutor:v3:kalkulus-1:limit:");
+
+    const englishKey = buildTutorCacheKey({
+      courseId: "kalkulus-1",
+      chapterId: "limit",
+      academicQuery: "apa itu turunan fungsi",
+      evidenceVersion: "ev1",
+      responseLanguage: "en",
+    });
+    expect(englishKey).not.toBe(key1);
 
     // Evidence version mismatch produces different key
     const key3 = buildTutorCacheKey({

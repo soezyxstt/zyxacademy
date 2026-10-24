@@ -1,4 +1,3 @@
-import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { Calculator } from "lucide-react";
 import { CustomPriceEstimator } from "@/components/admin/custom-price-estimator";
@@ -8,13 +7,16 @@ import { AdminPageHeader } from "@/components/admin/page-header";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { assertAdmin } from "@/lib/auth/admin-guards";
 import { pageTitle } from "@/lib/site";
+import { getTranslations } from "@/lib/i18n/server";
+import { TranslatedText } from "@/components/i18n/translated-text";
 
-export const metadata: Metadata = {
-  title: pageTitle("Kalkulator harga & voucher"),
-  description: "Hitung harga paket murid, estimasi fee tutor, dan kelola voucher diskon.",
-};
+export async function generateMetadata() {
+  const t = await getTranslations("adminOps");
+  return { title: pageTitle(t("pricing.title")), description: t("pricing.description") };
+}
 
 export default async function AdminPricingPage() {
+  const t = await getTranslations("adminOps");
   try {
     await assertAdmin();
   } catch {
@@ -25,14 +27,14 @@ export default async function AdminPricingPage() {
     <div className="space-y-6">
       <AdminPageHeader
         icon={Calculator}
-        title="Kalkulator harga & voucher"
+        title={<TranslatedText namespace="adminOps" messageKey="pricing.title" />}
       />
 
       <Tabs defaultValue="student-pricing" paramKey="tab" className="space-y-6">
         <TabsList>
-          <TabsTrigger value="student-pricing">Harga paket murid</TabsTrigger>
-          <TabsTrigger value="tutor-fee">Fee tutor</TabsTrigger>
-          <TabsTrigger value="vouchers">Kelola voucher</TabsTrigger>
+          <TabsTrigger value="student-pricing">{t("pricing.studentTab")}</TabsTrigger>
+          <TabsTrigger value="tutor-fee">{t("pricing.tutorTab")}</TabsTrigger>
+          <TabsTrigger value="vouchers">{t("pricing.voucherTab")}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="student-pricing">

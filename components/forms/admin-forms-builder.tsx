@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import {
   FileText,
   PlusCircle,
@@ -124,6 +125,7 @@ export default function AdminFormsBuilder({
 }: {
   presetsEnabled: boolean;
 }) {
+  const t = useTranslations("adminForms");
   const router = useRouter();
   const searchParams = useSearchParams();
   const editIdParam = searchParams.get("edit");
@@ -344,8 +346,8 @@ export default function AdminFormsBuilder({
 
   const handleAddSection = () => {
     const newSection: ExtendedQuestionInput = {
-      title: "Bagian Baru",
-      description: "Petunjuk atau deskripsi untuk bagian ini",
+      title: t("ui.newSectionName"),
+      description: t("ui.sectionHelp"),
       type: "SECTION",
       required: false,
     };
@@ -537,14 +539,14 @@ export default function AdminFormsBuilder({
         handleQuestionChange(qIndex, { imageUrl: data.url, showDescription: true });
       } else {
         setAlertDialogInfo({
-          title: "Gagal Mengunggah Gambar",
-          message: data.error || "Gagal mengunggah berkas gambar ke penyimpan media.",
+          title: t("messages.uploadFailedTitle"),
+          message: t("messages.uploadFailed"),
         });
       }
     } catch (err: any) {
       setAlertDialogInfo({
-        title: "Kesalahan Jaringan",
-        message: err.message || "Terjadi kesalahan pengunggahan.",
+        title: t("messages.networkError"),
+        message: t("messages.uploadError"),
       });
     } finally {
       setUploadingQIndex(null);
@@ -553,7 +555,7 @@ export default function AdminFormsBuilder({
 
   const handleSubmitForm = async () => {
     if (!title.trim()) {
-      setErrorMsg("Nama / Judul Formulir tidak boleh kosong.");
+      setErrorMsg(t("messages.titleRequired"));
       return;
     }
 
@@ -561,7 +563,7 @@ export default function AdminFormsBuilder({
       const openDate = new Date(settings.openAt);
       const closeDate = new Date(settings.closeAt);
       if (!isNaN(openDate.getTime()) && !isNaN(closeDate.getTime()) && openDate >= closeDate) {
-        setErrorMsg("Jadwal buka harus lebih awal dari jadwal tutup.");
+        setErrorMsg(t("messages.dateOrder"));
         return;
       }
     }
@@ -571,14 +573,14 @@ export default function AdminFormsBuilder({
       const qNum = realQuestionNumbers.get(i) || i + 1;
       const qLabel =
         q.type === "SECTION"
-          ? `Bagian #${i + 1}`
+          ? t("messages.sectionLabel", { number: i + 1 })
           : q.type === "STATEMENT"
-          ? `Slide Informasi #${i + 1}`
-          : `Pertanyaan #${qNum}`;
+          ? t("messages.statementLabel", { number: i + 1 })
+          : t("messages.questionLabel", { number: qNum });
 
       if (q.type === "STATEMENT") {
         if (!q.title?.trim() && !q.description?.trim() && !q.imageUrl) {
-          setErrorMsg(`${qLabel} harus memiliki minimal teks judul, deskripsi, atau gambar.`);
+          setErrorMsg(`${qLabel} ${t("messages.statementRequired")}`);
           setActiveQIndex(i);
           return;
         }
@@ -586,7 +588,7 @@ export default function AdminFormsBuilder({
       }
 
       if (q.type !== "SECTION" && !q.title.trim()) {
-        setErrorMsg(`Teks pada ${qLabel} wajib diisi.`);
+        setErrorMsg(t("messages.questionTextRequired", { label: qLabel }));
         setActiveQIndex(i);
         return;
       }
@@ -594,7 +596,7 @@ export default function AdminFormsBuilder({
       if (q.type === "RADIO" || q.type === "CHECKBOX" || q.type === "DROP_DOWN") {
         const validOptions = (q.options || []).filter((opt) => opt && opt.trim().length > 0);
         if (validOptions.length === 0) {
-          setErrorMsg(`${qLabel} ("${q.title || "Tanpa Judul"}") harus memiliki minimal 1 opsi jawaban.`);
+          setErrorMsg(t("messages.answerOptionValidation", { label: qLabel, title: q.title || t("messages.untitled") }));
           setActiveQIndex(i);
           return;
         }
@@ -604,7 +606,7 @@ export default function AdminFormsBuilder({
         const validRows = (q.gridRows || []).filter((r) => r && r.trim().length > 0);
         const validCols = (q.gridColumns || []).filter((c) => c && c.trim().length > 0);
         if (validRows.length === 0 || validCols.length === 0) {
-          setErrorMsg(`${qLabel} ("${q.title || "Tanpa Judul"}") harus memiliki minimal 1 baris dan 1 kolom.`);
+          setErrorMsg(t("messages.gridValidation", { label: qLabel, title: q.title || t("messages.untitled") }));
           setActiveQIndex(i);
           return;
         }
@@ -631,9 +633,9 @@ export default function AdminFormsBuilder({
         if (data.success && data.form) {
           fetchForms();
           if (data.form.slug) setSlug(data.form.slug);
-          toast.success("Perubahan formulir berhasil disimpan.");
+          toast.success(t("messages.saved"));
         } else {
-          setErrorMsg(data.error || "Gagal memperbarui formulir.");
+          setErrorMsg(t("messages.updateFailed"));
         }
       } else {
         const res = await fetch("/api/admin/custom-forms", {
@@ -661,13 +663,13 @@ export default function AdminFormsBuilder({
           ]);
           setSettings({ ...DEFAULT_FORM_SETTINGS });
           setActiveQIndex(0);
-          toast.success("Formulir baru berhasil diterbitkan.");
+          toast.success(t("messages.publishedToast"));
         } else {
-          setErrorMsg(data.error || "Gagal membuat formulir.");
+          setErrorMsg(t("messages.createFailed"));
         }
       }
     } catch (err: any) {
-      setErrorMsg(err.message || "Terjadi kesalahan jaringan.");
+      setErrorMsg(t("messages.networkSaveError"));
     } finally {
       setSubmitting(false);
     }
@@ -688,15 +690,15 @@ export default function AdminFormsBuilder({
       } else {
         setConfirmDeleteFormId(null);
         setAlertDialogInfo({
-          title: "Gagal Menghapus Formulir",
-          message: data.error || "Gagal menghapus formulir dari daftar terbit.",
+          title: t("messages.deleteFailedTitle"),
+          message: t("messages.deleteFailed"),
         });
       }
     } catch (err: any) {
       setConfirmDeleteFormId(null);
       setAlertDialogInfo({
-        title: "Kesalahan Jaringan",
-        message: err.message || "Terjadi kesalahan jaringan saat menghapus formulir.",
+        title: t("messages.networkError"),
+        message: t("messages.networkDeleteError"),
       });
     } finally {
       setDeletingId(null);
@@ -723,19 +725,19 @@ export default function AdminFormsBuilder({
         <TabsList>
           <TabsTrigger value="builder">
             <FileText className="size-3.5" />
-            {editingFormId ? "Editor Pertanyaan (Edit)" : "Editor Pertanyaan"}
+            {editingFormId ? t("ui.editorEdit") : t("ui.editor")}
           </TabsTrigger>
           <TabsTrigger value="preview">
             <Eye className="size-3.5" />
-            Pratinjau
+            {t("ui.preview")}
           </TabsTrigger>
           <TabsTrigger value="settings">
             <Sliders className="size-3.5" />
-            Pengaturan
+            {t("ui.settings")}
           </TabsTrigger>
           <TabsTrigger value="forms">
             <BarChart3 className="size-3.5" />
-            Daftar Terbit
+            {t("ui.published")}
           </TabsTrigger>
         </TabsList>
 
@@ -747,10 +749,10 @@ export default function AdminFormsBuilder({
               <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-brand-primary/40 bg-brand-primary/10 p-3.5 sm:p-4 text-body-xs shadow-2xs">
                 <div className="flex flex-wrap items-center gap-2">
                   <Badge variant="secondary" className="bg-brand-primary text-brand-primary-foreground font-bold uppercase tracking-wider text-[10px]">
-                    Mode Edit
+                    {t("ui.editMode")}
                   </Badge>
                   <span className="font-semibold text-foreground">
-                    Menyunting: <span className="font-bold text-brand-primary">{title || "Tanpa Judul"}</span>
+                    {t("ui.editing")} <span className="font-bold text-brand-primary">{title || t("messages.untitled")}</span>
                   </span>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
@@ -759,7 +761,7 @@ export default function AdminFormsBuilder({
                     className="inline-flex items-center gap-1 text-body-xs font-semibold text-brand-primary hover:underline"
                   >
                     <BarChart3 className="size-3.5" />
-                    Visualisasi Respon
+                    {t("ui.responseAnalytics")}
                   </Link>
                   <span className="text-muted-foreground">•</span>
                   <button
@@ -768,7 +770,7 @@ export default function AdminFormsBuilder({
                     className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-2.5 py-1 text-body-xs font-semibold text-foreground hover:bg-muted transition-colors cursor-pointer"
                   >
                     <Undo2 className="size-3.5" />
-                    Batal Edit
+                    {t("ui.cancelEdit")}
                   </button>
                 </div>
               </div>
@@ -779,8 +781,8 @@ export default function AdminFormsBuilder({
               <div>
                 <Input
                   type="text"
-                  aria-label="Judul formulir"
-                  placeholder="Judul formulir"
+                  aria-label={t("ui.formTitle")}
+                  placeholder={t("ui.formTitle")}
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   className="w-full font-heading text-body-sm font-bold text-foreground bg-transparent border-b border-border/40 pb-1.5 focus:border-brand-primary focus:outline-none transition-colors"
@@ -789,9 +791,9 @@ export default function AdminFormsBuilder({
 
               <div>
                 <Textarea
-                  aria-label="Deskripsi formulir"
+                  aria-label={t("ui.formDescriptionLabel")}
                   rows={1}
-                  placeholder="Deskripsi formulir atau petunjuk bagi responden..."
+                  placeholder={t("ui.formDescription")}
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   className="w-full text-body-xs text-muted-foreground bg-transparent border-b border-border/40 pb-1 focus:border-brand-primary focus:outline-none transition-colors resize-none min-h-0"
@@ -802,16 +804,16 @@ export default function AdminFormsBuilder({
               <div className="flex flex-wrap items-center justify-between gap-2.5 pt-1 text-body-xs">
                 <div className="flex flex-wrap items-center gap-3">
                   <div className="flex items-center gap-1.5">
-                    <span className="text-body-xs font-semibold text-muted-foreground">Kategori:</span>
+                    <span className="text-body-xs font-semibold text-muted-foreground">{t("ui.category")}</span>
                     <Select value={category} onValueChange={(val: any) => setCategory(val)}>
                       <SelectTrigger className="w-40 h-7 text-body-sm font-semibold">
-                        <SelectValue placeholder="Pilih Kategori" />
+                        <SelectValue placeholder={t("ui.chooseCategory")} />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="survey">Survei & Riset</SelectItem>
-                        <SelectItem value="feedback">Umpan Balik</SelectItem>
-                        <SelectItem value="quiz">Kuis & Ujian</SelectItem>
-                        <SelectItem value="registration">Pendaftaran</SelectItem>
+                        <SelectItem value="survey">{t("ui.survey")}</SelectItem>
+                        <SelectItem value="feedback">{t("ui.feedback")}</SelectItem>
+                        <SelectItem value="quiz">{t("ui.quiz")}</SelectItem>
+                        <SelectItem value="registration">{t("ui.registration")}</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -822,7 +824,7 @@ export default function AdminFormsBuilder({
                     <span className="font-mono text-muted-foreground">/f/</span>
                     <Input
                       type="text"
-                      placeholder="slug"
+                      placeholder={t("ui.slug")}
                       value={slug}
                       onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, ""))}
                       className="font-mono font-semibold rounded px-1 py-0 text-body-xs h-5 w-28 bg-background border-none shadow-none focus-visible:ring-0"
@@ -836,7 +838,7 @@ export default function AdminFormsBuilder({
                   className="inline-flex items-center gap-1 text-body-xs font-semibold text-brand-primary hover:underline cursor-pointer"
                 >
                   <ListPlus className="size-3.5" />
-                  Preset 12 Jenis Soal
+                  {t("ui.preset12")}
                 </button>
               </div>
             </div>
@@ -889,15 +891,15 @@ export default function AdminFormsBuilder({
                         setDragOverIdx(null);
                       }}
                       className="inline-flex items-center gap-1.5 text-body-xs font-semibold text-muted-foreground hover:text-foreground cursor-grab active:cursor-grabbing transition-colors"
-                      title="Geser & Tarik untuk Mengubah Urutan"
+                      title={t("ui.dragReorder")}
                     >
                       <GripVertical className="size-3.5 text-muted-foreground" />
                       <span>
                         {q.type === "SECTION"
-                          ? "Bagian"
+                          ? t("ui.section")
                           : q.type === "STATEMENT"
-                          ? "Informasi"
-                          : `Pertanyaan #${realQuestionNumbers.get(qIdx) || qIdx + 1}`}
+                          ? t("ui.information")
+                          : t("messages.questionLabel", { number: realQuestionNumbers.get(qIdx) || qIdx + 1 })}
                       </span>
                     </div>
 
@@ -910,7 +912,7 @@ export default function AdminFormsBuilder({
                           e.stopPropagation();
                           moveQuestion(qIdx, qIdx - 1);
                         }}
-                        title="Pindahkan Ke Atas"
+                        title={t("ui.moveUp")}
                         className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted disabled:opacity-30 cursor-pointer"
                       >
                         <ArrowUp className="size-3.5" />
@@ -923,7 +925,7 @@ export default function AdminFormsBuilder({
                           e.stopPropagation();
                           moveQuestion(qIdx, qIdx + 1);
                         }}
-                        title="Pindahkan Ke Bawah"
+                        title={t("ui.moveDown")}
                         className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted disabled:opacity-30 cursor-pointer"
                       >
                         <ArrowDown className="size-3.5" />
@@ -936,7 +938,7 @@ export default function AdminFormsBuilder({
                             type="button"
                             onClick={(e) => e.stopPropagation()}
                             className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted cursor-pointer transition-colors"
-                            title="Opsi Kustomisasi Lainnya"
+                            title={t("ui.moreOptions")}
                           >
                             <MoreVertical className="size-4" />
                           </button>
@@ -948,7 +950,7 @@ export default function AdminFormsBuilder({
                             className="w-full inline-flex justify-start items-center gap-2 rounded-md px-2.5 py-1.5 text-body-sm font-medium text-foreground hover:bg-muted transition-colors cursor-pointer text-left"
                           >
                             <Copy className="size-3.5 text-muted-foreground" />
-                            Salin Pertanyaan
+                            {t("ui.copyQuestion")}
                           </Button>
 
                           <Button variant="ghost" size="sm"
@@ -957,7 +959,7 @@ export default function AdminFormsBuilder({
                             className="w-full inline-flex justify-start items-center gap-2 rounded-md px-2.5 py-1.5 text-body-sm font-medium text-foreground hover:bg-muted transition-colors cursor-pointer text-left"
                           >
                             <FileText className="size-3.5 text-muted-foreground" />
-                            {q.showDescription ? "Sembunyikan Subteks" : "Tampilkan Subteks"}
+                            {q.showDescription ? t("ui.hideSubtext") : t("ui.showSubtext")}
                           </Button>
 
                           <Button variant="ghost" size="sm"
@@ -972,7 +974,7 @@ export default function AdminFormsBuilder({
                             className="w-full inline-flex justify-start items-center gap-2 rounded-md px-2.5 py-1.5 text-body-sm font-medium text-foreground hover:bg-muted transition-colors cursor-pointer text-left"
                           >
                             <ImageIcon className="size-3.5 text-muted-foreground" />
-                            {q.imageUrl ? "Hapus Gambar" : "Lampirkan Gambar"}
+                            {q.imageUrl ? t("ui.removeImage") : t("ui.attachImage")}
                           </Button>
 
                           {(q.type === "RADIO" || q.type === "CHECKBOX" || q.type === "DROP_DOWN") && (
@@ -982,7 +984,7 @@ export default function AdminFormsBuilder({
                               className="w-full inline-flex justify-start items-center gap-2 rounded-md px-2.5 py-1.5 text-body-sm font-medium text-foreground hover:bg-muted transition-colors cursor-pointer text-left"
                             >
                               <Shuffle className="size-3.5 text-muted-foreground" />
-                              {q.shuffleOptions ? "Nonaktifkan Acak Opsi" : "Acak Urutan Opsi"}
+                              {q.shuffleOptions ? t("ui.disableShuffle") : t("ui.shuffle")}
                             </Button>
                           )}
 
@@ -993,7 +995,7 @@ export default function AdminFormsBuilder({
                               className="w-full inline-flex justify-start items-center gap-2 rounded-md px-2.5 py-1.5 text-body-sm font-medium text-status-error hover:bg-status-error/10 transition-colors cursor-pointer text-left border-t border-border/40 mt-1 pt-1.5"
                             >
                               <Trash2 className="size-3.5 text-status-error" />
-                              Hapus Pertanyaan
+                              {t("ui.deleteQuestion")}
                             </Button>
                           )}
                         </PopoverContent>
@@ -1006,7 +1008,7 @@ export default function AdminFormsBuilder({
                     <div className="sm:col-span-7 space-y-2">
                       <input
                         type="text"
-                        placeholder={q.type === "STATEMENT" ? "Judul Informasi (Opsional)" : "Teks Pertanyaan"}
+                        placeholder={q.type === "STATEMENT" ? t("ui.optionalInfoTitle") : t("ui.questionText")}
                         value={q.title}
                         onChange={(e) => handleQuestionChange(qIdx, { title: e.target.value })}
                         className="w-full font-heading text-body-base font-semibold text-foreground bg-transparent border-b border-border/40 pb-1 focus:border-brand-primary focus:outline-none transition-colors"
@@ -1016,7 +1018,7 @@ export default function AdminFormsBuilder({
                         q.type === "STATEMENT" ? (
                           <textarea
                             rows={3}
-                            placeholder="Teks atau penjelasan informasi (Mendukung Markdown, tautan link, dan rumus)"
+                            placeholder={t("ui.statementText")}
                             value={q.description || ""}
                             onChange={(e) => handleQuestionChange(qIdx, { description: e.target.value })}
                             className="w-full text-body-xs text-foreground bg-transparent border rounded-lg border-border/40 p-2 focus:border-brand-primary focus:outline-none transition-colors resize-y leading-relaxed"
@@ -1024,7 +1026,7 @@ export default function AdminFormsBuilder({
                         ) : (
                           <input
                             type="text"
-                            placeholder="Deskripsi tambahan pertanyaan (Opsional)"
+                            placeholder={t("ui.questionDescription")}
                             value={q.description || ""}
                             onChange={(e) => handleQuestionChange(qIdx, { description: e.target.value })}
                             className="w-full text-body-xs text-muted-foreground bg-transparent border-b border-border/20 pb-1 focus:border-brand-primary focus:outline-none transition-colors"
@@ -1038,7 +1040,7 @@ export default function AdminFormsBuilder({
                           {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img
                             src={q.imageUrl}
-                            alt="Pratinjau Gambar Soal"
+                            alt={t("ui.questionImagePreview")}
                             className="max-h-48 rounded-lg object-contain cursor-pointer"
                             onClick={() => setZoomImageUri({ url: q.imageUrl!, title: q.title })}
                           />
@@ -1053,7 +1055,7 @@ export default function AdminFormsBuilder({
                             type="button"
                             onClick={() => handleQuestionChange(qIdx, { imageUrl: undefined })}
                             className="absolute top-3 right-3 bg-black/70 hover:bg-status-error text-white p-1 rounded-md text-body-xs font-bold transition-colors cursor-pointer"
-                            title="Hapus Gambar"
+                            title={t("ui.removeImage")}
                           >
                             ✕
                           </button>
@@ -1063,10 +1065,10 @@ export default function AdminFormsBuilder({
                           <label className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background px-2.5 py-1 text-body-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer">
                             <ImageIcon className="size-3.5 text-brand-primary" />
                             {uploadingQIndex === qIdx
-                              ? "Mengunggah..."
+                              ? t("ui.uploading")
                               : q.type === "STATEMENT"
-                              ? "Unggah Gambar Informasi"
-                              : "Unggah Gambar Pertanyaan"}
+                              ? t("ui.uploadStatement")
+                              : t("ui.uploadQuestion")}
                             <input
                               type="file"
                               accept="image/*"
@@ -1105,24 +1107,24 @@ export default function AdminFormsBuilder({
                               {q.type === "SECTION" && <Layers className="size-4" />}
                               {q.type === "STATEMENT" && <Info className="size-4" />}
                             </span>
-                            <SelectValue placeholder="Tipe Pertanyaan" />
+                            <SelectValue placeholder={t("ui.questionType")} />
                           </div>
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="TEXT">Short answer (Jawaban Singkat)</SelectItem>
-                          <SelectItem value="PARAGRAPH">Paragraph (Teks Panjang)</SelectItem>
-                          <SelectItem value="RADIO">Multiple choice (Pilihan Ganda)</SelectItem>
-                          <SelectItem value="CHECKBOX">Checkboxes (Kotak Centang)</SelectItem>
-                          <SelectItem value="DROP_DOWN">Dropdown</SelectItem>
-                          <SelectItem value="FILE_UPLOAD">File upload (Unggah Berkas)</SelectItem>
-                          <SelectItem value="SCALE">Linear scale (Skala Penilaian 1-5)</SelectItem>
-                          <SelectItem value="RATING">Rating (Penilaian Bintang)</SelectItem>
-                          <SelectItem value="GRID_RADIO">Multiple choice grid (Kisi Pilihan Ganda)</SelectItem>
-                          <SelectItem value="GRID_CHECKBOX">Checkbox grid (Kisi Kotak Centang)</SelectItem>
-                          <SelectItem value="DATE">Date (Tanggal)</SelectItem>
-                          <SelectItem value="TIME">Time (Waktu)</SelectItem>
-                          <SelectItem value="SECTION">Section Header (Bagian / Break Section)</SelectItem>
-                          <SelectItem value="STATEMENT">Slide Informasi (Teks & Gambar)</SelectItem>
+                          <SelectItem value="TEXT">{t("ui.typeShortAnswer")}</SelectItem>
+                          <SelectItem value="PARAGRAPH">{t("ui.typeParagraph")}</SelectItem>
+                          <SelectItem value="RADIO">{t("ui.typeMultipleChoice")}</SelectItem>
+                          <SelectItem value="CHECKBOX">{t("ui.typeCheckboxes")}</SelectItem>
+                          <SelectItem value="DROP_DOWN">{t("ui.typeDropdown")}</SelectItem>
+                          <SelectItem value="FILE_UPLOAD">{t("ui.typeFileUpload")}</SelectItem>
+                          <SelectItem value="SCALE">{t("ui.typeScale")}</SelectItem>
+                          <SelectItem value="RATING">{t("ui.typeRating")}</SelectItem>
+                          <SelectItem value="GRID_RADIO">{t("ui.typeRadioGrid")}</SelectItem>
+                          <SelectItem value="GRID_CHECKBOX">{t("ui.typeCheckboxGrid")}</SelectItem>
+                          <SelectItem value="DATE">{t("ui.typeDate")}</SelectItem>
+                          <SelectItem value="TIME">{t("ui.typeTime")}</SelectItem>
+                          <SelectItem value="SECTION">{t("ui.typeSection")}</SelectItem>
+                          <SelectItem value="STATEMENT">{t("ui.typeStatement")}</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -1135,10 +1137,10 @@ export default function AdminFormsBuilder({
                       <div className="rounded-xl border border-brand-primary/40 bg-brand-primary/10 p-3 space-y-1">
                         <div className="flex items-center gap-2 text-body-xs font-bold text-brand-primary uppercase tracking-wider">
                           <Info className="size-3.5" />
-                          Slide Informasi (Non-Pertanyaan)
+                          {t("ui.informationSlide")}
                         </div>
                         <p className="text-body-xs text-muted-foreground">
-                          Slide ini hanya menampilkan judul, deskripsi markdown, tautan link, atau gambar tanpa meminta input jawaban responden.
+                          {t("ui.informationHelp")}
                         </p>
                       </div>
                     )}
@@ -1148,10 +1150,10 @@ export default function AdminFormsBuilder({
                       <div className="rounded-xl border border-brand-secondary/40 bg-brand-secondary/10 p-3 space-y-1">
                         <div className="flex items-center gap-2 text-body-xs font-bold text-brand-secondary uppercase tracking-wider">
                           <Layers className="size-3.5" />
-                          Pembatas Bagian Baru
+                          {t("ui.newSection")}
                         </div>
                         <p className="text-body-xs text-muted-foreground">
-                          Pertanyaan setelah pembatas ini akan ditampilkan pada halaman/bagian berikutnya di formulir responden.
+                          {t("ui.sectionHelp")}
                         </p>
                       </div>
                     )}
@@ -1159,14 +1161,14 @@ export default function AdminFormsBuilder({
                     {/* 1. TEXT */}
                     {q.type === "TEXT" && (
                       <div className="rounded-lg border border-dashed border-border/80 bg-muted/20 px-3 py-2 text-body-xs text-muted-foreground w-2/3">
-                        Teks jawaban singkat
+                        {t("ui.shortAnswer")}
                       </div>
                     )}
 
                     {/* 2. PARAGRAPH */}
                     {q.type === "PARAGRAPH" && (
                       <div className="rounded-lg border border-dashed border-border/80 bg-muted/20 px-3 py-4 text-body-xs text-muted-foreground w-full">
-                        Teks jawaban panjang (Paragraf)
+                        {t("ui.longAnswer")}
                       </div>
                     )}
 
@@ -1198,7 +1200,7 @@ export default function AdminFormsBuilder({
                                 type="button"
                                 onClick={() => handleRemoveOption(qIdx, oIdx)}
                                 className="text-muted-foreground hover:text-status-error p-1 text-body-sm transition-colors cursor-pointer"
-                                title="Hapus Opsi"
+                                title={t("ui.deleteOption")}
                               >
                                 ✕
                               </button>
@@ -1212,7 +1214,7 @@ export default function AdminFormsBuilder({
                             onClick={() => handleAddOption(qIdx)}
                             className="inline-flex items-center gap-1 text-body-xs font-semibold text-brand-primary hover:underline cursor-pointer"
                           >
-                            <Plus className="size-3.5" /> Tambah Opsi
+                            <Plus className="size-3.5" /> {t("ui.addOption")}
                           </button>
                         </div>
                       </div>
@@ -1223,11 +1225,11 @@ export default function AdminFormsBuilder({
                       <div className="space-y-3 rounded-xl border border-dashed border-border/80 bg-muted/20 p-4">
                         <div className="flex items-center gap-2 text-muted-foreground text-body-xs">
                           <UploadCloud className="size-4 text-brand-primary" />
-                          <span>Responden akan diminta mengunggah dokumen/gambar ke Cloudflare R2 Zyx.</span>
+                          <span>{t("ui.fileUploadHelp")}</span>
                         </div>
                         <div className="flex flex-wrap items-center gap-4 text-body-xs">
                           <label className="flex items-center gap-1.5 font-semibold text-foreground">
-                            <span>Maksimal Ukuran:</span>
+                            <span>{t("ui.maxSize")}</span>
                             <select
                               value={q.maxFileSizeMb || 10}
                               onChange={(e) =>
@@ -1249,20 +1251,20 @@ export default function AdminFormsBuilder({
                     {q.type === "SCALE" && (
                       <div className="space-y-3 rounded-xl border border-border/80 bg-muted/20 p-3">
                         <div className="flex items-center justify-between text-body-xs font-semibold text-muted-foreground">
-                          <span>1 = {q.scaleLowLabel || "Sangat Tidak Setuju"}</span>
-                          <span>5 = {q.scaleHighLabel || "Sangat Setuju"}</span>
+                          <span>1 = {q.scaleLowLabel || t("ui.stronglyDisagree")}</span>
+                          <span>5 = {q.scaleHighLabel || t("ui.stronglyAgree")}</span>
                         </div>
                         <div className="grid gap-2 sm:grid-cols-2">
                           <Input
                             type="text"
-                            placeholder="Label Nilai Terendah (1)"
+                            placeholder={t("ui.minScale")}
                             value={q.scaleLowLabel || ""}
                             onChange={(e) => handleQuestionChange(qIdx, { scaleLowLabel: e.target.value })}
                             className="rounded-lg px-2.5 py-1 text-body-xs h-8"
                           />
                           <Input
                             type="text"
-                            placeholder="Label Nilai Tertinggi (5)"
+                            placeholder={t("ui.maxScale")}
                             value={q.scaleHighLabel || ""}
                             onChange={(e) => handleQuestionChange(qIdx, { scaleHighLabel: e.target.value })}
                             className="rounded-lg px-2.5 py-1 text-body-xs h-8"
@@ -1274,7 +1276,7 @@ export default function AdminFormsBuilder({
                     {/* 6. RATING */}
                     {q.type === "RATING" && (
                       <div className="flex items-center gap-2 p-2 rounded-xl border border-border/80 bg-muted/20">
-                        <span className="text-body-xs font-semibold text-muted-foreground">Pratinjau Rating:</span>
+                        <span className="text-body-xs font-semibold text-muted-foreground">{t("ui.ratingPreview")}</span>
                         {[1, 2, 3, 4, 5].map((star) => (
                           <Star key={star} className="size-5 text-status-warning fill-status-warning/30" />
                         ))}
@@ -1288,7 +1290,7 @@ export default function AdminFormsBuilder({
                         <div className="flex items-center gap-2 border-b border-border/60 pb-2">
                           <Layers className="size-4 text-brand-primary" />
                           <p className="font-bold text-foreground">
-                            Pengaturan Matriks Kisi ({q.type === "GRID_RADIO" ? "Pilihan Ganda Per Baris" : "Kotak Centang Per Baris"})
+                            {t("ui.matrixHeading", { type: q.type === "GRID_RADIO" ? t("ui.radioPerRow") : t("ui.checkboxPerRow") })}
                           </p>
                         </div>
 
@@ -1297,8 +1299,8 @@ export default function AdminFormsBuilder({
                           {/* Rows Editor */}
                           <div className="border-t border-border pt-3 space-y-2">
                             <p className="font-bold text-foreground flex items-center justify-between">
-                              <span>Baris (Pertanyaan)</span>
-                              <span className="text-muted-foreground font-mono text-body-xs">({(q.gridRows || []).length} items)</span>
+                              <span>{t("ui.rows")}</span>
+                              <span className="text-muted-foreground font-mono text-body-xs">({(q.gridRows || []).length} {t("ui.matrixItems")})</span>
                             </p>
                             {(q.gridRows || ["Baris 1", "Baris 2"]).map((rowVal, rIdx) => (
                               <div key={rIdx} className="flex items-center gap-2">
@@ -1332,8 +1334,8 @@ export default function AdminFormsBuilder({
                           {/* Columns Editor */}
                           <div className="border-t border-border pt-3 space-y-2">
                             <p className="font-bold text-foreground flex items-center justify-between">
-                              <span>Kolom (Skala Opsi)</span>
-                              <span className="text-muted-foreground font-mono text-body-xs">({(q.gridColumns || []).length} items)</span>
+                              <span>{t("ui.columns")}</span>
+                              <span className="text-muted-foreground font-mono text-body-xs">({(q.gridColumns || []).length} {t("ui.matrixItems")})</span>
                             </p>
                             {(q.gridColumns || ["Kolom 1", "Kolom 2"]).map((colVal, cIdx) => (
                               <div key={cIdx} className="flex items-center gap-2">
@@ -1368,13 +1370,13 @@ export default function AdminFormsBuilder({
                         {/* Live Matrix Table Preview Panel */}
                         <div className="space-y-2 pt-1">
                           <p className="font-bold text-muted-foreground flex items-center gap-1.5 text-body-xs uppercase tracking-wider">
-                            <TableIcon className="size-3.5 text-brand-primary" /> Pratinjau Tampilan Matriks:
+                            <TableIcon className="size-3.5 text-brand-primary" /> {t("ui.matrixPreview")}
                           </p>
                           <div className="overflow-x-auto rounded-xl border border-border bg-background p-2.5">
                             <table className="w-full text-left text-body-xs border-collapse">
                               <thead>
                                 <tr className="border-b border-border text-muted-foreground font-semibold">
-                                  <th className="p-1.5 w-1/3">Baris / Kolom</th>
+                                  <th className="p-1.5 w-1/3">{t("ui.rowColumn")}</th>
                                   {(q.gridColumns || ["Kolom 1", "Kolom 2"]).map((col, cIdx) => (
                                     <th key={cIdx} className="p-1.5 text-center">{col || `Kolom ${cIdx + 1}`}</th>
                                   ))}
@@ -1406,7 +1408,7 @@ export default function AdminFormsBuilder({
                     {q.type === "DATE" && (
                       <div className="flex items-center gap-2 rounded-lg border border-dashed border-border/80 bg-muted/20 px-3 py-2 text-body-xs text-muted-foreground w-1/2">
                         <Calendar className="size-4 text-brand-primary" />
-                        <span>Format Tanggal: bbbb-bb-hh</span>
+                        <span>{t("ui.dateFormat")}</span>
                       </div>
                     )}
 
@@ -1414,7 +1416,7 @@ export default function AdminFormsBuilder({
                     {q.type === "TIME" && (
                       <div className="flex items-center gap-2 rounded-lg border border-dashed border-border/80 bg-muted/20 px-3 py-2 text-body-xs text-muted-foreground w-1/2">
                         <Clock className="size-4 text-brand-primary" />
-                        <span>Format Waktu: hh:mm</span>
+                        <span>{t("ui.timeFormat")}</span>
                       </div>
                     )}
                   </div>
@@ -1425,22 +1427,22 @@ export default function AdminFormsBuilder({
                       <button
                         type="button"
                         onClick={() => handleDuplicateQuestion(qIdx)}
-                        title="Salin Pertanyaan"
+                        title={t("ui.copyQuestion")}
                         className="inline-flex items-center gap-1 rounded-lg border border-border bg-background px-2.5 py-1 text-body-xs font-semibold text-foreground hover:bg-muted transition-colors cursor-pointer"
                       >
                         <Copy className="size-3.5" />
-                        Salin
+                        {t("ui.copy")}
                       </button>
 
                       {questions.length > 1 && (
                         <button
                           type="button"
                           onClick={() => handleRemoveQuestion(qIdx)}
-                          title="Hapus Pertanyaan"
+                          title={t("ui.deleteQuestion")}
                           className="inline-flex items-center gap-1 rounded-lg border border-status-error/30 bg-status-error/10 px-2.5 py-1 text-body-xs font-semibold text-status-error hover:bg-status-error/20 transition-colors cursor-pointer"
                         >
                           <Trash2 className="size-3.5" />
-                          Hapus
+                          {t("ui.delete")}
                         </button>
                       )}
                     </div>
@@ -1453,7 +1455,7 @@ export default function AdminFormsBuilder({
                             htmlFor={`question-required-${qIdx}`}
                             className="text-body-xs font-semibold text-foreground cursor-pointer"
                           >
-                            Wajib Diisi
+                            {t("ui.required")}
                           </Label>
                           <Switch
                             id={`question-required-${qIdx}`}
@@ -1473,7 +1475,7 @@ export default function AdminFormsBuilder({
           <div className="md:col-span-3 space-y-3 md:sticky md:top-24">
             <div className="border-l border-border pl-3.5 space-y-2">
               <p className="text-body-xs font-bold text-foreground uppercase tracking-wider">
-                {editingFormId ? "Aksi Edit Formulir" : "Aksi Formulir"}
+                {editingFormId ? t("ui.editActions") : t("ui.formActions")}
               </p>
 
               <button
@@ -1482,7 +1484,7 @@ export default function AdminFormsBuilder({
                 className="w-full inline-flex items-center justify-center gap-1.5 rounded-lg border border-brand-primary/40 bg-brand-primary/10 px-3 py-2 text-body-xs font-bold text-brand-primary hover:bg-brand-primary/20 transition-colors cursor-pointer"
               >
                 <PlusCircle className="size-3.5" />
-                Tambah Pertanyaan
+                {t("ui.addQuestion")}
               </button>
 
               <button
@@ -1491,7 +1493,7 @@ export default function AdminFormsBuilder({
                 className="w-full inline-flex items-center justify-center gap-1.5 rounded-lg border border-brand-primary/40 bg-brand-primary/10 px-3 py-2 text-body-xs font-bold text-brand-primary hover:bg-brand-primary/20 transition-colors cursor-pointer"
               >
                 <Info className="size-3.5" />
-                Tambah Informasi
+                {t("ui.addInformation")}
               </button>
 
               <button
@@ -1500,7 +1502,7 @@ export default function AdminFormsBuilder({
                 className="w-full inline-flex items-center justify-center gap-1.5 rounded-lg border border-brand-secondary/40 bg-brand-secondary/10 px-3 py-2 text-body-xs font-bold text-brand-secondary hover:bg-brand-secondary/20 transition-colors cursor-pointer"
               >
                 <Layers className="size-3.5" />
-                Tambah Bagian
+                {t("ui.addSection")}
               </button>
 
               <button
@@ -1509,7 +1511,7 @@ export default function AdminFormsBuilder({
                 className="w-full inline-flex items-center justify-center gap-1.5 rounded-lg border border-border bg-background px-3 py-2 text-body-xs font-semibold text-foreground hover:bg-muted transition-colors cursor-pointer"
               >
                 <Eye className="size-3.5" />
-                Pratinjau Formulir
+                {t("ui.previewForm")}
               </button>
 
               <button
@@ -1521,17 +1523,17 @@ export default function AdminFormsBuilder({
                 {submitting ? (
                   <>
                     <RefreshCw className="size-3.5 animate-spin" />
-                    {editingFormId ? "Menyimpan..." : "Menerbitkan..."}
+                    {editingFormId ? t("ui.saving") : t("ui.publishing")}
                   </>
                 ) : editingFormId ? (
                   <>
                     <Check className="size-3.5" />
-                    Simpan Perubahan
+                    {t("ui.saveChanges")}
                   </>
                 ) : (
                   <>
                     <ArrowUpRight className="size-3.5" />
-                    Terbitkan
+                    {t("ui.publish")}
                   </>
                 )}
               </button>
@@ -1543,7 +1545,7 @@ export default function AdminFormsBuilder({
                   className="w-full inline-flex items-center justify-center gap-1.5 rounded-lg border border-border bg-background px-3 py-2 text-body-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
                 >
                   <Undo2 className="size-3.5" />
-                  Batal Edit
+                  {t("ui.cancelEdit")}
                 </button>
               )}
             </div>
@@ -1571,10 +1573,10 @@ export default function AdminFormsBuilder({
             <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-brand-primary/30 bg-brand-primary/5 p-4 text-body-xs shadow-2xs">
               <div className="flex items-center gap-2">
                 <Badge variant="secondary" className="bg-brand-primary text-brand-primary-foreground font-bold uppercase tracking-wider text-[10px]">
-                  Mode Pratinjau
+                  {t("ui.previewMode")}
                 </Badge>
                 <span className="text-muted-foreground">
-                  Simulasi interaktif tampilan responden langsung. Tanggapan pada mode ini tidak disimpan.
+                  {t("ui.previewHelp")}
                 </span>
               </div>
               <Button
@@ -1585,7 +1587,7 @@ export default function AdminFormsBuilder({
                 className="h-8 gap-1.5 text-body-xs cursor-pointer"
               >
                 <Edit3 className="size-3.5" />
-                Kembali ke Editor
+                {t("ui.backEditor")}
               </Button>
             </div>
 
@@ -1594,7 +1596,7 @@ export default function AdminFormsBuilder({
                 previewForm={{
                   id: editingFormId || "preview",
                   slug: slug || "preview",
-                  title: title || "Formulir Tanpa Judul",
+                  title: title || t("ui.formUntitled"),
                   description: description || undefined,
                   category,
                   questions,
@@ -1620,7 +1622,7 @@ export default function AdminFormsBuilder({
             <div className="flex flex-wrap items-center justify-between gap-3 pb-1">
               <div>
                 <h2 className="font-heading text-body-base font-bold text-foreground">
-                  Pengaturan Tanggapan & Akses
+                  {t("ui.responseSettings")}
                 </h2>
               </div>
               <div className="flex items-center gap-2">
@@ -1633,7 +1635,7 @@ export default function AdminFormsBuilder({
                     className="text-body-sm h-8"
                   >
                     <Undo2 className="size-3.5" />
-                    Batal Edit
+                    {t("ui.cancelEdit")}
                   </Button>
                 )}
                 <Button
@@ -1647,12 +1649,12 @@ export default function AdminFormsBuilder({
                   {editingFormId ? (
                     <>
                       <Check className="size-3.5" />
-                      Simpan Perubahan
+                      {t("ui.saveChanges")}
                     </>
                   ) : (
                     <>
                       <ArrowUpRight className="size-3.5" />
-                      Terbitkan
+                      {t("ui.publish")}
                     </>
                   )}
                 </Button>
@@ -1662,7 +1664,7 @@ export default function AdminFormsBuilder({
             {/* 1. Menerima Tanggapan & Jadwal Tutup/Buka */}
             <div className="space-y-3 border-t border-border/60 pt-3">
               <p className="text-body-xs font-bold text-foreground uppercase tracking-wider">
-                Status & Jadwal Formulir
+                {t("ui.statusSchedule")}
               </p>
 
               <div
@@ -1670,7 +1672,7 @@ export default function AdminFormsBuilder({
               >
                 <div>
                   <Label htmlFor="builder-setting-accepting" className="text-body-sm font-semibold text-foreground cursor-pointer">
-                    Menerima Tanggapan
+                    {t("ui.acceptResponses")}
                   </Label>
                 </div>
                 <Switch
@@ -1683,7 +1685,7 @@ export default function AdminFormsBuilder({
               <div className="grid gap-3 sm:grid-cols-2">
                 <div>
                   <label className="block text-body-xs font-semibold text-foreground mb-1">
-                    Jadwal Buka
+                    {t("ui.openSchedule")}
                   </label>
                   <Input
                     type="datetime-local"
@@ -1691,12 +1693,12 @@ export default function AdminFormsBuilder({
                     onChange={(e) => setSettings({ ...settings, openAt: e.target.value })}
                     className="w-full rounded-xl px-3 py-1.5 text-body-xs h-8"
                   />
-                  <p className="text-body-xs text-muted-foreground mt-0.5">Kosongkan jika selalu dibuka.</p>
+                  <p className="text-body-xs text-muted-foreground mt-0.5">{t("ui.alwaysOpen")}</p>
                 </div>
 
                 <div>
                   <label className="block text-body-xs font-semibold text-foreground mb-1">
-                    Jadwal Tutup
+                    {t("ui.closeSchedule")}
                   </label>
                   <Input
                     type="datetime-local"
@@ -1704,13 +1706,13 @@ export default function AdminFormsBuilder({
                     onChange={(e) => setSettings({ ...settings, closeAt: e.target.value })}
                     className="w-full rounded-xl px-3 py-1.5 text-body-xs h-8"
                   />
-                  <p className="text-body-xs text-muted-foreground mt-0.5">Kosongkan jika selalu dibuka.</p>
+                  <p className="text-body-xs text-muted-foreground mt-0.5">{t("ui.alwaysOpen")}</p>
                 </div>
               </div>
 
               <div>
                 <label className="block text-body-xs font-semibold text-foreground mb-1">
-                  Pesan Saat Formulir Ditutup
+                  {t("ui.closedMessage")}
                 </label>
                 <Textarea
                   rows={2}
@@ -1725,44 +1727,44 @@ export default function AdminFormsBuilder({
             {/* 2. Collect Email & Privacy */}
             <div className="space-y-3 border-t border-border/60 pt-3">
               <p className="text-body-xs font-bold text-foreground uppercase tracking-wider">
-                Email & Autentikasi
+                {t("ui.emailAuth")}
               </p>
 
               <div className="grid gap-3 sm:grid-cols-2">
                 <div>
                   <label className="block text-body-xs font-semibold text-foreground mb-1">
-                    Kumpulkan alamat email
+                    {t("ui.collectEmail")}
                   </label>
                   <Select
                     value={settings.collectEmail}
                     onValueChange={(val: any) => setSettings({ ...settings, collectEmail: val })}
                   >
                     <SelectTrigger className="w-full h-8 text-body-sm">
-                      <SelectValue placeholder="Pilih Pengumpulan Email" />
+                      <SelectValue placeholder={t("ui.emailPlaceholder")} />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="none">Tidak dikumpulkan</SelectItem>
-                      <SelectItem value="input">Diisi manual</SelectItem>
-                      <SelectItem value="verified">Akun Zyx terverifikasi</SelectItem>
+                      <SelectItem value="none">{t("ui.noCollection")}</SelectItem>
+                      <SelectItem value="input">{t("ui.manualEntry")}</SelectItem>
+                      <SelectItem value="verified">{t("ui.verifiedAccount")}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
 
                 <div>
                   <label className="block text-body-xs font-semibold text-foreground mb-1">
-                    Kirim salinan respons ke responden
+                    {t("ui.sendCopy")}
                   </label>
                   <Select
                     value={settings.sendResponseCopy}
                     onValueChange={(val: any) => setSettings({ ...settings, sendResponseCopy: val })}
                   >
                     <SelectTrigger className="w-full h-8 text-body-sm">
-                      <SelectValue placeholder="Kirim Salinan Respon" />
+                      <SelectValue placeholder={t("ui.copyPlaceholder")} />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="off">Tidak dikirim</SelectItem>
-                      <SelectItem value="requested">Saat diminta</SelectItem>
-                      <SelectItem value="always">Selalu dikirim</SelectItem>
+                      <SelectItem value="off">{t("ui.copyOff")}</SelectItem>
+                      <SelectItem value="requested">{t("ui.copyRequest")}</SelectItem>
+                      <SelectItem value="always">{t("ui.copyAlways")}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -1773,7 +1775,7 @@ export default function AdminFormsBuilder({
               >
                 <div>
                   <Label htmlFor="builder-setting-allow-edit" className="text-body-sm font-semibold text-foreground cursor-pointer">
-                    Izinkan pengeditan respons
+                    {t("ui.allowEdit")}
                   </Label>
                 </div>
                 <Switch
@@ -1788,7 +1790,7 @@ export default function AdminFormsBuilder({
               >
                 <div>
                   <Label htmlFor="builder-setting-limit-one" className="text-body-sm font-semibold text-foreground cursor-pointer">
-                    Batasi 1 respons per pengguna
+                    {t("ui.limitOne")}
                   </Label>
                 </div>
                 <Switch
@@ -1802,19 +1804,19 @@ export default function AdminFormsBuilder({
             {/* 3. File Upload Limits & Presentation */}
             <div className="space-y-3 border-t border-border/60 pt-3">
               <p className="text-body-xs font-bold text-foreground uppercase tracking-wider">
-                Batas Ukuran Berkas & Pesan
+                {t("ui.fileLimits")}
               </p>
 
               <div>
                 <label className="block text-body-xs font-semibold text-foreground mb-1">
-                  Batas total ukuran berkas
+                  {t("ui.totalFileLimit")}
                 </label>
                 <Select
                   value={settings.maxFileSizeLimit}
                   onValueChange={(val: any) => setSettings({ ...settings, maxFileSizeLimit: val })}
                 >
                   <SelectTrigger className="w-full sm:w-1/2 h-8 text-body-sm">
-                    <SelectValue placeholder="Batas Ukuran File" />
+                    <SelectValue placeholder={t("ui.fileSizeLimit")} />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="1GB">1 GB</SelectItem>
@@ -1826,7 +1828,7 @@ export default function AdminFormsBuilder({
 
               <div>
                 <label className="block text-body-xs font-semibold text-foreground mb-1">
-                  Pesan konfirmasi setelah submit
+                  {t("ui.submitConfirmation")}
                 </label>
                 <Input
                   type="text"
@@ -1847,7 +1849,7 @@ export default function AdminFormsBuilder({
                     className="text-body-sm h-8"
                   >
                     <Undo2 className="size-3.5" />
-                    Batal Edit
+                    {t("ui.cancelEdit")}
                   </Button>
                 )}
                 <Button
@@ -1861,12 +1863,12 @@ export default function AdminFormsBuilder({
                   {editingFormId ? (
                     <>
                       <Check className="size-3.5" />
-                      Simpan Perubahan
+                      {t("ui.saveChanges")}
                     </>
                   ) : (
                     <>
                       <ArrowUpRight className="size-3.5" />
-                      Terbitkan
+                      {t("ui.publish")}
                     </>
                   )}
                 </Button>
@@ -1880,8 +1882,8 @@ export default function AdminFormsBuilder({
         <div className="space-y-4">
           <div className="flex items-center justify-between border-b border-border pb-3">
             <div>
-              <h2 className="font-heading text-body-base font-bold text-foreground">
-                Formulir terbit
+                <h2 className="font-heading text-body-base font-bold text-foreground">
+                {t("ui.published")}
               </h2>
             </div>
             <button
@@ -1891,7 +1893,7 @@ export default function AdminFormsBuilder({
               className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background px-2.5 py-1 text-body-xs font-semibold text-foreground hover:bg-muted transition-colors disabled:opacity-50 cursor-pointer"
             >
               <RefreshCw className={`size-3.5 ${loadingForms ? "animate-spin" : ""}`} />
-              Muat Ulang
+              {t("ui.reload")}
             </button>
           </div>
 
@@ -1903,10 +1905,10 @@ export default function AdminFormsBuilder({
             <div className="flex flex-col items-center justify-center rounded-2xl border border-border bg-card p-12 text-center">
               <FileText className="size-10 text-muted-foreground/60" />
               <p className="mt-3 font-heading text-body-base font-semibold text-foreground">
-                Belum ada formulir
+                {t("ui.noForms")}
               </p>
               <p className="mt-1 text-body-sm text-muted-foreground max-w-md">
-                Gunakan tab &quot;Editor Pertanyaan&quot; untuk merancang dan menerbitkan formulir baru.
+                {t("ui.noFormsHelp")}
               </p>
             </div>
           ) : (
@@ -1930,23 +1932,23 @@ export default function AdminFormsBuilder({
                             {f.title}
                           </p>
                           <p className="mt-1 break-all font-mono text-body-xs text-muted-foreground">
-                            Slug: /f/{f.slug}
+                            {t("ui.slugLabel", { slug: f.slug })}
                           </p>
                         </div>
 
                         <div className="flex min-w-0 flex-wrap items-center gap-2 sm:justify-end">
                           <span className="rounded-md bg-muted px-2.5 py-1 text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                            {f.category}
+                            {t(`ui.${f.category}`)}
                           </span>
                           <span className="font-mono text-body-sm font-bold text-brand-primary">
-                            {f.totalResponses || 0} Pengisian
+                            {t("ui.responseCount", { count: f.totalResponses || 0 })}
                           </span>
                         </div>
                       </div>
 
                       <div className="grid min-w-0 gap-3 border-t border-border/60 pt-4 sm:grid-cols-2">
                         <div className="min-w-0">
-                          <p className="mb-1 text-body-xs font-semibold text-muted-foreground">Short link</p>
+                          <p className="mb-1 text-body-xs font-semibold text-muted-foreground">{t("ui.shortLink")}</p>
                           <div className="flex min-w-0 items-start gap-1.5">
                             <button
                               type="button"
@@ -1959,14 +1961,14 @@ export default function AdminFormsBuilder({
                                 <Copy className="mt-0.5 size-3.5 shrink-0" />
                               )}
                               <span className="min-w-0 break-all">
-                                {isShortCopied ? "Tersalin" : shortPath}
+                                {isShortCopied ? t("ui.copied") : shortPath}
                               </span>
                             </button>
                             <a
                               href={shortPath}
                               target="_blank"
                               rel="noreferrer"
-                              aria-label={`Buka short link ${shortPath}`}
+                              aria-label={t("ui.openShortLink", { path: shortPath })}
                               className="mt-2 shrink-0 text-brand-primary hover:underline"
                             >
                               <ExternalLink className="size-3.5" aria-hidden="true" />
@@ -1975,7 +1977,7 @@ export default function AdminFormsBuilder({
                         </div>
 
                         <div className="min-w-0">
-                          <p className="mb-1 text-body-xs font-semibold text-muted-foreground">Full link</p>
+                          <p className="mb-1 text-body-xs font-semibold text-muted-foreground">{t("ui.fullLink")}</p>
                           <div className="flex min-w-0 items-start gap-1.5">
                             <button
                               type="button"
@@ -1988,14 +1990,14 @@ export default function AdminFormsBuilder({
                                 <Copy className="mt-0.5 size-3.5 shrink-0" />
                               )}
                               <span className="min-w-0 break-all">
-                                {isFullCopied ? "Tersalin" : fullPath}
+                                {isFullCopied ? t("ui.copied") : fullPath}
                               </span>
                             </button>
                             <a
                               href={fullPath}
                               target="_blank"
                               rel="noreferrer"
-                              aria-label={`Buka full link ${fullPath}`}
+                              aria-label={t("ui.openFullLink", { path: fullPath })}
                               className="mt-2 shrink-0 text-brand-primary hover:underline"
                             >
                               <ExternalLink className="size-3.5" aria-hidden="true" />
@@ -2008,11 +2010,11 @@ export default function AdminFormsBuilder({
                         <button
                           type="button"
                           onClick={() => handleStartEdit(f)}
-                          title="Edit formulir"
+                          title={t("ui.editForm")}
                           className="inline-flex min-h-9 w-full items-center justify-center gap-1.5 rounded-lg border border-border bg-background px-3 py-1.5 text-body-sm font-semibold text-foreground transition-colors hover:bg-muted cursor-pointer sm:w-auto"
                         >
                           <Edit3 className="size-3.5 text-brand-primary" />
-                          Edit
+                          {t("ui.editForm")}
                         </button>
 
                         <Link
@@ -2020,7 +2022,7 @@ export default function AdminFormsBuilder({
                           className="inline-flex min-h-9 w-full items-center justify-center gap-1.5 rounded-lg border border-brand-primary/30 bg-brand-primary/10 px-3 py-1.5 text-body-sm font-semibold text-brand-primary transition-colors hover:bg-brand-primary/20 sm:w-auto"
                         >
                           <BarChart3 className="size-3.5" />
-                          Visualisasi Data & Respon
+                          {t("ui.viewResponses")}
                           <ChevronRight className="size-3.5" />
                         </Link>
 
@@ -2028,8 +2030,8 @@ export default function AdminFormsBuilder({
                           type="button"
                           onClick={() => setConfirmDeleteFormId(f.id)}
                           disabled={isDeleting}
-                          title="Hapus formulir"
-                          aria-label="Hapus formulir"
+                          title={t("ui.deleteForm")}
+                          aria-label={t("ui.deleteForm")}
                           className="inline-flex min-h-9 min-w-9 shrink-0 items-center justify-center self-end rounded-lg border border-status-error/30 bg-status-error/10 p-1.5 text-status-error transition-colors hover:bg-status-error/20 disabled:opacity-50 cursor-pointer sm:self-auto"
                         >
                           {isDeleting ? (
@@ -2058,9 +2060,9 @@ export default function AdminFormsBuilder({
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Hapus Formulir Terbit</DialogTitle>
+            <DialogTitle>{t("ui.deletePublishedTitle")}</DialogTitle>
             <DialogDescription>
-              Apakah Anda yakin ingin menghapus formulir ini dari daftar terbit platform? Akses ke visualisasi respon pada formulir ini akan dihapus.
+              {t("ui.deletePublishedHelp")}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2 sm:gap-0">
@@ -2069,7 +2071,7 @@ export default function AdminFormsBuilder({
               disabled={deletingId !== null}
               onClick={() => setConfirmDeleteFormId(null)}
             >
-              Batal
+              {t("ui.cancel")}
             </Button>
             <Button
               variant="destructive"
@@ -2079,7 +2081,7 @@ export default function AdminFormsBuilder({
                 if (confirmDeleteFormId) executeDeleteForm(confirmDeleteFormId);
               }}
             >
-              Hapus Formulir
+              {t("ui.deleteForm")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -2094,7 +2096,7 @@ export default function AdminFormsBuilder({
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{alertDialogInfo?.title || "Pemberitahuan Sistem"}</DialogTitle>
+            <DialogTitle>{alertDialogInfo?.title || t("ui.systemNotice")}</DialogTitle>
             <DialogDescription>
               {alertDialogInfo?.message}
             </DialogDescription>
@@ -2103,7 +2105,7 @@ export default function AdminFormsBuilder({
             <Button
               onClick={() => setAlertDialogInfo(null)}
             >
-              Tutup
+              {t("ui.close")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -2118,7 +2120,7 @@ export default function AdminFormsBuilder({
       >
         <DialogContent className="max-w-3xl">
           <DialogHeader>
-            <DialogTitle>{zoomImageUri?.title || "Pratinjau Gambar Soal"}</DialogTitle>
+            <DialogTitle>{zoomImageUri?.title || t("ui.imagePreview")}</DialogTitle>
           </DialogHeader>
           <div className="flex items-center justify-center p-2">
             {zoomImageUri && (
@@ -2140,9 +2142,9 @@ export default function AdminFormsBuilder({
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Muat Preset 12 Jenis Soal</DialogTitle>
+            <DialogTitle>{t("ui.preset12Title")}</DialogTitle>
             <DialogDescription>
-              Memuat preset ini akan mengganti daftar pertanyaan yang saat ini sedang Anda susun. Apakah Anda yakin ingin melanjutkan?
+              {t("ui.loadPresetWarning")}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2 sm:gap-0">
@@ -2150,12 +2152,12 @@ export default function AdminFormsBuilder({
               variant="outline"
               onClick={() => setConfirmPresetDialogOpen(false)}
             >
-              Batal
+              {t("ui.cancel")}
             </Button>
             <Button
               onClick={apply12TypePreset}
             >
-              Ya, Muat Preset
+              {t("ui.loadPresetConfirm")}
             </Button>
           </DialogFooter>
         </DialogContent>

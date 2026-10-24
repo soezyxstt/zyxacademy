@@ -5,6 +5,7 @@ import Link from "next/link";
 import { signOut } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
 import { Reveal } from "@/components/ui/reveal";
+import { useTranslations } from "@/lib/i18n/client";
 
 type SignOutStatus = "pending" | "done" | "error";
 
@@ -13,6 +14,7 @@ type SignOutStatus = "pending" | "done" | "error";
  * the `cancelled` flag avoids setting state after unmount or after a stale run.
  */
 export default function SignOutPage() {
+  const t = useTranslations("marketing");
   const liveId = useId();
   const [status, setStatus] = useState<SignOutStatus>("pending");
 
@@ -43,16 +45,16 @@ export default function SignOutPage() {
 
   const statusMessage =
     status === "pending"
-      ? "Signing you out…"
+      ? t("signOut.pending")
       : status === "done"
-        ? "You are signed out."
-        : "Something went wrong. You can try again below or return home.";
+        ? t("signOut.done")
+        : t("signOut.error");
 
   return (
     <Reveal className="marketing-container flex min-h-[50vh] flex-col items-center justify-center py-16">
       <div className="w-full max-w-md rounded-2xl border border-border bg-card p-8 text-center shadow-sm">
         <h1 className="font-heading text-h5 font-bold text-foreground">
-          Sign out
+          {t("signOut.title")}
         </h1>
         <div
           id={liveId}
@@ -69,15 +71,15 @@ export default function SignOutPage() {
             className="mt-4"
             onClick={() => void runSignOut()}
           >
-            Try again
+            {t("signOut.retry")}
           </Button>
         ) : null}
         <div className="mt-6 flex flex-col items-center gap-2 text-body-sm font-medium text-brand-primary">
           <Link href="/" className="underline-offset-4 hover:underline">
-            Back to home
+            {t("signOut.home")}
           </Link>
           <Link href="/sign-in" className="underline-offset-4 hover:underline">
-            Sign in
+            {t("signOut.signIn")}
           </Link>
         </div>
       </div>

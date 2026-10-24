@@ -49,6 +49,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
+import { useTranslations } from "@/lib/i18n/client";
 
 type Chapter = {
   id: string;
@@ -93,6 +94,7 @@ export function QuizzesTab({
   initialQuizzes,
 }: Props) {
   const router = useRouter();
+  const t = useTranslations("adminAcademic");
   const [quizzes, setQuizzes] = useState<CourseQuiz[]>(initialQuizzes);
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
 
@@ -117,10 +119,10 @@ export function QuizzesTab({
       if (res.success) {
         setPreviewQuestions(res.questions);
       } else {
-        toast.error("Gagal memuat pratinjau soal kuis.");
+        toast.error(t("courseDetail.quizzes.errors.preview"));
       }
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Gagal memuat pratinjau soal kuis.";
+      const message = err instanceof Error ? err.message : t("courseDetail.quizzes.errors.preview");
       toast.error(message);
     } finally {
       setPreviewLoading(false);
@@ -138,15 +140,15 @@ export function QuizzesTab({
     try {
       const res = await deleteQuizTemplateAction(courseId, deletingQuiz.id);
       if (res.success) {
-        toast.success("Kuis berhasil dihapus.");
+        toast.success(t("courseDetail.quizzes.success.delete"));
         setQuizzes((prev) => prev.filter((q) => q.id !== deletingQuiz.id));
         setDeleteOpen(false);
         router.refresh();
       } else {
-        toast.error("Gagal menghapus kuis.");
+        toast.error(t("courseDetail.quizzes.errors.delete"));
       }
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Gagal menghapus kuis.";
+      const message = err instanceof Error ? err.message : t("courseDetail.quizzes.errors.delete");
       toast.error(message);
     } finally {
       setIsDeleting(false);
@@ -170,31 +172,31 @@ export function QuizzesTab({
           <div className="flex items-center gap-2.5">
             <Select value={categoryFilter} onValueChange={setCategoryFilter}>
               <SelectTrigger className="w-[170px] h-9 rounded-lg">
-                <SelectValue placeholder="Semua Kategori" />
+                <SelectValue placeholder={t("courseDetail.quizzes.allCategories")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Semua Kategori</SelectItem>
-                <SelectItem value="daily">Latihan Harian</SelectItem>
-                <SelectItem value="weekly">Kuis Mingguan</SelectItem>
-                <SelectItem value="chapter">Kuis Per Bab</SelectItem>
-                <SelectItem value="simulation">Simulasi Ujian</SelectItem>
-                <SelectItem value="premium">Kuis Premium</SelectItem>
+                <SelectItem value="all">{t("courseDetail.quizzes.allCategories")}</SelectItem>
+                <SelectItem value="daily">{t("courseDetail.quizzes.categories.daily")}</SelectItem>
+                <SelectItem value="weekly">{t("courseDetail.quizzes.categories.weekly")}</SelectItem>
+                <SelectItem value="chapter">{t("courseDetail.quizzes.categories.chapter")}</SelectItem>
+                <SelectItem value="simulation">{t("courseDetail.quizzes.categories.simulation")}</SelectItem>
+                <SelectItem value="premium">{t("courseDetail.quizzes.categories.premium")}</SelectItem>
               </SelectContent>
             </Select>
             <span className="text-body-xs text-muted-foreground">
-              {filteredQuizzes.length} dari {quizzes.length} kuis
+              {t("courseDetail.quizzes.count", { filtered: filteredQuizzes.length, total: quizzes.length })}
             </span>
           </div>
 
           <Tooltip>
             <TooltipTrigger asChild>
               <Button asChild size="icon" className="size-9 rounded-lg bg-brand-primary text-white hover:bg-brand-primary/95 font-semibold shadow-2xs">
-                <Link href={createQuizHref} aria-label="Buat Kuis Baru">
+                <Link href={createQuizHref} aria-label={t("courseDetail.quizzes.create")}>
                   <Plus className="size-4" />
                 </Link>
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Buat Kuis Baru</TooltipContent>
+            <TooltipContent>{t("courseDetail.quizzes.create")}</TooltipContent>
           </Tooltip>
         </div>
 
@@ -203,14 +205,14 @@ export function QuizzesTab({
           {filteredQuizzes.length === 0 ? (
             <div className="text-center py-8 px-4">
               <NotebookPen className="size-6 text-muted-foreground/40 mx-auto mb-1.5" />
-              <p className="text-body-xs font-medium text-foreground">Belum ada kuis yang dibuat untuk kelas ini</p>
+              <p className="text-body-xs font-medium text-foreground">{t("courseDetail.quizzes.emptyTitle")}</p>
               <p className="text-body-xs text-muted-foreground mt-0.5">
-                Klik tombol tambah untuk menyusun kuis mandiri atau simulasi pada kelas ini.
+                {t("courseDetail.quizzes.emptyDescription")}
               </p>
               <Button asChild size="sm" className="mt-3 gap-1.5 rounded-lg bg-brand-primary text-white hover:bg-brand-primary/95 font-semibold h-8 text-body-xs">
                 <Link href={createQuizHref}>
                   <Plus className="size-3.5" />
-                  Buat Kuis Sekarang
+                  {t("courseDetail.quizzes.createNow")}
                 </Link>
               </Button>
             </div>
@@ -235,7 +237,7 @@ export function QuizzesTab({
                           variant="outline"
                           className="rounded-md text-[10px] px-1.5 py-0 font-normal capitalize text-muted-foreground border-border/60 bg-muted/20"
                         >
-                          {quiz.category}
+                          {t(`courseDetail.quizzes.categories.${quiz.category}`)}
                         </Badge>
                         <Badge
                           variant="outline"
@@ -246,7 +248,7 @@ export function QuizzesTab({
                               : "text-muted-foreground/80 border-dashed border-border/60 bg-muted/10"
                           )}
                         >
-                          {quiz.status === "published" ? "Published" : "Draft"}
+                          {quiz.status === "published" ? t("courseDetail.quizzes.status.published") : t("courseDetail.quizzes.status.draft")}
                         </Badge>
                         <Badge
                           variant="outline"
@@ -257,37 +259,37 @@ export function QuizzesTab({
                               : "text-muted-foreground/70 border-border/40 bg-muted/10"
                           )}
                         >
-                          {quiz.visibility === "paid" ? "Premium" : "Gratis"}
+                          {quiz.visibility === "paid" ? t("courseDetail.quizzes.premium") : t("courseDetail.quizzes.free")}
                         </Badge>
                       </div>
 
                       <div className="flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-body-xs text-muted-foreground">
                         <span className="flex items-center gap-1">
                           <Clock className="size-3 shrink-0" />
-                          {quiz.timeLimitSeconds ? `${Math.round(quiz.timeLimitSeconds / 60)} Menit` : "Tanpa batas"}
+                          {quiz.timeLimitSeconds ? t("courseDetail.quizzes.minutes", { count: Math.round(quiz.timeLimitSeconds / 60) }) : t("courseDetail.quizzes.noLimit")}
                         </span>
                         <span className="text-border/60">·</span>
                         <span className="flex items-center gap-1">
                           <Award className="size-3 shrink-0" />
-                          Maks. {quiz.maxAttempts || "Bebas"} percobaan
+                          {t("courseDetail.quizzes.maxAttempts", { count: quiz.maxAttempts || t("courseDetail.quizzes.unlimited") })}
                         </span>
                         <span className="text-border/60">·</span>
                         <span>
-                          Dibuat pada <FormattedDate date={new Date(quiz.createdAt)} options={{ day: "numeric", month: "short", year: "numeric" }} />
+                              {t("courseDetail.quizzes.createdAt")} <FormattedDate date={new Date(quiz.createdAt)} options={{ day: "numeric", month: "short", year: "numeric" }} />
                         </span>
                         <span className="text-border/60">·</span>
                         <span className="font-medium text-foreground">
-                          {quiz.totalAttempts || 0} pengerjaan siswa
+                          {t("courseDetail.quizzes.attempts", { count: quiz.totalAttempts || 0 })}
                         </span>
                         {(quiz.totalAttempts || 0) > 0 && (
                           <>
                             <span className="text-border/60">·</span>
                             <span>
-                              Rata-rata: <strong className="text-foreground">{quiz.avgScore}/100</strong>
+                              {t("courseDetail.quizzes.average")}: <strong className="text-foreground">{quiz.avgScore}/100</strong>
                             </span>
                             <span className="text-border/60">·</span>
                             <span>
-                              Kelulusan: <strong className="text-foreground">{quiz.passRate}%</strong>
+                              {t("courseDetail.quizzes.passRate")}: <strong className="text-foreground">{quiz.passRate}%</strong>
                             </span>
                           </>
                         )}
@@ -302,12 +304,12 @@ export function QuizzesTab({
                             variant="outline"
                             className="size-7 sm:size-8 rounded-lg border-border text-foreground hover:bg-muted"
                             onClick={() => handlePreviewQuiz(quiz)}
-                            aria-label="Pratinjau Kuis"
+                            aria-label={t("courseDetail.quizzes.preview")}
                           >
                             <Eye className="size-3.5" />
                           </Button>
                         </TooltipTrigger>
-                        <TooltipContent>Pratinjau Kuis</TooltipContent>
+                        <TooltipContent>{t("courseDetail.quizzes.preview")}</TooltipContent>
                       </Tooltip>
 
                       <Tooltip>
@@ -322,13 +324,13 @@ export function QuizzesTab({
                               href={courseSlug
                                 ? `/admin/courses/${encodeURIComponent(courseSlug)}/analytics/${encodeURIComponent(quiz.id)}`
                                 : `/admin/quiz-insights/${encodeURIComponent(quiz.id)}`}
-                              aria-label="Analisis Kuis"
+                              aria-label={t("courseDetail.quizzes.analyze")}
                             >
                               <BarChart3 className="size-3.5" />
                             </Link>
                           </Button>
                         </TooltipTrigger>
-                        <TooltipContent>Analisis Kuis</TooltipContent>
+                        <TooltipContent>{t("courseDetail.quizzes.analyze")}</TooltipContent>
                       </Tooltip>
 
                       <Tooltip>
@@ -339,12 +341,12 @@ export function QuizzesTab({
                             variant="outline"
                             className="size-7 sm:size-8 rounded-lg border-border text-foreground hover:bg-muted"
                           >
-                            <Link href={editQuizHref} aria-label="Edit Kuis">
+                            <Link href={editQuizHref} aria-label={t("courseDetail.quizzes.edit")}>
                               <Edit2 className="size-3.5" />
                             </Link>
                           </Button>
                         </TooltipTrigger>
-                        <TooltipContent>Edit Kuis</TooltipContent>
+                        <TooltipContent>{t("courseDetail.quizzes.edit")}</TooltipContent>
                       </Tooltip>
 
                       <Tooltip>
@@ -354,12 +356,12 @@ export function QuizzesTab({
                             variant="ghost"
                             className="size-7 sm:size-8 rounded-lg text-destructive hover:text-destructive hover:bg-destructive/10"
                             onClick={() => handleDeleteStart(quiz)}
-                            aria-label="Hapus Kuis"
+                            aria-label={t("courseDetail.quizzes.delete")}
                           >
                             <Trash2 className="size-3.5" />
                           </Button>
                         </TooltipTrigger>
-                        <TooltipContent>Hapus Kuis</TooltipContent>
+                        <TooltipContent>{t("courseDetail.quizzes.delete")}</TooltipContent>
                       </Tooltip>
                     </div>
                   </div>
@@ -376,9 +378,9 @@ export function QuizzesTab({
           setDeleteOpen(open);
           if (!open) setDeletingQuiz(null);
         }}
-        title="Hapus Kuis"
-        description={`Tindakan ini akan menghapus kuis "${deletingQuiz?.title}" secara permanen dari kelas ini. Data hasil pengerjaan terkait kuis ini mungkin ikut terpengaruh.`}
-        confirmLabel="Ya, Hapus Permanen"
+        title={t("courseDetail.quizzes.delete")}
+        description={t("courseDetail.quizzes.deleteDescription", { title: deletingQuiz?.title ?? "" })}
+        confirmLabel={t("courseDetail.quizzes.confirmDelete")}
         loading={isDeleting}
         onConfirm={handleDeleteConfirm}
       />
@@ -388,17 +390,17 @@ export function QuizzesTab({
         <DialogContent className="max-w-3xl max-h-[85vh] flex flex-col p-0 overflow-hidden rounded-xl border border-border bg-popover shadow-xl">
           <DialogHeader className="p-6 pb-4 border-b border-border shrink-0">
             <DialogTitle className="font-heading text-body-base font-bold text-foreground">
-              Pratinjau Kuis: {previewQuiz?.title}
+              {t("courseDetail.quizzes.previewTitle", { title: previewQuiz?.title ?? "" })}
             </DialogTitle>
             <DialogDescription className="text-left text-body-xs text-muted-foreground flex gap-3 flex-wrap items-center mt-1">
               <span className="bg-muted px-2 py-0.5 rounded-md border border-border">
-                Kategori: {previewQuiz?.category}
+                {t("courseDetail.quizzes.categoryLabel")}: {previewQuiz ? t(`courseDetail.quizzes.categories.${previewQuiz.category}`) : ""}
               </span>
               <span className="bg-muted px-2 py-0.5 rounded-md border border-border">
-                Batas Waktu: {previewQuiz?.timeLimitSeconds ? `${previewQuiz.timeLimitSeconds / 60} menit` : "Bebas"}
+                {t("courseDetail.quizzes.timeLimit")}: {previewQuiz?.timeLimitSeconds ? t("courseDetail.quizzes.minutes", { count: previewQuiz.timeLimitSeconds / 60 }) : t("courseDetail.quizzes.unlimited")}
               </span>
               <span className="bg-muted px-2 py-0.5 rounded-md border border-border">
-                Percobaan: {previewQuiz?.maxAttempts ? `${previewQuiz.maxAttempts}x` : "Bebas"}
+                {t("courseDetail.quizzes.attemptsLabel")}: {previewQuiz?.maxAttempts ?? t("courseDetail.quizzes.unlimited")}
               </span>
             </DialogDescription>
           </DialogHeader>
@@ -407,22 +409,22 @@ export function QuizzesTab({
             {previewLoading ? (
               <div className="py-12 flex flex-col items-center justify-center gap-3">
                 <Loader2 className="size-8 animate-spin text-brand-primary" />
-                <p className="text-body-sm text-muted-foreground">Memilih dan meresolusi butir soal...</p>
+                <p className="text-body-sm text-muted-foreground">{t("courseDetail.quizzes.loadingPreview")}</p>
               </div>
             ) : previewQuestions.length === 0 ? (
               <div className="py-12 text-center text-muted-foreground text-body-sm">
-                Tidak ada butir soal yang tersedia untuk kuis ini.
+                {t("courseDetail.quizzes.noQuestions")}
               </div>
             ) : (
               <div className="space-y-6">
                 {previewQuestions.map((q, idx) => (
                   <div key={q.id} className="py-4 border-b border-border last:border-0 space-y-3">
                     <div className="flex items-center justify-between gap-2 border-b border-border/40 pb-2">
-                      <span className="text-body-sm font-bold text-foreground">Soal {idx + 1}</span>
+                      <span className="text-body-sm font-bold text-foreground">{t("courseDetail.quizzes.questionNumber", { number: idx + 1 })}</span>
                       <div className="flex items-center gap-2">
                         <DifficultyBadge difficulty={q.difficulty} />
                         <span className="capitalize text-[10px] bg-muted/80 text-muted-foreground px-2 py-0.5 rounded border border-border font-medium">
-                          {q.questionType === "multiple_choice" ? "Single Choice" : "Multi Choice"}
+                          {q.questionType === "multiple_choice" ? t("courseDetail.quizzes.singleChoice") : t("courseDetail.quizzes.multipleChoice")}
                         </span>
                       </div>
                     </div>
@@ -455,7 +457,7 @@ export function QuizzesTab({
                     {q.explanation && (
                       <div className="bg-brand-primary/5 border border-brand-primary/10 rounded-lg p-3.5 space-y-1.5 text-body-sm">
                         <span className="font-bold text-brand-primary block text-body-xs uppercase tracking-wider">
-                          Pembahasan Jawaban:
+                          {t("courseDetail.quizzes.answerExplanation")}
                         </span>
                         <MathText className="text-muted-foreground leading-relaxed whitespace-pre-wrap" as="p">
                           {q.explanation}
@@ -470,7 +472,7 @@ export function QuizzesTab({
 
           <DialogFooter className="p-4 border-t border-border bg-muted/10 shrink-0">
             <Button onClick={() => setPreviewOpen(false)} className="rounded-md bg-brand-primary text-white hover:bg-brand-primary/90">
-              Tutup
+              {t("common.close")}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -1,10 +1,10 @@
-import type { Metadata } from "next";
 import { pageTitle } from "@/lib/site";
+import { getTranslations } from "@/lib/i18n/server";
 
-export const metadata: Metadata = {
-  title: pageTitle("Google Meet"),
-  description: "Kelola sesi Google Meet dan tautan pertemuan Zyx Academy.",
-};
+export async function generateMetadata() {
+  const t = await getTranslations("adminOps");
+  return { title: pageTitle(t("meet.title")), description: t("meet.description") };
+}
 
 export default function AdminMeetLayout({
   children,

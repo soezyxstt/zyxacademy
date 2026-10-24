@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { PKA_COURSE_ID } from "@/lib/pka-config";
 import { cn } from "@/lib/utils";
+import { useTranslations } from "@/lib/i18n/client";
 
 export interface CatalogCourseItem {
   id: string;
@@ -84,6 +85,7 @@ export function CourseCatalogClient({
   groups,
   studentTargetCategory,
 }: CourseCatalogClientProps) {
+  const t = useTranslations("learning");
   const totalCourses = groups.reduce((acc, g) => acc + g.courses.length, 0);
 
   const renderRow = (c: CatalogCourseItem) => {
@@ -106,10 +108,10 @@ export function CourseCatalogClient({
             </h3>
             <p className="mt-0.5 truncate text-body-xs text-muted-foreground flex items-center gap-1.5">
               {isPka ? (
-                <span>Simulasi 3 stage x 3 mapel · Maba ITB</span>
+                <span>{t("courseCatalog.pkaSummary")}</span>
               ) : (
                 <span>
-                  {c.materialsCount} materi · {c.quizzesCount} kuis · {c.tryoutsCount} tryout
+                  {t("courseCatalog.counts", { materials: c.materialsCount, quizzes: c.quizzesCount, tryouts: c.tryoutsCount })}
                 </span>
               )}
             </p>
@@ -133,12 +135,12 @@ export function CourseCatalogClient({
           </h2>
           {group.isStudentMajor && (
             <span className="rounded-md bg-brand-primary/10 px-2 py-0.5 text-body-2xs font-bold uppercase tracking-wider text-brand-primary ring-1 ring-brand-primary/20">
-              Jurusan Anda
+              {t("courseCatalog.yourMajor")}
             </span>
           )}
         </div>
         <span className="text-body-xs text-muted-foreground font-medium">
-          {group.courses.length} mata kuliah
+          {t("courseCatalog.courseCount", { count: group.courses.length })}
         </span>
       </div>
       <div className="divide-y divide-border/60 overflow-hidden rounded-xl border border-border/60 bg-card/60 backdrop-blur-xs shadow-2xs">
@@ -157,9 +159,9 @@ export function CourseCatalogClient({
 
   return (
     <Tabs defaultValue="all" paramKey="jurusan" className="w-full space-y-6">
-      <TabsList aria-label="Filter jurusan course">
+      <TabsList aria-label={t("courseCatalog.filterLabel")}>
         <TabsTrigger value="all">
-          Semua ({totalCourses})
+          {t("courseCatalog.all", { count: totalCourses })}
         </TabsTrigger>
         {groups.map((group) => {
           const tabSlug = slugifyJurusan(group.jurusan);
@@ -168,7 +170,7 @@ export function CourseCatalogClient({
               <span>{group.jurusan}</span>
               <span className="text-muted-foreground/80 font-normal">({group.courses.length})</span>
               {group.isStudentMajor && (
-                <span className="size-1.5 rounded-full bg-brand-primary shrink-0" title="Jurusan Anda" />
+                <span className="size-1.5 rounded-full bg-brand-primary shrink-0" title={t("courseCatalog.yourMajor")} />
               )}
             </TabsTrigger>
           );

@@ -5,7 +5,7 @@ import { Reveal } from "@/components/ui/reveal";
 import { ApplicationPage } from "@/components/application-page";
 
 type ShellPageProps = {
-  title: string;
+  title: ReactNode;
   description?: string;
   children: ReactNode;
   className?: string;

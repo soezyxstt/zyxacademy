@@ -1,9 +1,11 @@
 import type { NextConfig } from "next";
+import createNextIntlPlugin from "next-intl/plugin";
 import { existsSync, readFileSync } from "node:fs";
 
 const webRuntimePath = `${process.cwd()}/artifacts/authoring-verification/web-runtime.json`;
 
 const nextConfig: NextConfig = {
+  skipProxyUrlNormalize: true,
   env: { NEXT_PUBLIC_V4_WEB_RUNTIME: existsSync(webRuntimePath) ? readFileSync(webRuntimePath, "utf8") : "" },
   serverExternalPackages: ["puppeteer", "@napi-rs/canvas", "pdfjs-dist", "pdf-parse"],
   outputFileTracingIncludes: {
@@ -73,14 +75,17 @@ const nextConfig: NextConfig = {
   },
 };
 
+const withNextIntl = createNextIntlPlugin("./i18n/request.ts");
+
 const isProduction = process.env.NODE_ENV === "production";
 const enableSentryInDev = process.env.ENABLE_SENTRY_DEV === "true";
 const shouldEnableSentry = (isProduction || enableSentryInDev) && Boolean(process.env.SENTRY_AUTH_TOKEN);
 
 export default async function config(): Promise<NextConfig> {
+  let configWithMonitoring = nextConfig;
   if (shouldEnableSentry) {
     const { withSentryConfig } = await import("@sentry/nextjs");
-    return withSentryConfig(nextConfig, {
+    configWithMonitoring = withSentryConfig(nextConfig, {
       org: process.env.SENTRY_ORG || "zyx-academy",
       project: process.env.SENTRY_PROJECT || "zyx-academy",
       authToken: process.env.SENTRY_AUTH_TOKEN,
@@ -98,7 +103,7 @@ export default async function config(): Promise<NextConfig> {
       bundleSizeOptimizations: {
         excludeDebugStatements: true,
       },
-    });
+    }) as NextConfig;
   }
-  return nextConfig;
+  return withNextIntl(configWithMonitoring);
 }

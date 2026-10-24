@@ -29,6 +29,9 @@ export default defineConfig({
     storageState: process.env.PLAYWRIGHT_STORAGE_STATE || undefined,
     timezoneId: "Asia/Jakarta",
     trace: "retain-on-failure",
+    launchOptions: {
+      executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH || undefined,
+    },
   },
   projects: [
     {

@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "@/lib/i18n/client";
 import {
   ArrowLeft,
   CheckCircle2,
@@ -84,6 +85,7 @@ interface Props {
  */
 export function TutorQuizGradingClient({ courseId, pendingAttempts }: Props) {
   const router = useRouter();
+  const tr = useTranslations("tutor.grading");
   const [isPending, startTransition] = useTransition();
 
   const [searchQuery, setSearchQuery] = useState("");
@@ -108,7 +110,7 @@ export function TutorQuizGradingClient({ courseId, pendingAttempts }: Props) {
     try {
       const details = await getQuizAttemptDetailsAction(courseId, attemptId);
       if (!details) {
-        toast.error("Gagal memuat detail pengerjaan kuis.");
+        toast.error(tr("loadAttemptFailed"));
         return;
       }
       setActiveAttempt(details);
@@ -124,8 +126,8 @@ export function TutorQuizGradingClient({ courseId, pendingAttempts }: Props) {
         }
       }
       setGradeInputs(initialInputs);
-    } catch (err: any) {
-      toast.error(err?.message || "Terjadi kesalahan saat memuat attempt.");
+    } catch {
+      toast.error(tr("loadAttemptError"));
     } finally {
       setLoadingAttemptId(null);
     }
@@ -163,7 +165,7 @@ export function TutorQuizGradingClient({ courseId, pendingAttempts }: Props) {
         const input = gradeInputs[eq.id];
         const num = input ? parseInt(input.score, 10) : NaN;
         if (isNaN(num) || num < 0 || num > 100) {
-          toast.error(`Nilai untuk soal esai nomor ${eq.index} wajib diisi antara 0 dan 100.`);
+          toast.error(tr("essayScoreRequired", { number: eq.index }));
           return;
         }
       }
@@ -192,7 +194,7 @@ export function TutorQuizGradingClient({ courseId, pendingAttempts }: Props) {
     }
 
     if (itemsToSubmit.length === 0) {
-      toast.error("Belum ada nilai yang diisi.");
+      toast.error(tr("noScore"));
       return;
     }
 
@@ -206,15 +208,17 @@ export function TutorQuizGradingClient({ courseId, pendingAttempts }: Props) {
 
         if (res.success) {
           if (res.gradingStatus === "graded") {
-            toast.success("Penilaian berhasil diselesaikan dan nilai akhir telah disimpan.");
+            toast.success(tr("finalized"));
           } else {
-            toast.success("Draf penilaian berhasil disimpan sebagian.");
+            toast.success(tr("draftSaved"));
           }
           setActiveAttempt(null);
           router.refresh();
+        } else {
+          toast.error(tr("saveQuizGradeFailed"));
         }
-      } catch (err: any) {
-        toast.error(err?.message || "Gagal menyimpan penilaian.");
+      } catch {
+        toast.error(tr("saveQuizGradeFailed"));
       }
     });
   }
@@ -232,18 +236,18 @@ export function TutorQuizGradingClient({ courseId, pendingAttempts }: Props) {
               className="rounded-md border-border/80 text-body-sm"
             >
               <ArrowLeft className="mr-1.5 size-4" />
-              Kembali ke antrean
+              {tr("backToQueue")}
             </Button>
             <div className="min-w-0">
               <h2 className="font-heading text-body-base font-bold text-foreground">
-                Koreksi: {activeAttempt.quizTitle}
+                {tr("reviewTitle", { quiz: activeAttempt.quizTitle })}
               </h2>
               <p className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-body-xs text-muted-foreground">
                 <User className="size-3" />
                 <span>{activeAttempt.studentName} ({activeAttempt.studentEmail})</span>
                 <Clock className="size-3" />
                 <span>
-                  Dikumpulkan: <FormattedDate date={activeAttempt.submittedAt} options={{ dateStyle: "medium", timeStyle: "short" }} />
+                  {tr("submitted")} <FormattedDate date={activeAttempt.submittedAt} options={{ dateStyle: "medium", timeStyle: "short" }} />
                 </span>
               </p>
             </div>
@@ -262,7 +266,7 @@ export function TutorQuizGradingClient({ courseId, pendingAttempts }: Props) {
               ) : (
                 <CheckCircle2 className="mr-1.5 size-4" />
               )}
-              Selesaikan penilaian
+              {tr("finishGrading")}
             </Button>
           </div>
         </div>
@@ -272,10 +276,10 @@ export function TutorQuizGradingClient({ courseId, pendingAttempts }: Props) {
             const input = gradeInputs[q.id];
             const typeLabel =
               q.questionType === "essay"
-                ? "Esai"
+                ? tr("essay")
                 : q.questionType === "short_answer"
-                ? "Isian Singkat"
-                : "Pilihan Ganda";
+                ? tr("shortAnswer")
+                : tr("multipleChoice");
 
             return (
               <div
@@ -285,7 +289,7 @@ export function TutorQuizGradingClient({ courseId, pendingAttempts }: Props) {
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
                     <span className="font-heading text-body-sm font-bold text-foreground">
-                      Soal #{q.index}
+                      {tr("questionNumber", { number: q.index })}
                     </span>
                     <Badge variant="outline" className="rounded-md text-body-xs font-medium">
                       {typeLabel}
@@ -299,7 +303,7 @@ export function TutorQuizGradingClient({ courseId, pendingAttempts }: Props) {
                         ? "rounded-md text-body-xs"
                         : "rounded-md border-destructive/50 text-body-xs text-destructive"}
                     >
-                      {q.isDeterministicCorrect ? "Benar (Otomatis)" : "Salah (Otomatis)"}
+                      {q.isDeterministicCorrect ? tr("correctAutomatic") : tr("incorrectAutomatic")}
                     </Badge>
                   ) : q.isShortAnswer ? (
                     <Badge
@@ -307,15 +311,15 @@ export function TutorQuizGradingClient({ courseId, pendingAttempts }: Props) {
                       className="rounded-md text-body-xs text-muted-foreground border-border"
                     >
                       {q.isDeterministicCorrect
-                        ? "Kunci Cocok (Dapat disesuaikan)"
-                        : "Kunci Tidak Cocok (Dapat disesuaikan)"}
+                        ? tr("keyMatched")
+                        : tr("keyNotMatched")}
                     </Badge>
                   ) : (
                     <Badge
                       variant={q.currentScore !== null ? "default" : "secondary"}
                       className="rounded-md text-body-xs"
                     >
-                      {q.currentScore !== null ? `Dinilai: ${q.currentScore}/100` : "Wajib Dinilai"}
+                      {q.currentScore !== null ? tr("scored", { score: q.currentScore }) : tr("mustGrade")}
                     </Badge>
                   )}
                 </div>
@@ -326,20 +330,20 @@ export function TutorQuizGradingClient({ courseId, pendingAttempts }: Props) {
 
                 {q.acceptableAnswers && q.acceptableAnswers.length > 0 && (
                   <div className="text-body-xs text-muted-foreground">
-                    <span className="font-semibold text-foreground">Kunci jawaban referensi: </span>
+                    <span className="font-semibold text-foreground">{tr("referenceAnswer")} </span>
                     {q.acceptableAnswers.join(", ")}
                   </div>
                 )}
 
                 <div className="space-y-1.5">
                   <span className="text-body-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                    Jawaban Siswa:
+                    {tr("studentAnswer")}
                   </span>
                   <div className="text-body-sm text-foreground bg-background p-3 rounded-md border border-border min-h-[48px] whitespace-pre-wrap">
                     {q.submittedText ? (
                       <MathText>{q.submittedText}</MathText>
                     ) : (
-                      <span className="italic text-muted-foreground">Tidak menjawab</span>
+                      <span className="italic text-muted-foreground">{tr("noAnswer")}</span>
                     )}
                   </div>
                 </div>
@@ -353,7 +357,7 @@ export function TutorQuizGradingClient({ courseId, pendingAttempts }: Props) {
                       </span>
                       <div className="min-w-0">
                         <p className="max-w-[200px] truncate text-body-xs font-bold text-foreground md:max-w-xs">{q.fileName}</p>
-                        <p className="text-body-2xs text-muted-foreground">{q.fileSize || "PDF / Gambar"} • Cloudflare R2</p>
+                        <p className="text-body-2xs text-muted-foreground">{q.fileSize || tr("pdfImage")} • {tr("cloudStorage")}</p>
                       </div>
                     </div>
                     {q.fileKey ? (
@@ -369,12 +373,12 @@ export function TutorQuizGradingClient({ courseId, pendingAttempts }: Props) {
                           rel="noopener noreferrer"
                         >
                           <Download className="size-3.5" />
-                          Unduh Berkas
+                          {tr("downloadFile")}
                         </a>
                       </Button>
                     ) : (
                       <span className="shrink-0 text-body-xs italic text-muted-foreground">
-                        Berkas tidak tersedia
+                        {tr("fileUnavailable")}
                       </span>
                     )}
                   </div>
@@ -384,7 +388,7 @@ export function TutorQuizGradingClient({ courseId, pendingAttempts }: Props) {
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-4 pt-3 border-t border-border/60">
                     <div className="space-y-1.5">
                       <label className="text-body-sm font-semibold text-foreground">
-                        Nilai (0-100) {q.isEssay ? <span className="text-destructive">*</span> : null}
+                        {tr("score")} {q.isEssay ? <span className="text-destructive">*</span> : null}
                       </label>
                       <Input
                         type="number"
@@ -392,19 +396,19 @@ export function TutorQuizGradingClient({ courseId, pendingAttempts }: Props) {
                         max={100}
                         value={input.score}
                         onChange={(e) => handleScoreChange(q.id, e.target.value)}
-                        placeholder="0 - 100"
+                        placeholder={tr("scorePlaceholder")}
                         className="rounded-md text-body-sm"
                       />
                     </div>
                     <div className="md:col-span-3 space-y-1.5">
                       <label className="text-body-sm font-semibold text-foreground">
-                        Catatan Koreksi (Opsional)
+                        {tr("reviewNotes")}
                       </label>
                       <Textarea
                         rows={2}
                         value={input.notes}
                         onChange={(e) => handleNotesChange(q.id, e.target.value)}
-                        placeholder="Tuliskan umpan balik atau alasan penilaian..."
+                        placeholder={tr("feedbackPlaceholder")}
                         className="rounded-md text-body-sm resize-none"
                       />
                     </div>
@@ -428,7 +432,7 @@ export function TutorQuizGradingClient({ courseId, pendingAttempts }: Props) {
             <Search className="absolute left-2.5 top-2.5 size-4 text-muted-foreground" />
             <Input
               type="search"
-              placeholder="Cari nama siswa atau judul kuis..."
+              placeholder={tr("searchPlaceholder")}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-8 text-body-sm rounded-md h-9"
@@ -437,7 +441,7 @@ export function TutorQuizGradingClient({ courseId, pendingAttempts }: Props) {
         </div>
 
         <div className="flex items-center gap-2 text-body-xs text-muted-foreground">
-          <span>Menampilkan {filteredAttempts.length} antrean</span>
+          <span>{tr("showingQueue", { count: filteredAttempts.length })}</span>
         </div>
       </div>
 
@@ -445,8 +449,8 @@ export function TutorQuizGradingClient({ courseId, pendingAttempts }: Props) {
         <div className="rounded-xl border border-dashed border-border bg-card">
           <AdminEmptyState
             icon={CheckSquare}
-            title="Tidak ada kuis yang menunggu penilaian"
-            description="Tidak ada esai menunggu penilaian."
+            title={tr("noPendingQuiz")}
+            description={tr("noPendingEssay")}
           />
         </div>
       ) : (
@@ -465,19 +469,19 @@ export function TutorQuizGradingClient({ courseId, pendingAttempts }: Props) {
                         {item.quizTitle}
                       </h4>
                       <Badge variant="secondary" className="rounded-md text-body-xs font-semibold">
-                        {item.remainingEssayCount} esai tersisa
+                        {tr("essaysRemaining", { count: item.remainingEssayCount })}
                       </Badge>
                     </div>
                     <div className="text-body-xs text-muted-foreground flex flex-wrap items-center gap-3">
                       <span className="flex items-center gap-1">
                         <User className="size-3" />
-                        {item.studentName ?? "Siswa"} ({item.studentEmail})
+                        {item.studentName ?? tr("studentFallback")} ({item.studentEmail})
                       </span>
                       <span className="flex items-center gap-1">
                         <Clock className="size-3" />
-                        Dikumpulkan: <FormattedDate date={item.submittedAt} options={{ dateStyle: "medium", timeStyle: "short" }} />
+                        {tr("submitted")} <FormattedDate date={item.submittedAt} options={{ dateStyle: "medium", timeStyle: "short" }} />
                       </span>
-                      <span>Total {item.totalQuestions} soal ({item.essayCount} esai)</span>
+                      <span>{tr("totalQuestions", { count: item.totalQuestions, essays: item.essayCount })}</span>
                     </div>
                   </div>
 
@@ -494,7 +498,7 @@ export function TutorQuizGradingClient({ courseId, pendingAttempts }: Props) {
                       ) : (
                         <FileText className="mr-1.5 size-4" />
                       )}
-                      Nilai jawaban
+                      {tr("gradeAnswer")}
                     </Button>
                   </div>
                 </div>

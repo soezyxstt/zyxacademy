@@ -23,6 +23,7 @@ import {
   Archive,
   Eye,
   EyeOff,
+  Languages,
 } from "lucide-react";
 import { DropdownMenu, HoverCard } from "radix-ui";
 import { useTheme } from "next-themes";
@@ -31,6 +32,7 @@ import { Logo } from "@/components/logo";
 import { useCommandMenu } from "@/components/command-menu";
 import { NotificationBell } from "@/components/notifications/notification-bell";
 import { signOut, useSession } from "@/lib/auth-client";
+import { useAppLocale, useTranslations } from "@/lib/i18n/client";
 import { useSwipe } from "@/hooks/use-swipe";
 import { useZyraPetVisibility } from "@/hooks/use-zyra-pet-visibility";
 import { isMaterialReaderPathname } from "@/lib/materials/reader-layout";
@@ -408,13 +410,15 @@ export function NavGroup({ label, collapsed }: { label: string; collapsed: boole
 }
 
 function SidebarUserMenu({ collapsed }: { collapsed: boolean }) {
+  const t = useTranslations("common");
+  const { locale, setLocale, isPending, error } = useAppLocale();
   const { data: session } = useSession();
   const { theme, setTheme } = useTheme();
   const { visible: petVisible, toggleVisible: togglePetVisibility } = useZyraPetVisibility();
 
   if (!session?.user) return null;
 
-  const name = session.user.name?.trim() || "Pengguna";
+  const name = session.user.name?.trim() || t("userFallback");
   const email = session.user.email || "";
   const userWithRoles = session.user as { role?: string | null; roles?: string[] | null };
   const role = userWithRoles.role;
@@ -432,7 +436,7 @@ function SidebarUserMenu({ collapsed }: { collapsed: boolean }) {
     <button
       type="button"
       className="flex size-10 items-center justify-center rounded-xl hover:bg-muted/80 text-foreground transition-colors cursor-pointer mx-auto shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-      aria-label={`Akun (${name})`}
+      aria-label={t("accountNamed", { name })}
     >
       {session.user.image ? (
         // eslint-disable-next-line @next/next/no-img-element
@@ -502,7 +506,7 @@ function SidebarUserMenu({ collapsed }: { collapsed: boolean }) {
               className="flex cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2 text-body-sm text-foreground outline-none transition-colors hover:bg-muted data-[highlighted]:bg-muted"
             >
               <User className="size-4 shrink-0 text-muted-foreground" />
-              <span>Pengaturan Profil</span>
+              <span>{t("profileSettings")}</span>
             </Link>
           </DropdownMenu.Item>
 
@@ -512,7 +516,7 @@ function SidebarUserMenu({ collapsed }: { collapsed: boolean }) {
               className="flex cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2 text-body-sm text-foreground outline-none transition-colors hover:bg-muted data-[highlighted]:bg-muted"
             >
               <LayoutDashboard className="size-4 shrink-0 text-muted-foreground" />
-              <span>Dashboard Siswa</span>
+              <span>{t("studentDashboard")}</span>
             </Link>
           </DropdownMenu.Item>
 
@@ -523,7 +527,7 @@ function SidebarUserMenu({ collapsed }: { collapsed: boolean }) {
                 className="flex cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2 text-body-sm text-foreground outline-none transition-colors hover:bg-muted data-[highlighted]:bg-muted"
               >
                 <GraduationCap className="size-4 shrink-0 text-muted-foreground" />
-                <span>Panel Pengajar</span>
+                <span>{t("tutorPanel")}</span>
               </Link>
             </DropdownMenu.Item>
           )}
@@ -535,7 +539,7 @@ function SidebarUserMenu({ collapsed }: { collapsed: boolean }) {
                 className="flex cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2 text-body-sm text-foreground outline-none transition-colors hover:bg-muted data-[highlighted]:bg-muted"
               >
                 <ShieldCheck className="size-4 shrink-0 text-muted-foreground" />
-                <span>Panel Admin</span>
+                <span>{t("adminPanel")}</span>
               </Link>
             </DropdownMenu.Item>
           )}
@@ -549,12 +553,12 @@ function SidebarUserMenu({ collapsed }: { collapsed: boolean }) {
             {petVisible ? (
               <>
                 <EyeOff className="size-4 shrink-0 text-muted-foreground" />
-                <span>Sembunyikan Zyra</span>
+                <span>{t("hideZyra")}</span>
               </>
             ) : (
               <>
                 <Eye className="size-4 shrink-0 text-muted-foreground" />
-                <span>Tunjukkan Zyra</span>
+                <span>{t("showZyra")}</span>
               </>
             )}
           </DropdownMenu.Item>
@@ -563,7 +567,7 @@ function SidebarUserMenu({ collapsed }: { collapsed: boolean }) {
 
           <div className="px-2.5 py-1.5">
             <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-1.5 font-sans">
-              Tema Tampilan
+              {t("appearance")}
             </p>
             <div className="grid grid-cols-3 gap-1">
               <button
@@ -577,7 +581,7 @@ function SidebarUserMenu({ collapsed }: { collapsed: boolean }) {
                 )}
               >
                 <Sun className="size-3.5" />
-                <span>Terang</span>
+                <span>{t("light")}</span>
               </button>
               <button
                 type="button"
@@ -590,7 +594,7 @@ function SidebarUserMenu({ collapsed }: { collapsed: boolean }) {
                 )}
               >
                 <Moon className="size-3.5" />
-                <span>Gelap</span>
+                <span>{t("dark")}</span>
               </button>
               <button
                 type="button"
@@ -603,9 +607,27 @@ function SidebarUserMenu({ collapsed }: { collapsed: boolean }) {
                 )}
               >
                 <Monitor className="size-3.5" />
-                <span>Sistem</span>
+                <span>{t("system")}</span>
               </button>
             </div>
+          </div>
+
+          <DropdownMenu.Separator className="my-1 h-px bg-border/60" />
+
+          <div className="px-2.5 py-1.5" aria-label={t("language.label")}>
+            <p className="mb-1.5 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground font-sans">
+              <Languages className="size-3.5" aria-hidden />
+              {t("language.label")}
+            </p>
+            <DropdownMenu.RadioGroup value={locale} onValueChange={(value) => { if (!isPending && (value === "id" || value === "en")) void setLocale(value); }} className="flex flex-col gap-0.5">
+              <DropdownMenu.RadioItem value="id" disabled={isPending} className="flex w-full cursor-pointer items-center rounded-md px-2 py-2 text-body-sm text-muted-foreground outline-none hover:bg-muted focus:bg-muted data-[state=checked]:text-brand-primary">
+                {t("language.indonesian")}
+              </DropdownMenu.RadioItem>
+              <DropdownMenu.RadioItem value="en" disabled={isPending} className="flex w-full cursor-pointer items-center rounded-md px-2 py-2 text-body-sm text-muted-foreground outline-none hover:bg-muted focus:bg-muted data-[state=checked]:text-brand-primary">
+                {t("language.english")}
+              </DropdownMenu.RadioItem>
+            </DropdownMenu.RadioGroup>
+            {error ? <p role="alert" className="mt-1.5 text-body-xs text-destructive">{t("saveLanguageError")}</p> : null}
           </div>
 
           <DropdownMenu.Separator className="my-1 h-px bg-border/60" />
@@ -615,7 +637,7 @@ function SidebarUserMenu({ collapsed }: { collapsed: boolean }) {
             className="flex cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2 text-body-sm text-status-error outline-none transition-colors hover:bg-status-error/10 data-[highlighted]:bg-status-error/10"
           >
             <LogOut className="size-4 shrink-0" />
-            <span className="font-semibold">Keluar</span>
+            <span className="font-semibold">{t("logOut")}</span>
           </DropdownMenu.Item>
         </DropdownMenu.Content>
       </DropdownMenu.Portal>
@@ -642,6 +664,7 @@ export function SidebarShell({
   topSection,
   bottomSection,
 }: SidebarShellProps) {
+  const t = useTranslations("common");
   const pathname = usePathname();
   const { setOpen: setSearchOpen } = useCommandMenu();
 
@@ -800,22 +823,22 @@ export function SidebarShell({
 
               {headerActions?.(false)}
 
-              <SidebarTooltip label={`Cari (${modKeyHint})`} collapsed={false}>
+              <SidebarTooltip label={t("searchWithShortcut", { shortcut: modKeyHint })} collapsed={false}>
                 <button
                   type="button"
                   onClick={() => setSearchOpen(true)}
-                  aria-label={`Cari (${modKeyHint})`}
+                  aria-label={t("searchWithShortcut", { shortcut: modKeyHint })}
                   className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-border bg-muted/40 text-muted-foreground hover:bg-muted/80 hover:text-foreground transition-colors cursor-pointer"
                 >
                   <Search className="size-4" />
                 </button>
               </SidebarTooltip>
 
-              <SidebarTooltip label="Tutup sidebar" collapsed={false}>
+              <SidebarTooltip label={t("closeSidebar")} collapsed={false}>
                 <button
                   type="button"
                   onClick={isMobile ? () => setMobileOpen(false) : toggleCollapsed}
-                  aria-label="Tutup sidebar"
+                  aria-label={t("closeSidebar")}
                   className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground transition-colors cursor-pointer"
                 >
                   <PanelLeftClose className="size-4" />
@@ -824,11 +847,11 @@ export function SidebarShell({
             </>
           ) : (
             <div className="flex flex-col items-center gap-1.5 py-1">
-              <SidebarTooltip label="Buka sidebar" collapsed={true}>
+              <SidebarTooltip label={t("openSidebar")} collapsed={true}>
                 <button
                   type="button"
                   onClick={toggleCollapsed}
-                  aria-label="Buka sidebar"
+                  aria-label={t("openSidebar")}
                   className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground transition-colors cursor-pointer"
                 >
                   <PanelLeftOpen className="size-4" />
@@ -844,11 +867,11 @@ export function SidebarShell({
         {/* Collapsed quick search button & header actions */}
         {isCollapsed && (
           <div className="px-1 pt-2 shrink-0 flex flex-col items-center gap-1.5">
-            <SidebarTooltip label={`Cari (${modKeyHint})`} collapsed={true}>
+            <SidebarTooltip label={t("searchWithShortcut", { shortcut: modKeyHint })} collapsed={true}>
               <button
                 type="button"
                 onClick={() => setSearchOpen(true)}
-                aria-label={`Cari (${modKeyHint})`}
+                aria-label={t("searchWithShortcut", { shortcut: modKeyHint })}
                 className="flex size-10 shrink-0 items-center justify-center rounded-xl border border-border bg-muted/40 text-muted-foreground hover:bg-muted/80 hover:text-foreground transition-colors cursor-pointer"
               >
                 <Search className="size-4" />

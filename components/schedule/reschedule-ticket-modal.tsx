@@ -34,7 +34,7 @@ import {
   sendTicketMessage,
   tutorDecideTicket,
 } from "@/app/(student)/dashboard/schedule/actions";
-import { formatIsoDate } from "@/lib/date-utils";
+import { useAppLocale, useTranslations } from "@/lib/i18n/client";
 
 type Props = {
   open: boolean;
@@ -55,6 +55,9 @@ export function RescheduleTicketModal({
   availableSlots = [],
   onSuccess,
 }: Props) {
+  const t = useTranslations("schedule");
+  const { locale } = useAppLocale();
+  const formatDate = (value: Date) => new Intl.DateTimeFormat(locale === "id" ? "id-ID" : "en-US", { dateStyle: "medium", timeStyle: "short", timeZone: "Asia/Jakarta" }).format(value);
   const [ticketType, setTicketType] = useState<"reschedule" | "cancellation">("reschedule");
   const [reason, setReason] = useState("");
   const [proposedSlotId, setProposedSlotId] = useState("");
@@ -79,7 +82,7 @@ export function RescheduleTicketModal({
     if (!booking) return;
 
     if (!reason.trim()) {
-      toast.error("Alasan permohonan wajib diisi");
+      toast.error(t("ticket.errors.reasonRequired"));
       return;
     }
 
@@ -95,14 +98,14 @@ export function RescheduleTicketModal({
       );
 
       if (res.success) {
-        toast.success("Permohonan berhasil diajukan ke tutor");
+        toast.success(t("ticket.submitted"));
         setReason("");
         onSuccess();
       } else {
-        toast.error(res.error || "Gagal mengajukan permohonan");
+        toast.error(t("ticket.errors.submit"));
       }
     } catch {
-      toast.error("Terjadi kesalahan koneksi");
+      toast.error(t("ticket.errors.connection"));
     } finally {
       setLoading(false);
       setSubmittingAction(null);
@@ -121,10 +124,10 @@ export function RescheduleTicketModal({
         setNewMessage("");
         onSuccess();
       } else {
-        toast.error(res.error || "Gagal mengirim pesan");
+        toast.error(t("ticket.errors.message"));
       }
     } catch {
-      toast.error("Terjadi kesalahan koneksi");
+      toast.error(t("ticket.errors.connection"));
     } finally {
       setLoading(false);
       setSubmittingAction(null);
@@ -140,17 +143,15 @@ export function RescheduleTicketModal({
       const res = await tutorDecideTicket(activeTicket.id, decision, decisionNotes);
       if (res.success) {
         toast.success(
-          decision === "approved"
-            ? "Permohonan berhasil disetujui"
-            : "Permohonan telah ditolak"
+          decision === "approved" ? t("ticket.approvedToast") : t("ticket.rejectedToast")
         );
         onOpenChange(false);
         onSuccess();
       } else {
-        toast.error(res.error || "Gagal memproses keputusan");
+        toast.error(t("ticket.errors.decision"));
       }
     } catch {
-      toast.error("Terjadi kesalahan koneksi");
+      toast.error(t("ticket.errors.connection"));
     } finally {
       setLoading(false);
       setSubmittingAction(null);
@@ -168,10 +169,10 @@ export function RescheduleTicketModal({
         <DialogHeader>
           <DialogTitle className="font-heading text-body-base font-bold flex items-center gap-2">
             <MessageSquare className="size-5 text-brand-primary" />
-            Permohonan Reschedule & Pembatalan
+            {t("ticket.title")}
           </DialogTitle>
           <DialogDescription className="text-body-xs text-muted-foreground">
-            Perubahan jadwal perlu persetujuan tutor.
+            {t("ticket.description")}
           </DialogDescription>
         </DialogHeader>
 
@@ -182,7 +183,7 @@ export function RescheduleTicketModal({
               <div>
                 <p className="font-bold text-foreground">{booking.course?.title}</p>
                 <p className="text-[11px] text-muted-foreground">
-                  Tutor: {booking.slot?.tutor?.name} • Kelompok: {booking.group?.name}
+                  {t("audit.tutor")}: {booking.slot?.tutor?.name} • {t("audit.group")}: {booking.group?.name}
                 </p>
               </div>
               <Badge variant="outline" className="text-[10px]">
@@ -195,7 +196,7 @@ export function RescheduleTicketModal({
               <form onSubmit={handleSubmitNewTicket} className="space-y-4">
                 <div className="space-y-1.5">
                   <label className="text-body-xs font-semibold text-foreground block">
-                    Jenis Permohonan
+                    {t("ticket.typeLabel")}
                   </label>
                   <div className="grid grid-cols-2 gap-2">
                     <button
@@ -207,7 +208,7 @@ export function RescheduleTicketModal({
                           : "border-border bg-card text-muted-foreground"
                       }`}
                     >
-                      Pindah Jadwal (Reschedule)
+                      {t("ticket.reschedule")}
                     </button>
                     <button
                       type="button"
@@ -218,7 +219,7 @@ export function RescheduleTicketModal({
                           : "border-border bg-card text-muted-foreground"
                       }`}
                     >
-                      Batalkan Sesi (Hangus)
+                      {t("ticket.cancellation")}
                     </button>
                   </div>
                 </div>
@@ -227,7 +228,7 @@ export function RescheduleTicketModal({
                   <div className="p-3 rounded-lg border border-red-500/30 bg-red-500/10 text-[11px] text-red-700 dark:text-red-300 flex items-start gap-2">
                     <AlertTriangle className="size-4 shrink-0 mt-0.5" />
                     <span>
-                      Pemberitahuan: Pembatalan pasca penguncian mingguan menyebabkan kuota sesi kelompok pada minggu tersebut hangus tanpa pengembalian dana/kuota.
+                      {t("ticket.cancellationWarning")}
                     </span>
                   </div>
                 )}
@@ -236,7 +237,7 @@ export function RescheduleTicketModal({
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1.5">
                       <label className="text-body-xs font-semibold text-foreground block">
-                        Usulan Tanggal Pengganti
+                        {t("ticket.proposedDate")}
                       </label>
                       <Input
                         type="date"
@@ -248,14 +249,14 @@ export function RescheduleTicketModal({
 
                     <div className="space-y-1.5">
                       <label className="text-body-xs font-semibold text-foreground block">
-                        Pilih Slot Tutor yang Luang
+                        {t("ticket.availableSlot")}
                       </label>
                       <Select
                         value={proposedSlotId}
                         onValueChange={setProposedSlotId}
                       >
                         <SelectTrigger className="h-9 rounded-lg text-body-xs bg-card">
-                          <SelectValue placeholder="Pilih Slot" />
+                          <SelectValue placeholder={t("ticket.selectSlot")} />
                         </SelectTrigger>
                         <SelectContent>
                           {tutorSlots.map((s) => (
@@ -271,10 +272,10 @@ export function RescheduleTicketModal({
 
                 <div className="space-y-1.5">
                   <label className="text-body-xs font-semibold text-foreground block">
-                    Alasan Permohonan
+                    {t("ticket.reason")}
                   </label>
                   <Textarea
-                    placeholder="Jelaskan alasan permohonan dan kesepakatan waktu yang diharapkan..."
+                    placeholder={t("ticket.reasonPlaceholder")}
                     value={reason}
                     onChange={(e) => setReason(e.target.value)}
                     rows={3}
@@ -286,7 +287,7 @@ export function RescheduleTicketModal({
                 <DialogFooter className="gap-2 pt-2">
                   <DialogClose asChild>
                     <Button variant="outline" type="button" disabled={loading}>
-                      Batal
+                      {t("ticket.cancel")}
                     </Button>
                   </DialogClose>
                   <Button
@@ -295,7 +296,7 @@ export function RescheduleTicketModal({
                     disabled={loading || !reason.trim()}
                     className="bg-brand-primary text-white hover:bg-brand-primary/90 rounded-lg"
                   >
-                    Ajukan Tiket
+                    {t("ticket.submit")}
                   </Button>
                 </DialogFooter>
               </form>
@@ -316,23 +317,23 @@ export function RescheduleTicketModal({
                       }`}
                     >
                       {activeTicket.status === "approved"
-                        ? "Disetujui"
+                        ? t("ticket.status.approved")
                         : activeTicket.status === "rejected"
-                        ? "Ditolak"
-                        : "Menunggu Persetujuan"}
+                        ? t("ticket.status.rejected")
+                        : t("ticket.status.pending")}
                     </Badge>
                     <span className="text-body-xs font-semibold text-foreground capitalize">
-                      Permohonan {activeTicket.type}
+                      {t("ticket.requestType", { type: activeTicket.type === "reschedule" ? t("ticket.reschedule") : t("ticket.cancellation") })}
                     </span>
                   </div>
                   <span className="text-[10px] text-muted-foreground">
-                    Diajukan {formatIsoDate(new Date(activeTicket.createdAt))}
+                    {t("ticket.submittedOn", { date: formatDate(new Date(activeTicket.createdAt)) })}
                   </span>
                 </div>
 
                 {/* Reason box */}
                 <div className="text-body-xs space-y-1">
-                  <span className="font-semibold text-foreground">Alasan: </span>
+                  <span className="font-semibold text-foreground">{t("ticket.reason")}: </span>
                   <p className="text-muted-foreground">{activeTicket.reason}</p>
                 </div>
 
@@ -340,7 +341,7 @@ export function RescheduleTicketModal({
                 <div className="space-y-2">
                   <h4 className="text-body-xs font-bold text-foreground flex items-center gap-1.5">
                     <MessageSquare className="size-3.5 text-brand-primary" />
-                    <span>Ruang Diskusi Kelompok & Tutor</span>
+                    <span>{t("ticket.discussionTitle")}</span>
                   </h4>
 
                   <div className="p-3 rounded-xl border border-border bg-muted/10 space-y-2.5 max-h-48 overflow-y-auto">
@@ -359,7 +360,7 @@ export function RescheduleTicketModal({
                             }`}
                           >
                             <span className="text-[10px] font-bold block opacity-80 mb-0.5">
-                              {msg.sender?.name || "Pengguna"}
+                              {msg.sender?.name || t("ticket.userFallback")}
                             </span>
                             <p className="whitespace-pre-wrap">{msg.message}</p>
                           </div>
@@ -372,7 +373,7 @@ export function RescheduleTicketModal({
                   {activeTicket.status === "pending" && (
                     <form onSubmit={handleSendMessage} className="flex gap-2">
                       <Input
-                        placeholder="Ketik pesan diskusi..."
+                        placeholder={t("ticket.messagePlaceholder")}
                         value={newMessage}
                         onChange={(e) => setNewMessage(e.target.value)}
                         className="h-9 rounded-lg text-body-xs"
@@ -394,10 +395,10 @@ export function RescheduleTicketModal({
                 {isTutor && activeTicket.status === "pending" && (
                   <div className="border-t border-border space-y-3 pt-3">
                     <h4 className="text-body-xs font-bold text-foreground">
-                      Keputusan Tutor
+                      {t("ticket.tutorDecision")}
                     </h4>
                     <Textarea
-                      placeholder="Catatan persetujuan atau alasan penolakan..."
+                      placeholder={t("ticket.decisionNotesPlaceholder")}
                       value={decisionNotes}
                       onChange={(e) => setDecisionNotes(e.target.value)}
                       rows={2}
@@ -414,7 +415,7 @@ export function RescheduleTicketModal({
                         className="rounded-lg gap-1"
                       >
                         <XCircle className="size-4" />
-                        <span>Tolak</span>
+                        <span>{t("ticket.reject")}</span>
                       </Button>
                       <Button
                         size="sm"
@@ -424,7 +425,7 @@ export function RescheduleTicketModal({
                         className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg gap-1"
                       >
                         <CheckCircle2 className="size-4" />
-                        <span>Setujui Permohonan</span>
+                        <span>{t("ticket.approve")}</span>
                       </Button>
                     </div>
                   </div>

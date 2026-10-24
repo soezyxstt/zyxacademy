@@ -687,6 +687,13 @@
       "when": 1791991177294,
       "tag": "0097_mushy_bushwacker",
       "breakpoints": true
+    },
+    {
+      "idx": 98,
+      "version": "6",
+      "when": 1792808421459,
+      "tag": "0098_workable_blue_blade",
+      "breakpoints": true
     }
   ]
 }

@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { useAppLocale, useTranslations } from "@/lib/i18n/client";
 import { AdminEmptyState } from "@/components/admin/state-panels";
 import { RefreshCw } from "lucide-react";
 import { LineChart, Line } from "recharts";
@@ -13,13 +14,12 @@ import { WatchlistTable } from "@/components/tutor/watchlist-table";
 import { ConceptDrilldown } from "@/components/tutor/concept-drilldown";
 import type { SnapshotPayload, WeakConcept } from "@/lib/cohort-analytics";
 
-function relativeTime(date: Date | null): string {
+function relativeTime(date: Date | null, locale: string, justNow: string): string {
   if (!date) return "";
   const diffMs = Date.now() - date.getTime();
   const diffH = Math.floor(diffMs / (1000 * 60 * 60));
-  if (diffH < 1) return "baru saja";
-  if (diffH === 1) return "1 jam lalu";
-  return `${diffH} jam lalu`;
+  if (diffH < 1) return justNow;
+  return new Intl.RelativeTimeFormat(locale === "id" ? "id-ID" : "en-US", { numeric: "auto" }).format(-diffH, "hour");
 }
 
 interface Props {
@@ -30,6 +30,8 @@ interface Props {
 
 export function AnalyticsClient({ courseId, analytics, updatedAt }: Props) {
   const router = useRouter();
+  const t = useTranslations("tutor.analytics");
+  const { locale } = useAppLocale();
   const [isPending, startTransition] = useTransition();
   const [drillConcept, setDrillConcept] = useState<WeakConcept | null>(null);
 
@@ -58,7 +60,7 @@ export function AnalyticsClient({ courseId, analytics, updatedAt }: Props) {
       {/* Header meta row */}
       <div className="flex items-center gap-3 flex-wrap">
         <span className="text-body-sm text-muted-foreground">
-          {updatedDate ? `Diperbarui ${relativeTime(updatedDate)}` : "Belum dihitung"}
+          {updatedDate ? t("updated", { relative: relativeTime(updatedDate, locale, t("justNow")) }) : t("notCalculated")}
         </span>
         <Button
           variant="ghost"
@@ -68,7 +70,7 @@ export function AnalyticsClient({ courseId, analytics, updatedAt }: Props) {
           className="gap-1.5 h-7 px-2"
         >
           <RefreshCw className={`size-3.5 ${isPending ? "animate-spin" : ""}`} aria-hidden />
-          Perbarui
+          {t("refresh")}
         </Button>
       </div>
 
@@ -76,11 +78,11 @@ export function AnalyticsClient({ courseId, analytics, updatedAt }: Props) {
       <Reveal>
         <section className="rounded-xl border border-border bg-card p-4" aria-labelledby="weak-heading">
           <h2 id="weak-heading" className="text-body-base font-semibold mb-3">
-            Konsep prioritas
+            {t("priorityConcepts")}
           </h2>
           {analytics.weakConcepts.length === 0 ? (
             <p className="text-body-sm text-muted-foreground">
-              Belum ada hasil kuis.
+              {t("noQuizResults")}
             </p>
           ) : (
             <div className="divide-y divide-border">
@@ -98,7 +100,7 @@ export function AnalyticsClient({ courseId, analytics, updatedAt }: Props) {
                     </span>
                     <div className="min-w-0">
                       <p className="text-body-base font-medium truncate">{concept.conceptName}</p>
-                      <p className="text-body-sm text-muted-foreground">{concept.studentCount} siswa</p>
+                      <p className="text-body-sm text-muted-foreground">{t("students", { count: concept.studentCount })}</p>
                     </div>
                     <span className="tabular-nums text-body-base">{concept.avgMastery}</span>
                     {/* Sparkline */}
@@ -137,11 +139,11 @@ export function AnalyticsClient({ courseId, analytics, updatedAt }: Props) {
       <Reveal>
         <section className="rounded-xl border border-border bg-card p-4" aria-labelledby="dist-heading">
           <h2 id="dist-heading" className="text-body-base font-semibold mb-3">
-            Distribusi penguasaan
+            {t("masteryDistribution")}
           </h2>
           {analytics.allConcepts.length === 0 ? (
             <p className="text-body-sm text-muted-foreground">
-              Belum ada hasil kuis.
+              {t("noQuizResults")}
             </p>
           ) : (
             <div className="divide-y divide-border">
@@ -156,7 +158,7 @@ export function AnalyticsClient({ courseId, analytics, updatedAt }: Props) {
                   </span>
                   <div className="min-w-0">
                     <p className="text-body-base font-medium truncate">{concept.conceptName}</p>
-                    <p className="text-body-sm text-muted-foreground">{concept.studentCount} siswa</p>
+                    <p className="text-body-sm text-muted-foreground">{t("students", { count: concept.studentCount })}</p>
                   </div>
                   <span className="tabular-nums text-body-base">{concept.avgMastery}</span>
                   <DistributionBar
@@ -173,14 +175,14 @@ export function AnalyticsClient({ courseId, analytics, updatedAt }: Props) {
         </section>
       </Reveal>
 
-      {/* Section 4: Intervensi aktif */}
+      {/* Section 4: Active interventions */}
       <Reveal>
         <section className="rounded-xl border border-border bg-card p-4" aria-labelledby="interventions-heading">
           <h2 id="interventions-heading" className="text-body-base font-semibold mb-3">
-            Intervensi aktif
+            {t("activeInterventions")}
           </h2>
           {analytics.interventionCounts.length === 0 ? (
-            <AdminEmptyState icon={RefreshCw} title="Belum ada intervensi" />
+            <AdminEmptyState icon={RefreshCw} title={t("noInterventions")} />
           ) : (
             <div className="divide-y divide-border">
               {analytics.interventionCounts.map((item) => (
@@ -198,11 +200,11 @@ export function AnalyticsClient({ courseId, analytics, updatedAt }: Props) {
       <Reveal>
         <section className="rounded-xl border border-border bg-card p-4" aria-labelledby="misconceptions-heading">
           <h2 id="misconceptions-heading" className="text-body-base font-semibold mb-3">
-            Miskonsepsi umum
+            {t("commonMisconceptions")}
           </h2>
           {analytics.topMisconceptions.length === 0 ? (
             <p className="text-body-sm text-muted-foreground">
-              Belum ada pola miskonsepsi.
+              {t("noMisconceptions")}
             </p>
           ) : (
             <div className="divide-y divide-border">
@@ -211,7 +213,7 @@ export function AnalyticsClient({ courseId, analytics, updatedAt }: Props) {
                   <div className="min-w-0">
                     <p className="text-body-base font-medium truncate">{m.label}</p>
                     <p className="text-body-sm text-muted-foreground">
-                      {m.conceptName} &middot; {m.sampleSize} percobaan
+                      {m.conceptName} &middot; {t("attempts", { count: m.sampleSize })}
                     </p>
                   </div>
                   <Badge variant="secondary" className="shrink-0">{m.pctSelected}%</Badge>
@@ -226,7 +228,7 @@ export function AnalyticsClient({ courseId, analytics, updatedAt }: Props) {
       <Reveal>
         <section className="rounded-xl border border-border bg-card p-4" aria-labelledby="watchlist-heading">
           <h2 id="watchlist-heading" className="text-body-base font-semibold mb-3">
-            Perlu perhatian
+            {t("needsAttention")}
           </h2>
           <WatchlistTable students={analytics.watchlist} />
         </section>

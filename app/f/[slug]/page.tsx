@@ -5,6 +5,7 @@ import { and, eq, isNull } from "drizzle-orm";
 import { db } from "@/db";
 import { customForms, googleMeetSessions } from "@/db/schema";
 import { createMetadata } from "@/lib/site";
+import { getAppLocale, getTranslations } from "@/lib/i18n/server";
 
 export async function generateMetadata({
   params,
@@ -12,6 +13,8 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
   const { slug } = await params;
+  const locale = await getAppLocale();
+  const t = await getTranslations("marketing");
   const normalizedSlug = slug.toLowerCase();
 
   const [form] = await db
@@ -26,8 +29,9 @@ export async function generateMetadata({
   if (form) {
     return createMetadata({
       title: form.title,
-      description: form.description || `Formulir ${form.title} di Zyx Academy.`,
+      description: form.description || t("publicForm.formFor", { title: form.title }),
       path: `/f/${slug}`,
+      locale,
     });
   }
 
@@ -44,16 +48,18 @@ export async function generateMetadata({
 
   if (meet) {
     return createMetadata({
-      title: `Google Meet: ${meet.title}`,
-      description: `Ruang pertemuan Google Meet untuk ${meet.title}.`,
+      title: t("public.meetFor", { title: meet.title }),
+      description: t("public.meetForDescription", { title: meet.title }),
       path: `/f/${slug}`,
+      locale,
     });
   }
 
   return createMetadata({
-    title: "Formulir",
-    description: "Formulir Zyx Academy.",
+      title: t("publicForm.formTitle"),
+      description: t("publicForm.formDescription"),
     path: `/f/${slug}`,
+      locale,
   });
 }
 

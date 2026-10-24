@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { ClipboardList } from "lucide-react";
-import { createMetadata, pageTitle } from "@/lib/site";
+import { createMetadata } from "@/lib/site";
+import { getTranslations } from "@/lib/i18n/server";
+import { TranslatedText } from "@/components/i18n/translated-text";
 import { PKA_COURSE_ID } from "@/lib/pka-config";
 import { requirePkaSession } from "@/lib/pka-enrollment";
 import { CoursePageShell } from "@/components/course/course-page-shell";
@@ -11,11 +13,10 @@ import { eq, and, desc } from "drizzle-orm";
 import { checkEnrollment } from "@/app/(student)/dashboard/actions";
 import { QuizListClient } from "../../[id]/quiz/quiz-list-client";
 
-export const metadata: Metadata = createMetadata({
-  title: "Simulasi Tutorial PKA",
-  description: "Simulasi tryout PKA untuk persiapan ujian akademik; kerjakan latihan soal interaktif dengan batas waktu.",
-  path: "/courses/tutorial-pka/simulasi",
-});
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("studentExtras.pka");
+  return createMetadata({ title: t("simulationTitle"), description: t("simulationDescription"), path: "/courses/tutorial-pka/simulasi" });
+}
 
 
 export default async function PkaSimulasiPage() {
@@ -43,7 +44,7 @@ export default async function PkaSimulasiPage() {
 
   return (
     <CoursePageShell
-      title="Simulasi Ujian PKA"
+      title={<TranslatedText namespace="studentExtras.pka" messageKey="simulationPageTitle" />}
 
       icon={ClipboardList}
     >

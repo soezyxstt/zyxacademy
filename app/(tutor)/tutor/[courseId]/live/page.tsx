@@ -5,6 +5,8 @@ import { headers } from "next/headers";
 import { PageHeader } from "@/components/page-header";
 import { ApplicationPage } from "@/components/application-page";
 import { pageTitle } from "@/lib/site";
+import { getTranslations } from "@/lib/i18n/server";
+import { TranslatedText } from "@/components/i18n/translated-text";
 import { requireTutorCourseAccess } from "@/lib/auth/tutor-access";
 import { TutorLiveConsole } from "@/components/tutor/tutor-live-console";
 import { db } from "@/db";
@@ -15,9 +17,10 @@ type Props = { params: Promise<{ courseId: string }> };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { courseId } = await params;
+  const t = await getTranslations("tutor.routeTitles");
   return {
-    title: pageTitle("Kuis Langsung"),
-    description: `Penyelenggaraan kuis langsung untuk kelas ${courseId}.`,
+    title: pageTitle(t("liveQuiz")),
+    description: t("liveQuizDescription", { courseId }),
   };
 }
 
@@ -69,9 +72,9 @@ export default async function TutorLivePage({ params }: Props) {
   return (
     <ApplicationPage>
       <PageHeader
-        title={`Kuis Langsung: ${courseTitle}`}
+        title={<><TranslatedText namespace="tutor" messageKey="routeTitles.liveQuiz" />: {courseTitle}</>}
         backHref={`/tutor/${courseId}`}
-        backLabel="Ringkasan"
+        backLabel={<TranslatedText namespace="tutor" messageKey="routeTitles.overview" />}
       />
 
       <TutorLiveConsole courseId={courseId} courseTitle={courseTitle} />

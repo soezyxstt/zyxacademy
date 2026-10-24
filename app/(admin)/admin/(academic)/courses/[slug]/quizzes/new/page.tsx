@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { pageTitle } from "@/lib/site";
+import { getTranslations } from "@/lib/i18n/server";
 import { db } from "@/db";
 import { courses } from "@/db/schema";
 import { eq } from "drizzle-orm";
@@ -14,6 +15,7 @@ type Props = {
 };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const t = await getTranslations("adminAcademic");
   const { slug } = await params;
   const course = await db
     .select({ title: courses.title })
@@ -23,11 +25,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     .then((r) => r[0]);
 
   if (!course) {
-    return { title: pageTitle("Buat Kuis") };
+    return { title: pageTitle(t("metadata.pages.newQuizTitle")) };
   }
 
   return {
-    title: pageTitle(`Buat Kuis - ${course.title}`),
+    title: pageTitle(t("metadata.pages.newQuizCourseTitle", { course: course.title })),
   };
 }
 

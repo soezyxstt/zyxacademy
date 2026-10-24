@@ -51,6 +51,7 @@ import { cn } from "@/lib/utils";
 import type { CourseMaterial, DocCategory } from "@/lib/student-course-fixtures";
 import { getSubcategoryLabel, type CourseMaterialSubcategory } from "@/lib/course-materials";
 import { materialMatchesDocumentFilters, type DocumentFilterState } from "@/lib/document-filters";
+import { useTranslations } from "@/lib/i18n/client";
 
 type Chapter = {
   id: string;
@@ -75,20 +76,34 @@ type DocumentListClientProps = {
 };
 
 const tabConfig: Array<{ key: TabKey; label: string; icon: typeof FileText }> = [
-  { key: "materi", label: "Materi", icon: FileText },
-  { key: "diktat", label: "Diktat", icon: BookOpen },
-  { key: "pdf", label: "PDF", icon: FileText },
-  { key: "bank_soal", label: "Bank Soal", icon: ClipboardList },
+  { key: "materi", label: "material" , icon: FileText },
+  { key: "diktat", label: "handbook", icon: BookOpen },
+  { key: "pdf", label: "pdf", icon: FileText },
+  { key: "bank_soal", label: "questionBank", icon: ClipboardList },
 ];
 
 const categoryLabel: Record<string, string> = {
-  materi: "Materi",
-  soal: "Soal",
-  solusi: "Pembahasan",
-  diktat: "Diktat",
+  materi: "material",
+  soal: "questions",
+  solusi: "explanation",
+  diktat: "handbook",
 };
 
 const MAX_THUMBNAIL_RETRIES = 8;
+
+function displayFileSizeLabel(value: string, t: (key: string) => string): string {
+  const labels: Record<string, string> = {
+    "PDF Diktat": "diktatPdf",
+    "Rangkuman Materi": "materialSummary",
+    "Pembahasan Soal": "questionExplanation",
+    "Lembar Soal": "questionSheet",
+    "Berkas PDF ITB": "itbPdfFile",
+    "PDF File": "pdfFile",
+    "Disusun otomatis": "autoPrepared",
+  };
+  const key = labels[value.trim()];
+  return key ? t(`documents.fileLabels.${key}`) : value;
+}
 
 const emptyFilters = (): DocumentFilterState => ({
   categories: new Set(),
@@ -178,23 +193,24 @@ function DocumentPlaceholder({
   subcategory?: string | null;
   isLoading?: boolean;
 }) {
+  const t = useTranslations("learning");
   let badgeText = "DOC";
   let badgeColor = "bg-blue-500";
 
   if (kind === "quiz" || subcategory === "kuis") {
-    badgeText = "KUIS";
+    badgeText = t("documents.badges.quiz");
     badgeColor = "bg-amber-500";
   } else if (kind === "tryout" || subcategory === "tryout") {
-    badgeText = "TRYOUT";
+    badgeText = t("documents.badges.tryout");
     badgeColor = "bg-purple-600";
   } else if (docCategory === "solusi") {
-    badgeText = "SOLUSI";
+    badgeText = t("documents.badges.solution");
     badgeColor = "bg-emerald-500";
   } else if (docCategory === "soal") {
-    badgeText = "SOAL";
+    badgeText = t("documents.badges.question");
     badgeColor = "bg-amber-500";
   } else if (docCategory === "diktat") {
-    badgeText = "DIKTAT";
+    badgeText = t("documents.badges.handbook");
     badgeColor = "bg-indigo-500";
   } else if (kind === "pdf") {
     badgeText = "PDF";
@@ -435,6 +451,7 @@ export function DocumentListClient({
   accessTier,
   lockedMaterialCount = 0,
 }: DocumentListClientProps) {
+  const t = useTranslations("learning");
   const router = useRouter();
   const initialDefaultTab = normalizeTabKey(defaultTab);
   const [urlTab, setUrlTab] = useUrlTab("tab", initialDefaultTab);
@@ -453,14 +470,14 @@ export function DocumentListClient({
     try {
       const res = await deleteCourseMaterial(deleteTarget.id);
       if (res.success) {
-        toast.success("Dokumen berhasil dihapus.");
+        toast.success(t("documents.deleted"));
         setDeleteTarget(null);
         router.refresh();
       } else {
-        toast.error(res.error || "Gagal menghapus dokumen.");
+        toast.error(t("documents.deleteFailed"));
       }
     } catch {
-      toast.error("Terjadi kesalahan jaringan.");
+      toast.error(t("documents.networkError"));
     } finally {
       setIsDeleting(false);
     }
@@ -535,23 +552,23 @@ export function DocumentListClient({
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-brand-primary/25 bg-brand-primary/5 px-3 py-2.5">
           <div className="flex min-w-0 items-center gap-2 text-body-xs text-muted-foreground">
             <LockKeyhole className="size-4 shrink-0 text-brand-primary" aria-hidden />
-            <span>Bab berikutnya dan materi yang belum memiliki satu bab tersedia setelah aktivasi kelas.</span>
+            <span>{t("documents.lockedMaterialNotice")}</span>
           </div>
           <Button asChild variant="outline" size="sm" className="h-8 shrink-0 rounded-md text-body-sm">
-            <Link href="/plans">Aktifkan akses</Link>
+            <Link href="/plans">{t("documents.activateAccess")}</Link>
           </Button>
         </div>
       ) : null}
       {/* Unified Toolbar: Tab Strip, SearchBar, Filter Popover, Grid/List Toggle */}
       <div className="flex flex-wrap items-center gap-2">
         <Tabs value={activeTab} onValueChange={(value) => handleTabChange(normalizeTabKey(value))}>
-          <TabsList aria-label="Kategori materi belajar">
+          <TabsList aria-label={t("documents.categoryLabel")}>
             {tabConfig.map((tab) => {
               const Icon = tab.icon;
               return (
                 <TabsTrigger key={tab.key} value={tab.key}>
                   <Icon className="size-3.5 shrink-0" />
-                  <span>{tab.label}</span>
+                  <span>{t(`documents.categories.${tab.label}`)}</span>
                 </TabsTrigger>
               );
             })}
@@ -565,7 +582,7 @@ export function DocumentListClient({
           value={searchQuery}
           onSearch={setSearchQuery}
           onClear={() => setSearchQuery("")}
-          placeholder={`Cari ${tabConfig.find((t) => t.key === activeTab)?.label.toLowerCase()}...`}
+          placeholder={t("documents.searchPlaceholder", { category: t(`documents.categories.${tabConfig.find((tab) => tab.key === activeTab)?.label ?? "material"}`).toLowerCase() })}
           containerClassName="min-w-[140px] flex-1"
         />
 
@@ -580,7 +597,7 @@ export function DocumentListClient({
                 className="h-9 shrink-0 gap-1.5 rounded-md text-body-sm"
               >
                 <Filter className="size-3.5" aria-hidden />
-                Filter
+                {t("documents.filter")}
                 {activeFilterCount > 0 ? (
                   <Badge className="ml-0.5 rounded-md px-1.5 py-0 text-body-xs">
                     {activeFilterCount}
@@ -590,7 +607,7 @@ export function DocumentListClient({
             </PopoverTrigger>
             <PopoverContent align="end" className="w-[min(22rem,calc(100vw-2rem))] space-y-4 p-3">
               <div className="flex items-center justify-between">
-                <p className="font-heading text-body-sm font-bold">Filter dokumen</p>
+                <p className="font-heading text-body-sm font-bold">{t("documents.filterTitle")}</p>
                 {activeFilterCount > 0 ? (
                   <Button
                     type="button"
@@ -599,13 +616,13 @@ export function DocumentListClient({
                     onClick={() => setFilters(emptyFilters())}
                     className="h-7 px-2 text-body-xs"
                   >
-                    Reset
+                    {t("documents.reset")}
                   </Button>
                 ) : null}
               </div>
               {subcategories.length > 0 && (
                 <FilterGroup
-                  label="Subkategori"
+                  label={t("documents.subcategory")}
                   selected={filters.subcategories}
                   onToggle={(value) => toggleFilter("subcategories", value)}
                   options={subcategories.map((value) => ({
@@ -617,7 +634,7 @@ export function DocumentListClient({
               )}
               {chapters.length > 0 && (
                 <FilterGroup
-                  label="Bab"
+                  label={t("documents.chapter")}
                   selected={filters.chapters}
                   onToggle={(value) => toggleFilter("chapters", value)}
                   options={chapters.map((chapter) => ({
@@ -628,7 +645,7 @@ export function DocumentListClient({
               )}
               {years.length > 0 && (
                 <FilterGroup
-                  label="Tahun"
+                  label={t("documents.year")}
                   selected={filters.years}
                   onToggle={(value) => toggleFilter("years", value)}
                   options={years.map((year) => ({
@@ -650,7 +667,7 @@ export function DocumentListClient({
             variant={viewMode === "grid" ? "secondary" : "ghost"}
             className="size-8 rounded-md"
             onClick={() => setViewMode("grid")}
-            aria-label="Tampilan grid"
+            aria-label={t("documents.gridView")}
           >
             <LayoutGrid className="size-4" />
           </Button>
@@ -660,7 +677,7 @@ export function DocumentListClient({
             variant={viewMode === "list" ? "secondary" : "ghost"}
             className="size-8 rounded-md"
             onClick={() => setViewMode("list")}
-            aria-label="Tampilan daftar"
+            aria-label={t("documents.listView")}
           >
             <List className="size-4" />
           </Button>
@@ -674,8 +691,8 @@ export function DocumentListClient({
             variant="default"
             className="size-9 rounded-lg shrink-0 cursor-pointer shadow-xs"
             onClick={() => setUploadOpen(true)}
-            aria-label="Unggah dokumen PDF"
-            title="Unggah dokumen PDF"
+            aria-label={t("documents.uploadPdf")}
+            title={t("documents.uploadPdf")}
           >
             <Plus className="size-4" />
           </Button>
@@ -685,7 +702,7 @@ export function DocumentListClient({
       {/* Active Filter Indicator */}
       {activeFilterCount > 0 && (
         <div className="flex items-center gap-2 text-body-xs text-muted-foreground">
-          <span>{activeFilterCount} filter aktif</span>
+          <span>{t("documents.activeFilters", { count: activeFilterCount })}</span>
           <Button
             type="button"
             variant="link"
@@ -693,7 +710,7 @@ export function DocumentListClient({
             onClick={() => setFilters(emptyFilters())}
             className="h-auto p-0 text-body-xs"
           >
-            Reset
+            {t("documents.reset")}
           </Button>
         </div>
       )}
@@ -743,7 +760,7 @@ export function DocumentListClient({
                     <p className="mt-0.5 truncate text-body-xs text-muted-foreground leading-none">
                       {subLabel}
                       {material.year ? ` · ${material.year}` : ""}
-                      {material.fileSize && !/^diktat(\s+resmi|\s+canonical)?$/i.test(material.fileSize.trim()) ? ` · ${material.fileSize}` : ""}
+                      {material.fileSize && !/^diktat(\s+resmi|\s+canonical)?$/i.test(material.fileSize.trim()) ? ` · ${displayFileSizeLabel(material.fileSize, t)}` : ""}
                     </p>
                   </div>
                   {isAdmin ? (
@@ -758,7 +775,7 @@ export function DocumentListClient({
                               : "bg-muted text-muted-foreground border-border"
                           )}
                         >
-                          {material.status === "published" ? "Published" : "Draft"}
+                          {material.status === "published" ? t("documents.status.published") : t("documents.status.draft")}
                         </Badge>
                       ) : null}
                       <DropdownMenu>
@@ -768,7 +785,7 @@ export function DocumentListClient({
                             variant="ghost"
                             size="icon"
                             className="size-7 rounded-md text-muted-foreground hover:text-foreground"
-                            aria-label="Aksi dokumen"
+                            aria-label={t("documents.documentActions")}
                           >
                             <MoreVertical className="size-3.5" />
                           </Button>
@@ -830,7 +847,7 @@ export function DocumentListClient({
                       ) : material.completed ? (
                         <CheckCircle2
                           className="size-4 shrink-0 text-status-success"
-                          aria-label="Selesai dipelajari"
+                          aria-label={t("documents.markAsRead")}
                         />
                       ) : null}
                       {material.url && allowDownload && !material.locked ? (
@@ -840,7 +857,7 @@ export function DocumentListClient({
                           size="icon"
                           className="size-7 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted"
                           asChild
-                          title="Unduh PDF"
+                          title={t("documents.downloadPdf")}
                           aria-label={`Unduh PDF ${material.title}`}
                         >
                           <a href={material.url} download target="_blank" rel="noopener noreferrer">
@@ -909,7 +926,7 @@ export function DocumentListClient({
                       <p className="mt-0.5 truncate text-body-xs text-muted-foreground md:hidden">
                         {subLabel}
                         {material.year ? ` · ${material.year}` : ""}
-                        {material.fileSize && !/^diktat(\s+resmi|\s+canonical)?$/i.test(material.fileSize.trim()) ? ` · ${material.fileSize}` : ""}
+                        {material.fileSize && !/^diktat(\s+resmi|\s+canonical)?$/i.test(material.fileSize.trim()) ? ` · ${displayFileSizeLabel(material.fileSize, t)}` : ""}
                       </p>
                     </div>
                     {material.locked ? (
@@ -928,7 +945,7 @@ export function DocumentListClient({
                     {[
                       material.year ? String(material.year) : null,
                       material.fileSize && !/^diktat(\s+resmi|\s+canonical)?$/i.test(material.fileSize.trim())
-                        ? material.fileSize
+                        ? displayFileSizeLabel(material.fileSize, t)
                         : null,
                     ]
                       .filter(Boolean)
@@ -946,7 +963,7 @@ export function DocumentListClient({
                               : "bg-muted text-muted-foreground border-border"
                           )}
                         >
-                          {material.status === "published" ? "Published" : "Draft"}
+                          {material.status === "published" ? t("documents.status.published") : t("documents.status.draft")}
                         </Badge>
                       ) : null}
                       <DropdownMenu>
@@ -956,7 +973,7 @@ export function DocumentListClient({
                             variant="ghost"
                             size="icon"
                             className="size-7 rounded-md text-muted-foreground hover:text-foreground"
-                            aria-label="Aksi dokumen"
+                            aria-label={t("documents.documentActions")}
                           >
                             <MoreVertical className="size-3.5" />
                           </Button>
@@ -1017,7 +1034,7 @@ export function DocumentListClient({
                           size="icon"
                           className="size-7 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted"
                           asChild
-                          title="Unduh PDF"
+                          title={t("documents.downloadPdf")}
                           aria-label={`Unduh PDF ${material.title}`}
                         >
                           <a href={material.url} download target="_blank" rel="noopener noreferrer">
@@ -1043,23 +1060,19 @@ export function DocumentListClient({
             return <ActiveIcon className="size-6 text-muted-foreground" aria-hidden />;
           })()}
           <h2 className="mt-3 font-heading text-body-sm font-bold">
-            Belum ada berkas {tabConfig.find((t) => t.key === activeTab)?.label.toLowerCase()}
+            {t("documents.emptyForCategory", { category: t(`documents.categories.${tabConfig.find((tab) => tab.key === activeTab)?.label ?? "material"}`).toLowerCase() })}
           </h2>
           <p className="mt-1 text-body-xs text-muted-foreground">
-            {activeTab === "materi" && "Materi belajar untuk kelas ini belum tersedia."}
-            {activeTab === "diktat" && "Diktat untuk kelas ini belum tersedia."}
-            {activeTab === "pdf" && "Belum ada materi kuliah PDF yang diunggah untuk kelas ini."}
-            {activeTab === "bank_soal" &&
-              "Belum ada bank soal, kuis, atau tryout untuk kelas ini."}
+            {t(`documents.empty.${activeTab}`)}
           </p>
         </div>
       ) : filteredMaterials.length === 0 ? (
         /* Empty State when search or filter returns no results */
         <div className="flex flex-col items-center rounded-xl border border-dashed border-border/60 bg-muted/15 px-4 py-10 text-center">
           <FileText className="size-6 text-muted-foreground" aria-hidden />
-          <h2 className="mt-3 font-heading text-body-sm font-bold">Dokumen tidak ditemukan</h2>
+          <h2 className="mt-3 font-heading text-body-sm font-bold">{t("documents.noResultsTitle")}</h2>
           <p className="mt-1 text-body-xs text-muted-foreground">
-            Ubah kata kunci pencarian atau reset filter yang sedang aktif.
+            {t("documents.noResultsDescription")}
           </p>
           <Button
             type="button"
@@ -1071,7 +1084,7 @@ export function DocumentListClient({
               setSearchQuery("");
             }}
           >
-            Reset pencarian
+            {t("documents.resetSearch")}
           </Button>
         </div>
       ) : null}
@@ -1088,7 +1101,7 @@ export function DocumentListClient({
           open={uploadOpen}
           onOpenChange={setUploadOpen}
           courseId={courseId}
-          courseTitle={courseTitle || "Mata Kuliah"}
+          courseTitle={courseTitle || t("courseCatalog.genericCourse")}
           chapters={chapters}
           existingTitles={materials.map((m) => m.title)}
         />
@@ -1099,9 +1112,9 @@ export function DocumentListClient({
         <AdminConfirmDialog
           open={Boolean(deleteTarget)}
           onOpenChange={(open) => !open && setDeleteTarget(null)}
-          title="Hapus Dokumen"
-          description={`Dokumen "${deleteTarget.title}" akan dihapus secara permanen.`}
-          confirmLabel="Hapus"
+          title={t("documents.deleteTitle")}
+          description={t("documents.deleteDescription", { title: deleteTarget.title })}
+          confirmLabel={t("documents.delete")}
           loading={isDeleting}
           onConfirm={handleDeleteConfirm}
         />

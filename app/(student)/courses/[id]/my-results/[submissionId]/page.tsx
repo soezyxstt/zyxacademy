@@ -12,16 +12,19 @@ import { AttemptReview } from "@/components/course/attempt-review";
 import { ReviewClient } from "./review-client";
 import { getCourse } from "@/lib/course-utils";
 import { getAuthSession } from "@/lib/auth-session";
+import { TranslatedText } from "@/components/i18n/translated-text";
+import { getTranslations } from "@/lib/i18n/server";
 
 type Props = { params: Promise<{ id: string; submissionId: string }> };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id, submissionId } = await params;
   const course = await getCourse(id);
+  const t = await getTranslations("learning");
 
   return createMetadata({
-    title: course ? `Tinjau Jawaban ${course.title}` : "Tinjau Jawaban",
-    description: "Tinjau jawaban kuis atau tryout Anda dengan pembahasan terstruktur.",
+    title: course ? t("metadata.reviewTitle", { course: course.title }) : t("metadata.reviewTitleFallback"),
+    description: t("metadata.reviewDescription"),
     path: `/courses/${id}/my-results/${submissionId}`,
   });
 }
@@ -51,7 +54,7 @@ export default async function SubmissionReviewPage({ params }: Props) {
 
   if (attempt) {
     return (
-      <CoursePageShell title="Review kuis" hideHeader>
+      <CoursePageShell title={<TranslatedText namespace="learning" messageKey="reviewPage.quizTitle" />} hideHeader>
         <Reveal>
           <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
             <Button
@@ -59,12 +62,12 @@ export default async function SubmissionReviewPage({ params }: Props) {
               variant="outline"
               className="interactive rounded-md border-border/80 text-muted-foreground hover:text-foreground"
             >
-              <Link href={`/courses/${id}/my-results`}>Kembali ke hasil</Link>
+              <Link href={`/courses/${id}/my-results`}><TranslatedText namespace="learning" messageKey="reviewPage.backToResults" /></Link>
             </Button>
 
             <Button asChild size="sm" className="rounded-md bg-brand-primary text-white hover:bg-brand-primary/90 font-semibold shadow-xs">
               <Link href={`/courses/${id}/my-results/${submissionId}/summary`}>
-                Lihat Diagnosis & Rencana Belajar
+                <TranslatedText namespace="learning" messageKey="reviewPage.viewDiagnosis" />
               </Link>
             </Button>
           </div>
@@ -171,7 +174,7 @@ export default async function SubmissionReviewPage({ params }: Props) {
   if (!listItem || !review) notFound();
 
   return (
-    <CoursePageShell title="Review jawaban" description={review.examTitle} hideHeader>
+    <CoursePageShell title={<TranslatedText namespace="learning" messageKey="reviewPage.answerTitle" />} description={review.examTitle} hideHeader>
       <Reveal>
         <div className="mb-4">
           <Button
@@ -179,7 +182,7 @@ export default async function SubmissionReviewPage({ params }: Props) {
             variant="outline"
             className="interactive rounded-md border-border/80 text-muted-foreground hover:text-foreground"
           >
-            <Link href={`/courses/${id}/my-results`}>Kembali ke hasil</Link>
+            <Link href={`/courses/${id}/my-results`}><TranslatedText namespace="learning" messageKey="reviewPage.backToResults" /></Link>
           </Button>
         </div>
 

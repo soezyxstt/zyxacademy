@@ -1,0 +1,24 @@
+{
+  "userFallback": "User",
+  "accountNamed": "Account ({name})",
+  "profileSettings": "Profile settings",
+  "studentDashboard": "Student dashboard",
+  "tutorPanel": "Tutor panel",
+  "adminPanel": "Admin panel",
+  "hideZyra": "Hide Zyra",
+  "showZyra": "Show Zyra",
+  "appearance": "Appearance",
+  "light": "Light",
+  "dark": "Dark",
+  "system": "System",
+  "logOut": "Sign out",
+  "searchWithShortcut": "Search ({shortcut})",
+  "closeSidebar": "Close sidebar",
+  "openSidebar": "Open sidebar",
+  "saveLanguageError": "Could not save language. Try again.",
+  "language": {
+    "label": "Language",
+    "indonesian": "Bahasa Indonesia",
+    "english": "English"
+  }
+}

@@ -20,20 +20,13 @@ import { AdminPageHeader } from "@/components/admin/page-header";
 import { AdminSectionTitle } from "@/components/admin/section-title";
 import { Button } from "@/components/ui/button";
 import { AdminStatStrip, AdminStatStripItem } from "@/components/admin/stat-card";
+import { useTranslations, useAppLocale } from "@/lib/i18n/client";
 
-function sanitizeMeetError(rawError: string): string {
+function meetErrorKey(rawError: string): "oauthError" | "loadError" {
   if (rawError.includes("invalid_grant") || rawError.includes("OAuth") || rawError.includes("expired or revoked")) {
-    return "Sesi autentikasi Google OAuth kedaluwarsa atau telah dicabut. Silakan hubungkan ulang integrasi Google Workspace.";
+    return "oauthError";
   }
-  if (rawError.startsWith("{") && rawError.endsWith("}")) {
-    try {
-      const parsed = JSON.parse(rawError);
-      return parsed.error_description || parsed.error || "Terjadi kesalahan pada layanan Google Meet.";
-    } catch {
-      // fallback
-    }
-  }
-  return rawError;
+  return "loadError";
 }
 
 export default function DetailedMeetingLogPage({
@@ -43,6 +36,8 @@ export default function DetailedMeetingLogPage({
 }) {
   const resolvedParams = use(params);
   const conferenceRecordId = resolvedParams.id;
+  const translate = useTranslations("adminOps");
+  const { locale } = useAppLocale();
 
   const [analytics, setAnalytics] = useState<ComprehensiveMeetingAnalytics | null>(null);
   const [loading, setLoading] = useState(true);
@@ -57,10 +52,10 @@ export default function DetailedMeetingLogPage({
       if (data.success && data.analytics) {
         setAnalytics(data.analytics);
       } else {
-        setError(sanitizeMeetError(data.error || "Gagal memuat data log meeting."));
+        setError(meetErrorKey(data.error || ""));
       }
-    } catch (err: any) {
-      setError(sanitizeMeetError(err.message || "Terjadi kesalahan jaringan."));
+    } catch {
+      setError("loadError");
     } finally {
       setLoading(false);
     }
@@ -72,7 +67,7 @@ export default function DetailedMeetingLogPage({
 
   const formatTimeOnly = (isoStr?: string) => {
     if (!isoStr) return "-";
-    return new Date(isoStr).toLocaleTimeString("id-ID", {
+    return new Date(isoStr).toLocaleTimeString(locale === "id" ? "id-ID" : "en-US", {
       hour: "2-digit",
       minute: "2-digit",
       second: "2-digit",
@@ -81,19 +76,19 @@ export default function DetailedMeetingLogPage({
 
   const formatDurationSec = (seconds?: number) => {
     if (!seconds && seconds !== 0) return "-";
-    if (seconds < 60) return `${seconds} detik`;
+    if (seconds < 60) return translate("meetDetailUI.seconds", { count: seconds });
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
-    return `${mins} m ${secs} s`;
+    return translate("meetDetailUI.minutesSeconds", { minutes: mins, seconds: secs });
   };
 
   return (
     <div className="space-y-6">
       <AdminPageHeader
         icon={Video}
-        title="Detail log meeting"
+        title={translate("meetDetailUI.title")}
         backHref="/admin/meet"
-        backLabel="Kembali ke Meet"
+        backLabel={translate("meetDetailUI.back")}
         actions={
           <Button
             type="button"
@@ -103,7 +98,7 @@ export default function DetailedMeetingLogPage({
             disabled={loading}
           >
             <RefreshCw className={`size-3.5 ${loading ? "animate-spin" : ""}`} />
-            Muat ulang
+            {translate("meetDetailUI.reload")}
           </Button>
         }
       />
@@ -111,7 +106,7 @@ export default function DetailedMeetingLogPage({
       {error && (
         <div className="flex items-center gap-3 rounded-xl border border-status-error/30 bg-status-error/10 p-4 text-body-sm text-status-error">
           <AlertCircle className="size-5 shrink-0" />
-          <p>{error}</p>
+          <p>{translate(`meetDetailUI.${error}`)}</p>
         </div>
       )}
 
@@ -123,7 +118,7 @@ export default function DetailedMeetingLogPage({
         <div className="flex flex-col items-center justify-center rounded-2xl border border-border bg-card p-12 text-center">
           <AlertCircle className="size-10 text-muted-foreground" />
           <p className="mt-3 font-heading text-body-base font-semibold text-foreground">
-            Log meeting tidak ditemukan
+            {translate("meetDetailUI.notFound")}
           </p>
         </div>
       ) : (
@@ -132,14 +127,14 @@ export default function DetailedMeetingLogPage({
           <AdminStatStrip className="sm:grid-cols-2 lg:grid-cols-5">
             <AdminStatStripItem
               icon={Clock}
-              label="Waktu dan durasi"
+              label={translate("meetDetailUI.timeDuration")}
               value={formatDurationSec(analytics.totalDurationSeconds)}
               caption={`${formatIsoDate(new Date(analytics.startTime))} (${formatTimeOnly(analytics.startTime)} - ${formatTimeOnly(analytics.endTime)})`}
             />
-            <AdminStatStripItem icon={TrendingUp} label="Peak peserta" value={analytics.peakConcurrentParticipants} tone="brand" />
-            <AdminStatStripItem icon={Users} label="Total peserta" value={analytics.participantCount} />
-            <AdminStatStripItem icon={PlayCircle} label="Rekaman video" value={analytics.recordings.length} />
-            <AdminStatStripItem icon={MessageSquare} label="Transkrip bicara" value={`${analytics.transcripts.reduce((acc, t) => acc + t.entries.length, 0)} baris`} />
+            <AdminStatStripItem icon={TrendingUp} label={translate("meetDetailUI.peak")} value={analytics.peakConcurrentParticipants} tone="brand" />
+            <AdminStatStripItem icon={Users} label={translate("meetDetailUI.participants")} value={analytics.participantCount} />
+            <AdminStatStripItem icon={PlayCircle} label={translate("meetDetailUI.recordings")} value={analytics.recordings.length} />
+            <AdminStatStripItem icon={MessageSquare} label={translate("meetDetailUI.transcriptSpeech")} value={`${analytics.transcripts.reduce((acc, t) => acc + t.entries.length, 0)} ${translate("meetDetailUI.lines")}`} />
           </AdminStatStrip>
 
           {/* Participant Log & Session Timeline Section */}
@@ -149,12 +144,12 @@ export default function DetailedMeetingLogPage({
               size="h5"
               border
               icon={Users}
-              title="Kehadiran peserta"
+              title={translate("meetDetailUI.attendance")}
             />
 
             {analytics.participants.length === 0 ? (
               <div className="rounded-2xl border border-border bg-card p-8 text-center text-body-xs text-muted-foreground">
-                Tidak ada data peserta tercatat.
+                {translate("meetDetailUI.noParticipants")}
               </div>
             ) : (
               <div className="divide-y divide-border rounded-xl border border-border bg-card px-4">
@@ -188,7 +183,7 @@ export default function DetailedMeetingLogPage({
 
                       <div className="flex items-center gap-3 text-body-xs font-semibold text-foreground">
                         <span className="rounded-lg border border-border bg-muted/40 px-3 py-1.5">
-                          Durasi {" "}
+                          {translate("meetDetailUI.duration")} {" "}
                           <strong className="text-brand-primary">
                             {formatDurationSec(p.totalDurationSeconds)}
                           </strong>
@@ -199,7 +194,7 @@ export default function DetailedMeetingLogPage({
                     {/* Join / Leave Sessions Visual Timeline */}
                     <div className="mt-2 space-y-2">
                       <p className="text-body-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                        Sesi:
+                        {translate("meetDetailUI.sessions")}
                       </p>
 
                       <div className="divide-y divide-border/60">
@@ -211,7 +206,7 @@ export default function DetailedMeetingLogPage({
                             {/* GREEN BADGE - MASUK */}
                             <span className="inline-flex items-center gap-1.5 rounded-md border border-status-success/40 bg-status-success/10 px-2.5 py-1 text-body-xs font-bold text-status-success">
                               <LogIn className="size-3.5" />
-                              Masuk: {formatTimeOnly(session.startTime)}
+                              {translate("meetDetailUI.join")}: {formatTimeOnly(session.startTime)}
                             </span>
 
                             <span className="text-muted-foreground text-body-xs font-bold">→</span>
@@ -219,7 +214,7 @@ export default function DetailedMeetingLogPage({
                             {/* RED BADGE - KELUAR */}
                             <span className="inline-flex items-center gap-1.5 rounded-md border border-status-error/40 bg-status-error/10 px-2.5 py-1 text-body-xs font-bold text-status-error">
                               <LogOut className="size-3.5" />
-                              Keluar: {formatTimeOnly(session.endTime)}
+                              {translate("meetDetailUI.leave")}: {formatTimeOnly(session.endTime)}
                             </span>
 
                             <span className="ml-auto text-body-xs font-semibold text-muted-foreground">
@@ -237,10 +232,10 @@ export default function DetailedMeetingLogPage({
 
           {/* Recordings Section */}
           <section className="space-y-4">
-            <AdminSectionTitle as="h2" size="h5" border icon={PlayCircle} title="Rekaman video" />
+            <AdminSectionTitle as="h2" size="h5" border icon={PlayCircle} title={translate("meetDetailUI.recordings")} />
             {analytics.recordings.length === 0 ? (
               <div className="rounded-2xl border border-border bg-card p-6 text-center text-body-xs text-muted-foreground">
-                Belum ada rekaman video untuk sesi ini.
+                {translate("meetDetailUI.noRecordings")}
               </div>
             ) : (
               <div className="divide-y divide-border rounded-xl border border-border bg-card px-4">
@@ -251,18 +246,18 @@ export default function DetailedMeetingLogPage({
                   >
                     <div>
                       <p className="font-semibold text-body-sm text-foreground">
-                        Rekaman ({formatTimeOnly(rec.startTime)} - {formatTimeOnly(rec.endTime)})
+                        {translate("meetDetailUI.recording")} ({formatTimeOnly(rec.startTime)} - {formatTimeOnly(rec.endTime)})
                       </p>
                     </div>
                     {rec.driveExportUri ? (
                       <Button variant="outline" size="sm" asChild>
                         <a href={rec.driveExportUri} target="_blank" rel="noreferrer">
-                          Buka Google Drive <ExternalLink className="size-3.5" />
+                          {translate("meetDetailUI.openDrive")} <ExternalLink className="size-3.5" />
                         </a>
                       </Button>
                     ) : (
                       <span className="rounded-md bg-muted px-2.5 py-1 text-body-xs font-medium text-muted-foreground">
-                        Sedang diproses
+                        {translate("meetDetailUI.processing")}
                       </span>
                     )}
                   </div>
@@ -273,34 +268,34 @@ export default function DetailedMeetingLogPage({
 
           {/* Transcripts Section */}
           <section className="space-y-4">
-            <AdminSectionTitle as="h2" size="h5" border icon={MessageSquare} title="Transkrip" />
+            <AdminSectionTitle as="h2" size="h5" border icon={MessageSquare} title={translate("meetDetailUI.transcripts")} />
             {analytics.transcripts.length === 0 ? (
               <div className="rounded-2xl border border-border bg-card p-6 text-center text-body-xs text-muted-foreground">
-                Belum ada transkrip ucapan untuk sesi ini.
+                {translate("meetDetailUI.noTranscripts")}
               </div>
             ) : (
               analytics.transcripts.map((t) => (
                 <div key={t.transcriptId} className="rounded-xl border border-border bg-card p-4 space-y-3">
                   <div className="flex items-center justify-between border-b border-border/60 pb-3">
                     <p className="text-body-xs font-bold text-foreground">
-                      Dokumen transkrip ({formatTimeOnly(t.startTime)} - {formatTimeOnly(t.endTime)})
+                      {translate("meetDetailUI.transcriptDocument")} ({formatTimeOnly(t.startTime)} - {formatTimeOnly(t.endTime)})
                     </p>
                     {t.docsExportUri ? (
                       <Button variant="outline" size="sm" asChild>
                         <a href={t.docsExportUri} target="_blank" rel="noreferrer">
-                          Buka Google Docs <ExternalLink className="size-3.5" />
+                          {translate("meetDetailUI.openDocs")} <ExternalLink className="size-3.5" />
                         </a>
                       </Button>
                     ) : (
                       <span className="rounded-md bg-muted px-2.5 py-1 text-body-xs font-medium text-muted-foreground">
-                        Sedang diproses
+                        {translate("meetDetailUI.processing")}
                       </span>
                     )}
                   </div>
 
                   {t.entries.length === 0 ? (
                     <p className="text-body-sm text-muted-foreground italic">
-                      Belum ada teks transkrip.
+                      {translate("meetDetailUI.noTranscriptText")}
                     </p>
                   ) : (
                     <div className="max-h-96 overflow-y-auto space-y-2.5 pr-2">
@@ -311,7 +306,7 @@ export default function DetailedMeetingLogPage({
                         >
                           <div className="flex items-center justify-between text-body-xs font-semibold text-muted-foreground mb-1">
                             <span className="text-brand-primary font-bold">
-                              {entry.participantResourceName || "Peserta"}
+                              {entry.participantResourceName || translate("meetDetailUI.participant")}
                             </span>
                             <span>{formatTimeOnly(entry.startTime)}</span>
                           </div>

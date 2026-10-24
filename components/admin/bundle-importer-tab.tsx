@@ -2,6 +2,8 @@
 
 import React, { useState, useRef, useEffect } from "react";
 import { toast } from "@/components/ui/toast";
+import { useTranslations } from "@/lib/i18n/client";
+import { explainBundleError } from "@/lib/bundle/admin-errors";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -37,6 +39,8 @@ import {
 } from "lucide-react";
 
 export function BundleImporterTab() {
+  const adminT = useTranslations("admin");
+  const explainError = (value: string) => explainBundleError(value, (key) => adminT(`bundleErrors.${key}`));
   const [bundleText, setBundleText] = useState("");
   const [fileName, setFileName] = useState<string | null>(null);
   const [dragActive, setDragActive] = useState(false);
@@ -157,7 +161,7 @@ export function BundleImporterTab() {
         toast.success(dryRun ? "Validasi bundle berhasil!" : "Import bundle berhasil diselesaikan!");
       } else {
         setActiveStep(-2); // Failed
-        toast.error(`Gagal melakukan import: ${res.error}`);
+        toast.error(res.friendlyExplanation || explainError(res.error || ""));
       }
     } catch (err: any) {
       setActiveStep(-2); // Failed
@@ -489,7 +493,7 @@ export function BundleImporterTab() {
             <div>
               <h5 className="font-heading text-body-base font-semibold leading-none">Import Gagal</h5>
               <p className="text-body-sm mt-2 text-status-error/90 whitespace-pre-line leading-relaxed font-sans">
-                {result.friendlyExplanation || result.error || "Gagal mengimpor bundel mata kuliah. Periksa konsol logs di atas."}
+                {result.friendlyExplanation || explainError(result.error || "")}
               </p>
             </div>
           </div>
