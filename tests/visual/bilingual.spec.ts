@@ -11,6 +11,16 @@ test.beforeEach(async ({ page }) => {
   expect(await page.evaluate(() => matchMedia("(prefers-reduced-motion: reduce)").matches)).toBe(true);
 });
 
+async function switchPublicLanguage(page: import("@playwright/test").Page, targetLocale: "id" | "en") {
+  const targetLanguage = targetLocale === "en" ? "English" : "Bahasa Indonesia";
+  const toggle = page.getByRole("button", {
+    name: new RegExp(`(?:Switch language to|Ganti bahasa ke) ${targetLanguage}`, "i"),
+  });
+  await expect(toggle).toBeVisible();
+  await toggle.click();
+  await expect(page.locator("html")).toHaveAttribute("lang", targetLocale);
+}
+
 test("language switch keeps draft, quiz answer, and reader position", async ({ page }) => {
   const runtimeErrors: string[] = [];
   const networkFailures: string[] = [];
@@ -24,8 +34,7 @@ test("language switch keeps draft, quiz answer, and reader position", async ({ p
   const reader = page.getByTestId("reader-scroll");
   await reader.evaluate((element) => { element.scrollTop = 54; });
 
-  await page.getByRole("combobox", { name: /language|bahasa/i }).click();
-  await page.getByRole("option", { name: "English" }).click();
+  await switchPublicLanguage(page, "en");
   await expect(page.getByTestId("locale-heading")).toHaveText("Bilingual state fixture");
   await expect(page.getByTestId("draft-input")).toHaveValue("draft in progress");
   await expect(page.getByTestId("quiz-answer")).toHaveText("b");
@@ -56,15 +65,13 @@ test("explicit locale menu follows the same public URL and keeps its query and h
   await page.goto("/en/plans?campaign=fixture#plans");
   const mobileMenu = page.getByRole("button", { name: /open menu|buka menu/i });
   if (await mobileMenu.isVisible()) await mobileMenu.click();
-  await page.getByRole("combobox", { name: /language|bahasa/i }).click();
-  await page.getByRole("option", { name: "Bahasa Indonesia" }).click();
+  await switchPublicLanguage(page, "id");
   await expect(page).toHaveURL(/\/id\/plans\?campaign=fixture#plans$/);
 });
 
 test("guest language selection persists in the locale cookie across reload", async ({ page, context }) => {
   await page.goto("/visual-fixtures/bilingual?mode=cookie");
-  await page.getByRole("combobox", { name: /language|bahasa/i }).click();
-  await page.getByRole("option", { name: "English" }).click();
+  await switchPublicLanguage(page, "en");
   await expect(page.getByTestId("locale-heading")).toHaveText("Bilingual state fixture");
   await expect.poll(async () => (await context.cookies()).find((cookie) => cookie.name === "zyx_locale")?.value).toBe("en");
 

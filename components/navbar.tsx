@@ -20,10 +20,9 @@ import { useCommandMenu } from "@/components/command-menu";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { cn } from "@/lib/utils";
 import { useSwipe } from "@/hooks/use-swipe";
-import { useTranslations } from "@/lib/i18n/client";
+import { useAppLocale, useTranslations } from "@/lib/i18n/client";
 import { LanguageMenu } from "@/components/language-menu";
 import { localizedPublicPath } from "@/lib/public-locale-routes";
-import { useAppLocale } from "@/lib/i18n/client";
 
 const navLinks = [
  { key: "nav.plans", href: "/plans", icon: Tag },
@@ -123,7 +122,7 @@ export function Navbar() {
 
   <ThemeToggle />
 
-  <LanguageMenu className="max-sm:hidden" />
+  <LanguageMenu />
 
   <NotificationBell variant="navbar" />
 
@@ -213,9 +212,11 @@ export function Navbar() {
  </nav>
 
   {/* Profile / sign-in */}
-  <div className="border-t border-border px-3 py-3 shrink-0 flex items-center justify-between gap-2">
-  <ThemeToggle mode="sidebar" />
-  <LanguageMenu />
+  <div className="flex min-w-0 shrink-0 flex-col gap-3 border-t border-border px-3 py-3">
+  <div className="flex min-w-0 items-center justify-end gap-1.5">
+    <ThemeToggle />
+    <LanguageMenu />
+  </div>
   <NavProfileOrSignIn
   variant="sheet"
   callbackURL="/dashboard"

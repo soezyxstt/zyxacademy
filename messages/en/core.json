@@ -8,6 +8,7 @@
     "label": "Language",
     "indonesian": "Bahasa Indonesia",
     "english": "English",
+    "switchTo": "Switch language to {language}",
     "saveError": "Your language was not saved. Try again."
   },
   "skipToMain": "Skip to main content",

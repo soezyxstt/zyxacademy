@@ -8,6 +8,7 @@
     "label": "Bahasa",
     "indonesian": "Bahasa Indonesia",
     "english": "English",
+    "switchTo": "Ganti bahasa ke {language}",
     "saveError": "Bahasa belum tersimpan. Coba lagi."
   },
   "skipToMain": "Langsung ke isi utama",

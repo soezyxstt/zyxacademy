@@ -171,8 +171,11 @@ test.describe("bilingual real quiz and file state fixture", () => {
     await waitForVisualReadiness(page);
     await page.screenshot({ path: testInfo.outputPath("real-quiz-state-before-switch.png"), fullPage: true });
 
-    await page.getByRole("combobox", { name: /language|bahasa/i }).click();
-    await page.getByRole("option", { name: "English", exact: true }).click();
+    const languageToggle = page.getByRole("button", {
+      name: /(?:Switch language to|Ganti bahasa ke) English/i,
+    });
+    await expect(languageToggle).toBeVisible();
+    await languageToggle.click();
     await expect(page.getByTestId("locale-heading")).toHaveText("Quiz state fixture");
     await expect(page.getByText("essay-answer.pdf", { exact: true })).toBeVisible();
     await expect(page.getByTestId("fixture-uploaded-files")).toHaveText("reader-handout.pdf");

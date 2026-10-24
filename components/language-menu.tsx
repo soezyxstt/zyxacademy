@@ -1,22 +1,25 @@
 "use client";
 
-import { useId } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { useTranslations } from "next-intl";
+import { useEffect } from "react";
+import { toast } from "sonner";
 import { useAppLocale } from "@/components/providers/locale-provider";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
+import { useTranslations } from "@/lib/i18n/client";
 import { localizedPublicPath, stripPublicLocalePrefix } from "@/lib/public-locale-routes";
 
 export function LanguageMenu({ className }: { className?: string }) {
   const t = useTranslations("core");
   const { locale, setLocale, isPending, error } = useAppLocale();
-  const id = useId();
   const pathname = usePathname();
   const router = useRouter();
 
-  const handleLocaleChange = async (value: string) => {
-    const nextLocale = value === "en" ? "en" : "id";
+  useEffect(() => {
+    if (error) toast.error(error, { id: "app-language-switch-error" });
+  }, [error]);
+
+  const handleLocaleChange = async () => {
+    const nextLocale = locale === "en" ? "id" : "en";
     const saved = await setLocale(nextLocale);
     if (!saved) return;
 
@@ -28,19 +31,23 @@ export function LanguageMenu({ className }: { className?: string }) {
     router.replace(`${nextPath}${suffix}`, { scroll: false });
   };
 
+  const targetLanguage = locale === "en" ? t("language.indonesian") : t("language.english");
+  const switchLabel = t("language.switchTo", { language: targetLanguage });
+
   return (
-    <div className={className}>
-      <Label className="sr-only" htmlFor={id}>{t("language.label")}</Label>
-      <Select value={locale} onValueChange={(value) => void handleLocaleChange(value)}>
-        <SelectTrigger id={id} aria-label={t("language.label")} disabled={isPending} className="w-auto min-w-36 text-body-sm">
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="id">{t("language.indonesian")}</SelectItem>
-          <SelectItem value="en">{t("language.english")}</SelectItem>
-        </SelectContent>
-      </Select>
-      {error ? <p role="alert" className="mt-1 text-body-xs text-destructive">{error}</p> : null}
-    </div>
+    <Button
+      type="button"
+      variant="ghost"
+      size="icon"
+      aria-label={switchLabel}
+      aria-pressed={locale === "en"}
+      aria-busy={isPending}
+      title={switchLabel}
+      disabled={isPending}
+      onClick={() => void handleLocaleChange()}
+      className={`size-8 shrink-0 rounded-lg px-0 text-body-sm font-bold tracking-wide ${className ?? ""}`}
+    >
+      {isPending ? <span className="size-3 animate-spin rounded-full border-2 border-current border-r-transparent" aria-hidden /> : locale.toUpperCase()}
+    </Button>
   );
 }

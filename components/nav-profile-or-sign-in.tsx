@@ -53,7 +53,7 @@ export function NavProfileOrSignIn({
 
     if (sheet) {
       return (
-        <div className="flex w-full flex-col gap-2">
+        <div className="flex min-w-0 w-full flex-col gap-2">
           <SheetClose asChild>
             <Link
               href="/dashboard"
@@ -62,7 +62,7 @@ export function NavProfileOrSignIn({
               aria-label={t("nav.dashboardFor", { name: label })}
               onClick={onNavigate}
               className={cn(
-                "border-border hover:bg-muted/70 flex min-h-14 w-full items-center gap-3 rounded-xl border bg-background px-3 py-2.5 shadow-none transition-colors",
+                "border-border hover:bg-muted/70 flex min-h-14 min-w-0 w-full items-center gap-3 rounded-xl border bg-background px-3 py-2.5 shadow-none transition-colors",
                 "outline-none focus-visible:ring-ring focus-visible:ring-2 focus-visible:ring-offset-2"
               )}
             >
@@ -82,11 +82,11 @@ export function NavProfileOrSignIn({
                 </span>
               )}
               <div className="min-w-0 flex-1 text-left">
-                <p className="font-heading text-body-base font-semibold leading-tight tracking-tight text-foreground">
+                <p className="break-words [overflow-wrap:anywhere] font-heading text-body-base font-semibold leading-tight tracking-tight text-foreground">
                   {label}
                 </p>
                 {email ? (
-                  <p className="text-body-sm mt-0.5 truncate text-muted-foreground">{email}</p>
+                  <p className="text-body-sm mt-0.5 min-w-0 truncate text-muted-foreground">{email}</p>
                 ) : null}
               </div>
             </Link>
