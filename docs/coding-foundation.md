@@ -43,8 +43,8 @@ works. No course content is seeded by this implementation.
 Browser Run creates an iframe with `sandbox="allow-scripts"`, no same-origin
 permission, a dedicated CSP and a disposable module Worker. The frame preloads
 only fixed public Python runtime assets without credentials, then transfers their
-bytes to the Worker. Loader modules use data URLs under the existing CSP. It cannot read application
-cookies or storage. The parent terminates the Worker on timeout or Stop. The
+bytes to the Worker. Loader modules use data URLs under the existing CSP. It
+cannot read application cookies or storage. The parent terminates the Worker on timeout or Stop. The
 opaque-origin Worker uses a data URL because Chromium rejects module Workers
 created from blob URLs in this sandbox. Source is fetched from a fixed public
 application asset; learner code is passed as data after runtime initialization.
@@ -56,8 +56,8 @@ interception, then transfers their bytes and blob module URLs into the Worker.
 Both Run and Submit resolve runtime fetches from these pinned bytes and reject
 other origins, filenames and methods. External requests and WebSockets remain
 denied by the existing CSP and interception policy. This avoids relying on
-remote CDP to intercept Worker imports. WASM and stdlib remain real Pyodide assets. Contexts have no app
-sessions, browser permissions, downloads or service workers. Output is bounded;
+remote CDP to intercept Worker imports. WASM and stdlib remain real Pyodide assets.
+Contexts have no app sessions, browser permissions, downloads or service workers. Output is bounded;
 learner Python errors show user-code frames rather than interpreter internals.
 An outage or cancellation is ungradable, not an incorrect answer.
 
@@ -68,10 +68,12 @@ kernel sandbox enabled. Explicit `steel` reuses the V4 session adapter and
 server-only `STEEL_API_KEY`. `local` is rejected in production. There is no
 credential-based fallback or new feature flag. Both remote providers acquire a
 session through REST and explicitly release it before accepting a grade.
-A release failure makes the submission ungradable. Real Steel Python grading has passed against the local application with
-synthetic SQLite accounts. Browser Run also passes through the real opaque iframe
-using a public runtime harness. This does not attest a deployed provider connection
-or authenticated remote UI. The service fails closed if its environment is unavailable. Synthetic runtime
+A release failure makes the submission ungradable. Real Steel Python grading has
+passed against the local application with synthetic SQLite accounts. Browser Run
+also passes through the actual authenticated local Playground in Steel, plus a
+public opaque-iframe runtime harness. This does not attest a deployed provider
+connection or production data. The service fails closed if its environment is
+unavailable. Synthetic runtime
 tests can inject a local Playwright browser without changing the service launch
 policy. Browser platform memory/process limits remain external; this code does
 not claim a per-program hard memory quota.

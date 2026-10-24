@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { useTranslations } from "@/lib/i18n/client";
 import {
   Dialog,
   DialogContent,
@@ -92,6 +93,7 @@ export function AdminVideoDialog({
   onOpenCreatePlaylist,
   onSuccess,
 }: AdminVideoDialogProps) {
+  const t = useTranslations("adminMedia");
   const isEditing = Boolean(video);
 
   // Mode: "youtube" or "upload"
@@ -331,7 +333,7 @@ export function AdminVideoDialog({
         }
         toast.success("Informasi video YouTube berhasil dimuat.");
       } else {
-        toast.error(res.error || "Gagal mengambil data video dari YouTube.");
+        toast.error(t("videoDialog.errors.fetchMetadata"));
       }
     } catch {
       toast.error("Terjadi kendala saat menghubungi layanan YouTube.");
@@ -461,10 +463,10 @@ export function AdminVideoDialog({
         onOpenChange(false);
         onSuccess?.();
       } else {
-        toast.error(res.error || "Gagal menyimpan video.");
+        toast.error(t("videoDialog.errors.save"));
       }
-    } catch (err: any) {
-      toast.error(err?.message || "Terjadi kesalahan saat menyimpan video.");
+    } catch {
+      toast.error(t("videoDialog.errors.save"));
     } finally {
       setSaving(false);
       setUploadPercent(null);

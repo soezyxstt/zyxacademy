@@ -29,6 +29,7 @@ import { useSession } from "@/lib/auth-client";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { toast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
+import { useTranslations, useAppLocale } from "@/lib/i18n/client";
 
 interface NotificationRow {
   id: string;
@@ -69,18 +70,18 @@ const TYPE_COLORS: Record<string, string> = {
 
 // ─── Relative time helper ─────────────────────────────────────────────────────
 
-function formatRelative(value: string): string {
+function formatRelative(value: string, locale: "id" | "en", t: ReturnType<typeof useTranslations>): string {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "";
   const diff = Date.now() - date.getTime();
   const mins = Math.floor(diff / 60000);
-  if (mins < 1) return "Baru saja";
-  if (mins < 60) return `${mins}m lalu`;
+  if (mins < 1) return t("relative.justNow");
+  if (mins < 60) return t("relative.minutes", { count: mins });
   const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours}j lalu`;
+  if (hours < 24) return t("relative.hours", { count: hours });
   const days = Math.floor(hours / 24);
-  if (days < 7) return `${days}h lalu`;
-  return date.toLocaleDateString("id-ID", { day: "numeric", month: "short" });
+  if (days < 7) return t("relative.days", { count: days });
+  return date.toLocaleDateString(locale === "en" ? "en-US" : "id-ID", { day: "numeric", month: "short" });
 }
 
 function resolveLink(row: NotificationRow): string {
@@ -94,6 +95,8 @@ interface NotificationBellProps {
 }
 
 export function NotificationBell({ variant = "sidebar" }: NotificationBellProps) {
+  const t = useTranslations("notifications");
+  const { locale } = useAppLocale();
   const { data: session, isPending } = useSession();
   const router = useRouter();
 
@@ -217,7 +220,7 @@ export function NotificationBell({ variant = "sidebar" }: NotificationBellProps)
   return (
     <Popover open={open} onOpenChange={handleOpen}>
       <PopoverTrigger asChild>
-        <button type="button" className={triggerClass} aria-label="Notifikasi" title="Notifikasi">
+        <button type="button" className={triggerClass} aria-label={t("bell")} title={t("bell")}>
           <Bell className="size-4 shrink-0" aria-hidden />
           {badge ? (
             <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-status-error px-1 text-[10px] font-bold leading-none text-white">
@@ -228,7 +231,7 @@ export function NotificationBell({ variant = "sidebar" }: NotificationBellProps)
       </PopoverTrigger>
       <PopoverContent align="end" sideOffset={8} className="w-[min(22rem,calc(100vw-2rem))] p-0">
         <div className="flex items-center justify-between gap-2 border-b border-border px-4 py-3">
-          <h3 className="font-heading text-body-base font-semibold text-foreground">Notifikasi</h3>
+          <h3 className="font-heading text-body-base font-semibold text-foreground">{t("title")}</h3>
           {unread > 0 ? (
             <button
               type="button"
@@ -236,7 +239,7 @@ export function NotificationBell({ variant = "sidebar" }: NotificationBellProps)
               className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-body-xs font-medium text-brand-primary transition-colors hover:bg-brand-primary/10 cursor-pointer"
             >
               <CheckCheck className="size-3.5" aria-hidden />
-              Tandai semua dibaca
+              {t("markAllRead")}
             </button>
           ) : null}
         </div>
@@ -252,7 +255,7 @@ export function NotificationBell({ variant = "sidebar" }: NotificationBellProps)
             <span className="flex size-10 items-center justify-center rounded-full bg-muted">
               <Inbox className="size-5 text-muted-foreground" aria-hidden />
             </span>
-            <p className="text-body-sm text-muted-foreground">Belum ada notifikasi.</p>
+            <p className="text-body-sm text-muted-foreground">{t("empty")}</p>
           </div>
         ) : (
           <ul className="max-h-[24rem] divide-y divide-border/60 zebra-no-rows overflow-y-auto">
@@ -289,7 +292,7 @@ export function NotificationBell({ variant = "sidebar" }: NotificationBellProps)
                           {row.title}
                         </span>
                         <span className="shrink-0 text-[10px] text-muted-foreground">
-                          {formatRelative(row.createdAt)}
+                          {formatRelative(row.createdAt, locale, t)}
                         </span>
                       </span>
                       {row.body ? (

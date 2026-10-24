@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "@/lib/i18n/client";
 import { toast } from "@/components/ui/toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -64,6 +65,7 @@ type Props = {
 };
 
 export function SettingsTab({ course }: Props) {
+  const t = useTranslations("adminAcademic");
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [demoLoading, setDemoLoading] = useState(false);
@@ -77,11 +79,11 @@ export function SettingsTab({ course }: Props) {
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim()) {
-      toast.error("Nama mata kuliah wajib diisi.");
+      toast.error(t("courseDetail.settings.errors.titleRequired"));
       return;
     }
     if (!category) {
-      toast.error("Kategori program studi wajib dipilih.");
+      toast.error(t("courseDetail.settings.errors.categoryRequired"));
       return;
     }
 
@@ -96,10 +98,10 @@ export function SettingsTab({ course }: Props) {
     setLoading(false);
 
     if (res.success) {
-      toast.success("Informasi mata kuliah berhasil diperbarui.");
+      toast.success(t("courseDetail.settings.success.saved"));
       router.refresh();
     } else {
-      toast.error(res.error || "Gagal memperbarui data mata kuliah.");
+      toast.error(t("courseDetail.settings.errors.save"));
     }
   };
 
@@ -110,10 +112,10 @@ export function SettingsTab({ course }: Props) {
     setDeleteModalOpen(false);
 
     if (res.success) {
-      toast.success("Mata kuliah berhasil dihapus.");
+      toast.success(t("courseDetail.settings.success.deleted"));
       router.push("/admin/courses");
     } else {
-      toast.error(res.error || "Gagal menghapus mata kuliah.");
+      toast.error(t("courseDetail.settings.errors.delete"));
     }
   };
 
@@ -123,10 +125,10 @@ export function SettingsTab({ course }: Props) {
     setDemoLoading(false);
 
     if (res.success) {
-      toast.success(course.isDemo ? "Mata kuliah dikeluarkan dari demo." : "Mata kuliah dipilih sebagai demo.");
+      toast.success(course.isDemo ? t("courseDetail.settings.success.removedFromDemo") : t("courseDetail.settings.success.selectedForDemo"));
       router.refresh();
     } else {
-      toast.error(res.error || "Pilihan demo tidak dapat diperbarui.");
+      toast.error(t("courseDetail.settings.errors.demo"));
     }
   };
 
@@ -136,13 +138,13 @@ export function SettingsTab({ course }: Props) {
       <div className="rounded-xl border border-border bg-card p-4 shadow-2xs">
         <h3 className="font-heading text-body-sm font-semibold text-foreground mb-3 flex items-center gap-2">
           <Settings className="size-4 text-brand-primary" />
-          Informasi mata kuliah
+          {t("courseDetail.settings.title")}
         </h3>
 
         <form onSubmit={handleSave} className="space-y-3">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div className="space-y-1">
-              <Label className="text-body-sm font-semibold text-foreground">ID / Slug (Permanen)</Label>
+              <Label className="text-body-sm font-semibold text-foreground">{t("courseDetail.settings.permanentId")}</Label>
               <Input
                 value={course.id}
                 disabled
@@ -151,7 +153,7 @@ export function SettingsTab({ course }: Props) {
             </div>
 
             <div className="space-y-1">
-              <Label className="text-body-sm font-semibold text-foreground">Nama Mata Kuliah</Label>
+              <Label className="text-body-sm font-semibold text-foreground">{t("courseDetail.settings.courseName")}</Label>
               <Input
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
@@ -162,10 +164,10 @@ export function SettingsTab({ course }: Props) {
           </div>
 
           <div className="space-y-1">
-            <Label className="text-body-sm font-semibold text-foreground">Program Studi / Kategori</Label>
+            <Label className="text-body-sm font-semibold text-foreground">{t("courseDetail.settings.category")}</Label>
             <Select value={category} onValueChange={setCategory} disabled={loading}>
               <SelectTrigger className="rounded-lg h-9">
-                <SelectValue placeholder="Pilih Program Studi" />
+              <SelectValue placeholder={t("courseDetail.settings.selectCategory")} />
               </SelectTrigger>
               <SelectContent>
                 {allowedCategories.map((opt) => (
@@ -178,13 +180,13 @@ export function SettingsTab({ course }: Props) {
           </div>
 
           <div className="space-y-1">
-            <Label className="text-body-sm font-semibold text-foreground">Deskripsi Mata Kuliah (Opsional)</Label>
+            <Label className="text-body-sm font-semibold text-foreground">{t("courseDetail.settings.description")}</Label>
             <Textarea
               rows={3}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               disabled={loading}
-              placeholder="Ringkasan materi dan capaian pembelajaran"
+              placeholder={t("courseDetail.settings.descriptionPlaceholder")}
               className="rounded-lg text-body-sm"
             />
           </div>
@@ -199,12 +201,12 @@ export function SettingsTab({ course }: Props) {
               {loading ? (
                 <>
                   <Loader2 className="size-3.5 animate-spin" />
-                  Menyimpan...
+                  {t("courseDetail.settings.saving")}
                 </>
               ) : (
                 <>
                   <Save className="size-3.5" />
-                  Simpan Perubahan
+                  {t("courseDetail.settings.saveChanges")}
                 </>
               )}
             </Button>
@@ -218,14 +220,14 @@ export function SettingsTab({ course }: Props) {
           <div className="flex items-start gap-2.5">
             <Eye className="mt-0.5 size-4 shrink-0 text-brand-primary" aria-hidden="true" />
             <div>
-              <h3 className="font-heading text-body-sm font-semibold text-foreground">Demo publik</h3>
+              <h3 className="font-heading text-body-sm font-semibold text-foreground">{t("courseDetail.settings.publicDemo")}</h3>
               <p className="mt-1 max-w-2xl text-body-xs leading-relaxed text-muted-foreground">
-                Demo dapat dibuka tanpa login. Konten harus terbit dan lengkap.
+                {t("courseDetail.settings.publicDemoDescription")}
               </p>
             </div>
           </div>
           <Badge variant="outline" className={course.isDemo ? "border-brand-primary/40 text-brand-primary" : "text-muted-foreground"}>
-            {course.isDemo ? "Terpilih" : "Belum dipilih"}
+            {course.isDemo ? t("courseDetail.settings.selected") : t("courseDetail.settings.notSelected")}
           </Badge>
         </div>
 
@@ -240,7 +242,7 @@ export function SettingsTab({ course }: Props) {
                 )}
                 <div className="min-w-0">
                   <p className="text-body-xs font-semibold text-foreground">{check.label}</p>
-                  <p className="mt-0.5 text-body-xs text-muted-foreground">{check.count} tersedia</p>
+                  <p className="mt-0.5 text-body-xs text-muted-foreground">{t("courseDetail.settings.availableCount", { count: check.count })}</p>
                 </div>
               </div>
             ))}
@@ -249,7 +251,7 @@ export function SettingsTab({ course }: Props) {
 
         {course.demoEligibility && !course.demoEligibility.eligible ? (
           <p className="mt-3 text-body-xs text-status-error">
-            Lengkapi konten terbit sebelum memilih mata kuliah ini.
+            {t("courseDetail.settings.demoEligibilityHint")}
           </p>
         ) : null}
 
@@ -264,7 +266,7 @@ export function SettingsTab({ course }: Props) {
             className="gap-1.5 rounded-lg"
           >
             <Eye className="size-3.5" aria-hidden="true" />
-            {course.isDemo ? "Keluarkan dari demo" : "Jadikan demo publik"}
+            {course.isDemo ? t("courseDetail.settings.removeFromDemo") : t("courseDetail.settings.makePublicDemo")}
           </Button>
         </div>
       </div>
@@ -275,10 +277,10 @@ export function SettingsTab({ course }: Props) {
           <AlertTriangle className="size-4 text-destructive shrink-0 mt-0.5" />
           <div className="space-y-0.5">
             <h4 className="font-heading text-body-sm font-bold text-destructive">
-              Zona Bahaya
+              {t("courseDetail.settings.dangerZone")}
             </h4>
             <p className="text-body-xs text-muted-foreground">
-              Menghapus mata kuliah ini akan menghapus seluruh data bab, materi PDF, kuis, dan riwayat pengerjaan siswa yang terhubung.
+              {t("courseDetail.settings.dangerDescription")}
             </p>
           </div>
         </div>
@@ -292,7 +294,7 @@ export function SettingsTab({ course }: Props) {
           className="gap-1.5 rounded-lg h-8 font-semibold"
         >
           <Trash2 className="size-3.5" />
-          Hapus Mata Kuliah
+          {t("courseDetail.settings.deleteCourse")}
         </Button>
       </div>
 
@@ -305,15 +307,15 @@ export function SettingsTab({ course }: Props) {
       >
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Hapus Mata Kuliah Secara Permanen</DialogTitle>
+            <DialogTitle>{t("courseDetail.settings.deleteTitle")}</DialogTitle>
             <DialogDescription>
-              Apakah Anda yakin ingin menghapus <strong>{course.title}</strong> ({course.id})? Semua silabus, dokumen, kuis, dan data nilai akan hilang selamanya.
+              {t("courseDetail.settings.deleteDescription", { title: course.title, id: course.id })}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <DialogClose asChild>
               <Button variant="outline" size="sm" disabled={loading} className="rounded-lg">
-                Batal
+                {t("common.cancel")}
               </Button>
             </DialogClose>
             <Button
@@ -324,7 +326,7 @@ export function SettingsTab({ course }: Props) {
               isLoading={loading}
               className="rounded-lg"
             >
-              Ya, Hapus Sekarang
+              {t("courseDetail.settings.confirmDelete")}
             </Button>
           </DialogFooter>
         </DialogContent>

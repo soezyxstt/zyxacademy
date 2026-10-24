@@ -4,8 +4,8 @@ import { CanvasSpecSchema } from "@/lib/zyra/canvas";
 import { ZyraImageResponseFieldsSchema } from "@/lib/zyra/images/contracts";
 
 export const PEDAGOGY_VERSION = "zyra-pedagogy-v3";
-export const PEDAGOGY_PROMPT_VERSION = "3.0.0";
-export const PEDAGOGY_POLICY_VERSION = "3.0.0";
+export const PEDAGOGY_PROMPT_VERSION = "3.2.0";
+export const PEDAGOGY_POLICY_VERSION = "3.1.0";
 export const PEDAGOGY_RESPONSE_SCHEMA_VERSION = "3.0.0";
 
 export const TeachingStateSchema = z.enum([
@@ -85,6 +85,7 @@ export const PedagogySourceSchema = z.object({
 export type PedagogySource = z.infer<typeof PedagogySourceSchema>;
 
 export const PedagogyContextSchema = z.object({
+  responseLanguage: z.enum(["id", "en"]).default("id"),
   courseId: z.string().min(1),
   chapterId: z.string().nullable(),
   action: z.enum(["new_topic", "follow_up", "hint_request", "teach_back", "check_response"]),

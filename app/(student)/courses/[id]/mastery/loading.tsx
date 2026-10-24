@@ -1,9 +1,10 @@
 import { CoursePageShell } from "@/components/course/course-page-shell";
+import { TranslatedText } from "@/components/i18n/translated-text";
 
 export default function Loading() {
   return (
     <CoursePageShell
-      title="Peta Penguasaan"
+      title={<TranslatedText namespace="learning" messageKey="mastery.loadingTitle" />}
 
       hideHeader
     >

@@ -1,3 +1,5 @@
+"use client";
+
 import type { ReactNode } from "react";
 import { ArrowRight, BookOpen, Check, Eye, FileArchive } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -5,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { FormattedDate } from "@/components/ui/formatted-date";
 import { StatusBadge } from "@/components/admin/status-badges";
 import { cn } from "@/lib/utils";
+import { useTranslations } from "@/lib/i18n/client";
 
 export type MaterialBundleRow = {
   id: string;
@@ -56,30 +59,31 @@ function reportNumber(report: Record<string, unknown>, key: string): number | nu
   return typeof value === "number" && Number.isFinite(value) ? value : null;
 }
 
-function itemSummary(row: MaterialBundleRow, kind: "idea" | "product") {
+function itemSummary(row: MaterialBundleRow, kind: "idea" | "product", t: ReturnType<typeof useTranslations<"adminAcademic">>) {
   if (kind === "idea") {
     const ideas = reportNumber(row.validationReport, "ideaCount");
     const entities = reportNumber(row.validationReport, "entityCount");
     const relations = reportNumber(row.validationReport, "relationCount");
     return [
-      ideas !== null ? `${ideas} Idea` : entities !== null ? `${entities} item` : null,
-      relations !== null ? `${relations} relasi` : null,
-    ].filter(Boolean).join(" · ") || "Isi belum diringkas";
+      ideas !== null ? t("materials.ideaCount", { count: ideas }) : entities !== null ? t("materials.entityCount", { count: entities }) : null,
+      relations !== null ? t("materials.relationCount", { count: relations }) : null,
+    ].filter(Boolean).join(" · ") || t("materials.summaryUnavailable");
   }
 
   const products = reportNumber(row.validationReport, "productCount");
   const dependencies = reportNumber(row.validationReport, "dependencyCount");
   return [
-    products !== null ? `${products} produk` : null,
-    dependencies !== null ? `${dependencies} hubungan` : null,
-  ].filter(Boolean).join(" · ") || "Isi belum diringkas";
+    products !== null ? t("materials.productCount", { count: products }) : null,
+    dependencies !== null ? t("materials.dependencyCount", { count: dependencies }) : null,
+  ].filter(Boolean).join(" · ") || t("materials.summaryUnavailable");
 }
 
 export function WorkflowStepBar({ steps, currentStep }: { steps: WorkflowStep[]; currentStep: number }) {
+  const t = useTranslations("adminAcademic");
   const columnClass = steps.length === 3 ? "lg:grid-cols-3" : steps.length === 4 ? "lg:grid-cols-4" : "lg:grid-cols-5";
 
   return (
-    <ol className={cn("grid gap-2 grid-cols-2", columnClass)} aria-label="Tahapan proses">
+    <ol className={cn("grid gap-2 grid-cols-2", columnClass)} aria-label={t("materials.workflowSteps")}>
       {steps.map((step) => {
         const complete = step.number < currentStep;
         const active = step.number === currentStep;
@@ -128,12 +132,13 @@ export function WorkflowFooter({
   nextDisabled?: boolean;
   nextLabel?: string;
 }) {
+  const t = useTranslations("adminAcademic");
   return (
     <div className="flex items-center justify-between gap-3 border-t border-border pt-4">
       <div className="flex flex-wrap items-center gap-2">
         {onBack && (
           <Button type="button" variant="outline" onClick={onBack} disabled={backDisabled}>
-            Kembali
+            {t("common.back")}
           </Button>
         )}
         {children}
@@ -169,11 +174,12 @@ export function MaterialArtifactCard({
   loading?: boolean;
   showCourse?: boolean;
 }) {
-  const label = kind === "idea" ? "Source Pack + Idea" : "Product";
-  const statusLabel = statusLabels[row.status] ?? row.status;
+  const t = useTranslations("adminAcademic");
+  const label = kind === "idea" ? t("materials.ideaTab") : t("materials.productTab");
+  const statusLabel = t(`materials.status.${row.status}`);
   const tone = statusTones[row.status] ?? "muted";
   const resolvedChapterLabel = chapterLabelProp ?? row.chapterLabel ?? null;
-  const cardTitle = row.bundleTitle || resolvedChapterLabel || courseLabel || "Mata kuliah belum terpetakan";
+  const cardTitle = row.bundleTitle || resolvedChapterLabel || courseLabel || t("materials.unmappedCourse");
 
   return (
     <article className="grid gap-3 p-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
@@ -200,22 +206,22 @@ export function MaterialArtifactCard({
           </p>
         )}
         <p className="text-body-xs text-muted-foreground">
-          Diupload <FormattedDate date={row.createdAt} options={dateOptions} />
+          {t("materials.uploadedAt")} <FormattedDate date={row.createdAt} options={dateOptions} />
         </p>
         <p className="text-body-xs text-muted-foreground">
-          {authorLabel ?? "Admin tidak diketahui"} · {itemSummary(row, kind)}
+          {authorLabel ?? t("materials.unknownAdmin")} · {itemSummary(row, kind, t)}
         </p>
         <details className="text-body-xs text-muted-foreground">
-          <summary className="cursor-pointer font-medium hover:text-foreground">Lihat identitas teknis</summary>
+          <summary className="cursor-pointer font-medium hover:text-foreground">{t("materials.technicalIdentity")}</summary>
           <div className="mt-2 space-y-1 border-l-2 border-border pl-3">
-            <p className="break-all">Bundle ID: {row.bundleId}</p>
-            <p className="break-all">Checksum: {row.checksum}</p>
+            <p className="break-all">{t("materials.bundleId")}: {row.bundleId}</p>
+            <p className="break-all">{t("materials.checksum")}: {row.checksum}</p>
           </div>
         </details>
       </div>
       <Button type="button" size="sm" variant="outline" disabled={loading} onClick={onInspect}>
         <Eye className="size-4" />
-        Buka review
+        {t("materials.openReview")}
       </Button>
     </article>
   );

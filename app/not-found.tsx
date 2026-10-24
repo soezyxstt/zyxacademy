@@ -4,8 +4,10 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { PageOrnaments } from "@/components/ui/page-ornaments";
 import { ArrowLeft, Home } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 export default function NotFound() {
+  const t = useTranslations("core");
   return (
     <>
       <title>Waduh, Halaman Nggak Ketemu! · Zyx Academy</title>
@@ -21,13 +23,12 @@ export default function NotFound() {
 
           {/* Heading */}
           <h2 className="font-heading text-h5 font-bold tracking-tight text-foreground -mt-2">
-            Waduh, nyasar ke mana nih?
+            {t("error.notFoundDescription")}
           </h2>
 
           {/* Subtext */}
           <p className="text-body-base text-muted-foreground leading-relaxed max-w-sm">
-            Halaman yang kamu cari nggak ada di sini. Mungkin alamatnya salah ketik, 
-            atau emang udah dipindahin. Tenang aja, mari kita balik ke jalan yang benar!
+            {t("error.notFound")}
           </p>
 
           {/* Action Buttons */}
@@ -40,7 +41,7 @@ export default function NotFound() {
             >
               <Link href="/dashboard">
                 <Home className="size-4" />
-                Ke Dashboard
+                {t("error.home")}
               </Link>
             </Button>
 
@@ -51,7 +52,7 @@ export default function NotFound() {
               className="font-semibold gap-1.5 border-border/80"
             >
               <ArrowLeft className="size-4" />
-              Kembali
+              {t("error.back")}
             </Button>
           </div>
         </div>

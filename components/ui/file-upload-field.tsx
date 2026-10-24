@@ -4,6 +4,7 @@ import * as React from "react";
 import { Upload, X, Check, File, FileImage, FileText } from "lucide-react";
 import { FormFieldWrapper } from "@/components/ui/form-field-wrapper";
 import { cn } from "@/lib/utils";
+import { useLocale, useTranslations } from "next-intl";
 
 interface FileUploadFieldProps {
   label?: string;
@@ -26,13 +27,18 @@ interface FileWithProgress {
   errorMessage?: string;
 }
 
-function formatBytes(bytes: number, decimals = 1) {
-  if (bytes === 0) return "0 Bytes";
+type LocalFileError = {
+  key: "fileUpload.sizeExceeded" | "fileUpload.typeUnsupported";
+  values: Record<string, string | number>;
+};
+
+function formatBytes(bytes: number, locale: string, units: string[], decimals = 1) {
+  if (bytes === 0) return `0 ${units[0]}`;
   const k = 1024;
   const dm = decimals < 0 ? 0 : decimals;
-  const sizes = ["Bytes", "KB", "MB", "GB"];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + " " + sizes[i];
+  const i = Math.min(units.length - 1, Math.floor(Math.log(bytes) / Math.log(k)));
+  const amount = new Intl.NumberFormat(locale, { maximumFractionDigits: dm }).format(bytes / Math.pow(k, i));
+  return `${amount} ${units[i]}`;
 }
 
 function getFileIcon(type: string) {
@@ -57,14 +63,16 @@ function FileUploadField({
   className,
   id,
 }: FileUploadFieldProps) {
+  const locale = useLocale();
+  const t = useTranslations("ui");
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = React.useState(false);
   const [filesList, setFilesList] = React.useState<FileWithProgress[]>([]);
-  const [localError, setLocalError] = React.useState<string | null>(null);
+  const [localError, setLocalError] = React.useState<LocalFileError | null>(null);
   
   const uniqueId = React.useId();
   const fieldId = id || uniqueId;
-  const activeError = parentError || localError;
+  const activeError = parentError || (localError ? t(localError.key, localError.values) : null);
 
   // Cleanup simulation timers
   const timersRef = React.useRef<Record<string, NodeJS.Timeout>>({});
@@ -75,11 +83,11 @@ function FileUploadField({
     };
   }, []);
 
-  const validateFile = (file: File): string | null => {
+  const validateFile = (file: File): LocalFileError | null => {
     // 1. Validate size
     const maxSizeBytes = maxSizeMB * 1024 * 1024;
     if (file.size > maxSizeBytes) {
-      return `File ${file.name} exceeds the limit of ${maxSizeMB}MB.`;
+      return { key: "fileUpload.sizeExceeded", values: { name: file.name, maxSize: maxSizeMB } };
     }
 
     // 2. Validate type/extension
@@ -100,7 +108,7 @@ function FileUploadField({
       });
 
       if (!isAccepted) {
-        return `File ${file.name} type is not supported. Please upload: ${accept.join(", ")}`;
+        return { key: "fileUpload.typeUnsupported", values: { name: file.name, types: accept.join(", ") } };
       }
     }
 
@@ -266,7 +274,7 @@ function FileUploadField({
             triggerFileInput();
           }
         }}
-        aria-label="Upload files by dragging and dropping here, or click to choose files"
+        aria-label={t("fileUpload.dropArea")}
       >
         <div className={cn(
           "mb-4 p-3 rounded-lg border border-border bg-background flex items-center justify-center transition-transform",
@@ -276,12 +284,12 @@ function FileUploadField({
         </div>
 
         <p className="font-heading text-body-base font-semibold tracking-tight mb-1">
-          {isDragging ? "Drop your files here" : "Drag & drop files or click to browse"}
+          {isDragging ? t("fileUpload.dropHere") : t("fileUpload.dropOrBrowse")}
         </p>
         <p className="text-body-sm text-muted-foreground">
           {accept && accept.length > 0 
-            ? `Supports ${accept.join(", ")} up to ${maxSizeMB}MB` 
-            : `Supports any file up to ${maxSizeMB}MB`}
+            ? t("fileUpload.acceptedTypes", { types: accept.join(", "), maxSize: maxSizeMB })
+            : t("fileUpload.anyType", { maxSize: maxSizeMB })}
         </p>
       </div>
 
@@ -297,7 +305,7 @@ function FileUploadField({
                       {item.file.name}
                     </p>
                     <span className="text-body-xs text-muted-foreground shrink-0">
-                      {formatBytes(item.file.size)}
+                      {formatBytes(item.file.size, locale, [t("fileUpload.bytes"), t("fileUpload.kb"), t("fileUpload.mb"), t("fileUpload.gb")])}
                     </span>
                   </div>
 
@@ -319,7 +327,7 @@ function FileUploadField({
                   {item.status === "success" && (
                     <div className="flex items-center gap-1.5 text-body-xs font-medium text-status-success">
                       <Check className="h-3.5 w-3.5" />
-                      Uploaded successfully
+                      {t("fileUpload.uploaded")}
                     </div>
                   )}
                 </div>
@@ -332,8 +340,8 @@ function FileUploadField({
                   removeFile(item.id);
                 }}
                 className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-zx-accent transition-colors"
-                title="Remove file"
-                aria-label={`Remove ${item.file.name}`}
+                title={t("fileUpload.remove")}
+                aria-label={t("fileUpload.removeNamed", { name: item.file.name })}
               >
                 <X className="h-4 w-4" />
               </button>

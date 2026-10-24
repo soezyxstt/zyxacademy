@@ -1,8 +1,25 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { stripPublicLocalePrefix } from "@/lib/public-locale-routes";
+import { normalizeLocale } from "@/lib/i18n/locale";
 
 export function proxy(request: NextRequest) {
-  const { pathname } = request.nextUrl;
+  const pathname = request.nextUrl.pathname;
+  const requestHeaders = new Headers(request.headers);
+
+  // Never trust a caller-provided locale header. Only a finite public URL
+  // prefix below can set it for the rendered page.
+  requestHeaders.delete("x-app-locale");
+
+  const explicitPublicLocale = stripPublicLocalePrefix(pathname);
+  if (explicitPublicLocale) {
+    requestHeaders.set("x-app-locale", explicitPublicLocale.locale);
+    // Preserve the incoming origin; Proxy URL normalization is disabled so
+    // same-origin rewrites keep the trusted request header intact.
+    const destination = new URL(request.url);
+    destination.pathname = explicitPublicLocale.path;
+    return NextResponse.rewrite(destination, { request: { headers: requestHeaders } });
+  }
 
   // Paths that require a user session (protected paths)
   const isProtectedRoute =
@@ -14,11 +31,15 @@ export function proxy(request: NextRequest) {
 
   // Authentication paths
   const isAuthRoute = pathname.startsWith("/sign-in") || pathname.startsWith("/sign-up");
+  if (isAuthRoute) {
+    const authLocale = normalizeLocale(request.nextUrl.searchParams.get("locale"));
+    if (authLocale) requestHeaders.set("x-app-locale", authLocale);
+  }
 
   // API paths and static assets are excluded from middleware matching in config below,
   // but we return early just in case.
   if (!isProtectedRoute && !isAuthRoute) {
-    return NextResponse.next();
+    return NextResponse.next({ request: { headers: requestHeaders } });
   }
 
   // Fast, Edge-safe coarse cookie check without internal HTTP round-trip
@@ -43,18 +64,13 @@ export function proxy(request: NextRequest) {
 
   // Authoritative session verification and canonical role checks (hasPeran)
   // are performed by route-group layouts and server actions.
-  return NextResponse.next();
+  return NextResponse.next({ request: { headers: requestHeaders } });
 }
 
 export const config = {
-  // Protect routes but skip Next.js internals, static assets, and api endpoints
+  // Locale identity is sanitized on application and API routes. Static assets
+  // bypass Proxy; locale routing itself remains limited to the finite map.
   matcher: [
-    "/dashboard/:path*",
-    "/courses/:path*",
-    "/profile/:path*",
-    "/settings/:path*",
-    "/admin/:path*",
-    "/sign-in",
-    "/sign-up",
+    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|css|js|map)$).*)",
   ],
 };

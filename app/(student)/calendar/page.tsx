@@ -19,25 +19,14 @@ import { Reveal } from "@/components/ui/reveal";
 import { createMetadata, pageTitle } from "@/lib/site";
 import { listStudentEnrollments } from "@/lib/student/course-catalog";
 import { CalendarAgendaClient, type CalendarEventItem } from "./calendar-agenda-client";
+import { TranslatedText } from "@/components/i18n/translated-text";
+import { getTranslations } from "@/lib/i18n/server";
 
-export const metadata: Metadata = createMetadata({
-  title: "Kalender Akademik",
-  description: "Jadwal kegiatan belajar, tenggat kuis, tryout, dan sesi tutorial kelompok Anda di Zyx Academy.",
-  path: "/calendar",
-});
-
-
-const MONTH_NAMES = [
-  "Jan", "Feb", "Mar", "Apr", "Mei", "Jun",
-  "Jul", "Agu", "Sep", "Okt", "Nov", "Des"
-];
-
-function formatDisplayDate(d: Date): string {
-  const day = d.getDate();
-  const month = MONTH_NAMES[d.getMonth()];
-  const year = d.getFullYear();
-  return `${day} ${month} ${year}`;
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("student");
+  return createMetadata({ title: t("calendar.pageTitle"), description: t("calendar.metadataDescription"), path: "/calendar" });
 }
+
 
 export default async function CalendarPage() {
   const h = await headers();
@@ -95,8 +84,11 @@ export default async function CalendarPage() {
           courseTitle: q.courseTitle,
           category: "quiz",
           categoryLabel: q.category === "simulation" ? "Simulasi" : "Kuis",
-          dateStr: formatDisplayDate(dateObj),
-          timeStr: q.closeAt ? `Tenggat ${dateObj.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })} WIB` : "Tersedia",
+          dateStr: "",
+          timeStr: "",
+          dateValue: dateObj.toISOString(),
+          timeValue: targetDate.toISOString(),
+          timeKind: q.closeAt ? "deadline" : "available",
           actionUrl: `/courses/${q.courseId}/quiz/${q.id}`,
           actionLabel: isPast ? "Tinjau Kuis" : "Kerjakan Kuis",
           status: isToday ? "today" : isPast ? "past" : "upcoming",
@@ -145,8 +137,11 @@ export default async function CalendarPage() {
           courseTitle: ex.courseTitle,
           category: "tryout",
           categoryLabel: ex.type === "tryout" ? "Tryout" : "Ujian",
-          dateStr: formatDisplayDate(dateObj),
-          timeStr: `${dateObj.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })} WIB`,
+          dateStr: "",
+          timeStr: "",
+          dateValue: dateObj.toISOString(),
+          timeValue: targetDate.toISOString(),
+          timeKind: "time",
           actionUrl: `/courses/${ex.courseId}/tryout/${ex.id}`,
           actionLabel: isPast ? "Tinjau Tryout" : "Buka Tryout",
           status: isToday ? "today" : isPast ? "past" : "upcoming",
@@ -193,14 +188,19 @@ export default async function CalendarPage() {
       const isToday = b.sessionDate === todayDateStr;
       const isPast = b.status === "completed" || b.status === "cancelled" || sessionDateObj.getTime() + 86400000 < nowMs;
 
-      events.push({
+        events.push({
         id: `booking-${b.id}`,
-        title: b.topic ? `Tutorial: ${b.topic}` : `Sesi Tutorial dengan ${b.tutorName || "Tutor"}`,
+          title: "",
         courseTitle: b.courseTitle,
         category: "tutorial",
         categoryLabel: "Tutorial Kelompok",
-        dateStr: formatDisplayDate(sessionDateObj),
-        timeStr: b.startTime ? `${b.startTime} - ${b.endTime || "Selesai"} WIB` : "Waktu terjadwal",
+          dateStr: "",
+          timeStr: "",
+          dateValue: new Date(Date.UTC(sessionDateObj.getFullYear(), sessionDateObj.getMonth(), sessionDateObj.getDate(), 12)).toISOString(),
+          timeKind: b.startTime ? "range" : "scheduled",
+          scheduledRange: b.startTime ? `${b.startTime} - ${b.endTime || "Selesai"}` : undefined,
+          tutorialTopic: b.topic,
+          tutorName: b.tutorName,
         actionUrl: "/dashboard/schedule",
         actionLabel: "Lihat Detail",
         isOnlineMeet: Boolean(b.googleMeetUrl),
@@ -224,7 +224,7 @@ export default async function CalendarPage() {
   return (
     <ApplicationPage>
       <PageHeader
-        title="Kalender Akademik"
+        title={<TranslatedText namespace="student" messageKey="routeTitles.calendar" />}
         icon={CalendarDays}
       />
 

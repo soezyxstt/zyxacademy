@@ -30,22 +30,23 @@ import { normalizeDate } from "@/lib/date-utils";
 import { toast } from "@/components/ui/toast";
 import { useSpreadsheetExport } from "@/components/admin/spreadsheet-export";
 import type { PkaRegistrationRow } from "../actions";
+import { useTranslations, useAppLocale } from "@/lib/i18n/client";
 
 
-function formatDate(value: Date): string {
-  return normalizeDate(value).toLocaleDateString("id-ID", {
+function formatDate(value: Date, locale: "id" | "en"): string {
+  return normalizeDate(value).toLocaleDateString(locale === "id" ? "id-ID" : "en-US", {
     day: "numeric",
     month: "short",
     year: "numeric",
   });
 }
 
-function ProofThumbnail({ src, alt, onClick }: { src: string; alt: string; onClick: () => void }) {
+function ProofThumbnail({ src, alt, onClick, t }: { src: string; alt: string; onClick: () => void; t: ReturnType<typeof useTranslations<"adminOps">> }) {
   const [hasError, setHasError] = useState(false);
 
   if (hasError || !src) {
     return (
-      <div className="flex size-10 shrink-0 items-center justify-center rounded-md border border-border bg-muted/40 text-muted-foreground" title="Bukti tidak tersedia">
+      <div className="flex size-10 shrink-0 items-center justify-center rounded-md border border-border bg-muted/40 text-muted-foreground" title={t("pkaRegistrationUI.proofUnavailable")}>
         <FileText className="size-4" />
       </div>
     );
@@ -65,20 +66,20 @@ function ProofThumbnail({ src, alt, onClick }: { src: string; alt: string; onCli
         unoptimized
         onError={() => setHasError(true)}
       />
-      <span className="sr-only">Lihat bukti follow</span>
+      <span className="sr-only">{t("pkaRegistrationUI.viewProof")}</span>
     </button>
   );
 }
 
-function ProofPreviewImage({ src, alt }: { src: string; alt: string }) {
+function ProofPreviewImage({ src, alt, t }: { src: string; alt: string; t: ReturnType<typeof useTranslations<"adminOps">> }) {
   const [hasError, setHasError] = useState(false);
 
   if (hasError || !src) {
     return (
       <div className="flex flex-col items-center justify-center rounded-lg border border-border bg-muted/20 p-10 text-center text-muted-foreground">
         <FileText className="size-10 text-muted-foreground/60" />
-        <p className="mt-2 text-body-sm font-medium text-foreground">Bukti gambar tidak dapat dimuat</p>
-        <p className="mt-1 text-body-xs text-muted-foreground">Berkas bukti mungkin belum tersedia atau gagal dibaca dari server.</p>
+        <p className="mt-2 text-body-sm font-medium text-foreground">{t("pkaRegistrationUI.proofLoadFailure")}</p>
+        <p className="mt-1 text-body-xs text-muted-foreground">{t("pkaRegistrationUI.proofLoadHelp")}</p>
       </div>
     );
   }
@@ -102,7 +103,7 @@ function ProofPreviewImage({ src, alt }: { src: string; alt: string }) {
         rel="noopener noreferrer"
         className="inline-flex items-center gap-1.5 text-body-sm font-medium text-brand-primary transition-colors duration-150 hover:text-brand-primary/80"
       >
-        Buka gambar ukuran penuh
+        {t("pkaRegistrationUI.fullImage")}
         <ExternalLink className="size-3.5" />
       </a>
     </div>
@@ -115,8 +116,8 @@ function initials(name: string): string {
   return (parts[0][0] + (parts[1]?.[0] ?? "")).toUpperCase();
 }
 
-function toCsv(rows: PkaRegistrationRow[]): string {
-  const header = ["Nama", "Fakultas", "Email", "Instagram", "Pengumuman", "Tanggal", "Bukti"];
+function toCsv(rows: PkaRegistrationRow[], t: ReturnType<typeof useTranslations<"adminOps">>): string {
+  const header = ["name", "faculty", "email", "instagram", "announcements", "date", "proof"].map((key) => t(`pkaRegistrationUI.${key}`));
   const esc = (v: string) => `"${v.replace(/"/g, '""')}"`;
   const lines = rows.map((r) =>
     [
@@ -124,7 +125,7 @@ function toCsv(rows: PkaRegistrationRow[]): string {
       r.faculty,
       r.email,
       `@${r.instagramUsername}`,
-      r.receiveAnnouncements ? "Ya" : "Tidak",
+      r.receiveAnnouncements ? t("pkaRegistrationUI.yes") : t("pkaRegistrationUI.no"),
       normalizeDate(r.createdAt).toISOString(),
       typeof window !== "undefined" ? new URL(r.proofUrl, window.location.origin).toString() : r.proofUrl,
     ]
@@ -135,6 +136,8 @@ function toCsv(rows: PkaRegistrationRow[]): string {
 }
 
 export function RegistrationsTab({ registrations }: { registrations: PkaRegistrationRow[] }) {
+  const t = useTranslations("adminOps");
+  const { locale } = useAppLocale();
   const [query, setQuery] = useState("");
   const [preview, setPreview] = useState<PkaRegistrationRow | null>(null);
 
@@ -150,7 +153,7 @@ export function RegistrationsTab({ registrations }: { registrations: PkaRegistra
   }, [query, registrations]);
 
   const handleExport = () => {
-    const csv = toCsv(filtered);
+    const csv = toCsv(filtered, t);
     const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -163,7 +166,7 @@ export function RegistrationsTab({ registrations }: { registrations: PkaRegistra
   const { exporting: exportingSheets, confirmDialog, runExport } = useSpreadsheetExport({
     onSuccess: ({ spreadsheetUrl }) => {
       window.open(spreadsheetUrl, "_blank");
-      toast.success("Google Spreadsheet berhasil dibuat!");
+      toast.success(t("pkaRegistrationUI.googleSheetCreated"));
     },
     onError: (message) => {
       toast.error(message);
@@ -176,28 +179,28 @@ export function RegistrationsTab({ registrations }: { registrations: PkaRegistra
 
   const handleExportGoogleSheets = () => {
     const headersRow = [
-      "Nama Lengkap",
-      "Fakultas",
-      "Email Siswa",
-      "Instagram",
-      "Waktu Pendaftaran",
-      "Notifikasi Pengumuman",
-      "Link Bukti",
+      t("pkaRegistrationUI.fullName"),
+      t("pkaRegistrationUI.faculty"),
+      t("pkaRegistrationUI.studentEmail"),
+      t("pkaRegistrationUI.instagram"),
+      t("pkaRegistrationUI.registrationTime"),
+      t("pkaRegistrationUI.announcementNotifications"),
+      t("pkaRegistrationUI.proofLink"),
     ];
     const rowsMatrix = filtered.map((r) => [
       r.fullName,
       r.faculty,
       r.email,
       `@${r.instagramUsername}`,
-      r.createdAt ? formatDate(r.createdAt) : "-",
-      r.receiveAnnouncements ? "Ya" : "Tidak",
+      r.createdAt ? formatDate(r.createdAt, locale) : "-",
+      r.receiveAnnouncements ? t("pkaRegistrationUI.yes") : t("pkaRegistrationUI.no"),
       r.proofUrl,
     ]);
 
     runExport({
       entityType: "pka",
       entityId: "tutorial-pka",
-      title: "Pendaftar Tutorial PKA",
+      title: t("pka.title"),
       headers: headersRow,
       rows: rowsMatrix,
     });
@@ -205,7 +208,7 @@ export function RegistrationsTab({ registrations }: { registrations: PkaRegistra
 
   if (registrations.length === 0) {
     return (
-      <AdminEmptyState icon={Users} title="Belum ada pendaftar" />
+      <AdminEmptyState icon={Users} title={t("pkaRegistrationUI.empty")} />
     );
   }
 
@@ -213,9 +216,9 @@ export function RegistrationsTab({ registrations }: { registrations: PkaRegistra
     <div className="space-y-4">
       {/* Compact summary strip */}
       <AdminStatStrip className="sm:grid-cols-3">
-        <AdminStatStripItem icon={Users} value={registrations.length} label="Total pendaftar" />
-        <AdminStatStripItem icon={BellRing} value={optedIn} label="Berlangganan pengumuman" tone="brand" />
-        <AdminStatStripItem icon={GraduationCap} value={facultyCount} label="Fakultas berbeda" />
+        <AdminStatStripItem icon={Users} value={registrations.length} label={t("pkaRegistrationUI.total")} />
+        <AdminStatStripItem icon={BellRing} value={optedIn} label={t("pkaRegistrationUI.subscribed")} tone="brand" />
+        <AdminStatStripItem icon={GraduationCap} value={facultyCount} label={t("pkaRegistrationUI.facultyCount")} />
       </AdminStatStrip>
 
       {/* Controls */}
@@ -225,33 +228,33 @@ export function RegistrationsTab({ registrations }: { registrations: PkaRegistra
           value={query}
           onSearch={setQuery}
           onClear={() => setQuery("")}
-          placeholder="Cari nama, fakultas, email, atau Instagram..."
+          placeholder={t("pkaRegistrationUI.search")}
           containerClassName="flex-1 min-w-0"
         />
         <Button onClick={handleExportGoogleSheets} disabled={exportingSheets} variant="outline" size="sm" className="gap-2 rounded-lg text-brand-primary border-brand-primary/30 bg-brand-primary/5 hover:bg-brand-primary/10 h-9 shrink-0">
           <RefreshCw className={`size-3.5 ${exportingSheets ? "animate-spin" : "hidden"}`} />
           <FileText className="size-3.5" />
-          {exportingSheets ? "Mengekspor..." : "Ekspor Sheets"}
+          {exportingSheets ? t("pkaRegistrationUI.exporting") : t("pkaRegistrationUI.exportSheets")}
         </Button>
 
         <Button onClick={handleExport} variant="outline" size="sm" className="gap-2 rounded-lg h-9 shrink-0">
           <Download className="size-3.5" />
-          Ekspor CSV
+          {t("pkaRegistrationUI.exportCsv")}
         </Button>
       </div>
 
       {/* Table */}
       <AdminTable>
         <div className="hidden grid-cols-[minmax(0,1fr)_5rem_7rem_6rem] items-center gap-6 border-b border-border bg-muted/30 px-5 py-2.5 md:grid">
-          <span className="text-body-xs font-semibold text-muted-foreground">Pendaftar</span>
-          <span className="text-body-xs font-semibold text-muted-foreground">Bukti</span>
-          <span className="text-body-xs font-semibold text-muted-foreground">Langganan</span>
-          <span className="text-body-xs font-semibold text-muted-foreground text-right">Tanggal</span>
+          <span className="text-body-xs font-semibold text-muted-foreground">{t("pkaRegistrationUI.registrant")}</span>
+          <span className="text-body-xs font-semibold text-muted-foreground">{t("pkaRegistrationUI.proof")}</span>
+          <span className="text-body-xs font-semibold text-muted-foreground">{t("pkaRegistrationUI.subscription")}</span>
+          <span className="text-body-xs font-semibold text-muted-foreground text-right">{t("pkaRegistrationUI.date")}</span>
         </div>
 
         {filtered.length === 0 ? (
           <p className="px-5 py-10 text-center text-body-sm text-muted-foreground">
-            Tidak ada pendaftar yang cocok dengan pencarian.
+            {t("pkaRegistrationUI.noMatch")}
           </p>
         ) : (
           <ul className="divide-y divide-border/60">
@@ -290,11 +293,12 @@ export function RegistrationsTab({ registrations }: { registrations: PkaRegistra
 
                 {/* Proof */}
                 <div className="flex items-center md:block">
-                  <span className="mr-2 text-body-xs text-muted-foreground md:hidden">Bukti:</span>
+                  <span className="mr-2 text-body-xs text-muted-foreground md:hidden">{t("pkaRegistrationUI.proofLabel")}</span>
                   <ProofThumbnail
                     src={r.proofUrl}
-                    alt={`Bukti follow ${r.fullName}`}
+                    alt={t("pkaRegistrationUI.proofFollow", { name: r.fullName })}
                     onClick={() => setPreview(r)}
+                    t={t}
                   />
                 </div>
 
@@ -303,12 +307,12 @@ export function RegistrationsTab({ registrations }: { registrations: PkaRegistra
                   {r.receiveAnnouncements ? (
                     <span className="inline-flex items-center gap-1 rounded-md bg-status-success/10 px-2 py-0.5 text-body-xs font-medium text-status-success">
                       <BellRing className="size-3" />
-                      Ya
+                      {t("pkaRegistrationUI.yes")}
                     </span>
                   ) : (
                     <span className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-0.5 text-body-xs font-medium text-muted-foreground">
                       <BellOff className="size-3" />
-                      Tidak
+                      {t("pkaRegistrationUI.no")}
                     </span>
                   )}
                 </div>
@@ -316,7 +320,7 @@ export function RegistrationsTab({ registrations }: { registrations: PkaRegistra
                 {/* Date */}
                 <div className="flex items-center gap-1.5 text-body-xs text-muted-foreground md:justify-end md:whitespace-nowrap">
                   <CalendarDays className="size-3.5 shrink-0 md:hidden" />
-                  {formatDate(r.createdAt)}
+                  {formatDate(r.createdAt, locale)}
                 </div>
               </li>
             ))}
@@ -328,13 +332,13 @@ export function RegistrationsTab({ registrations }: { registrations: PkaRegistra
       <Dialog open={!!preview} onOpenChange={(open) => !open && setPreview(null)}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>Bukti follow @{preview?.instagramUsername}</DialogTitle>
+            <DialogTitle>{t("pkaRegistrationUI.proofFollow", { name: `@${preview?.instagramUsername ?? ""}` })}</DialogTitle>
             <DialogDescription>
               {preview?.fullName} &middot; {preview?.faculty}
             </DialogDescription>
           </DialogHeader>
           {preview && (
-            <ProofPreviewImage src={preview.proofUrl} alt={`Bukti follow ${preview.fullName}`} />
+            <ProofPreviewImage src={preview.proofUrl} alt={t("pkaRegistrationUI.proofFollow", { name: preview.fullName })} t={t} />
           )}
         </DialogContent>
       </Dialog>

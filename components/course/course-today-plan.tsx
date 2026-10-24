@@ -3,6 +3,7 @@ import { Layers, ListChecks, BookOpen, ArrowRight, Flame } from "lucide-react";
 import { studentCardClass } from "@/components/course/course-surfaces";
 import { MathText } from "@/components/course/math-text";
 import type { CourseDailyPlan } from "@/types/course-learning";
+import { getTranslations } from "@/lib/i18n/server";
 
 const KIND_ICON: Record<CourseDailyPlan["items"][number]["kind"], React.ComponentType<{ className?: string }>> = {
   flashcards: Layers,
@@ -14,19 +15,20 @@ const KIND_ICON: Record<CourseDailyPlan["items"][number]["kind"], React.Componen
  * Course-scoped "Rencana Hari Ini" ; the landing DailyPlanPane made real.
  * Read-only, deterministic list of what to do in this course today.
  */
-export function CourseTodayPlan({ plan }: { plan: CourseDailyPlan }) {
+export async function CourseTodayPlan({ plan }: { plan: CourseDailyPlan }) {
+  const t = await getTranslations("studentCourse");
   const hasItems = plan.items.length > 0;
 
   return (
     <section className={studentCardClass("text-left")}>
       <div className="flex items-center justify-between gap-3 border-b border-border/40 pb-3">
         <h2 className="font-heading text-body-base font-bold text-foreground">
-          Rencana Hari Ini
+          {t("course.todayPlan.title")}
         </h2>
         {plan.streakDays > 0 && (
           <span className="flex items-center gap-1.5 rounded-md border border-brand-secondary/40 bg-brand-secondary/10 px-2 py-0.5 text-body-xs font-semibold text-brand-secondary">
             <Flame className="size-3.5 shrink-0" />
-            {plan.streakDays} hari beruntun
+            {t("course.streak", { count: plan.streakDays })}
           </span>
         )}
       </div>
@@ -57,7 +59,7 @@ export function CourseTodayPlan({ plan }: { plan: CourseDailyPlan }) {
       ) : (
         <div className="py-6 text-center">
           <p className="text-body-sm text-muted-foreground">
-            Tidak ada target hari ini. Semua materi dan ulasan sudah selesai.
+            {t("course.todayPlan.empty")}
           </p>
         </div>
       )}
@@ -65,10 +67,10 @@ export function CourseTodayPlan({ plan }: { plan: CourseDailyPlan }) {
       <p className="mt-3 border-t border-border/30 pt-3 text-body-xs text-muted-foreground">
         {plan.weakestConcept ? (
           <>
-            Latihan diarahkan ke konsep terlemahmu: <MathText as="span">{plan.weakestConcept}</MathText>.
+            {t("course.todayPlan.weakConcept")} <MathText as="span">{plan.weakestConcept}</MathText>.
           </>
         ) : (
-          "Rencana disusun ulang otomatis dari progres belajarmu."
+          t("course.todayPlan.autoPlan")
         )}
       </p>
     </section>

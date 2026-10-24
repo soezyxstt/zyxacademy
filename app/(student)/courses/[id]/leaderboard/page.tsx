@@ -11,7 +11,9 @@ import { EnrollmentForm } from "@/components/enrollment-form";
 import { Reveal } from "@/components/ui/reveal";
 import { tabListClassName, tabTriggerClassName, tabTriggerActiveClassName } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
+import { TranslatedText } from "@/components/i18n/translated-text";
 import { PKA_COURSE_ID } from "@/lib/pka-config";
+import { getTranslations } from "@/lib/i18n/server";
 
 type Props = {
   params: Promise<{ id: string }>;
@@ -21,9 +23,10 @@ type Props = {
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params;
   const course = await getCourse(id);
+  const t = await getTranslations("learning");
   return createMetadata({
-    title: course ? `Papan Peringkat ${course.title}` : "Papan Peringkat",
-    description: `Peringkat kelas ${course?.title ?? ""} berdasarkan capaian kuis dan tryout.`,
+    title: course ? t("metadata.leaderboardTitle", { course: course.title }) : t("metadata.leaderboardTitleFallback"),
+    description: t("metadata.leaderboardDescription"),
     path: `/courses/${id}/leaderboard`,
   });
 }
@@ -63,7 +66,7 @@ export default async function CourseLeaderboardPage({ params, searchParams }: Pr
                 <Lock className="size-5" />
               </div>
               <div className="min-w-0 flex-1">
-                <h3 className="font-heading text-body-base font-bold text-foreground">Butuh token kelas</h3>
+                <h3 className="font-heading text-body-base font-bold text-foreground"><TranslatedText namespace="learning" messageKey="courseAccess.needToken" /></h3>
                 <p className="mt-1 text-body-sm text-muted-foreground">
                   Aktifkan kelas untuk melihat peringkat dan skor gabungan.
                 </p>
@@ -94,19 +97,20 @@ export default async function CourseLeaderboardPage({ params, searchParams }: Pr
 
   const top3 = rankedRows.slice(0, 3);
 
-  const simTabLabel = id === PKA_COURSE_ID ? "Simulasi" : "Tryout";
+  const simulationLabelKey = id === PKA_COURSE_ID ? "simulation" : "tryout";
 
   return (
     <CoursePageShell
-      title={`Peringkat Kelas: ${course.title}`}
+      title={<TranslatedText namespace="learning" messageKey="leaderboard.title" values={{ course: course.title }} />}
 
       icon={Trophy}
     >
       <Reveal>
-        <nav aria-label="Jenis peringkat" className="mb-4">
+        <nav aria-labelledby="leaderboard-type-label" className="mb-4">
+          <span id="leaderboard-type-label" className="sr-only"><TranslatedText namespace="learning" messageKey="leaderboard.typeLabel" /></span>
           <div className={tabListClassName}>
-            <Link href={`/courses/${id}/leaderboard?type=quiz`} aria-current={activeType === "quiz" ? "page" : undefined} className={cn(tabTriggerClassName, activeType === "quiz" && tabTriggerActiveClassName)}>Kuis</Link>
-            <Link href={`/courses/${id}/leaderboard?type=simulation`} aria-current={activeType === "simulation" ? "page" : undefined} className={cn(tabTriggerClassName, activeType === "simulation" && tabTriggerActiveClassName)}>{simTabLabel}</Link>
+            <Link href={`/courses/${id}/leaderboard?type=quiz`} aria-current={activeType === "quiz" ? "page" : undefined} className={cn(tabTriggerClassName, activeType === "quiz" && tabTriggerActiveClassName)}><TranslatedText namespace="learning" messageKey="leaderboard.quiz" /></Link>
+            <Link href={`/courses/${id}/leaderboard?type=simulation`} aria-current={activeType === "simulation" ? "page" : undefined} className={cn(tabTriggerClassName, activeType === "simulation" && tabTriggerActiveClassName)}><TranslatedText namespace="learning" messageKey={`leaderboard.${simulationLabelKey}`} /></Link>
           </div>
         </nav>
 
@@ -114,10 +118,10 @@ export default async function CourseLeaderboardPage({ params, searchParams }: Pr
         <div className="mb-4 rounded-xl border border-border/70 bg-card p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
             <h3 className="font-heading text-body-base font-bold text-foreground">
-              Peringkat Anda
+              <TranslatedText namespace="learning" messageKey="leaderboard.yourRank" />
             </h3>
             <p className="text-body-sm text-muted-foreground mt-1">
-              Berdasarkan rata-rata skor {activeType === "simulation" ? "tryout" : "kuis"} dan kriteria tie-breaker.
+              <TranslatedText namespace="learning" messageKey="leaderboard.basedOn" values={{ type: activeType === "simulation" ? (id === PKA_COURSE_ID ? "simulation" : "tryout") : "quiz" }} />
             </p>
           </div>
           <div className="flex items-center gap-2 shrink-0">
@@ -125,11 +129,11 @@ export default async function CourseLeaderboardPage({ params, searchParams }: Pr
             <div className="text-body-base font-semibold text-foreground">
               {myEntry ? (
                 <>
-                  <span className="text-brand-primary font-bold text-body-base">{myEntry.rank}</span> dari <span className="font-bold">{totalStudents}</span>
+                  <TranslatedText namespace="learning" messageKey="leaderboard.rankOf" values={{ rank: myEntry.rank, total: totalStudents }} />
                 </>
               ) : (
                 <>
-                  <span className="text-muted-foreground font-bold">-</span> dari <span className="font-bold">{totalStudents}</span> <span className="text-body-xs text-muted-foreground block">(Belum ada skor {activeType === "simulation" ? "tryout" : "kuis"})</span>
+                  <TranslatedText namespace="learning" messageKey="leaderboard.noScore" values={{ total: totalStudents, type: activeType === "simulation" ? (id === PKA_COURSE_ID ? "simulation" : "tryout") : "quiz" }} />
                 </>
               )}
             </div>
@@ -140,17 +144,17 @@ export default async function CourseLeaderboardPage({ params, searchParams }: Pr
           <div className="py-8 text-center max-w-md mx-auto bg-card p-4 border border-border rounded-xl">
             <Trophy className="size-10 text-muted-foreground/30 mx-auto mb-4" />
             <h3 className="font-heading text-body-base font-bold text-foreground mb-1">
-              Belum ada peringkat {activeType === "simulation" ? "try out" : "kuis"}
+              <TranslatedText namespace="learning" messageKey="leaderboard.emptyTitle" values={{ type: activeType === "simulation" ? (id === PKA_COURSE_ID ? "simulation" : "tryout") : "quiz" }} />
             </h3>
             <p className="text-body-sm text-muted-foreground">
               {activeType === "simulation"
-                ? "Selesaikan tryout untuk masuk peringkat."
-                : "Selesaikan kuis untuk masuk peringkat."}
+                ? <TranslatedText namespace="learning" messageKey="leaderboard.emptyTryout" />
+                : <TranslatedText namespace="learning" messageKey="leaderboard.emptyQuiz" />}
             </p>
           </div>
         ) : (
-          <section aria-label="Tiga peringkat teratas" className="overflow-hidden rounded-xl border border-border/70 bg-card">
-            <h2 className="border-b border-border/60 px-4 py-3 font-heading text-body-base font-bold">3 teratas</h2>
+          <section aria-labelledby="leaderboard-top-label" className="overflow-hidden rounded-xl border border-border/70 bg-card">
+            <h2 id="leaderboard-top-label" className="border-b border-border/60 px-4 py-3 font-heading text-body-base font-bold"><TranslatedText namespace="learning" messageKey="leaderboard.topThree" /></h2>
             <ol className="divide-y divide-border/60">
               {top3.map((entry) => (
                 <li key={entry.studentId} className="flex items-start gap-3 px-4 py-3">
@@ -158,9 +162,9 @@ export default async function CourseLeaderboardPage({ params, searchParams }: Pr
                   <div className="min-w-0 flex-1">
                     <p className="break-words text-body-sm font-semibold">{entry.studentName}</p>
                     <p className="mt-1 text-body-xs text-muted-foreground">
-                      {entry.attemptCount} {activeType === "simulation" ? "tryout" : "kuis"} · {formatDuration(entry.avgDuration)}
+                      <TranslatedText namespace="learning" messageKey="leaderboard.attemptDuration" values={{ count: entry.attemptCount, type: activeType === "simulation" ? (id === PKA_COURSE_ID ? "simulation" : "tryout") : "quiz", duration: formatDuration(entry.avgDuration) }} />
                     </p>
-                    <p className="mt-0.5 text-body-xs text-muted-foreground">{entry.correctHardCount} soal sulit benar · {entry.attemptedMediumCount} soal sedang dikerjakan</p>
+                    <p className="mt-0.5 text-body-xs text-muted-foreground"><TranslatedText namespace="learning" messageKey="leaderboard.questionStats" values={{ hard: entry.correctHardCount, medium: entry.attemptedMediumCount }} /></p>
                   </div>
                   <span className="shrink-0 text-body-base font-bold text-brand-primary">{entry.avgScore}%</span>
                 </li>

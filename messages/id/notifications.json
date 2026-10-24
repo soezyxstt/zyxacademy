@@ -1,0 +1,76 @@
+{
+  "push": {
+    "quizPublished": { "title": "📝 Kuis Baru Tersedia", "body": "{quizTitle} untuk {courseTitle} sudah bisa dikerjakan. Yuk coba sekarang!" },
+    "pkaSchedule": { "title": "Jadwal Tutorial PKA Baru: {scheduleTitle}", "body": "Jadwal sesi tutorial PKA: {scheduleTitle}, {sessionLabel}. Cek tab Jadwal untuk tautan Meet." },
+    "pkaScheduleUpdate": { "title": "Pembaruan Tautan Meet: {scheduleTitle}", "body": "Tautan Google Meet ditambahkan untuk sesi {scheduleTitle} pada {sessionLabel}." },
+    "tutorScheduleMoved": { "title": "Jadwal Tutorial Diperbarui", "body": "Sesi dipindahkan ke {dayOfWeek}, {sessionDate} pukul {startTime} sampai {endTime}." },
+    "tutorTicketDecision": { "title": "Tiket {ticketType} {decision}", "body": "Pengajar telah memutuskan tiket {ticketType}." },
+    "tutorTicketMessage": { "title": "Balasan baru pada diskusi jadwal" }
+  },
+  "bell": "Notifikasi",
+  "title": "Notifikasi",
+  "markAllRead": "Tandai semua dibaca",
+  "empty": "Belum ada notifikasi.",
+  "relative": {
+    "justNow": "Baru saja",
+    "minutes": "{count} m lalu",
+    "hours": "{count} j lalu",
+    "days": "{count} h lalu"
+  },
+  "email": {
+    "pkaDisclaimer": "Simulasi ini dibuat oleh Zyx Academy untuk latihan mandiri; bukan hasil PKA resmi ITB. Hasil dan keputusan SCL resmi hanya dikeluarkan oleh Ditsama ITB.",
+    "categories": {
+      "courseUpdates": { "label": "Pembaruan kursus", "description": "Pengumuman, materi terbit, kuis, dan pembaruan pendaftaran." },
+      "eventsAndSchedules": { "label": "Acara dan jadwal", "description": "Sesi langsung, lokakarya, perubahan jadwal, dan tautan pertemuan." },
+      "learningReminders": { "label": "Pengingat belajar", "description": "Refleksi mingguan, pengingat belajar, dan ringkasan kemajuan." },
+      "newsAndOffers": { "label": "Berita dan penawaran", "description": "Berita produk, kampanye, dan penawaran promosi." }
+    },
+    "footer": "Kamu menerima email ini karena kategori {category} aktif di akun Zyx kamu.",
+    "manage": "Berhenti berlangganan atau atur preferensi",
+      "schedule": {
+      "subject": "Sesi Review PKA - {title}",
+      "intro": "Sesi tutorial langsung PKA baru telah dijadwalkan.",
+      "scheduleLabel": "Jadwal:",
+      "join": "Gabung Google Meet",
+      "meetPending": "Tautan Google Meet akan dibagikan sebelum sesi dimulai.",
+      "courseLinkIntro": "Jadwal lengkap, simulasi kuis, dan materi tersedia di",
+      "courseLink": "halaman Tutorial PKA"
+    },
+    "scheduleUpdateSubject": "Pembaruan tautan Meet PKA - {title}",
+    "announcement": {
+      "subject": "Pengumuman PKA - {title}",
+      "courseLinkIntro": "Cek halaman kursus untuk informasi lebih lanjut:",
+      "courseLink": "Buka Tutorial PKA"
+    },
+    "reflection": {
+      "subject": "Refleksi Belajar Mingguan: {weekStart}",
+      "greeting": "Halo {name},",
+      "intro": "Berikut ringkasan pembelajaranmu untuk minggu yang dimulai pada",
+      "activity": "Aktivitas yang tercatat:",
+      "quizzes": "Kuis diselesaikan:",
+      "flashcards": "Kartu belajar ditinjau:",
+      "modules": "Modul diselesaikan:",
+      "progress": "Kemajuan materi:",
+      "masteryGrowth": "Pertumbuhan pemahaman:",
+      "mostImproved": "Topik dengan peningkatan terbesar:",
+      "streak": "Rangkaian belajar:",
+      "currentStreak": "Rangkaian saat ini:",
+      "longestStreak": "Rangkaian terpanjang:",
+      "days": "hari",
+      "outro": "Lanjutkan kemajuan belajarmu di"
+    },
+    "unsubscribe": {
+      "title": "Preferensi email",
+      "description": "Berhenti menerima email opsional dari Zyx Academy.",
+      "successTitle": "Preferensi email diperbarui",
+      "successBody": "Kamu tidak akan menerima email {category} lagi.",
+      "manageAll": "Atur semua preferensi",
+      "invalidTitle": "Tautan berhenti berlangganan tidak valid",
+      "invalidBody": "Tautan mungkin tidak lengkap atau sudah lebih dari 30 hari.",
+      "manage": "Atur preferensi",
+      "confirmTitle": "Berhenti berlangganan dari {category}",
+      "confirmBody": "Ini hanya menonaktifkan email {category}. Kategori opsional lain dan email akun penting tetap aktif.",
+      "unsubscribe": "Berhenti berlangganan"
+    }
+  }
+}

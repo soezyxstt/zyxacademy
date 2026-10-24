@@ -13,7 +13,7 @@ export type CoursePageShellProps = {
   actions?: ReactNode;
   headingTier?: "primary" | "secondary";
   backHref?: string;
-  backLabel?: string;
+  backLabel?: ReactNode;
   children: ReactNode;
   className?: string;
   hideHeader?: boolean;

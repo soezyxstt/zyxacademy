@@ -15,7 +15,7 @@ async function setup() {
   const file = `/tmp/zyx-coding-repository-${randomUUID()}.db`; files.push(file);
   const client = createClient({ url: `file:${file}` }); clients.push(client);
   await client.executeMultiple("CREATE TABLE user (id TEXT PRIMARY KEY); CREATE TABLE mata_kuliah (id TEXT PRIMARY KEY); INSERT INTO user VALUES ('student'); INSERT INTO mata_kuliah VALUES ('course');");
-  await client.executeMultiple(readFileSync("drizzle/0098_shiny_nehzno.sql", "utf8").replaceAll("--> statement-breakpoint", ""));
+  await client.executeMultiple(readFileSync("drizzle/0099_hard_meteorite.sql", "utf8").replaceAll("--> statement-breakpoint", ""));
   const db = drizzle(client, { schema }) as unknown as typeof database;
   return { db, repository: createCodingAttemptRepository(db) };
 }

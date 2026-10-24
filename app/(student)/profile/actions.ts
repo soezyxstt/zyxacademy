@@ -11,6 +11,7 @@ import { ITB_FACULTIES, getMajorsForFaculty } from "@/lib/student/itb-academic-d
 export interface StudentProfileActionState {
   success: boolean;
   message: string;
+  errorCode?: "sessionExpired" | "facultyRequired" | "majorRequired" | "entryYearInvalid" | "saveFailed";
   submittedAt: number;
 }
 
@@ -28,6 +29,7 @@ export async function updateStudentProfileAction(
       return {
         success: false,
         message: "Sesi telah berakhir. Silakan masuk kembali.",
+        errorCode: "sessionExpired",
         submittedAt: Date.now(),
       };
     }
@@ -40,6 +42,7 @@ export async function updateStudentProfileAction(
       return {
         success: false,
         message: "Pilih fakultas atau sekolah ITB Anda.",
+        errorCode: "facultyRequired",
         submittedAt: Date.now(),
       };
     }
@@ -48,6 +51,7 @@ export async function updateStudentProfileAction(
       return {
         success: false,
         message: "Pilih jurusan atau program studi Anda.",
+        errorCode: "majorRequired",
         submittedAt: Date.now(),
       };
     }
@@ -58,6 +62,7 @@ export async function updateStudentProfileAction(
       return {
         success: false,
         message: "Pilih tahun masuk ITB yang valid.",
+        errorCode: "entryYearInvalid",
         submittedAt: Date.now(),
       };
     }
@@ -86,6 +91,7 @@ export async function updateStudentProfileAction(
     return {
       success: false,
       message: "Gagal menyimpan profil akademis. Coba lagi beberapa saat lagi.",
+      errorCode: "saveFailed",
       submittedAt: Date.now(),
     };
   }

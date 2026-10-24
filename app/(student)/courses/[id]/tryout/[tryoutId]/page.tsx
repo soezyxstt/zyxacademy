@@ -17,6 +17,9 @@ import { and, eq, asc } from "drizzle-orm";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import type { ExamFixture } from "@/lib/student-course-fixtures";
+import { TranslatedText } from "@/components/i18n/translated-text";
+import { FormattedDate } from "@/components/ui/formatted-date";
+import { getTranslations } from "@/lib/i18n/server";
 
 type Props = { params: Promise<{ id: string; tryoutId: string }> };
 
@@ -72,16 +75,15 @@ function publicExamSettings(value: unknown): ExamFixture["settings"] {
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id, tryoutId } = await params;
   const course = await getCourse(id);
+  const t = await getTranslations("learning");
   
-  let examTitle = "Tryout";
+  let examTitle = t("metadata.tryoutTitleFallback");
   const [dbExam] = await db.select({ title: exams.title }).from(exams).where(eq(exams.id, tryoutId)).limit(1);
   if (dbExam) examTitle = dbExam.title;
 
   return createMetadata({
     title: course ? `${examTitle} (${course.title})` : examTitle,
-    description: course
-      ? `Kerjakan ${examTitle}; simulasi ujian ${course.title}.`
-      : `Kerjakan ${examTitle}; simulasi ujian.`,
+    description: course ? t("metadata.tryoutDetailDescription", { title: examTitle, course: course.title }) : t("metadata.tryoutDescription"),
     path: `/courses/${id}/tryout/${tryoutId}`,
   });
 }
@@ -140,17 +142,17 @@ export default async function CourseTryoutTakePage({ params }: Props) {
 
   if (openDate && now < openDate) {
     return (
-      <CoursePageShell title="Tryout Belum Dibuka" description={exam.title} hideHeader>
+      <CoursePageShell title={<TranslatedText namespace="learning" messageKey="tryoutTake.notOpen" />} description={exam.title} hideHeader>
         <Reveal>
           <div className="rounded-lg border border-border/70 bg-card/75 p-5 backdrop-blur-sm text-center">
-            <h3 className="font-heading text-body-base font-bold text-foreground">Tryout Belum Dibuka</h3>
+            <h3 className="font-heading text-body-base font-bold text-foreground"><TranslatedText namespace="learning" messageKey="tryoutTake.notOpen" /></h3>
             <p className="mt-2 text-body-sm text-muted-foreground">
-              Tryout ini dijadwalkan untuk dibuka pada tanggal{" "}
-              <strong className="text-foreground">{openDate.toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" })}</strong>.
+              <TranslatedText namespace="learning" messageKey="tryoutTake.opensOn" />{" "}
+              <strong className="text-foreground"><FormattedDate date={openDate} options={{ dateStyle: "medium", timeStyle: "short" }} /></strong>.
             </p>
             <div className="mt-5">
               <Button asChild variant="outline" size="sm" className="rounded-md border-border/80">
-                <Link href={`/courses/${id}/tryout`}>Kembali ke Daftar Tryout</Link>
+                <Link href={`/courses/${id}/tryout`}><TranslatedText namespace="learning" messageKey="tryoutTake.backToList" /></Link>
               </Button>
             </div>
           </div>
@@ -161,17 +163,17 @@ export default async function CourseTryoutTakePage({ params }: Props) {
 
   if (closeDate && now > closeDate) {
     return (
-      <CoursePageShell title="Tryout Sudah Ditutup" description={exam.title} hideHeader>
+      <CoursePageShell title={<TranslatedText namespace="learning" messageKey="tryoutTake.closed" />} description={exam.title} hideHeader>
         <Reveal>
           <div className="rounded-lg border border-border/70 bg-card/75 p-5 backdrop-blur-sm text-center">
-            <h3 className="font-heading text-body-base font-bold text-foreground">Tryout Sudah Ditutup</h3>
+            <h3 className="font-heading text-body-base font-bold text-foreground"><TranslatedText namespace="learning" messageKey="tryoutTake.closed" /></h3>
             <p className="mt-2 text-body-sm text-muted-foreground">
-              Akses tryout ini telah berakhir sejak tanggal{" "}
-              <strong className="text-foreground">{closeDate.toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" })}</strong>.
+              <TranslatedText namespace="learning" messageKey="tryoutTake.closedSince" />{" "}
+              <strong className="text-foreground"><FormattedDate date={closeDate} options={{ dateStyle: "medium", timeStyle: "short" }} /></strong>.
             </p>
             <div className="mt-5">
               <Button asChild variant="outline" size="sm" className="rounded-md border-border/80">
-                <Link href={`/courses/${id}/tryout`}>Kembali ke Daftar Tryout</Link>
+                <Link href={`/courses/${id}/tryout`}><TranslatedText namespace="learning" messageKey="tryoutTake.backToList" /></Link>
               </Button>
             </div>
           </div>
@@ -184,12 +186,12 @@ export default async function CourseTryoutTakePage({ params }: Props) {
 
   if (!isEnrolled) {
     return (
-      <CoursePageShell title="Tryout terkunci" description={`${course.title}, tryout premium`} hideHeader>
+      <CoursePageShell title={<TranslatedText namespace="learning" messageKey="tryoutTake.locked" />} description={<TranslatedText namespace="learning" messageKey="tryoutTake.premiumDescription" values={{ course: course.title }} />} hideHeader>
         <div className="mb-4">
           <Button variant="ghost" size="sm" asChild className="gap-1.5 text-body-xs font-semibold text-muted-foreground hover:text-foreground">
             <Link href={`/courses/${id}/tryout`}>
               <ArrowLeft className="size-3.5" />
-              <span>Kembali ke Daftar Tryout</span>
+              <span><TranslatedText namespace="learning" messageKey="tryoutTake.backToList" /></span>
             </Link>
           </Button>
         </div>
@@ -200,9 +202,9 @@ export default async function CourseTryoutTakePage({ params }: Props) {
                 <Lock className="size-5" />
               </div>
               <div>
-                <h3 className="font-heading text-body-base font-bold text-foreground">Butuh token kelas</h3>
+                <h3 className="font-heading text-body-base font-bold text-foreground"><TranslatedText namespace="learning" messageKey="tryoutTake.needToken" /></h3>
                 <p className="mt-1 text-body-sm text-muted-foreground">
-                  Aktifkan kelas untuk membuka &ldquo;{exam.title}&rdquo;.
+                  <TranslatedText namespace="learning" messageKey="tryoutTake.activateToOpen" values={{ exam: exam.title }} />
                 </p>
               </div>
             </div>
@@ -216,7 +218,7 @@ export default async function CourseTryoutTakePage({ params }: Props) {
   }
 
   return (
-    <CoursePageShell title={exam.title} description="Kerjakan sesuai waktu; esai dinilai pengajar." hideHeader>
+    <CoursePageShell title={exam.title} description={<TranslatedText namespace="learning" messageKey="tryoutTake.instructions" />} hideHeader>
       <Reveal>
         <TryoutForm courseId={id} exam={exam} />
       </Reveal>

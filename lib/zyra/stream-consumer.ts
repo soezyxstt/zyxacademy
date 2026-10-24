@@ -13,12 +13,15 @@ export interface ZyraWorkStepData {
   status: string;
 }
 
+export type ZyraResponseLanguage = "id" | "en";
+
 export type ZyraStreamPart =
   | { type: "text-delta"; textDelta: string }
   | { type: "chunk"; text: string }
   | { type: "data-sources"; sources: ZyraSource[] }
   | { type: "data-canvas"; canvasSpec: CanvasSpec }
   | { type: "data-session"; sessionId: string }
+  | { type: "data-response-language"; responseLanguage: ZyraResponseLanguage }
   | { type: "data-work-step"; data: ZyraWorkStepData }
   | { type: "data-error"; data: { message: string } }
   | { type: "done" };

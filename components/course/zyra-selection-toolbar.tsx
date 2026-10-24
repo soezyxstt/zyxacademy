@@ -19,6 +19,7 @@ import { MathText } from "@/components/course/math-text";
 import { cn } from "@/lib/utils";
 import type { ZyraSelectionContext } from "@/lib/zyra/selection-serializer";
 import { quickExplainSnippetAction } from "@/app/actions/tutor";
+import { useTranslations } from "@/lib/i18n/client";
 
 export interface ZyraSelectionToolbarProps {
   courseId: string;
@@ -42,6 +43,7 @@ export function ZyraSelectionToolbar({
   onOpenChange,
   onAskZyra,
 }: ZyraSelectionToolbarProps) {
+  const t = useTranslations("studentCourse");
   const [mode, setMode] = useState<"toolbar" | "micro_popover">("toolbar");
   const [quickLoading, setQuickLoading] = useState(false);
   const [quickExplanation, setQuickExplanation] = useState<string | null>(null);
@@ -76,11 +78,10 @@ export function ZyraSelectionToolbar({
       if (res.success && res.explanation) {
         setQuickExplanation(res.explanation);
       } else {
-        setQuickError(res.error || "Gagal memuat penjelasan singkat.");
+        setQuickError(t("selectionToolbar.loadFailed"));
       }
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Terjadi kendala saat memuat penjelasan.";
-      setQuickError(msg);
+    } catch {
+      setQuickError(t("selectionToolbar.loadFailed"));
     } finally {
       setQuickLoading(false);
     }
@@ -136,18 +137,18 @@ export function ZyraSelectionToolbar({
                   className="h-7 text-body-xs font-semibold text-foreground hover:bg-muted gap-1 px-2.5 cursor-pointer"
                 >
                   <BookOpen className="size-3 text-brand-primary" />
-                  <span>Definisi</span>
+                  <span>{t("selectionToolbar.define")}</span>
                 </Button>
                 <Button
                   type="button"
                   variant="ghost"
                   size="sm"
                   onMouseDown={(e) => e.preventDefault()}
-                  onClick={() => onAskZyra("example", "Berikan contoh konkret materi ini.")}
+                  onClick={() => onAskZyra("example", t("selectionToolbar.examplePrompt"))}
                   className="h-7 text-body-xs font-semibold text-foreground hover:bg-muted gap-1 px-2.5 cursor-pointer"
                 >
                   <Lightbulb className="size-3 text-status-warning" />
-                  <span>Contoh</span>
+                  <span>{t("selectionToolbar.example")}</span>
                 </Button>
               </>
             ) : isMathOrStep ? (
@@ -157,22 +158,22 @@ export function ZyraSelectionToolbar({
                   variant="ghost"
                   size="sm"
                   onMouseDown={(e) => e.preventDefault()}
-                  onClick={() => onAskZyra("step_by_step", "Bedah langkah perhitungan ini secara bertahap.")}
+                  onClick={() => onAskZyra("step_by_step", t("selectionToolbar.stepsPrompt"))}
                   className="h-7 text-body-xs font-semibold text-foreground hover:bg-muted gap-1 px-2.5 cursor-pointer"
                 >
                   <Workflow className="size-3 text-status-success" />
-                  <span>Bedah Langkah</span>
+                  <span>{t("selectionToolbar.steps")}</span>
                 </Button>
                 <Button
                   type="button"
                   variant="ghost"
                   size="sm"
                   onMouseDown={(e) => e.preventDefault()}
-                  onClick={() => onAskZyra("rationale", "Kenapa cara atau rumus ini yang digunakan?")}
+                  onClick={() => onAskZyra("rationale", t("selectionToolbar.whyPrompt"))}
                   className="h-7 text-body-xs font-semibold text-foreground hover:bg-muted gap-1 px-2.5 cursor-pointer"
                 >
                   <HelpCircle className="size-3 text-status-warning" />
-                  <span>Kenapa Cara Ini?</span>
+                  <span>{t("selectionToolbar.whyThisWay")}</span>
                 </Button>
               </>
             ) : (
@@ -186,18 +187,18 @@ export function ZyraSelectionToolbar({
                   className="h-7 text-body-xs font-semibold text-foreground hover:bg-muted gap-1 px-2.5 cursor-pointer"
                 >
                   <Sparkles className="size-3 text-brand-primary" />
-                  <span>Jelaskan Inti</span>
+                  <span>{t("selectionToolbar.explainCore")}</span>
                 </Button>
                 <Button
                   type="button"
                   variant="ghost"
                   size="sm"
                   onMouseDown={(e) => e.preventDefault()}
-                  onClick={() => onAskZyra("intuition", "Apa intuisi dasar atau analogi di balik pernyataan ini?")}
+                  onClick={() => onAskZyra("intuition", t("selectionToolbar.intuitionPrompt"))}
                   className="h-7 text-body-xs font-semibold text-foreground hover:bg-muted gap-1 px-2.5 cursor-pointer"
                 >
                   <Compass className="size-3 text-status-warning" />
-                  <span>Intuisinya?</span>
+                  <span>{t("selectionToolbar.intuition")}</span>
                 </Button>
               </>
             )}
@@ -210,11 +211,11 @@ export function ZyraSelectionToolbar({
               variant="default"
               size="sm"
               onMouseDown={(e) => e.preventDefault()}
-              onClick={() => onAskZyra("clarify", `Bantu saya memahami bagian ini: "${selectionContext.cleanText}"`)}
+              onClick={() => onAskZyra("clarify", t("selectionToolbar.clarifyPrompt", { selection: selectionContext.cleanText }))}
               className="h-7 text-body-xs font-semibold bg-brand-primary hover:bg-brand-primary/95 text-white gap-1 px-2.5 cursor-pointer rounded-lg"
             >
               <MessageSquareText className="size-3" />
-              <span>Tanya Zyra</span>
+              <span>{t("selectionToolbar.askZyra")}</span>
             </Button>
 
             <button
@@ -222,7 +223,7 @@ export function ZyraSelectionToolbar({
               onMouseDown={(e) => e.preventDefault()}
               onClick={() => onOpenChange(false)}
               className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors cursor-pointer ml-0.5"
-              aria-label="Tutup bilah alat"
+              aria-label={t("selectionToolbar.closeToolbar")}
             >
               <X className="size-3.5" />
             </button>
@@ -234,7 +235,7 @@ export function ZyraSelectionToolbar({
               <div className="flex items-center gap-1.5 min-w-0">
                 <Sparkles className="size-3.5 text-brand-primary shrink-0" />
                 <span className="font-heading text-body-xs font-bold text-brand-primary truncate">
-                  {isShortTerm ? "Definisi Cepat" : "Intisari Konsep"}
+                  {isShortTerm ? t("selectionToolbar.quickDefinition") : t("selectionToolbar.conceptSummary")}
                 </span>
               </div>
               <button
@@ -242,7 +243,7 @@ export function ZyraSelectionToolbar({
                 onMouseDown={(e) => e.preventDefault()}
                 onClick={() => onOpenChange(false)}
                 className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors cursor-pointer"
-                aria-label="Tutup penjelasan"
+                aria-label={t("selectionToolbar.closeExplanation")}
               >
                 <X className="size-3.5" />
               </button>
@@ -252,7 +253,7 @@ export function ZyraSelectionToolbar({
               {quickLoading ? (
                 <div className="flex flex-col items-center justify-center py-6 gap-2 text-muted-foreground">
                   <Loader2 className="size-4 animate-spin text-brand-primary" />
-                  <span className="text-body-xs">Memuat penjelasan ringkas...</span>
+                  <span className="text-body-xs">{t("selectionToolbar.loading")}</span>
                 </div>
               ) : quickError ? (
                 <div className="space-y-2 py-2">
@@ -265,7 +266,7 @@ export function ZyraSelectionToolbar({
                     onClick={() => handleFetchQuickExplanation("define")}
                     className="h-6 text-body-2xs"
                   >
-                    Coba lagi
+                    {t("selectionToolbar.retry")}
                   </Button>
                 </div>
               ) : (
@@ -284,7 +285,7 @@ export function ZyraSelectionToolbar({
                 onClick={() => onOpenChange(false)}
                 className="h-7 text-body-xs text-muted-foreground hover:text-foreground cursor-pointer"
               >
-                Tutup
+                {t("selectionToolbar.close")}
               </Button>
               <Button
                 type="button"
@@ -293,12 +294,12 @@ export function ZyraSelectionToolbar({
                 onClick={() => {
                   onAskZyra(
                     "define",
-                    `Jelaskan lebih mendalam tentang "${selectionContext.cleanText}".`
+                    t("selectionToolbar.discussPrompt", { selection: selectionContext.cleanText })
                   );
                 }}
                 className="h-7 text-body-xs font-semibold bg-brand-primary hover:bg-brand-primary/95 text-white gap-1 cursor-pointer"
               >
-                <span>Lanjut diskusi di Zyra</span>
+                <span>{t("selectionToolbar.continueWithZyra")}</span>
                 <ArrowRight className="size-3" />
               </Button>
             </div>

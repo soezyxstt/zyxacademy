@@ -1,4 +1,3 @@
-import type { Metadata } from "next";
 import Link from "next/link";
 import { pageTitle } from "@/lib/site";
 import { assertTutorOrAdmin } from "@/lib/auth/admin-guards";
@@ -21,18 +20,23 @@ import {
   Trophy,
   Users,
 } from "lucide-react";
+import { getTranslations } from "@/lib/i18n/server";
+import { TranslatedText } from "@/components/i18n/translated-text";
 
 export const dynamic = "force-dynamic";
 
-export const metadata: Metadata = {
-  title: pageTitle("Penggunaan Fitur"),
-};
+export async function generateMetadata() {
+  const t = await getTranslations("adminOps");
+  return { title: pageTitle(t("featureUsage.title")) };
+}
 
 type Props = {
   searchParams: Promise<{ range?: string }>;
 };
 
 export default async function FeatureUsagePage({ searchParams }: Props) {
+  const t = await getTranslations("adminOps");
+  const coverageItems = t.raw("featureUsageUI.coverageItems") as string[];
   await assertTutorOrAdmin();
 
   const { range } = await searchParams;
@@ -48,44 +52,43 @@ export default async function FeatureUsagePage({ searchParams }: Props) {
     <div className="space-y-6">
       <AdminPageHeader
         icon={MousePointerClick}
-        title="Penggunaan Fitur"
+        title={<TranslatedText namespace="adminOps" messageKey="featureUsage.title" />}
         actions={<UsageRangeSelect current={rangeDays} />}
       />
 
       <p className="max-w-3xl text-body-sm text-muted-foreground">
-        Aktivitas murid per fitur dalam {rangeDays} hari terakhir. Gunakan untuk
-        menentukan prioritas perbaikan, area audit, dan target permintaan feedback.
+        {t("featureUsageUI.summary", { days: rangeDays })}
       </p>
 
       <AdminStatStrip className="grid-cols-2 lg:grid-cols-4">
         <AdminStatStripItem
-          label="Total aktivitas"
+          label={t("featureUsageUI.total")}
           value={metrics.totals.events.toLocaleString("id-ID")}
           icon={Activity}
           tone="brand"
         />
         <AdminStatStripItem
-          label="Murid aktif unik"
+          label={t("featureUsageUI.activeUsers")}
           value={metrics.totals.activeUsers.toLocaleString("id-ID")}
-          caption="Menyentuh minimal satu fitur"
+          caption={t("featureUsageUI.touchesFeature")}
           icon={Users}
           tone="info"
         />
         <AdminStatStripItem
-          label="Rata-rata per murid"
+          label={t("featureUsageUI.average")}
           value={avgPerUser.toLocaleString("id-ID", {
             maximumFractionDigits: 1,
           })}
-          caption="Unit aktivitas per murid aktif"
+          caption={t("featureUsageUI.perUser")}
           icon={TrendingUp}
         />
         <AdminStatStripItem
-          label="Fitur teratas"
+          label={t("featureUsageUI.topFeature")}
           value={metrics.totals.topFeatureLabel ?? "-"}
           caption={
             metrics.totals.topFeatureSharePercent !== null
               ? `${metrics.totals.topFeatureSharePercent}% dari total aktivitas`
-              : "Belum ada aktivitas"
+              : t("featureUsageUI.noActivity")
           }
           icon={Trophy}
           tone="warning"
@@ -95,7 +98,7 @@ export default async function FeatureUsagePage({ searchParams }: Props) {
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
         <section className="rounded-xl border border-border bg-card p-5 shadow-sm">
           <AdminSectionTitle
-            title="Peringkat Fitur"
+            title={t("featureUsageUI.rank")}
             icon={Trophy}
             border
             className="mb-4"
@@ -105,7 +108,7 @@ export default async function FeatureUsagePage({ searchParams }: Props) {
 
         <section className="rounded-xl border border-border bg-card p-5 shadow-sm">
           <AdminSectionTitle
-            title="Aktivitas Harian"
+            title={t("featureUsageUI.daily")}
             icon={Activity}
             border
             className="mb-4"
@@ -116,7 +119,7 @@ export default async function FeatureUsagePage({ searchParams }: Props) {
 
       <section className="space-y-3">
         <AdminSectionTitle
-          title="Detail per Fitur"
+          title={t("featureUsageUI.details")}
           icon={MousePointerClick}
         />
         <AdminTable>
@@ -124,11 +127,11 @@ export default async function FeatureUsagePage({ searchParams }: Props) {
             <AdminTableHead>
               <tr>
                 <th scope="col" className="px-4 py-3 text-left font-semibold text-muted-foreground">#</th>
-                <th scope="col" className="px-4 py-3 text-left font-semibold text-muted-foreground">Fitur</th>
-                <th scope="col" className="px-4 py-3 text-right font-semibold text-muted-foreground">Aktivitas</th>
-                <th scope="col" className="px-4 py-3 text-right font-semibold text-muted-foreground">Murid</th>
-                <th scope="col" className="px-4 py-3 text-right font-semibold text-muted-foreground">Kontribusi</th>
-                <th scope="col" className="px-4 py-3 text-left font-semibold text-muted-foreground">Terakhir digunakan</th>
+                <th scope="col" className="px-4 py-3 text-left font-semibold text-muted-foreground">{t("featureUsageUI.feature")}</th>
+                <th scope="col" className="px-4 py-3 text-right font-semibold text-muted-foreground">{t("featureUsageUI.activity")}</th>
+                <th scope="col" className="px-4 py-3 text-right font-semibold text-muted-foreground">{t("featureUsageUI.students")}</th>
+                <th scope="col" className="px-4 py-3 text-right font-semibold text-muted-foreground">{t("featureUsageUI.contribution")}</th>
+                <th scope="col" className="px-4 py-3 text-left font-semibold text-muted-foreground">{t("featureUsageUI.lastUsed")}</th>
               </tr>
             </AdminTableHead>
             <tbody>
@@ -174,13 +177,11 @@ export default async function FeatureUsagePage({ searchParams }: Props) {
         <div className="flex items-start gap-3">
           <Info className="mt-0.5 size-5 shrink-0 text-status-info" aria-hidden />
           <div className="space-y-2 text-body-sm">
-            <p className="font-heading text-body-base font-bold text-foreground">Cakupan pengukuran</p>
+            <p className="font-heading text-body-base font-bold text-foreground">{t("featureUsageUI.coverage")}</p>
             <ul className="list-disc space-y-1 pl-5 text-muted-foreground">
-              <li>Kuis pop-up harian tersimpan di perangkat murid (localStorage) dan belum terekam di server.</li>
-              <li>Command palette (Cmd+K) belum mencatat event pencarian di server.</li>
-              <li>Unduhan diktat hanya tersedia sebagai total kumulatif tanpa waktu unduh.</li>
+              {coverageItems.map((item) => <li key={item}>{item}</li>)}
               <li>
-                Kunjungan halaman publik dipantau lewat{" "}
+                {t("featureUsageUI.publicVisits")}{" "}
                 <Link href="/admin/ops/web-analytics" className="font-medium text-brand-primary hover:underline">
                   Web Analytics
                 </Link>

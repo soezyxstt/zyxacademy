@@ -1,10 +1,10 @@
-import type { Metadata } from "next";
 import { pageTitle } from "@/lib/site";
+import { getTranslations } from "@/lib/i18n/server";
 
-export const metadata: Metadata = {
-  title: pageTitle("Form Studio"),
-  description: "Kelola formulir, pertanyaan, dan respon form Zyx Academy.",
-};
+export async function generateMetadata() {
+  const t = await getTranslations("adminOps");
+  return { title: pageTitle(t("forms.title")), description: t("forms.description") };
+}
 
 export default function AdminFormsLayout({
   children,

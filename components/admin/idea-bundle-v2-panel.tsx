@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useTranslations } from "@/lib/i18n/client";
 import { Check, FileCheck2, Layers, Upload, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -102,6 +103,7 @@ function humanLabel(value: string, labels: Record<string, string>) {
 }
 
 export function IdeaBundleV2Panel({ initialImports, courseLabels = {}, authorLabels = {}, embedded = false }: Props) {
+  const t = useTranslations("admin");
   const [imports, setImports] = useState(initialImports);
   const [file, setFile] = useState<File | null>(null);
   const [analysis, setAnalysis] = useState<IdeaAnalysis | null>(null);
@@ -173,7 +175,7 @@ export function IdeaBundleV2Panel({ initialImports, courseLabels = {}, authorLab
       setAnalysisTab("ideas");
       setMessage("ZIP lolos pemeriksaan awal. Belum ada data yang disimpan.");
     } catch (uploadError) {
-      setError(explainBundleError(uploadError instanceof Error ? uploadError.message : "IDEA_BUNDLE_UPLOAD_FAILED"));
+      setError(explainBundleError(uploadError instanceof Error ? uploadError.message : "IDEA_BUNDLE_UPLOAD_FAILED", t));
     } finally {
       setLoading(false);
     }
@@ -196,7 +198,7 @@ export function IdeaBundleV2Panel({ initialImports, courseLabels = {}, authorLab
       resetAnalysis();
       await refresh();
     } catch (stageError) {
-      setError(explainBundleError(stageError instanceof Error ? stageError.message : "IDEA_BUNDLE_STAGE_FAILED"));
+      setError(explainBundleError(stageError instanceof Error ? stageError.message : "IDEA_BUNDLE_STAGE_FAILED", t));
     } finally {
       setLoading(false);
     }
@@ -212,7 +214,7 @@ export function IdeaBundleV2Panel({ initialImports, courseLabels = {}, authorLab
       setSelected({ id: payload.bundle.id, status: payload.bundle.status, preview: payload.preview });
       setSelectedPreviewIdeaId(payload.preview.ideas[0]?.id ?? null);
     } catch (inspectError) {
-      setError(explainBundleError(inspectError instanceof Error ? inspectError.message : "IDEA_BUNDLE_DETAIL_FAILED"));
+      setError(explainBundleError(inspectError instanceof Error ? inspectError.message : "IDEA_BUNDLE_DETAIL_FAILED", t));
     } finally {
       setLoading(false);
     }
@@ -233,7 +235,7 @@ export function IdeaBundleV2Panel({ initialImports, courseLabels = {}, authorLab
       await refresh();
       setSelected((current) => current?.id === id ? { ...current, status: decision } : current);
     } catch (reviewError) {
-      setError(reviewError instanceof Error ? reviewError.message : "IDEA_BUNDLE_REVIEW_FAILED");
+      setError(explainBundleError(reviewError instanceof Error ? reviewError.message : "IDEA_BUNDLE_REVIEW_FAILED", t));
     } finally {
       setLoading(false);
     }
@@ -250,7 +252,7 @@ export function IdeaBundleV2Panel({ initialImports, courseLabels = {}, authorLab
       await refresh();
       setSelected((current) => current?.id === id ? { ...current, status: "published" } : current);
     } catch (publishError) {
-      setError(publishError instanceof Error ? publishError.message : "IDEA_BUNDLE_PUBLISH_FAILED");
+      setError(explainBundleError(publishError instanceof Error ? publishError.message : "IDEA_BUNDLE_PUBLISH_FAILED", t));
     } finally {
       setLoading(false);
     }

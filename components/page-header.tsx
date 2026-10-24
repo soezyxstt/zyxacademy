@@ -24,7 +24,7 @@ export type PageHeaderProps = {
   icon?: ComponentType<{ className?: string }>;
   actions?: ReactNode;
   backHref?: string;
-  backLabel?: string;
+  backLabel?: ReactNode;
   breadcrumbs?: BreadcrumbItem[] | ReactNode;
   divider?: boolean;
   className?: string;

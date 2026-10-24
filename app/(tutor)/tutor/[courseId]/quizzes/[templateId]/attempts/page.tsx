@@ -9,19 +9,22 @@ import { PageHeader } from "@/components/page-header";
 import { ApplicationPage } from "@/components/application-page";
 import { Reveal } from "@/components/ui/reveal";
 import { pageTitle } from "@/lib/site";
+import { getTranslations } from "@/lib/i18n/server";
+import { TranslatedText } from "@/components/i18n/translated-text";
 import { FileSpreadsheet } from "lucide-react";
 
 type Props = { params: Promise<{ courseId: string; templateId: string }> };
 
 export async function generateMetadata({ params }: Props) {
   const { templateId } = await params;
+  const t = await getTranslations("tutor.routeTitles");
   const [tpl] = await db
     .select({ title: quizTemplates.title })
     .from(quizTemplates)
     .where(eq(quizTemplates.id, templateId))
     .limit(1);
   return {
-    title: pageTitle(tpl ? `Sheet Attempt: ${tpl.title}` : "Sheet Attempt Siswa"),
+    title: pageTitle(tpl ? `${t("studentAttempts")}: ${tpl.title}` : t("studentAttempts")),
   };
 }
 
@@ -66,14 +69,14 @@ export default async function TutorQuizAttemptsPage({ params }: Props) {
       <Reveal>
         <PageHeader
           icon={FileSpreadsheet}
-          title={`Sheet Attempt: ${template.title}`}
+          title={<><TranslatedText namespace="tutor" messageKey="routeTitles.studentAttempts" />: {template.title}</>}
           backHref={`/tutor/${courseId}/quizzes`}
-          backLabel={`Kembali ke Kuis (${courseTitle})`}
+          backLabel={<><TranslatedText namespace="tutor" messageKey="routeTitles.backToQuizzes" /> ({courseTitle})</>}
         />
       </Reveal>
 
       <Reveal>
-        <QuizAttemptsSpreadsheet templateId={templateId} quizTitle={template.title} />
+        <QuizAttemptsSpreadsheet templateId={templateId} quizTitle={template.title} translationNamespace="admin" />
       </Reveal>
     </ApplicationPage>
   );

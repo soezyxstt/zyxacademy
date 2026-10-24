@@ -10,8 +10,8 @@ import { env } from "@/lib/env";
 import { storage } from "@/lib/storage";
 import { PKA_COURSE_ID } from "@/lib/pka-config";
 import { sendToMany } from "@/lib/notifications/send";
-import { pkaAnnouncementPayload } from "@/lib/notifications/templates";
-import { pkaAnnouncementEmailHtml, scheduleEmailHtml } from "@/lib/pka-email-template";
+import { pkaAnnouncementPayload, pkaSchedulePayload, pkaScheduleUpdatePayload } from "@/lib/notifications/templates";
+import { pkaAnnouncementEmailHtml, pkaAnnouncementEmailSubject, pkaScheduleEmailSubject, pkaScheduleUpdateEmailSubject, scheduleEmailHtml } from "@/lib/pka-email-template";
 import { sendOptionalEmail } from "@/lib/email-preferences/send";
 
 export interface PkaActionState {
@@ -99,14 +99,15 @@ export async function createAndSendPkaAnnouncementAction(
       pkaAnnouncementPayload(title, body, `/courses/${PKA_COURSE_ID}`),
     );
 
-    const emailHtml = pkaAnnouncementEmailHtml(title, body);
     const emailResults = await Promise.allSettled(
       enrolled.map((student) =>
         sendOptionalEmail({
           userId: student.userId,
           category: "course_updates",
-          subject: `Pengumuman PKA - ${title}`,
-          html: emailHtml,
+          render: (locale) => ({
+            subject: pkaAnnouncementEmailSubject(title, locale),
+            html: pkaAnnouncementEmailHtml(title, body, locale),
+          }),
         }),
       ),
     );
@@ -294,29 +295,20 @@ export async function createPkaScheduleAction(
       getAllEnrolledStudents(),
       getLegacyPkaNotificationRecipients(),
     ]);
-    const sessionLabel = sessionAt.toLocaleString("id-ID", {
-      dateStyle: "full",
-      timeStyle: "short",
-      timeZone: "Asia/Jakarta",
-    });
-
     const notificationResult = await sendToMany(
       pushRecipients.map((e) => e.userId),
-      pkaAnnouncementPayload(
-        `Sesi baru: ${title}`,
-        `${sessionLabel} WIB. Cek tab Jadwal untuk detail dan link Meet.`,
-        `/courses/${PKA_COURSE_ID}/jadwal`,
-      ),
+      pkaSchedulePayload(title, sessionAt, `/courses/${PKA_COURSE_ID}/jadwal`),
     );
 
-    const emailHtml = scheduleEmailHtml(title, sessionAt, meetLink);
     const emailResults = await Promise.allSettled(
       enrolled.map((student) =>
         sendOptionalEmail({
           userId: student.userId,
           category: "events_and_schedules",
-          subject: `Sesi Review PKA - ${title}`,
-          html: emailHtml,
+          render: (locale) => ({
+            subject: pkaScheduleEmailSubject(title, locale),
+            html: scheduleEmailHtml(title, sessionAt, meetLink, locale),
+          }),
         }),
       ),
     );
@@ -371,29 +363,20 @@ export async function updatePkaScheduleAction(
         getAllEnrolledStudents(),
         getLegacyPkaNotificationRecipients(),
       ]);
-      const sessionLabel = sessionAt.toLocaleString("id-ID", {
-        dateStyle: "full",
-        timeStyle: "short",
-        timeZone: "Asia/Jakarta",
-      });
-
       await sendToMany(
         pushRecipients.map((e) => e.userId),
-        pkaAnnouncementPayload(
-          `Update Link Meet: ${title}`,
-          `Link Meet telah ditambahkan untuk sesi ${sessionLabel}.`,
-          `/courses/${PKA_COURSE_ID}/jadwal`,
-        ),
+        pkaScheduleUpdatePayload(title, sessionAt, `/courses/${PKA_COURSE_ID}/jadwal`),
       );
 
-      const emailHtml = scheduleEmailHtml(title, sessionAt, meetLink);
       await Promise.allSettled(
         enrolled.map((student) =>
           sendOptionalEmail({
             userId: student.userId,
             category: "events_and_schedules",
-            subject: `Update Link Meet PKA - ${title}`,
-            html: emailHtml,
+            render: (locale) => ({
+              subject: pkaScheduleUpdateEmailSubject(title, locale),
+              html: scheduleEmailHtml(title, sessionAt, meetLink, locale),
+            }),
           }),
         ),
       );

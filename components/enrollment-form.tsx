@@ -7,8 +7,10 @@ import { enrollWithToken } from "@/app/(student)/dashboard/actions";
 import { Button } from "@/components/ui/button";
 import { KeyRound } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useTranslations } from "@/lib/i18n/client";
 
 export function EnrollmentForm({ className, onSuccess }: { className?: string; onSuccess?: () => void }) {
+  const t = useTranslations("schedule");
   const [token, setToken] = useState("");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
@@ -17,7 +19,7 @@ export function EnrollmentForm({ className, onSuccess }: { className?: string; o
     e.preventDefault();
     const cleanToken = token.trim();
     if (!cleanToken) {
-      toast.error("Silakan masukkan token pendaftaran");
+      toast.error(t("enrollment.enterToken"));
       return;
     }
 
@@ -25,16 +27,16 @@ export function EnrollmentForm({ className, onSuccess }: { className?: string; o
     try {
       const res = await enrollWithToken(cleanToken);
       if (res.success) {
-        toast.success("Berhasil mendaftar ke kelas!");
+        toast.success(t("enrollment.success"));
         setToken("");
         onSuccess?.();
         router.refresh();
       } else {
-        toast.error(res.error || "Pendaftaran gagal");
+        toast.error(t(`enrollment.errors.${res.errorCode ?? "internal"}`));
       }
     } catch (err) {
       console.error(err);
-      toast.error("Terjadi kesalahan koneksi");
+      toast.error(t("enrollment.errors.connection"));
     } finally {
       setLoading(false);
     }
@@ -47,7 +49,7 @@ export function EnrollmentForm({ className, onSuccess }: { className?: string; o
           <KeyRound className="size-4 shrink-0 text-muted-foreground" aria-hidden />
           <input
             type="text"
-            placeholder="Masukkan token kelas (misal: Zyx-CALC-ABCD)"
+            placeholder={t("enrollment.tokenPlaceholder")}
             value={token}
             onChange={(e) => setToken(e.target.value)}
             disabled={loading}
@@ -59,7 +61,7 @@ export function EnrollmentForm({ className, onSuccess }: { className?: string; o
           disabled={loading}
           className="h-10 shrink-0 rounded-lg px-5 bg-brand-primary text-white hover:bg-brand-primary/95 transition-all text-body-sm font-medium w-full @[420px]:w-auto cursor-pointer"
         >
-          {loading ? "Mendaftarkan..." : "Aktivasi Kelas"}
+          {loading ? t("enrollment.submitting") : t("enrollment.activate")}
         </Button>
       </div>
     </form>

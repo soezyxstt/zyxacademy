@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { hasAnyPeran } from "@/lib/auth/authorization";
 import { StudentScheduleClient } from "./schedule-client";
+import { TranslatedText } from "@/components/i18n/translated-text";
 
 export default async function StudentSchedulePage() {
   const session = await auth.api.getSession({ headers: await headers() });
@@ -20,7 +21,7 @@ export default async function StudentSchedulePage() {
     <Suspense
       fallback={
         <div className="p-16 text-center text-muted-foreground text-body-sm">
-          Memuat data kalender dan slot tutorial...
+          <TranslatedText namespace="student" messageKey="schedule.loading" />
         </div>
       }
     >

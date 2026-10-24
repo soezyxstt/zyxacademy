@@ -11,16 +11,19 @@ import { getReviewQueue } from "@/lib/flashcard-actions";
 import { EnrollmentForm } from "@/components/enrollment-form";
 import { getCourse, getStudentCourseAccess } from "@/lib/course-utils";
 import { getAuthSession } from "@/lib/auth-session";
+import { TranslatedText } from "@/components/i18n/translated-text";
+import { getTranslations } from "@/lib/i18n/server";
 
 type Props = { params: Promise<{ id: string }> };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params;
   const course = await getCourse(id);
+  const t = await getTranslations("learning");
 
   return createMetadata({
-    title: course ? `Flashcard ${course.title}` : "Flashcard",
-    description: `Dek belajar spaced repetition untuk konsep-konsep kelas ${course?.title ?? ""}.`,
+    title: course ? t("metadata.flashcardTitle", { course: course.title }) : t("metadata.flashcardTitleFallback"),
+    description: t("metadata.flashcardDescription"),
     path: `/courses/${id}/flashcard`,
   });
 }
@@ -54,7 +57,7 @@ export default async function CourseFlashcardPage({ params }: Props) {
 
   return (
     <CoursePageShell
-      title={`Flashcards: ${course.title}`}
+      title={<TranslatedText namespace="learning" messageKey="flashcards.pageTitle" values={{ course: course.title }} />}
 
       icon={Brain}
     >
@@ -65,10 +68,10 @@ export default async function CourseFlashcardPage({ params }: Props) {
               <Lock className="size-5" />
             </div>
             <h3 className="font-heading text-body-base font-bold text-foreground">
-              Akses Terkunci
+              <TranslatedText namespace="learning" messageKey="flashcards.lockedTitle" />
             </h3>
             <p className="mt-2 text-body-sm text-muted-foreground mb-6">
-              Fitur flashcard spaced repetition memerlukan aktivasi token kelas atau paket aktif.
+              <TranslatedText namespace="learning" messageKey="flashcards.lockedDescription" />
             </p>
             <EnrollmentForm className="mx-auto max-w-md text-left" />
           </div>

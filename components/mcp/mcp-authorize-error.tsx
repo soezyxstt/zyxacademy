@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { getTranslations } from "@/lib/i18n/server";
 import { AlertCircle, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -9,12 +10,13 @@ interface McpAuthorizeErrorProps {
   returnUrl?: string;
 }
 
-export function McpAuthorizeError({
-  title = "Permintaan otorisasi tidak valid",
+export async function McpAuthorizeError({
+  title,
   description,
   errorCode,
   returnUrl = "/",
 }: McpAuthorizeErrorProps) {
+  const t = await getTranslations("consent.authorize");
   return (
     <div className="w-full max-w-lg rounded-2xl border border-border bg-card p-6 sm:p-8 shadow-sm">
       <div className="flex flex-col items-center text-center">
@@ -23,7 +25,7 @@ export function McpAuthorizeError({
         </div>
 
         <h1 className="font-heading text-h5 font-bold text-foreground">
-          {title}
+          {title ?? t("invalidRequest")}
         </h1>
 
         <p className="mt-2 text-body-sm text-muted-foreground leading-relaxed">
@@ -32,7 +34,7 @@ export function McpAuthorizeError({
 
         {errorCode ? (
           <div className="mt-4 inline-flex items-center gap-1.5 rounded-md border border-border bg-muted/50 px-2.5 py-1 text-body-2xs font-mono text-muted-foreground">
-            <span>Kode error:</span>
+          <span>{t("errorCode")}:</span>
             <span className="font-semibold text-foreground">{errorCode}</span>
           </div>
         ) : null}
@@ -41,7 +43,7 @@ export function McpAuthorizeError({
           <Button asChild variant="outline" className="w-full h-10 gap-2">
             <Link href={returnUrl}>
               <ArrowLeft className="size-4" />
-              Kembali
+              {t("back")}
             </Link>
           </Button>
         </div>

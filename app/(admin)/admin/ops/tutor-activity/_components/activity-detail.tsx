@@ -11,6 +11,7 @@ import {
 import { StatusBadge } from "@/components/admin/status-badges";
 import { FormattedDate } from "@/components/ui/formatted-date";
 import { Button } from "@/components/ui/button";
+import { useTranslations } from "@/lib/i18n/client";
 import { Check, Copy, FileCode, Layers, Shield, User, Clock, Hash } from "lucide-react";
 import type { TutorActivityItem } from "../dal";
 
@@ -21,6 +22,7 @@ interface ActivityDetailProps {
 }
 
 export function ActivityDetail({ item, open, onOpenChange }: ActivityDetailProps) {
+  const t = useTranslations("adminOps");
   const [copiedSection, setCopiedSection] = useState<string | null>(null);
 
   if (!item) return null;
@@ -44,12 +46,12 @@ export function ActivityDetail({ item, open, onOpenChange }: ActivityDetailProps
 
   const outcomeLabel =
     item.outcome === "success"
-      ? "Sukses"
+      ? t("tutorActivityUI.success")
       : item.outcome === "rejected"
-        ? "Ditolak"
+        ? t("tutorActivityUI.rejected")
         : item.outcome === "failed"
-          ? "Gagal"
-          : "Unclassified";
+          ? t("tutorActivityUI.failed")
+          : t("tutorActivityUI.unclassified");
 
   const beforeJson = item.beforeSnapshot
     ? JSON.stringify(item.beforeSnapshot, null, 2)
@@ -64,12 +66,12 @@ export function ActivityDetail({ item, open, onOpenChange }: ActivityDetailProps
         <DialogHeader>
           <div className="flex items-center justify-between gap-3 pr-6">
             <DialogTitle className="font-heading text-body-base font-bold text-foreground">
-              Detail Log Mutasi
+              {t("tutorActivityUI.detailTitle")}
             </DialogTitle>
             <StatusBadge tone={outcomeTone}>{outcomeLabel}</StatusBadge>
           </div>
           <DialogDescription className="text-body-xs text-muted-foreground">
-            Rekaman jejak mutasi data dan audit tindakan tutor.
+            {t("tutorActivityUI.detailDescription")}
           </DialogDescription>
         </DialogHeader>
 
@@ -79,7 +81,7 @@ export function ActivityDetail({ item, open, onOpenChange }: ActivityDetailProps
             <div className="space-y-1">
               <div className="flex items-center gap-1.5 text-body-xs font-semibold text-muted-foreground">
                 <Clock className="size-3.5" aria-hidden />
-                <span>Waktu Kejadian</span>
+                <span>{t("tutorActivityUI.eventTime")}</span>
               </div>
               <p className="text-body-sm font-medium text-foreground">
                 <FormattedDate date={item.createdAt} options={{ dateStyle: "full", timeStyle: "medium" }} />
@@ -89,7 +91,7 @@ export function ActivityDetail({ item, open, onOpenChange }: ActivityDetailProps
             <div className="space-y-1">
               <div className="flex items-center gap-1.5 text-body-xs font-semibold text-muted-foreground">
                 <Hash className="size-3.5" aria-hidden />
-                <span>ID Log</span>
+                <span>{t("tutorActivityUI.logId")}</span>
               </div>
               <div className="flex items-center gap-2">
                 <code className="text-body-xs font-mono text-foreground truncate max-w-[200px] break-all" title={item.id}>
@@ -100,7 +102,7 @@ export function ActivityDetail({ item, open, onOpenChange }: ActivityDetailProps
                   size="icon-xs"
                   className="h-6 w-6"
                   onClick={() => copyToClipboard(item.id, "id")}
-                  title="Salin ID log"
+                  title={t("tutorActivityUI.copyLogId")}
                 >
                   {copiedSection === "id" ? <Check className="size-3 text-status-success" /> : <Copy className="size-3" />}
                 </Button>
@@ -110,24 +112,24 @@ export function ActivityDetail({ item, open, onOpenChange }: ActivityDetailProps
             <div className="space-y-1">
               <div className="flex items-center gap-1.5 text-body-xs font-semibold text-muted-foreground">
                 <User className="size-3.5" aria-hidden />
-                <span>Aktor (Tutor)</span>
+                <span>{t("tutorActivityUI.actor")}</span>
               </div>
               <p className="text-body-sm font-medium text-foreground">
-                {item.actorName || "Anonim / Sistem"}
+                {item.actorName || t("tutorActivityUI.systemAnonymous")}
               </p>
               {item.actorEmail && (
                 <p className="text-body-xs text-muted-foreground font-mono truncate">{item.actorEmail}</p>
               )}
-              <p className="text-[10px] text-muted-foreground font-mono">{item.actorId || "Tanpa ID"}</p>
+              <p className="text-[10px] text-muted-foreground font-mono">{item.actorId || t("tutorActivityUI.noId")}</p>
             </div>
 
             <div className="space-y-1">
               <div className="flex items-center gap-1.5 text-body-xs font-semibold text-muted-foreground">
                 <Layers className="size-3.5" aria-hidden />
-                <span>Mata Kuliah</span>
+                <span>{t("tutorActivityUI.course")}</span>
               </div>
               <p className="text-body-sm font-medium text-foreground">
-                {item.courseTitle || item.courseId || "Lintas Kursus"}
+                {item.courseTitle || item.courseId || t("tutorActivityUI.crossCourse")}
               </p>
               {item.courseCode && (
                 <span className="inline-block px-1.5 py-0.5 rounded bg-muted text-body-xs font-mono text-muted-foreground">
@@ -139,7 +141,7 @@ export function ActivityDetail({ item, open, onOpenChange }: ActivityDetailProps
             <div className="space-y-1">
               <div className="flex items-center gap-1.5 text-body-xs font-semibold text-muted-foreground">
                 <FileCode className="size-3.5" aria-hidden />
-                <span>Entitas & Aksi</span>
+                <span>{t("tutorActivityUI.entityAndAction")}</span>
               </div>
               <p className="text-body-sm font-medium text-foreground">
                 <span className="font-semibold">{item.entityType}</span> : <span className="font-mono text-body-xs">{item.entityId}</span>
@@ -150,7 +152,7 @@ export function ActivityDetail({ item, open, onOpenChange }: ActivityDetailProps
             <div className="space-y-1">
               <div className="flex items-center gap-1.5 text-body-xs font-semibold text-muted-foreground">
                 <Shield className="size-3.5" aria-hidden />
-                <span>Correlation / Request ID</span>
+                <span>{t("tutorActivityUI.correlationRequestId")}</span>
               </div>
               {item.correlationId ? (
                 <div className="flex items-center gap-2">
@@ -162,13 +164,13 @@ export function ActivityDetail({ item, open, onOpenChange }: ActivityDetailProps
                     size="icon-xs"
                     className="h-6 w-6"
                     onClick={() => copyToClipboard(item.correlationId!, "corrId")}
-                    title="Salin correlation ID"
+                    title={t("tutorActivityUI.copyCorrelationId")}
                   >
                     {copiedSection === "corrId" ? <Check className="size-3 text-status-success" /> : <Copy className="size-3" />}
                   </Button>
                 </div>
               ) : (
-                <p className="text-body-xs text-muted-foreground">Tidak ada</p>
+                <p className="text-body-xs text-muted-foreground">{t("tutorActivityUI.none")}</p>
               )}
             </div>
           </div>
@@ -177,7 +179,7 @@ export function ActivityDetail({ item, open, onOpenChange }: ActivityDetailProps
           {item.reason && (
             <div className="rounded-lg border border-border bg-card p-3.5 space-y-1">
               <span className="text-body-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                Alasan / Catatan Tindakan
+                {t("tutorActivityUI.reasonNotes")}
               </span>
               <p className="text-body-sm text-foreground whitespace-pre-wrap">{item.reason}</p>
             </div>
@@ -186,14 +188,14 @@ export function ActivityDetail({ item, open, onOpenChange }: ActivityDetailProps
           {/* Snapshots Section */}
           <div className="space-y-3">
             <h4 className="font-heading text-body-sm font-semibold text-foreground">
-              Snapshot Status Perubahan
+              {t("tutorActivityUI.changeSnapshot")}
             </h4>
 
             {/* Before Snapshot */}
             <div className="rounded-lg border border-border bg-card overflow-hidden">
               <div className="flex items-center justify-between px-3.5 py-2 bg-muted/40 border-b border-border">
                 <span className="text-body-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                  Sebelumnya (Before Snapshot)
+                  {t("tutorActivityUI.beforeSnapshot")}
                 </span>
                 {beforeJson && (
                   <Button
@@ -203,7 +205,7 @@ export function ActivityDetail({ item, open, onOpenChange }: ActivityDetailProps
                     onClick={() => copyToClipboard(beforeJson, "before")}
                   >
                     {copiedSection === "before" ? <Check className="size-3 text-status-success" /> : <Copy className="size-3" />}
-                    <span>Salin JSON</span>
+                    <span>{t("tutorActivityUI.copyJson")}</span>
                   </Button>
                 )}
               </div>
@@ -214,7 +216,7 @@ export function ActivityDetail({ item, open, onOpenChange }: ActivityDetailProps
                   </pre>
                 ) : (
                   <p className="text-body-xs text-muted-foreground italic py-2">
-                    Tidak ada rekaman data sebelumnya.
+                    {t("tutorActivityUI.noBeforeSnapshot")}
                   </p>
                 )}
               </div>
@@ -224,7 +226,7 @@ export function ActivityDetail({ item, open, onOpenChange }: ActivityDetailProps
             <div className="rounded-lg border border-border bg-card overflow-hidden">
               <div className="flex items-center justify-between px-3.5 py-2 bg-muted/40 border-b border-border">
                 <span className="text-body-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                  Sesudahnya (After Snapshot)
+                  {t("tutorActivityUI.afterSnapshot")}
                 </span>
                 {afterJson && (
                   <Button
@@ -234,7 +236,7 @@ export function ActivityDetail({ item, open, onOpenChange }: ActivityDetailProps
                     onClick={() => copyToClipboard(afterJson, "after")}
                   >
                     {copiedSection === "after" ? <Check className="size-3 text-status-success" /> : <Copy className="size-3" />}
-                    <span>Salin JSON</span>
+                    <span>{t("tutorActivityUI.copyJson")}</span>
                   </Button>
                 )}
               </div>
@@ -245,7 +247,7 @@ export function ActivityDetail({ item, open, onOpenChange }: ActivityDetailProps
                   </pre>
                 ) : (
                   <p className="text-body-xs text-muted-foreground italic py-2">
-                    Tidak ada rekaman data sesudahnya.
+                    {t("tutorActivityUI.noAfterSnapshot")}
                   </p>
                 )}
               </div>

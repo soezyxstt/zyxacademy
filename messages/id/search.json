@@ -1,0 +1,110 @@
+{
+  "dialogLabel": "Pencarian situs",
+  "description": "Cari materi, soal, modul, atau halaman di Zyx Academy.",
+  "placeholder": "Cari di Zyx, atau ketik ? untuk bantuan...",
+  "scopedPlaceholder": "Cari dalam {prefix}...",
+  "clearPrefix": "Hapus filter prefiks",
+  "loading": "Memuat hasil pencarian",
+  "clear": "Bersihkan pencarian",
+  "recent": "Terbaru",
+  "favorite": "Favorit",
+  "removeFavorite": "Hapus dari favorit",
+  "addFavorite": "Tambah ke favorit",
+  "removeRecent": "Hapus dari terbaru",
+  "quickAccess": "Akses cepat",
+  "helpButton": "Bantuan",
+  "navigate": "Navigasi",
+  "open": "Buka",
+  "close": "Tutup",
+  "surface": {
+    "admin": "Admin",
+    "tutor": "Tutor",
+    "student": "Murid",
+    "public": "Publik"
+  },
+  "noResults": "Tidak ada hasil untuk “{query}”",
+  "noResultsHelp": "Periksa ejaan atau gunakan istilah lain.",
+  "suggestions": "Coba cari topik berikut:",
+  "helpTitle": "Panduan pencarian",
+  "helpAuthenticated": "Cari untuk menampilkan hasil, atau pilih prefiks untuk membatasi pencarian.",
+  "helpGuest": "Cari informasi di situs Zyx Academy seperti paket, profil kami, testimoni, atau artikel blog.",
+  "prefixes": "Prefiks",
+  "prefixLabels": {
+    "group": "Kelompok Belajar",
+    "meet": "Google Meet dan Sesi",
+    "user": "Akun Pengguna",
+    "form": "Formulir",
+    "token": "Token Aktivasi",
+    "schedule": "Jadwal dan Agenda"
+  },
+  "otherAliases": "Alias lain:",
+  "example": "Contoh:",
+  "mainPages": "Halaman utama",
+  "keyboardHelp": "Gunakan tombol panah untuk memilih, Enter untuk membuka, dan Esc untuk menutup.",
+  "categories": {
+    "courseModules": "Kursus dan modul",
+    "materialsArticles": "Materi dan artikel",
+    "quizzesEvaluations": "Kuis dan evaluasi",
+    "navigation": "Navigasi",
+    "administration": "Administrasi"
+  },
+  "surfaces": {
+    "admin": "Admin",
+    "tutor": "Tutor",
+    "student": "Murid",
+    "public": "Publik"
+  },
+  "aliases": {
+    "home": "home homepage",
+    "courses": "course courses catalog catalogue curriculum",
+    "plans": "plans pricing subscription membership",
+    "about": "about team mission profile",
+    "testimonial": "testimonial testimonials reviews stories",
+    "blog": "articles blog guides tips",
+    "dashboard": "dashboard progress learning overview",
+    "schedule": "schedule calendar sessions bookings meetings",
+    "groups": "groups study group cohort",
+    "leaderboard": "leaderboard ranking standings",
+    "calendar": "academic calendar events deadlines",
+    "reflections": "reflection learning journal study review",
+    "profile": "profile account identity",
+    "settings": "settings preferences notifications",
+    "feedback": "feedback suggestions bug report",
+    "pka": "tutorial preparation course registration schedule exam simulation report"
+  },
+  "poweredBy": "Didukung oleh",
+  "suggestedTopics": {
+    "calculus": {
+      "title": "Kalkulus & Metode Numerik",
+      "subtitle": "Bidang studi TPB"
+    },
+    "physics": {
+      "title": "Fisika Dasar",
+      "subtitle": "Bidang studi TPB"
+    },
+    "quizPractice": {
+      "title": "Kuis & Latihan Soal",
+      "subtitle": "Bank soal dan evaluasi"
+    },
+    "courseCatalog": {
+      "title": "Katalog Course",
+      "subtitle": "Daftar seluruh kurikulum"
+    },
+    "plans": {
+      "title": "Paket Belajar & Harga",
+      "subtitle": "Pilihan langganan dan biaya"
+    },
+    "about": {
+      "title": "Tentang Zyx Academy",
+      "subtitle": "Profil, visi, dan pengajar"
+    },
+    "testimonials": {
+      "title": "Testimoni Mahasiswa",
+      "subtitle": "Pengalaman dan ulasan alumni"
+    },
+    "learningArticles": {
+      "title": "Artikel & Panduan Belajar",
+      "subtitle": "Tips, trik, dan wawasan edukasi"
+    }
+  }
+}

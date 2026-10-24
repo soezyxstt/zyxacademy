@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Check, Lock } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useTranslations } from "@/lib/i18n/client";
 
 type NodeStatus = "done" | "active" | "open" | "locked";
 
@@ -16,43 +17,36 @@ type PathNode = {
 
 type Profile = {
  id: string;
- label: string;
+ labelKey: string;
  nodes: PathNode[];
 };
 
 const profiles: Profile[] = [
  {
  id: "a",
- label: "Mahasiswa A",
+ labelKey: "home.path.profileA",
  nodes: [
  { name: "Limit", status: "done", score: 95 },
  { name: "Turunan", status: "done", score: 88 },
  { name: "Aturan Rantai", status: "active", score: 54 },
  { name: "Integral", status: "open", score: 31 },
- { name: "Integral Parsial", status: "locked", lockedNote: "kuasai Integral dulu" },
- { name: "Volume Benda Putar", status: "locked", lockedNote: "kuasai Integral Parsial dulu" },
+ { name: "Integral Parsial", status: "locked", lockedNote: "Integral" },
+ { name: "Volume Benda Putar", status: "locked", lockedNote: "Integral Parsial" },
  ],
  },
  {
  id: "b",
- label: "Mahasiswa B",
+ labelKey: "home.path.profileB",
  nodes: [
  { name: "Limit", status: "done", score: 90 },
  { name: "Turunan", status: "done", score: 85 },
  { name: "Aturan Rantai", status: "done", score: 88 },
  { name: "Integral", status: "done", score: 76 },
  { name: "Integral Parsial", status: "active", score: 58 },
- { name: "Volume Benda Putar", status: "locked", lockedNote: "kuasai Integral Parsial dulu" },
+ { name: "Volume Benda Putar", status: "locked", lockedNote: "Integral Parsial" },
  ],
  },
 ];
-
-const statusLabel: Record<NodeStatus, string> = {
- done: "dikuasai",
- active: "sedang dipelajari",
- open: "terbuka",
- locked: "terkunci",
-};
 
 function NodeCircle({ status }: { status: NodeStatus }) {
  return (
@@ -80,9 +74,9 @@ function NodeCircle({ status }: { status: NodeStatus }) {
  );
 }
 
-function MasteryMiniBar({ node, delay }: { node: PathNode; delay: number }) {
+function MasteryMiniBar({ node, delay, lockedNote }: { node: PathNode; delay: number; lockedNote: string }) {
  if (node.score === undefined) {
- return <span className="text-[10px] italic text-muted-foreground/80">{node.lockedNote}</span>;
+ return <span className="text-[10px] italic text-muted-foreground/80">{lockedNote}</span>;
  }
  return (
  <span className="flex w-full items-center gap-1.5">
@@ -110,12 +104,13 @@ function MasteryMiniBar({ node, delay }: { node: PathNode; delay: number }) {
  * shared [data-visible] CSS hooks (the section wraps this in LandingVisible).
  */
 export function MasteryPathDemo() {
+ const t = useTranslations("marketing");
  const [profileId, setProfileId] = useState("a");
  const profile = profiles.find((entry) => entry.id === profileId) ?? profiles[0];
 
  return (
  <div>
- <div className="flex flex-wrap items-center justify-center gap-2" role="group" aria-label="Pilih profil mahasiswa">
+ <div className="flex flex-wrap items-center justify-center gap-2" role="group" aria-label={t("home.path.profileLabel")}>
  {profiles.map((entry) => (
  <button
  key={entry.id}
@@ -129,7 +124,7 @@ export function MasteryPathDemo() {
  : "border-border bg-background text-muted-foreground hover:border-primary/40 hover:text-foreground",
  )}
  >
- {entry.label}
+ {t(entry.labelKey)}
  </button>
  ))}
  </div>
@@ -163,9 +158,9 @@ export function MasteryPathDemo() {
  {node.name}
  </p>
  <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
- {statusLabel[node.status]}
+ {t(`home.path.status.${node.status}`)}
  </p>
- <MasteryMiniBar node={node} delay={index * 140 + 200} />
+ <MasteryMiniBar node={node} delay={index * 140 + 200} lockedNote={t("home.path.lockedNote", { topic: node.lockedNote ?? node.name })} />
  </div>
  </div>
  ))}

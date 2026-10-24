@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useTranslations } from "@/lib/i18n/client";
 import {
   BookOpen,
   FileCheck2,
@@ -66,6 +67,7 @@ type Props = {
 };
 
 export function ProductCatalogPanel({ courseLabels = {}, lockedCourse }: Props) {
+  const t = useTranslations("admin.products");
   const [items, setItems] = useState<AdminProductItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -90,16 +92,16 @@ export function ProductCatalogPanel({ courseLabels = {}, lockedCourse }: Props) 
 
       const res = await fetch(`/api/admin/products?${params.toString()}`);
       if (!res.ok) {
-        throw new Error("Gagal memuat katalog produk");
+        throw new Error(t("loadFailed"));
       }
       const data = await res.json();
       setItems(data.items || []);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Terjadi kesalahan");
+    } catch {
+      setError(t("loadFailed"));
     } finally {
       setLoading(false);
     }
-  }, [activeType, selectedCourse, searchQuery, lockedCourse]);
+  }, [activeType, selectedCourse, searchQuery, lockedCourse, t]);
 
   useEffect(() => {
     void fetchProducts();

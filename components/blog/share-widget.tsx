@@ -15,6 +15,7 @@ import { toast } from "@/components/ui/toast";
 import { Copy, Check, Share2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { SiLine } from "react-icons/si";
+import { useTranslations } from "@/lib/i18n/client";
 
 // Custom SVG Brand Icons
 const WhatsAppIcon = (props: React.SVGProps<SVGSVGElement>) => (
@@ -42,16 +43,18 @@ interface ShareBlockProps {
   title: string;
   description?: string;
   inline?: boolean;
+  locale?: "id" | "en";
 }
 
-export function ShareBlock({ slug, title, description, inline = false }: ShareBlockProps) {
+export function ShareBlock({ slug, title, description, inline = false, locale }: ShareBlockProps) {
+  const t = useTranslations("marketing");
   const [shareUrl, setShareUrl] = React.useState("");
   const [copied, setCopied] = React.useState(false);
   const [canShare, setCanShare] = React.useState(false);
 
   React.useEffect(() => {
     if (slug) {
-      setShareUrl(`${window.location.origin}/blog/${slug}`);
+      setShareUrl(`${window.location.origin}${locale ? `/${locale}` : ""}/blog/${slug}`);
     } else {
       setShareUrl(window.location.href);
     }
@@ -66,10 +69,10 @@ export function ShareBlock({ slug, title, description, inline = false }: ShareBl
     try {
       await navigator.clipboard.writeText(shareUrl);
       setCopied(true);
-      toast.success("Tautan berhasil disalin.");
+      toast.success(t("blog.shareCopied"));
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      toast.error("Gagal menyalin tautan.");
+      toast.error(t("blog.shareCopyFailed"));
     }
   };
 
@@ -83,7 +86,7 @@ export function ShareBlock({ slug, title, description, inline = false }: ShareBl
       });
     } catch (err) {
       if ((err as Error).name !== "AbortError") {
-        toast.error("Gagal membagikan tautan.");
+        toast.error(t("blog.shareFailed"));
       }
     }
   };
@@ -124,10 +127,10 @@ export function ShareBlock({ slug, title, description, inline = false }: ShareBl
       {inline && (
         <div className="space-y-1">
           <h4 className="font-heading font-bold text-foreground text-body-base">
-            Bagikan Artikel Ini
+            {t("blog.shareArticleTitle")}
           </h4>
           <p className="text-body-sm text-muted-foreground">
-            Bantu orang lain mendapatkan wawasan dengan membagikan artikel ini.
+            {t("blog.shareArticleDescription")}
           </p>
         </div>
       )}
@@ -135,7 +138,7 @@ export function ShareBlock({ slug, title, description, inline = false }: ShareBl
       {/* Direct Copy Block */}
       <div className="space-y-1.5">
         <label className="text-body-xs font-semibold text-muted-foreground uppercase tracking-wider block">
-          Salin Tautan
+          {t("blog.copyUrl")}
         </label>
         <div className="flex gap-2">
           <Input
@@ -143,23 +146,23 @@ export function ShareBlock({ slug, title, description, inline = false }: ShareBl
             readOnly
             onClick={handleCopy}
             className="cursor-pointer bg-muted/30 select-all border-border hover:border-primary/50 transition-colors flex-1"
-            title="Klik untuk menyalin"
+            title={t("blog.clickToCopy")}
           />
           <Button 
             variant="outline" 
             onClick={handleCopy}
             className="shrink-0"
-            title="Salin Tautan"
+            title={t("blog.copyUrl")}
           >
             {copied ? (
               <>
                 <Check className="size-4 mr-1 text-status-success" />
-                Salin
+                {t("blog.copy")}
               </>
             ) : (
               <>
                 <Copy className="size-4 mr-1" />
-                Salin
+                {t("blog.copy")}
               </>
             )}
           </Button>
@@ -169,7 +172,7 @@ export function ShareBlock({ slug, title, description, inline = false }: ShareBl
       {/* Social Media Sharing */}
       <div className="space-y-1.5 pt-2">
         <label className="text-body-xs font-semibold text-muted-foreground uppercase tracking-wider block">
-          Bagikan Ke
+          {t("blog.shareTo")}
         </label>
         <div className="flex flex-wrap gap-2.5 items-center">
           {socialShares.map((social) => (
@@ -182,7 +185,7 @@ export function ShareBlock({ slug, title, description, inline = false }: ShareBl
                 "flex items-center justify-center rounded-full border border-border bg-card text-muted-foreground size-10 transition-all",
                 social.color
               )}
-              title={`Bagikan ke ${social.name}`}
+              title={t("blog.shareToPlatform", { platform: social.name })}
             >
               <social.icon className={social.sizeClass} />
             </a>
@@ -192,7 +195,7 @@ export function ShareBlock({ slug, title, description, inline = false }: ShareBl
             <button
               onClick={handleNativeShare}
               className="flex items-center justify-center rounded-full border border-border bg-card text-muted-foreground hover:bg-primary/10 hover:text-primary hover:border-primary/30 size-10 transition-all"
-              title="Bagikan via Sistem"
+              title={t("blog.shareViaSystem")}
             >
               <Share2 className="size-5" />
             </button>
@@ -208,28 +211,30 @@ interface ShareDialogProps {
   title: string;
   description?: string;
   trigger?: React.ReactNode;
+  locale?: "id" | "en";
 }
 
-export function ShareDialog({ slug, title, description, trigger }: ShareDialogProps) {
+export function ShareDialog({ slug, title, description, trigger, locale }: ShareDialogProps) {
+  const t = useTranslations("marketing");
   return (
     <Dialog>
       <DialogTrigger asChild>
         {trigger || (
           <Button variant="outline" size="sm">
             <Share2 className="size-4 mr-1.5" />
-            Bagikan
+            {t("blog.share")}
           </Button>
         )}
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Bagikan Artikel</DialogTitle>
+          <DialogTitle>{t("blog.shareDialogTitle")}</DialogTitle>
           <DialogDescription>
-            Bagikan artikel ini ke media sosial atau salin tautan langsung.
+            {t("blog.shareDialogDescription")}
           </DialogDescription>
         </DialogHeader>
         <div className="pt-2">
-          <ShareBlock slug={slug} title={title} description={description} />
+          <ShareBlock slug={slug} title={title} description={description} locale={locale} />
         </div>
       </DialogContent>
     </Dialog>

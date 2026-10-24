@@ -83,6 +83,16 @@ Canonical access-role codes are `admin`, `tutor`, and `murid`. Admin and tutor l
 - Typing `?` opens the search guide. It documents and applies the `group:`, `meet:`, `user:`, `form:`, `token:`, and `schedule:` prefixes, and shows every accepted alias for each prefix.
 - Changing the query resets the result list to the top. Selecting a result triggers the global route progress bar before navigation.
 
+### Bilingual interface and published content
+
+The application uses paired `id` and `en` JSON message catalogs. Locale resolution prefers a supported explicit public URL, then the signed-in account preference, the `zyx_locale` cookie, a supported browser language, and Indonesian. Public `/id/...` and `/en/...` prefixes are limited to the allowlist in `lib/public-locale-routes.ts`; this does not prefix protected routes or APIs. The account choice is stored in `account_locale_preferences` independently of learning preferences and role membership.
+
+The language applies to application-owned controls, errors, empty and loading states, generated system email and push wrappers, search categories, and navigation aliases. It does not rewrite the language or identity of published Articles, Diktat PDFs, historical exams, quiz questions and answers, flashcards, announcements, form questions, blog bodies, or user-authored text. Academic search results retain their source titles, and the bilingual navigation aliases do not promise cross-language academic search.
+
+Use these product terms consistently: `Mata kuliah / Course`, `Bab / Chapter`, `Idea / Idea`, `Artikel / Article`, `Diktat / Diktat`, `Kuis / Quiz`, and `Tryout / Practice test`. Keep stable identifiers and authored titles unchanged.
+
+Zyra accepts an allowlisted response language, honors explicit English or Indonesian instructions, and includes response language in exact and semantic cache identity. The shared tutor chat-request builder sends interface locale for typed, retry, image, and selection requests, with sticky language state guarded by an epoch. Account interface locale persists across visits. Explicit conversation overrides are memory-only, limited to 32 sessions, and cleared on drawer remount, reload, or account, course, and interface-locale changes. The Zyra contract suite passed 48 tests and the request/SSE boundary suite passed 8 tests. The full role/route/state matrix remains incomplete under CP7.
+
 ### MTD → Knowledge Objects (KO)
 1. Admin uploads a markdown master document
 2. Preprocessed and normalized with deterministic semantic chunking preserving headings, formulas, and tables without 30k char truncation

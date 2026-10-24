@@ -23,7 +23,7 @@ const submission = { requestId: "request", problem: { problemId: "problem", vers
 function request(path: string, body?: object, method = "POST") { return new Request(`http://app.test${path}`, body ? { method, headers: { "Content-Type": "application/json", Origin: "http://app.test" }, body: JSON.stringify(body) } : undefined); }
 beforeAll(async () => {
   await client.executeMultiple("CREATE TABLE user (id TEXT PRIMARY KEY); CREATE TABLE mata_kuliah (id TEXT PRIMARY KEY); INSERT INTO user VALUES ('student'), ('other'); INSERT INTO mata_kuliah VALUES ('course'); CREATE TABLE artikel (id TEXT PRIMARY KEY, mata_kuliah_id TEXT, version INTEGER, status TEXT); CREATE TABLE blok_artikel (id TEXT PRIMARY KEY, artikel_id TEXT, version INTEGER, status TEXT, content TEXT);");
-  await client.executeMultiple(readFileSync("drizzle/0098_shiny_nehzno.sql", "utf8").replaceAll("--> statement-breakpoint", ""));
+  await client.executeMultiple(readFileSync("drizzle/0099_hard_meteorite.sql", "utf8").replaceAll("--> statement-breakpoint", ""));
   await testDb.insert(schema.codingProblems).values({ id: problem.problemId, version: 1, courseId: "course", status: "published", snapshot: problem, creatorId: "student" });
   await client.execute("INSERT INTO artikel VALUES ('article', 'course', 1, 'published')");
   const meta = Buffer.from(JSON.stringify({ parts: [{ id: "exercise", kind: "coding_exercise", problem: submission.problem }] })).toString("base64url");

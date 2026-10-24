@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useUrlTab } from "@/hooks/use-url-tab";
 import {
   Calendar,
@@ -121,6 +122,7 @@ export function QuizForm({
   pageTitle: customPageTitle,
 }: QuizFormProps) {
   const router = useRouter();
+  const tr = useTranslations("adminEval.quizForm");
 
   // Tab State synced with URL query param ?tab=pengaturan | ?tab=soal (instant switching)
   const [currentTab, handleTabChange] = useUrlTab("tab", "pengaturan");
@@ -456,16 +458,16 @@ export function QuizForm({
   const handleSubmit = async (publishImmediately: boolean = false) => {
     if (!title.trim()) {
       handleTabChange("pengaturan");
-      return toast.error("Judul kuis wajib diisi.");
+      return toast.error(tr("titleRequired"));
     }
     if (!courseId) {
       handleTabChange("pengaturan");
-      return toast.error("Pilih mata kuliah untuk kuis ini.");
+      return toast.error(tr("courseRequired"));
     }
 
     if (selectionMode === "specific" && selectedQIds.length === 0) {
       handleTabChange("soal");
-      return toast.error("Pilih minimal 1 butir soal dari bank soal.");
+      return toast.error(tr("selectOneQuestion"));
     }
 
     if (selectionMode === "distribution") {
@@ -476,15 +478,11 @@ export function QuizForm({
 
       if (qCount < 1) {
         handleTabChange("soal");
-        return toast.error("Jumlah soal kuis minimal 1.");
+        return toast.error(tr("minimumQuestionCount"));
       }
       if (easyCount + medCount + hardCount !== qCount) {
         handleTabChange("soal");
-        return toast.error(
-          `Proporsi kesulitan (${easyCount} Mudah + ${medCount} Sedang + ${hardCount} Sulit = ${
-            easyCount + medCount + hardCount
-          }) harus sama dengan total soal (${qCount}).`
-        );
+        return toast.error(tr("difficultyTotalMismatch", { easy: easyCount, medium: medCount, hard: hardCount, total: qCount, sum: easyCount + medCount + hardCount }));
       }
     }
 
@@ -498,7 +496,7 @@ export function QuizForm({
     });
     if (timingMismatch) {
       handleTabChange("pengaturan");
-      return toast.error(timingMismatch);
+      return toast.error(tr("timingMismatch"));
     }
 
     try {
@@ -557,11 +555,10 @@ export function QuizForm({
         });
 
         if (!res.ok) {
-          const errData = await res.json();
-          throw new Error(errData.error || "Gagal memperbarui kuis.");
+          throw new Error(tr("updateFailed"));
         }
 
-        toast.success("Kuis berhasil diperbarui.");
+        toast.success(tr("updatedToast"));
       } else {
         const res = await fetch("/api/quiz/templates", {
           method: "POST",
@@ -570,30 +567,28 @@ export function QuizForm({
         });
 
         if (!res.ok) {
-          const errData = await res.json();
-          throw new Error(errData.error || "Gagal membuat kuis baru.");
+          throw new Error(tr("createFailed"));
         }
 
         toast.success(
-          publishImmediately ? "Kuis berhasil dibuat dan dipublikasikan!" : "Kuis berhasil disimpan sebagai draf!"
+          publishImmediately ? tr("createdPublishedToast") : tr("createdDraftToast")
         );
       }
 
       const targetDestination = returnUrl || (courseSlug ? `/admin/courses/${courseSlug}?tab=quizzes` : "/admin/quizzes");
       router.push(targetDestination);
       router.refresh();
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Terjadi kesalahan saat menyimpan kuis.";
-      toast.error(message);
+    } catch {
+      toast.error(tr("saveError"));
     } finally {
       setSubmitting(false);
     }
   };
 
   const currentCourseName = courses.find((c) => c.id === courseId)?.title || courseTitle;
-  const computedHeaderTitle = customPageTitle || (isEdit ? (title ? `Edit Kuis: ${title}` : "Edit Kuis") : (currentCourseName ? `Buat Kuis: ${currentCourseName}` : "Buat Kuis Baru"));
+  const computedHeaderTitle = customPageTitle || (isEdit ? (title ? tr("editQuizTitle", { title }) : tr("editQuiz")) : (currentCourseName ? tr("createQuizForCourse", { course: currentCourseName }) : tr("createQuiz")));
   const computedBackHref = backHref || returnUrl || (courseSlug ? `/admin/courses/${courseSlug}?tab=quizzes` : "/admin/quizzes");
-  const computedBackLabel = backLabel || (currentCourseName ? `Kembali ke ${currentCourseName}` : "Kembali ke Daftar Kuis");
+  const computedBackLabel = backLabel || (currentCourseName ? tr("backToCourse", { course: currentCourseName }) : tr("backToQuizList"));
 
   return (
     <div className="space-y-5">
@@ -614,7 +609,7 @@ export function QuizForm({
               className="h-8 sm:h-9 rounded-lg border-border font-medium text-body-xs"
             >
               <Save className="mr-1.5 size-3.5" />
-              {isEdit ? "Simpan Perubahan" : "Simpan Draf"}
+              {isEdit ? tr("saveChanges") : tr("saveDraft")}
             </Button>
             <Button
               type="button"
@@ -625,12 +620,12 @@ export function QuizForm({
             >
               {submitting ? (
                 <>
-                  <Loader2 className="mr-1.5 size-3.5 animate-spin" /> Menyimpan...
+                  <Loader2 className="mr-1.5 size-3.5 animate-spin" /> {tr("saving")}
                 </>
               ) : (
                 <>
                   <Send className="mr-1.5 size-3.5" />
-                  {isEdit ? "Simpan & Publikasikan" : "Publikasikan Kuis"}
+                  {isEdit ? tr("saveAndPublish") : tr("publishQuiz")}
                 </>
               )}
             </Button>
@@ -643,11 +638,11 @@ export function QuizForm({
         <TabsList>
           <TabsTrigger value="pengaturan">
             <Settings2 className="size-4" />
-            Pengaturan Kuis
+            {tr("quizSettings")}
           </TabsTrigger>
           <TabsTrigger value="soal">
             <BookOpen className="size-4" />
-            Pilihan Soal
+            {tr("questionSelection")}
             {selectedQIds.length > 0 && (
               <Badge variant="secondary" className="ml-1 px-1.5 py-0 text-body-2xs">
                 {selectedQIds.length}
@@ -667,18 +662,18 @@ export function QuizForm({
                 <div className="px-4 pt-3">
                   <h3 className="font-heading text-body-sm sm:text-body-base font-bold text-foreground flex items-center gap-2">
                     <BookOpen className="size-4 text-brand-primary" />
-                    Informasi kuis
+                    {tr("quizInformation")}
                   </h3>
                 </div>
                 <div className="p-4 space-y-3.5">
                   {!hideCourseSelect && (
                     <div>
                       <Label htmlFor="courseId" className="text-body-sm font-semibold text-foreground">
-                        Mata Kuliah
+                        {tr("course")}
                       </Label>
                       <Select value={courseId} onValueChange={setCourseId} disabled={isEdit}>
                         <SelectTrigger id="courseId" className="mt-1 w-full rounded-lg border-border h-9 text-body-sm">
-                          <SelectValue placeholder="Pilih mata kuliah..." />
+                          <SelectValue placeholder={tr("selectCourse")} />
                         </SelectTrigger>
                         <SelectContent>
                           {courses.map((c) => (
@@ -693,13 +688,13 @@ export function QuizForm({
 
                   <div>
                     <Label htmlFor="title" className="text-body-sm font-semibold text-foreground">
-                      Judul Kuis
+                      {tr("quizTitle")}
                     </Label>
                     <Input
                       id="title"
                       value={title}
                       onChange={(e) => setTitle(e.target.value)}
-                      placeholder="Contoh: Kuis 1 - Kalkulus & Aljabar Linear"
+                      placeholder={tr("quizTitlePlaceholder")}
                       className="mt-1 rounded-lg border-border font-medium h-9 text-body-sm"
                     />
                   </div>
@@ -707,33 +702,33 @@ export function QuizForm({
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     <div>
                       <Label htmlFor="category" className="text-body-sm font-semibold text-foreground">
-                        Kategori Kuis
+                        {tr("category")}
                       </Label>
                       <Select value={category} onValueChange={(v: any) => setCategory(v)}>
                         <SelectTrigger id="category" className="mt-1 rounded-lg border-border h-9 text-body-sm">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="daily">Latihan Harian</SelectItem>
-                          <SelectItem value="weekly">Kuis Mingguan</SelectItem>
-                          <SelectItem value="chapter">Kuis Per Bab</SelectItem>
-                          <SelectItem value="simulation">Simulasi Ujian</SelectItem>
-                          <SelectItem value="premium">Kuis Khusus / Premium</SelectItem>
+                          <SelectItem value="daily">{tr("categoryDaily")}</SelectItem>
+                          <SelectItem value="weekly">{tr("categoryWeekly")}</SelectItem>
+                          <SelectItem value="chapter">{tr("categoryChapter")}</SelectItem>
+                          <SelectItem value="simulation">{tr("categorySimulation")}</SelectItem>
+                          <SelectItem value="premium">{tr("categoryPremium")}</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
 
                     <div>
                       <Label htmlFor="visibility" className="text-body-sm font-semibold text-foreground">
-                        Akses Siswa
+                        {tr("studentAccess")}
                       </Label>
                       <Select value={visibility} onValueChange={(v: any) => setVisibility(v)}>
                         <SelectTrigger id="visibility" className="mt-1 rounded-lg border-border h-9 text-body-sm">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="free">Gratis (Semua Siswa Terdaftar)</SelectItem>
-                          <SelectItem value="paid">Berbayar (Butuh Token Khusus)</SelectItem>
+                          <SelectItem value="free">{tr("freeAccess")}</SelectItem>
+                          <SelectItem value="paid">{tr("paidAccess")}</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -746,7 +741,7 @@ export function QuizForm({
                 <div className="px-4 pt-3">
                   <h3 className="font-heading text-body-sm sm:text-body-base font-bold text-foreground flex items-center gap-2">
                     <Calendar className="size-4 text-brand-primary" />
-                    Jadwal Akses Kuis
+                    {tr("quizAccessSchedule")}
                   </h3>
                 </div>
                 <div className="p-4 space-y-3.5">
@@ -778,9 +773,9 @@ export function QuizForm({
                         {scheduleType === "scheduled" && <div className="size-1.5 rounded-full bg-white" />}
                       </div>
                       <div>
-                        <div className="text-body-xs sm:text-body-sm font-bold text-foreground">Terjadwal</div>
+                        <div className="text-body-xs sm:text-body-sm font-bold text-foreground">{tr("scheduled")}</div>
                         <div className="text-body-xs text-muted-foreground mt-0.5">
-                          Otomatis buka dan tutup sesuai waktu
+                          {tr("scheduledDescription")}
                         </div>
                       </div>
                     </button>
@@ -811,9 +806,9 @@ export function QuizForm({
                         {scheduleType === "manual" && <div className="size-1.5 rounded-full bg-white" />}
                       </div>
                       <div>
-                        <div className="text-body-xs sm:text-body-sm font-bold text-foreground">Manual</div>
+                        <div className="text-body-xs sm:text-body-sm font-bold text-foreground">{tr("manual")}</div>
                         <div className="text-body-xs text-muted-foreground mt-0.5">
-                          Buka atau tutup kuis kapan saja instan
+                          {tr("manualDescription")}
                         </div>
                       </div>
                     </button>
@@ -825,7 +820,7 @@ export function QuizForm({
                       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                         <div>
                           <Label htmlFor="openAt" className="text-body-xs font-semibold text-foreground">
-                            Waktu Buka Kuis
+                            {tr("openTime")}
                           </Label>
                           <Input
                             id="openAt"
@@ -838,7 +833,7 @@ export function QuizForm({
 
                         <div>
                           <Label htmlFor="closeAt" className="text-body-xs font-semibold text-foreground">
-                            Waktu Tutup Kuis
+                            {tr("closeTime")}
                           </Label>
                           <Input
                             id="closeAt"
@@ -852,7 +847,7 @@ export function QuizForm({
 
                       <div>
                         <Label htmlFor="manualStatusScheduled" className="text-body-xs font-semibold text-foreground">
-                          Status Override Manual
+                          {tr("manualStatusOverride")}
                         </Label>
                         <Select
                           value={manualStatus}
@@ -862,9 +857,9 @@ export function QuizForm({
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="scheduled">Ikuti Jadwal Otomatis</SelectItem>
-                            <SelectItem value="open">Buka Paksa Sekarang</SelectItem>
-                            <SelectItem value="closed">Tutup Paksa Sekarang</SelectItem>
+                            <SelectItem value="scheduled">{tr("followSchedule")}</SelectItem>
+                            <SelectItem value="open">{tr("forceOpenNow")}</SelectItem>
+                            <SelectItem value="closed">{tr("forceCloseNow")}</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
@@ -874,7 +869,7 @@ export function QuizForm({
                   {/* Manual Mode Fields */}
                   {scheduleType === "manual" && (
                     <div className="rounded-lg border border-border/80 bg-muted/20 p-3 space-y-2">
-                      <Label className="text-body-xs font-semibold text-foreground">Status Ketersediaan Kuis</Label>
+                      <Label className="text-body-xs font-semibold text-foreground">{tr("quizAvailability")}</Label>
                       <div className="grid grid-cols-2 gap-2.5">
                         <Button
                           type="button"
@@ -886,7 +881,7 @@ export function QuizForm({
                             manualStatus === "open" ? "bg-status-success text-white hover:bg-status-success/90" : "border-border"
                           )}
                         >
-                          <CheckCircle2 className="mr-1.5 size-3.5" /> Kuis Dibuka
+                          <CheckCircle2 className="mr-1.5 size-3.5" /> {tr("quizOpen")}
                         </Button>
                         <Button
                           type="button"
@@ -898,7 +893,7 @@ export function QuizForm({
                             manualStatus === "closed" ? "bg-muted-foreground text-white hover:bg-muted-foreground/90" : "border-border"
                           )}
                         >
-                          <Lock className="mr-1.5 size-3.5" /> Kuis Ditutup
+                          <Lock className="mr-1.5 size-3.5" /> {tr("quizClosed")}
                         </Button>
                       </div>
                     </div>
@@ -1011,10 +1006,10 @@ export function QuizForm({
                           onChange={(e) => setTimeLimitMinutes(e.target.value)}
                           className="w-24 rounded-lg border-border h-8 text-body-xs"
                         />
-                        <span className="text-body-xs text-muted-foreground font-medium">Menit total</span>
+                        <span className="text-body-xs text-muted-foreground font-medium">{tr("totalMinutes")}</span>
                       </div>
                     ) : (
-                      <p className="text-body-xs text-muted-foreground">Kuis tidak memiliki batas waktu keseluruhan.</p>
+                      <p className="text-body-xs text-muted-foreground">{tr("noOverallTimeLimit")}</p>
                     )}
                   </div>
 
@@ -1039,7 +1034,7 @@ export function QuizForm({
                     {perQuestionTimerEnabled && (
                       <div className="rounded-lg border border-border/80 bg-muted/20 p-3 space-y-1.5">
                         <Label htmlFor="defaultTimer" className="text-body-xs font-semibold text-foreground">
-                          Durasi Standar Per Soal (Detik)
+                          {tr("defaultQuestionDuration")}
                         </Label>
                         <div className="flex items-center gap-2">
                           <Input
@@ -1051,7 +1046,7 @@ export function QuizForm({
                             onChange={(e) => setDefaultQuestionTimerSeconds(e.target.value)}
                             className="w-24 rounded-lg border-border h-8 text-body-xs"
                           />
-                          <span className="text-body-xs text-muted-foreground font-medium">Detik</span>
+                          <span className="text-body-xs text-muted-foreground font-medium">{tr("seconds")}</span>
                         </div>
                       </div>
                     )}
@@ -1064,7 +1059,7 @@ export function QuizForm({
                 <div className="px-4 pt-3">
                   <h3 className="font-heading text-body-sm sm:text-body-base font-bold text-foreground flex items-center gap-2">
                     <Sliders className="size-4 text-brand-primary" />
-                    Aturan Pengerjaan & Navigasi
+                    {tr("attemptAndNavigationRules")}
                   </h3>
                 </div>
                 <div className="p-4 space-y-3.5">
@@ -1072,12 +1067,12 @@ export function QuizForm({
                   <div className="flex items-start justify-between gap-3 border-b border-border/60 pb-2.5">
                     <div className="space-y-0.5">
                       <Label htmlFor="canGoBack" className="text-body-sm font-semibold text-foreground cursor-pointer">
-                        Navigasi Mundur (Kembali)
+                        {tr("backNavigation")}
                       </Label>
                       <p className="text-body-xs text-muted-foreground">
                         {canGoBack
-                          ? "Siswa bebas kembali ke nomor sebelumnya"
-                          : "Mode linier satu arah"}
+                          ? tr("canNavigateBack")
+                          : tr("linearNavigation")}
                       </p>
                     </div>
                     <Switch
@@ -1091,12 +1086,12 @@ export function QuizForm({
                   <div className="flex items-start justify-between gap-3 border-b border-border/60 pb-2.5">
                     <div className="space-y-0.5">
                       <Label htmlFor="requireAllAnswered" className="text-body-sm font-semibold text-foreground cursor-pointer">
-                        Wajib Jawab Semua Soal
+                        {tr("requireAllQuestions")}
                       </Label>
                       <p className="text-body-xs text-muted-foreground">
                         {requireAllAnswered
-                          ? "Semua soal harus dijawab sebelum submit"
-                          : "Boleh submit meski ada soal kosong"}
+                          ? tr("allAnswersRequired")
+                          : tr("answersOptional")}
                       </p>
                     </div>
                     <Switch
@@ -1109,7 +1104,7 @@ export function QuizForm({
                   {/* Max Attempts */}
                   <div className="space-y-1 border-b border-border/60 pb-2.5">
                     <Label htmlFor="maxAttempts" className="text-body-sm font-semibold text-foreground">
-                      Batas Maksimal Percobaan
+                      {tr("maxAttemptsLabel")}
                     </Label>
                     <div className="flex items-center gap-2">
                       <Input
@@ -1119,11 +1114,11 @@ export function QuizForm({
                         max={100}
                         value={maxAttempts}
                         onChange={(e) => setMaxAttempts(e.target.value)}
-                        placeholder="Bebas"
+                        placeholder={tr("unlimited")}
                         className="w-32 rounded-lg border-border h-8 text-body-xs"
                       />
                       <span className="text-body-xs text-muted-foreground">
-                        {maxAttempts ? "Kali percobaan" : "Tak terbatas"}
+                        {maxAttempts ? tr("attempts") : tr("unlimited")}
                       </span>
                     </div>
                   </div>
@@ -1133,7 +1128,7 @@ export function QuizForm({
                     <div className="flex items-center justify-between">
                       <Label htmlFor="shuffleQuestions" className="text-body-sm font-semibold text-foreground flex items-center gap-1.5 cursor-pointer">
                         <Shuffle className="size-3.5 text-muted-foreground" />
-                        Acak Urutan Soal
+                        {tr("shuffleQuestions")}
                       </Label>
                       <Switch
                         id="shuffleQuestions"
@@ -1145,7 +1140,7 @@ export function QuizForm({
                     <div className="flex items-center justify-between">
                       <Label htmlFor="shuffleOptions" className="text-body-sm font-semibold text-foreground flex items-center gap-1.5 cursor-pointer">
                         <Shuffle className="size-3.5 text-muted-foreground" />
-                        Acak Opsi Pilihan Ganda
+                        {tr("shuffleOptions")}
                       </Label>
                       <Switch
                         id="shuffleOptions"
@@ -1160,11 +1155,11 @@ export function QuizForm({
               {/* Quick Navigation to Tab 2 */}
               <div className="bg-muted/30 p-3.5 flex items-center justify-between">
                 <div>
-                  <div className="text-body-sm font-bold text-brand-primary">Lanjut Pilih Soal</div>
+                  <div className="text-body-sm font-bold text-brand-primary">{tr("continueToQuestionSelection")}</div>
                   <div className="text-body-xs text-muted-foreground">
                     {selectedQIds.length > 0
-                      ? `${selectedQIds.length} butir soal telah dipilih`
-                      : "Tentukan soal dari bank soal kelas"}
+                      ? tr("questionsSelected", { count: selectedQIds.length })
+                      : tr("chooseQuestionsFromBank")}
                   </div>
                 </div>
                 <Button
@@ -1187,7 +1182,7 @@ export function QuizForm({
           {/* Mode Selector & Summary Bar */}
           <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-card p-3 shadow-2xs">
             <div className="flex items-center gap-2">
-              <span className="text-body-xs font-semibold text-muted-foreground">Metode Soal:</span>
+              <span className="text-body-xs font-semibold text-muted-foreground">{tr("questionSelectionMethod")}</span>
               <div className="flex rounded-lg border border-border p-0.5 bg-muted/40">
                 <button
                   type="button"
@@ -1199,7 +1194,7 @@ export function QuizForm({
                       : "text-muted-foreground hover:text-foreground"
                   )}
                 >
-                  Pilih Soal Spesifik
+                  {tr("specificQuestions")}
                 </button>
                 <button
                   type="button"
@@ -1211,7 +1206,7 @@ export function QuizForm({
                       : "text-muted-foreground hover:text-foreground"
                   )}
                 >
-                  Distribusi Otomatis
+                  {tr("selectByDifficulty")}
                 </button>
               </div>
             </div>
@@ -1219,7 +1214,7 @@ export function QuizForm({
             {selectionMode === "specific" && (
               <div className="flex items-center gap-2">
                 <Badge variant="outline" className="rounded-md border-brand-primary/30 bg-brand-primary/10 text-brand-primary font-bold px-2 py-0.5 text-body-xs">
-                  {selectedQIds.length} Soal Terpilih
+                  {tr("selectedQuestionCount", { count: selectedQIds.length })}
                 </Badge>
                 {selectedQIds.length > 0 && (
                   <Button
@@ -1229,7 +1224,7 @@ export function QuizForm({
                     onClick={clearAllSelections}
                     className="h-7 text-body-xs text-status-error hover:bg-status-error/10 hover:text-status-error"
                   >
-                    Kosongkan Pilihan
+                    {tr("clearSelection")}
                   </Button>
                 )}
               </div>
@@ -1269,7 +1264,7 @@ export function QuizForm({
                       id="tagsStr"
                       value={tagsStr}
                       onChange={(e) => setTagsStr(e.target.value)}
-                      placeholder="Contoh: Bab 1, Turunan, Integral"
+                      placeholder={tr("topicTagsPlaceholder")}
                       className="mt-1 rounded-lg border-border h-9"
                     />
                   </div>
@@ -1343,7 +1338,7 @@ export function QuizForm({
                       value={searchQuery}
                       onSearch={setSearchQuery}
                       onClear={() => setSearchQuery("")}
-                      placeholder="Cari teks pertanyaan, tag, ID..."
+                      placeholder={tr("questionSearch")}
                     />
                   </div>
 
@@ -1366,13 +1361,13 @@ export function QuizForm({
                   <div className="w-full sm:w-auto shrink-0">
                     <Select value={difficultyFilter} onValueChange={setDifficultyFilter}>
                       <SelectTrigger className="h-9 w-full sm:w-[130px] rounded-lg border-border text-body-xs">
-                        <SelectValue placeholder="Semua Kesulitan" />
+                        <SelectValue placeholder={tr("allDifficulties")} />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="all">Semua Kesulitan</SelectItem>
-                        <SelectItem value="easy">Mudah (Easy)</SelectItem>
-                        <SelectItem value="medium">Sedang (Medium)</SelectItem>
-                        <SelectItem value="hard">Sulit (Hard)</SelectItem>
+                        <SelectItem value="all">{tr("allDifficulties")}</SelectItem>
+                        <SelectItem value="easy">{tr("easy")}</SelectItem>
+                        <SelectItem value="medium">{tr("medium")}</SelectItem>
+                        <SelectItem value="hard">{tr("hard")}</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -1381,14 +1376,14 @@ export function QuizForm({
                   <div className="w-full sm:w-auto shrink-0">
                     <Select value={typeFilter} onValueChange={setTypeFilter}>
                       <SelectTrigger className="h-9 w-full sm:w-[140px] rounded-lg border-border text-body-xs">
-                        <SelectValue placeholder="Semua Tipe" />
+                        <SelectValue placeholder={tr("allTypes")} />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="all">Semua Tipe</SelectItem>
-                        <SelectItem value="multiple_choice">Pilihan Ganda</SelectItem>
-                        <SelectItem value="multiple_choices">PG Kompleks</SelectItem>
-                        <SelectItem value="short_answer">Isian Singkat</SelectItem>
-                        <SelectItem value="essay">Esai</SelectItem>
+                        <SelectItem value="all">{tr("allTypes")}</SelectItem>
+                        <SelectItem value="multiple_choice">{tr("multipleChoice")}</SelectItem>
+                        <SelectItem value="multiple_choices">{tr("multipleChoices")}</SelectItem>
+                        <SelectItem value="short_answer">{tr("shortAnswer")}</SelectItem>
+                        <SelectItem value="essay">{tr("essay")}</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -1397,12 +1392,12 @@ export function QuizForm({
                   <div className="w-full sm:w-auto shrink-0">
                     <Select value={originFilter} onValueChange={setOriginFilter}>
                       <SelectTrigger className="h-9 w-full sm:w-[130px] rounded-lg border-border text-body-xs">
-                        <SelectValue placeholder="Semua Sumber" />
+                        <SelectValue placeholder={tr("allSources")} />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="all">Semua Sumber</SelectItem>
-                        <SelectItem value="zyx_original">Zyx Original</SelectItem>
-                        <SelectItem value="itb_example">Contoh ITB</SelectItem>
+                        <SelectItem value="all">{tr("allSources")}</SelectItem>
+                        <SelectItem value="zyx_original">{tr("zyxOriginal")}</SelectItem>
+                        <SelectItem value="itb_example">{tr("itbExample")}</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -1411,10 +1406,10 @@ export function QuizForm({
                   <div className="w-full sm:w-auto shrink-0">
                     <Select value={tagFilter} onValueChange={setTagFilter}>
                       <SelectTrigger className="h-9 w-full sm:w-[130px] rounded-lg border-border text-body-xs">
-                        <SelectValue placeholder="Semua Topik" />
+                        <SelectValue placeholder={tr("allTopics")} />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="all">Semua Topik</SelectItem>
+                        <SelectItem value="all">{tr("allTopics")}</SelectItem>
                         {availableTags.map((tag) => (
                           <SelectItem key={tag} value={tag}>
                             {tag}
@@ -1428,13 +1423,13 @@ export function QuizForm({
                   <div className="w-full sm:w-auto shrink-0">
                     <Select value={statusFilter} onValueChange={setStatusFilter}>
                       <SelectTrigger className="h-9 w-full sm:w-[130px] rounded-lg border-border text-body-xs">
-                        <SelectValue placeholder="Semua Status" />
+                        <SelectValue placeholder={tr("allStatuses")} />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="all">Semua Status</SelectItem>
-                        <SelectItem value="published">Published</SelectItem>
-                        <SelectItem value="generated">Draft</SelectItem>
-                        <SelectItem value="flagged">Ditandai</SelectItem>
+                        <SelectItem value="all">{tr("allStatuses")}</SelectItem>
+                        <SelectItem value="published">{tr("published")}</SelectItem>
+                        <SelectItem value="generated">{tr("draft")}</SelectItem>
+                        <SelectItem value="flagged">{tr("flagged")}</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -1475,12 +1470,12 @@ export function QuizForm({
               {loadingQuestions ? (
                 <div className="rounded-xl border border-border bg-card p-8 text-center">
                   <Loader2 className="mx-auto size-5 animate-spin text-brand-primary" />
-                  <p className="mt-2 text-body-xs text-muted-foreground">Memuat bank soal kelas...</p>
+                  <p className="mt-2 text-body-xs text-muted-foreground">{tr("loadingQuestionBank")}</p>
                 </div>
               ) : filteredQuestions.length === 0 ? (
                 <div className="rounded-xl border border-dashed border-border bg-card p-8 text-center">
                   <HelpCircle className="mx-auto size-7 text-muted-foreground mb-1.5" />
-                  <h4 className="font-heading text-body-sm font-bold text-foreground">Tidak Ada Soal yang Cocok</h4>
+                  <h4 className="font-heading text-body-sm font-bold text-foreground">{tr("noMatchingQuestions")}</h4>
                   <p className="text-body-xs text-muted-foreground mt-0.5 max-w-md mx-auto">
                     Coba sesuaikan kata kunci pencarian atau bersihkan filter tingkat kesulitan dan topik.
                   </p>
@@ -1551,22 +1546,22 @@ export function QuizForm({
                                   q.difficulty === "hard" && "border-status-error/30 bg-status-error/10 text-status-error"
                                 )}
                               >
-                                {q.difficulty}
+                                {tr(q.difficulty)}
                               </Badge>
 
                               <Badge variant="outline" className="rounded-md text-[10px] border-border text-muted-foreground px-1.5 py-0.5">
                                 {q.questionType === "multiple_choice"
-                                  ? "Pilihan Ganda"
+                                  ? tr("multipleChoice")
                                   : q.questionType === "multiple_choices"
-                                  ? "PG Kompleks"
+                                  ? tr("multipleChoices")
                                   : q.questionType === "short_answer"
-                                  ? "Isian Singkat"
-                                  : "Esai"}
+                                  ? tr("shortAnswer")
+                                  : tr("essay")}
                               </Badge>
 
                               {q.origin === "itb_example" && (
                                 <Badge variant="outline" className="rounded-md text-[10px] border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400 px-1.5 py-0.5">
-                                  Contoh ITB
+                                  {tr("itbExample")}
                                 </Badge>
                               )}
 
@@ -1580,7 +1575,7 @@ export function QuizForm({
                                       : "border-muted-foreground/30 bg-muted text-muted-foreground"
                                   )}
                                 >
-                                  {q.reviewStatus === "flagged" ? "Ditandai" : "Draft"}
+                                  {q.reviewStatus === "flagged" ? tr("flagged") : tr("draft")}
                                 </Badge>
                               )}
 
@@ -1613,7 +1608,7 @@ export function QuizForm({
                                 className="mt-2 flex items-center gap-2 rounded-lg border border-border bg-background p-2 w-fit"
                               >
                                 <Timer className="size-3.5 text-brand-primary" />
-                                <span className="text-body-xs font-semibold text-foreground">Timer Soal Ini:</span>
+                                <span className="text-body-xs font-semibold text-foreground">{tr("questionTimer")}</span>
                                 <Input
                                   type="number"
                                   min={5}
@@ -1622,7 +1617,7 @@ export function QuizForm({
                                   onChange={(e) => updateQuestionTimer(q.id, Number(e.target.value))}
                                   className="h-7 w-16 rounded-md border-border text-body-sm"
                                 />
-                                <span className="text-body-xs text-muted-foreground">Detik</span>
+                                <span className="text-body-xs text-muted-foreground">{tr("seconds")}</span>
                               </div>
                             )}
                           </div>

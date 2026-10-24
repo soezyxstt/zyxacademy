@@ -70,6 +70,7 @@ import {
 } from "@/components/course/product-learning-blocks";
 import { formatReaderTocTitle, resolveReaderBlockTitle } from "@/lib/materials/reader-toc";
 import { isLearnerReaderMode, type MaterialReaderMode } from "@/lib/materials/reader-mode";
+import { useTranslations } from "@/lib/i18n/client";
 
 export interface MaterialNavigationItem {
   id: string;
@@ -97,88 +98,88 @@ interface BlockMetadata {
   badgeClass: string;
 }
 
-function getBlockMetadata(blockType: string): BlockMetadata {
+function getBlockMetadata(blockType: string, t: ReturnType<typeof useTranslations>): BlockMetadata {
   switch (blockType) {
     case "problem_introduction":
       return {
-        label: "Pengantar Masalah",
+        label: t("articleReader.blockTypes.problemIntroduction"),
         icon: HelpCircle,
         containerClass: "border-l-4 border-l-status-warning border-t border-r border-b border-border/60 bg-status-warning/[0.03]",
         badgeClass: "text-status-warning bg-status-warning/10",
       };
     case "prior_knowledge_activation":
       return {
-        label: "Aktivasi Pengetahuan Awal",
+        label: t("articleReader.blockTypes.priorKnowledge"),
         icon: BookOpenCheck,
         containerClass: "border-l-4 border-l-primary/60 border-t border-r border-b border-border/60 bg-primary/[0.03]",
         badgeClass: "text-primary bg-primary/10",
       };
     case "verbal_representation":
       return {
-        label: "Representasi Konseptual",
+        label: t("articleReader.blockTypes.verbalRepresentation"),
         icon: AlignLeft,
         containerClass: "",
         badgeClass: "text-primary bg-primary/10",
       };
     case "mathematical_representation":
       return {
-        label: "Representasi Matematis",
+        label: t("articleReader.blockTypes.mathematicalRepresentation"),
         icon: Calculator,
         containerClass: "",
         badgeClass: "text-status-success bg-status-success/10",
       };
     case "analogy":
       return {
-        label: "Analogi dan Intuisi",
+        label: t("articleReader.blockTypes.analogy"),
         icon: Sigma,
         containerClass: "border-l-4 border-l-status-warning/70 border-t border-r border-b border-border/70 bg-card",
         badgeClass: "text-status-warning bg-status-warning/10",
       };
     case "worked_example":
       return {
-        label: "Contoh dan Pembahasan",
+        label: t("articleReader.blockTypes.workedExample"),
         icon: BookOpen,
         containerClass: "border-l-4 border-l-status-success border-t border-r border-b border-border/70 bg-card",
         badgeClass: "text-status-success bg-status-success/10",
       };
     case "misconception":
       return {
-        label: "Miskonsepsi Umum",
+        label: t("articleReader.blockTypes.misconception"),
         icon: AlertTriangle,
         containerClass: "border-l-4 border-l-status-error border-t border-r border-b border-border/70 bg-card",
         badgeClass: "text-status-error bg-status-error/10",
       };
     case "application":
       return {
-        label: "Aplikasi dan Penerapan",
+        label: t("articleReader.blockTypes.application"),
         icon: FileText,
         containerClass: "border-l-4 border-l-primary/60 border-t border-r border-b border-border/70 bg-card",
         badgeClass: "text-primary bg-primary/10",
       };
     case "retrieval_prompt":
       return {
-        label: "Cek Pemahaman",
+        label: t("articleReader.blockTypes.retrievalPrompt"),
         icon: Brain,
         containerClass: "border-l-4 border-l-status-warning border-t border-r border-b border-border/70 bg-card",
         badgeClass: "text-status-warning bg-status-warning/10",
       };
     case "cross_idea_synthesis":
       return {
-        label: "Sintesis Antarkonsep",
+        label: t("articleReader.blockTypes.synthesis"),
         icon: Layers,
         containerClass: "border-l-4 border-l-primary/60 border-t border-r border-b border-border/70 bg-card",
         badgeClass: "text-primary bg-primary/10",
       };
     case "summary":
       return {
-        label: "Ringkasan Bagian",
+        label: t("articleReader.blockTypes.summary"),
         icon: BookmarkCheck,
         containerClass: "border-l-4 border-l-border border-t border-r border-b border-border/70 bg-muted/25",
         badgeClass: "text-muted-foreground bg-muted",
       };
     case "retrieval_close":
       return {
-        label: "Refleksi Akhir",
+        label: t("articleReader.blockTypes.reflection"),
         icon: Award,
         containerClass: "border-l-4 border-l-status-success border-t border-r border-b border-border/70 bg-card",
         badgeClass: "text-status-success bg-status-success/10",
@@ -186,7 +187,7 @@ function getBlockMetadata(blockType: string): BlockMetadata {
     case "explanation":
     default:
       return {
-        label: "Penjelasan",
+        label: t("articleReader.blockTypes.explanation"),
         icon: AlignLeft,
         containerClass: "",
         badgeClass: "text-muted-foreground bg-muted",
@@ -205,10 +206,10 @@ function BlockVisuals({ visuals }: { visuals?: PublicSectionReadModel["visuals"]
   );
 }
 
-function getBlockTitle(block: PublicSectionReadModel["blocks"][number], sectionTitle: string) {
+function getBlockTitle(block: PublicSectionReadModel["blocks"][number], sectionTitle: string, t: ReturnType<typeof useTranslations>) {
   const fallback = block.blockType === "worked_example" && block.workedExample
-    ? "Contoh dan Pembahasan Bertahap"
-    : block.formativeCheck ? "Cek Pemahaman Mandiri" : getBlockMetadata(block.blockType).label;
+    ? t("articleReader.blockTypes.stepByStepExample")
+    : block.formativeCheck ? t("articleReader.blockTypes.selfCheck") : getBlockMetadata(block.blockType, t).label;
   return resolveReaderBlockTitle(block.title, fallback, sectionTitle);
 }
 
@@ -225,6 +226,7 @@ export function StructuredArticleSectionContent({
   completed?: boolean;
   showProgress?: boolean;
 }) {
+  const t = useTranslations("studentCourse");
   return (
     <>
       <header className="space-y-3 border-b border-border/80 pb-5">
@@ -235,13 +237,13 @@ export function StructuredArticleSectionContent({
           {!section.learningTimeEstimate ? (
             <span className="flex items-center gap-1">
               <Clock className="size-3.5" />
-              {section.estimatedReadingMinutes} menit baca
+              {t("articleReader.readingMinutes", { count: section.estimatedReadingMinutes })}
             </span>
           ) : null}
           {showProgress && completed ? (
             <span className="flex items-center gap-1 text-status-success">
               <CheckCircle2 className="size-3.5" />
-              Selesai dibaca
+              {t("articleReader.readComplete")}
             </span>
           ) : null}
         </div>
@@ -283,7 +285,7 @@ export function StructuredArticleSectionContent({
                 key={block.id || blockIndex}
                 id={block.id ? `block-${block.id}` : undefined}
                 data-block-type="worked_example"
-                data-block-title={block.title || "Contoh dan Pembahasan"}
+                data-block-title={block.title || t("articleReader.blockTypes.workedExample")}
                 className="scroll-mt-24"
               >
                 <ProductWorkedExample
@@ -306,7 +308,7 @@ export function StructuredArticleSectionContent({
                 key={block.id || blockIndex}
                 id={block.id ? `block-${block.id}` : undefined}
                 data-block-type={block.blockType}
-                data-block-title={block.title || "Cek Pemahaman"}
+                data-block-title={block.title || t("articleReader.blockTypes.retrievalPrompt")}
                 className="scroll-mt-24"
               >
                 <ProductFormativeCheck
@@ -326,9 +328,9 @@ export function StructuredArticleSectionContent({
             );
           }
 
-          const meta = getBlockMetadata(block.blockType);
+          const meta = getBlockMetadata(block.blockType, t);
           const Icon = meta.icon;
-          const displayTitle = getBlockTitle(block, section.title);
+          const displayTitle = getBlockTitle(block, section.title, t);
 
           const isCoreDocument =
             block.blockType === "explanation" ||
@@ -349,9 +351,7 @@ export function StructuredArticleSectionContent({
               >
                 {displayTitle &&
                 displayTitle !== section.title &&
-                displayTitle !== "Penjelasan" &&
-                displayTitle !== "Representasi Konseptual" &&
-                displayTitle !== "Representasi Matematis" ? (
+                displayTitle !== meta.label ? (
                   <h3 className={cn("font-heading font-bold tracking-tight text-foreground pt-3", block.parts?.length ? "text-body-base" : "text-h5")}>
                     <MathText className="normal-case">{displayTitle}</MathText>
                   </h3>
@@ -414,6 +414,7 @@ export function StructuredArticleReader({
   isMobileSheetOpen: controlledMobileSheetOpen,
   onToggleMobileSheet: controlledToggleMobileSheet,
 }: StructuredArticleReaderProps) {
+  const t = useTranslations("studentCourse");
   const learnerMode = isLearnerReaderMode(mode);
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -925,17 +926,17 @@ export function StructuredArticleReader({
     let questionText = customQuestion?.trim();
     if (!questionText) {
       if (intent === "example") {
-        questionText = "Berikan contoh konkret atau latihan terkait materi ini.";
+        questionText = t("articleReader.zyraPrompts.example");
       } else if (intent === "step_by_step") {
-        questionText = "Bedah langkah perhitungan ini secara bertahap dan jelaskan logikanya.";
+        questionText = t("articleReader.zyraPrompts.stepByStep");
       } else if (intent === "rationale") {
-        questionText = "Kenapa metode atau cara ini yang digunakan pada langkah ini?";
+        questionText = t("articleReader.zyraPrompts.rationale");
       } else if (intent === "intuition") {
-        questionText = "Apa intuisi dasar atau analogi di balik pernyataan ini?";
+        questionText = t("articleReader.zyraPrompts.intuition");
       } else if (intent === "define") {
-        questionText = "Jelaskan definisi istilah atau simbol ini secara padat.";
+        questionText = t("articleReader.zyraPrompts.define");
       } else {
-        questionText = `Bantu saya memahami bagian ini: "${currentContext.cleanText}".`;
+        questionText = t("articleReader.zyraPrompts.selection", { text: currentContext.cleanText });
       }
     }
 
@@ -1036,7 +1037,7 @@ export function StructuredArticleReader({
     }
   };
 
-  const courseTitle = course?.title || "Materi Kuliah";
+  const courseTitle = course?.title || t("articleReader.courseMaterial");
 
   const renderTocContent = () => (
     <div className="flex flex-col h-full">
@@ -1046,8 +1047,8 @@ export function StructuredArticleReader({
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
           <Input
             type="search"
-            aria-label="Cari dalam artikel"
-            placeholder="Cari dalam artikel"
+            aria-label={t("articleReader.searchArticle")}
+            placeholder={t("articleReader.searchArticle")}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="h-9 w-full pl-8 pr-8 text-body-sm"
@@ -1056,7 +1057,7 @@ export function StructuredArticleReader({
             <button
               type="button"
               onClick={() => setSearchQuery("")}
-              aria-label="Hapus pencarian"
+              aria-label={t("articleReader.clearSearch")}
               className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
             >
               <X className="size-3.5" />
@@ -1070,11 +1071,11 @@ export function StructuredArticleReader({
         {searchQuery.trim().length >= 2 ? (
           <div>
             <p className="px-2 py-1 text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Hasil Pencarian ({searchResults.length})
+              {t("articleReader.searchResults", { count: searchResults.length })}
             </p>
             {searchResults.length === 0 ? (
               <p className="text-body-xs text-muted-foreground px-2 py-3 text-center">
-                Tidak ada teks yang cocok dengan &quot;{searchQuery}&quot;
+                {t("articleReader.noSearchResults", { query: searchQuery })}
               </p>
             ) : (
               <div className="space-y-1.5 mt-1">
@@ -1109,10 +1110,10 @@ export function StructuredArticleReader({
           <div>
             <div className="flex items-center justify-between px-2 py-1 mb-1">
               <span className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                Bab Ini
+                {t("articleReader.thisChapter")}
               </span>
               <span className="text-body-xs font-semibold text-muted-foreground">
-                {completedCount}/{totalSections} selesai
+                {t("articleReader.sectionsComplete", { completed: completedCount, total: totalSections })}
               </span>
             </div>
 
@@ -1121,7 +1122,7 @@ export function StructuredArticleReader({
                 const isCurrent = activeSectionSlug === section.slug;
                 const prog = sectionProgressMap[section.id];
                 const isDone = prog?.completed || (prog?.maxReadPercent ?? 0) >= 90;
-                const subheadings = section.blocks.map(block => ({ block, title: getBlockTitle(block, section.title) })).filter(item => item.title);
+                const subheadings = section.blocks.map(block => ({ block, title: getBlockTitle(block, section.title, t) })).filter(item => item.title);
 
                 return (
                   <div key={section.id} className="space-y-0.5">
@@ -1186,10 +1187,10 @@ export function StructuredArticleReader({
             <div className="flex items-center justify-between px-4 py-2 gap-3 max-w-4xl mx-auto w-full">
               <div className="flex items-center gap-2.5 min-w-0">
                 <span className="rounded-md bg-primary/10 px-2 py-0.5 text-body-2xs font-semibold text-primary uppercase tracking-wider shrink-0">
-                  Mode Fokus
+                  {t("articleReader.focusMode")}
                 </span>
                 <h1 className="text-body-sm font-bold text-foreground truncate font-heading leading-tight">
-                  {article.chapterNumber ? `Bab ${article.chapterNumber}: ` : ""}
+                  {article.chapterNumber ? `${t("articleReader.chapter")} ${article.chapterNumber}: ` : ""}
                   <MathText className="normal-case">{article.title}</MathText>
                 </h1>
               </div>
@@ -1199,10 +1200,10 @@ export function StructuredArticleReader({
                 size="sm"
                 onClick={exitFocusMode}
                 className="gap-1.5 text-body-xs font-semibold shrink-0"
-                aria-label="Keluar mode fokus"
+                aria-label={t("articleReader.exitFocusMode")}
               >
                 <Minimize2 className="size-3.5" />
-                <span className="hidden sm:inline">Keluar Fokus</span>
+                <span className="hidden sm:inline">{t("articleReader.exitFocus")}</span>
                 <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 text-body-2xs font-mono text-muted-foreground">
                   Esc
                 </kbd>
@@ -1222,7 +1223,7 @@ export function StructuredArticleReader({
                         size="icon-sm"
                         asChild
                         className="text-muted-foreground hover:text-foreground shrink-0 rounded-lg"
-                        aria-label="Kembali ke materi"
+                        aria-label={t("articleReader.backToMaterial")}
                       >
                         <Link href={backHref ?? `/courses/${article.courseId}/material`}>
                           <ArrowLeft className="size-4" />
@@ -1230,7 +1231,7 @@ export function StructuredArticleReader({
                       </Button>
                     </TooltipTrigger>
                     <TooltipContent side="bottom" align="start">
-                      <span>Kembali ke materi</span>
+                      <span>{t("articleReader.backToMaterial")}</span>
                     </TooltipContent>
                   </Tooltip>
 
@@ -1241,7 +1242,7 @@ export function StructuredArticleReader({
                       <MathText className="normal-case">{courseTitle}</MathText>
                     </p>
                     <h1 className="text-body-sm font-bold text-foreground truncate font-heading leading-tight">
-                      {article.chapterNumber ? `Bab ${article.chapterNumber}: ` : ""}
+                      {article.chapterNumber ? `${t("articleReader.chapter")} ${article.chapterNumber}: ` : ""}
                       <MathText className="normal-case">{article.title}</MathText>
                     </h1>
                   </div>
@@ -1252,7 +1253,7 @@ export function StructuredArticleReader({
                   {/* Reading Progress indicator */}
                   <div
                     className="hidden sm:flex items-center gap-2 text-body-xs text-muted-foreground pr-1"
-                    title={`Progres membaca: ${overallPercent}%`}
+                    title={t("articleReader.readingProgress", { percent: overallPercent })}
                   >
                     <div className="w-20 h-1.5 rounded-full bg-muted/80 overflow-hidden">
                       <div
@@ -1274,13 +1275,13 @@ export function StructuredArticleReader({
                         size="icon-sm"
                         onClick={enterFocusMode}
                         className="text-muted-foreground hover:text-foreground rounded-lg"
-                        aria-label="Masuk mode fokus"
+                        aria-label={t("articleReader.enterFocusMode")}
                       >
                         <Maximize2 className="size-4" />
                       </Button>
                     </TooltipTrigger>
                     <TooltipContent side="bottom">
-                      <span>Mode fokus</span>
+                      <span>{t("articleReader.focusMode")}</span>
                     </TooltipContent>
                   </Tooltip>
 
@@ -1290,7 +1291,7 @@ export function StructuredArticleReader({
                     size="icon-sm"
                     onClick={() => setIsMobileSheetOpen(true)}
                     className="md:hidden text-muted-foreground hover:text-foreground rounded-lg"
-                    aria-label="Buka daftar isi"
+                    aria-label={t("articleReader.openContents")}
                   >
                     <Menu className="size-4" />
                   </Button>
@@ -1308,7 +1309,7 @@ export function StructuredArticleReader({
                             ? "text-primary bg-primary/10 hover:bg-primary/15"
                             : "text-muted-foreground hover:text-foreground"
                         )}
-                        aria-label={isTocOpen ? "Sembunyikan daftar isi" : "Buka daftar isi"}
+                        aria-label={isTocOpen ? t("articleReader.hideContents") : t("articleReader.openContents")}
                       >
                         {isTocOpen ? (
                           <PanelRightClose className="size-4" />
@@ -1318,7 +1319,7 @@ export function StructuredArticleReader({
                       </Button>
                     </TooltipTrigger>
                     <TooltipContent side="bottom" align="end">
-                      <span>{isTocOpen ? "Sembunyikan daftar isi" : "Buka daftar isi"}</span>
+                      <span>{isTocOpen ? t("articleReader.hideContents") : t("articleReader.openContents")}</span>
                     </TooltipContent>
                   </Tooltip>
                 </div>
@@ -1401,14 +1402,14 @@ export function StructuredArticleReader({
                 </div>
                 <div className="space-y-1">
                   <h2 className="font-heading text-h5 font-bold text-foreground">
-                    Bab Selesai
+                    {t("articleReader.chapterComplete")}
                   </h2>
                   <p className="text-body-sm text-muted-foreground max-w-md mx-auto">
-                    Anda telah menyelesaikan seluruh materi dalam bab <MathText className="normal-case">{article.title}</MathText>.
+                    {t("articleReader.chapterCompleteDescription")} <MathText className="normal-case">{article.title}</MathText>.
                   </p>
                   {nextMaterial && (
                     <p className="text-body-xs text-muted-foreground pt-1">
-                      Materi berikutnya: <span className="font-semibold text-foreground"><MathText className="normal-case">{nextMaterial.title}</MathText></span>
+                      {t("articleReader.nextMaterialLabel")} <span className="font-semibold text-foreground"><MathText className="normal-case">{nextMaterial.title}</MathText></span>
                     </p>
                   )}
                 </div>
@@ -1421,7 +1422,7 @@ export function StructuredArticleReader({
                       className="rounded-lg font-semibold gap-1.5"
                     >
                       <ChevronLeft className="size-4" />
-                      <span>Materi Sebelumnya</span>
+                      <span>{t("articleReader.previousMaterial")}</span>
                     </Button>
                   )}
 
@@ -1432,7 +1433,7 @@ export function StructuredArticleReader({
                       onClick={handleNextMaterial}
                       className="rounded-lg bg-primary hover:bg-primary/95 text-primary-foreground font-semibold gap-1.5"
                     >
-                      <span>Materi Berikutnya</span>
+                      <span>{t("articleReader.nextMaterial")}</span>
                       <ChevronRight className="size-4" />
                     </Button>
                   ) : (
@@ -1442,7 +1443,7 @@ export function StructuredArticleReader({
                       onClick={handleFinishArticle}
                       className="rounded-lg bg-primary hover:bg-primary/95 text-primary-foreground font-semibold gap-1.5"
                     >
-                      <span>Kembali ke Daftar Materi</span>
+                      <span>{t("articleReader.backToMaterials")}</span>
                       <ChevronRight className="size-4" />
                     </Button>
                   )}
@@ -1455,7 +1456,7 @@ export function StructuredArticleReader({
                       className="rounded-lg text-muted-foreground hover:text-foreground font-semibold"
                     >
                       <Link href={backHref ?? `/courses/${article.courseId}/material`}>
-                        <span>Daftar Materi</span>
+                        <span>{t("articleReader.materialList")}</span>
                       </Link>
                     </Button>
                   )}
@@ -1465,13 +1466,13 @@ export function StructuredArticleReader({
           ) : (
             <div className="max-w-[75ch] mx-auto text-center py-16 space-y-4">
               <BookOpen className="size-12 text-muted-foreground mx-auto" />
-              <h2 className="text-body-lg font-bold">Tidak ada konten bagian</h2>
+              <h2 className="text-body-lg font-bold">{t("articleReader.noSectionContent")}</h2>
               <p className="text-body-sm text-muted-foreground">
-                Artikel ini belum memiliki bagian materi yang diterbitkan.
+                {t("articleReader.noPublishedSections")}
               </p>
               <Button asChild variant="outline">
                 <Link href={backHref ?? `/courses/${article.courseId}/material`}>
-                  Kembali ke Daftar Materi
+                  {t("articleReader.backToMaterials")}
                 </Link>
               </Button>
             </div>
@@ -1519,7 +1520,7 @@ export function StructuredArticleReader({
                   variant="ghost"
                   size="icon"
                   className="size-11"
-                  aria-label="Tutup Tanya Zyra"
+                  aria-label={t("articleReader.closeAskZyra")}
                   onClick={() => {
                     handleToolbarOpenChange(false);
                     window.getSelection()?.removeAllRanges();
@@ -1528,7 +1529,7 @@ export function StructuredArticleReader({
                   <X className="size-4" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>Tutup</TooltipContent>
+              <TooltipContent>{t("articleReader.close")}</TooltipContent>
             </Tooltip>
           </TooltipProvider>
         </div>

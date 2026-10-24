@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useAppLocale, useTranslations } from "@/lib/i18n/client";
 
 export type CalendarEventItem = {
   id: string;
@@ -24,6 +25,12 @@ export type CalendarEventItem = {
   categoryLabel: string;
   dateStr: string;
   timeStr: string;
+  dateValue?: string;
+  timeValue?: string;
+  timeKind?: "deadline" | "available" | "time" | "range" | "scheduled";
+  scheduledRange?: string;
+  tutorialTopic?: string | null;
+  tutorName?: string | null;
   actionUrl: string;
   actionLabel: string;
   isOnlineMeet?: boolean;
@@ -36,6 +43,7 @@ export function CalendarAgendaClient({
 }: {
   events: CalendarEventItem[];
 }) {
+  const t = useTranslations("student");
   const [filter, setFilter] = useState<"all" | "quiz_tryout" | "tutorial">("all");
 
   const filteredEvents = events.filter((ev) => {
@@ -64,7 +72,7 @@ export function CalendarAgendaClient({
                 : "border-border bg-card text-muted-foreground hover:bg-muted hover:text-foreground"
             )}
           >
-            Semua agenda
+            {t("calendar.filterAll")}
           </Button>
           <Button
             variant="outline"
@@ -78,7 +86,7 @@ export function CalendarAgendaClient({
                 : "border-border bg-card text-muted-foreground hover:bg-muted hover:text-foreground"
             )}
           >
-            Kuis dan tryout
+            {t("calendar.filterAssessments")}
           </Button>
           <Button
             variant="outline"
@@ -92,7 +100,7 @@ export function CalendarAgendaClient({
                 : "border-border bg-card text-muted-foreground hover:bg-muted hover:text-foreground"
             )}
           >
-            Tutorial
+            {t("calendar.filterTutorial")}
           </Button>
         </div>
 
@@ -100,7 +108,7 @@ export function CalendarAgendaClient({
           href="/dashboard/schedule"
           className="text-body-xs font-semibold text-brand-primary hover:underline flex items-center gap-1"
         >
-          Kelola slot tutorial
+          {t("calendar.manageTutorialSlots")}
           <ArrowRight className="size-3.5" />
         </Link>
       </div>
@@ -112,17 +120,17 @@ export function CalendarAgendaClient({
             <Calendar className="size-6" />
           </div>
           <h3 className="font-heading text-body-base font-bold text-foreground">
-            Belum ada agenda terjadwal
+            {t("calendar.emptyTitle")}
           </h3>
           <p className="mx-auto mt-1 max-w-md text-body-sm text-muted-foreground">
-            Jadwal kuis, tryout, dan tutorial akan muncul di sini.
+            {t("calendar.emptyDescription")}
           </p>
           <div className="mt-5 flex flex-wrap items-center justify-center gap-2.5">
             <Button asChild size="sm" className="rounded-lg text-body-sm">
-              <Link href="/courses">Jelajahi Kelas</Link>
+              <Link href="/courses">{t("calendar.exploreCourses")}</Link>
             </Button>
             <Button asChild variant="outline" size="sm" className="rounded-lg text-body-sm">
-              <Link href="/dashboard/schedule">Jadwal Tutorial</Link>
+              <Link href="/dashboard/schedule">{t("calendar.tutorialSchedule")}</Link>
             </Button>
           </div>
         </div>
@@ -133,7 +141,7 @@ export function CalendarAgendaClient({
             <div className="space-y-3">
               <h2 className="font-heading text-body-sm font-bold text-foreground flex items-center gap-2">
                 <Clock className="size-4 text-brand-primary" />
-                Mendatang & Hari Ini ({upcomingEvents.length})
+                {t("calendar.upcoming")} ({upcomingEvents.length})
               </h2>
               <div className="divide-y divide-border/60">
                 {upcomingEvents.map((item) => (
@@ -148,7 +156,7 @@ export function CalendarAgendaClient({
             <div className="space-y-3 pt-2">
               <h2 className="font-heading text-body-sm font-bold text-muted-foreground flex items-center gap-2">
                 <CheckCircle2 className="size-4 text-muted-foreground/60" />
-                Selesai & Riwayat ({pastEvents.length})
+                {t("calendar.past")} ({pastEvents.length})
               </h2>
               <div className="divide-y divide-border/60">
                 {pastEvents.map((item) => (
@@ -170,6 +178,34 @@ function EventCard({
   event: CalendarEventItem;
   isPast?: boolean;
 }) {
+  const t = useTranslations("student");
+  const { locale } = useAppLocale();
+  const dateLabel = event.dateValue
+    ? new Intl.DateTimeFormat(locale === "en" ? "en-US" : "id-ID", {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+        timeZone: "Asia/Jakarta",
+      }).format(new Date(event.dateValue))
+    : event.dateStr;
+  const timeValueLabel = event.timeValue
+    ? new Intl.DateTimeFormat(locale === "en" ? "en-US" : "id-ID", {
+        hour: "2-digit",
+        minute: "2-digit",
+        timeZone: "Asia/Jakarta",
+      }).format(new Date(event.timeValue))
+    : null;
+  const timeLabel = event.timeKind === "deadline" && timeValueLabel
+    ? t("calendar.deadline", { time: timeValueLabel })
+    : event.timeKind === "available"
+      ? t("calendar.available")
+      : event.timeKind === "time" && timeValueLabel
+        ? t("calendar.timeWib", { time: timeValueLabel })
+        : event.timeKind === "range" && event.scheduledRange
+          ? t("calendar.scheduledRange", { range: event.scheduledRange })
+          : event.timeKind === "scheduled"
+            ? t("calendar.scheduled")
+            : event.timeStr;
   const categoryIcon = {
     quiz: ClipboardList,
     tryout: GraduationCap,
@@ -199,16 +235,24 @@ function EventCard({
             )}
           >
             <IconComponent className="size-3" />
-            {event.categoryLabel}
+            {event.category === "tutorial"
+              ? t("calendar.tutorialGroup")
+              : event.category === "quiz"
+                ? event.categoryLabel === "Simulasi" ? t("calendar.quizSimulation") : t("calendar.quiz")
+                : event.categoryLabel === "Tryout" ? t("calendar.tryout") : t("calendar.exam")}
           </span>
 
           <span className="text-[11px] font-medium text-muted-foreground">
-            {event.dateStr}
+            {dateLabel}
           </span>
         </div>
 
         <h3 className="mt-2.5 font-heading text-body-sm font-bold text-foreground group-hover:text-brand-primary transition-colors line-clamp-2">
-          {event.title}
+          {event.category === "tutorial"
+            ? event.tutorialTopic
+              ? t("calendar.tutorialWithTopic", { topic: event.tutorialTopic })
+              : t("calendar.tutorialWithTutor", { name: event.tutorName || t("schedule.tutorFallback") })
+            : event.title}
         </h3>
 
         <p className="mt-1 text-body-xs text-muted-foreground truncate">
@@ -217,7 +261,7 @@ function EventCard({
 
         <div className="mt-1 flex items-center gap-2 text-body-xs font-medium text-foreground">
           <Clock className="size-3.5 text-muted-foreground shrink-0" />
-          <span>{event.timeStr}</span>
+          <span>{timeLabel}</span>
         </div>
       </div>
 
@@ -241,7 +285,11 @@ function EventCard({
           className="ml-auto rounded-md text-body-sm h-8 px-3"
         >
           <Link href={event.actionUrl}>
-            {event.actionLabel}
+            {event.category === "tutorial"
+              ? t("calendar.viewDetails")
+              : event.category === "quiz"
+                ? isPast ? t("calendar.reviewQuiz") : t("calendar.doQuiz")
+                : isPast ? t("calendar.reviewTryout") : t("calendar.openTryout")}
             <ArrowRight className="ml-1 size-3" />
           </Link>
         </Button>

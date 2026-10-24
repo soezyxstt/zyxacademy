@@ -1,16 +1,32 @@
 import { CheckCircle2, HelpCircle, ShieldAlert, TriangleAlert } from "lucide-react";
+import { getTranslations } from "@/lib/i18n/server";
 import { cn } from "@/lib/utils";
-import { PKA_DISCLAIMER, PKA_SUBJECT_LABELS } from "@/lib/pka-config";
 import type { PkaSubjectDiagnostic } from "@/lib/pka-simulation";
 
-const STATUS_META: Record<PkaSubjectDiagnostic["status"], { label: string; icon: typeof CheckCircle2; className: string }> = {
-  not_attempted: { label: "Belum dicoba", icon: HelpCircle, className: "text-muted-foreground border-border" },
-  at_risk: { label: "Berpotensi butuh pendampingan", icon: TriangleAlert, className: "text-status-error border-status-error/30 bg-status-error/5" },
-  borderline: { label: "Cukup, perlu diperkuat", icon: TriangleAlert, className: "text-status-warning border-status-warning/30 bg-status-warning/5" },
-  solid: { label: "Solid", icon: CheckCircle2, className: "text-status-success border-status-success/30 bg-status-success/5" },
+const STATUS_META: Record<PkaSubjectDiagnostic["status"], { messageKey: string; icon: typeof CheckCircle2; className: string }> = {
+  not_attempted: { messageKey: "statusNotAttempted", icon: HelpCircle, className: "text-muted-foreground border-border" },
+  at_risk: { messageKey: "statusAtRisk", icon: TriangleAlert, className: "text-status-error border-status-error/30 bg-status-error/5" },
+  borderline: { messageKey: "statusBorderline", icon: TriangleAlert, className: "text-status-warning border-status-warning/30 bg-status-warning/5" },
+  solid: { messageKey: "statusSolid", icon: CheckCircle2, className: "text-status-success border-status-success/30 bg-status-success/5" },
 };
 
-export function DiagnosticReport({ results }: { results: PkaSubjectDiagnostic[] }) {
+export async function DiagnosticReport({ results }: { results: PkaSubjectDiagnostic[] }) {
+  const t = await getTranslations("studentExtras.pka");
+  const subjectLabel = (subject: PkaSubjectDiagnostic["subject"]) => {
+    switch (subject) {
+      case "matematika": return t("subjectMathematics");
+      case "fisika": return t("subjectPhysics");
+      case "kimia": return t("subjectChemistry");
+    }
+  };
+  const reportMessage = (result: PkaSubjectDiagnostic) => {
+    switch (result.status) {
+      case "not_attempted": return result.attempted ? t("reportIncomplete", { subject: subjectLabel(result.subject) }) : t("reportNotAttempted", { subject: subjectLabel(result.subject) });
+      case "at_risk": return t("reportAtRisk", { subject: subjectLabel(result.subject) });
+      case "borderline": return t("reportBorderline", { subject: subjectLabel(result.subject) });
+      case "solid": return t("reportSolid", { subject: subjectLabel(result.subject), stage: result.passedAtStage ?? 1 });
+    }
+  };
   return (
     <div className="space-y-4">
       <div className="divide-y divide-border/60 overflow-hidden rounded-xl border border-border bg-card">
@@ -22,11 +38,11 @@ export function DiagnosticReport({ results }: { results: PkaSubjectDiagnostic[] 
               <Icon className="size-5 shrink-0" />
               <div className="flex-1">
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <span className="font-heading text-body-base font-bold text-foreground">{PKA_SUBJECT_LABELS[r.subject]}</span>
-                  <span className={cn("text-body-sm font-semibold", meta.className)}>{meta.label}</span>
+                  <span className="font-heading text-body-base font-bold text-foreground">{subjectLabel(r.subject)}</span>
+                  <span className={cn("text-body-sm font-semibold", meta.className)}>{t(meta.messageKey)}</span>
                 </div>
-                <p className="mt-1 text-body-sm text-muted-foreground">{r.message}</p>
-                {r.bestScore != null && <p className="mt-1 text-body-sm text-muted-foreground">Skor terbaik: {r.bestScore}%</p>}
+                <p className="mt-1 text-body-sm text-muted-foreground">{reportMessage(r)}</p>
+                {r.bestScore != null && <p className="mt-1 text-body-sm text-muted-foreground">{t("bestScore", { score: r.bestScore })}</p>}
               </div>
             </div>
           );
@@ -35,7 +51,7 @@ export function DiagnosticReport({ results }: { results: PkaSubjectDiagnostic[] 
 
       <div className="flex items-start gap-3 rounded-xl border border-border bg-muted/30 p-4">
         <ShieldAlert className="size-5 shrink-0 text-muted-foreground" />
-        <p className="text-body-sm text-muted-foreground">{PKA_DISCLAIMER}</p>
+        <p className="text-body-sm text-muted-foreground">{t("disclaimer")}</p>
       </div>
     </div>
   );

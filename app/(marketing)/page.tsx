@@ -14,11 +14,11 @@ import {
   LandingPricingPreview,
   LandingTutorSupport,
 } from "@/components/landing";
-import { createMetadata } from "@/lib/site";
+import { createLocalizedMetadata } from "@/lib/site-metadata";
 
-export const metadata: Metadata = createMetadata({
-  path: "/",
-});
+export async function generateMetadata(): Promise<Metadata> {
+  return createLocalizedMetadata({ path: "/", titleKey: "meta.home.title", descriptionKey: "meta.home.description" });
+}
 
 
 export default function Home() {

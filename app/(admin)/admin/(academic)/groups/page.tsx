@@ -1,4 +1,3 @@
-import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { pageTitle } from "@/lib/site";
 import { assertAdmin } from "@/lib/auth/admin-guards";
@@ -8,11 +7,13 @@ import { getAdminStudyGroups } from "./actions";
 import { GroupsDashboard } from "@/components/admin/groups-dashboard";
 import { PageHeader } from "@/components/page-header";
 import { Users } from "lucide-react";
+import { getTranslations } from "@/lib/i18n/server";
+import { TranslatedText } from "@/components/i18n/translated-text";
 
-export const metadata: Metadata = {
-  title: pageTitle("Kelompok Belajar"),
-  description: "Kelola konfigurasi kelompok belajar, paket kuota sesi semester, dan anggota murid.",
-};
+export async function generateMetadata() {
+  const t = await getTranslations("adminOps");
+  return { title: pageTitle(t("groups.title")), description: t("groups.description") };
+}
 
 export default async function AdminGroupsPage() {
   try {
@@ -36,7 +37,7 @@ export default async function AdminGroupsPage() {
     <div className="space-y-4">
       <PageHeader
         icon={Users}
-        title="Kelompok Belajar"
+        title={<TranslatedText namespace="adminOps" messageKey="groups.title" />}
       />
       <GroupsDashboard initialGroups={groupsList} coursesList={coursesList} />
     </div>

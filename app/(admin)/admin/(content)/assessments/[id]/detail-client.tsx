@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -108,6 +109,7 @@ export function AssessmentDetailClient({
   conceptMappings,
   resolvedChapters,
 }: Props) {
+  const t = useTranslations("adminEval.assessmentDetail");
   const router = useRouter();
   const [reingesting, setReingesting] = useState(false);
   const [archiving, setArchiving] = useState(false);
@@ -121,14 +123,13 @@ export function AssessmentDetailClient({
         method: "DELETE",
       });
       if (res.ok) {
-        toast.success("Dokumen sumber berhasil dihapus");
+        toast.success(t("deleteSucceeded"));
         router.push("/admin/assessments");
       } else {
-        const err = await res.json();
-        toast.error("Gagal menghapus: " + (err.error ?? "Unknown error"));
+        toast.error(t("deleteFailed"));
       }
     } catch {
-      toast.error("Terjadi kesalahan jaringan.");
+      toast.error(t("networkError"));
     } finally {
       setDeleting(false);
     }
@@ -155,11 +156,11 @@ export function AssessmentDetailClient({
     const warnings: string[] = [];
     for (const chapName of expectedChapters) {
       if (!resolvedTitles.has(chapName.toLowerCase().trim())) {
-        warnings.push(`Bab "${chapName}" terdaftar di frontmatter tetapi tidak ditemukan/gagal di-resolve di database.`);
+        warnings.push(t("chapterNotResolved", { chapter: chapName }));
       }
     }
     return warnings;
-  }, [source.sourceMarkdown, resolvedChapters]);
+  }, [source.sourceMarkdown, resolvedChapters, t]);
 
   // Trigger Re-Ingest Action
   const handleReIngest = async () => {
@@ -170,14 +171,14 @@ export function AssessmentDetailClient({
       });
 
       if (!res.ok) {
-        throw new Error("Gagal memicu ingesti ulang.");
+        throw new Error(t("reingestTriggerFailed"));
       }
 
-      toast.success("Ingesti ulang berhasil dipicu. Klasifikasi berjalan di latar belakang.");
+      toast.success(t("reingestStarted"));
       router.refresh();
     } catch (err: any) {
       console.error(err);
-      toast.error(err.message || "Gagal memproses re-ingest.");
+      toast.error(err.message || t("reingestFailed"));
     } finally {
       setReingesting(false);
     }
@@ -195,14 +196,14 @@ export function AssessmentDetailClient({
       });
 
       if (!res.ok) {
-        throw new Error(`Gagal melakukan aksi ${action}.`);
+        throw new Error(action === "archive" ? t("archiveFailed") : t("restoreFailed"));
       }
 
-      toast.success(action === "archive" ? "Dokumen berhasil diarsipkan." : "Dokumen berhasil dipulihkan.");
+      toast.success(action === "archive" ? t("archived") : t("restored"));
       router.refresh();
     } catch (err: any) {
       console.error(err);
-      toast.error(err.message || "Gagal mengubah status arsip.");
+      toast.error(err.message || t("archiveStatusFailed"));
     } finally {
       setArchiving(false);
     }
@@ -213,9 +214,9 @@ export function AssessmentDetailClient({
       <AdminPageHeader
         icon={BookOpen}
         title={source.title}
-        description={<>Mata kuliah: <span className="font-semibold text-foreground">{course.title}</span></>}
+        description={<>{t("course")}: <span className="font-semibold text-foreground">{course.title}</span></>}
         backHref="/admin/assessments"
-        backLabel="Kembali ke Daftar Asesmen"
+        backLabel={t("backToAssessmentList")}
         actions={
           <>
           <Button
@@ -226,7 +227,7 @@ export function AssessmentDetailClient({
             className="flex items-center gap-1.5"
           >
             <RefreshCw size={14} className={reingesting ? "animate-spin" : ""} />
-            Re-Ingest Soal
+            {t("reingestQuestions")}
           </Button>
 
           <Button
@@ -237,7 +238,7 @@ export function AssessmentDetailClient({
             className="flex items-center gap-1.5"
           >
             <Archive size={14} />
-            {source.deletedAt ? "Pulihkan Ujian" : "Arsipkan Ujian"}
+            {source.deletedAt ? t("restoreAssessment") : t("archiveAssessment")}
           </Button>
 
           <Button
@@ -248,7 +249,7 @@ export function AssessmentDetailClient({
             className="flex items-center gap-1.5"
           >
             <Trash2 size={14} />
-            Hapus Permanen
+            {t("deletePermanently")}
           </Button>
           </>
         }
@@ -261,60 +262,60 @@ export function AssessmentDetailClient({
             <div className="flex flex-wrap gap-2 pt-1">
               {source.deletedAt && (
                 <Badge variant="outline" className="border-status-error/30 bg-status-error/5 text-[10px] uppercase tracking-wide text-status-error">
-                  Archived
+                  {t("archivedLabel")}
                 </Badge>
               )}
               <Badge variant="outline" className="uppercase text-[10px] tracking-wider font-semibold">
-                Kategori: {source.category}
+                {t("categoryLabel")}: {t(`category.${source.category}`)}
               </Badge>
               <Badge variant="outline" className="text-[10px] tracking-wider font-semibold">
-                Tahun: {source.year}
+                {t("yearLabel")}: {source.year}
               </Badge>
               {source.semester && (
                 <Badge variant="outline" className="text-[10px] tracking-wider font-semibold">
-                  Semester: {source.semester}
+                  {t("semesterLabel")}: {source.semester}
                 </Badge>
               )}
               <Badge variant="outline" className="text-[10px] tracking-wider font-semibold">
-                Versi: v{source.version}
+                {t("versionLabel")}: v{source.version}
               </Badge>
               <Badge variant="outline" className="text-[10px] tracking-wider font-semibold">
-                Parser: v{source.parserVersion}
+                {t("parserLabel")}: v{source.parserVersion}
               </Badge>
             </div>
           </div>
 
           <div className="flex flex-col items-end gap-2 text-right">
             <div className="flex items-center gap-2">
-              <span className="text-body-sm text-muted-foreground">Status Ingest:</span>
+              <span className="text-body-sm text-muted-foreground">{t("ingestionStatus")}:</span>
               {source.ingestionStatus === "completed" && (
                 <Badge className="bg-status-success/10 text-status-success flex items-center gap-1 border-0">
                   <CheckCircle2 size={12} />
-                  Completed
+                  {t("status.completed")}
                 </Badge>
               )}
               {source.ingestionStatus === "processing" && (
                 <Badge className="bg-status-warning/10 text-status-warning flex items-center gap-1 border-0">
                   <Clock className="animate-spin" size={12} />
-                  Processing
+                  {t("status.processing")}
                 </Badge>
               )}
               {source.ingestionStatus === "pending" && (
                 <Badge className="bg-muted text-muted-foreground flex items-center gap-1 border-0">
                   <Clock size={12} />
-                  Pending
+                  {t("status.pending")}
                 </Badge>
               )}
               {source.ingestionStatus === "failed" && (
                 <Badge className="bg-status-error/10 text-status-error flex items-center gap-1 border-0">
                   <XCircle size={12} />
-                  Failed
+                  {t("status.failed")}
                 </Badge>
               )}
             </div>
             {source.originalFilename && (
               <span className="text-body-xs text-muted-foreground">
-                File Asli: <span className="font-semibold">{source.originalFilename}</span>
+                {t("originalFile")}: <span className="font-semibold">{source.originalFilename}</span>
               </span>
             )}
           </div>
@@ -325,7 +326,7 @@ export function AssessmentDetailClient({
           <div className="mt-4 p-4 rounded-lg bg-status-error/10 border border-status-error/20 flex items-start gap-3">
             <AlertTriangle size={18} className="text-status-error mt-0.5" />
             <div>
-              <p className="text-body-sm font-semibold text-status-error">Kesalahan Penguraian Ingest:</p>
+              <p className="text-body-sm font-semibold text-status-error">{t("ingestionParseError")}</p>
                     <p className="text-body-sm text-muted-foreground mt-1 font-mono bg-background/50 p-2 rounded">
                 {source.ingestionError}
               </p>
@@ -337,15 +338,15 @@ export function AssessmentDetailClient({
       {/* Tabs */}
       <Tabs defaultValue="questions">
         <TabsList>
-          <TabsTrigger value="questions">Daftar soal</TabsTrigger>
+          <TabsTrigger value="questions">{t("questionsTab")}</TabsTrigger>
           <TabsTrigger value="markdown">
-            Canonical Markdown
+            {t("canonicalMarkdown")}
           </TabsTrigger>
           <TabsTrigger value="chapters">
-            Bab terkait
+            {t("relatedChapters")}
           </TabsTrigger>
           <TabsTrigger value="diagnostics">
-            Diagnostik
+            {t("diagnostics")}
             {diagnostics.length > 0 && (
               <Badge variant="outline" className="ml-1 h-4 min-w-4 rounded-md border-status-error/30 bg-status-error/5 px-1 text-body-2xs text-status-error">
                 {diagnostics.length}
@@ -360,7 +361,7 @@ export function AssessmentDetailClient({
             <div className="py-12 border border-dashed border-border rounded-xl text-center">
               <FileQuestion className="mx-auto text-muted-foreground/30 mb-2" size={32} />
               <p className="text-body-sm text-muted-foreground">
-                Belum ada objek soal yang terekstraksi. Klik <strong>Re-Ingest Soal</strong> untuk memulai.
+                {t("noExtractedQuestions")} <strong>{t("reingestQuestions")}</strong>
               </p>
             </div>
           ) : (
@@ -370,7 +371,7 @@ export function AssessmentDetailClient({
                 <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border pb-3 mb-4">
                   <div className="flex items-center gap-2">
                     <Badge variant="secondary" className="font-heading font-semibold text-body-xs">
-                      Soal {q.sourceQuestionNumber || q.questionOrder}
+                      {t("questionNumber", { number: q.sourceQuestionNumber || q.questionOrder })}
                     </Badge>
                     <Badge variant="outline" className="text-[10px] font-mono select-all flex items-center gap-0.5">
                       <Hash size={10} />
@@ -380,22 +381,22 @@ export function AssessmentDetailClient({
 
                   <div className="flex items-center gap-2 flex-wrap">
                     <Badge variant="outline" className="text-[10px] tracking-wide uppercase">
-                      Tipe: {q.questionType.replace("_", " ")}
+                      {t("questionType")}: {t.has(`questionTypeOptions.${q.questionType}`) ? t(`questionTypeOptions.${q.questionType}`) : q.questionType.replace("_", " ")}
                     </Badge>
                     <Badge variant="outline" className="text-[10px] tracking-wide uppercase">
-                      Pola: {q.pattern.replace("_", " ")}
+                      {t("pattern")}: {q.pattern.replace("_", " ")}
                     </Badge>
                     <Badge variant="outline" className="text-[10px] tracking-wide uppercase">
-                      Bloom: L{q.applicationLevel}
+                      {t("bloomLevel")}: L{q.applicationLevel}
                     </Badge>
-                    <DifficultyBadge difficulty={q.difficulty} prefix="Kesulitan" />
+                    <DifficultyBadge difficulty={q.difficulty} prefix={t("difficultyPrefix")} />
                   </div>
                 </div>
 
                 {/* Content Area */}
                 <div className="space-y-4">
                   <div>
-                    <h4 className="text-body-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Pertanyaan</h4>
+                    <h4 className="text-body-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">{t("question")}</h4>
                     <div className="py-1">
                       <MarkdownRenderer content={q.questionMarkdown} className="space-y-3" />
                     </div>
@@ -403,7 +404,7 @@ export function AssessmentDetailClient({
 
                   {q.options && q.options.length > 0 && (
                     <div>
-                      <h4 className="text-body-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Pilihan Jawaban</h4>
+                      <h4 className="text-body-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">{t("answerOptions")}</h4>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                         {q.options.map((opt, idx) => (
                           <div key={idx} className="bg-background/20 px-3 py-2 rounded border border-border/30 text-body-sm text-foreground flex gap-2">
@@ -419,7 +420,7 @@ export function AssessmentDetailClient({
                     <div>
                       <h4 className="text-body-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1.5">
                         <Lightbulb size={14} className="text-status-warning" />
-                        Solusi / Pembahasan
+                        {t("solutionExplanation")}
                       </h4>
                       <div className="bg-status-success/5 p-4 rounded-lg border border-status-success/10 text-body-sm text-foreground">
                         <MarkdownRenderer content={q.answerMarkdown} className="space-y-3" />
@@ -432,7 +433,7 @@ export function AssessmentDetailClient({
                     <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-border/40 mt-4">
                       <span className="text-body-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
                         <Tag size={12} />
-                        Konsep Terpaut:
+                        {t("linkedConcepts")}:
                       </span>
                       {questionConcepts[q.id].map((concept, idx) => (
                         <Badge key={idx} className="bg-primary/10 text-primary hover:bg-primary/20 border-0 font-medium text-body-xs">
@@ -452,7 +453,7 @@ export function AssessmentDetailClient({
           <div className="rounded-xl border border-border bg-card p-4">
             <h3 className="font-heading text-body-base font-semibold mb-4 flex items-center gap-2">
               <FileText size={18} className="text-muted-foreground" />
-              Canonical Markdown
+              {t("canonicalMarkdown")}
             </h3>
             <div className="bg-background border border-border/80 rounded-lg p-4 font-mono text-body-xs overflow-auto max-h-[500px] whitespace-pre-wrap leading-relaxed select-all">
               {source.sourceMarkdown}
@@ -465,11 +466,11 @@ export function AssessmentDetailClient({
           <div className="rounded-xl border border-border bg-card p-4">
             <h3 className="font-heading text-body-base font-semibold mb-4 flex items-center gap-2">
               <BookOpen size={18} className="text-muted-foreground" />
-              Bab terkait
+              {t("relatedChapters")}
             </h3>
             {resolvedChapters.length === 0 ? (
               <p className="text-body-sm text-muted-foreground">
-                Tidak ada bab yang berhasil dikaitkan. Pastikan judul bab di frontmatter tertulis dengan benar.
+                {t("noResolvedChapters")}
               </p>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -489,13 +490,13 @@ export function AssessmentDetailClient({
           <div className="rounded-xl border border-border bg-card p-4 space-y-3">
             <h3 className="font-heading text-body-base font-semibold flex items-center gap-2">
               <AlertTriangle size={18} className="text-status-warning" />
-              Diagnostik
+              {t("diagnostics")}
             </h3>
 
             {diagnostics.length === 0 ? (
               <div className="flex items-center gap-2 p-4 rounded-lg bg-status-success/5 border border-status-success/10 text-status-success">
                 <CheckCircle2 size={16} />
-                <span className="text-body-sm font-semibold">Semua bab terhubung. Tidak ada peringatan.</span>
+                <span className="text-body-sm font-semibold">{t("allChaptersResolved")}</span>
               </div>
             ) : (
               <div className="space-y-2">
@@ -509,9 +510,9 @@ export function AssessmentDetailClient({
             )}
 
             <div className="mt-6 pt-4 border-t border-border">
-              <h4 className="text-body-sm font-bold text-foreground mb-2">Bantuan Resolusi Manual</h4>
+              <h4 className="text-body-sm font-bold text-foreground mb-2">{t("manualResolutionHelp")}</h4>
               <p className="text-body-sm text-muted-foreground leading-relaxed">
-                Samakan <code>chapters</code> di frontmatter dengan judul bab kurikulum, atau tambahkan alias bab.
+                {t("manualResolutionHelpText")}
               </p>
             </div>
           </div>
@@ -526,11 +527,9 @@ export function AssessmentDetailClient({
       >
         <DialogContent className="rounded-xl border border-border">
           <DialogHeader>
-            <DialogTitle>Hapus Dokumen Asesmen?</DialogTitle>
+            <DialogTitle>{t("deleteTitle")}</DialogTitle>
             <DialogDescription>
-              Apakah Anda yakin ingin menghapus dokumen asesmen/bank soal &quot;{source.title}&quot;?
-              Tindakan ini akan menghapus dokumen secara permanen dan menyinkronkan profil asesmen
-              kursus terkait.
+              {t("deleteDescription", { title: source.title })}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2 sm:gap-0">
@@ -540,7 +539,7 @@ export function AssessmentDetailClient({
               onClick={() => setIsDeleteDialogOpen(false)}
               disabled={deleting}
             >
-              Batal
+              {t("cancel")}
             </Button>
             <Button
               variant="destructive"
@@ -549,7 +548,7 @@ export function AssessmentDetailClient({
               disabled={deleting}
               isLoading={deleting}
             >
-              Hapus Permanen
+              {t("deletePermanently")}
             </Button>
           </DialogFooter>
         </DialogContent>

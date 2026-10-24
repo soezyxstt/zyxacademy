@@ -10,8 +10,17 @@ import { sanitizeAnswer } from "@/lib/tutor/answer-sanitizer";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
-function publicZyraError(error: unknown): string {
+function publicZyraError(error: unknown, language: "id" | "en" = "id"): string {
   const code = error instanceof Error ? error.message : "";
+  if (language === "en") {
+    if (code === "NOT_ENROLLED" || code === "COURSE_SCOPE_REQUIRED") return "Zyra access for this course is not available yet.";
+    if (code === "UPGRADE_REQUIRED") return "Activate your class to use this feature.";
+    if (code === "FREE_TEXT_ONLY") return "The Free plan supports one text question per day.";
+    if (code === "QUESTION_REQUIRED") return "Enter a question.";
+    if (code === "IMAGE_INPUT_DISABLED") return "Zyra image input is unavailable right now.";
+    if (code.includes("DAILY_QUOTA_EXCEEDED") || code.includes("TOTAL_INTERACTION_LIMIT")) return "You have reached today's Zyra question limit. Try again tomorrow.";
+    return "There was a problem processing your question.";
+  }
   if (code === "NOT_ENROLLED" || code === "COURSE_SCOPE_REQUIRED") {
     return "Akses Zyra untuk mata kuliah ini belum tersedia.";
   }
@@ -44,6 +53,7 @@ function requestKey(value: unknown): string {
  * Enforces course access, daily allowances, and streams server-sent events.
  */
 export async function POST(req: Request) {
+  let requestLanguage: "id" | "en" = "id";
   let h: Headers;
   try {
     h = await headers();
@@ -73,6 +83,7 @@ export async function POST(req: Request) {
       requestId,
       selectionContext = null,
       codingContext = null,
+      responseLanguage,
     } = body;
 
     const coding = codingContext === null ? null : codingHelpRequestSchema.safeParse(codingContext);
@@ -81,6 +92,8 @@ export async function POST(req: Request) {
     const normalizedCourseId = typeof courseId === "string" ? courseId.trim() : "";
     const normalizedQuestion = typeof question === "string" ? question.trim() : "";
     const normalizedConceptId = typeof conceptId === "string" ? conceptId : null;
+    const normalizedResponseLanguage = responseLanguage === "en" || responseLanguage === "id" ? responseLanguage : undefined;
+    requestLanguage = normalizedResponseLanguage ?? "id";
     const normalizedSessionId = typeof sessionId === "string" ? sessionId : null;
     const normalizedPathname = typeof pathname === "string" ? pathname : null;
     const sanitizedSelectionContext = selectionContext && typeof selectionContext === "object"
@@ -94,20 +107,20 @@ export async function POST(req: Request) {
         }
       : null;
     if (!normalizedCourseId) {
-      return new Response(JSON.stringify({ error: "Mata kuliah tidak valid." }), {
+      return new Response(JSON.stringify({ error: requestLanguage === "en" ? "Invalid course." : "Mata kuliah tidak valid." }), {
         status: 400,
         headers: { "Content-Type": "application/json" },
       });
     }
     if (!Array.isArray(attachmentIds) || !attachmentIds.every((id): id is string => typeof id === "string")) {
-      return new Response(JSON.stringify({ error: "Lampiran tidak valid." }), {
+      return new Response(JSON.stringify({ error: requestLanguage === "en" ? "Invalid attachment." : "Lampiran tidak valid." }), {
         status: 400,
         headers: { "Content-Type": "application/json" },
       });
     }
 
     if (!normalizedQuestion && attachmentIds.length === 0 && !sanitizedSelectionContext?.snippet) {
-      return new Response(JSON.stringify({ error: "Pertanyaan atau lampiran tidak boleh kosong." }), {
+      return new Response(JSON.stringify({ error: requestLanguage === "en" ? "Enter a question or attach an image." : "Pertanyaan atau lampiran tidak boleh kosong." }), {
         status: 400,
         headers: { "Content-Type": "application/json" },
       });
@@ -117,13 +130,13 @@ export async function POST(req: Request) {
     // The central resolver validates course identity, active status, and the
     // actor's canonical role/assignment. A session role must never bypass it.
     if (!access.hasCourseAccess) {
-      return new Response(JSON.stringify({ error: "Akses Zyra untuk mata kuliah ini belum tersedia." }), {
+      return new Response(JSON.stringify({ error: requestLanguage === "en" ? "Zyra access for this course is not available yet." : "Akses Zyra untuk mata kuliah ini belum tersedia." }), {
         status: 403,
         headers: { "Content-Type": "application/json" },
       });
     }
     if (access?.tier === "free" && attachmentIds.length > 0) {
-      return new Response(JSON.stringify({ error: "Paket Free hanya mendukung pertanyaan teks." }), {
+      return new Response(JSON.stringify({ error: requestLanguage === "en" ? "The Free plan supports text questions only." : "Paket Free hanya mendukung pertanyaan teks." }), {
         status: 403,
         headers: { "Content-Type": "application/json" },
       });
@@ -151,7 +164,7 @@ export async function POST(req: Request) {
             type: "data-work-step",
             data: {
               stepId: "step-search",
-              label: "Menelusuri materi kuliah & kurikulum...",
+              label: requestLanguage === "en" ? "Searching course material..." : "Menelusuri materi kuliah dan kurikulum...",
               status: "running",
             },
           });
@@ -172,6 +185,7 @@ export async function POST(req: Request) {
             idempotencyKey,
             sanitizedSelectionContext,
             coding?.success ? coding.data : undefined,
+            normalizedResponseLanguage,
           );
 
           if (req.signal.aborted) {
@@ -179,12 +193,17 @@ export async function POST(req: Request) {
             return;
           }
 
+          sendEvent({
+            type: "data-response-language",
+            responseLanguage: res.responseLanguage,
+          });
+
           // Complete search step
           sendEvent({
             type: "data-work-step",
             data: {
               stepId: "step-search",
-              label: "Materi & konteks pembelajaran siap",
+              label: res.responseLanguage === "en" ? "Course material is ready" : "Materi dan konteks pembelajaran siap",
               status: "completed",
             },
           });
@@ -200,15 +219,17 @@ export async function POST(req: Request) {
           // Determine answer content
           let fullAnswer = "";
           if (res.budgetExhausted) {
-            fullAnswer = "Zyra tidak dapat menjawab pertanyaan baru hari ini (batas harian tercapai). Silakan coba lagi besok, atau gunakan buku teks dan kartu hafalan untuk belajar mandiri.";
+            fullAnswer = res.responseLanguage === "en"
+              ? "Zyra can't answer another question today because you've reached the daily limit. Try again tomorrow, or study with your textbook and flashcards."
+              : "Zyra tidak dapat menjawab pertanyaan baru hari ini karena batas harian tercapai. Coba lagi besok, atau gunakan buku teks dan kartu hafalan untuk belajar mandiri.";
           } else if (res.failureCode === "provider_unavailable") {
             fullAnswer = attachmentIds.length > 0
               ? normalizedQuestion
-                ? "Gambar dan pertanyaanmu sudah diterima, tetapi layanan AI sedang mengalami kendala sementara. Silakan coba kirim ulang beberapa saat lagi."
-                : "Gambarmu sudah diterima, tetapi layanan AI sedang mengalami kendala sementara. Silakan coba kirim ulang beberapa saat lagi."
-              : "Pertanyaanmu sudah diterima, tetapi layanan AI sedang mengalami kendala sementara. Silakan coba kirim ulang beberapa saat lagi.";
+                ? res.responseLanguage === "en" ? "Your image and question were received, but the AI service is temporarily unavailable. Please try again shortly." : "Gambar dan pertanyaanmu sudah diterima, tetapi layanan AI sedang mengalami kendala sementara. Coba kirim ulang beberapa saat lagi."
+                : res.responseLanguage === "en" ? "Your image was received, but the AI service is temporarily unavailable. Please try again shortly." : "Gambarmu sudah diterima, tetapi layanan AI sedang mengalami kendala sementara. Coba kirim ulang beberapa saat lagi."
+              : res.responseLanguage === "en" ? "Your question was received, but the AI service is temporarily unavailable. Please try again shortly." : "Pertanyaanmu sudah diterima, tetapi layanan AI sedang mengalami kendala sementara. Coba kirim ulang beberapa saat lagi.";
           } else if (!res.answer) {
-            fullAnswer = "Maaf, terjadi gangguan saat memproses jawaban. Silakan coba lagi dalam beberapa saat.";
+            fullAnswer = res.responseLanguage === "en" ? "Sorry, something went wrong while preparing the answer. Please try again shortly." : "Maaf, terjadi gangguan saat memproses jawaban. Coba lagi dalam beberapa saat.";
           } else {
             fullAnswer = sanitizeAnswer(res.answer, res.sources);
           }
@@ -258,7 +279,7 @@ export async function POST(req: Request) {
           sendEvent("[DONE]");
           controller.close();
         } catch (err: unknown) {
-          const errMsg = publicZyraError(err);
+          const errMsg = publicZyraError(err, requestLanguage);
           sendEvent({
             type: "data-error",
             data: { message: errMsg },
@@ -278,7 +299,7 @@ export async function POST(req: Request) {
     });
   } catch (error) {
     console.error("[Zyra Chat Route Error]:", error);
-    return new Response(JSON.stringify({ error: "Terjadi kesalahan internal." }), {
+    return new Response(JSON.stringify({ error: requestLanguage === "en" ? "An internal error occurred." : "Terjadi kesalahan internal." }), {
       status: 500,
       headers: { "Content-Type": "application/json" },
     });

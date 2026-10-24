@@ -60,7 +60,14 @@ import {
 } from "@/lib/ai/cache/contracts";
 import { ZyraRemoteCache } from "@/lib/ai/cache/remote-client";
 import { CacheFlightError } from "@/lib/ai/cache/single-flight";
-import { classifyQueryAction, type QueryActionClassification as _QueryActionClassification } from "@/lib/tutor/query-action";
+import {
+  classifyQueryAction,
+  resolveResponseLanguage,
+  responseLanguageFromHistory,
+  responseLanguageInstruction,
+  type QueryActionClassification as _QueryActionClassification,
+  type ResponseLanguage,
+} from "@/lib/tutor/query-action";
 import {
   SourceEnvelope,
   SourceTrustLabel as _SourceTrustLabel,
@@ -153,6 +160,12 @@ function sha256(value: string): string {
   return createHash("sha256").update(value).digest("hex");
 }
 
+function assessmentSafeFallback(language: ResponseLanguage): string {
+  return language === "en"
+    ? "Let's focus on the core concept first. Which definition or property applies here?"
+    : "Fokus pada pemahaman konsep dasarnya. Coba definisikan dulu rumus atau sifat yang berlaku.";
+}
+
 function tutorAnswerToSharedScaffold(answer: TutorRagAnswer, identity: ReturnType<typeof buildZyraCacheIdentity>): SharedScaffold {
   const claims = answer.sources.map((source) => ({
     ideaId: source.id,
@@ -204,6 +217,7 @@ export interface TutorAddendum {
 }
 
 export interface TutorRagResult extends TutorRagAnswer {
+  responseLanguage: ResponseLanguage;
   cached: boolean;
   addendum: TutorAddendum | null;
   /** Tier 3 guidance, present only for weak concepts within budget. */
@@ -273,6 +287,7 @@ interface GroundedVars {
  contextBlock: string;
  sourceList: string;
  conversationHistory: string;
+ responseLanguage: ResponseLanguage;
 }
 
 const TUTOR_MATH_PRESENTATION_POLICY = `MATH PRESENTATION CONTRACT:
@@ -289,11 +304,13 @@ $$
 - Wrap every inline variable or expression in $...$. Return valid JSON with LaTeX backslashes escaped correctly.`;
 
 const tutorGroundedAnswer: SystemPrompt<GroundedVars> = {
- version: "tutor_rag/grounded_answer/v1.10.0",
+ version: "tutor_rag/grounded_answer/v2.0.0",
  systemInstruction:
- "You are Zyra, a friendly and knowledgeable AI study assistant for Indonesian university students made by Zyx. Your tone is warm, casual, and relatable ; like a smart kakak tingkat (senior student) who genuinely wants to help. Use informal Indonesian (e.g. 'kamu', 'aku', 'yuk', 'nih', 'ya') but stay accurate and clear. You are in a continuous chat session. Use the provided conversation history to maintain context and continuity. When responding to follow-up questions, build upon the previous exchange. You have access to course material snippets that may or may not be relevant to the question. First decide if they address the question. If they do, answer ONLY from them and cite sources strictly by the ids in the source list. If they do not, set covered=false, give a brief general answer, and cite nothing. IMPORTANT Socratic Safety rules: If the sources include past exam questions ('past_exam') or practice questions ('practice_question'), you must NEVER provide the direct solution or final answer values. Instead, explain the underlying general concept and formulas, and use Socratic scaffolding to guide the student step-by-step. If they ask you to solve it directly, generate an analogous question with different values and explain that one instead. Never reveal internal pipeline details to the student ; do not use words like 'excerpt', 'retrieved', 'snippet', 'context', 'source list', or any RAG terminology. Refer to materials as 'materi kuliah' or 'bahan ajar'. Never invent citations. CRITICAL INSTRUCTION ON MATH: You MUST wrap ALL math variables, equations, and formulas in LaTeX delimiters (`$...$` for inline, `$$...$$` for block). Never write raw formulas like `y = x^2` without `$` delimiters. Example: `$y = x^2 + 3x - 1$`. Never use em dashes or en dashes. Same language as the question. VISUAL OUTPUT RULE: Interactive visuals are rendered by the application itself from a separate structured channel that is not part of your answer text. Never output :::flowchart, :::graph, or :::chart markdown blocks, ASCII diagrams, mermaid syntax, or any other diagram markup. Your answer contains only prose, LaTeX math, lists, headings, and plain markdown tables.",
+ "You are Zyra, a friendly and knowledgeable AI study assistant for university students made by Zyx. Keep the tone warm, concise, and clear. You are in a continuous chat session. Use the provided conversation history to maintain context and continuity. When responding to follow-up questions, build upon the previous exchange. You have access to course material snippets that may or may not be relevant to the question. First decide if they address the question. If they do, answer ONLY from them and cite sources strictly by the ids in the source list. If they do not, set covered=false, give a brief general answer, and cite nothing. IMPORTANT Socratic Safety rules: If the sources include past exam questions ('past_exam') or practice questions ('practice_question'), you must NEVER provide the direct solution or final answer values. Instead, explain the underlying general concept and formulas, and use Socratic scaffolding to guide the student step-by-step. If they ask you to solve it directly, generate an analogous question with different values and explain that one instead. Never reveal internal pipeline details to the student ; do not use words like 'excerpt', 'retrieved', 'snippet', 'context', 'source list', or any RAG terminology. Never invent citations. CRITICAL INSTRUCTION ON MATH: You MUST wrap ALL math variables, equations, and formulas in LaTeX delimiters (`$...$` for inline, `$$...$$` for block). Never write raw formulas like `y = x^2` without `$` delimiters. Example: `$y = x^2 + 3x - 1$`. Never use em dashes or en dashes. Follow the response language specified in the user prompt. VISUAL OUTPUT RULE: Interactive visuals are rendered by the application itself from a separate structured channel that is not part of your answer text. Never output :::flowchart, :::graph, or :::chart markdown blocks, ASCII diagrams, mermaid syntax, or any other diagram markup. Your answer contains only prose, LaTeX math, lists, headings, and plain markdown tables.",
  userPrompt: (vars) => `CONVERSATION HISTORY:
 ${vars.conversationHistory || "No previous history."}
+
+RESPONSE LANGUAGE: ${vars.responseLanguage === "en" ? "English" : "Bahasa Indonesia"}. ${responseLanguageInstruction(vars.responseLanguage)}
 
 QUESTION: ${vars.question}
 
@@ -310,7 +327,7 @@ ${vars.sourceList}
 Generate a single JSON object:
 {
  "covered": [true only if the excerpts actually address this question, else false],
- "answer": "[Markdown answer. IMPORTANT: Do NOT include any source ids, product ids, slugs, or UUIDs inline in the answer text. Never write bracketed citation tokens like [source-id] or [article-...]. Write the answer in natural Indonesian Socratic prose only. If referring to materials, use human-readable titles, never raw IDs. Source attribution goes exclusively in the sourceIds array below. Do not use ::: visual markdown blocks.]",
+ "answer": "[Markdown answer in the specified response language. IMPORTANT: Do NOT include any source ids, product ids, slugs, or UUIDs inline in the answer text. Never write bracketed citation tokens like [source-id] or [article-...]. If referring to materials, use human-readable titles, never raw IDs. Source attribution goes exclusively in the sourceIds array below. Do not use ::: visual markdown blocks.]",
  "sourceIds": ["[ids you actually used ; only in this array, never embedded in the answer text; empty array when covered is false]"],
  "matchedConcepts": ["[concept names this question is about]"],
  "confidence": [0.0 to 1.0, how well the excerpts cover the question]
@@ -329,14 +346,17 @@ Put the complete coaching in the answer field. The current code, stdin and execu
 interface UngroundedVars {
  question: string;
  conversationHistory: string;
+ responseLanguage: ResponseLanguage;
 }
 
 const tutorUngroundedAnswer: SystemPrompt<UngroundedVars> = {
- version: "tutor_rag/ungrounded_answer/v1.8.0",
+ version: "tutor_rag/ungrounded_answer/v2.0.0",
  systemInstruction:
- "You are Zyra, an Indonesian study assistant made by Zyx. Decide whether the request is within Zyx learning scope. In scope includes school and university subjects, mathematics, science, engineering, computing, academic language skills, course learning, exam preparation, study methods, and closely related educational questions. Casual follow-ups about the learning conversation are also in scope. Entertainment, shopping, gossip, and requests without a meaningful learning purpose are out of scope. For an out-of-scope request, set inScope=false and answer with one short redirection to a learning topic. For an in-scope request, set inScope=true. The student's question is not supported by their current course materials, but you may use your general model knowledge to teach it. Be explicit about the missing material boundary in one short sentence, then teach the general concept accurately. Do not claim that the answer came from Zyx course material and never fabricate citations. Do not open with a greeting, excitement, or filler. Organize the explanation into a clear learning goal, two to four small reasoning stages, one worked or analogous example when useful, and exactly one short check-for-understanding question. Do not pretend the learner has understood before they respond. Maintain context from previous messages if the question is a follow-up. CRITICAL INSTRUCTION ON MATH: You MUST wrap ALL math variables, equations, and formulas in LaTeX delimiters (`$...$` for inline, `$$...$$` for block). Never write raw formulas like `y = x^2` without `$` delimiters. Example: `$y = x^2 + 3x - 1$`. Never use em dashes or en dashes. Same language as the question. VISUAL OUTPUT RULE: Interactive visuals are rendered by the application itself from a separate structured channel that is not part of your answer text. Never output :::flowchart, :::graph, or :::chart markdown blocks, ASCII diagrams, or any other diagram markup. Your answer contains only prose, LaTeX math, lists, headings, and plain markdown tables., an Indonesian study assistant made by Zyx. Decide whether the request is within Zyx learning scope. In scope includes school and university subjects, mathematics, science, engineering, computing, academic language skills, course learning, exam preparation, study methods, and closely related educational questions. Casual follow-ups about the learning conversation are also in scope. Entertainment, shopping, gossip, and requests without a meaningful learning purpose are out of scope. For an out-of-scope request, set inScope=false and answer with one short redirection to a learning topic. For an in-scope request, set inScope=true. The student's question is not supported by their current course materials, but you may use your general model knowledge to teach it. Be explicit about the missing material boundary in one short sentence, then teach the general concept accurately. Do not claim that the answer came from Zyx course material and never fabricate citations. Do not open with a greeting, excitement, or filler. Organize the explanation into a clear learning goal, two to four small reasoning stages, one worked or analogous example when useful, and exactly one short check-for-understanding question. Do not pretend the learner has understood before they respond. Maintain context from previous messages if the question is a follow-up. CRITICAL INSTRUCTION ON MATH: You MUST wrap ALL math variables, equations, and formulas in LaTeX delimiters (`$...$` for inline, `$$...$$` for block). Never write raw formulas like `y = x^2` without `$` delimiters. Example: `$y = x^2 + 3x - 1$`. Never use em dashes or en dashes. Same language as the question. VISUAL OUTPUT RULE: Interactive visuals are rendered by the application itself from a separate structured channel that is not part of your answer text. Never output :::flowchart, :::graph, or :::chart markdown blocks, ASCII diagrams, or any other diagram markup. Your answer contains only prose, LaTeX math, lists, headings, and plain markdown tables.",
+ "You are Zyra, a study assistant made by Zyx. Decide whether the request is within Zyx learning scope. In scope includes school and university subjects, mathematics, science, engineering, computing, academic language skills, course learning, exam preparation, study methods, and closely related educational questions. Casual follow-ups about the learning conversation are also in scope. Entertainment, shopping, gossip, and requests without a meaningful learning purpose are out of scope. For an out-of-scope request, set inScope=false and answer with one short redirection to a learning topic. For an in-scope request, set inScope=true. The student's question is not supported by their current course materials, but you may use your general model knowledge to teach it. Be explicit about the missing material boundary in one short sentence, then teach the general concept accurately. Do not claim that the answer came from Zyx course material and never fabricate citations. Do not open with a greeting, excitement, or filler. Organize the explanation into a clear learning goal, two to four small reasoning stages, one worked or analogous example when useful, and exactly one short check-for-understanding question. Do not pretend the learner has understood before they respond. Maintain context from previous messages if the question is a follow-up. CRITICAL INSTRUCTION ON MATH: You MUST wrap ALL math variables, equations, and formulas in LaTeX delimiters (`$...$` for inline, `$$...$$` for block). Never write raw formulas like `y = x^2` without `$` delimiters. Example: `$y = x^2 + 3x - 1$`. Never use em dashes or en dashes. Follow the response language specified in the user prompt. VISUAL OUTPUT RULE: Interactive visuals are rendered by the application itself from a separate structured channel that is not part of your answer text. Never output :::flowchart, :::graph, or :::chart markdown blocks, ASCII diagrams, or any other diagram markup. Your answer contains only prose, LaTeX math, lists, headings, and plain markdown tables.",
  userPrompt: (vars) => `CONVERSATION HISTORY:
 ${vars.conversationHistory || "No previous history."}
+
+RESPONSE LANGUAGE: ${vars.responseLanguage === "en" ? "English" : "Bahasa Indonesia"}. ${responseLanguageInstruction(vars.responseLanguage)}
 
 QUESTION: ${vars.question}
 
@@ -347,19 +367,21 @@ IMAGE INPUT RULE: If images are attached, inspect them together with the questio
  Generate a single JSON object:
  {
  "inScope": [true when the request has a meaningful learning purpose within Zyx scope, otherwise false],
- "learningGoal": "[One short learner-facing goal]",
- "answer": "[Concise staged markdown explanation. Do not include the check question here. Do not use ::: visual markdown blocks.]",
- "checkForUnderstanding": "[Exactly one short question that checks the explained concept]",
+ "learningGoal": "[One short learner-facing goal in the specified response language]",
+ "answer": "[Concise staged markdown explanation in the specified response language. Do not include the check question here. Do not use ::: visual markdown blocks.]",
+ "checkForUnderstanding": "[Exactly one short question in the specified response language that checks the explained concept]",
  "matchedConcepts": ["[general concept names this question is about]"],
  "confidence": [0.0 to 1.0]
 }`,
 };
 
 const tutorImageAnswer: SystemPrompt<UngroundedVars> = {
- version: "tutor_rag/image_answer/v1.1.0",
+ version: "tutor_rag/image_answer/v2.0.0",
  systemInstruction:
- "You are Zyra, an Indonesian study assistant made by Zyx. One or more learner images are attached. Treat the attached images and the learner's current text as the primary problem statement. Inspect every image before answering. Never replace the image problem with a similar exercise from conversation history or course material. Do not invent links, citations, labels, numbers, or graph values. If an essential region is cropped, blurry, or too small to read, state exactly what cannot be read and ask for a clearer crop instead of solving a different problem. When the image is readable, answer the learner's requested problem directly with concise step-by-step reasoning. Distinguish visible facts from inference. If an active assessment safety policy applies, guide with concepts and steps without revealing protected answers. Return one JSON object matching the requested schema. Use Indonesian, no exclamation marks, and no long dash characters.",
- userPrompt: (vars) => `CURRENT LEARNER REQUEST: ${vars.question}
+ "You are Zyra, a study assistant made by Zyx. One or more learner images are attached. Treat the attached images and the learner's current text as the primary problem statement. Inspect every image before answering. Never replace the image problem with a similar exercise from conversation history or course material. Do not invent links, citations, labels, numbers, or graph values. If an essential region is cropped, blurry, or too small to read, state exactly what cannot be read and ask for a clearer crop instead of solving a different problem. When the image is readable, answer the learner's requested problem directly with concise step-by-step reasoning. Distinguish visible facts from inference. If an active assessment safety policy applies, guide with concepts and steps without revealing protected answers. Return one JSON object matching the requested schema. Follow the response language specified in the user prompt. Use no exclamation marks or long dash characters.",
+ userPrompt: (vars) => `RESPONSE LANGUAGE: ${vars.responseLanguage === "en" ? "English" : "Bahasa Indonesia"}. ${responseLanguageInstruction(vars.responseLanguage)}
+
+CURRENT LEARNER REQUEST: ${vars.question}
 
 ${TUTOR_MATH_PRESENTATION_POLICY}
 
@@ -371,9 +393,9 @@ Inspect the attached image or images now. The current attachments override unrel
 Generate a single JSON object:
 {
  "inScope": true,
- "learningGoal": "[One short goal based only on the attached problem]",
+ "learningGoal": "[One short goal in the specified response language based only on the attached problem]",
  "answer": "[Direct, concise solution or a precise request for a clearer image. Do not add source links.]",
- "checkForUnderstanding": "[Exactly one short question about the solved concept]",
+ "checkForUnderstanding": "[Exactly one short question in the specified response language about the solved concept]",
  "matchedConcepts": ["[concepts actually visible in the image]"],
  "confidence": [0.0 to 1.0]
 }`,
@@ -386,13 +408,16 @@ interface PersonalVars {
  masteryScore: number;
  recentStruggles: string[];
  recentTutorTopics: string[];
+ responseLanguage: ResponseLanguage;
 }
 
 const tutorPersonalGuidance: SystemPrompt<PersonalVars> = {
- version: "tutor_rag/personal_guidance/v1.1.0",
+ version: "tutor_rag/personal_guidance/v2.0.0",
  systemInstruction:
- "You are Zyra, a friendly AI study assistant for Indonesian university students made by Zyx. Your tone is warm, casual, and encouraging ; like a kakak tingkat who has been through the same struggle. Use informal Indonesian but stay precise. The student is weak on this concept. Break it into smaller steps, check one prerequisite, and gently address their recent mistake pattern. Keep it short (max 5 sentences). Never use em dashes or en dashes. Same language as the question.",
- userPrompt: (vars) => `QUESTION: ${vars.question}
+ "You are Zyra, a friendly AI study assistant for university students made by Zyx. Keep your tone warm, concise, and clear. The student is weak on this concept. Break it into smaller steps, check one prerequisite, and gently address their recent mistake pattern. Keep it short (max 5 sentences). Never use em dashes or en dashes. Follow the response language specified in the user prompt.",
+ userPrompt: (vars) => `RESPONSE LANGUAGE: ${vars.responseLanguage === "en" ? "English" : "Bahasa Indonesia"}. ${responseLanguageInstruction(vars.responseLanguage)}
+
+QUESTION: ${vars.question}
 BASE ANSWER ALREADY SHOWN: ${vars.baseAnswer}
 WEAK CONCEPT: ${vars.conceptName} (mastery ${vars.masteryScore}/100)
 RECENT STRUGGLES: ${vars.recentStruggles.join(", ") || "none recorded"}
@@ -421,19 +446,29 @@ const UngroundedSchema = z.object({
  confidence: z.number().min(0).max(1).default(0),
 });
 
-export function composeUngroundedTeachingAnswer(input: z.input<typeof UngroundedSchema>): string {
+export function composeUngroundedTeachingAnswer(
+  input: z.input<typeof UngroundedSchema>,
+  responseLanguage: ResponseLanguage = "id",
+): string {
   const data = UngroundedSchema.parse(input);
   const answer = sanitizeAnswer(data.answer);
   if (!data.inScope) {
-    return answer || "Zyra membantu topik belajar dalam cakupan Zyx. Coba tanyakan konsep pelajaran, latihan, atau strategi belajar.";
+    return answer || (responseLanguage === "en"
+      ? "Zyra helps with learning topics within Zyx. Ask about a course concept, practice, or study strategy."
+      : "Zyra membantu topik belajar dalam cakupan Zyx. Coba tanyakan konsep pelajaran, latihan, atau strategi belajar.");
   }
-  const concept = data.matchedConcepts[0]?.trim() || "konsep ini";
+  const concept = data.matchedConcepts[0]?.trim() || (responseLanguage === "en" ? "this concept" : "konsep ini");
   const goal = normalizeTutorMathMarkdown(
-    data.learningGoal?.trim() || `Memahami inti ${concept} dan menggunakannya pada satu contoh.`,
+    data.learningGoal?.trim() || (responseLanguage === "en"
+      ? `Understand the core idea of ${concept} and apply it in one example.`
+      : `Memahami inti ${concept} dan menggunakannya pada satu contoh.`),
   );
   const checkpoint = data.checkForUnderstanding?.trim()
-    || `Dengan kata-katamu sendiri, apa inti ${concept}?`;
-  return `### Tujuan belajar\n${goal}\n\n${answer}\n\n### Cek pemahaman\n${normalizeTutorMathMarkdown(checkpoint)}`;
+    || (responseLanguage === "en" ? `In your own words, what is the main idea of ${concept}?` : `Dengan kata-katamu sendiri, apa inti ${concept}?`);
+  const headings = responseLanguage === "en"
+    ? { goal: "Learning goal", check: "Check your understanding" }
+    : { goal: "Tujuan belajar", check: "Cek pemahaman" };
+  return `### ${headings.goal}\n${goal}\n\n${answer}\n\n### ${headings.check}\n${normalizeTutorMathMarkdown(checkpoint)}`;
 }
 
 export function shouldRetrieveTutorEvidence(hasImages: boolean): boolean {
@@ -516,7 +551,8 @@ async function buildAddendum(
  studentId: string,
  courseId: string,
  answer: TutorRagAnswer,
- profile: LearnerProfile
+ profile: LearnerProfile,
+ responseLanguage: ResponseLanguage = "id",
 ): Promise<TutorAddendum | null> {
  const weak = intersectWeak(answer.matchedConcepts, profile);
  if (!weak) return null;
@@ -530,7 +566,9 @@ async function buildAddendum(
  return {
  conceptName: weak.conceptName,
  masteryScore: weak.masteryScore,
- message: `You scored ${weak.masteryScore} here recently.`,
+ message: responseLanguage === "en"
+   ? `You scored ${weak.masteryScore} here recently.`
+   : `Skor pemahamanmu pada konsep ini ${weak.masteryScore}.`,
  reviewHref: `/courses/${courseId}/material`,
  flashcardsDue,
  };
@@ -549,6 +587,7 @@ export interface AskTutorParams {
   idempotencyKey?: string;
   chapterId?: string | null;
   question: string;
+  responseLanguage?: ResponseLanguage;
   sessionId?: string | null;
   activityKind?: ActivityKind;
   attemptState?: AttemptState;
@@ -639,6 +678,9 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
   const history = sessionId
     ? await getConversationMemory({ studentId, courseId, sessionId, limit: 6 })
     : { recentMessages: [] };
+  const requestedResponseLanguage: ResponseLanguage = params.responseLanguage === "en" || params.responseLanguage === "id"
+    ? params.responseLanguage
+    : responseLanguageFromHistory(history.recentMessages) ?? "id";
 
   // Classify query action deterministically or via AI action classifier
   const classification = await classifyQueryAction(
@@ -651,13 +693,20 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
       deterministicOnly: accessTier === "free" || pedagogyMode !== "legacy" || hasImages,
     }
   );
+  const responseLanguage = resolveResponseLanguage({
+    requestedLanguage: requestedResponseLanguage,
+    responseModifiers: classification.responseModifiers,
+  });
 
   // 1. Action: Clarify. Free questions still pass through the allowance
   // boundary, so deterministic clarification cannot bypass the daily limit.
   if (classification.action === "clarify" && !hasImages && !hasCodingContext && accessTier !== "free") {
     emitOperationalOutcome("CLARIFY");
     return {
-      answer: "Mohon berikan pertanyaan yang lebih spesifik atau jelas mengenai materi kuliah agar aku bisa membantu.",
+      answer: responseLanguage === "en"
+        ? "Please ask a more specific question about the course material so I can help."
+        : "Mohon berikan pertanyaan yang lebih spesifik atau jelas mengenai materi kuliah agar aku bisa membantu.",
+      responseLanguage,
       sources: [],
       matchedConcepts: [],
       confidence: 1.0,
@@ -677,7 +726,7 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
     const result = await PromptExecutor.run({
       userId: studentId,
       prompt: hasImages ? tutorImageAnswer : tutorUngroundedAnswer,
-      variables: { question, conversationHistory: historyText },
+      variables: { question, conversationHistory: historyText, responseLanguage },
       schema: UngroundedSchema,
       useCase: USE_CASES.UNGROUNDED_TUTOR,
       providerParts: imageParts,
@@ -686,18 +735,21 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
     });
     let ansText = result.success && result.data
       ? sanitizeAnswer(result.data.answer)
-      : "Halo! Ada yang bisa aku bantu mengenai materi kuliah hari ini?";
+      : responseLanguage === "en" ? "Hi, what would you like help learning today?" : "Halo, ada yang bisa aku bantu mengenai materi kuliah hari ini?";
 
     if (policy) {
       const val = validateTutorOutput(ansText, protectedPayload, policy.allowedHelpLevel);
       if (!val.valid) {
-        ansText = "Fokus pada pemahaman konsep dasarnya ya! Coba jelaskan pemahamanmu mengenai topik ini.";
+        ansText = responseLanguage === "en"
+          ? "Let's focus on the core concept. How would you explain your current understanding?"
+          : "Fokus pada pemahaman konsep dasarnya. Coba jelaskan pemahamanmu mengenai topik ini.";
       }
     }
 
     emitOperationalOutcome(result.success ? "CONVERSATION" : "CONVERSATION_FALLBACK");
     return {
       answer: ansText,
+      responseLanguage,
       sources: [],
       matchedConcepts: result.success && result.data ? result.data.matchedConcepts : [],
       confidence: 1.0,
@@ -723,7 +775,7 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
     const result = await PromptExecutor.run({
       userId: studentId,
       prompt: hasImages ? tutorImageAnswer : tutorUngroundedAnswer,
-      variables: { question: searchQuestion, conversationHistory: historyText },
+      variables: { question: searchQuestion, conversationHistory: historyText, responseLanguage },
       schema: UngroundedSchema,
       useCase,
       providerParts: imageParts,
@@ -748,11 +800,13 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
       await UsageBudgetService.recordPremiumUsage(studentId);
     }
 
-    let ansText = composeUngroundedTeachingAnswer(result.data);
+    let ansText = composeUngroundedTeachingAnswer(result.data, responseLanguage);
     if (policy) {
       const validation = validateTutorOutput(ansText, protectedPayload, policy.allowedHelpLevel);
       if (!validation.valid) {
-        ansText = "Fokus pada pemahaman konsep dasarnya ya! Coba definisikan dulu rumus atau sifat yang berlaku.";
+        ansText = responseLanguage === "en"
+          ? "Let's focus on the core concept first. Which definition or property applies here?"
+          : "Fokus pada pemahaman konsep dasarnya. Coba definisikan dulu rumus atau sifat yang berlaku.";
       }
     }
 
@@ -843,6 +897,7 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
     chapterId,
     academicQuery: searchQuestion,
     evidenceVersion,
+    responseLanguage,
   });
 
   const remoteCacheEnabled = !hasImages
@@ -867,7 +922,7 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
         policyVersion: TUTOR_POLICY_VERSION,
         responseSchemaVersion: TUTOR_SCHEMA_VERSION,
         evidenceVersion: evidenceHash,
-        language: "id",
+        language: responseLanguage,
         routeClass: "default",
         visualCapabilityVersion: "visual-v1",
         assessmentMode: "none",
@@ -918,7 +973,7 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
       if (policy) {
         const val = validateTutorOutput(ansText, protectedPayload, policy.allowedHelpLevel);
         if (!val.valid) {
-          ansText = "Fokus pada pemahaman konsep dasarnya ya! Coba definisikan dulu rumus atau sifat yang berlaku.";
+          ansText = assessmentSafeFallback(responseLanguage);
         }
       }
 
@@ -1001,7 +1056,9 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
 
       if (evidenceEval.state === "conflict") {
         base = {
-          answer: evidenceEval.conflictSummary ?? "Terdapat perbedaan informasi pada sumber materi. Silakan tinjau kembali sumber yang dirujuk.",
+          answer: evidenceEval.conflictSummary ?? (responseLanguage === "en"
+            ? "The course materials contain conflicting information. Please review the referenced sources."
+            : "Terdapat perbedaan informasi pada sumber materi. Silakan tinjau kembali sumber yang dirujuk."),
           sources: contextSources.map((s) => ({ type: s.type, id: s.id, label: s.label, href: s.href })),
           matchedConcepts: [],
           confidence: 0,
@@ -1031,6 +1088,7 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
             courseId,
             chapterId,
             question: sanitizedQuestion,
+            responseLanguage,
             action: pedagogyAction,
             activityKind,
             attemptState,
@@ -1078,6 +1136,7 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
                   contextBlock,
                   sourceList,
                   conversationHistory: "",
+                  responseLanguage,
                 },
                 schema: GroundedSchema,
                 useCase: USE_CASES.GROUNDED_RAG,
@@ -1125,6 +1184,7 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
                   contextBlock,
                   sourceList,
                   conversationHistory: "",
+                  responseLanguage,
                 },
                 schema: GroundedSchema,
                 useCase: USE_CASES.GROUNDED_RAG,
@@ -1179,6 +1239,7 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
               contextBlock,
               sourceList,
               conversationHistory: "",
+              responseLanguage,
             },
             schema: GroundedSchema,
             useCase: USE_CASES.GROUNDED_RAG,
@@ -1215,7 +1276,7 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
             if (policy) {
               const validation = validateTutorOutput(ansText, protectedPayload, policy.allowedHelpLevel);
               if (!validation.valid) {
-                ansText = "Fokus pada pemahaman konsep dasarnya ya! Coba definisikan dulu rumus atau sifat yang berlaku.";
+                ansText = assessmentSafeFallback(responseLanguage);
               }
             }
 
@@ -1288,6 +1349,7 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
  emitOperationalOutcome(terminalFailure === "quota_exhausted" ? "BUDGET_EXHAUSTED" : "PROVIDER_UNAVAILABLE");
  return {
  answer: "",
+ responseLanguage,
  sources: [],
  matchedConcepts: [],
  confidence: 0,
@@ -1306,7 +1368,7 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
  const readOnly = pedagogyMode === "shadow" || Boolean(params.suppressLearnerSideEffects);
  try {
    adaptation = await getZyraAdaptation({ studentId, courseId, readOnly });
-   adaptedAnswer = composePersonalizedAnswer(base.answer, adaptation);
+   adaptedAnswer = composePersonalizedAnswer(base.answer, adaptation, responseLanguage);
    if (!readOnly) {
      await recordZyraLearningEvent(studentId, {
        courseId,
@@ -1323,7 +1385,7 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
  }
 
  // Tier 2: deterministic addendum, runs on hits AND misses
-  const addendum = await buildAddendum(studentId, courseId, base, profile);
+  const addendum = await buildAddendum(studentId, courseId, base, profile, responseLanguage);
 
   // The harness renders exactly the validated canvasSpec emitted by the model.
   // It never mines visuals out of prose: an answer without a structured spec
@@ -1346,6 +1408,7 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
    masteryScore: addendum.masteryScore,
    recentStruggles: profile.recentStruggles,
    recentTutorTopics: profile.recentTutorTopics,
+   responseLanguage,
    },
    schema: PersonalSchema,
    useCase,
@@ -1358,7 +1421,9 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
           if (policy) {
             const val = validateTutorOutput(guidanceText, protectedPayload, policy.allowedHelpLevel);
             if (!val.valid) {
-              guidanceText = "Tips: Tinjau kembali definisi dasarnya sebelum mencoba soal serupa.";
+              guidanceText = responseLanguage === "en"
+                ? "Tip: Review the core definition before trying a similar problem."
+                : "Tips: Tinjau kembali definisi dasarnya sebelum mencoba soal serupa.";
             }
           }
           personalized = guidanceText;
@@ -1382,6 +1447,7 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
   emitOperationalOutcome(base.grounded ? "GROUNDED" : "ABSTAIN", cached);
   return {
     ...base,
+    responseLanguage,
     answer: adaptedAnswer,
     canvasSpec: recoveredCanvasSpec,
     cached,

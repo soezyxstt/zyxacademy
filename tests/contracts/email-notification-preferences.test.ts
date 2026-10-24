@@ -77,6 +77,17 @@ describe("optional email unsubscribe contract", () => {
     expect(html.indexOf("Unsubscribe or manage preferences")).toBeLessThan(html.indexOf("</body>"));
   });
 
+  test("renders localized preference category and opt-out copy", () => {
+    const html = appendEmailUnsubscribeFooter(
+      "<html><body><p>Hello</p></body></html>",
+      "https://zyx.example/unsubscribe?token=signed",
+      "course_updates",
+      "id",
+    );
+    expect(html).toContain("Pembaruan kursus");
+    expect(html).toContain("Berhenti berlangganan atau atur preferensi");
+  });
+
   test("emits RFC 8058 one-click headers", () => {
     expect(optionalEmailHeaders("https://zyx.example/api/email/unsubscribe?token=signed")).toEqual({
       "List-Unsubscribe": "<https://zyx.example/api/email/unsubscribe?token=signed>",

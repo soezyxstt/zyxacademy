@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 import { getLayoutedGraph } from "@/lib/visual-layout-service";
 import type { MarkdownDensity } from "@/components/course/markdown-renderer";
 import { renderRichText } from "@/components/course/markdown-renderer";
+import { useTranslations } from "@/lib/i18n/client";
 import { flowchartNodeSize, resolveFlowchartKind } from "@/lib/flowchart";
 import { FlowchartNode } from "./flowchart-node";
 
@@ -48,6 +49,7 @@ export function FlowchartDiagramRenderer({
   density?: MarkdownDensity;
   embedded?: boolean;
 }) {
+  const t = useTranslations("studentCourse");
   const isCompact = density === "compact";
   const [nodes, setNodes] = useState<Node[]>([]);
   const [edges, setEdges] = useState<Edge[]>([]);
@@ -133,14 +135,14 @@ export function FlowchartDiagramRenderer({
         {error ? (
           <div className="absolute inset-0 flex flex-col items-center justify-center p-6 bg-destructive/5 text-destructive border border-destructive/20 rounded-lg">
             <AlertTriangle className="size-8 mb-2 text-destructive" />
-            <span className="font-semibold text-body-sm">Diagram belum dapat ditampilkan</span>
+            <span className="font-semibold text-body-sm">{t("learningCanvas.diagramUnavailableTitle")}</span>
             <span className="text-body-xs text-muted-foreground mt-1 text-center max-w-[80%]">
-              {error}
+              {t("learningCanvas.diagramUnavailable")}
             </span>
           </div>
         ) : loading ? (
           <div className="absolute inset-0 flex items-center justify-center text-muted-foreground text-body-sm font-sans">
-            Menghitung tata letak...
+            {t("learningCanvas.diagramLoading")}
           </div>
         ) : (
           <ReactFlow

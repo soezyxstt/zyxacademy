@@ -11,6 +11,7 @@ import { useLiveQuizSocket } from "@/components/live/use-live-quiz-socket";
 import { MathText } from "@/components/course/math-text";
 import { QuestionSourceCitation } from "@/components/course/question-source-citation";
 import { cn } from "@/lib/utils";
+import { useTranslations } from "@/lib/i18n/client";
 
 interface Template {
   id: string;
@@ -36,6 +37,7 @@ export interface TutorLiveConsoleProps {
 }
 
 export function TutorLiveConsole({ courseId, courseTitle }: TutorLiveConsoleProps) {
+  const t = useTranslations("tutor.live");
   const [codingProblems, setCodingProblems] = useState<CodingProblemPublic[]>([]);
   const [codingChoice, setCodingChoice] = useState("none");
   useEffect(() => {
@@ -70,10 +72,10 @@ export function TutorLiveConsole({ courseId, courseTitle }: TutorLiveConsoleProp
         ]);
 
         if (!templatesRes.ok) {
-          throw new Error("Gagal memuat templat kuis");
+          throw new Error(t("templateLoadFailed"));
         }
         if (!sessionsRes.ok) {
-          throw new Error("Gagal memuat sesi kuis langsung");
+          throw new Error(t("sessionLoadFailed"));
         }
 
         const [templatesData, sessionsData] = await Promise.all([
@@ -112,16 +114,16 @@ export function TutorLiveConsole({ courseId, courseTitle }: TutorLiveConsoleProp
             setPhase("session");
           }
         }
-      } catch (err) {
+      } catch {
         if (signal?.aborted) return;
-        setLoadError(err instanceof Error ? err.message : "Gagal memuat data");
+        setLoadError(t("loadFailed"));
       } finally {
         if (!signal?.aborted) {
           setLoading(false);
         }
       }
     },
-    [courseId],
+    [courseId, t],
   );
 
   useEffect(() => {
@@ -132,7 +134,7 @@ export function TutorLiveConsole({ courseId, courseTitle }: TutorLiveConsoleProp
 
   const createSession = useCallback(async () => {
     if (!selectedTemplateId && codingChoice === "none") {
-      toast.error("Pilih templat kuis terlebih dahulu.");
+      toast.error(t("selectTemplateFirst"));
       return;
     }
     setCreating(true);
@@ -143,19 +145,18 @@ export function TutorLiveConsole({ courseId, courseTitle }: TutorLiveConsoleProp
         body: JSON.stringify({ courseId, ...(codingChoice === "none" ? { templateId: selectedTemplateId } : {}), ...(codingChoice !== "none" ? { codingQuestions: [{ problemId: JSON.parse(codingChoice)[0], version: JSON.parse(codingChoice)[1], maxAttempts: null, assistance: "hints", scoring: "best", durationSeconds: 300 }] } : {}) }),
       });
       if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error ?? "Gagal membuat sesi");
+        throw new Error(t("createFailed"));
       }
       const data: SessionData = await res.json();
       setSession(data);
       setPhase("session");
-      toast.success("Sesi langsung berhasil dibuat.");
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Gagal membuat sesi");
+      toast.success(t("sessionCreated"));
+    } catch {
+      toast.error(t("createFailed"));
     } finally {
       setCreating(false);
     }
-  }, [courseId, selectedTemplateId, codingChoice]);
+  }, [courseId, selectedTemplateId, codingChoice, t]);
 
   const control = useCallback(
     async (action: "start" | "next" | "reveal" | "end") => {
@@ -168,16 +169,15 @@ export function TutorLiveConsole({ courseId, courseTitle }: TutorLiveConsoleProp
           body: JSON.stringify({ action }),
         });
         if (!res.ok) {
-          const err = await res.json();
-          throw new Error(err.error ?? "Kontrol gagal");
+          throw new Error(t("controlFailed"));
         }
-      } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Kontrol gagal");
+      } catch {
+        toast.error(t("controlFailed"));
       } finally {
         setControlling(false);
       }
     },
-    [session],
+    [session, t],
   );
 
   if (!process.env.NEXT_PUBLIC_REALTIME_URL) {
@@ -185,7 +185,7 @@ export function TutorLiveConsole({ courseId, courseTitle }: TutorLiveConsoleProp
       <div className="rounded-xl border border-border bg-card p-12 text-center">
         <AlertTriangle className="mx-auto size-8 text-status-warning" />
         <p className="mt-3 text-body-sm text-muted-foreground">
-          Kuis langsung tidak terkonfigurasi pada lingkungan ini.
+          {t("notConfigured")}
         </p>
       </div>
     );
@@ -195,7 +195,7 @@ export function TutorLiveConsole({ courseId, courseTitle }: TutorLiveConsoleProp
     return (
       <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
         <Loader2 className="size-6 animate-spin" />
-        <p className="mt-2 text-body-sm">Memuat sesi...</p>
+        <p className="mt-2 text-body-sm">{t("loading")}</p>
       </div>
     );
   }
@@ -210,7 +210,7 @@ export function TutorLiveConsole({ courseId, courseTitle }: TutorLiveConsoleProp
           onClick={() => loadInitialData()}
           className="mt-4 rounded-lg text-body-sm"
         >
-          Coba lagi
+          {t("retry")}
         </Button>
       </div>
     );
@@ -224,27 +224,25 @@ export function TutorLiveConsole({ courseId, courseTitle }: TutorLiveConsoleProp
           <div className="flex items-center gap-2">
             <Radio className="size-5 text-brand-primary" />
             <h2 className="font-heading text-body-base font-bold text-foreground">
-              Pengaturan sesi
+              {t("setupTitle")}
             </h2>
           </div>
           <p className="mt-1 text-body-sm text-muted-foreground">
-            {courseTitle
-              ? `Pilih templat kuis yang telah diterbitkan untuk ${courseTitle}.`
-              : "Pilih templat kuis yang telah diterbitkan untuk memulai sesi."}
+            {courseTitle ? t("chooseTemplateForCourse", { course: courseTitle }) : t("choosePublishedTemplate")}
           </p>
         </div>
 
         {templates.length === 0 && codingProblems.length === 0 ? (
           <div className="rounded-lg bg-muted/40 p-4 text-body-sm text-muted-foreground">
-            Terbitkan kuis di menu Kuis untuk memulai sesi.
+            {t("publishQuizFirst")}
           </div>
         ) : (
           <div className="space-y-4">
             <div className="space-y-1.5">
-              <label className="text-body-sm font-medium text-foreground">Templat kuis</label>
+              <label className="text-body-sm font-medium text-foreground">{t("template")}</label>
               <Select value={selectedTemplateId} onValueChange={setSelectedTemplateId}>
                 <SelectTrigger className="rounded-lg text-body-sm">
-                  <SelectValue placeholder="Pilih templat kuis..." />
+                  <SelectValue placeholder={t("selectTemplate")} />
                 </SelectTrigger>
                 <SelectContent>
                   {templates.map((t) => (
@@ -271,7 +269,7 @@ export function TutorLiveConsole({ courseId, courseTitle }: TutorLiveConsoleProp
               className="w-full rounded-lg text-body-sm font-medium"
             >
               <Play className="mr-2 size-4" />
-              Mulai sesi langsung
+              {t("startLiveSession")}
             </Button>
           </div>
         )}
@@ -297,7 +295,7 @@ export function TutorLiveConsole({ courseId, courseTitle }: TutorLiveConsoleProp
         <div className="flex items-center gap-2">
           <Radio className="size-4 text-brand-primary" />
           <span className="font-heading text-body-base font-bold text-foreground">
-            Konsol Kuis Langsung
+            {t("consoleTitle")}
           </span>
         </div>
 
@@ -313,7 +311,7 @@ export function TutorLiveConsole({ courseId, courseTitle }: TutorLiveConsoleProp
               aria-hidden
             />
             <span className="text-body-xs text-muted-foreground tabular-nums">
-              {participantCount} peserta bergabung
+              {t("participantsJoined", { count: participantCount })}
             </span>
           </div>
         </div>
@@ -323,7 +321,7 @@ export function TutorLiveConsole({ courseId, courseTitle }: TutorLiveConsoleProp
       {sessionState === "lobby" && session && (
         <div className="flex flex-col items-center justify-center gap-6 py-12">
           <p className="text-body-xs font-semibold uppercase tracking-widest text-muted-foreground">
-            Kode Bergabung
+            {t("joinCode")}
           </p>
           <span className="rounded-xl border border-border bg-muted/30 px-6 py-3 font-heading text-h1 font-bold tracking-widest text-foreground">
             {session.code}
@@ -331,11 +329,11 @@ export function TutorLiveConsole({ courseId, courseTitle }: TutorLiveConsoleProp
           <div className="flex items-center gap-2 text-muted-foreground">
             <Users className="size-4" />
             <span className="tabular-nums text-body-sm font-medium">
-              {participantCount} peserta di ruang tunggu
+              {t("participantsWaiting", { count: participantCount })}
             </span>
           </div>
           <p className="text-body-xs text-muted-foreground">
-            {session.questionCount} soal
+            {t("questionCount", { count: session.questionCount })}
           </p>
         </div>
       )}
@@ -345,10 +343,10 @@ export function TutorLiveConsole({ courseId, courseTitle }: TutorLiveConsoleProp
         <div className="mx-auto max-w-2xl space-y-5">
           <div className="flex items-center justify-between border-b border-border pb-2">
             <span className="text-body-sm font-semibold text-muted-foreground tabular-nums">
-              Soal {currentQuestion.questionIndex + 1} / {currentQuestion.total}
+              {t("questionProgress", { current: currentQuestion.questionIndex + 1, total: currentQuestion.total })}
             </span>
             <span className="text-body-sm text-muted-foreground tabular-nums">
-              {totalAnswered} / {totalParticipants || participantCount} menjawab
+              {t("answeredProgress", { answered: totalAnswered, total: totalParticipants || participantCount })}
             </span>
           </div>
 
@@ -390,7 +388,7 @@ export function TutorLiveConsole({ courseId, courseTitle }: TutorLiveConsoleProp
       {(sessionState === "reveal" || sessionState === "ended") && top10.length > 0 && (
         <div className="mx-auto max-w-lg space-y-3">
           <h3 className="font-heading text-body-base font-bold text-foreground">
-            {sessionState === "ended" ? "Papan Skor Akhir" : "Papan Skor Sementara"}
+            {sessionState === "ended" ? t("finalLeaderboard") : t("liveLeaderboard")}
           </h3>
           <div className="divide-y divide-border rounded-xl border border-border">
             {top10.map((entry) => (
@@ -416,7 +414,7 @@ export function TutorLiveConsole({ courseId, courseTitle }: TutorLiveConsoleProp
               className="rounded-lg text-body-sm font-medium"
             >
               <Play className="mr-1.5 size-4" />
-              Mulai kuis
+              {t("startQuiz")}
             </Button>
           )}
 
@@ -428,7 +426,7 @@ export function TutorLiveConsole({ courseId, courseTitle }: TutorLiveConsoleProp
               className="rounded-lg text-body-sm font-medium"
             >
               <CheckCircle2 className="mr-1.5 size-4" />
-              Tampilkan jawaban
+              {t("revealAnswers")}
             </Button>
           )}
 
@@ -440,7 +438,7 @@ export function TutorLiveConsole({ courseId, courseTitle }: TutorLiveConsoleProp
               className="rounded-lg text-body-sm font-medium"
             >
               <ChevronRight className="mr-1.5 size-4" />
-              Soal berikutnya
+              {t("nextQuestion")}
             </Button>
           )}
 
@@ -451,7 +449,7 @@ export function TutorLiveConsole({ courseId, courseTitle }: TutorLiveConsoleProp
             className="rounded-lg text-body-sm font-medium"
           >
             <StopCircle className="mr-1.5 size-4" />
-            Akhiri sesi
+            {t("endSession")}
           </Button>
         </div>
       ) : (
@@ -465,7 +463,7 @@ export function TutorLiveConsole({ courseId, courseTitle }: TutorLiveConsoleProp
             }}
             className="rounded-lg text-body-sm font-medium"
           >
-            Buat sesi baru
+            {t("newSession")}
           </Button>
         </div>
       )}

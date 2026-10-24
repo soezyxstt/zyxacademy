@@ -697,3 +697,86 @@ At the pre-push head, GitHub still showed SonarQube failed and other executed
 checks successful; the earlier authorization/organization failure remains a CI
 gate, not evidence of a new code-analysis result. Recheck checks on the pushed
 head before merging. CI was not weakened.
+
+
+### Latest staging merge and authenticated Playground
+
+Staging advanced during this work to `60d58b52` (PR #227), adding the bilingual
+interface and shared web/worker build changes. A second three-way merge retained
+those changes alongside coding. Conflicts retained the Playground sidebar entry,
+Live coding selection, flowchart symbols/fitting, translated labels and both
+coding-context and response-language parameters on Zyra. The React checklist was
+applied to the manually reconciled components.
+
+Both branches had generated migration 0098. Staging's locale migration/snapshot
+remains 0098. Running `bun run db:generate` against the merged schema generated
+`0099_hard_meteorite.sql` with exactly the three coding tables; the obsolete
+unpublished coding 0098 file was removed and fixture paths updated. Generated SQL
+was not hand-edited. The synthetic pre-merge DB was preserved at
+`/tmp/zyx-coding-before-staging-60d58b52.db`; a fresh local SQLite database applied
+both migration sets successfully and was reseeded with synthetic identities.
+No migration was applied remotely.
+
+Post-merge commands and final outcomes:
+
+| Command/check | Outcome |
+| --- | --- |
+| `bun install --frozen-lockfile` | Exit 0, merged lockfile accepted |
+| `python scripts/coding/local-env.py bun run db:generate` | Exit 0, generated coding 0099 |
+| Local `bun db/migrate.ts` and synthetic seed through `local-env.py` | Exit 0 each |
+| Eight focused contract files above plus `flowchart-symbols.test.ts`, `zyra-chat-language-contract.test.ts`, `tests/i18n/locale.test.ts` | Exit 0, 57 tests across 11 files |
+| Focused application/runtime/probe ESLint | Exit 0, one pre-existing unused import warning in tutor action |
+| `npm run lint` | Exit 0, 261 warnings and no errors; supersedes the earlier voucher error for this merged head |
+| `npm run typecheck` | Exit 0 on the final post-build sequential run |
+| Local `NODE_ENV=production bun run build` through the wrapper | Exit 0 |
+| `node artifacts/coding-live/api-probe.mjs` against rebuilt local app | Exit 0, all four Article/Live grades, replay and reveal repeated through real Steel |
+| Explicit-Steel `node artifacts/coding-live/playground-auth.mjs` through local wrapper/proxy preload | Exit 0, authenticated UI matrix below |
+
+The final Article incorrect/correct requests took 23.1/20.7 seconds. Live took
+19.9/21.2 seconds. Each acquired Steel with HTTP 201 and explicitly released it
+with HTTP 200 and success true. Private canaries were absent in every asserted
+public problem/Submit response. The prior real runtime matrix and deadline/retry
+evidence used the identical Python runtime implementation; staging did not change
+that implementation. These are separate from dependency-injected tests.
+
+Automatic approval initially rejected exporting a local session cookie to Steel.
+The user then explicitly approved only synthetic SQLite account cookies. The UI
+harness verifies its cookie against local user `coding-student-2` and the
+`coding-2@example.test` identity before opening a temporary, nonpersistent Steel
+context. No existing production/staging identity is used.
+
+An initial authenticated run exposed invalid local Firebase config before editor
+hydration. The local wrapper now supplies fictional public Firebase identifiers
+and the UI harness records push consent as denied; it does not register a token.
+This affects only local test processes. No production Firebase setting changed.
+
+The primary agent personally ran and inspected the rebuilt application route
+`/courses/coding-course/playground` at **380x844** and **1536x864**. At both
+viewports the actual editor, Input program and Jalankan button produced 6 from
+input 5, reported the infinite-loop timeout and then produced 7 on the next run.
+Both Steel viewer sessions explicitly released. Screenshots were opened directly:
+
+- `artifacts/coding-live/screenshots/playground-mobile-success.png`
+- `artifacts/coding-live/screenshots/playground-desktop-success.png`
+
+The success captures show the result scrolled into view. Controls, code and output
+are readable with no overlap, clipping or horizontal page overflow. The shell
+uses its browser-selected locale; this is not a complete bilingual acceptance
+matrix. No layout/style component was redesigned for this fix.
+
+This is functional UI evidence, not a clean visual-quality sign-off: Steel injects
+opaque-frame SecurityError diagnostics, including serviceWorker access, and the
+local app returns expected 404s for Vercel telemetry script endpoints. These were
+recorded separately; runtime/API assertions and all other HTTP checks remained
+active. One intermediate capture exited 1 because a timeout label matched both
+status and stderr; using an exact label resolved the harness ambiguity. Another
+exited 1 solely on the local telemetry 404 assertion after its functional mobile
+cases passed. Neither failure was reported as a successful final command.
+
+Post-merge logs: `install-post-merge.log`, `generate-post-merge.log`,
+`migrate-post-merge.log`, `seed-post-merge.log`, `contracts-post-merge-final.log`,
+`eslint-post-merge.log`, `lint-post-merge.log`, `typecheck-post-merge-final.log`,
+`build-post-merge.log`, `server-post-merge.log`, `api-post-merge.log` and
+`playground-post-merge.log`, all under ignored `artifacts/coding-live/`. The first
+post-merge contract run failed on two fixture references to the old migration
+filename; the updated fixture paths then passed the 57-test rerun.

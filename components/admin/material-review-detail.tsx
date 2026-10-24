@@ -55,6 +55,7 @@ import {
   type PublicSectionReadModel,
 } from "@/lib/articles/structured-read-model";
 import { explainBundleError } from "@/lib/bundle/admin-errors";
+import { useTranslations } from "@/lib/i18n/client";
 import { ProductV4ReviewForm, type ProductV4AdminReviewContext, type ProductV4AdminReviewInput } from "@/components/admin/product-v4-review-form";
 import { ProductDraftEditor } from "@/components/admin/product-draft-editor";
 import type { PedagogicCriterionId } from "@/lib/materials/quality-policy";
@@ -211,16 +212,6 @@ type IdeaDraft = {
   relations: IdeaPreview["relations"];
 };
 
-const statusLabels: Record<string, string> = {
-  validated: "Menunggu review",
-  approved: "Disetujui",
-  rejected: "Ditolak",
-  draft: "Draft",
-  published: "Terbit",
-  withdrawn: "Ditarik",
-  discarding: "Penghapusan tertunda",
-};
-
 const statusTones: Record<string, "muted" | "info" | "success" | "warning" | "error" | "brand"> = {
   validated: "warning",
   approved: "success",
@@ -256,16 +247,6 @@ const relationLabels: Record<string, string> = {
   extends: "Mengembangkan",
   example_of: "Contoh dari",
   misconception_of: "Miskonsepsi dari",
-};
-
-const productLabels: Record<string, string> = {
-  article: "Artikel",
-  diktat: "Diktat",
-  question: "Soal",
-  solution: "Pembahasan",
-  flashcard_set: "Set flashcard",
-  flashcard: "Flashcard",
-  assessment_blueprint: "Blueprint asesmen",
 };
 
 const articleBlockMeta: Record<string, { label: string; badge: string }> = {
@@ -311,7 +292,8 @@ export function parseEmbeddedContent(rawText: string | null | undefined): Parsed
   return { content: rawText };
 }
 
-function displayLabel(value: string, labels: Record<string, string>) {
+function displayLabel(value: string, labels: Record<string, string>, t?: (key: string) => string, group?: string) {
+  if (t && group) return t(`materials.taxonomy.${group}.${value}`);
   return labels[value] ?? value.replaceAll("_", " ");
 }
 
@@ -319,10 +301,10 @@ function shortIdeaCode(code: string): string {
   return code.replace(/^[^-]+-/, "");
 }
 
-function ideaName(idea: IdeaPreview["ideas"][number] | undefined): string {
-  if (!idea) return "Idea tidak ditemukan";
+function ideaName(idea: IdeaPreview["ideas"][number] | undefined, t: (key: string) => string): string {
+  if (!idea) return t("materials.ideaNotFound");
   const code = shortIdeaCode(idea.code);
-  if (!code) return idea.learningSection?.title ?? "Idea tanpa nama";
+  if (!code) return idea.learningSection?.title ?? t("materials.ideaWithoutName");
   return code
     .toLocaleLowerCase("id-ID")
     .replaceAll("-", " ")
@@ -339,11 +321,13 @@ function readableSourceExcerpt(excerpt: string): string {
 }
 
 function DetailStatus({ status }: { status: string }) {
-  return <StatusBadge tone={statusTones[status] ?? "muted"}>{statusLabels[status] ?? status}</StatusBadge>;
+  const t = useTranslations("adminAcademic");
+  return <StatusBadge tone={statusTones[status] ?? "muted"}>{t(`materials.status.${status}`)}</StatusBadge>;
 }
 
 function DetailLoading() {
-  return <div className="rounded-xl border border-border bg-card p-8 text-center text-body-sm text-muted-foreground">Memuat isi artifact...</div>;
+  const t = useTranslations("adminAcademic");
+  return <div className="rounded-xl border border-border bg-card p-8 text-center text-body-sm text-muted-foreground">{t("materials.loadingDetail")}</div>;
 }
 
 // ---------------------------------------------------------------------------
@@ -351,6 +335,8 @@ function DetailLoading() {
 // ---------------------------------------------------------------------------
 
 export function IdeaBundleReviewDetail({ detailId, backHref, backLabel, showBackButton = true }: DetailProps) {
+  const t = useTranslations("adminAcademic");
+  const adminT = useTranslations("admin");
   const router = useRouter();
   const [payload, setPayload] = useState<IdeaDetailPayload | null>(null);
   const [draft, setDraft] = useState<IdeaDraft | null>(null);
@@ -379,11 +365,11 @@ export function IdeaBundleReviewDetail({ detailId, backHref, backLabel, showBack
       setSelectedIdeaId((current) => nextPayload.preview.ideas.some((idea) => idea.id === current) ? current : nextPayload.preview.ideas[0]?.id ?? null);
       setReviewNote(nextPayload.bundle.reviews?.[0]?.notes ?? "");
     } catch (loadError) {
-      setError(explainBundleError(loadError instanceof Error ? loadError.message : "IDEA_BUNDLE_DETAIL_FAILED"));
+      setError(explainBundleError(loadError instanceof Error ? loadError.message : "IDEA_BUNDLE_DETAIL_FAILED", (key) => adminT(`bundleErrors.${key}`)));
     } finally {
       setLoading(false);
     }
-  }, [detailId]);
+  }, [detailId, adminT]);
 
   useEffect(() => { void load(); }, [load]);
 
@@ -397,7 +383,7 @@ export function IdeaBundleReviewDetail({ detailId, backHref, backLabel, showBack
       if (!response.ok) throw new Error(result.error || "IDEA_BUNDLE_REVIEW_FAILED");
       await load();
     } catch (reviewError) {
-      setError(explainBundleError(reviewError instanceof Error ? reviewError.message : "IDEA_BUNDLE_REVIEW_FAILED"));
+      setError(explainBundleError(reviewError instanceof Error ? reviewError.message : "IDEA_BUNDLE_REVIEW_FAILED", (key) => adminT(`bundleErrors.${key}`)));
     } finally {
       setSaving(false);
     }
@@ -413,7 +399,7 @@ export function IdeaBundleReviewDetail({ detailId, backHref, backLabel, showBack
       if (!response.ok) throw new Error(result.error || "IDEA_BUNDLE_PUBLISH_FAILED");
       await load();
     } catch (publishError) {
-      setError(explainBundleError(publishError instanceof Error ? publishError.message : "IDEA_BUNDLE_PUBLISH_FAILED"));
+      setError(explainBundleError(publishError instanceof Error ? publishError.message : "IDEA_BUNDLE_PUBLISH_FAILED", (key) => adminT(`bundleErrors.${key}`)));
     } finally {
       setSaving(false);
     }
@@ -433,7 +419,7 @@ export function IdeaBundleReviewDetail({ detailId, backHref, backLabel, showBack
       if (!response.ok) throw new Error(result.error || "IDEA_BUNDLE_UPDATE_FAILED");
       await load();
     } catch (saveError) {
-      setError(explainBundleError(saveError instanceof Error ? saveError.message : "IDEA_BUNDLE_UPDATE_FAILED"));
+      setError(explainBundleError(saveError instanceof Error ? saveError.message : "IDEA_BUNDLE_UPDATE_FAILED", (key) => adminT(`bundleErrors.${key}`)));
     } finally {
       setSaving(false);
     }
@@ -475,7 +461,7 @@ export function IdeaBundleReviewDetail({ detailId, backHref, backLabel, showBack
       ].find((idea) => (nextReviews.find((review) => review.targetId === idea.id)?.status ?? "pending") === "pending");
       if (nextPending) setSelectedIdeaId(nextPending.id);
     } catch (reviewError) {
-      setError(explainBundleError(reviewError instanceof Error ? reviewError.message : "IDEA_ITEM_REVIEW_UPDATE_FAILED"));
+      setError(explainBundleError(reviewError instanceof Error ? reviewError.message : "IDEA_ITEM_REVIEW_UPDATE_FAILED", (key) => adminT(`bundleErrors.${key}`)));
     } finally {
       setSaving(false);
     }
@@ -505,7 +491,7 @@ export function IdeaBundleReviewDetail({ detailId, backHref, backLabel, showBack
         setPayload((current) => current ? { ...current, bundle: { ...current.bundle, status: "withdrawn" } } : current);
       }
     } catch (mutationError) {
-      setError(explainBundleError(mutationError instanceof Error ? mutationError.message : "IDEA_BUNDLE_UPDATE_FAILED"));
+      setError(explainBundleError(mutationError instanceof Error ? mutationError.message : "IDEA_BUNDLE_UPDATE_FAILED", (key) => adminT(`bundleErrors.${key}`)));
     } finally {
       setSaving(false);
     }
@@ -513,7 +499,7 @@ export function IdeaBundleReviewDetail({ detailId, backHref, backLabel, showBack
 
   if (loading) return <DetailLoading />;
   if (error && !payload) return <AdminErrorState message={error} onRetry={() => void load()} />;
-  if (!payload) return <AdminEmptyState title="Artifact tidak ditemukan" description="Artifact mungkin sudah dihapus atau tidak dapat dibaca." />;
+  if (!payload) return <AdminEmptyState title={t("materials.artifactNotFound")} description={t("materials.artifactUnavailable")} />;
 
   return (
     <div className="space-y-4">
@@ -526,7 +512,7 @@ export function IdeaBundleReviewDetail({ detailId, backHref, backLabel, showBack
             variant="outline"
             disabled={currentIndex <= 0}
             onClick={() => goToIndex(currentIndex - 1)}
-            aria-label="Idea sebelumnya"
+            aria-label={t("materials.previousIdea")}
             className="h-8 px-2.5"
           >
             <ChevronLeft className="size-4" />
@@ -540,7 +526,7 @@ export function IdeaBundleReviewDetail({ detailId, backHref, backLabel, showBack
             variant="outline"
             disabled={currentIndex >= ideasList.length - 1}
             onClick={() => goToIndex(currentIndex + 1)}
-            aria-label="Idea berikutnya"
+            aria-label={t("materials.nextIdea")}
             className="h-8 px-2.5"
           >
             <ChevronRight className="size-4" />
@@ -550,10 +536,10 @@ export function IdeaBundleReviewDetail({ detailId, backHref, backLabel, showBack
         <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as typeof statusFilter)}>
           <SelectTrigger className="h-8 w-40 text-body-sm"><SelectValue /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Semua status</SelectItem>
-            <SelectItem value="pending">Menunggu review</SelectItem>
-            <SelectItem value="approved">Disetujui</SelectItem>
-            <SelectItem value="changes_requested">Perlu revisi</SelectItem>
+            <SelectItem value="all">{t("materials.allStatuses")}</SelectItem>
+            <SelectItem value="pending">{t("materials.reviewStatus.pending")}</SelectItem>
+            <SelectItem value="approved">{t("materials.status.approved")}</SelectItem>
+            <SelectItem value="changes_requested">{t("materials.reviewStatus.changesRequested")}</SelectItem>
           </SelectContent>
         </Select>
 
@@ -562,19 +548,19 @@ export function IdeaBundleReviewDetail({ detailId, backHref, backLabel, showBack
           <SheetTrigger asChild>
             <Button type="button" size="sm" variant="outline" className="h-8 gap-1.5 text-body-sm">
               <ListFilter className="size-3.5" />
-              Daftar Idea ({ideasList.length})
+              {t("materials.ideaListWithCount", { count: ideasList.length })}
             </Button>
           </SheetTrigger>
           <SheetContent side="right" className="flex flex-col w-full sm:max-w-md p-4">
             <SheetHeader className="pb-3 border-b border-border">
-              <SheetTitle className="text-body-base font-semibold">Daftar Idea ({ideasList.length})</SheetTitle>
+            <SheetTitle className="text-body-base font-semibold">{t("materials.ideaListWithCount", { count: ideasList.length })}</SheetTitle>
               <div className="mt-2">
                 <SearchBar
                   size="sm"
                   value={searchQuery}
                   onSearch={setSearchQuery}
                   onClear={() => setSearchQuery("")}
-                  placeholder="Cari kode atau teks Idea..."
+                  placeholder={t("materials.searchIdeas")}
                 />
               </div>
             </SheetHeader>
@@ -590,8 +576,8 @@ export function IdeaBundleReviewDetail({ detailId, backHref, backLabel, showBack
                   )}
                 >
                   <div className="flex items-center justify-between">
-                    <span className="font-semibold text-foreground">{shortIdeaCode(idea.code) || `Idea ${index + 1}`}</span>
-                    <Badge variant="outline" className="text-[10px]">{idea.provenance.length} sumber</Badge>
+                    <span className="font-semibold text-foreground">{shortIdeaCode(idea.code) || t("materials.ideaNumber", { number: index + 1 })}</span>
+                    <Badge variant="outline" className="text-[10px]">{t("materials.sourceCount", { count: idea.provenance.length })}</Badge>
                   </div>
                   <p className="mt-1 line-clamp-2 text-muted-foreground"><MathText as="span">{idea.canonicalStatement}</MathText></p>
                 </button>
@@ -606,26 +592,26 @@ export function IdeaBundleReviewDetail({ detailId, backHref, backLabel, showBack
       {activeIdea ? (
         <div className={cn("grid items-start gap-5", payload.structuredReaderEnabled && "lg:grid-cols-[minmax(240px,0.7fr)_minmax(0,2.3fr)]")}>
           {payload.structuredReaderEnabled ? <aside className="sticky top-4 hidden max-h-[calc(100vh-2rem)] space-y-3 overflow-y-auto lg:block">
-            <SearchBar size="sm" value={searchQuery} onSearch={setSearchQuery} onClear={() => setSearchQuery("")} placeholder="Cari Idea" />
+            <SearchBar size="sm" value={searchQuery} onSearch={setSearchQuery} onClear={() => setSearchQuery("")} placeholder={t("materials.searchIdeas")} />
             {filteredIdeas.map((idea) => {
               const status = payload.itemReviews.find((review) => review.targetId === idea.id)?.status ?? "pending";
-              return <button key={idea.id} type="button" aria-label={`${shortIdeaCode(idea.code)}, ${blockReviewLabels[status]}`} onClick={() => { setSelectedIdeaId(idea.id); setEditing(false); }} className={cn("w-full rounded-lg border p-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring", status === "approved" ? "border-status-success/50 bg-status-success/10 hover:bg-status-success/15" : status === "changes_requested" ? "border-status-warning/60 bg-status-warning/10 hover:bg-status-warning/15" : "border-border bg-card hover:bg-muted/50", activeIdea.id === idea.id && "ring-2 ring-primary ring-offset-1 ring-offset-background")}><span className="text-body-sm font-semibold">{shortIdeaCode(idea.code)}</span><p className="mt-1 line-clamp-2 text-body-xs text-muted-foreground"><MathText as="span">{idea.canonicalStatement}</MathText></p></button>;
+              return <button key={idea.id} type="button" aria-label={`${shortIdeaCode(idea.code)}, ${t(`materials.reviewStatus.${status}`)}`} onClick={() => { setSelectedIdeaId(idea.id); setEditing(false); }} className={cn("w-full rounded-lg border p-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring", status === "approved" ? "border-status-success/50 bg-status-success/10 hover:bg-status-success/15" : status === "changes_requested" ? "border-status-warning/60 bg-status-warning/10 hover:bg-status-warning/15" : "border-border bg-card hover:bg-muted/50", activeIdea.id === idea.id && "ring-2 ring-primary ring-offset-1 ring-offset-background")}><span className="text-body-sm font-semibold">{shortIdeaCode(idea.code)}</span><p className="mt-1 line-clamp-2 text-body-xs text-muted-foreground"><MathText as="span">{idea.canonicalStatement}</MathText></p></button>;
             })}
           </aside> : null}
         <article key={activeIdea.id} className="space-y-4 rounded-xl border border-border bg-card p-4">
           <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border pb-4">
             <div>
               <div className="flex items-center gap-2">
-                <Badge variant="secondary" className="text-body-xs font-semibold">{displayLabel(activeIdea.knowledgeKind, knowledgeLabels)}</Badge>
-                <Badge variant="outline" className="text-body-xs">{displayLabel(activeIdea.instructionalRole, roleLabels)}</Badge>
-                <span className="text-body-xs text-muted-foreground">Bab {activeIdea.chapterId}</span>
+                <Badge variant="secondary" className="text-body-xs font-semibold">{displayLabel(activeIdea.knowledgeKind, knowledgeLabels, t, "knowledge")}</Badge>
+                <Badge variant="outline" className="text-body-xs">{displayLabel(activeIdea.instructionalRole, roleLabels, t, "role")}</Badge>
+                <span className="text-body-xs text-muted-foreground">{t("materials.chapterWithId", { id: activeIdea.chapterId })}</span>
               </div>
-              <h3 className="mt-2 font-heading text-body-base font-bold text-foreground">{shortIdeaCode(activeIdea.code) || "Idea tanpa kode"}</h3>
+              <h3 className="mt-2 font-heading text-body-base font-bold text-foreground">{shortIdeaCode(activeIdea.code) || t("materials.ideaWithoutCode")}</h3>
             </div>
             <div className="flex items-center gap-2">
-              <Badge variant="outline">{activeIdea.provenance.length} bukti sumber</Badge>
+                <Badge variant="outline">{t("materials.sourceEvidenceCount", { count: activeIdea.provenance.length })}</Badge>
               {!editing && !["published", "withdrawn", "discarding"].includes(payload.bundle.status) && (
-                <Button type="button" size="sm" variant="outline" onClick={() => setEditing(true)} className="h-8 text-body-sm">Edit isi</Button>
+                <Button type="button" size="sm" variant="outline" onClick={() => setEditing(true)} className="h-8 text-body-sm">{t("materials.editContent")}</Button>
               )}
             </div>
           </div>
@@ -634,41 +620,41 @@ export function IdeaBundleReviewDetail({ detailId, backHref, backLabel, showBack
             <div className="space-y-4">
               <div className="grid gap-3 lg:grid-cols-2">
                 <div className="space-y-1.5">
-                  <Label htmlFor={`detail-idea-code-${activeIdea.id}`}>Kode singkat</Label>
+                  <Label htmlFor={`detail-idea-code-${activeIdea.id}`}>{t("materials.shortCode")}</Label>
                   <Input id={`detail-idea-code-${activeIdea.id}`} value={activeDraftIdea.code} onChange={(event) => updateIdeaDraft(activeDraftIdea.id, { code: event.target.value })} />
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   <div className="space-y-1.5">
-                    <Label>Jenis pengetahuan</Label>
+                    <Label>{t("materials.knowledgeType")}</Label>
                     <Select value={activeDraftIdea.knowledgeKind} onValueChange={(value) => updateIdeaDraft(activeDraftIdea.id, { knowledgeKind: value })}>
                       <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
-                      <SelectContent>{Object.entries(knowledgeLabels).map(([value, label]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}</SelectContent>
+                      <SelectContent>{Object.keys(knowledgeLabels).map((value) => <SelectItem key={value} value={value}>{t(`materials.taxonomy.knowledge.${value}`)}</SelectItem>)}</SelectContent>
                     </Select>
                   </div>
                   <div className="space-y-1.5">
-                    <Label>Peran belajar</Label>
+                    <Label>{t("materials.learningRole")}</Label>
                     <Select value={activeDraftIdea.instructionalRole} onValueChange={(value) => updateIdeaDraft(activeDraftIdea.id, { instructionalRole: value })}>
                       <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
-                      <SelectContent>{Object.entries(roleLabels).map(([value, label]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}</SelectContent>
+                      <SelectContent>{Object.keys(roleLabels).map((value) => <SelectItem key={value} value={value}>{t(`materials.taxonomy.role.${value}`)}</SelectItem>)}</SelectContent>
                     </Select>
                   </div>
                 </div>
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor={`detail-idea-statement-${activeIdea.id}`}>Pernyataan utama</Label>
+                <Label htmlFor={`detail-idea-statement-${activeIdea.id}`}>{t("materials.mainStatement")}</Label>
                 <Textarea id={`detail-idea-statement-${activeIdea.id}`} value={activeDraftIdea.canonicalStatement} onChange={(event) => updateIdeaDraft(activeDraftIdea.id, { canonicalStatement: event.target.value })} className="min-h-24" />
                 <div className="rounded-lg bg-muted p-3">
-                  <p className="mb-1 text-body-xs font-semibold text-foreground">Preview KaTeX</p>
+                  <p className="mb-1 text-body-xs font-semibold text-foreground">{t("materials.katexPreview")}</p>
                   <MathText as="div" className="text-body-base leading-relaxed text-foreground">{activeDraftIdea.canonicalStatement}</MathText>
                 </div>
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor={`detail-idea-explanation-${activeIdea.id}`}>Penjelasan ringkas</Label>
+                <Label htmlFor={`detail-idea-explanation-${activeIdea.id}`}>{t("materials.conciseExplanation")}</Label>
                 <Textarea id={`detail-idea-explanation-${activeIdea.id}`} value={activeDraftIdea.conciseExplanation} onChange={(event) => updateIdeaDraft(activeDraftIdea.id, { conciseExplanation: event.target.value })} className="min-h-24" />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor={`detail-idea-latex-${activeIdea.id}`}>Rumus LaTeX</Label>
-                <Input id={`detail-idea-latex-${activeIdea.id}`} value={activeDraftIdea.latex ?? ""} onChange={(event) => updateIdeaDraft(activeDraftIdea.id, { latex: event.target.value || null })} placeholder="Contoh: \\frac{1}{2}mv^2" />
+                <Label htmlFor={`detail-idea-latex-${activeIdea.id}`}>{t("materials.latexFormula")}</Label>
+                <Input id={`detail-idea-latex-${activeIdea.id}`} value={activeDraftIdea.latex ?? ""} onChange={(event) => updateIdeaDraft(activeDraftIdea.id, { latex: event.target.value || null })} placeholder={t("materials.latexExample")} />
                 {activeDraftIdea.latex && (
                   <div className="rounded-lg bg-muted p-3 text-center">
                     <MathText bareMath as="div">{activeDraftIdea.latex}</MathText>
@@ -676,21 +662,21 @@ export function IdeaBundleReviewDetail({ detailId, backHref, backLabel, showBack
                 )}
               </div>
               <div className="flex flex-wrap gap-2 pt-2 border-t border-border">
-                <Button type="button" size="sm" disabled={saving} onClick={() => void saveDraft()}>Simpan perubahan</Button>
-                <Button type="button" size="sm" variant="outline" disabled={saving} onClick={() => void load()}>Batal</Button>
+                <Button type="button" size="sm" disabled={saving} onClick={() => void saveDraft()}>{t("documents.saveChanges")}</Button>
+                <Button type="button" size="sm" variant="outline" disabled={saving} onClick={() => void load()}>{t("common.cancel")}</Button>
               </div>
             </div>
           ) : (
             <div className="space-y-6">
               <div className="space-y-2">
-                <span className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">Pernyataan Utama</span>
+                <span className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("materials.mainStatement")}</span>
                 <div className="border-l-2 border-border pl-3 py-1">
                   <MathText as="div" className="text-body-base leading-relaxed text-foreground font-medium">{activeIdea.canonicalStatement}</MathText>
                 </div>
               </div>
 
               <div className="space-y-2">
-                <span className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">Penjelasan Ringkas</span>
+                <span className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("materials.conciseExplanation")}</span>
                 <div className="border-t border-border pt-3">
                   <MathText as="div" className="whitespace-pre-wrap text-body-sm leading-relaxed text-foreground">{activeIdea.conciseExplanation}</MathText>
                 </div>
@@ -698,7 +684,7 @@ export function IdeaBundleReviewDetail({ detailId, backHref, backLabel, showBack
 
               {activeIdea.latex && (
                 <div className="space-y-2">
-                  <span className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">Rumus KaTeX</span>
+                  <span className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("materials.katexFormula")}</span>
                   <div className="bg-muted/30 py-3 text-center">
                     <MathText bareMath as="div">{activeIdea.latex}</MathText>
                   </div>
@@ -707,11 +693,11 @@ export function IdeaBundleReviewDetail({ detailId, backHref, backLabel, showBack
 
               {activeIdea.provenance.length > 0 && (
                 <div className="space-y-2.5 border-t border-border pt-4">
-                  <span className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">Bukti Sumber ({activeIdea.provenance.length})</span>
+                  <span className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("materials.sourceEvidenceCount", { count: activeIdea.provenance.length })}</span>
                   <div className="grid gap-2">
                     {activeIdea.provenance.map((proof) => (
                       <div key={proof.id} className="space-y-1.5 border-b border-border py-3 last:border-0">
-                        <p className="text-body-sm font-semibold text-foreground">{proof.sourceTitle}{proof.pageNumber ? ` · Hal. ${proof.pageNumber}` : ""}</p>
+                        <p className="text-body-sm font-semibold text-foreground">{proof.sourceTitle}{proof.pageNumber ? ` · ${t("materials.pageAbbreviation")} ${proof.pageNumber}` : ""}</p>
                         <div className="text-body-sm leading-relaxed text-muted-foreground">
                           <MarkdownRenderer content={readableSourceExcerpt(proof.excerpt)} density="compact" />
                         </div>
@@ -727,19 +713,19 @@ export function IdeaBundleReviewDetail({ detailId, backHref, backLabel, showBack
               <Textarea
                 value={ideaReviewNotes[activeIdea.id] ?? payload.itemReviews.find((review) => review.targetId === activeIdea.id)?.notes ?? ""}
                 onChange={(event) => setIdeaReviewNotes((current) => ({ ...current, [activeIdea.id]: event.target.value }))}
-                placeholder="Catatan review Idea"
+                placeholder={t("materials.itemReviewPlaceholder")}
                 className="min-h-20 text-body-sm"
               />
               <div className="flex flex-wrap gap-2">
                 <Button type="button" size="sm" disabled={saving} onClick={() => void saveIdeaItemReview("approved")} className="bg-status-success text-white hover:bg-status-success/90">
-                  <Check className="size-4" />Setujui dan lanjut
+                  <Check className="size-4" />{t("materials.approveAndContinue")}
                 </Button>
                 <Button type="button" size="sm" disabled={saving} variant="outline" onClick={() => void saveIdeaItemReview("changes_requested")} className="border-status-warning text-status-warning">
-                  <AlertTriangle className="size-4" />Perlu perbaikan
+                  <AlertTriangle className="size-4" />{t("materials.requestChanges")}
                 </Button>
                 {(payload.itemReviews.find((review) => review.targetId === activeIdea.id)?.status ?? "pending") !== "pending" ? (
                   <Button type="button" size="sm" disabled={saving} variant="ghost" onClick={() => void saveIdeaItemReview("pending")}>
-                    <RotateCcw className="size-4" />Batalkan status
+                    <RotateCcw className="size-4" />{t("materials.resetStatus")}
                   </Button>
                 ) : null}
               </div>
@@ -748,21 +734,21 @@ export function IdeaBundleReviewDetail({ detailId, backHref, backLabel, showBack
         </article>
         </div>
       ) : (
-        <AdminEmptyState title="Idea belum tersedia" description="Bundle ini tidak memiliki Idea." />
+        <AdminEmptyState title={t("materials.ideasUnavailable")} description={t("materials.bundleHasNoIdeas")} />
       )}
 
       {/* Relations Summary (Compact) */}
       {payload.preview.relations.length > 0 && (
         <details className="border-t border-border pt-3">
           <summary className="cursor-pointer text-body-sm font-semibold text-foreground">
-            Hubungan Antar-Idea ({payload.preview.relations.length} relasi)
+            {t("materials.ideaRelationsCount", { count: payload.preview.relations.length })}
           </summary>
           <div className="mt-3 divide-y divide-border">
             {payload.preview.relations.map((rel) => (
               <div key={rel.id} className="flex flex-wrap items-center justify-between gap-2 py-2 text-body-xs">
-                <span className="font-medium text-foreground">{ideaName(ideasList.find((idea) => idea.id === rel.sourceIdeaId))}</span>
-                <Badge variant="outline">{displayLabel(rel.relationType, relationLabels)}</Badge>
-                <span className="font-medium text-foreground">{ideaName(ideasList.find((idea) => idea.id === rel.targetIdeaId))}</span>
+                <span className="font-medium text-foreground">{ideaName(ideasList.find((idea) => idea.id === rel.sourceIdeaId), t)}</span>
+                <Badge variant="outline">{displayLabel(rel.relationType, relationLabels, t, "relation")}</Badge>
+                <span className="font-medium text-foreground">{ideaName(ideasList.find((idea) => idea.id === rel.targetIdeaId), t)}</span>
               </div>
             ))}
           </div>
@@ -772,60 +758,60 @@ export function IdeaBundleReviewDetail({ detailId, backHref, backLabel, showBack
       {/* Review Actions Footer (Compact) */}
       <section className="border-t border-border pt-3 space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <Label htmlFor="idea-review-note" className="text-body-sm font-semibold">Catatan Review</Label>
-          <span className="text-body-xs text-muted-foreground">Disimpan bersama keputusan</span>
+          <Label htmlFor="idea-review-note" className="text-body-sm font-semibold">{t("materials.reviewNotes")}</Label>
+          <span className="text-body-xs text-muted-foreground">{t("materials.savedWithDecision")}</span>
         </div>
         <Textarea
           id="idea-review-note"
           value={reviewNote}
           onChange={(event) => setReviewNote(event.target.value)}
-          placeholder="Tulis catatan jika perlu..."
+          placeholder={t("materials.reviewNotesPlaceholder")}
           className="min-h-16 text-body-sm"
         />
-        {error && <p className="text-body-xs text-status-error">{error}</p>}
+          {error && <p className="text-body-xs text-status-error">{error}</p>}
         <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border pt-3">
           <div className="flex flex-wrap gap-2">
           {payload.bundle.status === "validated" && (
             <>
               <Button type="button" size="sm" variant="outline" disabled={saving} onClick={() => void decide("approved")}>
-                <Check className="size-3.5" />Setujui
+                <Check className="size-3.5" />{t("materials.approve")}
               </Button>
               <Button type="button" size="sm" variant="destructive" disabled={saving} onClick={() => void decide("rejected")}>
-                <X className="size-3.5" />Tolak
+                <X className="size-3.5" />{t("materials.reject")}
               </Button>
             </>
           )}
           {payload.bundle.status === "approved" && (
             <Button type="button" size="sm" disabled={saving} onClick={() => void publish()}>
-              <FileCheck2 className="size-3.5" />Publikasikan
+              <FileCheck2 className="size-3.5" />{t("documents.publish")}
             </Button>
           )}
           {payload.bundle.status === "published" && (
-            <span className="text-body-sm text-status-success font-medium">Telah dipublikasikan</span>
+            <span className="text-body-sm text-status-success font-medium">{t("materials.alreadyPublished")}</span>
           )}
           {payload.bundle.status === "withdrawn" && (
-            <span className="text-body-sm font-medium text-muted-foreground">Publikasi telah ditarik</span>
+            <span className="text-body-sm font-medium text-muted-foreground">{t("materials.publicationWithdrawn")}</span>
           )}
           {payload.bundle.status === "discarding" && (
-            <span className="text-body-sm font-medium text-status-warning">Penghapusan ZIP perlu dicoba lagi</span>
+            <span className="text-body-sm font-medium text-status-warning">{t("materials.retryZipDeletion")}</span>
           )}
           </div>
           {(["validated", "approved", "rejected", "published", "discarding"] as string[]).includes(payload.bundle.status) && (
             <DropdownMenu.Root>
               <DropdownMenu.Trigger asChild>
-                <Button type="button" size="sm" variant="outline" disabled={saving} aria-label="Aksi lainnya">
-                  <MoreHorizontal className="size-4" />Aksi lainnya
+                <Button type="button" size="sm" variant="outline" disabled={saving} aria-label={t("materials.moreActions")}>
+                  <MoreHorizontal className="size-4" />{t("materials.moreActions")}
                 </Button>
               </DropdownMenu.Trigger>
               <DropdownMenu.Portal>
                 <DropdownMenu.Content align="end" sideOffset={6} className="z-50 min-w-44 rounded-lg border border-border bg-popover p-1 text-body-sm text-popover-foreground shadow-lg">
                   {payload.bundle.status === "published" ? (
                     <DropdownMenu.Item onSelect={() => setConfirmAction("withdraw")} className="flex cursor-pointer items-center gap-2 rounded-md px-2.5 py-2 text-status-error outline-none focus:bg-muted">
-                      <ArchiveX className="size-3.5" />Tarik publikasi
+                      <ArchiveX className="size-3.5" />{t("materials.withdrawPublication")}
                     </DropdownMenu.Item>
                   ) : (
                     <DropdownMenu.Item onSelect={() => setConfirmAction("discard")} className="flex cursor-pointer items-center gap-2 rounded-md px-2.5 py-2 text-status-error outline-none focus:bg-muted">
-                      <Trash2 className="size-3.5" />Hapus bundle
+                      <Trash2 className="size-3.5" />{t("materials.deleteBundle")}
                     </DropdownMenu.Item>
                   )}
                 </DropdownMenu.Content>
@@ -837,9 +823,9 @@ export function IdeaBundleReviewDetail({ detailId, backHref, backLabel, showBack
       <AdminConfirmDialog
         open={confirmAction !== null}
         onOpenChange={(open) => { if (!open) setConfirmAction(null); }}
-        title={confirmAction === "withdraw" ? "Tarik publikasi Idea Bundle" : "Hapus Idea Bundle"}
-        description={confirmAction === "withdraw" ? "Idea dan sumber dari bundle ini tidak lagi aktif. Riwayat dan audit tetap disimpan." : "Bundle staging dan ZIP akan dihapus permanen."}
-        confirmLabel={confirmAction === "withdraw" ? "Ya, Tarik Publikasi" : "Ya, Hapus Bundle"}
+        title={confirmAction === "withdraw" ? t("materials.withdrawIdeaBundleTitle") : t("materials.deleteIdeaBundleTitle")}
+        description={confirmAction === "withdraw" ? t("materials.withdrawIdeaBundleDescription") : t("materials.deleteBundleDescription")}
+        confirmLabel={confirmAction === "withdraw" ? t("materials.confirmWithdraw") : t("materials.confirmDeleteBundle")}
         icon={confirmAction === "withdraw" ? ArchiveX : Trash2}
         destructive
         loading={saving}
@@ -848,12 +834,6 @@ export function IdeaBundleReviewDetail({ detailId, backHref, backLabel, showBack
     </div>
   );
 }
-
-const blockReviewLabels: Record<string, string> = {
-  pending: "Menunggu review",
-  approved: "Disetujui",
-  changes_requested: "Perlu revisi",
-};
 
 const blockReviewTones: Record<string, "muted" | "success" | "warning"> = {
   pending: "muted",
@@ -878,15 +858,35 @@ function ArticleBlockInspector({
   product: Extract<ProductEntity, { productType: "article" }>;
   dependencies?: ProductDependency[];
 }) {
+  const inspectorT = useTranslations("adminReviewProduct");
+  const statusLabel = (status: ProductBlockReview["status"]) => status === "approved"
+    ? inspectorT("status.approved")
+    : status === "changes_requested"
+      ? inspectorT("status.changesRequested")
+      : inspectorT("status.pending");
   if (!block || !parsed) {
     return (
       <div className="p-4 text-center text-body-xs text-muted-foreground">
-        Pilih blok materi di samping untuk memeriksa metadata dan detailnya.
+        {inspectorT("selectBlockHelp")}
       </div>
     );
   }
 
-  const meta = articleBlockMeta[block.blockType] ?? { label: block.blockType, badge: "Blok" };
+  const meta = (() => {
+    switch (block.blockType) {
+      case "prior_knowledge_activation": return { label: inspectorT("blockTypes.prior_knowledge_activation.label"), badge: inspectorT("blockTypes.prior_knowledge_activation.badge") };
+      case "problem_introduction": return { label: inspectorT("blockTypes.problem_introduction.label"), badge: inspectorT("blockTypes.problem_introduction.badge") };
+      case "explanation": return { label: inspectorT("blockTypes.explanation.label"), badge: inspectorT("blockTypes.explanation.badge") };
+      case "verbal_representation": return { label: inspectorT("blockTypes.verbal_representation.label"), badge: inspectorT("blockTypes.verbal_representation.badge") };
+      case "mathematical_representation": return { label: inspectorT("blockTypes.mathematical_representation.label"), badge: inspectorT("blockTypes.mathematical_representation.badge") };
+      case "worked_example": return { label: inspectorT("blockTypes.worked_example.label"), badge: inspectorT("blockTypes.worked_example.badge") };
+      case "misconception": return { label: inspectorT("blockTypes.misconception.label"), badge: inspectorT("blockTypes.misconception.badge") };
+      case "application": return { label: inspectorT("blockTypes.application.label"), badge: inspectorT("blockTypes.application.badge") };
+      case "cross_idea_synthesis": return { label: inspectorT("blockTypes.cross_idea_synthesis.label"), badge: inspectorT("blockTypes.cross_idea_synthesis.badge") };
+      case "summary": return { label: inspectorT("blockTypes.summary.label"), badge: inspectorT("blockTypes.summary.badge") };
+      default: return { label: block.blockType, badge: inspectorT("genericBlockBadge") };
+    }
+  })();
   const ideaIds = parsed.metadata?.ideaIds ?? product.ideaLinks.map((l) => l.id);
   const sourceRefs = parsed.metadata?.sourceRefs ?? product.sourceRefs;
   const learningPurpose = parsed.metadata?.learningPurpose;
@@ -899,9 +899,9 @@ function ArticleBlockInspector({
   );
 
   const freshnessLabels: Record<string, string> = {
-    UP_TO_DATE: "Mutakhir",
-    NEEDS_REVIEW: "Perlu review",
-    STALE: "Kedaluwarsa",
+    UP_TO_DATE: inspectorT("freshness.upToDate"),
+    NEEDS_REVIEW: inspectorT("freshness.needsReview"),
+    STALE: inspectorT("freshness.stale"),
   };
 
   const freshnessTones: Record<string, "success" | "warning" | "error" | "muted"> = {
@@ -919,7 +919,7 @@ function ArticleBlockInspector({
             {meta.badge}
           </Badge>
           <StatusBadge tone={blockReviewTones[review?.status ?? "pending"]}>
-            {blockReviewLabels[review?.status ?? "pending"]}
+            {statusLabel(review?.status ?? "pending")}
           </StatusBadge>
         </div>
         <h4 className="mt-1.5 font-heading text-body-sm font-bold text-foreground">
@@ -931,7 +931,7 @@ function ArticleBlockInspector({
       {/* Review Status & Note */}
       {review?.notes && (
         <div className="rounded-lg border border-border/80 bg-muted/40 p-2.5 space-y-1">
-          <span className="text-body-xs font-semibold text-foreground">Catatan review</span>
+          <span className="text-body-xs font-semibold text-foreground">{inspectorT("notes")}</span>
           <p className="text-body-xs text-muted-foreground whitespace-pre-wrap leading-relaxed">
             {review.notes}
           </p>
@@ -941,7 +941,7 @@ function ArticleBlockInspector({
       {/* Learning Purpose */}
       {learningPurpose && (
         <div className="space-y-1">
-          <span className="text-body-xs font-semibold text-foreground">Tujuan belajar</span>
+          <span className="text-body-xs font-semibold text-foreground">{inspectorT("learningPurpose")}</span>
           <p className="text-body-xs text-muted-foreground leading-relaxed bg-muted/20 p-2.5 rounded-lg border border-border/60">
             {learningPurpose}
           </p>
@@ -951,10 +951,10 @@ function ArticleBlockInspector({
       {/* Applicability */}
       {applicability && (
         <div className="space-y-1">
-          <span className="text-body-xs font-semibold text-foreground">Kesesuaian materi</span>
+          <span className="text-body-xs font-semibold text-foreground">{inspectorT("materialApplicability")}</span>
           <div className="rounded-lg border border-border/60 bg-muted/20 p-2.5 text-body-xs space-y-1">
             <div className="flex items-center justify-between">
-              <span className="text-muted-foreground">Status:</span>
+              <span className="text-muted-foreground">{inspectorT("statusLabel")}</span>
               <span className="font-semibold text-foreground">{applicability.status}</span>
             </div>
             {applicability.reason && (
@@ -969,7 +969,7 @@ function ArticleBlockInspector({
       {/* Source References & Excerpts */}
       <div className="space-y-1.5">
         <div className="flex items-center justify-between">
-          <span className="text-body-xs font-semibold text-foreground">Referensi sumber</span>
+          <span className="text-body-xs font-semibold text-foreground">{inspectorT("sourceReferences")}</span>
           <Badge variant="outline" className="text-body-xs">{sourceRefs.length}</Badge>
         </div>
         {sourceRefs.length > 0 ? (
@@ -990,14 +990,14 @@ function ArticleBlockInspector({
             ))}
           </div>
         ) : (
-          <p className="text-body-xs text-muted-foreground">Tidak ada referensi sumber eksplisit.</p>
+          <p className="text-body-xs text-muted-foreground">{inspectorT("noExplicitSourceReferences")}</p>
         )}
       </div>
 
       {/* Matching Dependency Freshness */}
       {matchingDeps.length > 0 && (
         <div className="space-y-1.5">
-          <span className="text-body-xs font-semibold text-foreground">Kesegaran dependensi</span>
+          <span className="text-body-xs font-semibold text-foreground">{inspectorT("dependencyFreshness")}</span>
           <div className="space-y-1">
             {matchingDeps.map((dep) => (
               <div key={dep.id} className="flex items-center justify-between gap-2 rounded-lg border border-border/60 bg-muted/20 p-2 text-body-xs">
@@ -1034,6 +1034,13 @@ function StructuredArticleProductView({
   itemReviews: ProductBlockReview[];
   onReviewChange?: (review: ProductBlockReview) => void;
 }) {
+  const adminT = useTranslations("admin");
+  const structuredArticleT = useTranslations("adminReviewProduct");
+  const statusLabel = (status: ProductBlockReview["status"]) => status === "approved"
+    ? structuredArticleT("status.approved")
+    : status === "changes_requested"
+      ? structuredArticleT("status.changesRequested")
+      : structuredArticleT("status.pending");
   const sections = useMemo(() => [...product.sections].sort((a, b) => a.orderIndex - b.orderIndex), [product.sections]);
   const [selectedSectionId, setSelectedSectionId] = useState(sections[0]?.id ?? "");
   const [mobileQueueOpen, setMobileQueueOpen] = useState(false);
@@ -1139,7 +1146,7 @@ function StructuredArticleProductView({
       });
       if (pending) setSelectedSectionId(pending.id);
     } catch (error) {
-      setReviewError(explainBundleError(error instanceof Error ? error.message : "PRODUCT_SECTION_REVIEW_UPDATE_FAILED"));
+      setReviewError(explainBundleError(error instanceof Error ? error.message : "PRODUCT_SECTION_REVIEW_UPDATE_FAILED", (key) => adminT(`bundleErrors.${key}`)));
     } finally {
       setSaving(false);
     }
@@ -1147,7 +1154,7 @@ function StructuredArticleProductView({
 
   const queue = (
     <div className="space-y-2">
-      <h3 className="font-heading text-body-sm font-bold">Bagian artikel</h3>
+      <h3 className="font-heading text-body-sm font-bold">{structuredArticleT("sectionQueue")}</h3>
       {sections.map((section) => {
         const sectionReview = reviews.find((entry) => entry.targetId === section.id);
         return (
@@ -1159,7 +1166,7 @@ function StructuredArticleProductView({
           >
             <div className="flex items-center justify-between gap-2 text-body-xs text-muted-foreground">
               <span>{numbering.get(section.id)}</span>
-              <StatusBadge tone={blockReviewTones[sectionReview?.status ?? "pending"]}>{blockReviewLabels[sectionReview?.status ?? "pending"]}</StatusBadge>
+              <StatusBadge tone={blockReviewTones[sectionReview?.status ?? "pending"]}>{statusLabel(sectionReview?.status ?? "pending")}</StatusBadge>
             </div>
             <p className="mt-1 truncate text-body-sm font-semibold text-foreground" title={section.title}>{section.title}</p>
           </button>
@@ -1172,10 +1179,10 @@ function StructuredArticleProductView({
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <Button type="button" variant="outline" onClick={() => setMobileQueueOpen(true)}>
-          <ListFilter className="mr-1 size-4" />Daftar bagian
+          <ListFilter className="mr-1 size-4" />{structuredArticleT("sectionQueue")}
         </Button>
         <Badge variant="outline" className="text-body-xs">
-          {reviews.filter((entry) => entry.status === "approved").length}/{sections.length} bagian disetujui
+          {structuredArticleT("sectionsApproved", { approved: reviews.filter((entry) => entry.status === "approved").length, total: sections.length })}
         </Badge>
       </div>
       <article className={cn(styles.structuredArticle, "mx-auto w-full space-y-6")}>
@@ -1195,39 +1202,39 @@ function StructuredArticleProductView({
         ) : (
           <AdminEmptyState
             icon={BookOpen}
-            title="Artikel belum memiliki bagian"
-            description="Tambahkan section V3 melalui authoring."
+            title={structuredArticleT("emptySectionsTitle")}
+            description={structuredArticleT("emptySectionsDescription")}
           />
         )}
       </article>
       {selected ? (
-        <section className={cn(styles.sectionReview, "space-y-3")} aria-label={`Review bagian ${selected.title}`}>
+        <section className={cn(styles.sectionReview, "space-y-3")} aria-label={structuredArticleT("sectionReviewAria", { title: selected.title })}>
           <div className="flex flex-wrap items-start justify-between gap-2">
             <div className="min-w-0">
-              <h3 className="font-heading text-body-sm font-bold text-foreground">Review bagian</h3>
+              <h3 className="font-heading text-body-sm font-bold text-foreground">{structuredArticleT("reviewSection")}</h3>
               <p className="mt-0.5 break-words text-body-xs text-muted-foreground">{selected.title}</p>
             </div>
             <StatusBadge tone={blockReviewTones[review?.status ?? "pending"]}>
-              {blockReviewLabels[review?.status ?? "pending"]}
+              {statusLabel(review?.status ?? "pending")}
             </StatusBadge>
           </div>
           {bundleStatus === "draft" && !reviewLocked ? (
             <>
-              <Label htmlFor={`section-review-notes-${selected.id}`} className="text-body-sm font-semibold">Catatan review</Label>
+              <Label htmlFor={`section-review-notes-${selected.id}`} className="text-body-sm font-semibold">{structuredArticleT("notes")}</Label>
               <Textarea
                 id={`section-review-notes-${selected.id}`}
                 value={notes}
                 onChange={(event) => setNotes(event.target.value)}
-                placeholder="Catatan untuk bagian ini"
+                placeholder={structuredArticleT("notesPlaceholder")}
                 className="min-h-20 text-body-sm"
               />
               {reviewError ? <p className="text-body-xs text-status-error">{reviewError}</p> : null}
               <div className="flex flex-wrap gap-2">
                 <Button type="button" disabled={saving} onClick={() => void saveSectionReview("approved")} className="bg-status-success text-white hover:bg-status-success/90">
-                  <Check className="mr-1 size-4" />Setujui bagian
+                  <Check className="mr-1 size-4" />{structuredArticleT("approveSection")}
                 </Button>
                 <Button type="button" disabled={saving} variant="outline" onClick={() => void saveSectionReview("changes_requested")} className="border-status-warning text-status-warning">
-                  <AlertTriangle className="mr-1 size-4" />Minta perbaikan
+                  <AlertTriangle className="mr-1 size-4" />{structuredArticleT("requestSectionChanges")}
                 </Button>
               </div>
             </>
@@ -1236,7 +1243,7 @@ function StructuredArticleProductView({
           ) : null}
         </section>
       ) : null}
-      <Sheet open={mobileQueueOpen} onOpenChange={setMobileQueueOpen}><SheetContent side="left" className="overflow-y-auto"><SheetHeader><SheetTitle>Daftar bagian</SheetTitle></SheetHeader><div className="mt-4">{queue}</div></SheetContent></Sheet>
+      <Sheet open={mobileQueueOpen} onOpenChange={setMobileQueueOpen}><SheetContent side="left" className="overflow-y-auto"><SheetHeader><SheetTitle>{structuredArticleT("sectionQueue")}</SheetTitle></SheetHeader><div className="mt-4">{queue}</div></SheetContent></Sheet>
     </div>
   );
 }
@@ -1262,6 +1269,28 @@ function LegacyArticleProductView({
   onBlockReviewChange?: (review: ProductBlockReview) => void;
   dependencies?: ProductDependency[];
 }) {
+  const adminT = useTranslations("admin");
+  const legacyArticleT = useTranslations("adminReviewProduct");
+  const statusLabel = (status: ProductBlockReview["status"]) => status === "approved"
+    ? legacyArticleT("status.approved")
+    : status === "changes_requested"
+      ? legacyArticleT("status.changesRequested")
+      : legacyArticleT("status.pending");
+  const blockTypeLabel = (blockType: string) => {
+    switch (blockType) {
+      case "prior_knowledge_activation": return legacyArticleT("blockTypes.prior_knowledge_activation.label");
+      case "problem_introduction": return legacyArticleT("blockTypes.problem_introduction.label");
+      case "explanation": return legacyArticleT("blockTypes.explanation.label");
+      case "verbal_representation": return legacyArticleT("blockTypes.verbal_representation.label");
+      case "mathematical_representation": return legacyArticleT("blockTypes.mathematical_representation.label");
+      case "worked_example": return legacyArticleT("blockTypes.worked_example.label");
+      case "misconception": return legacyArticleT("blockTypes.misconception.label");
+      case "application": return legacyArticleT("blockTypes.application.label");
+      case "cross_idea_synthesis": return legacyArticleT("blockTypes.cross_idea_synthesis.label");
+      case "summary": return legacyArticleT("blockTypes.summary.label");
+      default: return blockType.replaceAll("_", " ");
+    }
+  };
   const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null);
   const [mobileInspectorOpen, setMobileInspectorOpen] = useState(false);
   const [blockNotes, setBlockNotes] = useState<Record<string, string>>({});
@@ -1347,7 +1376,7 @@ function LegacyArticleProductView({
       setSavingStates((prev) => ({ ...prev, [blockId]: "error" }));
       setSaveErrors((prev) => ({
         ...prev,
-        [blockId]: saveError instanceof Error ? explainBundleError(saveError.message) : "Review blok belum dapat disimpan. Coba lagi.",
+        [blockId]: explainBundleError(saveError instanceof Error ? saveError.message : "PRODUCT_BLOCK_REVIEW_UPDATE_FAILED", (key) => adminT(`bundleErrors.${key}`)),
       }));
     }
   }
@@ -1381,7 +1410,7 @@ function LegacyArticleProductView({
       )}>
         {viewMode === "blocks" && (
           <div>
-            <span className="text-body-xs font-semibold uppercase tracking-wider text-brand-primary">Artikel Bab</span>
+            <span className="text-body-xs font-semibold uppercase tracking-wider text-brand-primary">{legacyArticleT("articleChapter")}</span>
             <h3 className="mt-0.5 font-heading text-body-base font-bold text-foreground">{product.title}</h3>
           </div>
         )}
@@ -1394,7 +1423,7 @@ function LegacyArticleProductView({
             className="h-8 text-body-xs gap-1.5"
           >
             <BookOpen className="size-3.5" />
-            Tampilan Siswa
+            {legacyArticleT("studentView")}
           </Button>
           <Button
             type="button"
@@ -1404,7 +1433,7 @@ function LegacyArticleProductView({
             className="h-8 text-body-xs gap-1.5"
           >
             <Layers className="size-3.5" />
-            Mode Blok ({sortedBlocks.length})
+            {legacyArticleT("blockMode", { count: sortedBlocks.length })}
           </Button>
           {viewMode === "blocks" && (
             <Sheet open={mobileInspectorOpen} onOpenChange={setMobileInspectorOpen}>
@@ -1414,15 +1443,15 @@ function LegacyArticleProductView({
                   size="sm"
                   variant="outline"
                   className={cn(styles.mobileInspector, "h-8 items-center gap-1.5 text-body-xs")}
-                  aria-label="Buka inspector"
+                  aria-label={legacyArticleT("openInspector")}
                 >
                   <Info className="size-3.5" />
-                  Info
+                  {legacyArticleT("info")}
                 </Button>
               </SheetTrigger>
               <SheetContent side="right" className="flex flex-col w-full sm:max-w-md p-4 overflow-y-auto">
                 <SheetHeader className="pb-3 border-b border-border text-left">
-                  <SheetTitle className="text-body-base font-semibold">Inspector blok materi</SheetTitle>
+                  <SheetTitle className="text-body-base font-semibold">{legacyArticleT("blockInspector")}</SheetTitle>
                 </SheetHeader>
                 <div className="py-3">
                   <ArticleBlockInspector
@@ -1457,7 +1486,9 @@ function LegacyArticleProductView({
             <div className="space-y-3">
               {sortedBlocks.map((block, idx) => {
                 const parsed = parseEmbeddedContent(block.content);
-                const meta = articleBlockMeta[block.blockType] ?? { label: block.blockType.replaceAll("_", " "), badge: "Materi" };
+                const metaLabel = articleBlockMeta[block.blockType]
+                  ? blockTypeLabel(block.blockType)
+                  : block.blockType.replaceAll("_", " ");
                 const review = blockReviewMap[block.id];
                 const currentStatus = review?.status ?? "pending";
                 const isSelected = selectedBlockId === block.id;
@@ -1484,7 +1515,7 @@ function LegacyArticleProductView({
                         <span className="flex size-5 shrink-0 items-center justify-center rounded bg-muted font-mono text-body-xs font-bold text-muted-foreground">
                           {idx + 1}
                         </span>
-                        <span className="text-body-sm font-semibold text-foreground">{meta.label}</span>
+                        <span className="text-body-sm font-semibold text-foreground">{metaLabel}</span>
                         <Badge variant="outline" className="font-mono text-body-xs hidden sm:inline-flex">
                           {block.blockType}
                         </Badge>
@@ -1494,11 +1525,11 @@ function LegacyArticleProductView({
                       <div className="flex items-center gap-2">
                         {/* Save State Indicator */}
                         {saveState === "saving" && (
-                          <span className="text-body-xs text-muted-foreground animate-pulse">Menyimpan...</span>
+                            <span className="text-body-xs text-muted-foreground animate-pulse">{legacyArticleT("saving")}</span>
                         )}
                         {saveState === "saved" && (
                           <span className="text-body-xs text-status-success flex items-center gap-1">
-                            <Check className="size-3" /> Tersimpan
+                            <Check className="size-3" /> {legacyArticleT("saved")}
                           </span>
                         )}
                         {saveState === "error" && (
@@ -1509,7 +1540,7 @@ function LegacyArticleProductView({
                             className="h-7 px-2 text-body-xs text-status-error"
                             onClick={() => void saveBlockReview(block.id, currentStatus)}
                           >
-                            Coba lagi
+                            {legacyArticleT("retry")}
                           </Button>
                         )}
 
@@ -1525,10 +1556,10 @@ function LegacyArticleProductView({
                                 currentStatus === "approved" && "bg-status-success text-white hover:bg-status-success/90"
                               )}
                               onClick={() => void saveBlockReview(block.id, currentStatus === "approved" ? "pending" : "approved")}
-                              title={currentStatus === "approved" ? "Batalkan persetujuan" : "Setujui blok ini"}
+                              title={currentStatus === "approved" ? legacyArticleT("cancelApproval") : legacyArticleT("approveBlock")}
                             >
                               <Check className="size-3" />
-                              <span className="hidden sm:inline">Setujui</span>
+                              <span className="hidden sm:inline">{legacyArticleT("approve")}</span>
                             </Button>
                             <Button
                               type="button"
@@ -1539,15 +1570,15 @@ function LegacyArticleProductView({
                                 currentStatus === "changes_requested" && "bg-status-warning text-white hover:bg-status-warning/90"
                               )}
                               onClick={() => void saveBlockReview(block.id, currentStatus === "changes_requested" ? "pending" : "changes_requested")}
-                              title={currentStatus === "changes_requested" ? "Batalkan permintaan perbaikan" : "Minta perbaikan blok ini"}
+                              title={currentStatus === "changes_requested" ? legacyArticleT("cancelChangesRequest") : legacyArticleT("requestBlockChanges")}
                             >
                               <AlertTriangle className="size-3" />
-                              <span className="hidden sm:inline">Perbaikan</span>
+                              <span className="hidden sm:inline">{legacyArticleT("correction")}</span>
                             </Button>
                           </div>
                         ) : (
                           <StatusBadge tone={blockReviewTones[currentStatus]}>
-                            {blockReviewLabels[currentStatus]}
+                            {statusLabel(currentStatus)}
                           </StatusBadge>
                         )}
                       </div>
@@ -1570,7 +1601,7 @@ function LegacyArticleProductView({
                           onBlur={() => handleNoteBlur(block.id)}
                           onFocus={() => setSelectedBlockId(block.id)}
                           onKeyDown={(e) => handleNoteKeyDown(e, block.id)}
-                          placeholder="Catatan blok opsional (tersimpan saat blur atau Ctrl+Enter)..."
+                          placeholder={legacyArticleT("blockNotesPlaceholder")}
                           className="min-h-14 text-body-xs bg-background"
                         />
                         {(() => {
@@ -1578,10 +1609,10 @@ function LegacyArticleProductView({
                           const storedNote = review?.notes ?? "";
                           const isDirty = currentNote !== undefined && currentNote.trim() !== storedNote.trim();
                           if (saveState === "error") {
-                            return <p className="text-body-xs text-status-error">{saveErrors[block.id] ?? "Gagal menyimpan review blok."}</p>;
+                            return <p className="text-body-xs text-status-error">{saveErrors[block.id] ?? legacyArticleT("saveBlockError")}</p>;
                           }
                           if (isDirty && saveState !== "saving") {
-                            return <p className="text-body-xs text-muted-foreground">Belum disimpan</p>;
+                            return <p className="text-body-xs text-muted-foreground">{legacyArticleT("unsaved")}</p>;
                           }
                           return null;
                         })()}
@@ -1595,9 +1626,9 @@ function LegacyArticleProductView({
             {/* Right Column: Sticky Inspector on Desktop */}
             <aside className={cn(styles.desktopInspector, "sticky top-4 border-t border-border pt-3")}>
               <div className="flex items-center justify-between border-b border-border pb-2.5 mb-3">
-                <h4 className="font-heading text-body-sm font-bold text-foreground">Inspector blok</h4>
+                <h4 className="font-heading text-body-sm font-bold text-foreground">{legacyArticleT("blocksInspectorHeading")}</h4>
                 <Badge variant="outline" className="text-body-xs">
-                  {sortedBlocks.length} total
+                  {legacyArticleT("totalBlocks", { count: sortedBlocks.length })}
                 </Badge>
               </div>
               <ArticleBlockInspector
@@ -1644,6 +1675,7 @@ export function DiktatProductView({
   pdfStatus?: { status: string; pageCount?: number | null };
   onPdfRendered?: () => void;
 }) {
+  const t = useTranslations("adminAcademic");
   const [rendering, setRendering] = useState(false);
   const [renderedKey, setRenderedKey] = useState<string | null>(product.fileKey ?? null);
   const parsed = parseEmbeddedContent(product.contentMarkdown);
@@ -1653,9 +1685,9 @@ export function DiktatProductView({
   );
 
   const freshnessLabels: Record<string, string> = {
-    UP_TO_DATE: "Mutakhir",
-    NEEDS_REVIEW: "Perlu review",
-    STALE: "Kedaluwarsa",
+    UP_TO_DATE: t("materials.readiness.freshness.UP_TO_DATE"),
+    NEEDS_REVIEW: t("materials.readiness.freshness.NEEDS_REVIEW"),
+    STALE: t("materials.readiness.freshness.STALE"),
   };
 
   const freshnessTones: Record<string, "success" | "warning" | "error" | "muted"> = {
@@ -1675,23 +1707,22 @@ export function DiktatProductView({
       if (bundleId) {
         const res = await fetch(`/api/admin/bundles/product/${encodeURIComponent(bundleId)}/pdf`, { method: "POST" });
         if (!res.ok) {
-          const body = await res.json().catch(() => ({}));
-          throw new Error(body.error || "Gagal mengantrekan render PDF");
+          throw new Error(t("materials.productView.pdfRenderFailed"));
         }
-        toast.success("Permintaan render PDF berhasil dikirim.");
+        toast.success(t("materials.productView.pdfRenderQueued"));
         onPdfRendered?.();
       } else {
         const res = await fetch(`/api/admin/diktats/${encodeURIComponent(product.id)}/pdf`, { method: "POST" });
         const data = await res.json();
         if (!res.ok || !data.ok) {
-          throw new Error(data.error || "Gagal merender PDF diktat");
+          throw new Error(t("materials.productView.pdfRenderFailed"));
         }
         setRenderedKey(data.fileKey);
-        toast.success("PDF diktat berhasil dirender.");
+        toast.success(t("materials.productView.pdfRendered"));
         onPdfRendered?.();
       }
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Gagal memproses render PDF");
+      toast.error(err instanceof Error ? err.message : t("materials.productView.pdfRenderFailed"));
     } finally {
       setRendering(false);
     }
@@ -1704,12 +1735,12 @@ export function DiktatProductView({
         <div className="flex flex-wrap items-center gap-2.5">
           {product.sourceArticleVersion ? (
             <p className="text-body-xs text-muted-foreground">
-              Artikel sumber: <span className="font-semibold text-foreground">v{product.sourceArticleVersion}</span>
+              {t("materials.productView.sourceArticle")}: <span className="font-semibold text-foreground">v{product.sourceArticleVersion}</span>
             </p>
           ) : null}
           {matchingDep && (
             <div className="flex items-center gap-1.5">
-              <span className="text-body-xs text-muted-foreground">Dependensi:</span>
+              <span className="text-body-xs text-muted-foreground">{t("materials.productView.dependency")}</span>
               <StatusBadge tone={freshnessTones[matchingDep.freshness] ?? "muted"}>
                 {freshnessLabels[matchingDep.freshness] ?? matchingDep.freshness}
               </StatusBadge>
@@ -1721,7 +1752,7 @@ export function DiktatProductView({
             <Button asChild type="button" size="sm" variant="outline" className="gap-1.5 h-8 text-body-xs">
               <a href={pdfViewUrl} target="_blank" rel="noreferrer">
                 <FileText className="size-3.5" />
-                Pratinjau PDF
+                {t("materials.productView.previewPdf")}
               </a>
             </Button>
           )}
@@ -1737,17 +1768,17 @@ export function DiktatProductView({
             {rendering ? (
               <>
                 <Loader2 className="size-3.5 animate-spin" />
-                Merender...
+                {t("materials.productView.rendering")}
               </>
             ) : hasPdf ? (
               <>
                 <RotateCcw className="size-3.5" />
-                Render ulang PDF
+                {t("materials.productView.rerenderPdf")}
               </>
             ) : (
               <>
                 <FileText className="size-3.5" />
-                Render PDF
+                {t("materials.productView.renderPdf")}
               </>
             )}
           </Button>
@@ -1763,6 +1794,7 @@ export function DiktatProductView({
 }
 
 export function FlashcardProductView({ product }: { product: Extract<ProductEntity, { productType: "flashcard" }> | { id: string; front: string; back: string; explanation?: string | null } }) {
+  const t = useTranslations("adminAcademic");
   const [isFlipped, setIsFlipped] = useState(false);
   const parsedFront = parseEmbeddedContent(product.front);
   const parsedBack = parseEmbeddedContent(product.back);
@@ -1772,8 +1804,8 @@ export function FlashcardProductView({ product }: { product: Extract<ProductEnti
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border pb-3">
         <div>
-          <span className="text-body-xs font-semibold uppercase tracking-wider text-brand-primary">Kartu Hafalan</span>
-          <h3 className="mt-0.5 font-heading text-body-sm font-bold text-foreground">Kartu Hafalan</h3>
+          <span className="text-body-xs font-semibold uppercase tracking-wider text-brand-primary">{t("materials.productView.flashcard")}</span>
+          <h3 className="mt-0.5 font-heading text-body-sm font-bold text-foreground">{t("materials.productView.flashcard")}</h3>
         </div>
         <Button
           type="button"
@@ -1783,7 +1815,7 @@ export function FlashcardProductView({ product }: { product: Extract<ProductEnti
           className="h-8 gap-1.5 text-body-xs"
         >
           <RotateCcw className="size-3.5" />
-          Balik Kartu ({isFlipped ? "Depan" : "Belakang"})
+          {t("materials.productView.flipCard", { side: isFlipped ? t("materials.productView.front") : t("materials.productView.back") })}
         </Button>
       </div>
 
@@ -1802,10 +1834,10 @@ export function FlashcardProductView({ product }: { product: Extract<ProductEnti
       >
         <div className="flex items-center justify-between border-b border-border/40 pb-2">
           <Badge variant={isFlipped ? "default" : "outline"} className="text-body-xs">
-            {isFlipped ? "Sisi Belakang · Jawaban" : "Sisi Depan · Pertanyaan"}
+            {isFlipped ? t("materials.productView.backAnswer") : t("materials.productView.frontQuestion")}
           </Badge>
           <span className="text-body-xs text-muted-foreground flex items-center gap-1">
-            <RotateCcw className="size-3" /> Klik balik
+            <RotateCcw className="size-3" /> {t("materials.productView.clickToFlip")}
           </span>
         </div>
 
@@ -1815,8 +1847,8 @@ export function FlashcardProductView({ product }: { product: Extract<ProductEnti
 
         <div className="text-center text-body-xs text-muted-foreground">
           {"ideaLinks" in product && Array.isArray(product.ideaLinks) && product.ideaLinks.length > 0
-            ? `${product.ideaLinks.length} Idea terhubung`
-            : "Flashcard"}
+            ? t("materials.productView.linkedIdeas", { count: product.ideaLinks.length })
+            : t("materials.productView.flashcard")}
         </div>
       </div>
 
@@ -1825,7 +1857,7 @@ export function FlashcardProductView({ product }: { product: Extract<ProductEnti
         <div className="rounded-xl border border-border bg-muted/40 p-4 space-y-1.5">
           <div className="flex items-center gap-1.5 text-body-xs font-semibold text-foreground">
             <Lightbulb className="size-3.5 text-brand-secondary" />
-            <span>Penjelasan</span>
+            <span>{t("materials.productView.explanation")}</span>
           </div>
           <div className="text-body-sm text-foreground/90 pl-5">
             <MarkdownRenderer content={parsedExplanation.content} />
@@ -1837,6 +1869,7 @@ export function FlashcardProductView({ product }: { product: Extract<ProductEnti
 }
 
 function FlashcardSetProductView({ product, allProducts, onSelectCard }: { product: Extract<ProductEntity, { productType: "flashcard_set" }>; allProducts: ProductEntity[]; onSelectCard: (id: string) => void }) {
+  const t = useTranslations("adminAcademic");
   const childCards = useMemo(() => {
     return allProducts.filter((p): p is Extract<ProductEntity, { productType: "flashcard" }> => p.productType === "flashcard" && (p.setId === product.id || product.cards.includes(p.id)));
   }, [allProducts, product]);
@@ -1844,9 +1877,9 @@ function FlashcardSetProductView({ product, allProducts, onSelectCard }: { produ
   return (
     <div className="space-y-4">
       <div className="border-b border-border pb-3">
-        <span className="text-body-xs font-semibold uppercase tracking-wider text-brand-primary">Set Flashcard</span>
+        <span className="text-body-xs font-semibold uppercase tracking-wider text-brand-primary">{t("materials.productView.flashcardSet")}</span>
         <h3 className="mt-0.5 font-heading text-body-base font-bold text-foreground">{product.title}</h3>
-        <p className="text-body-xs text-muted-foreground">{product.cards.length} kartu</p>
+        <p className="text-body-xs text-muted-foreground">{t("materials.productView.cardCount", { count: product.cards.length })}</p>
       </div>
 
       <div className="divide-y divide-border rounded-xl border border-border bg-card">
@@ -1880,10 +1913,22 @@ export function QuestionProductView({ product }: { product: Extract<ProductEntit
   cognitiveLevel: "remember" | "understand" | "apply" | "analyze" | "evaluate" | "create";
   itbSource?: { eventName: string; referenceId: string };
 } }) {
+  const questionT = useTranslations("adminReviewProduct");
   const promptParsed = parseEmbeddedContent(product.prompt);
-  const difficultyLabels: Record<string, string> = { easy: "Mudah", medium: "Sedang", hard: "Sulit" };
+  const difficultyLabels: Record<string, string> = {
+    easy: questionT("difficulty.easy"),
+    medium: questionT("difficulty.medium"),
+    hard: questionT("difficulty.hard"),
+  };
   const difficultyTones: Record<string, "success" | "warning" | "error"> = { easy: "success", medium: "warning", hard: "error" };
-  const cognitiveLabels: Record<string, string> = { remember: "Mengingat", understand: "Memahami", apply: "Menerapkan", analyze: "Menganalisis", evaluate: "Mengevaluasi", create: "Mencipta" };
+  const cognitiveLabels: Record<string, string> = {
+    remember: questionT("cognitive.remember"),
+    understand: questionT("cognitive.understand"),
+    apply: questionT("cognitive.apply"),
+    analyze: questionT("cognitive.analyze"),
+    evaluate: questionT("cognitive.evaluate"),
+    create: questionT("cognitive.create"),
+  };
 
   return (
     <div className="space-y-4">
@@ -1893,10 +1938,10 @@ export function QuestionProductView({ product }: { product: Extract<ProductEntit
           {product.itbSource ? (
             <>
               <span className="text-body-xs font-semibold uppercase tracking-wider text-brand-primary">{product.itbSource.eventName}</span>
-              <p className="text-body-xs text-muted-foreground">Ref: <span className="font-mono font-semibold text-foreground">{product.itbSource.referenceId}</span></p>
+              <p className="text-body-xs text-muted-foreground">{questionT("referencePrefix")} <span className="font-mono font-semibold text-foreground">{product.itbSource.referenceId}</span></p>
             </>
           ) : (
-            <span className="text-body-xs font-semibold uppercase tracking-wider text-brand-primary">Bank Soal</span>
+            <span className="text-body-xs font-semibold uppercase tracking-wider text-brand-primary">{questionT("questionBank")}</span>
           )}
         </div>
         <div className="flex items-center gap-1.5">
@@ -1945,7 +1990,7 @@ export function QuestionProductView({ product }: { product: Extract<ProductEntit
                   </div>
                   {opt.isCorrect && (
                     <Badge variant="default" className="shrink-0 bg-status-success text-white text-[10px] gap-1">
-                      <CheckCircle2 className="size-3" /> Benar
+                      <CheckCircle2 className="size-3" /> {questionT("correctAnswer")}
                     </Badge>
                   )}
                 </div>
@@ -1959,13 +2004,14 @@ export function QuestionProductView({ product }: { product: Extract<ProductEntit
 }
 
 function SolutionProductView({ product }: { product: Extract<ProductEntity, { productType: "solution" }> }) {
+  const solutionT = useTranslations("adminReviewProduct");
   const contentParsed = parseEmbeddedContent(product.content);
 
   return (
     <div className="space-y-4">
       <div className="border-b border-border pb-3">
-        <span className="text-body-xs font-semibold uppercase tracking-wider text-brand-primary">Pembahasan Soal</span>
-        <h3 className="mt-0.5 font-heading text-body-base font-bold text-foreground">Pembahasan Soal</h3>
+        <span className="text-body-xs font-semibold uppercase tracking-wider text-brand-primary">{solutionT("solutionTitle")}</span>
+        <h3 className="mt-0.5 font-heading text-body-base font-bold text-foreground">{solutionT("solutionTitle")}</h3>
       </div>
       <div className="py-2">
         <div className="prose dark:prose-invert max-w-none text-body-base leading-relaxed text-foreground">
@@ -1982,21 +2028,22 @@ export function AssessmentBlueprintProductView({ product }: { product: Extract<P
   chapterIds: string[];
   questionIds: string[];
 } }) {
+  const blueprintT = useTranslations("adminReviewProduct");
   return (
     <div className="space-y-4">
       <div className="border-b border-border pb-3">
-        <span className="text-body-xs font-semibold uppercase tracking-wider text-brand-primary">Blueprint Asesmen ({product.assessmentType.toUpperCase()})</span>
+        <span className="text-body-xs font-semibold uppercase tracking-wider text-brand-primary">{blueprintT("assessmentBlueprint", { type: product.assessmentType.toUpperCase() })}</span>
         <h3 className="mt-0.5 font-heading text-body-base font-bold text-foreground">{product.title}</h3>
       </div>
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="border-t border-border pt-3 space-y-2">
-          <h4 className="text-body-xs font-semibold text-foreground uppercase tracking-wider">Bab ({product.chapterIds.length})</h4>
+          <h4 className="text-body-xs font-semibold text-foreground uppercase tracking-wider">{blueprintT("chapterCount", { count: product.chapterIds.length })}</h4>
           <div className="flex flex-wrap gap-1.5">
             {product.chapterIds.map((ch) => <Badge key={ch} variant="secondary">{ch}</Badge>)}
           </div>
         </div>
         <div className="border-t border-border pt-3 space-y-2">
-          <h4 className="text-body-xs font-semibold text-foreground uppercase tracking-wider">Soal ({product.questionIds.length})</h4>
+          <h4 className="text-body-xs font-semibold text-foreground uppercase tracking-wider">{blueprintT("questionCount", { count: product.questionIds.length })}</h4>
           <div className="flex flex-wrap gap-1">
             {product.questionIds.map((qid) => <span key={qid} className="rounded bg-muted px-1.5 py-0.5 font-mono text-[10px] text-foreground">{qid}</span>)}
           </div>
@@ -2017,6 +2064,7 @@ type ConfirmActionState =
 
 /** Shows PDF and content readiness, including blocking publication issues. */
 function BundleReadinessPanel({ payload, onRefresh }: { payload: ProductDetailPayload; onRefresh: () => Promise<void> }) {
+  const t = useTranslations("adminAcademic");
   const [pdfBusy, setPdfBusy] = useState(false);
   const [pdfRequestFailed, setPdfRequestFailed] = useState(false);
   const pdf = payload.pdfStatus ?? { status: "pending" as const };
@@ -2041,37 +2089,37 @@ function BundleReadinessPanel({ payload, onRefresh }: { payload: ProductDetailPa
   };
 
   return (
-    <section className={cn(styles.bundleReadiness, "space-y-2")} aria-label="Status konten dan PDF">
+    <section className={cn(styles.bundleReadiness, "space-y-2")} aria-label={t("materials.readiness.label")}>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap items-center gap-2">
           <StatusBadge tone={pdf.status === "ready" ? "success" : pdf.status === "failed" ? "error" : "warning"}>
-            PDF {pdf.status === "ready" ? `siap${pdf.pageCount ? `, ${pdf.pageCount} halaman` : ""}` : pdf.status === "failed" ? "gagal" : pdf.status === "stale" ? "perlu dirender ulang" : "menunggu"}
+            {t(`materials.readiness.pdfStatus.${pdf.status}`)}{pdf.status === "ready" && pdf.pageCount ? `, ${t("materials.readiness.pageCount", { count: pdf.pageCount })}` : ""}
           </StatusBadge>
           {freshness ? (
             <StatusBadge tone={freshness.isFresh ? "success" : freshness.completenessState === "stale" ? "error" : "warning"}>
-              {freshness.isFresh ? "Konten mutakhir" : "Review konten perlu diperbarui"}
+              {freshness.isFresh ? t("materials.readiness.contentCurrent") : t("materials.readiness.reviewStale")}
             </StatusBadge>
           ) : null}
           {payload.qualityEvaluation ? (
             <StatusBadge tone={payload.qualityEvaluation.publicationReady ? "success" : "warning"}>
-              {payload.qualityEvaluation.publicationReady ? "Pemeriksaan konten lolos" : "Periksa kualitas konten"}
+              {payload.qualityEvaluation.publicationReady ? t("materials.readiness.qualityPassed") : t("materials.readiness.checkQuality")}
             </StatusBadge>
           ) : null}
         </div>
         {pdf.status === "ready" ? (
           <Button asChild type="button" size="sm" variant="outline">
-            <a href={`/api/admin/bundles/product/${encodeURIComponent(payload.bundle.id)}/pdf`} target="_blank" rel="noreferrer">Lihat PDF</a>
+            <a href={`/api/admin/bundles/product/${encodeURIComponent(payload.bundle.id)}/pdf`} target="_blank" rel="noreferrer">{t("materials.readiness.viewPdf")}</a>
           </Button>
         ) : (
           <Button type="button" size="sm" variant="outline" disabled={pdfBusy} onClick={() => void requestPdf()}>
-            {pdfBusy ? "Mengantrekan..." : pdf.status === "failed" || pdf.status === "stale" ? "Render ulang PDF" : "Render PDF"}
+            {pdfBusy ? t("materials.readiness.queueing") : pdf.status === "failed" || pdf.status === "stale" ? t("materials.readiness.rerenderPdf") : t("materials.readiness.renderPdf")}
           </Button>
         )}
       </div>
-      {pdfRequestFailed ? <p className="text-body-xs text-status-error">PDF belum dapat diproses. Periksa layanan renderer, lalu coba lagi.</p> : null}
+      {pdfRequestFailed ? <p className="text-body-xs text-status-error">{t("materials.readiness.pdfRequestFailed")}</p> : null}
       {(payload.blockingIssues?.length ?? 0) > 0 ? (
         <div className="space-y-1 border-t border-status-error/30 pt-2">
-          <p className="text-body-xs font-semibold text-status-error">Penghambat publikasi</p>
+          <p className="text-body-xs font-semibold text-status-error">{t("materials.readiness.publicationBlockers")}</p>
           <ul className="space-y-1 text-body-xs text-foreground">
             {payload.blockingIssues?.map((issue) => (
               <li key={`${issue.code}:${issue.target.targetId}`}>{issue.reason}{issue.remediation ? ` ${issue.remediation}` : ""}</li>
@@ -2090,6 +2138,7 @@ function ProductBundleMetadataPanel({
   payload: ProductDetailPayload;
   courseLabels?: Record<string, string>;
 }) {
+  const t = useTranslations("adminAcademic");
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
   const copyToClipboard = async (text: string, key: string) => {
@@ -2097,9 +2146,9 @@ function ProductBundleMetadataPanel({
       await navigator.clipboard.writeText(text);
       setCopiedKey(key);
       setTimeout(() => setCopiedKey(null), 2000);
-      toast.success("ID disalin ke clipboard");
+      toast.success(t("materials.bundleMetadata.copied"));
     } catch {
-      toast.error("Gagal menyalin ID");
+      toast.error(t("materials.bundleMetadata.copyFailed"));
     }
   };
 
@@ -2108,13 +2157,13 @@ function ProductBundleMetadataPanel({
       {/* Bundle Info Card */}
       <div className="rounded-xl border border-border bg-card p-5 shadow-xs space-y-4">
         <div className="border-b border-border/70 pb-3">
-          <h3 className="font-heading text-body-base font-bold text-foreground">Metadata Bundle</h3>
-          <p className="text-body-xs text-muted-foreground mt-0.5">Informasi teknis dan identitas bundle untuk audit admin.</p>
+          <h3 className="font-heading text-body-base font-bold text-foreground">{t("materials.bundleMetadata.title")}</h3>
+          <p className="text-body-xs text-muted-foreground mt-0.5">{t("materials.bundleMetadata.description")}</p>
         </div>
 
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           <div className="rounded-lg border border-border/60 bg-muted/20 p-3 space-y-1">
-            <span className="text-body-xs text-muted-foreground">Bundle ID</span>
+            <span className="text-body-xs text-muted-foreground">{t("materials.bundleMetadata.bundleId")}</span>
             <div className="flex items-center justify-between gap-2">
               <span className="font-mono text-body-xs font-semibold text-foreground truncate">{payload.bundle.id}</span>
               <Button
@@ -2123,7 +2172,7 @@ function ProductBundleMetadataPanel({
                 size="sm"
                 className="h-6 w-6 p-0 shrink-0"
                 onClick={() => void copyToClipboard(payload.bundle.id, "bundle-id")}
-                aria-label="Salin Bundle ID"
+                aria-label={t("materials.bundleMetadata.copyBundleId")}
               >
                 {copiedKey === "bundle-id" ? <Check className="size-3 text-status-success" /> : <Copy className="size-3" />}
               </Button>
@@ -2131,9 +2180,9 @@ function ProductBundleMetadataPanel({
           </div>
 
           <div className="rounded-lg border border-border/60 bg-muted/20 p-3 space-y-1">
-            <span className="text-body-xs text-muted-foreground">Mata Kuliah</span>
+            <span className="text-body-xs text-muted-foreground">{t("materials.bundleMetadata.course")}</span>
             <p className="font-medium text-body-xs text-foreground truncate">
-              {payload.bundle.courseId ? courseLabels[payload.bundle.courseId] ?? payload.bundle.courseId : "Belum terpetakan"}
+              {payload.bundle.courseId ? courseLabels[payload.bundle.courseId] ?? payload.bundle.courseId : t("materials.bundleMetadata.courseUnmapped")}
             </p>
             {payload.bundle.courseId && (
               <span className="font-mono text-body-2xs text-muted-foreground block truncate">{payload.bundle.courseId}</span>
@@ -2141,7 +2190,7 @@ function ProductBundleMetadataPanel({
           </div>
 
           <div className="rounded-lg border border-border/60 bg-muted/20 p-3 space-y-1">
-            <span className="text-body-xs text-muted-foreground">Checksum</span>
+            <span className="text-body-xs text-muted-foreground">{t("materials.bundleMetadata.checksum")}</span>
             <div className="flex items-center justify-between gap-2">
               <span className="font-mono text-body-xs text-foreground truncate">{payload.bundle.checksum}</span>
               <Button
@@ -2150,7 +2199,7 @@ function ProductBundleMetadataPanel({
                 size="sm"
                 className="h-6 w-6 p-0 shrink-0"
                 onClick={() => void copyToClipboard(payload.bundle.checksum, "checksum")}
-                aria-label="Salin Checksum"
+                aria-label={t("materials.bundleMetadata.copyChecksum")}
               >
                 {copiedKey === "checksum" ? <Check className="size-3 text-status-success" /> : <Copy className="size-3" />}
               </Button>
@@ -2158,7 +2207,7 @@ function ProductBundleMetadataPanel({
           </div>
 
           <div className="rounded-lg border border-border/60 bg-muted/20 p-3 space-y-1">
-            <span className="text-body-xs text-muted-foreground">Status & Revisi</span>
+            <span className="text-body-xs text-muted-foreground">{t("materials.bundleMetadata.statusAndRevision")}</span>
             <div className="flex items-center gap-2">
               <DetailStatus status={payload.bundle.status} />
               {payload.revisionFreshness?.policyVersion && (
@@ -2168,17 +2217,17 @@ function ProductBundleMetadataPanel({
           </div>
 
           <div className="rounded-lg border border-border/60 bg-muted/20 p-3 space-y-1">
-            <span className="text-body-xs text-muted-foreground">Tanggal Dibuat</span>
+            <span className="text-body-xs text-muted-foreground">{t("materials.bundleMetadata.createdAt")}</span>
             <p className="text-body-xs font-medium text-foreground">
               <FormattedDate date={payload.bundle.createdAt} />
             </p>
           </div>
 
           <div className="rounded-lg border border-border/60 bg-muted/20 p-3 space-y-1">
-            <span className="text-body-xs text-muted-foreground">Status PDF Diktat</span>
+            <span className="text-body-xs text-muted-foreground">{t("materials.bundleMetadata.pdfStatus")}</span>
             <p className="text-body-xs font-medium text-foreground">
-              {payload.pdfStatus?.status ? `Status: ${payload.pdfStatus.status}` : "Belum ada bukti PDF"}
-              {payload.pdfStatus?.pageCount ? ` (${payload.pdfStatus.pageCount} halaman)` : ""}
+              {payload.pdfStatus?.status ? `${t("materials.bundleMetadata.status")}: ${t(`materials.readiness.pdfStatus.${payload.pdfStatus.status}`)}` : t("materials.bundleMetadata.noPdfEvidence")}
+              {payload.pdfStatus?.pageCount ? ` (${t("materials.readiness.pageCount", { count: payload.pdfStatus.pageCount })})` : ""}
             </p>
           </div>
         </div>
@@ -2188,8 +2237,8 @@ function ProductBundleMetadataPanel({
       <div className="rounded-xl border border-border bg-card p-5 shadow-xs space-y-4">
         <div className="flex items-center justify-between border-b border-border/70 pb-3">
           <div>
-            <h3 className="font-heading text-body-base font-bold text-foreground">Daftar Entitas Produk ({payload.previews.length})</h3>
-            <p className="text-body-xs text-muted-foreground mt-0.5">Pemetaan ID teknis setiap modul pembelajaran dalam bundle.</p>
+            <h3 className="font-heading text-body-base font-bold text-foreground">{t("materials.bundleMetadata.productEntities", { count: payload.previews.length })}</h3>
+            <p className="text-body-xs text-muted-foreground mt-0.5">{t("materials.bundleMetadata.productEntityDescription")}</p>
           </div>
         </div>
 
@@ -2197,11 +2246,11 @@ function ProductBundleMetadataPanel({
           <table className="w-full text-left text-body-xs">
             <AdminTableHead>
               <tr>
-                <th className="p-3 font-semibold text-foreground">Tipe</th>
-                <th className="p-3 font-semibold text-foreground">Judul</th>
-                <th className="p-3 font-semibold text-foreground">ID Entitas</th>
-                <th className="p-3 font-semibold text-foreground">Versi</th>
-                <th className="p-3 font-semibold text-foreground">Aksi</th>
+                <th className="p-3 font-semibold text-foreground">{t("materials.bundleMetadata.type")}</th>
+                <th className="p-3 font-semibold text-foreground">{t("materials.bundleMetadata.titleColumn")}</th>
+                <th className="p-3 font-semibold text-foreground">{t("materials.bundleMetadata.entityId")}</th>
+                <th className="p-3 font-semibold text-foreground">{t("materials.bundleMetadata.version")}</th>
+                <th className="p-3 font-semibold text-foreground">{t("materials.bundleMetadata.actions")}</th>
               </tr>
             </AdminTableHead>
             <tbody className="divide-y divide-border/60">
@@ -2209,7 +2258,7 @@ function ProductBundleMetadataPanel({
                 <tr key={preview.id} className="hover:bg-muted/30">
                   <td className="p-3">
                     <Badge variant="secondary" className="text-body-2xs">
-                      {productLabels[preview.productType] ?? preview.productType}
+                      {t(`editor.productTypes.${preview.productType}`)}
                     </Badge>
                   </td>
                   <td className="p-3 font-medium text-foreground max-w-[220px] truncate" title={preview.title}>
@@ -2232,12 +2281,12 @@ function ProductBundleMetadataPanel({
                       {copiedKey === `prod-${preview.id}` ? (
                         <>
                           <Check className="size-3 text-status-success" />
-                          <span className="text-status-success">Tersalin</span>
+                          <span className="text-status-success">{t("materials.bundleMetadata.copiedLabel")}</span>
                         </>
                       ) : (
                         <>
                           <Copy className="size-3" />
-                          <span>Salin ID</span>
+                          <span>{t("materials.bundleMetadata.copyId")}</span>
                         </>
                       )}
                     </Button>
@@ -2253,17 +2302,17 @@ function ProductBundleMetadataPanel({
       {payload.dependencies && payload.dependencies.length > 0 && (
         <div className="rounded-xl border border-border bg-card p-5 shadow-xs space-y-4">
           <div className="border-b border-border/70 pb-3">
-            <h3 className="font-heading text-body-base font-bold text-foreground">Dependensi Entitas ({payload.dependencies.length})</h3>
-            <p className="text-body-xs text-muted-foreground mt-0.5">Relasi hulu (upstream) ke hilir (downstream) untuk menjamin kesegaran materi.</p>
+            <h3 className="font-heading text-body-base font-bold text-foreground">{t("materials.bundleMetadata.dependencies", { count: payload.dependencies.length })}</h3>
+            <p className="text-body-xs text-muted-foreground mt-0.5">{t("materials.bundleMetadata.dependenciesDescription")}</p>
           </div>
 
           <AdminTable>
             <table className="w-full text-left text-body-xs">
               <AdminTableHead>
                 <tr>
-                  <th className="p-3 font-semibold text-foreground">Upstream Entity</th>
-                  <th className="p-3 font-semibold text-foreground">Downstream Entity</th>
-                  <th className="p-3 font-semibold text-foreground">Kesegaran</th>
+                  <th className="p-3 font-semibold text-foreground">{t("materials.bundleMetadata.upstreamEntity")}</th>
+                  <th className="p-3 font-semibold text-foreground">{t("materials.bundleMetadata.downstreamEntity")}</th>
+                  <th className="p-3 font-semibold text-foreground">{t("materials.bundleMetadata.freshness")}</th>
                 </tr>
               </AdminTableHead>
               <tbody className="divide-y divide-border/60">
@@ -2277,7 +2326,7 @@ function ProductBundleMetadataPanel({
                     </td>
                     <td className="p-3">
                       <StatusBadge tone={dep.freshness === "UP_TO_DATE" ? "success" : dep.freshness === "NEEDS_REVIEW" ? "warning" : "error"}>
-                        {dep.freshness}
+                        {t(`materials.readiness.freshness.${dep.freshness}`)}
                       </StatusBadge>
                     </td>
                   </tr>
@@ -2293,6 +2342,8 @@ function ProductBundleMetadataPanel({
 
 /** Loads the Product Bundle and coordinates product, section, and bundle review. */
 export function ProductBundleReviewDetail({ detailId, courseLabels = {}, backHref, backLabel, showBackButton = true }: DetailProps) {
+  const t = useTranslations("adminAcademic");
+  const adminT = useTranslations("admin");
   const router = useRouter();
   const [payload, setPayload] = useState<ProductDetailPayload | null>(null);
   const [v4ReviewInput, setV4ReviewInput] = useState<ProductV4AdminReviewInput | null>(null);
@@ -2334,11 +2385,11 @@ export function ProductBundleReviewDetail({ detailId, courseLabels = {}, backHre
       );
       setReviewNote(nextPayload.bundle.currentReview?.notes ?? nextPayload.pedagogicReview?.notes ?? "");
     } catch (loadError) {
-      setError(explainBundleError(loadError instanceof Error ? loadError.message : "PRODUCT_BUNDLE_DETAIL_FAILED"));
+      setError(explainBundleError(loadError instanceof Error ? loadError.message : "PRODUCT_BUNDLE_DETAIL_FAILED", (key) => adminT(`bundleErrors.${key}`)));
     } finally {
       setLoading(false);
     }
-  }, [detailId]);
+  }, [detailId, adminT]);
 
   useEffect(() => { void load(); }, [load]);
 
@@ -2364,7 +2415,7 @@ export function ProductBundleReviewDetail({ detailId, courseLabels = {}, backHre
       await load();
       setReviewDecision(decision);
     } catch (reviewError) {
-      setError(explainBundleError(reviewError instanceof Error ? reviewError.message : "PRODUCT_BUNDLE_REVIEW_FAILED"));
+      setError(explainBundleError(reviewError instanceof Error ? reviewError.message : "PRODUCT_BUNDLE_REVIEW_FAILED", (key) => adminT(`bundleErrors.${key}`)));
     } finally {
       setSaving(false);
     }
@@ -2385,7 +2436,7 @@ export function ProductBundleReviewDetail({ detailId, courseLabels = {}, backHre
       }
       await load();
     } catch (mutationError) {
-      setError(explainBundleError(mutationError instanceof Error ? mutationError.message : "PRODUCT_BUNDLE_UPDATE_FAILED"));
+      setError(explainBundleError(mutationError instanceof Error ? mutationError.message : "PRODUCT_BUNDLE_UPDATE_FAILED", (key) => adminT(`bundleErrors.${key}`)));
     } finally {
       setSaving(false);
     }
@@ -2401,7 +2452,7 @@ export function ProductBundleReviewDetail({ detailId, courseLabels = {}, backHre
       if (!response.ok) throw new Error(result.error || "PRODUCT_BUNDLE_UPDATE_FAILED");
       await load();
     } catch (saveError) {
-      setError(explainBundleError(saveError instanceof Error ? saveError.message : "PRODUCT_BUNDLE_UPDATE_FAILED"));
+      setError(explainBundleError(saveError instanceof Error ? saveError.message : "PRODUCT_BUNDLE_UPDATE_FAILED", (key) => adminT(`bundleErrors.${key}`)));
     } finally {
       setSaving(false);
     }
@@ -2514,7 +2565,7 @@ export function ProductBundleReviewDetail({ detailId, courseLabels = {}, backHre
 
   if (loading) return <DetailLoading />;
   if (error && !payload) return <AdminErrorState message={error} onRetry={() => void load()} />;
-  if (!payload) return <AdminEmptyState title="Artifact tidak ditemukan" description="Artifact mungkin sudah dihapus atau tidak dapat dibaca." />;
+  if (!payload) return <AdminEmptyState title={t("materials.artifactNotFound")} description={t("materials.artifactUnavailable")} />;
 
   return (
     <div className="space-y-4">
@@ -2523,13 +2574,13 @@ export function ProductBundleReviewDetail({ detailId, courseLabels = {}, backHre
         <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border bg-muted/40 p-1.5 shadow-2xs">
           {/* Filter Tabs */}
           <TabsList className="bg-transparent p-0 border-0 shrink-0">
-            <TabsTrigger value="all" className="h-8 text-body-xs font-medium">Semua</TabsTrigger>
+            <TabsTrigger value="all" className="h-8 text-body-xs font-medium">{t("materials.all")}</TabsTrigger>
             {Object.entries(typeCounts).map(([type]) => (
               <TabsTrigger key={type} value={type} className="h-8 text-body-xs font-medium">
-                {productLabels[type] ?? type}
+                {t(`editor.productTypes.${type}`)}
               </TabsTrigger>
             ))}
-            <TabsTrigger value="metadata" className="h-8 text-body-xs font-medium">Metadata</TabsTrigger>
+            <TabsTrigger value="metadata" className="h-8 text-body-xs font-medium">{t("materials.metadata")}</TabsTrigger>
           </TabsList>
 
           {/* Stepper + Active Product Searchable Sheet Toolbar */}
@@ -2542,7 +2593,7 @@ export function ProductBundleReviewDetail({ detailId, courseLabels = {}, backHre
                   variant="ghost"
                   disabled={currentIndex <= 0}
                   onClick={() => goToIndex(currentIndex - 1)}
-                  aria-label="Bagian sebelumnya"
+                  aria-label={t("materials.previousSection")}
                   className="size-7 p-0"
                 >
                   <ChevronLeft className="size-3.5" />
@@ -2556,7 +2607,7 @@ export function ProductBundleReviewDetail({ detailId, courseLabels = {}, backHre
                   variant="ghost"
                   disabled={currentIndex >= visiblePreviews.length - 1}
                   onClick={() => goToIndex(currentIndex + 1)}
-                  aria-label="Bagian berikutnya"
+                  aria-label={t("materials.nextSection")}
                   className="size-7 p-0"
                 >
                   <ChevronRight className="size-3.5" />
@@ -2577,7 +2628,7 @@ export function ProductBundleReviewDetail({ detailId, courseLabels = {}, backHre
                     <div className="flex items-center gap-1.5 min-w-0 flex-1 overflow-hidden pr-1">
                       <ListFilter className="size-3 shrink-0 text-muted-foreground" />
                       <ClampedMarquee
-                        text={activePreview ? (activePreview.title || "Bagian") : "Pilih bagian"}
+                        text={activePreview ? (activePreview.title || t("materials.section")) : t("materials.selectSection")}
                         isParentHovered={pickerHovered}
                         className="text-left font-medium min-w-0 flex-1"
                       />
@@ -2589,14 +2640,14 @@ export function ProductBundleReviewDetail({ detailId, courseLabels = {}, backHre
                 </SheetTrigger>
                 <SheetContent side="right" className="flex flex-col w-full sm:max-w-md p-4">
                   <SheetHeader className="pb-3 border-b border-border text-left">
-                    <SheetTitle className="text-body-base font-semibold">Daftar Bagian ({visiblePreviews.length})</SheetTitle>
+                    <SheetTitle className="text-body-base font-semibold">{t("materials.sectionListWithCount", { count: visiblePreviews.length })}</SheetTitle>
                     <div className="mt-2">
                       <SearchBar
                         size="sm"
                         value={searchQuery}
                         onSearch={setSearchQuery}
                         onClear={() => setSearchQuery("")}
-                        placeholder="Cari bagian..."
+                        placeholder={t("materials.searchSections")}
                       />
                     </div>
                   </SheetHeader>
@@ -2612,8 +2663,8 @@ export function ProductBundleReviewDetail({ detailId, courseLabels = {}, backHre
                         )}
                       >
                         <div className="flex items-center justify-between gap-2">
-                          <ClampedMarquee text={preview.title || `Bagian ${index + 1}`} className="font-semibold text-foreground flex-1 min-w-0" />
-                          <Badge variant="outline" className="text-[10px] shrink-0">{productLabels[preview.productType] ?? preview.productType}</Badge>
+                          <ClampedMarquee text={preview.title || t("materials.sectionNumber", { number: index + 1 })} className="font-semibold text-foreground flex-1 min-w-0" />
+                          <Badge variant="outline" className="text-[10px] shrink-0">{t(`editor.productTypes.${preview.productType}`)}</Badge>
                         </div>
                       </button>
                     ))}
@@ -2633,12 +2684,12 @@ export function ProductBundleReviewDetail({ detailId, courseLabels = {}, backHre
             <article key={activePreview.id} className="rounded-xl border border-border bg-card p-4 space-y-4">
               {!isStudentArticlePreview && <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border pb-3">
                 <div className={cn(styles.productHeader, "min-w-0 flex-1")}>
-                  <Badge variant="secondary" className="text-body-xs font-semibold">{productLabels[activePreview.productType] ?? activePreview.productType}</Badge>
-                  <h3 className={cn(styles.productTitle, "mt-1.5 font-heading text-body-base font-bold text-foreground")}>{activePreview.title || "Bagian tanpa judul"}</h3>
-                  <span className="text-body-xs text-muted-foreground">Versi {activePreview.version}</span>
+                  <Badge variant="secondary" className="text-body-xs font-semibold">{t(`editor.productTypes.${activePreview.productType}`)}</Badge>
+                  <h3 className={cn(styles.productTitle, "mt-1.5 font-heading text-body-base font-bold text-foreground")}>{activePreview.title || t("materials.untitledSection")}</h3>
+                  <span className="text-body-xs text-muted-foreground">{t("editor.version", { version: activePreview.version })}</span>
                 </div>
                 {!editing && payload.bundle.status === "draft" && (
-                  <Button type="button" size="sm" variant="outline" onClick={() => setEditing(true)} className="h-8 text-body-sm">Edit isi</Button>
+                  <Button type="button" size="sm" variant="outline" onClick={() => setEditing(true)} className="h-8 text-body-sm">{t("materials.editContent")}</Button>
                 )}
               </div>}
 
@@ -2651,8 +2702,8 @@ export function ProductBundleReviewDetail({ detailId, courseLabels = {}, backHre
                     onChange={(next) => setDraftProducts((current) => current.map((product) => product.id === next.id ? next : product))}
                   />
                   <div className="flex flex-wrap gap-2 border-t border-border pt-3">
-                    <Button type="button" size="sm" disabled={saving} onClick={() => void saveDraft()}>Simpan perubahan</Button>
-                    <Button type="button" size="sm" variant="outline" disabled={saving} onClick={() => void load()}>Batal</Button>
+                    <Button type="button" size="sm" disabled={saving} onClick={() => void saveDraft()}>{t("documents.saveChanges")}</Button>
+                    <Button type="button" size="sm" variant="outline" disabled={saving} onClick={() => void load()}>{t("common.cancel")}</Button>
                   </div>
                 </div>
               ) : activeDraftProduct ? (
@@ -2713,7 +2764,7 @@ export function ProductBundleReviewDetail({ detailId, courseLabels = {}, backHre
               )}
             </article>
           ) : (
-            <AdminEmptyState title="Bagian belum tersedia" description="Tidak ada bagian yang cocok dengan filter." />
+            <AdminEmptyState title={t("materials.sectionsUnavailable")} description={t("materials.noSectionsMatch")} />
           )}
         </TabsContent>
       </Tabs>
@@ -2727,19 +2778,19 @@ export function ProductBundleReviewDetail({ detailId, courseLabels = {}, backHre
         {/* Block Review Summary Strip */}
         {payload.blockReviewSummary && payload.blockReviewSummary.total > 0 && (
           <div className="hidden md:flex flex-wrap items-center justify-between gap-2 border-b border-border/70 pb-2.5 text-body-xs">
-            <span className="font-semibold text-foreground">Status review blok artikel:</span>
+            <span className="font-semibold text-foreground">{t("materials.articleBlockReviewStatus")}</span>
             <div className="flex flex-wrap items-center gap-2">
               <Badge variant="outline" className="text-status-success font-medium">
-                {payload.blockReviewSummary.approved} disetujui
+                {t("materials.approvedCount", { count: payload.blockReviewSummary.approved })}
               </Badge>
               {payload.blockReviewSummary.changesRequested > 0 && (
                 <Badge variant="outline" className="text-status-warning font-medium">
-                  {payload.blockReviewSummary.changesRequested} perlu revisi
+                  {t("materials.changesRequestedCount", { count: payload.blockReviewSummary.changesRequested })}
                 </Badge>
               )}
               {payload.blockReviewSummary.pending > 0 && (
                 <Badge variant="outline" className="text-muted-foreground">
-                  {payload.blockReviewSummary.pending} menunggu
+                {t("materials.pendingCount", { count: payload.blockReviewSummary.pending })}
                 </Badge>
               )}
             </div>
@@ -2748,9 +2799,9 @@ export function ProductBundleReviewDetail({ detailId, courseLabels = {}, backHre
 
         <div className={cn("space-y-1.5", !mobileNotesOpen && !reviewNote && "hidden md:block")}>
           <div className="flex items-center justify-between">
-            <Label htmlFor="product-review-note" className="text-body-sm font-semibold">Alasan keputusan</Label>
+            <Label htmlFor="product-review-note" className="text-body-sm font-semibold">{t("materials.decisionReason")}</Label>
             <div className="flex items-center gap-2">
-              <span className="text-body-xs text-muted-foreground">Wajib untuk revisi atau penolakan</span>
+              <span className="text-body-xs text-muted-foreground">{t("materials.requiredForChangesOrRejection")}</span>
               <Button
                 type="button"
                 variant="ghost"
@@ -2758,7 +2809,7 @@ export function ProductBundleReviewDetail({ detailId, courseLabels = {}, backHre
                 className="h-6 px-1.5 text-body-2xs md:hidden"
                 onClick={() => setMobileNotesOpen(false)}
               >
-                Tutup
+                {t("common.cancel")}
               </Button>
             </div>
           </div>
@@ -2766,7 +2817,7 @@ export function ProductBundleReviewDetail({ detailId, courseLabels = {}, backHre
             id="product-review-note"
             value={reviewNote}
             onChange={(event) => setReviewNote(event.target.value)}
-            placeholder="Tulis alasan jika meminta revisi atau menolak"
+            placeholder={t("materials.decisionReasonPlaceholder")}
             className="min-h-16 text-body-sm bg-background"
           />
         </div>
@@ -2786,7 +2837,7 @@ export function ProductBundleReviewDetail({ detailId, courseLabels = {}, backHre
                     className="md:hidden"
                     onClick={() => setMobileNotesOpen(true)}
                   >
-                    Catatan revisi
+                    {t("materials.revisionNotes")}
                   </Button>
                 ) : null}
                 <Button
@@ -2797,7 +2848,7 @@ export function ProductBundleReviewDetail({ detailId, courseLabels = {}, backHre
                   disabled={saving || !reviewNote.trim()}
                   onClick={() => void decide("changes_requested")}
                 >
-                  Minta revisi
+                  {t("materials.requestChanges")}
                 </Button>
                 <Button
                   type="button"
@@ -2807,10 +2858,10 @@ export function ProductBundleReviewDetail({ detailId, courseLabels = {}, backHre
                   disabled={saving || !reviewNote.trim()}
                   onClick={() => void decide("rejected")}
                 >
-                  Tolak
+                  {t("materials.reject")}
                 </Button>
                 <Button type="button" size="sm" disabled={saving || (draftProducts.some((product) => product.productType === "article" && product.schemaVersion === "article.v4") && !v4ReviewInput?.ready)} onClick={() => void decide("approved")}>
-                  <Check className="size-3.5" />Setujui bundle
+                  <Check className="size-3.5" />{t("materials.approveBundle")}
                 </Button>
               </>
             )}
@@ -2827,19 +2878,19 @@ export function ProductBundleReviewDetail({ detailId, courseLabels = {}, backHre
                 }
                 onClick={() => void mutate("publish")}
               >
-                <FileCheck2 className="size-3.5" />Publikasikan
+                <FileCheck2 className="size-3.5" />{t("documents.publish")}
               </Button>
             )}
             {payload.bundle.status === "published" && (
-              <span className="text-body-sm text-status-success font-medium self-center">Telah dipublikasikan</span>
+              <span className="text-body-sm text-status-success font-medium self-center">{t("materials.alreadyPublished")}</span>
             )}
           </div>
           {(payload.bundle.status === "draft" || payload.bundle.status === "published") && (
             <DropdownMenu.Root>
               <DropdownMenu.Trigger asChild>
-                <Button type="button" size="sm" variant="outline" disabled={saving} aria-label="Aksi lainnya" className="shrink-0">
+                <Button type="button" size="sm" variant="outline" disabled={saving} aria-label={t("materials.moreActions")} className="shrink-0">
                   <MoreHorizontal className="size-4" />
-                  <span className="hidden sm:inline">Aksi lainnya</span>
+                  <span className="hidden sm:inline">{t("materials.moreActions")}</span>
                 </Button>
               </DropdownMenu.Trigger>
               <DropdownMenu.Portal>
@@ -2853,7 +2904,7 @@ export function ProductBundleReviewDetail({ detailId, courseLabels = {}, backHre
                       onSelect={handleDiscardClick}
                       className="flex cursor-pointer items-center gap-2 rounded-md px-2.5 py-2 text-status-error outline-none focus:bg-muted"
                     >
-                      <Trash2 className="size-3.5" /> Hapus draft
+                      <Trash2 className="size-3.5" />{t("materials.deleteDraft")}
                     </DropdownMenu.Item>
                   )}
                   {payload.bundle.status === "published" && (
@@ -2861,7 +2912,7 @@ export function ProductBundleReviewDetail({ detailId, courseLabels = {}, backHre
                       onSelect={handleWithdrawClick}
                       className="flex cursor-pointer items-center gap-2 rounded-md px-2.5 py-2 text-status-error outline-none focus:bg-muted"
                     >
-                      <ArchiveX className="size-3.5" /> Tarik publikasi
+                      <ArchiveX className="size-3.5" />{t("materials.withdrawPublication")}
                     </DropdownMenu.Item>
                   )}
                 </DropdownMenu.Content>
@@ -2877,18 +2928,18 @@ export function ProductBundleReviewDetail({ detailId, courseLabels = {}, backHre
         onOpenChange={(open) => { if (!open) setConfirmAction(null); }}
         title={
           confirmAction?.type === "withdraw"
-            ? "Tarik publikasi Product"
-            : "Hapus draft Product"
+            ? t("materials.withdrawProductTitle")
+            : t("materials.deleteProductDraftTitle")
         }
         description={
           confirmAction?.type === "withdraw"
-            ? "Produk tidak lagi terlihat oleh mahasiswa. Riwayat dan audit tetap disimpan."
-            : "Draft dan ZIP staging akan dihapus permanen. Tindakan ini tidak memengaruhi produk yang sudah terbit."
+            ? t("materials.withdrawProductDescription")
+            : t("materials.deleteProductDraftDescription")
         }
         confirmLabel={
           confirmAction?.type === "withdraw"
-            ? "Ya, Tarik Publikasi"
-            : "Ya, Hapus Draft"
+            ? t("materials.confirmWithdraw")
+            : t("materials.confirmDeleteDraft")
         }
         icon={
           confirmAction?.type === "withdraw"

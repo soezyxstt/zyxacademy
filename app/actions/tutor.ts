@@ -427,6 +427,7 @@ export async function askTutorRagAction(
     intent?: string;
   } | null,
   codingRequest?: unknown,
+  responseLanguage?: "id" | "en",
 ) {
   const { user, access } = await requireCourseAccess(courseId);
   const normalizedQuestion = typeof question === "string" ? question.trim() : "";
@@ -742,6 +743,7 @@ export async function askTutorRagAction(
     courseId,
     chapterId: resolvedChapterId,
     question: effectiveQuestion,
+    responseLanguage: responseLanguage === "en" || responseLanguage === "id" ? responseLanguage : undefined,
     sessionId: sid,
     accessTier: access?.tier === "free" ? "free" : "standard",
     freeChapterIds: access?.freeChapterIds,

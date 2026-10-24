@@ -1,0 +1,24 @@
+{
+  "userFallback": "Pengguna",
+  "accountNamed": "Akun ({name})",
+  "profileSettings": "Pengaturan profil",
+  "studentDashboard": "Dasbor siswa",
+  "tutorPanel": "Panel pengajar",
+  "adminPanel": "Panel admin",
+  "hideZyra": "Sembunyikan Zyra",
+  "showZyra": "Tampilkan Zyra",
+  "appearance": "Tema tampilan",
+  "light": "Terang",
+  "dark": "Gelap",
+  "system": "Sistem",
+  "logOut": "Keluar",
+  "searchWithShortcut": "Cari ({shortcut})",
+  "closeSidebar": "Tutup sidebar",
+  "openSidebar": "Buka sidebar",
+  "saveLanguageError": "Bahasa gagal disimpan. Coba lagi.",
+  "language": {
+    "label": "Bahasa",
+    "indonesian": "Bahasa Indonesia",
+    "english": "English"
+  }
+}

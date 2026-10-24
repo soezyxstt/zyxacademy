@@ -12,7 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { History, User, Clock } from "lucide-react";
-import { formatIsoDate } from "@/lib/date-utils";
+import { useAppLocale, useTranslations } from "@/lib/i18n/client";
 
 type Props = {
   open: boolean;
@@ -21,6 +21,9 @@ type Props = {
 };
 
 export function AuditLogDrawer({ open, onOpenChange, booking }: Props) {
+  const t = useTranslations("schedule");
+  const { locale } = useAppLocale();
+  const formatDate = (value: Date) => new Intl.DateTimeFormat(locale === "id" ? "id-ID" : "en-US", { dateStyle: "medium", timeStyle: "short", timeZone: "Asia/Jakarta" }).format(value);
   const auditLogs = booking?.auditLogs || [];
 
   return (
@@ -29,10 +32,10 @@ export function AuditLogDrawer({ open, onOpenChange, booking }: Props) {
         <DialogHeader>
           <DialogTitle className="font-heading text-body-base font-bold flex items-center gap-2">
             <History className="size-5 text-brand-primary" />
-            Riwayat sesi
+            {t("audit.title")}
           </DialogTitle>
           <DialogDescription className="sr-only">
-            Aktivitas dan perubahan sesi tutorial.
+            {t("audit.description")}
           </DialogDescription>
         </DialogHeader>
 
@@ -42,17 +45,17 @@ export function AuditLogDrawer({ open, onOpenChange, booking }: Props) {
               <div>
                 <p className="font-bold text-foreground">{booking.course?.title}</p>
                 <p className="text-[11px] text-muted-foreground">
-                  Kelompok: {booking.group?.name} • Tutor: {booking.slot?.tutor?.name}
+                  {t("audit.group")}: {booking.group?.name} • {t("audit.tutor")}: {booking.slot?.tutor?.name}
                 </p>
               </div>
               <Badge variant="outline" className="text-[10px]">
-                {auditLogs.length} Aktivitas
+                {t("audit.activityCount", { count: auditLogs.length })}
               </Badge>
             </div>
 
             {auditLogs.length === 0 ? (
               <div className="p-6 text-center text-body-xs text-muted-foreground italic">
-                Belum ada catatan jejak audit untuk sesi ini.
+                {t("audit.empty")}
               </div>
             ) : (
               <div className="relative pl-6 border-l border-border space-y-4 my-2">
@@ -68,12 +71,12 @@ export function AuditLogDrawer({ open, onOpenChange, booking }: Props) {
                     <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
                       <div className="flex items-center gap-1">
                         <User className="size-3" />
-                        <span>{log.actor?.name || "Sistem"}</span>
+                        <span>{log.actor?.name || t("audit.system")}</span>
                       </div>
                       <span>•</span>
                       <div className="flex items-center gap-1">
                         <Clock className="size-3" />
-                        <span>{formatIsoDate(new Date(log.createdAt))}</span>
+                        <span>{formatDate(new Date(log.createdAt))}</span>
                       </div>
                     </div>
                   </div>
@@ -86,7 +89,7 @@ export function AuditLogDrawer({ open, onOpenChange, booking }: Props) {
         <DialogFooter className="pt-2">
           <DialogClose asChild>
             <Button variant="outline" type="button">
-              Tutup
+              {t("audit.close")}
             </Button>
           </DialogClose>
         </DialogFooter>

@@ -112,5 +112,9 @@ describe("Zyra deterministic adaptation", () => {
 
     expect(adapted).not.toBe(base);
     expect(adapted).toContain(base);
+
+    const adaptedEnglish = composePersonalizedAnswer("Validated shared material.", decision, "en");
+    expect(adaptedEnglish).toContain("Validated shared material.");
+    expect(adaptedEnglish).not.toContain("Kita");
   });
 });

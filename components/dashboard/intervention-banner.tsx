@@ -5,6 +5,7 @@ import Link from "next/link";
 import { TriangleAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useTranslations } from "@/lib/i18n/client";
 
 interface Intervention {
   id: string;
@@ -22,6 +23,7 @@ interface Intervention {
 }
 
 export function InterventionBanner() {
+  const t = useTranslations("student");
   const [interventions, setInterventions] = useState<Intervention[]>([]);
   const [isExiting, setIsExiting] = useState(false);
   const [removed, setRemoved] = useState(false);
@@ -79,7 +81,7 @@ export function InterventionBanner() {
         <div className="flex items-center gap-2">
           <TriangleAlert className="size-4 text-status-warning shrink-0" />
           <p className="text-body-base font-medium text-foreground">
-            Ulangi {conceptName}
+            {t("dashboard.intervention.repeat", { concept: conceptName })}
           </p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
@@ -91,20 +93,20 @@ export function InterventionBanner() {
       <div className="mt-2 flex flex-wrap items-center justify-between gap-4">
         <div className="flex flex-wrap gap-4 text-body-sm text-primary">
           <Link href={reviewModuleHref} className="hover:underline font-medium">
-            Baca materi
+            {t("dashboard.intervention.readMaterial")}
           </Link>
           <Link href={practiceQuizHref} className="hover:underline font-medium">
-            Latihan kuis
+            {t("dashboard.intervention.practiceQuiz")}
           </Link>
           <Link href={flashcardHref} className="hover:underline font-medium">
-            {payload.flashcardCount} flashcards
+            {t("dashboard.intervention.flashcards", { count: payload.flashcardCount })}
           </Link>
           
           {extraCount > 0 && (
             <span className="text-body-sm text-muted-foreground">
               +
               <Link href={`/courses/${courseId}`} className="hover:underline font-medium text-muted-foreground ml-0.5">
-                {extraCount} lainnya
+                {t("dashboard.intervention.more", { count: extraCount })}
               </Link>
             </span>
           )}
@@ -117,7 +119,7 @@ export function InterventionBanner() {
           onClick={dismiss}
           className="text-body-sm text-muted-foreground hover:text-foreground h-8 px-2 rounded-md"
         >
-          Tutup
+          {t("dashboard.intervention.dismiss")}
         </Button>
       </div>
     </div>

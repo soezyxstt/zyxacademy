@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "e2de761e-5844-4382-9865-72c80d1c2ad9",
+  "id": "484f08f4-f6be-4630-91cc-0419b58ce474",
   "prevId": "2e17ca6e-37f2-4ed6-89db-9b22189a4df9",
   "tables": {
     "academic_schedules": {
@@ -275,6 +275,57 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "checkConstraints": {}
+    },
+    "account_locale_preferences": {
+      "name": "account_locale_preferences",
+      "columns": {
+        "user_id": {
+          "name": "user_id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "locale": {
+          "name": "locale",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(cast((julianday('now') - 2440587.5)*86400000 as integer))"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "account_locale_preferences_user_id_user_id_fk": {
+          "name": "account_locale_preferences_user_id_user_id_fk",
+          "tableFrom": "account_locale_preferences",
+          "tableTo": "user",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "account_locale_preferences_locale_check": {
+          "name": "account_locale_preferences_locale_check",
+          "value": "\"account_locale_preferences\".\"locale\" in ('id', 'en')"
+        }
+      }
     },
     "admin_ops_knowledge_chunks": {
       "name": "admin_ops_knowledge_chunks",
@@ -7401,395 +7452,6 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "checkConstraints": {}
-    },
-    "coding_attempts": {
-      "name": "coding_attempts",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "text",
-          "primaryKey": true,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "learner_id": {
-          "name": "learner_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "course_id": {
-          "name": "course_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "problem_id": {
-          "name": "problem_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "problem_version": {
-          "name": "problem_version",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "surface": {
-          "name": "surface",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "surface_id": {
-          "name": "surface_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "request_id": {
-          "name": "request_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "ordinal": {
-          "name": "ordinal",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "request": {
-          "name": "request",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "evaluation": {
-          "name": "evaluation",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "status": {
-          "name": "status",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": "'pending'"
-        },
-        "lease_token": {
-          "name": "lease_token",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "lease_expires_at": {
-          "name": "lease_expires_at",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": "(cast((julianday('now') - 2440587.5)*86400000 as integer))"
-        }
-      },
-      "indexes": {
-        "coding_attempt_request_idx": {
-          "name": "coding_attempt_request_idx",
-          "columns": [
-            "learner_id",
-            "surface",
-            "surface_id",
-            "request_id"
-          ],
-          "isUnique": true
-        },
-        "coding_attempt_history_idx": {
-          "name": "coding_attempt_history_idx",
-          "columns": [
-            "learner_id",
-            "problem_id",
-            "problem_version"
-          ],
-          "isUnique": false
-        }
-      },
-      "foreignKeys": {
-        "coding_attempts_learner_id_user_id_fk": {
-          "name": "coding_attempts_learner_id_user_id_fk",
-          "tableFrom": "coding_attempts",
-          "tableTo": "user",
-          "columnsFrom": [
-            "learner_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "coding_attempts_course_id_mata_kuliah_id_fk": {
-          "name": "coding_attempts_course_id_mata_kuliah_id_fk",
-          "tableFrom": "coding_attempts",
-          "tableTo": "mata_kuliah",
-          "columnsFrom": [
-            "course_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "restrict",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "checkConstraints": {
-        "coding_attempt_status_check": {
-          "name": "coding_attempt_status_check",
-          "value": "\"coding_attempts\".\"status\" IN ('pending', 'completed', 'failed')"
-        },
-        "coding_attempt_surface_check": {
-          "name": "coding_attempt_surface_check",
-          "value": "\"coding_attempts\".\"surface\" IN ('article', 'live_quiz')"
-        },
-        "coding_attempt_ordinal_check": {
-          "name": "coding_attempt_ordinal_check",
-          "value": "\"coding_attempts\".\"ordinal\" > 0"
-        }
-      }
-    },
-    "coding_drafts": {
-      "name": "coding_drafts",
-      "columns": {
-        "learner_id": {
-          "name": "learner_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "course_id": {
-          "name": "course_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "draft_key": {
-          "name": "draft_key",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "code": {
-          "name": "code",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "stdin": {
-          "name": "stdin",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": "''"
-        },
-        "revision": {
-          "name": "revision",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": 1
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": "(cast((julianday('now') - 2440587.5)*86400000 as integer))"
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "coding_drafts_learner_id_user_id_fk": {
-          "name": "coding_drafts_learner_id_user_id_fk",
-          "tableFrom": "coding_drafts",
-          "tableTo": "user",
-          "columnsFrom": [
-            "learner_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "coding_drafts_course_id_mata_kuliah_id_fk": {
-          "name": "coding_drafts_course_id_mata_kuliah_id_fk",
-          "tableFrom": "coding_drafts",
-          "tableTo": "mata_kuliah",
-          "columnsFrom": [
-            "course_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "restrict",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {
-        "coding_drafts_learner_id_course_id_draft_key_pk": {
-          "columns": [
-            "learner_id",
-            "course_id",
-            "draft_key"
-          ],
-          "name": "coding_drafts_learner_id_course_id_draft_key_pk"
-        }
-      },
-      "uniqueConstraints": {},
-      "checkConstraints": {}
-    },
-    "coding_problems": {
-      "name": "coding_problems",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "version": {
-          "name": "version",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "course_id": {
-          "name": "course_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "status": {
-          "name": "status",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": "'draft'"
-        },
-        "snapshot": {
-          "name": "snapshot",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "creator_id": {
-          "name": "creator_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": "(cast((julianday('now') - 2440587.5)*86400000 as integer))"
-        }
-      },
-      "indexes": {
-        "coding_problems_course_status_idx": {
-          "name": "coding_problems_course_status_idx",
-          "columns": [
-            "course_id",
-            "status"
-          ],
-          "isUnique": false
-        }
-      },
-      "foreignKeys": {
-        "coding_problems_course_id_mata_kuliah_id_fk": {
-          "name": "coding_problems_course_id_mata_kuliah_id_fk",
-          "tableFrom": "coding_problems",
-          "tableTo": "mata_kuliah",
-          "columnsFrom": [
-            "course_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "restrict",
-          "onUpdate": "no action"
-        },
-        "coding_problems_creator_id_user_id_fk": {
-          "name": "coding_problems_creator_id_user_id_fk",
-          "tableFrom": "coding_problems",
-          "tableTo": "user",
-          "columnsFrom": [
-            "creator_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "restrict",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {
-        "coding_problems_id_version_pk": {
-          "columns": [
-            "id",
-            "version"
-          ],
-          "name": "coding_problems_id_version_pk"
-        }
-      },
-      "uniqueConstraints": {},
-      "checkConstraints": {
-        "coding_problems_version_check": {
-          "name": "coding_problems_version_check",
-          "value": "\"coding_problems\".\"version\" > 0"
-        },
-        "coding_problems_status_check": {
-          "name": "coding_problems_status_check",
-          "value": "\"coding_problems\".\"status\" IN ('draft', 'published')"
-        }
-      }
     },
     "concept_graph_edges": {
       "name": "concept_graph_edges",

@@ -14,6 +14,7 @@ import {
 export type PedagogyContextAction = PedagogyContext["action"];
 
 export interface BuildPedagogyContextInput {
+  responseLanguage?: "id" | "en";
   courseId: string;
   chapterId?: string | null;
   question: string;
@@ -45,6 +46,7 @@ export function isActiveAssessment(attemptState: AttemptState, activityKind: Act
 
 export function buildPedagogyContext(input: BuildPedagogyContextInput): PedagogyContext {
   const context = {
+    responseLanguage: input.responseLanguage ?? "id",
     courseId: cleanTopic(input.courseId),
     chapterId: input.chapterId ? cleanTopic(input.chapterId) : null,
     action: input.action,
