@@ -432,9 +432,9 @@ of the Next application and `workers/realtime` for graded Live Quiz. Production
 Submit requires working Cloudflare Browser Run credentials through existing
 `CF_ACCOUNT_ID` and `CF_API_TOKEN` by default. `CODING_BROWSER_PROVIDER=steel`
 selects the shared Steel session adapter using server-only `STEEL_API_KEY`.
-This is independent of V4 verification settings. Steel Python initialization
-has not passed real-provider verification; the option must not be treated as a
-verified rollout. Local Chromium is rejected in production. Neither provider
+This is independent of V4 verification settings. Real Steel Python grading has
+passed against the local app with synthetic SQLite data. This does not certify
+a deployed rollout or the deployment environment's CDP transport. Local Chromium is rejected in production. Neither provider
 falls back automatically, and provider release failures remain ungradable.
 Runtime package assets and Worker/frame files
 are included in Next output tracing. See [coding contract](coding-foundation.md).

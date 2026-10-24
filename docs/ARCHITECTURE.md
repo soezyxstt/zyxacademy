@@ -1235,8 +1235,11 @@ fixed runtime assets and denied external network access, with Cloudflare Browser
 Run as the production default. Explicit `CODING_BROWSER_PROVIDER=steel` reuses
 the existing remote session adapter independently of V4 provider selection.
 Provider release precedes grade acceptance; release failure is ungradable.
-Real Steel Python initialization is still blocked, as recorded in
-[coding verification](coding-verification.md). Drizzle/Turso stores versioned private problems, owner-scoped
+The page or opaque frame preloads fixed runtime bytes before starting its Worker,
+so remote CDP does not need to intercept Worker imports. The Worker serves only
+those bytes from memory; CSP and external network denial remain in force.
+Real Steel grading and browser-runtime execution passed against local synthetic
+fixtures, as recorded in [coding verification](coding-verification.md). Drizzle/Turso stores versioned private problems, owner-scoped
 drafts and leased immutable attempts. Zyra resolves problem/attempt context
 server-side through its existing policy, allowance and provider boundaries.
 See [Python learning](coding-foundation.md) for contracts, public/private data

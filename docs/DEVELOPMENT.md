@@ -417,8 +417,8 @@ requires Playwright Chromium with a functioning kernel sandbox. Run
 `CODING_BROWSER_PROVIDER=steel` uses the existing session adapter and
 `STEEL_API_KEY`, independently of `AUTHORING_VERIFICATION_BROWSER_PROVIDER`.
 `local` is permitted only outside production. No automatic provider fallback or
-coding feature flag is introduced. Steel Python execution remains unverified;
-do not infer readiness from the successful V4 browser probe. See the
+coding feature flag is introduced. Real Steel grading is verified against local
+synthetic fixtures; deployed connectivity remains a separate boundary. See the
 [coding contract](coding-foundation.md) and [verification evidence](coding-verification.md).
 
 For an opt-in real runtime probe, run
@@ -426,8 +426,39 @@ For an opt-in real runtime probe, run
 or bundle it with
 `bun build scripts/coding/probe-runtime.ts --target=node --packages=external --outfile=artifacts/coding-live/probe-runtime.mjs`
 and run Node with `--conditions=react-server`. Supply credentials only through the
-server environment. The probe asserts real Python results and always releases its
-session. It touches no database. A failed assertion is a failed verification,
+server environment. The probe asserts real Python results and releases each session in finally.
+It uses bounded batches to stay within the 120-second provider session lifetime. It touches no database. A failed assertion is a failed verification,
 not a passing provider smoke test. Managed environments must preserve the policy
 proxy and TLS trust for REST and CDP.
 Apply generated migrations only to the selected database environment.
+
+
+For managed-environment Steel testing, first verify `STEEL_API_KEY_GLOBAL` is
+nonempty without printing its value. Map it only for the test process; never
+change the application default provider. The opt-in CDP proxy preload uses the
+inherited HTTPS policy proxy and keeps TLS validation enabled:
+
+```sh
+mkdir -p artifacts/coding-live
+bun build scripts/coding/probe-runtime.ts --target=node --packages=external --outfile=artifacts/coding-live/probe-runtime.mjs
+STEEL_API_KEY="$STEEL_API_KEY_GLOBAL" CODING_BROWSER_PROVIDER=steel RUN_CODING_RUNTIME_PROBE=1 python scripts/coding/local-env.py node --conditions=react-server --require ./scripts/coding/steel-policy-proxy.cjs artifacts/coding-live/probe-runtime.mjs
+```
+
+To exercise the actual browser Run adapter, start a local app at
+`http://127.0.0.1:3000` with the local environment wrapper, then run:
+
+```sh
+bun build scripts/coding/browser-probe-entry.ts --target=browser --format=iife --outfile=artifacts/coding-live/browser-runtime.js
+bun build scripts/coding/probe-browser-runtime.ts --target=node --packages=external --outfile=artifacts/coding-live/probe-browser-runtime.mjs
+STEEL_API_KEY="$STEEL_API_KEY_GLOBAL" CODING_BROWSER_PROVIDER=steel RUN_CODING_BROWSER_PROBE=1 python scripts/coding/local-env.py node --conditions=react-server --require ./scripts/coding/steel-policy-proxy.cjs artifacts/coding-live/probe-browser-runtime.mjs
+```
+
+This probe bridges only public runtime routes to Steel. It sends no app cookie,
+uses no grading mock, and executes real Python in the unchanged
+`allow-scripts` opaque iframe. It is runtime evidence, not an authenticated
+Playground page or visual sign-off. The preload is test tooling, not automatic
+production provider or transport configuration.
+
+The local coding wrapper uses fictional public Firebase identifiers to let the
+foreground notification listener initialize without remote project bindings.
+Keep push consent denied in synthetic UI probes; do not register a remote token.

@@ -567,3 +567,133 @@ Validation commands and final outcomes:
 Ignored logs and transcripts are in `artifacts/coding-live/coaching-*`; screenshot
 and shareable response artifacts contain only synthetic learner content. Earlier
 Steel Python grading blockers still apply. No PR merge or deployment occurred.
+
+
+## Steel Python recovery, 2026-10-24
+
+Status: `ACTIVE`, successful local real-provider verification. This supersedes
+only the Steel initialization blocker in the 2026-10-23 checkpoint. Production
+Cloudflare, deployments, remote data and CI remain separate boundaries.
+
+### Proven integration failure and correction
+
+At PR head `72deac53`, Steel REST acquisition, CDP and simple Workers worked.
+With Playwright 1.62.1 and the remote Chromium, a Worker import emitted
+`Network.requestWillBeSent` for `pyodide.mjs`, but no corresponding
+`Fetch.requestPaused` reached the route handler. A minimal external module import
+reproduced the stall in both classic and module Workers; data-module imports and
+message exchange worked. Playwright deliberately skips `Fetch.enable` on Worker
+sessions, relying on interception inherited from the page. Enabling that domain
+on a Worker directly returned `Fetch.enable wasn't found`. This proves a mismatch
+in the runtime's inherited-interception assumption in this integration; it does
+not prove a general lack of Worker support or identify a Steel vendor defect.
+
+Run now preloads the pinned public assets on its opaque iframe target; Submit
+preloads local package assets on its intercepted page target. The Worker receives
+actual loader/ASM modules, WASM, stdlib and lockfile bytes. Pyodide uses its pinned
+`createPyodideModule` option; there is no interpreter mock or modified WASM.
+Runtime fetch resolves only exact asset paths, GET and the fixed origin from
+memory. Other requests reject. Existing CSP, iframe `allow-scripts`, service
+worker blocking, external network/WebSocket denial and provider defaults remain
+in place. No sandbox or TLS validation was disabled.
+
+Cancellation exposed another reproducible problem: a context closed successfully
+while an in-flight setup command remained pending. Runtime cancellation and its
+30-second initialization deadline now race the operation explicitly, with a
+single context-close promise. A deterministic injected regression and real Steel
+abort-after-execution both cover this. Provider release still precedes accepting
+a grade, and release failure still becomes ungradable.
+
+### Real Steel evidence
+
+The executor contained a nonempty `STEEL_API_KEY_GLOBAL`; only presence was
+printed. Each test process explicitly mapped it to `STEEL_API_KEY` and selected
+`CODING_BROWSER_PROVIDER=steel`. Environment status reported configuration
+observations as unknown; successful REST/CDP calls, rather than that metadata,
+establish the functional credential evidence. The policy-proxy preload is
+opt-in testing transport, limited to Steel CDP and retaining TLS validation.
+It does not silently change the app default or claim production connectivity.
+
+- Server probe: real stdin/stdout; variable and filesystem reset between cases;
+  syntax error; ZeroDivisionError; infinite-loop timeout; successful execution
+  after timeout; denied external fetch; WebSocket error without opening; output
+  truncated at 1000 characters; abort returning stopped; explicit session release.
+- Browser probe: actual `createBrowserPythonRuntime`, application runtime-frame
+  response/CSP, disposable opaque iframe and public Pyodide routes, bridged from
+  localhost to Steel. Input 5 produced 6; a new run could not read the prior
+  variable; infinite loop timed out; the next run printed 7. No cookies, grading
+  responses, database data or interpreter mocks enter this harness.
+- Authenticated application API: production Next build against synthetic SQLite
+  `/tmp/zyx-coding-live.db`, with the actual realtime Worker under local Wrangler.
+  Both Article and Live Submit returned incorrect 0/2 for `print(0)` and correct
+  2/2 for the synthetic solution. Replays returned the identical attempt. Public
+  problem and Submit responses omitted private inputs, test IDs and reference
+  solution canaries. Four acquisitions returned 201 and four explicit releases
+  returned 200 with success true. Final Article requests took 17.9 and 18.5 seconds;
+  Live requests took 21.1 and 19.6 seconds.
+- Real request-deadline failure: a synthetic 20-case Live problem exceeded the
+  existing 45-second grading deadline. Two distinct requests returned HTTP 200,
+  ungradable, in 51.3 and 49.6 seconds including cleanup. Both were accepted with
+  maxAttempts=1, with ordinals 1 and 2. Completed cases before cancellation were
+  reported as progress, never as a grade. Reveal returned 200 and the real Worker
+  broadcast a leaderboard score of 0. Both Steel sessions were explicitly released.
+  This certifies cancellation/infrastructure handling, not a live acquisition
+  outage. Acquisition/release failures remain injected contract evidence.
+
+### Commands and outcomes
+
+Bun is `/tmp/zyx-tools/node_modules/.bin/bun`; commands below abbreviate it as
+`bun`. Node is 24.19.0. Exact real-probe commands, including process-only credential
+mapping and proxy preload, are in [Development](DEVELOPMENT.md#python-coding-runtime).
+No credential values, cookies or authenticated CDP URLs are in this document.
+
+| Command | New result |
+| --- | --- |
+| `git fetch origin refs/heads/codex/python-learning-recovery:refs/remotes/origin/codex/python-learning-recovery refs/heads/staging:refs/remotes/origin/staging` | Exit 0 |
+| `git merge --no-edit refs/remotes/origin/staging` | Exit 0, three-way ort, no conflicts; staging had four new commits |
+| `bun install --frozen-lockfile` | Exit 0, lockfiles unchanged |
+| `python scripts/coding/local-env.py bun db/migrate.ts` | Exit 0, local SQLite only |
+| `python scripts/coding/local-env.py python scripts/coding/seed-live.py 1 5` | Exit 0, synthetic local data only |
+| Node bundle of `scripts/coding/probe-runtime.ts`, explicit Steel opt-in | Exit 0, all real runtime assertions including abort and releases |
+| Browser entry and Node bundle of `scripts/coding/probe-browser-runtime.ts`, explicit Steel opt-in | Exit 0, four real browser-runtime assertions and release |
+| `node artifacts/coding-live/api-probe.mjs` | Exit 0, authenticated Article/Live correct, incorrect, replay and reveal |
+| `node artifacts/coding-live/deadline-api.mjs` | Exit 0, two genuine deadline failures, retry admission and zero leaderboard score |
+| Focused `bun test`, eight contract files below | Exit 0, 47 tests; isolated provider fixture also passes its two child tests |
+| Focused ESLint over runtime and probe sources | Exit 0 |
+| `npm run typecheck` | Exit 0 on sequential accepted run |
+| `PATH=/tmp/zyx-tools/node_modules/.bin:$PATH python scripts/coding/local-env.py env NODE_ENV=production bun run build` | Exit 0 |
+| `git diff --check` | Exit 0 |
+
+Focused files under `tests/contracts/`: `coding-runtime-provider.test.ts`,
+`coding-http.test.ts`, `coding-foundation.test.ts`, `coding-repository.test.ts`,
+`coding-live-room.test.ts`, `product-v4-browser-session.test.ts`,
+`coding-pedagogy.test.ts` and `coding-answer-sanitizer.test.ts`. Provider/HTTP
+fixtures use dependency injection. The Python and API evidence above uses Steel.
+No new successful local-browser execution is claimed: sandboxed system Chromium
+exited 1 because its SUID helper was owned incorrectly. No unsafe launch followed.
+
+Exploratory failures are not counted as passes. The original WebSocket assertion
+mistook asynchronous connection denial for a required constructor exception and
+exited 1; the corrected probe observes its error event. Earlier abort runs exited
+13 with unsettled top-level await or 1 at a bounded abort deadline, before the
+cancellation correction. Initial typecheck found an inferred unknown transfer
+entry, fixed with a typed tuple. Another run overlapped Next dev/build writes and
+read a corrupt generated routes declaration; after stopping dev and moving its
+ignored generated types aside, sequential typecheck passed. A temporary public
+React fixture capture timed out waiting for editor hydration; it is not UI proof.
+Some standalone diagnostic event-handler failures occurred before their finally
+cleanup; provider session lifetime was bounded to 120 seconds. A later read-only
+inventory returned HTTP 200 and all 100 most recent sessions were released. All
+accepted probes explicitly confirm their own release.
+
+Logs remain ignored under `artifacts/coding-live/`: `steel-runtime-verified.log`,
+`browser-runtime-verified.log`, `server-final.log`, `api-probe-final.log`,
+`deadline-api-final.log`, `contracts-accepted.log`, `typecheck-final-accepted.log`,
+`eslint-final-accepted.log` and `build-verified.log`. Earlier unsuccessful probes
+have separate filenames. No remote database migration/write, deployment or PR
+merge occurred. Unrelated branch changes were retained.
+
+At the pre-push head, GitHub still showed SonarQube failed and other executed
+checks successful; the earlier authorization/organization failure remains a CI
+gate, not evidence of a new code-analysis result. Recheck checks on the pushed
+head before merging. CI was not weakened.

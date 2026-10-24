@@ -1,6 +1,6 @@
 import { executionResultSchema, runtimeLimitsSchema, type ExecutionResult } from "./contracts";
 import type { PythonRuntime } from "./runtime";
-import { PYTHON_RUNTIME_REVISION } from "./runtime-assets";
+import { PYTHON_RUNTIME_ASSETS, PYTHON_RUNTIME_REVISION } from "./runtime-assets";
 
 export function createBrowserPythonRuntime(onPhase?: (phase: "loading" | "running") => void): PythonRuntime {
   return {
@@ -27,7 +27,7 @@ export function createBrowserPythonRuntime(onPhase?: (phase: "loading" | "runnin
         const timer = setTimeout(() => finish({ status: "unavailable", stdout: "", stderr: "Python belum dapat dimuat. Coba lagi.", truncated: false }), 50_000 + limits.timeoutMs);
         signal?.addEventListener("abort", stop, { once: true });
         channel.port1.onmessage = ({ data }) => {
-          if (data.type === "connected") channel.port1.postMessage({ type: "run", code, stdin, ...limits, workerUrl: `${location.origin}/coding/worker.js`, assetBase: `${location.origin}/api/coding/runtime/${PYTHON_RUNTIME_REVISION}/`, revision: PYTHON_RUNTIME_REVISION });
+          if (data.type === "connected") channel.port1.postMessage({ type: "run", code, stdin, ...limits, workerUrl: `${location.origin}/coding/worker.js`, assetBase: `${location.origin}/api/coding/runtime/${PYTHON_RUNTIME_REVISION}/`, revision: PYTHON_RUNTIME_REVISION, assets: PYTHON_RUNTIME_ASSETS });
           if (data.type === "running") onPhase?.("running");
           if (data.type === "result") {
             const parsed = executionResultSchema.safeParse(data.result);

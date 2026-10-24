@@ -1,6 +1,6 @@
 # Python learning
 
-Status: `ACTIVE`, local implementation contract. Updated: 2026-10-23.
+Status: `ACTIVE`, local implementation contract. Updated: 2026-10-24.
 
 ## Student surfaces
 
@@ -41,8 +41,9 @@ works. No course content is seeded by this implementation.
 ## Execution and grading
 
 Browser Run creates an iframe with `sandbox="allow-scripts"`, no same-origin
-permission, a dedicated CSP and a disposable module Worker. Its network policy
-allows only fixed public Python runtime assets. It cannot read application
+permission, a dedicated CSP and a disposable module Worker. The frame preloads
+only fixed public Python runtime assets without credentials, then transfers their
+bytes to the Worker. Loader modules use data URLs under the existing CSP. It cannot read application
 cookies or storage. The parent terminates the Worker on timeout or Stop. The
 opaque-origin Worker uses a data URL because Chromium rejects module Workers
 created from blob URLs in this sandbox. Source is fetched from a fixed public
@@ -50,8 +51,12 @@ application asset; learner code is passed as data after runtime initialization.
 
 Submit executes the canonical public and private tests on the server using
 Playwright and a new browser context plus disposable Worker per case. No Python
-executes inside Node. Requests are intercepted and fulfilled from fixed local
-Pyodide assets; other requests and WebSockets are denied. Contexts have no app
+executes inside Node. The page preloads fixed local Pyodide assets through request
+interception, then transfers their bytes and blob module URLs into the Worker.
+Both Run and Submit resolve runtime fetches from these pinned bytes and reject
+other origins, filenames and methods. External requests and WebSockets remain
+denied by the existing CSP and interception policy. This avoids relying on
+remote CDP to intercept Worker imports. WASM and stdlib remain real Pyodide assets. Contexts have no app
 sessions, browser permissions, downloads or service workers. Output is bounded;
 learner Python errors show user-code frames rather than interpreter internals.
 An outage or cancellation is ungradable, not an incorrect answer.
@@ -63,9 +68,10 @@ kernel sandbox enabled. Explicit `steel` reuses the V4 session adapter and
 server-only `STEEL_API_KEY`. `local` is rejected in production. There is no
 credential-based fallback or new feature flag. Both remote providers acquire a
 session through REST and explicitly release it before accepting a grade.
-A release failure makes the submission ungradable. Steel selection is available
-for diagnostics, but real Python grading through Steel has not passed verification.
-The service fails closed if that environment is unavailable. Synthetic runtime
+A release failure makes the submission ungradable. Real Steel Python grading has passed against the local application with
+synthetic SQLite accounts. Browser Run also passes through the real opaque iframe
+using a public runtime harness. This does not attest a deployed provider connection
+or authenticated remote UI. The service fails closed if its environment is unavailable. Synthetic runtime
 tests can inject a local Playwright browser without changing the service launch
 policy. Browser platform memory/process limits remain external; this code does
 not claim a per-program hard memory quota.
@@ -106,6 +112,9 @@ payload equality on replay, server deadlines, attempt limits and one in-flight
 job per surface. Leases recover abandoned work. Completion compares the lease,
 problem/version and status; an expired worker cannot overwrite recovered work.
 Infrastructure failures can be retried without spending an attempt limit.
+Cancellation races in-flight CDP setup explicitly; a context close alone may leave
+a remote setup command pending. Each context is closed once and provider release
+still precedes grade acceptance.
 
 ## Zyra coaching
 
