@@ -15,7 +15,7 @@ concurrency:
 
 jobs:
   deploy:
-    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/staging'
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     environment: ${{ github.ref_name == 'main' && 'production' || 'staging' }}
@@ -80,3 +80,154 @@ jobs:
       - name: Remove pulled environment files and build output
         if: always()
         run: rm -rf .vercel
+
+  staging-image:
+    name: Build and deploy staging to Cloud Run
+    if: github.ref == 'refs/heads/staging'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    environment: staging
+    permissions:
+      contents: read
+    env:
+      GCP_PROJECT: zyx-academy
+      GCP_REGION: asia-east1
+      CLOUD_RUN_SERVICE: zyx-academy-staging
+      IMAGE: asia-east1-docker.pkg.dev/zyx-academy/zyx-staging/zyx-academy
+      NEXT_TELEMETRY_DISABLED: '1'
+      PUPPETEER_SKIP_DOWNLOAD: 'true'
+      NODE_OPTIONS: --max-old-space-size=4096
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Check staging configuration
+        id: staging-config
+        env:
+          GCP_SERVICE_ACCOUNT_KEY: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
+          NEXT_PUBLIC_APP_URL: ${{ vars.NEXT_PUBLIC_APP_URL || secrets.NEXT_PUBLIC_APP_URL }}
+        run: |
+          set -euo pipefail
+          if [ -z "$GCP_SERVICE_ACCOUNT_KEY" ]; then
+            echo '::error::Configure GCP_SERVICE_ACCOUNT_KEY as a staging GitHub Environment Secret.'
+            exit 1
+          fi
+          if [ -z "$NEXT_PUBLIC_APP_URL" ]; then
+            echo '::error::Configure NEXT_PUBLIC_APP_URL in the staging GitHub Environment.'
+            exit 1
+          fi
+          python3 - <<'PY'
+          import json, os, sys
+          try:
+              key = json.loads(os.environ['GCP_SERVICE_ACCOUNT_KEY'])
+          except (ValueError, TypeError):
+              sys.exit('GCP_SERVICE_ACCOUNT_KEY must contain the complete service-account JSON, not base64.')
+          if (not isinstance(key, dict) or key.get('type') != 'service_account'
+                  or key.get('project_id') != 'zyx-academy'
+                  or not key.get('private_key') or not isinstance(key.get('client_email'), str)
+                  or not key['client_email'].endswith('@zyx-academy.iam.gserviceaccount.com')
+                  or any(c.isspace() for c in key['client_email'])):
+              sys.exit('A service-account JSON key for project zyx-academy is required.')
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
+              output.write('service_account=' + key['client_email'] + '\n')
+          PY
+      - name: Check deployment ordering and failure handling
+        run: python3 -m unittest discover -s .github/scripts -p test_deploy_cloud_run.py -v
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '24'
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version: '1.3.14'
+      - name: Install dependencies on the GitHub runner
+        run: bun install --frozen-lockfile
+      - name: Build standalone staging web on the GitHub runner
+        env:
+          NODE_ENV: production
+          NEXT_OUTPUT: standalone
+          ZYX_ENVIRONMENT: staging
+          ZYX_MCP_ENVIRONMENT: staging
+          # Only this build process skips server-secret validation. Runtime does not.
+          SKIP_ENV_VALIDATION: '1'
+          # Sitemap generation reads published blog metadata during the build.
+          DATABASE_URL: ${{ secrets.TURSO_DATABASE_URL || secrets.TURSO_CONNECTION_URL || secrets.DATABASE_URL }}
+          TURSO_CONNECTION_URL: ${{ secrets.TURSO_DATABASE_URL || secrets.TURSO_CONNECTION_URL || secrets.DATABASE_URL }}
+          TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}
+          AUTHORING_VERIFICATION_BROWSER_PROVIDER: ${{ vars.AUTHORING_VERIFICATION_BROWSER_PROVIDER || 'cloudflare' }}
+          AUTHORING_VERIFICATION_STEEL_BROWSER_VERSION: ${{ vars.AUTHORING_VERIFICATION_STEEL_BROWSER_VERSION }}
+          NEXT_PUBLIC_APP_URL: ${{ vars.NEXT_PUBLIC_APP_URL || secrets.NEXT_PUBLIC_APP_URL }}
+          NEXT_PUBLIC_SENTRY_DSN: ${{ vars.NEXT_PUBLIC_SENTRY_DSN || secrets.NEXT_PUBLIC_SENTRY_DSN }}
+          NEXT_PUBLIC_DESMOS_API_KEY: ${{ vars.NEXT_PUBLIC_DESMOS_API_KEY || secrets.NEXT_PUBLIC_DESMOS_API_KEY }}
+          NEXT_PUBLIC_WHATSAPP_NUMBER: ${{ vars.NEXT_PUBLIC_WHATSAPP_NUMBER || secrets.NEXT_PUBLIC_WHATSAPP_NUMBER }}
+          NEXT_PUBLIC_REALTIME_URL: ${{ vars.NEXT_PUBLIC_REALTIME_URL || secrets.NEXT_PUBLIC_REALTIME_URL }}
+          NEXT_PUBLIC_BRAND_EMAIL: ${{ vars.NEXT_PUBLIC_BRAND_EMAIL || secrets.NEXT_PUBLIC_BRAND_EMAIL || 'contact@zyxacademy.com' }}
+          NEXT_PUBLIC_BRAND_INSTAGRAM: ${{ vars.NEXT_PUBLIC_BRAND_INSTAGRAM || secrets.NEXT_PUBLIC_BRAND_INSTAGRAM || 'https://instagram.com/zyx_academy' }}
+          NEXT_PUBLIC_BRAND_TIKTOK: ${{ vars.NEXT_PUBLIC_BRAND_TIKTOK || secrets.NEXT_PUBLIC_BRAND_TIKTOK || 'https://tiktok.com/@zyx_academy' }}
+          NEXT_PUBLIC_POSTHOG_KEY: ${{ vars.NEXT_PUBLIC_POSTHOG_KEY || secrets.NEXT_PUBLIC_POSTHOG_KEY }}
+          NEXT_PUBLIC_POSTHOG_HOST: ${{ vars.NEXT_PUBLIC_POSTHOG_HOST || secrets.NEXT_PUBLIC_POSTHOG_HOST || 'https://us.i.posthog.com' }}
+          NEXT_PUBLIC_FEATURE_ZYRA_IMAGE_INPUT_V1: ${{ vars.NEXT_PUBLIC_FEATURE_ZYRA_IMAGE_INPUT_V1 || secrets.NEXT_PUBLIC_FEATURE_ZYRA_IMAGE_INPUT_V1 }}
+          NEXT_PUBLIC_FIREBASE_API_KEY: ${{ vars.NEXT_PUBLIC_FIREBASE_API_KEY || secrets.NEXT_PUBLIC_FIREBASE_API_KEY }}
+          NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: ${{ vars.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || secrets.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN }}
+          NEXT_PUBLIC_FIREBASE_PROJECT_ID: ${{ vars.NEXT_PUBLIC_FIREBASE_PROJECT_ID || secrets.NEXT_PUBLIC_FIREBASE_PROJECT_ID }}
+          NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: ${{ vars.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || secrets.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET }}
+          NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: ${{ vars.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || secrets.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID }}
+          NEXT_PUBLIC_FIREBASE_APP_ID: ${{ vars.NEXT_PUBLIC_FIREBASE_APP_ID || secrets.NEXT_PUBLIC_FIREBASE_APP_ID }}
+          NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID: ${{ vars.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID || secrets.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID }}
+          NEXT_PUBLIC_FIREBASE_VAPID_KEY: ${{ vars.NEXT_PUBLIC_FIREBASE_VAPID_KEY || secrets.NEXT_PUBLIC_FIREBASE_VAPID_KEY }}
+        run: |
+          set -euo pipefail
+          # Unconfigured GitHub settings arrive as empty strings. Let app defaults apply.
+          while IFS= read -r key; do
+            if [[ "$key" == NEXT_PUBLIC_* ]] && [ -z "${!key}" ]; then
+              unset "$key"
+            fi
+          done < <(compgen -e)
+          bun -e '
+            const database = process.env.TURSO_CONNECTION_URL;
+            if (!database || !process.env.TURSO_AUTH_TOKEN ||
+                new URL(database).hostname !== "zyx-staging-soezyxstt.aws-ap-south-1.turso.io") {
+              throw new Error("Configure the existing staging Turso URL and token; production targets are rejected.");
+            }
+            console.log("Staging database build target verified.");
+          '
+          bun run build
+          test -s .next/standalone/server.js
+          test -s .next/standalone/dist/skills/manifest.json
+      - name: Package and smoke test the image locally
+        run: |
+          set -euo pipefail
+          docker build --file Dockerfile.cloud-run \
+            --label "org.opencontainers.image.revision=$GITHUB_SHA" \
+            --tag "$IMAGE:$GITHUB_SHA" .
+          bash .github/scripts/smoke-cloud-run.sh "$IMAGE:$GITHUB_SHA"
+      # Create Google credentials only after building and testing the image.
+      - id: google-auth
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3
+        with:
+          project_id: zyx-academy
+          credentials_json: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
+      - uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db # v3
+        with:
+          project_id: zyx-academy
+      - name: Push the tested image to Taiwan Artifact Registry
+        id: published-image
+        run: |
+          set -euo pipefail
+          gcloud auth configure-docker asia-east1-docker.pkg.dev --quiet
+          docker push "$IMAGE:$GITHUB_SHA"
+          digest="$(docker inspect --format '{{index .RepoDigests 0}}' "$IMAGE:$GITHUB_SHA")"
+          printf 'image=%s\n' "$digest" >> "$GITHUB_OUTPUT"
+          {
+            echo '### Staging image ready for Cloud Run'
+            printf 'Image: `%s`\n\n' "$digest"
+            echo 'Build ran on GitHub Actions; Cloud Build was not used.'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Deploy the exact image and move staging traffic after readiness
+        env:
+          CLOUD_RUN_RUNTIME_ACCOUNT: ${{ steps.staging-config.outputs.service_account }}
+          CLOUD_RUN_IMAGE: ${{ steps.published-image.outputs.image }}
+          CLOUD_RUN_BUILD_ORIGIN: ${{ vars.NEXT_PUBLIC_APP_URL || secrets.NEXT_PUBLIC_APP_URL }}
+        run: bash .github/scripts/deploy-cloud-run.sh
