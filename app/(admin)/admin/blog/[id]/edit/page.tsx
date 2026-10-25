@@ -5,6 +5,7 @@ import { eq } from "drizzle-orm";
 import { notFound } from "next/navigation";
 import { AdminPageHeader } from "@/components/admin/page-header";
 import { PenLine } from "lucide-react";
+import { TranslatedText } from "@/components/i18n/translated-text";
 
 export default async function EditArticlePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -18,7 +19,7 @@ export default async function EditArticlePage({ params }: { params: Promise<{ id
     <div className="space-y-5">
       <AdminPageHeader
         icon={PenLine}
-        title="Sunting Artikel"
+        title={<TranslatedText namespace="adminOps" messageKey="blogList.edit" />}
         description={article.title}
         backHref="/admin/blog"
       />

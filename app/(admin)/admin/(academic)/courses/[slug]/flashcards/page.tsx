@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { assertAdmin } from "@/lib/auth/admin-guards";
 import { pageTitle } from "@/lib/site";
+import { getTranslations } from "@/lib/i18n/server";
 import { CourseDetailHeader } from "@/components/admin/course-detail/course-detail-header";
 import { FlashcardsTab } from "@/components/admin/course-detail/flashcards-tab";
 import { getCourseDetailData } from "../../actions";
@@ -12,18 +13,19 @@ type Props = {
 };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const t = await getTranslations("adminAcademic");
   const { slug } = await params;
   try {
     const data = await getCourseDetailData(slug);
     if (!data?.course) {
-      return { title: pageTitle("Flashcard, Mata Kuliah Tidak Ditemukan") };
+      return { title: pageTitle(t("metadata.pages.flashcardsNotFound")) };
     }
     return {
-      title: pageTitle(`Flashcard, ${data.course.title}`),
-      description: `Kelola set dan kartu flashcard untuk mata kuliah ${data.course.title}.`,
+      title: pageTitle(t("metadata.pages.flashcardsCourseTitle", { course: data.course.title })),
+      description: t("metadata.pages.flashcardsDescription", { course: data.course.title }),
     };
   } catch {
-    return { title: pageTitle("Flashcard Mata Kuliah") };
+    return { title: pageTitle(t("metadata.pages.flashcardsFallbackTitle")) };
   }
 }
 

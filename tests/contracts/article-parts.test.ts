@@ -57,3 +57,15 @@ describe("V4 semantic math and trace", () => {
   expect(materializeArticleParts(articlePartsSchema.parse([{ id: "text", kind: "markdown", markdown }]))).toBe(markdown);
  });
 });
+
+describe("Python Article parts", () => {
+ test("accepts examples and canonical problem references without embedding private answers", () => {
+  const parts = articlePartsSchema.parse([
+   { id: "example", kind: "code_example", language: "python", code: "print(1)", runnable: true },
+   { id: "exercise", kind: "coding_exercise", problem: { problemId: "sum-even", version: 1 } },
+  ]);
+  expect(materializeArticleParts(parts)).toContain("```python\nprint(1)\n```");
+  expect(materializeArticleParts(parts)).toContain("coding-exercise:sum-even:1");
+  expect(articlePartsSchema.safeParse([{ ...parts[1], referenceSolution: "secret" }]).success).toBe(false);
+ });
+});

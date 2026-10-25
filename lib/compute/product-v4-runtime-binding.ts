@@ -1,9 +1,10 @@
+import { verificationBrowserIdentity } from "./product-v4-browser-config";
 import { createHash } from "node:crypto";
 import { readFileSync, readdirSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, join, resolve } from "node:path";
 import { deterministicProductSerialization } from "@/lib/bundle/product-validator";
-import { PRODUCT_V4_VERIFICATION_POLICY, PRODUCT_V4_DEPLOYED_BROWSER_VERSION, type ProductV4VerificationBinding } from "@/lib/bundle/product-v4-verification";
+import { PRODUCT_V4_VERIFICATION_POLICY, type ProductV4VerificationBinding } from "@/lib/bundle/product-v4-verification";
 import type { ProductV4VerificationSnapshot } from "@/lib/bundle/product-v4-verification-service";
 import type { getProductBundleImport } from "@/lib/bundle/product-staging";
 import type { DiktatSourceFigureAssets } from "@/lib/materials/diktat-static-visual";
@@ -35,20 +36,24 @@ export const PRODUCT_V4_RUNTIME_FILES = [
   "deno.json", "workers/deno-background/deno.json", "lib/compute/pdf-pages.ts", "lib/compute/pdf-worker.ts",
   "app/globals.css", "app/layout.tsx", "app/authoring-verification/page.tsx",
   "components/providers/telemetry-boundary.tsx", "components/providers/posthog-provider.tsx", "lib/env.ts",
+  "components/coding/article-coding.tsx", "components/coding/coding-workspace.tsx", "components/coding/coding-help.tsx", "components/coding/python-editor.tsx", "components/coding/use-coding-draft.ts",
+  "lib/coding/draft-reconciliation.ts", "lib/coding/contracts.ts", "lib/coding/browser-runtime.ts", "lib/coding/runtime.ts", "lib/coding/runtime-assets.ts", "lib/coding/frame.html", "public/coding/worker.js", "lib/coding/http-contracts.ts", "lib/coding/zyra.ts",
+  "components/course/markdown/flowchart-diagram-renderer.tsx", "lib/visual-layout-service.ts",
   "components/course/article-parts.tsx", "components/course/math-text.tsx", "components/course/markdown-renderer.tsx",
   "components/course/product-learning-visual.tsx", "components/course/epsilon-delta-board.tsx", "components/course/geometry-2d-visual.tsx",
   "components/course/learning-canvas/learning-canvas-renderer.tsx", "components/ui/slider.tsx",
+  "components/course/markdown/flowchart-node.tsx", "lib/flowchart.ts",
   "components/course/product-learning-blocks.tsx", "components/course/article-reading-canvas.tsx", "components/course/structured-article-reader.tsx",
   "components/course/question-image.tsx", "lib/articles/source-figure-resolver.ts", "app/api/courses/[id]/articles/[articleId]/source-figures/[visualId]/route.ts",
   "lib/articles/structured-read-model.ts", "lib/articles/structured-repository.ts", "lib/materials/compiler.ts", "lib/materials/pedagogy-contract.ts",
   "lib/authoring/source-figures.ts", "lib/compute/source-figure.ts", "lib/authoring/mcp-contract-revision.ts", "lib/authoring/mcp-workflows.ts", "lib/authoring/mcp-playbook.ts",
   "lib/authoring/source-pack.ts", "lib/authoring/question-bank-draft.ts", "lib/authoring/reference-question-draft.ts", "lib/question-authoring-contract.ts", "lib/ide/contracts.ts", "lib/sumber/contracts.ts", "lib/bundle/idea-bundle-v2.ts", "lib/bundle/validator.ts", "lib/bundle/zip-reader.ts", "lib/materials/quality-policy.ts", "lib/materials/quality-policy-constants.ts", "lib/materials/pdf-artifact-contract.ts",
-  "lib/math/katex.ts", "lib/math/scientific-format.ts", "lib/math/text-segments.ts", "lib/math/unmarked-scientific.ts", "lib/math/visual-function-latex.ts", "lib/math/math-normalizer.ts", "lib/math/scientific-answer-normalizer.ts",
+  "lib/math/katex.ts", "lib/math/katex-render.ts", "lib/math/scientific-format.ts", "lib/math/text-segments.ts", "lib/math/unmarked-scientific.ts", "lib/math/visual-function-latex.ts", "lib/math/math-normalizer.ts", "lib/math/scientific-answer-normalizer.ts",
   "lib/materials/article-parts.ts", "lib/materials/article-contract.ts", "lib/materials/visual-contract.ts", "lib/materials/epsilon-delta.ts",
   "lib/materials/diktat-v4.ts", "lib/materials/diktat-static-visual.ts", "lib/materials/diktat-print-readiness.ts", "lib/materials/verification-preview.ts",
   "lib/zyra/canvas/contracts.ts", "lib/zyra/canvas/expression.ts", "lib/zyra/canvas/evaluator.ts", "lib/zyra/canvas/viewport.ts",
   "lib/bundle/product-diktat-pdf.ts", "lib/bundle/product-validator.ts", "lib/bundle/product-v4-verification.ts", "lib/bundle/product-v4-verification-service.ts", "lib/bundle/product-review-gate.ts", "lib/compute/product-v4-runtime-binding.ts",
-  "lib/compute/product-v4-pdf-evidence.ts", "lib/compute/product-v4-verification-executor.ts", "lib/compute/product-v4-browser-runner.ts", "lib/compute/product-v4-browser-session.ts", "scripts/authoring/verification-renderer.ts", "scripts/authoring/build-local-verification-renderer.ts", "jobs/product-verification.ts",
+  "lib/compute/product-v4-pdf-evidence.ts", "lib/compute/product-v4-verification-executor.ts", "lib/compute/product-v4-browser-runner.ts", "lib/compute/product-v4-browser-session.ts", "lib/compute/product-v4-browser-config.ts", "scripts/authoring/verification-renderer.ts", "scripts/authoring/build-local-verification-renderer.ts", "jobs/product-verification.ts",
 ] as const;
 
 function figureSpecs(bundle: Bundle): SourceFigureVisualSpec[] {
@@ -127,7 +132,7 @@ export async function buildProductV4RuntimeBinding(input: { row: ImportRow; bund
   if (course.id !== bundle.manifest.courseId || row.courseId !== course.legacyCourseId) throw new Error("PRODUCT_V4_COURSE_MISMATCH");
   const [rows, figures, runtime] = await Promise.all([ports.dependencies(bundle), verifiedFigures(bundle, ports), ports.runtime()]);
   return { importId: row.id, courseId: course.id, runId, revision: Number.parseInt(row.checksum.slice(0, 8), 16) + 1,
-    ...(process.env.NODE_ENV === "production" || typeof (globalThis as { Deno?: unknown }).Deno !== "undefined" ? { browserVersion: PRODUCT_V4_DEPLOYED_BROWSER_VERSION } : {}),
+    ...(process.env.NODE_ENV === "production" || typeof (globalThis as { Deno?: unknown }).Deno !== "undefined" || process.env.AUTHORING_VERIFICATION_BROWSER_PROVIDER ? verificationBrowserIdentity() : {}),
     ...runtime, policyRevision: PRODUCT_V4_VERIFICATION_POLICY, dependencyChecksum: productV4DependencyChecksum(bundle, rows),
     assetChecksum: hash(figures.map(figure => ({ metadata: figure.metadata, variants: figure.variants.map(({ bytes, ...variant }) => ({ ...variant, byteLength: bytes.length, readbackChecksum: bytesHash(bytes) })) }))),
   };
@@ -170,7 +175,7 @@ export async function readProductV4RuntimeFingerprint(): Promise<ProductV4Runtim
   }
   const [{ getStagePlaybookManifest }, { PRODUCT_DIKTAT_PRINT_PROFILE }] = await Promise.all([import("@/lib/authoring/mcp-playbook"), import("@/lib/bundle/product-diktat-pdf")]);
   const require = createRequire(import.meta.url);
-  const packages = ["react", "react-dom", "next", "katex", "jsxgraph", "zod", "mathjs", "tailwindcss", "@tailwindcss/postcss", "@playwright/test", "playwright-core"];
+  const packages = ["pyodide", "@codemirror/state", "@codemirror/view", "@codemirror/language", "@codemirror/lang-python", "@codemirror/commands", "react", "react-dom", "next", "katex", "jsxgraph", "zod", "mathjs", "tailwindcss", "@tailwindcss/postcss", "@playwright/test", "playwright-core"];
   const versions = packages.map(name => [name, JSON.parse(readFileSync(runtimePackageManifest(name), "utf8")).version]);
   const katexRoot = dirname(require.resolve("katex/package.json"));
   const browsers = readFileSync(join(dirname(require.resolve("playwright-core/package.json")), "browsers.json"));
@@ -179,7 +184,7 @@ export async function readProductV4RuntimeFingerprint(): Promise<ProductV4Runtim
   // Git checkouts on Windows use CRLF; bind the same source text on Linux deployments.
   const files = PRODUCT_V4_RUNTIME_FILES.map(path => [path, bytesHash(Buffer.from(readFileSync(resolve(/* turbopackIgnore: true */ process.cwd(), path), "utf8").replace(/\r\n/g, "\n")))] as const);
   // Bun bundling expands Unicode regex escapes; bind contract source, not engine-specific JSON Schema spellings.
-  const contractFiles = files.filter(([path]) => /^lib\/(authoring|materials|bundle|ide|sumber|zyra\/canvas)\//.test(path) || path === "lib/question-authoring-contract.ts");
+  const contractFiles = files.filter(([path]) => /^lib\/(authoring|materials|bundle|ide|sumber|coding|zyra\/canvas)\//.test(path) || path === "lib/question-authoring-contract.ts");
   return { rendererChecksum: hash({ files, versions, browsers: bytesHash(browsers), chromium: expectedChromiumRuntime() }),
     fontChecksum: hash({ stylesheet: bytesHash(readFileSync(join(katexRoot, "dist/katex.min.css"))), fonts: fonts.map(name => [name, bytesHash(readFileSync(join(katexRoot, "dist/fonts", name)))]) }),
     contractChecksum: hash({ files: contractFiles, policy: PRODUCT_V4_VERIFICATION_POLICY }), playbookChecksum: getStagePlaybookManifest("product").playbookChecksum,

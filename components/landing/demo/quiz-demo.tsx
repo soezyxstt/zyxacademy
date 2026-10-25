@@ -4,6 +4,7 @@ import { useState, type ReactNode } from "react";
 import { RotateCcw, Timer } from "lucide-react";
 import { DemoFrame } from "@/components/landing/demo/demo-frame";
 import { QuizOptionRow } from "@/components/landing/demo/quiz-option-row";
+import { useTranslations } from "@/lib/i18n/client";
 
 export type QuizDemoOption = {
  id: string;
@@ -28,6 +29,7 @@ type QuizDemoProps = {
  * KaTeX never enters the client bundle.
  */
 export function QuizDemo({ prompt, options, correctPanel, wrongPanel }: QuizDemoProps) {
+ const t = useTranslations("marketing");
  const [picked, setPicked] = useState<string | null>(null);
 
  const answered = picked !== null;
@@ -43,7 +45,7 @@ export function QuizDemo({ prompt, options, correctPanel, wrongPanel }: QuizDemo
 
  return (
  <DemoFrame
- title="Kuis Mingguan · Kalkulus IA"
+ title={t("home.weeklyQuizFrameTitle")}
  meta={
  <>
  <span className="flex items-center gap-1 font-mono">
@@ -89,7 +91,7 @@ export function QuizDemo({ prompt, options, correctPanel, wrongPanel }: QuizDemo
  className="mt-4 inline-flex items-center gap-1.5 rounded-md text-body-sm font-semibold text-primary transition-colors hover:text-primary/80"
  >
  <RotateCcw className="size-3.5" aria-hidden />
- Coba lagi
+ {t("home.quizTryAgain")}
  </button>
  ) : null}
  </DemoFrame>

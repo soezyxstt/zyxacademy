@@ -1,0 +1,32 @@
+{
+  "chat": {
+    "workSearching": "Searching course material...",
+    "workReady": "Course material is ready",
+    "invalidCourse": "Invalid course.",
+    "invalidAttachment": "Invalid attachment.",
+    "questionOrImageRequired": "Enter a question or attach an image.",
+    "courseAccessUnavailable": "Zyra access for this course is not available yet.",
+    "freeTextOnly": "The Free plan supports text questions only.",
+    "freeDailyLimit": "The Free plan supports one text question per day.",
+    "questionRequired": "Enter a question.",
+    "imageInputUnavailable": "Zyra image input is unavailable right now.",
+    "dailyLimit": "Zyra can't answer another question today because you've reached the daily limit. Try again tomorrow, or study with your textbook and flashcards.",
+    "providerImageAndQuestionUnavailable": "Your image and question were received, but the AI service is temporarily unavailable. Please try again shortly.",
+    "providerImageUnavailable": "Your image was received, but the AI service is temporarily unavailable. Please try again shortly.",
+    "providerQuestionUnavailable": "Your question was received, but the AI service is temporarily unavailable. Please try again shortly.",
+    "answerUnavailable": "Sorry, something went wrong while preparing the answer. Please try again shortly.",
+    "internalError": "An internal error occurred.",
+    "clarification": "Please ask a more specific question about the course material so I can help.",
+    "greeting": "Hi, what would you like help learning today?",
+    "assessmentScaffold": "Let's focus on the core concept first. Which definition or property applies here?",
+    "conflictingSources": "The course materials contain conflicting information. Please review the referenced sources.",
+    "outOfScope": "Zyra helps with learning topics within Zyx. Ask about a course concept, practice, or study strategy.",
+    "personalization": {
+      "takeSlowly": "Let's take this slowly, one step at a time.",
+      "breakIntoSteps": "Let's break the explanation into a few steps.",
+      "pictureRelations": "Try picturing how these parts relate.",
+      "keyIdea": "The key idea is:",
+      "moreDetail": "Let's unpack this in more detail."
+    }
+  }
+}

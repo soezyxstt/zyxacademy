@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "@/components/ui/toast";
+import { emitActivityUpdated } from "@/lib/activity-signal";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Flag, Timer, Clock, BookOpen, AlertCircle, ChevronLeft, ChevronRight, Loader2, UploadCloud, FileText, Trash2, Check, CheckSquare, CircleDot } from "lucide-react";
@@ -19,6 +20,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { ScientificInput } from "@/components/ui/scientific-input";
+import { useTranslations } from "@/lib/i18n/client";
 
 type QuizPlayerProps = {
   courseId: string;
@@ -71,6 +73,7 @@ function isMultipleChoiceQuestion(type?: string): boolean {
  * Interactive student quiz player component with timer, navigation, file uploads, and submission handling.
  */
 export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirectBasePath, initialAnswers, startedAtMs, closeAtMs }: QuizPlayerProps) {
+  const t = useTranslations("learning");
   const router = useRouter();
   const { setSuppressPet } = useTutor();
   const durationSeconds =
@@ -202,12 +205,12 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
           answersRef.current = next;
           setAnswers(next);
           window.localStorage.setItem(`zyx-quiz-answers-${attemptId}`, JSON.stringify(next));
-          toast.success(`Berkas ${file.name} berhasil diunggah.`);
+          toast.success(t("quiz.uploadSuccess", { fileName: file.name }));
         } else {
-          toast.error(data.error || "Gagal mengunggah berkas.");
+          toast.error(t("quiz.uploadFailed"));
         }
       } catch {
-        toast.error("Gagal mengunggah berkas.");
+        toast.error(t("quiz.uploadFailed"));
       } finally {
         activeUploadPromisesRef.current.delete(questionId);
         finishUpload();
@@ -219,7 +222,7 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
       }
     });
     xhr.addEventListener("error", () => {
-      toast.error("Gagal mengunggah berkas.");
+      toast.error(t("quiz.uploadFailed"));
       activeUploadPromisesRef.current.delete(questionId);
       finishUpload();
       setUploadingFile((prev) => {
@@ -267,7 +270,7 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
         });
         if (!res.ok) {
           const errData = await res.json().catch(() => null);
-          throw new Error(errData?.error || "Gagal menghapus berkas dari server.");
+          throw new Error(t("quiz.removeFileFailed"));
         }
       } catch (err: any) {
         toast.error(err?.message || "Gagal menghapus berkas.");
@@ -302,7 +305,7 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
       delete copy[questionId];
       return copy;
     });
-    toast.info("Lampiran berkas dihapus.");
+      toast.info(t("quiz.attachmentRemoved"));
   }
 
   /**
@@ -312,14 +315,14 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
     if (isSubmitted || submitting) return;
 
     if (Object.keys(uploadingFile).length > 0) {
-      toast.warning("Harap tunggu hingga proses unggah berkas selesai sebelum mengumpulkan kuis.");
+      toast.warning(t("quiz.waitForUpload"));
       return;
     }
 
     if (requireAllAnswered) {
       const unansweredIndex = sorted.findIndex((question) => !isQuestionAnswered(question.id));
       if (unansweredIndex !== -1) {
-        toast.error("Harap jawab semua butir soal sebelum mengumpulkan kuis.");
+        toast.error(t("quiz.answerAll"));
         setIndex(unansweredIndex);
         return;
       }
@@ -355,7 +358,7 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
       ]);
     } else if (Object.keys(uploadingFile).length > 0) {
       if (!isAutoSubmit) {
-        toast.warning("Harap tunggu hingga proses unggah berkas selesai sebelum mengumpulkan kuis.");
+        toast.warning(t("quiz.waitForUpload"));
         return;
       }
     }
@@ -363,7 +366,7 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
     if (requireAllAnswered && !isAutoSubmit) {
       const unansweredIndex = sorted.findIndex((question) => !isQuestionAnswered(question.id));
       if (unansweredIndex !== -1) {
-        toast.error("Harap jawab semua butir soal sebelum mengumpulkan kuis.");
+        toast.error(t("quiz.answerAll"));
         setIndex(unansweredIndex);
         return;
       }
@@ -403,20 +406,21 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
       });
 
       if (!res.ok) {
-        let message = "Gagal mengumpulkan kuis";
+        let message = t("quiz.submitFailed");
         try {
           const errData = await res.json();
-          if (errData?.error) message = typeof errData.error === "string" ? errData.error : "Terjadi kesalahan";
+          if (errData?.error) message = t("quiz.submitFailed");
         } catch { /* empty or non-JSON body */ }
         throw new Error(message);
       }
 
       isSubmittedRef.current = true;
       setIsSubmitted(true);
+      emitActivityUpdated({ type: "quiz", attemptId, courseId });
       window.localStorage.removeItem(timerStorageKey);
       window.localStorage.removeItem(`zyx-quiz-answers-${attemptId}`);
       window.localStorage.removeItem(`zyx-quiz-flags-${attemptId}`);
-      toast.success("Kuis berhasil dikumpulkan! Mengarahkan ke pembahasan...");
+      toast.success(t("quiz.submitted"));
 
       // Navigate to the review screen for this attempt
       const reviewPath = getRedirectPath
@@ -427,7 +431,9 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
       router.replace(reviewPath);
       router.refresh();
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Gagal mengumpulkan kuis. Silakan coba kembali.";
+      const message = err instanceof Error && err.message === t("quiz.removeFileFailed")
+        ? err.message
+        : t("quiz.retrySubmit");
       toast.error(message);
       submittingRef.current = false;
       setSubmitting(false);
@@ -443,7 +449,7 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
         if (prev <= 1) {
           clearInterval(qTimer);
           if (index < sorted.length - 1) {
-            toast.info("Waktu untuk butir soal ini telah habis. Beralih ke soal berikutnya.");
+            toast.info(t("quiz.questionTimeEnded"));
             setIndex((i) => i + 1);
           } else {
             const totalDeadline = Number(window.localStorage.getItem(timerStorageKey));
@@ -451,7 +457,7 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
               ? Math.max(0, Math.ceil((totalDeadline - Date.now()) / 1000))
               : 0;
             if (totalRemaining > 0) {
-              toast.info("Waktu untuk butir soal ini telah habis. Periksa jawaban Anda dan kumpulkan sebelum waktu total berakhir.");
+              toast.info(t("quiz.questionTimeEndedFinal"));
             }
           }
           return 0;
@@ -502,7 +508,7 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
 
       if (remaining <= 0) {
         clearInterval(timer);
-        toast.warning("Waktu habis! Jawaban Anda otomatis terkirim.");
+        toast.warning(t("quiz.timeExpired"));
         handleSubmit(true);
       }
     }, 1000);
@@ -578,7 +584,7 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
   if (!q) {
     return (
       <div className="rounded-lg border border-dashed border-border bg-muted/15 py-10 text-center">
-        <p className="text-body-sm text-muted-foreground">Tidak ada pertanyaan untuk kuis ini.</p>
+        <p className="text-body-sm text-muted-foreground">{t("quiz.noQuestions")}</p>
       </div>
     );
   }
@@ -604,8 +610,8 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
         <div className="flex flex-col gap-2.5 border-b border-border pb-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4 md:pb-4">
           <div className="flex-1 space-y-1.5">
             <div className="flex items-center justify-between gap-3 text-body-xs font-bold uppercase tracking-wider text-muted-foreground">
-              <span>PROGRES PENGERJAAN</span>
-              <span>{Math.round(progress)}% ({answeredCount} / {sorted.length} Terisi)</span>
+              <span>{t("quiz.progress")}</span>
+              <span>{Math.round(progress)}% ({answeredCount} / {sorted.length} {t("quiz.filled")})</span>
             </div>
             <div className="h-2 overflow-hidden rounded-md bg-muted">
               <div
@@ -617,12 +623,12 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
 
           <div className="flex items-center gap-2">
             {perQuestionTimerEnabled && (
-              <div className="flex w-fit shrink-0 items-center gap-1.5 rounded-lg border border-brand-primary/35 bg-brand-primary/10 px-2.5 py-1 font-mono text-body-sm font-bold text-brand-primary sm:px-3 sm:py-1.5" title="Batas waktu untuk nomor ini">
+              <div className="flex w-fit shrink-0 items-center gap-1.5 rounded-lg border border-brand-primary/35 bg-brand-primary/10 px-2.5 py-1 font-mono text-body-sm font-bold text-brand-primary sm:px-3 sm:py-1.5" title={t("quiz.questionTimeLimit")}>
                 <Timer className="size-3.5 animate-pulse sm:size-4" />
-                <span>Soal: {questionTimeLeft}s</span>
+                <span>{t("quiz.questionNumber", { number: index + 1 })}: {questionTimeLeft}s</span>
               </div>
             )}
-            <div className="flex w-fit shrink-0 items-center gap-1.5 rounded-lg border border-brand-secondary/35 bg-brand-secondary/10 px-2.5 py-1 font-mono text-body-sm font-bold text-brand-secondary sm:px-3 sm:py-1.5" title="Total sisa waktu kuis">
+            <div className="flex w-fit shrink-0 items-center gap-1.5 rounded-lg border border-brand-secondary/35 bg-brand-secondary/10 px-2.5 py-1 font-mono text-body-sm font-bold text-brand-secondary sm:px-3 sm:py-1.5" title={t("quiz.totalTimeRemaining")}>
               <Clock className="size-3.5 sm:size-4" />
               <span>{formatTime(timeLeft)}</span>
             </div>
@@ -653,7 +659,7 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
           {q.type === "short_answer" || q.type === "essay" ? (
             <div className="mt-4 space-y-3 md:mt-5">
               <label className="block text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                {q.type === "short_answer" ? "Ketik Jawaban Singkat Anda:" : "Tuliskan Jawaban Essay Anda:"}
+                {q.type === "short_answer" ? t("quiz.shortAnswerLabel") : t("quiz.essayLabel")}
               </label>
               {q.type === "short_answer" ? (
                 <ScientificInput
@@ -664,7 +670,7 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
                     setAnswers(next);
                     window.localStorage.setItem(`zyx-quiz-answers-${attemptId}`, JSON.stringify(next));
                   }}
-                  placeholder="Ketik jawaban singkat di sini..."
+                  placeholder={t("quiz.shortAnswerPlaceholder")}
                 />
               ) : (
                 <div className="space-y-4">
@@ -678,14 +684,14 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
                       setAnswers(next);
                       window.localStorage.setItem(`zyx-quiz-answers-${attemptId}`, JSON.stringify(next));
                     }}
-                    placeholder="Tuliskan jawaban essay Anda selengkap mungkin..."
+                    placeholder={t("quiz.essayPlaceholder")}
                     className="w-full rounded-lg border border-border bg-background p-3 font-sans text-body-sm font-medium leading-relaxed transition-all hover:border-border focus:border-brand-primary focus:ring-1 focus:ring-brand-primary/30 focus:outline-none"
                   />
 
                   {/* Cloudflare R2 file uploader widget for Essay */}
                   <div className="space-y-2.5 pt-1">
                     <span className="block text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                      Unggah Lampiran Berkas (PDF / Gambar Coretan):
+                      {t("quiz.attachmentLabel")}
                     </span>
 
                     {!ans?.fileName && !uploadingFile[q.id] ? (
@@ -698,8 +704,8 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
                           className="absolute inset-0 size-full cursor-pointer opacity-0 disabled:cursor-not-allowed"
                         />
                         <UploadCloud className="mb-2 size-7 text-muted-foreground" />
-                        <p className="text-body-xs font-bold text-foreground">Klik atau Seret Berkas ke sini</p>
-                        <p className="mt-0.5 text-body-xs text-muted-foreground">Mendukung PDF, PNG, JPG, WebP (Maks. 4 MB)</p>
+                        <p className="text-body-xs font-bold text-foreground">{t("quiz.dropFile")}</p>
+                        <p className="mt-0.5 text-body-xs text-muted-foreground">{t("quiz.fileTypes")}</p>
                       </div>
                     ) : null}
 
@@ -707,7 +713,7 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
                     {uploadingFile[q.id] && (uploadProgress[q.id] ?? 0) < 100 ? (
                       <div className="animate-pulse space-y-2 rounded-xl border border-brand-secondary/35 bg-brand-secondary/5 p-3.5">
                         <div className="flex justify-between text-body-xs font-semibold text-brand-secondary">
-                          <span className="max-w-[200px] truncate">Mengunggah: {uploadingFile[q.id]}</span>
+                          <span className="max-w-[200px] truncate">{t("quiz.uploading", { fileName: uploadingFile[q.id] })}</span>
                           <span>{uploadProgress[q.id]}%</span>
                         </div>
                         <div className="h-1.5 w-full overflow-hidden rounded-md bg-muted">
@@ -716,7 +722,7 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
                             style={{ width: `${uploadProgress[q.id]}%` }}
                           />
                         </div>
-                        <p className="text-body-xs text-muted-foreground">Menyimpan langsung ke Cloudflare R2...</p>
+                        <p className="text-body-xs text-muted-foreground">{t("quiz.savingFile")}</p>
                       </div>
                     ) : null}
 
@@ -729,7 +735,7 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
                           </span>
                           <div className="min-w-0">
                             <p className="max-w-[200px] truncate text-body-xs font-bold text-foreground md:max-w-xs">{ans.fileName}</p>
-                            <p className="text-body-2xs text-muted-foreground">{ans.fileSize || "PDF / Gambar"} • Cloudflare R2</p>
+                            <p className="text-body-2xs text-muted-foreground">{ans.fileSize || t("quiz.pdfImage")} • Cloudflare R2</p>
                           </div>
                         </div>
                         <Button
@@ -739,10 +745,10 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
                           disabled={submitting || isSubmitted}
                           onClick={() => handleRemoveFile(q.id)}
                           className="shrink-0 text-muted-foreground hover:bg-status-error/10 hover:text-status-error"
-                          title="Hapus lampiran"
+                          title={t("quiz.removeAttachment")}
                         >
                           <Trash2 className="size-4" />
-                          <span className="sr-only">Hapus lampiran</span>
+                          <span className="sr-only">{t("quiz.removeAttachment")}</span>
                         </Button>
                       </div>
                     )}
@@ -759,27 +765,27 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
                     <>
                       <span className="inline-flex items-center gap-1.5 rounded-md border border-brand-secondary/35 bg-brand-secondary/10 px-2 py-0.5 text-body-xs font-bold text-brand-secondary">
                         <CheckSquare className="size-3.5" />
-                        Pilihan Jamak
+                        {t("quiz.multipleChoice")}
                       </span>
                       <span className="text-body-xs font-medium text-muted-foreground">
-                        Pilih semua jawaban yang benar
+                        {t("quiz.chooseAllCorrect")}
                       </span>
                     </>
                   ) : (
                     <>
                       <span className="inline-flex items-center gap-1.5 rounded-md border border-border/80 bg-muted/40 px-2 py-0.5 text-body-xs font-medium text-muted-foreground">
                         <CircleDot className="size-3.5" />
-                        Pilihan Tunggal
+                        {t("quiz.singleChoice")}
                       </span>
                       <span className="text-body-xs text-muted-foreground">
-                        Pilih 1 jawaban
+                        {t("quiz.chooseOne")}
                       </span>
                     </>
                   )}
                 </div>
                 {isMultiple && Array.isArray(ans) && ans.length > 0 ? (
                   <span className="text-body-xs font-semibold text-brand-secondary">
-                    {ans.length} dipilih
+                    {t("quiz.selectedCount", { count: ans.length })}
                   </span>
                 ) : null}
               </div>
@@ -787,7 +793,7 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
               {/* Options List */}
               <ul
                 role={isMultiple ? "group" : "radiogroup"}
-                aria-label={isMultiple ? "Pilihan jawaban (dapat memilih lebih dari satu)" : "Pilihan jawaban (pilih satu)"}
+                aria-label={isMultiple ? t("quiz.multipleAnswersAria") : t("quiz.singleAnswerAria")}
                 className="space-y-2 md:space-y-2.5"
               >
                 {q.options.map((opt, i) => {
@@ -858,13 +864,13 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
                 currentFlagged ? "text-brand-secondary" : "text-muted-foreground hover:text-foreground"
               )}>
                 <Flag className={cn("size-3.5", currentFlagged ? "fill-brand-secondary text-brand-secondary" : "")} />
-                Ragu-ragu / Tandai Soal
+                {t("quiz.markForReview")}
               </span>
             </label>
 
             <span className="flex items-center gap-1 text-body-xs text-muted-foreground">
               <AlertCircle className="size-3 text-brand-primary" />
-              Progress tersimpan otomatis
+              {t("quiz.autoSaved")}
             </span>
           </div>
           <QuestionSourceCitation origin={q.origin} sourceEventName={q.sourceEventName} />
@@ -881,18 +887,18 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
               disabled={index === 0}
             >
               <ChevronLeft className="size-4" />
-              Sebelumnya
+              {t("quiz.previous")}
             </Button>
           ) : (
             <span className="text-body-xs font-medium text-muted-foreground italic">
-              Mode linier (navigasi satu arah)
+              {t("quiz.linearMode")}
             </span>
           )}
 
           <div className="flex gap-2">
             {index < sorted.length - 1 ? (
               <Button type="button" className="h-9 gap-1 rounded-md bg-foreground px-4 text-body-sm text-background hover:bg-foreground/90 sm:px-6" onClick={goNext}>
-                Lanjut
+                {t("quiz.next")}
                 <ChevronRight className="size-4" />
               </Button>
             ) : (
@@ -905,10 +911,10 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
                 {submitting ? (
                   <>
                     <Loader2 className="mr-1.5 size-4 animate-spin" />
-                    Mengirim...
+                    {t("quiz.submitting")}
                   </>
                 ) : (
-                  "Kirim Jawaban"
+                  t("quiz.submitAnswers")
                 )}
               </Button>
             )}
@@ -925,12 +931,12 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
           <div>
             <h3 className="flex items-center gap-2 font-heading text-body-sm font-bold text-foreground">
               <BookOpen className="size-4 text-brand-primary" />
-              Navigasi Pertanyaan
+              {t("quiz.questionNavigation")}
             </h3>
             <p className="mt-1 text-body-xs text-muted-foreground">
               {canGoBack
-                ? "Lompat langsung ke butir soal dengan klik tombol angka di bawah:"
-                : "Klik butir soal berikutnya untuk berpindah (soal sebelumnya terkunci):"}
+                ? t("quiz.jumpToQuestion")
+                : t("quiz.nextQuestionOnly")}
             </p>
           </div>
 
@@ -963,7 +969,7 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
                       ? "bg-tertiary-1/15 text-tertiary-1 border-tertiary-1/50 hover:bg-tertiary-1/25"
                       : "bg-muted/40 text-muted-foreground border-border/50 hover:bg-muted/80 hover:text-foreground"
                   )}
-                  title={`Soal ${idx + 1}${!isAllowed ? " (Terkunci)" : ""}`}
+                  title={isAllowed ? t("quiz.questionNumber", { number: idx + 1 }) : t("quiz.lockedQuestion", { number: idx + 1 })}
                 >
                   {idx + 1}
                 </button>
@@ -973,23 +979,23 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
 
           {/* Legend indicator */}
           <div className="space-y-2 border-t border-border pt-3 text-body-xs md:pt-4">
-            <span className="font-semibold text-foreground block">Keterangan Warna:</span>
+            <span className="font-semibold text-foreground block">{t("quiz.colorLegend")}:</span>
             <div className="grid grid-cols-2 gap-2 text-muted-foreground">
               <div className="flex items-center gap-1.5">
                 <span className="size-3 rounded bg-muted/40 border border-border/50 shrink-0" />
-                <span>Belum diisi</span>
+                <span>{t("quiz.unanswered")}</span>
               </div>
               <div className="flex items-center gap-1.5">
                 <span className="size-3 rounded bg-tertiary-1/15 border border-tertiary-1/50 shrink-0" />
-                <span>Terjawab</span>
+                <span>{t("quiz.answered")}</span>
               </div>
               <div className="flex items-center gap-1.5">
                 <span className="size-3 rounded bg-brand-secondary/15 border border-brand-secondary/60 shrink-0" />
-                <span>Ragu-ragu</span>
+                <span>{t("quiz.flagged")}</span>
               </div>
               <div className="flex items-center gap-1.5">
                 <span className="size-3 rounded border-2 border-brand-primary shrink-0" />
-                <span>Aktif</span>
+                <span>{t("quiz.active")}</span>
               </div>
             </div>
           </div>
@@ -1003,7 +1009,7 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
               onClick={handleRequestSubmit}
               className="h-9 w-full rounded-md border-border/80 text-body-sm font-semibold text-foreground hover:bg-muted"
             >
-              Kumpulkan Kuis
+              {t("quiz.submitQuiz")}
             </Button>
           </div>
         </div>
@@ -1020,21 +1026,21 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
         <DialogContent className="max-w-md rounded-2xl border border-border p-6 shadow-xl text-left">
           <DialogHeader>
             <DialogTitle className="font-heading text-body-base font-bold text-foreground">
-              Kumpulkan Lembar Jawaban Kuis?
+              {t("quiz.confirmSubmitTitle")}
             </DialogTitle>
             <DialogDescription className="text-body-xs text-muted-foreground mt-1.5">
-              Periksa kembali ringkasan pengerjaan sebelum mengumpulkan jawaban Anda.
+              {t("quiz.confirmSubmitDescription")}
             </DialogDescription>
           </DialogHeader>
 
           <div className="my-2 space-y-3">
             <div className="grid grid-cols-3 gap-2 text-center">
               <div className="rounded-xl border border-border bg-muted/30 p-2.5">
-                <span className="block text-body-xs font-semibold text-muted-foreground uppercase">Total Soal</span>
+                <span className="block text-body-xs font-semibold text-muted-foreground uppercase">{t("quiz.totalQuestions")}</span>
                 <span className="font-heading text-body-base font-bold text-foreground">{sorted.length}</span>
               </div>
               <div className="rounded-xl border border-tertiary-1/30 bg-tertiary-1/10 p-2.5">
-                <span className="block text-body-xs font-semibold text-tertiary-1 uppercase">Terjawab</span>
+                <span className="block text-body-xs font-semibold text-tertiary-1 uppercase">{t("quiz.answered")}</span>
                 <span className="font-heading text-body-base font-bold text-tertiary-1">{answeredCount}</span>
               </div>
               <div
@@ -1045,7 +1051,7 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
                     : "border-border bg-muted/30 text-muted-foreground"
                 )}
               >
-                <span className="block text-body-xs font-semibold uppercase">Kosong</span>
+                <span className="block text-body-xs font-semibold uppercase">{t("quiz.empty")}</span>
                 <span className="font-heading text-body-base font-bold">{unansweredCount}</span>
               </div>
             </div>
@@ -1053,24 +1059,24 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
             {flaggedCount > 0 && (
               <div className="flex items-center gap-2 rounded-xl border border-brand-secondary/35 bg-brand-secondary/10 px-3.5 py-2.5 text-body-xs font-semibold text-brand-secondary">
                 <Flag className="size-4 shrink-0 fill-brand-secondary" />
-                <span>Masih ada {flaggedCount} butir soal yang ditandai ragu-ragu.</span>
+                <span>{t("quiz.flaggedCount", { count: flaggedCount })}</span>
               </div>
             )}
 
             {unansweredCount > 0 && (
               <div className="flex items-start gap-2 rounded-xl border border-amber-500/35 bg-amber-500/10 p-3 text-body-xs text-amber-700 dark:text-amber-300">
                 <AlertCircle className="size-4 shrink-0 mt-0.5" />
-                <span>Terdapat {unansweredCount} butir soal belum diisi. Soal yang kosong akan dianggap bernilai nol.</span>
+                <span>{t("quiz.unansweredWarning", { count: unansweredCount })}</span>
               </div>
             )}
 
             <div className="flex items-center justify-between rounded-xl border border-border bg-muted/20 px-3.5 py-2 text-body-xs text-muted-foreground">
-              <span>Sisa waktu pengerjaan:</span>
+              <span>{t("quiz.remainingTime")}</span>
               <span className="font-mono font-bold text-foreground">{formatTime(timeLeft)}</span>
             </div>
 
             <p className="text-body-xs text-muted-foreground">
-              Setelah dikumpulkan, lembar jawaban Anda akan dinilai dan tidak dapat diubah lagi.
+              {t("quiz.cannotEditAfterSubmit")}
             </p>
           </div>
 
@@ -1082,7 +1088,7 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
               onClick={() => setShowConfirmModal(false)}
               className="w-full sm:w-auto rounded-lg border-border"
             >
-              Cek Kembali
+              {t("quiz.reviewAgain")}
             </Button>
             <Button
               type="button"
@@ -1093,7 +1099,7 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
               }}
               className="w-full sm:w-auto rounded-lg bg-brand-primary text-white hover:bg-brand-primary/90 font-bold"
             >
-              Ya, Kumpulkan
+              {t("quiz.confirmSubmit")}
             </Button>
           </DialogFooter>
         </DialogContent>

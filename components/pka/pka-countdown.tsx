@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Clock } from "lucide-react";
+import { useTranslations } from "@/lib/i18n/client";
 
 function getRemaining(target: Date) {
   const diffMs = Math.max(0, target.getTime() - Date.now());
@@ -13,6 +14,7 @@ function getRemaining(target: Date) {
 
 /** Client countdown to the estimated (non-official) PKA test date. */
 export function PkaCountdown({ targetDate }: { targetDate: string }) {
+  const t = useTranslations("studentExtras.pka");
   const [remaining, setRemaining] = useState(() => getRemaining(new Date(targetDate)));
 
   useEffect(() => {
@@ -27,13 +29,13 @@ export function PkaCountdown({ targetDate }: { targetDate: string }) {
       </div>
       <div>
         {remaining.done ? (
-          <span className="text-body-sm font-semibold text-foreground">Perkiraan jadwal PKA sudah dekat/berlalu</span>
+          <span className="text-body-sm font-semibold text-foreground">{t("countdownDone")}</span>
         ) : (
           <span className="text-body-sm font-semibold text-foreground">
-            Perkiraan {remaining.days} hari {remaining.hours} jam {remaining.minutes} menit menuju PKA
+            {t("countdownRemaining", { days: remaining.days, hours: remaining.hours, minutes: remaining.minutes })}
           </span>
         )}
-        <p className="text-body-sm text-muted-foreground">Estimasi tidak resmi; jadwal pasti mengikuti pengumuman Ditsama ITB.</p>
+        <p className="text-body-sm text-muted-foreground">{t("countdownDisclaimer")}</p>
       </div>
     </div>
   );

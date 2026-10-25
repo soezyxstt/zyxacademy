@@ -10,11 +10,14 @@ import { ApplicationPage } from "@/components/application-page";
 import { Reveal } from "@/components/ui/reveal";
 import { pageTitle } from "@/lib/site";
 import { ClipboardList } from "lucide-react";
+import { getTranslations } from "@/lib/i18n/server";
+import { TranslatedText } from "@/components/i18n/translated-text";
 
 type Props = { params: Promise<{ courseId: string }> };
 
 export async function generateMetadata({ params }: Props) {
   const { courseId } = await params;
+  const t = await getTranslations("tutor.routeTitles");
   const [mk] = await db
     .select({ title: mataKuliah.title })
     .from(mataKuliah)
@@ -26,7 +29,7 @@ export async function generateMetadata({ params }: Props) {
   const title = mk?.title ?? c?.title;
 
   return {
-    title: pageTitle(title ? `Kelola Kuis: ${title}` : "Kelola Kuis"),
+    title: pageTitle(title ? `${t("manageQuizzes")}: ${title}` : t("manageQuizzes")),
   };
 }
 
@@ -64,9 +67,9 @@ export default async function TutorQuizzesPage({ params }: Props) {
       <Reveal>
         <PageHeader
           icon={ClipboardList}
-          title={`Kelola Kuis & Bank Soal: ${courseTitle}`}
+          title={<><TranslatedText namespace="tutor" messageKey="routeTitles.manageQuizzesAndBank" />: {courseTitle}</>}
           backHref={`/tutor/${courseId}`}
-          backLabel={`Dashboard ${courseTitle}`}
+          backLabel={<><TranslatedText namespace="tutor" messageKey="routeTitles.dashboardTitle" />: {courseTitle}</>}
         />
       </Reveal>
 

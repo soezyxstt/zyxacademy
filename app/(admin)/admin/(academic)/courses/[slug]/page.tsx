@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { pageTitle } from "@/lib/site";
+import { getTranslations } from "@/lib/i18n/server";
 import { assertAdmin } from "@/lib/auth/admin-guards";
 import { getCourseDetailData } from "../actions";
 import { CourseDetailHeader } from "@/components/admin/course-detail/course-detail-header";
@@ -12,18 +13,19 @@ type Props = {
 };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const t = await getTranslations("adminAcademic");
   const { slug } = await params;
   try {
     const data = await getCourseDetailData(slug);
     if (!data?.course) {
-      return { title: pageTitle("Mata Kuliah Tidak Ditemukan") };
+      return { title: pageTitle(t("metadata.pages.courseNotFound")) };
     }
     return {
-      title: pageTitle(`Kelola ${data.course.title}`),
-      description: `Panel manajemen kurikulum, materi, kuis, dan evaluasi mata kuliah ${data.course.title}.`,
+      title: pageTitle(t("metadata.pages.manageCourseTitle", { course: data.course.title })),
+      description: t("metadata.pages.manageCourseDescription", { course: data.course.title }),
     };
   } catch {
-    return { title: pageTitle("Kelola Mata Kuliah") };
+    return { title: pageTitle(t("metadata.pages.manageCourseFallbackTitle")) };
   }
 }
 

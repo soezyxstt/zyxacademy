@@ -3,7 +3,7 @@ import { Inter, Lexend } from "next/font/google";
 import "katex/dist/katex.min.css";
 import "./globals.css";
 import { AppToaster } from "@/components/app-toaster";
-import { pageTitle, siteDescription, siteOgImage } from "@/lib/site";
+import { pageTitle, siteOgImage } from "@/lib/site";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { Analytics } from "@vercel/analytics/next";
 import { QueryProvider } from "@/components/providers/query-provider";
@@ -12,42 +12,42 @@ import { TelemetryBoundary } from "@/components/providers/telemetry-boundary";
 import { ThemeProvider } from "next-themes";
 import Script from "next/script";
 import NextTopLoader from "nextjs-toploader";
+import { LocaleProvider } from "@/components/providers/locale-provider";
+import { getAppLocaleResolution, getAppMessages, getTranslations } from "@/lib/i18n/server";
 
-export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || "https://www.zyxacademy.com"),
-  title: pageTitle(),
-  description: siteDescription,
-  openGraph: {
-    title: pageTitle(),
-    description: siteDescription,
-    url: "https://www.zyxacademy.com",
-    siteName: "Zyx Academy",
-    locale: "id_ID",
-    type: "website",
-    images: [
-      {
-        url: siteOgImage,
-        width: 1200,
-        height: 630,
-        alt: "Zyx Academy",
-      },
-    ],
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: pageTitle(),
-    description: siteDescription,
-    images: [siteOgImage],
-  },
-  icons: {
-    icon: [
-      { url: "/brand/zyx-favicon-16.png", sizes: "16x16", type: "image/png" },
-      { url: "/brand/zyx-favicon-32.png", sizes: "32x32", type: "image/png" },
-      { url: "/brand/zyx-favicon-48.png", sizes: "48x48", type: "image/png" },
-    ],
-    apple: [{ url: "/brand/zyx-app-180.png", sizes: "180x180", type: "image/png" }],
-  },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const [{ locale }, t] = await Promise.all([
+    getAppLocaleResolution(),
+    getTranslations("core"),
+  ]);
+  const title = pageTitle(t("site.title"));
+  const description = t("site.description");
+  const siteName = t("site.name");
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://www.zyxacademy.com";
+  return {
+    metadataBase: new URL(baseUrl),
+    title,
+    description,
+    openGraph: {
+      title,
+      description,
+      url: baseUrl,
+      siteName,
+      locale: locale === "en" ? "en_US" : "id_ID",
+      type: "website",
+      images: [{ url: siteOgImage, width: 1200, height: 630, alt: siteName }],
+    },
+    twitter: { card: "summary", title, description, images: [siteOgImage] },
+    icons: {
+      icon: [
+        { url: "/brand/zyx-favicon-16.png", sizes: "16x16", type: "image/png" },
+        { url: "/brand/zyx-favicon-32.png", sizes: "32x32", type: "image/png" },
+        { url: "/brand/zyx-favicon-48.png", sizes: "48x48", type: "image/png" },
+      ],
+      apple: [{ url: "/brand/zyx-app-180.png", sizes: "180x180", type: "image/png" }],
+    },
+  };
+}
 
 const inter = Inter({
  subsets: ["latin"],
@@ -59,19 +59,23 @@ const lexend = Lexend({
  variable: "--font-lexend",
 });
 
-export default function RootLayout({
+export default async function RootLayout({
  children,
 }: Readonly<{
  children: React.ReactNode;
 }>) {
+ const { locale, accountPreference } = await getAppLocaleResolution();
+ const messages = await getAppMessages(locale);
+ const t = await getTranslations("core");
  return (
- <html lang="id" suppressHydrationWarning className={`${inter.variable} ${lexend.variable} overflow-x-clip`}>
+ <html lang={locale} suppressHydrationWarning className={`${inter.variable} ${lexend.variable} overflow-x-clip`}>
  <head>
  </head>
   <body className="font-sans min-h-screen flex flex-col overflow-x-clip">
     <PostHogProvider>
       <QueryProvider>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+        <LocaleProvider initialLocale={locale} initialMessages={messages} accountPreference={accountPreference}>
         <NextTopLoader color="var(--primary)" showSpinner={false} shadow="0 0 10px var(--primary), 0 0 5px var(--primary)" />
         {process.env.NODE_ENV === "production" && (
           <TelemetryBoundary>
@@ -93,7 +97,7 @@ export default function RootLayout({
         href="#main-content"
         className="bg-background text-foreground focus:ring-ring sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-100 focus:rounded-md focus:px-4 focus:py-2 focus:ring-2"
         >
-        Langsung ke isi utama
+        {t("skipToMain")}
         </a>
         {children}
         <AppToaster />
@@ -103,6 +107,7 @@ export default function RootLayout({
             <Analytics />
           </TelemetryBoundary>
         )}
+        </LocaleProvider>
         </ThemeProvider>
       </QueryProvider>
     </PostHogProvider>

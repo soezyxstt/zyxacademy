@@ -1,4 +1,6 @@
-import Link from "next/link";
+"use client";
+
+import { useTranslations } from "@/lib/i18n/client";
 import { Check } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -8,6 +10,7 @@ import { PlanConsultationLink } from "@/components/pricing/plan-consultation-lin
 import { CORE_SUBJECTS, DEFAULT_PERSONS, DEFAULT_COURSES } from "@/lib/pricing-constants";
 import { previewPlanTiers } from "@/lib/plan-tiers";
 import { cn } from "@/lib/utils";
+import { LocalizedPublicLink } from "@/components/localized-public-link";
 
 type PlanPreviewGridProps = {
   className?: string;
@@ -20,6 +23,7 @@ export function PlanPreviewGrid({
   perPerson = false,
   showConsultationLink = false,
 }: PlanPreviewGridProps) {
+  const t = useTranslations("marketing");
   return (
     <div
       className={className}
@@ -38,10 +42,10 @@ export function PlanPreviewGrid({
           >
             <CardHeader className="p-4 pb-3">
               <div className="flex min-h-6 items-start justify-between gap-2">
-                <CardTitle className="text-body-base">{tier.name}</CardTitle>
-                {tier.highlighted ? <Badge variant="default">Rekomendasi</Badge> : null}
+                <CardTitle className="text-body-base">{t(`pricing.tiers.${tier.key}.name`)}</CardTitle>
+                {tier.highlighted ? <Badge variant="default">{t("pricing.recommended")}</Badge> : null}
               </div>
-              <p className="text-body-xs text-muted-foreground">{tier.note}</p>
+              <p className="text-body-xs text-muted-foreground">{t(`pricing.tiers.${tier.key}.note`)}</p>
               <div className="pt-2">
                 <PlanPrice
                   plan={tier.key}
@@ -53,7 +57,7 @@ export function PlanPreviewGrid({
             </CardHeader>
             <CardContent className="flex flex-1 flex-col p-4 pt-0">
               <ul className="flex-1 space-y-2 border-t border-border pt-3">
-                {tier.features.slice(0, 2).map((feature) => (
+                {(t.raw(`pricing.tiers.${tier.key}.features`) as string[]).slice(0, 2).map((feature) => (
                   <li key={feature} className="flex items-start gap-2 text-body-xs text-muted-foreground">
                     <Check className="mt-0.5 size-3.5 shrink-0 text-status-success" aria-hidden="true" />
                     <span>{feature}</span>
@@ -66,12 +70,12 @@ export function PlanPreviewGrid({
                 size="sm"
                 className="mt-3 w-full"
               >
-                <Link href="/plans">Pelajari paket {tier.name}</Link>
+                <LocalizedPublicLink href="/plans">{t("pricing.learnPlan", { plan: t(`pricing.tiers.${tier.key}.name`) })}</LocalizedPublicLink>
               </Button>
               {showConsultationLink ? (
                 <PlanConsultationLink
                   plan={tier.key}
-                  planName={tier.name}
+                  planName={t(`pricing.tiers.${tier.key}.name`)}
                   persons={DEFAULT_PERSONS}
                   courses={DEFAULT_COURSES}
                   selectedCourses={CORE_SUBJECTS.slice(0, DEFAULT_COURSES)}

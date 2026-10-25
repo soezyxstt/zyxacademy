@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import Image from "next/image";
 import { MarketingPageHero } from "@/components/marketing-page-hero";
 import { SectionContainer } from "@/components/layout/section-container";
@@ -7,14 +6,15 @@ import { SectionHeading } from "@/components/ui/section-heading";
 import { Button } from "@/components/ui/button";
 import { Reveal } from "@/components/ui/reveal";
 import { PageOrnaments } from "@/components/ui/page-ornaments";
-import { createMetadata, pageTitle } from "@/lib/site";
+import { createLocalizedMetadata } from "@/lib/site-metadata";
+import { getTranslations } from "@/lib/i18n/server";
+import { LocalizedPublicLink } from "@/components/localized-public-link";
+import { LocalizedAuthLink } from "@/components/localized-auth-link";
 import { testimonialStories } from "@/lib/testimonials";
 
-export const metadata: Metadata = createMetadata({
-  title: "Testimoni",
-  description: "Testimoni singkat murid Zyx Academy mengenai kualitas layanan dan pengalaman belajar.",
-  path: "/testimonial",
-});
+export async function generateMetadata(): Promise<Metadata> {
+  return createLocalizedMetadata({ path: "/testimonial", titleKey: "meta.testimonial.title", descriptionKey: "meta.testimonial.description" });
+}
 
 
 /** One accent colour per card, cycling through brand palette */
@@ -24,14 +24,15 @@ const CARD_ACCENTS = [
  "var(--color-tertiary-1)", // teal
 ] as const;
 
-export default function TestimonialPage() {
+export default async function TestimonialPage() {
+ const t = await getTranslations("marketing");
  return (
  <div className="flex flex-col">
  <Reveal>
  <MarketingPageHero
  sectionId="testimonial"
- title="Testimoni"
- description="Cerita dari siswa Zyx Academy tentang proses belajar yang mereka jalani."
+ title={t("testimonial.title")}
+ description={t("testimonial.intro")}
  />
  </Reveal>
 
@@ -44,7 +45,7 @@ export default function TestimonialPage() {
 
  <div className="relative z-10 mx-auto mb-10 max-w-2xl text-center">
  <SectionHeading as="h2" id="testimonial-grid-heading" tier="secondary" className="text-foreground">
- Cerita dari proses belajar
+ {t("testimonial.storiesTitle")}
  </SectionHeading>
  </div>
 
@@ -84,7 +85,7 @@ export default function TestimonialPage() {
  <figcaption className="flex items-center gap-3 border-t border-border pt-4">
  <Image
  src={story.avatarSrc}
- alt={`Foto ${story.name}`}
+ alt={t("testimonial.studentPhoto", { name: story.name })}
  width={40}
  height={40}
  className="photo-thumb size-10 shrink-0"
@@ -115,17 +116,17 @@ export default function TestimonialPage() {
  <SectionContainer className="border-b border-border bg-background/40 py-16 text-center md:py-20">
  <div className="mx-auto max-w-2xl space-y-4">
  <SectionHeading as="h2" tier="secondary" className="text-foreground">
- Lihat cara belajar di Zyx
+ {t("testimonial.ctaTitle")}
  </SectionHeading>
  <p className="text-body-base text-muted-foreground">
- Mulai dari materi dan latihan mandiri, lalu pilih pendampingan tambahan jika sesuai kebutuhanmu.
+ {t("testimonial.ctaDescription")}
  </p>
  <div className="flex flex-wrap justify-center gap-3">
  <Button asChild>
- <Link href="/sign-up">Mulai gratis</Link>
+ <LocalizedAuthLink href="/sign-up">{t("home.startFree")}</LocalizedAuthLink>
  </Button>
  <Button asChild variant="outline">
- <Link href="/plans">Lihat paket</Link>
+ <LocalizedPublicLink href="/plans">{t("home.viewPlans")}</LocalizedPublicLink>
  </Button>
  </div>
  </div>

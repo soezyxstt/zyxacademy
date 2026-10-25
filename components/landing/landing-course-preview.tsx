@@ -4,17 +4,18 @@ import { ArrowUpRight } from "lucide-react";
 import { LandingSubjectShowcase } from "@/components/landing/landing-subject-showcase";
 import { SectionContainer } from "@/components/layout/section-container";
 import { SectionHeading } from "@/components/ui/section-heading";
+import { getTranslations } from "@/lib/i18n/server";
 
-export function LandingCoursePreview() {
+export async function LandingCoursePreview() {
+ const t = await getTranslations("marketing");
  return (
  <SectionContainer className="border-b border-border bg-background" aria-labelledby="courses-heading">
  <div className="max-w-2xl">
  <SectionHeading id="courses-heading" tier="secondary">
- Selaras silabus ITB.
+ {t("home.coursesTitle")}
  </SectionHeading>
  <p className="mt-3 max-w-prose text-body-base text-muted-foreground">
- Kalkulus, Fisika Dasar, Kimia Dasar, sampai mata kuliah jurusan ; materi mengikuti urutan
- kuliahmu, bukan urutan buku teks.
+ {t("home.coursesDescription")}
  </p>
  <Button
  asChild
@@ -23,7 +24,7 @@ export function LandingCoursePreview() {
  className="mt-6 bg-background sm:mt-7"
  >
  <Link href="/courses">
- Lihat katalog
+ {t("home.coursesCta")}
  <ArrowUpRight className="size-4" data-icon="inline-end" />
  </Link>
  </Button>

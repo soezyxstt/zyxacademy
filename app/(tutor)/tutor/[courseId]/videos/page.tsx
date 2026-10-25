@@ -10,6 +10,8 @@ import { ApplicationPage } from "@/components/application-page";
 import { CourseVideosClient } from "@/components/course/video/course-videos-client";
 import { getCourseVideosData } from "@/app/actions/video-actions";
 import { Video as VideoIcon } from "lucide-react";
+import { getTranslations } from "@/lib/i18n/server";
+import { TranslatedText } from "@/components/i18n/translated-text";
 
 type Props = {
   params: Promise<{ courseId: string }>;
@@ -20,9 +22,10 @@ type Props = {
  */
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { courseId } = await params;
+  const t = await getTranslations("tutor.routeTitles");
   return {
-    title: pageTitle("Video Pembelajaran"),
-    description: `Kelola playlist dan video pembelajaran mata kuliah ${courseId}.`,
+    title: pageTitle(t("videos")),
+    description: t("videosDescription", { courseId }),
   };
 }
 
@@ -46,10 +49,10 @@ export default async function TutorCourseVideosPage({ params }: Props) {
   return (
     <ApplicationPage spacing="space-y-6">
       <PageHeader
-        title={`Video: ${data.course.title}`}
+        title={<><TranslatedText namespace="tutor" messageKey="routeTitles.videos" />: {data.course.title}</>}
         icon={VideoIcon}
         backHref={`/tutor/${courseId}`}
-        backLabel="Kembali ke Ringkasan Kelas"
+        backLabel={<TranslatedText namespace="tutor" messageKey="routeTitles.backToCourse" />}
       />
       <Suspense fallback={null}>
         <CourseVideosClient

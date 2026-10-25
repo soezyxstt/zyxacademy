@@ -5,8 +5,27 @@ import {
   getMarketingShortcutDocs,
   getSiteSearchDocuments,
 } from "@/lib/site-search-index";
+import { parseSearchQueryString } from "@/lib/search/parser";
 
 describe("Marketing CMDK search scoping", () => {
+  it("recognizes English and Indonesian administrative prefix aliases", () => {
+    expect(parseSearchQueryString("groups: chemistry")).toMatchObject({
+      isScoped: true,
+      entityType: "group",
+      cleanQuery: "chemistry",
+    });
+    expect(parseSearchQueryString("students: Alex")).toMatchObject({
+      isScoped: true,
+      entityType: "user",
+      cleanQuery: "Alex",
+    });
+    expect(parseSearchQueryString("jadwal: kalkulus")).toMatchObject({
+      isScoped: true,
+      entityType: "schedule",
+      cleanQuery: "kalkulus",
+    });
+  });
+
   describe("isMarketingHref", () => {
     it("recognizes marketing pages correctly", () => {
       // Specified in requirements: testi, tentang, blog, paket, sign-in, etc.

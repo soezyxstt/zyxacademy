@@ -28,8 +28,8 @@ const worker = {
       return new Response(null, { status: 204, headers: cors(origin) });
     }
 
-    // /room/:sessionId/(websocket|init|control)
-    const match = url.pathname.match(/^\/room\/([^/]+)\/(websocket|init|control)$/);
+    // /room/:sessionId/(websocket|init|control|coding-state|coding-reserve|coding-result)
+    const match = url.pathname.match(/^\/room\/([^/]+)\/(websocket|init|control|coding-state|coding-reserve|coding-result)$/);
     if (!match) {
       return new Response("Not Found", { status: 404, headers: cors(origin) });
     }

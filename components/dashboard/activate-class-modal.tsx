@@ -12,8 +12,10 @@ import {
 import { Button } from "@/components/ui/button";
 import { KeyRound } from "lucide-react";
 import { EnrollmentForm } from "@/components/enrollment-form";
+import { useTranslations } from "@/lib/i18n/client";
 
 export function ActivateClassModal() {
+  const t = useTranslations("student");
   const [open, setOpen] = useState(false);
 
   return (
@@ -25,14 +27,14 @@ export function ActivateClassModal() {
           className="rounded-md gap-1.5 h-8 text-body-sm font-semibold hover:bg-muted/70 transition-colors shrink-0"
         >
           <KeyRound className="size-3.5" />
-          Aktivasi Kelas
+          {t("dashboard.activateClass")}
         </Button>
       </DialogTrigger>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Aktivasi Kelas Baru</DialogTitle>
+          <DialogTitle>{t("dashboard.activateClassTitle")}</DialogTitle>
           <DialogDescription>
-            Gunakan token kelas dari admin.
+            {t("dashboard.activateClassDescription")}
           </DialogDescription>
         </DialogHeader>
         <div className="pt-2">

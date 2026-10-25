@@ -11,22 +11,23 @@ import { Badge } from "@/components/ui/badge";
 import { MarkdownRenderer } from "@/components/course/markdown-renderer";
 import { MathText } from "@/components/course/math-text";
 import { createMetadata, pageTitle } from "@/lib/site";
-import { auth } from "@/lib/auth";
-import { headers } from "next/headers";
 import { getConceptExplorerData, type ConceptRef } from "@/lib/concept-explorer-service";
 import { getCourse } from "@/lib/course-utils";
+import { getAuthSession } from "@/lib/auth-session";
+import { TranslatedText } from "@/components/i18n/translated-text";
+import { getTranslations } from "@/lib/i18n/server";
 
 type Props = { params: Promise<{ id: string; slug: string }> };
 
 const TYPE_LABELS: Record<string, string> = {
-  definition: "Definisi",
-  formula: "Rumus",
-  example: "Contoh",
-  misconception: "Miskonsepsi",
-  exercise: "Latihan",
-  summary: "Ringkasan",
-  objective: "Tujuan Belajar",
-  concept_overview: "Ikhtisar",
+  definition: "definition",
+  formula: "formula",
+  example: "example",
+  misconception: "misconception",
+  exercise: "exercise",
+  summary: "summary",
+  objective: "objective",
+  concept_overview: "conceptOverview",
 };
 
 const TYPE_ORDER = ["concept_overview", "definition", "formula", "example", "misconception", "exercise", "objective", "summary"];
@@ -35,11 +36,12 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id, slug } = await params;
   const course = await getCourse(id);
   const data = await getConceptExplorerData(id, slug);
+  const t = await getTranslations("learning");
 
-  const title = data ? `${data.conceptName} (${course?.title ?? ""})` : "Konsep";
+  const title = data ? `${data.conceptName} (${course?.title ?? ""})` : t("metadata.conceptTitleFallback");
   return createMetadata({
     title,
-    description: data ? `Penjelasan lengkap konsep ${data.conceptName}.` : "Penjelasan konsep.",
+    description: data ? t("metadata.conceptDescription", { concept: data.conceptName }) : t("metadata.conceptDescriptionFallback"),
     path: `/courses/${id}/concept/${slug}`,
   });
 }
@@ -69,7 +71,7 @@ export default async function ConceptExplorerPage({ params }: Props) {
 
   if (!isEnrolled) {
     return (
-      <CoursePageShell title={`Konsep: ${course.title}`} icon={Lightbulb}>
+        <CoursePageShell title={<TranslatedText namespace="learning" messageKey="conceptPage.title" values={{ course: course.title }} />} icon={Lightbulb}>
         <Reveal>
           <div className={studentCardClass()}>
             <div className="flex items-start gap-3">
@@ -77,8 +79,8 @@ export default async function ConceptExplorerPage({ params }: Props) {
                 <Lock className="size-5" />
               </div>
               <div>
-                <h3 className="font-heading text-body-base font-bold text-foreground">Butuh token kelas</h3>
-                <p className="mt-1 text-body-sm text-muted-foreground">Aktifkan kelas untuk menjelajahi konsep.</p>
+                <h3 className="font-heading text-body-base font-bold text-foreground"><TranslatedText namespace="learning" messageKey="courseAccess.needToken" /></h3>
+                <p className="mt-1 text-body-sm text-muted-foreground"><TranslatedText namespace="learning" messageKey="conceptPage.activateToExplore" /></p>
               </div>
             </div>
             <div className="mt-4">
@@ -90,7 +92,7 @@ export default async function ConceptExplorerPage({ params }: Props) {
     );
   }
 
-  const session = await auth.api.getSession({ headers: await headers() });
+  const session = await getAuthSession();
   const studentId = session?.user?.id;
 
   const data = await getConceptExplorerData(id, slug, studentId);
@@ -99,7 +101,7 @@ export default async function ConceptExplorerPage({ params }: Props) {
   const typesPresent = TYPE_ORDER.filter((t) => data.kosByType[t as keyof typeof data.kosByType]?.length);
 
   return (
-    <CoursePageShell title={data.conceptName} description={`Konsep dalam ${course.title}`} icon={Lightbulb}>
+    <CoursePageShell title={data.conceptName} description={<TranslatedText namespace="learning" messageKey="conceptPage.description" values={{ course: course.title }} />} icon={Lightbulb}>
       <div className="space-y-8">
         {/* Mastery + prerequisite/related summary */}
         <Reveal>
@@ -121,21 +123,21 @@ export default async function ConceptExplorerPage({ params }: Props) {
 
             {data.prerequisites.length > 0 && (
               <div className="space-y-1.5">
-                <p className="text-body-xs font-semibold text-muted-foreground uppercase tracking-wider">Prasyarat</p>
+                <p className="text-body-xs font-semibold text-muted-foreground uppercase tracking-wider"><TranslatedText namespace="learning" messageKey="conceptPage.prerequisites" /></p>
                 <ConceptLinkRow courseId={id} refs={data.prerequisites} />
               </div>
             )}
 
             {data.unlocks.length > 0 && (
               <div className="space-y-1.5">
-                <p className="text-body-xs font-semibold text-muted-foreground uppercase tracking-wider">Membuka konsep</p>
+                <p className="text-body-xs font-semibold text-muted-foreground uppercase tracking-wider"><TranslatedText namespace="learning" messageKey="conceptPage.unlocks" /></p>
                 <ConceptLinkRow courseId={id} refs={data.unlocks} />
               </div>
             )}
 
             {data.related.length > 0 && (
               <div className="space-y-1.5">
-                <p className="text-body-xs font-semibold text-muted-foreground uppercase tracking-wider">Konsep terkait</p>
+                <p className="text-body-xs font-semibold text-muted-foreground uppercase tracking-wider"><TranslatedText namespace="learning" messageKey="conceptPage.related" /></p>
                 <ConceptLinkRow courseId={id} refs={data.related} />
               </div>
             )}
@@ -149,7 +151,7 @@ export default async function ConceptExplorerPage({ params }: Props) {
             <Reveal key={type}>
               <section aria-labelledby={`${type}-heading`}>
                 <h2 id={`${type}-heading`} className="text-body-base font-semibold mb-3">
-                  {TYPE_LABELS[type] ?? type}
+                  {TYPE_LABELS[type] ? <TranslatedText namespace="learning" messageKey={`conceptPage.types.${TYPE_LABELS[type]}`} /> : type}
                 </h2>
                 <div className="divide-y divide-border/60 overflow-hidden rounded-xl border border-border/70 bg-card">
                   {items.map((ko) => (

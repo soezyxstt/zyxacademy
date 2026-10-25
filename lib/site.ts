@@ -14,6 +14,8 @@ export function pageTitle(segment?: string) {
 }
 
 import type { Metadata } from "next";
+import type { Locale } from "@/lib/i18n/locale";
+import { PUBLIC_LOCALE_ROUTES, localizedPublicPath } from "@/lib/public-locale-routes";
 
 export interface CreateMetadataOptions {
   title?: string;
@@ -22,6 +24,8 @@ export interface CreateMetadataOptions {
   image?: string;
   type?: "website" | "article";
   noIndex?: boolean;
+  locale?: Locale;
+  translated?: boolean;
 }
 
 export function createMetadata({
@@ -31,11 +35,15 @@ export function createMetadata({
   image = siteOgImage,
   type = "website",
   noIndex = false,
+  locale = "id",
+  translated = false,
 }: CreateMetadataOptions = {}): Metadata {
   const fullTitle = pageTitle(title);
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://www.zyxacademy.com";
-  const canonicalUrl = path
-    ? (path.startsWith("http") ? path : `${baseUrl}${path.startsWith("/") ? "" : "/"}${path}`)
+  const localizedPath = path && translated ? localizedPublicPath(locale, path) : null;
+  const canonicalPath = localizedPath ?? path;
+  const canonicalUrl = canonicalPath
+    ? (canonicalPath.startsWith("http") ? canonicalPath : `${baseUrl}${canonicalPath.startsWith("/") ? "" : "/"}${canonicalPath}`)
     : undefined;
   const imageUrl = image.startsWith("http")
     ? image
@@ -49,7 +57,7 @@ export function createMetadata({
       title: fullTitle,
       description,
       siteName,
-      locale: "id_ID",
+      locale: locale === "en" ? "en_US" : "id_ID",
       type,
       ...(canonicalUrl ? { url: canonicalUrl } : {}),
       images: [
@@ -68,6 +76,19 @@ export function createMetadata({
       images: [imageUrl],
     },
     ...(noIndex ? { robots: { index: false, follow: false } } : {}),
+    ...(translated && path && PUBLIC_LOCALE_ROUTES.includes(path as (typeof PUBLIC_LOCALE_ROUTES)[number])
+      ? {
+          alternates: {
+            canonical: canonicalUrl,
+            languages: {
+              id: `${baseUrl}${localizedPublicPath("id", path)}`,
+              en: `${baseUrl}${localizedPublicPath("en", path)}`,
+            },
+          },
+        }
+      : canonicalUrl
+        ? { alternates: { canonical: canonicalUrl } }
+        : {}),
   };
 }
 

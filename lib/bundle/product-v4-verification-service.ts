@@ -1,3 +1,4 @@
+import { verificationBrowserFailureCode } from "@/lib/compute/product-v4-browser-config";
 import { createHash, randomUUID } from "node:crypto";
 import { z } from "zod";
 import { RetryAfterError } from "inngest";
@@ -148,7 +149,7 @@ export function createProductV4VerificationService(ports: ProductV4VerificationP
                 if (error instanceof RetryAfterError) {
                   const retryAt = /^\d+$/.test(error.retryAfter) ? Date.now() + Number(error.retryAfter) * 1000 : Date.parse(error.retryAfter);
                   if (!Number.isSafeInteger(retryAt) || retryAt <= Date.now()) throw new Error("PRODUCT_V4_VERIFICATION_RETRY_TIME_INVALID");
-                  await ports.write(stateKey, encode({ attemptId, status: "pending", updatedAt: Date.now(), retryAt, completedChecks, totalChecks: plan.requirements.length, currentCheckId: requirement.id, failureCode: "VERIFICATION_BROWSER_RATE_LIMITED" }), "application/json");
+                  await ports.write(stateKey, encode({ attemptId, status: "pending", updatedAt: Date.now(), retryAt, completedChecks, totalChecks: plan.requirements.length, currentCheckId: requirement.id, failureCode: verificationBrowserFailureCode(error) ?? "VERIFICATION_BROWSER_RATE_LIMITED" }), "application/json");
                 }
                 throw error;
               }
@@ -188,7 +189,7 @@ export function createProductV4VerificationService(ports: ProductV4VerificationP
       } catch (error) {
         if (error instanceof RetryAfterError) throw error;
         const stale = error instanceof Error && ["PRODUCT_V4_VERIFICATION_CONFLICT", "PRODUCT_V4_VERIFICATION_ATTEMPT_STALE"].includes(error.message);
-        const browserFailure = error instanceof Error ? error.message.match(/\b(?:VERIFICATION_BROWSER_(?:RATE_LIMITED|DAILY_QUOTA_EXCEEDED|ACCESS_DENIED|ACQUIRE_FAILED|CONNECT_FAILED|RELEASE_FAILED|RELEASE_TIMEOUT|SESSION_INVALID|CONFIGURATION_REQUIRED|OPERATION_TIMEOUT|DISCONNECT_TIMEOUT)|VERIFICATION_CAPTURE_TIMEOUT)\b/)?.[0] : undefined;
+        const browserFailure = verificationBrowserFailureCode(error);
         await ports.write(stateKey, encode({ attemptId, status: stale ? "stale" : "failed", updatedAt: Date.now(), completedChecks, totalChecks: plan.requirements.length, failureCode: stale ? "PRODUCT_V4_VERIFICATION_CONFLICT" : browserFailure ?? "PRODUCT_V4_VERIFICATION_EXECUTION_FAILED" }), "application/json");
         throw error;
       }

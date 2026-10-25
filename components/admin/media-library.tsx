@@ -1,6 +1,7 @@
 "use client";
 
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 import Image from "next/image";
 import {
   ChevronDown,
@@ -70,15 +71,6 @@ const KIND_ICON: Record<MediaKind, LucideIcon> = {
   other: FileIcon,
 };
 
-const KIND_LABELS: Record<MediaKind, string> = {
-  image: "Gambar",
-  video: "Video",
-  audio: "Audio",
-  pdf: "PDF",
-  markdown: "Markdown",
-  text: "Teks",
-  other: "Berkas",
-};
 
 type TargetItem = {
   kind: "file" | "folder";
@@ -218,6 +210,9 @@ function FolderTreeItem({
 }
 
 export function MediaLibrary() {
+  const t = useTranslations("adminMedia");
+  const tRef = useRef(t);
+  tRef.current = t;
   const [folder, setFolder] = useState("");
   const [data, setData] = useState<MediaListing | null>(null);
   const [loading, setLoading] = useState(true);
@@ -265,12 +260,12 @@ export function MediaLibrary() {
     try {
       const res = await fetch(`/api/admin/media?folder=${encodeURIComponent(target)}`, { cache: "no-store" });
       const body = (await res.json().catch(() => ({}))) as { error?: string };
-      if (!res.ok) throw new Error(body.error || "Gagal memuat media");
+      if (!res.ok) throw new Error(tRef.current("media.error.load"));
       setData(body as unknown as MediaListing);
       setFolder(target);
       setSelected([]);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Gagal memuat media");
+    } catch {
+      setError(tRef.current("media.error.load"));
     } finally {
       setLoading(false);
     }
@@ -386,7 +381,7 @@ export function MediaLibrary() {
     const files = Array.from(fileList);
     if (!files.length) return;
     if (files.some((f) => f.size > MEDIA_MAX_UPLOAD_BYTES)) {
-      toast.error(`Ukuran file melebihi batas ${formatBytes(MEDIA_MAX_UPLOAD_BYTES)}`);
+      toast.error(t("media.uploadTooLarge", { size: formatBytes(MEDIA_MAX_UPLOAD_BYTES) }));
       return;
     }
     setUploading(true);
@@ -396,13 +391,12 @@ export function MediaLibrary() {
         form.append("file", file);
         if (folder) form.append("folderPath", folder);
         const res = await fetch("/api/admin/media", { method: "POST", body: form });
-        const body = (await res.json().catch(() => ({}))) as { error?: string };
-        if (!res.ok) throw new Error(body.error || `Gagal mengunggah ${file.name}`);
+        if (!res.ok) throw new Error(t("media.error.upload"));
       }
-      toast.success(`${files.length} file berhasil diunggah`);
+      toast.success(t("media.uploaded", { count: files.length }));
       refresh();
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Gagal mengunggah file");
+    } catch {
+      toast.error(t("media.error.upload"));
     } finally {
       setUploading(false);
       if (uploadInputRef.current) uploadInputRef.current.value = "";
@@ -416,7 +410,7 @@ export function MediaLibrary() {
       body: JSON.stringify(payload),
     });
     const body = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-    if (!res.ok) throw new Error((body.error as string) || "Operasi gagal");
+    if (!res.ok) throw new Error(t("media.error.operation"));
     return body;
   }
 
@@ -427,8 +421,8 @@ export function MediaLibrary() {
       toast.success(successMessage);
       close?.();
       refresh();
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Operasi gagal");
+    } catch {
+      toast.error(t("media.error.operation"));
     } finally {
       setBusy(null);
     }
@@ -445,14 +439,13 @@ export function MediaLibrary() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "mkdir", folderPath: fullPath }),
       });
-      const body = (await res.json().catch(() => ({}))) as { error?: string };
-      if (!res.ok) throw new Error(body.error || "Gagal membuat folder");
-      toast.success("Folder berhasil dibuat");
+      if (!res.ok) throw new Error(t("media.error.createFolder"));
+      toast.success(t("media.folderCreated"));
       setMkdirOpen(false);
       setMkdirName("");
       refresh();
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Gagal membuat folder");
+    } catch {
+      toast.error(t("media.error.createFolder"));
     } finally {
       setBusy(null);
     }
@@ -478,7 +471,7 @@ export function MediaLibrary() {
     const payload = renameTarget.kind === "folder"
       ? { action: "rename", kind: "folder" as const, folderPath: renameTarget.folderPath, newName: renameName.trim() }
       : { action: "rename", kind: "file" as const, key: renameTarget.key, newName: renameName.trim() };
-    void singleOp(payload, "Nama berhasil diubah", () => setRenameTarget(null));
+    void singleOp(payload, t("media.renamed"), () => setRenameTarget(null));
   }
 
   function confirmMove() {
@@ -486,7 +479,7 @@ export function MediaLibrary() {
     const payload = moveTarget.kind === "folder"
       ? { action: "move", kind: "folder" as const, folderPath: moveTarget.folderPath, targetFolder: moveFolder }
       : { action: "move", kind: "file" as const, key: moveTarget.key, targetFolder: moveFolder };
-    void singleOp(payload, "Berhasil dipindahkan", () => setMoveTarget(null));
+    void singleOp(payload, t("media.moved"), () => setMoveTarget(null));
   }
 
   function confirmCopy() {
@@ -494,7 +487,7 @@ export function MediaLibrary() {
     const payload = copyTarget.kind === "folder"
       ? { action: "copy", kind: "folder" as const, folderPath: copyTarget.folderPath, targetFolder: copyFolder }
       : { action: "copy", kind: "file" as const, key: copyTarget.key, targetFolder: copyFolder };
-    void singleOp(payload, "Salinan berhasil dibuat", () => setCopyTarget(null));
+    void singleOp(payload, t("media.copied"), () => setCopyTarget(null));
   }
 
   async function confirmReplace() {
@@ -507,14 +500,13 @@ export function MediaLibrary() {
       if (replaceTarget.key) form.append("key", replaceTarget.key);
       form.append("file", replaceFile);
       const res = await fetch("/api/admin/media/ops", { method: "POST", body: form });
-      const body = (await res.json().catch(() => ({}))) as { error?: string };
-      if (!res.ok) throw new Error(body.error || "Gagal mengganti file");
-      toast.success("File berhasil diganti");
+      if (!res.ok) throw new Error(t("media.error.replace"));
+      toast.success(t("media.replaced"));
       setReplaceTarget(null);
       setReplaceFile(null);
       refresh();
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Gagal mengganti file");
+    } catch {
+      toast.error(t("media.error.replace"));
     } finally {
       setBusy(null);
     }
@@ -525,7 +517,7 @@ export function MediaLibrary() {
     const payload = deleteTarget.kind === "folder"
       ? { action: "delete", kind: "folder" as const, folderPath: deleteTarget.folderPath }
       : { action: "delete", kind: "file" as const, key: deleteTarget.key };
-    void singleOp(payload, "Berhasil dihapus", () => setDeleteTarget(null));
+    void singleOp(payload, t("media.deleted"), () => setDeleteTarget(null));
   }
 
   async function moveRefs(refs: string[], target: string) {
@@ -559,10 +551,10 @@ export function MediaLibrary() {
         }
       }
       setSelected((prev) => prev.filter((r) => !refs.includes(r)));
-      if (ok && failed) toast.success(`${ok} dari ${ops.length} item berhasil dipindahkan`);
-      else if (ok) toast.success(`${ok} item berhasil dipindahkan`);
-      else toast.error("Tidak ada item yang berhasil dipindahkan");
-      if (failed) toast.error(`${failed} item gagal dipindahkan`);
+      if (ok && failed) toast.success(t("media.bulkMovedPartial", { succeeded: ok, total: ops.length }));
+      else if (ok) toast.success(t("media.bulkMoved", { count: ok }));
+      else toast.error(t("media.bulkMoveNone"));
+      if (failed) toast.error(t("media.bulkMoveFailed", { count: failed }));
       refresh();
     } finally {
       setBusy(null);
@@ -594,10 +586,10 @@ export function MediaLibrary() {
           failed += 1;
         }
       }
-      if (ok && failed) toast.success(`${ok} dari ${effective.length} item berhasil dihapus`);
-      else if (ok) toast.success(`${ok} item berhasil dihapus`);
-      else toast.error("Tidak ada item yang berhasil dihapus");
-      if (failed) toast.error(`${failed} item gagal dihapus`);
+      if (ok && failed) toast.success(t("media.bulkDeletedPartial", { succeeded: ok, total: effective.length }));
+      else if (ok) toast.success(t("media.bulkDeleted", { count: ok }));
+      else toast.error(t("media.bulkDeleteNone"));
+      if (failed) toast.error(t("media.bulkDeleteFailed", { count: failed }));
       setBulkDeleteOpen(false);
       setSelected([]);
       refresh();
@@ -730,10 +722,10 @@ export function MediaLibrary() {
   const selectionActions = (
     <div className="border-border bg-background/90 flex flex-wrap items-center gap-2 rounded-lg border px-3 py-2 shadow-sm">
       <div>
-        <p className="text-body-sm font-medium text-foreground">{selected.length} item dipilih</p>
+        <p className="text-body-sm font-medium text-foreground">{t("media.selectedCount", { count: selected.length })}</p>
         {selectedFolderCount > 0 && (
           <p className="text-body-xs text-muted-foreground">
-            Termasuk {selectedFolderCount} folder; isinya ikut dipindahkan atau dihapus.
+            {t("media.selectedFolders", { count: selectedFolderCount })}
           </p>
         )}
       </div>
@@ -749,7 +741,7 @@ export function MediaLibrary() {
           isLoading={busy === "bulk-move"}
         >
           <Folder className="size-3.5" />
-          Pindahkan
+          {t("media.move")}
         </Button>
         <Button
           variant="destructive"
@@ -759,10 +751,10 @@ export function MediaLibrary() {
           isLoading={busy === "bulk-delete"}
         >
           <Trash2 className="size-3.5" />
-          Hapus
+          {t("media.delete")}
         </Button>
         <Button variant="ghost" size="sm" className="rounded-lg" onClick={() => setSelected([])}>
-          Bersihkan
+          {t("media.clear")}
         </Button>
       </div>
     </div>
@@ -774,7 +766,7 @@ export function MediaLibrary() {
         value={query}
         onSearch={setQuery}
         onClear={() => setQuery("")}
-        placeholder="Cari file atau folder"
+        placeholder={t("media.search")}
         size="sm"
         containerClassName="min-w-[140px] w-48 shrink-0 sm:w-64"
       />
@@ -786,7 +778,7 @@ export function MediaLibrary() {
             view === "grid" ? "bg-muted text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
           )}
           aria-pressed={view === "grid"}
-          aria-label="Tampilan grid"
+          aria-label={t("media.gridView")}
           onClick={() => setView("grid")}
         >
           <Grid3X3 className="size-4" />
@@ -798,7 +790,7 @@ export function MediaLibrary() {
             view === "list" ? "bg-muted text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
           )}
           aria-pressed={view === "list"}
-          aria-label="Tampilan daftar"
+          aria-label={t("media.listView")}
           onClick={() => setView("list")}
         >
           <List className="size-4" />
@@ -806,15 +798,15 @@ export function MediaLibrary() {
       </div>
       <Button variant="outline" size="sm" className="rounded-lg" onClick={refresh}>
         <RefreshCw className="size-3.5" />
-        Muat Ulang
+        {t("media.reload")}
       </Button>
       <Button variant="outline" size="sm" className="rounded-lg" onClick={() => setMkdirOpen(true)}>
         <Plus className="size-3.5" />
-        Folder Baru
+        {t("media.newFolder")}
       </Button>
       <Button size="sm" className="rounded-lg" onClick={() => uploadInputRef.current?.click()}>
         <UploadCloud className="size-3.5" />
-        Unggah
+        {t("media.upload")}
       </Button>
     </div>
   );
@@ -829,7 +821,7 @@ export function MediaLibrary() {
           folder ? "text-muted-foreground hover:text-foreground" : "text-foreground"
         )}
       >
-        Media
+        {t("media.rootLabel")}
       </button>
       {folder.split("/").filter(Boolean).map((part, idx, parts) => {
         const path = parts.slice(0, idx + 1).join("/");
@@ -881,17 +873,17 @@ export function MediaLibrary() {
       {uploading ? (
         <>
           <Loader2 className="size-5 animate-spin text-brand-primary" aria-hidden />
-          <p className="text-body-sm font-medium text-foreground">Mengunggah file...</p>
+          <p className="text-body-sm font-medium text-foreground">{t("media.uploading")}</p>
         </>
       ) : (
         <>
           <UploadCloud className="text-brand-primary size-6" aria-hidden />
-          <p className="text-body-sm font-medium text-foreground">Unggah berkas</p>
+          <p className="text-body-sm font-medium text-foreground">{t("media.uploadFiles")}</p>
           <p className="text-body-xs text-muted-foreground">
-            Gambar, video, audio, PDF, Markdown, teks. Maksimal {formatBytes(MEDIA_MAX_UPLOAD_BYTES)} per file.
+            {t("media.fileTypes", { size: formatBytes(MEDIA_MAX_UPLOAD_BYTES) })}
           </p>
           <p className="text-body-xs text-muted-foreground">
-            Seret item ke folder tujuan untuk memindahkan.
+            {t("media.dragToMove")}
           </p>
         </>
       )}
@@ -924,7 +916,7 @@ export function MediaLibrary() {
               <div className="absolute top-1.5 left-1.5 z-10">
                 <Checkbox
                   checked={selected.includes(item.ref)}
-                  aria-label={`Pilih folder ${item.name}`}
+                  aria-label={t("media.selectFolder", { name: item.name })}
                   onCheckedChange={() => toggleRef(item.ref)}
                 />
               </div>
@@ -945,7 +937,7 @@ export function MediaLibrary() {
               className="mt-2 block w-full cursor-pointer text-left"
             >
               <p className="line-clamp-2 text-body-sm font-medium leading-snug text-foreground">{item.name}</p>
-              <p className="text-muted-foreground mt-1 text-body-xs">Folder</p>
+              <p className="text-muted-foreground mt-1 text-body-xs">{t("media.folder")}</p>
             </button>
           </div>
         ) : (
@@ -966,12 +958,12 @@ export function MediaLibrary() {
                 type="button"
                 onClick={(e) => onItemClick(e, item.ref, () => setViewerFile(item.file))}
                 className="absolute inset-0 z-0 cursor-pointer"
-                aria-label={`Buka ${item.file.name}`}
+                aria-label={t("media.openFile", { name: item.file.name })}
               />
               <div className="absolute top-1.5 left-1.5 z-10">
                 <Checkbox
                   checked={selected.includes(item.ref)}
-                  aria-label={`Pilih ${item.file.name}`}
+                  aria-label={t("media.selectFile", { name: item.file.name })}
                   onCheckedChange={() => toggleRef(item.ref)}
                 />
               </div>
@@ -998,7 +990,7 @@ export function MediaLibrary() {
             >
               <p className="line-clamp-2 text-body-sm font-medium leading-snug text-foreground">{item.file.name}</p>
               <p className="text-muted-foreground mt-1 text-body-xs">
-                {formatBytes(item.file.size)} · {KIND_LABELS[item.file.kind]}
+                {formatBytes(item.file.size)} · {t(`media.kind.${item.file.kind}`)}
               </p>
             </button>
           </div>
@@ -1014,17 +1006,17 @@ export function MediaLibrary() {
           <tr className="bg-muted/40 text-muted-foreground border-b">
             <th className="w-10 px-3 py-2.5 font-medium" scope="col">
               {visibleItems.length > 0 && (
-                <Checkbox checked={allVisibleSelected} aria-label="Pilih semua item" onCheckedChange={toggleSelectAll} />
+                <Checkbox checked={allVisibleSelected} aria-label={t("media.selectAll")} onCheckedChange={toggleSelectAll} />
               )}
             </th>
             <th className="px-2 py-2.5 font-medium" scope="col">
-              Nama
+              {t("media.name")}
             </th>
             <th className="px-4 py-2.5 font-medium" scope="col">
-              Ukuran
+              {t("media.size")}
             </th>
             <th className="px-4 py-2.5 font-medium" scope="col">
-              Diubah
+              {t("media.modified")}
             </th>
             <th className="w-10 px-3 py-2.5 font-medium" scope="col" />
           </tr>
@@ -1045,7 +1037,7 @@ export function MediaLibrary() {
                   <td className="px-3 py-2 align-middle">
                     <Checkbox
                       checked={selected.includes(item.ref)}
-                      aria-label={`Pilih folder ${item.name}`}
+                      aria-label={t("media.selectFolder", { name: item.name })}
                       onCheckedChange={() => toggleRef(item.ref)}
                     />
                   </td>
@@ -1061,7 +1053,7 @@ export function MediaLibrary() {
                   </td>
                   <td className="text-muted-foreground px-4 py-2 align-middle whitespace-nowrap">
                     <Badge variant="secondary" className="font-normal">
-                      Folder
+                      {t("media.folder")}
                     </Badge>
                   </td>
                   <td className="text-muted-foreground px-4 py-2 align-middle whitespace-nowrap">-</td>
@@ -1088,7 +1080,7 @@ export function MediaLibrary() {
                 <td className="px-3 py-2 align-middle">
                   <Checkbox
                     checked={selected.includes(item.ref)}
-                    aria-label={`Pilih ${file.name}`}
+                    aria-label={t("media.selectFile", { name: file.name })}
                     onCheckedChange={() => toggleRef(item.ref)}
                   />
                 </td>
@@ -1145,7 +1137,7 @@ export function MediaLibrary() {
       <div className="flex flex-col gap-4 lg:flex-row">
         <aside className="hidden w-48 shrink-0 self-start border-r border-border pr-3 lg:block">
           <p className="text-body-xs text-muted-foreground px-2 pt-1 pb-2 font-semibold uppercase tracking-wide">
-            Folder
+            {t("media.folder")}
           </p>
           <button
             type="button"
@@ -1158,7 +1150,7 @@ export function MediaLibrary() {
             )}
           >
             <FolderOpen className={cn("size-4 shrink-0", !folder ? "text-brand-primary" : "text-muted-foreground")} aria-hidden />
-            <span className="truncate">Media</span>
+            <span className="truncate">{t("media.rootLabel")}</span>
           </button>
           <div className="mt-1">
             {data?.tree.map((node) => (
@@ -1198,11 +1190,11 @@ export function MediaLibrary() {
             <div className="border-border rounded-xl border bg-card shadow-sm">
               <AdminEmptyState
                 icon={Folder}
-                title={query ? "Tidak ada hasil" : "Folder ini kosong"}
+                title={query ? t("media.noResults") : t("media.emptyFolder")}
                 description={
                   query
-                    ? "Tidak ada file atau folder yang cocok dengan pencarian."
-                    : "Unggah file atau buat folder baru untuk mulai mengelola media."
+                    ? t("media.noMatches")
+                    : t("media.emptyHelp")
                 }
               />
             </div>
@@ -1232,31 +1224,31 @@ export function MediaLibrary() {
       <Dialog open={mkdirOpen} onOpenChange={setMkdirOpen}>
         <DialogContent className="max-w-md rounded-xl border border-border p-6 shadow-lg">
           <DialogHeader>
-            <DialogTitle className="font-heading text-body-base font-bold text-foreground">Buat folder baru</DialogTitle>
+            <DialogTitle className="font-heading text-body-base font-bold text-foreground">{t("media.createFolderTitle")}</DialogTitle>
             <DialogDescription className="text-body-xs text-muted-foreground mt-2">
-              Folder dibuat di dalam lokasi saat ini.
+              {t("media.createFolderHelp")}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
-            <Label htmlFor="mkdir-name">Nama folder</Label>
+            <Label htmlFor="mkdir-name">{t("media.folderName")}</Label>
             <Input
               id="mkdir-name"
               value={mkdirName}
               onChange={(e) => setMkdirName(e.target.value)}
-              placeholder="contoh: logos"
+              placeholder={t("media.folderPlaceholder")}
               onKeyDown={(e) => {
                 if (e.key === "Enter") void submitMkdir();
               }}
             />
             {folder && (
               <p className="text-body-xs text-muted-foreground">
-                Path: media/{folder}/{mkdirName || "..."}
+                {t("media.pathLabel")}: media/{folder}/{mkdirName || "..."}
               </p>
             )}
           </div>
           <DialogFooter className="mt-5 flex items-center justify-end gap-2.5">
             <Button variant="outline" className="rounded-lg cursor-pointer font-bold" onClick={() => setMkdirOpen(false)}>
-              Batal
+              {t("media.cancel")}
             </Button>
             <Button
               className="rounded-lg cursor-pointer font-bold px-6 shadow-sm"
@@ -1264,7 +1256,7 @@ export function MediaLibrary() {
               disabled={!mkdirName.trim()}
               isLoading={busy === "mkdir"}
             >
-              Buat Folder
+              {t("media.create")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1278,13 +1270,13 @@ export function MediaLibrary() {
       >
         <DialogContent className="max-w-md rounded-xl border border-border p-6 shadow-lg">
           <DialogHeader>
-            <DialogTitle className="font-heading text-body-base font-bold text-foreground">Ubah nama</DialogTitle>
+            <DialogTitle className="font-heading text-body-base font-bold text-foreground">{t("media.rename")}</DialogTitle>
             <DialogDescription className="text-body-xs text-muted-foreground mt-2">
-              {renameTarget?.kind === "folder" ? "Ubah nama folder." : "Ubah nama file. Ekstensi file dipertahankan."}
+              {renameTarget?.kind === "folder" ? t("media.renameFolderHelp") : t("media.renameFileHelp")}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
-            <Label htmlFor="rename-name">Nama baru</Label>
+            <Label htmlFor="rename-name">{t("media.newName")}</Label>
             <Input
               id="rename-name"
               value={renameName}
@@ -1296,7 +1288,7 @@ export function MediaLibrary() {
           </div>
           <DialogFooter className="mt-5 flex items-center justify-end gap-2.5">
             <Button variant="outline" className="rounded-lg cursor-pointer font-bold" onClick={() => setRenameTarget(null)}>
-              Batal
+              {t("media.cancel")}
             </Button>
             <Button
               className="rounded-lg cursor-pointer font-bold px-6 shadow-sm"
@@ -1304,7 +1296,7 @@ export function MediaLibrary() {
               disabled={!renameName.trim()}
               isLoading={busy === "rename"}
             >
-              Simpan
+              {t("media.save")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1318,22 +1310,22 @@ export function MediaLibrary() {
       >
         <DialogContent className="max-w-md rounded-xl border border-border p-6 shadow-lg">
           <DialogHeader>
-            <DialogTitle className="font-heading text-body-base font-bold text-foreground">Pindahkan</DialogTitle>
+            <DialogTitle className="font-heading text-body-base font-bold text-foreground">{t("media.moveTitle")}</DialogTitle>
             <DialogDescription className="text-body-xs text-muted-foreground mt-2">
-              Pilih folder tujuan untuk {moveTarget?.name}.
+              {t("media.moveHelp", { name: moveTarget?.name ?? "" })}
             </DialogDescription>
           </DialogHeader>
-          <FolderPicker folders={allFolders} value={moveFolder} onSelect={setMoveFolder} disabled={forbiddenPaths} />
+          <FolderPicker folders={allFolders} value={moveFolder} onSelect={setMoveFolder} disabled={forbiddenPaths} rootLabel={t("media.rootLabel")} />
           <DialogFooter className="mt-5 flex items-center justify-end gap-2.5">
             <Button variant="outline" className="rounded-lg cursor-pointer font-bold" onClick={() => setMoveTarget(null)}>
-              Batal
+              {t("media.cancel")}
             </Button>
             <Button
               className="rounded-lg cursor-pointer font-bold px-6 shadow-sm"
               onClick={confirmMove}
               isLoading={busy === "move"}
             >
-              Pindahkan
+              {t("media.move")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1347,22 +1339,22 @@ export function MediaLibrary() {
       >
         <DialogContent className="max-w-md rounded-xl border border-border p-6 shadow-lg">
           <DialogHeader>
-            <DialogTitle className="font-heading text-body-base font-bold text-foreground">Duplikat</DialogTitle>
+            <DialogTitle className="font-heading text-body-base font-bold text-foreground">{t("media.copyTitle")}</DialogTitle>
             <DialogDescription className="text-body-xs text-muted-foreground mt-2">
-              Pilih folder tujuan salinan {copyTarget?.name}.
+              {t("media.copyHelp", { name: copyTarget?.name ?? "" })}
             </DialogDescription>
           </DialogHeader>
-          <FolderPicker folders={allFolders} value={copyFolder} onSelect={setCopyFolder} disabled={forbiddenPaths} />
+          <FolderPicker folders={allFolders} value={copyFolder} onSelect={setCopyFolder} disabled={forbiddenPaths} rootLabel={t("media.rootLabel")} />
           <DialogFooter className="mt-5 flex items-center justify-end gap-2.5">
             <Button variant="outline" className="rounded-lg cursor-pointer font-bold" onClick={() => setCopyTarget(null)}>
-              Batal
+              {t("media.cancel")}
             </Button>
             <Button
               className="rounded-lg cursor-pointer font-bold px-6 shadow-sm"
               onClick={confirmCopy}
               isLoading={busy === "copy"}
             >
-              Duplikat
+              {t("media.copy")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1379,15 +1371,15 @@ export function MediaLibrary() {
       >
         <DialogContent className="max-w-md rounded-xl border border-border p-6 shadow-lg">
           <DialogHeader>
-            <DialogTitle className="font-heading text-body-base font-bold text-foreground">Ganti file</DialogTitle>
+            <DialogTitle className="font-heading text-body-base font-bold text-foreground">{t("media.replaceTitle")}</DialogTitle>
             <DialogDescription className="text-body-xs text-muted-foreground mt-2">
-              Ganti isi {replaceTarget?.name} dengan file baru. Nama file tetap sama.
+              {t("media.replaceHelp", { name: replaceTarget?.name ?? "" })}
             </DialogDescription>
           </DialogHeader>
           <label className="border-border bg-muted/40 text-muted-foreground hover:border-primary hover:text-foreground flex h-24 w-full cursor-pointer flex-col items-center justify-center gap-1.5 rounded-lg border border-dashed transition-colors">
             <UploadCloud className="size-5" aria-hidden />
             <span className="max-w-full truncate text-body-sm">
-              {replaceFile ? replaceFile.name : "Pilih file pengganti"}
+              {replaceFile ? replaceFile.name : t("media.chooseReplacement")}
             </span>
             <input
               type="file"
@@ -1407,7 +1399,7 @@ export function MediaLibrary() {
                 setReplaceFile(null);
               }}
             >
-              Batal
+              {t("media.cancel")}
             </Button>
             <Button
               className="rounded-lg cursor-pointer font-bold px-6 shadow-sm"
@@ -1415,7 +1407,7 @@ export function MediaLibrary() {
               disabled={!replaceFile}
               isLoading={busy === "replace"}
             >
-              Ganti
+              {t("media.replace")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1424,15 +1416,15 @@ export function MediaLibrary() {
       <Dialog open={bulkMoveOpen} onOpenChange={setBulkMoveOpen}>
         <DialogContent className="max-w-md rounded-xl border border-border p-6 shadow-lg">
           <DialogHeader>
-            <DialogTitle className="font-heading text-body-base font-bold text-foreground">Pindahkan item</DialogTitle>
+            <DialogTitle className="font-heading text-body-base font-bold text-foreground">{t("media.moveItemsTitle")}</DialogTitle>
             <DialogDescription className="text-body-xs text-muted-foreground mt-2">
-              Pilih folder tujuan untuk {selected.length} item.
+              {t("media.moveItemsHelp", { count: selected.length })}
             </DialogDescription>
           </DialogHeader>
-          <FolderPicker folders={allFolders} value={bulkMoveFolder} onSelect={setBulkMoveFolder} disabled={selectionForbidden} />
+          <FolderPicker folders={allFolders} value={bulkMoveFolder} onSelect={setBulkMoveFolder} disabled={selectionForbidden} rootLabel={t("media.rootLabel")} />
           <DialogFooter className="mt-5 flex items-center justify-end gap-2.5">
             <Button variant="outline" className="rounded-lg cursor-pointer font-bold" onClick={() => setBulkMoveOpen(false)}>
-              Batal
+              {t("media.cancel")}
             </Button>
             <Button
               className="rounded-lg cursor-pointer font-bold px-6 shadow-sm"
@@ -1440,7 +1432,7 @@ export function MediaLibrary() {
               disabled={!selected.length}
               isLoading={busy === "bulk-move"}
             >
-              Pindahkan
+              {t("media.move")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1451,13 +1443,13 @@ export function MediaLibrary() {
         onOpenChange={(open) => {
           if (!open) setDeleteTarget(null);
         }}
-        title={deleteTarget?.kind === "folder" ? "Hapus folder?" : "Hapus file?"}
+        title={deleteTarget?.kind === "folder" ? t("media.deleteFolderTitle") : t("media.deleteFileTitle")}
         description={
           deleteTarget?.kind === "folder"
-            ? `Folder "${deleteTarget?.name}" beserta seluruh isinya akan dihapus permanen.`
-            : `File "${deleteTarget?.name}" akan dihapus permanen.`
+            ? t("media.deleteFolderDescription", { name: deleteTarget?.name ?? "" })
+            : t("media.deleteFileDescription", { name: deleteTarget?.name ?? "" })
         }
-        confirmLabel="Ya, Hapus"
+        confirmLabel={t("media.confirmDelete")}
         loading={busy === "delete"}
         onConfirm={confirmDelete}
       />
@@ -1465,9 +1457,9 @@ export function MediaLibrary() {
       <AdminConfirmDialog
         open={bulkDeleteOpen}
         onOpenChange={setBulkDeleteOpen}
-        title="Hapus item terpilih?"
-        description={`${selected.length} item akan dihapus permanen. Folder beserta seluruh isinya ikut terhapus.`}
-        confirmLabel="Ya, Hapus"
+        title={t("media.deleteSelectedTitle")}
+        description={t("media.deleteSelectedDescription", { count: selected.length })}
+        confirmLabel={t("media.confirmDelete")}
         loading={busy === "bulk-delete"}
         onConfirm={bulkDelete}
       />
@@ -1496,6 +1488,7 @@ function ItemMenu({
   onReplace?: () => void;
   onDelete?: () => void;
 }) {
+  const t = useTranslations("adminMedia");
   return (
     <Popover>
       <PopoverTrigger asChild>
@@ -1503,27 +1496,27 @@ function ItemMenu({
           variant="ghost"
           size="icon-sm"
           className="bg-background/80 text-muted-foreground hover:text-foreground rounded-md"
-          aria-label={`Aksi untuk ${item.name}`}
+          aria-label={t("media.selectItemActions", { name: item.name })}
         >
           <MoreVertical className="size-4" />
         </Button>
       </PopoverTrigger>
       <PopoverContent align="end" className="w-48 p-1.5">
         <div className="space-y-0.5">
-          {onPreview && <MenuButton icon={item.kind === "folder" ? Folder : FileIcon} label="Buka" onClick={onPreview} />}
+          {onPreview && <MenuButton icon={item.kind === "folder" ? Folder : FileIcon} label={t("media.open")} onClick={onPreview} />}
           {onDownload && (
             <a href={onDownload} className="block">
-              <MenuButton icon={Download} label="Unduh" onClick={() => undefined} />
+              <MenuButton icon={Download} label={t("media.download")} onClick={() => undefined} />
             </a>
           )}
-          {onRename && <MenuButton icon={Pencil} label="Ubah Nama" onClick={onRename} />}
-          {onMove && <MenuButton icon={Folder} label="Pindahkan" onClick={onMove} />}
-          {onCopy && <MenuButton icon={Copy} label="Duplikat" onClick={onCopy} />}
-          {onReplace && <MenuButton icon={UploadCloud} label="Ganti File" onClick={onReplace} />}
+          {onRename && <MenuButton icon={Pencil} label={t("media.renameAction")} onClick={onRename} />}
+          {onMove && <MenuButton icon={Folder} label={t("media.move")} onClick={onMove} />}
+          {onCopy && <MenuButton icon={Copy} label={t("media.copy")} onClick={onCopy} />}
+          {onReplace && <MenuButton icon={UploadCloud} label={t("media.replaceAction")} onClick={onReplace} />}
           {onDelete && (
             <>
               <div className="border-border my-1 border-t" />
-              <MenuButton icon={Trash2} label="Hapus" danger onClick={onDelete} />
+              <MenuButton icon={Trash2} label={t("media.delete")} danger onClick={onDelete} />
             </>
           )}
         </div>

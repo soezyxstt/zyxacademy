@@ -26,6 +26,7 @@ import {
   getCanonicalYouTubeUrl,
 } from "@/lib/video/youtube";
 import { cn } from "@/lib/utils";
+import { useTranslations } from "@/lib/i18n/client";
 
 type VideoPlayerModalProps = {
   video: VideoItem | null;
@@ -49,6 +50,7 @@ export function VideoPlayerModal({
   onOpenChange,
   onSelectVideo,
 }: VideoPlayerModalProps) {
+  const t = useTranslations("studentCourse");
   const [autoAdvance, setAutoAdvance] = useState(true);
   const [isPlaylistOpen, setIsPlaylistOpen] = useState(false);
 
@@ -69,7 +71,7 @@ export function VideoPlayerModal({
 
   const handleVideoEnded = () => {
     if (autoAdvance && nextVideo && onSelectVideo) {
-      toast.info(`Memutar otomatis: ${nextVideo.title}`);
+      toast.info(t("courseVideos.autoPlaying", { title: nextVideo.title }));
       onSelectVideo(nextVideo);
     }
   };
@@ -119,11 +121,11 @@ export function VideoPlayerModal({
                     ? "bg-brand-primary text-white border-brand-primary"
                     : "bg-black/65 hover:bg-black/85 text-white/90 hover:text-white border-white/15"
                 )}
-                title="Buka daftar video"
+                title={t("courseVideos.openVideoList")}
                 aria-expanded={isPlaylistOpen}
               >
                 <Layers className="size-3.5 text-brand-primary" />
-                <span className="hidden sm:inline">Daftar Video</span>
+                <span className="hidden sm:inline">{t("courseVideos.videoList")}</span>
                 <span className="tabular-nums">({playlistVideos.length})</span>
               </button>
             )}
@@ -132,7 +134,7 @@ export function VideoPlayerModal({
               type="button"
               onClick={() => onOpenChange(false)}
               className="inline-flex size-8 items-center justify-center rounded-lg bg-black/65 hover:bg-black/85 text-white/90 hover:text-white backdrop-blur-md border border-white/15 transition-all shadow-md cursor-pointer"
-              aria-label="Tutup pemutar video"
+              aria-label={t("courseVideos.closePlayer")}
             >
               <X className="size-4" />
             </button>
@@ -184,7 +186,7 @@ export function VideoPlayerModal({
                   aria-expanded={isPlaylistOpen}
                 >
                   <Layers className="size-3.5" />
-                  <span>Daftar Video</span>
+                  <span>{t("courseVideos.videoList")}</span>
                   <span
                     className={cn(
                       "rounded px-1 text-body-2xs font-semibold tabular-nums",
@@ -219,7 +221,7 @@ export function VideoPlayerModal({
                 className="h-8 gap-1 text-body-xs rounded-lg"
               >
                 <ChevronLeft className="size-3.5" />
-                <span className="hidden sm:inline">Sebelumnya</span>
+                <span className="hidden sm:inline">{t("courseVideos.previous")}</span>
               </Button>
               <Button
                 variant="outline"
@@ -228,7 +230,7 @@ export function VideoPlayerModal({
                 onClick={() => nextVideo && onSelectVideo?.(nextVideo)}
                 className="h-8 gap-1 text-body-xs rounded-lg"
               >
-                <span className="hidden sm:inline">Berikutnya</span>
+                <span className="hidden sm:inline">{t("courseVideos.next")}</span>
                 <ChevronRight className="size-3.5" />
               </Button>
             </div>
@@ -238,7 +240,7 @@ export function VideoPlayerModal({
           {nextVideo && (
             <div className="flex items-center justify-between rounded-lg border border-border/40 bg-muted/20 px-3 py-1.5 text-body-xs">
               <div className="flex items-center gap-2 min-w-0">
-                <span className="text-muted-foreground shrink-0 font-medium">Berikutnya:</span>
+                <span className="text-muted-foreground shrink-0 font-medium">{t("courseVideos.upNext")}</span>
                 <span className="font-semibold text-foreground truncate">{nextVideo.title}</span>
               </div>
               <Button
@@ -248,7 +250,7 @@ export function VideoPlayerModal({
                 onClick={() => onSelectVideo?.(nextVideo)}
                 className="h-6 px-2 text-body-xs text-brand-primary hover:text-brand-primary gap-1 shrink-0 font-semibold"
               >
-                <span>Putar</span>
+                <span>{t("courseVideos.play")}</span>
                 <ChevronRight className="size-3" />
               </Button>
             </div>
@@ -275,7 +277,7 @@ export function VideoPlayerModal({
             {/* Slide-over Drawer Panel */}
             <aside
               className="absolute inset-y-0 right-0 z-50 w-full sm:w-80 md:w-96 max-w-full bg-background/95 backdrop-blur-md border-l border-border/80 flex flex-col shadow-2xl animate-in slide-in-from-right duration-200 ease-out font-sans"
-              aria-label="Daftar video"
+              aria-label={t("courseVideos.videoList")}
             >
               {/* Drawer Header */}
               <div className="flex items-center justify-between border-b border-border/60 px-4 py-3 shrink-0">
@@ -284,7 +286,7 @@ export function VideoPlayerModal({
                   <div className="min-w-0">
                     <div className="flex items-center gap-1.5">
                       <h3 className="font-heading text-body-sm font-bold text-foreground">
-                        Daftar Video
+                        {t("courseVideos.videoList")}
                       </h3>
                       <span className="rounded-md bg-muted px-1.5 py-0.2 text-body-2xs font-semibold text-muted-foreground tabular-nums">
                         {playlistVideos.length}
@@ -304,7 +306,7 @@ export function VideoPlayerModal({
                   size="sm"
                   onClick={() => setIsPlaylistOpen(false)}
                   className="size-7 p-0 rounded-lg text-muted-foreground hover:text-foreground shrink-0"
-                  aria-label="Tutup daftar video"
+                  aria-label={t("courseVideos.closeVideoList")}
                 >
                   <X className="size-4" />
                 </Button>
@@ -314,7 +316,7 @@ export function VideoPlayerModal({
               <div className="flex items-center justify-between px-4 py-2 border-b border-border/40 bg-muted/20 text-body-xs shrink-0">
                 <span className="text-muted-foreground flex items-center gap-1.5">
                   <SkipForward className="size-3.5 text-brand-primary" />
-                  <span>Putar otomatis berikutnya</span>
+                  <span>{t("courseVideos.autoplayNext")}</span>
                 </span>
                 <button
                   type="button"
@@ -325,9 +327,9 @@ export function VideoPlayerModal({
                       ? "bg-brand-primary/10 text-brand-primary border-brand-primary/30"
                       : "bg-muted text-muted-foreground border-border/60"
                   )}
-                  title="Otomatis putar video berikutnya saat video selesai"
+                  title={t("courseVideos.autoplayNextDescription")}
                 >
-                  {autoAdvance ? "Aktif" : "Nonaktif"}
+                  {autoAdvance ? t("courseVideos.enabled") : t("courseVideos.disabled")}
                 </button>
               </div>
 
@@ -371,7 +373,7 @@ export function VideoPlayerModal({
                           <div className="absolute inset-0 flex items-center justify-center bg-black/50 backdrop-blur-2xs">
                             <span className="flex items-center gap-1 text-[10px] font-semibold text-white">
                               <Play className="size-3 fill-white text-white" />
-                              <span>Diputar</span>
+                              <span>{t("courseVideos.playing")}</span>
                             </span>
                           </div>
                         ) : (

@@ -3,6 +3,7 @@
 import { useState, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "@/lib/i18n/client";
 import { toast } from "@/components/ui/toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -62,6 +63,7 @@ type Props = {
 };
 
 export function CoursesDashboard({ initialCourses }: Props) {
+  const t = useTranslations("adminAcademic");
   const router = useRouter();
   const [courses] = useState<CourseWithStats[]>(initialCourses);
   const [search, setSearch] = useState("");
@@ -111,15 +113,15 @@ export function CoursesDashboard({ initialCourses }: Props) {
     const cleanTitle = newTitle.trim();
 
     if (!cleanId || !/^[a-z0-9-]+$/.test(cleanId)) {
-      toast.error("ID Mata Kuliah harus alfanumerik huruf kecil dan tanda strip (contoh: ma1101).");
+      toast.error(t("courses.validation.id"));
       return;
     }
     if (!cleanTitle) {
-      toast.error("Nama mata kuliah wajib diisi.");
+      toast.error(t("courses.validation.title"));
       return;
     }
     if (!newCategory) {
-      toast.error("Program studi / kategori wajib dipilih.");
+      toast.error(t("courses.validation.category"));
       return;
     }
 
@@ -134,7 +136,7 @@ export function CoursesDashboard({ initialCourses }: Props) {
     setCreateLoading(false);
 
     if (res.success) {
-      toast.success(`Mata kuliah ${cleanTitle} berhasil ditambahkan.`);
+      toast.success(t("courses.success.create", { title: cleanTitle }));
       setCreateModalOpen(false);
       setNewId("");
       setNewTitle("");
@@ -142,7 +144,7 @@ export function CoursesDashboard({ initialCourses }: Props) {
       setNewDescription("");
       router.refresh();
     } else {
-      toast.error(res.error || "Gagal menambahkan mata kuliah.");
+      toast.error(t("courses.errors.create"));
     }
   };
 
@@ -158,7 +160,7 @@ export function CoursesDashboard({ initialCourses }: Props) {
   const handleSaveEdit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingCourse || !editTitle.trim() || !editCategory) {
-      toast.error("Semua field wajib diisi.");
+      toast.error(t("courses.validation.required"));
       return;
     }
 
@@ -173,11 +175,11 @@ export function CoursesDashboard({ initialCourses }: Props) {
     setEditLoading(false);
 
     if (res.success) {
-      toast.success("Informasi mata kuliah diperbarui.");
+      toast.success(t("courses.success.update"));
       setEditingCourse(null);
       router.refresh();
     } else {
-      toast.error(res.error || "Gagal memperbarui mata kuliah.");
+      toast.error(t("courses.errors.update"));
     }
   };
 
@@ -195,10 +197,10 @@ export function CoursesDashboard({ initialCourses }: Props) {
     setDeletingCourse(null);
 
     if (res.success) {
-      toast.success("Mata kuliah berhasil dihapus.");
+      toast.success(t("courses.success.delete"));
       router.refresh();
     } else {
-      toast.error(res.error || "Gagal menghapus mata kuliah.");
+      toast.error(t("courses.errors.delete"));
     }
   };
 
@@ -209,7 +211,7 @@ export function CoursesDashboard({ initialCourses }: Props) {
         <div className="flex-1 min-w-[140px]">
           <SearchBar
             size="sm"
-            placeholder="Cari mata kuliah atau kode slug..."
+            placeholder={t("courses.search")}
             value={search}
             onSearch={setSearch}
             onClear={() => setSearch("")}
@@ -218,10 +220,10 @@ export function CoursesDashboard({ initialCourses }: Props) {
 
         <Select value={categoryFilter} onValueChange={setCategoryFilter}>
           <SelectTrigger className="w-[140px] sm:w-[170px] shrink-0 h-9 rounded-lg">
-            <SelectValue placeholder={`Semua (${courses.length})`} />
+            <SelectValue placeholder={t("courses.allWithCount", { count: courses.length })} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Semua ({courses.length})</SelectItem>
+            <SelectItem value="all">{t("courses.allWithCount", { count: courses.length })}</SelectItem>
             {uniqueCategories.map((cat) => (
               <SelectItem key={cat} value={cat}>
                 {cat}
@@ -238,8 +240,8 @@ export function CoursesDashboard({ initialCourses }: Props) {
             variant={viewMode === "grid" ? "secondary" : "ghost"}
             className="size-7 rounded-md"
             onClick={() => setViewMode("grid")}
-            aria-label="Tampilan Kartu"
-            title="Tampilan Kartu"
+            aria-label={t("courses.cardView")}
+            title={t("courses.cardView")}
           >
             <LayoutGrid className="size-3.5" />
           </Button>
@@ -249,8 +251,8 @@ export function CoursesDashboard({ initialCourses }: Props) {
             variant={viewMode === "table" ? "secondary" : "ghost"}
             className="size-7 rounded-md"
             onClick={() => setViewMode("table")}
-            aria-label="Tampilan Tabel"
-            title="Tampilan Tabel"
+            aria-label={t("courses.tableView")}
+            title={t("courses.tableView")}
           >
             <List className="size-3.5" />
           </Button>
@@ -263,13 +265,13 @@ export function CoursesDashboard({ initialCourses }: Props) {
                 onClick={() => setCreateModalOpen(true)}
                 size="icon"
                 className="size-9 shrink-0 rounded-lg"
-                aria-label="Tambah Mata Kuliah"
+                aria-label={t("courses.add")}
               >
                 <Plus className="size-4" />
               </Button>
             </TooltipTrigger>
             <TooltipContent side="bottom">
-              <p>Tambah Mata Kuliah</p>
+              <p>{t("courses.add")}</p>
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
@@ -280,12 +282,12 @@ export function CoursesDashboard({ initialCourses }: Props) {
         <div className="text-center py-12 border border-dashed border-border rounded-xl bg-card">
           <BookOpen className="size-8 text-muted-foreground/40 mx-auto mb-2" />
           <p className="font-heading text-body-sm font-semibold text-foreground">
-            Tidak ada mata kuliah ditemukan
+            {t("courses.empty.title")}
           </p>
           <p className="text-body-xs text-muted-foreground mt-1 max-w-sm mx-auto">
             {search || categoryFilter !== "all"
-              ? "Ubah pencarian atau filter."
-              : "Tambahkan mata kuliah."}
+              ? t("courses.empty.filtered")
+              : t("courses.empty.first")}
           </p>
         </div>
       ) : viewMode === "grid" ? (
@@ -319,7 +321,7 @@ export function CoursesDashboard({ initialCourses }: Props) {
                 <div className="grid grid-cols-3 gap-1.5 py-1.5 border-y border-border/50 text-center">
                   <div className="p-1">
                     <p className="text-body-xs font-bold text-foreground">{c.chapterCount}</p>
-                    <p className="text-body-2xs text-muted-foreground">Bab</p>
+                    <p className="text-body-2xs text-muted-foreground">{t("courses.chapterCount")}</p>
                   </div>
                   <div className="p-1">
                     <p className="text-body-xs font-bold text-foreground">{c.materialCount}</p>
@@ -327,7 +329,7 @@ export function CoursesDashboard({ initialCourses }: Props) {
                   </div>
                   <div className="p-1">
                     <p className="text-body-xs font-bold text-foreground">{c.quizCount}</p>
-                    <p className="text-body-2xs text-muted-foreground">Kuis</p>
+                    <p className="text-body-2xs text-muted-foreground">{t("courses.quizCount")}</p>
                   </div>
                 </div>
               </div>
@@ -340,7 +342,7 @@ export function CoursesDashboard({ initialCourses }: Props) {
                     variant="ghost"
                     className="size-7 rounded-lg text-muted-foreground hover:text-foreground"
                     onClick={(e) => startEditCourse(c, e)}
-                    title="Edit Metadata"
+                    title={t("courses.edit")}
                   >
                     <Edit2 className="size-3.5" />
                   </Button>
@@ -349,7 +351,7 @@ export function CoursesDashboard({ initialCourses }: Props) {
                     variant="ghost"
                     className="size-7 rounded-lg text-destructive hover:text-destructive hover:bg-destructive/10"
                     onClick={(e) => startDeleteCourse(c, e)}
-                    title="Hapus Mata Kuliah"
+                    title={t("courses.delete")}
                   >
                     <Trash2 className="size-3.5" />
                   </Button>
@@ -357,7 +359,7 @@ export function CoursesDashboard({ initialCourses }: Props) {
 
                 <Link href={`/admin/courses/${c.id}`}>
                   <Button size="sm" className="gap-1.5 rounded-lg text-body-xs font-medium h-7 px-2.5">
-                    <span>Kelola</span>
+                    <span>{t("courses.manage")}</span>
                     <ArrowRight className="size-3" />
                   </Button>
                 </Link>
@@ -372,12 +374,12 @@ export function CoursesDashboard({ initialCourses }: Props) {
             <thead className="bg-muted text-body-xs font-semibold text-muted-foreground">
               <tr>
                 <th className="px-3.5 py-2.5">ID</th>
-                <th className="px-3.5 py-2.5">Nama mata kuliah</th>
-                <th className="px-3.5 py-2.5">Program studi</th>
-                <th className="px-3.5 py-2.5 text-center">Silabus</th>
-                <th className="px-3.5 py-2.5 text-center">Materi PDF</th>
-                <th className="px-3.5 py-2.5 text-center">Kuis</th>
-                <th className="px-3.5 py-2.5 text-right">Aksi</th>
+                <th className="px-3.5 py-2.5">{t("courses.name")}</th>
+                <th className="px-3.5 py-2.5">{t("courses.category")}</th>
+                <th className="px-3.5 py-2.5 text-center">{t("courses.syllabus")}</th>
+                <th className="px-3.5 py-2.5 text-center">{t("courses.pdfMaterials")}</th>
+                <th className="px-3.5 py-2.5 text-center">{t("courses.quizCount")}</th>
+                <th className="px-3.5 py-2.5 text-right">{t("courses.actions")}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border/60">
@@ -395,13 +397,13 @@ export function CoursesDashboard({ initialCourses }: Props) {
                     </Badge>
                   </td>
                   <td className="px-3.5 py-2.5 text-center font-medium text-foreground">
-                    {c.chapterCount} Bab
+                    {t("courses.chaptersWithCount", { count: c.chapterCount })}
                   </td>
                   <td className="px-3.5 py-2.5 text-center font-medium text-foreground">
                     {c.materialCount} PDF
                   </td>
                   <td className="px-3.5 py-2.5 text-center font-medium text-foreground">
-                    {c.quizCount} Kuis
+                    {t("courses.quizzesWithCount", { count: c.quizCount })}
                   </td>
                   <td className="px-3.5 py-2.5 text-right">
                     <div className="flex items-center justify-end gap-1">
@@ -410,7 +412,7 @@ export function CoursesDashboard({ initialCourses }: Props) {
                         variant="ghost"
                         className="size-7 rounded-lg text-muted-foreground hover:text-foreground"
                         onClick={(e) => startEditCourse(c, e)}
-                        title="Edit Metadata"
+                        title={t("courses.edit")}
                       >
                         <Edit2 className="size-3" />
                       </Button>
@@ -419,13 +421,13 @@ export function CoursesDashboard({ initialCourses }: Props) {
                         variant="ghost"
                         className="size-7 rounded-lg text-destructive hover:text-destructive hover:bg-destructive/10"
                         onClick={(e) => startDeleteCourse(c, e)}
-                        title="Hapus Mata Kuliah"
+                        title={t("courses.delete")}
                       >
                         <Trash2 className="size-3" />
                       </Button>
                       <Link href={`/admin/courses/${c.id}`}>
                         <Button size="sm" className="gap-1 rounded-lg text-body-xs font-medium h-7 px-2.5">
-                          <span>Kelola</span>
+                          <span>{t("courses.manage")}</span>
                           <ArrowRight className="size-3" />
                         </Button>
                       </Link>
@@ -442,29 +444,29 @@ export function CoursesDashboard({ initialCourses }: Props) {
       <Dialog open={createModalOpen} onOpenChange={setCreateModalOpen}>
         <DialogContent className="max-w-md" aria-describedby={undefined}>
           <DialogHeader>
-            <DialogTitle>Tambah mata kuliah</DialogTitle>
+            <DialogTitle>{t("courses.addTitle")}</DialogTitle>
 
           </DialogHeader>
 
           <form onSubmit={handleCreateCourse} className="space-y-4 py-2">
             <div className="space-y-1">
-              <Label className="text-body-sm font-semibold text-foreground">ID / Slug Mata Kuliah</Label>
+              <Label className="text-body-sm font-semibold text-foreground">{t("courses.idLabel")}</Label>
               <Input
-                placeholder="Contoh: ma1101 atau fi1101"
+                placeholder={t("courses.idPlaceholder")}
                 value={newId}
                 onChange={(e) => setNewId(e.target.value)}
                 disabled={createLoading}
                 className="rounded-lg font-mono"
               />
               <p className="text-body-xs text-muted-foreground">
-                Gunakan huruf kecil dan angka tanpa spasi.
+                {t("courses.idHint")}
               </p>
             </div>
 
             <div className="space-y-1">
-              <Label className="text-body-sm font-semibold text-foreground">Nama mata kuliah</Label>
+              <Label className="text-body-sm font-semibold text-foreground">{t("courses.name")}</Label>
               <Input
-                placeholder="Contoh: Matematika IA"
+                placeholder={t("courses.namePlaceholder")}
                 value={newTitle}
                 onChange={(e) => setNewTitle(e.target.value)}
                 disabled={createLoading}
@@ -473,10 +475,10 @@ export function CoursesDashboard({ initialCourses }: Props) {
             </div>
 
             <div className="space-y-1">
-              <Label className="text-body-sm font-semibold text-foreground">Program studi / Kategori</Label>
+              <Label className="text-body-sm font-semibold text-foreground">{t("courses.category")}</Label>
               <Select value={newCategory} onValueChange={setNewCategory} disabled={createLoading}>
                 <SelectTrigger className="rounded-lg">
-                  <SelectValue placeholder="Pilih Program studi" />
+                  <SelectValue placeholder={t("courses.categoryPlaceholder")} />
                 </SelectTrigger>
                 <SelectContent>
                   {allowedCategories.map((opt) => (
@@ -489,10 +491,10 @@ export function CoursesDashboard({ initialCourses }: Props) {
             </div>
 
             <div className="space-y-1">
-              <Label className="text-body-sm font-semibold text-foreground">Deskripsi (Opsional)</Label>
+              <Label className="text-body-sm font-semibold text-foreground">{t("courses.descriptionOptional")}</Label>
               <Textarea
                 rows={3}
-                placeholder="Ringkasan mata kuliah..."
+                placeholder={t("courses.descriptionPlaceholder")}
                 value={newDescription}
                 onChange={(e) => setNewDescription(e.target.value)}
                 disabled={createLoading}
@@ -503,7 +505,7 @@ export function CoursesDashboard({ initialCourses }: Props) {
             <DialogFooter className="pt-2">
               <DialogClose asChild>
                 <Button variant="outline" size="sm" disabled={createLoading} className="rounded-lg">
-                  Batal
+                  {t("common.cancel")}
                 </Button>
               </DialogClose>
               <Button
@@ -513,7 +515,7 @@ export function CoursesDashboard({ initialCourses }: Props) {
                 isLoading={createLoading}
                 className="rounded-lg"
               >
-                Tambah Mata Kuliah
+                {t("courses.add")}
               </Button>
             </DialogFooter>
           </form>
@@ -524,15 +526,15 @@ export function CoursesDashboard({ initialCourses }: Props) {
       <Dialog open={!!editingCourse} onOpenChange={(open) => !open && setEditingCourse(null)}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Edit Mata Kuliah: {editingCourse?.id}</DialogTitle>
+            <DialogTitle>{t("courses.editTitle", { id: editingCourse?.id ?? "" })}</DialogTitle>
             <DialogDescription>
-              Perbarui judul, kategori, atau deskripsi mata kuliah.
+              {t("courses.editDescription")}
             </DialogDescription>
           </DialogHeader>
 
           <form onSubmit={handleSaveEdit} className="space-y-4 py-2">
             <div className="space-y-1">
-              <Label className="text-body-sm font-semibold text-foreground">Nama mata kuliah</Label>
+              <Label className="text-body-sm font-semibold text-foreground">{t("courses.name")}</Label>
               <Input
                 value={editTitle}
                 onChange={(e) => setEditTitle(e.target.value)}
@@ -542,10 +544,10 @@ export function CoursesDashboard({ initialCourses }: Props) {
             </div>
 
             <div className="space-y-1">
-              <Label className="text-body-sm font-semibold text-foreground">Program studi / Kategori</Label>
+              <Label className="text-body-sm font-semibold text-foreground">{t("courses.category")}</Label>
               <Select value={editCategory} onValueChange={setEditCategory} disabled={editLoading}>
                 <SelectTrigger className="rounded-lg">
-                  <SelectValue placeholder="Pilih Program studi" />
+                  <SelectValue placeholder={t("courses.categoryPlaceholder")} />
                 </SelectTrigger>
                 <SelectContent>
                   {allowedCategories.map((opt) => (
@@ -558,7 +560,7 @@ export function CoursesDashboard({ initialCourses }: Props) {
             </div>
 
             <div className="space-y-1">
-              <Label className="text-body-sm font-semibold text-foreground">Deskripsi (Opsional)</Label>
+              <Label className="text-body-sm font-semibold text-foreground">{t("courses.descriptionOptional")}</Label>
               <Textarea
                 rows={3}
                 value={editDescription}
@@ -571,7 +573,7 @@ export function CoursesDashboard({ initialCourses }: Props) {
             <DialogFooter className="pt-2">
               <DialogClose asChild>
                 <Button variant="outline" size="sm" disabled={editLoading} className="rounded-lg">
-                  Batal
+                  {t("common.cancel")}
                 </Button>
               </DialogClose>
               <Button
@@ -581,7 +583,7 @@ export function CoursesDashboard({ initialCourses }: Props) {
                 isLoading={editLoading}
                 className="rounded-lg"
               >
-                Simpan Perubahan
+                {t("common.save")}
               </Button>
             </DialogFooter>
           </form>
@@ -597,15 +599,19 @@ export function CoursesDashboard({ initialCourses }: Props) {
       >
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Hapus Mata Kuliah</DialogTitle>
+            <DialogTitle>{t("courses.deleteTitle")}</DialogTitle>
             <DialogDescription>
-              Apakah Anda yakin ingin menghapus mata kuliah <strong>{deletingCourse?.title}</strong> ({deletingCourse?.id})? Tindakan ini permanen dan akan menghapus seluruh data bab dan materi terkait.
+              {t.rich("courses.deleteDescription", {
+                title: deletingCourse?.title ?? "",
+                id: deletingCourse?.id ?? "",
+                strong: (chunks) => <strong>{chunks}</strong>,
+              })}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <DialogClose asChild>
               <Button variant="outline" size="sm" disabled={deleteLoading} className="rounded-lg">
-                Batal
+                {t("common.cancel")}
               </Button>
             </DialogClose>
             <Button
@@ -616,7 +622,7 @@ export function CoursesDashboard({ initialCourses }: Props) {
               isLoading={deleteLoading}
               className="rounded-lg"
             >
-              Hapus Mata Kuliah
+              {t("courses.delete")}
             </Button>
           </DialogFooter>
         </DialogContent>

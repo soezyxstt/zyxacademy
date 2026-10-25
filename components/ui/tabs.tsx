@@ -6,6 +6,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { useUrlTab } from "@/hooks/use-url-tab";
+import { useTranslations } from "next-intl";
 
 type TabsProps = React.ComponentProps<typeof TabsPrimitive.Root> & {
   paramKey?: string;
@@ -102,11 +103,12 @@ type TabNavItem = {
   label: string;
 };
 
-function TabNav({ tabs, label = "Navigasi bagian" }: { tabs: TabNavItem[]; label?: string }) {
+function TabNav({ tabs, label }: { tabs: TabNavItem[]; label?: string }) {
   const pathname = usePathname();
+  const t = useTranslations("ui");
 
   return (
-    <nav className="mb-6 max-w-full overflow-hidden" aria-label={label}>
+    <nav className="mb-6 max-w-full overflow-hidden" aria-label={label ?? t("sectionNavigation")}>
       <div className={tabListClassName}>
         {tabs.map((tab) => {
           const isActive = pathname === tab.href || pathname.startsWith(`${tab.href}/`);

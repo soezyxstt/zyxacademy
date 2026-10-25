@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
 import React from "react";
+import { NextIntlClientProvider } from "next-intl";
 import { CoursePrimaryActions } from "@/components/course/course-primary-actions";
 import { CourseAttentionStrip } from "@/components/course/course-attention-strip";
 import { DashboardWeakConcepts } from "@/components/course/dashboard-weak-concepts";
@@ -8,6 +9,19 @@ import { ApplicationPage } from "@/components/application-page";
 import type { MasteryRow } from "@/lib/mastery-store";
 import type { CourseAttentionData } from "@/types/course-learning";
 import { PKA_COURSE_ID } from "@/lib/pka-config";
+import studentCourseIdMessages from "@/messages/id/studentCourse.json";
+
+function renderWithIdStudentCourse(element: React.ReactNode) {
+  return renderToStaticMarkup(
+    <NextIntlClientProvider
+      locale="id"
+      timeZone="UTC"
+      messages={{ studentCourse: studentCourseIdMessages }}
+    >
+      {element}
+    </NextIntlClientProvider>,
+  );
+}
 
 describe("Course Overview and Mastery Refactor", () => {
   describe("Mastery isMeasured and Sorting Contract", () => {
@@ -201,7 +215,7 @@ describe("Course Overview and Mastery Refactor", () => {
 
   describe("UI Components Rendering", () => {
     test("CoursePrimaryActions renders 3 clickable cards with Dokumen, Kuis, and Jadwal", () => {
-      const markup = renderToStaticMarkup(
+      const markup = renderWithIdStudentCourse(
         <CoursePrimaryActions
           reading={{
             tag: "DOKUMEN",
@@ -241,7 +255,7 @@ describe("Course Overview and Mastery Refactor", () => {
 
     test("CourseAttentionStrip renders null when attention is null, and renders both flashcard and weak concept items when present", () => {
       // 1. Null attention
-      const emptyMarkup = renderToStaticMarkup(
+      const emptyMarkup = renderWithIdStudentCourse(
         <CourseAttentionStrip attention={null} />
       );
       expect(emptyMarkup).toBe("");
@@ -264,7 +278,7 @@ describe("Course Overview and Mastery Refactor", () => {
         ],
       };
 
-      const filledMarkup = renderToStaticMarkup(
+      const filledMarkup = renderWithIdStudentCourse(
         <CourseAttentionStrip attention={attentionData} />
       );
       expect(filledMarkup).toContain("Perlu perhatian");
@@ -277,7 +291,7 @@ describe("Course Overview and Mastery Refactor", () => {
 
     test("DashboardWeakConcepts renders empty state when no concepts are measured, and renders Belum diukur for unmeasured concepts alongside measured ones", () => {
       // Case 1: None measured -> Clean empty state
-      const emptyStateMarkup = renderToStaticMarkup(
+      const emptyStateMarkup = renderWithIdStudentCourse(
         <DashboardWeakConcepts
           courseTitle="Matematika I"
           concepts={[
@@ -295,7 +309,7 @@ describe("Course Overview and Mastery Refactor", () => {
       expect(emptyStateMarkup).not.toContain(">0%<");
 
       // Case 2: Mixed measured and unmeasured -> Measured displays percentage, unmeasured displays "Belum diukur"
-      const mixedMarkup = renderToStaticMarkup(
+      const mixedMarkup = renderWithIdStudentCourse(
         <DashboardWeakConcepts
           courseTitle="Matematika I"
           concepts={[

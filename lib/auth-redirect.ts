@@ -63,3 +63,16 @@ export function getOAuthCallbackErrorMessage(
     messages[normalized] ?? "Sign-in could not complete. Please try again."
   );
 }
+
+export type OAuthCallbackErrorKey = "accessDenied" | "configuration" | "generic";
+
+export function getOAuthCallbackErrorKey(
+  raw: string | string[] | undefined
+): OAuthCallbackErrorKey | null {
+  const code = Array.isArray(raw) ? raw[0] : raw;
+  if (typeof code !== "string" || code.trim() === "") return null;
+  const normalized = code.trim().toLowerCase().replace(/\+/g, "_").replace(/\s+/g, "_");
+  if (normalized === "access_denied") return "accessDenied";
+  if (normalized === "configuration") return "configuration";
+  return "generic";
+}

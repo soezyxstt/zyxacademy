@@ -8,7 +8,7 @@ import {
   type ZyraTeachingResponse,
 } from "./contracts";
 import { composeSafeTeachingResponse } from "./composer";
-import { buildPedagogyPromptInput, type PedagogyEvidenceInput } from "./prompt-input";
+import { buildPedagogyPromptInput, codingProviderResponseSchema, codingTextProviderResponseSchema, type PedagogyEvidenceInput } from "./prompt-input";
 import { selectTeachingPlan, type TeachingPlan } from "./state-machine";
 import { createTeachingResponseValidator, validateTeachingResponse } from "./validators";
 import { ZYRA_PEDAGOGY_V3_CONTRACT } from "@/prompts/zyra/pedagogy-v3";
@@ -93,6 +93,8 @@ export async function runPedagogicalTurn(params: RunPedagogicalTurnParams): Prom
 
   const contract = {
     ...ZYRA_PEDAGOGY_V3_CONTRACT,
+    ...(params.evidence.some((source) => source.id.startsWith("coding:"))
+      ? { responseSchema: params.context.responseModifiers.includes("flowchart") ? codingProviderResponseSchema : codingTextProviderResponseSchema } : {}),
     validators: [createTeachingResponseValidator(params.context, plan, allowedSources, params.protectedAnswers)],
   };
   const result = await PromptExecutor.run({

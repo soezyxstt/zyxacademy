@@ -1,5 +1,6 @@
 "use client";
 
+import { ArticleCodeExample, ArticleCodingExercise } from "@/components/coding/article-coding";
 import { articleCaseLatex, type ArticlePart } from "@/lib/materials/article-parts";
 import type { PublicVisualSpec } from "@/lib/articles/structured-read-model";
 import { MathText } from "@/components/course/math-text";
@@ -10,6 +11,8 @@ export function ArticleParts({ parts, visuals = [] }: { parts: ArticlePart[]; vi
   return (
     <div className="w-full min-w-0 max-w-full space-y-5" data-article-parts>
       {parts.map((part) => {
+        if (part.kind === "code_example") return <div key={part.id} id={part.id} data-part-id={part.id} data-part-kind="code_example"><ArticleCodeExample part={part} /></div>;
+        if (part.kind === "coding_exercise") return <div key={part.id} id={part.id} data-part-id={part.id} data-part-kind="coding_exercise"><ArticleCodingExercise part={part} /></div>;
         if (part.kind === "markdown") return <div key={part.id} id={part.id} data-part-id={part.id}><MarkdownRenderer content={part.markdown} /></div>;
         if (part.kind === "worked_example") return (
           <section key={part.id} id={part.id} data-part-id={part.id} data-part-kind="worked_example" className="space-y-5">

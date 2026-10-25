@@ -4,15 +4,16 @@ import { redirect, notFound } from "next/navigation";
 import { Video as VideoIcon } from "lucide-react";
 import { CoursePageShell } from "@/components/course/course-page-shell";
 import { createMetadata, pageTitle } from "@/lib/site";
+import { getAuthSession } from "@/lib/auth-session";
 import { getCourseVideosData } from "@/app/actions/video-actions";
 import { CourseVideosClient } from "@/components/course/video/course-videos-client";
-import { auth } from "@/lib/auth";
-import { headers } from "next/headers";
 import { Reveal } from "@/components/ui/reveal";
 
 import { EnrollmentForm } from "@/components/enrollment-form";
 import { resolveCourseIdentity } from "@/lib/admin/course-identity";
 import { resolveCourseAccess } from "@/lib/student/course-access";
+import { TranslatedText } from "@/components/i18n/translated-text";
+import { getTranslations } from "@/lib/i18n/server";
 
 type Props = {
   params: Promise<{ id: string }>;
@@ -25,10 +26,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params;
   const identity = await resolveCourseIdentity(id);
   const title = identity?.title || "Video";
+  const t = await getTranslations("learning");
 
   return createMetadata({
-    title: `Video Pembelajaran ${title}`,
-    description: `Playlist dan video pembelajaran untuk ${title}.`,
+    title: t("metadata.videoTitle", { course: title }),
+    description: t("metadata.videoDescription", { course: title }),
     path: `/courses/${id}/video`,
   });
 }
@@ -40,7 +42,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function StudentCourseVideosPage({ params }: Props) {
   const { id } = await params;
 
-  const session = await auth.api.getSession({ headers: await headers() });
+  const session = await getAuthSession();
   if (!session?.user) {
     redirect(`/sign-in?next=${encodeURIComponent(`/courses/${id}/video`)}`);
   }
@@ -58,10 +60,10 @@ export default async function StudentCourseVideosPage({ params }: Props) {
 
   return (
     <CoursePageShell
-      title={`Video: ${data.course.title}`}
+      title={<TranslatedText namespace="learning" messageKey="videoPage.title" values={{ course: data.course.title }} />}
       icon={VideoIcon}
       backHref={`/courses/${id}`}
-      backLabel="Kembali ke Kelas"
+      backLabel={<TranslatedText namespace="learning" messageKey="videoPage.backToCourse" />}
     >
       <Reveal>
         {!isEnrolled && (
@@ -69,10 +71,10 @@ export default async function StudentCourseVideosPage({ params }: Props) {
             <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(280px,420px)] md:items-center">
               <div>
                 <h3 className="font-heading text-body-base font-bold text-brand-secondary">
-                  Aktivasi token kelas
+                  <TranslatedText namespace="learning" messageKey="quizPage.activationTitle" />
                 </h3>
                 <p className="mt-1 max-w-2xl text-body-sm text-muted-foreground">
-                  Masukkan token kelas untuk membuka seluruh video dan materi.
+                  <TranslatedText namespace="learning" messageKey="videoPage.activationDescription" />
                 </p>
               </div>
               <EnrollmentForm className="w-full" />

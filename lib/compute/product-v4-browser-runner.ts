@@ -1,3 +1,4 @@
+import { assertVerificationBrowserIdentity } from "./product-v4-browser-config";
 import { chromium, type Page } from "playwright-core";
 import { parseStoredPdfPages } from "./pdf-pages";
 import { deriveProductV4VerificationPlan, assertProductV4VerificationCurrent, type ProductV4ObservedCheck, type ProductV4VerificationPlan, type ProductV4VerificationRequirement } from "@/lib/bundle/product-v4-verification";
@@ -8,7 +9,7 @@ import { compileProductDiktatHtml, PRODUCT_DIKTAT_FOOTER_TEMPLATE } from "@/lib/
 import { inspectDiktatPrintReadiness } from "@/lib/materials/diktat-print-readiness";
 import type { DiktatSourceFigureAssets } from "@/lib/materials/diktat-static-visual";
 import { z } from "zod";
-import { acquireVerificationBrowser, type VerificationBrowserSession } from "./product-v4-browser-session";
+import { acquireConfiguredVerificationBrowser, type VerificationBrowserSession } from "./product-v4-browser-session";
 import { assertProductV4RuntimeFingerprint, expectedChromiumRuntime, resolveProductV4LoadedRuntime, type ProductV4RuntimeFingerprint } from "./product-v4-runtime-binding";
 
 declare const __ZYX_VERIFICATION_BUILD_RUNTIME__: { fingerprint: ProductV4RuntimeFingerprint; chromium: { browserVersion: string; revision: string } } | undefined;
@@ -30,13 +31,11 @@ export function validateDeployedVerificationBaseUrl(value: string): string {
   return url.origin;
 }
 async function launchVerificationBrowser() {
-  if (!deployed) {
+  if (!deployed && !process.env.AUTHORING_VERIFICATION_BROWSER_PROVIDER) {
     const browser = await chromium.launch({ headless: true });
     return { browser, close: () => browser.close() };
   }
-  const account = process.env.CF_ACCOUNT_ID, token = process.env.CF_API_TOKEN;
-  if (!account || !/^[a-f0-9]{32}$/i.test(account) || !token) throw new Error("VERIFICATION_BROWSER_CONFIGURATION_REQUIRED");
-  return acquireVerificationBrowser(account, token);
+  return acquireConfiguredVerificationBrowser();
 }
 export async function closeProductV4BrowserRunner() {
   const pending = browser;
@@ -202,9 +201,12 @@ export async function executeBrowserProductV4Check(input: {
   assertProductV4VerificationCurrent(input.plan, derived);
   const requirement = derived.requirements.find((check) => check.id === input.requirement.id);
   if (!requirement || deterministicProductSerialization(requirement) !== deterministicProductSerialization(input.requirement)) throw new Error("VERIFICATION_REQUIREMENT_INVALID");
-  const baseUrl = deployed ? validateDeployedVerificationBaseUrl(input.baseUrl) : validateVerificationBaseUrl(input.baseUrl);
+  const baseUrl = deployed || process.env.AUTHORING_VERIFICATION_BROWSER_PROVIDER ? validateDeployedVerificationBaseUrl(input.baseUrl) : validateVerificationBaseUrl(input.baseUrl);
   const result: ProductV4ObservedCheck = { checkId: requirement.id, status: "NOT_TESTED", expected: `${requirement.layer}:${requirement.state}`, observed: "The requested state has no supported browser executor.", artifacts: [] };
   if (!["web", "print"].includes(requirement.layer)) return result;
+  if (deployed || process.env.AUTHORING_VERIFICATION_BROWSER_PROVIDER) {
+    assertVerificationBrowserIdentity(input.plan.binding);
+  }
   input.signal?.throwIfAborted();
   if (browser && !(await browser).browser.isConnected()) await closeProductV4BrowserRunner();
   browser ??= launchVerificationBrowser().catch(error => { browser = undefined; throw error; });

@@ -67,6 +67,26 @@ bun run dev                  # http://localhost:3000
 
 Canonical vector IDs preserve the database entity identity in metadata. IDs containing `:` use the shared URI-encoded vector-ID segment and are decoded before Turso hydration. If a Gemini rate limit interrupts `vectorize:backfill`, rerun the same `--run-id` with `--resume`; the artifact checkpoint prevents already processed vector IDs from being embedded or upserted again. Do not switch models or use a 1024-dimensional fallback.
 
+## Bilingual interface development
+
+The supported interface locales are `id` and `en`. Use `lib/i18n/locale.ts` for normalization and server-safe preference resolution, `lib/i18n/client.ts` for client translations and locale state, and `lib/i18n/server.ts` for server rendering and metadata. Keep paired JSON catalogs under `messages/id/` and `messages/en/`, registered by namespace in `lib/i18n/catalogs.ts`. Use display adapters for enums, but keep API error codes, role values, search category keys, URLs, and stored content unchanged. Do not translate user-authored or published academic text in place.
+
+Run `bun scripts/check-i18n-catalogs.ts` to check paired catalog structure and consumed keys. Focused communications and search contracts can be run with:
+
+```bash
+bun test tests/contracts/email-notification-preferences.test.ts tests/contracts/notification-locale-templates.test.ts tests/marketing-cmdk-search.test.ts
+```
+
+The focused Zyra and course tests are:
+
+```bash
+bun test tests/contracts/zyra-chat-language-contract.test.ts tests/unit/zyra-stream-client.test.ts tests/contracts/student-course-overview-refactor.test.tsx
+```
+
+The account interface locale persists across visits. Conversation-specific Zyra overrides are in memory, limited to 32 sessions, and reset on drawer remount or reload and on account, course, or interface-locale changes. Do not describe that conversation override as durable storage. The final release candidate catalog gate passed 23 namespaces and 6,426 static translation calls, and the public route matrix passed 52 captures. The full role/state matrix remains incomplete; current browser evidence and its boundaries are tracked in `plans/bilingual-web-app.md`.
+
+Background dispatch imports must remain server-safe for Deno compute. Do not add Next.js or React imports to worker-consumed message, notification, preference, or email-template modules. `proxy.ts` owns only the finite public locale rewrite map; test origin preservation and `skipProxyUrlNormalize` when changing that request boundary. Full role, locale, state, and visual verification belongs to the bilingual plan's CP7 gate.
+
 ## Environment Variables
 
 Configured via `.env.local`. All vars are validated at startup by `lib/env.ts` (`@t3-oss/env-nextjs`).
@@ -135,6 +155,9 @@ https://<zyx-origin>/api/mcp/authoring
 
 ### Optional ; Production Services
 - `DIKTAT_RENDERER_URL`, `DIKTAT_RENDERER_SECRET` ; Puppeteer PDF service
+- `AUTHORING_VERIFICATION_BROWSER_PROVIDER` ; `cloudflare` (default) or `steel`, only for V4 verification
+- `STEEL_API_KEY` ; server-only Steel key, never a public variable
+- `AUTHORING_VERIFICATION_STEEL_BROWSER_VERSION` ; reviewed exact four-part Chromium version, required for Steel plans and execution
 - `AUTHORING_VERIFICATION_RENDERER_URL`, `AUTHORING_VERIFICATION_RENDERER_SECRET` ; private V4 browser/PDF verification service, separate from the existing PDF renderer
 - `NEXT_PUBLIC_REALTIME_URL`, `LIVE_HMAC_SECRET` ; Live quiz Worker
 - `WHATSAPP_ADMIN_NUMBER` ; Admin WhatsApp notifications
@@ -400,6 +423,62 @@ For the original file, call `source.read_file` with `mode: "download"` and save 
 
 ### Local V4 verification
 
-V4 uses JSXGraph, KaTeX/mhchem, pinned `pdfjs-dist` and `@napi-rs/canvas`. Local browser verification uses installed Playwright Chromium. Deployment uses the existing Deno worker and Cloudflare Browser Run over CDP, with its browser version bound to the plan. PDF page evidence uses the existing PDF parser and needs no Poppler. Keep the traced source closure, package manifests, KaTeX assets and PDF standard fonts available.
+V4 uses JSXGraph, KaTeX/mhchem, pinned `pdfjs-dist` and `@napi-rs/canvas`. Local browser verification uses installed Playwright Chromium. Deployment uses the existing Deno worker and the configured Cloudflare Browser Run or Steel provider over CDP. Provider and exact browser version bind the plan. Local verification keeps installed Chromium unless a remote provider is explicitly configured; remote providers require the allowed deployed preview origin. PDF page evidence uses the existing PDF parser and needs no Poppler. Keep the traced source closure, package manifests, KaTeX assets and PDF standard fonts available.
 
 Build the private renderer with `bun scripts/authoring/build-local-verification-renderer.ts`; start its emitted Node module against the authorized local web server as described in [the runbook](operations/authoring-mcp-skills.md). Supply `AUTHORING_VERIFICATION_RENDERER_SECRET` only through the environment. `bun scripts/authoring/verify-local-v4.ts --renderer http://127.0.0.1:3101` exercises a synthetic canonical ZIP and local storage ports, saving evidence under ignored `artifacts/authoring-verification/local-run/`. It performs no deployment or remote storage mutation. SQLite boundary tests and MCP transport tests exercise their separate boundaries.
+
+## Python coding runtime
+
+Install pinned dependencies with Bun. Browser Python assets are served locally
+from the Pyodide package; no CDN or Python server is needed for Run. Local Submit
+requires Playwright Chromium with a functioning kernel sandbox. Run
+`bun run test:visual:install` when browsers are missing. Production Submit reuses
+`CF_ACCOUNT_ID` and `CF_API_TOKEN` for Cloudflare Browser Run. Explicit
+`CODING_BROWSER_PROVIDER=steel` uses the existing session adapter and
+`STEEL_API_KEY`, independently of `AUTHORING_VERIFICATION_BROWSER_PROVIDER`.
+`local` is permitted only outside production. No automatic provider fallback or
+coding feature flag is introduced. Real Steel grading is verified against local
+synthetic fixtures; deployed connectivity remains a separate boundary. See the
+[coding contract](coding-foundation.md) and [verification evidence](coding-verification.md).
+
+For an opt-in real runtime probe, run
+`RUN_CODING_RUNTIME_PROBE=1 CODING_BROWSER_PROVIDER=steel bun --conditions=react-server scripts/coding/probe-runtime.ts`
+or bundle it with
+`bun build scripts/coding/probe-runtime.ts --target=node --packages=external --outfile=artifacts/coding-live/probe-runtime.mjs`
+and run Node with `--conditions=react-server`. Supply credentials only through the
+server environment. The probe asserts real Python results and releases each session in finally.
+It uses bounded batches to stay within the 120-second provider session lifetime. It touches no database. A failed assertion is a failed verification,
+not a passing provider smoke test. Managed environments must preserve the policy
+proxy and TLS trust for REST and CDP.
+Apply generated migrations only to the selected database environment.
+
+
+For managed-environment Steel testing, first verify `STEEL_API_KEY_GLOBAL` is
+nonempty without printing its value. Map it only for the test process; never
+change the application default provider. The opt-in CDP proxy preload uses the
+inherited HTTPS policy proxy and keeps TLS validation enabled:
+
+```sh
+mkdir -p artifacts/coding-live
+bun build scripts/coding/probe-runtime.ts --target=node --packages=external --outfile=artifacts/coding-live/probe-runtime.mjs
+STEEL_API_KEY="$STEEL_API_KEY_GLOBAL" CODING_BROWSER_PROVIDER=steel RUN_CODING_RUNTIME_PROBE=1 python scripts/coding/local-env.py node --conditions=react-server --require ./scripts/coding/steel-policy-proxy.cjs artifacts/coding-live/probe-runtime.mjs
+```
+
+To exercise the actual browser Run adapter, start a local app at
+`http://127.0.0.1:3000` with the local environment wrapper, then run:
+
+```sh
+bun build scripts/coding/browser-probe-entry.ts --target=browser --format=iife --outfile=artifacts/coding-live/browser-runtime.js
+bun build scripts/coding/probe-browser-runtime.ts --target=node --packages=external --outfile=artifacts/coding-live/probe-browser-runtime.mjs
+STEEL_API_KEY="$STEEL_API_KEY_GLOBAL" CODING_BROWSER_PROVIDER=steel RUN_CODING_BROWSER_PROBE=1 python scripts/coding/local-env.py node --conditions=react-server --require ./scripts/coding/steel-policy-proxy.cjs artifacts/coding-live/probe-browser-runtime.mjs
+```
+
+This probe bridges only public runtime routes to Steel. It sends no app cookie,
+uses no grading mock, and executes real Python in the unchanged
+`allow-scripts` opaque iframe. It is runtime evidence, not an authenticated
+Playground page or visual sign-off. The preload is test tooling, not automatic
+production provider or transport configuration.
+
+The local coding wrapper uses fictional public Firebase identifiers to let the
+foreground notification listener initialize without remote project bindings.
+Keep push consent denied in synthetic UI probes; do not register a remote token.

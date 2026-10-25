@@ -4,17 +4,18 @@ import { and, asc, eq, isNull } from "drizzle-orm";
 
 import { db } from "@/db";
 import { importantLinks } from "@/db/schema";
-import { createMetadata, pageTitle } from "@/lib/site";
+import { createMetadata } from "@/lib/site";
+import { getAppLocale, getTranslations } from "@/lib/i18n/server";
 import { PageOrnaments } from "@/components/ui/page-ornaments";
 import { Logo } from "@/components/logo";
 import { DEFAULT_ICON, linkColor } from "@/lib/links";
 import { cn } from "@/lib/utils";
 
-export const metadata: Metadata = createMetadata({
-  title: "Tautan",
-  description: "Kumpulan tautan penting dari Zyx Academy dalam satu tempat.",
-  path: "/tautan",
-});
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("marketing");
+  const locale = await getAppLocale();
+  return createMetadata({ title: t("tautan.title"), description: t("tautan.description"), path: "/tautan", locale });
+}
 
 
 export const dynamic = "force-dynamic";
@@ -65,6 +66,7 @@ function LinkCard({ link }: { link: PublicLink }) {
 }
 
 export default async function TautanPage() {
+  const t = await getTranslations("marketing");
   const links = await db
     .select({
       id: importantLinks.id,
@@ -111,10 +113,10 @@ export default async function TautanPage() {
             <Logo variant="symbol" className="[--logo-height:2.25rem]" />
           </div>
           <h1 className="mt-4 font-heading text-h5 font-bold tracking-tight text-foreground">
-            Tautan Zyx Academy
+            {t("tautan.title")}
           </h1>
           <p className="mt-1.5 max-w-sm text-body-sm leading-normal text-muted-foreground">
-            Kumpulan tautan penting dari Zyx Academy dalam satu tempat.
+            {t("tautan.description")}
           </p>
         </header>
 
@@ -124,10 +126,10 @@ export default async function TautanPage() {
               <LinkIcon className="size-7" aria-hidden />
             </div>
             <h2 className="font-heading text-body-base font-semibold text-foreground">
-              Belum ada tautan
+              {t("tautan.emptyTitle")}
             </h2>
             <p className="max-w-xs text-body-sm leading-normal text-muted-foreground">
-              Tautan penting akan muncul di halaman ini.
+              {t("tautan.emptyDescription")}
             </p>
           </div>
         ) : showSectionLabels ? (

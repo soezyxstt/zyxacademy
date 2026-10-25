@@ -8,6 +8,9 @@
  * active canonical-to-legacy course mapping exists.
  */
 
+import { liveCodingConfigSchema } from "@/lib/coding/live-server";
+import { loadPublishedCodingProblem } from "@/lib/coding/server-access";
+import type { z as zType } from "zod";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { randomUUID, createHmac } from "node:crypto";
@@ -54,8 +57,9 @@ function publishedQuizQuestionCondition() {
 
 const CreateSchema = z.object({
   courseId: z.string().min(1),
-  templateId: z.string().min(1),
-});
+  templateId: z.string().min(1).optional(),
+  codingQuestions: z.array(liveCodingConfigSchema).min(1).max(20).optional(),
+}).refine((body) => Boolean(body.templateId || body.codingQuestions), { message: "Choose a template or coding questions" });
 
 export async function POST(req: NextRequest) {
   if (!featureEnabled()) return NextResponse.json({ error: "Disabled" }, { status: 404 });
@@ -91,7 +95,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid body" }, { status: 400 });
   }
 
-  const { courseId, templateId } = body.data;
+  const { courseId } = body.data;
+  const templateId = body.data.templateId ?? null;
 
   // 1. Verify tutor has course-scoped access
   const access = await resolveTutorCourseAccess({
@@ -152,7 +157,7 @@ export async function POST(req: NextRequest) {
       actorRoles: roles,
       courseId: effectiveCourseId,
       entityType: "live_quiz_session",
-      entityId: templateId,
+      entityId: templateId ?? "coding",
       entityVersion: 1,
       action: "live_session.create",
       outcome: "rejected",
@@ -167,11 +172,8 @@ export async function POST(req: NextRequest) {
   }
 
   // 3. Load and validate template
-  const [template] = await db
-    .select()
-    .from(quizTemplates)
-    .where(eq(quizTemplates.id, templateId))
-    .limit(1);
+  const [storedTemplate] = templateId ? await db.select().from(quizTemplates).where(eq(quizTemplates.id, templateId)).limit(1) : [];
+  const template = storedTemplate ?? (!templateId && body.data.codingQuestions ? { courseId: persistedCourseId, status: "published", category: "quiz", selectionRules: {} } : undefined);
 
   if (!template) {
     await recordTutorMutationAuditSafe({
@@ -179,7 +181,7 @@ export async function POST(req: NextRequest) {
       actorRoles: roles,
       courseId,
       entityType: "live_quiz_session",
-      entityId: templateId,
+      entityId: templateId ?? "coding",
       entityVersion: 1,
       action: "live_session.create",
       outcome: "rejected",
@@ -197,7 +199,7 @@ export async function POST(req: NextRequest) {
       actorRoles: roles,
       courseId,
       entityType: "live_quiz_session",
-      entityId: templateId,
+      entityId: templateId ?? "coding",
       entityVersion: 1,
       action: "live_session.create",
       outcome: "rejected",
@@ -218,7 +220,7 @@ export async function POST(req: NextRequest) {
       actorRoles: roles,
       courseId,
       entityType: "live_quiz_session",
-      entityId: templateId,
+      entityId: templateId ?? "coding",
       entityVersion: 1,
       action: "live_session.create",
       outcome: "rejected",
@@ -251,7 +253,7 @@ export async function POST(req: NextRequest) {
       actorRoles: roles,
       courseId,
       entityType: "live_quiz_session",
-      entityId: templateId,
+      entityId: templateId ?? "coding",
       entityVersion: 1,
       action: "live_session.create",
       outcome: "rejected",
@@ -287,6 +289,7 @@ export async function POST(req: NextRequest) {
     .filter(Boolean);
 
   let questionsSnapshot: Array<{
+    coding?: zType.infer<typeof liveCodingConfigSchema>;
     prompt: string;
     options: string[];
     correctIndex: number;
@@ -295,7 +298,12 @@ export async function POST(req: NextRequest) {
     sourceReferenceId: string | null;
   }> = [];
 
-  if (questionIds.length > 0) {
+  if (body.data.codingQuestions) {
+    for (const coding of body.data.codingQuestions) {
+      const problem = await loadPublishedCodingProblem(effectiveCourseId, coding.problemId, coding.version);
+      questionsSnapshot.push({ prompt: problem.prompt, options: [], correctIndex: 0, origin: "zyx_original", sourceEventName: null, sourceReferenceId: null, coding });
+    }
+  } else if (questionIds.length > 0) {
     const rows = await db
       .select({
         id: aiQuestionBank.id,
@@ -324,7 +332,7 @@ export async function POST(req: NextRequest) {
         actorRoles: roles,
         courseId: effectiveCourseId,
         entityType: "live_quiz_session",
-        entityId: templateId,
+        entityId: templateId ?? "coding",
         entityVersion: 1,
         action: "live_session.create",
         outcome: "rejected",
@@ -346,7 +354,7 @@ export async function POST(req: NextRequest) {
         actorRoles: roles,
         courseId: effectiveCourseId,
         entityType: "live_quiz_session",
-        entityId: templateId,
+        entityId: templateId ?? "coding",
         entityVersion: 1,
         action: "live_session.create",
         outcome: "rejected",

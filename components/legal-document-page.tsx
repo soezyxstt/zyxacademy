@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { MarketingPageHero } from "@/components/marketing-page-hero";
 import { SectionContainer } from "@/components/layout/section-container";
 import { Reveal } from "@/components/ui/reveal";
+import { getTranslations } from "@/lib/i18n/server";
 
 export type LegalSection = {
   id: string;
@@ -17,13 +18,14 @@ type LegalDocumentPageProps = {
   sections: LegalSection[];
 };
 
-export function LegalDocumentPage({
+export async function LegalDocumentPage({
   documentId,
   title,
   description,
   updatedAt,
   sections,
 }: LegalDocumentPageProps) {
+  const t = await getTranslations("marketing");
   return (
     <div className="flex flex-col">
       <Reveal>
@@ -44,15 +46,15 @@ export function LegalDocumentPage({
             <aside className="lg:col-span-3">
               <div className="lg:sticky lg:top-24">
                 <p className="text-body-xs font-semibold text-muted-foreground">
-                  Terakhir diperbarui
+                  {t("legal.updatedAt")}
                 </p>
                 <p className="mt-1 text-body-sm font-semibold text-foreground">
                   {updatedAt}
                 </p>
 
-                <nav className="mt-8" aria-label={`Daftar isi ${title}`}>
+                <nav className="mt-8" aria-label={t("legal.tableOfContents", { title })}>
                   <h2 className="font-heading text-body-sm font-bold text-foreground">
-                    Daftar isi
+                    {t("legal.tableOfContentsHeading")}
                   </h2>
                   <ol className="mt-3 space-y-2 border-l border-border pl-4">
                     {sections.map((section, index) => (

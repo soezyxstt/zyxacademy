@@ -4,6 +4,7 @@ import * as React from "react";
 import { Check, ChevronsUpDown, Search, GraduationCap } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
+import { useTranslations } from "next-intl";
 
 export interface CourseOption {
   id: string;
@@ -24,9 +25,12 @@ export function CourseCombobox({
   value,
   onValueChange,
   className,
-  placeholder = "Pilih mata kuliah",
-  allLabel = "Semua Mata Kuliah",
+  placeholder,
+  allLabel,
 }: CourseComboboxProps) {
+  const t = useTranslations("ui");
+  const effectivePlaceholder = placeholder ?? t("courseCombobox.placeholder");
+  const effectiveAllLabel = allLabel ?? t("courseCombobox.allLabel");
   const [open, setOpen] = React.useState(false);
   const [search, setSearch] = React.useState("");
 
@@ -37,10 +41,10 @@ export function CourseCombobox({
   }, [courses, search]);
 
   const selectedTitle = React.useMemo(() => {
-    if (value === "all" || !value) return allLabel;
+    if (value === "all" || !value) return effectiveAllLabel;
     const match = courses.find((c) => c.id === value);
-    return match ? match.title : placeholder;
-  }, [courses, value, allLabel, placeholder]);
+    return match ? match.title : effectivePlaceholder;
+  }, [courses, value, effectiveAllLabel, effectivePlaceholder]);
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -50,6 +54,7 @@ export function CourseCombobox({
           aria-expanded={open}
           aria-haspopup="listbox"
           aria-controls="course-combobox-list"
+          aria-label={effectivePlaceholder}
           className={cn(
             "flex h-9 w-[190px] sm:w-[220px] items-center justify-between gap-2 rounded-lg border border-input bg-background px-3 py-1.5 text-body-sm font-medium text-foreground shadow-2xs hover:bg-muted/50 focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:outline-none shrink-0 transition-colors text-left",
             className
@@ -73,7 +78,7 @@ export function CourseCombobox({
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Cari mata kuliah..."
+            placeholder={t("courseCombobox.searchPlaceholder")}
             className="w-full bg-transparent text-body-sm outline-none placeholder:text-muted-foreground"
             autoFocus
           />
@@ -81,7 +86,7 @@ export function CourseCombobox({
 
         <div id="course-combobox-list" role="listbox" className="max-h-60 overflow-y-auto py-1 space-y-0.5">
           {/* Option: Semua Mata Kuliah */}
-          {(!search || allLabel.toLowerCase().includes(search.toLowerCase())) && (
+          {(!search || effectiveAllLabel.toLowerCase().includes(search.toLowerCase())) && (
             <button
               type="button"
               onClick={() => {
@@ -96,7 +101,7 @@ export function CourseCombobox({
                   : "hover:bg-muted text-foreground"
               )}
             >
-              <span className="truncate">{allLabel}</span>
+              <span className="truncate">{effectiveAllLabel}</span>
               {(value === "all" || !value) && (
                 <Check className="size-3.5 text-brand-primary shrink-0 ml-2" />
               )}
@@ -132,7 +137,7 @@ export function CourseCombobox({
 
           {filteredCourses.length === 0 && search.trim() !== "" && (
             <div className="py-4 text-center text-body-sm text-muted-foreground">
-              Mata kuliah tidak ditemukan.
+              {t("courseCombobox.noResults")}
             </div>
           )}
         </div>

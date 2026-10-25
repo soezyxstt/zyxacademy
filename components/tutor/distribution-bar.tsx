@@ -1,26 +1,26 @@
-export function DistributionBar({
-  low,
-  mid,
-  high,
-  total,
-  className,
-}: {
+"use client";
+
+import { useTranslations } from "@/lib/i18n/client";
+
+export function DistributionBar({ low, mid, high, total, className }: {
   low: number;
   mid: number;
   high: number;
   total: number;
   className?: string;
 }) {
-  const t = total || 1;
-  const lowPct = (low / t) * 100;
-  const midPct = (mid / t) * 100;
-  const highPct = (high / t) * 100;
+  const t = useTranslations("tutor.analytics");
+  const denominator = total || 1;
+  const lowPct = (low / denominator) * 100;
+  const midPct = (mid / denominator) * 100;
+  const highPct = (high / denominator) * 100;
+  const values = { low, mid, high };
 
   return (
     <div
       role="img"
-      aria-label={`Low: ${low}, Mid: ${mid}, High: ${high}`}
-      title={`Low (<30): ${low}  Mid (30-59): ${mid}  High (60+): ${high}`}
+      aria-label={t("distributionAria", values)}
+      title={t("distributionTitle", values)}
       className={`flex h-1.5 rounded-md overflow-hidden bg-muted ${className ?? "w-32"}`}
     >
       <div className="h-full bg-status-error" style={{ width: `${lowPct}%` }} />

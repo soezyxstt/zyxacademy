@@ -83,6 +83,16 @@ Canonical access-role codes are `admin`, `tutor`, and `murid`. Admin and tutor l
 - Typing `?` opens the search guide. It documents and applies the `group:`, `meet:`, `user:`, `form:`, `token:`, and `schedule:` prefixes, and shows every accepted alias for each prefix.
 - Changing the query resets the result list to the top. Selecting a result triggers the global route progress bar before navigation.
 
+### Bilingual interface and published content
+
+The application uses paired `id` and `en` JSON message catalogs. Locale resolution prefers a supported explicit public URL, then the signed-in account preference, the `zyx_locale` cookie, a supported browser language, and Indonesian. Public `/id/...` and `/en/...` prefixes are limited to the allowlist in `lib/public-locale-routes.ts`; this does not prefix protected routes or APIs. The account choice is stored in `account_locale_preferences` independently of learning preferences and role membership.
+
+The language applies to application-owned controls, errors, empty and loading states, generated system email and push wrappers, search categories, and navigation aliases. It does not rewrite the language or identity of published Articles, Diktat PDFs, historical exams, quiz questions and answers, flashcards, announcements, form questions, blog bodies, or user-authored text. Academic search results retain their source titles, and the bilingual navigation aliases do not promise cross-language academic search.
+
+Use these product terms consistently: `Mata kuliah / Course`, `Bab / Chapter`, `Idea / Idea`, `Artikel / Article`, `Diktat / Diktat`, `Kuis / Quiz`, and `Tryout / Practice test`. Keep stable identifiers and authored titles unchanged.
+
+Zyra accepts an allowlisted response language, honors explicit English or Indonesian instructions, and includes response language in exact and semantic cache identity. The shared tutor chat-request builder sends interface locale for typed, retry, image, and selection requests, with sticky language state guarded by an epoch. Account interface locale persists across visits. Explicit conversation overrides are memory-only, limited to 32 sessions, and cleared on drawer remount, reload, or account, course, and interface-locale changes. The Zyra contract suite passed 48 tests and the request/SSE boundary suite passed 8 tests. The full role/route/state matrix remains incomplete under CP7.
+
 ### MTD → Knowledge Objects (KO)
 1. Admin uploads a markdown master document
 2. Preprocessed and normalized with deterministic semantic chunking preserving headings, formulas, and tables without 30k char truncation
@@ -636,3 +646,15 @@ A section completes at 90 percent read depth or when the reader proceeds from it
 New Article/Diktat authoring defaults to V4. Existing V3 revisions and readers remain supported. Article parts keep explanations, formulas, conditions, symbols, examples and visuals in reading order. Mathematical prose, headings, scientific values, chemistry and units use the shared mathematical renderer. Diktat units are authored separately with references to Article elements and verified static figures. Existing V2/V3 content keeps its compatibility path.
 
 MCP exposes scoped source-figure extraction and resumable jobs, plus `authoring.verify_product_bundle` and `authoring.get_verification`. Approval requires current server verification, explicit decisions for every section, an anchored eight-criterion rubric and the same verified PDF artifact. V4 content is revised through its bundle rather than a lossy legacy editor. See [the V4 source contract](bundle/product-bundle-v4.md) and [the MCP skills runbook](operations/authoring-mcp-skills.md). Deployment and installation remain separate actions.
+## Python coding
+
+Course Playground, runnable V4 Article examples, repeated coding submissions,
+Zyra decomposition/flowchart help and Python Live Quiz are implemented locally
+without a new feature flag. Existing Live Quiz gating remains unchanged. See
+[coding contract](coding-foundation.md) for authoring, access and runtime limits.
+
+Error help guides trial and error: explain the observed failure, offer a tentative
+concept diagnosis, let the learner clarify their reasoning, give one small next
+step, and encourage another predicted Run. After an edit, old explanations are
+marked stale until a new consultation. A successful browser Run remains practice,
+not an official Submit grade.

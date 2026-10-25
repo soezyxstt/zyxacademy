@@ -43,6 +43,7 @@ import {
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useUrlTab } from "@/hooks/use-url-tab";
 import { cn } from "@/lib/utils";
+import { useTranslations } from "@/lib/i18n/client";
 import type { CourseMaterial } from "@/lib/student-course-fixtures";
 import { getSubcategoryLabel, type CourseMaterialSubcategory } from "@/lib/course-materials";
 
@@ -71,11 +72,11 @@ type CourseDocumentsClientProps = {
 const MAX_THUMBNAIL_RETRIES = 8;
 
 const tabs: Array<{ key: TabKey; label: string; icon: typeof FileText }> = [
-  { key: "all", label: "Semua", icon: FileText },
-  { key: "materi", label: "Materi", icon: FileText },
-  { key: "diktat", label: "Diktat", icon: BookOpen },
-  { key: "bank_soal", label: "Soal", icon: ClipboardList },
-  { key: "pdf", label: "PDF Materi", icon: FileText },
+  { key: "all", label: "all", icon: FileText },
+  { key: "materi", label: "material", icon: FileText },
+  { key: "diktat", label: "handbook", icon: BookOpen },
+  { key: "bank_soal", label: "questions", icon: ClipboardList },
+  { key: "pdf", label: "pdfMaterial", icon: FileText },
 ];
 
 function normalizeTabKey(tab?: string | null): TabKey {
@@ -239,12 +240,24 @@ function cleanDocTitle(title: string, courseTitle?: string) {
   return cleaned || title;
 }
 
-function getDocumentSecondaryMeta(material: CourseMaterial): string[] {
+function getDocumentSecondaryMeta(material: CourseMaterial, t: ReturnType<typeof useTranslations>): string[] {
   const subcategory = material.subcategory
     ? getSubcategoryLabel(material.subcategory as CourseMaterialSubcategory) ?? material.subcategory
     : null;
 
   const rawFileSize = material.fileSize?.trim();
+  const fileLabelKeys: Record<string, string> = {
+    "PDF Diktat": "diktatPdf",
+    "Rangkuman Materi": "materialSummary",
+    "Pembahasan Soal": "questionExplanation",
+    "Lembar Soal": "questionSheet",
+    "Berkas PDF ITB": "itbPdfFile",
+    "PDF File": "pdfFile",
+    "Disusun otomatis": "autoPrepared",
+  };
+  const translatedFileSize = rawFileSize && fileLabelKeys[rawFileSize]
+    ? t(`documents.fileLabels.${fileLabelKeys[rawFileSize]}`)
+    : rawFileSize;
   const isRedundantFileSize =
     !rawFileSize ||
     /^diktat(\s+resmi|\s+canonical)?$/i.test(rawFileSize) ||
@@ -253,7 +266,7 @@ function getDocumentSecondaryMeta(material: CourseMaterial): string[] {
   return [
     subcategory,
     material.year ? String(material.year) : null,
-    isRedundantFileSize ? null : rawFileSize,
+    isRedundantFileSize ? null : translatedFileSize,
   ].filter((val): val is string => Boolean(val));
 }
 
@@ -272,6 +285,7 @@ function HierarchyDocumentCard({
   isAdmin?: boolean;
   onDelete?: (m: CourseMaterial) => void;
 }) {
+  const t = useTranslations("learning");
   const tier = getMaterialHierarchyTier(material);
   const tierStyle = HIERARCHY_TIER_STYLES[tier];
   const itemHref =
@@ -281,7 +295,7 @@ function HierarchyDocumentCard({
   const isLocked = Boolean(material.locked);
   const isPdf = material.kind === "pdf" && Boolean(material.url);
   const viewPdfUrl = isPdf ? getViewablePdfUrl(material.url) : null;
-  const secondaryMeta = getDocumentSecondaryMeta(material);
+  const secondaryMeta = getDocumentSecondaryMeta(material, t);
   const FallbackIcon = tierStyle.icon;
 
   const handleClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
@@ -334,7 +348,7 @@ function HierarchyDocumentCard({
             {cleanDocTitle(material.title, courseTitle)}
           </p>
           <p className="mt-0.5 truncate text-body-xs leading-tight text-muted-foreground">
-            <span className={tierStyle.textColor}>{tierStyle.label}</span>
+            <span className={tierStyle.textColor}>{t(`documents.materialTypes.${tier}`)}</span>
             {secondaryMeta.length > 0 && <span> · {secondaryMeta.join(" · ")}</span>}
           </p>
         </div>
@@ -348,7 +362,7 @@ function HierarchyDocumentCard({
               variant="ghost"
               size="icon"
               className="size-7 rounded-md text-muted-foreground hover:text-foreground shrink-0"
-              aria-label="Aksi dokumen"
+              aria-label={t("documents.documentActions")}
               onClick={(e: React.MouseEvent) => {
                 e.preventDefault();
                 e.stopPropagation();
@@ -361,20 +375,20 @@ function HierarchyDocumentCard({
             <DropdownMenuItem asChild>
               <Link href={`${itemHref}?mode=edit`}>
                 <Pencil className="size-3.5 mr-2" />
-                Edit Dokumen
+                {t("documents.editDocument")}
               </Link>
             </DropdownMenuItem>
             <DropdownMenuItem asChild>
               <Link href={itemHref}>
                 <Eye className="size-3.5 mr-2" />
-                Pratinjau
+                {t("documents.preview")}
               </Link>
             </DropdownMenuItem>
             {material.url ? (
               <DropdownMenuItem asChild>
                 <a href={material.url} target="_blank" rel="noopener noreferrer">
                   <ExternalLink className="size-3.5 mr-2" />
-                  Buka Berkas PDF
+                  {t("documents.openPdf")}
                 </a>
               </DropdownMenuItem>
             ) : null}
@@ -390,7 +404,7 @@ function HierarchyDocumentCard({
                   }}
                 >
                   <Trash2 className="size-3.5 mr-2" />
-                  Hapus Dokumen
+                  {t("documents.delete")}
                 </DropdownMenuItem>
               </>
             ) : null}
@@ -400,7 +414,7 @@ function HierarchyDocumentCard({
                 <DropdownMenuItem asChild>
                   <Link href={`/admin/courses/${encodeURIComponent(courseSlug || courseId)}/review?tab=product`}>
                     <BookOpenCheck className="size-3.5 mr-2" />
-                    Kelola Review
+                    {t("documents.manageReview")}
                   </Link>
                 </DropdownMenuItem>
               </>
@@ -410,10 +424,10 @@ function HierarchyDocumentCard({
       ) : isLocked ? (
         <span className="inline-flex shrink-0 items-center gap-1 rounded-md bg-amber-500/10 px-1.5 py-0.5 text-body-2xs font-semibold text-amber-600 dark:text-amber-400 ring-1 ring-amber-500/20">
           <Lock className="size-2.5" />
-          Terkunci
+          {t("documents.locked")}
         </span>
       ) : material.completed ? (
-        <CheckCircle2 className="size-3.5 shrink-0 text-status-success" aria-label="Selesai dipelajari" />
+        <CheckCircle2 className="size-3.5 shrink-0 text-status-success" aria-label={t("documents.markAsRead")} />
       ) : (
         <ChevronRight
           className="size-3.5 shrink-0 text-muted-foreground/55 transition-transform group-hover:translate-x-0.5"
@@ -507,6 +521,7 @@ function CollapsibleDocumentSection({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
+  const t = useTranslations("learning");
   const hasDocuments = materials.length > 0;
 
   return (
@@ -525,7 +540,7 @@ function CollapsibleDocumentSection({
         <span className="min-w-0 flex-1 truncate text-body-sm font-semibold text-foreground" title={title}>
           {title}
         </span>
-        <span className="shrink-0 text-body-xs text-muted-foreground">{materials.length} dokumen</span>
+        <span className="shrink-0 text-body-xs text-muted-foreground">{t("documents.documentCount", { count: materials.length })}</span>
         <ChevronDown
           className={cn(
             "size-4 shrink-0 text-muted-foreground transition-transform duration-150 group-data-[state=open]:rotate-180",
@@ -568,6 +583,7 @@ export function CourseDocumentsClient({
   forcePageNavigation = false,
   isAdmin = false,
 }: CourseDocumentsClientProps) {
+  const t = useTranslations("learning");
   const router = useRouter();
   const [deleteTarget, setDeleteTarget] = useState<CourseMaterial | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -579,14 +595,14 @@ export function CourseDocumentsClient({
     try {
       const res = await deleteCourseMaterial(deleteTarget.id);
       if (res.success) {
-        toast.success("Dokumen berhasil dihapus.");
+        toast.success(t("documents.deleted"));
         setDeleteTarget(null);
         router.refresh();
       } else {
-        toast.error(res.error || "Gagal menghapus dokumen.");
+        toast.error(t("documents.deleteFailed"));
       }
     } catch {
-      toast.error("Terjadi kesalahan jaringan.");
+      toast.error(t("documents.networkError"));
     } finally {
       setIsDeleting(false);
     }
@@ -710,22 +726,22 @@ export function CourseDocumentsClient({
       {activeTab === "all" && accessTier === "free" && lockedMaterialCount > 0 ? (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-brand-primary/25 bg-brand-primary/5 px-3 py-2.5">
           <div className="flex min-w-0 items-center gap-2 text-body-xs text-muted-foreground">
-            <span>Artikel dan diktat bab berikutnya terbuka setelah aktivasi kelas.</span>
+            <span>{t("documents.lockedArticleNotice")}</span>
           </div>
           <Link href="/plans" className="shrink-0 rounded-md border border-border bg-card px-2.5 py-1.5 text-body-sm font-semibold text-brand-primary hover:bg-muted">
-            Aktifkan akses
+            {t("documents.activateAccess")}
           </Link>
         </div>
       ) : null}
       <div className="flex flex-wrap items-center justify-between gap-2">
         <Tabs value={activeTab} onValueChange={(value) => setUrlTab(normalizeTabKey(value))}>
-          <TabsList className="max-w-full justify-start" aria-label="Kategori dokumen mata kuliah">
+          <TabsList className="max-w-full justify-start" aria-label={t("documents.courseCategoryLabel")}>
             {tabs.map((tab) => {
               const Icon = tab.icon;
               return (
                 <TabsTrigger key={tab.key} value={tab.key}>
                   <Icon className="size-3.5 shrink-0" />
-                  <span>{tab.label}</span>
+                  <span>{t(`documents.categories.${tab.label}`)}</span>
                 </TabsTrigger>
               );
             })}
@@ -739,8 +755,8 @@ export function CourseDocumentsClient({
             variant="default"
             className="size-8 rounded-lg shrink-0 cursor-pointer shadow-xs"
             onClick={() => setUploadOpen(true)}
-            aria-label="Unggah dokumen PDF"
-            title="Unggah dokumen PDF"
+            aria-label={t("documents.uploadPdf")}
+            title={t("documents.uploadPdf")}
           >
             <Plus className="size-4" />
           </Button>
@@ -769,8 +785,8 @@ export function CourseDocumentsClient({
               );
             })}
             <CollapsibleDocumentSection
-              badge="UTS"
-              title="Ujian Tengah Semester"
+              badge={t("documents.examBadges.midterm")}
+              title={t("documents.examSections.midterm")}
               materials={utsMaterials}
               courseId={courseId}
               courseSlug={courseSlug}
@@ -781,8 +797,8 @@ export function CourseDocumentsClient({
               onOpenChange={(nextOpen) => setOpenSection(nextOpen ? "special:uts" : null)}
             />
             <CollapsibleDocumentSection
-              badge="UAS"
-              title="Ujian Akhir Semester"
+              badge={t("documents.examBadges.final")}
+              title={t("documents.examSections.final")}
               materials={uasMaterials}
               courseId={courseId}
               courseSlug={courseSlug}
@@ -795,7 +811,7 @@ export function CourseDocumentsClient({
             {upMaterials.length > 0 && (
               <CollapsibleDocumentSection
                 badge="UP"
-                title="Ujian Perbaikan"
+                title={t("documents.examSections.remedial")}
                 materials={upMaterials}
                 courseId={courseId}
                 courseSlug={courseSlug}
@@ -807,8 +823,8 @@ export function CourseDocumentsClient({
               />
             )}
             <CollapsibleDocumentSection
-              badge="Soal"
-              title="Soal lainnya"
+              badge={t("documents.categories.questions")}
+              title={t("documents.examSections.moreQuestions")}
               materials={soalLainnyaMaterials}
               courseId={courseId}
               courseSlug={courseSlug}
@@ -819,8 +835,8 @@ export function CourseDocumentsClient({
               onOpenChange={(nextOpen) => setOpenSection(nextOpen ? "special:soal_lainnya" : null)}
             />
             <CollapsibleDocumentSection
-              badge="Lainnya"
-              title="Lain-lain"
+              badge={t("documents.other")}
+              title={t("documents.examSections.other")}
               materials={lainLainMaterials}
               courseId={courseId}
               courseSlug={courseSlug}
@@ -834,8 +850,8 @@ export function CourseDocumentsClient({
         ) : (
           <div className="flex flex-col items-center rounded-xl border border-dashed border-border/60 bg-muted/15 px-4 py-10 text-center">
             <FileText className="size-6 text-muted-foreground" aria-hidden />
-            <h2 className="mt-3 font-heading text-body-sm font-bold">Belum ada dokumen</h2>
-            <p className="mt-1 text-body-xs text-muted-foreground">Dokumen mata kuliah ini belum tersedia.</p>
+            <h2 className="mt-3 font-heading text-body-sm font-bold">{t("documents.noCourseDocuments")}</h2>
+            <p className="mt-1 text-body-xs text-muted-foreground">{t("documents.noCourseDocumentsDescription")}</p>
           </div>
         )
       ) : (
@@ -861,7 +877,7 @@ export function CourseDocumentsClient({
             open={uploadOpen}
             onOpenChange={setUploadOpen}
             courseId={courseId}
-            courseTitle={courseTitle || "Mata Kuliah"}
+            courseTitle={courseTitle || t("courseCatalog.genericCourse")}
             chapters={chapters}
             existingTitles={materials.map((m) => m.title)}
           />
@@ -869,9 +885,9 @@ export function CourseDocumentsClient({
             <AdminConfirmDialog
               open={Boolean(deleteTarget)}
               onOpenChange={(open: boolean) => !open && setDeleteTarget(null)}
-              title="Hapus Dokumen"
-              description={`Dokumen "${deleteTarget.title}" akan dihapus secara permanen.`}
-              confirmLabel="Hapus"
+              title={t("documents.deleteTitle")}
+              description={t("documents.deleteDescription", { title: deleteTarget.title })}
+              confirmLabel={t("documents.delete")}
               loading={isDeleting}
               onConfirm={handleDeleteConfirm}
             />

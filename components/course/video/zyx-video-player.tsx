@@ -8,6 +8,7 @@ import { DefaultVideoLayout, defaultLayoutIcons } from "@vidstack/react/player/l
 import { extractYouTubeVideoId, getCanonicalYouTubeUrl } from "@/lib/video/youtube";
 import { Play, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useTranslations } from "@/lib/i18n/client";
 
 export type ZyxVideoPlayerProps = {
   src: string;
@@ -31,6 +32,7 @@ export function ZyxVideoPlayer({
   onEnded,
   className,
 }: ZyxVideoPlayerProps) {
+  const t = useTranslations("studentCourse");
   const [mounted, setMounted] = useState(false);
   const playerRef = useRef<MediaPlayerInstance | null>(null);
 
@@ -60,7 +62,7 @@ export function ZyxVideoPlayer({
           <div className="flex size-12 items-center justify-center rounded-full bg-brand-primary/90 shadow-md">
             <Play className="size-6 fill-white ml-0.5" />
           </div>
-          <span className="text-body-xs font-medium">Memuat pemutar video...</span>
+          <span className="text-body-xs font-medium">{t("courseVideos.loadingPlayer")}</span>
         </div>
       </div>
     );

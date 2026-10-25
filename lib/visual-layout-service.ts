@@ -5,9 +5,7 @@ let elkInstance: any = null;
 async function getElkInstance() {
   if (!elkInstance) {
     const { default: ELK } = await import("elkjs/lib/elk.bundled.js");
-    elkInstance = new ELK({
-      workerFactory: () => null as any,
-    });
+    elkInstance = new ELK();
   }
   return elkInstance;
 }
@@ -25,7 +23,7 @@ export interface LayoutResult {
   diagnostics: LayoutDiagnostics;
 }
 
-const layoutCache = new Map<string, Node[]>();
+const layoutCache = new Map<string, { nodes: Node[]; edges: Edge[] }>();
 
 function stableHash(str: string): string {
   let hash = 0;
@@ -44,17 +42,17 @@ export async function getLayoutedGraph(
 ): Promise<LayoutResult> {
   const startTime = Date.now();
   const graphStr = JSON.stringify({
-    nodes: nodes.map(n => ({ id: n.id, label: n.data?.label })),
-    edges: edges.map(e => ({ source: e.source, target: e.target, label: e.label })),
+    nodes: nodes.map(n => ({ id: n.id, data: n.data, type: n.type, width: n.width, height: n.height })),
+    edges,
     direction
   });
   const hash = stableHash(graphStr);
 
   if (layoutCache.has(hash)) {
-    const cachedNodes = layoutCache.get(hash)!;
+    const cached = layoutCache.get(hash)!;
     return {
-      nodes: cachedNodes,
-      edges,
+      nodes: cached.nodes,
+      edges: cached.edges,
       diagnostics: {
         layoutTimeMs: Date.now() - startTime,
         cacheHit: true,
@@ -66,21 +64,38 @@ export async function getLayoutedGraph(
 
   const elkNodes = nodes.map(n => ({
     id: n.id,
-    width: 150,
-    height: 50,
+    width: n.width ?? 150,
+    height: n.height ?? 50,
+    ...(n.type === "flowchartSymbol" ? {
+      layoutOptions: { "elk.portConstraints": "FIXED_POS" },
+      ports: [
+        { id: `${n.id}:north`, x: (n.width ?? 150) / 2, y: 0, width: 0, height: 0, layoutOptions: { "elk.port.side": "NORTH" } },
+        { id: `${n.id}:east`, x: n.width ?? 150, y: (n.height ?? 50) / 2, width: 0, height: 0, layoutOptions: { "elk.port.side": "EAST" } },
+        { id: `${n.id}:south`, x: (n.width ?? 150) / 2, y: n.height ?? 50, width: 0, height: 0, layoutOptions: { "elk.port.side": "SOUTH" } },
+        { id: `${n.id}:west`, x: 0, y: (n.height ?? 50) / 2, width: 0, height: 0, layoutOptions: { "elk.port.side": "WEST" } },
+      ],
+    } : {}),
   }));
 
-  const elkEdges = edges.map((e, idx) => ({
-    id: `e-${idx}`,
-    sources: [e.source],
-    targets: [e.target],
-  }));
+  const elkEdges = edges.map((e, idx) => {
+    const source = nodes.find(node => node.id === e.source);
+    const target = nodes.find(node => node.id === e.target);
+    const outgoing = edges.filter(edge => edge.source === e.source);
+    const isBranch = source?.data.kind === "decision" && outgoing.length > 1 && outgoing[0] === e;
+    const sourceSide = direction === "DOWN" ? (isBranch ? "east" : "south") : (isBranch ? "south" : "east");
+    return {
+      id: `e-${idx}`,
+      sources: [source?.type === "flowchartSymbol" ? `${e.source}:${sourceSide}` : e.source],
+      targets: [target?.type === "flowchartSymbol" ? `${e.target}:${direction === "DOWN" ? "north" : "west"}` : e.target],
+    };
+  });
 
   const graph = {
     id: "root",
     layoutOptions: {
       "elk.algorithm": "layered",
       "elk.direction": direction,
+      "elk.edgeRouting": "ORTHOGONAL",
       "elk.spacing.nodeNode": "40",
       "elk.layered.spacing.nodeNodeBetweenLayers": "60",
     },
@@ -102,11 +117,13 @@ export async function getLayoutedGraph(
       };
     });
 
-    layoutCache.set(hash, positionedNodes);
+    const routedEdges = edges.map((edge, index) => ({ ...edge, data: { ...edge.data, layoutSections: layout.edges?.find((item: any) => item.id === `e-${index}`)?.sections } }));
+    if (layoutCache.size >= 100) layoutCache.clear();
+    layoutCache.set(hash, { nodes: positionedNodes, edges: routedEdges });
 
     return {
       nodes: positionedNodes,
-      edges,
+      edges: routedEdges,
       diagnostics: {
         layoutTimeMs: Date.now() - startTime,
         cacheHit: false,

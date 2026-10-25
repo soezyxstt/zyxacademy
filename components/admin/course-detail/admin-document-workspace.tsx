@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "@/lib/i18n/client";
 import {
   ArrowLeft,
   BookOpenCheck,
@@ -89,6 +90,7 @@ export function AdminDocumentWorkspace({
   chapters,
   initialMode = "preview",
 }: Props) {
+  const t = useTranslations("adminAcademic");
   const router = useRouter();
   const [activeMode, setActiveMode] = useState<"preview" | "edit">(initialMode);
   const [status, setStatus] = useState<"draft" | "published">(
@@ -175,15 +177,15 @@ export function AdminDocumentWorkspace({
         setStatus(nextStatus);
         toast.success(
           nextStatus === "published"
-            ? "Dokumen berhasil dipublikasikan."
-            : "Dokumen dikembalikan ke status draf."
+            ? t("documents.success.publish")
+            : t("documents.success.unpublish")
         );
         router.refresh();
       } else {
-        toast.error(res.error || "Gagal mengubah status dokumen.");
+        toast.error(t("documents.errors.status"));
       }
     } catch {
-      toast.error("Terjadi kesalahan jaringan.");
+      toast.error(t("documents.errors.network"));
     } finally {
       setStatusUpdating(false);
     }
@@ -195,14 +197,14 @@ export function AdminDocumentWorkspace({
     try {
       const res = await deleteCourseMaterial(materialId);
       if (res.success) {
-        toast.success("Dokumen berhasil dihapus.");
+        toast.success(t("documents.success.delete"));
         router.push(documentsHref);
         router.refresh();
       } else {
-        toast.error(res.error || "Gagal menghapus dokumen.");
+        toast.error(t("documents.errors.delete"));
       }
     } catch {
-      toast.error("Terjadi kesalahan jaringan.");
+      toast.error(t("documents.errors.network"));
     } finally {
       setDeleting(false);
       setDeleteConfirmOpen(false);
@@ -214,17 +216,17 @@ export function AdminDocumentWorkspace({
     e.preventDefault();
     const cleanTitle = standardizeDocumentTitle(pdfTitle.trim());
     if (!cleanTitle) {
-      toast.error("Judul dokumen wajib diisi.");
+      toast.error(t("documents.errors.titleRequired"));
       return;
     }
     if (selectedChapters.size === 0) {
-      toast.error("Pilih minimal satu bab terkait.");
+      toast.error(t("documents.errors.chapterRequired"));
       return;
     }
 
     const parsedYear = pdfYear.trim() ? parseInt(pdfYear.trim(), 10) : null;
     if (pdfYear.trim() && (isNaN(parsedYear!) || parsedYear! < 1900 || parsedYear! > 2100)) {
-      toast.error("Format tahun tidak valid.");
+      toast.error(t("documents.errors.invalidYear"));
       return;
     }
 
@@ -240,13 +242,13 @@ export function AdminDocumentWorkspace({
 
       if (res.success) {
         setPdfTitle(cleanTitle);
-        toast.success("Metadata dokumen berhasil diperbarui.");
+        toast.success(t("documents.success.metadata"));
         router.refresh();
       } else {
-        toast.error(res.error || "Gagal memperbarui metadata.");
+        toast.error(t("documents.errors.metadata"));
       }
     } catch {
-      toast.error("Terjadi kesalahan saat menyimpan.");
+      toast.error(t("documents.errors.save"));
     } finally {
       setSaving(false);
     }
@@ -257,7 +259,7 @@ export function AdminDocumentWorkspace({
     if (e) e.preventDefault();
     const cleanTitle = standardizeDocumentTitle(articleTitle.trim());
     if (!cleanTitle) {
-      toast.error("Judul dokumen wajib diisi.");
+      toast.error(t("documents.errors.titleRequired"));
       return;
     }
 
@@ -273,13 +275,13 @@ export function AdminDocumentWorkspace({
 
       if (res.success) {
         setArticleTitle(cleanTitle);
-        toast.success("Konten dokumen berhasil disimpan.");
+        toast.success(t("documents.success.content"));
         router.refresh();
       } else {
-        toast.error(res.error || "Gagal menyimpan konten.");
+        toast.error(t("documents.errors.content"));
       }
     } catch {
-      toast.error("Terjadi kesalahan saat menyimpan.");
+      toast.error(t("documents.errors.save"));
     } finally {
       setSaving(false);
     }
@@ -328,12 +330,12 @@ export function AdminDocumentWorkspace({
           setSelectedChapters(new Set(result.chapterIds));
         }
         if (result.year) setPdfYear(String(result.year));
-        toast.success("Format judul dan bab berhasil dirapikan dengan AI.");
+        toast.success(t("documents.success.formatPdf"));
       }
     } catch (err) {
       console.error("AI format failed, fallback to local:", err);
       setPdfTitle(standardizeDocumentTitle(pdfTitle));
-      toast.error("Gagal menggunakan AI, menggunakan format kapitalisasi standar.");
+      toast.error(t("documents.errors.formatAi"));
     } finally {
       setFormattingPdfAi(false);
     }
@@ -358,12 +360,12 @@ export function AdminDocumentWorkspace({
         if (result.chapterIds && result.chapterIds.length > 0) {
           setArticleBabId(result.chapterIds[0]);
         }
-        toast.success("Format judul berhasil dirapikan dengan AI.");
+        toast.success(t("documents.success.formatArticle"));
       }
     } catch (err) {
       console.error("AI format failed, fallback to local:", err);
       setArticleTitle(standardizeDocumentTitle(articleTitle));
-      toast.error("Gagal menggunakan AI, menggunakan format kapitalisasi standar.");
+      toast.error(t("documents.errors.formatAi"));
     } finally {
       setFormattingArticleAi(false);
     }
@@ -396,7 +398,7 @@ export function AdminDocumentWorkspace({
           <Button asChild variant="ghost" size="sm" className="h-8 gap-1 rounded-lg text-body-sm shrink-0">
             <Link href={documentsHref}>
               <ArrowLeft className="size-4" />
-              <span>Dokumen</span>
+              <span>{t("documents.title")}</span>
             </Link>
           </Button>
 
@@ -438,12 +440,12 @@ export function AdminDocumentWorkspace({
               ) : status === "published" ? (
                 <>
                   <FileText className="size-3.5 text-muted-foreground" />
-                  <span>Jadikan Draf</span>
+                  <span>{t("documents.makeDraft")}</span>
                 </>
               ) : (
                 <>
                   <Globe className="size-3.5 text-status-success" />
-                  <span>Publikasikan</span>
+                  <span>{t("documents.publish")}</span>
                 </>
               )}
             </Button>
@@ -456,7 +458,7 @@ export function AdminDocumentWorkspace({
               variant="ghost"
               size="icon"
               className="size-8 rounded-lg text-muted-foreground hover:text-foreground"
-              title="Buka berkas di tab baru"
+              title={t("documents.openNewTab")}
             >
               <a href={material.url} target="_blank" rel="noopener noreferrer">
                 <ExternalLink className="size-4" />
@@ -469,7 +471,7 @@ export function AdminDocumentWorkspace({
             <Button asChild variant="outline" size="sm" className="h-8 gap-1.5 rounded-lg text-body-xs font-medium">
               <Link href={reviewHref}>
                 <BookOpenCheck className="size-3.5 text-muted-foreground" />
-                <span className="hidden sm:inline">Kelola Lifecycle</span>
+                <span className="hidden sm:inline">{t("documents.manageLifecycle")}</span>
               </Link>
             </Button>
           ) : null}
@@ -483,10 +485,10 @@ export function AdminDocumentWorkspace({
                 size="sm"
                 onClick={() => setIsMobileSheetOpen(true)}
                 className="h-8 gap-1 rounded-lg text-body-xs font-medium md:hidden"
-                title="Daftar Isi"
+                title={t("documents.tableOfContents")}
               >
                 <Menu className="size-3.5" />
-                <span>Daftar Isi</span>
+                <span>{t("documents.tableOfContents")}</span>
               </Button>
               <Button
                 type="button"
@@ -494,14 +496,14 @@ export function AdminDocumentWorkspace({
                 size="sm"
                 onClick={() => setIsTocOpen((prev) => !prev)}
                 className="h-8 gap-1.5 rounded-lg text-body-xs font-medium hidden md:inline-flex"
-                title={isTocOpen ? "Sembunyikan Menu" : "Buka Menu"}
+                title={isTocOpen ? t("documents.hideMenu") : t("documents.openMenu")}
               >
                 {isTocOpen ? (
                   <PanelRightClose className="size-3.5" />
                 ) : (
                   <PanelRight className="size-3.5" />
                 )}
-                <span>{isTocOpen ? "Sembunyikan Menu" : "Buka Menu"}</span>
+                <span>{isTocOpen ? t("documents.hideMenu") : t("documents.openMenu")}</span>
               </Button>
             </>
           ) : null}
@@ -516,7 +518,7 @@ export function AdminDocumentWorkspace({
               className="h-7 gap-1 px-2.5 rounded-md text-body-xs font-medium"
             >
               <Eye className="size-3.5" />
-              <span>Pratinjau</span>
+              <span>{t("documents.preview")}</span>
             </Button>
             <Button
               type="button"
@@ -526,7 +528,7 @@ export function AdminDocumentWorkspace({
               className="h-7 gap-1 px-2.5 rounded-md text-body-xs font-medium"
             >
               <Pencil className="size-3.5" />
-              <span>Edit</span>
+              <span>{t("documents.edit")}</span>
             </Button>
           </div>
 
@@ -539,7 +541,7 @@ export function AdminDocumentWorkspace({
               className="h-8 gap-1.5 rounded-lg text-body-xs font-semibold"
             >
               {saving ? <Loader2 className="size-3.5 animate-spin" /> : <Save className="size-3.5" />}
-              <span>Simpan</span>
+              <span>{t("common.save")}</span>
             </Button>
           ) : null}
 
@@ -551,7 +553,7 @@ export function AdminDocumentWorkspace({
               size="icon"
               className="size-8 text-destructive hover:bg-destructive/10 hover:text-destructive rounded-lg"
               onClick={() => setDeleteConfirmOpen(true)}
-              title="Hapus Dokumen"
+              title={t("documents.deleteTitle")}
             >
               <Trash2 className="size-4" />
             </Button>
@@ -594,7 +596,7 @@ export function AdminDocumentWorkspace({
               {/* Left Panel: Full PDF Preview */}
               <div className="lg:col-span-7 xl:col-span-8 bg-muted/20 border-r border-border min-h-[500px] lg:min-h-full flex flex-col">
                 <div className="flex items-center justify-between border-b border-border/70 bg-card/60 px-4 py-2 text-body-xs text-muted-foreground">
-                  <span className="font-medium">Pratinjau Berkas PDF</span>
+                  <span className="font-medium">{t("documents.pdfPreview")}</span>
                   {material.url ? (
                     <a
                       href={material.url}
@@ -602,7 +604,7 @@ export function AdminDocumentWorkspace({
                       rel="noopener noreferrer"
                       className="inline-flex items-center gap-1 text-primary hover:underline"
                     >
-                      <span>Tab Baru</span>
+                      <span>{t("documents.newTab")}</span>
                       <ExternalLink className="size-3" />
                     </a>
                   ) : null}
@@ -617,7 +619,7 @@ export function AdminDocumentWorkspace({
                   ) : (
                     <div className="flex size-full flex-col items-center justify-center p-8 text-center text-muted-foreground">
                       <FileText className="size-10 opacity-40 mb-2" />
-                      <p className="text-body-sm font-medium">Tautan berkas PDF tidak tersedia.</p>
+                      <p className="text-body-sm font-medium">{t("documents.pdfUnavailable")}</p>
                     </div>
                   )}
                 </div>
@@ -627,7 +629,7 @@ export function AdminDocumentWorkspace({
               <div className="lg:col-span-5 xl:col-span-4 p-5 lg:p-6 overflow-y-auto space-y-5 bg-card">
                 <div>
                   <h2 className="font-heading text-body-base font-bold text-foreground">
-                    Pengaturan Dokumen
+                    {t("documents.settings")}
                   </h2>
                   <p className="text-body-xs text-muted-foreground mt-0.5">
                     Perbarui judul tampilan, kategori, dan kaitan bab tanpa mengunggah ulang berkas.
@@ -639,7 +641,7 @@ export function AdminDocumentWorkspace({
                   <div className="space-y-1.5">
                     <div className="flex items-center justify-between">
                       <Label className="text-body-sm font-semibold text-foreground">
-                        Judul Tampilan
+                        {t("documents.displayTitle")}
                       </Label>
                       {pdfTitle.trim() ? (
                         <Button size="sm" variant="ghost"
@@ -647,14 +649,14 @@ export function AdminDocumentWorkspace({
                           onClick={handleFormatPdfTitle}
                           disabled={formattingPdfAi || saving}
                           className="inline-flex items-center gap-1 text-body-xs text-brand-primary hover:underline cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                          title="Rapikan display name dan bab dengan Gemini AI"
+                          title={t("documents.formatPdfTitle")}
                         >
                           {formattingPdfAi ? (
                             <Loader2 className="size-3 animate-spin" />
                           ) : (
                             <Bot className="size-3" />
                           )}
-                          <span>{formattingPdfAi ? "Menganalisis..." : "Rapikan dengan AI"}</span>
+                          <span>{formattingPdfAi ? t("documents.analyzing") : t("documents.formatWithAi")}</span>
                         </Button>
                       ) : null}
                     </div>
@@ -663,7 +665,7 @@ export function AdminDocumentWorkspace({
                       onChange={(e) => setPdfTitle(e.target.value)}
                       disabled={saving}
                       className="h-9 text-body-sm rounded-lg"
-                      placeholder="Judul dokumen..."
+                      placeholder={t("documents.documentTitlePlaceholder")}
                     />
                   </div>
 
@@ -671,7 +673,7 @@ export function AdminDocumentWorkspace({
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div className="space-y-1.5">
                       <Label className="text-body-sm font-semibold text-foreground">
-                        Kategori
+                        {t("documents.category")}
                       </Label>
                       <Select
                         value={pdfType}
@@ -685,7 +687,7 @@ export function AdminDocumentWorkspace({
                         disabled={saving}
                       >
                         <SelectTrigger className="h-9 text-body-sm rounded-lg">
-                          <SelectValue placeholder="Pilih Kategori" />
+                          <SelectValue placeholder={t("documents.selectCategory")} />
                         </SelectTrigger>
                         <SelectContent>
                           {LEVEL1_CATEGORIES.map((c) => (
@@ -699,7 +701,7 @@ export function AdminDocumentWorkspace({
 
                     <div className="space-y-1.5">
                       <Label className="text-body-sm font-semibold text-foreground">
-                        Sub-kategori
+                        {t("documents.subcategory")}
                       </Label>
                       <Select
                         value={pdfSubcategory}
@@ -707,7 +709,7 @@ export function AdminDocumentWorkspace({
                         disabled={saving}
                       >
                         <SelectTrigger className="h-9 text-body-sm rounded-lg">
-                          <SelectValue placeholder="Pilih Sub-kategori" />
+                          <SelectValue placeholder={t("documents.selectSubcategory")} />
                         </SelectTrigger>
                         <SelectContent>
                           {availablePdfSubcategories.map((s) => (
@@ -723,7 +725,7 @@ export function AdminDocumentWorkspace({
                   {/* Tahun */}
                   <div className="space-y-1.5">
                     <Label className="text-body-sm font-semibold text-foreground">
-                      Tahun <span className="font-normal text-muted-foreground text-body-xs">(opsional)</span>
+                      {t("documents.year")} <span className="font-normal text-muted-foreground text-body-xs">({t("documents.optional")})</span>
                     </Label>
                     <Input
                       type="number"
@@ -741,7 +743,7 @@ export function AdminDocumentWorkspace({
                   <div className="space-y-2 border-t border-border pt-3">
                     <div className="flex items-center justify-between">
                       <span className="text-body-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                        Kaitan Bab ({selectedChapters.size} dipilih)
+                        {t("documents.chapterLinks", { count: selectedChapters.size })}
                       </span>
                       {chapters.length > 0 && (
                         <Button size="sm" variant="ghost"
@@ -749,7 +751,7 @@ export function AdminDocumentWorkspace({
                           onClick={handleSelectAllChapters}
                           className="text-body-xs text-brand-primary font-medium hover:underline cursor-pointer"
                         >
-                          {selectedChapters.size === chapters.length ? "Batalkan Semua" : "Pilih Semua Bab"}
+                          {selectedChapters.size === chapters.length ? t("documents.clearAll") : t("documents.selectAllChapters")}
                         </Button>
                       )}
                     </div>
@@ -773,7 +775,7 @@ export function AdminDocumentWorkspace({
                               className="rounded border-border"
                             />
                             <span className="truncate">
-                              Bab {ch.orderIndex}: {ch.title}
+                              {t("documents.chapterWithNumber", { number: ch.orderIndex })}: {ch.title}
                             </span>
                           </label>
                         );
@@ -790,7 +792,7 @@ export function AdminDocumentWorkspace({
                       onClick={() => handleModeChange("preview")}
                       className="rounded-lg text-body-sm"
                     >
-                      Kembali ke Pratinjau
+                      {t("documents.backToPreview")}
                     </Button>
                     <Button
                       type="submit"
@@ -798,7 +800,7 @@ export function AdminDocumentWorkspace({
                       className="gap-1.5 rounded-lg text-body-sm font-semibold"
                     >
                       {saving ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
-                      Simpan Perubahan
+                      {t("documents.saveChanges")}
                     </Button>
                   </div>
                 </form>
@@ -810,7 +812,7 @@ export function AdminDocumentWorkspace({
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <h2 className="font-heading text-h5 font-bold text-foreground">
-                    Edit Konten Dokumen
+                    {t("documents.editContent")}
                   </h2>
                 </div>
                 <div className="flex items-center gap-2">
@@ -841,7 +843,7 @@ export function AdminDocumentWorkspace({
                   <div className="md:col-span-2 space-y-1.5">
                     <div className="flex items-center justify-between">
                       <Label className="text-body-sm font-semibold text-foreground">
-                        Judul Dokumen
+                        {t("documents.documentTitle")}
                       </Label>
                       {articleTitle.trim() ? (
                         <Button size="sm" variant="ghost"
@@ -849,14 +851,14 @@ export function AdminDocumentWorkspace({
                           onClick={handleFormatArticleTitle}
                           disabled={formattingArticleAi || saving}
                           className="inline-flex items-center gap-1 text-body-xs text-brand-primary hover:underline cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                          title="Rapikan judul dokumen dengan Gemini AI"
+                          title={t("documents.formatArticleTitle")}
                         >
                           {formattingArticleAi ? (
                             <Loader2 className="size-3 animate-spin" />
                           ) : (
                             <Bot className="size-3" />
                           )}
-                          <span>{formattingArticleAi ? "Menganalisis..." : "Rapikan dengan AI"}</span>
+                          <span>{formattingArticleAi ? t("documents.analyzing") : t("documents.formatWithAi")}</span>
                         </Button>
                       ) : null}
                     </div>
@@ -865,14 +867,14 @@ export function AdminDocumentWorkspace({
                       onChange={(e) => setArticleTitle(e.target.value)}
                       disabled={saving}
                       className="h-9 text-body-sm rounded-lg"
-                      placeholder="Judul artikel atau diktat..."
+                      placeholder={t("documents.articleTitlePlaceholder")}
                     />
                   </div>
 
                   {/* Pilihan Bab */}
                   <div className="space-y-1.5">
                     <Label className="text-body-sm font-semibold text-foreground">
-                      Bab Terkait
+                      {t("documents.relatedChapter")}
                     </Label>
                     <Select
                       value={articleBabId}
@@ -880,12 +882,12 @@ export function AdminDocumentWorkspace({
                       disabled={saving}
                     >
                       <SelectTrigger className="h-9 text-body-sm rounded-lg">
-                        <SelectValue placeholder="Pilih Bab" />
+                        <SelectValue placeholder={t("documents.selectChapter")} />
                       </SelectTrigger>
                       <SelectContent>
                         {chapters.map((ch) => (
                           <SelectItem key={ch.id} value={ch.id}>
-                            Bab {ch.orderIndex}: {ch.title}
+                            {t("documents.chapterWithNumber", { number: ch.orderIndex })}: {ch.title}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -897,7 +899,7 @@ export function AdminDocumentWorkspace({
                 <div className="space-y-1.5">
                   <div className="flex items-center justify-between">
                     <Label className="text-body-sm font-semibold text-foreground">
-                      Isi Markdown
+                      {t("documents.markdownContent")}
                     </Label>
 
                   </div>
@@ -907,7 +909,7 @@ export function AdminDocumentWorkspace({
                     disabled={saving}
                     rows={22}
                     className="font-mono text-body-sm leading-relaxed rounded-xl p-4 resize-y min-h-[450px]"
-                    placeholder="Tulis konten dokumen dalam markdown..."
+                    placeholder={t("documents.markdownPlaceholder")}
                   />
                 </div>
               </form>
@@ -919,9 +921,9 @@ export function AdminDocumentWorkspace({
       <AdminConfirmDialog
         open={deleteConfirmOpen}
         onOpenChange={setDeleteConfirmOpen}
-        title="Hapus Dokumen"
-        description={`Dokumen "${displayTitle}" akan dihapus secara permanen.`}
-        confirmLabel="Hapus"
+        title={t("documents.deleteTitle")}
+        description={t("documents.deleteDescription", { title: displayTitle })}
+        confirmLabel={t("documents.delete")}
         loading={deleting}
         onConfirm={handleDelete}
       />

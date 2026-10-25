@@ -50,6 +50,24 @@ export const emailNotificationPreferences = sqliteTable("email_notification_pref
   .notNull(),
 });
 
+/** Account presentation preference, kept separate from authorization and learning settings. */
+export const accountLocalePreferences = sqliteTable(
+ "account_locale_preferences",
+ {
+  userId: text("user_id")
+   .primaryKey()
+   .references(() => user.id, { onDelete: "cascade" }),
+  locale: text("locale").$type<"id" | "en">().notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp" })
+   .defaultNow()
+   .$onUpdate(() => new Date())
+   .notNull(),
+ },
+ (table) => [
+  check("account_locale_preferences_locale_check", sql`${table.locale} in ('id', 'en')`),
+ ],
+);
+
 /** Canonical domain identity for a Better Auth user. */
 export const pengguna = sqliteTable(
  "pengguna",
@@ -866,6 +884,10 @@ export const userRelations = relations(user, ({ many, one }) => ({
     fields: [user.id],
     references: [emailNotificationPreferences.userId],
   }),
+  accountLocalePreference: one(accountLocalePreferences, {
+   fields: [user.id],
+   references: [accountLocalePreferences.userId],
+  }),
   pengguna: one(pengguna, {
     fields: [user.id],
     references: [pengguna.id],
@@ -877,6 +899,13 @@ export const emailNotificationPreferencesRelations = relations(emailNotification
     fields: [emailNotificationPreferences.userId],
     references: [user.id],
   }),
+}));
+
+export const accountLocalePreferencesRelations = relations(accountLocalePreferences, ({ one }) => ({
+ user: one(user, {
+  fields: [accountLocalePreferences.userId],
+  references: [user.id],
+ }),
 }));
 
 // Relations for groups & enrollment tokens
@@ -6073,3 +6102,53 @@ export const adminOpsKnowledgeSyncQueueRelations = relations(
     }),
   })
 );
+
+/** Versioned private coding problems. Only the explicit public projection reaches students. */
+export const codingProblems = sqliteTable("coding_problems", {
+ id: text("id").notNull(),
+ version: integer("version").notNull(),
+ courseId: text("course_id").notNull().references(() => mataKuliah.id, { onDelete: "restrict" }),
+ status: text("status").$type<"draft" | "published">().notNull().default("draft"),
+ snapshot: text("snapshot", { mode: "json" }).$type<import("@/lib/coding/contracts").CodingProblemPrivate>().notNull(),
+ creatorId: text("creator_id").notNull().references(() => user.id, { onDelete: "restrict" }),
+ createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+}, (table) => [
+ primaryKey({ columns: [table.id, table.version] }),
+ index("coding_problems_course_status_idx").on(table.courseId, table.status),
+ check("coding_problems_version_check", sql`${table.version} > 0`),
+ check("coding_problems_status_check", sql`${table.status} IN ('draft', 'published')`),
+]);
+
+export const codingAttempts = sqliteTable("coding_attempts", {
+ id: text("id").primaryKey(),
+ learnerId: text("learner_id").notNull().references(() => user.id, { onDelete: "cascade" }),
+ courseId: text("course_id").notNull().references(() => mataKuliah.id, { onDelete: "restrict" }),
+ problemId: text("problem_id").notNull(),
+ problemVersion: integer("problem_version").notNull(),
+ surface: text("surface").$type<"article" | "live_quiz">().notNull(),
+ surfaceId: text("surface_id").notNull(),
+ requestId: text("request_id").notNull(),
+ ordinal: integer("ordinal").notNull(),
+ request: text("request", { mode: "json" }).$type<import("@/lib/coding/contracts").CodingSubmissionRequest>().notNull(),
+ evaluation: text("evaluation", { mode: "json" }).$type<import("@/lib/coding/contracts").CodingEvaluation>(),
+ status: text("status").$type<"pending" | "completed" | "failed">().notNull().default("pending"),
+ leaseToken: text("lease_token").notNull(),
+ leaseExpiresAt: integer("lease_expires_at").notNull(),
+ createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+}, (table) => [
+ uniqueIndex("coding_attempt_request_idx").on(table.learnerId, table.surface, table.surfaceId, table.requestId),
+ index("coding_attempt_history_idx").on(table.learnerId, table.problemId, table.problemVersion),
+ check("coding_attempt_status_check", sql`${table.status} IN ('pending', 'completed', 'failed')`),
+ check("coding_attempt_surface_check", sql`${table.surface} IN ('article', 'live_quiz')`),
+ check("coding_attempt_ordinal_check", sql`${table.ordinal} > 0`),
+]);
+
+export const codingDrafts = sqliteTable("coding_drafts", {
+ learnerId: text("learner_id").notNull().references(() => user.id, { onDelete: "cascade" }),
+ courseId: text("course_id").notNull().references(() => mataKuliah.id, { onDelete: "restrict" }),
+ draftKey: text("draft_key").notNull(),
+ code: text("code").notNull(),
+ stdin: text("stdin").notNull().default(""),
+ revision: integer("revision").notNull().default(1),
+ updatedAt: integer("updated_at", { mode: "timestamp" }).defaultNow().notNull(),
+}, (table) => [primaryKey({ columns: [table.learnerId, table.courseId, table.draftKey] })]);

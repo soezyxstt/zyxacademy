@@ -52,6 +52,11 @@ import {
 } from "@/lib/schedule/tutor-policy";
 import { sendToMany } from "@/lib/notifications/send";
 import {
+  tutorScheduleMovedPayload,
+  tutorTicketDecisionPayload,
+  tutorTicketMessagePayload,
+} from "@/lib/notifications/templates";
+import {
   recordTutorFailureAudit,
   recordUnauthenticatedRejectAudit,
 } from "@/lib/schedule/tutor-audit";
@@ -1610,12 +1615,12 @@ export async function executeMoveTutorSession(
 
       const memberUserIds = memberRows.map((m: { userId: string }) => m.userId);
       if (memberUserIds.length > 0) {
-        await sendToMany(memberUserIds, {
-          title: "Jadwal Tutorial Diperbarui",
-          body: `Sesi dipindahkan ke ${targetSlot.dayOfWeek}, ${targetSessionDateIso} pukul ${targetSlot.startTime} - ${targetSlot.endTime}.`,
-          type: "tutor_reminder",
-          link: "/dashboard/schedule",
-        });
+        await sendToMany(memberUserIds, tutorScheduleMovedPayload({
+          dayOfWeek: targetSlot.dayOfWeek,
+          sessionDate: targetSessionDateIso,
+          startTime: targetSlot.startTime,
+          endTime: targetSlot.endTime,
+        }));
       }
     } catch (notifErr) {
       console.error("[TUTOR_SCHEDULE] Move notification failed:", notifErr);
@@ -2380,14 +2385,11 @@ export async function executeDecideTutorRescheduleTicket(
 
       const memberUserIds = memberRows.map((m: { userId: string }) => m.userId);
       if (memberUserIds.length > 0) {
-        await sendToMany(memberUserIds, {
-          title: `Tiket ${ticket.type === "reschedule" ? "Reschedule" : "Pembatalan"} ${
-            decision === "approved" ? "Disetujui" : "Ditolak"
-          }`,
-          body: notes || `Pengajar telah memutuskan tiket ${ticket.type}.`,
-          type: "tutor_reminder",
-          link: "/dashboard/schedule",
-        });
+        await sendToMany(memberUserIds, tutorTicketDecisionPayload({
+          ticketType: ticket.type,
+          decision,
+          notes: notes || null,
+        }));
       }
     } catch (notifErr) {
       console.error("[TUTOR_SCHEDULE] Ticket decision notification error:", notifErr);
@@ -2645,13 +2647,9 @@ export async function executeReplyTutorTicketMessage(
 
       const memberUserIds = memberRows.map((m: { userId: string }) => m.userId);
       if (memberUserIds.length > 0) {
-        await sendToMany(memberUserIds, {
-          title: "Balasan baru pada diskusi jadwal",
-          body:
-            messageText.length > 120 ? `${messageText.slice(0, 117)}...` : messageText,
-          type: "tutor_reminder",
-          link: "/dashboard/schedule",
-        });
+        await sendToMany(memberUserIds, tutorTicketMessagePayload(
+          messageText.length > 120 ? `${messageText.slice(0, 117)}...` : messageText,
+        ));
       }
     } catch (notifErr) {
       console.error("[TUTOR_SCHEDULE] Ticket message notification error:", notifErr);

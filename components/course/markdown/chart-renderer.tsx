@@ -4,6 +4,7 @@ import React from "react";
 import { cn } from "@/lib/utils";
 import type { MarkdownDensity } from "@/components/course/markdown-renderer";
 import { renderRichText } from "@/components/course/markdown-renderer";
+import { useTranslations } from "@/lib/i18n/client";
 import {
   ResponsiveContainer,
   LineChart,
@@ -24,6 +25,7 @@ import {
 } from "recharts";
 
 export function BoxPlotChart({ data, xLabel, yLabel }: { data: any[]; xLabel?: string; yLabel?: string }) {
+  const t = useTranslations("studentCourse");
   const padding = { top: 20, right: 30, bottom: 50, left: 55 };
   const width = 500;
   const height = 300;
@@ -32,7 +34,7 @@ export function BoxPlotChart({ data, xLabel, yLabel }: { data: any[]; xLabel?: s
 
   const allValues = data.flatMap(d => [d.min, d.q1, d.median, d.q3, d.max].filter(v => typeof v === "number"));
   if (allValues.length === 0) {
-    return <div className="text-body-sm text-muted-foreground py-10">Tidak ada data untuk Box Plot</div>;
+    return <div className="text-body-sm text-muted-foreground py-10">{t("learningCanvas.boxPlotEmpty")}</div>;
   }
   const minVal = Math.min(...allValues);
   const maxVal = Math.max(...allValues);

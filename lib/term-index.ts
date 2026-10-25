@@ -4,6 +4,7 @@
  * Maps normalized concept terms (display names + aliases) to their concept, so
  * the material reader can match a selected term to a concept and open the
  * KO-backed popover. Pure DB read, no AI. Built at material publish time.
+ * Framework-neutral and compatible with both Node and Deno worker runtimes.
  */
 import { db } from "@/db";
 import { knowledgeObjects, conceptLocalizations } from "@/db/schema";
@@ -15,10 +16,13 @@ export { normalizeTerm, matchTerm } from "./term-match";
 
 /** Builds a course-wide term index (all active concepts in the course). */
 export async function buildCourseTermIndex(courseId: string): Promise<TermIndexEntry[]> {
+  if (!courseId || typeof courseId !== "string" || !courseId.trim()) return [];
+  const normalizedCourseId = courseId.trim();
+
   const kos = await db
     .select({ conceptId: knowledgeObjects.conceptId, conceptName: knowledgeObjects.conceptName })
     .from(knowledgeObjects)
-    .where(and(eq(knowledgeObjects.courseId, courseId), eq(knowledgeObjects.status, "active")));
+    .where(and(eq(knowledgeObjects.courseId, normalizedCourseId), eq(knowledgeObjects.status, "active")));
 
   if (kos.length === 0) return [];
 
@@ -52,10 +56,13 @@ export async function buildCourseTermIndex(courseId: string): Promise<TermIndexE
  * terms come first so a longest-match wins at lookup time.
  */
 export async function buildTermIndex(chapterId: string): Promise<TermIndexEntry[]> {
+  if (!chapterId || typeof chapterId !== "string" || !chapterId.trim()) return [];
+  const normalizedChapterId = chapterId.trim();
+
   const kos = await db
     .select({ conceptId: knowledgeObjects.conceptId, conceptName: knowledgeObjects.conceptName })
     .from(knowledgeObjects)
-    .where(and(eq(knowledgeObjects.chapterId, chapterId), eq(knowledgeObjects.status, "active")));
+    .where(and(eq(knowledgeObjects.chapterId, normalizedChapterId), eq(knowledgeObjects.status, "active")));
 
   if (kos.length === 0) return [];
 

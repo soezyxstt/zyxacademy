@@ -11,11 +11,13 @@ import { PageHeader } from "@/components/page-header";
 import { ApplicationPage } from "@/components/application-page";
 import { Reveal } from "@/components/ui/reveal";
 import { ProfileEditForm } from "./profile-edit-form";
+import { TranslatedText } from "@/components/i18n/translated-text";
+import { getTranslations } from "@/lib/i18n/server";
 
-export const metadata: Metadata = {
-  title: pageTitle("Edit Profil Akademis"),
-  description: "Lengkapi identitas akademis ITB Anda untuk personalisasi rekomendasi materi dan kelas.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("student");
+  return { title: pageTitle(t("metadata.profileEditTitle")), description: t("metadata.profileEditDescription") };
+}
 
 /**
  * Server-rendered page allowing students to view and update their ITB academic profile.
@@ -36,7 +38,7 @@ export default async function ProfileEditPage() {
 
   const currentUser = {
     id: session.user.id,
-    name: dbUser?.name ?? session.user.name ?? "Siswa",
+    name: dbUser?.name ?? session.user.name ?? "",
     email: dbUser?.email ?? session.user.email ?? "",
     faculty: dbUser?.faculty ?? (session.user as any).faculty ?? null,
     major: dbUser?.major ?? (session.user as any).major ?? null,
@@ -46,10 +48,10 @@ export default async function ProfileEditPage() {
   return (
     <ApplicationPage>
       <PageHeader
-        title="Edit Profil Akademis"
+        title={<TranslatedText namespace="student" messageKey="profile.editTitle" />}
         icon={UserCheck}
         backHref="/profile"
-        backLabel="Profil Saya"
+        backLabel={<TranslatedText namespace="student" messageKey="profile.pageTitle" />}
       />
       <Reveal className="mt-6">
         <ProfileEditForm user={currentUser} />

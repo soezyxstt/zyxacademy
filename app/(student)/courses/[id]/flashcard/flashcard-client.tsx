@@ -10,7 +10,9 @@ import { cn } from "@/lib/utils";
 import { MathText } from "@/components/course/math-text";
 import { submitReviewAction } from "./actions";
 import { toast } from "@/components/ui/toast";
+import { emitActivityUpdated } from "@/lib/activity-signal";
 import { appendFlashcardRetry, skipFlashcardInSession } from "@/lib/flashcard-session";
+import { useTranslations } from "@/lib/i18n/client";
 
 interface Flashcard {
   id: string;
@@ -45,6 +47,7 @@ type FlashcardClientProps = {
 const BATCH_SIZE = 10;
 
 export function FlashcardClient({ courseId, initialQueue, studentId }: FlashcardClientProps) {
+  const t = useTranslations("learning");
   const [queue, setQueue] = useState<QueueItem[]>(initialQueue);
   const [batchOffset, setBatchOffset] = useState(0);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -61,7 +64,7 @@ export function FlashcardClient({ courseId, initialQueue, studentId }: Flashcard
 
   const handleFlip = () => {
     if (mode === "exam" && !isChecked) {
-      toast.warning("Silakan periksa jawaban Anda terlebih dahulu sebelum membalik kartu.");
+      toast.warning(t("flashcards.checkBeforeFlip"));
       return;
     }
     setIsFlipped(!isFlipped);
@@ -69,7 +72,7 @@ export function FlashcardClient({ courseId, initialQueue, studentId }: Flashcard
 
   const handleCheckAnswer = () => {
     if (!typedAnswer.trim()) {
-      toast.error("Silakan masukkan jawaban Anda terlebih dahulu.");
+      toast.error(t("flashcards.answerRequired"));
       return;
     }
 
@@ -108,8 +111,9 @@ export function FlashcardClient({ courseId, initialQueue, studentId }: Flashcard
         courseId
       );
 
-      toast.success("Penilaian berhasil disimpan");
+      toast.success(t("flashcards.gradeSaved"));
       setCompletedCount((prev) => prev + 1);
+      emitActivityUpdated({ type: "flashcard", courseId, cardId: currentItem.card.id });
 
       // If user selected "Again / Ulangi" (grade 1), put the card back at the end of the queue for retry
       if (grade === 1) {
@@ -127,7 +131,7 @@ export function FlashcardClient({ courseId, initialQueue, studentId }: Flashcard
       setPassedExam(null);
     } catch (err: any) {
       console.error("Error submitting review:", err);
-      toast.error(err.message || "Gagal menyimpan ulasan kartu.");
+      toast.error(t("flashcards.saveReviewFailed"));
     } finally {
       setLoading(false);
     }
@@ -162,7 +166,7 @@ export function FlashcardClient({ courseId, initialQueue, studentId }: Flashcard
     return (
       <div className="flex flex-col items-center justify-center py-12 text-center rounded-xl border border-dashed border-border/60 bg-muted/15 p-6">
         <p className="text-body-sm text-muted-foreground">
-          Semua flashcard yang diterbitkan sudah Anda pelajari atau tidak ada kartu yang perlu diulas hari ini. Silakan kembali lagi nanti!
+          {t("flashcards.empty")}
         </p>
       </div>
     );
@@ -180,10 +184,10 @@ export function FlashcardClient({ courseId, initialQueue, studentId }: Flashcard
           <Check className="size-6" />
         </div>
         <h3 className="mt-4 font-heading text-body-base font-bold text-foreground">
-          Sesi {currentSessionNum} dari {totalSessions} selesai
+          {t("flashcards.sessionDone", { current: currentSessionNum, total: totalSessions })}
         </h3>
         <p className="mt-2 text-body-sm text-muted-foreground">
-          Kamu telah menyelesaikan {activeBatch.length} kartu pada sesi ini (total {completedCount} kartu selesai).
+          {t("flashcards.sessionSummary", { count: activeBatch.length, completed: completedCount })}
         </p>
         <div className="mt-6 flex flex-wrap justify-center gap-2">
           {hasMoreCards ? (
@@ -200,16 +204,16 @@ export function FlashcardClient({ courseId, initialQueue, studentId }: Flashcard
               className="rounded-md"
             >
               <RefreshCw className="mr-1.5 size-4" />
-              Lanjut ke sesi berikutnya ({Math.min(BATCH_SIZE, queue.length - (batchOffset + BATCH_SIZE))} kartu)
+              {t("flashcards.nextSession", { count: Math.min(BATCH_SIZE, queue.length - (batchOffset + BATCH_SIZE)) })}
             </Button>
           ) : (
             <Button type="button" onClick={() => window.location.reload()} className="rounded-md">
               <RefreshCw className="mr-1.5 size-4" />
-              Mulai ulang dari awal
+              {t("flashcards.restart")}
             </Button>
           )}
           <Button asChild variant="outline" className="rounded-md">
-            <Link href={`/courses/${courseId}`}>Kembali ke ringkasan</Link>
+            <Link href={`/courses/${courseId}`}>{t("flashcards.backToOverview")}</Link>
           </Button>
         </div>
       </div>
@@ -217,6 +221,15 @@ export function FlashcardClient({ courseId, initialQueue, studentId }: Flashcard
   }
 
   const activeCard = currentItem.card;
+  const reasonKey: Record<string, string> = {
+    "Tanpa pemetaan Idea": "reasonUnmapped",
+    "Perlu dikuasai": "reasonMastery",
+    "Kartu baru": "reasonNew",
+    "Waktunya mengulang": "reasonDue",
+  };
+  const localizedReason = reasonKey[currentItem.priorityReason]
+    ? t(`flashcards.${reasonKey[currentItem.priorityReason]}`)
+    : currentItem.priorityReason;
   const currentSessionNum = Math.floor(batchOffset / BATCH_SIZE) + 1;
   const totalSessions = Math.ceil(queue.length / BATCH_SIZE);
   const progressPercent = Math.round((currentIndex / activeBatch.length) * 100);
@@ -233,17 +246,17 @@ export function FlashcardClient({ courseId, initialQueue, studentId }: Flashcard
         </div>
         <div className="flex flex-wrap items-center justify-between gap-2 px-1">
           <span className="text-body-xs font-medium text-muted-foreground">
-            Sesi {currentSessionNum}/{totalSessions} · Kartu {currentIndex + 1}/{activeBatch.length} (Total {queue.length})
+            {t("flashcards.sessionProgress", { session: currentSessionNum, total: totalSessions, current: currentIndex + 1, count: activeBatch.length, all: queue.length })}
           </span>
 
-          <RadioGroup aria-label="Mode flashcard" orientation="horizontal" className="flex items-center gap-3" value={mode} onValueChange={(value) => {
+          <RadioGroup aria-label={t("flashcards.mode")} orientation="horizontal" className="flex items-center gap-3" value={mode} onValueChange={(value) => {
             setMode(value as "standard" | "exam");
             setIsFlipped(false);
             setTypedAnswer("");
             setIsChecked(false);
           }}>
-            <label className="flex items-center gap-2 text-body-sm"><RadioGroupItem value="standard" disabled={loading} />Standar</label>
-            <label className="flex items-center gap-2 text-body-sm"><RadioGroupItem value="exam" disabled={loading} />Ketik</label>
+            <label className="flex items-center gap-2 text-body-sm"><RadioGroupItem value="standard" disabled={loading} />{t("flashcards.standard")}</label>
+            <label className="flex items-center gap-2 text-body-sm"><RadioGroupItem value="exam" disabled={loading} />{t("flashcards.typeAnswer")}</label>
           </RadioGroup>
         </div>
       </div>
@@ -252,7 +265,7 @@ export function FlashcardClient({ courseId, initialQueue, studentId }: Flashcard
       {currentItem.dueStatus === "review" && (
         <div className="flex items-center gap-2 rounded-lg border border-brand-primary/20 bg-brand-primary/5 p-3 text-body-xs text-brand-primary">
           <Brain className="size-4 shrink-0" />
-          <span>Kartu ini jatuh tempo untuk diulas.</span>
+          <span>{t("flashcards.dueForReview")}</span>
         </div>
       )}
 
@@ -279,9 +292,9 @@ export function FlashcardClient({ courseId, initialQueue, studentId }: Flashcard
             style={faceStyle}
           >
             <div className="flex items-center justify-between">
-              <span className="inline-flex rounded-md border border-brand-primary/20 bg-brand-primary/5 px-2 py-0.5 text-body-xs font-semibold text-brand-primary">{currentItem.priorityReason}</span>
+              <span className="inline-flex rounded-md border border-brand-primary/20 bg-brand-primary/5 px-2 py-0.5 text-body-xs font-semibold text-brand-primary">{localizedReason}</span>
               <span className="text-body-xs font-medium text-muted-foreground">
-                Tanya
+                {t("flashcards.question")}
               </span>
             </div>
 
@@ -293,7 +306,7 @@ export function FlashcardClient({ courseId, initialQueue, studentId }: Flashcard
 
             <div className="flex items-center justify-center gap-1.5 text-body-xs text-muted-foreground">
               <RotateCw className="size-3" />
-              <span>Ketuk untuk balik kartu</span>
+              <span>{t("flashcards.flipCard")}</span>
             </div>
           </div>
 
@@ -304,14 +317,14 @@ export function FlashcardClient({ courseId, initialQueue, studentId }: Flashcard
           >
             <div className="flex items-center justify-between">
               <span className="inline-flex rounded-md border border-emerald-500/20 bg-emerald-500/5 px-2 py-0.5 text-body-xs font-semibold text-emerald-600 dark:text-emerald-400">
-                Jawaban
+                {t("flashcards.answer")}
               </span>
               {typeof activeCard.metadata?.recallDifficulty === "number" ? (
                 <span
                   className="flex items-center gap-1 text-body-xs font-medium text-muted-foreground"
-                  title={`Tingkat ingatan ${activeCard.metadata.recallDifficulty} dari 5`}
+                  title={t("flashcards.recallLevel", { level: activeCard.metadata.recallDifficulty })}
                 >
-                  <span className="hidden sm:inline">Ingatan</span>
+                  <span className="hidden sm:inline">{t("flashcards.recall")}</span>
                   <span className="flex items-center gap-0.5">
                     {[1, 2, 3, 4, 5].map((n) => (
                       <span
@@ -325,7 +338,7 @@ export function FlashcardClient({ courseId, initialQueue, studentId }: Flashcard
                   </span>
                 </span>
               ) : (
-                <span className="text-body-xs font-medium text-muted-foreground">Detail</span>
+                <span className="text-body-xs font-medium text-muted-foreground">{t("flashcards.details")}</span>
               )}
             </div>
 
@@ -335,7 +348,7 @@ export function FlashcardClient({ courseId, initialQueue, studentId }: Flashcard
               </MathText>
               {activeCard.explanation && (
                 <div className="rounded-lg bg-muted/40 p-3 border border-border/50">
-                  <div className="text-body-xs font-semibold text-muted-foreground mb-0.5">Penjelasan:</div>
+                  <div className="text-body-xs font-semibold text-muted-foreground mb-0.5">{t("flashcards.explanation")}</div>
                   <MathText className="text-body-xs text-muted-foreground" as="div">
                     {activeCard.explanation}
                   </MathText>
@@ -345,7 +358,7 @@ export function FlashcardClient({ courseId, initialQueue, studentId }: Flashcard
 
             <div className="flex items-center justify-center gap-1.5 text-body-xs text-muted-foreground">
               <RotateCw className="size-3" />
-              <span>Ketuk untuk balik ke pertanyaan</span>
+              <span>{t("flashcards.flipToQuestion")}</span>
             </div>
           </div>
         </div>
@@ -353,7 +366,7 @@ export function FlashcardClient({ courseId, initialQueue, studentId }: Flashcard
 
       <div className="flex items-center justify-end">
         <Button type="button" variant="ghost" size="sm" onClick={handleSkip} disabled={loading || queue.length - currentIndex <= 1} className="rounded-md text-body-sm text-muted-foreground hover:text-foreground">
-          Lewati <SkipForward className="ml-1.5 size-4" />
+          {t("flashcards.skip")} <SkipForward className="ml-1.5 size-4" />
         </Button>
       </div>
 
@@ -362,17 +375,17 @@ export function FlashcardClient({ courseId, initialQueue, studentId }: Flashcard
         <div className="rounded-xl border border-border bg-card p-4 space-y-3">
           <div className="flex items-center justify-between">
             <label className="text-body-xs font-semibold text-foreground">
-              Jawaban Anda:
+              {t("flashcards.yourAnswer")}
             </label>
             {isChecked && (
               <span className={`flex items-center gap-1 text-body-xs font-bold ${passedExam ? "text-emerald-600" : "text-rose-600"}`}>
                 {passedExam ? (
                   <>
-                    <Check className="size-3.5" /> Benar (Lolos Cocokan)
+                    <Check className="size-3.5" /> {t("flashcards.correctMatch")}
                   </>
                 ) : (
                   <>
-                    <X className="size-3.5" /> Kurang Tepat
+                    <X className="size-3.5" /> {t("flashcards.incorrect")}
                   </>
                 )}
               </span>
@@ -384,7 +397,7 @@ export function FlashcardClient({ courseId, initialQueue, studentId }: Flashcard
               disabled={isChecked || loading}
               value={typedAnswer}
               onChange={(e) => setTypedAnswer(e.target.value)}
-              placeholder="Tuliskan kata kunci atau nilai jawaban..."
+              placeholder={t("flashcards.answerPlaceholder")}
               className="flex-1 h-9 px-3 rounded-md border border-input bg-background text-body-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-60"
             />
             {!isChecked ? (
@@ -394,7 +407,7 @@ export function FlashcardClient({ courseId, initialQueue, studentId }: Flashcard
                 size="lg"
                 className="rounded-md bg-brand-primary text-white hover:bg-brand-primary/95 h-9"
               >
-                Periksa
+                {t("flashcards.check")}
               </Button>
             ) : (
               <Button
@@ -408,7 +421,7 @@ export function FlashcardClient({ courseId, initialQueue, studentId }: Flashcard
                 size="lg"
                 className="rounded-md h-9"
               >
-                Coba Lagi
+                {t("flashcards.tryAgain")}
               </Button>
             )}
           </div>
@@ -425,7 +438,7 @@ export function FlashcardClient({ courseId, initialQueue, studentId }: Flashcard
               onClick={() => handleGrade(1)}
               className="w-full rounded-md border border-transparent bg-status-error/10 text-status-error hover:bg-status-error/20 active:scale-[0.98] text-body-xs font-bold py-3.5 h-auto transition-all"
             >
-              Ulangi
+              {t("flashcards.again")}
             </Button>
             <Button
               type="button"
@@ -433,7 +446,7 @@ export function FlashcardClient({ courseId, initialQueue, studentId }: Flashcard
               onClick={() => handleGrade(2)}
               className="w-full rounded-md border border-transparent bg-status-warning/10 text-status-warning hover:bg-status-warning/20 active:scale-[0.98] text-body-xs font-bold py-3.5 h-auto transition-all"
             >
-              Sulit
+              {t("flashcards.hard")}
             </Button>
             <Button
               type="button"
@@ -441,7 +454,7 @@ export function FlashcardClient({ courseId, initialQueue, studentId }: Flashcard
               onClick={() => handleGrade(3)}
               className="w-full rounded-md border border-transparent bg-brand-primary/10 text-brand-primary hover:bg-brand-primary/20 active:scale-[0.98] text-body-xs font-bold py-3.5 h-auto transition-all"
             >
-              Paham
+              {t("flashcards.understood")}
             </Button>
             <Button
               type="button"
@@ -449,7 +462,7 @@ export function FlashcardClient({ courseId, initialQueue, studentId }: Flashcard
               onClick={() => handleGrade(4)}
               className="w-full rounded-md border border-transparent bg-status-success/10 text-status-success hover:bg-status-success/20 active:scale-[0.98] text-body-xs font-bold py-3.5 h-auto transition-all"
             >
-              Mudah
+              {t("flashcards.easy")}
             </Button>
           </div>
         </div>

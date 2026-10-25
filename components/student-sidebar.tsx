@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
   BookOpen,
+  Code2,
   Check,
   ChevronDown,
   ChevronRight,
@@ -33,8 +34,11 @@ import { useSession } from "@/lib/auth-client";
 import { getStudentEnrollments, getCourseAction } from "@/app/(student)/dashboard/actions";
 import { cn } from "@/lib/utils";
 import { SidebarShell, NavItem } from "@/components/sidebar-shell";
+import { createActivityRefresh } from "@/lib/student/activity-refresh";
+import { ZYX_ACTIVITY_UPDATED_EVENT } from "@/lib/activity-signal";
 import { StreakCalendarStrip } from "@/components/dashboard/streak-calendar-strip";
 import { SidebarTooltip } from "@/components/sidebar-shell";
+import { useTranslations } from "@/lib/i18n/client";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -57,6 +61,7 @@ export function StudentSidebar({
   showMastery = false,
   showLive = false,
 }: StudentSidebarProps) {
+  const t = useTranslations("student");
   const { data: session } = useSession();
   const pathname = usePathname();
   const router = useRouter();
@@ -130,15 +135,34 @@ export function StudentSidebar({
   }, [session?.user?.id]);
 
   useEffect(() => {
+    setStreakCurrent(null);
+    setWeeklyActivity([]);
     if (!session?.user?.id) return;
-    fetch("/api/student/today")
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => {
-        if (d?.streak?.current != null) setStreakCurrent(d.streak.current);
-        if (d?.weeklyActivity != null) setWeeklyActivity(d.weeklyActivity);
-      })
-      .catch(() => {});
-  }, [session?.user?.id, pathname]);
+
+    const activity = createActivityRefresh(async (signal) => {
+      const response = await fetch("/api/student/today", { signal });
+      if (!response.ok) throw new Error("Activity request failed");
+      const data = await response.json();
+      if (signal.aborted) return;
+      if (data?.streak?.current != null) setStreakCurrent(data.streak.current);
+      if (data?.weeklyActivity != null) setWeeklyActivity(data.weeklyActivity);
+    });
+    void activity.refresh(true);
+    const handleFocus = () => { void activity.refresh(); };
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") handleFocus();
+    };
+    const handleMutation = () => { void activity.refresh(true); };
+    window.addEventListener("focus", handleFocus);
+    document.addEventListener("visibilitychange", handleVisibility);
+    window.addEventListener(ZYX_ACTIVITY_UPDATED_EVENT, handleMutation);
+    return () => {
+      activity.dispose();
+      window.removeEventListener("focus", handleFocus);
+      document.removeEventListener("visibilitychange", handleVisibility);
+      window.removeEventListener(ZYX_ACTIVITY_UPDATED_EVENT, handleMutation);
+    };
+  }, [session?.user?.id]);
 
   const coursesToDisplay = useMemo(() => {
     const list: Array<{ id: string; title: string }> = [];
@@ -196,7 +220,7 @@ export function StudentSidebar({
     if (c) {
       return (
         <div className="px-3 pt-3 shrink-0 flex justify-center">
-          <SidebarTooltip label={`Streak: ${streakCurrent} Hari`} collapsed={true}>
+          <SidebarTooltip label={t("navigation.streak", { count: streakCurrent })} collapsed={true}>
             <div className="flex size-10 items-center justify-center rounded-xl bg-brand-secondary/10 text-brand-secondary">
               <Flame className="size-5" />
             </div>
@@ -215,7 +239,7 @@ export function StudentSidebar({
     if (activeCourseId) {
       const base = `/courses/${activeCourseId}`;
       const isPka = activeCourseId === PKA_COURSE_ID;
-      const courseTitle = activeCourseMetadata?.title ?? "Memuat mata kuliah…";
+      const courseTitle = activeCourseMetadata?.title ?? t("navigation.loadingCourse");
 
       const primaryItems: Array<{
         href: string;
@@ -225,20 +249,21 @@ export function StudentSidebar({
         customActive?: boolean;
       }> = isPka
         ? [
-            { href: base, icon: LayoutDashboard, label: "Ringkasan", exact: true },
-            { href: `${base}/jadwal`, icon: CalendarRange, label: "Jadwal" },
-            { href: `${base}/simulasi`, icon: ClipboardList, label: "Simulasi" },
-            { href: `${base}/laporan`, icon: BarChart3, label: "Laporan Diagnostik" },
+            { href: base, icon: LayoutDashboard, label: t("navigation.summary"), exact: true },
+            { href: `${base}/jadwal`, icon: CalendarRange, label: t("navigation.pkaSchedule") },
+            { href: `${base}/simulasi`, icon: ClipboardList, label: t("navigation.simulation") },
+            { href: `${base}/laporan`, icon: BarChart3, label: t("navigation.diagnosticReport") },
           ]
         : [
-            { href: base, icon: LayoutDashboard, label: "Ringkasan", exact: true },
-            { href: `${base}/material`, icon: FileText, label: "Dokumen" },
-            { href: `${base}/video`, icon: Video, label: "Video" },
-            { href: `${base}/quiz`, icon: ClipboardList, label: "Kuis" },
+            { href: base, icon: LayoutDashboard, label: t("navigation.summary"), exact: true },
+            { href: `${base}/material`, icon: FileText, label: t("navigation.documents") },
+            { href: `${base}/video`, icon: Video, label: t("navigation.video") },
+            { href: `${base}/playground`, icon: Code2, label: "Playground" },
+            { href: `${base}/quiz`, icon: ClipboardList, label: t("navigation.quiz") },
             {
               href: `/dashboard/schedule?course=${activeCourseId}`,
               icon: CalendarRange,
-              label: "Jadwal",
+              label: t("navigation.schedule"),
               customActive: pathname === "/dashboard/schedule" && courseIdFromSchedule === activeCourseId,
             },
           ];
@@ -251,20 +276,20 @@ export function StudentSidebar({
         badge?: string;
       }> = isPka
         ? [
-            { href: `${base}/flashcard`, icon: Brain, label: "Flashcard" },
-            { href: `${base}/quiz`, icon: ClipboardList, label: "Kuis" },
-            { href: `${base}/leaderboard`, icon: Trophy, label: "Peringkat" },
-            { href: `${base}/material`, icon: FileText, label: "Materi" },
+            { href: `${base}/flashcard`, icon: Brain, label: t("navigation.flashcard") },
+            { href: `${base}/quiz`, icon: ClipboardList, label: t("navigation.quiz") },
+            { href: `${base}/leaderboard`, icon: Trophy, label: t("navigation.leaderboard") },
+            { href: `${base}/material`, icon: FileText, label: t("navigation.materials") },
           ]
         : [
-            { href: `${base}/flashcard`, icon: Brain, label: "Flashcard" },
-            { href: `${base}/tryout`, icon: GraduationCap, label: "Tryout" },
-            ...(showStudyPath ? [{ href: `${base}/path`, icon: Compass, label: "Alur Belajar" }] : []),
-            ...(showMastery ? [{ href: `${base}/mastery`, icon: Target, label: "Penguasaan" }] : []),
-            { href: `${base}/progress`, icon: BarChart3, label: "Progres" },
-            { href: `${base}/leaderboard`, icon: Trophy, label: "Peringkat" },
-            { href: `${base}/my-results`, icon: History, label: "Hasil Ujian" },
-            ...(showLive ? [{ href: `${base}/live`, icon: Play, label: "Kuis Langsung", badge: "Beta" }] : []),
+            { href: `${base}/flashcard`, icon: Brain, label: t("navigation.flashcard") },
+            { href: `${base}/tryout`, icon: GraduationCap, label: t("navigation.tryout") },
+            ...(showStudyPath ? [{ href: `${base}/path`, icon: Compass, label: t("navigation.studyPath") }] : []),
+            ...(showMastery ? [{ href: `${base}/mastery`, icon: Target, label: t("navigation.mastery") }] : []),
+            { href: `${base}/progress`, icon: BarChart3, label: t("navigation.progress") },
+            { href: `${base}/leaderboard`, icon: Trophy, label: t("navigation.leaderboard") },
+            { href: `${base}/my-results`, icon: History, label: t("navigation.examResults") },
+            ...(showLive ? [{ href: `${base}/live`, icon: Play, label: t("navigation.liveQuiz"), badge: "Beta" }] : []),
           ];
 
       return (
@@ -274,28 +299,28 @@ export function StudentSidebar({
             ? "px-1 items-center overflow-y-hidden sidebar-scroll-hidden"
             : "px-3 overflow-y-auto overflow-x-hidden sidebar-scroll"
         )}>
-          <SidebarTooltip label="Kembali ke Dashboard" collapsed={c}>
+          <SidebarTooltip label={t("navigation.backToDashboard")} collapsed={c}>
             <Link
               href="/dashboard"
-              title={c ? "Kembali ke Dashboard" : undefined}
+              title={c ? t("navigation.backToDashboard") : undefined}
               className={cn(
                 "flex items-center gap-2.5 rounded-xl px-3 py-2 text-body-xs font-semibold text-brand-secondary hover:bg-muted/40 transition-colors mb-2",
                 c && "justify-center size-10 px-0 mx-auto"
               )}
             >
               <ArrowLeft className="size-4 shrink-0" />
-              {!c && <span>Dashboard</span>}
+              {!c && <span>{t("navigation.dashboard")}</span>}
             </Link>
           </SidebarTooltip>
 
           {c ? (
             <div className="mb-2 flex w-full justify-center">
               <DropdownMenu>
-                <SidebarTooltip label={`Ganti mata kuliah: ${courseTitle}`} collapsed={c}>
+                <SidebarTooltip label={`${t("navigation.switchCourse")}: ${courseTitle}`} collapsed={c}>
                   <DropdownMenuTrigger asChild>
                     <button
                       type="button"
-                      aria-label={`Ganti mata kuliah: ${courseTitle}`}
+                      aria-label={`${t("navigation.switchCourse")}: ${courseTitle}`}
                       className="flex size-10 items-center justify-center rounded-xl text-foreground hover:bg-muted/60 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-pointer"
                     >
                       <BookOpen className="size-4" />
@@ -303,7 +328,7 @@ export function StudentSidebar({
                   </DropdownMenuTrigger>
                 </SidebarTooltip>
                 <DropdownMenuContent align="start" side="right" sideOffset={8} className="w-64 min-w-56 p-1">
-                  <DropdownMenuLabel>Ganti mata kuliah</DropdownMenuLabel>
+                  <DropdownMenuLabel>{t("navigation.switchCourse")}</DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   <div className="max-h-64 overflow-y-auto space-y-0.5">
                     {coursesToDisplay.map((course) => {
@@ -332,7 +357,7 @@ export function StudentSidebar({
                 <DropdownMenuTrigger asChild>
                   <button
                     type="button"
-                    aria-label={`Ganti mata kuliah: ${courseTitle}`}
+                    aria-label={`${t("navigation.switchCourse")}: ${courseTitle}`}
                     className="group flex w-full items-center justify-between gap-2 rounded-xl border border-border/60 bg-muted/30 px-3 py-2 text-left transition-colors hover:bg-muted/60 hover:border-border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-pointer"
                   >
                     <span className="truncate text-body-sm font-semibold text-foreground font-heading leading-tight">
@@ -342,7 +367,7 @@ export function StudentSidebar({
                   </button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="start" sideOffset={4} className="w-64 min-w-56 p-1">
-                  <DropdownMenuLabel>Ganti mata kuliah</DropdownMenuLabel>
+                  <DropdownMenuLabel>{t("navigation.switchCourse")}</DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   <div className="max-h-64 overflow-y-auto space-y-0.5">
                     {coursesToDisplay.map((course) => {
@@ -384,7 +409,7 @@ export function StudentSidebar({
                 {!c && (
                   <div className="pt-2.5 pb-1 px-2.5 text-left">
                     <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/80">
-                      Lainnya
+                      {t("navigation.more")}
                     </span>
                   </div>
                 )}
@@ -422,7 +447,7 @@ export function StudentSidebar({
         <NavItem
           href="/dashboard"
           icon={LayoutDashboard}
-          label="Dashboard"
+          label={t("navigation.dashboard")}
           active={pathname === "/dashboard"}
           collapsed={c}
         />
@@ -430,7 +455,7 @@ export function StudentSidebar({
         <NavItem
           href="/dashboard/schedule"
           icon={CalendarRange}
-          label={userRole === "teacher" || userRole === "tutor" ? "Jadwal Tutorial" : "Jadwal"}
+          label={userRole === "teacher" || userRole === "tutor" ? t("navigation.tutorialSchedule") : t("navigation.schedule")}
           active={pathname === "/dashboard/schedule"}
           collapsed={c}
         />
@@ -439,7 +464,7 @@ export function StudentSidebar({
           <NavItem
             href="/tutor"
             icon={GraduationCap}
-            label="Teaching"
+            label={t("navigation.teaching")}
             active={pathname === "/tutor" || pathname.startsWith("/tutor/")}
             collapsed={c}
           />
@@ -448,7 +473,7 @@ export function StudentSidebar({
         <NavItem
           href="/dashboard/groups"
           icon={Users}
-          label="Kelompok Belajar"
+          label={t("navigation.groups")}
           active={pathname === "/dashboard/groups" || pathname.startsWith("/dashboard/groups")}
           collapsed={c}
         />
@@ -456,13 +481,13 @@ export function StudentSidebar({
         <NavItem
           href="/leaderboard"
           icon={Trophy}
-          label="Peringkat"
+          label={t("navigation.leaderboard")}
           active={pathname === "/leaderboard" || pathname.startsWith("/leaderboard")}
           collapsed={c}
         />
 
         <div className={cn(c && "w-full flex flex-col items-center")}>
-          <SidebarTooltip label="Courses" collapsed={c}>
+          <SidebarTooltip label={t("navigation.courses")} collapsed={c}>
             <button
               type="button"
               onClick={(e) => {
@@ -484,7 +509,7 @@ export function StudentSidebar({
               <BookOpen className="size-4 shrink-0" />
               {!c && (
                 <>
-                  <span className="truncate whitespace-nowrap flex-1 text-left min-w-0">Courses</span>
+                  <span className="truncate whitespace-nowrap flex-1 text-left min-w-0">{t("navigation.courses")}</span>
                   {coursesOpen
                     ? <ChevronDown className="size-3.5 shrink-0 text-muted-foreground transition-transform" />
                     : <ChevronRight className="size-3.5 shrink-0 text-muted-foreground transition-transform" />}
@@ -522,7 +547,7 @@ export function StudentSidebar({
                 )}
               >
                 <Search className="size-3.5 shrink-0" />
-                <span>Jelajahi Course</span>
+                <span>{t("navigation.exploreCourses")}</span>
               </Link>
             </div>
           )}
@@ -531,7 +556,7 @@ export function StudentSidebar({
         <NavItem
           href="/profile"
           icon={User}
-          label="Profile"
+          label={t("settings.profile")}
           active={pathname === "/profile"}
           collapsed={c}
         />
@@ -539,7 +564,7 @@ export function StudentSidebar({
         <NavItem
           href="/settings/notifications"
           icon={Bell}
-          label="Notification preferences"
+          label={t("settings.emailNotifications")}
           active={pathname === "/settings/notifications"}
           collapsed={c}
         />
@@ -553,7 +578,7 @@ export function StudentSidebar({
     <SidebarShell
       collapsedKey="sidebar-collapsed"
       logoHref="/dashboard"
-      logoLabel="Dashboard Zyx Academy"
+      logoLabel={t("navigation.dashboard") + " Zyx Academy"}
       nav={navContent}
       topSection={topSection}
     />

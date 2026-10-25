@@ -1,13 +1,19 @@
 import type { NextConfig } from "next";
+import createNextIntlPlugin from "next-intl/plugin";
 import { existsSync, readFileSync } from "node:fs";
 
 const webRuntimePath = `${process.cwd()}/artifacts/authoring-verification/web-runtime.json`;
 
 const nextConfig: NextConfig = {
+  skipProxyUrlNormalize: true,
   env: { NEXT_PUBLIC_V4_WEB_RUNTIME: existsSync(webRuntimePath) ? readFileSync(webRuntimePath, "utf8") : "" },
-  serverExternalPackages: ["puppeteer", "@napi-rs/canvas", "pdfjs-dist", "pdf-parse"],
+  serverExternalPackages: ["pyodide", "puppeteer", "@napi-rs/canvas", "pdfjs-dist", "pdf-parse"],
   outputFileTracingIncludes: {
+    "/coding/runtime-frame": ["./lib/coding/frame.html"],
+    "/api/coding/**": ["./public/coding/worker.js", "./node_modules/pyodide/**"],
     "/api/**": [
+      "./node_modules/pyodide/{pyodide.js,pyodide.mjs,pyodide.asm.mjs,pyodide.asm.wasm,python_stdlib.zip,pyodide-lock.json,package.json}",
+      "./node_modules/@codemirror/*/package.json",
       "./node_modules/katex/dist/**",
       "./node_modules/katex/package.json",
       "./node_modules/pdfjs-dist/{package.json,standard_fonts/**}", "./node_modules/@napi-rs/canvas*/**",
@@ -15,6 +21,7 @@ const nextConfig: NextConfig = {
       "./lib/question-authoring-contract.ts", "./lib/authoring/playbooks/**/*",
       "./next.config.ts", "./scripts/authoring/prepare-web-verification.ts",
       "./deno.json", "./workers/deno-background/deno.json",
+      "./components/coding/**/*", "./lib/coding/**/*", "./public/coding/worker.js",
       "./components/course/**/*.tsx", "./components/ui/{slider,scientific-input}.tsx",
       "./app/globals.css", "./app/layout.tsx", "./app/authoring-verification/page.tsx",
       "./components/providers/{telemetry-boundary,posthog-provider}.tsx", "./lib/env.ts",
@@ -44,6 +51,9 @@ const nextConfig: NextConfig = {
     ],
   },
   allowedDevOrigins: ["http://localhost:3000", "http://127.0.0.1:3000", "127.0.0.1"],
+  async headers() {
+    return [{ source: "/coding/worker.js", headers: [{ key: "Access-Control-Allow-Origin", value: "*" }, { key: "Cross-Origin-Resource-Policy", value: "cross-origin" }] }];
+  },
   async redirects() {
     // Legacy Tutorial PKA microsite URLs; the campaign now lives at
     // /courses/tutorial-pka inside the regular student course shell.
@@ -73,14 +83,17 @@ const nextConfig: NextConfig = {
   },
 };
 
+const withNextIntl = createNextIntlPlugin("./i18n/request.ts");
+
 const isProduction = process.env.NODE_ENV === "production";
 const enableSentryInDev = process.env.ENABLE_SENTRY_DEV === "true";
 const shouldEnableSentry = (isProduction || enableSentryInDev) && Boolean(process.env.SENTRY_AUTH_TOKEN);
 
 export default async function config(): Promise<NextConfig> {
+  let configWithMonitoring = nextConfig;
   if (shouldEnableSentry) {
     const { withSentryConfig } = await import("@sentry/nextjs");
-    return withSentryConfig(nextConfig, {
+    configWithMonitoring = withSentryConfig(nextConfig, {
       org: process.env.SENTRY_ORG || "zyx-academy",
       project: process.env.SENTRY_PROJECT || "zyx-academy",
       authToken: process.env.SENTRY_AUTH_TOKEN,
@@ -98,7 +111,7 @@ export default async function config(): Promise<NextConfig> {
       bundleSizeOptimizations: {
         excludeDebugStatements: true,
       },
-    });
+    }) as NextConfig;
   }
-  return nextConfig;
+  return withNextIntl(configWithMonitoring);
 }

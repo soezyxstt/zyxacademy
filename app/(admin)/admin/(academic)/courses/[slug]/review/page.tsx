@@ -5,6 +5,7 @@ import { MaterialWorkspace } from "@/components/admin/material-workspace";
 import { assertAdmin } from "@/lib/auth/admin-guards";
 import { resolveCourseIdentity } from "@/lib/admin/course-identity";
 import { pageTitle } from "@/lib/site";
+import { getTranslations } from "@/lib/i18n/server";
 import { getCourseDetailData } from "../../actions";
 import { loadMaterialWorkspaceData } from "../../../materials/data";
 
@@ -16,18 +17,19 @@ type Props = {
 };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const t = await getTranslations("adminAcademic");
   const { slug } = await params;
   try {
     const identity = await resolveCourseIdentity(slug);
     if (!identity) {
-      return { title: pageTitle("Review Materi - Mata Kuliah Tidak Ditemukan") };
+      return { title: pageTitle(t("metadata.pages.reviewNotFound")) };
     }
     return {
-      title: pageTitle(`Review Materi - ${identity.title}`),
-      description: `Review staging dan katalog materi untuk mata kuliah ${identity.title}.`,
+      title: pageTitle(t("metadata.pages.reviewCourseTitle", { course: identity.title })),
+      description: t("metadata.pages.reviewDescription", { course: identity.title }),
     };
   } catch {
-    return { title: pageTitle("Review Materi Mata Kuliah") };
+    return { title: pageTitle(t("metadata.pages.reviewFallbackTitle")) };
   }
 }
 

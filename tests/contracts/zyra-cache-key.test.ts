@@ -47,6 +47,7 @@ describe("Plan 006 canonical exact cache key", () => {
       { normalizedIntent: "Apa arti 2 kg?" },
       { policyVersion: "policy-v2" },
       { assessmentMode: "active-attempt" },
+      { language: "en" },
       { ideas: [{ ideaId: "limit", version: 3 }] },
     ];
     const keys = variants.map((variant) => buildZyraCacheKey({ ...BASE, ...variant }));

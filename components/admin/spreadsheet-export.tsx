@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useState } from "react";
+import { useTranslations } from "@/lib/i18n/client";
 import { AlertTriangle } from "lucide-react";
 import {
   postSpreadsheetExport,
@@ -12,10 +13,17 @@ import { AdminConfirmDialog } from "@/components/admin/confirm-dialog";
 
 export type SpreadsheetExportSuccess = { spreadsheetUrl: string; isNew: boolean };
 
+const conflictMessageKey: Record<SpreadsheetConflict["code"], string> = {
+  block_modified: "conflicts.blockModified",
+  manual_rows: "conflicts.manualRows",
+  manual_columns: "conflicts.manualColumns",
+};
+
 export function useSpreadsheetExport(opts: {
   onSuccess?: (result: SpreadsheetExportSuccess) => void;
   onError?: (message: string) => void;
 }) {
+  const t = useTranslations("admin.export");
   const [exporting, setExporting] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [pending, setPending] = useState<{
@@ -52,13 +60,13 @@ export function useSpreadsheetExport(opts: {
       } else if (outcome.status === "error") {
         opts.onError?.(outcome.message);
       } else {
-        opts.onError?.("Gagal menimpa Google Spreadsheet.");
+        opts.onError?.(t("overwriteError"));
       }
     } finally {
       setConfirming(false);
       setPending(null);
     }
-  }, [pending, opts]);
+  }, [pending, opts, t]);
 
   const confirmDialog = pending ? (
     <AdminConfirmDialog
@@ -68,17 +76,17 @@ export function useSpreadsheetExport(opts: {
       }}
       destructive={false}
       icon={AlertTriangle}
-      title="Timpa edit manual?"
-      confirmLabel="Ya, Timpa"
-      cancelLabel="Batal"
+      title={t("overwriteTitle")}
+      confirmLabel={t("overwriteConfirm")}
+      cancelLabel={t("cancel")}
       loading={confirming}
       onConfirm={confirmOverwrite}
       description={
         <div className="space-y-2">
-          <p>Export akan menimpa area data Zyx. Area di luar blok data (kolom kanan dan baris bawah) tetap aman:</p>
+          <p>{t("overwriteDescription")}</p>
           <ul className="list-disc pl-4 space-y-1">
             {pending.conflicts.map((conflict) => (
-              <li key={conflict.code}>{conflict.message}</li>
+              <li key={conflict.code}>{t(conflictMessageKey[conflict.code])}</li>
             ))}
           </ul>
         </div>

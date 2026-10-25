@@ -1,0 +1,47 @@
+<!doctype html><html lang="id"><head><meta charset="utf-8"><title>Python runtime</title></head><body><script>
+// This document has no same-origin permission. It cannot read application cookies/storage.
+let port, worker, timer, stopped = false;
+window.addEventListener("message", (event) => {
+  if (port || event.source !== parent || event.data?.type !== "connect" || !event.ports[0]) return;
+  port = event.ports[0];
+  port.onmessage = async ({ data }) => {
+    if (data.type === "stop") { stopped = true; worker?.terminate(); clearTimeout(timer); return; }
+    if (data.type !== "run") return;
+    timer = setTimeout(() => { stopped = true; worker?.terminate(); port.postMessage({ type: "result", result: { status: "unavailable", stdout: "", stderr: "Python belum dapat dimuat. Coba lagi.", truncated: false } }); }, 45000);
+    try {
+      // Preload on the frame target. Remote CDP can miss inherited Worker
+      // interception; the Worker receives real pinned bytes and stays offline.
+      const [source, entries] = await Promise.all([
+        fetch(data.workerUrl, { credentials: "omit" }).then((res) => { if (!res.ok) throw Error(); return res.text(); }),
+        Promise.all(Object.entries(data.assets).map(async ([name, contentType]) => {
+          const response = await fetch(data.assetBase + name, { credentials: "omit" });
+          if (!response.ok) throw Error();
+          return [name, { body: await response.arrayBuffer(), contentType }];
+        })),
+      ]);
+      const files = Object.fromEntries(entries);
+      // Data module URLs preserve the opaque-origin iframe's existing CSP.
+      const moduleUrl = (name) => new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(new Blob([files[name].body], { type: "text/javascript" }));
+      });
+      const preloaded = { files, loaderUrl: await moduleUrl("pyodide.mjs"), moduleUrl: await moduleUrl("pyodide.asm.mjs") };
+      if (stopped) return;
+      worker = new Worker("data:text/javascript," + encodeURIComponent(source), { type: "module" });
+      worker.onmessage = ({ data: message }) => {
+        if (message.type === "ready") {
+          clearTimeout(timer);
+          port.postMessage({ type: "running" });
+          timer = setTimeout(() => { worker.terminate(); port.postMessage({ type: "result", result: { status: "timeout", stdout: "", stderr: "Eksekusi melewati batas waktu.", truncated: false } }); }, data.timeoutMs);
+          worker.postMessage({ type: "execute" });
+        } else if (message.type === "result") { clearTimeout(timer); worker.terminate(); port.postMessage(message); }
+      };
+      worker.onerror = () => { clearTimeout(timer); worker.terminate(); port.postMessage({ type: "result", result: { status: "unavailable", stdout: "", stderr: "Python belum dapat dimuat. Coba lagi.", truncated: false } }); };
+      worker.postMessage({ ...data, preloaded }, Object.values(files).map((file) => file.body));
+    } catch { clearTimeout(timer); if (!stopped) port.postMessage({ type: "result", result: { status: "unavailable", stdout: "", stderr: "Python belum dapat dimuat. Coba lagi.", truncated: false } }); }
+  };
+  port.start(); port.postMessage({ type: "connected" });
+});
+</script></body></html>

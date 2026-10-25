@@ -6,16 +6,18 @@ import { Monitor, Moon, Sun } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu } from "radix-ui";
+import { useTranslations } from "next-intl";
 
 const themes = [
-  { value: "light", label: "Light", icon: Sun },
-  { value: "dark", label: "Dark", icon: Moon },
-  { value: "system", label: "System", icon: Monitor },
+  { value: "light", icon: Sun },
+  { value: "dark", icon: Moon },
+  { value: "system", icon: Monitor },
 ] as const;
 
 type ThemeMode = "sidebar" | "navbar";
 
 export function ThemeToggle({ mode = "navbar" }: { mode?: ThemeMode }) {
+  const t = useTranslations("ui");
   const { theme, setTheme, resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
 
@@ -40,7 +42,7 @@ export function ThemeToggle({ mode = "navbar" }: { mode?: ThemeMode }) {
         "relative size-8 rounded-lg transition-colors",
         mode === "sidebar" && "mx-auto"
       )}
-      aria-label="Switch theme"
+      aria-label={t("theme.switch")}
     >
       <Sun
         className={cn(
@@ -56,7 +58,7 @@ export function ThemeToggle({ mode = "navbar" }: { mode?: ThemeMode }) {
         )}
         style={{ position: isDark ? "relative" : "absolute" }}
       />
-      <span className="sr-only">Toggle theme</span>
+      <span className="sr-only">{t("theme.switch")}</span>
     </Button>
   );
 
@@ -75,7 +77,7 @@ export function ThemeToggle({ mode = "navbar" }: { mode?: ThemeMode }) {
             "data-[side=bottom]:slide-in-from-top-2 data-[side=top]:slide-in-from-bottom-2"
           )}
         >
-          {themes.map(({ value, label, icon: Icon }) => (
+          {themes.map(({ value, icon: Icon }) => (
             <DropdownMenu.Item
               key={value}
               onClick={() => setTheme(value)}
@@ -88,7 +90,7 @@ export function ThemeToggle({ mode = "navbar" }: { mode?: ThemeMode }) {
               )}
             >
               <Icon className="size-4 shrink-0" />
-              <span className="flex-1">{label}</span>
+              <span className="flex-1">{t(`theme.${value}`)}</span>
               {theme === value && (
                 <span className="flex size-1.5 shrink-0 rounded-full bg-primary" />
               )}

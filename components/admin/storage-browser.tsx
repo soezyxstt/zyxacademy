@@ -1,6 +1,7 @@
 "use client";
 
-import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   ChevronDown,
   ChevronRight,
@@ -96,6 +97,7 @@ function TreeItem({
   onToggle: (path: string) => void;
   onNavigate: (path: string) => void;
 }) {
+  const t = useTranslations("adminMedia");
   const isCurrent = current === node.path;
   const hasChildren = node.children.length > 0;
   const label = depth === 0 ? domainLabel(node.name) : node.name;
@@ -119,7 +121,7 @@ function TreeItem({
         {hasChildren ? (
           <button
             type="button"
-            aria-label={isOpen ? "Tutup folder" : "Buka folder"}
+            aria-label={isOpen ? t("storage.closeFolder") : t("storage.openFolder")}
             className="text-muted-foreground cursor-pointer p-0.5"
             onClick={(e) => {
               e.stopPropagation();
@@ -191,6 +193,9 @@ function MenuButton({
 }
 
 export function StorageBrowser() {
+  const t = useTranslations("adminMedia");
+  const tRef = useRef(t);
+  tRef.current = t;
   const [folder, setFolder] = useState("");
   const [data, setData] = useState<MediaListing | null>(null);
   const [loading, setLoading] = useState(true);
@@ -213,12 +218,12 @@ export function StorageBrowser() {
     try {
       const res = await fetch(`/api/admin/media/storage?folder=${encodeURIComponent(target)}`, { cache: "no-store" });
       const body = (await res.json().catch(() => ({}))) as { error?: string };
-      if (!res.ok) throw new Error(body.error || "Gagal memuat storage");
+      if (!res.ok) throw new Error(tRef.current("storage.loadError"));
       setData(body as unknown as MediaListing);
       setFolder(target);
       setSelected([]);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Gagal memuat storage");
+    } catch {
+      setError(tRef.current("storage.loadError"));
     } finally {
       setLoading(false);
     }
@@ -309,8 +314,7 @@ export function StorageBrowser() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
-    const body = (await res.json().catch(() => ({}))) as { error?: string };
-    if (!res.ok) throw new Error(body.error || "Gagal menyalin");
+    if (!res.ok) throw new Error(t("storage.copyError"));
   }
 
   async function runBulkCopy(targetFolder: string) {
@@ -324,10 +328,10 @@ export function StorageBrowser() {
           await copyOne(ref, targetFolder);
           okCount += 1;
         } catch {
-          toast.error("Sebagian item gagal disalin");
+          toast.error(t("storage.someCopyFailed"));
         }
       }
-      toast.success(`${okCount} item disalin ke media`);
+      toast.success(t("storage.copiedCount", { count: okCount }));
       setSelected([]);
       setBulkCopyOpen(false);
       setBulkCopyFolder("");
@@ -360,10 +364,10 @@ export function StorageBrowser() {
     setBusy(true);
     try {
       await copyOne(copyTarget.kind === "folder" ? folderRef(copyTarget.folderPath ?? "") : fileRef(copyTarget.key ?? ""), copyFolder);
-      toast.success("Berhasil disalin ke media");
+      toast.success(t("storage.copied"));
       setCopyTarget(null);
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Gagal menyalin");
+    } catch {
+      toast.error(t("storage.copyError"));
     } finally {
       setBusy(false);
     }
@@ -410,10 +414,10 @@ export function StorageBrowser() {
     <div className="border-border bg-background/90 flex flex-wrap items-center gap-2 rounded-lg border px-3 py-2 shadow-sm">
       <div>
         <p className="text-body-sm font-medium text-foreground">
-          {selected.length} item terpilih ({selectedFileCount} file, {selectedFolderCount} folder)
+          {t("storage.selectedSummary", { count: selected.length, files: selectedFileCount, folders: selectedFolderCount })}
         </p>
         {selectedFolderCount > 0 && (
-          <p className="text-body-xs text-muted-foreground">Termasuk {selectedFolderCount} folder; isinya ikut disalin.</p>
+          <p className="text-body-xs text-muted-foreground">{t("storage.selectedFolderContents", { count: selectedFolderCount })}</p>
         )}
       </div>
       <div className="ml-auto flex flex-wrap items-center gap-2">
@@ -428,10 +432,10 @@ export function StorageBrowser() {
           isLoading={busy}
         >
           <Copy className="size-3.5" />
-          Salin ke Media
+          {t("storage.copyToMedia")}
         </Button>
         <Button variant="ghost" size="sm" className="rounded-lg" onClick={() => setSelected([])}>
-          Bersihkan
+          {t("media.clear")}
         </Button>
       </div>
     </div>
@@ -444,7 +448,7 @@ export function StorageBrowser() {
         value={query}
         onSearch={setQuery}
         onClear={() => setQuery("")}
-        placeholder="Cari di folder ini"
+        placeholder={t("storage.search")}
         containerClassName="min-w-[140px] w-48 shrink-0 sm:w-64"
       />
       {visibleItems.length > 0 && (
@@ -452,14 +456,14 @@ export function StorageBrowser() {
           <Checkbox
             checked={allVisibleSelected}
             onCheckedChange={() => toggleSelectAll()}
-            aria-label="Pilih semua item"
+            aria-label={t("storage.selectAll")}
           />
-          Pilih semua
+          {t("storage.selectAllLabel")}
         </label>
       )}
       <Button variant="outline" size="sm" className="rounded-lg" onClick={() => void load(folder)} isLoading={loading}>
         <RefreshCw className="size-3.5" />
-        Muat Ulang
+        {t("storage.reload")}
       </Button>
     </div>
   );
@@ -476,7 +480,7 @@ export function StorageBrowser() {
       <div className="flex flex-col gap-4 lg:flex-row">
         <aside className="hidden w-48 shrink-0 self-start border-r border-border pr-3 lg:block">
           <p className="text-body-xs text-muted-foreground px-2 pt-1 pb-2 font-semibold uppercase tracking-wide">
-            Folder
+            {t("media.folder")}
           </p>
           <button
             type="button"
@@ -487,7 +491,7 @@ export function StorageBrowser() {
             )}
           >
             <FolderOpen className={cn("size-4 shrink-0", !folder ? "text-brand-primary" : "text-muted-foreground")} aria-hidden />
-            <span className="truncate">Storage R2</span>
+            <span className="truncate">{t("storage.title")}</span>
           </button>
           <div className="mt-1">
             {(data?.tree ?? []).map((f) => (
@@ -518,18 +522,18 @@ export function StorageBrowser() {
             <div className="border-border rounded-xl border bg-card p-6 shadow-sm">
               <p className="text-body-sm text-status-error">{error}</p>
               <Button variant="outline" size="sm" className="mt-4 rounded-lg" onClick={() => void load(folder)}>
-                Muat Ulang
+                {t("storage.reload")}
               </Button>
             </div>
           ) : !data || visibleItems.length === 0 ? (
             <div className="border-border rounded-xl border bg-card shadow-sm">
               <AdminEmptyState
                 icon={FolderOpen}
-                title={query ? "Tidak ada hasil" : "Folder ini kosong"}
+                title={query ? t("media.noResults") : t("media.emptyFolder")}
                 description={
                   query
-                    ? "Tidak ada file atau folder yang cocok dengan pencarian."
-                    : "Tidak ada file atau folder di lokasi ini."
+                    ? t("media.noMatches")
+                    : t("storage.emptyLocation")
                 }
                 compact={Boolean(query)}
               />
@@ -559,7 +563,7 @@ export function StorageBrowser() {
                         checked={isSelected}
                         onClick={(e) => e.stopPropagation()}
                         onCheckedChange={() => toggleRef(ref)}
-                        aria-label={`Pilih folder ${f.name}`}
+                        aria-label={t("media.selectFolder", { name: f.name })}
                       />
                       <div className="bg-muted flex aspect-photo-card w-full items-center justify-center rounded-lg">
                         <Folder className="text-brand-primary size-10 opacity-70" aria-hidden />
@@ -568,7 +572,7 @@ export function StorageBrowser() {
                         <PopoverTrigger asChild>
                           <button
                             type="button"
-                            aria-label={`Aksi folder ${f.name}`}
+                            aria-label={t("storage.folderActions", { name: f.name })}
                             onClick={(e) => e.stopPropagation()}
                             className="bg-background absolute top-1 right-1 z-10 cursor-pointer rounded-md border border-border p-1 text-muted-foreground opacity-0 transition-opacity hover:text-foreground group-hover:opacity-100"
                           >
@@ -578,14 +582,14 @@ export function StorageBrowser() {
                         <PopoverContent align="end" className="w-44 p-1">
                           <MenuButton
                             icon={Copy}
-                            label="Salin ke Media"
+                            label={t("storage.copyToMedia")}
                             onClick={() => void openCopyDialog({ kind: "folder", name: domainLabel(f.name), folderPath: f.path })}
                           />
                         </PopoverContent>
                       </Popover>
                     </div>
                     <p className="mt-2 line-clamp-2 text-body-sm font-medium leading-snug text-foreground">{domainLabel(f.name)}</p>
-                    <p className="text-muted-foreground mt-1 text-body-xs">Folder</p>
+                    <p className="text-muted-foreground mt-1 text-body-xs">{t("media.folder")}</p>
                   </div>
                 );
               })}
@@ -607,20 +611,20 @@ export function StorageBrowser() {
                         type="button"
                         onClick={() => openFile(file)}
                         className="absolute inset-0 z-0 cursor-pointer"
-                        aria-label={`Buka ${file.name}`}
+                        aria-label={t("media.openFile", { name: file.name })}
                       />
                       <Checkbox
                         className="bg-background absolute top-1.5 left-1.5 z-10"
                         checked={isSelected}
                         onClick={(e) => e.stopPropagation()}
                         onCheckedChange={() => toggleRef(ref)}
-                        aria-label={`Pilih ${file.name}`}
+                        aria-label={t("media.selectFile", { name: file.name })}
                       />
                       <Popover>
                         <PopoverTrigger asChild>
                           <button
                             type="button"
-                            aria-label={`Aksi ${file.name}`}
+                            aria-label={t("media.selectItemActions", { name: file.name })}
                             onClick={(e) => e.stopPropagation()}
                             className="bg-background absolute top-1 right-1 z-10 cursor-pointer rounded-md border border-border p-1 text-muted-foreground opacity-0 transition-opacity hover:text-foreground group-hover:opacity-100"
                           >
@@ -628,15 +632,15 @@ export function StorageBrowser() {
                           </button>
                         </PopoverTrigger>
                         <PopoverContent align="end" className="w-44 p-1">
-                          <MenuButton icon={FileIcon} label="Pratinjau" onClick={() => openFile(file)} />
+                          <MenuButton icon={FileIcon} label={t("storage.preview")} onClick={() => openFile(file)} />
                           <MenuButton
                             icon={Download}
-                            label="Buka Tautan"
+                            label={t("storage.openLink")}
                             onClick={() => window.open(file.url, "_blank", "noopener,noreferrer")}
                           />
                           <MenuButton
                             icon={Copy}
-                            label="Salin ke Media"
+                            label={t("storage.copyToMedia")}
                             onClick={() => void openCopyDialog({ kind: "file", name: file.name, key: file.key })}
                           />
                         </PopoverContent>
@@ -655,27 +659,27 @@ export function StorageBrowser() {
       <Dialog open={copyTarget !== null} onOpenChange={(open) => !open && setCopyTarget(null)}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Salin ke Media</DialogTitle>
+            <DialogTitle>{t("storage.copyToMedia")}</DialogTitle>
             <DialogDescription>
-              {copyTarget?.kind === "folder" ? "Folder" : "File"} &quot;{copyTarget?.name}&quot; akan disalin ke pustaka media.
+              {t(copyTarget?.kind === "folder" ? "storage.folder" : "storage.file")} &quot;{copyTarget?.name}&quot; {t("storage.copyTargetDescription")}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
-            <Label className="text-body-sm font-semibold text-foreground">Folder tujuan di Media</Label>
+            <Label className="text-body-sm font-semibold text-foreground">{t("storage.destinationFolder")}</Label>
             <Input
               value={copyFolder}
               onChange={(e) => setCopyFolder(e.target.value)}
-              placeholder="Kosongkan untuk root Media"
+              placeholder={t("storage.rootPlaceholder")}
             />
-            <FolderPicker folders={mediaFolders} value={copyFolder} onSelect={setCopyFolder} />
+            <FolderPicker folders={mediaFolders} value={copyFolder} onSelect={setCopyFolder} rootLabel={t("media.rootLabel")} />
           </div>
           <DialogFooter>
             <Button variant="ghost" onClick={() => setCopyTarget(null)}>
-              Batal
+              {t("media.cancel")}
             </Button>
             <Button onClick={() => void runSingleCopy()} disabled={busy} className="gap-1.5">
               {busy && <Loader2 className="animate-spin size-4" />}
-              Salin
+              {t("storage.copy")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -684,31 +688,32 @@ export function StorageBrowser() {
       <Dialog open={bulkCopyOpen} onOpenChange={(open) => !open && setBulkCopyOpen(false)}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Salin ke Media</DialogTitle>
+            <DialogTitle>{t("storage.copyToMedia")}</DialogTitle>
             <DialogDescription>
-              {selected.length} item akan disalin ke folder media yang dipilih.
+              {t("storage.copyManyDescription", { count: selected.length })}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
-            <Label className="text-body-sm font-semibold text-foreground">Folder tujuan di Media</Label>
+            <Label className="text-body-sm font-semibold text-foreground">{t("storage.destinationFolder")}</Label>
             <Input
               value={bulkCopyFolder}
               onChange={(e) => setBulkCopyFolder(e.target.value)}
-              placeholder="Kosongkan untuk root Media"
+              placeholder={t("storage.rootPlaceholder")}
             />
             <FolderPicker
               folders={mediaFolders}
               value={bulkCopyFolder}
               onSelect={setBulkCopyFolder}
+              rootLabel={t("media.rootLabel")}
             />
           </div>
           <DialogFooter>
             <Button variant="ghost" onClick={() => setBulkCopyOpen(false)} disabled={busy}>
-              Batal
+              {t("media.cancel")}
             </Button>
             <Button onClick={() => void runBulkCopy(bulkCopyFolder)} disabled={busy} className="gap-1.5">
               {busy && <Loader2 className="animate-spin size-4" />}
-              Salin
+              {t("storage.copy")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -717,7 +722,7 @@ export function StorageBrowser() {
       <DocumentViewer file={viewerFile} onClose={() => setViewerFile(null)} />
 
       <div className="sr-only" aria-live="polite">
-        {busy ? "Memproses" : ""}
+        {busy ? t("storage.processing") : ""}
       </div>
     </div>
   );

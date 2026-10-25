@@ -7,12 +7,13 @@ import { Reveal } from "@/components/ui/reveal";
 import { createMetadata, pageTitle } from "@/lib/site";
 import { db } from "@/db";
 import { studentQuizAttempts, quizTemplates } from "@/db/schema";
-import { auth } from "@/lib/auth";
-import { headers } from "next/headers";
 import { and, eq } from "drizzle-orm";
 import { QuizAnalyticsView } from "@/components/course/quiz-analytics-view";
 import { ArrowLeft, BookOpen, ChevronRight } from "lucide-react";
 import { getCourse } from "@/lib/course-utils";
+import { getAuthSession } from "@/lib/auth-session";
+import { TranslatedText } from "@/components/i18n/translated-text";
+import { getTranslations } from "@/lib/i18n/server";
 
 type Props = {
   params: Promise<{ id: string; quizId: string; attemptId: string }>;
@@ -25,10 +26,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     .from(quizTemplates)
     .where(eq(quizTemplates.id, quizId))
     .limit(1);
+  const t = await getTranslations("learning");
 
   return createMetadata({
-    title: template ? `Diagnosis ${template.title}` : "Diagnosis Pembelajaran",
-    description: "Diagnosis pembelajaran dan rencana belajar personal hasil pengerjaan kuis.",
+    title: template ? `${t("metadata.diagnosisTitle")} ${template.title}` : t("metadata.summaryTitle"),
+    description: t("metadata.quizSummaryDescription"),
     path: `/courses/${id}/quiz/${quizId}/summary/${attemptId}`,
   });
 }
@@ -37,7 +39,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function QuizSummaryPage({ params }: Props) {
   const { id, quizId, attemptId } = await params;
 
-  const session = await auth.api.getSession({ headers: await headers() });
+  const session = await getAuthSession();
   if (!session?.user) notFound();
 
   const course = await getCourse(id);
@@ -65,7 +67,7 @@ export default async function QuizSummaryPage({ params }: Props) {
 
   return (
     <CoursePageShell
-      title="Diagnosis Pembelajaran & Rencana Belajar"
+      title={<TranslatedText namespace="learning" messageKey="summary.title" />}
       description={template?.title || course.title}
       hideHeader
     >
@@ -76,12 +78,12 @@ export default async function QuizSummaryPage({ params }: Props) {
               <Button asChild variant="outline" size="sm" className="rounded-md border-border/80 text-muted-foreground hover:text-foreground">
                 <Link href={`/courses/${id}/quiz/${quizId}?attemptId=${attemptId}`}>
                   <ArrowLeft className="mr-1.5 size-4" />
-                  Lihat Pembahasan Soal
+                  <TranslatedText namespace="learning" messageKey="summary.viewReview" />
                 </Link>
               </Button>
               <Button asChild variant="ghost" size="sm" className="rounded-md text-body-xs text-muted-foreground hover:text-foreground">
                 <Link href={`/courses/${id}/my-results`}>
-                  Riwayat Ujian
+                  <TranslatedText namespace="learning" messageKey="summary.examHistory" />
                 </Link>
               </Button>
             </div>
@@ -90,7 +92,7 @@ export default async function QuizSummaryPage({ params }: Props) {
               <Button asChild variant="secondary" size="sm" className="rounded-md">
                 <Link href={`/courses/${id}/quiz/${quizId}`}>
                   <BookOpen className="mr-1.5 size-4" />
-                  Coba Ulang Kuis
+                  <TranslatedText namespace="learning" messageKey="summary.retryQuiz" />
                 </Link>
               </Button>
             </div>
@@ -103,10 +105,10 @@ export default async function QuizSummaryPage({ params }: Props) {
               </div>
               <div className="space-y-1 max-w-md mx-auto">
                 <h3 className="font-heading text-body-base font-bold text-foreground">
-                  Menunggu penilaian
+                  <TranslatedText namespace="learning" messageKey="summary.pendingTitle" />
                 </h3>
                 <p className="text-body-sm text-muted-foreground">
-                  Jawaban esai Anda telah tersimpan dan sedang menunggu penilaian dari tutor. Nilai akhir dan diagnosis lengkap akan ditampilkan setelah proses koreksi selesai.
+                  <TranslatedText namespace="learning" messageKey="summary.pendingDescription" />
                 </p>
               </div>
             </div>

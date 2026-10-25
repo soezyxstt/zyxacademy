@@ -5,6 +5,7 @@ export default function robots(): MetadataRoute.Robots {
     rules: {
       userAgent: "*",
       allow: "/",
+      disallow: ["/forms-playground", "/demo", "/id/demo", "/en/demo"],
     },
     sitemap: "https://www.zyxacademy.com/sitemap.xml",
   };

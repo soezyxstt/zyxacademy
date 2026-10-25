@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useTranslations } from "@/lib/i18n/client";
 import {
   ArrowDown,
   ArrowUp,
@@ -94,6 +95,7 @@ const chipClasses = (active: boolean) =>
   );
 
 export function LinksManager() {
+  const t = useTranslations("admin.linksManager");
   const [links, setLinks] = useState<LinkRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -118,16 +120,16 @@ export function LinksManager() {
       if (data.success && Array.isArray(data.links)) {
         setLinks(data.links);
       } else {
-        setError(data.error || "Gagal memuat daftar tautan.");
+        setError(t("loadFailed"));
         setLinks([]);
       }
     } catch {
-      setError("Terjadi kesalahan jaringan saat memuat tautan.");
+      setError(t("networkLoadFailed"));
       setLinks([]);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     fetchLinks();
@@ -148,6 +150,18 @@ export function LinksManager() {
     }
     return Array.from(set);
   }, [links]);
+
+  const getCategoryLabel = (category: string) => {
+    const known: Record<string, string> = {
+      "Sosial Media": "socialMedia",
+      Dokumen: "documents",
+      "Materi Belajar": "learningMaterials",
+      Komunitas: "community",
+      Kontak: "contact",
+      "Lainnya": "other",
+    };
+    return known[category] ? t(`categories.${known[category]}`) : category;
+  };
 
   const filteredLinks = useMemo(() => {
     if (!filterCategory) return links;
@@ -178,11 +192,11 @@ export function LinksManager() {
 
   const handleSave = async () => {
     if (!form.title.trim()) {
-      setFormError("Judul wajib diisi.");
+      setFormError(t("titleRequired"));
       return;
     }
     if (!isValidHttpUrl(form.url.trim())) {
-      setFormError("URL harus diawali dengan http:// atau https://.");
+      setFormError(t("urlInvalid"));
       return;
     }
     setSaving(true);
@@ -207,14 +221,14 @@ export function LinksManager() {
       );
       const data = await res.json();
       if (data.success) {
-        toast.success(editing ? "Tautan berhasil diperbarui." : "Tautan berhasil ditambahkan.");
+        toast.success(editing ? t("updated") : t("created"));
         setDialogOpen(false);
         await fetchLinks();
       } else {
-        setFormError(data.error || "Gagal menyimpan tautan.");
+        setFormError(t("saveFailed"));
       }
     } catch {
-      setFormError("Terjadi kesalahan jaringan saat menyimpan tautan.");
+      setFormError(t("networkSaveFailed"));
     } finally {
       setSaving(false);
     }
@@ -233,18 +247,18 @@ export function LinksManager() {
       });
       const data = await res.json();
       if (data.success) {
-        toast.success(next ? "Tautan diaktifkan." : "Tautan dinonaktifkan.");
+        toast.success(next ? t("activated") : t("deactivated"));
       } else {
         setLinks((prev) =>
           prev.map((l) => (l.id === link.id ? { ...l, isActive: !next } : l))
         );
-        toast.error(data.error || "Gagal mengubah status tautan.");
+        toast.error(t("statusFailed"));
       }
     } catch {
       setLinks((prev) =>
         prev.map((l) => (l.id === link.id ? { ...l, isActive: !next } : l))
       );
-      toast.error("Terjadi kesalahan jaringan.");
+      toast.error(t("networkFailed"));
     }
   };
 
@@ -268,11 +282,11 @@ export function LinksManager() {
       });
       const data = await res.json();
       if (!data.success) {
-        toast.error(data.error || "Gagal mengubah urutan tautan.");
+        toast.error(t("reorderFailed"));
         await fetchLinks();
       }
     } catch {
-      toast.error("Terjadi kesalahan jaringan.");
+      toast.error(t("networkFailed"));
       await fetchLinks();
     } finally {
       setMovingId(null);
@@ -288,13 +302,13 @@ export function LinksManager() {
       const res = await fetch(`/api/admin/links/${id}`, { method: "DELETE" });
       const data = await res.json();
       if (data.success) {
-        toast.success("Tautan berhasil dihapus.");
+        toast.success(t("deleted"));
         setLinks((prev) => prev.filter((l) => l.id !== id));
       } else {
-        toast.error(data.error || "Gagal menghapus tautan.");
+        toast.error(t("deleteFailed"));
       }
     } catch {
-      toast.error("Terjadi kesalahan jaringan.");
+      toast.error(t("networkFailed"));
     } finally {
       setDeletingId(null);
     }
@@ -341,7 +355,7 @@ export function LinksManager() {
                 </div>
               </div>
               <StatusBadge tone={link.isActive ? "success" : "muted"} className="shrink-0">
-                {link.isActive ? "Aktif" : "Nonaktif"}
+                {link.isActive ? t("active") : t("inactive")}
               </StatusBadge>
             </div>
 
@@ -355,14 +369,14 @@ export function LinksManager() {
               {link.category && <CourseBadge>{link.category}</CourseBadge>}
               <span
                 className="inline-flex items-center gap-1.5 rounded-md border border-border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground"
-                title={color.label}
+                title={t(`colors.${color.key}`)}
               >
                 <span className={cn("size-2 rounded-full", color.dot)} aria-hidden />
-                {color.label}
+                {t(`colors.${color.key}`)}
               </span>
               <span className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
                 <GripVertical className="size-3" aria-hidden />
-                Urutan {link.sortOrder}
+                {t("order", { order: link.sortOrder })}
               </span>
             </div>
 
@@ -371,8 +385,8 @@ export function LinksManager() {
                 <Button
                   variant="ghost"
                   size="icon-sm"
-                  title="Pindah ke atas"
-                  aria-label={`Pindah ${link.title} ke atas`}
+                  title={t("moveUp")}
+                  aria-label={t("moveTitleUp", { title: link.title })}
                   disabled={index <= 0 || moving}
                   onClick={() => moveLink(link, "up")}
                 >
@@ -381,8 +395,8 @@ export function LinksManager() {
                 <Button
                   variant="ghost"
                   size="icon-sm"
-                  title="Pindah ke bawah"
-                  aria-label={`Pindah ${link.title} ke bawah`}
+                  title={t("moveDown")}
+                  aria-label={t("moveTitleDown", { title: link.title })}
                   disabled={index === -1 || index >= links.length - 1 || moving}
                   onClick={() => moveLink(link, "down")}
                 >
@@ -398,7 +412,7 @@ export function LinksManager() {
                   onClick={() => openEdit(link)}
                 >
                   <Pencil className="size-3.5" />
-                  Edit
+                  {t("edit")}
                 </Button>
                 <Button
                   variant="ghost"
@@ -411,7 +425,7 @@ export function LinksManager() {
                   ) : (
                     <Eye className="size-3.5" />
                   )}
-                  {link.isActive ? "Nonaktif" : "Aktif"}
+                  {link.isActive ? t("deactivate") : t("activate")}
                 </Button>
                 <Button
                   variant="ghost"
@@ -420,7 +434,7 @@ export function LinksManager() {
                   onClick={() => setConfirmDeleteId(link.id)}
                 >
                   <Trash2 className="size-3.5" />
-                  Hapus
+                  {t("delete")}
                 </Button>
               </div>
             </div>
@@ -439,7 +453,7 @@ export function LinksManager() {
             className={chipClasses(filterCategory === null)}
             onClick={() => setFilterCategory(null)}
           >
-            Semua ({links.length})
+            {t("all", { count: links.length })}
           </button>
           {categories.map((category) => (
             <button
@@ -450,13 +464,13 @@ export function LinksManager() {
                 setFilterCategory(filterCategory === category ? null : category)
               }
             >
-              {category} ({links.filter((l) => l.category === category).length})
+              {getCategoryLabel(category)} ({links.filter((l) => l.category === category).length})
             </button>
           ))}
         </div>
         <Button onClick={openCreate}>
           <Plus className="size-4" />
-          Tambah Tautan
+          {t("addLink")}
         </Button>
       </div>
 
@@ -474,18 +488,18 @@ export function LinksManager() {
       ) : links.length === 0 ? (
         <AdminEmptyState
           icon={LinkIcon}
-          title="Belum ada tautan"
+          title={t("emptyTitle")}
                     action={
             <Button onClick={openCreate} className="mt-2">
               <Plus className="size-4" />
-              Tambah Tautan
+              {t("addLink")}
             </Button>
           }
         />
       ) : filteredLinks.length === 0 ? (
         <AdminEmptyState
           compact
-          title="Tidak ada tautan pada kategori ini."
+          title={t("emptyCategory")}
         />
       ) : (
         renderGrid()
@@ -503,7 +517,7 @@ export function LinksManager() {
         <DialogContent aria-describedby={undefined} className="max-w-lg rounded-xl border border-border p-6 shadow-lg text-left">
           <DialogHeader>
             <DialogTitle className="font-heading text-body-base font-bold">
-              {editing ? "Edit Tautan" : "Tambah Tautan"}
+              {editing ? t("editLink") : t("addLink")}
             </DialogTitle>
           </DialogHeader>
 
@@ -520,13 +534,13 @@ export function LinksManager() {
                 htmlFor="link-title"
                 className="text-body-sm font-semibold text-foreground"
               >
-                Judul <span className="text-status-error">*</span>
+                {t("title")} <span className="text-status-error">*</span>
               </Label>
               <Input
                 id="link-title"
                 value={form.title}
                 onChange={(e) => setForm((p) => ({ ...p, title: e.target.value }))}
-                placeholder="Contoh: Portal Akademik ITB"
+                placeholder={t("titlePlaceholder")}
               />
             </div>
 
@@ -544,7 +558,7 @@ export function LinksManager() {
                 placeholder="https://..."
               />
               <p className="text-body-xs text-muted-foreground">
-                Wajib diawali dengan http:// atau https://
+                {t("urlHelp")}
               </p>
             </div>
 
@@ -553,7 +567,7 @@ export function LinksManager() {
                 htmlFor="link-description"
                 className="text-body-sm font-semibold text-foreground"
               >
-                Deskripsi
+                {t("description")}
               </Label>
               <Textarea
                 id="link-description"
@@ -561,7 +575,7 @@ export function LinksManager() {
                 onChange={(e) =>
                   setForm((p) => ({ ...p, description: e.target.value }))
                 }
-                placeholder="Deskripsi singkat tautan (opsional)"
+                placeholder={t("descriptionPlaceholder")}
                 rows={2}
               />
             </div>
@@ -571,7 +585,7 @@ export function LinksManager() {
                 htmlFor="link-category"
                 className="text-body-sm font-semibold text-foreground"
               >
-                Kategori
+                {t("category")}
               </Label>
               <Input
                 id="link-category"
@@ -579,7 +593,7 @@ export function LinksManager() {
                 onChange={(e) =>
                   setForm((p) => ({ ...p, category: e.target.value }))
                 }
-                placeholder="Contoh: Materi Belajar"
+                placeholder={t("categoryPlaceholder")}
               />
               <div className="flex flex-wrap gap-1.5">
                 {categorySuggestions.map((category) => (
@@ -595,11 +609,9 @@ export function LinksManager() {
                         ? "border-brand-primary bg-brand-primary/10 text-brand-primary"
                         : "border-border bg-background text-muted-foreground hover:bg-muted"
                     )}
-                    onClick={() =>
-                      setForm((p) => ({ ...p, category }))
-                    }
+                    onClick={() => setForm((p) => ({ ...p, category }))}
                   >
-                    {category}
+                    {getCategoryLabel(category)}
                   </Button>
                 ))}
               </div>
@@ -607,7 +619,7 @@ export function LinksManager() {
 
             <div className="grid gap-1.5">
               <Label className="text-body-sm font-semibold text-foreground">
-                Ikon
+                {t("icon")}
               </Label>
               <div className="flex items-center gap-2">
                 <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-muted text-lg">
@@ -616,7 +628,7 @@ export function LinksManager() {
                 <Input
                   value={form.icon}
                   onChange={(e) => setForm((p) => ({ ...p, icon: e.target.value }))}
-                  placeholder="Emoji atau teks singkat"
+                  placeholder={t("iconPlaceholder")}
                   className="flex-1"
                 />
               </div>
@@ -646,7 +658,7 @@ export function LinksManager() {
 
             <div className="grid gap-1.5">
               <Label className="text-body-sm font-semibold text-foreground">
-                Warna
+                {t("color")}
               </Label>
               <div className="flex flex-wrap gap-2">
                 {LINK_COLORS.map((color) => (
@@ -668,7 +680,7 @@ export function LinksManager() {
                       className={cn("size-2.5 rounded-full", color.dot)}
                       aria-hidden
                     />
-                    {color.label}
+                    {t(`colors.${color.key}`)}
                   </Button>
                 ))}
               </div>
@@ -677,10 +689,10 @@ export function LinksManager() {
             <div className="flex items-center justify-between gap-3 border-t border-border pt-3">
               <div>
                 <Label htmlFor="link-active-status" className="text-body-sm font-semibold text-foreground cursor-pointer">
-                  Status aktif
+                  {t("activeStatus")}
                 </Label>
                 <p className="text-body-xs text-muted-foreground">
-                  Tautan nonaktif tidak muncul di halaman publik.
+                  {t("activeStatusHelp")}
                 </p>
               </div>
               <Switch
@@ -700,7 +712,7 @@ export function LinksManager() {
               onClick={() => setDialogOpen(false)}
               disabled={saving}
             >
-              Batal
+              {t("cancel")}
             </Button>
             <Button
               className="rounded-lg cursor-pointer font-bold px-6 shadow-sm"
@@ -708,7 +720,7 @@ export function LinksManager() {
               disabled={saving}
               isLoading={saving}
             >
-              {editing ? "Simpan Perubahan" : "Tambahkan"}
+              {editing ? t("saveChanges") : t("add")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -719,9 +731,9 @@ export function LinksManager() {
         onOpenChange={(open) => {
           if (!open) setConfirmDeleteId(null);
         }}
-        title="Hapus Tautan"
-        description="Tautan akan dihapus dari pustaka. Tindakan ini tidak dapat dibatalkan."
-        confirmLabel="Ya, Hapus"
+        title={t("deleteTitle")}
+        description={t("deleteDescription", { title: links.find((link) => link.id === confirmDeleteId)?.title ?? "" })}
+        confirmLabel={t("confirmDelete")}
         loading={deletingId !== null}
         onConfirm={executeDelete}
       />

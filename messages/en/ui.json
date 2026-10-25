@@ -1,0 +1,52 @@
+{
+  "close": "Close",
+  "showPassword": "Show password",
+  "hidePassword": "Hide password",
+  "selectPlaceholder": "Select an option",
+  "sectionNavigation": "Section navigation",
+  "theme": {
+    "switch": "Change theme",
+    "light": "Light",
+    "dark": "Dark",
+    "system": "System"
+  },
+  "fileUpload": {
+    "dropArea": "Upload files by dragging them here or choosing files",
+    "dropHere": "Drop your files here",
+    "dropOrBrowse": "Drag and drop files or choose files",
+    "acceptedTypes": "Supported formats: {types}. Maximum {maxSize} MB",
+    "anyType": "Maximum {maxSize} MB",
+    "sizeExceeded": "File {name} exceeds the {maxSize} MB limit.",
+    "typeUnsupported": "File type for {name} is not supported. Accepted formats: {types}",
+    "bytes": "Bytes",
+    "kb": "KB",
+    "mb": "MB",
+    "gb": "GB",
+    "uploaded": "Uploaded successfully",
+    "remove": "Remove file",
+    "removeNamed": "Remove file {name}"
+  },
+  "scientific": {
+    "placeholder": "Enter an answer...",
+    "clear": "Clear input",
+    "togglePalette": "Open or close symbol palette",
+    "paletteLabel": "Mathematics and science symbol palette",
+    "symbols": "Symbols",
+    "math": "Mathematics",
+    "physics": "Physics",
+    "chemistry": "Chemistry",
+    "closePalette": "Close symbol palette",
+    "errors": {
+      "mismatchedClosing": "A closing bracket does not match or appears without an opening bracket.",
+      "unclosedBrace": "A curly brace is not closed.",
+      "unclosedBracket": "A square bracket is not closed.",
+      "unclosedParenthesis": "A parenthesis is not closed."
+    }
+  },
+  "courseCombobox": {
+    "placeholder": "Select a course",
+    "allLabel": "All courses",
+    "searchPlaceholder": "Search courses...",
+    "noResults": "No courses found."
+  }
+}

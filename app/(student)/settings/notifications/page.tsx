@@ -9,11 +9,13 @@ import { pageTitle } from "@/lib/site";
 import { PageHeader } from "@/components/page-header";
 import { ApplicationPage } from "@/components/application-page";
 import { Reveal } from "@/components/ui/reveal";
+import { TranslatedText } from "@/components/i18n/translated-text";
+import { getTranslations } from "@/lib/i18n/server";
 
-export const metadata: Metadata = {
-  title: pageTitle("Preferensi Notifikasi"),
-  description: "Atur jenis notifikasi surel opsional yang Anda terima dari Zyx Academy.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("student");
+  return { title: pageTitle(t("notificationPreferences.title")), description: t("notificationPreferences.metadataDescription") };
+}
 
 export default async function NotificationPreferencesPage() {
   const session = await auth.api.getSession({ headers: await headers() });
@@ -25,10 +27,10 @@ export default async function NotificationPreferencesPage() {
   return (
     <ApplicationPage>
       <PageHeader
-        title="Preferensi Notifikasi"
+        title={<TranslatedText namespace="student" messageKey="notificationPreferences.title" />}
         icon={Bell}
         backHref="/settings"
-        backLabel="Pengaturan Akun"
+        backLabel={<TranslatedText namespace="student" messageKey="settings.title" />}
       />
       <Reveal className="mt-6">
         <NotificationPreferencesForm accountEmail={session.user.email} initialPreferences={preferences} />

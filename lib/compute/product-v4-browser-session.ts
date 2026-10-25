@@ -1,3 +1,5 @@
+import { randomUUID } from "node:crypto";
+import { verificationBrowserProvider } from "./product-v4-browser-config";
 import { NonRetriableError, RetryAfterError } from "inngest";
 import { chromium, type Browser } from "playwright-core";
 
@@ -72,5 +74,76 @@ export async function acquireVerificationBrowser(account: string, token: string,
     // Playwright connection errors can include authentication headers.
     if (error instanceof Error && error.message === "VERIFICATION_BROWSER_SESSION_INVALID") throw error;
     throw new Error("VERIFICATION_BROWSER_CONNECT_FAILED");
+  }
+}
+
+/** Select explicitly; credentials for one provider never fall back to another. */
+export async function acquireConfiguredVerificationBrowser(env = process.env, ports?: Ports): Promise<VerificationBrowserSession> {
+  return verificationBrowserProvider(env) === "steel"
+    ? acquireSteelVerificationBrowser(env.STEEL_API_KEY ?? "", ports)
+    : acquireVerificationBrowser(env.CF_ACCOUNT_ID ?? "", env.CF_API_TOKEN ?? "", ports);
+}
+
+function steelFailure(response: Response, body: string, phase: "ACQUIRE" | "RELEASE"): Error {
+  const prefix = `VERIFICATION_STEEL_${phase}`;
+  if (response.status === 401 || response.status === 403) return new NonRetriableError(`${prefix}_ACCESS_DENIED`);
+  if (response.status === 402 || /insufficient.*(?:credit|balance)|(?:credit|balance).*(?:exhaust|insufficient|deplet)/i.test(body)) return new NonRetriableError(`${prefix}_CREDITS_EXHAUSTED`);
+  if ([429, 409, 503].includes(response.status)) {
+    const retry = response.headers.get("Retry-After");
+    const delay = retry && /^\d+(?:\.\d+)?$/.test(retry) ? Number(retry) * 1000 : retry ? Date.parse(retry) - Date.now() : NaN;
+    return new RetryAfterError(`${prefix}_${response.status === 429 && !/concurrent|concurrency|capacity|maximum.*sessions/i.test(body) ? "RATE_LIMITED" : "CAPACITY_UNAVAILABLE"}`, Number.isFinite(delay) && delay > 0 ? Math.max(1000, delay) : 25_000);
+  }
+  if (response.status >= 400 && response.status < 500) return new NonRetriableError(`${prefix}_REJECTED:${response.status}`);
+  return new Error(`${prefix}_FAILED:${response.status}`);
+}
+
+/** REST lifecycle from Steel's Sessions API, with Playwright owning screenshots/PDF. */
+export async function acquireSteelVerificationBrowser(key: string, ports: Ports = { fetch, connect: chromium.connectOverCDP.bind(chromium) }): Promise<VerificationBrowserSession> {
+  if (!key) throw new NonRetriableError("VERIFICATION_STEEL_CONFIGURATION_REQUIRED");
+  // Reserve an ID so even an ambiguous create response can release this exact session.
+  const id = randomUUID();
+  const headers = { "steel-api-key": key, "Content-Type": "application/json" };
+  const request = async (url: string, body: object, phase: "ACQUIRE" | "RELEASE") => {
+    try { return await ports.fetch(url, { method: "POST", headers, body: JSON.stringify(body), redirect: "error", signal: AbortSignal.timeout(phase === "ACQUIRE" ? 30_000 : 10_000) }); }
+    catch { throw new Error(`VERIFICATION_STEEL_${phase}_TRANSPORT_FAILED`); }
+  };
+  const release = async () => {
+    const response = await request(`https://api.steel.dev/v1/sessions/${id}/release`, {}, "RELEASE");
+    if (response.status === 404) return;
+    if (!response.ok) throw steelFailure(response, await response.text().catch(() => ""), "RELEASE");
+    let body;
+    try { body = await response.json(); } catch { throw new Error("VERIFICATION_STEEL_RELEASE_RESPONSE_INVALID"); }
+    if (body?.success !== true) throw new Error("VERIFICATION_STEEL_RELEASE_RESPONSE_INVALID");
+  };
+  let response: Response;
+  try {
+    response = await request("https://api.steel.dev/v1/sessions", { sessionId: id, timeout: 120_000, inactivityTimeout: 60_000, useProxy: false, solveCaptcha: false, headless: true, persistProfile: false }, "ACQUIRE");
+  } catch {
+    try { await release(); } catch { throw new Error("VERIFICATION_STEEL_ACQUIRE_TRANSPORT_FAILED_CLEANUP_FAILED"); }
+    throw new Error("VERIFICATION_STEEL_ACQUIRE_TRANSPORT_FAILED");
+  }
+  if (!response.ok) throw steelFailure(response, await response.text().catch(() => ""), "ACQUIRE");
+  try {
+    let session;
+    try { session = await response.json(); } catch { throw new NonRetriableError("VERIFICATION_STEEL_SESSION_INVALID"); }
+    if (session?.id !== id) throw new NonRetriableError("VERIFICATION_STEEL_SESSION_INVALID");
+    // Construct the documented canonical endpoint ourselves. Never forward a returned URL/key.
+    const socket = new URL("wss://connect.steel.dev");
+    socket.searchParams.set("apiKey", key);
+    socket.searchParams.set("sessionId", id);
+    let browser: Browser;
+    try { browser = await ports.connect(socket.href, { timeout: 30_000 }); }
+    catch { throw new Error("VERIFICATION_STEEL_CONNECT_FAILED"); }
+    return { browser, async close() {
+      try { await release(); }
+      finally {
+        let timer: ReturnType<typeof setTimeout> | undefined;
+        try { await Promise.race([browser.close().catch(() => { throw new Error("VERIFICATION_STEEL_DISCONNECT_FAILED"); }), new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error("VERIFICATION_STEEL_DISCONNECT_TIMEOUT")), 5000); })]); }
+        finally { clearTimeout(timer); }
+      }
+    } };
+  } catch (error) {
+    try { await release(); } catch { throw new Error("VERIFICATION_STEEL_CONNECT_OR_METADATA_FAILED_CLEANUP_FAILED"); }
+    throw error;
   }
 }

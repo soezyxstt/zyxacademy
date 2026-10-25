@@ -1,6 +1,7 @@
 "use client";
 
 import { usePathname } from "next/navigation";
+import { useTranslations } from "@/lib/i18n/client";
 import {
   BookOpen,
   CalendarDays,
@@ -25,6 +26,7 @@ export interface TutorSidebarProps {
 }
 
 export function TutorSidebar({ assignedCourses = [] }: TutorSidebarProps) {
+  const t = useTranslations("tutor.navigation");
   const pathname = usePathname();
   const parts = pathname.split("/").filter(Boolean);
   const courseId = parts[0] === "tutor" && parts[1] && parts[1] !== "schedule"
@@ -49,7 +51,7 @@ export function TutorSidebar({ assignedCourses = [] }: TutorSidebarProps) {
       <NavItem
         href="/tutor"
         icon={LayoutDashboard}
-        label="Dashboard"
+        label={t("dashboard")}
         active={pathname === "/tutor"}
         collapsed={collapsed}
       />
@@ -57,7 +59,7 @@ export function TutorSidebar({ assignedCourses = [] }: TutorSidebarProps) {
       <NavItem
         href="/tutor/schedule"
         icon={CalendarDays}
-        label="Jadwal"
+        label={t("schedule")}
         active={pathname === "/tutor/schedule" || pathname.startsWith("/tutor/schedule/")}
         collapsed={collapsed}
       />
@@ -65,7 +67,7 @@ export function TutorSidebar({ assignedCourses = [] }: TutorSidebarProps) {
       <NavCollapsible
         id="tutor-teaching"
         icon={GraduationCap}
-        label="Pengajaran"
+        label={t("teaching")}
         active={isCourseRoute}
         defaultOpen={isCourseRoute}
         collapsed={collapsed}
@@ -74,7 +76,7 @@ export function TutorSidebar({ assignedCourses = [] }: TutorSidebarProps) {
         {assignedCourses.length === 0 ? (
           <NavItem
             icon={BookOpen}
-            label="Belum ada mata kuliah"
+            label={t("noCourses")}
             collapsed={false}
             className="pointer-events-none opacity-60"
           />
@@ -108,56 +110,56 @@ export function TutorSidebar({ assignedCourses = [] }: TutorSidebarProps) {
           <NavItem
             href={`/tutor/${courseId}`}
             icon={LayoutDashboard}
-            label="Ringkasan"
+            label={t("overview")}
             active={pathname === `/tutor/${courseId}`}
             collapsed={collapsed}
           />
           <NavItem
             href={`/tutor/${courseId}/materials`}
             icon={FileText}
-            label="Dokumen"
+            label={t("documents")}
             active={pathname === `/tutor/${courseId}/materials` || pathname.startsWith(`/tutor/${courseId}/materials/`)}
             collapsed={collapsed}
           />
           <NavItem
             href={`/tutor/${courseId}/videos`}
             icon={Video}
-            label="Video"
+            label={t("videos")}
             active={pathname === `/tutor/${courseId}/videos` || pathname.startsWith(`/tutor/${courseId}/videos/`)}
             collapsed={collapsed}
           />
           <NavItem
             href={`/tutor/${courseId}/participants`}
             icon={Users}
-            label="Peserta & Kelompok"
+            label={t("participants")}
             active={pathname === `/tutor/${courseId}/participants` || pathname.startsWith(`/tutor/${courseId}/participants/`)}
             collapsed={collapsed}
           />
           <NavItem
             href={`/tutor/${courseId}/quizzes`}
             icon={ClipboardList}
-            label="Kuis"
+            label={t("quizzes")}
             active={Boolean(quizPath && pathname.startsWith(quizPath) && !isQuizGradingPath)}
             collapsed={collapsed}
           />
           <NavItem
             href={`/tutor/${courseId}/quizzes/grading`}
             icon={ClipboardCheck}
-            label="Penilaian Kuis"
+            label={t("quizGrading")}
             active={isQuizGradingPath}
             collapsed={collapsed}
           />
           <NavItem
             href={`/tutor/${courseId}/live`}
             icon={Radio}
-            label="Kuis Langsung"
+            label={t("liveQuiz")}
             active={pathname === `/tutor/${courseId}/live` || pathname.startsWith(`/tutor/${courseId}/live/`)}
             collapsed={collapsed}
           />
           <NavItem
             href={`/tutor/${courseId}/grading`}
             icon={CheckSquare}
-            label="Penilaian Tryout"
+            label={t("tryoutGrading")}
             active={pathname === `/tutor/${courseId}/grading` || pathname.startsWith(`/tutor/${courseId}/grading/`)}
             collapsed={collapsed}
           />

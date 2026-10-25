@@ -59,6 +59,7 @@ import { AdminVideoDialog } from "./admin-video-dialog";
 import { VideoPlayerModal } from "./video-player-modal";
 import { getYouTubeThumbnailUrl } from "@/lib/video/youtube";
 import { cn } from "@/lib/utils";
+import { useTranslations } from "@/lib/i18n/client";
 
 type ChapterOption = {
   id: string;
@@ -88,6 +89,7 @@ export function CourseVideosClient({
   canManage = false,
   isEnrolled = true,
 }: CourseVideosClientProps) {
+  const t = useTranslations("studentCourse");
   const router = useRouter();
 
   // Search & Filter
@@ -178,14 +180,14 @@ export function CourseVideosClient({
     try {
       const res = await deleteVideoPlaylistAction(playlistToDelete.id);
       if (res.success) {
-        toast.success("Playlist berhasil dihapus.");
+        toast.success(t("courseVideos.playlistDeleted"));
         setPlaylistToDelete(null);
         router.refresh();
       } else {
-        toast.error(res.error || "Gagal menghapus playlist.");
+        toast.error(t("courseVideos.playlistDeleteFailed"));
       }
     } catch {
-      toast.error("Terjadi kesalahan saat menghapus playlist.");
+      toast.error(t("courseVideos.deletePlaylistError"));
     } finally {
       setDeleteLoading(false);
     }
@@ -209,14 +211,14 @@ export function CourseVideosClient({
     try {
       const res = await deleteCourseVideoAction(videoToDelete.id);
       if (res.success) {
-        toast.success("Video berhasil dihapus.");
+        toast.success(t("courseVideos.videoDeleted"));
         setVideoToDelete(null);
         router.refresh();
       } else {
-        toast.error(res.error || "Gagal menghapus video.");
+        toast.error(t("courseVideos.videoDeleteFailed"));
       }
     } catch {
-      toast.error("Terjadi kesalahan saat menghapus video.");
+      toast.error(t("courseVideos.deleteVideoError"));
     } finally {
       setDeleteLoading(false);
     }
@@ -242,7 +244,7 @@ export function CourseVideosClient({
             <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
             <Input
               type="text"
-              placeholder="Cari video atau bab..."
+              placeholder={t("courseVideos.search")}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="h-9 pl-9 text-body-sm rounded-lg"
@@ -255,7 +257,7 @@ export function CourseVideosClient({
               <Select value={selectedChapterId} onValueChange={setSelectedChapterId}>
                 <SelectTrigger className="h-9 text-body-sm rounded-lg">
                   <Filter className="mr-1.5 size-3.5 text-muted-foreground" />
-                  <SelectValue placeholder="Semua Bab" />
+                  <SelectValue placeholder={t("courseVideos.allChapters")} />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all" className="text-body-sm font-medium">
@@ -282,7 +284,7 @@ export function CourseVideosClient({
               className="h-9 text-body-sm rounded-lg gap-1.5"
             >
               <Plus className="size-4" />
-              <span>Playlist Baru</span>
+              <span>{t("courseVideos.newPlaylist")}</span>
             </Button>
             <Button
               size="sm"
@@ -291,7 +293,7 @@ export function CourseVideosClient({
               className="h-9 text-body-sm rounded-lg gap-1.5 bg-brand-primary text-white hover:bg-brand-primary/90"
             >
               <Plus className="size-4" />
-              <span>Tambah Video</span>
+              <span>{t("courseVideos.addVideo")}</span>
             </Button>
           </div>
         )}
@@ -306,8 +308,8 @@ export function CourseVideosClient({
           </h3>
           <p className="mt-1 text-body-xs text-muted-foreground max-w-sm mx-auto">
             {canManage
-              ? "Buat playlist terlebih dahulu (contoh: 'Pembahasan Soal UTS 2022'), lalu tambahkan video YouTube ke dalamnya."
-              : "Video pembelajaran untuk mata kuliah ini belum tersedia."}
+              ? t("courseVideos.createPlaylistFirst")
+              : t("courseVideos.noVideos")}
           </p>
           {canManage && (
             <Button
@@ -316,7 +318,7 @@ export function CourseVideosClient({
               className="mt-4 text-body-sm rounded-lg gap-1.5 bg-brand-primary text-white hover:bg-brand-primary/90"
             >
               <Plus className="size-4" />
-              <span>Buat Playlist Pertama</span>
+              <span>{t("courseVideos.createFirstPlaylist")}</span>
             </Button>
           )}
         </div>
@@ -382,7 +384,7 @@ export function CourseVideosClient({
                         className="h-7 px-2 text-body-xs rounded-md gap-1 text-brand-primary hover:text-brand-primary"
                       >
                         <Plus className="size-3" />
-                        <span className="hidden sm:inline">Tambah Video</span>
+                        <span className="hidden sm:inline">{t("courseVideos.addVideo")}</span>
                       </Button>
 
                       <DropdownMenu>
@@ -394,13 +396,13 @@ export function CourseVideosClient({
                             className="size-7 p-0 rounded-md text-muted-foreground hover:text-foreground"
                           >
                             <MoreVertical className="size-3.5" />
-                            <span className="sr-only">Menu Playlist</span>
+                            <span className="sr-only">{t("courseVideos.playlistMenu")}</span>
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="text-body-sm">
                           <DropdownMenuItem onClick={() => handleOpenEditPlaylist(playlist)}>
                             <Pencil className="mr-2 size-3.5" />
-                            <span>Edit Playlist</span>
+                            <span>{t("courseVideos.editPlaylist")}</span>
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
                           <DropdownMenuItem
@@ -408,7 +410,7 @@ export function CourseVideosClient({
                             className="text-destructive focus:text-destructive"
                           >
                             <Trash2 className="mr-2 size-3.5" />
-                            <span>Hapus Playlist</span>
+                            <span>{t("courseVideos.deletePlaylist")}</span>
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
@@ -420,7 +422,7 @@ export function CourseVideosClient({
                 <CollapsibleContent>
                   {!hasVideos ? (
                     <div className="border-t border-border/35 bg-muted/10 p-6 text-center text-body-xs text-muted-foreground">
-                      <p>Belum ada video dalam playlist ini.</p>
+                      <p>{t("courseVideos.emptyPlaylist")}</p>
                       {canManage && (
                         <Button
                           variant="outline"
@@ -429,7 +431,7 @@ export function CourseVideosClient({
                           className="mt-2 h-7 text-body-xs gap-1 rounded-lg"
                         >
                           <Plus className="size-3" />
-                          <span>Tambah Video</span>
+                          <span>{t("courseVideos.addVideo")}</span>
                         </Button>
                       )}
                     </div>
@@ -511,7 +513,7 @@ export function CourseVideosClient({
                                     <span>·</span>
                                   )}
                                   {isLocked ? (
-                                    <span className="text-amber-600 dark:text-amber-400 font-medium">Perlu akses kelas</span>
+                                    <span className="text-amber-600 dark:text-amber-400 font-medium">{t("courseVideos.classAccessRequired")}</span>
                                   ) : video.videoUrl.includes("youtube") || video.videoUrl.includes("youtu.be") ? (
                                     <span className="inline-flex items-center gap-1 text-red-600 dark:text-red-400 font-medium">
                                       <FaYoutube className="size-3" />
@@ -535,13 +537,13 @@ export function CourseVideosClient({
                                       className="size-7 p-0 text-muted-foreground hover:text-foreground rounded-md"
                                     >
                                       <MoreVertical className="size-3.5" />
-                                      <span className="sr-only">Menu Video</span>
+                                      <span className="sr-only">{t("courseVideos.videoMenu")}</span>
                                     </Button>
                                   </DropdownMenuTrigger>
                                   <DropdownMenuContent align="end" className="text-body-sm">
                                     <DropdownMenuItem onClick={() => handleOpenEditVideo(video)}>
                                       <Pencil className="mr-2 size-3.5" />
-                                      <span>Edit Video</span>
+                                      <span>{t("courseVideos.editVideo")}</span>
                                     </DropdownMenuItem>
                                     <DropdownMenuSeparator />
                                     <DropdownMenuItem
@@ -549,7 +551,7 @@ export function CourseVideosClient({
                                       className="text-destructive focus:text-destructive"
                                     >
                                       <Trash2 className="mr-2 size-3.5" />
-                                      <span>Hapus Video</span>
+                                      <span>{t("courseVideos.deleteVideo")}</span>
                                     </DropdownMenuItem>
                                   </DropdownMenuContent>
                                 </DropdownMenu>
@@ -607,9 +609,9 @@ export function CourseVideosClient({
       <AdminConfirmDialog
         open={Boolean(playlistToDelete)}
         onOpenChange={(open) => !open && setPlaylistToDelete(null)}
-        title="Hapus Playlist"
-        description={`Playlist "${playlistToDelete?.title}" beserta seluruh video di dalamnya akan dihapus secara permanen.`}
-        confirmLabel="Hapus Playlist"
+        title={t("courseVideos.deletePlaylist")}
+        description={t("courseVideos.deletePlaylistConfirm", { title: playlistToDelete?.title ?? "" })}
+        confirmLabel={t("courseVideos.deletePlaylist")}
         loading={deleteLoading}
         onConfirm={handleConfirmDeletePlaylist}
       />
@@ -618,9 +620,9 @@ export function CourseVideosClient({
       <AdminConfirmDialog
         open={Boolean(videoToDelete)}
         onOpenChange={(open) => !open && setVideoToDelete(null)}
-        title="Hapus Video"
-        description={`Video "${videoToDelete?.title}" akan dihapus secara permanen.`}
-        confirmLabel="Hapus Video"
+        title={t("courseVideos.deleteVideo")}
+        description={t("courseVideos.deleteVideoConfirm", { title: videoToDelete?.title ?? "" })}
+        confirmLabel={t("courseVideos.deleteVideo")}
         loading={deleteLoading}
         onConfirm={handleConfirmDeleteVideo}
       />
@@ -633,10 +635,10 @@ export function CourseVideosClient({
               <Lock className="size-5" />
             </div>
             <DialogTitle className="text-center font-heading text-body-base font-bold">
-              Akses Video Terkunci
+              {t("courseVideos.lockedTitle")}
             </DialogTitle>
             <DialogDescription className="text-center text-body-xs text-muted-foreground">
-              {lockedVideo ? `Video "${lockedVideo.title}" hanya dapat diakses oleh siswa terdaftar.` : "Video ini hanya dapat diakses oleh siswa terdaftar."} Masukkan token kelas untuk membuka seluruh video pembelajaran.
+              {t("courseVideos.lockedDescription", { title: lockedVideo?.title ?? "" })}
             </DialogDescription>
           </DialogHeader>
           <div className="pt-2">

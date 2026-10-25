@@ -1,12 +1,15 @@
 "use client";
 
+import { LiveCodingExercise } from "@/components/coding/live-coding-exercise";
+import { MarkdownRenderer } from "@/components/course/markdown-renderer";
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
+import { useTranslations } from "@/lib/i18n/client";
 import { toast } from "@/components/ui/toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Loader2, AlertTriangle, Play } from "lucide-react";
+import { Loader2, Play } from "lucide-react";
 import { useLiveQuizSocket } from "@/components/live/use-live-quiz-socket";
 import { quizOptionClasses, quizOptionLetterClasses } from "@/components/course/quiz-option-styles";
 import type { QuizOptionState } from "@/components/course/quiz-option-styles";
@@ -27,6 +30,7 @@ interface JoinResponse {
 type ViewPhase = "join" | "live";
 
 export default function LiveStudentPage() {
+  const t = useTranslations("studentExtras.live");
   const { id: courseId } = useParams<{ id: string }>();
   const [course, setCourse] = useState<any>(undefined);
 
@@ -34,8 +38,9 @@ export default function LiveStudentPage() {
     getCourseAction(courseId).then(setCourse).catch(console.error);
   }, [courseId]);
 
-  const title = course ? `Kuis Langsung: ${course.title}` : "Kuis Langsung";
+  const title = course ? t("courseLiveTitle", { course: course.title }) : t("title");
 
+  const [liveSessionId, setLiveSessionId] = useState("");
   const [phase, setPhase] = useState<ViewPhase>("join");
   const [code, setCode] = useState("");
   const [joining, setJoining] = useState(false);
@@ -54,9 +59,9 @@ export default function LiveStudentPage() {
       const data: JoinResponse = await res.json();
       return `${data.wsUrl}?token=${data.token}`;
     } catch {
-      throw new Error("Gagal memperbarui koneksi.");
+      throw new Error(t("connectionFailed"));
     }
-  }, [code, courseId]);
+  }, [code, courseId, t]);
 
   const { state, sendAnswer } = useLiveQuizSocket(
     phase === "live" ? wsFullUrl : null,
@@ -66,7 +71,7 @@ export default function LiveStudentPage() {
   const handleJoin = useCallback(async () => {
     const trimmedCode = code.trim().toUpperCase();
     if (trimmedCode.length !== 6) {
-      toast.error("Kode harus terdiri dari 6 karakter.");
+      toast.error(t("invalidCode"));
       return;
     }
     setJoining(true);
@@ -76,20 +81,18 @@ export default function LiveStudentPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ code: trimmedCode, courseId }),
       });
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error ?? "Gagal bergabung");
-      }
+      if (!res.ok) throw new Error(t("joinFailed"));
       const data: JoinResponse = await res.json();
       const wsEndpoint = `${data.wsUrl}?token=${data.token}`;
+      setLiveSessionId(data.sessionId);
       setWsFullUrl(wsEndpoint);
       setPhase("live");
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Gagal bergabung ke sesi");
+    } catch {
+      toast.error(t("joinFailed"));
     } finally {
       setJoining(false);
     }
-  }, [code, courseId]);
+  }, [code, courseId, t]);
 
   if (!process.env.NEXT_PUBLIC_REALTIME_URL) {
     return (
@@ -97,14 +100,14 @@ export default function LiveStudentPage() {
         <div className="mx-auto max-w-md px-4 py-12 text-center rounded-xl border border-dashed border-border bg-card/50">
           <Play className="mx-auto mb-3 size-10 text-muted-foreground/40" />
           <h3 className="font-heading text-body-base font-bold text-foreground">
-            Belum ada sesi kuis langsung
+            {t("noSessionTitle")}
           </h3>
           <p className="mt-1 text-body-xs text-muted-foreground leading-relaxed">
-            Kuis interaktif langsung diadakan pada waktu tertentu bersama tutor. Pantau jadwal kelas untuk sesi mendatang.
+            {t("noSessionDescription")}
           </p>
           <Button asChild size="sm" variant="outline" className="mt-5 rounded-md text-body-xs">
             <Link href={`/courses/${courseId}`}>
-              Kembali ke Ringkasan
+              {t("backToCourse")}
             </Link>
           </Button>
         </div>
@@ -116,10 +119,11 @@ export default function LiveStudentPage() {
     return (
       <CoursePageShell title={title} icon={Play}>
         <div className="mx-auto flex max-w-xs flex-col items-center gap-6 px-4 py-20">
-          <h1 className="font-heading text-h5 font-semibold text-foreground">Gabung kuis langsung</h1>
+          <h1 className="font-heading text-h5 font-semibold text-foreground">{t("joinTitle")}</h1>
           <Input
             className="rounded-lg text-center font-sans text-body-sm tracking-widest uppercase"
-            placeholder="ABC123"
+            aria-label={t("sessionCode")}
+            placeholder={t("sessionCodePlaceholder")}
             maxLength={6}
             value={code}
             onChange={(e) => setCode(e.target.value.toUpperCase())}
@@ -132,7 +136,7 @@ export default function LiveStudentPage() {
             isLoading={joining}
             className="w-full rounded-lg"
           >
-            Gabung
+            {t("join")}
           </Button>
         </div>
       </CoursePageShell>
@@ -142,6 +146,8 @@ export default function LiveStudentPage() {
   return (
     <CoursePageShell title={title} icon={Play}>
       <LiveView
+        courseId={courseId}
+        sessionId={liveSessionId}
         state={state}
         sendAnswer={sendAnswer}
       />
@@ -152,11 +158,14 @@ export default function LiveStudentPage() {
 // ── Live view (after joining) ────────────────────────────────────────────────
 
 interface LiveViewProps {
+  courseId: string;
+  sessionId: string;
   state: ReturnType<typeof useLiveQuizSocket>["state"];
   sendAnswer: (qi: number, choice: number) => void;
 }
 
-function LiveView({ state, sendAnswer }: LiveViewProps) {
+function LiveView({ state, sendAnswer, courseId, sessionId }: LiveViewProps) {
+  const t = useTranslations("studentExtras.live");
   const {
     connectionStatus,
     sessionState,
@@ -170,6 +179,13 @@ function LiveView({ state, sendAnswer }: LiveViewProps) {
     yourScore,
     finalBoard,
   } = state;
+  const connectionLabelKeys = {
+    connected: "connected",
+    disconnected: "disconnected",
+    connecting: "connecting",
+    reconnecting: "reconnecting",
+  } as const;
+  const connectionLabel = t(connectionLabelKeys[connectionStatus]);
 
   const handleAnswer = useCallback(
     (choice: number) => {
@@ -182,7 +198,8 @@ function LiveView({ state, sendAnswer }: LiveViewProps) {
   return (
     <div className="relative min-h-[70vh] space-y-6 px-4 py-8">
       {/* Connection dot */}
-      <div className="absolute right-4 top-4">
+      <div className="absolute right-4 top-4 flex items-center gap-2" role="status">
+        <span className="text-body-xs text-muted-foreground">{connectionLabel}</span>
         <span
           className={cn(
             "size-2 rounded-full",
@@ -190,7 +207,7 @@ function LiveView({ state, sendAnswer }: LiveViewProps) {
               ? "bg-status-success"
               : "animate-pulse bg-status-warning"
           )}
-          aria-hidden
+          aria-label={connectionLabel}
         />
       </div>
 
@@ -198,9 +215,9 @@ function LiveView({ state, sendAnswer }: LiveViewProps) {
       {sessionState === "lobby" && (
         <div className="flex flex-col items-center gap-3 pt-16">
           <Loader2 className="size-6 animate-spin text-muted-foreground" />
-          <p className="text-body-base font-medium text-foreground">Menunggu penyelenggara memulai...</p>
+          <p className="text-body-base font-medium text-foreground">{t("waitingLobby")}</p>
           <p className="text-body-sm text-muted-foreground tabular-nums">
-            {participantCount} bergabung
+            {t("participantsJoined", { count: participantCount })}
           </p>
         </div>
       )}
@@ -210,8 +227,8 @@ function LiveView({ state, sendAnswer }: LiveViewProps) {
         <div className="mx-auto max-w-xl space-y-5">
           {/* Countdown */}
           <div className="flex items-center justify-between">
-            <span className="text-body-sm text-muted-foreground tabular-nums">
-              Q {currentQuestion.questionIndex + 1} / {currentQuestion.total}
+            <span className="text-body-sm text-muted-foreground tabular-nums" aria-label={t("questionPosition", { current: currentQuestion.questionIndex + 1, total: currentQuestion.total })}>
+              {t("questionPosition", { current: currentQuestion.questionIndex + 1, total: currentQuestion.total })}
             </span>
             {sessionState === "question" && (
               <span
@@ -219,15 +236,14 @@ function LiveView({ state, sendAnswer }: LiveViewProps) {
                   "font-heading text-h5 font-semibold tabular-nums transition-colors duration-300",
                   countdown <= 5 ? "text-status-error" : "text-foreground"
                 )}
+                aria-label={t("timeRemaining", { seconds: countdown })}
               >
                 {countdown}
               </span>
             )}
           </div>
 
-          <MathText className="font-sans text-body-base font-semibold text-foreground block" as="div">
-            {currentQuestion.prompt}
-          </MathText>
+          {currentQuestion.coding ? <LiveCodingExercise key={`${sessionId}:${currentQuestion.questionIndex}`} courseId={courseId} sessionId={sessionId} questionIndex={currentQuestion.questionIndex} coding={currentQuestion.coding} closed={sessionState !== "question" || countdown <= 0} /> : <MarkdownRenderer content={currentQuestion.prompt} />}
 
           <ul className="space-y-2">
             {currentQuestion.options.map((opt, i) => {
@@ -261,11 +277,12 @@ function LiveView({ state, sendAnswer }: LiveViewProps) {
               );
             })}
           </ul>
+          {sessionState === "reveal" && <p className="text-body-sm font-semibold text-status-success">{t("revealCorrectAnswer")}</p>}
           <QuestionSourceCitation origin={currentQuestion.origin} sourceEventName={currentQuestion.sourceEventName} />
 
           {myAnswer !== null && sessionState === "question" && (
             <p className="text-body-sm text-muted-foreground">
-              Jawaban dikunci. Menunggu hasil.
+              {t("answerLocked")}
             </p>
           )}
         </div>
@@ -277,7 +294,7 @@ function LiveView({ state, sendAnswer }: LiveViewProps) {
           top10={top10}
           yourRank={yourRank}
           yourScore={yourScore}
-          title="Papan Skor"
+          title={t("leaderboard")}
         />
       )}
 
@@ -285,17 +302,17 @@ function LiveView({ state, sendAnswer }: LiveViewProps) {
       {sessionState === "ended" && (
         <div className="mx-auto max-w-lg space-y-6">
           <div className="text-center">
-            <p className="font-heading text-body-base font-bold text-foreground">Sesi berakhir</p>
+            <p className="font-heading text-body-base font-bold text-foreground">{t("sessionEnded")}</p>
             <p className="mt-1 text-body-sm text-muted-foreground">
-              Skor Anda: <span className="font-bold tabular-nums text-primary">{yourScore}</span>
-              {yourRank ? ` · Peringkat ${yourRank}` : ""}
+              {t("yourScore")} <span className="font-bold tabular-nums text-primary">{yourScore}</span>
+              {yourRank ? ` · ${t("yourRank", { rank: yourRank })}` : ""}
             </p>
           </div>
           <Leaderboard
             top10={finalBoard.slice(0, 10)}
             yourRank={yourRank}
             yourScore={yourScore}
-            title="Papan skor akhir"
+            title={t("finalLeaderboard")}
           />
         </div>
       )}
@@ -313,6 +330,7 @@ interface LeaderboardProps {
 }
 
 function Leaderboard({ top10, yourRank, yourScore, title }: LeaderboardProps) {
+  const t = useTranslations("studentExtras.live");
   const prevRef = useRef<typeof top10>([]);
 
   useEffect(() => {
@@ -327,7 +345,7 @@ function Leaderboard({ top10, yourRank, yourScore, title }: LeaderboardProps) {
           <span className="w-6 shrink-0 text-center text-body-sm font-bold tabular-nums text-primary">
             {yourRank}
           </span>
-          <span className="flex-1 text-body-sm font-medium text-foreground">Anda</span>
+          <span className="flex-1 text-body-sm font-medium text-foreground">{t("you")}</span>
           <span className="tabular-nums text-body-sm font-bold text-primary">{yourScore}</span>
         </div>
       )}

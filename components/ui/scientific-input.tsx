@@ -5,6 +5,7 @@ import katex from "@/lib/math/katex";
 import "katex/dist/katex.min.css";
 import { X, Sigma, ChevronUp, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useTranslations } from "next-intl";
 import {
   validateAndNormalizeScientificAnswer,
   scientificTextToLatex,
@@ -178,7 +179,7 @@ export function ScientificInput({
   value,
   onChange,
   onNormalizedChange,
-  placeholder = "Ketik jawaban...",
+  placeholder,
   disabled = false,
   defaultCategory = "math",
   className,
@@ -187,6 +188,7 @@ export function ScientificInput({
   name,
   initialPaletteOpen = false,
 }: ScientificInputProps) {
+  const t = useTranslations("ui");
   const [activeCategory, setActiveCategory] = useState<ScientificCategory>(defaultCategory);
   const [isPaletteOpen, setIsPaletteOpen] = useState(initialPaletteOpen);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -280,13 +282,22 @@ export function ScientificInput({
   }, [disabled, onChange, onNormalizedChange]);
 
   const currentSymbols = SCIENTIFIC_PALETTES[activeCategory] || [];
+  const validationErrorMessage = validation.error === "Tanda kurung penutup tidak cocok atau berlebih."
+    ? t("scientific.errors.mismatchedClosing")
+    : validation.error === "Kurung kurawal belum tertutup."
+      ? t("scientific.errors.unclosedBrace")
+      : validation.error === "Kurung siku belum tertutup."
+        ? t("scientific.errors.unclosedBracket")
+        : validation.error
+          ? t("scientific.errors.unclosedParenthesis")
+          : undefined;
 
   return (
     <div className={cn("space-y-1 font-sans", className)}>
       {/* Error description: immediately ABOVE input field when invalid */}
-      {!validation.isValid && validation.error && (
+      {!validation.isValid && validationErrorMessage && (
         <p className="text-body-xs font-medium text-status-error animate-in fade-in duration-200">
-          {validation.error}
+          {validationErrorMessage}
         </p>
       )}
 
@@ -299,7 +310,7 @@ export function ScientificInput({
           type="text"
           value={value}
           onChange={handleInputChange}
-          placeholder={placeholder}
+          placeholder={placeholder ?? t("scientific.placeholder")}
           disabled={disabled}
           autoFocus={autoFocus}
           className={cn(
@@ -319,8 +330,8 @@ export function ScientificInput({
               type="button"
               onClick={handleClear}
               className="size-6 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/70 flex items-center justify-center transition-colors"
-              title="Hapus input"
-              aria-label="Hapus input"
+              title={t("scientific.clear")}
+              aria-label={t("scientific.clear")}
             >
               <X className="size-3.5" />
             </button>
@@ -337,12 +348,12 @@ export function ScientificInput({
                 : "border-border bg-muted/60 text-muted-foreground hover:text-foreground hover:bg-muted",
               disabled && "cursor-not-allowed opacity-50",
             )}
-            title="Buka atau tutup palet simbol"
-            aria-label="Palet simbol matematika dan sains"
+            title={t("scientific.togglePalette")}
+            aria-label={t("scientific.paletteLabel")}
             aria-expanded={isPaletteOpen}
           >
             <Sigma className="size-3" />
-            <span className="text-body-2xs font-semibold">Simbol</span>
+            <span className="text-body-2xs font-semibold">{t("scientific.symbols")}</span>
             {isPaletteOpen ? <ChevronUp className="size-3" /> : <ChevronDown className="size-3" />}
           </button>
         </div>
@@ -379,7 +390,7 @@ export function ScientificInput({
                     : "text-muted-foreground hover:text-foreground border border-transparent hover:bg-muted/50",
                 )}
               >
-                Matematika
+                {t("scientific.math")}
               </button>
               <button
                 type="button"
@@ -393,7 +404,7 @@ export function ScientificInput({
                     : "text-muted-foreground hover:text-foreground border border-transparent hover:bg-muted/50",
                 )}
               >
-                Fisika
+                {t("scientific.physics")}
               </button>
               <button
                 type="button"
@@ -407,7 +418,7 @@ export function ScientificInput({
                     : "text-muted-foreground hover:text-foreground border border-transparent hover:bg-muted/50",
                 )}
               >
-                Kimia
+                {t("scientific.chemistry")}
               </button>
             </div>
 
@@ -416,7 +427,7 @@ export function ScientificInput({
               onClick={() => setIsPaletteOpen(false)}
               className="text-body-2xs text-muted-foreground hover:text-foreground px-1 py-0.5 rounded transition-colors"
             >
-              Tutup
+              {t("scientific.closePalette")}
             </button>
           </div>
 

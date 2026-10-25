@@ -3,8 +3,10 @@ import { Card } from "@/components/ui/card";
 import { MarkdownRenderer } from "@/components/course/markdown-renderer";
 import type { PublicArticleReadModel } from "@/lib/articles/structured-read-model";
 import { DemoAuthCta } from "./demo-shell";
+import { getTranslations } from "@/lib/i18n/server";
 
-export function DemoArticleView({ article, nextPath }: { article: PublicArticleReadModel; nextPath: string }) {
+export async function DemoArticleView({ article, nextPath }: { article: PublicArticleReadModel; nextPath: string }) {
+  const t = await getTranslations("marketing");
   return (
     <article className="mx-auto max-w-3xl">
       <Card variant="solid" className="p-5 sm:p-8">
@@ -13,7 +15,7 @@ export function DemoArticleView({ article, nextPath }: { article: PublicArticleR
           <div className="min-w-0">
             <h2 className="font-heading text-h5 font-bold tracking-tight text-foreground">{article.title}</h2>
             <p className="mt-1 text-body-xs text-muted-foreground">
-              {article.totalEstimatedReadingMinutes} menit membaca, {article.sections.length} bagian
+              {t("demo.article.readingInfo", { minutes: article.totalEstimatedReadingMinutes, sections: article.sections.length })}
             </p>
           </div>
         </div>
@@ -23,7 +25,7 @@ export function DemoArticleView({ article, nextPath }: { article: PublicArticleR
             <section key={section.id} id={section.slug} className="scroll-mt-24">
               <h3 className="font-heading text-body-base font-bold text-foreground">{section.title}</h3>
               {section.learningObjective ? (
-                <p className="mt-1 text-body-xs text-muted-foreground">Tujuan: {section.learningObjective}</p>
+                <p className="mt-1 text-body-xs text-muted-foreground">{t("demo.article.objective", { objective: section.learningObjective })}</p>
               ) : null}
               <div className="mt-5 space-y-6">
                 {section.blocks.map((block) => (
@@ -42,10 +44,10 @@ export function DemoArticleView({ article, nextPath }: { article: PublicArticleR
 
       <div className="mt-5 flex flex-col gap-3 rounded-xl border border-brand-primary/20 bg-brand-primary/5 p-5 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="font-heading text-body-base font-bold text-foreground">Lanjutkan belajar dengan akun Free</h2>
-          <p className="mt-1 text-body-xs text-muted-foreground">Progres tersimpan setelah kamu masuk.</p>
+          <h2 className="font-heading text-body-base font-bold text-foreground">{t("demo.article.ctaTitle")}</h2>
+          <p className="mt-1 text-body-xs text-muted-foreground">{t("demo.article.ctaDescription")}</p>
         </div>
-        <DemoAuthCta nextPath={nextPath} label="Masuk untuk lanjut" />
+        <DemoAuthCta nextPath={nextPath} label={t("demo.authCta")} />
       </div>
     </article>
   );
