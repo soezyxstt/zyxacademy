@@ -137,6 +137,8 @@ Use service-level `--max`, rather than relying solely on revision-level `--max-i
 
 ## Local validation on 2026-10-25
 
+The subsequent run deployed the environment-configured revision and Google Cloud completed traffic routing, but CI's final report expected a Service object from `update-traffic`, whose JSON output was a list. Final verification now queries the actual Service after the traffic operation instead. The mocked CLI returns the same list shape as the observed command, and all 12 tests pass. Application login and end-user HTTP behavior remain separate from this deployment evidence.
+
 The first runtime-sync deployment reached the existing `zyx-academy` service and Google Cloud reported revision creation succeeded. CI then stopped before traffic promotion because the service-level latest-ready check did not match the newly created revision. The corrected deployment reads the new revision name from a fresh service query and verifies that revision's own Ready condition and image digest. Regression fixtures leave the service's previous ready revision unchanged and require the actual new revision to be ready before traffic moves.
 
 The runtime environment sync follow-up passes 12 local tests covering repair of an unconfigured manual deployment, database alias precedence, missing mandatory values, rejection of production targets, lossless multiline credentials, CI-key exclusion, existing Secret Manager references, feature-flag preservation, traffic ordering, and temporary-file cleanup. Workflow syntax and whitespace checks pass. GitHub Secret metadata could not be listed due to the integration's 403 response; no secret values were fetched. Remote deployment verification remains separate.
