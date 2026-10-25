@@ -443,6 +443,10 @@ The standalone Admin material editor is retired. Existing website material remai
 - When `FEATURE_DRIVE_EDITOR_SYNC=1`, active admin emails are granted Drive editor access for exported spreadsheets, Forms files, recording files, transcripts, and new export folders through `lib/google-drive-permissions.ts`.
 
 ### Form Studio Fixes & Presets
+- The compact admin editor uses divided question rows. `settings.displayMode` persists `question` (the default for existing forms) or `section` for publication and preview; presets retain this setting.
+- Section mode shows an implicit first section and starts a new page at each SECTION marker. A leading SECTION shares the first page with form details and email collection. Statements stay inline; consecutive and closing sections retain their own pages. With no sections, all questions share one page. Next validates the current section; Back preserves answers.
+- Both layouts replace the pre-submit summary with a confirmation dialog. Only its submit action sends a response; keyboard shortcuts open the same dialog. In-flight uploads and duplicate submits block sending. Success appears only after a successful response (or an explicit preview simulation).
+- Upload fields show the per-question size limit (10 MB by default, capped at the existing 50 MB endpoint limit) and reject larger files before upload. These client checks do not replace server enforcement of the endpoint's 50 MB cap.
 - Spreadsheet export is scoped to a structured Drive folder (`forms/{slug}`, title `form-{slug}-responses`) and excludes SECTION rows from the data export.
 - "Lainnya" (other) options use a stable sentinel (`\uE000__other__`) so open answers survive round trips; SECTION counts are excluded everywhere via a continuous `questionNumberMap`.
 - The builder auto-scrolls, resets after a successful publish, and uses shadcn Switch toggles for settings (collect email, show progress, etc.).

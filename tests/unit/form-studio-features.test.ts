@@ -109,7 +109,7 @@ describe("Form Studio - Non-Question Statement Slides & Preview Logic", () => {
     expect(html).toContain("1 pertanyaan");
   });
 
-  it("renders markdown links and formatting in review screen question titles and answers", () => {
+  it("renders linked question titles on the final question without a summary", () => {
     const previewForm = {
       id: "test-form-review",
       slug: "test-form-review",
@@ -118,7 +118,7 @@ describe("Form Studio - Non-Question Statement Slides & Preview Logic", () => {
       questions: [
         {
           title: "Udah join [grup WhatsApp](https://chat.whatsapp.com/CzK0v3qvu4jGLnyaa) nyaa?",
-          type: "MULTIPLE_CHOICE" as const,
+          type: "RADIO" as const,
           options: ["Ya", "Belum"],
           required: true,
         },
@@ -128,19 +128,21 @@ describe("Form Studio - Non-Question Statement Slides & Preview Logic", () => {
       },
     };
 
-    // Step 0: cover, Step 1: question 0, Step 2: review
+    // Step 0: cover, Step 1: final question and submit action
     const html = renderToStaticMarkup(
       React.createElement(PublicFormViewer, {
         previewForm,
         isPreview: true,
-        initialStepIndex: 2,
+        initialStepIndex: 1,
       })
     );
 
-    expect(html).toContain("Tinjau Jawaban Anda");
+    expect(html).not.toContain("Tinjau Jawaban Anda");
+    expect(html).toContain("Kirim tanggapan");
     expect(html).toContain('<a href="https://chat.whatsapp.com/CzK0v3qvu4jGLnyaa" target="_blank" rel="noopener noreferrer"');
     expect(html).toContain(">grup WhatsApp</a>");
     expect(html).toContain("nyaa?");
   });
 });
+
 
