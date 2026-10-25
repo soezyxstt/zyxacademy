@@ -14,7 +14,7 @@ ORIGIN = "https://staging.zyxacademy.com"
 
 
 class CloudRunDeploymentTest(unittest.TestCase):
-    def deploy(self, scenario="success", marker="staging", origin=ORIGIN, project="zyx-academy"):
+    def deploy(self, scenario="success", marker="staging", origin=ORIGIN, project="zyx-academy", manual=False):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             environment = [
@@ -33,6 +33,11 @@ class CloudRunDeploymentTest(unittest.TestCase):
                 "status": {"latestReadyRevisionName": "old-revision",
                            "traffic": [{"revisionName": "old-revision", "percent": 100}]},
             }
+            if manual:
+                before["spec"]["template"]["spec"]["containers"][0]["env"] = [
+                    {"name": "DATABASE_URL", "value": "file:dev.db"},
+                    {"name": "TURSO_DATABASE_URL", "value": "file:old.db"},
+                ]
             (root / "before.json").write_text(json.dumps(before))
             fake = root / "gcloud"
             fake.write_text('''#!/usr/bin/env python3
@@ -47,6 +52,9 @@ if args[:3] == ["run", "services", "describe"]:
     if scenario == "missing-service": sys.exit(1)
     print((root / "before.json").read_text())
 elif args[:2] == ["run", "deploy"]:
+    runtime = next(arg.split("=", 1)[1] for arg in args if arg.startswith("--env-vars-file="))
+    (root / "runtime-snapshot.json").write_text(Path(runtime).read_text())
+    (root / "runtime-path.txt").write_text(runtime)
     if scenario == "deploy-failed": sys.exit(1)
     ready = "old-revision" if scenario == "not-ready" else "new-revision"
     print(json.dumps({"status": {"latestCreatedRevisionName": "new-revision",
@@ -70,10 +78,20 @@ else:
                 "CLOUD_RUN_BUILD_ORIGIN": ORIGIN,
                 "FAKE_ROOT": str(root), "SCENARIO": scenario,
                 "GITHUB_STEP_SUMMARY": str(root / "summary.md"),
+                "GITHUB_STAGING_SECRETS": json.dumps({
+                    "TURSO_CONNECTION_URL": "libsql://zyx-staging-soezyxstt.aws-ap-south-1.turso.io",
+                    **{key: "dummy-runtime-value" for key in ("TURSO_AUTH_TOKEN", "BETTER_AUTH_SECRET",
+                       "GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "RESEND_API_KEY", "GEMINI_API_KEY", "INNGEST_EVENT_KEY")},
+                    "GCP_SERVICE_ACCOUNT_KEY": "never-copy-this-ci-key",
+                }),
+                "GITHUB_STAGING_VARS": "{}",
             }
             result = subprocess.run(["bash", str(SCRIPT)], env=env, capture_output=True, text=True)
             calls = [json.loads(line) for line in (root / "calls.jsonl").read_text().splitlines()] if (root / "calls.jsonl").exists() else []
             summary = (root / "summary.md").read_text() if (root / "summary.md").exists() else ""
+            self.last_runtime = json.loads((root / "runtime-snapshot.json").read_text()) if (root / "runtime-snapshot.json").exists() else None
+            if (root / "runtime-path.txt").exists():
+                self.assertFalse(Path((root / "runtime-path.txt").read_text()).exists())
             return result, calls, summary
 
     def test_updates_traffic_only_after_exact_digest_is_ready(self):
@@ -106,10 +124,19 @@ else:
         self.assertNotEqual(result.returncode, 0)
         self.assertEqual(len(calls), 1)
 
-    def test_mismatched_build_origin_is_rejected(self):
+    def test_build_origin_is_synced_to_runtime(self):
         result, calls, _ = self.deploy(origin="https://other-staging.example")
-        self.assertNotEqual(result.returncode, 0)
-        self.assertEqual(len(calls), 1)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(self.last_runtime["BETTER_AUTH_URL"], ORIGIN)
+        self.assertEqual(self.last_runtime["NEXT_PUBLIC_APP_URL"], ORIGIN)
+
+    def test_manual_service_gets_github_runtime_settings_before_traffic_switch(self):
+        result, calls, _ = self.deploy(manual=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        for key in ("DATABASE_URL", "TURSO_DATABASE_URL", "TURSO_CONNECTION_URL"):
+            self.assertEqual(self.last_runtime[key], "libsql://zyx-staging-soezyxstt.aws-ap-south-1.turso.io")
+        self.assertEqual(self.last_runtime["ZYX_ENVIRONMENT"], "staging")
+        self.assertNotIn("GCP_SERVICE_ACCOUNT_KEY", self.last_runtime)
 
     def test_different_project_is_rejected_before_cloud_access(self):
         result, calls, _ = self.deploy(project="other-project")

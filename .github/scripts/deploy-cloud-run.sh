@@ -25,43 +25,21 @@ if ! gcloud run services describe "$CLOUD_RUN_SERVICE" "${target[@]}" \
   exit 1
 fi
 
-python3 - "$temporary/before.json" <<'PY'
-import json, os, sys
-from urllib.parse import urlparse
+python3 "$(dirname "$0")/cloud_run_runtime.py" "$temporary/before.json" "$temporary"
+runtime_flags=(--env-vars-file="$temporary/runtime.json")
+if [ -s "$temporary/secret-refs.txt" ]; then
+  runtime_flags+=(--set-secrets="$(cat "$temporary/secret-refs.txt")")
+else
+  runtime_flags+=(--clear-secrets)
+fi
 
-service = json.load(open(sys.argv[1]))
-spec = service.get("spec", {}).get("template", {}).get("spec", {})
-containers = spec.get("containers", [])
-if len(containers) != 1 or spec.get("serviceAccountName") != os.environ["CLOUD_RUN_RUNTIME_ACCOUNT"]:
-    sys.exit("Staging must use the same service account as the CI JSON key and one web container.")
-env = {item["name"]: item for item in containers[0].get("env", [])}
-if env.get("ZYX_ENVIRONMENT", {}).get("value") != "staging":
-    sys.exit("Refusing to deploy without the explicit staging runtime marker.")
-if "SKIP_ENV_VALIDATION" in env:
-    sys.exit("Remove build-only SKIP_ENV_VALIDATION from the runtime service.")
-origin = os.environ["CLOUD_RUN_BUILD_ORIGIN"]
-parsed = urlparse(origin)
-if (parsed.scheme != "https" or not parsed.hostname or parsed.username or parsed.password
-        or parsed.path not in ("", "/") or parsed.query or parsed.fragment
-        or parsed.hostname in ("zyxacademy.com", "www.zyxacademy.com", "zyx.academy")):
-    sys.exit("A staging HTTPS origin is required.")
-for key in ("BETTER_AUTH_URL", "NEXT_PUBLIC_APP_URL"):
-    if env.get(key, {}).get("value", "").rstrip("/") != origin.rstrip("/"):
-        sys.exit("Runtime auth/public origins must match the public build origin before deployment.")
-required = ("DATABASE_URL", "BETTER_AUTH_SECRET", "GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET",
-            "RESEND_API_KEY", "GEMINI_API_KEY", "INNGEST_EVENT_KEY", "TURSO_AUTH_TOKEN")
-for key in required:
-    item = env.get(key, {})
-    if not item.get("value") and not item.get("valueFrom", {}).get("secretKeyRef"):
-        sys.exit("Missing required staging runtime setting: " + key)
-print("Existing staging runtime configuration verified; secret values were not retrieved.")
-PY
-
-# Preserve runtime variables, secret references and invocation IAM. Deploy first
+# Sync GitHub runtime settings and preserve unmanaged settings/references and IAM.
+# Deploy first
 # without changing traffic; gcloud waits for the new revision to become ready.
 gcloud run deploy "$CLOUD_RUN_SERVICE" "${target[@]}" \
   --image="$CLOUD_RUN_IMAGE" \
   --service-account="$CLOUD_RUN_RUNTIME_ACCOUNT" \
+  "${runtime_flags[@]}" \
   --cpu=1 --memory=1Gi --cpu-throttling \
   --min=0 --max=1 --concurrency=8 --timeout=300 --port=8080 \
   --no-traffic --quiet --format=json > "$temporary/deployed.json"
