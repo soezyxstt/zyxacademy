@@ -92,7 +92,7 @@ jobs:
     env:
       GCP_PROJECT: zyx-academy
       GCP_REGION: asia-east1
-      CLOUD_RUN_SERVICE: zyx-academy-staging
+      CLOUD_RUN_SERVICE: zyx-academy
       IMAGE: asia-east1-docker.pkg.dev/zyx-academy/zyx-staging/zyx-academy
       NEXT_TELEMETRY_DISABLED: '1'
       PUPPETEER_SKIP_DOWNLOAD: 'true'
@@ -135,7 +135,7 @@ jobs:
               output.write('service_account=' + key['client_email'] + '\n')
           PY
       - name: Check deployment ordering and failure handling
-        run: python3 -m unittest discover -s .github/scripts -p test_deploy_cloud_run.py -v
+        run: python3 -m unittest discover -s .github/scripts -p 'test_*cloud_run*.py' -v
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: '24'
@@ -156,8 +156,8 @@ jobs:
           DATABASE_URL: ${{ secrets.TURSO_DATABASE_URL || secrets.TURSO_CONNECTION_URL || secrets.DATABASE_URL }}
           TURSO_CONNECTION_URL: ${{ secrets.TURSO_DATABASE_URL || secrets.TURSO_CONNECTION_URL || secrets.DATABASE_URL }}
           TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}
-          AUTHORING_VERIFICATION_BROWSER_PROVIDER: ${{ vars.AUTHORING_VERIFICATION_BROWSER_PROVIDER || 'cloudflare' }}
-          AUTHORING_VERIFICATION_STEEL_BROWSER_VERSION: ${{ vars.AUTHORING_VERIFICATION_STEEL_BROWSER_VERSION }}
+          AUTHORING_VERIFICATION_BROWSER_PROVIDER: ${{ vars.AUTHORING_VERIFICATION_BROWSER_PROVIDER || secrets.AUTHORING_VERIFICATION_BROWSER_PROVIDER || 'cloudflare' }}
+          AUTHORING_VERIFICATION_STEEL_BROWSER_VERSION: ${{ vars.AUTHORING_VERIFICATION_STEEL_BROWSER_VERSION || secrets.AUTHORING_VERIFICATION_STEEL_BROWSER_VERSION }}
           NEXT_PUBLIC_APP_URL: ${{ vars.NEXT_PUBLIC_APP_URL || secrets.NEXT_PUBLIC_APP_URL }}
           NEXT_PUBLIC_SENTRY_DSN: ${{ vars.NEXT_PUBLIC_SENTRY_DSN || secrets.NEXT_PUBLIC_SENTRY_DSN }}
           NEXT_PUBLIC_DESMOS_API_KEY: ${{ vars.NEXT_PUBLIC_DESMOS_API_KEY || secrets.NEXT_PUBLIC_DESMOS_API_KEY }}
@@ -227,6 +227,9 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
       - name: Deploy the exact image and move staging traffic after readiness
         env:
+          # Used only by the runtime allowlist, after the image is already pushed.
+          GITHUB_STAGING_SECRETS: ${{ toJSON(secrets) }}
+          GITHUB_STAGING_VARS: ${{ toJSON(vars) }}
           CLOUD_RUN_RUNTIME_ACCOUNT: ${{ steps.staging-config.outputs.service_account }}
           CLOUD_RUN_IMAGE: ${{ steps.published-image.outputs.image }}
           CLOUD_RUN_BUILD_ORIGIN: ${{ vars.NEXT_PUBLIC_APP_URL || secrets.NEXT_PUBLIC_APP_URL }}

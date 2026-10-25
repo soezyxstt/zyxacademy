@@ -4,11 +4,11 @@ Status: `OPEN / IN PROGRESS`. Pricing checked on 2026-10-25. The user reports cr
 
 ## Target and configuration
 
-The selected project is `zyx-academy`; the selected region is Taiwan, `asia-east1`. Kuala Lumpur was not available in the user's repository creation form. Deploy the Next.js web app and retain the existing staging Turso database, R2 storage, Deno worker, Inngest environment, and supporting Cloudflare Workers.
+The selected project is `zyx-academy`; the selected region is Taiwan, `asia-east1`. The user has already created service `zyx-academy`; CI deploys directly to that existing service and does not create another one. Kuala Lumpur was not available in the user's repository creation form. Deploy the Next.js web app and retain the existing staging Turso database, R2 storage, Deno worker, Inngest environment, and supporting Cloudflare Workers.
 
 | Setting | Initial value |
 | --- | --- |
-| Service | `zyx-academy-staging` |
+| Service | `zyx-academy` |
 | Billing | Request-based, CPU throttled outside requests |
 | CPU | 1 vCPU |
 | Memory | 1 GiB, provisional until measured |
@@ -46,7 +46,7 @@ Avoid keep-alive pings, warm minimum instances, Cloud SQL, and unnecessary new n
 
 The staging job authenticates with the service-account JSON stored in GitHub Environment Secret `GCP_SERVICE_ACCOUNT_KEY`. Google credential files are created only after image building and testing. The workflow does not request GitHub OIDC token permissions. After pushing the image, `.github/scripts/deploy-cloud-run.sh` inspects the configured staging service, deploys the exact digest without traffic, checks that the new ready revision uses that digest, then directs 100 percent of staging traffic to it. The workflow summary records the image, revision, URL, and previous traffic for rollback.
 
-The deployment targets only `zyx-academy/asia-east1/zyx-academy-staging`. It retains the existing service's runtime environment variables, secret references, and invocation IAM. It reapplies the cost settings in the table above and the same account identified by the CI JSON key. A missing service, missing required runtime settings, production environment marker, or mismatched public build/runtime origin blocks deployment. A failed or mismatched revision does not trigger a traffic switch. The existing Deno deployment workflow is separate. No Cloud Build trigger is created.
+The deployment targets only `zyx-academy/asia-east1/zyx-academy`. It synchronizes allowlisted runtime values from GitHub staging, retains unmanaged variables and unreplaced Secret Manager references, and preserves invocation IAM. It reapplies the cost settings in the table above and the same account identified by the CI JSON key. A missing service, missing required runtime settings, explicit non-staging marker, or non-staging database/origin blocks deployment. Missing staging markers and old runtime origins are repaired using the staging build origin. A failed or mismatched revision does not trigger a traffic switch. The existing Deno deployment workflow is separate. No Cloud Build trigger is created.
 
 The image runs as an unprivileged Node 24 user and uses the traced server, static assets and public files. The Docker build context is allowlisted by `Dockerfile.cloud-run.dockerignore`. Root `.env` files, keys, local databases and generated Google credentials do not enter the image. Chromium is not downloaded; deployed browser work stays on the existing external providers. Only the isolated Next build process skips server environment validation. Sitemap generation requires the existing staging Turso URL/token as process environment values; the workflow checks the exact staging database hostname before building. These credentials are not image build arguments, copied environment files, or image environment settings. Prefer a read-only token for the build. The final image leaves runtime validation enabled.
 
@@ -76,7 +76,7 @@ Then configure the public origin as an **Environment Variable**:
 | --- | --- |
 | `NEXT_PUBLIC_APP_URL` | Exact intended staging origin, for example `https://staging.zyxacademy.com` when retaining that hostname |
 
-Configure the existing staging Turso URL under `TURSO_DATABASE_URL`, `TURSO_CONNECTION_URL`, or `DATABASE_URL`, plus `TURSO_AUTH_TOKEN`, as GitHub Environment Secrets. The build reads published blog metadata for the sitemap. Use a read-only token where available; no migration or database mutation command runs. A missing token or a database hostname different from the existing staging host blocks the build.
+Configure the existing staging Turso URL under `TURSO_DATABASE_URL`, `TURSO_CONNECTION_URL`, or `DATABASE_URL`, plus `TURSO_AUTH_TOKEN`, as GitHub Environment Secrets. Also provide `BETTER_AUTH_SECRET`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `RESEND_API_KEY`, `GEMINI_API_KEY`, and `INNGEST_EVENT_KEY` there if they are not already configured on the service. Existing server integration values, including R2, Vectorize, Firebase, Steel, and Google Workspace settings, are copied when present under the allowlisted application variable names. GitHub Variables take precedence over matching Secrets when nonempty. Existing public feature-flag values are copied as configured; no new feature flag is introduced. The build reads published blog metadata for the sitemap. The runtime token must support the app's normal staging operations; a read-only build token alone is insufficient for application writes. No migration or database mutation command runs during deployment. A missing token or a database hostname different from the existing staging host blocks the build.
 
 The workflow accepts existing `NEXT_PUBLIC_*` GitHub Environment Secrets when a matching Variable is absent. Mirror the current staging public Firebase, realtime, analytics, brand and other browser configuration under the explicit names listed in the staging build step. Do not copy backend secrets into public settings. Optional empty public settings are unset during the build so existing app defaults apply.
 
@@ -84,19 +84,19 @@ Keep `AUTHORING_VERIFICATION_BROWSER_PROVIDER` and, for Steel, `AUTHORING_VERIFI
 
 After merging the prepared change into `staging`, each push builds, tests, publishes, and deploys the new image automatically. A manual run must also select branch `staging`. The account identified by the JSON key needs both image-publication and staging-deployment permissions. `GCP_WORKLOAD_IDENTITY_PROVIDER` and `GCP_BUILD_SERVICE_ACCOUNT` are no longer read by the workflow.
 
-The service and its runtime secrets need one-time bootstrap configuration. If the service does not exist yet, the first run can publish its image, then fail at service inspection. Use that run's image digest in the one-time Console creation below, grant the service-level CI permissions, and rerun the workflow. Subsequent pushes need no Console image selection or manual deployment.
+The service identity and invocation policy need one-time bootstrap configuration. Runtime application values are synced automatically from GitHub during CI deployment. If the service does not exist yet, the first run can publish its image, then fail at service inspection. Use that run's image digest in the one-time Console creation below, grant the service-level CI permissions, and rerun the workflow. Subsequent pushes need no Console image selection or manual deployment.
 
 Production still uses the existing `production` GitHub Environment and Vercel configuration. The old staging Vercel deployment remains available, but this workflow stops updating it once the change reaches `staging`.
 
 ## Setup sequence
 
 1. Inspect the project's billing association, existing Cloud Run services, repositories, service accounts, budgets, and secrets read-only before creating or updating resources. Google Cloud authentication is not configured in the current managed workspace.
-2. Complete the CI/CD setup above using the single account from the JSON key. Configure its project roles in IAM & Admin > IAM. If using Secret Manager, grant it access to the required staging secrets. Give the human performing initial service creation the necessary creation and service-account-use permissions as well.
+2. Complete the CI/CD setup above using the single account from the JSON key. Configure its project roles in IAM & Admin > IAM. If preserving existing Secret Manager references, grant it access to those secrets. GitHub-to-runtime environment sync does not require a new Secret Manager setup. Give the human performing initial service creation the necessary creation and service-account-use permissions as well.
 3. Run the existing GitHub Actions workflow for `staging`; it publishes and deploys the tested image digest automatically after one-time bootstrap. The complete build includes authoring skills and the V4 runtime fingerprint. `Dockerfile.cloud-run` copies the standalone output, `public`, and `.next/static`. Build in GitHub Actions, not at startup inside the 1 GiB web container.
 4. Exclude `.env*`, local databases, backups, credentials, Git metadata, and local artifacts from the build context. Do not copy staging or production credentials into image layers or build arguments. Use secret mounts if the build genuinely requires credentials. Inspect the resulting image for accidental sensitive files.
 5. Choose the staging origin before the final build. Next.js embeds `NEXT_PUBLIC_*` at build time. Keep the existing staging hostname if that is the cutover target. To use the generated `run.app` URL instead, obtain it from an initial private deployment, then update GitHub `NEXT_PUBLIC_APP_URL`, rebuild and redeploy before testing login. Runtime environment updates alone cannot generally change public build values.
-6. Configure `NODE_ENV=production`, `ZYX_ENVIRONMENT=staging`, matching `BETTER_AUTH_URL` and `NEXT_PUBLIC_APP_URL`, and the exact staging database, storage, and provider settings. Use `lib/env.ts` as the variable contract. Keep `SKIP_ENV_VALIDATION` unset at runtime. Do not enable mutation flags or change feature flags as a side effect. Use remote Turso rather than ephemeral local SQLite for persistent staging data.
-7. Map staging secrets from Secret Manager and deploy privately for initial verification. IAM-private Cloud Run requires Google invocation authentication in addition to the app login. Browser login, external webhooks, and MCP clients need a deliberate access policy. Before public invocation, verify application authentication and webhook signature checks.
+6. Configure the application's required settings in GitHub Environment `staging`. CI sets `NODE_ENV=production`, `ZYX_ENVIRONMENT=staging`, matching auth/public origins, and all three Turso URL aliases. It removes `SKIP_ENV_VALIDATION` and excludes CI-only credentials. The runtime token and configuration must point to staging. Optional existing feature flags are synchronized only when supplied; absent values retain the existing service setting or app default.
+7. Existing Secret Manager references may remain for settings not supplied by GitHub. The synchronized GitHub application secrets are stored as runtime environment values in Cloud Run, visible to identities authorized to read that service configuration; they are not Docker layers. Deploy privately for initial verification. IAM-private Cloud Run requires Google invocation authentication in addition to the app login. Browser login, external webhooks, and MCP clients need a deliberate access policy. Before public invocation, verify application authentication and webhook signature checks.
 8. Review Better Auth base URL and trusted-origin behavior in `lib/auth.ts`; configure the exact Google OAuth callback. Check hard-coded staging-origin assumptions, MCP OAuth discovery and redirects, streaming, R2 CORS and signed URLs. Test the new origin before DNS cutover.
 9. Migrate or retain the daily `/api/cron/analytics` invocation deliberately. Cloud Run does not execute `vercel.json` crons. Inspect route authentication, account for replacement scheduler costs, and avoid duplicate executions. Retain the existing staging Deno/Inngest registration for background work.
 10. Verify login, protected routes, uploads/downloads, jobs, and relevant MCP flows. Measure cold starts, peak memory, request duration, failures, and billing under representative traffic. Keep rollback available before replacing the previous staging deployment.
@@ -104,9 +104,9 @@ Production still uses the existing `production` GitHub Environment and Vercel co
 ## One-time service bootstrap through Console
 
 1. Open Cloud Run > Deploy container / Create service and select **Deploy one revision from an existing container image**. Do not select continuous source deployment or Cloud Build.
-2. Select the image digest from the workflow summary, service `zyx-academy-staging`, region Taiwan (`asia-east1`), request-based billing, minimum 0 and maximum 1 at service level.
+2. Select the image digest from the workflow summary, service `zyx-academy`, region Taiwan (`asia-east1`), request-based billing, minimum 0 and maximum 1 at service level.
 3. Under the container settings, set 1 vCPU, 1 GiB memory, port 8080, concurrency 8 and timeout 300 seconds. Under Security, select the same service account whose JSON key is stored in GitHub. That account also needs Secret Manager Secret Accessor on the staging secrets referenced by the service.
-4. Add plain runtime variables `ZYX_ENVIRONMENT=staging`, `BETTER_AUTH_URL`, and `NEXT_PUBLIC_APP_URL`. Both URLs must match the GitHub public build origin. Add the required values or Secret Manager references for `DATABASE_URL`, `BETTER_AUTH_SECRET`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `RESEND_API_KEY`, `GEMINI_API_KEY`, `INNGEST_EVENT_KEY`, and `TURSO_AUTH_TOKEN`, plus the other staging integration settings in `lib/env.ts`. Use the exact staging Turso endpoint and token. Leave `SKIP_ENV_VALIDATION` entirely unset. The deployment preflight checks these settings by name/reference without retrieving secret values.
+4. Runtime variables need not be entered manually. Configure them in GitHub staging as above, then let CI deploy the configured revision. A manually deployed image without those values can fail by trying to use local `dev.db`; the next CI deployment now repairs this by setting the verified remote Turso URL and token before switching traffic.
 5. Require authentication for the initial deployment. Test and deliberately choose invocation access for browser/OAuth/webhook/MCP use before cutover, as described above. The workflow preserves the invocation policy configured here; it does not change public access.
 6. Deploy the initial service. The account's existing project-level Cloud Run Developer and Service Account User grants cover this service; no duplicate service-level grants are needed.
 7. Rerun the staging workflow. Verify its Cloud Run deployment step and revision/traffic summary. All later staging pushes run this deployment automatically.
@@ -117,7 +117,7 @@ Production still uses the existing `production` GitHub Environment and Vercel co
 Use after preparing a tested image, runtime service account, runtime variables, and secret references. This command alone does not configure a working Zyx deployment. It starts private and grants no public invocation access.
 
 ```bash
-gcloud run deploy zyx-academy-staging \
+gcloud run deploy zyx-academy \
   --project=zyx-academy \
   --region=asia-east1 \
   --image=asia-east1-docker.pkg.dev/zyx-academy/zyx-staging/zyx-academy:IMAGE_TAG \
@@ -136,6 +136,8 @@ gcloud run deploy zyx-academy-staging \
 Use service-level `--max`, rather than relying solely on revision-level `--max-instances`. If updating an existing service, inspect existing IAM bindings separately; the template is not proof that prior public access was removed.
 
 ## Local validation on 2026-10-25
+
+The runtime environment sync follow-up passes 12 local tests covering repair of an unconfigured manual deployment, database alias precedence, missing mandatory values, rejection of production targets, lossless multiline credentials, CI-key exclusion, existing Secret Manager references, feature-flag preservation, traffic ordering, and temporary-file cleanup. Workflow syntax and whitespace checks pass. GitHub Secret metadata could not be listed due to the integration's 403 response; no secret values were fetched. Remote deployment verification remains separate.
 
 - Updated the working branch from remote `staging` by fast-forward to `101e00b3`, preserving the deployment documentation draft and resolving its documentation-index overlap.
 - Installed the locked dependencies in an isolated checkout with Bun 1.3.14. Built the complete standalone application with Node 24, the locked staging authoring skills, the V4 runtime preparation, and only staging database credentials plus synthetic/public build configuration. Verified the exact staging database hostname and performed a read-only published-blog query before building. The initial build without database credentials failed on sitemap prerendering; the final pipeline includes the required staging connection.

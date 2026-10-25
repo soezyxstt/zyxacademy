@@ -78,10 +78,11 @@ The read-only `/v4` page presents a version-specific Article preview and its ins
 then packages the standalone output in `Dockerfile.cloud-run`, smoke tests it,
 and pushes an immutable commit-tagged image to
 `asia-east1-docker.pkg.dev/zyx-academy/zyx-staging/zyx-academy`.
-Cloud Build is not used. The same staging job deploys that digest to `zyx-academy-staging` in Taiwan,
+Cloud Build is not used. The same staging job deploys that digest to `zyx-academy` in Taiwan,
 waits for the new revision to be ready without traffic, verifies the revision's
-image, then directs 100 percent of staging traffic to it. The workflow preserves
-runtime secret references, environment variables and invocation IAM. It does not
+image, then directs 100 percent of staging traffic to it. The workflow synchronizes application runtime values from GitHub Environment
+`staging` and preserves unmanaged settings, remaining Secret Manager references,
+and invocation IAM. It does not
 change DNS. The CI summary records the image, revision, URL and previous traffic
 for rollback.
 
@@ -120,8 +121,15 @@ read-only database token for builds. These credentials are process environment
 values, not image build arguments, copied files, or image environment settings.
 Set `NEXT_PUBLIC_APP_URL` to the chosen staging origin and mirror the existing
 public integration settings. Empty optional public settings are unset so app
-defaults apply. Other database, auth, AI and storage credentials are configured
-as Cloud Run runtime secrets. Only the isolated build process uses
+defaults apply. The deployment step passes the staging Secrets/Variables to a
+strict application-runtime allowlist in `.github/scripts/cloud_run_runtime.py`.
+It writes a mode-0600 temporary environment file after image publication and
+supplies it to `gcloud run deploy`. GitHub application credentials become runtime
+environment values in Cloud Run; they are not included in Docker image layers.
+CI-only keys/tokens are excluded. Existing unmanaged settings and Secret Manager
+references are preserved unless explicitly replaced by GitHub values. All three
+Turso URL aliases are synchronized to the verified staging endpoint, preventing
+an old local URL from taking precedence. Temporary files are deleted on exit. Only the isolated build process uses
 `SKIP_ENV_VALIDATION=1`; the final image leaves runtime validation enabled.
 
 Both builds run the complete `bun run build`, including authoring skills and V4
@@ -134,13 +142,16 @@ The workflow validates native canvas, PDF/KaTeX assets, authoring skills, and
 HTTP static serving with a 1 GiB memory limit before authenticating and pushing.
 This smoke check does not establish database, OAuth, SSR load, or remote success.
 
-The one-time service bootstrap remains in Console so runtime secret references,
-origins, the same CI/runtime identity and invocation policy are explicitly configured. If the
+The one-time service bootstrap remains in Console for the service identity and
+invocation policy. Application variables do not need to be manually entered there:
+CI synchronizes them from GitHub before deploying the next revision. If the
 service is absent, CI publishes the image but refuses to create an unconfigured
 app; use that image for initial setup and rerun. Subsequent pushes build, push and
 deploy automatically. The deployment script rejects a wrong project/service,
-a missing staging marker, a build/runtime origin mismatch, missing required
-runtime settings, or build-only validation bypass at runtime. A failed/unready
+an explicit non-staging marker, a non-staging database/origin, or missing required
+runtime settings. Missing staging markers and origins are repaired from the
+reviewed GitHub staging settings. Build-only validation bypass is removed from
+the runtime configuration. A failed/unready
 revision or a digest mismatch prevents the traffic update. Editor and Owner are not required. The single account needs secret-value
 access when its Cloud Run runtime reads Secret Manager references.
 
