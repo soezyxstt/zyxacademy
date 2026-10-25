@@ -92,7 +92,7 @@ jobs:
     env:
       GCP_PROJECT: zyx-academy
       GCP_REGION: asia-east1
-      CLOUD_RUN_SERVICE: zyx-academy-staging
+      CLOUD_RUN_SERVICE: zyx-academy
       IMAGE: asia-east1-docker.pkg.dev/zyx-academy/zyx-staging/zyx-academy
       NEXT_TELEMETRY_DISABLED: '1'
       PUPPETEER_SKIP_DOWNLOAD: 'true'

@@ -73,7 +73,7 @@ else:
             env = {
                 "PATH": str(root) + os.pathsep + os.environ["PATH"],
                 "GCP_PROJECT": project, "GCP_REGION": "asia-east1",
-                "CLOUD_RUN_SERVICE": "zyx-academy-staging",
+                "CLOUD_RUN_SERVICE": "zyx-academy",
                 "CLOUD_RUN_RUNTIME_ACCOUNT": ACCOUNT, "CLOUD_RUN_IMAGE": IMAGE,
                 "CLOUD_RUN_BUILD_ORIGIN": ORIGIN,
                 "FAKE_ROOT": str(root), "SCENARIO": scenario,

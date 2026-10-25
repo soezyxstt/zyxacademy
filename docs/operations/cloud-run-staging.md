@@ -4,11 +4,11 @@ Status: `OPEN / IN PROGRESS`. Pricing checked on 2026-10-25. The user reports cr
 
 ## Target and configuration
 
-The selected project is `zyx-academy`; the selected region is Taiwan, `asia-east1`. Kuala Lumpur was not available in the user's repository creation form. Deploy the Next.js web app and retain the existing staging Turso database, R2 storage, Deno worker, Inngest environment, and supporting Cloudflare Workers.
+The selected project is `zyx-academy`; the selected region is Taiwan, `asia-east1`. The user has already created service `zyx-academy`; CI deploys directly to that existing service and does not create another one. Kuala Lumpur was not available in the user's repository creation form. Deploy the Next.js web app and retain the existing staging Turso database, R2 storage, Deno worker, Inngest environment, and supporting Cloudflare Workers.
 
 | Setting | Initial value |
 | --- | --- |
-| Service | `zyx-academy-staging` |
+| Service | `zyx-academy` |
 | Billing | Request-based, CPU throttled outside requests |
 | CPU | 1 vCPU |
 | Memory | 1 GiB, provisional until measured |
@@ -46,7 +46,7 @@ Avoid keep-alive pings, warm minimum instances, Cloud SQL, and unnecessary new n
 
 The staging job authenticates with the service-account JSON stored in GitHub Environment Secret `GCP_SERVICE_ACCOUNT_KEY`. Google credential files are created only after image building and testing. The workflow does not request GitHub OIDC token permissions. After pushing the image, `.github/scripts/deploy-cloud-run.sh` inspects the configured staging service, deploys the exact digest without traffic, checks that the new ready revision uses that digest, then directs 100 percent of staging traffic to it. The workflow summary records the image, revision, URL, and previous traffic for rollback.
 
-The deployment targets only `zyx-academy/asia-east1/zyx-academy-staging`. It synchronizes allowlisted runtime values from GitHub staging, retains unmanaged variables and unreplaced Secret Manager references, and preserves invocation IAM. It reapplies the cost settings in the table above and the same account identified by the CI JSON key. A missing service, missing required runtime settings, explicit non-staging marker, or non-staging database/origin blocks deployment. Missing staging markers and old runtime origins are repaired using the staging build origin. A failed or mismatched revision does not trigger a traffic switch. The existing Deno deployment workflow is separate. No Cloud Build trigger is created.
+The deployment targets only `zyx-academy/asia-east1/zyx-academy`. It synchronizes allowlisted runtime values from GitHub staging, retains unmanaged variables and unreplaced Secret Manager references, and preserves invocation IAM. It reapplies the cost settings in the table above and the same account identified by the CI JSON key. A missing service, missing required runtime settings, explicit non-staging marker, or non-staging database/origin blocks deployment. Missing staging markers and old runtime origins are repaired using the staging build origin. A failed or mismatched revision does not trigger a traffic switch. The existing Deno deployment workflow is separate. No Cloud Build trigger is created.
 
 The image runs as an unprivileged Node 24 user and uses the traced server, static assets and public files. The Docker build context is allowlisted by `Dockerfile.cloud-run.dockerignore`. Root `.env` files, keys, local databases and generated Google credentials do not enter the image. Chromium is not downloaded; deployed browser work stays on the existing external providers. Only the isolated Next build process skips server environment validation. Sitemap generation requires the existing staging Turso URL/token as process environment values; the workflow checks the exact staging database hostname before building. These credentials are not image build arguments, copied environment files, or image environment settings. Prefer a read-only token for the build. The final image leaves runtime validation enabled.
 
@@ -104,7 +104,7 @@ Production still uses the existing `production` GitHub Environment and Vercel co
 ## One-time service bootstrap through Console
 
 1. Open Cloud Run > Deploy container / Create service and select **Deploy one revision from an existing container image**. Do not select continuous source deployment or Cloud Build.
-2. Select the image digest from the workflow summary, service `zyx-academy-staging`, region Taiwan (`asia-east1`), request-based billing, minimum 0 and maximum 1 at service level.
+2. Select the image digest from the workflow summary, service `zyx-academy`, region Taiwan (`asia-east1`), request-based billing, minimum 0 and maximum 1 at service level.
 3. Under the container settings, set 1 vCPU, 1 GiB memory, port 8080, concurrency 8 and timeout 300 seconds. Under Security, select the same service account whose JSON key is stored in GitHub. That account also needs Secret Manager Secret Accessor on the staging secrets referenced by the service.
 4. Runtime variables need not be entered manually. Configure them in GitHub staging as above, then let CI deploy the configured revision. A manually deployed image without those values can fail by trying to use local `dev.db`; the next CI deployment now repairs this by setting the verified remote Turso URL and token before switching traffic.
 5. Require authentication for the initial deployment. Test and deliberately choose invocation access for browser/OAuth/webhook/MCP use before cutover, as described above. The workflow preserves the invocation policy configured here; it does not change public access.
@@ -117,7 +117,7 @@ Production still uses the existing `production` GitHub Environment and Vercel co
 Use after preparing a tested image, runtime service account, runtime variables, and secret references. This command alone does not configure a working Zyx deployment. It starts private and grants no public invocation access.
 
 ```bash
-gcloud run deploy zyx-academy-staging \
+gcloud run deploy zyx-academy \
   --project=zyx-academy \
   --region=asia-east1 \
   --image=asia-east1-docker.pkg.dev/zyx-academy/zyx-staging/zyx-academy:IMAGE_TAG \

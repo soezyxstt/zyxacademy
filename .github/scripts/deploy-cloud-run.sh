@@ -7,7 +7,7 @@ set -euo pipefail
 
 # Keep the deployment target fixed even when invoked outside the workflow.
 if [ "$GCP_PROJECT" != zyx-academy ] || [ "$GCP_REGION" != asia-east1 ] || \
-   [ "$CLOUD_RUN_SERVICE" != zyx-academy-staging ] || \
+   [ "$CLOUD_RUN_SERVICE" != zyx-academy ] || \
    [[ ! "$CLOUD_RUN_RUNTIME_ACCOUNT" =~ ^[a-z0-9-]+@zyx-academy\.iam\.gserviceaccount\.com$ ]] || \
    [[ ! "$CLOUD_RUN_IMAGE" =~ ^asia-east1-docker\.pkg\.dev/zyx-academy/zyx-staging/zyx-academy@sha256:[a-f0-9]{64}$ ]]; then
   echo '::error::Unexpected staging deployment target or image digest.'

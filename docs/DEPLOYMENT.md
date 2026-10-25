@@ -78,7 +78,7 @@ The read-only `/v4` page presents a version-specific Article preview and its ins
 then packages the standalone output in `Dockerfile.cloud-run`, smoke tests it,
 and pushes an immutable commit-tagged image to
 `asia-east1-docker.pkg.dev/zyx-academy/zyx-staging/zyx-academy`.
-Cloud Build is not used. The same staging job deploys that digest to `zyx-academy-staging` in Taiwan,
+Cloud Build is not used. The same staging job deploys that digest to `zyx-academy` in Taiwan,
 waits for the new revision to be ready without traffic, verifies the revision's
 image, then directs 100 percent of staging traffic to it. The workflow synchronizes application runtime values from GitHub Environment
 `staging` and preserves unmanaged settings, remaining Secret Manager references,
