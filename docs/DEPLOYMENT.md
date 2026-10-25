@@ -67,9 +67,65 @@ V4 verification uses the existing Deno Deploy worker with Cloudflare Browser Run
 
 The read-only `/v4` page presents a version-specific Article preview and its inspected static Diktat PDF. It does not convert or publish existing course content. Existing Articles adopt V4 through an explicitly authored and reviewed V4 bundle.
 
-1. Connect repo to Vercel
-2. Set all env vars from `lib/env.ts` in Vercel dashboard
-3. Deploy ; App Router + Server Actions work natively
+### Web builds in GitHub Actions
+
+`.github/workflows/deploy-web.yml` builds the web application on a GitHub-hosted
+Ubuntu runner and uploads `.vercel/output` with `vercel deploy --prebuilt`. Vercel
+serves the resulting deployment without running another application build.
+The Deno worker retains its separate `.github/workflows/deploy.yml` pipeline.
+
+| Git branch | GitHub Environment | Vercel environment | Domain |
+| --- | --- | --- | --- |
+| `staging` | `staging` | Preview, branch `staging` | `staging.zyxacademy.com` |
+| `main` | `production` | Production | `www.zyxacademy.com` |
+
+Both branches use Vercel project `zyxacademy`
+(`prj_9wDdc36VFIH5wJT45jEXIHGst2pb`) in team
+`team_rMFT8hSTCTObKzXirjJcbMFc`. Staging is a branch-specific Preview deployment,
+not a Vercel custom environment. The workflow preserves the Git branch and commit
+metadata so the existing branch-domain assignment continues to apply.
+
+Before merging this migration:
+
+1. Configure `VERCEL_TOKEN` as a secret in each GitHub Environment used by the
+   workflow. The token must have access to the team and project above. Configure
+   it directly in GitHub, never in source or a workflow input. Its presence was
+   not verified during implementation because the GitHub integration denied
+   access to secret metadata.
+2. Restrict the `staging` GitHub Environment to branch `staging`, and the
+   `production` environment to branch `main`. Retain the team's required review
+   rules. Only these branches can run this workflow; PRs do not receive deployment
+   credentials or automatically deploy.
+3. Keep application variables from `lib/env.ts` in Vercel, with Preview overrides
+   for branch `staging` and separate Production values. `vercel pull` retrieves
+   the matching configuration before the build, including `NEXT_PUBLIC_*` values
+   that become embedded in browser assets. Check the V4 browser-provider settings
+   against the matching Deno environment as described above.
+
+The runner uses Node.js 24, matching the Vercel project, Bun 1.3.14, and pinned
+Vercel CLI 65.2.0. `vercel build` runs the `vercel.json` frozen-lockfile install
+and `bun run build`, which also generates authoring skills and the V4 runtime
+fingerprint. A failed pull or build prevents deployment. Releases are serialized
+per branch. Manual runs use the selected `main` or `staging` branch.
+
+`vercel.json` disables automatic Git deployments for every branch to prevent a
+second build on Vercel. The old `scripts/vercel-ignore-build.sh` is no longer the
+deployment gate. The workflow intentionally has no path filter, so shared web and
+worker configuration changes cannot leave the web deployment stale. Pulled
+environment files and build output stay on the runner, are removed at the end of
+the job, and are not published as GitHub artifacts or caches.
+
+After merging, verify the staging workflow succeeds, reports a deployment URL,
+and serves the expected revision at `staging.zyxacademy.com` without a remote
+application build. Verify authentication, a student course route, and V4 web/worker
+runtime compatibility before releasing the same pipeline through `main`.
+Local validation does not establish successful remote deployment or domain routing.
+
+To restore Git-based builds, disable this web workflow and restore
+`git.deploymentEnabled` entries for `main` and `staging` to `true` in
+`vercel.json`, then use the previous Vercel deployment flow. Existing ready
+deployments continue serving if a CI build fails. Do not promote a Preview build
+as Production: each environment must use its own pulled variables and build.
 
 ## Turso Database
 
