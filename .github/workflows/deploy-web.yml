@@ -1,0 +1,82 @@
+name: Build and deploy web
+
+on:
+  push:
+    branches: [main, staging]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Serialize releases so an older upload cannot overtake a newer release.
+concurrency:
+  group: deploy-web-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/staging'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: ${{ github.ref_name == 'main' && 'production' || 'staging' }}
+    env:
+      # Non-secret IDs verified against the project's Vercel configuration.
+      VERCEL_ORG_ID: team_rMFT8hSTCTObKzXirjJcbMFc
+      VERCEL_PROJECT_ID: prj_9wDdc36VFIH5wJT45jEXIHGst2pb
+      VERCEL_CLI_VERSION: '65.2.0'
+      VERCEL_ENVIRONMENT: ${{ github.ref_name == 'main' && 'production' || 'preview' }}
+      VERCEL_TELEMETRY_DISABLED: '1'
+      NEXT_TELEMETRY_DISABLED: '1'
+      NODE_OPTIONS: --max-old-space-size=4096
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '24'
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version: '1.3.14'
+      - name: Install pinned Vercel CLI
+        run: npm install --global "vercel@$VERCEL_CLI_VERSION"
+      - name: Pull the exact deployment environment
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "${VERCEL_TOKEN:-}" ]; then
+            echo '::error::Configure VERCEL_TOKEN in this GitHub Environment before enabling web deployments.'
+            exit 1
+          fi
+          args=(--yes --environment="$VERCEL_ENVIRONMENT")
+          if [ "$VERCEL_ENVIRONMENT" = preview ]; then
+            args+=(--git-branch=staging)
+          fi
+          vercel pull "${args[@]}"
+      - name: Build on the GitHub runner
+        # vercel build runs the frozen installCommand and bun run build from
+        # vercel.json, including authoring skills and V4 runtime preparation.
+        run: |
+          set -euo pipefail
+          vercel build --environment="$VERCEL_ENVIRONMENT"
+          test -s .vercel/output/config.json
+      - name: Deploy the prebuilt output
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          set -euo pipefail
+          vercel deploy --prebuilt --yes --environment="$VERCEL_ENVIRONMENT" \
+            --meta githubDeployment=1 \
+            --meta githubCommitOrg=soezyxstt \
+            --meta githubCommitRepo=zyxacademy \
+            --meta "githubCommitRef=$GITHUB_REF_NAME" \
+            --meta "githubCommitSha=$GITHUB_SHA" > "$RUNNER_TEMP/web-deployment-url.txt"
+          printf 'Web deployment (%s): %s\n' "$VERCEL_ENVIRONMENT" \
+            "$(cat "$RUNNER_TEMP/web-deployment-url.txt")" >> "$GITHUB_STEP_SUMMARY"
+      - name: Remove pulled environment files and build output
+        if: always()
+        run: rm -rf .vercel
