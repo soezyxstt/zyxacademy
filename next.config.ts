@@ -5,6 +5,8 @@ import { existsSync, readFileSync } from "node:fs";
 const webRuntimePath = `${process.cwd()}/artifacts/authoring-verification/web-runtime.json`;
 
 const nextConfig: NextConfig = {
+  // Container packaging only. Vercel builds keep their existing output mode.
+  output: process.env.NEXT_OUTPUT === "standalone" ? "standalone" : undefined,
   skipProxyUrlNormalize: true,
   env: { NEXT_PUBLIC_V4_WEB_RUNTIME: existsSync(webRuntimePath) ? readFileSync(webRuntimePath, "utf8") : "" },
   serverExternalPackages: ["pyodide", "puppeteer", "@napi-rs/canvas", "pdfjs-dist", "pdf-parse"],

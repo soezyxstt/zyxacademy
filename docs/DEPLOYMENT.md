@@ -1,5 +1,9 @@
 # Deployment Guide
 
+## Proposed Cloud Run staging setup
+
+The [Cloud Run staging runbook](operations/cloud-run-staging.md) is `OPEN / IN PROGRESS` for project `zyx-academy` in Taiwan (`asia-east1`). It covers the proposed request-based, scale-to-zero configuration, cost limits, container prerequisites, secrets, OAuth/origin checks, and scheduler migration. No Cloud Run deployment is verified yet.
+
 ## Architecture
 
 Production runs on Vercel (Next.js) + Turso (DB) with Deno Deploy (background compute) and supporting Cloudflare services.
@@ -69,63 +73,86 @@ The read-only `/v4` page presents a version-specific Article preview and its ins
 
 ### Web builds in GitHub Actions
 
-`.github/workflows/deploy-web.yml` builds the web application on a GitHub-hosted
-Ubuntu runner and uploads `.vercel/output` with `vercel deploy --prebuilt`. Vercel
-serves the resulting deployment without running another application build.
-The Deno worker retains its separate `.github/workflows/deploy.yml` pipeline.
+`.github/workflows/deploy-web.yml` retains the production Vercel prebuilt job for
+`main`. Its `staging-image` job builds branch `staging` with Node 24 and Bun 1.3.14,
+then packages the standalone output in `Dockerfile.cloud-run`, smoke tests it,
+and pushes an immutable commit-tagged image to
+`asia-east1-docker.pkg.dev/zyx-academy/zyx-staging/zyx-academy`.
+Cloud Build is not used. The same staging job deploys that digest to `zyx-academy-staging` in Taiwan,
+waits for the new revision to be ready without traffic, verifies the revision's
+image, then directs 100 percent of staging traffic to it. The workflow preserves
+runtime secret references, environment variables and invocation IAM. It does not
+change DNS. The CI summary records the image, revision, URL and previous traffic
+for rollback.
 
-| Git branch | GitHub Environment | Vercel environment | Domain |
-| --- | --- | --- | --- |
-| `staging` | `staging` | Preview, branch `staging` | `staging.zyxacademy.com` |
-| `main` | `production` | Production | `www.zyxacademy.com` |
+| Git branch | GitHub Environment | Build and destination |
+| --- | --- | --- |
+| `staging` | `staging` | Build, push to Taiwan Artifact Registry, automatically deploy Cloud Run staging |
+| `main` | `production` | Vercel Production, `www.zyxacademy.com` |
 
-Both branches use Vercel project `zyxacademy`
+Production uses the existing Vercel project `zyxacademy`
 (`prj_9wDdc36VFIH5wJT45jEXIHGst2pb`) in team
-`team_rMFT8hSTCTObKzXirjJcbMFc`. Staging is a branch-specific Preview deployment,
-not a Vercel custom environment. The workflow preserves the Git branch and commit
-metadata so the existing branch-domain assignment continues to apply.
+`team_rMFT8hSTCTObKzXirjJcbMFc`. Keep `VERCEL_TOKEN` and production app variables
+in their existing places. Production still runs `vercel pull`, `vercel build`
+and `vercel deploy --prebuilt` with CLI 65.2.0. The existing Deno worker retains
+its separate `.github/workflows/deploy.yml` pipeline.
 
-Before merging this migration:
+Before enabling staging CI/CD, follow the
+[Console setup runbook](operations/cloud-run-staging.md). Use one service
+account for CI and runtime. Grant it Artifact Registry Writer, Cloud Run Developer
+and Service Account User through project IAM. Existing project-level grants
+cover the project resources; repository-level grants are not additionally
+required. If the service references Secret Manager, this same account needs
+access to its staging secrets. Store the complete CI service-account JSON key in
+GitHub Environment `staging` as Secret `GCP_SERVICE_ACCOUNT_KEY`. The workflow
+validates the key type and project without printing it and authenticates only
+after packaging and testing the image. It does not use OIDC, a Workload Identity
+provider, or a Cloud Build trigger. Keep `NEXT_PUBLIC_APP_URL` as a staging
+Environment Variable or the existing matching Secret.
 
-1. Configure `VERCEL_TOKEN` as a secret in each GitHub Environment used by the
-   workflow. The token must have access to the team and project above. Configure
-   it directly in GitHub, never in source or a workflow input. Its presence was
-   not verified during implementation because the GitHub integration denied
-   access to secret metadata.
-2. Restrict the `staging` GitHub Environment to branch `staging`, and the
-   `production` environment to branch `main`. Retain the team's required review
-   rules. Only these branches can run this workflow; PRs do not receive deployment
-   credentials or automatically deploy.
-3. Keep application variables from `lib/env.ts` in Vercel, with Preview overrides
-   for branch `staging` and separate Production values. `vercel pull` retrieves
-   the matching configuration before the build, including `NEXT_PUBLIC_*` values
-   that become embedded in browser assets. Check the V4 browser-provider settings
-   against the matching Deno environment as described above.
+Staging builds receive explicitly listed public browser settings from GitHub
+Variables or Secrets, the non-secret V4 browser provider/version, and the existing
+staging Turso URL/token. Sitemap generation reads published blog metadata at
+build time. The build rejects any database hostname other than the allowlisted
+staging Turso host. Configure `TURSO_DATABASE_URL`, `TURSO_CONNECTION_URL`, or
+`DATABASE_URL`, plus `TURSO_AUTH_TOKEN`, in GitHub Environment `staging`; prefer a
+read-only database token for builds. These credentials are process environment
+values, not image build arguments, copied files, or image environment settings.
+Set `NEXT_PUBLIC_APP_URL` to the chosen staging origin and mirror the existing
+public integration settings. Empty optional public settings are unset so app
+defaults apply. Other database, auth, AI and storage credentials are configured
+as Cloud Run runtime secrets. Only the isolated build process uses
+`SKIP_ENV_VALIDATION=1`; the final image leaves runtime validation enabled.
 
-The runner uses Node.js 24, matching the Vercel project, Bun 1.3.14, and pinned
-Vercel CLI 65.2.0. `vercel build` runs the `vercel.json` frozen-lockfile install
-and `bun run build`, which also generates authoring skills and the V4 runtime
-fingerprint. A failed pull or build prevents deployment. Releases are serialized
-per branch. Manual runs use the selected `main` or `staging` branch.
+Both builds run the complete `bun run build`, including authoring skills and V4
+runtime preparation. Only the staging build sets `NEXT_OUTPUT=standalone`.
+The Docker context allowlist accepts the traced runtime, static assets, and
+`public`; environment files, local databases, keys, and generated Google
+credentials are excluded. No application compilation runs during the Docker
+packaging step or in Cloud Run. The staging image uses an unprivileged Node user.
+The workflow validates native canvas, PDF/KaTeX assets, authoring skills, and
+HTTP static serving with a 1 GiB memory limit before authenticating and pushing.
+This smoke check does not establish database, OAuth, SSR load, or remote success.
 
-`vercel.json` disables automatic Git deployments for every branch to prevent a
-second build on Vercel. The old `scripts/vercel-ignore-build.sh` is no longer the
-deployment gate. The workflow intentionally has no path filter, so shared web and
-worker configuration changes cannot leave the web deployment stale. Pulled
-environment files and build output stay on the runner, are removed at the end of
-the job, and are not published as GitHub artifacts or caches.
+The one-time service bootstrap remains in Console so runtime secret references,
+origins, the same CI/runtime identity and invocation policy are explicitly configured. If the
+service is absent, CI publishes the image but refuses to create an unconfigured
+app; use that image for initial setup and rerun. Subsequent pushes build, push and
+deploy automatically. The deployment script rejects a wrong project/service,
+a missing staging marker, a build/runtime origin mismatch, missing required
+runtime settings, or build-only validation bypass at runtime. A failed/unready
+revision or a digest mismatch prevents the traffic update. Editor and Owner are not required. The single account needs secret-value
+access when its Cloud Run runtime reads Secret Manager references.
 
-After merging, verify the staging workflow succeeds, reports a deployment URL,
-and serves the expected revision at `staging.zyxacademy.com` without a remote
-application build. Verify authentication, a student course route, and V4 web/worker
-runtime compatibility before releasing the same pipeline through `main`.
-Local validation does not establish successful remote deployment or domain routing.
-
-To restore Git-based builds, disable this web workflow and restore
-`git.deploymentEnabled` entries for `main` and `staging` to `true` in
-`vercel.json`, then use the previous Vercel deployment flow. Existing ready
-deployments continue serving if a CI build fails. Do not promote a Preview build
-as Production: each environment must use its own pulled variables and build.
+Restrict GitHub Environment `staging` to branch `staging` and `production` to
+`main`. Workflow jobs also enforce those branch identities; PRs do not publish
+images or receive deployment credentials. Releases remain serialized by branch.
+`vercel.json` continues to disable automatic Vercel Git deployments, preventing a
+duplicate remote build. Existing staging Vercel revisions remain available, but
+this workflow no longer updates them once the change reaches `staging`. Do not
+remove the old deployment or move DNS until Cloud Run acceptance and rollback
+checks pass. See the runbook for runtime secrets, cron, cost, OAuth, and origin
+checks before cutover.
 
 ## Turso Database
 
