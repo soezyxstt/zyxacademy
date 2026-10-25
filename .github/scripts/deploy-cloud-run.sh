@@ -44,15 +44,14 @@ gcloud run deploy "$CLOUD_RUN_SERVICE" "${target[@]}" \
   --min=0 --max=1 --concurrency=8 --timeout=300 --port=8080 \
   --no-traffic --quiet --format=json > "$temporary/deployed.json"
 
-revision="$(python3 - "$temporary/deployed.json" <<'PY'
-import json, sys
-status = json.load(open(sys.argv[1])).get("status", {})
-revision = status.get("latestCreatedRevisionName")
-if not revision or revision != status.get("latestReadyRevisionName"):
-    sys.exit("The newly created revision is not ready; traffic was not changed.")
-print(revision)
-PY
-)"
+# A no-traffic deployment can leave the service's latestReadyRevisionName on
+# the serving revision. Read the created revision and check its own Ready status.
+revision="$(gcloud run services describe "$CLOUD_RUN_SERVICE" "${target[@]}" \
+  --format='value(status.latestCreatedRevisionName)')"
+if [ -z "$revision" ]; then
+  echo '::error::Could not identify the newly created revision; traffic was not changed.'
+  exit 1
+fi
 
 gcloud run revisions describe "$revision" "${target[@]}" \
   --format=json > "$temporary/revision.json"
