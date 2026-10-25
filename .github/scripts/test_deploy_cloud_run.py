@@ -50,19 +50,23 @@ with (root / "calls.jsonl").open("a") as log:
 scenario = os.environ["SCENARIO"]
 if args[:3] == ["run", "services", "describe"]:
     if scenario == "missing-service": sys.exit(1)
-    print((root / "before.json").read_text())
+    if "--format=value(status.latestCreatedRevisionName)" in args:
+        print("new-revision")
+    else:
+        print((root / "before.json").read_text())
 elif args[:2] == ["run", "deploy"]:
     runtime = next(arg.split("=", 1)[1] for arg in args if arg.startswith("--env-vars-file="))
     (root / "runtime-snapshot.json").write_text(Path(runtime).read_text())
     (root / "runtime-path.txt").write_text(runtime)
     if scenario == "deploy-failed": sys.exit(1)
-    ready = "old-revision" if scenario == "not-ready" else "new-revision"
+    ready = "old-revision"
     print(json.dumps({"status": {"latestCreatedRevisionName": "new-revision",
                                  "latestReadyRevisionName": ready}}))
 elif args[:3] == ["run", "revisions", "describe"]:
     image = "wrong-image" if scenario == "wrong-image" else os.environ["CLOUD_RUN_IMAGE"]
+    ready = "False" if scenario == "not-ready" else "True"
     print(json.dumps({"spec": {"containers": [{"image": image}]},
-                      "status": {"conditions": [{"type": "Ready", "status": "True"}]}}))
+                      "status": {"conditions": [{"type": "Ready", "status": ready}]}}))
 elif args[:3] == ["run", "services", "update-traffic"]:
     print(json.dumps({"status": {"url": "https://staging.example.run.app",
         "traffic": [{"revisionName": "new-revision", "percent": 100}]}}))
@@ -98,7 +102,7 @@ else:
         result, calls, summary = self.deploy()
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual([c[:2] for c in calls], [["run", "services"], ["run", "deploy"],
-                                                ["run", "revisions"], ["run", "services"]])
+                                                ["run", "services"], ["run", "revisions"], ["run", "services"]])
         self.assertIn("--no-traffic", calls[1])
         self.assertIn("--image=" + IMAGE, calls[1])
         self.assertIn("--max=1", calls[1])
