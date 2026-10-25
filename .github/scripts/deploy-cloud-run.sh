@@ -66,7 +66,11 @@ if not ready or len(containers) != 1 or containers[0].get("image") != os.environ
 PY
 
 gcloud run services update-traffic "$CLOUD_RUN_SERVICE" "${target[@]}" \
-  --to-revisions="$revision=100" --quiet --format=json > "$temporary/traffic.json"
+  --to-revisions="$revision=100" --quiet --format=json > "$temporary/traffic-operation.json"
+# update-traffic can serialize an operation list. Query the actual Service for
+# verification rather than interpreting the mutation command's output shape.
+gcloud run services describe "$CLOUD_RUN_SERVICE" "${target[@]}" \
+  --format=json > "$temporary/traffic.json"
 
 python3 - "$temporary/before.json" "$temporary/traffic.json" "$revision" <<'PY'
 import json, os, sys

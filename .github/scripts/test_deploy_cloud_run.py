@@ -52,6 +52,8 @@ if args[:3] == ["run", "services", "describe"]:
     if scenario == "missing-service": sys.exit(1)
     if "--format=value(status.latestCreatedRevisionName)" in args:
         print("new-revision")
+    elif (root / "after.json").exists():
+        print((root / "after.json").read_text())
     else:
         print((root / "before.json").read_text())
 elif args[:2] == ["run", "deploy"]:
@@ -68,8 +70,10 @@ elif args[:3] == ["run", "revisions", "describe"]:
     print(json.dumps({"spec": {"containers": [{"image": image}]},
                       "status": {"conditions": [{"type": "Ready", "status": ready}]}}))
 elif args[:3] == ["run", "services", "update-traffic"]:
-    print(json.dumps({"status": {"url": "https://staging.example.run.app",
-        "traffic": [{"revisionName": "new-revision", "percent": 100}]}}))
+    after = {"status": {"url": "https://staging.example.run.app",
+        "traffic": [{"revisionName": "new-revision", "percent": 100}]}}
+    (root / "after.json").write_text(json.dumps(after))
+    print(json.dumps([after]))
 else:
     sys.exit("Unexpected gcloud operation")
 ''')
@@ -102,12 +106,13 @@ else:
         result, calls, summary = self.deploy()
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual([c[:2] for c in calls], [["run", "services"], ["run", "deploy"],
-                                                ["run", "services"], ["run", "revisions"], ["run", "services"]])
+                                                ["run", "services"], ["run", "revisions"], ["run", "services"],
+                                                ["run", "services"]])
         self.assertIn("--no-traffic", calls[1])
         self.assertIn("--image=" + IMAGE, calls[1])
         self.assertIn("--max=1", calls[1])
         self.assertIn("--min=0", calls[1])
-        self.assertIn("--to-revisions=new-revision=100", calls[-1])
+        self.assertIn("--to-revisions=new-revision=100", calls[-2])
         self.assertFalse(any("allow-unauthenticated" in arg for c in calls for arg in c))
         self.assertIn("old-revision", summary)
 
