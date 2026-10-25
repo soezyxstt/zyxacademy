@@ -18,6 +18,8 @@ The `ACTIVE` feature catalog records Zyra article-style math presentation, proac
 
 The `ACTIVE` feature catalog also documents compact Article formula rows, reading-first embedded graphs, optional parameter controls, and explicit graph interaction activation.
 
+The `ACTIVE` feature catalog documents compact Form Studio rows, publication per question or per section, upload size labels, and confirmation before submission. Local fixture checks do not verify live storage or publication.
+
 The `ACTIVE` feature catalog records the mobile Article selection action and saved quote handoff to Zyra, with the desktop selection popover preserved.
 
 ---
@@ -165,3 +167,4 @@ To prevent confusion when navigating code or documentation, the active vs legacy
 5. **Accurate Cross-Linking**: Ensure all markdown links use relative paths that correctly resolve from the referencing file.
 
 | Authoring MCP distribution and playbooks | [authoring-mcp-distribution-and-playbooks.md](../plans/authoring-mcp-distribution-and-playbooks.md) | `OPEN / IN PROGRESS` | Local review fixes validated by 95 Bun contracts, 11 Python tests, a production build with local fixtures, and 15 traced playbook assets. Repository lint/typecheck still have unrelated errors; HTTP smoke, CP5 host verification, and CP6 rollout remain open. |
+
