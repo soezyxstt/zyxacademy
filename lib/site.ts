@@ -5,6 +5,8 @@ export const siteDescription =
 
 export const siteOgImage = "/brand/zyx-og-1200x630.png";
 
+export const siteBaseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://www.zyxacademy.com";
+
 export function pageTitle(segment?: string) {
   if (!segment) return siteName;
   const trimmed = segment.trim();
@@ -33,13 +35,12 @@ export function createMetadata({
   noIndex = false,
 }: CreateMetadataOptions = {}): Metadata {
   const fullTitle = pageTitle(title);
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://www.zyxacademy.com";
   const canonicalUrl = path
-    ? (path.startsWith("http") ? path : `${baseUrl}${path.startsWith("/") ? "" : "/"}${path}`)
+    ? (path.startsWith("http") ? path : `${siteBaseUrl}${path.startsWith("/") ? "" : "/"}${path}`)
     : undefined;
   const imageUrl = image.startsWith("http")
     ? image
-    : `${baseUrl}${image.startsWith("/") ? "" : "/"}${image}`;
+    : `${siteBaseUrl}${image.startsWith("/") ? "" : "/"}${image}`;
 
   return {
     title: fullTitle,
@@ -70,4 +71,3 @@ export function createMetadata({
     ...(noIndex ? { robots: { index: false, follow: false } } : {}),
   };
 }
-
