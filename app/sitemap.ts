@@ -1,6 +1,6 @@
 import { MetadataRoute } from "next";
 import { db } from "@/db";
-import { courses, mataKuliah, blogArticles } from "@/db/schema";
+import { blogArticles } from "@/db/schema";
 import { eq } from "drizzle-orm";
 
 // Cache sitemap for 24 hours to prevent heavy database queries on every crawler hit (P1-11)
@@ -13,34 +13,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       ? `https://${process.env.NEXT_PUBLIC_VERCEL_URL}`
       : "https://www.zyxacademy.com");
 
-  // Public indexable static pages
-  const staticPaths = ["", "/about", "/plans", "/testimonial", "/courses"];
+  // Public, indexable marketing pages only.
+  const staticPaths = ["", "/about", "/plans", "/testimonial"];
 
   const staticEntries: MetadataRoute.Sitemap = staticPaths.map((path) => ({
     url: `${baseUrl}${path}`,
     changeFrequency: (path === "" ? "daily" : "weekly") as "daily" | "weekly",
     priority: path === "" ? 1.0 : 0.8,
-  }));
-
-  // Public course catalog overviews
-  const [canonicalCourses, legacyCourses] = await Promise.all([
-    db
-      .select({ id: mataKuliah.id })
-      .from(mataKuliah)
-      .where(eq(mataKuliah.status, "active")),
-    db
-      .select({ id: courses.id })
-      .from(courses),
-  ]);
-
-  const courseIds = Array.from(
-    new Set([...canonicalCourses.map((c) => c.id), ...legacyCourses.map((c) => c.id)])
-  );
-
-  const courseEntries: MetadataRoute.Sitemap = courseIds.map((id) => ({
-    url: `${baseUrl}/courses/${id}`,
-    changeFrequency: "weekly" as const,
-    priority: 0.7,
   }));
 
   // Published blog articles
@@ -62,10 +41,5 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.9,
   };
 
-  return [
-    ...staticEntries,
-    blogIndexEntry,
-    ...blogEntries,
-    ...courseEntries,
-  ];
+  return [...staticEntries, blogIndexEntry, ...blogEntries];
 }
