@@ -3,10 +3,9 @@ import { join } from "node:path";
 
 export const runtime = "nodejs";
 export async function GET(request: Request) {
-  const address = new URL(request.url);
-  const host = request.headers.get("host");
-  if (host && /^[a-zA-Z0-9.:[\]-]+$/.test(host)) address.host = host;
-  const origin = address.origin;
+  const publicUrl = process.env.NEXT_PUBLIC_APP_URL;
+  if (!publicUrl && process.env.NODE_ENV === "production") throw new Error("NEXT_PUBLIC_APP_URL is required for the Python runtime");
+  const origin = new URL(publicUrl || request.url).origin;
   return new Response(await readFile(join(process.cwd(), "lib/coding/frame.html")), { headers: {
     "Content-Type": "text/html; charset=utf-8",
     "Cache-Control": "no-store",
