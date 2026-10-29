@@ -1,14 +1,16 @@
 import { notFound } from "next/navigation";
-import { BookOpen, FileText } from "lucide-react";
+import { BarChart3, BookOpen, FileText } from "lucide-react";
 import { CoursePageShell } from "@/components/course/course-page-shell";
 import { CoursePrimaryActions } from "@/components/course/course-primary-actions";
 import { CourseAttentionStrip } from "@/components/course/course-attention-strip";
 import { ChapterOutline } from "@/components/course/chapter-outline";
+import {
+  CourseOverviewContentSkeleton,
+  CourseMaterialListSkeleton,
+  MaterialReaderContentSkeleton,
+  CourseProgressContentSkeleton,
+} from "@/components/course/course-skeletons";
 import { CourseDocumentsClient } from "@/app/(student)/courses/[id]/material/course-documents-client";
-import CourseLoading from "@/app/(student)/courses/[id]/loading";
-import CourseMaterialLoading from "@/app/(student)/courses/[id]/material/loading";
-import MaterialReaderLoading from "@/app/(student)/courses/[id]/material/[materialId]/loading";
-import CourseProgressLoading from "@/app/(student)/courses/[id]/progress/loading";
 import type { CourseOverviewActionCard, CourseAttentionData } from "@/types/course-learning";
 import type { ChapterOutlineItem } from "@/lib/course-utils";
 import type { CourseMaterial } from "@/lib/student-course-fixtures";
@@ -111,7 +113,7 @@ const mockMaterials: CourseMaterial[] = [
     kind: "quiz",
     docCategory: "soal",
     tabGroup: "bank_soal",
-    fileSize: "15 Soal · Kuis Interaktif",
+    fileSize: "15 Soal \u00b7 Kuis Interaktif",
     completed: false,
     isPastYear: true,
     isPreview: false,
@@ -155,7 +157,7 @@ const mockMaterialsLocked: CourseMaterial[] = [
     kind: "quiz",
     docCategory: "soal",
     tabGroup: "bank_soal",
-    fileSize: "15 Soal · Kuis Interaktif",
+    fileSize: "15 Soal \u00b7 Kuis Interaktif",
     completed: false,
     isPastYear: true,
     isPreview: false,
@@ -180,25 +182,31 @@ export default async function StudentNavigationVisualFixturePage({
     <div data-testid="student-nav-fixture-root" className="min-h-screen bg-background text-foreground">
       {state === "overview-loading" && (
         <div data-testid="state-overview-loading">
-          <CourseLoading />
+          <CoursePageShell title="Matematika I (MA1101)" icon={BookOpen} maxWidth="7xl">
+            <CourseOverviewContentSkeleton />
+          </CoursePageShell>
         </div>
       )}
 
       {state === "progress-loading" && (
         <div data-testid="state-progress-loading">
-          <CourseProgressLoading />
+          <CoursePageShell title="Perkembangan Belajar: Matematika I (MA1101)" icon={BarChart3}>
+            <CourseProgressContentSkeleton />
+          </CoursePageShell>
         </div>
       )}
 
       {state === "material-loading" && (
         <div data-testid="state-material-loading">
-          <CourseMaterialLoading />
+          <CoursePageShell title="Materi Belajar: Matematika I (MA1101)" icon={FileText}>
+            <CourseMaterialListSkeleton />
+          </CoursePageShell>
         </div>
       )}
 
       {state === "reader-loading" && (
         <div data-testid="state-reader-loading">
-          <MaterialReaderLoading />
+          <MaterialReaderContentSkeleton courseId="ma1101" courseTitle="Matematika I (MA1101)" />
         </div>
       )}
 

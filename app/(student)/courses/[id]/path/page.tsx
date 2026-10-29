@@ -1,13 +1,15 @@
+import { Suspense } from "react";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { Compass } from "lucide-react";
 import { checkEnrollment } from "@/app/(student)/dashboard/actions";
 import { CoursePageShell } from "@/components/course/course-page-shell";
+import { CourseStudyPathSkeleton } from "@/components/course/course-skeletons";
 import { studentCardClass } from "@/components/course/course-surfaces";
 import { EnrollmentForm } from "@/components/enrollment-form";
 import { Reveal } from "@/components/ui/reveal";
-import { createMetadata, pageTitle } from "@/lib/site";
+import { createMetadata } from "@/lib/site";
 import { getCourse } from "@/lib/course-utils";
 import { StudyPathTimeline } from "@/components/course/study-path-timeline";
 import { TranslatedText } from "@/components/i18n/translated-text";
@@ -26,43 +28,41 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   });
 }
 
+async function CoursePathContent({ id }: { id: string }) {
+  const isEnrolled = await checkEnrollment(id);
+
+  if (!isEnrolled) {
+    return (
+      <Reveal>
+        <div className={studentCardClass("mx-auto max-w-xl text-center py-12")}>
+          <h3 className="font-heading text-body-base font-bold text-foreground"><TranslatedText namespace="learning" messageKey="path.lockedTitle" /></h3>
+          <p className="mt-2 text-body-sm text-muted-foreground leading-relaxed">
+            <TranslatedText namespace="learning" messageKey="path.lockedDescription" />
+          </p>
+          <div className="mt-6 flex justify-center">
+            <EnrollmentForm className="w-full max-w-sm" />
+          </div>
+        </div>
+      </Reveal>
+    );
+  }
+
+  return <StudyPathTimeline courseId={id} />;
+}
 
 export default async function CoursePathPage({ params }: Props) {
   const { id } = await params;
   const course = await getCourse(id);
   if (!course) notFound();
 
-  const isEnrolled = await checkEnrollment(id);
-
-  if (!isEnrolled) {
-    return (
-      <CoursePageShell
-        title={<TranslatedText namespace="learning" messageKey="path.title" values={{ course: course.title }} />}
-
-        icon={Compass}
-      >
-        <Reveal>
-          <div className={studentCardClass("mx-auto max-w-xl text-center py-12")}>
-            <h3 className="font-heading text-body-base font-bold text-foreground"><TranslatedText namespace="learning" messageKey="path.lockedTitle" /></h3>
-            <p className="mt-2 text-body-sm text-muted-foreground leading-relaxed">
-              <TranslatedText namespace="learning" messageKey="path.lockedDescription" />
-            </p>
-            <div className="mt-6 flex justify-center">
-              <EnrollmentForm className="w-full max-w-sm" />
-            </div>
-          </div>
-        </Reveal>
-      </CoursePageShell>
-    );
-  }
-
   return (
     <CoursePageShell
       title={<TranslatedText namespace="learning" messageKey="path.title" values={{ course: course.title }} />}
-
       icon={Compass}
     >
-      <StudyPathTimeline courseId={id} />
+      <Suspense fallback={<CourseStudyPathSkeleton />}>
+        <CoursePathContent id={id} />
+      </Suspense>
     </CoursePageShell>
   );
 }

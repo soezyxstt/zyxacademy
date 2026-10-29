@@ -6,6 +6,7 @@ import { Check, ChevronDown, CircleAlert, Lock, Play, TriangleAlert } from "luci
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { MathText } from "@/components/course/math-text";
+import { CourseStudyPathSkeleton } from "@/components/course/course-skeletons";
 import { cn } from "@/lib/utils";
 import { useTranslations } from "@/lib/i18n/client";
 
@@ -125,7 +126,7 @@ export function StudyPathTimeline({ courseId }: { courseId: string }) {
       if (!response.ok) throw new Error(t("course.studyPath.loadFailed"));
       setSteps(data.steps ?? []);
       setDayPlan(data.dayPlan ?? null);
-    } catch (caught) {
+    } catch {
       setError(t("course.studyPath.connectionError"));
     } finally {
       setLoading(false); setPlanning(false);
@@ -143,7 +144,7 @@ export function StudyPathTimeline({ courseId }: { courseId: string }) {
   }, [steps]);
   const nextStep = steps.find((step) => step.status === "in_progress") ?? steps.find((step) => step.status === "available");
 
-  if (loading) return <div className="space-y-3" aria-busy="true">{Array.from({ length: 4 }).map((_, index) => <div key={index} className="h-16 animate-pulse rounded-lg bg-muted/50" />)}</div>;
+  if (loading) return <CourseStudyPathSkeleton />;
   if (error) return <div className="flex items-center gap-3 rounded-lg border border-status-error/20 bg-status-error/5 p-4 text-status-error"><TriangleAlert className="size-4" /><span className="flex-1 text-body-sm">{error}</span><Button variant="ghost" size="sm" onClick={() => void fetchStudyPath()}>{t("course.studyPath.retry")}</Button></div>;
   if (steps.length === 0) return <div className="rounded-lg border border-dashed border-border p-8 text-center"><CircleAlert className="mx-auto size-5 text-muted-foreground" /><p className="mt-2 text-body-sm text-muted-foreground">{t("course.studyPath.empty")}</p></div>;
 
