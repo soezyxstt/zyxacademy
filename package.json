@@ -122,6 +122,7 @@
     "@codemirror/view": "^6.43.15",
     "@google-analytics/data": "^6.1.0",
     "@google/genai": "^2.8.0",
+    "@lezer/highlight": "^1.2.5",
     "@libsql/client": "^0.17.4",
     "@modelcontextprotocol/sdk": "^1.28.0",
     "@napi-rs/canvas": "0.1.80",

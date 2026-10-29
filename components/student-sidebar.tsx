@@ -304,7 +304,7 @@ export function StudentSidebar({
               href="/dashboard"
               title={c ? t("navigation.backToDashboard") : undefined}
               className={cn(
-                "flex items-center gap-2.5 rounded-xl px-3 py-2 text-body-xs font-semibold text-brand-secondary hover:bg-muted/40 transition-colors mb-2",
+                "flex items-center gap-2.5 rounded-xl px-3 py-2 text-body-xs font-semibold text-brand-secondary hover:bg-muted/40 transition-colors mb-3",
                 c && "justify-center size-10 px-0 mx-auto"
               )}
             >
@@ -352,7 +352,7 @@ export function StudentSidebar({
               </DropdownMenu>
             </div>
           ) : (
-            <div className="mb-3">
+            <div className="mb-4">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <button
@@ -407,13 +407,13 @@ export function StudentSidebar({
             {secondaryItems.length > 0 && (
               <>
                 {!c && (
-                  <div className="pt-2.5 pb-1 px-2.5 text-left">
+                  <div className="pt-6 pb-1.5 px-2.5 text-left">
                     <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/80">
                       {t("navigation.more")}
                     </span>
                   </div>
                 )}
-                {c && <div className="my-1.5 w-5 border-t border-border/60" />}
+                {c && <div className="my-3 w-5 border-t border-border/60" />}
 
                 {secondaryItems.map((item) => (
                   <NavItem

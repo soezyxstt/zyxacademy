@@ -13,5 +13,5 @@ export default async function PlaygroundPage({ params }: { params: Promise<{ id:
   if (!session?.user?.id) redirect(`/sign-in?next=${encodeURIComponent(`/courses/${id}/playground`)}`);
   const access = await resolveCourseAccess({ courseId: id, userId: session.user.id });
   if (!access.hasCourseAccess) notFound();
-  return <CoursePageShell title="Playground Python" icon={Code2}><Suspense fallback={<p role="status">Memuat Playground...</p>}><Playground courseId={access.canonicalCourseId ?? id} learnerId={session.user.id} /></Suspense></CoursePageShell>;
+  return <CoursePageShell title="Playground Python" icon={Code2}><div data-plain-canvas><Suspense fallback={<p role="status">Memuat Playground...</p>}><Playground courseId={access.canonicalCourseId ?? id} learnerId={session.user.id} /></Suspense></div></CoursePageShell>;
 }
