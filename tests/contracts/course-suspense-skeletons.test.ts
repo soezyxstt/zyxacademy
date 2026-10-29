@@ -9,9 +9,9 @@ function readSource(relativePath: string): string {
 }
 
 describe("student course Suspense boundary and tailored skeleton contracts", () => {
-  it("removes route-level whole-page loading.tsx files under app/(student)/courses/[id]", () => {
+  it("keeps a shared loading boundary for work before page Suspense boundaries", () => {
+    expect(existsSync(join(ROOT, "app/(student)/courses/[id]/loading.tsx"))).toBe(true);
     const obsoleteLoadingFiles = [
-      "app/(student)/courses/[id]/loading.tsx",
       "app/(student)/courses/[id]/material/loading.tsx",
       "app/(student)/courses/[id]/material/[materialId]/loading.tsx",
       "app/(student)/courses/[id]/progress/loading.tsx",

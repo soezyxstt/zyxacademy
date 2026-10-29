@@ -64,16 +64,14 @@ function ConceptLinkRow({ courseId, refs }: { courseId: string; refs: ConceptRef
 
 async function ConceptExplorerContent({
   id,
-  slug,
-  studentId,
+  dataPromise,
 }: {
   id: string;
-  slug: string;
-  studentId?: string;
+  dataPromise: Promise<Awaited<ReturnType<typeof getConceptExplorerData>>>;
 }) {
-  const isEnrolled = await checkEnrollment(id);
+  const data = await dataPromise;
 
-  if (!isEnrolled) {
+  if (!data) {
     return (
       <Reveal>
         <div className={studentCardClass()}>
@@ -93,9 +91,6 @@ async function ConceptExplorerContent({
       </Reveal>
     );
   }
-
-  const data = await getConceptExplorerData(id, slug, studentId);
-  if (!data) notFound();
 
   const typesPresent = TYPE_ORDER.filter((t) => data.kosByType[t as keyof typeof data.kosByType]?.length);
 
@@ -167,6 +162,14 @@ async function ConceptExplorerContent({
   );
 }
 
+async function ConceptTitle({ dataPromise, courseTitle }: {
+  dataPromise: Promise<Awaited<ReturnType<typeof getConceptExplorerData>>>;
+  courseTitle: string;
+}) {
+  const data = await dataPromise;
+  return data?.conceptName ?? <TranslatedText namespace="learning" messageKey="conceptPage.title" values={{ course: courseTitle }} />;
+}
+
 export default async function ConceptExplorerPage({ params }: Props) {
   const { id, slug } = await params;
 
@@ -176,18 +179,21 @@ export default async function ConceptExplorerPage({ params }: Props) {
   ]);
   if (!course) notFound();
 
-  const formattedSlugTitle = decodeURIComponent(slug)
-    .replace(/-/g, " ")
-    .replace(/\b\w/g, (char) => char.toUpperCase());
+  const dataPromise = checkEnrollment(id).then(async (isEnrolled) => {
+    if (!isEnrolled) return null;
+    const data = await getConceptExplorerData(id, slug, session?.user?.id);
+    if (!data) notFound();
+    return data;
+  });
 
   return (
     <CoursePageShell
-      title={formattedSlugTitle}
+      title={<Suspense fallback={<span className="block h-7 w-48 animate-pulse rounded-md bg-muted" />}><ConceptTitle dataPromise={dataPromise} courseTitle={course.title} /></Suspense>}
       description={<TranslatedText namespace="learning" messageKey="conceptPage.description" values={{ course: course.title }} />}
       icon={Lightbulb}
     >
       <Suspense fallback={<CourseConceptExplorerSkeleton />}>
-        <ConceptExplorerContent id={id} slug={slug} studentId={session?.user?.id} />
+        <ConceptExplorerContent id={id} dataPromise={dataPromise} />
       </Suspense>
     </CoursePageShell>
   );
