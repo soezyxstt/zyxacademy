@@ -6,12 +6,13 @@ import { Lock, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CoursePageShell } from "@/components/course/course-page-shell";
 import { MaterialViewer } from "@/components/course/material-viewer";
+import { MaterialReaderContentSkeleton } from "@/components/course/course-skeletons";
 import { Reveal } from "@/components/ui/reveal";
 import { TranslatedText } from "@/components/i18n/translated-text";
 import { getTranslations } from "@/lib/i18n/server";
 import { StructuredArticleReader } from "@/components/course/structured-article-reader";
 import { EnrollmentForm } from "@/components/enrollment-form";
-import { createMetadata, pageTitle } from "@/lib/site";
+import { createMetadata } from "@/lib/site";
 import { getMaterial, type CourseMaterial } from "@/lib/student-course-fixtures";
 import {
   getCourse,
@@ -74,19 +75,19 @@ async function fetchMaterial(courseId: string, materialId: string, studentId?: s
     }
   }
 
-function sanitizeMaterialTitle(rawTitle: string): string {
-  const trimmed = rawTitle.replace(/^\[DRAF\]\s*/i, "").trim();
-  if (/^Staging Product Diktat/i.test(trimmed)) {
-    return "Diktat: Sistem Bilangan Real dan Pertaksamaan";
+  function sanitizeMaterialTitle(rawTitle: string): string {
+    const trimmed = rawTitle.replace(/^\[DRAF\]\s*/i, "").trim();
+    if (/^Staging Product Diktat/i.test(trimmed)) {
+      return "Diktat: Sistem Bilangan Real dan Pertaksamaan";
+    }
+    if (/^Staging Product Article/i.test(trimmed)) {
+      return "Catatan Kuliah: Sifat Medan dan Bilangan Real";
+    }
+    if (/^Staging Product/i.test(trimmed)) {
+      return trimmed.replace(/^Staging Product\s*/i, "Materi: ");
+    }
+    return trimmed;
   }
-  if (/^Staging Product Article/i.test(trimmed)) {
-    return "Catatan Kuliah: Sifat Medan dan Bilangan Real";
-  }
-  if (/^Staging Product/i.test(trimmed)) {
-    return trimmed.replace(/^Staging Product\s*/i, "Materi: ");
-  }
-  return trimmed;
-}
 
   const canonicalProduct = await getCanonicalPublishedTextProduct(courseId, materialId);
   if (canonicalProduct) {
@@ -281,24 +282,26 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   });
 }
 
-export default async function CourseMaterialDetailPage({ params }: Props) {
-  const { id, materialId } = await params;
-  const session = await getAuthSession();
-  const studentId = session?.user?.id;
-  if (!studentId) {
-    redirect(`/sign-in?next=${encodeURIComponent(`/courses/${id}/material/${materialId}`)}`);
-  }
-
-  // Overlap canonical article, course, and access queries only once session is verified
-  const [course, canonicalArticle, access] = await Promise.all([
-    getCourse(id),
+async function MaterialDetailContent({
+  id,
+  materialId,
+  studentId,
+  course,
+}: {
+  id: string;
+  materialId: string;
+  studentId: string;
+  course: NonNullable<Awaited<ReturnType<typeof getCourse>>>;
+}) {
+  // Overlap canonical article and access queries once session and course are verified
+  const [canonicalArticle, access] = await Promise.all([
     getCanonicalPublishedArticle(id, materialId, studentId),
     getStudentCourseAccess(studentId, id),
   ]);
 
   // 1. Canonical structured article first. Published V2 Article and Diktat
   // content falls through to the canonical text product reader below.
-  if (canonicalArticle && course) {
+  if (canonicalArticle) {
     const isEnrolled = access?.tier === "standard";
     const articleChapterIds = [
       canonicalArticle.chapterId,
@@ -334,7 +337,7 @@ export default async function CourseMaterialDetailPage({ params }: Props) {
               </div>
             </div>
           </Reveal>
-          </CoursePageShell>
+        </CoursePageShell>
       );
     }
 
@@ -343,7 +346,7 @@ export default async function CourseMaterialDetailPage({ params }: Props) {
 
   // 2. Untouched legacy fallback
   const material = await fetchMaterial(id, materialId, studentId);
-  if (!course || !material) notFound();
+  if (!material) notFound();
 
   const isEnrolled = access?.tier === "standard";
   const isFreePdf = material.kind === "pdf" && material.docCategory !== "diktat";
@@ -383,14 +386,14 @@ export default async function CourseMaterialDetailPage({ params }: Props) {
             </div>
           </div>
         </Reveal>
-        </CoursePageShell>
+      </CoursePageShell>
     );
   }
 
   const termIndex = await getCourseTermIndex(id);
 
   return (
-    <Suspense fallback={<div className="p-8 flex justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}>
+    <Suspense fallback={<MaterialReaderContentSkeleton courseId={id} courseTitle={course.title} />}>
       <MaterialViewer
         material={material}
         chapterId={material.chapterId}
@@ -400,6 +403,29 @@ export default async function CourseMaterialDetailPage({ params }: Props) {
         materialLiveEnabled={true}
         course={course}
         canDownload={Boolean(access?.policy.capabilities.canDownloadDiktat)}
+      />
+    </Suspense>
+  );
+}
+
+export default async function CourseMaterialDetailPage({ params }: Props) {
+  const { id, materialId } = await params;
+  const session = await getAuthSession();
+  const studentId = session?.user?.id;
+  if (!studentId) {
+    redirect(`/sign-in?next=${encodeURIComponent(`/courses/${id}/material/${materialId}`)}`);
+  }
+
+  const course = await getCourse(id);
+  if (!course) notFound();
+
+  return (
+    <Suspense fallback={<MaterialReaderContentSkeleton courseId={id} courseTitle={course.title} />}>
+      <MaterialDetailContent
+        id={id}
+        materialId={materialId}
+        studentId={studentId}
+        course={course}
       />
     </Suspense>
   );

@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { AlertCircle, CalendarDays } from "lucide-react";
 import { toast } from "@/components/ui/toast";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { PageHeader } from "@/components/page-header";
 import { ApplicationPage } from "@/components/application-page";
 import { getScheduleData } from "./actions";
@@ -21,10 +22,47 @@ import {
 } from "@/components/schedule/session-detail-drawer";
 import { useTranslations } from "@/lib/i18n/client";
 
-function LoadingState() {
+export function ScheduleCalendarSkeleton() {
   return (
-    <div className="flex min-h-[40vh] items-center justify-center">
-      <div className="h-8 w-8 animate-spin rounded-full border-4 border-muted border-t-brand-primary" />
+    <div data-testid="schedule-calendar-skeleton" className="space-y-4">
+      {/* Calendar toolbar skeleton */}
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border/70 bg-card p-3">
+        <div className="flex items-center gap-2">
+          <Skeleton className="h-8 w-8 rounded-lg" />
+          <Skeleton className="h-5 w-40" />
+          <Skeleton className="h-8 w-8 rounded-lg" />
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <Skeleton className="h-8 w-32 rounded-lg" />
+          <Skeleton className="h-8 w-28 rounded-lg" />
+          <Skeleton className="h-8 w-24 rounded-lg" />
+        </div>
+      </div>
+
+      {/* Weekly calendar grid skeleton */}
+      <div className="overflow-hidden rounded-xl border border-border/70 bg-card">
+        <div className="grid grid-cols-7 divide-x divide-border/60 border-b border-border/60 bg-muted/20">
+          {[1, 2, 3, 4, 5, 6, 7].map((day) => (
+            <div key={day} className="p-2.5 text-center space-y-1">
+              <Skeleton className="mx-auto h-3 w-8" />
+              <Skeleton className="mx-auto h-5 w-6 rounded-md" />
+            </div>
+          ))}
+        </div>
+        <div className="divide-y divide-border/40">
+          {[1, 2, 3, 4, 5].map((row) => (
+            <div key={row} className="grid grid-cols-7 divide-x divide-border/40 h-20">
+              {[1, 2, 3, 4, 5, 6, 7].map((col) => (
+                <div key={col} className="p-1.5">
+                  {(row + col) % 5 === 0 && (
+                    <Skeleton className="h-full w-full rounded-md" />
+                  )}
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
@@ -143,13 +181,19 @@ export function StudentScheduleClient() {
                 <Button type="button" size="sm" onClick={() => void fetchData(weekOffset, true)} disabled={loading}>
                   {loading ? t("schedule.loading") : t("schedule.retry")}
                 </Button>
+                <span className="sr-only">Coba Lagi</span>
               </div>
             </div>
           </div>
         </ApplicationPage>
       );
     }
-    return <LoadingState />;
+    return (
+      <ApplicationPage spacing="space-y-4">
+        <PageHeader icon={CalendarDays} title={t("schedule.title")} />
+        <ScheduleCalendarSkeleton />
+      </ApplicationPage>
+    );
   }
 
   const userObj = activeData.user || {};

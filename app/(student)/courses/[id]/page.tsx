@@ -6,9 +6,12 @@ import { CoursePageShell } from "@/components/course/course-page-shell";
 import { ChapterOutline } from "@/components/course/chapter-outline";
 import { CoursePrimaryActions } from "@/components/course/course-primary-actions";
 import { CourseAttentionStrip } from "@/components/course/course-attention-strip";
+import {
+  CourseOverviewPrimaryActionsSkeleton,
+  CourseChapterOutlineSkeleton,
+} from "@/components/course/course-skeletons";
 import { EnrollmentForm } from "@/components/enrollment-form";
 import { Reveal } from "@/components/ui/reveal";
-import { Skeleton } from "@/components/ui/skeleton";
 import { createMetadata } from "@/lib/site";
 import { getCourse, getCourseChapterOutline, getStudentCourseAccess } from "@/lib/course-utils";
 import { getAuthSession } from "@/lib/auth-session";
@@ -28,28 +31,6 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     description: course?.description ?? t("metadata.courseDescription"),
     path: `/courses/${id}`,
   });
-}
-
-function CourseOverviewHighlightsSkeleton() {
-  return (
-    <>
-    <div
-      data-testid="course-overview-highlights-skeleton"
-      className="mb-6 grid grid-cols-3 divide-x divide-border/60 overflow-hidden rounded-xl border border-border/70 bg-card"
-    >
-      {[1, 2, 3].map((i) => (
-        <div key={i} className="flex min-w-0 items-center gap-2 p-2.5">
-          <Skeleton className="hidden size-7 shrink-0 rounded-lg sm:flex" />
-          <div className="min-w-0 flex-1 space-y-1.5">
-            <Skeleton className="h-4 w-16" />
-            <Skeleton className="h-3 w-24" />
-          </div>
-        </div>
-      ))}
-    </div>
-      <Skeleton className="mb-6 h-40 rounded-xl sm:h-22" />
-    </>
-  );
 }
 
 async function CourseOverviewHighlights({
@@ -82,6 +63,21 @@ async function CourseOverviewHighlights({
   );
 }
 
+async function CourseChapterOutlineSection({
+  courseId,
+  studentId,
+  isEnrolled,
+  initialChapters,
+}: {
+  courseId: string;
+  studentId: string;
+  isEnrolled: boolean;
+  initialChapters?: Awaited<ReturnType<typeof getCourseChapterOutline>>;
+}) {
+  const chapters = initialChapters ?? (await getCourseChapterOutline(courseId, studentId));
+  return <ChapterOutline courseId={courseId} chapters={chapters} isEnrolled={isEnrolled} />;
+}
+
 export default async function CourseOverviewPage({ params }: Props) {
   const { id } = await params;
 
@@ -111,7 +107,6 @@ export default async function CourseOverviewPage({ params }: Props) {
     getCourseChapterOutline(id, studentId),
   ]);
   const isEnrolled = studentAccess?.tier === "standard";
-  const hasCourseAccess = Boolean(studentAccess);
 
   const jsonLd = {
     "@context": "https://schema.org",
@@ -161,12 +156,19 @@ export default async function CourseOverviewPage({ params }: Props) {
           )}
           {/* Primary learning actions and attention strip streamed via Suspense */}
           {isEnrolled && (
-            <Suspense fallback={<CourseOverviewHighlightsSkeleton />}>
+            <Suspense fallback={<CourseOverviewPrimaryActionsSkeleton />}>
               <CourseOverviewHighlights studentId={studentId} courseId={id} chapterOutline={chapterOutline} />
             </Suspense>
           )}
           <div className="mb-6">
-            <ChapterOutline courseId={id} chapters={chapterOutline} isEnrolled={isEnrolled} />
+            <Suspense fallback={<CourseChapterOutlineSkeleton />}>
+              <CourseChapterOutlineSection
+                courseId={id}
+                studentId={studentId}
+                isEnrolled={isEnrolled}
+                initialChapters={chapterOutline}
+              />
+            </Suspense>
           </div>
           {isEnrolled && (
             <div className="mt-6 flex items-center justify-between border-t border-border/40 pt-4">
