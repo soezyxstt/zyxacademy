@@ -4,6 +4,7 @@ import { EditorState } from "@codemirror/state";
 import { EditorView, keymap, lineNumbers, highlightActiveLine, drawSelection } from "@codemirror/view";
 import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirror/commands";
 import { python } from "@codemirror/lang-python";
+import { autocompletion } from "@codemirror/autocomplete";
 import { syntaxHighlighting, defaultHighlightStyle } from "@codemirror/language";
 
 export function PythonEditor({ value, onChange, label = "Kode Python" }: { value: string; onChange(value: string): void; label?: string }) {
@@ -13,7 +14,7 @@ export function PythonEditor({ value, onChange, label = "Kode Python" }: { value
   useEffect(() => {
     if (!host.current) return;
     const editor = new EditorView({ parent: host.current, state: EditorState.create({ doc: value, extensions: [
-      lineNumbers(), history(), python(), drawSelection(), highlightActiveLine(), syntaxHighlighting(defaultHighlightStyle),
+      lineNumbers(), history(), python(), autocompletion(), drawSelection(), highlightActiveLine(), syntaxHighlighting(defaultHighlightStyle),
       keymap.of([...defaultKeymap, ...historyKeymap, indentWithTab]),
       EditorView.contentAttributes.of({ "aria-label": label, "aria-multiline": "true", role: "textbox" }),
       EditorView.theme({

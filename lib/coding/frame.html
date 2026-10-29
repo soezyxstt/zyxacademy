@@ -1,11 +1,27 @@
 <!doctype html><html lang="id"><head><meta charset="utf-8"><title>Python runtime</title></head><body><script>
 // This document has no same-origin permission. It cannot read application cookies/storage.
-let port, worker, timer, stopped = false;
+let port, worker, workerControl, inputBuffer, timer, stopped = false, prepared = false, workerReady = false;
+function start(timeoutMs, payload) {
+  prepared = false;
+  timer = setTimeout(() => { stopped = true; worker.terminate(); port.postMessage({ type: "result", result: { status: "timeout", stdout: "", stderr: "Eksekusi melewati batas waktu.", truncated: false } }); }, timeoutMs);
+  port.postMessage({ type: "running" });
+  (workerControl || worker).postMessage({ type: "execute", ...payload });
+}
 window.addEventListener("message", (event) => {
   if (port || event.source !== parent || event.data?.type !== "connect" || !event.ports[0]) return;
   port = event.ports[0];
   port.onmessage = async ({ data }) => {
     if (data.type === "stop") { stopped = true; worker?.terminate(); clearTimeout(timer); return; }
+    if (data.type === "input") {
+      if (inputBuffer) {
+        const bytes = new TextEncoder().encode(String(data.value));
+        const state = new Int32Array(inputBuffer, 0, 2), target = new Uint8Array(inputBuffer, 8);
+        if (bytes.length > target.length) return;
+        target.set(bytes); Atomics.store(state, 1, bytes.length); Atomics.store(state, 0, 1); Atomics.notify(state, 0);
+      } else worker?.postMessage(data);
+      return;
+    }
+    if (data.type === "execute" && prepared) { start(data.timeoutMs, { code: data.code, stdin: data.stdin, maxOutputChars: data.maxOutputChars }); return; }
     if (data.type !== "run") return;
     timer = setTimeout(() => { stopped = true; worker?.terminate(); port.postMessage({ type: "result", result: { status: "unavailable", stdout: "", stderr: "Python belum dapat dimuat. Coba lagi.", truncated: false } }); }, 45000);
     try {
@@ -30,16 +46,28 @@ window.addEventListener("message", (event) => {
       const preloaded = { files, loaderUrl: await moduleUrl("pyodide.mjs"), moduleUrl: await moduleUrl("pyodide.asm.mjs") };
       if (stopped) return;
       worker = new Worker("data:text/javascript," + encodeURIComponent(source), { type: "module" });
-      worker.onmessage = ({ data: message }) => {
-        if (message.type === "ready") {
+      if (data.interactive && typeof SharedArrayBuffer === "function") {
+        inputBuffer = new SharedArrayBuffer(32008);
+        const controlChannel = new MessageChannel();
+        workerControl = controlChannel.port1;
+        data.control = controlChannel.port2;
+        data.inputBuffer = inputBuffer;
+      }
+      const onWorkerMessage = ({ data: message }) => {
+        if (message.type === "ready" && !workerReady) {
+          workerReady = true;
           clearTimeout(timer);
-          port.postMessage({ type: "running" });
-          timer = setTimeout(() => { worker.terminate(); port.postMessage({ type: "result", result: { status: "timeout", stdout: "", stderr: "Eksekusi melewati batas waktu.", truncated: false } }); }, data.timeoutMs);
-          worker.postMessage({ type: "execute" });
+          if (data.prepare) { prepared = true; port.postMessage({ type: "prepared" }); }
+          else start(data.timeoutMs, {});
+        } else if (message.type === "input-request") {
+          port.postMessage(message);
+        } else if (message.type === "output") { port.postMessage(message);
         } else if (message.type === "result") { clearTimeout(timer); worker.terminate(); port.postMessage(message); }
       };
+      if (workerControl) { workerControl.onmessage = onWorkerMessage; workerControl.start(); }
+      else worker.onmessage = onWorkerMessage;
       worker.onerror = () => { clearTimeout(timer); worker.terminate(); port.postMessage({ type: "result", result: { status: "unavailable", stdout: "", stderr: "Python belum dapat dimuat. Coba lagi.", truncated: false } }); };
-      worker.postMessage({ ...data, preloaded }, Object.values(files).map((file) => file.body));
+      worker.postMessage({ ...data, preloaded }, [...Object.values(files).map((file) => file.body), ...(data.control ? [data.control] : [])]);
     } catch { clearTimeout(timer); if (!stopped) port.postMessage({ type: "result", result: { status: "unavailable", stdout: "", stderr: "Python belum dapat dimuat. Coba lagi.", truncated: false } }); }
   };
   port.start(); port.postMessage({ type: "connected" });
