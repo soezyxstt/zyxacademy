@@ -1,0 +1,52 @@
+import { expect, test } from "@playwright/test";
+
+test("article Python example supports interactive input", async ({ page }, info) => {
+  test.setTimeout(120_000);
+  const failures: string[] = [];
+  page.on("pageerror", error => failures.push(error.message));
+  page.on("console", message => { if (message.type() === "error") failures.push(message.text()); });
+  page.on("response", response => { if (response.status() >= 400) failures.push(`${response.status()} ${response.url()}`); });
+  await page.route("**/api/auth/get-session**", route => route.fulfill({ json: { user: { id: "coding-student", name: "Test", email: "test@example.test" }, session: { id: "session", userId: "coding-student", expiresAt: "2099-01-01T00:00:00.000Z" } } }));
+  await page.route("**/api/coding/drafts**", route => route.fulfill({ json: route.request().method() === "GET" ? { draft: null } : { revision: 1 } }));
+  await page.route("**/api/coding/problems/**", route => route.fulfill({ json: { problem: { problemId: "sum-even", version: 1, courseId: "coding-course", language: "python", title: "Jumlah genap", prompt: "Hitung.", learningObjectives: ["Perulangan"], starterCode: "", publicTests: [], limits: { timeoutMs: 1000, maxOutputChars: 8000 } } } }));
+  await page.route("**/api/coding/submissions**", route => route.fulfill({ json: { attempts: [] } }));
+  const response = await page.goto("/visual-fixtures/coding?tab=article");
+  expect(response?.status()).toBe(200);
+  const example = page.locator('[data-part-id="example"]');
+  const staticExample = page.locator('[data-part-id="static"]');
+  const exercise = page.locator('[data-part-id="exercise"]');
+  await expect(staticExample.locator("pre code")).toContainText("for angka");
+  await expect(example.getByRole("heading", { name: "Terminal" })).toBeVisible();
+  await expect(exercise.getByRole("button", { name: "Submit" })).toBeVisible();
+  const editor = example.getByRole("textbox", { name: "Kode Python" });
+  await editor.fill('nama = input("Nama: ")\nprint("Halo,", nama)');
+  await page.screenshot({ path: info.outputPath("screenshots/article-idle.png"), fullPage: true, animations: "disabled" });
+  await example.getByRole("button", { name: "Jalankan", exact: true }).click();
+  const input = example.getByRole("textbox", { name: "Input terminal" });
+  await expect(input).toBeVisible({ timeout: 60_000 });
+  await page.screenshot({ path: info.outputPath("screenshots/article-input.png"), fullPage: true, animations: "disabled" });
+  await input.fill("Ayu");
+  await input.press("Enter");
+  await expect(example.getByText("Halo, Ayu", { exact: false })).toBeVisible({ timeout: 30_000 });
+  await page.screenshot({ path: info.outputPath("screenshots/article-success.png"), fullPage: true, animations: "disabled" });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+  expect(failures).toEqual([]);
+});
+
+test("article input remains available after the execution time limit", async ({ page }) => {
+  test.setTimeout(90000);
+  await page.route("**/api/auth/get-session**", route => route.fulfill({ json: { user: { id: "coding-student", name: "Test", email: "test@example.test" }, session: { id: "session", userId: "coding-student", expiresAt: "2099-01-01T00:00:00.000Z" } } }));
+  await page.route("**/api/coding/drafts**", route => route.fulfill({ json: route.request().method() === "GET" ? { draft: null } : { revision: 1 } }));
+  await page.route("**/api/coding/problems/**", route => route.fulfill({ json: { problem: { problemId: "sum-even", version: 1, courseId: "coding-course", language: "python", title: "Jumlah genap", prompt: "Hitung.", learningObjectives: ["Perulangan"], starterCode: "", publicTests: [], limits: { timeoutMs: 1000, maxOutputChars: 8000 } } } }));
+  await page.route("**/api/coding/submissions**", route => route.fulfill({ json: { attempts: [] } }));
+  await page.goto("/visual-fixtures/coding?tab=article");
+  const example = page.locator('[data-part-id="example"]');
+  await example.getByRole("textbox", { name: "Kode Python" }).fill('nama = input("Nama: ")\nprint("Halo,", nama)');
+  await example.getByRole("button", { name: "Jalankan", exact: true }).click();
+  const input = example.getByRole("textbox", { name: "Input terminal" });
+  await expect(input).toBeVisible({ timeout: 60000 });
+  await page.waitForTimeout(6500);
+  await expect(input).toBeVisible();
+  await input.fill("Ayu"); await input.press("Enter");
+  await expect(example.getByText("Halo, Ayu", { exact: false })).toBeVisible({ timeout: 10000 });
+});

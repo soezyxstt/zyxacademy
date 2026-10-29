@@ -1,13 +1,13 @@
 # Python learning
 
-Status: `ACTIVE`, local implementation contract. Updated: 2026-10-24.
+Status: `ACTIVE`, local implementation contract. Updated: 2026-10-29.
 
 ## Student surfaces
 
 Python is always available without a new feature flag. Existing Live Quiz still
 uses its established FEATURE_LIVE gate. Each course has `/courses/[id]/playground`
-with CodeMirror 6, supplied stdin, Run/Stop, stdout, Python errors and Zyra.
-Python loads on demand from the pinned, self-hosted Pyodide 314.0.7 assets.
+with CodeMirror 6 autocomplete, interactive stdin, Run/Stop, stdout, Python errors and Zyra.
+Runnable Article examples use the same terminal. An idle disposable runtime is prepared in advance from pinned, self-hosted Pyodide 314.0.7 assets. The current five-second execution deadline also applies while waiting for input; removing that limitation requires an independently enforced compute budget.
 The initial implementation supports standard-library Python programs and
 stdin/stdout tests, not notebooks, external packages or graphical output.
 
@@ -47,7 +47,7 @@ bytes to the Worker. Loader modules use data URLs under the existing CSP. It
 cannot read application cookies or storage. The parent terminates the Worker on timeout or Stop. The
 opaque-origin Worker uses a data URL because Chromium rejects module Workers
 created from blob URLs in this sandbox. Source is fetched from a fixed public
-application asset; learner code is passed as data after runtime initialization.
+application asset; learner code is passed as data after runtime initialization. Where Document Isolation Policy is supported, interactive stdin uses shared memory and a private control channel, and child Worker constructors are disabled before learner code runs. Other browsers retain the existing JavaScript Promise Integration path and the same hard deadline.
 
 Submit executes the canonical public and private tests on the server using
 Playwright and a new browser context plus disposable Worker per case. No Python

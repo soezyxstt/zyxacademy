@@ -650,7 +650,7 @@ MCP exposes scoped source-figure extraction and resumable jobs, plus `authoring.
 
 Course Playground, runnable V4 Article examples, repeated coding submissions,
 Zyra decomposition/flowchart help and Python Live Quiz are implemented locally
-without a new feature flag. Existing Live Quiz gating remains unchanged. See
+without a new feature flag. Playground and runnable Article examples use an interactive terminal and Python autocomplete. The current five-second execution deadline includes time spent entering input. Existing Live Quiz gating remains unchanged. See
 [coding contract](coding-foundation.md) for authoring, access and runtime limits.
 
 Error help guides trial and error: explain the observed failure, offer a tentative

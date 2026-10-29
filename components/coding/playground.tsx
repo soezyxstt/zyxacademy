@@ -20,5 +20,5 @@ export function Playground({ courseId, learnerId }: { courseId: string; learnerI
     setLoaded(true);
   }, [courseId, handoff]);
   if (!loaded) return <p role="status" className="text-body-sm text-muted-foreground">Memuat Playground...</p>;
-  return <div className="space-y-4">{backHref ? <Button asChild variant="outline" className="text-body-sm"><Link href={backHref}>Kembali ke artikel</Link></Button> : null}<CodingWorkspace key={handoff ?? "default"} courseId={courseId} learnerId={learnerId} draftKey={`playground:${handoff ?? "default"}`} initialCode={code} initialStdin={stdin} /></div>;
+  return <div className="space-y-4">{backHref ? <Button asChild variant="outline" className="text-body-sm"><Link href={backHref}>Kembali ke artikel</Link></Button> : null}<CodingWorkspace key={handoff ?? "default"} courseId={courseId} learnerId={learnerId} draftKey={`playground:${handoff ?? "default"}`} initialCode={code} initialStdin={stdin} interactive /></div>;
 }

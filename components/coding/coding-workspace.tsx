@@ -4,12 +4,14 @@ import { useRouter } from "next/navigation";
 import { Play, Square, RotateCcw, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { MarkdownRenderer } from "@/components/course/markdown-renderer";
 import { useSession } from "@/lib/auth-client";
 import { PythonEditor } from "./python-editor";
 import { CodingHelp } from "./coding-help";
 import { useCodingDraft } from "./use-coding-draft";
-import { createBrowserPythonRuntime } from "@/lib/coding/browser-runtime";
+import { createBrowserPythonRuntime, preloadPythonAssets } from "@/lib/coding/browser-runtime";
 import { executePython } from "@/lib/coding/runtime";
 import { type CodingProblemPublic, type ExecutionResult } from "@/lib/coding/contracts";
 import type { publicCodingFeedback } from "@/lib/coding/evaluation";
@@ -20,10 +22,10 @@ type Feedback = ReturnType<typeof publicCodingFeedback>;
 const verdictLabels = { correct: "Semua kasus uji lolos", partial: "Sebagian kasus uji belum lolos", incorrect: "Jawaban belum sesuai", ungradable: "Pemeriksaan belum tersedia. Coba Submit lagi." };
 const statusLabels: Record<ExecutionResult["status"], string> = { completed: "Eksekusi selesai", syntax_error: "Periksa penulisan kode", runtime_error: "Terjadi error saat menjalankan kode", timeout: "Eksekusi melewati batas waktu", stopped: "Eksekusi dihentikan", unavailable: "Python belum tersedia. Coba lagi." };
 
-export function CodingWorkspace({ courseId, draftKey, initialCode = "", initialStdin = "", problem, surface, allowHelp = true, learnerId, playgroundLink = false, disabled = false }: {
+export function CodingWorkspace({ courseId, draftKey, initialCode = "", initialStdin = "", problem, surface, allowHelp = true, learnerId, playgroundLink = false, disabled = false, interactive = false }: {
   courseId: string; draftKey: string; initialCode?: string; initialStdin?: string; problem?: CodingProblemPublic;
   surface?: z.infer<typeof codingSurfaceSchema>; allowHelp?: boolean; learnerId?: string;
-  playgroundLink?: boolean; disabled?: boolean;
+  playgroundLink?: boolean; disabled?: boolean; interactive?: boolean;
 }) {
   const { data: session } = useSession();
   const router = useRouter();
@@ -38,6 +40,15 @@ export function CodingWorkspace({ courseId, draftKey, initialCode = "", initialS
   const active = useRef<AbortController | null>(null), submitAbort = useRef<AbortController | null>(null);
   const pending = useRef<{ code: string; stdin: string; id: string } | null>(null);
   const inputId = useId();
+  const [terminalOutput, setTerminalOutput] = useState("");
+  const [terminalInput, setTerminalInput] = useState("");
+  const [terminalHistory, setTerminalHistory] = useState<string[]>([]);
+  const [waitingInput, setWaitingInput] = useState(false);
+  const sendInput = useRef<((value: string) => void) | null>(null);
+  useEffect(() => {
+    if (!interactive) return;
+    return preloadPythonAssets();
+  }, [interactive]);
   const surfaceKey = surface ? JSON.stringify(surface) : "";
   useEffect(() => () => { active.current?.abort(); submitAbort.current?.abort(); }, []);
   useEffect(() => {
@@ -60,8 +71,12 @@ export function CodingWorkspace({ courseId, draftKey, initialCode = "", initialS
     if (phase !== "idle" || submitting) return;
     const controller = new AbortController(); active.current = controller;
     const code = draft.code; setExecutedCode(code); setExecutedInput(draft.stdin); setExecution(null); setError("");
-    try { setExecution(await executePython(createBrowserPythonRuntime(setPhase), { code, stdin: draft.stdin, limits: problem?.limits ?? { timeoutMs: 5000, maxOutputChars: 8000 }, signal: controller.signal })); }
-    finally { setPhase("idle"); }
+    setTerminalOutput(""); setTerminalInput(""); setTerminalHistory([]); setWaitingInput(false);
+    try { setExecution(await executePython(createBrowserPythonRuntime(setPhase, interactive ? {
+      output: (text) => setTerminalOutput((value) => (value + text).slice(0, 8000)),
+      input: (send) => { sendInput.current = send; setWaitingInput(true); },
+    } : undefined), { code, stdin: draft.stdin, limits: problem?.limits ?? { timeoutMs: 5000, maxOutputChars: 8000 }, signal: controller.signal })); }
+    finally { sendInput.current = null; setWaitingInput(false); setPhase("idle"); }
   }
   async function submit() {
     if (!problem || !surface || submitting || disabled) return;
@@ -88,7 +103,34 @@ export function CodingWorkspace({ courseId, draftKey, initialCode = "", initialS
       router.push(`/courses/${encodeURIComponent(courseId)}/playground?handoff=${key}`);
     } catch { setError("Kode belum dapat dibuka di Playground. Salin kode terlebih dahulu."); }
   }
-  const help = problem && surface ? { kind: "exercise" as const, problem: { problemId: problem.problemId, version: problem.version }, code: draft.code, stdin: draft.stdin, intent: "hint" as const, surface, ...(attemptId ? { attemptId } : {}), ...(executedCode === draft.code && executedInput === draft.stdin && execution ? { execution } : {}) } : { kind: "playground" as const, code: draft.code, stdin: draft.stdin, execution: executedCode === draft.code && executedInput === draft.stdin ? execution : null, intent: "review" as const };
+  const help = problem && surface ? { kind: "exercise" as const, problem: { problemId: problem.problemId, version: problem.version }, code: draft.code, stdin: draft.stdin, intent: "hint" as const, surface, ...(attemptId ? { attemptId } : {}), ...(executedCode === draft.code && executedInput === draft.stdin && execution ? { execution } : {}) } : { kind: "playground" as const, code: draft.code, stdin: interactive ? terminalHistory.join("\n") : draft.stdin, execution: executedCode === draft.code && (interactive || executedInput === draft.stdin) ? execution : null, intent: "review" as const };
+  if (interactive) return <section className="min-w-0 space-y-3" aria-label="Playground Python">
+    <div className="grid min-w-0 gap-3 md:grid-cols-2">
+      <div className="min-w-0 space-y-2">
+        <div className="flex min-h-9 flex-wrap items-center justify-between gap-2">
+          <h2 className="font-heading text-body-sm font-semibold">main.py</h2>
+          <div className="flex flex-wrap items-center gap-2">
+            {phase === "idle" ? <Button size="sm" className="min-w-[92px]" onClick={run} disabled={draft.code.length > 64000}><Play className="size-4" />Jalankan</Button> : <Button size="sm" className="min-w-[92px]" variant="outline" onClick={() => active.current?.abort()}><Square className="size-4" />Stop</Button>}
+            <TooltipProvider><Tooltip><TooltipTrigger asChild><Button size="icon-sm" variant="outline" aria-label="Reset" disabled={phase !== "idle"} onClick={() => { draft.setCode(initialCode); draft.setStdin(""); }}><RotateCcw className="size-4" /></Button></TooltipTrigger><TooltipContent>Reset</TooltipContent></Tooltip>
+            {playgroundLink ? <Tooltip><TooltipTrigger asChild><Button size="icon-sm" variant="ghost" aria-label="Playground" onClick={handoff}><ExternalLink className="size-4" /></Button></TooltipTrigger><TooltipContent>Playground</TooltipContent></Tooltip> : null}</TooltipProvider>
+          </div>
+        </div>
+        <PythonEditor value={draft.code} onChange={draft.setCode} />
+        {draft.conflicted ? <Button size="sm" variant="outline" onClick={draft.keepLocal}>Ganti draft tersimpan</Button> : null}
+        {draft.saved ? <span role="status" className="text-body-xs text-muted-foreground">{draft.saved}</span> : null}
+      </div>
+      <div className="min-w-0 space-y-2">
+        <div className="flex min-h-9 items-center"><h2 className="font-heading text-body-sm font-semibold">Terminal</h2></div>
+        <div className="min-h-[220px] rounded-lg border border-border bg-muted p-3 font-mono text-body-sm">
+          <pre aria-live="polite" className="max-h-80 overflow-auto whitespace-pre-wrap break-words">{terminalOutput}</pre>
+          {waitingInput ? <form onSubmit={(event) => { event.preventDefault(); const value = terminalInput; sendInput.current?.(value); sendInput.current = null; setWaitingInput(false); setTerminalOutput((output) => (output + value + "\n").slice(0, 8000)); setTerminalHistory((history) => [...history, value]); setTerminalInput(""); }}><Input autoFocus aria-label="Input terminal" value={terminalInput} maxLength={Math.max(0, 8000 - terminalHistory.join("\n").length - (terminalHistory.length ? 1 : 0))} onChange={(event) => setTerminalInput(event.target.value)} className="mt-2 font-mono" /></form> : null}
+          {phase === "loading" ? <p role="status" className="text-body-xs text-muted-foreground">Menyiapkan Python...</p> : null}
+          {execution ? <p role="status" className="mt-2 text-body-xs text-muted-foreground">{statusLabels[execution.status]}{execution.stderr && !terminalOutput.includes(execution.stderr) && execution.stderr.replace(/[.!]+$/, "") !== statusLabels[execution.status] ? `: ${execution.stderr}` : ""}</p> : null}
+        </div>
+      </div>
+    </div>
+    {allowHelp ? <CodingHelp courseId={courseId} context={help} disabled={submitting} /> : null}
+  </section>;
   return <section className="min-w-0 max-w-full space-y-4" aria-label={problem ? `Latihan Python: ${problem.title}` : "Playground Python"}>
     {problem ? <div className="space-y-2"><h3 className="font-heading text-body-base font-bold">{problem.title}</h3><MarkdownRenderer content={problem.prompt} />{problem.publicTests.length ? <details className="text-body-sm"><summary className="cursor-pointer">Contoh input dan output</summary><div className="mt-2 space-y-2">{problem.publicTests.map((test) => <div key={test.id} className="grid grid-cols-2 gap-2"><pre className="overflow-x-auto rounded-md bg-muted p-2"><span className="block text-body-xs text-muted-foreground">Input</span>{test.stdin}</pre><pre className="overflow-x-auto rounded-md bg-muted p-2"><span className="block text-body-xs text-muted-foreground">Output</span>{test.expectedStdout}</pre></div>)}</div></details> : null}</div> : null}
     <PythonEditor value={draft.code} onChange={draft.setCode} />

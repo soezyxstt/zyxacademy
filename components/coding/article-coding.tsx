@@ -17,7 +17,7 @@ export function ArticleCodingProvider({ value, children }: { value: ArticleCodin
 export function ArticleCodeExample({ part }: { part: Extract<ArticlePart, { kind: "code_example" }> }) {
   const context = useContext(Context);
   if (!part.runnable || !context?.enabled) return <pre className="overflow-x-auto rounded-lg border border-border bg-muted p-3 font-mono text-body-sm"><code>{part.code}</code></pre>;
-  return <CodingWorkspace key={`${context.articleId}:${context.articleVersion}:${part.id}`} courseId={context.courseId} draftKey={`example:${context.articleId}:${context.articleVersion}:${part.id}`} initialCode={part.code} allowHelp={false} playgroundLink />;
+  return <CodingWorkspace key={`${context.articleId}:${context.articleVersion}:${part.id}`} courseId={context.courseId} draftKey={`example:${context.articleId}:${context.articleVersion}:${part.id}`} initialCode={part.code} allowHelp={false} playgroundLink interactive />;
 }
 export function ArticleCodingExercise({ part }: { part: Extract<ArticlePart, { kind: "coding_exercise" }> }) {
   const context = useContext(Context);
