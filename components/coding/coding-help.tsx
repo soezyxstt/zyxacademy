@@ -1,9 +1,10 @@
 "use client";
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Bug, GitBranch, Lightbulb, ListTree, MessageSquare, Send, X } from "lucide-react";
+import { Bug, GitBranch, Lightbulb, ListTree, Send } from "lucide-react";
 import { CanvasSpecSchema, type CanvasSpec } from "@/lib/zyra/canvas";
 import { LearningCanvasRenderer } from "@/components/course/learning-canvas/learning-canvas-renderer";
 import { MarkdownRenderer } from "@/components/course/markdown-renderer";
@@ -15,12 +16,8 @@ export function CodingHelp({ courseId, context, disabled = false }: { courseId: 
   const [question, setQuestion] = useState(""), [answer, setAnswer] = useState(""), [error, setError] = useState("");
   const [busy, setBusy] = useState(false), [snapshot, setSnapshot] = useState<string | null>(null);
   const [canvas, setCanvas] = useState<CanvasSpec | null>(null);
-  const [composerOpen, setComposerOpen] = useState(false);
   const sessionId = useRef<string | null>(null);
   const contextKey = JSON.stringify(context);
-  const questionId = useId();
-  const composerId = useId();
-  const questionInput = useRef<HTMLTextAreaElement>(null);
   const hasExecutionError = ["syntax_error", "runtime_error", "timeout"].includes(context.execution?.status ?? "");
   const actions = [
     { intent: "hint", label: "Petunjuk", icon: Lightbulb, message: "Beri saya petunjuk berikutnya, tanpa langsung memberikan seluruh solusi." },
@@ -30,7 +27,6 @@ export function CodingHelp({ courseId, context, disabled = false }: { courseId: 
   ] as const;
   const controller = useRef<AbortController | null>(null);
   useEffect(() => () => controller.current?.abort(), []);
-  useEffect(() => { if (composerOpen) questionInput.current?.focus(); }, [composerOpen]);
   async function ask(intent: z.infer<typeof codingHelpRequestSchema>["intent"], message: string) {
     controller.current?.abort();
     const abort = new AbortController(); controller.current = abort;
@@ -48,33 +44,27 @@ export function CodingHelp({ courseId, context, disabled = false }: { courseId: 
     } catch (error) { if (!abort.signal.aborted) setError(error instanceof Error ? error.message : "Zyra belum dapat merespons."); }
     finally { if (!abort.signal.aborted) setBusy(false); }
   }
+  function submitQuestion() { if (!busy && !disabled && question.trim()) void ask("review", question); }
   return <section className="min-w-0 space-y-3 border-t border-border pt-4" aria-label="Konsultasi Zyra">
-    <div className="flex flex-wrap items-center gap-2">
-      <h3 className="mr-auto shrink-0 font-heading text-body-base font-bold">Zyra</h3>
-      <TooltipProvider>
-        {actions.map(({ intent, label, icon: Icon, message }) => <Tooltip key={intent}>
-          <TooltipTrigger asChild>
-            <Button className="size-10 shrink-0 px-0 text-body-sm sm:w-auto sm:px-2.5" variant={intent === "explain_error" && hasExecutionError ? "destructive" : "outline"} aria-label={label} disabled={busy || disabled} onClick={() => ask(intent, message)}>
-              <Icon className="size-4" aria-hidden="true" /><span className="hidden sm:inline">{label}</span>
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>{label}</TooltipContent>
-        </Tooltip>)}
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button className="size-10 shrink-0 px-0 text-body-sm sm:w-auto sm:px-2.5" variant={composerOpen ? "secondary" : "outline"} aria-label={composerOpen ? "Tutup pertanyaan" : "Tulis pertanyaan"} aria-expanded={composerOpen} aria-controls={composerId} disabled={disabled} onClick={() => setComposerOpen((open) => !open)}>
-              {composerOpen ? <X className="size-4" aria-hidden="true" /> : <MessageSquare className="size-4" aria-hidden="true" />}<span className="hidden sm:inline">{composerOpen ? "Tutup" : "Tulis pertanyaan"}</span>
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>{composerOpen ? "Tutup pertanyaan" : "Tulis pertanyaan"}</TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
-    </div>
-    {composerOpen ? <form id={composerId} className="space-y-2" onSubmit={(event) => { event.preventDefault(); if (!busy && !disabled && question.trim()) void ask("review", question); }}>
-      <label className="block text-body-sm" htmlFor={questionId}>Pertanyaan</label>
-      <Textarea ref={questionInput} id={questionId} value={question} onChange={(event) => setQuestion(event.target.value)} maxLength={2000} placeholder="Tanyakan tentang kode atau langkah penyelesaian" className="text-body-sm" disabled={disabled} />
-      <Button type="submit" className="text-body-sm" disabled={busy || disabled || !question.trim()}><Send className="size-4" aria-hidden="true" />Tanya Zyra</Button>
-    </form> : null}
+    <h3 className="font-heading text-body-base font-bold">Zyra</h3>
+    <form className="min-w-0 rounded-lg border border-border bg-background transition-colors has-[textarea:focus-visible]:border-ring has-[textarea:focus-visible]:ring-2 has-[textarea:focus-visible]:ring-ring/20" onSubmit={(event) => { event.preventDefault(); submitQuestion(); }}>
+      <div role="toolbar" aria-label="Bantuan cepat" className="flex flex-wrap items-center gap-1 border-b border-border px-1.5 py-1.5">
+        <TooltipProvider>
+          {actions.map(({ intent, label, icon: Icon, message }) => { const highlighted = intent === "explain_error" && hasExecutionError; return <Tooltip key={intent}>
+            <TooltipTrigger asChild>
+              <Button type="button" size="sm" className={cn("size-7 shrink-0 px-0 text-body-sm sm:w-auto sm:px-2", !highlighted && "text-muted-foreground hover:text-foreground")} variant={highlighted ? "destructive" : "ghost"} aria-label={label} disabled={busy || disabled} onClick={() => ask(intent, message)}>
+                <Icon className="size-3.5" aria-hidden="true" /><span className="hidden sm:inline">{label}</span>
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>{label}</TooltipContent>
+          </Tooltip>; })}
+        </TooltipProvider>
+      </div>
+      <div className="flex items-end gap-2 p-1.5">
+        <Textarea aria-label="Pertanyaan" rows={1} value={question} onChange={(event) => setQuestion(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); submitQuestion(); } }} maxLength={2000} placeholder="Tanyakan tentang kode atau langkah penyelesaian" className="field-sizing-content max-h-40 min-h-8 resize-none border-0 bg-transparent px-1.5 py-1.5 shadow-none focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0" disabled={disabled} />
+        <Button type="submit" size="icon-sm" aria-label="Tanya Zyra" disabled={busy || disabled || !question.trim()}><Send className="size-3.5" aria-hidden="true" /></Button>
+      </div>
+    </form>
     {busy ? <p role="status" className="text-body-xs text-muted-foreground">Zyra sedang meninjau kode...</p> : null}
     {snapshot !== null && snapshot !== contextKey ? <p className="text-body-xs text-muted-foreground">Penjelasan ini merujuk pada percobaan sebelum perubahan terakhir.</p> : null}
     {error ? <p role="alert" className="text-body-sm text-destructive">{error}</p> : null}
