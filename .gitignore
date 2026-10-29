@@ -71,3 +71,7 @@ tmp*
 /dist/skills/
 /source-pack-work/
 /source-pack-ma1101-bab-0-pertaksamaan-dan-fungsi.zip
+
+# python
+__pycache__/
+*.py[cod]
