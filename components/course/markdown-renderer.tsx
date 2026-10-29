@@ -20,7 +20,10 @@ import { compileMarkdown } from "@/lib/markdown-compiler";
 import { ASTBlock } from "@/lib/ast-validator";
 import { compileSafeExpression, normalizeLegacyGraphExpression } from "@/lib/zyra/canvas";
 import { splitScientificText } from "@/lib/math/text-segments";
+import { scientificValueToMathText } from "@/lib/math/scientific-format";
 import { MathText } from "@/components/course/math-text";
+import { ArticleParts } from "@/components/course/article-parts";
+import { extractEmbeddedArticleParts } from "@/lib/tutor/answer-sanitizer";
 
 function CanvasLoading({ labelKey }: { labelKey: "chartLoading" | "diagramLoading" | "interactiveGraphLoading" }) {
   const t = useTranslations("studentCourse");
@@ -1145,7 +1148,7 @@ function ASTBlockRenderer({ block, density }: { block: ASTBlock; density?: Markd
                           align === "right" && "text-right"
                         )}
                       >
-                        {renderRichText(cell)}
+                        {renderRichText(scientificValueToMathText(cell))}
                       </td>
                     );
                   })}
@@ -1208,7 +1211,14 @@ function ASTBlockRenderer({ block, density }: { block: ASTBlock; density?: Markd
           isCompact ? "p-3 rounded-lg my-2" : "p-3.5 rounded-xl my-2.5"
         )}>
           <h4 className={cn("text-body-sm font-heading font-bold text-foreground", isCompact ? "mb-1.5" : "mb-2")}>{block.content.title ? renderRichText(block.content.title) : "Formula"}</h4>
-          <div className={cn("overflow-x-auto text-center w-full max-w-full [&_.katex-display]:my-0 [&_.katex-display]:py-0", isCompact ? "my-1.5" : "my-2")} dangerouslySetInnerHTML={{ __html: formulaHtml }} />
+          <div
+            className={cn("article-formula-row w-full max-w-full [&_.katex-display]:my-0 [&_.katex-display]:py-0 [&_.katex-display]:text-left", isCompact ? "my-1.5" : "my-2")}
+            data-math-scroll
+            role="region"
+            aria-label="Rumus matematika"
+            tabIndex={0}
+            dangerouslySetInnerHTML={{ __html: formulaHtml }}
+          />
           {block.content.interpretation && (
             <div className={cn("text-body-xs text-muted-foreground leading-relaxed", isCompact ? "mt-1.5" : "mt-2")}>
               <MarkdownRenderer content={block.content.interpretation} density={density} />
@@ -1486,23 +1496,45 @@ export function ASTRenderer({ blocks, className, density }: ASTRendererProps) {
   );
 }
 
+function VisualCompilerErrorFallback() {
+  let title = "Kesalahan Kompilator Visual";
+  let description = "Kompilator visual tidak tersedia untuk merender bagian ini.";
+  try {
+    const t = useTranslations("studentCourse");
+    title = t("learningCanvas.visualCompilerError");
+    description = t("learningCanvas.visualCompilerUnavailable");
+  } catch {
+    // Fallback when rendered outside NextIntlClientProvider (e.g. SSR/contract tests)
+  }
+  return (
+    <div className="p-4 bg-status-error/10 border border-status-error/25 text-status-error rounded-xl text-body-sm font-sans">
+      <strong>{title}</strong>
+      <p className="mt-1 text-body-xs">{description}</p>
+    </div>
+  );
+}
+
 export function MarkdownRenderer({ content, className, density }: MarkdownRendererProps) {
-  const t = useTranslations("studentCourse");
   const contextDensity = useMarkdownDensity();
   const activeDensity = density ?? contextDensity;
+
+  const embeddedParts = React.useMemo(() => {
+    if (typeof content !== "string" || !content) return null;
+    return extractEmbeddedArticleParts(content);
+  }, [content]);
 
   // The compile step (parse + validate + diagnostics + stats) is expensive and
   // depends only on the source string, so memoize it. Without this it re-runs on
   // every parent re-render (e.g. every selection/progress tick in the reader).
   const compiled = React.useMemo(() => {
-    if (typeof content !== "string" || !content) return null;
+    if (typeof content !== "string" || !content || embeddedParts) return null;
     try {
       return { ok: true as const, result: compileMarkdown(content) };
     } catch (err) {
       console.error("Visual compiler failed, fallback to raw rendering:", err);
       return { ok: false as const, error: err };
     }
-  }, [content]);
+  }, [content, embeddedParts]);
 
   if (!content) return null;
   if (typeof content !== "string") {
@@ -1510,15 +1542,18 @@ export function MarkdownRenderer({ content, className, density }: MarkdownRender
     return <ASTRenderer blocks={content} className={className} density={activeDensity} />;
   }
 
+  if (embeddedParts) {
+    return (
+      <div className={cn("min-w-0 max-w-full", className)}>
+        <ArticleParts parts={embeddedParts} density={activeDensity} />
+      </div>
+    );
+  }
+
   if (!compiled) return null;
 
   if (!compiled.ok) {
-    return (
-      <div className="p-4 bg-status-error/10 border border-status-error/25 text-status-error rounded-xl text-body-sm font-sans">
-        <strong>{t("learningCanvas.visualCompilerError")}</strong>
-        <p className="mt-1 text-body-xs">{t("learningCanvas.visualCompilerUnavailable")}</p>
-      </div>
-    );
+    return <VisualCompilerErrorFallback />;
   }
 
   if (compiled.result.ast.blocks.length === 0) {

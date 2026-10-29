@@ -163,60 +163,110 @@ export function normalizeCleanMathText(text: string, maxChars = 1200): string {
     .slice(0, maxChars);
 }
 
+function extractSanitizedElementText(el: Element | null | undefined, maxChars = 240): string | undefined {
+  if (!el) return undefined;
+  try {
+    if (typeof el.cloneNode === "function" && typeof document !== "undefined") {
+      const cloned = el.cloneNode(true) as HTMLElement;
+      sanitizeKatexInNode(cloned);
+      const cleaned = normalizeCleanMathText(nodeToCleanText(cloned), maxChars).replace(/\s*\n\s*/g, " ").trim();
+      return cleaned || undefined;
+    }
+  } catch {
+    // Fallback to HTML/text sanitization below
+  }
+  if (typeof el.innerHTML === "string" && el.innerHTML) {
+    const sanitized = sanitizeKatexInHtml(el.innerHTML).replace(/\s*\n\s*/g, " ").trim().slice(0, maxChars);
+    return sanitized || undefined;
+  }
+  const raw = normalizeCleanMathText(el.textContent ?? "", maxChars);
+  return raw || undefined;
+}
+
+function findPrecedingHeading(startEl: Element | null | undefined): Element | null {
+  let curr: Element | null | undefined = startEl;
+  while (curr) {
+    let prev = curr.previousElementSibling;
+    while (prev) {
+      const tag = prev.tagName?.toUpperCase();
+      if (tag === "H1" || tag === "H2" || tag === "H3") {
+        return prev;
+      }
+      prev = prev.previousElementSibling;
+    }
+    curr = curr.parentElement;
+    if (curr?.tagName?.toUpperCase() === "ARTICLE") break;
+  }
+  return null;
+}
+
 /**
  * Extracts pedagogical metadata from the DOM container enclosing the selection.
  */
-function extractContextFromContainer(container: Node | null): {
+export function extractContextFromContainer(container: Node | null): {
   blockType?: ZyraSelectionContext["blockType"];
   blockTitle?: string;
   surroundingText?: string;
   sectionTitle?: string;
 } {
-  if (!container || typeof document === "undefined") return {};
+  if (!container) return {};
 
-  const startEl = container instanceof Element ? container : container.parentElement;
-  if (!startEl) return {};
+  const startEl =
+    typeof (container as Element).closest === "function"
+      ? (container as Element)
+      : container.parentElement;
+  if (!startEl || typeof startEl.closest !== "function") return {};
 
-  // Find enclosing block/card element
-  const blockEl = startEl.closest("[data-block-type], [data-block-id], .product-worked-example, .product-formative-check, [id^='block-']");
-  const sectionEl = startEl.closest("[data-section-slug], [id^='section-'], article");
+  // Find enclosing Artikel v4 part or v3 block/card element
+  const partEl =
+    startEl.getAttribute?.("data-part-kind")
+      ? startEl
+      : startEl.closest("[data-part-kind]");
+  const blockEl =
+    startEl.closest("[data-block-type], [data-block-id], .product-worked-example, .product-formative-check, [id^='block-']") ??
+    partEl;
+  const sectionEl =
+    startEl.closest("[data-section-slug], [id^='section-'], article") ??
+    (startEl.parentElement?.tagName?.toUpperCase() === "ARTICLE" ? startEl.parentElement : null);
 
   let blockType: ZyraSelectionContext["blockType"] = "other";
   let blockTitle: string | undefined;
   let surroundingText: string | undefined;
 
+  const partKind = partEl?.getAttribute?.("data-part-kind");
+  if (partKind === "worked_example") {
+    blockType = "worked_example";
+  } else if (partKind === "math_unit") {
+    blockType = "mathematical_representation";
+  }
+
   if (blockEl) {
-    const rawType = blockEl.getAttribute("data-block-type");
-    if (rawType && [
+    const rawType = blockEl.getAttribute?.("data-block-type");
+    if (blockType === "other" && rawType && [
       "explanation", "worked_example", "retrieval_prompt", "mathematical_representation",
       "verbal_representation", "analogy", "misconception", "summary"
     ].includes(rawType)) {
       blockType = rawType as ZyraSelectionContext["blockType"];
-    } else if (blockEl.classList.contains("product-worked-example") || blockEl.id?.includes("worked-example")) {
+    } else if (blockType === "other" && (blockEl.classList?.contains("product-worked-example") || blockEl.id?.includes("worked-example"))) {
       blockType = "worked_example";
-    } else if (blockEl.classList.contains("product-formative-check") || blockEl.id?.includes("retrieval")) {
+    } else if (blockType === "other" && (blockEl.classList?.contains("product-formative-check") || blockEl.id?.includes("retrieval"))) {
       blockType = "retrieval_prompt";
     }
 
-    blockTitle = blockEl.getAttribute("data-block-title") ||
-      blockEl.querySelector("h3, h4, .font-heading")?.textContent?.trim() ||
+    blockTitle = blockEl.getAttribute?.("data-block-title") ||
+      extractSanitizedElementText(partEl?.querySelector?.("h4, h3, .font-heading") ?? blockEl.querySelector?.("h3, h4, .font-heading")) ||
       undefined;
 
     // Clone block to sanitize KaTeX in surrounding text
-    try {
-      const clonedBlock = blockEl.cloneNode(true) as HTMLElement;
-      sanitizeKatexInNode(clonedBlock);
-      const rawBlockText = nodeToCleanText(clonedBlock);
-      surroundingText = normalizeCleanMathText(rawBlockText, 1500);
-    } catch {
-      // fallback
-      surroundingText = normalizeCleanMathText(blockEl.textContent ?? "", 1500);
-    }
+    surroundingText = extractSanitizedElementText(partEl ?? blockEl, 1500);
   }
 
   let sectionTitle: string | undefined;
-  if (sectionEl) {
-    sectionTitle = sectionEl.querySelector("h2, h1")?.textContent?.trim() || undefined;
+  const precedingHeading = findPrecedingHeading(partEl ?? blockEl ?? startEl);
+  if (precedingHeading) {
+    sectionTitle = extractSanitizedElementText(precedingHeading) || undefined;
+  } else if (sectionEl) {
+    sectionTitle = extractSanitizedElementText(sectionEl.querySelector?.("h2, h1")) || undefined;
   }
 
   return {

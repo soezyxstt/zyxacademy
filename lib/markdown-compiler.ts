@@ -1078,6 +1078,21 @@ export function parseCanonicalMarkdown(markdown: string): ASTBlock[] {
       continue;
     }
 
+    if (presenterType === "code") {
+      presenterLines.push(line);
+      if (trimmed.startsWith("```") && presenterLines.length > 1) {
+        flushPresenterBlock("code", presenterLines);
+        presenterLines = [];
+        presenterType = null;
+      }
+      continue;
+    }
+
+    // Ignore standalone HTML comments (e.g. Artikel v4 visual/coding anchors)
+    if (/^<!--[\s\S]*-->$/.test(trimmed)) {
+      continue;
+    }
+
     // Lists continuation parsing
     const listPattern = /^(\s*)([-*+]|\d+\.)\s+(.*)$/;
     if (listPattern.test(line)) {
@@ -1154,7 +1169,7 @@ export function parseCanonicalMarkdown(markdown: string): ASTBlock[] {
       continue;
     }
 
-    if (trimmed.startsWith("$$")) {
+    if (trimmed.startsWith("$") || trimmed.startsWith("\\[")) {
       // Flush presenter block first
       if (presenterType && presenterType !== "code") {
         flushPresenterBlock(presenterType, presenterLines);
@@ -1162,18 +1177,33 @@ export function parseCanonicalMarkdown(markdown: string): ASTBlock[] {
         presenterType = null;
       }
 
+      const openDelim = trimmed.startsWith("$") ? "$" : "\\[";
+      const closeDelim = openDelim === "$" ? "$" : "\\]";
       const mathLines: string[] = [];
-      if (trimmed.endsWith("$$") && trimmed.length > 2) {
-        mathLines.push(trimmed.slice(2, -2).trim());
+      if (trimmed.endsWith(closeDelim) && trimmed.length > openDelim.length + closeDelim.length) {
+        mathLines.push(trimmed.slice(openDelim.length, -closeDelim.length).trim());
         blocks.push({
           id: `md-${globalIndex}-mathblk`,
           type: "p",
           globalOrderIndex: globalIndex++,
-          content: `$$${mathLines[0]}$$`,
+          content: `$${mathLines[0]}$`,
         });
       } else {
+        const firstLineRest = trimmed.slice(openDelim.length).trim();
+        if (firstLineRest) {
+          mathLines.push(firstLineRest);
+        }
         i++;
-        while (i < lines.length && !lines[i].trim().startsWith("$$")) {
+        while (i < lines.length) {
+          const lineTrimmed = lines[i].trim();
+          if (lineTrimmed === closeDelim || lineTrimmed.startsWith(closeDelim)) {
+            break;
+          }
+          if (lineTrimmed.endsWith(closeDelim)) {
+            const beforeClose = lineTrimmed.slice(0, -closeDelim.length).trim();
+            if (beforeClose) mathLines.push(beforeClose);
+            break;
+          }
           mathLines.push(lines[i]);
           i++;
         }
@@ -1181,7 +1211,7 @@ export function parseCanonicalMarkdown(markdown: string): ASTBlock[] {
           id: `md-${globalIndex}-mathblk`,
           type: "p",
           globalOrderIndex: globalIndex++,
-          content: `$$\n${mathLines.join("\n")}\n$$`,
+          content: `$\n${mathLines.join("\n")}\n$`,
         });
       }
       continue;
@@ -1211,16 +1241,6 @@ export function parseCanonicalMarkdown(markdown: string): ASTBlock[] {
       lineType = "list";
     } else if (trimmed === "---" || trimmed === "***" || trimmed === "___") {
       lineType = "hr";
-    }
-
-    if (presenterType === "code") {
-      presenterLines.push(line);
-      if (trimmed.startsWith("```") && presenterLines.length > 1) {
-        flushPresenterBlock("code", presenterLines);
-        presenterLines = [];
-        presenterType = null;
-      }
-      continue;
     }
 
     if (presenterType && presenterType !== lineType) {

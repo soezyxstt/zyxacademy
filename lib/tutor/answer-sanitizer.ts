@@ -1,4 +1,5 @@
 import { normalizeTutorMathMarkdown } from "./math-markdown";
+import { articlePartsSchema, materializeArticleParts, type ArticlePart } from "@/lib/materials/article-parts";
 
 export interface SanitizationSource {
   id: string;
@@ -48,14 +49,56 @@ function cleanSourceTitle(source: SanitizationSource): string {
   return candidate.replace(/^(?:Materi|Konsep|Pembahasan(?:\s*Soal)?|Soal(?:\s*Latihan)?):\s*/i, "").trim();
 }
 
+function decodeBase64UrlJson(encoded: string): unknown {
+  try {
+    const normalized = encoded.replace(/-/g, "+").replace(/_/g, "/");
+    const padded = normalized + "=".repeat((4 - (normalized.length % 4)) % 4);
+    const json = typeof Buffer !== "undefined"
+      ? Buffer.from(padded, "base64").toString("utf8")
+      : atob(padded);
+    return JSON.parse(json);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Extracts structured Artikel v4 parts if embedded in a raw block payload comment.
+ */
+export function extractEmbeddedArticleParts(text: string): ArticlePart[] | null {
+  if (!text || !text.includes("<!--__ZYX_V4_")) return null;
+  const base64Match = text.match(/<!--__ZYX_V4_BLOCK_PAYLOAD__:([A-Za-z0-9_-]+)-->/);
+  if (base64Match?.[1]) {
+    const decoded = decodeBase64UrlJson(base64Match[1]) as { parts?: unknown } | null;
+    if (decoded?.parts) {
+      const parsed = articlePartsSchema.safeParse(decoded.parts);
+      if (parsed.success) return parsed.data;
+    }
+  }
+  const jsonMatch = text.match(/<!--__ZYX_V4_[A-Z_]+__:?(\{[\s\S]*?\})-->/);
+  if (jsonMatch?.[1]) {
+    try {
+      const decoded = JSON.parse(jsonMatch[1]) as { parts?: unknown } | null;
+      if (decoded?.parts) {
+        const parsed = articlePartsSchema.safeParse(decoded.parts);
+        if (parsed.success) return parsed.data;
+      }
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
+
 /**
  * Cleans model output before it reaches the student:
- * 1. Replaces known source IDs used in prose with their human-readable title.
- * 2. Strips bracketed and parenthesized citation tokens (e.g. [article-product-...], [ko-...], (uuid))
+ * 1. Materializes or strips internal Artikel v3/v4 HTML payload comments.
+ * 2. Replaces known source IDs used in prose with their human-readable title.
+ * 3. Strips bracketed and parenthesized citation tokens (e.g. [article-product-...], [ko-...], (uuid))
  *    which belong exclusively in the sources metadata / chips, never in student prose.
- * 3. Strips bare UUIDs and known ID slugs that leak into text.
- * 4. Tidies leftover whitespace and punctuation artefacts.
- * 5. Normalizes LaTeX math.
+ * 4. Strips bare UUIDs and known ID slugs that leak into text.
+ * 5. Tidies leftover whitespace and punctuation artefacts.
+ * 6. Normalizes LaTeX math.
  */
 export function sanitizeAnswer(
   text: string,
@@ -63,6 +106,18 @@ export function sanitizeAnswer(
 ): string {
   if (!text) return "";
   let out = text;
+
+  const embeddedParts = extractEmbeddedArticleParts(out);
+  if (embeddedParts) {
+    const stripped = out
+      .replace(/<!--__ZYX_V4_BLOCK_PAYLOAD__:[A-Za-z0-9_-]+-->/g, "")
+      .replace(/<!--__ZYX_V4_[A-Z_]+__:?\{[\s\S]*?\}-->/g, "")
+      .trim();
+    out = stripped || materializeArticleParts(embeddedParts);
+  }
+
+  // Strip internal Artikel v3/v4 metadata/visual/coding HTML comments outside code blocks
+  out = out.replace(/<!--\s*(?:__ZYX_V[34]_[A-Z_]+__:?[\s\S]*?|visual:[^>]*|coding-exercise:[^>]*)\s*-->/g, "");
 
   // 1. If known sources are provided, handle their IDs explicitly
   if (knownSources && knownSources.length > 0) {

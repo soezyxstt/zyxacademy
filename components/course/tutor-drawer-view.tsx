@@ -49,6 +49,15 @@ import {
   listTutorSessionsAction,
 } from "@/app/actions/tutor";
 import { MarkdownRenderer } from "@/components/course/markdown-renderer";
+import {
+  ArticleParts,
+  ProductLearningVisual,
+  ProductWorkedExample,
+  type PublicVisualSpec,
+  type PublicWorkedExamplePayload,
+} from "@/components/course/article-parts";
+import type { ArticlePart } from "@/lib/article-parts";
+import { MathText } from "@/components/course/math-text";
 import { toast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
 import { clampTutorPanelWidth, DEFAULT_TUTOR_PANEL_WIDTH, MAX_TUTOR_PANEL_WIDTH, MIN_TUTOR_PANEL_WIDTH } from "@/lib/tutor-panel-layout";
@@ -92,6 +101,10 @@ interface ChatMessage {
   sources?: Array<{ type: string; id: string; label: string; href: string }>;
   canvasSpec?: CanvasSpec | null;
   attachments?: ZyraMessageAttachment[];
+  sessionId?: string | null;
+  parts?: ArticlePart[];
+  visuals?: PublicVisualSpec[];
+  workedExample?: PublicWorkedExamplePayload | null;
   isError?: boolean;
   failedPayload?: {
     question: string;
@@ -276,8 +289,15 @@ export function TutorDrawerView({
   const [sessionId, setSessionId] = React.useState<string | null>(null);
   const [attachmentIds, setAttachmentIds] = React.useState<string[]>([]);
   const [readyAttachments, setReadyAttachments] = React.useState<ZyraMessageAttachment[]>([]);
-  const [_attachmentComposerKey, setAttachmentComposerKey] = React.useState(0);
-  const [_attachmentsReady, setAttachmentsReady] = React.useState(true);
+  const [attachmentComposerKey, setAttachmentComposerKey] = React.useState(0);
+  const [attachmentsReady, setAttachmentsReady] = React.useState(true);
+
+  const resetComposerAttachments = React.useCallback(() => {
+    setAttachmentIds([]);
+    setReadyAttachments([]);
+    setAttachmentsReady(true);
+    setAttachmentComposerKey((value) => value + 1);
+  }, []);
   const [copiedMessageId, setCopiedMessageId] = React.useState<string | null>(null);
 
   // Chat sessions history
@@ -382,8 +402,9 @@ export function TutorDrawerView({
     draftSequenceRef.current += 1;
     activateConversation(`draft:${draftSequenceRef.current}`);
     setSessionId(null);
+    resetComposerAttachments();
     setMessages([{ id: "chat-welcome", role: "ai", content: t("tutorDrawer.welcome") }]);
-  }, [activateConversation, conversationScope, t]);
+  }, [activateConversation, conversationScope, resetComposerAttachments, t]);
 
   // Resizable sidebar states
   const [sidebarWidth, setSidebarWidth] = React.useState<number>(DEFAULT_SIDEBAR_WIDTH);
@@ -623,6 +644,9 @@ export function TutorDrawerView({
           role: "ai",
           content: safeText(data.content, t("tutorDrawer.conceptUnavailable")),
           sources: data.sources || [],
+          parts: Array.isArray(data.parts) ? data.parts : undefined,
+          visuals: Array.isArray(data.visuals) ? data.visuals : undefined,
+          workedExample: data.workedExample ?? null,
         }
       ];
     } else if (activeMode === "mistake") {
@@ -849,17 +873,51 @@ export function TutorDrawerView({
     }
   };
 
+  const handleComposerSessionCreated = React.useCallback(
+    (createdSessionId: string) => {
+      hasStartedConversationRef.current = true;
+      activateConversation(conversationKeyForSession(createdSessionId), {
+        invalidate: false,
+        preserveCurrentOverride: true,
+      });
+      setSessionId(createdSessionId);
+      void loadSessions();
+    },
+    [activateConversation, conversationKeyForSession, loadSessions],
+  );
+
+  const handlePaste = React.useCallback(
+    (e: React.ClipboardEvent<HTMLElement>) => {
+      if (!imageInputEnabled || !courseIdFromPath || chatLoading) return;
+      const files = zyraImageFilesFromClipboard(
+        e.clipboardData?.items ?? null,
+        e.clipboardData?.files ?? null,
+      );
+      if (files.length === 0) return;
+      e.preventDefault();
+      void attachmentComposerRef.current?.addFiles(files);
+    },
+    [imageInputEnabled, courseIdFromPath, chatLoading],
+  );
+
   // Handle sending arbitrary chat messages with SSE streaming
   const handleSend = async (suggestedQuestion?: string, overrideQuote?: ZyraQuotedContext | null) => {
     const rawQuestion = (suggestedQuestion || inputVal).trim();
     const effectiveQuote = overrideQuote !== undefined ? overrideQuote : activeQuotedContext;
-    if (!rawQuestion && !effectiveQuote) return;
-    const question = normalizeTutorMathMarkdown(rawQuestion);
     const requestedAttachmentIds = [...attachmentIds];
     const requestedAttachments = [...readyAttachments];
+    if (!rawQuestion && !effectiveQuote && requestedAttachmentIds.length === 0) return;
+    if (!attachmentsReady) return;
+    const fallbackQuestion = effectiveQuote
+      ? t("tutorDrawer.explainPrompt")
+      : requestedAttachmentIds.length > 0
+        ? "Bantu jelaskan gambar ini."
+        : "";
+    const question = normalizeTutorMathMarkdown(rawQuestion || fallbackQuestion);
+    const displayStudentQuestion = rawQuestion ? normalizeTutorMathMarkdown(rawQuestion) : "";
 
     if (zyraAccessTier === "free" && requestedAttachmentIds.length > 0) {
-      toast.error(t("tutorDrawer.freeTextOnly"));
+      toast.error(t("tutorDrawer.freeTextOnly") || "Paket Free hanya mendukung pertanyaan teks.");
       return;
     }
     hasStartedConversationRef.current = true;
@@ -867,9 +925,10 @@ export function TutorDrawerView({
     const studentMsg: ChatMessage = {
       id: `msg-${Date.now()}`,
       role: "student",
-      content: question,
+      content: displayStudentQuestion,
       quotedContext: effectiveQuote,
       attachments: requestedAttachments.length > 0 ? requestedAttachments : undefined,
+      sessionId,
     };
 
     setMessages((prev) => [...prev, studentMsg]);
@@ -1046,7 +1105,7 @@ export function TutorDrawerView({
       requestConversationEpoch === conversationEpochRef.current
     ) {
       saveTutorMessagesAction(courseId, [
-        { role: studentMsg.role, content: studentMsg.content, attachmentIds: requestedAttachmentIds },
+        { role: studentMsg.role, content: studentMsg.content || question, attachmentIds: requestedAttachmentIds },
         { role: "ai", content: accumulatedContent, sources: finalSources, canvasSpec: finalCanvasSpec },
       ], activeSid).catch(() => {});
     }
@@ -1074,6 +1133,7 @@ export function TutorDrawerView({
     if (!courseId) return;
     hasStartedConversationRef.current = true;
     invalidateConversationRequests();
+    resetComposerAttachments();
     const loadEpoch = conversationEpochRef.current;
     setChatLoading(true);
     setShowMenu(false);
@@ -1098,7 +1158,7 @@ export function TutorDrawerView({
     } finally {
       if (loadEpoch === conversationEpochRef.current) setChatLoading(false);
     }
-  }, [pathname, sessionId, t, activateConversation, invalidateConversationRequests, conversationKeyForSession]);
+  }, [pathname, sessionId, t, activateConversation, invalidateConversationRequests, conversationKeyForSession, resetComposerAttachments]);
 
   const handleDeleteSession = React.useCallback(async (targetSessionId: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -1114,6 +1174,7 @@ export function TutorDrawerView({
       if (isCurrentConversation && conversationKeyRef.current === targetConversationKey) {
         startNewConversation();
         setSessionId(null);
+        resetComposerAttachments();
         setMessages([
           {
             id: "chat-welcome",
@@ -1126,11 +1187,12 @@ export function TutorDrawerView({
     } catch {
       toast.error(t("tutorDrawer.sessionDeleteFailed"));
     }
-  }, [pathname, t, startNewConversation, invalidateConversationRequests, conversationKeyForSession]);
+  }, [pathname, t, startNewConversation, invalidateConversationRequests, conversationKeyForSession, resetComposerAttachments]);
 
   const handleNewChat = React.useCallback(() => {
     startNewConversation();
     setSessionId(null);
+    resetComposerAttachments();
     setMessages([
       {
         id: "chat-welcome",
@@ -1141,12 +1203,13 @@ export function TutorDrawerView({
     ]);
     setShowMenu(false);
     toast.success(t("tutorDrawer.newChatStarted"));
-  }, [t, startNewConversation]);
+  }, [t, startNewConversation, resetComposerAttachments]);
 
   const handleClearHistory = React.useCallback(async () => {
     const courseId = pathname?.startsWith("/courses/") ? pathname.split("/")[2] : null;
     startNewConversation();
     setSessionId(null);
+    resetComposerAttachments();
     setSessions([]);
     setMessages([
       {
@@ -1160,7 +1223,7 @@ export function TutorDrawerView({
       await clearTutorHistoryAction(courseId).catch(() => {});
     }
     toast.success(t("tutorDrawer.historyCleared"));
-  }, [pathname, t, startNewConversation]);
+  }, [pathname, t, startNewConversation, resetComposerAttachments]);
 
   const handleInsertSnippet = (snippet: string) => {
     const el = textareaRef.current;
@@ -1317,12 +1380,12 @@ export function TutorDrawerView({
 
                 {zyraAccessTier === "free" && (
                   <div className="mt-2 border-t border-border/60 px-2 pt-2">
-                    <p className="text-body-xs text-muted-foreground">{t("tutorDrawer.freeTextOnly")}</p>
+                    <p className="text-body-xs text-muted-foreground">{t("tutorDrawer.freeTextOnly") || "Paket Free hanya mendukung pertanyaan teks."}</p>
                     <Link
                       href="/plans"
                       className="mt-1 inline-flex items-center gap-1 text-body-xs font-semibold text-brand-primary hover:underline"
                     >
-                      {t("tutorDrawer.fullFeatures")}
+                      {t("tutorDrawer.fullFeatures") || "Buka fitur lengkap"}
                       <ArrowRight className="size-3" />
                     </Link>
                   </div>
@@ -1413,30 +1476,46 @@ export function TutorDrawerView({
                 const showComprehensionCheck = isLastAiTurn && !chatLoading && isComprehensionCheck(msg.content);
 
                 if (isStudent) {
+                  const attachmentSessionId = msg.sessionId ?? sessionId;
                   return (
                     <div key={msg.id || index} className="flex justify-end">
                       <div className="max-w-[85%] rounded-2xl bg-muted/90 text-foreground px-4 py-2.5 text-body-sm leading-relaxed shadow-2xs space-y-2">
                         {msg.quotedContext && (
                           <div className="border-l-2 border-brand-primary/60 pl-2.5 py-0.5 text-body-xs space-y-0.5 text-muted-foreground">
                             <p className="font-medium text-foreground text-[11px] truncate">
-                              {msg.quotedContext.title || t("tutorDrawer.materialQuote")}
-                              {msg.quotedContext.sectionTitle ? ` · ${msg.quotedContext.sectionTitle}` : ""}
+                              <MathText className="normal-case">
+                                {msg.quotedContext.title || t("tutorDrawer.materialQuote")}
+                              </MathText>
+                              {msg.quotedContext.sectionTitle ? (
+                                <>
+                                  {" · "}
+                                  <MathText className="normal-case">{msg.quotedContext.sectionTitle}</MathText>
+                                </>
+                              ) : ""}
                             </p>
                             <p className="line-clamp-2 italic text-[11px]">
-                              &ldquo;{msg.quotedContext.snippet}&rdquo;
+                              &ldquo;<MathText className="normal-case">{msg.quotedContext.snippet}</MathText>&rdquo;
                             </p>
                           </div>
                         )}
-                        {msg.attachments && msg.attachments.length > 0 && courseIdFromPath && sessionId && (
+                        {msg.attachments && msg.attachments.length > 0 && courseIdFromPath && attachmentSessionId && (
                           <div className="mb-2">
                             <ZyraMessageAttachments
                               attachments={msg.attachments}
                               courseId={courseIdFromPath}
-                              sessionId={sessionId}
+                              sessionId={attachmentSessionId}
                             />
                           </div>
                         )}
-                        {msg.content && <p className="whitespace-pre-wrap break-words font-sans text-body-sm">{msg.content}</p>}
+                        {msg.content && (
+                          <div className="min-w-0 max-w-full break-words text-body-sm leading-relaxed text-foreground">
+                            <MarkdownRenderer
+                              content={normalizeTutorMathMarkdown(msg.content)}
+                              density="compact"
+                              className="text-foreground"
+                            />
+                          </div>
+                        )}
                       </div>
                     </div>
                   );
@@ -1451,7 +1530,7 @@ export function TutorDrawerView({
                       </span>
                     </div>
 
-                    {/* Message Content Flow (Natural typography, no heavy card wrapper) */}
+                    {/* Message Content Flow (Synced with Artikel v4 renderer pipeline) */}
                     {msg.isError ? (
                       <div className="rounded-xl border border-destructive/20 bg-destructive/5 p-3 space-y-2 text-body-xs">
                         <div className="flex items-center gap-2 text-destructive">
@@ -1475,8 +1554,25 @@ export function TutorDrawerView({
                         )}
                       </div>
                     ) : (
-                      <div className="prose prose-sm dark:prose-invert max-w-none break-words text-body-sm leading-relaxed text-foreground">
-                        <MarkdownRenderer content={sanitizeAnswer(msg.content, msg.sources)} density="compact" />
+                      <div
+                        className="min-w-0 max-w-full break-words text-body-sm leading-relaxed text-foreground space-y-3"
+                        data-content-lane="zyra-tutor"
+                      >
+                        {msg.parts && msg.parts.length > 0 ? (
+                          <ArticleParts parts={msg.parts} visuals={msg.visuals} density="compact" />
+                        ) : (
+                          <MarkdownRenderer content={sanitizeAnswer(msg.content, msg.sources)} density="compact" />
+                        )}
+                        {msg.workedExample && (
+                          <ProductWorkedExample example={msg.workedExample} density="compact" />
+                        )}
+                        {!msg.parts?.length && msg.visuals && msg.visuals.length > 0 && (
+                          <div className="space-y-3">
+                            {msg.visuals.map((visual) => (
+                              <ProductLearningVisual key={visual.id} visual={visual} />
+                            ))}
+                          </div>
+                        )}
                       </div>
                     )}
 
@@ -1571,18 +1667,23 @@ export function TutorDrawerView({
 
         {/* Input Composer & Toolbar */}
         <footer className="shrink-0 border-t border-border/40 p-3 pt-2 bg-background/80 backdrop-blur-md">
-          <div className="relative rounded-2xl border border-border bg-background/95 backdrop-blur-md shadow-md focus-within:border-brand-primary/60 focus-within:ring-1 focus-within:ring-brand-primary/20 transition-all p-2.5">
-            {imageInputEnabled && courseIdFromPath && sessionId && (
-              <div className="mb-2">
-                <ZyraAttachmentComposer
-                  ref={attachmentComposerRef}
-                  courseId={courseIdFromPath}
-                  sessionId={sessionId}
-                  onAttachmentIdsChange={setAttachmentIds}
-                  onAttachmentsChange={setReadyAttachments}
-                  onAttachmentsReadyChange={setAttachmentsReady}
-                />
-              </div>
+          <div
+            onPaste={handlePaste}
+            className="relative rounded-2xl border border-border bg-background/95 backdrop-blur-md shadow-md focus-within:border-brand-primary/60 focus-within:ring-1 focus-within:ring-brand-primary/20 transition-all p-2.5"
+          >
+            {imageInputEnabled && courseIdFromPath && (
+              <ZyraAttachmentComposer
+                key={attachmentComposerKey}
+                ref={attachmentComposerRef}
+                courseId={courseIdFromPath}
+                sessionId={sessionId}
+                disabled={chatLoading}
+                hideStandaloneTrigger
+                onSessionCreated={handleComposerSessionCreated}
+                onAttachmentIdsChange={setAttachmentIds}
+                onAttachmentsChange={setReadyAttachments}
+                onAttachmentsReadyChange={setAttachmentsReady}
+              />
             )}
 
             {activeQuotedContext && (
@@ -1591,11 +1692,18 @@ export function TutorDrawerView({
                   <Quote className="size-3.5 shrink-0 text-brand-primary" />
                   <div className="min-w-0 flex items-center gap-1.5">
                     <span className="font-semibold text-foreground text-[11px] shrink-0">
-                      {activeQuotedContext.title || t("tutorDrawer.materialQuote")}
-                      {activeQuotedContext.sectionTitle ? ` · ${activeQuotedContext.sectionTitle}` : ""}:
+                      <MathText className="normal-case">
+                        {activeQuotedContext.title || t("tutorDrawer.materialQuote")}
+                      </MathText>
+                      {activeQuotedContext.sectionTitle ? (
+                        <>
+                          {" · "}
+                          <MathText className="normal-case">{activeQuotedContext.sectionTitle}</MathText>
+                        </>
+                      ) : ""}:
                     </span>
                     <span className="text-muted-foreground truncate italic text-[11px]">
-                      &ldquo;{activeQuotedContext.snippet}&rdquo;
+                      &ldquo;<MathText className="normal-case">{activeQuotedContext.snippet}</MathText>&rdquo;
                     </span>
                   </div>
                 </div>
@@ -1617,10 +1725,11 @@ export function TutorDrawerView({
               ref={textareaRef}
               value={inputVal}
               onChange={(e) => setInputVal(e.target.value)}
+              onPaste={handlePaste}
               onKeyDown={(e) => {
                 if (e.key === "Enter" && !e.shiftKey) {
                   e.preventDefault();
-                  handleSend();
+                  void handleSend();
                 }
               }}
               placeholder={t("tutorDrawer.inputPlaceholder")}
@@ -1630,6 +1739,20 @@ export function TutorDrawerView({
 
             <div className="flex items-center justify-between pt-2 border-t border-border/30">
               <div className="flex items-center gap-1">
+                {imageInputEnabled && courseIdFromPath && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-xs"
+                    disabled={chatLoading}
+                    onClick={() => attachmentComposerRef.current?.openFileDialog()}
+                    aria-label="Lampirkan gambar (atau tempel dengan Ctrl+V)"
+                    title="Lampirkan gambar (Ctrl+V)"
+                    className="size-7 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground cursor-pointer"
+                  >
+                    <Paperclip className="size-3.5" />
+                  </Button>
+                )}
                 <ZyraMathPalette onInsert={handleInsertSnippet} />
                 <ZyraFormulaPreview input={inputVal} />
               </div>
@@ -1641,13 +1764,17 @@ export function TutorDrawerView({
                     href="/plans"
                     className="shrink-0 text-body-xs font-semibold text-brand-primary hover:underline"
                   >
-                    {t("tutorDrawer.fullFeatures")}
+                    {t("tutorDrawer.fullFeatures") || "Buka fitur lengkap"}
                   </Link>
                 )}
                 <Button
                   size="icon-xs"
-                  onClick={() => handleSend()}
-                  disabled={chatLoading || !inputVal.trim()}
+                  onClick={() => void handleSend()}
+                  disabled={
+                    chatLoading ||
+                    !attachmentsReady ||
+                    (!inputVal.trim() && !activeQuotedContext && attachmentIds.length === 0)
+                  }
                   className="size-7 rounded-full bg-brand-primary text-white hover:bg-brand-primary/90 transition-transform active:scale-95 disabled:opacity-40"
                   aria-label={t("tutorDrawer.sendMessage")}
                 >
@@ -1684,16 +1811,24 @@ export function TutorDrawerView({
                   <span className="text-body-xs font-semibold text-muted-foreground uppercase mb-2">
                     {actionFlipped ? t("tutorDrawer.answerOrExplanation") : t("tutorDrawer.question")}
                   </span>
-                  <p className="font-heading text-body-base text-foreground font-semibold">
-                    {actionFlipped ? actionData[actionIndex]?.back : actionData[actionIndex]?.front}
-                  </p>
+                  <div className="font-heading text-body-base text-foreground font-semibold min-w-0 max-w-full">
+                    <MarkdownRenderer
+                      content={normalizeTutorMathMarkdown(
+                        String((actionFlipped ? actionData[actionIndex]?.back : actionData[actionIndex]?.front) ?? "")
+                      )}
+                      density="compact"
+                    />
+                  </div>
                   <span className="mt-4 text-[10px] text-muted-foreground">{t("tutorDrawer.flipCardHint")}</span>
                 </div>
               ) : (
                 <div className="w-full max-w-sm space-y-4">
-                  <p className="font-heading text-body-base font-semibold">
-                    {actionData[actionIndex]?.question}
-                  </p>
+                  <div className="font-heading text-body-base font-semibold min-w-0 max-w-full">
+                    <MarkdownRenderer
+                      content={normalizeTutorMathMarkdown(String(actionData[actionIndex]?.question ?? ""))}
+                      density="compact"
+                    />
+                  </div>
                   <div className="space-y-2">
                     {actionData[actionIndex]?.options?.map((opt: string, optIdx: number) => (
                       <button
@@ -1707,7 +1842,7 @@ export function TutorDrawerView({
                             : "border-border bg-card hover:bg-muted/50"
                         )}
                       >
-                        {opt}
+                        <MathText>{normalizeTutorMathMarkdown(String(opt ?? ""))}</MathText>
                       </button>
                     ))}
                   </div>
