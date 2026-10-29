@@ -61,3 +61,8 @@ export function ArticleParts({
     </div>
   );
 }
+
+export { ProductLearningVisual } from "@/components/course/product-learning-visual";
+export { ProductWorkedExample } from "@/components/course/product-learning-blocks";
+export type { PublicVisualSpec, PublicWorkedExamplePayload } from "@/lib/articles/structured-read-model";
+export type { ArticlePart } from "@/lib/materials/article-parts";
