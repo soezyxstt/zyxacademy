@@ -5,6 +5,7 @@ import { db } from "@/db";
 import { chatSessions } from "@/db/schema";
 import { auth } from "@/lib/auth";
 import { resolveCourseAccess } from "@/lib/student/course-access";
+import { createChatSession } from "@/lib/zyra/zyra-context-builder";
 import { zyraRuntimeEnv } from "@/lib/zyra/runtime-env";
 import {
   createZyraImageAttachment,
@@ -29,14 +30,13 @@ export async function POST(request: Request): Promise<NextResponse> {
 
   try {
     const form = await request.formData();
-    const parsed = ZyraImageUploadInputSchema.safeParse({
-      courseId: form.get("courseId"),
-      sessionId: form.get("sessionId"),
-    });
+    const rawCourseId = typeof form.get("courseId") === "string" ? String(form.get("courseId")).trim() : "";
+    const rawSessionId = typeof form.get("sessionId") === "string" ? String(form.get("sessionId")).trim() : "";
     const file = form.get("file");
-    if (!parsed.success || !(file instanceof File)) return errorResponse("INVALID_ATTACHMENT_REQUEST", 400);
+    if (!rawCourseId || !(file instanceof File)) return errorResponse("INVALID_ATTACHMENT_REQUEST", 400);
+
     const access = await resolveCourseAccess({
-      courseId: parsed.data.courseId,
+      courseId: rawCourseId,
       userId: user.id,
       roleHint: user.role,
     });
@@ -44,27 +44,40 @@ export async function POST(request: Request): Promise<NextResponse> {
       return errorResponse("NOT_FOUND", 404);
     }
 
-    const [chatSession] = await db
-      .select({ id: chatSessions.id, studentId: chatSessions.studentId, courseId: chatSessions.courseId })
-      .from(chatSessions)
-      .where(and(
-        eq(chatSessions.id, parsed.data.sessionId),
-        eq(chatSessions.courseId, parsed.data.courseId),
-        eq(chatSessions.studentId, user.id),
-      ))
-      .limit(1);
-    if (!chatSession) return errorResponse("NOT_FOUND", 404);
+    let resolvedSessionId = rawSessionId;
+    if (!resolvedSessionId) {
+      resolvedSessionId = await createChatSession(user.id, rawCourseId, "General Chat");
+    } else {
+      const parsed = ZyraImageUploadInputSchema.safeParse({
+        courseId: rawCourseId,
+        sessionId: resolvedSessionId,
+      });
+      if (!parsed.success) return errorResponse("INVALID_ATTACHMENT_REQUEST", 400);
+
+      const [chatSession] = await db
+        .select({ id: chatSessions.id, studentId: chatSessions.studentId, courseId: chatSessions.courseId })
+        .from(chatSessions)
+        .where(and(
+          eq(chatSessions.id, parsed.data.sessionId),
+          eq(chatSessions.courseId, parsed.data.courseId),
+          eq(chatSessions.studentId, user.id),
+        ))
+        .limit(1);
+      if (!chatSession) return errorResponse("NOT_FOUND", 404);
+      resolvedSessionId = chatSession.id;
+    }
 
     const bytes = new Uint8Array(await file.arrayBuffer());
     const attachment = await createZyraImageAttachment({
-      studentId: chatSession.studentId,
-      courseId: chatSession.courseId,
-      sessionId: chatSession.id,
+      studentId: user.id,
+      courseId: rawCourseId,
+      sessionId: resolvedSessionId,
       bytes,
       declaredMimeType: file.type,
     });
     return NextResponse.json({
       id: attachment.id,
+      sessionId: resolvedSessionId,
       mimeType: attachment.mimeType,
       byteSize: attachment.byteSize,
       width: attachment.width,
