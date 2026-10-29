@@ -210,7 +210,6 @@ test("coding consultation renders the structured canvas channel and reuses its c
   expect(connections.loop).toEqual(connections.north);
   await capture(page, info, "typed-flowchart");
   await graph.screenshot({ path: info.outputPath("screenshots/flowchart-symbols.png"), animations: "disabled" });
-  await page.getByRole("button", { name: "Tulis pertanyaan", exact: true }).click();
   await page.getByLabel("Pertanyaan", { exact: true }).fill("Bagaimana langkah berikutnya?");
   await page.getByRole("button", { name: "Tanya Zyra", exact: true }).click();
   await expect.poll(() => messages.length).toBe(2);
@@ -225,7 +224,7 @@ test("coding consultation renders the structured canvas channel and reuses its c
 });
 
 
-test("compact Zyra toolbar opens questions on demand and highlights current execution errors", async ({ page }, info) => {
+test("compact Zyra toolbar keeps the question input visible and highlights current execution errors", async ({ page }, info) => {
   test.setTimeout(120000);
   const failures: string[] = [];
   page.on("pageerror", (error) => failures.push(error.message));
@@ -242,23 +241,17 @@ test("compact Zyra toolbar opens questions on demand and highlights current exec
   const help = page.getByRole("region", { name: "Konsultasi Zyra" });
   const question = help.getByLabel("Pertanyaan", { exact: true });
   const explain = help.getByRole("button", { name: "Jelaskan error", exact: true });
-  await expect(question).toHaveCount(0);
-  await expect(explain).toHaveAttribute("data-variant", "outline");
+  await expect(question).toBeVisible();
+  await expect(explain).toHaveAttribute("data-variant", "ghost");
   const hint = help.getByRole("button", { name: "Petunjuk", exact: true });
   const hintText = hint.locator("span.hidden");
   if (info.project.name === "mobile-380") await expect(hintText).toBeHidden();
   else await expect(hintText).toBeVisible();
-  await capture(page, info, "toolbar-closed");
-  await help.getByRole("button", { name: "Tulis pertanyaan", exact: true }).click();
-  await expect(question).toBeFocused();
   await expect(help.getByRole("button", { name: "Tanya Zyra", exact: true })).toBeDisabled();
+  await capture(page, info, "toolbar-idle");
   await question.fill("Mengapa hasil kode ini berbeda?");
-  await capture(page, info, "question-open");
-  await help.getByRole("button", { name: "Tutup pertanyaan", exact: true }).click();
-  await expect(question).toHaveCount(0);
-  await help.getByRole("button", { name: "Tulis pertanyaan", exact: true }).click();
-  await expect(question).toHaveValue("Mengapa hasil kode ini berbeda?");
-  await help.getByRole("button", { name: "Tutup pertanyaan", exact: true }).click();
+  await expect(help.getByRole("button", { name: "Tanya Zyra", exact: true })).toBeEnabled();
+  await capture(page, info, "question-typed");
   const editor = page.getByRole("textbox", { name: "Kode Python", exact: true });
   await editor.fill("print(1 / 0)");
   await page.getByRole("button", { name: "Jalankan", exact: true }).click();
@@ -266,7 +259,7 @@ test("compact Zyra toolbar opens questions on demand and highlights current exec
   await expect(explain).toHaveAttribute("data-variant", "destructive");
   await capture(page, info, "execution-error");
   await editor.fill("print(1)");
-  await expect(explain).toHaveAttribute("data-variant", "outline");
+  await expect(explain).toHaveAttribute("data-variant", "ghost");
   await capture(page, info, "error-stale");
   let release!: () => void;
   const pending = new Promise<void>((resolve) => { release = resolve; });
@@ -275,17 +268,14 @@ test("compact Zyra toolbar opens questions on demand and highlights current exec
     await pending;
     await route.fulfill({ contentType: "text/event-stream", body: 'data: {"type":"text-delta","textDelta":"Periksa pembagi sebelum menjalankan kode."}\n\ndata: [DONE]\n\n' });
   });
-  await help.getByRole("button", { name: "Tulis pertanyaan", exact: true }).click();
-  await help.getByRole("button", { name: "Tanya Zyra", exact: true }).click();
+  await question.press("Enter");
   await expect(hint).toBeDisabled();
   await expect(help.getByRole("status")).toBeVisible();
   await capture(page, info, "question-busy");
   release();
   await expect(help.getByText("Periksa pembagi sebelum menjalankan kode.")).toBeVisible();
   await expect(hint).toBeEnabled();
-  await help.getByRole("button", { name: "Tutup pertanyaan", exact: true }).click();
-  await expect(question).toHaveCount(0);
-  await capture(page, info, "answer-composer-closed");
+  await capture(page, info, "answer");
   expect(failures).toEqual([]);
 });
 
@@ -308,13 +298,11 @@ test("compact Zyra controls remain available in Article and Live Quiz", async ({
     await expect(help).toBeVisible();
     await expect(async () => {
       await help.scrollIntoViewIfNeeded();
-      await expect(help.getByRole("button", { name: "Tulis pertanyaan", exact: true })).toBeInViewport();
+      await expect(help.getByLabel("Pertanyaan", { exact: true })).toBeInViewport();
     }).toPass();
-    await expect(help.getByLabel("Pertanyaan", { exact: true })).toHaveCount(0);
-    await capture(page, info, `${surface}-closed`);
-    await help.getByRole("button", { name: "Tulis pertanyaan", exact: true }).click();
-    await expect(help.getByLabel("Pertanyaan", { exact: true })).toBeFocused();
-    await capture(page, info, `${surface}-question-open`);
+    await capture(page, info, `${surface}-idle`);
+    await help.getByLabel("Pertanyaan", { exact: true }).focus();
+    await capture(page, info, `${surface}-question-focused`);
   }
   if (info.project.name === "laptop-fhd-125") {
     await page.setViewportSize({ width: 640, height: 864 });

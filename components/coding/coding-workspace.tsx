@@ -1,7 +1,8 @@
 "use client";
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from "react";
 import { useRouter } from "next/navigation";
-import { Play, Square, RotateCcw, ExternalLink } from "lucide-react";
+import { Play, Square, RotateCcw, ExternalLink, Loader2, CheckCircle2, AlertCircle } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
@@ -21,6 +22,7 @@ import type { codingSurfaceSchema } from "@/lib/coding/http-contracts";
 type Feedback = ReturnType<typeof publicCodingFeedback>;
 const verdictLabels = { correct: "Semua kasus uji lolos", partial: "Sebagian kasus uji belum lolos", incorrect: "Jawaban belum sesuai", ungradable: "Pemeriksaan belum tersedia. Coba Submit lagi." };
 const statusLabels: Record<ExecutionResult["status"], string> = { completed: "Eksekusi selesai", syntax_error: "Periksa penulisan kode", runtime_error: "Terjadi error saat menjalankan kode", timeout: "Eksekusi melewati batas waktu", stopped: "Eksekusi dihentikan", unavailable: "Python belum tersedia. Coba lagi." };
+const clampSplit = (value: number) => Math.min(75, Math.max(25, value));
 
 export function CodingWorkspace({ courseId, draftKey, initialCode = "", initialStdin = "", problem, surface, allowHelp = true, learnerId, playgroundLink = false, disabled = false, interactive = false }: {
   courseId: string; draftKey: string; initialCode?: string; initialStdin?: string; problem?: CodingProblemPublic;
@@ -45,6 +47,17 @@ export function CodingWorkspace({ courseId, draftKey, initialCode = "", initialS
   const [terminalHistory, setTerminalHistory] = useState<string[]>([]);
   const [waitingInput, setWaitingInput] = useState(false);
   const sendInput = useRef<((value: string) => void) | null>(null);
+  const [split, setSplit] = useState(50);
+  const splitHost = useRef<HTMLDivElement>(null);
+  function dragSplit(event: ReactPointerEvent<HTMLDivElement>) {
+    const handle = event.currentTarget, host = splitHost.current;
+    if (!host || event.button !== 0) return;
+    event.preventDefault();
+    handle.setPointerCapture(event.pointerId);
+    const move = (moveEvent: PointerEvent) => { const box = host.getBoundingClientRect(); setSplit(clampSplit(((moveEvent.clientX - box.left) / box.width) * 100)); };
+    const stop = () => { handle.removeEventListener("pointermove", move); handle.removeEventListener("pointerup", stop); handle.removeEventListener("pointercancel", stop); };
+    handle.addEventListener("pointermove", move); handle.addEventListener("pointerup", stop); handle.addEventListener("pointercancel", stop);
+  }
   useEffect(() => {
     if (!interactive) return;
     return preloadPythonAssets();
@@ -104,31 +117,34 @@ export function CodingWorkspace({ courseId, draftKey, initialCode = "", initialS
     } catch { setError("Kode belum dapat dibuka di Playground. Salin kode terlebih dahulu."); }
   }
   const help = problem && surface ? { kind: "exercise" as const, problem: { problemId: problem.problemId, version: problem.version }, code: draft.code, stdin: draft.stdin, intent: "hint" as const, surface, ...(attemptId ? { attemptId } : {}), ...(executedCode === draft.code && executedInput === draft.stdin && execution ? { execution } : {}) } : { kind: "playground" as const, code: draft.code, stdin: interactive ? terminalHistory.join("\n") : draft.stdin, execution: executedCode === draft.code && (interactive || executedInput === draft.stdin) ? execution : null, intent: "review" as const };
-  if (interactive) return <section className="min-w-0 space-y-3" aria-label="Playground Python">
-    <div className="grid min-w-0 gap-3 md:grid-cols-2">
-      <div className="min-w-0 space-y-2">
-        <div className="flex min-h-9 flex-wrap items-center justify-between gap-2">
-          <h2 className="font-heading text-body-sm font-semibold">main.py</h2>
-          <div className="flex flex-wrap items-center gap-2">
-            {phase === "idle" ? <Button size="sm" className="min-w-[92px]" onClick={run} disabled={draft.code.length > 64000}><Play className="size-4" />Jalankan</Button> : <Button size="sm" className="min-w-[92px]" variant="outline" onClick={() => active.current?.abort()}><Square className="size-4" />Stop</Button>}
-            <TooltipProvider><Tooltip><TooltipTrigger asChild><Button size="icon-sm" variant="outline" aria-label="Reset" disabled={phase !== "idle"} onClick={() => { draft.setCode(initialCode); draft.setStdin(""); }}><RotateCcw className="size-4" /></Button></TooltipTrigger><TooltipContent>Reset</TooltipContent></Tooltip>
-            {playgroundLink ? <Tooltip><TooltipTrigger asChild><Button size="icon-sm" variant="ghost" aria-label="Playground" onClick={handoff}><ExternalLink className="size-4" /></Button></TooltipTrigger><TooltipContent>Playground</TooltipContent></Tooltip> : null}</TooltipProvider>
+  if (interactive) return <section className="min-w-0 space-y-5" aria-label="Playground Python">
+    <div ref={splitHost} style={{ "--split": `${split}%` } as CSSProperties} className="flex min-w-0 flex-col overflow-hidden rounded-lg border border-border bg-background md:flex-row">
+      <div className="flex min-w-0 flex-col md:w-(--split) md:shrink-0">
+        <div className="flex h-10 items-center justify-between gap-2 border-b border-border px-3">
+          <div className="flex min-w-0 items-baseline gap-2">
+            <h2 className="font-mono text-body-xs font-semibold">main.py</h2>
+            {draft.saved ? <span role="status" className="truncate text-body-xs text-muted-foreground">{draft.saved}</span> : null}
+          </div>
+          <div className="flex shrink-0 items-center gap-1">
+            <TooltipProvider><Tooltip><TooltipTrigger asChild><Button size="icon-sm" variant="ghost" aria-label="Reset" disabled={phase !== "idle"} onClick={() => { draft.setCode(initialCode); draft.setStdin(""); }}><RotateCcw className="size-3.5" /></Button></TooltipTrigger><TooltipContent>Reset</TooltipContent></Tooltip>
+            {playgroundLink ? <Tooltip><TooltipTrigger asChild><Button size="icon-sm" variant="ghost" aria-label="Playground" onClick={handoff}><ExternalLink className="size-3.5" /></Button></TooltipTrigger><TooltipContent>Playground</TooltipContent></Tooltip> : null}</TooltipProvider>
+            {phase === "idle" ? <Button size="sm" className="min-w-[84px] bg-brand-secondary text-body-sm text-white hover:bg-brand-secondary/90 hover:shadow-none" onClick={run} disabled={draft.code.length > 64000}><Play className="size-3.5 fill-current" />Jalankan</Button> : <Button size="sm" className="min-w-[84px] text-body-sm" variant="outline" onClick={() => active.current?.abort()}><Square className="size-3.5 fill-current" />Stop</Button>}
           </div>
         </div>
-        <PythonEditor value={draft.code} onChange={draft.setCode} />
-        {draft.conflicted ? <Button size="sm" variant="outline" onClick={draft.keepLocal}>Ganti draft tersimpan</Button> : null}
-        {draft.saved ? <span role="status" className="text-body-xs text-muted-foreground">{draft.saved}</span> : null}
+        <PythonEditor value={draft.code} onChange={draft.setCode} className="flex-1 rounded-none border-0 focus-within:ring-1 focus-within:ring-inset focus-within:ring-ring" />
       </div>
-      <div className="min-w-0 space-y-2">
-        <div className="flex min-h-9 items-center"><h2 className="font-heading text-body-sm font-semibold">Terminal</h2></div>
-        <div className="min-h-[220px] rounded-lg border border-border bg-muted p-3 font-mono text-body-sm">
+      <div role="separator" tabIndex={0} aria-orientation="vertical" aria-label="Ubah lebar panel" aria-valuemin={25} aria-valuemax={75} aria-valuenow={Math.round(split)} onPointerDown={dragSplit} onDoubleClick={() => setSplit(50)} onKeyDown={(event) => { if (event.key === "ArrowLeft" || event.key === "ArrowRight") { event.preventDefault(); setSplit((value) => clampSplit(value + (event.key === "ArrowLeft" ? -5 : 5))); } }} className="relative hidden w-px shrink-0 cursor-col-resize touch-none bg-border transition-colors after:absolute after:inset-y-0 after:-inset-x-1.5 after:content-[''] hover:bg-ring focus-visible:bg-ring focus-visible:outline-none md:block" />
+      <div className="flex min-w-0 flex-1 flex-col border-t border-border md:border-t-0">
+        <div className="flex h-10 items-center border-b border-border px-3"><h2 className="font-heading text-body-xs font-semibold">Terminal</h2></div>
+        <div className="min-h-[220px] flex-1 bg-muted/30 p-3 font-mono text-body-sm text-foreground">
           <pre aria-live="polite" className="max-h-80 overflow-auto whitespace-pre-wrap break-words">{terminalOutput}</pre>
           {waitingInput ? <form onSubmit={(event) => { event.preventDefault(); const value = terminalInput; sendInput.current?.(value); sendInput.current = null; setWaitingInput(false); setTerminalOutput((output) => (output + value + "\n").slice(0, 8000)); setTerminalHistory((history) => [...history, value]); setTerminalInput(""); }}><Input autoFocus aria-label="Input terminal" value={terminalInput} maxLength={Math.max(0, 8000 - terminalHistory.join("\n").length - (terminalHistory.length ? 1 : 0))} onChange={(event) => setTerminalInput(event.target.value)} className="mt-2 font-mono" /></form> : null}
-          {phase === "loading" ? <p role="status" className="text-body-xs text-muted-foreground">Menyiapkan Python...</p> : null}
-          {execution ? <p role="status" className="mt-2 text-body-xs text-muted-foreground">{statusLabels[execution.status]}{execution.stderr && !terminalOutput.includes(execution.stderr) && execution.stderr.replace(/[.!]+$/, "") !== statusLabels[execution.status] ? `: ${execution.stderr}` : ""}</p> : null}
+          {phase === "loading" ? <p role="status" className="flex items-center gap-1.5 font-sans text-body-xs text-foreground/80"><Loader2 className="size-3.5 animate-spin" aria-hidden="true" />Menyiapkan Python...</p> : null}
+          {execution ? <p role="status" className={cn("mt-3 flex items-start gap-1.5 border-t border-border pt-2 font-sans text-body-xs", execution.status === "completed" ? "text-foreground/80" : "text-destructive")}>{execution.status === "completed" ? <CheckCircle2 className="mt-px size-3.5 shrink-0 text-status-success" aria-hidden="true" /> : <AlertCircle className="mt-px size-3.5 shrink-0" aria-hidden="true" />}<span>{statusLabels[execution.status]}{execution.stderr && !terminalOutput.includes(execution.stderr) && execution.stderr.replace(/[.!]+$/, "") !== statusLabels[execution.status] ? `: ${execution.stderr}` : ""}</span></p> : null}
         </div>
       </div>
     </div>
+    {draft.conflicted ? <Button size="sm" className="text-body-sm" variant="outline" onClick={draft.keepLocal}>Ganti draft tersimpan</Button> : null}
     {allowHelp ? <CodingHelp courseId={courseId} context={help} disabled={submitting} /> : null}
   </section>;
   return <section className="min-w-0 max-w-full space-y-4" aria-label={problem ? `Latihan Python: ${problem.title}` : "Playground Python"}>
