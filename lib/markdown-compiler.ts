@@ -1171,7 +1171,7 @@ export function parseCanonicalMarkdown(markdown: string): ASTBlock[] {
 
     if (trimmed.startsWith("$") || trimmed.startsWith("\\[")) {
       // Flush presenter block first
-      if (presenterType && presenterType !== "code") {
+      if (presenterType) {
         flushPresenterBlock(presenterType, presenterLines);
         presenterLines = [];
         presenterType = null;
@@ -1219,7 +1219,7 @@ export function parseCanonicalMarkdown(markdown: string): ASTBlock[] {
 
     // Normal markdown line parsing
     if (!trimmed) {
-      if (presenterType && presenterType !== "code") {
+      if (presenterType) {
         flushPresenterBlock(presenterType, presenterLines);
         presenterLines = [];
         presenterType = null;

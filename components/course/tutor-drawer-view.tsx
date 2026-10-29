@@ -56,7 +56,7 @@ import {
   type PublicVisualSpec,
   type PublicWorkedExamplePayload,
 } from "@/components/course/article-parts";
-import type { ArticlePart } from "@/lib/article-parts";
+import type { ArticlePart } from "@/lib/materials/article-parts";
 import { MathText } from "@/components/course/math-text";
 import { toast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
