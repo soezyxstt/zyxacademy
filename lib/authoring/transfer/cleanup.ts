@@ -6,6 +6,9 @@ import { buildTransferArtifactKey } from "@/lib/storage/keys";
 import { deadlineInSeconds } from "@/lib/date-utils";
 import { validateInventory } from "./contracts";
 
+// A durable claim keeps cleanup retryable if object deletion is interrupted.
+export const CLEANUP_CLAIM = "cleanup-in-progress";
+
 /** Bounded, repeatable cleanup of transfer-owned objects. Normal bundle objects are never selected. */
 export async function cleanupTransfers() {
   const quarantineCutoff = deadlineInSeconds(-7 * 86400);
@@ -17,9 +20,14 @@ export async function cleanupTransfers() {
   }
   const transfers = await db.select().from(authoringTransfer).where(and(sql`${authoringTransfer.expiresAt} < ${quarantineCutoff}`, sql`${authoringTransfer.state} IN ('completed','cancelled','blocked','failed')`, sql`${authoringTransfer.sealedGrant} != ''`)).limit(100);
   for (const transfer of transfers) {
+    const claimed = await db.update(authoringTransfer).set({ sealedGrant: CLEANUP_CLAIM, stateVersion: sql`${authoringTransfer.stateVersion} + 1` })
+      .where(and(eq(authoringTransfer.id, transfer.id), eq(authoringTransfer.stateVersion, transfer.stateVersion),
+        eq(authoringTransfer.expiresAt, transfer.expiresAt), sql`${authoringTransfer.expiresAt} < ${quarantineCutoff}`,
+        sql`${authoringTransfer.state} IN ('completed','cancelled','blocked','failed')`)).returning({ stateVersion: authoringTransfer.stateVersion });
+    if (!claimed.length) continue;
     // Derive keys from validated descriptors, never trust a stored arbitrary path during deletion.
     for (const artifact of validateInventory(transfer.plan.inventory).artifacts) await storage.delete(buildTransferArtifactKey(transfer.id, artifact.byteHash));
-    await db.update(authoringTransfer).set({ sealedGrant: "" }).where(and(eq(authoringTransfer.id, transfer.id), eq(authoringTransfer.stateVersion, transfer.stateVersion), eq(authoringTransfer.expiresAt, transfer.expiresAt)));
+    await db.update(authoringTransfer).set({ sealedGrant: "" }).where(and(eq(authoringTransfer.id, transfer.id), eq(authoringTransfer.stateVersion, claimed[0].stateVersion), eq(authoringTransfer.sealedGrant, CLEANUP_CLAIM)));
   }
   // Recheck all lifecycle predicates at delete time. Resume can renew a job between selection and deletion.
   const terminal = and(sql`${authoringTransfer.expiresAt} < ${metadataCutoff}`, sql`${authoringTransfer.state} IN ('completed','cancelled','blocked','failed')`, eq(authoringTransfer.sealedGrant, ""));

@@ -151,7 +151,7 @@ export async function verifyTraceability(tx: Tx, products: readonly ProductEntit
   }
 }
 
-export async function verifyDependencies(tx: Tx, dependencies: readonly ProductDependency[], products: readonly ProductEntity[]): Promise<void> {
+export async function verifyDependencies(tx: Tx, dependencies: readonly ProductDependency[], products: readonly ProductEntity[], options?: { distinguishMissingProduct?: boolean }): Promise<void> {
   for (const dependency of dependencies) {
     if (dependency.freshness !== "UP_TO_DATE") throw new Error(`PRODUCT_BUNDLE_DEPENDENCY_NEEDS_REVIEW:${dependency.id}`);
   }
@@ -198,6 +198,7 @@ export async function verifyDependencies(tx: Tx, dependencies: readonly ProductD
       const localProduct = localProducts.get(`${dependency.upstreamEntityId}:${dependency.upstreamVersion}`);
       current = localProduct ? { version: localProduct.version, hash: localProduct.generationHash } : productsById.get(dependency.upstreamEntityId) ?? null;
     }
+    if (!current && dependency.upstreamEntityType === "product" && options?.distinguishMissingProduct) throw new Error(`PRODUCT_BUNDLE_DEPENDENCY_NOT_PUBLISHED:${dependency.id}`);
     if (!current || current.version !== dependency.upstreamVersion || current.hash !== dependency.upstreamHash) throw new Error(`PRODUCT_BUNDLE_DEPENDENCY_NEEDS_REVIEW:${dependency.id}`);
   }
 }

@@ -16,9 +16,9 @@ export async function validateProductTransferPrerequisites(bundle: Extract<Produ
       }
     }
     await verifyTraceability(tx, bundle.products);
-    await verifyDependencies(tx, bundle.dependencies, bundle.products);
+    await verifyDependencies(tx, bundle.dependencies, bundle.products, { distinguishMissingProduct: true });
   } catch (error) {
-    if (error instanceof Error && (error.message.startsWith("PRODUCT_BUNDLE_IDEA_NOT_PUBLISHED") || error.message === "DEPENDENCY_NOT_PUBLISHED")) fail("DEPENDENCY_NOT_PUBLISHED");
+    if (error instanceof Error && (error.message.startsWith("PRODUCT_BUNDLE_IDEA_NOT_PUBLISHED:") || error.message.startsWith("PRODUCT_BUNDLE_DEPENDENCY_NOT_PUBLISHED:") || error.message === "DEPENDENCY_NOT_PUBLISHED")) fail("DEPENDENCY_NOT_PUBLISHED");
     fail("DEPENDENCY_REVISION_UNAVAILABLE");
   }
 }

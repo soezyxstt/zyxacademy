@@ -42,7 +42,7 @@ Object.assign(storage, {
   exists: async (key: string) => files.has(key),
   download: async (key: string) => { const bytes = files.get(key); if (!bytes) throw new Error("SOURCE_ARTIFACT_UNAVAILABLE"); return bytes; },
   upload: async (bytes: Uint8Array, _name: string, _mime: string, options: { key: string }) => { files.set(options.key, bytes); return { key: options.key, url: "", size: bytes.length }; },
-  delete: async (key: string) => { files.delete(key); },
+  delete: async (key: string) => { if (fault === "cleanup-delete-once") { fault = ""; throw new Error("fixture-delete-failure"); } files.delete(key); },
 });
 const actor = { actorId: "creator-1", sessionId: "transfer-test-session" };
 await db.insert(schema.user).values({ id: actor.actorId, name: "Fixture admin", email: "transfer@example.invalid", role: "admin" }).onConflictDoNothing();
@@ -106,6 +106,10 @@ const server = Bun.serve({ hostname: "127.0.0.1", port: 0, async fetch(request) 
     if (path === "/expire-one") {
       await db.update(schema.authoringTransfer).set({ expiresAt: deadlineInSeconds(-60) }).where(eq(schema.authoringTransfer.id, input.transferId as string));
       return Response.json({ expired: true });
+    }
+    if (path === "/age-one") {
+      await db.update(schema.authoringTransfer).set({ state: "blocked", expiresAt: deadlineInSeconds(-8 * 86400) }).where(eq(schema.authoringTransfer.id, input.transferId as string));
+      return Response.json({ aged: true });
     }
     if (path === "/session") {
       await db.update(schema.session).set({ expiresAt: new Date(deadlineInSeconds(input.active ? 86400 : -60)) }).where(eq(schema.session.id, actor.sessionId));

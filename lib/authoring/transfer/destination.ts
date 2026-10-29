@@ -9,6 +9,7 @@ import { executeInputSchema, fail, planInputSchema, sha256, stableJson, validate
 import { capabilities, openLocal, peerFor, peerRequest, signToken, verifyToken, type TransferConfig } from "./security";
 import { requireTransferActor } from "./source";
 import { auditTransfer } from "./audit";
+import { CLEANUP_CLAIM } from "./cleanup";
 
 const planSchema = z.object({ sourcePeerId: z.string(), grantId: z.string(), actorId: z.string(), sessionId: z.string(),
   sourceGrant: z.string(), inventory: z.unknown(), targetHash: z.string(), policyHash: z.string(), planHash: z.string(), expiresAt: z.number() });
@@ -169,6 +170,7 @@ export async function controlTransfer(config: TransferConfig, id: string, actor:
     if (!row) fail("TRANSFER_NOT_FOUND");
     if (["completed", "cancelled"].includes(row.state)) return;
     if (action === "resume") {
+      if (row.sealedGrant === CLEANUP_CLAIM) fail("TRANSFER_REPLAN_REQUIRED");
       if (row.expiresAt < deadlineInSeconds(-7 * 86400)) fail("TRANSFER_REPLAN_REQUIRED");
       if (row.expiresAt <= Date.now() && !renewed) fail("GRANT_EXPIRED");
       if (renewed && renewed.closureHash !== validateInventory(row.plan.inventory).closureHash) fail("PLAN_STALE");
@@ -176,11 +178,12 @@ export async function controlTransfer(config: TransferConfig, id: string, actor:
       if (row.state === "running" && row.leaseUntil > Date.now()) fail("TRANSFER_BUSY");
     }
     const version = row.stateVersion + 1;
-    await tx.update(authoringTransfer).set({ state: action === "cancel" ? "cancelled" : "queued", stateVersion: version,
+    const updated = await tx.update(authoringTransfer).set({ state: action === "cancel" ? "cancelled" : "queued", stateVersion: version,
       leaseUntil: 0, reasonCode: null, nextAttemptAt: 0,
       ...(action === "resume" ? { sessionId: actor.sessionId } : {}),
       ...(renewed ? { sealedGrant: sourceGrant!, expiresAt: deadlineInSeconds(86400), attempts: 0 } : {}),
-    }).where(and(eq(authoringTransfer.id, id), eq(authoringTransfer.stateVersion, row.stateVersion)));
+    }).where(and(eq(authoringTransfer.id, id), eq(authoringTransfer.stateVersion, row.stateVersion))).returning({ id: authoringTransfer.id });
+    if (!updated.length) fail("TRANSFER_BUSY");
     if (action === "resume") await tx.insert(authoringTransferOutbox).values({ id: `${id}-${version}`, transferId: id });
     await auditTransfer(actor.actorId, id, `transfer_${action}`, { stateVersion: version }, tx);
   });

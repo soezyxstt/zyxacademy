@@ -52,7 +52,7 @@ The resolver locates exact upstream producers, validates recorded ZIP checksums,
 
 Plan tokens bind actor/session, closure, destination import preconditions, target schema/policy fingerprint, and expiry. Plans do not write content or create jobs. Changed target/contract preconditions invalidate execution. The same idempotency key with a different token produces `TRANSFER_IDEMPOTENCY_CONFLICT`.
 
-Destination byte hashes and bundle validators run independently. Product materialization reuses publication's exact Idea/source/excerpt/dependency checks and current quality policy. Idea drafts are materialized first. Until required Ideas/sections are published through normal destination workflows, Product bytes stay in private transfer intake with `waiting_prerequisites`. Resume does not bypass those publication decisions.
+Destination byte hashes and bundle validators run independently. Product materialization reuses publication's exact Idea/source/excerpt/dependency checks and current quality policy. Idea drafts are materialized first. Until required Ideas, sections, and upstream Products are published through normal destination workflows, dependent Product bytes stay in private transfer intake with `waiting_prerequisites`. Resume does not bypass those publication decisions.
 
 Transfer states: `queued`, `running`, `retry_wait`, `waiting_prerequisites`, `blocked`, `completed`, `cancelled`, `failed`. Items: `pending`, `copied`, `materialized`. `transportComplete` concerns copied bytes; `draftMaterialized` requires completed reconciliation. Reusing an existing published import preserves that state. Receipt items carry local import IDs and ownership, with `mode=draft_only`.
 

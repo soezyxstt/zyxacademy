@@ -170,6 +170,18 @@ test("source logout stops grant use and destination logout stops status access",
   expect((await post(target, "/status", { transferId })).body.error).toBe("GRANT_REVOKED");
   await post(target, "/session", { active: true });
 });
+test("interrupted quarantine cleanup retains its claim and can be retried", async () => {
+  const issued = await post(source, "/grant", { targetPeerId: "target", selector: { kind: "product", importId: root.id, expectedChecksum: root.checksum } });
+  const preview = await post(target, "/plan", { sourcePeerId: "source", sourceGrant: issued.body.sourceGrant });
+  const accepted = await post(target, "/execute", { planToken: preview.body.planToken, idempotencyKey: "cleanup-retry" });
+  const id = accepted.body.transferId;
+  await post(target, "/expire-one", { transferId: id });
+  await post(target, "/age-one", { transferId: id });
+  await post(target, "/fault", { fault: "cleanup-delete-once" });
+  expect((await post(target, "/cleanup", {})).status).not.toBe(200);
+  expect((await post(target, "/resume", { transferId: id })).body.error).toBe("TRANSFER_REPLAN_REQUIRED");
+  expect((await post(target, "/cleanup", {})).status).toBe(200);
+}, 30000);
 test("expired transfer cleanup prunes metadata and private snapshots while preserving normal imports", async () => {
   for (const origin of [source, target]) {
     await post(origin, "/expire-ledger", {});
