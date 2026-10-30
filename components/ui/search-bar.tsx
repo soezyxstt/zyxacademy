@@ -31,9 +31,9 @@ export interface SearchBarProps
 
 const variantStyles = {
   default:
-    "bg-card border border-border/80 hover:border-border hover:bg-card/90 focus-within:bg-card focus-within:border-brand-primary/80 focus-within:ring-2 focus-within:ring-brand-primary/20 focus-within:shadow-[0_0_16px_rgba(37,99,235,0.12)] shadow-2xs",
+    "bg-card border border-border hover:border-border-strong focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/30",
   muted:
-    "bg-muted/40 border border-transparent hover:bg-muted/70 hover:border-border/50 focus-within:bg-background focus-within:border-brand-primary/80 focus-within:ring-2 focus-within:ring-brand-primary/20 focus-within:shadow-[0_0_16px_rgba(37,99,235,0.12)]",
+    "bg-muted/40 border border-transparent hover:bg-muted/70 hover:border-border focus-within:bg-background focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/30",
   bordered:
     "bg-background border border-border hover:border-foreground/30 focus-within:border-brand-primary focus-within:ring-2 focus-within:ring-brand-primary/25 shadow-xs",
 };
@@ -52,9 +52,9 @@ const sizeStyles = {
     clear: "p-1",
   },
   lg: {
-    container: "min-h-12 px-4 rounded-xl text-body-base",
+    container: "min-h-12 px-4 rounded-lg text-body-sm",
     icon: "size-4.5",
-    input: "min-h-0 py-2 pl-3 pr-2.5 text-body-base",
+    input: "min-h-0 py-2 pl-3 pr-2.5 text-body-sm",
     clear: "p-1.5",
   },
 };
@@ -126,7 +126,7 @@ export const SearchBar = React.forwardRef<HTMLInputElement, SearchBarProps>(
         )}
       >
         {/* Left Search or Loading Icon */}
-        <div className="flex shrink-0 items-center justify-center text-muted-foreground transition-all duration-200 group-focus-within:text-brand-primary group-focus-within:scale-105">
+        <div className="flex shrink-0 items-center justify-center text-muted-foreground transition-colors duration-200 group-focus-within:text-primary">
           {isLoading ? (
             <Loader2 className={cn("animate-spin text-brand-primary", currentSize.icon)} />
           ) : (

@@ -1083,7 +1083,10 @@ export function BatchUploadDialog({
                 tabIndex={0}
                 onClick={() => filesInputRef.current?.click()}
                 onKeyDown={(e) => {
-                  if (e.target === e.currentTarget && e.code === "Enter") filesInputRef.current?.click();
+                  if (e.target === e.currentTarget && (e.key === "Enter" || e.key === " ")) {
+                    e.preventDefault();
+                    filesInputRef.current?.click();
+                  }
                 }}
                 onDragOver={(e) => {
                   e.preventDefault();
@@ -1091,7 +1094,7 @@ export function BatchUploadDialog({
                 }}
                 onDragLeave={() => setDragActive(false)}
                 onDrop={handleDrop}
-                className={`relative overflow-hidden flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed p-6 text-center cursor-pointer transition-all ${
+                className={`relative overflow-hidden flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed p-6 text-center cursor-pointer transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
                   dragActive
                     ? "border-brand-primary bg-brand-primary/10 ring-2 ring-brand-primary/30"
                     : "border-border/80 bg-muted/20 hover:bg-muted/40 hover:border-brand-primary/50"
@@ -1190,7 +1193,7 @@ export function BatchUploadDialog({
                 <AlertCircle className="size-4 text-status-warning shrink-0" />
                 <div className="flex-1 min-w-0">
                   <span className="font-semibold text-status-warning">{t("documents.batch.standardFormat")}</span>{" "}
-                  <code className="font-mono text-[11px] bg-background/80 px-1.5 py-0.5 rounded border border-status-warning/30 text-foreground">
+                  <code className="font-mono text-body-xs bg-background/80 px-1.5 py-0.5 rounded border border-status-warning/30 text-foreground break-all">
                     {courseId.toLowerCase()}_[bab]_[kategori]_[topik]_[role]_[tahun].pdf
                   </code>
                   <span className="text-muted-foreground ml-1.5">
@@ -1815,7 +1818,7 @@ function StagedCard({
           disabled={disabled || doc.status === "hashing"}
           onValueChange={(v) => onMetaChange(doc.id, { subcategory: v as CourseMaterialSubcategory })}
         >
-          <SelectTrigger className="h-8 min-w-0 flex-1 rounded-lg text-body-sm bg-background border-border/80">
+          <SelectTrigger aria-label={t("documents.batch.subcategory")} className="h-8 min-w-0 flex-1 rounded-lg text-body-sm bg-background border-border/80">
             <SelectValue placeholder={t("documents.batch.subcategory")} />
           </SelectTrigger>
           <SelectContent>
@@ -1881,12 +1884,12 @@ function StagedCard({
             disabled={disabled}
             onValueChange={(v) => onDuplicateAction(v as DuplicateAction)}
           >
-            <SelectTrigger className="h-7 w-full rounded-md text-body-xs bg-background">
+            <SelectTrigger aria-label={`${t("documents.batch.actions")}: ${doc.originalName}`} className="h-8 w-full rounded-md text-body-sm bg-background">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
               {(Object.keys(DUPLICATE_ACTION_KEYS) as DuplicateAction[]).map((action) => (
-                <SelectItem key={action} value={action} className="text-body-xs">
+                <SelectItem key={action} value={action} className="text-body-sm">
                   {t(`documents.batch.${DUPLICATE_ACTION_KEYS[action]}`)}
                 </SelectItem>
               ))}
@@ -2084,7 +2087,7 @@ function ChapterKanbanCard({
                   return (
                     <label
                       key={ch.id}
-                      className={`flex items-center gap-2 px-2 py-1.5 rounded-md text-body-xs font-medium cursor-pointer select-none transition-colors ${
+                      className={`flex items-center gap-2 px-2 py-1.5 rounded-md text-body-sm font-medium cursor-pointer select-none transition-colors ${
                         isChecked
                           ? "bg-brand-primary/15 text-foreground border border-brand-primary/30"
                           : "hover:bg-muted/50 text-muted-foreground border border-transparent"
@@ -2094,7 +2097,7 @@ function ChapterKanbanCard({
                         checked={isChecked}
                         onCheckedChange={() => onToggleChapter(doc.id, ch.id)}
                       />
-                      <span className="truncate">
+                      <span className="min-w-0 break-words">
                         {t("documents.batch.chapterWithTitle", { number: ch.orderIndex, title: ch.title })}
                       </span>
                     </label>
@@ -2279,8 +2282,9 @@ function ChapterTableView({
                           key={ch.id}
                           type="button"
                           disabled={disabled}
+                          aria-pressed={isLinked}
                           onClick={() => onToggleChapter(doc.id, ch.id)}
-                          className={`px-2.5 py-1 rounded-md border text-[11px] font-semibold transition-all cursor-pointer ${
+                          className={`px-2.5 py-1 rounded-md border text-body-sm font-semibold transition-all cursor-pointer ${
                             isLinked
                               ? "border-brand-primary bg-primary text-primary-foreground shadow-2xs"
                               : "border-border/80 bg-muted/40 text-muted-foreground hover:bg-muted hover:text-foreground"
@@ -2361,7 +2365,7 @@ function BulkActionBar({
         </span>
 
         <Select value={moveTarget} onValueChange={(v) => setMoveTarget(v as MaterialLevel1Category)}>
-          <SelectTrigger className="h-8 w-40 rounded-lg text-body-sm bg-background">
+          <SelectTrigger aria-label={t("documents.batch.applyCategory")} className="h-8 w-40 rounded-lg text-body-sm bg-background">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -2409,7 +2413,7 @@ function BulkActionBar({
           value={bulkSubcategory}
           onValueChange={(v) => setBulkSubcategory(v as CourseMaterialSubcategory)}
         >
-          <SelectTrigger className="h-8 w-44 rounded-lg text-body-sm bg-background">
+          <SelectTrigger aria-label={t("documents.batch.bulkSubcategory")} className="h-8 w-44 rounded-lg text-body-sm bg-background">
             <SelectValue placeholder={t("documents.batch.bulkSubcategory")} />
           </SelectTrigger>
           <SelectContent>
@@ -2480,7 +2484,7 @@ function ChapterBulkActionBar({
         </span>
 
         <Select value={selectedTargetChapter} onValueChange={setSelectedTargetChapter}>
-          <SelectTrigger className="h-8 w-44 rounded-lg text-body-sm bg-background">
+          <SelectTrigger aria-label={t("documents.batch.targetChapter")} className="h-8 w-44 rounded-lg text-body-sm bg-background">
             <SelectValue placeholder={t("documents.batch.targetChapter")} />
           </SelectTrigger>
           <SelectContent>

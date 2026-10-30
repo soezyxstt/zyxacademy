@@ -67,7 +67,7 @@ function SectionHead({
 }) {
   const t = useTranslations("adminOps");
   return (
-    <div className="flex items-center justify-between">
+    <div className="flex flex-wrap items-center justify-between gap-2">
       <div className="flex items-center gap-3">
         <h2 className="font-heading text-body-base font-semibold text-foreground">{title}</h2>
         <StatusWord level={status} />
@@ -180,12 +180,12 @@ export function OpsClient() {
               {data.usageByFeature.map((row) => (
                 <div
                   key={row.feature}
-                  className="py-3 flex items-center justify-between gap-4"
+                  className="py-3 flex flex-wrap items-center justify-between gap-2"
                 >
                   <span className="text-body-sm font-medium text-foreground">
                     {row.feature}
                   </span>
-                  <div className="flex gap-6">
+                  <div className="flex flex-wrap gap-x-6 gap-y-1">
                     <span className="text-body-sm text-muted-foreground">
                       {row.count} {t("opsUI.requests")}
                     </span>
@@ -227,13 +227,13 @@ export function OpsClient() {
         <div className="py-4 space-y-3">
           <SectionHead title={t("opsUI.jobHealth")} status="healthy" checkedAt={data.checkedAt} />
           <div className="divide-y divide-border">
-            <div className="py-3 flex items-center justify-between gap-4">
+            <div className="py-3 flex flex-wrap items-center justify-between gap-2">
               <span className="text-body-sm text-muted-foreground">{t("opsUI.dailyRecommendations")}</span>
               <span className="text-body-sm text-foreground">
                 {relativeTime(data.jobHealth.recommendationsLastAt, t)}
               </span>
             </div>
-            <div className="py-3 flex items-center justify-between gap-4">
+            <div className="py-3 flex flex-wrap items-center justify-between gap-2">
               <span className="text-body-sm text-muted-foreground">
                 {t("opsUI.analyticsSnapshots")}
               </span>
@@ -241,7 +241,7 @@ export function OpsClient() {
                 {relativeTime(data.jobHealth.snapshotsLastAt, t)}
               </span>
             </div>
-            <div className="py-3 flex items-center justify-between gap-4">
+            <div className="py-3 flex flex-wrap items-center justify-between gap-2">
               <span className="text-body-sm text-muted-foreground">{t("opsUI.studyPaths")}</span>
               <span className="text-body-sm text-foreground">
                 {relativeTime(data.jobHealth.pathsLastAt, t)}

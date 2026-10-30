@@ -182,10 +182,10 @@ export function ShareBlock({ slug, title, description, inline = false, locale }:
               target="_blank"
               rel="noopener noreferrer"
               className={cn(
-                "flex items-center justify-center rounded-full border border-border bg-card text-muted-foreground size-10 transition-all",
+                "flex items-center justify-center rounded-md border border-border bg-card text-muted-foreground size-10 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
                 social.color
               )}
-              title={t("blog.shareToPlatform", { platform: social.name })}
+              aria-label={t("blog.shareToPlatform", { platform: social.name })}
             >
               <social.icon className={social.sizeClass} />
             </a>
@@ -194,8 +194,8 @@ export function ShareBlock({ slug, title, description, inline = false, locale }:
           {canShare && (
             <button
               onClick={handleNativeShare}
-              className="flex items-center justify-center rounded-full border border-border bg-card text-muted-foreground hover:bg-primary/10 hover:text-primary hover:border-primary/30 size-10 transition-all"
-              title={t("blog.shareViaSystem")}
+              className="flex items-center justify-center rounded-md border border-border bg-card text-muted-foreground hover:bg-primary/10 hover:text-primary hover:border-primary/30 size-10 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+              aria-label={t("blog.shareViaSystem")}
             >
               <Share2 className="size-5" />
             </button>

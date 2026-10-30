@@ -87,9 +87,7 @@ export function TutorCourseSwitcher({
           <p className="truncate text-body-sm font-semibold text-foreground">
             {currentCourse.title}
           </p>
-          <p className="truncate text-body-xs text-muted-foreground">
-            {currentCourse.code ? currentCourse.code : "Kelas Aktif"}
-          </p>
+          {currentCourse.code && <p className="truncate text-body-xs text-muted-foreground">{currentCourse.code}</p>}
         </div>
       </Link>
     );
@@ -130,9 +128,7 @@ export function TutorCourseSwitcher({
         <p className="truncate text-body-sm font-semibold text-foreground">
           {currentCourse.title}
         </p>
-        <p className="truncate text-body-xs text-muted-foreground">
-          {currentCourse.code ? currentCourse.code : "Kelas Aktif"}
-        </p>
+        {currentCourse.code && <p className="truncate text-body-xs text-muted-foreground">{currentCourse.code}</p>}
       </div>
       <ChevronsUpDown className="size-4 shrink-0 text-muted-foreground group-hover:text-foreground transition-colors" />
     </button>
@@ -149,15 +145,11 @@ export function TutorCourseSwitcher({
           align={collapsed ? "start" : "start"}
           sideOffset={8}
           className={cn(
-            "z-50 min-w-60 max-w-72 overflow-hidden rounded-xl border border-border bg-popover p-1.5 shadow-xl",
-            "data-[state=open]:animate-in data-[state=closed]:animate-out",
-            "data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
-            "data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95",
-            "data-[side=bottom]:slide-in-from-top-2 data-[side=right]:slide-in-from-left-2",
+            "z-50 min-w-60 max-w-72 overflow-hidden rounded-lg border border-border bg-popover p-1.5 shadow-md",
           )}
         >
           <div className="px-2.5 py-1.5 border-b border-border/60 mb-1">
-            <p className="text-body-xs font-semibold text-muted-foreground uppercase tracking-wider font-sans">
+            <p className="text-body-xs font-semibold text-muted-foreground font-sans">
               Pilih Kelas
             </p>
           </div>

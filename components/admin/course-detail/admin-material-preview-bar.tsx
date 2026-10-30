@@ -50,7 +50,7 @@ export function AdminMaterialPreviewBar({ source, materialId, courseSlug, title 
             {t("documents.previewBar.backToDocuments")}
           </Link>
         </Button>
-        <span className="min-w-0 flex-1 truncate text-body-xs text-muted-foreground">{t("documents.previewBar.title", { title })}</span>
+        <span className="min-w-[140px] flex-1 break-words text-body-xs text-muted-foreground">{t("documents.previewBar.title", { title })}</span>
         <Button asChild variant="outline" size="sm" className="text-body-sm">
           <Link href={editHref}>
             <Pencil className="size-4" />

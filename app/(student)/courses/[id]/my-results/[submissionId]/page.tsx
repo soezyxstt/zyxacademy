@@ -65,7 +65,7 @@ export default async function SubmissionReviewPage({ params }: Props) {
               <Link href={`/courses/${id}/my-results`}><TranslatedText namespace="learning" messageKey="reviewPage.backToResults" /></Link>
             </Button>
 
-            <Button asChild size="sm" className="rounded-md bg-brand-primary text-white hover:bg-brand-primary/90 font-semibold shadow-xs">
+            <Button asChild size="sm" className="rounded-md bg-brand-primary text-primary-foreground hover:bg-brand-primary/90 font-semibold shadow-xs">
               <Link href={`/courses/${id}/my-results/${submissionId}/summary`}>
                 <TranslatedText namespace="learning" messageKey="reviewPage.viewDiagnosis" />
               </Link>

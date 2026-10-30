@@ -190,20 +190,20 @@ export function ChaptersTab({
   return (
     <div className="space-y-4">
       {/* Add New Chapter Inline Form */}
-      <form onSubmit={handleAddChapter} className="flex items-center gap-2">
+      <form onSubmit={handleAddChapter} className="flex flex-wrap items-center gap-2">
         <Input
           placeholder={t("courseDetail.chapters.newTitle")}
           value={newTitle}
           onChange={(e) => setNewTitle(e.target.value)}
           disabled={addingChapter}
-          className="h-9 w-64 shrink-0 rounded-lg text-body-sm sm:w-72"
+          className="h-9 min-w-[140px] flex-1 rounded-lg text-body-sm sm:max-w-72"
         />
         <Input
           placeholder={t("courseDetail.chapters.descriptionOptional")}
           value={newDescription}
           onChange={(e) => setNewDescription(e.target.value)}
           disabled={addingChapter}
-          className="h-9 min-w-0 flex-1 rounded-lg text-body-sm"
+          className="h-9 min-w-[140px] flex-1 rounded-lg text-body-sm"
         />
         <Button
           type="submit"

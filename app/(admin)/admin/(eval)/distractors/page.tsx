@@ -73,8 +73,8 @@ export default async function DistractorAnalyticsPage() {
             const dmap = (q.distractorMap as DistractorEntry[] | null) ?? [];
             const labelByIndex = new Map(dmap.map((d) => [d.optionIndex, d]));
             return (
-              <div key={id} className="space-y-3 border-b border-border pb-6">
-                <div className="flex items-start justify-between gap-4">
+              <div key={id} className="space-y-3 border-b border-border pb-4">
+                <div className="flex flex-wrap items-start justify-between gap-2">
                   <MathText className="text-body-base font-semibold text-foreground block" as="div">{q.prompt}</MathText>
                   <span className="shrink-0 text-body-sm text-muted-foreground">
                     {agg.total} <TranslatedText namespace="adminEval" messageKey="distractors.answers" />
@@ -102,7 +102,7 @@ export default async function DistractorAnalyticsPage() {
                           />
                         </div>
                         {!isCorrect && tag && tag.kind === "misconception" && (
-                          <p className="text-body-sm text-status-warning"><TranslatedText namespace="adminEval" messageKey="distractors.misconception" /> {tag.label}</p>
+                          <p className="text-body-xs text-foreground"><TranslatedText namespace="adminEval" messageKey="distractors.misconception" /> {tag.label}</p>
                         )}
                       </div>
                     );

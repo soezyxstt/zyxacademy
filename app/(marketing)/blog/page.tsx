@@ -272,7 +272,7 @@ function ArticleCard({ article, t }: { article: any; t: Awaited<ReturnType<typeo
   return (
     <LocalizedPublicLink
       href={`/blog/${article.slug}`}
-      className="group relative flex h-full flex-col overflow-hidden rounded-xl border border-border bg-card transition-shadow hover:shadow-md"
+      className="group relative flex h-full flex-col overflow-hidden rounded-xl border border-border bg-card transition-colors hover:border-border-strong focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
     >
       {isDraft && (
         <Badge className="absolute left-3 top-3 z-20 rounded-md bg-status-warning text-status-warning-foreground hover:bg-status-warning/90">
@@ -286,7 +286,7 @@ function ArticleCard({ article, t }: { article: any; t: Awaited<ReturnType<typeo
             alt={article.title}
             fill
             sizes="(max-width: 768px) 100vw, (max-width: 1280px) 33vw, 400px"
-            className="object-cover transition-transform duration-300 group-hover:scale-105"
+            className="object-cover"
           />
         ) : (
           <div className="absolute inset-0 flex items-center justify-center bg-muted/80">

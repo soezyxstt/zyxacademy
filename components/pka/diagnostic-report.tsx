@@ -36,7 +36,7 @@ export async function DiagnosticReport({ results }: { results: PkaSubjectDiagnos
           return (
             <div key={r.subject} className={cn("flex items-start gap-3 p-4", meta.className)}>
               <Icon className="size-5 shrink-0" />
-              <div className="flex-1">
+              <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <span className="font-heading text-body-base font-bold text-foreground">{subjectLabel(r.subject)}</span>
                   <span className={cn("text-body-sm font-semibold", meta.className)}>{t(meta.messageKey)}</span>

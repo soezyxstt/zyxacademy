@@ -97,12 +97,12 @@ export function NavItem({
   isPinned?: boolean;
 }) {
   const baseClass = cn(
-    "group/item relative flex items-center gap-2 rounded-xl px-2.5 py-1.5 text-[13px] font-medium transition-colors w-full",
+    "group/item relative flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-body-sm font-medium transition-colors w-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
     active
-      ? "bg-brand-primary/10 text-brand-primary font-semibold"
+      ? "bg-brand-primary/10 text-brand-primary"
       : "text-muted-foreground hover:bg-muted hover:text-foreground",
     collapsed && "justify-center px-0 size-10 mx-auto",
-    isChild && !collapsed && "rounded-lg px-2.5 py-1.5 text-body-xs gap-2",
+    isChild && !collapsed && "rounded-lg px-2.5 py-1.5 gap-2",
     className
   );
 
@@ -175,11 +175,11 @@ export function NavItem({
     collapsed && badge && typeof badge === "string" ? `${label} (${badge})` : label;
 
   const inner = href ? (
-    <Link href={href} prefetch={prefetch} onClick={onClick as undefined} className={baseClass}>
+    <Link href={href} prefetch={prefetch} onClick={onClick as undefined} className={baseClass} aria-label={collapsed ? tooltipLabel : undefined} aria-current={active ? "page" : undefined}>
       {content}
     </Link>
   ) : (
-    <button type="button" onClick={onClick} className={cn(baseClass, "cursor-pointer")}>
+    <button type="button" onClick={onClick} aria-label={collapsed ? tooltipLabel : undefined} className={cn(baseClass, "cursor-pointer")}>
       {content}
     </button>
   );
@@ -260,13 +260,14 @@ export function NavCollapsible({
   const triggerButton = (
     <button
       type="button"
+      aria-expanded={isOpen}
       onClick={() => {
         if (!collapsed) setIsOpen(!isOpen);
       }}
       className={cn(
-        "group/collapsible flex items-center gap-2 rounded-xl px-2.5 py-1.5 text-[13px] font-medium transition-colors w-full cursor-pointer",
+        "group/collapsible flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-body-sm font-medium transition-colors w-full cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
         active && !isOpen
-          ? "bg-brand-primary/10 text-brand-primary font-semibold"
+          ? "bg-brand-primary/10 text-brand-primary"
           : "text-muted-foreground hover:bg-muted hover:text-foreground",
         collapsed && "justify-center px-0 size-10 mx-auto"
       )}
@@ -304,7 +305,7 @@ export function NavCollapsible({
                 className={cn(
                   "group/collapsible flex items-center justify-center rounded-xl size-10 mx-auto text-body-sm font-medium transition-colors cursor-pointer",
                   active || isPopoverOpen
-                    ? "bg-brand-primary/10 text-brand-primary font-semibold"
+                    ? "bg-brand-primary/10 text-brand-primary"
                     : "text-muted-foreground hover:bg-muted hover:text-foreground"
                 )}
               >
@@ -323,7 +324,7 @@ export function NavCollapsible({
                   setActivePopoverId(null);
                 }
               }}
-              className="z-50 min-w-56 max-w-72 rounded-xl border border-border/80 bg-popover/95 p-2 text-popover-foreground shadow-xl backdrop-blur-md animate-in fade-in-0 zoom-in-95 data-[side=right]:slide-in-from-left-2 focus:outline-none"
+              className="z-50 min-w-56 max-w-72 rounded-xl border border-border bg-popover p-2 text-popover-foreground shadow-md focus:outline-none"
             >
               <div className="flex items-center gap-2.5 px-2.5 py-2 pb-2.5 border-b border-border/60 mb-1.5">
                 <div className="flex size-7 items-center justify-center rounded-lg bg-brand-primary/10 text-brand-primary shrink-0">
@@ -331,7 +332,6 @@ export function NavCollapsible({
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="text-body-sm font-semibold text-foreground truncate">{label}</p>
-                  <p className="text-body-xs text-muted-foreground">Pilih modul</p>
                 </div>
               </div>
               <div className="flex flex-col gap-0.5 max-h-80 overflow-y-auto ds-scrollbar">
@@ -350,7 +350,7 @@ export function NavCollapsible({
               side="right"
               align="start"
               sideOffset={14}
-              className="z-50 w-64 rounded-xl border border-border/80 bg-popover/95 p-3.5 text-popover-foreground shadow-lg backdrop-blur-md animate-in fade-in-0 zoom-in-95 data-[side=right]:slide-in-from-left-2"
+              className="z-50 w-64 rounded-xl border border-border bg-popover p-3 text-popover-foreground shadow-md"
             >
               <div className="flex items-center gap-2.5 pb-2.5 border-b border-border/60">
                 <div className="flex size-7 items-center justify-center rounded-lg bg-brand-primary/10 text-brand-primary shrink-0">
@@ -790,6 +790,9 @@ export function SidebarShell({
 
       <aside
         ref={sidebarRef}
+        data-sidebar-ready={mounted ? "true" : undefined}
+        aria-hidden={mounted && isMobile && !mobileOpen ? true : undefined}
+        inert={mounted && isMobile && !mobileOpen}
         style={{
           top: 0,
           height: "100svh",

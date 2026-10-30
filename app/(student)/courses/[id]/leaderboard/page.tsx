@@ -9,7 +9,7 @@ import { getAuthSession } from "@/lib/auth-session";
 import { checkEnrollment } from "@/app/(student)/dashboard/actions";
 import { EnrollmentForm } from "@/components/enrollment-form";
 import { Reveal } from "@/components/ui/reveal";
-import { tabListClassName, tabTriggerClassName, tabTriggerActiveClassName } from "@/components/ui/tabs";
+import { tabListClassName, tabTriggerClassName, tabTriggerActiveClassName } from "@/components/ui/tab-styles";
 import { cn } from "@/lib/utils";
 import { TranslatedText } from "@/components/i18n/translated-text";
 import { PKA_COURSE_ID } from "@/lib/pka-config";

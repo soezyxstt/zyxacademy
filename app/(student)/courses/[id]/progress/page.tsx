@@ -43,7 +43,7 @@ export default async function CourseProgressPage({ params }: Props) {
     return (
       <CoursePageShell title={<TranslatedText namespace="learning" messageKey="progress.title" values={{ course: course.title }} />} icon={BarChart3}>
         <Reveal>
-          <div className="rounded-xl border border-brand-secondary/25 bg-brand-secondary/5 p-6">
+          <div className="rounded-xl border border-brand-secondary/25 bg-brand-secondary/5 p-4">
             <h3 className="font-heading text-body-base font-bold text-brand-secondary">
               <TranslatedText namespace="learning" messageKey="courseAccess.limited" />
             </h3>
@@ -87,7 +87,7 @@ export default async function CourseProgressPage({ params }: Props) {
                     </p>
                   </div>
                 </div>
-                <ArrowRight className="size-4 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-brand-primary" />
+                <ArrowRight className="size-4 text-muted-foreground transition-colors group-hover:text-brand-primary" />
               </Link>
 
               <Link
@@ -104,7 +104,7 @@ export default async function CourseProgressPage({ params }: Props) {
                     </p>
                   </div>
                 </div>
-                <ArrowRight className="size-4 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-brand-primary" />
+                <ArrowRight className="size-4 text-muted-foreground transition-colors group-hover:text-brand-primary" />
               </Link>
             </div>
           </section>

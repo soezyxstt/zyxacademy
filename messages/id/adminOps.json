@@ -332,6 +332,7 @@
     "creating": "Membuat...",
     "create": "Buat tautan",
     "loading": "Memuat...",
+    "loadFailed": "Tautan pendek tidak dapat dimuat.",
     "empty": "Belum ada tautan pendek.",
     "clicks": "klik",
     "copy": "Salin tautan",

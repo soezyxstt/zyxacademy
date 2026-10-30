@@ -318,7 +318,7 @@ export function BundleImporterTab() {
                 <Button
                   onClick={handleImport}
                   disabled={loading}
-                  className="flex-1 rounded-lg font-semibold gap-1.5 bg-brand-primary text-white hover:bg-brand-primary/95"
+                  className="flex-1 rounded-lg font-semibold gap-1.5 bg-brand-primary text-primary-foreground hover:bg-brand-primary/95"
                 >
                   {loading ? (
                     <Loader2 className="size-4 animate-spin" />
@@ -366,7 +366,7 @@ export function BundleImporterTab() {
                         isCompleted
                           ? "bg-brand-primary/10 text-brand-primary border border-brand-primary/20"
                           : isActive
-                          ? "bg-brand-primary text-white"
+                          ? "bg-brand-primary text-primary-foreground"
                           : isFailed
                           ? "bg-status-error/10 text-status-error border border-status-error/20"
                           : "bg-muted text-muted-foreground border border-border"

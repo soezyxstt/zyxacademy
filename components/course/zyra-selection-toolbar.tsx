@@ -212,7 +212,7 @@ export function ZyraSelectionToolbar({
               size="sm"
               onMouseDown={(e) => e.preventDefault()}
               onClick={() => onAskZyra("clarify", t("selectionToolbar.clarifyPrompt", { selection: selectionContext.cleanText }))}
-              className="h-7 text-body-xs font-semibold bg-brand-primary hover:bg-brand-primary/95 text-white gap-1 px-2.5 cursor-pointer rounded-lg"
+              className="h-7 text-body-xs font-semibold bg-brand-primary hover:bg-brand-primary/95 text-primary-foreground gap-1 px-2.5 cursor-pointer rounded-lg"
             >
               <MessageSquareText className="size-3" />
               <span>{t("selectionToolbar.askZyra")}</span>
@@ -297,7 +297,7 @@ export function ZyraSelectionToolbar({
                     t("selectionToolbar.discussPrompt", { selection: selectionContext.cleanText })
                   );
                 }}
-                className="h-7 text-body-xs font-semibold bg-brand-primary hover:bg-brand-primary/95 text-white gap-1 cursor-pointer"
+                className="h-7 text-body-xs font-semibold bg-brand-primary hover:bg-brand-primary/95 text-primary-foreground gap-1 cursor-pointer"
               >
                 <span>{t("selectionToolbar.continueWithZyra")}</span>
                 <ArrowRight className="size-3" />

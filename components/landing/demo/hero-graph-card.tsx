@@ -12,7 +12,7 @@ export function HeroGraphCard() {
 
  return (
  <div className="relative mx-auto w-full max-w-lg justify-self-end lg:max-w-none">
- <div className="relative overflow-hidden rounded-xl border border-border bg-card shadow-xl ring-1 ring-black/5">
+ <div className="relative overflow-hidden rounded-xl border border-border bg-card shadow-xs">
  <DesmosStyleGraph mode="quadratic" a={a} b={0} c={2} className="w-full" />
  <div className="border-t border-border bg-card px-4 py-3 md:px-5">
  <label className="flex items-center gap-3">

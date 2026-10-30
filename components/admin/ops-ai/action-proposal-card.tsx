@@ -31,7 +31,7 @@ function getProposalStatusBadge(status: OpsAiProposalStatus | string) {
     case "pending":
       return {
         label: "Menunggu Konfirmasi",
-        badgeClass: "bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30",
+        badgeClass: "bg-status-warning/15 text-status-warning border-status-warning/30",
         icon: <Clock className="size-3.5" />,
       };
     case "executing":
@@ -192,11 +192,11 @@ export function ActionProposalCard({
 
       {/* Preview Parameters */}
       {previewFields.length > 0 && (
-        <div className="rounded-md bg-muted/40 p-2 border border-border/50 space-y-1 font-mono text-[11px]">
+        <div className="rounded-md bg-muted/40 p-2 border border-border/50 space-y-1 font-mono text-body-xs">
           {previewFields.map((field, idx) => (
             <div key={idx} className="flex items-start justify-between gap-2">
-              <span className="text-muted-foreground shrink-0">{field.label}:</span>
-              <span className="font-medium text-foreground text-right truncate">
+              <span className="text-muted-foreground break-words">{field.label}:</span>
+              <span className="min-w-0 font-medium text-foreground text-right break-all">
                 {field.value}
               </span>
             </div>
@@ -206,7 +206,7 @@ export function ActionProposalCard({
 
       {/* Preconditions note if present */}
       {"preconditions" in initialProposal && initialProposal.preconditions?.stateFingerprint && (
-        <p className="text-[10px] text-muted-foreground">
+        <p className="text-body-xs text-muted-foreground">
           Snapshot status terverifikasi sebelum eksekusi.
         </p>
       )}
@@ -225,7 +225,7 @@ export function ActionProposalCard({
                 <span className="text-[10px] uppercase font-semibold text-muted-foreground block">
                   Token Dibuat
                 </span>
-                <span className="font-mono text-body-xs font-bold text-foreground select-all truncate block">
+                <span className="font-mono text-body-xs font-bold text-foreground select-all break-all block">
                   {tokenString}
                 </span>
               </div>

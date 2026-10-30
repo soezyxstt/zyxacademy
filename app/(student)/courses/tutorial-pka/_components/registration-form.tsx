@@ -206,7 +206,7 @@ export function PkaRegistrationForm({
                   <CheckCircle2 className="size-4" />
                   {t("proofReady")}
                 </p>
-                <p className="truncate text-body-sm text-muted-foreground">{proofFile?.name}</p>
+                <p className="break-all text-body-sm text-muted-foreground">{proofFile?.name}</p>
               </div>
               <Button type="button" variant="ghost" size="icon" className="size-8" onClick={clearFile}>
                 <X className="size-4" />

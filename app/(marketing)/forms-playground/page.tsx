@@ -157,7 +157,7 @@ export default function FormsPlaygroundPage() {
 
       {/* Header section */}
       <Reveal>
-        <header className="relative z-10 border-b border-border bg-background/50 backdrop-blur-xs py-16 text-center">
+        <header className="relative z-10 border-b border-border bg-background py-16 text-center">
           <div className="marketing-container space-y-4">
             <h1 className="font-heading text-h5 sm:text-h4 font-bold tracking-tight text-foreground max-w-4xl mx-auto">
               Zyx Form Components Playground
@@ -342,13 +342,13 @@ export default function FormsPlaygroundPage() {
                   />
 
                   {/* Submit row */}
-                  <div className="flex items-center gap-3 pt-3 border-t border-border mt-6">
+                  <div className="flex flex-wrap items-center gap-3 pt-3 border-t border-border mt-6">
                     <Button 
                       type="submit" 
                       variant="default"
                       size="lg"
                       disabled={isSubmitting}
-                      className="w-full sm:w-auto"
+                      className="w-auto"
                     >
                       {isSubmitting ? "Registering..." : "Submit Registration"}
                     </Button>

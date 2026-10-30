@@ -26,7 +26,7 @@ export function QuizListClient({ courseId, isEnrolled, accessTier = isEnrolled ?
 
   return (
     <div className="font-sans">
-      <ul className="divide-y divide-border/60 overflow-hidden rounded-xl border border-border/70 bg-card/75 backdrop-blur-sm shadow-2xs">
+      {templates.length > 0 && <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
         {templates.map((template) => {
           const isFree = template.visibility === "free";
           const accessible = accessTier === "standard"
@@ -95,7 +95,7 @@ export function QuizListClient({ courseId, isEnrolled, accessTier = isEnrolled ?
               );
             }
             return (
-              <span className="rounded-lg bg-brand-primary/15 px-3 py-1.5 text-body-xs font-semibold text-brand-primary shrink-0 transition-colors group-hover:bg-brand-primary group-hover:text-white">
+              <span className="rounded-lg bg-brand-primary/15 px-3 py-1.5 text-body-xs font-semibold text-brand-primary shrink-0 transition-colors group-hover:bg-brand-primary group-hover:text-primary-foreground">
                 {activeAttempt ? `${t("quizList.continue")} ›` : `${t("quizList.start")} ›`}
               </span>
             );
@@ -112,11 +112,11 @@ export function QuizListClient({ courseId, isEnrolled, accessTier = isEnrolled ?
                 href={targetHref}
                 className={cn(
                   "group flex items-center justify-between gap-3 px-4 py-3 transition-colors",
-                  accessible && isOpen ? "hover:bg-muted/30 active:bg-muted/50" : "bg-card/40 opacity-80 hover:opacity-100",
+                  accessible && isOpen ? "hover:bg-muted/30 active:bg-muted/50" : "hover:bg-muted/30",
                 )}
               >
                 <div className="min-w-0 flex-1">
-                  <h3 className="truncate font-heading text-body-sm font-semibold text-foreground group-hover:text-brand-primary transition-colors">
+                  <h3 className="break-words font-heading text-body-sm font-semibold text-foreground group-hover:text-brand-primary transition-colors">
                     {template.title}
                   </h3>
 
@@ -152,7 +152,7 @@ export function QuizListClient({ courseId, isEnrolled, accessTier = isEnrolled ?
                     {activeAttempt && !isClosed && (
                       <>
                         <span>·</span>
-                        <span className="text-amber-500 font-medium">{t("quizList.inProgress")}</span>
+                        <span className="text-amber-700 dark:text-amber-400 font-medium">{t("quizList.inProgress")}</span>
                       </>
                     )}
                     {isUpcoming && openDate && (
@@ -179,7 +179,7 @@ export function QuizListClient({ courseId, isEnrolled, accessTier = isEnrolled ?
             </li>
           );
         })}
-      </ul>
+      </ul>}
 
       {templates.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-border/80 bg-card/60 p-8 text-center sm:p-10">

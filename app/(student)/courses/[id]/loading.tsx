@@ -7,6 +7,7 @@ export default function CourseLoading() {
       title={<div className="h-7 w-48 bg-muted rounded-md animate-pulse" />}
       icon={BookOpen}
       maxWidth="7xl"
+      hideMobileTitle
     >
       <div className="space-y-6 animate-pulse">
         {/* Primary learning actions skeleton */}

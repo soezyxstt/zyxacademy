@@ -64,7 +64,7 @@ export function AboutClient() {
       <PageOrnaments variant="about" />
 
       <Reveal>
-        <header className="relative z-10 border-b border-border bg-background/50 py-16 text-center backdrop-blur-xs md:py-24">
+        <header className="relative z-10 border-b border-border bg-background py-16 text-center md:py-24">
           <div className="marketing-container space-y-4">
             <h1 className="mx-auto max-w-4xl font-heading text-h2 font-extrabold tracking-tight text-foreground md:text-h1">
               {t("about.title")}
@@ -77,7 +77,7 @@ export function AboutClient() {
       </Reveal>
 
       <Reveal>
-        <SectionContainer className="relative z-10 border-b border-border bg-background/30 py-16 backdrop-blur-xs md:py-24">
+        <SectionContainer className="relative z-10 border-b border-border bg-background py-16 md:py-24">
           <div className="mx-auto max-w-3xl space-y-6">
             <SectionHeading as="h2" tier="primary" className="text-foreground">
               {t("about.storyTitle")}
@@ -119,7 +119,7 @@ export function AboutClient() {
       </Reveal>
 
       <Reveal>
-        <SectionContainer className="relative z-10 border-b border-border bg-background/50 py-16 backdrop-blur-xs md:py-24">
+        <SectionContainer className="relative z-10 border-b border-border bg-background py-16 md:py-24">
           <div className="mx-auto max-w-5xl space-y-8">
             <div className="max-w-3xl space-y-3">
               <SectionHeading as="h2" tier="primary" className="text-foreground">
@@ -130,7 +130,7 @@ export function AboutClient() {
               </p>
             </div>
 
-            <article className="grid gap-6 rounded-2xl border border-border bg-card p-6 shadow-xs md:grid-cols-[auto_minmax(0,1fr)] md:p-8">
+            <article className="grid gap-6 rounded-xl border border-border bg-card p-6 md:grid-cols-[auto_minmax(0,1fr)] md:p-8">
               <div className="relative size-24 overflow-hidden rounded-xl border border-border/60">
                 <Image
                   src="/founders/adi.jpeg"
@@ -162,7 +162,7 @@ export function AboutClient() {
       </Reveal>
 
       <Reveal>
-        <SectionContainer className="relative z-10 bg-background/50 py-16 backdrop-blur-xs md:py-24">
+        <SectionContainer className="relative z-10 bg-background py-16 md:py-24">
           <div className="mx-auto max-w-5xl space-y-10">
             <div className="max-w-3xl space-y-3">
               <SectionHeading as="h2" tier="primary" className="text-foreground">
@@ -177,7 +177,7 @@ export function AboutClient() {
               {founders.map((founder) => (
                 <article
                   key={founder.id}
-                  className="group flex flex-col gap-5 rounded-2xl border border-border bg-card p-6 shadow-xs transition-shadow duration-300 hover:border-primary/20 hover:shadow-md sm:flex-row sm:items-start"
+                  className="group flex flex-col gap-5 rounded-xl border border-border bg-card p-6 transition-colors hover:border-border-strong sm:flex-row sm:items-start"
                 >
                   <div className="relative aspect-[3/4] w-28 shrink-0 overflow-hidden rounded-xl border border-border/60 sm:w-32">
                     <Image
@@ -185,13 +185,13 @@ export function AboutClient() {
                       alt={t("about.founderPhoto", { name: founder.name })}
                       fill
                       sizes="(max-width: 640px) 112px, 128px"
-                      className="object-cover transition-transform duration-500 group-hover:scale-105"
+                      className="object-cover"
                       priority={founder.id === "adi"}
                     />
                   </div>
 
                   <div className="min-w-0 flex-1 space-y-4">
-                    <div className="border-l-2 border-[var(--zx-accent)] pl-3">
+                    <div>
                       <p className="text-body-2xs font-bold uppercase tracking-widest text-primary">{t(`about.founder${founder.id === "adi" ? "Adi" : founder.id === "dawam" ? "Dawam" : founder.id === "heidi" ? "Heidi" : "Raihan"}Role`)}</p>
                       <h3 className="mt-1 font-heading text-body-base font-bold leading-tight text-foreground">{founder.name}</h3>
                     </div>

@@ -7,17 +7,12 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { useUrlTab } from "@/hooks/use-url-tab";
 import { useTranslations } from "next-intl";
+import { tabListClassName, tabTriggerClassName, tabTriggerActiveClassName } from "@/components/ui/tab-styles";
 
 type TabsProps = React.ComponentProps<typeof TabsPrimitive.Root> & {
   paramKey?: string;
   syncUrl?: boolean;
 };
-
-const tabListClassName =
-  "inline-flex h-auto min-w-0 max-w-full flex-nowrap items-center gap-1 overflow-x-auto overscroll-x-contain rounded-xl border border-border bg-muted/40 p-1 text-muted-foreground [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:flex-wrap sm:overflow-visible";
-const tabTriggerClassName =
-  "interactive inline-flex shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-1.5 text-body-xs font-semibold text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
-const tabTriggerActiveClassName = "bg-card text-foreground shadow-xs";
 
 function TabsInner({
   value,

@@ -161,7 +161,7 @@ export function GenerationJobsClient({ jobs, courses, chapters, knowledgeObjects
 
  return (
  <div>
- <div className="flex items-center justify-between mb-6">
+ <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
  <p className="text-body-sm text-muted-foreground">{localJobs.length} {t("latest")}</p>
  <Button
  className="rounded-lg gap-2"
@@ -271,7 +271,7 @@ export function GenerationJobsClient({ jobs, courses, chapters, knowledgeObjects
  )}
 
  {localJobs.length === 0 ? (
- <AdminEmptyState compact className="py-16" title={t("empty")} />
+ <AdminEmptyState icon={Zap} className="py-8" title={t("empty")} />
  ) : (
  <div className="divide-y divide-border">
  {localJobs.map((job) => {
@@ -306,7 +306,7 @@ export function GenerationJobsClient({ jobs, courses, chapters, knowledgeObjects
  </p>
  {params?.logs && Array.isArray(params.logs) && params.logs.length > 0 && (
  <div className="mt-2.5 rounded-lg border border-border bg-muted/20 p-3 text-body-xs font-mono space-y-1 text-muted-foreground max-h-36 overflow-y-auto">
- <p className="font-sans font-bold text-[10px] text-muted-foreground/80 tracking-wider uppercase mb-1">{t("progressDetails")}</p>
+ <p className="font-sans font-bold text-body-xs text-muted-foreground mb-1">{t("progressDetails")}</p>
  {params.logs.map((log: string, idx: number) => (
  <div key={idx} className="leading-relaxed">
  {log}
@@ -321,13 +321,13 @@ export function GenerationJobsClient({ jobs, courses, chapters, knowledgeObjects
  )}
  </div>
  {(job.status === "pending" || job.status === "processing") && (
- <button
+ <Button
+ type="button" variant="ghost" size="icon"
  onClick={() => refreshJob(job.id)}
- className="text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
  aria-label={t("refreshStatus")}
  >
  <RefreshCw className="size-4" />
- </button>
+ </Button>
  )}
  </div>
  );

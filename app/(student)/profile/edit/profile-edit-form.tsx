@@ -84,7 +84,7 @@ export function ProfileEditForm({ user }: ProfileEditFormProps) {
   return (
     <Card className="max-w-2xl border-border bg-card shadow-xs">
       <CardHeader className="border-b border-border pb-3">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <CardTitle className="font-heading text-body-base font-bold text-foreground flex items-center gap-2">
             <GraduationCap className="size-5 text-brand-primary shrink-0" />
             {t("profile.academicInfo")}
@@ -103,7 +103,7 @@ export function ProfileEditForm({ user }: ProfileEditFormProps) {
         <div className="mb-4 border-b border-border pb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-body-sm">
           <div>
             <p className="font-semibold text-foreground">{user.name}</p>
-            <p className="text-body-xs text-muted-foreground flex items-center gap-1.5 mt-0.5">
+            <p className="text-body-xs text-muted-foreground flex items-center gap-1.5 mt-0.5 break-all">
               <Mail className="size-3.5" />
               {user.email}
             </p>
@@ -121,7 +121,7 @@ export function ProfileEditForm({ user }: ProfileEditFormProps) {
           </div>
         )}
 
-        <form action={formAction} className="space-y-5">
+        <form action={formAction} className="space-y-4">
           {/* Fakultas */}
           <SelectField
             id="faculty"
@@ -162,7 +162,7 @@ export function ProfileEditForm({ user }: ProfileEditFormProps) {
           />
 
           {/* Form Actions */}
-          <div className="flex items-center justify-end gap-3 pt-4 border-t border-border">
+          <div className="flex flex-wrap items-center justify-end gap-2 pt-4 border-t border-border">
             <Button
               type="button"
               variant="outline"
@@ -178,7 +178,7 @@ export function ProfileEditForm({ user }: ProfileEditFormProps) {
               type="submit"
               size="sm"
               disabled={isPending}
-              className="text-body-sm font-semibold bg-brand-primary hover:bg-primary-hover text-white"
+              className="text-body-sm font-semibold bg-brand-primary hover:bg-primary-hover text-primary-foreground"
             >
               {isPending ? t("profile.saving") : t("profile.save")}
             </Button>

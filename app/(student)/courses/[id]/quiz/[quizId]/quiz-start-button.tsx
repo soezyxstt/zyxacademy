@@ -72,7 +72,7 @@ export function QuizStartButton({ courseId, templateId, label, className, getRed
     <Button
       onClick={handleStart}
       isLoading={loading}
-      className={cn("bg-brand-primary text-white hover:bg-brand-primary/95 font-bold rounded-md interactive shadow-sm px-6 py-2 flex items-center gap-2 cursor-pointer", className)}
+      className={cn("bg-brand-primary text-primary-foreground hover:bg-brand-primary/95 font-bold rounded-md interactive shadow-sm px-6 py-2 flex items-center gap-2 cursor-pointer", className)}
     >
       <Play className="size-4 fill-white" />
       {label ?? t("quizStart.startQuiz")}

@@ -95,7 +95,7 @@ export default function PlansClient() {
         />
       </Reveal>
 
-      <div className="sticky top-[52px] z-30 w-full border-y border-border bg-background/95 py-2 shadow-xs backdrop-blur-md animate-in fade-in duration-200 md:top-[56px] md:py-3">
+      <div className="sticky top-[52px] z-30 w-full border-y border-border bg-background py-2 md:top-[56px] md:py-3">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <p className="sr-only" aria-live="polite">
             {t("plans.priceConfiguration", { people: persons, courses })}
@@ -328,8 +328,8 @@ export default function PlansClient() {
                   key={tier.key}
                   className={
                     tier.highlighted
-                      ? "relative flex flex-col rounded-2xl border-2 border-[var(--zx-accent)] bg-card/85 p-5 shadow-md ring-2 ring-[var(--zx-accent)]/10 backdrop-blur-md transition-all duration-200 hover:-translate-y-0.5 hover:bg-card/95 md:p-6"
-                      : "relative flex flex-col rounded-2xl border border-border/70 bg-card/80 p-5 shadow-sm backdrop-blur-md transition-all duration-200 hover:-translate-y-0.5 hover:border-border-strong hover:bg-card/95 hover:shadow-md md:p-6"
+                      ? "relative flex flex-col rounded-xl border border-primary bg-card p-5 md:p-6"
+                      : "relative flex flex-col rounded-xl border border-border bg-card p-5 md:p-6"
                   }
                 >
                   {tier.highlighted ? (
@@ -360,7 +360,7 @@ export default function PlansClient() {
                     {!isCustom && <ul className="mt-6 flex flex-col gap-3">
                       {(t.raw(`pricing.tiers.${tier.key}.features`) as string[]).map((f) => (
                         <li key={f} className="flex gap-2 text-body-sm text-muted-foreground items-start">
-                          <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+                          <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center text-primary">
                             <Check className="size-3" strokeWidth={2.5} aria-hidden />
                           </span>
                           <span className="leading-tight">{f}</span>
@@ -375,9 +375,9 @@ export default function PlansClient() {
                         asChild
                         variant={tier.highlighted ? "default" : "outline"}
                         size="marketing"
-                        className={`w-full group/btn transition-all duration-300 ${
+                        className={`w-full transition-colors duration-200 ${
                           tier.highlighted
-                            ? "bg-[var(--zx-accent)] text-white hover:bg-[var(--zx-accent)]/90 hover:shadow-lg hover:shadow-[var(--zx-accent)]/20"
+                            ? "bg-[var(--zx-accent)] text-white hover:bg-[var(--zx-accent)]/90"
                             : ""
                         }`}
                       >

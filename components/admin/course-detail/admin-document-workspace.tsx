@@ -393,8 +393,8 @@ export function AdminDocumentWorkspace({
   return (
     <div className="-mt-8 -mb-8 -mx-4 sm:-mx-6 lg:-mx-8 flex flex-col min-h-[calc(100vh+4rem)] bg-background font-sans">
       {/* Top Workspace Bar */}
-      <header className="sticky top-0 z-30 flex flex-wrap items-center justify-between gap-3 border-b border-border bg-card/95 backdrop-blur-xs px-4 py-2.5">
-        <div className="flex items-center gap-3 min-w-0">
+      <header className="sticky top-0 z-30 flex flex-wrap items-center justify-between gap-3 border-b border-border bg-card px-4 py-2.5">
+        <div className="flex min-w-0 flex-wrap items-center gap-3">
           <Button asChild variant="ghost" size="sm" className="h-8 gap-1 rounded-lg text-body-sm shrink-0">
             <Link href={documentsHref}>
               <ArrowLeft className="size-4" />
@@ -405,7 +405,7 @@ export function AdminDocumentWorkspace({
           <div className="h-4 w-px bg-border shrink-0" />
 
           <div className="min-w-0 flex items-center gap-2">
-            <h1 className="truncate font-heading text-body-sm font-semibold text-foreground max-w-[200px] sm:max-w-xs md:max-w-md" title={displayTitle}>
+            <h1 className="min-w-0 break-words font-heading text-body-sm font-semibold text-foreground">
               {displayTitle}
             </h1>
             {isArticleOrDiktat ? (
@@ -424,7 +424,7 @@ export function AdminDocumentWorkspace({
           </div>
         </div>
 
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex max-w-full flex-wrap items-center gap-2">
           {/* Status Toggle Button (for articles and diktats) */}
           {isArticleOrDiktat ? (
             <Button
@@ -433,7 +433,7 @@ export function AdminDocumentWorkspace({
               size="sm"
               disabled={statusUpdating}
               onClick={handleToggleStatus}
-              className="h-8 gap-1.5 rounded-lg text-body-xs font-medium"
+              className="h-8 gap-1.5 rounded-lg text-body-sm font-medium"
             >
               {statusUpdating ? (
                 <Loader2 className="size-3.5 animate-spin" />
@@ -459,6 +459,7 @@ export function AdminDocumentWorkspace({
               size="icon"
               className="size-8 rounded-lg text-muted-foreground hover:text-foreground"
               title={t("documents.openNewTab")}
+              aria-label={t("documents.openNewTab")}
             >
               <a href={material.url} target="_blank" rel="noopener noreferrer">
                 <ExternalLink className="size-4" />
@@ -468,10 +469,10 @@ export function AdminDocumentWorkspace({
 
           {/* Kelola Lifecycle (for canonical article/diktat) */}
           {isCanonical ? (
-            <Button asChild variant="outline" size="sm" className="h-8 gap-1.5 rounded-lg text-body-xs font-medium">
-              <Link href={reviewHref}>
+            <Button asChild variant="outline" size="sm" className="h-8 gap-1.5 rounded-lg text-body-sm font-medium">
+              <Link href={reviewHref} aria-label={t("documents.manageLifecycle")}>
                 <BookOpenCheck className="size-3.5 text-muted-foreground" />
-                <span className="hidden sm:inline">{t("documents.manageLifecycle")}</span>
+                <span>{t("documents.manageLifecycle")}</span>
               </Link>
             </Button>
           ) : null}
@@ -484,7 +485,7 @@ export function AdminDocumentWorkspace({
                 variant="outline"
                 size="sm"
                 onClick={() => setIsMobileSheetOpen(true)}
-                className="h-8 gap-1 rounded-lg text-body-xs font-medium md:hidden"
+                className="h-8 gap-1 rounded-lg text-body-sm font-medium md:hidden"
                 title={t("documents.tableOfContents")}
               >
                 <Menu className="size-3.5" />
@@ -495,7 +496,8 @@ export function AdminDocumentWorkspace({
                 variant="outline"
                 size="sm"
                 onClick={() => setIsTocOpen((prev) => !prev)}
-                className="h-8 gap-1.5 rounded-lg text-body-xs font-medium hidden md:inline-flex"
+                className="h-8 gap-1.5 rounded-lg text-body-sm font-medium hidden md:inline-flex"
+                aria-pressed={isTocOpen}
                 title={isTocOpen ? t("documents.hideMenu") : t("documents.openMenu")}
               >
                 {isTocOpen ? (
@@ -515,7 +517,8 @@ export function AdminDocumentWorkspace({
               variant={activeMode === "preview" ? "secondary" : "ghost"}
               size="sm"
               onClick={() => handleModeChange("preview")}
-              className="h-7 gap-1 px-2.5 rounded-md text-body-xs font-medium"
+              aria-pressed={activeMode === "preview"}
+              className="h-7 gap-1 px-2.5 rounded-md text-body-sm font-medium"
             >
               <Eye className="size-3.5" />
               <span>{t("documents.preview")}</span>
@@ -525,7 +528,8 @@ export function AdminDocumentWorkspace({
               variant={activeMode === "edit" ? "secondary" : "ghost"}
               size="sm"
               onClick={() => handleModeChange("edit")}
-              className="h-7 gap-1 px-2.5 rounded-md text-body-xs font-medium"
+              aria-pressed={activeMode === "edit"}
+              className="h-7 gap-1 px-2.5 rounded-md text-body-sm font-medium"
             >
               <Pencil className="size-3.5" />
               <span>{t("documents.edit")}</span>
@@ -538,7 +542,7 @@ export function AdminDocumentWorkspace({
               type="button"
               onClick={handleSaveArticle}
               disabled={saving || !articleTitle.trim()}
-              className="h-8 gap-1.5 rounded-lg text-body-xs font-semibold"
+              className="h-8 gap-1.5 rounded-lg text-body-sm font-semibold"
             >
               {saving ? <Loader2 className="size-3.5 animate-spin" /> : <Save className="size-3.5" />}
               <span>{t("common.save")}</span>
@@ -554,6 +558,7 @@ export function AdminDocumentWorkspace({
               className="size-8 text-destructive hover:bg-destructive/10 hover:text-destructive rounded-lg"
               onClick={() => setDeleteConfirmOpen(true)}
               title={t("documents.deleteTitle")}
+              aria-label={t("documents.deleteTitle")}
             >
               <Trash2 className="size-4" />
             </Button>
@@ -594,7 +599,7 @@ export function AdminDocumentWorkspace({
             /* Split Edit Layout for PDF Documents */
             <div className="grid grid-cols-1 lg:grid-cols-12 min-h-[calc(100vh-53px)]">
               {/* Left Panel: Full PDF Preview */}
-              <div className="lg:col-span-7 xl:col-span-8 bg-muted/20 border-r border-border min-h-[500px] lg:min-h-full flex flex-col">
+              <div className="order-2 lg:order-1 lg:col-span-7 xl:col-span-8 bg-muted/20 border-r border-border min-h-[500px] lg:min-h-full flex flex-col">
                 <div className="flex items-center justify-between border-b border-border/70 bg-card/60 px-4 py-2 text-body-xs text-muted-foreground">
                   <span className="font-medium">{t("documents.pdfPreview")}</span>
                   {material.url ? (
@@ -626,21 +631,18 @@ export function AdminDocumentWorkspace({
               </div>
 
               {/* Right Panel: Metadata Form */}
-              <div className="lg:col-span-5 xl:col-span-4 p-5 lg:p-6 overflow-y-auto space-y-5 bg-card">
+              <div className="order-1 lg:order-2 lg:col-span-5 xl:col-span-4 p-4 overflow-y-auto space-y-4 bg-card">
                 <div>
                   <h2 className="font-heading text-body-base font-bold text-foreground">
                     {t("documents.settings")}
                   </h2>
-                  <p className="text-body-xs text-muted-foreground mt-0.5">
-                    Perbarui judul tampilan, kategori, dan kaitan bab tanpa mengunggah ulang berkas.
-                  </p>
                 </div>
 
                 <form onSubmit={handleSavePdf} className="space-y-4">
                   {/* Judul Dokumen */}
                   <div className="space-y-1.5">
                     <div className="flex items-center justify-between">
-                      <Label className="text-body-sm font-semibold text-foreground">
+                      <Label htmlFor="workspace-pdf-title" className="text-body-sm font-semibold text-foreground">
                         {t("documents.displayTitle")}
                       </Label>
                       {pdfTitle.trim() ? (
@@ -648,7 +650,7 @@ export function AdminDocumentWorkspace({
                           type="button"
                           onClick={handleFormatPdfTitle}
                           disabled={formattingPdfAi || saving}
-                          className="inline-flex items-center gap-1 text-body-xs text-brand-primary hover:underline cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="inline-flex items-center gap-1 text-body-sm text-brand-primary hover:underline cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                           title={t("documents.formatPdfTitle")}
                         >
                           {formattingPdfAi ? (
@@ -661,6 +663,7 @@ export function AdminDocumentWorkspace({
                       ) : null}
                     </div>
                     <Input
+                      id="workspace-pdf-title"
                       value={pdfTitle}
                       onChange={(e) => setPdfTitle(e.target.value)}
                       disabled={saving}
@@ -672,7 +675,7 @@ export function AdminDocumentWorkspace({
                   {/* Kategori & Sub-kategori */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div className="space-y-1.5">
-                      <Label className="text-body-sm font-semibold text-foreground">
+                      <Label htmlFor="workspace-pdf-category" className="text-body-sm font-semibold text-foreground">
                         {t("documents.category")}
                       </Label>
                       <Select
@@ -686,8 +689,10 @@ export function AdminDocumentWorkspace({
                         }}
                         disabled={saving}
                       >
-                        <SelectTrigger className="h-9 text-body-sm rounded-lg">
-                          <SelectValue placeholder={t("documents.selectCategory")} />
+                        <SelectTrigger id="workspace-pdf-category" className="h-9 text-body-sm rounded-lg">
+                          <SelectValue placeholder={t("documents.selectCategory")}>
+                            {LEVEL1_CATEGORIES.find((category) => category.value === pdfType)?.label}
+                          </SelectValue>
                         </SelectTrigger>
                         <SelectContent>
                           {LEVEL1_CATEGORIES.map((c) => (
@@ -700,7 +705,7 @@ export function AdminDocumentWorkspace({
                     </div>
 
                     <div className="space-y-1.5">
-                      <Label className="text-body-sm font-semibold text-foreground">
+                      <Label htmlFor="workspace-pdf-subcategory" className="text-body-sm font-semibold text-foreground">
                         {t("documents.subcategory")}
                       </Label>
                       <Select
@@ -708,8 +713,10 @@ export function AdminDocumentWorkspace({
                         onValueChange={(v: CourseMaterialSubcategory) => setPdfSubcategory(v)}
                         disabled={saving}
                       >
-                        <SelectTrigger className="h-9 text-body-sm rounded-lg">
-                          <SelectValue placeholder={t("documents.selectSubcategory")} />
+                        <SelectTrigger id="workspace-pdf-subcategory" className="h-9 text-body-sm rounded-lg">
+                          <SelectValue placeholder={t("documents.selectSubcategory")}>
+                            {availablePdfSubcategories.find((subcategory) => subcategory.value === pdfSubcategory)?.label}
+                          </SelectValue>
                         </SelectTrigger>
                         <SelectContent>
                           {availablePdfSubcategories.map((s) => (
@@ -724,10 +731,11 @@ export function AdminDocumentWorkspace({
 
                   {/* Tahun */}
                   <div className="space-y-1.5">
-                    <Label className="text-body-sm font-semibold text-foreground">
+                    <Label htmlFor="workspace-pdf-year" className="text-body-sm font-semibold text-foreground">
                       {t("documents.year")} <span className="font-normal text-muted-foreground text-body-xs">({t("documents.optional")})</span>
                     </Label>
                     <Input
+                      id="workspace-pdf-year"
                       type="number"
                       min={1900}
                       max={2100}
@@ -741,7 +749,7 @@ export function AdminDocumentWorkspace({
 
                   {/* Chapter Selector */}
                   <div className="space-y-2 border-t border-border pt-3">
-                    <div className="flex items-center justify-between">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
                       <span className="text-body-xs font-semibold text-muted-foreground uppercase tracking-wider">
                         {t("documents.chapterLinks", { count: selectedChapters.size })}
                       </span>
@@ -749,7 +757,7 @@ export function AdminDocumentWorkspace({
                         <Button size="sm" variant="ghost"
                           type="button"
                           onClick={handleSelectAllChapters}
-                          className="text-body-xs text-brand-primary font-medium hover:underline cursor-pointer"
+                          className="text-body-sm text-brand-primary font-medium hover:underline cursor-pointer"
                         >
                           {selectedChapters.size === chapters.length ? t("documents.clearAll") : t("documents.selectAllChapters")}
                         </Button>
@@ -762,7 +770,7 @@ export function AdminDocumentWorkspace({
                         return (
                           <label
                             key={ch.id}
-                            className={`flex items-center gap-2 p-2 rounded-lg border text-body-xs cursor-pointer select-none transition-colors ${
+                            className={`flex items-center gap-2 p-2 rounded-lg border text-body-sm cursor-pointer select-none transition-colors ${
                               isChecked
                                 ? "border-primary bg-primary/10 text-foreground"
                                 : "border-border/60 hover:bg-muted/30 text-muted-foreground"
@@ -774,7 +782,7 @@ export function AdminDocumentWorkspace({
                               disabled={saving}
                               className="rounded border-border"
                             />
-                            <span className="truncate">
+                            <span className="min-w-0 break-words">
                               {t("documents.chapterWithNumber", { number: ch.orderIndex })}: {ch.title}
                             </span>
                           </label>
@@ -784,7 +792,7 @@ export function AdminDocumentWorkspace({
                   </div>
 
                   {/* Action Buttons */}
-                  <div className="flex items-center justify-end gap-2 pt-2">
+                  <div className="flex flex-wrap items-center justify-end gap-2 pt-2">
                     <Button
                       type="button"
                       variant="outline"
@@ -811,11 +819,11 @@ export function AdminDocumentWorkspace({
             <div className="max-w-5xl mx-auto p-4 space-y-4">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
-                  <h2 className="font-heading text-h5 font-bold text-foreground">
+                  <h2 className="font-heading text-body-base font-bold text-foreground">
                     {t("documents.editContent")}
                   </h2>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <Button
                     type="button"
                     variant="outline"
@@ -842,7 +850,7 @@ export function AdminDocumentWorkspace({
                   {/* Judul Dokumen */}
                   <div className="md:col-span-2 space-y-1.5">
                     <div className="flex items-center justify-between">
-                      <Label className="text-body-sm font-semibold text-foreground">
+                      <Label htmlFor="workspace-article-title" className="text-body-sm font-semibold text-foreground">
                         {t("documents.documentTitle")}
                       </Label>
                       {articleTitle.trim() ? (
@@ -850,7 +858,7 @@ export function AdminDocumentWorkspace({
                           type="button"
                           onClick={handleFormatArticleTitle}
                           disabled={formattingArticleAi || saving}
-                          className="inline-flex items-center gap-1 text-body-xs text-brand-primary hover:underline cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="inline-flex items-center gap-1 text-body-sm text-brand-primary hover:underline cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                           title={t("documents.formatArticleTitle")}
                         >
                           {formattingArticleAi ? (
@@ -863,6 +871,7 @@ export function AdminDocumentWorkspace({
                       ) : null}
                     </div>
                     <Input
+                      id="workspace-article-title"
                       value={articleTitle}
                       onChange={(e) => setArticleTitle(e.target.value)}
                       disabled={saving}
@@ -873,7 +882,7 @@ export function AdminDocumentWorkspace({
 
                   {/* Pilihan Bab */}
                   <div className="space-y-1.5">
-                    <Label className="text-body-sm font-semibold text-foreground">
+                    <Label htmlFor="workspace-article-chapter" className="text-body-sm font-semibold text-foreground">
                       {t("documents.relatedChapter")}
                     </Label>
                     <Select
@@ -881,7 +890,7 @@ export function AdminDocumentWorkspace({
                       onValueChange={setArticleBabId}
                       disabled={saving}
                     >
-                      <SelectTrigger className="h-9 text-body-sm rounded-lg">
+                      <SelectTrigger id="workspace-article-chapter" className="h-9 text-body-sm rounded-lg">
                         <SelectValue placeholder={t("documents.selectChapter")} />
                       </SelectTrigger>
                       <SelectContent>
@@ -898,12 +907,13 @@ export function AdminDocumentWorkspace({
                 {/* Markdown Content Editor */}
                 <div className="space-y-1.5">
                   <div className="flex items-center justify-between">
-                    <Label className="text-body-sm font-semibold text-foreground">
+                    <Label htmlFor="workspace-markdown" className="text-body-sm font-semibold text-foreground">
                       {t("documents.markdownContent")}
                     </Label>
 
                   </div>
                   <Textarea
+                    id="workspace-markdown"
                     value={articleMarkdown}
                     onChange={(e) => setArticleMarkdown(e.target.value)}
                     disabled={saving}

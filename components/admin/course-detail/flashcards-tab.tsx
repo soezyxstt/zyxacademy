@@ -493,7 +493,7 @@ export function FlashcardsTab({
 
       {/* Toolbar */}
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-2 flex-1 min-w-[280px]">
+        <div className="flex flex-wrap items-center gap-2 flex-1 min-w-[140px]">
           <SearchBar
             size="sm"
             placeholder={t("courseDetail.flashcards.search")}
@@ -531,7 +531,7 @@ export function FlashcardsTab({
           </Select>
         </div>
 
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex flex-wrap items-center gap-2">
           <Button
             variant="outline"
             size="sm"
@@ -923,7 +923,7 @@ export function FlashcardsTab({
                 value={cardFront}
                 onChange={(e) => setCardFront(e.target.value)}
                 rows={3}
-                className="text-body-sm rounded-lg font-mono text-xs"
+                className="text-body-sm rounded-lg font-mono"
               />
               {cardFront.trim() && (
                 <div className="rounded-md bg-muted/40 p-2.5 border border-border/60 text-body-sm">
@@ -942,7 +942,7 @@ export function FlashcardsTab({
                 value={cardBack}
                 onChange={(e) => setCardBack(e.target.value)}
                 rows={3}
-                className="text-body-sm rounded-lg font-mono text-xs"
+                className="text-body-sm rounded-lg font-mono"
               />
               {cardBack.trim() && (
                 <div className="rounded-md bg-muted/40 p-2.5 border border-border/60 text-body-sm">
@@ -961,7 +961,7 @@ export function FlashcardsTab({
                 value={cardExplanation}
                 onChange={(e) => setCardExplanation(e.target.value)}
                 rows={2}
-                className="text-body-sm rounded-lg font-mono text-xs"
+                className="text-body-sm rounded-lg font-mono"
               />
             </div>
 

@@ -167,7 +167,7 @@ export default async function CourseMyResultsPage({ params }: Props) {
             <li key={submission.id}>
               <Link href={`/courses/${id}/my-results/${submission.id}`} className="group flex items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/30">
                 <div className="min-w-0 flex-1 text-left">
-                  <h2 className="truncate font-heading text-body-base font-semibold text-foreground group-hover:text-primary">
+                  <h2 className="break-words font-heading text-body-base font-semibold text-foreground group-hover:text-primary">
                     {submission.examTitle}
                   </h2>
                   <p className="mt-1 text-body-sm text-muted-foreground">

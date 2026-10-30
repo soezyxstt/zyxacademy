@@ -219,7 +219,7 @@ export function TutorLiveConsole({ courseId, courseTitle }: TutorLiveConsoleProp
   // ── Setup Phase ─────────────────────────────────────────────────────────────
   if (phase === "setup") {
     return (
-      <div className="mx-auto max-w-xl space-y-4 rounded-xl border border-border bg-card p-4">
+      <div className="max-w-2xl space-y-4 rounded-xl border border-border bg-card p-4">
         <div className="border-b border-border pb-4">
           <div className="flex items-center gap-2">
             <Radio className="size-5 text-brand-primary" />
@@ -239,9 +239,9 @@ export function TutorLiveConsole({ courseId, courseTitle }: TutorLiveConsoleProp
         ) : (
           <div className="space-y-4">
             <div className="space-y-1.5">
-              <label className="text-body-sm font-medium text-foreground">{t("template")}</label>
+              <label htmlFor="live-template" className="text-body-sm font-semibold text-foreground">{t("template")}</label>
               <Select value={selectedTemplateId} onValueChange={setSelectedTemplateId}>
-                <SelectTrigger className="rounded-lg text-body-sm">
+                <SelectTrigger id="live-template" className="rounded-lg text-body-sm">
                   <SelectValue placeholder={t("selectTemplate")} />
                 </SelectTrigger>
                 <SelectContent>
@@ -255,9 +255,9 @@ export function TutorLiveConsole({ courseId, courseTitle }: TutorLiveConsoleProp
             </div>
 
             {codingProblems.length ? <div className="space-y-1.5">
-              <label className="text-body-sm font-semibold">Soal Python</label>
+              <label htmlFor="live-python" className="text-body-sm font-semibold">Soal Python</label>
               <Select value={codingChoice} onValueChange={setCodingChoice}>
-                <SelectTrigger className="text-body-sm"><SelectValue /></SelectTrigger>
+                <SelectTrigger id="live-python" className="text-body-sm"><SelectValue /></SelectTrigger>
                 <SelectContent><SelectItem value="none">Gunakan soal templat</SelectItem>{codingProblems.map((problem) => <SelectItem key={`${problem.problemId}@${problem.version}`} value={JSON.stringify([problem.problemId, problem.version])}>{problem.title}, versi {problem.version}</SelectItem>)}</SelectContent>
               </Select>
               <p className="text-body-xs text-muted-foreground">Python: 5 menit, percobaan berulang, petunjuk Zyra, skor terbaik.</p>
@@ -266,7 +266,7 @@ export function TutorLiveConsole({ courseId, courseTitle }: TutorLiveConsoleProp
               onClick={createSession}
               disabled={!selectedTemplateId && codingChoice === "none"}
               isLoading={creating}
-              className="w-full rounded-lg text-body-sm font-medium"
+              className="rounded-lg text-body-sm font-medium"
             >
               <Play className="mr-2 size-4" />
               {t("startLiveSession")}
@@ -291,7 +291,7 @@ export function TutorLiveConsole({ courseId, courseTitle }: TutorLiveConsoleProp
   return (
     <div className="relative min-h-[60vh] space-y-4 rounded-xl border border-border bg-card p-4">
       {/* Top Status Strip */}
-      <div className="flex items-center justify-between border-b border-border pb-4">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-4">
         <div className="flex items-center gap-2">
           <Radio className="size-4 text-brand-primary" />
           <span className="font-heading text-body-base font-bold text-foreground">
@@ -323,7 +323,7 @@ export function TutorLiveConsole({ courseId, courseTitle }: TutorLiveConsoleProp
           <p className="text-body-xs font-semibold uppercase tracking-widest text-muted-foreground">
             {t("joinCode")}
           </p>
-          <span className="rounded-xl border border-border bg-muted/30 px-6 py-3 font-heading text-h1 font-bold tracking-widest text-foreground">
+          <span className="rounded-lg border border-border bg-muted/30 px-4 py-2 font-heading text-h2 font-bold tracking-widest text-foreground">
             {session.code}
           </span>
           <div className="flex items-center gap-2 text-muted-foreground">
@@ -341,7 +341,7 @@ export function TutorLiveConsole({ courseId, courseTitle }: TutorLiveConsoleProp
       {/* ── Question Phase ── */}
       {sessionState === "question" && currentQuestion && (
         <div className="mx-auto max-w-2xl space-y-5">
-          <div className="flex items-center justify-between border-b border-border pb-2">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border pb-2">
             <span className="text-body-sm font-semibold text-muted-foreground tabular-nums">
               {t("questionProgress", { current: currentQuestion.questionIndex + 1, total: currentQuestion.total })}
             </span>

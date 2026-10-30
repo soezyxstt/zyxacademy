@@ -205,7 +205,7 @@ export function PageHeader({
               <Icon className="size-3.5 sm:size-4" aria-hidden />
             </span>
           )}
-          <h1 className="font-heading text-body-base sm:text-h5 font-bold tracking-tight text-foreground leading-snug truncate">
+          <h1 className="min-w-0 break-words font-heading text-body-base sm:text-h5 font-bold tracking-tight text-foreground leading-snug">
             {title}
           </h1>
         </div>

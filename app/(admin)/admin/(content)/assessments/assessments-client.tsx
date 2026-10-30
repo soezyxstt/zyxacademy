@@ -291,7 +291,7 @@ export function AssessmentsClient({ sources, courses, courseMap }: Props) {
                 onClick={() => setShowUploadModal(true)}
                 size="sm"
                 aria-label={t("uploadAssessment")}
-                className="size-9 p-0 rounded-lg shrink-0 bg-brand-primary text-white hover:bg-brand-primary/95 shadow-2xs"
+                className="size-9 p-0 rounded-lg shrink-0 bg-brand-primary text-primary-foreground hover:bg-brand-primary/95 shadow-2xs"
               >
                 <Plus className="size-4" />
               </Button>

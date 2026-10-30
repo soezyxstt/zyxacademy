@@ -286,6 +286,7 @@ function HierarchyDocumentCard({
   onDelete?: (m: CourseMaterial) => void;
 }) {
   const t = useTranslations("learning");
+  const [failedThumbnail, setFailedThumbnail] = useState<string | null>(null);
   const tier = getMaterialHierarchyTier(material);
   const tierStyle = HIERARCHY_TIER_STYLES[tier];
   const itemHref =
@@ -324,10 +325,11 @@ function HierarchyDocumentCard({
             tierStyle.borderAccent
           )}
         >
-          {material.thumbnailUrl ? (
+          {material.thumbnailUrl && failedThumbnail !== material.thumbnailUrl ? (
             <Image
               src={material.thumbnailUrl}
-              alt={material.title}
+              alt=""
+              onError={() => setFailedThumbnail(material.thumbnailUrl ?? null)}
               fill
               sizes="(max-width: 640px) 96px, 128px"
               className="object-cover object-top"
@@ -342,12 +344,12 @@ function HierarchyDocumentCard({
         {/* Full-width Title and Seamless Color Meta Line */}
         <div className="min-w-0 flex-1">
           <p
-            className="truncate text-body-sm font-semibold leading-snug text-foreground group-hover:text-primary transition-colors"
+            className="break-words text-body-sm font-semibold leading-snug text-foreground group-hover:text-primary transition-colors"
             title={material.title}
           >
             {cleanDocTitle(material.title, courseTitle)}
           </p>
-          <p className="mt-0.5 truncate text-body-xs leading-tight text-muted-foreground">
+          <p className="mt-0.5 break-words text-body-xs leading-tight text-muted-foreground">
             <span className={tierStyle.textColor}>{t(`documents.materialTypes.${tier}`)}</span>
             {secondaryMeta.length > 0 && <span> · {secondaryMeta.join(" · ")}</span>}
           </p>

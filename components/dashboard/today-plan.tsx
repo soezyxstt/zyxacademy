@@ -61,7 +61,7 @@ export function TodayPlan({ firstName }: { firstName: string }) {
   };
 
   return (
-    <div className="mb-4 sm:mb-8">
+    <div className="mb-4 sm:mb-6">
       <PageHeader
         title={
           <>
@@ -108,22 +108,21 @@ export function TodayPlan({ firstName }: { firstName: string }) {
             </div>
           ) : (
             <ul className="divide-y divide-border/30 zebra-no-rows">
-              {data!.items.map((item, index) => {
+              {data!.items.map((item) => {
                 const Icon = KIND_ICON[item.kind];
                 return (
                   <li
                     key={item.id}
-                    className="flex items-center gap-4 py-3.5 transition-all duration-200"
-                    style={{ animationDelay: `${index * 50}ms` }}
+                    className="flex flex-wrap items-center gap-2 sm:gap-3 py-3 transition-colors"
                   >
                     <button
                       type="button"
                       aria-label={item.done ? t("dashboard.done") : t("dashboard.markDone")}
                       onClick={() => !item.done && markDone(item.id)}
                       className={cn(
-                        "flex size-5 shrink-0 cursor-pointer items-center justify-center rounded-full border transition-all",
+                        "flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-md border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                         item.done
-                          ? "border-brand-primary bg-brand-primary text-white"
+                          ? "border-brand-primary bg-brand-primary text-primary-foreground"
                           : "border-border hover:border-brand-primary/60 hover:bg-brand-primary/5"
                       )}
                     >
@@ -141,8 +140,8 @@ export function TodayPlan({ firstName }: { firstName: string }) {
 
                     <span
                       className={cn(
-                        "min-w-0 flex-1 truncate text-body-sm font-semibold text-foreground",
-                        item.done && "font-medium text-muted-foreground line-through"
+                        "min-w-0 flex-1 break-words text-body-sm font-semibold text-foreground",
+                        item.done && "text-muted-foreground line-through"
                       )}
                     >
                       {item.title}

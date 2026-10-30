@@ -76,7 +76,7 @@ function NodeCircle({ status }: { status: NodeStatus }) {
 
 function MasteryMiniBar({ node, delay, lockedNote }: { node: PathNode; delay: number; lockedNote: string }) {
  if (node.score === undefined) {
- return <span className="text-[10px] italic text-muted-foreground/80">{lockedNote}</span>;
+ return <span className="text-body-xs text-muted-foreground">{lockedNote}</span>;
  }
  return (
  <span className="flex w-full items-center gap-1.5">
@@ -129,15 +129,15 @@ export function MasteryPathDemo() {
  ))}
  </div>
 
- <div className="mt-10 overflow-x-auto pb-4">
+ <div className="mt-8">
  {/* Key by profile so switching replays the entrance animations. */}
- <div key={profile.id} className="mx-auto flex min-w-[820px] max-w-5xl items-start">
+ <div key={profile.id} className="mx-auto grid max-w-5xl grid-cols-2 gap-x-4 gap-y-6 sm:grid-cols-3 lg:flex lg:items-start lg:gap-0">
  {profile.nodes.map((node, index) => (
- <div key={node.name} className="flex flex-1 items-start">
+ <div key={node.name} className="flex min-w-0 flex-1 items-start justify-center">
  {index > 0 ? (
  <span
  className={cn(
- "landing-bar mt-[21px] h-0.5 flex-1",
+ "landing-bar mt-[21px] hidden h-0.5 flex-1 lg:block",
  profile.nodes[index - 1].status === "done" ? "bg-status-success/50" : "bg-border",
  )}
  style={{ animationDelay: `${index * 140}ms` }}
@@ -145,7 +145,7 @@ export function MasteryPathDemo() {
  />
  ) : null}
  <div
- className="landing-pop flex w-[120px] shrink-0 flex-col items-center gap-2 text-center"
+ className="landing-pop flex w-full max-w-[160px] flex-col items-center gap-2 text-center lg:w-[120px] lg:shrink-0"
  style={{ animationDelay: `${index * 140 + 80}ms` }}
  >
  <NodeCircle status={node.status} />

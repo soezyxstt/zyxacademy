@@ -245,7 +245,7 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
           </Button>
         </div>
         <Reveal>
-          <div className="rounded-lg border border-border/70 bg-card/75 p-4 backdrop-blur-sm">
+          <div className="rounded-lg border border-border/70 bg-card p-4">
             <div className="flex items-start gap-3">
               <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground ring-1 ring-border">
                 <Lock className="size-5" />
@@ -304,7 +304,7 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
       return (
         <CoursePageShell title={<TranslatedText namespace="learning" messageKey="quizTake.closed" />} description={template.title} hideHeader>
           <Reveal>
-            <div className="rounded-lg border border-border/70 bg-card/75 p-5 backdrop-blur-sm text-center">
+            <div className="rounded-lg border border-border/70 bg-card p-5 text-center">
                 <h3 className="font-heading text-body-base font-bold text-foreground"><TranslatedText namespace="learning" messageKey="quizTake.closed" /></h3>
               <p className="mt-2 text-body-sm text-muted-foreground">
                 Kuis ini telah ditutup secara manual oleh admin/tutor.
@@ -314,7 +314,7 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
                   <Link href={`/courses/${id}/quiz`}><TranslatedText namespace="learning" messageKey="quizTake.backToList" /></Link>
                 </Button>
                 {canViewDiscussion && (
-                  <Button asChild size="sm" className="rounded-md bg-brand-primary text-white">
+                  <Button asChild size="sm" className="rounded-md bg-brand-primary text-primary-foreground">
                     <Link href={`?viewDiscussion=true`}><TranslatedText namespace="learning" messageKey="quizTake.viewDiscussion" /></Link>
                   </Button>
                 )}
@@ -330,7 +330,7 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
         return (
           <CoursePageShell title={<TranslatedText namespace="learning" messageKey="quizTake.notOpen" />} description={template.title} hideHeader>
             <Reveal>
-              <div className="rounded-lg border border-border/70 bg-card/75 p-5 backdrop-blur-sm text-center">
+              <div className="rounded-lg border border-border/70 bg-card p-5 text-center">
                 <h3 className="font-heading text-body-base font-bold text-foreground"><TranslatedText namespace="learning" messageKey="quizTake.notOpen" /></h3>
                 <p className="mt-2 text-body-sm text-muted-foreground">
                   Kuis ini dijadwalkan untuk dibuka pada tanggal{" "}
@@ -351,7 +351,7 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
         return (
           <CoursePageShell title={<TranslatedText namespace="learning" messageKey="quizTake.closed" />} description={template.title} hideHeader>
             <Reveal>
-              <div className="rounded-lg border border-border/70 bg-card/75 p-5 backdrop-blur-sm text-center">
+              <div className="rounded-lg border border-border/70 bg-card p-5 text-center">
                 <h3 className="font-heading text-body-base font-bold text-foreground"><TranslatedText namespace="learning" messageKey="quizTake.closed" /></h3>
                 <p className="mt-2 text-body-sm text-muted-foreground">
                   Akses kuis ini telah berakhir sejak tanggal{" "}
@@ -362,7 +362,7 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
                     <Link href={`/courses/${id}/quiz`}><TranslatedText namespace="learning" messageKey="quizTake.backToList" /></Link>
                   </Button>
                   {canViewDiscussion && (
-                    <Button asChild size="sm" className="rounded-md bg-brand-primary text-white">
+                    <Button asChild size="sm" className="rounded-md bg-brand-primary text-primary-foreground">
                       <Link href={`?viewDiscussion=true`}><TranslatedText namespace="learning" messageKey="quizTake.viewDiscussion" /></Link>
                     </Button>
                   )}
@@ -600,7 +600,7 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
               </Button>
 
               {targetAttempt && (
-                <Button asChild size="sm" className="rounded-md bg-brand-primary text-white hover:bg-brand-primary/90 font-semibold shadow-xs">
+                <Button asChild size="sm" className="rounded-md bg-brand-primary text-primary-foreground hover:bg-brand-primary/90 font-semibold shadow-xs">
                   <Link href={`/courses/${id}/quiz/${quizId}/summary/${targetAttempt.id}`}>
                     Lihat Diagnosis & Rencana Belajar
                   </Link>
@@ -627,7 +627,7 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
             )}
 
             {!targetAttempt && (
-              <div className="rounded-xl border border-brand-primary/30 bg-brand-primary/5 p-5 backdrop-blur-md text-center">
+              <div className="rounded-xl border border-brand-primary/30 bg-brand-primary/5 p-5 text-center">
                 <h3 className="font-heading text-body-base font-bold text-brand-primary"><TranslatedText namespace="learning" messageKey="quizTake.fullDiscussion" /></h3>
                 <p className="mt-1 text-body-sm text-brand-primary/80">
                   Anda tidak mengerjakan kuis ini. Berikut adalah seluruh kumpulan soal yang mungkin muncul pada kuis ini beserta penjelasannya.

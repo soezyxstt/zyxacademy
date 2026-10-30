@@ -149,7 +149,7 @@ export function StudentGroupRenamePanel({
 
           <div className="space-y-4 py-1">
             <div className="space-y-2">
-              <label htmlFor="student-group-name" className="text-sm font-medium">
+              <label htmlFor="student-group-name" className="text-body-sm font-semibold">
                 {t("groups.newName")}
               </label>
               <Input
@@ -160,10 +160,10 @@ export function StudentGroupRenamePanel({
                 onChange={(event) => setDraftName(event.target.value)}
                 autoComplete="off"
               />
-              <p className="text-xs text-muted-foreground">{t("groups.length")}</p>
+              <p className="text-body-xs text-muted-foreground">{t("groups.length")}</p>
             </div>
 
-            <div className="flex gap-3 rounded-lg border bg-muted/30 p-3 text-sm">
+            <div className="flex gap-3 rounded-lg border bg-muted/30 p-3 text-body-sm">
               <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
               <div className="space-y-1">
                 <p className="font-medium">{t("groups.confirmation")}</p>

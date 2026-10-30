@@ -118,13 +118,12 @@ export default async function TutorPage() {
             <AdminEmptyState
               icon={Clock3}
               title={t("noUpcoming")}
-              description={t("noUpcomingDescription")}
               action={
                 <Button asChild variant="outline" size="sm">
                   <Link href="/tutor/schedule">{t("addSlot")}</Link>
                 </Button>
               }
-              className="px-4 py-8"
+              className="px-4 py-4"
             />
           ) : (
             <div className="divide-y divide-border">
@@ -149,7 +148,7 @@ export default async function TutorPage() {
                       {booking.group?.name || t("group")}{booking.mode ? ` · ${booking.mode === "online" ? t("online") : t("inPerson")}` : ""}
                     </span>
                   </span>
-                  <ArrowRight className="mt-2 size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-brand-primary" aria-hidden />
+                  <ArrowRight className="mt-2 size-4 shrink-0 text-muted-foreground transition-colors group-hover:text-brand-primary" aria-hidden />
                 </Link>
               ))}
             </div>
@@ -164,7 +163,7 @@ export default async function TutorPage() {
             <AdminEmptyState
               icon={MessageSquareWarning}
               title={t("noPendingTickets")}
-              className="px-4 py-7"
+              className="px-4 py-4"
             />
           ) : (
             <div className="divide-y divide-border">
@@ -217,7 +216,7 @@ export default async function TutorPage() {
                       {course.code || t("courses")} · {t("relatedGroups", { count: groupCount })}
                     </span>
                   </span>
-                  <ArrowRight className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-brand-primary" aria-hidden />
+                  <ArrowRight className="size-4 shrink-0 text-muted-foreground transition-colors group-hover:text-brand-primary" aria-hidden />
                 </Link>
               );
             })}

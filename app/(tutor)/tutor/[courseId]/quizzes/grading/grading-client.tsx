@@ -271,7 +271,7 @@ export function TutorQuizGradingClient({ courseId, pendingAttempts }: Props) {
           </div>
         </div>
 
-        <div className="space-y-6">
+        <div className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
           {activeAttempt.questions.map((q) => {
             const input = gradeInputs[q.id];
             const typeLabel =
@@ -284,7 +284,7 @@ export function TutorQuizGradingClient({ courseId, pendingAttempts }: Props) {
             return (
               <div
                 key={q.id}
-                className="rounded-xl border border-border bg-card p-4 space-y-3"
+                className="p-4 space-y-3"
               >
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
@@ -336,7 +336,7 @@ export function TutorQuizGradingClient({ courseId, pendingAttempts }: Props) {
                 )}
 
                 <div className="space-y-1.5">
-                  <span className="text-body-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                  <span className="text-body-xs font-semibold text-muted-foreground">
                     {tr("studentAnswer")}
                   </span>
                   <div className="text-body-sm text-foreground bg-background p-3 rounded-md border border-border min-h-[48px] whitespace-pre-wrap">
@@ -387,10 +387,11 @@ export function TutorQuizGradingClient({ courseId, pendingAttempts }: Props) {
                 {q.isFreeResponse && input && (
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-4 pt-3 border-t border-border/60">
                     <div className="space-y-1.5">
-                      <label className="text-body-sm font-semibold text-foreground">
+                      <label htmlFor={`score-${q.id}`} className="text-body-sm font-semibold text-foreground">
                         {tr("score")} {q.isEssay ? <span className="text-destructive">*</span> : null}
                       </label>
                       <Input
+                        id={`score-${q.id}`}
                         type="number"
                         min={0}
                         max={100}
@@ -401,10 +402,11 @@ export function TutorQuizGradingClient({ courseId, pendingAttempts }: Props) {
                       />
                     </div>
                     <div className="md:col-span-3 space-y-1.5">
-                      <label className="text-body-sm font-semibold text-foreground">
+                      <label htmlFor={`notes-${q.id}`} className="text-body-sm font-semibold text-foreground">
                         {tr("reviewNotes")}
                       </label>
                       <Textarea
+                        id={`notes-${q.id}`}
                         rows={2}
                         value={input.notes}
                         onChange={(e) => handleNotesChange(q.id, e.target.value)}
@@ -464,7 +466,7 @@ export function TutorQuizGradingClient({ courseId, pendingAttempts }: Props) {
                   className="p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:bg-muted/30 transition-colors"
                 >
                   <div className="space-y-1">
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       <h4 className="font-heading text-body-sm font-bold text-foreground">
                         {item.quizTitle}
                       </h4>

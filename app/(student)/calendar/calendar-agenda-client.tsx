@@ -65,6 +65,7 @@ export function CalendarAgendaClient({
             size="sm"
             type="button"
             onClick={() => setFilter("all")}
+            aria-pressed={filter === "all"}
             className={cn(
               "rounded-lg px-3 py-1.5 text-body-sm font-medium transition-all cursor-pointer border",
               filter === "all"
@@ -79,6 +80,7 @@ export function CalendarAgendaClient({
             size="sm"
             type="button"
             onClick={() => setFilter("quiz_tryout")}
+            aria-pressed={filter === "quiz_tryout"}
             className={cn(
               "rounded-lg px-3 py-1.5 text-body-sm font-medium transition-all cursor-pointer border",
               filter === "quiz_tryout"
@@ -93,6 +95,7 @@ export function CalendarAgendaClient({
             size="sm"
             type="button"
             onClick={() => setFilter("tutorial")}
+            aria-pressed={filter === "tutorial"}
             className={cn(
               "rounded-lg px-3 py-1.5 text-body-sm font-medium transition-all cursor-pointer border",
               filter === "tutorial"
@@ -115,7 +118,7 @@ export function CalendarAgendaClient({
 
       {/* Events list */}
       {filteredEvents.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-border/80 bg-card/60 p-8 sm:p-12 text-center">
+        <div className="rounded-xl border border-dashed border-border bg-card p-6 text-center">
           <div className="mx-auto mb-3 flex size-12 items-center justify-center rounded-xl bg-brand-primary/10 text-brand-primary">
             <Calendar className="size-6" />
           </div>
@@ -139,9 +142,9 @@ export function CalendarAgendaClient({
           {/* Upcoming / Today Section */}
           {upcomingEvents.length > 0 && (
             <div className="space-y-3">
-              <h2 className="font-heading text-body-sm font-bold text-foreground flex items-center gap-2">
+              <h2 className="font-heading text-body-base font-bold text-foreground flex items-center gap-2">
                 <Clock className="size-4 text-brand-primary" />
-                {t("calendar.upcoming")} ({upcomingEvents.length})
+                {t("calendar.upcoming")}
               </h2>
               <div className="divide-y divide-border/60">
                 {upcomingEvents.map((item) => (
@@ -153,10 +156,10 @@ export function CalendarAgendaClient({
 
           {/* Past Events Section */}
           {pastEvents.length > 0 && (
-            <div className="space-y-3 pt-2">
-              <h2 className="font-heading text-body-sm font-bold text-muted-foreground flex items-center gap-2">
-                <CheckCircle2 className="size-4 text-muted-foreground/60" />
-                {t("calendar.past")} ({pastEvents.length})
+            <div className="space-y-3">
+              <h2 className="font-heading text-body-base font-bold text-foreground flex items-center gap-2">
+                <CheckCircle2 className="size-4 text-muted-foreground" />
+                {t("calendar.past")}
               </h2>
               <div className="divide-y divide-border/60">
                 {pastEvents.map((item) => (
@@ -217,21 +220,21 @@ function EventCard({
   return (
     <div
       className={cn(
-        "group flex flex-col justify-between gap-3 py-3 sm:flex-row sm:items-center",
+        "group flex flex-wrap items-center justify-between gap-3 py-3",
         event.status === "today"
           ? "border-l-2 border-primary pl-3"
           : "hover:bg-muted/20",
         isPast && "text-muted-foreground"
       )}
     >
-      <div>
-        <div className="flex items-center justify-between gap-2">
+      <div className="min-w-0 flex-1 basis-56">
+        <div className="flex flex-wrap items-center gap-2">
           <span
             className={cn(
               "inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider",
               event.category === "tutorial"
-                ? "bg-brand-secondary/10 text-brand-secondary ring-1 ring-brand-secondary/20"
-                : "bg-brand-primary/10 text-brand-primary ring-1 ring-brand-primary/20"
+                ? "bg-muted text-foreground"
+                : "bg-muted text-foreground"
             )}
           >
             <IconComponent className="size-3" />
@@ -242,12 +245,12 @@ function EventCard({
                 : event.categoryLabel === "Tryout" ? t("calendar.tryout") : t("calendar.exam")}
           </span>
 
-          <span className="text-[11px] font-medium text-muted-foreground">
+          <span className="text-body-xs font-medium text-muted-foreground">
             {dateLabel}
           </span>
         </div>
 
-        <h3 className="mt-2.5 font-heading text-body-sm font-bold text-foreground group-hover:text-brand-primary transition-colors line-clamp-2">
+        <h3 className="mt-1.5 font-heading text-body-sm font-bold text-foreground group-hover:text-brand-primary transition-colors break-words">
           {event.category === "tutorial"
             ? event.tutorialTopic
               ? t("calendar.tutorialWithTopic", { topic: event.tutorialTopic })
@@ -255,7 +258,7 @@ function EventCard({
             : event.title}
         </h3>
 
-        <p className="mt-1 text-body-xs text-muted-foreground truncate">
+        <p className="mt-1 text-body-xs text-muted-foreground break-words">
           {event.courseTitle}
         </p>
 

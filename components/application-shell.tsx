@@ -33,7 +33,11 @@ export function ApplicationShell({
       )}
     >
       <MobileSidebarController />
-      {showOrnaments && <PageOrnaments variant={ornamentsVariant} />}
+      {showOrnaments && (
+        <div aria-hidden className="pointer-events-none absolute inset-0 opacity-30">
+          <PageOrnaments variant={ornamentsVariant} />
+        </div>
+      )}
       {sidebar}
       <div className="relative z-10 flex min-w-0 flex-1 flex-col">
         {mobileNavigation}

@@ -309,7 +309,7 @@ export default async function CourseMaterialDetailPage({ params }: Props) {
       return (
         <CoursePageShell title={<TranslatedText namespace="learning" messageKey="materialDetail.locked" />} description={<TranslatedText namespace="learning" messageKey="materialDetail.premiumDescription" values={{ course: course.title }} />} hideHeader>
           <div className="mb-4">
-            <Button variant="ghost" size="sm" asChild className="gap-1.5 text-body-xs font-semibold text-muted-foreground hover:text-foreground">
+            <Button variant="ghost" size="sm" asChild className="gap-1.5 text-body-sm font-semibold text-muted-foreground hover:text-foreground">
               <Link href={`/courses/${id}/material`}>
                 <ArrowLeft className="size-3.5" />
                 <span><TranslatedText namespace="learning" messageKey="materialDetail.backToDocuments" /></span>
@@ -317,7 +317,7 @@ export default async function CourseMaterialDetailPage({ params }: Props) {
             </Button>
           </div>
           <Reveal>
-            <div className="rounded-lg border border-border/70 bg-card/75 p-4 backdrop-blur-sm">
+            <div className="rounded-lg border border-border/70 bg-card p-4">
               <div className="flex items-start gap-3">
                 <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground ring-1 ring-border">
                   <Lock className="size-5" />
@@ -358,7 +358,7 @@ export default async function CourseMaterialDetailPage({ params }: Props) {
     return (
       <CoursePageShell title={<TranslatedText namespace="learning" messageKey="materialDetail.locked" />} description={<TranslatedText namespace="learning" messageKey="materialDetail.premiumDescription" values={{ course: course.title }} />} hideHeader>
         <div className="mb-4">
-          <Button variant="ghost" size="sm" asChild className="gap-1.5 text-body-xs font-semibold text-muted-foreground hover:text-foreground">
+          <Button variant="ghost" size="sm" asChild className="gap-1.5 text-body-sm font-semibold text-muted-foreground hover:text-foreground">
             <Link href={`/courses/${id}/material`}>
               <ArrowLeft className="size-3.5" />
               <span><TranslatedText namespace="learning" messageKey="materialDetail.backToDocuments" /></span>
@@ -366,7 +366,7 @@ export default async function CourseMaterialDetailPage({ params }: Props) {
           </Button>
         </div>
         <Reveal>
-          <div className="rounded-lg border border-border/70 bg-card/75 p-4 backdrop-blur-sm">
+          <div className="rounded-lg border border-border/70 bg-card p-4">
             <div className="flex items-start gap-3">
               <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground ring-1 ring-border">
                 <Lock className="size-5" />

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { ArrowRight } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { PKA_COURSE_ID } from "@/lib/pka-config";
 import { cn } from "@/lib/utils";
@@ -103,10 +104,10 @@ export function CourseCatalogClient({
             {badge.initials}
           </span>
           <div className="min-w-0">
-            <h3 className="truncate font-heading text-body-sm font-semibold text-foreground transition-colors group-hover:text-brand-primary">
+            <h3 className="break-words font-heading text-body-sm font-semibold text-foreground transition-colors group-hover:text-brand-primary">
               {c.title}
             </h3>
-            <p className="mt-0.5 truncate text-body-xs text-muted-foreground flex items-center gap-1.5">
+            <p className="mt-0.5 text-body-xs text-muted-foreground flex items-center gap-1.5">
               {isPka ? (
                 <span>{t("courseCatalog.pkaSummary")}</span>
               ) : (
@@ -118,9 +119,7 @@ export function CourseCatalogClient({
           </div>
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          <span className="text-muted-foreground/60 transition-transform group-hover:translate-x-0.5 group-hover:text-brand-primary text-body-sm">
-            ›
-          </span>
+          <ArrowRight className="size-4 text-muted-foreground group-hover:text-brand-primary" aria-hidden />
         </div>
       </Link>
     );
@@ -143,7 +142,7 @@ export function CourseCatalogClient({
           {t("courseCatalog.courseCount", { count: group.courses.length })}
         </span>
       </div>
-      <div className="divide-y divide-border/60 overflow-hidden rounded-xl border border-border/60 bg-card/60 backdrop-blur-xs shadow-2xs">
+      <div className="divide-y divide-border/60 overflow-hidden rounded-xl border border-border/60 bg-card">
         {group.courses.map(renderRow)}
       </div>
     </section>
@@ -168,7 +167,6 @@ export function CourseCatalogClient({
           return (
             <TabsTrigger key={group.jurusan} value={tabSlug} className="gap-1.5">
               <span>{group.jurusan}</span>
-              <span className="text-muted-foreground/80 font-normal">({group.courses.length})</span>
               {group.isStudentMajor && (
                 <span className="size-1.5 rounded-full bg-brand-primary shrink-0" title={t("courseCatalog.yourMajor")} />
               )}

@@ -35,7 +35,7 @@ function CourseOverviewHighlightsSkeleton() {
     <>
     <div
       data-testid="course-overview-highlights-skeleton"
-      className="mb-6 grid grid-cols-3 divide-x divide-border/60 overflow-hidden rounded-xl border border-border/70 bg-card"
+      className="mb-6 grid grid-cols-1 divide-y divide-border/60 sm:grid-cols-3 sm:divide-x sm:divide-y-0 overflow-hidden rounded-xl border border-border/70 bg-card"
     >
       {[1, 2, 3].map((i) => (
         <div key={i} className="flex min-w-0 items-center gap-2 p-2.5">
@@ -146,7 +146,7 @@ export default async function CourseOverviewPage({ params }: Props) {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
-      <CoursePageShell title={course.title} description={shortDescription} icon={BookOpen} maxWidth="7xl">
+      <CoursePageShell title={course.title} description={shortDescription} icon={BookOpen} maxWidth="7xl" hideMobileTitle>
         <Reveal>
           {!isEnrolled && (
             <div className="mb-6 rounded-lg border border-brand-secondary/25 bg-brand-secondary/5 p-4">

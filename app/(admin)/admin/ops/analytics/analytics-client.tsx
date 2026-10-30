@@ -3,6 +3,8 @@
 import { useEffect, useState, useCallback } from "react";
 import type { AiStats, AiRequestLog } from "@/lib/ai/analytics";
 import { ZyraUsageCharts } from "@/components/admin/zyra-usage-charts";
+import { Button } from "@/components/ui/button";
+import { AdminEmptyState, AdminErrorState } from "@/components/admin/state-panels";
 import { AdminStatStrip, AdminStatStripItem } from "@/components/admin/stat-card";
 import { useTranslations, useAppLocale } from "@/lib/i18n/client";
 
@@ -19,7 +21,7 @@ type GatewayMode = "gateway" | "direct" | "unknown";
 function Badge({ via, label }: { via: boolean; label: string }) {
   return (
     <span
-      className={`inline-block rounded-md px-2 py-0.5 text-body-sm font-medium ${
+      className={`inline-block rounded-md px-2 py-0.5 text-body-xs font-medium ${
         via
           ? "bg-brand-primary/10 text-brand-primary"
           : "bg-muted text-muted-foreground"
@@ -96,23 +98,14 @@ export function AiAnalyticsClient() {
 
   if (error) {
     return (
-      <div className="rounded-xl border border-status-error/30 bg-status-error/10 p-6 text-status-error text-body-sm">
-        {t(`analyticsUI.${error}`)}
-      </div>
+      <AdminErrorState message={t(`analyticsUI.${error}`)} onRetry={fetchStats} />
     );
   }
 
   if (!stats || stats.totalRequests === 0) {
     return (
       <div className="space-y-5">
-        <div className="rounded-xl border border-border bg-muted/40 p-10 text-center">
-          <p className="text-body-base font-heading font-semibold text-foreground">
-            {t("analyticsUI.emptyTitle")}
-          </p>
-          <p className="mt-2 text-body-sm text-muted-foreground">
-            {t("analyticsUI.emptyDescription")}
-          </p>
-        </div>
+        <AdminEmptyState title={t("analyticsUI.emptyTitle")} description={t("analyticsUI.emptyDescription")} />
         <ZyraUsageCharts />
       </div>
     );
@@ -121,8 +114,8 @@ export function AiAnalyticsClient() {
   return (
     <div className="space-y-5">
       {/* Header row ─────────────────────────────────────────────────────── */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <span className="text-body-sm text-muted-foreground">
             {t("analyticsUI.routingMode")}
           </span>
@@ -140,19 +133,20 @@ export function AiAnalyticsClient() {
               : "Direct API"}
           </span>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex flex-wrap items-center gap-3">
           {lastRefreshed && (
             <span className="text-body-sm text-muted-foreground">
               {t("analyticsUI.refreshed", { time: lastRefreshed.toLocaleTimeString(locale === "id" ? "id-ID" : "en-US") })}
             </span>
           )}
-          <button
+          <Button
+            variant="outline"
+            size="sm"
             id="ai-analytics-refresh"
             onClick={fetchStats}
-            className="rounded-lg border border-border bg-card px-3 py-1.5 text-body-sm text-foreground hover:bg-muted transition-colors"
           >
             {t("analyticsUI.refresh")}
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -276,6 +270,7 @@ export function AiAnalyticsClient() {
                   <td className="px-4 py-3 text-center">
                     <div className="flex items-center justify-center gap-1.5">
                       <StatusDot ok={log.success} />
+                      <span className="sr-only">{log.success ? t("analyticsUI.successful") : t("analyticsUI.failed")}</span>
                       {!log.success && log.error && (
                         <span
                           className="text-status-error text-body-sm truncate max-w-[120px]"

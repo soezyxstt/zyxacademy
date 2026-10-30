@@ -24,8 +24,8 @@ export function SubjectStageList({ subject, stages }: { subject: string; stages:
         const clickable = s.status === "unlocked" || s.status === "completed";
 
         const row = (
-          <div className="flex items-center justify-between gap-4 py-3">
-            <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 py-3">
+            <div className="flex min-w-0 items-center gap-3">
               <span className={cn("flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted", meta.className)}>
                 <Icon className="size-5" />
               </span>
@@ -64,7 +64,7 @@ export function SubjectStageList({ subject, stages }: { subject: string; stages:
                 {row}
               </Link>
             ) : (
-              <div className="opacity-60">{row}</div>
+              <div>{row}</div>
             )}
           </li>
         );

@@ -65,12 +65,12 @@ export default async function WebAnalyticsPage() {
               {metrics.topPages.map((page, i) => (
                 <div key={page.path} className="flex items-center justify-between gap-3 p-3 px-4 hover:bg-muted/30 transition-colors">
                   <div className="flex items-center gap-4 min-w-0">
-                    <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted text-body-sm font-semibold text-muted-foreground">
+                    <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-muted text-body-sm font-semibold text-muted-foreground">
                       {i + 1}
                     </span>
                     <div className="min-w-0">
-                      <p className="truncate font-medium text-foreground">{page.title}</p>
-                      <p className="truncate text-body-sm text-muted-foreground">{page.path}</p>
+                      <p className="break-words font-medium text-foreground">{page.title}</p>
+                      <p className="break-all text-body-xs text-muted-foreground">{page.path}</p>
                     </div>
                   </div>
                   <div className="shrink-0 text-right font-medium text-foreground">
