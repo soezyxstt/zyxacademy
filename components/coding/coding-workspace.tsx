@@ -126,7 +126,7 @@ export function CodingWorkspace({ courseId, draftKey, initialCode = "", initialS
     } catch { setError("Kode belum dapat dibuka di Playground. Salin kode terlebih dahulu."); }
   }
   const help = problem && surface ? { kind: "exercise" as const, problem: { problemId: problem.problemId, version: problem.version }, code: draft.code, stdin: draft.stdin, intent: "hint" as const, surface, ...(attemptId ? { attemptId } : {}), ...(executedCode === draft.code && executedInput === draft.stdin && execution ? { execution } : {}) } : { kind: "playground" as const, code: draft.code, stdin: interactive ? terminalHistory.join("\n") : draft.stdin, execution: executedCode === draft.code && (interactive || executedInput === draft.stdin) ? execution : null, intent: "review" as const };
-  if (interactive) return <section className="min-w-0 space-y-5" aria-label="Playground Python">
+  if (interactive) return <section className="min-w-0 space-y-3" aria-label="Playground Python">
     <div>{!playgroundLink && allowHelp ? <PlaygroundProblem courseId={courseId} context={help} problem={playgroundProblem} onProblemChange={setPlaygroundProblem} onUseCode={draft.setCode} /> : null}
     <div ref={splitHost} style={{ "--split": `${split}%` } as CSSProperties} className={cn("flex min-w-0 flex-col overflow-hidden rounded-b-lg border border-border bg-background md:flex-row", (playgroundLink || !allowHelp) && "rounded-t-lg")}>
       <div className={cn("flex min-w-0 flex-col", terminalOpen ? "md:w-(--split) md:shrink-0" : "flex-1")}>

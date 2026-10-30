@@ -4,8 +4,8 @@ import { EditorState } from "@codemirror/state";
 import { EditorView, keymap, lineNumbers, highlightActiveLine, highlightActiveLineGutter, drawSelection } from "@codemirror/view";
 import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirror/commands";
 import { python } from "@codemirror/lang-python";
-import { autocompletion } from "@codemirror/autocomplete";
-import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
+import { autocompletion, closeBrackets, closeBracketsKeymap } from "@codemirror/autocomplete";
+import { bracketMatching, indentOnInput, HighlightStyle, syntaxHighlighting } from "@codemirror/language";
 import { tags as t } from "@lezer/highlight";
 import { cn } from "@/lib/utils";
 
@@ -47,8 +47,8 @@ export function PythonEditor({ value, onChange, label = "Kode Python", className
   useEffect(() => {
     if (!host.current) return;
     const editor = new EditorView({ parent: host.current, state: EditorState.create({ doc: value, extensions: [
-      lineNumbers(), history(), python(), EditorView.lineWrapping, autocompletion({ icons: false }), drawSelection(), highlightActiveLine(), highlightActiveLineGutter(), syntaxHighlighting(highlight), theme,
-      keymap.of([...defaultKeymap, ...historyKeymap, indentWithTab]),
+      lineNumbers(), history(), python(), EditorView.lineWrapping, closeBrackets(), bracketMatching(), indentOnInput(), autocompletion({ icons: false }), drawSelection(), highlightActiveLine(), highlightActiveLineGutter(), syntaxHighlighting(highlight), theme,
+      keymap.of([...closeBracketsKeymap, ...defaultKeymap, ...historyKeymap, indentWithTab]),
       EditorView.contentAttributes.of({ "aria-label": label, "aria-multiline": "true", role: "textbox" }),
       EditorView.updateListener.of((update) => { if (update.docChanged) change.current(update.state.doc.toString()); }),
     ] }) });

@@ -4,6 +4,7 @@ import { mockTerminal } from "./terminal-fixture";
 test("terminal opens on run and accepts input after the prompt", async ({ page }, info) => {
   await mockTerminal(page);
   await page.goto("/visual-fixtures/coding?terminal=1");
+  await expect(page.getByRole("textbox", { name: "Kode Python" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Terminal" })).toBeHidden();
   await page.screenshot({ path: info.outputPath("screenshots/terminal-closed.png"), fullPage: true });
   await page.getByRole("textbox", { name: "Kode Python" }).fill('name = input("Nama: ")');

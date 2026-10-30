@@ -48,10 +48,10 @@ ${message}` : message, requestId: crypto.randomUUID(), codingContext: { ...conte
     finally { if (!abort.signal.aborted) setBusy(false); }
   }
   function submitQuestion() { if (!busy && !disabled && question.trim()) void ask("review", question); }
-  return <section className="min-w-0 overflow-hidden rounded-lg border border-border bg-card" aria-label="Konsultasi Zyra">
-    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3 pt-3"><h3 className="font-heading text-body-base font-bold">Zyra</h3>{busy ? <p role="status" className="flex items-center gap-1.5 text-body-xs text-muted-foreground"><Loader2 className="size-3.5 animate-spin motion-reduce:animate-none" aria-hidden="true" />{answer ? "Zyra sedang menjawab..." : activeIntent === "explain_error" ? "Zyra sedang meninjau error..." : activeIntent === "flowchart" ? "Zyra sedang menyusun flowchart..." : activeIntent === "decompose" ? "Zyra sedang menguraikan masalah..." : activeIntent === "hint" ? "Zyra sedang menyiapkan petunjuk..." : "Zyra sedang meninjau pertanyaan..."}</p> : null}</div>
-    <form className="min-w-0 p-2" onSubmit={(event) => { event.preventDefault(); submitQuestion(); }}>
-      <div role="toolbar" aria-label="Bantuan cepat" className="flex flex-wrap items-center gap-1.5 pb-2">
+  return <section className="min-w-0 space-y-2" aria-label="Konsultasi Zyra">
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-1"><h3 className="font-heading text-body-base font-bold">Zyra</h3>{busy ? <p role="status" className="flex items-center gap-1.5 text-body-xs text-muted-foreground"><Loader2 className="size-3.5 animate-spin motion-reduce:animate-none" aria-hidden="true" />{answer ? "Zyra sedang menjawab..." : activeIntent === "explain_error" ? "Zyra sedang meninjau error..." : activeIntent === "flowchart" ? "Zyra sedang menyusun flowchart..." : activeIntent === "decompose" ? "Zyra sedang menguraikan masalah..." : activeIntent === "hint" ? "Zyra sedang menyiapkan petunjuk..." : "Zyra sedang meninjau pertanyaan..."}</p> : null}</div>
+    <form className="min-w-0 space-y-2" onSubmit={(event) => { event.preventDefault(); submitQuestion(); }}>
+      <div role="toolbar" aria-label="Bantuan cepat" className="flex flex-wrap items-center gap-1.5">
         <TooltipProvider>
           {actions.map(({ intent, label, icon: Icon, message }) => { const highlighted = intent === "explain_error" && hasExecutionError; return <Tooltip key={intent}>
             <TooltipTrigger asChild>
@@ -68,7 +68,7 @@ ${message}` : message, requestId: crypto.randomUUID(), codingContext: { ...conte
         <Button type="submit" size="icon-sm" aria-label="Tanya Zyra" disabled={busy || disabled || !question.trim()}><Send className="size-3.5" aria-hidden="true" /></Button>
       </div>
     </form>
-    {(answer || canvas || error || (snapshot !== null && snapshot !== contextKey)) ? <div className="min-w-0 space-y-2 border-t border-border p-3">
+    {(answer || canvas || error || (snapshot !== null && snapshot !== contextKey)) ? <div className="min-w-0 space-y-2 border-t border-border pt-2">
     {snapshot !== null && snapshot !== contextKey ? <p className="text-body-xs text-muted-foreground">Penjelasan ini merujuk pada percobaan sebelum perubahan terakhir.</p> : null}
     {error ? <p role="alert" className="text-body-sm text-destructive">{error}</p> : null}
     {answer ? <div className="min-w-0"><MarkdownRenderer content={answer} /></div> : null}
