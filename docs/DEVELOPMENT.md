@@ -446,8 +446,10 @@ Build the private renderer with `bun scripts/authoring/build-local-verification-
 
 ## Python coding runtime
 
-Install pinned dependencies with Bun. Browser Python assets are served locally
-from the Pyodide package; no CDN or Python server is needed for Run. Local Submit
+Install pinned dependencies with Bun. Staging interactive Playground and Article
+examples use the Python worker and require the server-only
+`PYTHON_RUNTIME_TOKEN_SECRET` shared with the staging worker. Other browser
+Python assets are served locally from the Pyodide package. Local Submit
 requires Playwright Chromium with a functioning kernel sandbox. Run
 `bun run test:visual:install` when browsers are missing. Production Submit reuses
 `CF_ACCOUNT_ID` and `CF_API_TOKEN` for Cloudflare Browser Run. Explicit
