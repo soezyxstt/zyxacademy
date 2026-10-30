@@ -21,6 +21,11 @@ export async function startPython({ code, onOutput = () => {}, maxOutput = 64000
   const runtimeDir = '/home/daytona/zyx-runtime';
   const marker = `ZYX_START_${id}`;
   let stage = 'lookup';
+  const startedAt = performance.now();
+  let stageAt = startedAt;
+  const timings = {};
+  const advance = (next) => { const now = performance.now(); timings[stage] = Math.round(now - stageAt); stage = next; stageAt = now; };
+  const report = (outcome) => { advance('reported'); console.info('Python runtime timing', JSON.stringify({ outcome, ...timings, total: Math.round(performance.now() - startedAt) })); };
   let sandbox, pty, ptyRequested = false, ptyPending = false, stopped = false, finished = false, outputLimit = false, outputBytes = 0, inputBytes = 0, acceptOutput = false, markerBuffer = Buffer.alloc(0), cleanupPromise;
   let stopResolve;
   const stopSignal = new Promise((resolve) => { stopResolve = resolve; });
@@ -34,16 +39,16 @@ export async function startPython({ code, onOutput = () => {}, maxOutput = 64000
   })();
   try {
     sandbox = await deadline(client.get(sandboxId), timeoutMs);
-    stage = 'mkdir';
+    advance('mkdir');
     const setup = await deadline(sandbox.process.executeCommand(`/bin/mkdir -p ${dir}/src`, undefined, {}, 10), timeoutMs);
     if (setup.exitCode !== 0) throw new Error('Runtime setup failed');
-    stage = 'upload';
+    advance('upload');
     await deadline(sandbox.fs.uploadFile(Buffer.from(code, 'utf8'), `${dir}/src/main.py`, 20), timeoutMs);
-    stage = 'runtime-check';
+    advance('runtime-check');
     const setupRuntime = `test -x ${runtimeDir}/wasmtime && test -r ${runtimeDir}/python.wasm && test -d ${runtimeDir}/lib`;
     const checked = await deadline(sandbox.process.executeCommand(setupRuntime, undefined, {}, 20), timeoutMs);
     if (checked.exitCode !== 0) throw new Error('Runtime setup failed');
-    stage = 'create-pty';
+    advance('create-pty');
     ptyRequested = true; ptyPending = true;
     const ptyCreation = sandbox.process.createPty({ id: `zyxpty-${id}`, cols: 100, rows: 30, onData(data) {
       if (stopped || outputLimit) return;
@@ -54,7 +59,9 @@ export async function startPython({ code, onOutput = () => {}, maxOutput = 64000
         if (position < 0) { if (markerBuffer.length > 8192) markerBuffer = markerBuffer.subarray(-8192); return; }
         bytes = markerBuffer.subarray(position + marker.length);
         markerBuffer = Buffer.alloc(0); acceptOutput = true;
+        timings.markerAt = Math.round(performance.now() - startedAt);
       }
+      if (bytes.length && timings.firstOutputAt === undefined) timings.firstOutputAt = Math.round(performance.now() - startedAt);
       const allowed = Math.max(0, maxOutput - outputBytes);
       outputBytes += bytes.length;
       if (allowed && bytes.length) onOutput('stdout', bytes.subarray(0, allowed));
@@ -63,18 +70,21 @@ export async function startPython({ code, onOutput = () => {}, maxOutput = 64000
     // A timed-out PTY create can resolve later; close that local socket as well.
     ptyCreation.then(handle => { ptyPending = false; if (cleanupPromise) { void sandbox.process.killPtySession(`zyxpty-${id}`).catch(() => {}); void handle.disconnect().catch(() => {}); } }, () => { ptyPending = false; });
     pty = await deadline(ptyCreation, timeoutMs);
-    stage = 'pty-connect';
+    advance('pty-connect');
     await deadline(pty.waitForConnection(), 12000);
     // Source is uploaded separately; only generated hexadecimal ID enters shell text.
     const command = `stty -echo; printf '${marker.slice(0, 12)}%s' '${marker.slice(12)}'; exec ${runtimeDir}/wasmtime run -W fuel=5000000000,max-memory-size=134217728 --dir ${runtimeDir}/lib::/lib --dir ${dir}/src::/src --env PYTHONHOME=/ --env PYTHON_COLORS=0 --env NO_COLOR=1 ${runtimeDir}/python.wasm -u /src/main.py; exit 125\n`;
-    stage = 'start-command';
+    advance('start-command');
     await deadline(pty.sendInput(command), 10000);
+    advance('execution');
     const done = (async () => {
       let result = {};
       try { result = await Promise.race([pty.wait(), stopSignal.then(() => ({}))]); }
       catch { result = { error: true }; }
       finished = true;
+      advance('cleanup');
       const cleanupFailed = await cleanup();
+      report(cleanupFailed ? 'cleanup_failed' : 'finished');
       return { code: result.exitCode ?? null, signal: null, stopped, outputLimit, spawnError: result.exitCode == null && Boolean(result.error), cleanupFailed };
     })();
     return {
@@ -88,9 +98,12 @@ export async function startPython({ code, onOutput = () => {}, maxOutput = 64000
       }, stop, done,
     };
   } catch (error) {
+    const failedStage = stage;
+    advance('cleanup');
     const cleanupFailed = await cleanup();
+    report('failed');
     const status = Number(error?.statusCode ?? error?.status ?? 0);
-    console.error('Daytona execution failed:', stage, Number.isInteger(status) && status >= 400 && status <= 599 ? status : 'unavailable', cleanupFailed ? 'cleanup-failed' : 'clean');
+    console.error('Daytona execution failed:', failedStage, Number.isInteger(status) && status >= 400 && status <= 599 ? status : 'unavailable', cleanupFailed ? 'cleanup-failed' : 'clean');
     const failure = new Error('Python runtime unavailable');
     failure.cleanupFailed = Boolean(cleanupFailed || error?.cleanupFailed);
     throw failure;
