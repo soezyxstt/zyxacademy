@@ -1,11 +1,12 @@
 import { createHmac, randomBytes } from "node:crypto";
-import { assertCodingSameOrigin, codingErrorResponse, requireCodingAccess } from "@/lib/coding/server-access";
+import { codingErrorResponse, requireCodingAccess } from "@/lib/coding/server-access";
 
 const socketUrl = "wss://zyx-py-runtime.onrender.com/v1/terminal";
 
 export async function POST(request: Request) {
   try {
-    assertCodingSameOrigin(request);
+    const origin = request.headers.get("origin");
+    if (origin && origin !== "https://staging.zyxacademy.com") throw new Error("CODING_FORBIDDEN");
     if (process.env.ZYX_ENVIRONMENT !== "staging") throw new Error("CODING_RUNTIME_CONFIGURATION_REQUIRED");
     const input = await request.json().catch(() => null);
     if (!input || typeof input.courseId !== "string" || !input.courseId.trim() || input.courseId.length > 160 || Object.keys(input).length !== 1) {

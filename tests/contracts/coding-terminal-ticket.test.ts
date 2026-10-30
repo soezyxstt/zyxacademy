@@ -3,14 +3,13 @@ import { createHmac } from "node:crypto";
 
 let allowed = true;
 mock.module("@/lib/coding/server-access", () => ({
-  assertCodingSameOrigin(request: Request) { if (request.headers.get("origin") !== new URL(request.url).origin) throw new Error("CODING_FORBIDDEN"); },
   async requireCodingAccess() { if (!allowed) throw new Error("CODING_FORBIDDEN"); return { userId: "test", courseId: "course" }; },
   codingErrorResponse(error: Error) { return Response.json({ error: error.message }, { status: error.message === "CODING_FORBIDDEN" ? 403 : 503 }); },
 }));
 const { POST } = await import("@/app/api/coding/terminal/route");
 const secret = Buffer.alloc(32, 42).toString("base64url");
-function request(body: unknown, origin = "https://staging.example.test") {
-  return new Request("https://staging.example.test/api/coding/terminal", { method: "POST", headers: { origin, "content-type": "application/json" }, body: JSON.stringify(body) });
+function request(body: unknown, origin = "https://staging.zyxacademy.com") {
+  return new Request("http://internal-proxy/api/coding/terminal", { method: "POST", headers: { origin, "content-type": "application/json" }, body: JSON.stringify(body) });
 }
 describe("staging Python terminal ticket", () => {
   beforeEach(() => { allowed = true; process.env.ZYX_ENVIRONMENT = "staging"; process.env.PYTHON_RUNTIME_TOKEN_SECRET = secret; });
