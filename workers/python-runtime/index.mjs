@@ -2,11 +2,12 @@ import { createServer } from "node:http";
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { pathToFileURL } from "node:url";
 import { WebSocketServer } from "ws";
-import { startPython } from "./daytona-runtime.mjs";
+import { startPython, reconcileSandbox } from "./shared-runtime.mjs";
 
-export function createServerApp({ secret = process.env.PYTHON_RUNTIME_TOKEN_SECRET, origin = process.env.PYTHON_RUNTIME_ORIGIN, daytonaApiKey = process.env.DAYTONA_API_KEY, snapshot = process.env.DAYTONA_PYTHON_SNAPSHOT, assets = {}, launch = startPython, testReady = false } = {}) {
+export function createServerApp({ secret = process.env.PYTHON_RUNTIME_TOKEN_SECRET, origin = process.env.PYTHON_RUNTIME_ORIGIN, daytonaApiKey = process.env.DAYTONA_API_KEY, sandboxId = process.env.DAYTONA_SANDBOX_ID, assets = {}, launch = startPython, reconcile = reconcileSandbox, testReady = false } = {}) {
   const key = typeof secret === "string" && /^[A-Za-z0-9_-]{43,}$/.test(secret) ? Buffer.from(secret, "base64url") : Buffer.alloc(0);
-  let ready = key.length >= 32 && Boolean(origin) && (testReady || (typeof daytonaApiKey === "string" && Boolean(daytonaApiKey.trim()) && typeof snapshot === "string" && Boolean(snapshot.trim())));
+  const configured = key.length >= 32 && Boolean(origin) && typeof daytonaApiKey === "string" && Boolean(daytonaApiKey.trim()) && typeof sandboxId === "string" && Boolean(sandboxId.trim());
+  let ready = key.length >= 32 && Boolean(origin) && testReady;
   const nonces = new Map();
   const clients = new Set();
   let attemptWindow = 0, attempts = 0;
@@ -14,6 +15,7 @@ export function createServerApp({ secret = process.env.PYTHON_RUNTIME_TOKEN_SECR
     if (req.method === "GET" && req.url === "/health") return res.writeHead(200, { "content-type": "application/json", "cache-control": "no-store" }).end(JSON.stringify({ service: "python-runtime", execution: ready ? "ready" : "disabled" }));
     res.writeHead(404).end();
   });
+  if (configured && !testReady) server.once("listening", async () => { try { await reconcile({ sandboxId }); ready = true; } catch { ready = false; } });
   const wss = new WebSocketServer({ noServer: true, maxPayload: 70000, perMessageDeflate: false, handleProtocols: (protocols) => protocols.has("zyx-v1") ? "zyx-v1" : false });
   function verify(raw) {
     if (!raw || raw.length > 1200) return false;
@@ -57,7 +59,7 @@ export function createServerApp({ secret = process.env.PYTHON_RUNTIME_TOKEN_SECR
       if (msg.type === "start" && !starting && !run && typeof msg.code === "string" && Buffer.byteLength(msg.code) <= 64000 && Object.keys(msg).length === 2) {
         starting = true; clearTimeout(startTimer);
         try {
-          run = await launch({ ...assets, snapshot, code: msg.code, onOutput: (stream, bytes) => send({ type: "output", stream, data: bytes.toString("base64") }) });
+          run = await launch({ ...assets, sandboxId, code: msg.code, onOutput: (stream, bytes) => send({ type: "output", stream, data: bytes.toString("base64") }) });
           if (ended) { run.stop(); finish(await run.done); return; }
           send({ type: "running" });
           const result = await run.done;

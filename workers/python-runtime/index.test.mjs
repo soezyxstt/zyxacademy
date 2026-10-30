@@ -20,10 +20,10 @@ test("health fails closed without a key", async () => {
 });
 test("health and websocket fail closed without Daytona configuration", async () => {
   for (const config of [
-    { daytonaApiKey: "", snapshot: "snapshot" },
-    { daytonaApiKey: "test-key", snapshot: "" },
-    { daytonaApiKey: "   ", snapshot: "snapshot" },
-    { daytonaApiKey: "test-key", snapshot: "   " },
+    { daytonaApiKey: "", sandboxId: "test" },
+    { daytonaApiKey: "test-key", sandboxId: "" },
+    { daytonaApiKey: "   ", sandboxId: "test" },
+    { daytonaApiKey: "test-key", sandboxId: "   " },
   ]) {
     const app = createServerApp({ secret, origin, ...config });
     await new Promise(r => app.server.listen(0, "127.0.0.1", r));
@@ -36,12 +36,18 @@ test("health and websocket fail closed without Daytona configuration", async () 
   }
 });
 test("health reports configured state when required values exist", async () => {
-  const app = createServerApp({ secret, origin, daytonaApiKey: "test-key", snapshot: "trusted-snapshot" });
+  const app = createServerApp({ secret, origin, daytonaApiKey: "test-key", sandboxId: "trusted-sandbox", reconcile: async()=>{} });
   await new Promise(r => app.server.listen(0, "127.0.0.1", r));
   try {
     const response = await fetch(`http://127.0.0.1:${app.server.address().port}/health`);
     assert.equal((await response.json()).execution, "ready");
   } finally { await new Promise(r => app.server.close(r)); }
+});
+test("health remains disabled when orphan reconciliation fails", async () => {
+  const app = createServerApp({ secret, origin, daytonaApiKey: "test-key", sandboxId: "test", reconcile: async()=>{throw Error('failed')} });
+  await new Promise(r=>app.server.listen(0,"127.0.0.1",r));
+  try { assert.equal((await (await fetch(`http://127.0.0.1:${app.server.address().port}/health`)).json()).execution,"disabled"); }
+  finally { await new Promise(r=>app.server.close(r)); }
 });
 test("only accepts signed, single-use tickets and forwards input", async () => {
   let captured = "", finish;

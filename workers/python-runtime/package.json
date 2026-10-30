@@ -8,7 +8,7 @@
     "ws": "8.21.0"
   },
   "scripts": {
-    "build": "npm ci --omit=dev --ignore-scripts --no-audit --no-fund && node --check index.mjs && node --check daytona-runtime.mjs",
+    "build": "npm ci --omit=dev --ignore-scripts --no-audit --no-fund && node --check index.mjs && node --check shared-runtime.mjs",
     "start": "node index.mjs",
     "test": "node --test",
     "test:integration": "node runtime.integration.mjs",
