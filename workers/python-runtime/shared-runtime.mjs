@@ -90,11 +90,21 @@ export async function startPython({ code, onOutput = () => {}, maxOutput = 64000
 
 export async function reconcileSandbox({ sandboxId = process.env.DAYTONA_SANDBOX_ID, daytona = getClient() } = {}) {
   if (typeof sandboxId !== 'string' || !sandboxId.trim()) throw new Error('A dedicated sandbox is required');
+  let stage = 'lookup';
+  try {
   const sandbox = await deadline(daytona.get(sandboxId), 30000);
+  stage = 'sessions';
   const sessions = await deadline(sandbox.process.listPtySessions(), 30000);
   for (const session of sessions) if (/^zyxpty-[0-9a-f]{32}$/.test(session.id)) {
+    stage = 'kill-session';
     try { await deadline(sandbox.process.killPtySession(session.id), 10000); } catch (error) { if (error?.statusCode !== 404) throw error; }
   }
+  stage = 'files';
   const files = await deadline(sandbox.fs.listFiles('/tmp'), 30000);
-  for (const file of files) if (/^zyx-[0-9a-f]{32}$/.test(file.name)) await deadline(sandbox.fs.deleteFile(`/tmp/${file.name}`, true), 10000);
+  for (const file of files) if (/^zyx-[0-9a-f]{32}$/.test(file.name)) { stage = 'delete-file'; await deadline(sandbox.fs.deleteFile(`/tmp/${file.name}`, true), 10000); }
+  } catch (error) {
+    const status = Number(error?.statusCode ?? error?.status ?? 0);
+    console.error('Daytona reconciliation failed:', stage, Number.isInteger(status) && status >= 400 && status <= 599 ? status : 'unavailable');
+    throw new Error('Daytona reconciliation failed');
+  }
 }

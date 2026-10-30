@@ -98,3 +98,16 @@ test("setup cleanup failure disables subsequent execution", async () => {
     assert.equal((await (await fetch(`${base}/health`)).json()).execution,'disabled');
   } finally {ws.terminate();await new Promise(r=>app.server.close(r));}
 });
+
+test("startup retries reconciliation and remains closed until it succeeds", async () => {
+  let attempts = 0;
+  const app = createServerApp({ secret, origin, daytonaApiKey: "test-key", sandboxId: "test", reconcile: async () => { if (++attempts === 1) throw Error("offline"); } });
+  await new Promise(r => app.server.listen(0, "127.0.0.1", r));
+  const base = `http://127.0.0.1:${app.server.address().port}`;
+  try {
+    assert.equal((await (await fetch(`${base}/health`)).json()).execution, "disabled");
+    await new Promise(r => setTimeout(r, 16000));
+    assert.equal((await (await fetch(`${base}/health`)).json()).execution, "ready");
+    assert.equal(attempts, 2);
+  } finally { await new Promise(r => app.server.close(r)); }
+});

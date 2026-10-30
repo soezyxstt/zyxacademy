@@ -15,7 +15,13 @@ export function createServerApp({ secret = process.env.PYTHON_RUNTIME_TOKEN_SECR
     if (req.method === "GET" && req.url === "/health") return res.writeHead(200, { "content-type": "application/json", "cache-control": "no-store" }).end(JSON.stringify({ service: "python-runtime", execution: ready ? "ready" : "disabled" }));
     res.writeHead(404).end();
   });
-  if (configured && !testReady) server.once("listening", async () => { try { await reconcile({ sandboxId }); ready = true; } catch { ready = false; } });
+  if (configured && !testReady) server.once("listening", () => {
+    const attempt = async () => {
+      try { await reconcile({ sandboxId }); ready = true; }
+      catch { if (server.listening) setTimeout(attempt, 15000).unref(); }
+    };
+    void attempt();
+  });
   const wss = new WebSocketServer({ noServer: true, maxPayload: 70000, perMessageDeflate: false, handleProtocols: (protocols) => protocols.has("zyx-v1") ? "zyx-v1" : false });
   function verify(raw) {
     if (!raw || raw.length > 1200) return false;
