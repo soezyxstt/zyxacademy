@@ -82,6 +82,8 @@ export const env = createEnv({
  STEEL_API_KEY: z.string().optional(),
  /** Python Submit provider, independent of V4 authoring verification. Local is forbidden in production. */
  CODING_BROWSER_PROVIDER: z.enum(["local", "cloudflare", "steel"]).optional(),
+ /** Server-only staging Python terminal ticket key, shared with the runtime worker. */
+ PYTHON_RUNTIME_TOKEN_SECRET: z.string().optional(),
  CF_ACCOUNT_ID: z.string().optional(),
  /** Cloudflare Workers KV namespace ID for zyx-ai-cache */
  CF_KV_NAMESPACE_ID: z.string().optional(),
@@ -190,6 +192,7 @@ export const env = createEnv({
   GEMINI_PROJECT_ALIAS_4: process.env.GEMINI_PROJECT_ALIAS_4,
   INNGEST_EVENT_KEY: process.env.INNGEST_EVENT_KEY,
   INNGEST_SIGNING_KEY: process.env.INNGEST_SIGNING_KEY,
+  PYTHON_RUNTIME_TOKEN_SECRET: process.env.PYTHON_RUNTIME_TOKEN_SECRET,
   // R2
   R2_ENDPOINT: process.env.R2_ENDPOINT,
   R2_BUCKET: process.env.R2_BUCKET,

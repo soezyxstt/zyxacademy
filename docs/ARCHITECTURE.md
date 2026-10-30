@@ -1228,8 +1228,11 @@ Verification jobs derive their required checks on the server and bind the bundle
 
 ## Python learning
 
-CodeMirror 6 and self-hosted Pyodide power shared Article, Playground and Live
-Quiz coding surfaces. Browser execution uses an opaque-origin iframe and a
+CodeMirror 6 powers the shared coding editor. On staging, interactive Playground
+and runnable Article examples obtain an authenticated, short-lived ticket from
+the application and connect to the isolated Python worker over WebSocket. The
+worker runs WASI Python in the staging Daytona sandbox. Other surfaces retain
+self-hosted Pyodide. Browser execution uses an opaque-origin iframe and a
 disposable Worker. Server grading uses isolated Playwright browser contexts,
 fixed runtime assets and denied external network access, with Cloudflare Browser
 Run as the production default. Explicit `CODING_BROWSER_PROVIDER=steel` reuses
