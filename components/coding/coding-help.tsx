@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Bug, GitBranch, Lightbulb, ListTree, Send } from "lucide-react";
+import { Bug, GitBranch, Lightbulb, ListTree, Loader2, Send } from "lucide-react";
 import { CanvasSpecSchema, type CanvasSpec } from "@/lib/zyra/canvas";
 import { LearningCanvasRenderer } from "@/components/course/learning-canvas/learning-canvas-renderer";
 import { MarkdownRenderer } from "@/components/course/markdown-renderer";
@@ -15,6 +15,7 @@ import type { codingHelpRequestSchema } from "@/lib/coding/http-contracts";
 export function CodingHelp({ courseId, context, disabled = false }: { courseId: string; context: z.infer<typeof codingHelpRequestSchema>; disabled?: boolean }) {
   const [question, setQuestion] = useState(""), [answer, setAnswer] = useState(""), [error, setError] = useState("");
   const [busy, setBusy] = useState(false), [snapshot, setSnapshot] = useState<string | null>(null);
+  const [activeIntent, setActiveIntent] = useState<z.infer<typeof codingHelpRequestSchema>["intent"]>("review");
   const [canvas, setCanvas] = useState<CanvasSpec | null>(null);
   const sessionId = useRef<string | null>(null);
   const contextKey = JSON.stringify(context);
@@ -30,7 +31,7 @@ export function CodingHelp({ courseId, context, disabled = false }: { courseId: 
   async function ask(intent: z.infer<typeof codingHelpRequestSchema>["intent"], message: string) {
     controller.current?.abort();
     const abort = new AbortController(); controller.current = abort;
-    setBusy(true); setError(""); setAnswer(""); setCanvas(null); setSnapshot(contextKey);
+    setActiveIntent(intent); setBusy(true); setError(""); setAnswer(""); setCanvas(null); setSnapshot(contextKey);
     try {
       const response = await fetch("/api/zyra/chat", { method: "POST", signal: abort.signal, headers: { "Content-Type": "application/json" }, body: JSON.stringify({ courseId, sessionId: sessionId.current, question: message, requestId: crypto.randomUUID(), codingContext: { ...context, intent } }) });
       if (!response.ok) { const body = await response.json(); throw new Error(body.error ?? "Zyra belum dapat merespons."); }
@@ -46,7 +47,7 @@ export function CodingHelp({ courseId, context, disabled = false }: { courseId: 
   }
   function submitQuestion() { if (!busy && !disabled && question.trim()) void ask("review", question); }
   return <section className="min-w-0 space-y-3 border-t border-border pt-4" aria-label="Konsultasi Zyra">
-    <h3 className="font-heading text-body-base font-bold">Zyra</h3>
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-1"><h3 className="font-heading text-body-base font-bold">Zyra</h3>{busy ? <p role="status" className="flex items-center gap-1.5 text-body-xs text-muted-foreground"><Loader2 className="size-3.5 animate-spin motion-reduce:animate-none" aria-hidden="true" />{answer ? "Zyra sedang menjawab..." : activeIntent === "explain_error" ? "Zyra sedang meninjau error..." : activeIntent === "flowchart" ? "Zyra sedang menyusun flowchart..." : activeIntent === "decompose" ? "Zyra sedang menguraikan masalah..." : activeIntent === "hint" ? "Zyra sedang menyiapkan petunjuk..." : "Zyra sedang meninjau pertanyaan..."}</p> : null}</div>
     <form className="min-w-0 rounded-lg border border-border bg-background transition-colors has-[textarea:focus-visible]:border-ring has-[textarea:focus-visible]:ring-2 has-[textarea:focus-visible]:ring-ring/20" onSubmit={(event) => { event.preventDefault(); submitQuestion(); }}>
       <div role="toolbar" aria-label="Bantuan cepat" className="flex flex-wrap items-center gap-1 border-b border-border px-1.5 py-1.5">
         <TooltipProvider>
@@ -65,7 +66,6 @@ export function CodingHelp({ courseId, context, disabled = false }: { courseId: 
         <Button type="submit" size="icon-sm" aria-label="Tanya Zyra" disabled={busy || disabled || !question.trim()}><Send className="size-3.5" aria-hidden="true" /></Button>
       </div>
     </form>
-    {busy ? <p role="status" className="text-body-xs text-muted-foreground">Zyra sedang meninjau kode...</p> : null}
     {snapshot !== null && snapshot !== contextKey ? <p className="text-body-xs text-muted-foreground">Penjelasan ini merujuk pada percobaan sebelum perubahan terakhir.</p> : null}
     {error ? <p role="alert" className="text-body-sm text-destructive">{error}</p> : null}
     {answer ? <div className="min-w-0"><MarkdownRenderer content={answer} /></div> : null}

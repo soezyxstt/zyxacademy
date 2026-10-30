@@ -147,9 +147,9 @@ test("cross-device draft conflicts keep local code until an explicit replacement
   await page.goto("/visual-fixtures/coding");
   const editor = page.getByRole("textbox", { name: "Kode Python", exact: true });
   await expect(editor).toContainText("my local edits");
-  await expect(page.getByText("Draft perangkat lain berbeda. Kode lokal tetap tersimpan.")).toBeVisible();
+  await expect(page.getByText("Kode di browser berbeda dari kode tersimpan. Simpan kode ini untuk mengganti kode tersimpan.")).toBeVisible();
   await capture(page, info, "draft-conflict");
-  await page.getByRole("button", { name: "Ganti draft tersimpan", exact: true }).click();
+  await page.getByRole("button", { name: "Simpan kode ini", exact: true }).click();
   await expect(page.getByText("Tersimpan", { exact: true })).toBeVisible();
   await expect(editor).toContainText("my local edits");
   await capture(page, info, "draft-resolved");

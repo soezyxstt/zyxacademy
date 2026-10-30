@@ -22,9 +22,9 @@ const highlight = HighlightStyle.define([
 ]);
 
 const theme = EditorView.theme({
-  "&": { color: "var(--foreground)", backgroundColor: "var(--background)", fontSize: "14px", height: "100%" },
+  "&": { color: "var(--foreground)", backgroundColor: "var(--background)", fontSize: "14px", height: "100%", maxHeight: "400px" },
   "&.cm-focused": { outline: "none" },
-  ".cm-scroller": { overflow: "auto", fontFamily: "var(--font-mono, ui-monospace, monospace)", lineHeight: "1.6" },
+  ".cm-scroller": { overflowY: "auto", overflowX: "hidden", fontFamily: "var(--font-mono, ui-monospace, monospace)", lineHeight: "1.6" },
   ".cm-content": { minHeight: "220px", padding: "12px 0", caretColor: "var(--foreground)" },
   ".cm-cursor, .cm-dropCursor": { borderLeftColor: "var(--foreground)" },
   ".cm-gutters": { backgroundColor: "var(--background)", color: "var(--code-gutter)", border: "none" },
@@ -47,7 +47,7 @@ export function PythonEditor({ value, onChange, label = "Kode Python", className
   useEffect(() => {
     if (!host.current) return;
     const editor = new EditorView({ parent: host.current, state: EditorState.create({ doc: value, extensions: [
-      lineNumbers(), history(), python(), autocompletion({ icons: false }), drawSelection(), highlightActiveLine(), highlightActiveLineGutter(), syntaxHighlighting(highlight), theme,
+      lineNumbers(), history(), python(), EditorView.lineWrapping, autocompletion({ icons: false }), drawSelection(), highlightActiveLine(), highlightActiveLineGutter(), syntaxHighlighting(highlight), theme,
       keymap.of([...defaultKeymap, ...historyKeymap, indentWithTab]),
       EditorView.contentAttributes.of({ "aria-label": label, "aria-multiline": "true", role: "textbox" }),
       EditorView.updateListener.of((update) => { if (update.docChanged) change.current(update.state.doc.toString()); }),
@@ -61,5 +61,5 @@ export function PythonEditor({ value, onChange, label = "Kode Python", className
     const editor = view.current;
     if (editor && value !== editor.state.doc.toString()) editor.dispatch({ changes: { from: 0, to: editor.state.doc.length, insert: value } });
   }, [value]);
-  return <div ref={host} className={cn("min-w-0 overflow-hidden rounded-lg border border-border transition-colors focus-within:border-ring", className)} />;
+  return <div ref={host} className={cn("min-w-0 max-h-[400px] overflow-hidden rounded-lg border border-border transition-colors focus-within:border-ring", className)} />;
 }
