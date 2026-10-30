@@ -15,6 +15,7 @@ import { PlaygroundProblem } from "./playground-problem";
 import { useCodingDraft } from "./use-coding-draft";
 import { createBrowserPythonRuntime, preloadPythonAssets } from "@/lib/coding/browser-runtime";
 import { createRemotePythonRuntime } from "@/lib/coding/remote-runtime";
+import { warmRemotePython } from "@/lib/coding/remote-warm";
 import { executePython } from "@/lib/coding/runtime";
 import { type CodingProblemPublic, type ExecutionResult } from "@/lib/coding/contracts";
 import type { publicCodingFeedback } from "@/lib/coding/evaluation";
@@ -65,9 +66,10 @@ export function CodingWorkspace({ courseId, draftKey, initialCode = "", initialS
     handle.addEventListener("pointermove", move); handle.addEventListener("pointerup", stop); handle.addEventListener("pointercancel", stop);
   }
   useEffect(() => {
-    if (!interactive || useStagingTerminal) return;
+    if (!interactive) return;
+    if (useStagingTerminal) return owner ? warmRemotePython(courseId) : undefined;
     return preloadPythonAssets();
-  }, [interactive]);
+  }, [interactive, owner, courseId]);
   const surfaceKey = surface ? JSON.stringify(surface) : "";
   useEffect(() => () => { active.current?.abort(); submitAbort.current?.abort(); }, []);
   useEffect(() => {
