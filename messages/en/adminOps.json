@@ -102,7 +102,7 @@
     },
     "loadError": "Could not load operations metrics.",
     "aiUsage": "AI usage",
-    "modelRequests": "Model requests today",
+    "modelRequests": "AI usage events today",
     "freeLimit": "/ 250 free",
     "cacheHits": "Cache hits today",
     "cacheRate": "Cache hit rate",

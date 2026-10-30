@@ -102,7 +102,7 @@
     },
     "loadError": "Gagal memuat metrik operasional.",
     "aiUsage": "Penggunaan AI",
-    "modelRequests": "Permintaan model hari ini",
+    "modelRequests": "Aktivitas AI hari ini",
     "freeLimit": "/ 250 gratis",
     "cacheHits": "Cache hit hari ini",
     "cacheRate": "Rasio cache hit",
