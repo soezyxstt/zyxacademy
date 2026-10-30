@@ -36,3 +36,17 @@ test('nonzero Python exit with a reason is an execution error, not a runtime fai
  const f=fixture();const run=await startPython(options(f));f.finish({exitCode:1,error:'process exited with code 1'});const result=await run.done;
  assert.equal(result.code,1);assert.equal(result.spawnError,false);
 });
+
+test('reconciled sandbox is reused and a failed setup invalidates it',async()=>{
+ const f=fixture();let lookups=0;
+ const client={get:async()=>{lookups++;return f.sandbox}};
+ await reconcileSandbox({sandboxId:'test-id',daytona:client});
+ const first=await startPython({...options(f),daytona:client});first.stop();await first.done;
+ assert.equal(lookups,1);
+ const original=f.sandbox.fs.uploadFile;f.sandbox.fs.uploadFile=async()=>{throw Error('upload')};
+ await assert.rejects(startPython({...options(f),daytona:client}));
+ f.sandbox.fs.uploadFile=original;
+ const second=await startPython({...options(f),daytona:client});second.stop();await second.done;
+ assert.equal(lookups,2);
+ assert.match(f.calls.commands[0],/test -x .* && \/bin\/mkdir -p /);
+});

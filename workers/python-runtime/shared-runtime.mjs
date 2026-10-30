@@ -2,6 +2,11 @@ import { Daytona } from '@daytona/sdk';
 import { randomUUID } from 'node:crypto';
 let defaultClient;
 const getClient = () => defaultClient ??= new Daytona({ requestTimeoutMs: 30000 });
+// Reconciliation verifies this handle before the worker accepts connections.
+let reconciledSandbox;
+const forgetSandbox = (client, id) => {
+  if (reconciledSandbox?.client === client && reconciledSandbox.id === id) reconciledSandbox = undefined;
+};
 
 const deadline = (promise, ms) => {
   let timer;
@@ -38,16 +43,15 @@ export async function startPython({ code, onOutput = () => {}, maxOutput = 64000
     return failed;
   })();
   try {
-    sandbox = await deadline(client.get(sandboxId), timeoutMs);
-    advance('mkdir');
-    const setup = await deadline(sandbox.process.executeCommand(`/bin/mkdir -p ${dir}/src`, undefined, {}, 10), timeoutMs);
+    sandbox = reconciledSandbox?.client === client && reconciledSandbox.id === sandboxId
+      ? reconciledSandbox.sandbox
+      : await deadline(client.get(sandboxId), timeoutMs);
+    advance('setup');
+    const setupRuntime = `test -x ${runtimeDir}/wasmtime && test -r ${runtimeDir}/python.wasm && test -d ${runtimeDir}/lib`;
+    const setup = await deadline(sandbox.process.executeCommand(`${setupRuntime} && /bin/mkdir -p ${dir}/src`, undefined, {}, 10), timeoutMs);
     if (setup.exitCode !== 0) throw new Error('Runtime setup failed');
     advance('upload');
     await deadline(sandbox.fs.uploadFile(Buffer.from(code, 'utf8'), `${dir}/src/main.py`, 20), timeoutMs);
-    advance('runtime-check');
-    const setupRuntime = `test -x ${runtimeDir}/wasmtime && test -r ${runtimeDir}/python.wasm && test -d ${runtimeDir}/lib`;
-    const checked = await deadline(sandbox.process.executeCommand(setupRuntime, undefined, {}, 20), timeoutMs);
-    if (checked.exitCode !== 0) throw new Error('Runtime setup failed');
     advance('create-pty');
     ptyRequested = true; ptyPending = true;
     const ptyCreation = sandbox.process.createPty({ id: `zyxpty-${id}`, cols: 100, rows: 30, onData(data) {
@@ -84,6 +88,7 @@ export async function startPython({ code, onOutput = () => {}, maxOutput = 64000
       finished = true;
       advance('cleanup');
       const cleanupFailed = await cleanup();
+      if (cleanupFailed) forgetSandbox(client, sandboxId);
       report(cleanupFailed ? 'cleanup_failed' : 'finished');
       return { code: result.exitCode ?? null, signal: null, stopped, outputLimit, spawnError: result.exitCode == null && Boolean(result.error), cleanupFailed };
     })();
@@ -99,6 +104,7 @@ export async function startPython({ code, onOutput = () => {}, maxOutput = 64000
     };
   } catch (error) {
     const failedStage = stage;
+    forgetSandbox(client, sandboxId);
     advance('cleanup');
     const cleanupFailed = await cleanup();
     report('failed');
@@ -112,6 +118,7 @@ export async function startPython({ code, onOutput = () => {}, maxOutput = 64000
 
 export async function reconcileSandbox({ sandboxId = process.env.DAYTONA_SANDBOX_ID, daytona = getClient() } = {}) {
   if (typeof sandboxId !== 'string' || !sandboxId.trim()) throw new Error('A dedicated sandbox is required');
+  forgetSandbox(daytona, sandboxId);
   let stage = 'lookup';
   try {
   const sandbox = await deadline(daytona.get(sandboxId), 30000);
@@ -124,6 +131,7 @@ export async function reconcileSandbox({ sandboxId = process.env.DAYTONA_SANDBOX
   stage = 'files';
   const files = await deadline(sandbox.fs.listFiles('/tmp'), 30000);
   for (const file of files) if (/^zyx-[0-9a-f]{32}$/.test(file.name)) { stage = 'delete-file'; await deadline(sandbox.fs.deleteFile(`/tmp/${file.name}`, true), 10000); }
+  reconciledSandbox = { client: daytona, id: sandboxId, sandbox };
   } catch (error) {
     const status = Number(error?.statusCode ?? error?.status ?? 0);
     console.error('Daytona reconciliation failed:', stage, Number.isInteger(status) && status >= 400 && status <= 599 ? status : 'unavailable');
