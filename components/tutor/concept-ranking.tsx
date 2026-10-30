@@ -25,15 +25,14 @@ export function ConceptRanking({
       {concepts.map((concept, index) => (
         <div
           key={concept.conceptName}
-          className="py-3 grid grid-cols-[1.5rem_minmax(0,1fr)_auto] sm:grid-cols-[1.5rem_minmax(0,1fr)_auto_8rem] items-center gap-4 animate-in fade-in slide-in-from-bottom-2 duration-300"
-          style={{ animationDelay: `${Math.min(index, 7) * 50}ms` }}
+          className="py-3 grid grid-cols-[1.5rem_minmax(0,1fr)_auto] sm:grid-cols-[1.5rem_minmax(0,1fr)_auto_8rem] items-center gap-4"
         >
           <span className="text-h6 font-heading text-muted-foreground tabular-nums">
             {index + 1}
           </span>
           <div className="min-w-0">
-            <p className="text-body-base font-medium truncate">{concept.conceptName}</p>
-            <p className="text-body-sm text-muted-foreground">{t("students", { count: concept.studentCount })}</p>
+            <p className="text-body-sm font-medium break-words">{concept.conceptName}</p>
+            <p className="text-body-xs text-muted-foreground">{t("students", { count: concept.studentCount })}</p>
           </div>
           <span className="tabular-nums text-body-base">{concept.avgMastery}</span>
           <DistributionBar
@@ -41,7 +40,7 @@ export function ConceptRanking({
             mid={concept.bucketMid}
             high={concept.bucketHigh}
             total={concept.studentCount}
-            className={`hidden sm:flex ${barWidth ?? "w-32"}`}
+            className={`col-start-2 col-span-2 w-full sm:col-auto ${barWidth ?? "sm:w-32"}`}
           />
         </div>
       ))}

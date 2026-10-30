@@ -28,9 +28,7 @@ export default async function FeedbackPage() {
       />
 
       <Reveal className="mt-4">
-        <div className="pt-2">
-          <FeedbackForm initialEmail={userEmail} />
-        </div>
+        <FeedbackForm initialEmail={userEmail} />
       </Reveal>
     </ApplicationPage>
   );

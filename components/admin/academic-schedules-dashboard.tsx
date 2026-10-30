@@ -529,7 +529,7 @@ export function AcademicSchedulesDashboard({ initialData, initialWeekOffset = 0 
       </div>
       <DialogFooter className="gap-2 pt-2">
         <DialogClose asChild><Button variant="outline" type="button" disabled={formLoading}>{translate("academicScheduleUI.cancel")}</Button></DialogClose>
-        <Button type="submit" disabled={formLoading} isLoading={formLoading} className="rounded-lg bg-brand-primary text-white hover:bg-brand-primary/90">{editingSchedule ? translate("academicScheduleUI.saveChanges") : translate("academicScheduleUI.saveSchedule")}</Button>
+        <Button type="submit" disabled={formLoading} isLoading={formLoading} className="rounded-lg bg-brand-primary text-primary-foreground hover:bg-brand-primary/90">{editingSchedule ? translate("academicScheduleUI.saveChanges") : translate("academicScheduleUI.saveSchedule")}</Button>
       </DialogFooter>
     </form>
   );

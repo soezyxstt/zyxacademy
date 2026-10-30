@@ -20,9 +20,9 @@ const ICONS = {
 } as const;
 
 const COLOR_CLASSES = {
-  DOKUMEN: "bg-blue-500/10 text-blue-500 dark:text-blue-400",
-  KUIS: "bg-emerald-500/10 text-emerald-500 dark:text-emerald-400",
-  JADWAL: "bg-purple-500/10 text-purple-500 dark:text-purple-400",
+  DOKUMEN: "bg-muted text-foreground",
+  KUIS: "bg-muted text-foreground",
+  JADWAL: "bg-muted text-foreground",
 } as const;
 
 function ActionTile({ card, labels }: { card: CourseOverviewActionCard; labels: { material: string; practice: string; tutorial: string } }) {
@@ -40,10 +40,10 @@ function ActionTile({ card, labels }: { card: CourseOverviewActionCard; labels: 
       </span>
       <div className="min-w-0 flex-1">
         <span className="sr-only">{card.tag}: {card.title}</span>
-        <div className="truncate font-heading text-body-sm font-semibold text-foreground group-hover:text-brand-primary transition-colors">
+        <div className="break-words font-heading text-body-sm font-semibold text-foreground group-hover:text-brand-primary transition-colors">
           {label}
         </div>
-        <div className="truncate text-body-xs text-muted-foreground">
+        <div className="break-words text-body-xs text-muted-foreground">
           {card.meta || card.actionLabel}
         </div>
       </div>
@@ -60,7 +60,7 @@ export function CoursePrimaryActions({
   const t = useTranslations("studentCourse");
   const labels = { material: t("course.actions.material"), practice: t("course.actions.practice"), tutorial: t("course.actions.tutorial") };
   return (
-    <div className={cn("grid grid-cols-3 divide-x divide-border/60 overflow-hidden rounded-xl border border-border/70 bg-card", className)}>
+    <div className={cn("grid grid-cols-1 divide-y divide-border/60 sm:grid-cols-3 sm:divide-x sm:divide-y-0 overflow-hidden rounded-xl border border-border/70 bg-card", className)}>
       <ActionTile card={reading} labels={labels} />
       <ActionTile card={quiz} labels={labels} />
       <ActionTile card={schedule} labels={labels} />

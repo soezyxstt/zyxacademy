@@ -268,7 +268,7 @@ export function TryoutForm({ courseId, exam }: TryoutFormProps) {
         >
           {/* Question Prompt */}
           <div className="flex items-start gap-4">
-            <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary text-body-sm font-bold text-white shadow-xs">
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary text-body-sm font-bold text-primary-foreground shadow-xs">
               {index + 1}
             </span>
             <div className="min-w-0 flex-1 font-sans text-body-base leading-relaxed text-foreground">
@@ -297,7 +297,7 @@ export function TryoutForm({ courseId, exam }: TryoutFormProps) {
                     <span className="text-body-sm font-semibold text-foreground mr-1">
                       {String.fromCharCode(65 + i)}.
                     </span>
-                    <MathText className="text-body-sm text-foreground leading-normal">{opt}</MathText>
+                    <MathText className="min-w-0 break-words text-body-sm text-foreground leading-normal">{opt}</MathText>
                   </label>
                 );
               })}
@@ -334,7 +334,7 @@ export function TryoutForm({ courseId, exam }: TryoutFormProps) {
                     <span className="text-body-sm font-semibold text-foreground mr-1">
                       {String.fromCharCode(65 + i)}.
                     </span>
-                    <MathText className="text-body-sm text-foreground leading-normal">{opt}</MathText>
+                    <MathText className="min-w-0 break-words text-body-sm text-foreground leading-normal">{opt}</MathText>
                   </label>
                 );
               })}
@@ -479,7 +479,7 @@ export function TryoutForm({ courseId, exam }: TryoutFormProps) {
               <Button
                 type="button"
                 disabled={isSubmitting}
-                className="bg-brand-primary text-white hover:bg-brand-primary/95 px-8 font-bold"
+                className="bg-brand-primary text-primary-foreground hover:bg-brand-primary/95 px-8 font-bold"
                 onClick={() => setShowConfirmModal(true)}
               >
                 {t("tryout.submitAnswers")}
@@ -513,11 +513,13 @@ export function TryoutForm({ courseId, exam }: TryoutFormProps) {
                 <button
                   key={question.id}
                   type="button"
+                  aria-current={active ? "step" : undefined}
+                  aria-label={`${t("tryout.questionNavigation")} ${idx + 1}`}
                   onClick={() => setIndex(idx)}
                   className={cn(
                     "flex size-10 items-center justify-center rounded-xl font-heading font-bold text-body-xs transition-all border-2",
                     active
-                      ? "border-brand-primary ring-2 ring-brand-primary/20 scale-105"
+                      ? "border-brand-primary ring-2 ring-brand-primary/20"
                       : "border-transparent",
                     isFlagged
                       ? "bg-brand-secondary/15 text-brand-secondary border-brand-secondary/60 hover:bg-brand-secondary/25"
@@ -660,7 +662,7 @@ export function TryoutForm({ courseId, exam }: TryoutFormProps) {
               onClick={() => {
                 handleSubmit();
               }}
-              className="w-full sm:w-auto rounded-lg bg-brand-primary text-white hover:bg-brand-primary/90 font-bold"
+              className="w-full sm:w-auto rounded-lg bg-brand-primary text-primary-foreground hover:bg-brand-primary/90 font-bold"
             >
               {t("tryout.confirmSubmit")}
             </Button>

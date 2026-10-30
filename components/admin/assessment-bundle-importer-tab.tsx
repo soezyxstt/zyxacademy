@@ -281,7 +281,7 @@ export function AssessmentBundleImporterTab() {
                 <Button
                   onClick={handleImport}
                   disabled={loading}
-                  className="flex-1 rounded-lg font-semibold gap-1.5 bg-brand-primary text-white hover:bg-brand-primary/95"
+                  className="flex-1 rounded-lg font-semibold gap-1.5 bg-brand-primary text-primary-foreground hover:bg-brand-primary/95"
                 >
                   {loading ? <Loader2 className="size-4 animate-spin" /> : <Play className="size-4" />}
                   {dryRun ? "Validasi" : "Mulai Import"}

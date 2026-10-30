@@ -4,7 +4,7 @@ import { useState, useMemo, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
-import { CheckSquare, Square, ChevronDown, ChevronUp, Plus, Edit2, Trash2, Upload, ChevronLeft, ChevronRight } from "lucide-react";
+import { CheckSquare, Square, ChevronDown, ChevronUp, Plus, Edit2, Trash2, Upload, ChevronLeft, ChevronRight, FileQuestion } from "lucide-react";
 import { toast } from "@/components/ui/toast";
 import { AdminConfirmDialog } from "@/components/admin/confirm-dialog";
 import { DifficultyBadge, StatusBadge } from "@/components/admin/status-badges";
@@ -725,7 +725,7 @@ export function QuestionBankClient({ questions, courses, courseMap, canonicalCou
                 onClick={() => setCreateOpen(true)}
                 size="sm"
                 aria-label={t("addQuestion")}
-                className="size-9 p-0 rounded-lg shrink-0 bg-brand-primary text-white hover:bg-brand-primary/95 shadow-2xs"
+                className="size-9 p-0 rounded-lg shrink-0 bg-brand-primary text-primary-foreground hover:bg-brand-primary/95 shadow-2xs"
               >
                 <Plus className="size-4" />
               </Button>
@@ -738,7 +738,7 @@ export function QuestionBankClient({ questions, courses, courseMap, canonicalCou
       <div ref={tableRef} className="w-full space-y-6">
         {/* Bulk actions - Floating Overlay */}
         {selected.size > 0 && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 flex items-center gap-4 rounded-xl border border-border/80 bg-background/90 backdrop-blur-md px-5 py-3.5 shadow-xl min-w-[320px] max-w-[90vw] animate-in slide-in-from-bottom-4 duration-300">
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 flex items-center gap-4 rounded-xl border border-border/80 bg-background px-4 py-3 shadow-sm min-w-[320px] max-w-[90vw] animate-in slide-in-from-bottom-4 duration-300">
               <span className="text-body-sm font-bold text-foreground shrink-0">{selected.size} {t("selectedCountLabel")}</span>
           <div className="h-4 w-px bg-border/85 shrink-0" />
           <div className="flex gap-1.5 ml-auto flex-wrap">
@@ -789,7 +789,7 @@ export function QuestionBankClient({ questions, courses, courseMap, canonicalCou
                   setCurrentPage(1);
                 }}
               >
-                <SelectTrigger aria-label={t("pageSize")} className="h-7 w-[68px] rounded-md text-body-xs px-2">
+                <SelectTrigger aria-label={t("pageSize")} className="h-7 w-[68px] rounded-md text-body-sm px-2">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -834,7 +834,7 @@ export function QuestionBankClient({ questions, courses, courseMap, canonicalCou
         </div>
 
         {filtered.length === 0 ? (
-          <AdminEmptyState compact title={t("empty")} />
+          <AdminEmptyState icon={FileQuestion} title={t("empty")} className="py-6" />
         ) : (
           <div className="divide-y divide-border/60 overflow-hidden">
               {paginatedQuestions.map((q) => (
@@ -891,15 +891,15 @@ export function QuestionBankClient({ questions, courses, courseMap, canonicalCou
       {/* CREATE DIALOG */}
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col p-0 overflow-hidden rounded-xl border border-border bg-popover shadow-xl">
-          <DialogHeader className="p-6 pb-4 border-b border-border/60 shrink-0">
+          <DialogHeader className="p-4 border-b border-border/60 shrink-0">
             <DialogTitle className="font-heading text-body-base font-bold text-foreground">{t("manualQuestionTitle")}</DialogTitle>
             <DialogDescription>{t("manualQuestionDescription")}</DialogDescription>
           </DialogHeader>
           <form onSubmit={handleCreateSubmit} className="flex-1 flex flex-col min-h-0">
-            <div className="flex-1 overflow-y-auto p-6 space-y-5 text-body-sm text-foreground">
+            <div className="flex-1 overflow-y-auto p-4 space-y-4 text-body-sm text-foreground">
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 <div className="space-y-1.5">
-                  <label className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("courseLabel")}</label>
+                  <label className="text-body-sm font-semibold text-foreground">{t("courseLabel")}</label>
                   <Select value={createCourseId} onValueChange={(value) => { setCreateCourseId(value); setCreateChapterId(""); setCreateIdeaLinks([]); }}>
                     <SelectTrigger className="h-10 border-border/80 bg-background/50 text-body-sm font-medium">
                       <SelectValue placeholder={t("chooseCourse")} />
@@ -915,7 +915,7 @@ export function QuestionBankClient({ questions, courses, courseMap, canonicalCou
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("chapter")}</label>
+                  <label className="text-body-sm font-semibold text-foreground">{t("chapter")}</label>
                   <Select value={createChapterId || "all"} onValueChange={(value) => { setCreateChapterId(value === "all" ? "" : value); setCreateIdeaLinks([]); }}>
                     <SelectTrigger className="h-10 border-border/80 bg-background/50 text-body-sm font-medium">
                       <SelectValue placeholder={t("allChaptersLabel")} />
@@ -932,7 +932,7 @@ export function QuestionBankClient({ questions, courses, courseMap, canonicalCou
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("typeLabel")}</label>
+                  <label className="text-body-sm font-semibold text-foreground">{t("typeLabel")}</label>
                   <Select value={createQuestionType} onValueChange={(val) => setCreateQuestionType(val as any)}>
                     <SelectTrigger className="h-10 border-border/80 bg-background/50 text-body-sm font-medium">
                       <SelectValue placeholder={t("selectType")} />
@@ -947,7 +947,7 @@ export function QuestionBankClient({ questions, courses, courseMap, canonicalCou
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("difficultyLabel")}</label>
+                  <label className="text-body-sm font-semibold text-foreground">{t("difficultyLabel")}</label>
                   <Select value={createDifficulty} onValueChange={(val) => setCreateDifficulty(val as any)}>
                     <SelectTrigger className="h-10 border-border/80 bg-background/50 text-body-sm font-medium">
                       <SelectValue placeholder={t("selectDifficulty")} />
@@ -963,7 +963,7 @@ export function QuestionBankClient({ questions, courses, courseMap, canonicalCou
 
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div className="space-y-1.5">
-                  <label className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("cognitiveLevelLabel")}</label>
+                  <label className="text-body-sm font-semibold text-foreground">{t("cognitiveLevelLabel")}</label>
                   <Select value={createCognitiveLevel} onValueChange={(value) => setCreateCognitiveLevel(value as CognitiveLevel)}>
                     <SelectTrigger className="h-10 border-border/80 bg-background/50 text-body-sm font-medium"><SelectValue /></SelectTrigger>
                     <SelectContent>
@@ -972,7 +972,7 @@ export function QuestionBankClient({ questions, courses, courseMap, canonicalCou
                   </Select>
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("reasoningPatternLabel")}</label>
+                  <label className="text-body-sm font-semibold text-foreground">{t("reasoningPatternLabel")}</label>
                   <Input value={createReasoningPattern} onChange={(event) => setCreateReasoningPattern(event.target.value)} placeholder={t("reasoningPlaceholder")} className="h-10 border-border/80 bg-background/50 text-body-sm font-medium" />
                 </div>
               </div>
@@ -985,7 +985,7 @@ export function QuestionBankClient({ questions, courses, courseMap, canonicalCou
               />
 
               <div className="space-y-1.5">
-                <label className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("questionPrompt")}</label>
+                <label className="text-body-sm font-semibold text-foreground">{t("questionPrompt")}</label>
                 <Textarea
                   value={createPrompt}
                   onChange={(e) => setCreatePrompt(e.target.value)}
@@ -997,7 +997,7 @@ export function QuestionBankClient({ questions, courses, courseMap, canonicalCou
 
               {(createQuestionType === "multiple_choice" || createQuestionType === "multiple_choices") && (
                 <div className="space-y-3 border-t border-border pt-4">
-                  <label className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground block mb-1">{t("optionsAndAnswerKeyLabel")}</label>
+                  <label className="text-body-sm font-semibold text-foreground block mb-1">{t("optionsAndAnswerKeyLabel")}</label>
                   <p className="text-body-xs text-muted-foreground">{t("multipleChoiceHelp")}</p>
                   <div className="space-y-2.5">
                     {createOptions.map((opt, idx) => (
@@ -1035,7 +1035,7 @@ export function QuestionBankClient({ questions, courses, courseMap, canonicalCou
 
               {createQuestionType === "short_answer" && (
                 <div className="space-y-1.5 border-t border-border pt-4">
-                  <label className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground block mb-1">{t("acceptedAnswersLabel")}</label>
+                  <label className="text-body-sm font-semibold text-foreground block mb-1">{t("acceptedAnswersLabel")}</label>
                   <Input
                     type="text"
                     value={createAcceptableAnswers}
@@ -1055,7 +1055,7 @@ export function QuestionBankClient({ questions, courses, courseMap, canonicalCou
               )}
 
               <div className="space-y-1.5">
-                <label className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("solutionRubricLabel")}</label>
+                <label className="text-body-sm font-semibold text-foreground">{t("solutionRubricLabel")}</label>
                 <Textarea
                   value={createExplanation}
                   onChange={(e) => setCreateExplanation(e.target.value)}
@@ -1066,7 +1066,7 @@ export function QuestionBankClient({ questions, courses, courseMap, canonicalCou
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("tagsLabel")}</label>
+                <label className="text-body-sm font-semibold text-foreground">{t("tagsLabel")}</label>
                 <Input
                   type="text"
                   value={createTagsStr}
@@ -1077,12 +1077,12 @@ export function QuestionBankClient({ questions, courses, courseMap, canonicalCou
               </div>
             </div>
 
-            <DialogFooter className="p-6 pt-4 border-t border-border/40 bg-muted/5 flex items-center justify-end gap-2.5 shrink-0">
+            <DialogFooter className="p-4 border-t border-border/40 bg-muted/5 flex items-center justify-end gap-2.5 shrink-0">
               <Button type="button" variant="outline" className="rounded-lg cursor-pointer font-bold" onClick={() => setCreateOpen(false)} disabled={submittingCreate}>{t("cancel")}</Button>
               <Button type="submit" name="reviewStatus" value="generated" variant="outline" isLoading={submittingCreate} className="rounded-lg cursor-pointer font-bold">
                 {t("saveDraft")}
               </Button>
-              <Button type="submit" name="reviewStatus" value="published" isLoading={submittingCreate} className="rounded-lg cursor-pointer bg-brand-primary !text-white hover:bg-brand-primary/95 font-bold px-6 shadow-sm">
+              <Button type="submit" name="reviewStatus" value="published" isLoading={submittingCreate} className="rounded-lg cursor-pointer bg-brand-primary !text-primary-foreground hover:bg-brand-primary/95 font-bold px-6 shadow-sm">
                 {t("savePublish")}
               </Button>
             </DialogFooter>
@@ -1093,16 +1093,16 @@ export function QuestionBankClient({ questions, courses, courseMap, canonicalCou
       {/* EDIT DIALOG */}
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
         <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col p-0 overflow-hidden rounded-xl border border-border bg-popover shadow-xl">
-          <DialogHeader className="p-6 pb-4 border-b border-border/60 shrink-0">
+          <DialogHeader className="p-4 border-b border-border/60 shrink-0">
             <DialogTitle className="font-heading text-body-base font-bold text-foreground">{t("editQuestionAnswerKey")}</DialogTitle>
             <DialogDescription>{t("editDescription")}</DialogDescription>
           </DialogHeader>
           {editingQuestion && (
             <form onSubmit={handleEditSubmit} className="flex-1 flex flex-col min-h-0">
-              <div className="flex-1 overflow-y-auto p-6 space-y-5 text-body-sm text-foreground">
+              <div className="flex-1 overflow-y-auto p-4 space-y-4 text-body-sm text-foreground">
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
                   <div className="space-y-1.5">
-                    <label className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("courseLabel")}</label>
+                    <label className="text-body-sm font-semibold text-foreground">{t("courseLabel")}</label>
                     <Select value={editCourseId} onValueChange={(value) => { setEditCourseId(value); setEditChapterId(""); setEditIdeaLinks([]); }}>
                       <SelectTrigger className="h-10 border-border/80 bg-background/50 text-body-sm font-medium"><SelectValue placeholder={t("chooseCourse")} /></SelectTrigger>
                       <SelectContent>
@@ -1111,7 +1111,7 @@ export function QuestionBankClient({ questions, courses, courseMap, canonicalCou
                     </Select>
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("chapter")}</label>
+                    <label className="text-body-sm font-semibold text-foreground">{t("chapter")}</label>
                     <Select value={editChapterId || "all"} onValueChange={(value) => { setEditChapterId(value === "all" ? "" : value); setEditIdeaLinks([]); }}>
                       <SelectTrigger className="h-10 border-border/80 bg-background/50 text-body-sm font-medium"><SelectValue placeholder={t("allChaptersLabel")} /></SelectTrigger>
                       <SelectContent>
@@ -1121,7 +1121,7 @@ export function QuestionBankClient({ questions, courses, courseMap, canonicalCou
                     </Select>
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("typeLabel")}</label>
+                    <label className="text-body-sm font-semibold text-foreground">{t("typeLabel")}</label>
                     <Select value={editQuestionType} onValueChange={(val) => setEditQuestionType(val as any)}>
                       <SelectTrigger className="h-10 border-border/80 bg-background/50 text-body-sm font-medium">
                         <SelectValue placeholder={t("selectType")} />
@@ -1136,7 +1136,7 @@ export function QuestionBankClient({ questions, courses, courseMap, canonicalCou
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("difficultyLabel")}</label>
+                    <label className="text-body-sm font-semibold text-foreground">{t("difficultyLabel")}</label>
                     <Select value={editDifficulty} onValueChange={(val) => setEditDifficulty(val as any)}>
                       <SelectTrigger className="h-10 border-border/80 bg-background/50 text-body-sm font-medium">
                         <SelectValue placeholder={t("selectDifficulty")} />
@@ -1152,7 +1152,7 @@ export function QuestionBankClient({ questions, courses, courseMap, canonicalCou
 
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <div className="space-y-1.5">
-                    <label className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("cognitiveLevelLabel")}</label>
+                    <label className="text-body-sm font-semibold text-foreground">{t("cognitiveLevelLabel")}</label>
                     <Select value={editCognitiveLevel} onValueChange={(value) => setEditCognitiveLevel(value as CognitiveLevel)}>
                       <SelectTrigger className="h-10 border-border/80 bg-background/50 text-body-sm font-medium"><SelectValue /></SelectTrigger>
                       <SelectContent>
@@ -1161,7 +1161,7 @@ export function QuestionBankClient({ questions, courses, courseMap, canonicalCou
                     </Select>
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("reasoningPatternLabel")}</label>
+                    <label className="text-body-sm font-semibold text-foreground">{t("reasoningPatternLabel")}</label>
                     <Input value={editReasoningPattern} onChange={(event) => setEditReasoningPattern(event.target.value)} placeholder={t("reasoningPlaceholder")} className="h-10 border-border/80 bg-background/50 text-body-sm font-medium" />
                   </div>
                 </div>
@@ -1174,7 +1174,7 @@ export function QuestionBankClient({ questions, courses, courseMap, canonicalCou
                 />
 
                 <div className="space-y-1.5">
-                  <label className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("questionPrompt")}</label>
+                  <label className="text-body-sm font-semibold text-foreground">{t("questionPrompt")}</label>
                   <Textarea
                     value={editPrompt}
                     onChange={(e) => setEditPrompt(e.target.value)}
@@ -1186,7 +1186,7 @@ export function QuestionBankClient({ questions, courses, courseMap, canonicalCou
 
                 {(editQuestionType === "multiple_choice" || editQuestionType === "multiple_choices") && (
                   <div className="space-y-3 border-t border-border pt-4">
-                    <label className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground block mb-1">{t("optionsAndAnswerKeyLabel")}</label>
+                    <label className="text-body-sm font-semibold text-foreground block mb-1">{t("optionsAndAnswerKeyLabel")}</label>
                     <p className="text-body-xs text-muted-foreground">{t("multipleChoiceHelp")}</p>
                     <div className="space-y-2.5">
                       {editOptions.map((opt, idx) => (
@@ -1224,7 +1224,7 @@ export function QuestionBankClient({ questions, courses, courseMap, canonicalCou
 
                 {editQuestionType === "short_answer" && (
                   <div className="space-y-1.5 border-t border-border pt-4">
-                    <label className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground block mb-1">{t("acceptedAnswersLabel")}</label>
+                    <label className="text-body-sm font-semibold text-foreground block mb-1">{t("acceptedAnswersLabel")}</label>
                     <Input
                       type="text"
                       value={editAcceptableAnswers}
@@ -1243,7 +1243,7 @@ export function QuestionBankClient({ questions, courses, courseMap, canonicalCou
                 )}
 
                 <div className="space-y-1.5">
-                  <label className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("solutionRubricLabel")}</label>
+                  <label className="text-body-sm font-semibold text-foreground">{t("solutionRubricLabel")}</label>
                   <Textarea
                     value={editExplanation}
                     onChange={(e) => setEditExplanation(e.target.value)}
@@ -1254,7 +1254,7 @@ export function QuestionBankClient({ questions, courses, courseMap, canonicalCou
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("tagsLabel")}</label>
+                  <label className="text-body-sm font-semibold text-foreground">{t("tagsLabel")}</label>
                   <Input
                     type="text"
                     value={editTagsStr}
@@ -1265,12 +1265,12 @@ export function QuestionBankClient({ questions, courses, courseMap, canonicalCou
                 </div>
               </div>
 
-              <DialogFooter className="p-6 pt-4 border-t border-border/40 bg-muted/5 flex items-center justify-end gap-2.5 shrink-0">
+              <DialogFooter className="p-4 border-t border-border/40 bg-muted/5 flex items-center justify-end gap-2.5 shrink-0">
                 <Button type="button" variant="outline" className="rounded-lg cursor-pointer font-bold" onClick={() => setEditOpen(false)} disabled={submittingEdit}>{t("cancel")}</Button>
                 <Button type="submit" name="reviewStatus" value="generated" variant="outline" isLoading={submittingEdit} className="rounded-lg cursor-pointer font-bold">
                   {t("saveDraft")}
                 </Button>
-                <Button type="submit" name="reviewStatus" value="published" isLoading={submittingEdit} className="rounded-lg cursor-pointer bg-brand-primary !text-white hover:bg-brand-primary/95 font-bold px-6 shadow-sm">
+                <Button type="submit" name="reviewStatus" value="published" isLoading={submittingEdit} className="rounded-lg cursor-pointer bg-brand-primary !text-primary-foreground hover:bg-brand-primary/95 font-bold px-6 shadow-sm">
                   {t("savePublish")}
                 </Button>
               </DialogFooter>
@@ -1296,15 +1296,15 @@ export function QuestionBankClient({ questions, courses, courseMap, canonicalCou
       {/* BULK UPLOAD DIALOG */}
       <Dialog open={bulkOpen} onOpenChange={setBulkOpen}>
         <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col p-0 overflow-hidden rounded-xl border border-border bg-popover shadow-xl">
-          <DialogHeader className="p-6 pb-4 border-b border-border/60 shrink-0">
+          <DialogHeader className="p-4 border-b border-border/60 shrink-0">
             <DialogTitle className="font-heading text-body-base font-bold text-foreground">{t("importMarkdownTitle")}</DialogTitle>
             <DialogDescription>{t("importMarkdownDescription")}</DialogDescription>
           </DialogHeader>
           <form onSubmit={handleBulkSubmit} className="flex-1 flex flex-col min-h-0">
-            <div className="flex-1 overflow-y-auto p-6 space-y-5 text-body-sm text-foreground">
+            <div className="flex-1 overflow-y-auto p-4 space-y-4 text-body-sm text-foreground">
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div className="space-y-1.5">
-                  <label className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("courseLabel")}</label>
+                  <label className="text-body-sm font-semibold text-foreground">{t("courseLabel")}</label>
                   <Select value={bulkCourseId} onValueChange={(value) => { setBulkCourseId(value); setBulkChapterId(""); setBulkIdeaLinks([]); }}>
                     <SelectTrigger className="h-10 border-border/80 bg-background/50 text-body-sm font-medium"><SelectValue placeholder={t("chooseCourse")} /></SelectTrigger>
                     <SelectContent>
@@ -1313,7 +1313,7 @@ export function QuestionBankClient({ questions, courses, courseMap, canonicalCou
                   </Select>
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("chapter")}</label>
+                  <label className="text-body-sm font-semibold text-foreground">{t("chapter")}</label>
                   <Select value={bulkChapterId || "all"} onValueChange={(value) => { setBulkChapterId(value === "all" ? "" : value); setBulkIdeaLinks([]); }}>
                     <SelectTrigger className="h-10 border-border/80 bg-background/50 text-body-sm font-medium"><SelectValue placeholder={t("allChaptersLabel")} /></SelectTrigger>
                     <SelectContent>
@@ -1332,7 +1332,7 @@ export function QuestionBankClient({ questions, courses, courseMap, canonicalCou
               />
 
               <div className="space-y-1.5">
-                <label className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("markdownFileOptional")}</label>
+                <label className="text-body-sm font-semibold text-foreground">{t("markdownFileOptional")}</label>
                 <Input
                   type="file"
                   accept=".md"
@@ -1342,7 +1342,7 @@ export function QuestionBankClient({ questions, courses, courseMap, canonicalCou
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center justify-between">
+                <label className="text-body-sm font-semibold text-foreground flex items-center justify-between">
                   <span>{t("markdownContentRequired")}</span>
                   <span className="text-[10px] text-muted-foreground lowercase normal-case">{t("markdownFormatHelp")}</span>
                 </label>
@@ -1357,12 +1357,12 @@ export function QuestionBankClient({ questions, courses, courseMap, canonicalCou
               </div>
             </div>
 
-            <DialogFooter className="p-6 pt-4 border-t border-border/40 bg-muted/5 flex items-center justify-end gap-2.5 shrink-0">
+            <DialogFooter className="p-4 border-t border-border/40 bg-muted/5 flex items-center justify-end gap-2.5 shrink-0">
               <Button type="button" variant="outline" className="rounded-lg cursor-pointer font-bold" onClick={() => setBulkOpen(false)} disabled={bulkSubmitting}>{t("cancel")}</Button>
               <Button type="submit" name="reviewStatus" value="generated" variant="outline" isLoading={bulkSubmitting} className="rounded-lg cursor-pointer font-bold">
                 {t("saveDraft")}
               </Button>
-              <Button type="submit" name="reviewStatus" value="published" isLoading={bulkSubmitting} className="rounded-lg cursor-pointer bg-brand-primary !text-white hover:bg-brand-primary/95 font-bold px-6 shadow-sm">
+              <Button type="submit" name="reviewStatus" value="published" isLoading={bulkSubmitting} className="rounded-lg cursor-pointer bg-brand-primary !text-primary-foreground hover:bg-brand-primary/95 font-bold px-6 shadow-sm">
                 {t("savePublish")}
               </Button>
             </DialogFooter>

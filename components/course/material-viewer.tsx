@@ -1297,7 +1297,7 @@ toast.success(t("reader.markedComplete"));
           <Button
             type="button"
             size="sm"
-            className="rounded-lg bg-brand-primary hover:bg-brand-primary/95 shadow-md flex items-center gap-1.5 h-8 font-sans text-body-xs font-semibold !text-white px-3 border border-brand-primary/20"
+            className="rounded-lg bg-brand-primary hover:bg-brand-primary/95 shadow-md flex items-center gap-1.5 h-8 font-sans text-body-xs font-semibold !text-primary-foreground px-3 border border-brand-primary/20"
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();
@@ -1356,6 +1356,7 @@ toast.success(t("reader.markedComplete"));
                 <button
                   key={`${section.title}-${index}`}
                   type="button"
+                  aria-current={isActive ? "location" : undefined}
                   onClick={() => {
                     setActiveSectionIdx(index);
                     setShowOutlineSheet(false);
@@ -1365,9 +1366,9 @@ toast.success(t("reader.markedComplete"));
                     }
                   }}
                   className={cn(
-                    "flex w-full items-start gap-2.5 rounded-lg px-2.5 py-2 text-left text-body-xs transition-colors",
+                    "flex w-full items-start gap-2.5 rounded-lg px-2.5 py-2 text-left text-body-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
                     isActive
-                      ? "border-l-2 border-primary bg-primary/10 font-medium text-primary"
+                      ? "border-l-2 border-primary bg-primary/10 text-primary"
                       : "text-foreground hover:bg-muted/60",
                   )}
                 >
@@ -1378,7 +1379,7 @@ toast.success(t("reader.markedComplete"));
                   ) : (
                     <Circle className="mt-0.5 size-4 shrink-0 text-muted-foreground/50" />
                   )}
-                  <span className="line-clamp-2 min-w-0 py-0.5 font-semibold leading-snug">
+                  <span className="min-w-0 break-words py-0.5 font-semibold leading-snug">
                     {formatReaderTocTitle(section.title)}
                   </span>
                 </button>
@@ -2028,7 +2029,7 @@ toast.success(t("reader.markedComplete"));
                                     className={cn(
                                       "flex items-center gap-1.5 text-body-xs font-medium pl-2.5 pr-1.5 py-1 rounded-md border shadow-2xs transition-all",
                                       page === pNum
-                                        ? "bg-brand-primary text-white border-brand-primary"
+                                        ? "bg-brand-primary text-primary-foreground border-brand-primary"
                                         : "bg-card text-foreground border-border hover:border-border-strong"
                                     )}
                                   >
@@ -2399,7 +2400,7 @@ toast.success(t("reader.markedComplete"));
                   <p className="text-body-sm text-muted-foreground text-center sm:text-left">
                     Dokumen eksternal berada di luar platform Zyx.
                   </p>
-                  <Button asChild className="bg-brand-primary text-white hover:bg-brand-primary/95 shrink-0">
+                  <Button asChild className="bg-brand-primary text-primary-foreground hover:bg-brand-primary/95 shrink-0">
                     <a href={material.url} target="_blank" rel="noopener noreferrer">
                       <ExternalLink className="mr-1.5 size-4" />
                       Buka Tautan Sumber

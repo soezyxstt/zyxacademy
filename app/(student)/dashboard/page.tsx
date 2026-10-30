@@ -565,7 +565,7 @@ export default async function DashboardPage() {
                                   <span className="inline-flex rounded-md bg-brand-primary/10 px-2 py-0.5 text-[10px] font-bold text-brand-primary uppercase tracking-wider ring-1 ring-brand-primary/20 shrink-0">
                                     {course.category}
                                   </span>
-                                  <h3 className="font-heading text-body-sm font-bold text-foreground group-hover:text-brand-primary transition-colors truncate min-w-0">
+                                  <h3 className="font-heading text-body-sm font-bold text-foreground group-hover:text-brand-primary transition-colors break-words min-w-0">
                                     {course.title}
                                   </h3>
                                 </div>
@@ -639,7 +639,7 @@ export default async function DashboardPage() {
                                       ({doc.kind})
                                     </span>
                                   </div>
-                                  <h3 className="font-heading text-body-sm font-bold text-foreground group-hover:text-brand-primary transition-colors mt-1.5 truncate min-w-0">
+                                  <h3 className="font-heading text-body-sm font-bold text-foreground group-hover:text-brand-primary transition-colors mt-1.5 break-words min-w-0">
                                     {doc.title}
                                   </h3>
                                   {/* Completion Progress Bar */}
@@ -717,7 +717,7 @@ export default async function DashboardPage() {
                                     <TranslatedText namespace="student" messageKey="dashboard.materialCount" values={{ count: course.materialsCount }} />
                                   </span>
                                 </div>
-                                <h3 className="font-heading text-body-sm font-bold text-foreground group-hover:text-brand-primary transition-colors truncate mt-1">
+                                <h3 className="font-heading text-body-sm font-bold text-foreground group-hover:text-brand-primary transition-colors break-words mt-1">
                                   {course.title}
                                 </h3>
                               </div>
@@ -733,7 +733,7 @@ export default async function DashboardPage() {
                 </div>
 
                 {/* Right Column (Review, Mastery & Available Quizzes) - 5 cols */}
-                <div className="space-y-8 lg:col-span-5 min-w-0">
+                <div className="space-y-6 lg:col-span-5 min-w-0">
                   {/* Status Spaced Repetition & Aktivitas Ulasan */}
                   <section>
                     <div className="mb-3 flex flex-wrap items-center justify-between gap-2 border-b border-border/50 pb-2.5">
@@ -804,14 +804,14 @@ export default async function DashboardPage() {
                                   )}>
                                     <TranslatedText namespace="student" messageKey={`dashboard.${gradeLabels[review.grade] || "recentReviews"}`} />
                                   </span>
-                                  <span className="text-[11px] text-muted-foreground shrink-0">
+                                  <span className="text-body-xs text-muted-foreground shrink-0">
                                     <FormattedDate date={review.reviewedAt} options={{ dateStyle: "medium" }} />
                                   </span>
                                 </div>
                                 <p className="text-body-xs font-medium text-foreground mt-1 truncate">
                                   {review.front}
                                 </p>
-                                <p className="text-[11px] text-muted-foreground mt-0.5 truncate">
+                                <p className="text-body-xs text-muted-foreground mt-0.5 truncate">
                                   {review.courseTitle}
                                 </p>
                               </div>
@@ -868,7 +868,7 @@ export default async function DashboardPage() {
                               className="flex items-center justify-between gap-3 min-w-0"
                             >
                               <div className="min-w-0 flex-1">
-                                <h4 className="font-heading text-body-sm font-bold text-foreground group-hover:text-brand-primary transition-colors truncate min-w-0">
+                                <h4 className="font-heading text-body-sm font-bold text-foreground group-hover:text-brand-primary transition-colors break-words min-w-0">
                                   {exam.title}
                                 </h4>
                                 <p className="text-body-xs text-muted-foreground mt-0.5 flex items-center gap-1.5 truncate">
@@ -877,7 +877,7 @@ export default async function DashboardPage() {
                                   <span className="capitalize shrink-0"><TranslatedText namespace="student" messageKey={exam.type === "quiz" ? "dashboard.examQuiz" : "dashboard.examTryout"} /></span>
                                 </p>
                               </div>
-                              <Button size="sm" className="rounded-md shrink-0 pointer-events-none group-hover:bg-brand-primary/95 transition-all text-body-xs h-7 px-2.5">
+                              <Button size="sm" className="rounded-md shrink-0 pointer-events-none group-hover:bg-brand-primary/95 transition-all text-body-sm h-8 px-3">
                                 <TranslatedText namespace="student" messageKey="dashboard.workOnIt" />
                               </Button>
                             </Link>

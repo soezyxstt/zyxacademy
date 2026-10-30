@@ -97,7 +97,7 @@ export function AnalyticsTab({
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-body-xs">
+            <table className="w-full min-w-[760px] text-left text-body-xs">
               <thead className="bg-muted text-body-xs font-semibold text-muted-foreground">
                 <tr>
                   <th className="px-3.5 py-2">{t("courseDetail.analytics.quizName")}</th>
@@ -119,7 +119,7 @@ export function AnalyticsTab({
                     <td className="px-3.5 py-2.5">
                       <Badge
                         variant="outline"
-                        className="rounded-md text-[10px] px-1.5 py-0 font-normal capitalize text-muted-foreground border-border/60 bg-muted/20"
+                        className="rounded-md text-body-2xs px-1.5 py-0 font-normal capitalize text-muted-foreground border-border/60 bg-muted/20"
                       >
                         {t(`courseDetail.quizzes.categories.${quiz.category}`)}
                       </Badge>
@@ -159,20 +159,21 @@ export function AnalyticsTab({
                       )}
                     </td>
                     <td className="px-3.5 py-2.5 text-right">
-                      <Link
-                        href={courseSlug
-                          ? `/admin/courses/${encodeURIComponent(courseSlug)}/analytics/${encodeURIComponent(quiz.id)}`
-                          : `/admin/quiz-insights/${encodeURIComponent(quiz.id)}`}
+                      <Button
+                        asChild
+                        size="sm"
+                        variant={quiz.lastAiInsight ? "default" : "outline"}
+                        className="gap-1 rounded-md text-body-sm h-8 px-2.5"
                       >
-                        <Button
-                          size="sm"
-                          variant={quiz.lastAiInsight ? "default" : "outline"}
-                          className="gap-1 rounded-md text-body-xs h-7 px-2.5"
+                        <Link
+                          href={courseSlug
+                            ? `/admin/courses/${encodeURIComponent(courseSlug)}/analytics/${encodeURIComponent(quiz.id)}`
+                            : `/admin/quiz-insights/${encodeURIComponent(quiz.id)}`}
                         >
                           <span>{t("courseDetail.analytics.report")}</span>
                           <ArrowRight className="size-3" />
-                        </Button>
-                      </Link>
+                        </Link>
+                      </Button>
                     </td>
                   </tr>
                 ))}

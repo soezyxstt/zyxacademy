@@ -168,8 +168,8 @@ export function QuizzesTab({
     <TooltipProvider>
       <div className="space-y-4">
         {/* Header Controls & Create Button */}
-        <div className="flex items-center justify-between gap-2.5">
-          <div className="flex items-center gap-2.5">
+        <div className="flex flex-wrap items-center justify-between gap-2.5">
+          <div className="flex flex-wrap items-center gap-2.5">
             <Select value={categoryFilter} onValueChange={setCategoryFilter}>
               <SelectTrigger className="w-[170px] h-9 rounded-lg">
                 <SelectValue placeholder={t("courseDetail.quizzes.allCategories")} />
@@ -190,7 +190,7 @@ export function QuizzesTab({
 
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button asChild size="icon" className="size-9 rounded-lg bg-brand-primary text-white hover:bg-brand-primary/95 font-semibold shadow-2xs">
+              <Button asChild size="icon" className="size-9 rounded-lg bg-brand-primary text-primary-foreground hover:bg-brand-primary/95 font-semibold shadow-2xs">
                 <Link href={createQuizHref} aria-label={t("courseDetail.quizzes.create")}>
                   <Plus className="size-4" />
                 </Link>
@@ -209,7 +209,7 @@ export function QuizzesTab({
               <p className="text-body-xs text-muted-foreground mt-0.5">
                 {t("courseDetail.quizzes.emptyDescription")}
               </p>
-              <Button asChild size="sm" className="mt-3 gap-1.5 rounded-lg bg-brand-primary text-white hover:bg-brand-primary/95 font-semibold h-8 text-body-xs">
+              <Button asChild size="sm" className="mt-3 gap-1.5 rounded-lg bg-brand-primary text-primary-foreground hover:bg-brand-primary/95 font-semibold h-8 text-body-xs">
                 <Link href={createQuizHref}>
                   <Plus className="size-3.5" />
                   {t("courseDetail.quizzes.createNow")}
@@ -471,7 +471,7 @@ export function QuizzesTab({
           </div>
 
           <DialogFooter className="p-4 border-t border-border bg-muted/10 shrink-0">
-            <Button onClick={() => setPreviewOpen(false)} className="rounded-md bg-brand-primary text-white hover:bg-brand-primary/90">
+            <Button onClick={() => setPreviewOpen(false)} className="rounded-md bg-brand-primary text-primary-foreground hover:bg-brand-primary/90">
               {t("common.close")}
             </Button>
           </DialogFooter>

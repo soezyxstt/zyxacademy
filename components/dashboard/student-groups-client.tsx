@@ -174,7 +174,7 @@ export function StudentGroupsClient({ initialGroups }: Props) {
               <Button
                 type="submit"
                 disabled={tokenLoading || !tokenInput.trim()}
-                className="h-11 rounded-lg px-6 bg-brand-primary text-white hover:bg-brand-primary/95 shrink-0"
+                className="h-11 rounded-lg px-6 bg-brand-primary text-primary-foreground hover:bg-brand-primary/95 shrink-0"
               >
                 {tokenLoading ? "Memproses..." : "Gabung"}
               </Button>
@@ -240,7 +240,7 @@ export function StudentGroupsClient({ initialGroups }: Props) {
               onClick={() => setSelectedGroupIndex(idx)}
               className={`px-4 py-2 rounded-lg text-body-sm font-semibold transition-all whitespace-nowrap ${
                 selectedGroupIndex === idx
-                  ? "bg-brand-primary text-white shadow-sm"
+                  ? "bg-brand-primary text-primary-foreground shadow-sm"
                   : "bg-card border border-border text-muted-foreground hover:bg-muted/40 hover:text-foreground"
               }`}
             >
@@ -273,7 +273,7 @@ export function StudentGroupsClient({ initialGroups }: Props) {
           {/* Quick Schedule Button */}
           {activeGroup.totalQuotaSessions > 0 ? (
             <Link href="/dashboard/schedule">
-              <Button className="h-10 rounded-lg gap-2 bg-brand-primary text-white hover:bg-brand-primary/95 shadow-sm shadow-brand-primary/20">
+              <Button className="h-10 rounded-lg gap-2 bg-brand-primary text-primary-foreground hover:bg-brand-primary/95 shadow-sm shadow-brand-primary/20">
                 <CalendarRange className="size-4" />
                 <span>Jadwalkan Sesi Tutorial</span>
               </Button>
@@ -644,7 +644,7 @@ export function StudentGroupsClient({ initialGroups }: Props) {
             <Button
               type="submit"
               disabled={tokenLoading || !tokenInput.trim()}
-              className="h-10 rounded-lg px-5 bg-brand-primary text-white hover:bg-brand-primary/95 shrink-0"
+              className="h-10 rounded-lg px-5 bg-brand-primary text-primary-foreground hover:bg-brand-primary/95 shrink-0"
             >
               {tokenLoading ? "Memproses..." : "Gabung"}
             </Button>

@@ -180,11 +180,11 @@ export function QuizzesCurationClient({ initialTemplates, courseMap, prefillCour
   return (
     <div className="space-y-6 font-sans">
       {/* Top Toolbar */}
-      <div className="flex items-center justify-between border-b border-border/40 pb-4">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/40 pb-4">
         <span className="text-body-sm font-medium text-muted-foreground">
           {tx("registeredCount", { count: templates.length })}
         </span>
-        <Button asChild className="rounded-lg bg-brand-primary text-white hover:bg-brand-primary/95 font-bold shadow-xs">
+        <Button asChild className="rounded-lg bg-brand-primary text-primary-foreground hover:bg-brand-primary/95 font-bold shadow-xs">
           <Link href={newQuizUrl} className="flex items-center gap-2">
             <Plus className="size-4" /> {tx("createQuiz")}
           </Link>
@@ -201,7 +201,7 @@ export function QuizzesCurationClient({ initialTemplates, courseMap, prefillCour
           <p className="text-body-sm text-muted-foreground max-w-sm mx-auto mt-2 leading-relaxed">
             {tx("emptyDescription")}
           </p>
-          <Button asChild className="mt-6 rounded-lg bg-brand-primary text-white hover:bg-brand-primary/95 font-bold shadow-md">
+          <Button asChild className="mt-6 rounded-lg bg-brand-primary text-primary-foreground hover:bg-brand-primary/95 font-bold shadow-md">
             <Link href={newQuizUrl} className="flex items-center gap-2">
               <Plus className="size-4" /> {tx("createQuiz")} Baru
             </Link>
@@ -246,7 +246,7 @@ export function QuizzesCurationClient({ initialTemplates, courseMap, prefillCour
                           handleUpdateStatus(template.id, template.status === "published" ? "draft" : "published")
                         }
                         className={cn(
-                          "inline-flex rounded-md border px-2 py-0.5 text-body-xs font-semibold capitalize cursor-pointer transition-colors hover:bg-muted/80",
+                          "inline-flex min-h-9 items-center rounded-md border px-2 text-body-sm font-semibold capitalize cursor-pointer transition-colors hover:bg-muted/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                           template.status === "published"
                             ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20"
                             : "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20"
@@ -364,17 +364,18 @@ export function QuizzesCurationClient({ initialTemplates, courseMap, prefillCour
                       </div>
                     )}
 
-                    <div className="grid grid-cols-3 gap-1 pt-1">
+                    <div className="flex flex-wrap gap-2 pt-1">
                       <Button
                         type="button"
                         variant="outline"
                         size="sm"
                         className={cn(
-                          "text-[10px] h-7 px-1 rounded-md cursor-pointer",
+                          "text-body-sm rounded-md cursor-pointer",
                           template.manualStatus === "open"
-                            ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 font-bold border-emerald-500/30"
+                            ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30"
                             : "text-muted-foreground hover:bg-muted"
                         )}
+                        aria-pressed={template.manualStatus === "open"}
                         onClick={() => handleUpdateManualStatus(template.id, "open")}
                       >
                         {tx("open")}
@@ -384,11 +385,12 @@ export function QuizzesCurationClient({ initialTemplates, courseMap, prefillCour
                         variant="outline"
                         size="sm"
                         className={cn(
-                          "text-[10px] h-7 px-1 rounded-md cursor-pointer",
+                          "text-body-sm rounded-md cursor-pointer",
                           template.manualStatus === "closed"
-                            ? "bg-destructive/15 text-destructive font-bold border-destructive/30"
+                            ? "bg-destructive/15 text-destructive border-destructive/30"
                             : "text-muted-foreground hover:bg-muted"
                         )}
+                        aria-pressed={template.manualStatus === "closed"}
                         onClick={() => handleUpdateManualStatus(template.id, "closed")}
                       >
                         {tx("close")}
@@ -398,11 +400,12 @@ export function QuizzesCurationClient({ initialTemplates, courseMap, prefillCour
                         variant="outline"
                         size="sm"
                         className={cn(
-                          "text-[10px] h-7 px-1 rounded-md cursor-pointer",
+                          "text-body-sm rounded-md cursor-pointer",
                           template.manualStatus === "scheduled"
-                            ? "bg-blue-500/15 text-blue-700 dark:text-blue-300 font-bold border-blue-500/30"
+                            ? "bg-blue-500/15 text-blue-700 dark:text-blue-300 border-blue-500/30"
                             : "text-muted-foreground hover:bg-muted"
                         )}
+                        aria-pressed={template.manualStatus === "scheduled"}
                         onClick={() => handleUpdateManualStatus(template.id, "scheduled")}
                       >
                         {tx("schedule")}
@@ -493,7 +496,7 @@ export function QuizzesCurationClient({ initialTemplates, courseMap, prefillCour
       {/* PREVIEW QUIZ DIALOG */}
       <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
         <DialogContent className="max-w-3xl max-h-[85vh] flex flex-col p-0 overflow-hidden rounded-xl border border-border bg-popover shadow-xl">
-          <DialogHeader className="p-6 pb-4 border-b border-border shrink-0">
+          <DialogHeader className="p-4 border-b border-border shrink-0">
             <DialogTitle className="font-heading text-body-base font-bold text-foreground">
               {tx("previewTitle", { title: previewTpl?.title ?? "" })}
             </DialogTitle>
@@ -510,7 +513,7 @@ export function QuizzesCurationClient({ initialTemplates, courseMap, prefillCour
             </DialogDescription>
           </DialogHeader>
 
-          <div className="flex-1 overflow-y-auto p-6 space-y-6 text-left">
+          <div className="flex-1 overflow-y-auto p-4 text-left">
             {loadingPreview ? (
               <div className="py-12 flex flex-col items-center justify-center gap-3">
                 <Loader2 className="size-8 animate-spin text-brand-primary" />
@@ -521,9 +524,9 @@ export function QuizzesCurationClient({ initialTemplates, courseMap, prefillCour
                 {tx("noPreviewQuestions")}
               </div>
             ) : (
-              <div className="space-y-6">
+              <div className="divide-y divide-border">
                 {previewQuestions.map((q, idx) => (
-                  <div key={q.id} className="p-5 rounded-xl border border-border bg-card space-y-4">
+                  <div key={q.id} className="py-4 first:pt-0 space-y-3">
                     <div className="flex items-center justify-between gap-2 border-b border-border/40 pb-2">
                       <span className="text-body-sm font-bold text-foreground">{tx("questionNumber", { number: idx + 1 })}</span>
                       <div className="flex items-center gap-2">
@@ -547,21 +550,21 @@ export function QuizzesCurationClient({ initialTemplates, courseMap, prefillCour
                             className={cn(
                               "flex items-center gap-3 p-3 rounded-lg border text-body-sm transition-colors",
                               isCorrect
-                                ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-800 dark:text-emerald-300 font-medium"
+                                ? "bg-status-success/10 border-status-success/30 text-foreground font-medium"
                                 : "bg-background/50 border-border text-foreground/80"
                             )}
                           >
                             <AdminOptionLetter index={optIdx} isCorrect={isCorrect} />
                             <MathText className="leading-normal" as="span">{opt}</MathText>
-                            {isCorrect && <Check className="size-4 text-emerald-600 dark:text-emerald-400 ml-auto shrink-0" />}
+                            {isCorrect && <Check className="size-4 text-status-success ml-auto shrink-0" />}
                           </div>
                         );
                       })}
                     </div>
 
                     {q.explanation && (
-                      <div className="bg-brand-primary/5 border border-brand-primary/10 rounded-lg p-3.5 space-y-1.5 text-body-sm">
-                        <span className="font-bold text-brand-primary block text-body-xs uppercase tracking-wider">
+                      <div className="border-t border-border pt-3 space-y-1.5 text-body-sm">
+                        <span className="font-semibold text-foreground block text-body-sm">
                           Pembahasan Jawaban:
                         </span>
                         <MathText className="text-muted-foreground leading-relaxed whitespace-pre-wrap" as="p">
@@ -576,7 +579,7 @@ export function QuizzesCurationClient({ initialTemplates, courseMap, prefillCour
           </div>
 
           <DialogFooter className="p-4 border-t border-border bg-muted/10 shrink-0">
-            <Button onClick={() => setIsPreviewOpen(false)} className="rounded-md bg-brand-primary text-white hover:bg-brand-primary/90">
+            <Button onClick={() => setIsPreviewOpen(false)} className="rounded-md bg-brand-primary text-primary-foreground hover:bg-brand-primary/90">
               Tutup
             </Button>
           </DialogFooter>

@@ -159,6 +159,7 @@ export function ActivityFilters({
         <Input
           type="text"
           placeholder={t("tutorActivityUI.correlationId")}
+          aria-label={t("tutorActivityUI.correlationId")}
           value={localCorrelationId}
           onChange={(e) => setLocalCorrelationId(e.target.value)}
           onKeyDown={handleCorrelationKeyDown}
@@ -172,7 +173,7 @@ export function ActivityFilters({
           value={filters.actorId ?? "all"}
           onValueChange={handleTutorChange}
         >
-          <SelectTrigger className="h-9 text-body-sm bg-background">
+          <SelectTrigger aria-label={t("tutorActivityUI.actor")} className="h-9 text-body-sm bg-background">
             <SelectValue placeholder={t("tutorActivityUI.allTutors")} />
           </SelectTrigger>
           <SelectContent>
@@ -192,7 +193,7 @@ export function ActivityFilters({
           value={filters.courseId ?? "all"}
           onValueChange={handleCourseChange}
         >
-          <SelectTrigger className="h-9 text-body-sm bg-background">
+          <SelectTrigger aria-label={t("tutorActivityUI.course")} className="h-9 text-body-sm bg-background">
             <SelectValue placeholder={t("tutorActivityUI.allCourses")} />
           </SelectTrigger>
           <SelectContent>
@@ -212,7 +213,7 @@ export function ActivityFilters({
           value={filters.entityType ?? "all"}
           onValueChange={handleEntityTypeChange}
         >
-          <SelectTrigger className="h-9 text-body-sm bg-background">
+          <SelectTrigger aria-label={t("tutorActivityUI.entity")} className="h-9 text-body-sm bg-background">
             <SelectValue placeholder={t("tutorActivityUI.allEntities")} />
           </SelectTrigger>
           <SelectContent>
@@ -232,7 +233,7 @@ export function ActivityFilters({
           value={filters.action ?? "all"}
           onValueChange={handleActionChange}
         >
-          <SelectTrigger className="h-9 text-body-sm bg-background">
+          <SelectTrigger aria-label={t("tutorActivityUI.action")} className="h-9 text-body-sm bg-background">
             <SelectValue placeholder={t("tutorActivityUI.allActions")} />
           </SelectTrigger>
           <SelectContent>
@@ -252,7 +253,7 @@ export function ActivityFilters({
           value={filters.outcome ?? "all"}
           onValueChange={handleOutcomeChange}
         >
-          <SelectTrigger className="h-9 text-body-sm bg-background">
+          <SelectTrigger aria-label={t("tutorActivityUI.status")} className="h-9 text-body-sm bg-background">
             <SelectValue placeholder={t("tutorActivityUI.allStatuses")} />
           </SelectTrigger>
           <SelectContent>
@@ -266,13 +267,13 @@ export function ActivityFilters({
       </div>
 
       {/* Date Range Inputs */}
-      <div className="flex items-center gap-1 min-w-[240px] flex-1 max-w-[280px]">
+      <div className="flex flex-wrap items-center gap-1 min-w-0 max-w-[360px] flex-[1_1_280px]">
         <Input
           type="date"
           aria-label={t("tutorActivityUI.startDate")}
           value={filters.startDate ?? ""}
           onChange={handleStartDateChange}
-          className="h-9 w-full rounded-md border border-input bg-background px-2 py-1 text-body-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
+          className="h-9 min-w-[130px] flex-1 px-2 text-body-sm"
         />
         <span className="text-body-xs text-muted-foreground shrink-0">{t("tutorActivityUI.to")}</span>
         <Input
@@ -280,17 +281,17 @@ export function ActivityFilters({
           aria-label={t("tutorActivityUI.endDate")}
           value={filters.endDate ?? ""}
           onChange={handleEndDateChange}
-          className="h-9 w-full rounded-md border border-input bg-background px-2 py-1 text-body-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
+          className="h-9 min-w-[130px] flex-1 px-2 text-body-sm"
         />
       </div>
 
       {/* Page Limit Select */}
-      <div className="w-[85px] shrink-0">
+      <div className="w-28 shrink-0">
         <Select
           value={String(filters.limit ?? 25)}
           onValueChange={handleLimitChange}
         >
-          <SelectTrigger className="h-9 text-body-sm bg-background">
+          <SelectTrigger aria-label={t("tutorActivityUI.perPage", { count: filters.limit ?? 25 })} className="h-9 text-body-sm bg-background">
             <SelectValue placeholder="25" />
           </SelectTrigger>
           <SelectContent>

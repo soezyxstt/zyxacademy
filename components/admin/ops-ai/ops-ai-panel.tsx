@@ -1042,7 +1042,7 @@ export function OpsAiPanel({ initialMessages }: { initialMessages?: OpsAiMessage
                   aria-label={`Beralih mode. Mode saat ini: ${mode === "ask" ? "Tanya" : "Edit"}`}
                   title={`Klik untuk beralih ke Mode ${mode === "ask" ? "Edit" : "Tanya"}`}
                   className={cn(
-                    "inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-semibold transition-all cursor-pointer select-none border shadow-2xs",
+                    "inline-flex min-h-9 items-center gap-1.5 rounded-md px-2.5 text-body-sm font-semibold transition-colors cursor-pointer select-none border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                     mode === "edit"
                       ? "bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30 hover:bg-amber-500/25"
                       : "bg-muted/80 text-foreground/90 border-border/50 hover:bg-muted"

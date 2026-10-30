@@ -17,6 +17,7 @@ export type CoursePageShellProps = {
   children: ReactNode;
   className?: string;
   hideHeader?: boolean;
+  hideMobileTitle?: boolean;
   fullWidth?: boolean;
   maxWidth?: "7xl" | "full";
 };
@@ -28,6 +29,7 @@ export function CoursePageShell({
   backHref,
   backLabel,
   hideHeader = false,
+  hideMobileTitle = false,
   children,
   className,
   fullWidth = false,
@@ -50,6 +52,7 @@ export function CoursePageShell({
           actions={actions}
           backHref={backHref}
           backLabel={backLabel}
+          className={hideMobileTitle ? undefined : "mb-3 flex md:mb-0"}
         />
       )}
       <div>{children}</div>

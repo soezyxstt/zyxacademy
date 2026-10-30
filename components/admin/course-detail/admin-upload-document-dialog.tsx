@@ -398,7 +398,7 @@ export function AdminUploadDocumentDialog({
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto p-5 font-sans">
           <DialogHeader className="space-y-1">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-2 pr-6">
               <DialogTitle className="font-heading text-h5 text-foreground">
                 {t("documents.upload.title")}
               </DialogTitle>
@@ -406,7 +406,7 @@ export function AdminUploadDocumentDialog({
                 type="button"
                 variant="ghost"
                 size="sm"
-                className="gap-1.5 text-body-xs text-muted-foreground hover:text-foreground"
+                className="gap-1.5 text-body-sm text-muted-foreground hover:text-foreground"
                 onClick={() => {
                   onOpenChange(false);
                   setBatchOpen(true);
@@ -436,7 +436,7 @@ export function AdminUploadDocumentDialog({
                   const file = e.dataTransfer.files?.[0];
                   if (file) handleFile(file);
                 }}
-                className={`flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed p-4 text-center cursor-pointer transition-colors ${
+                className={`flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed p-4 text-center cursor-pointer transition-colors focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-ring ${
                   isDragOver
                     ? "border-primary bg-primary/5"
                     : "border-border hover:border-border/80 hover:bg-muted/20"
@@ -484,6 +484,7 @@ export function AdminUploadDocumentDialog({
                   onClick={() => setSelectedFile(null)}
                   disabled={loading}
                   title={t("documents.upload.replaceFile")}
+                  aria-label={t("documents.upload.replaceFile")}
                 >
                   <X className="size-3.5" />
                 </Button>
@@ -492,33 +493,19 @@ export function AdminUploadDocumentDialog({
 
             {/* Intent Selector */}
             <div className="space-y-1.5">
-              <Label className="text-body-sm font-semibold text-foreground">
+              <Label htmlFor="upload-document-type" className="text-body-sm font-semibold text-foreground">
                 {t("documents.upload.documentType")}
               </Label>
-              <div className="grid grid-cols-5 gap-1.5 rounded-lg border border-border/70 bg-muted/20 p-1">
-                {(
-                  [
-                    { id: "materi", label: t("documents.upload.types.material") },
-                    { id: "scl", label: t("documents.upload.types.scl") },
-                    { id: "ujian", label: t("documents.upload.types.exam") },
-                    { id: "latihan", label: t("documents.upload.types.practice") },
-                    { id: "ebook", label: t("documents.upload.types.ebook") },
-                  ] as const
-                ).map((tab) => (
-                  <button
-                    key={tab.id}
-                    type="button"
-                    onClick={() => handleIntentChange(tab.id)}
-                    className={`rounded-md py-1.5 text-center text-body-sm transition-colors ${
-                      intent === tab.id
-                        ? "bg-card text-foreground shadow-2xs font-semibold"
-                        : "text-muted-foreground hover:text-foreground"
-                    }`}
-                  >
-                    {tab.label}
-                  </button>
-                ))}
-              </div>
+              <Select value={intent} onValueChange={(value) => handleIntentChange(value as IntentType)} disabled={loading}>
+                <SelectTrigger id="upload-document-type" className="h-9 text-body-sm"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="materi">{t("documents.upload.types.material")}</SelectItem>
+                  <SelectItem value="scl">{t("documents.upload.types.scl")}</SelectItem>
+                  <SelectItem value="ujian">{t("documents.upload.types.exam")}</SelectItem>
+                  <SelectItem value="latihan">{t("documents.upload.types.practice")}</SelectItem>
+                  <SelectItem value="ebook">{t("documents.upload.types.ebook")}</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             {/* Dynamic Controls Per Intent */}
@@ -526,7 +513,7 @@ export function AdminUploadDocumentDialog({
               <div className="space-y-3 rounded-lg border border-border/70 bg-muted/10 p-3">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                   <div className="space-y-1">
-                    <Label className="text-body-sm font-semibold text-foreground">
+                    <Label htmlFor="upload-chapter" className="text-body-sm font-semibold text-foreground">
                       {t("documents.upload.selectChapterLabel")}
                     </Label>
                     <Select
@@ -537,7 +524,7 @@ export function AdminUploadDocumentDialog({
                       }}
                       disabled={loading}
                     >
-                      <SelectTrigger className="h-9 text-body-sm rounded-lg">
+                      <SelectTrigger id="upload-chapter" className="h-9 text-body-sm rounded-lg">
                         <SelectValue placeholder={t("documents.upload.selectChapterLabel")} />
                       </SelectTrigger>
                       <SelectContent>
@@ -551,7 +538,7 @@ export function AdminUploadDocumentDialog({
                   </div>
 
                   <div className="space-y-1">
-                    <Label className="text-body-sm font-semibold text-foreground">
+                    <Label htmlFor="upload-qualifier" className="text-body-sm font-semibold text-foreground">
                       {t("documents.upload.materialQualifier")}
                     </Label>
                     <Select
@@ -559,7 +546,7 @@ export function AdminUploadDocumentDialog({
                       onValueChange={(val) => setQualifier(val as MaterialRoleQualifier)}
                       disabled={loading}
                     >
-                      <SelectTrigger className="h-9 text-body-sm rounded-lg">
+                      <SelectTrigger id="upload-qualifier" className="h-9 text-body-sm rounded-lg">
                         <SelectValue placeholder={t("documents.upload.selectQualifier")} />
                       </SelectTrigger>
                       <SelectContent>
@@ -575,10 +562,10 @@ export function AdminUploadDocumentDialog({
 
                 {qualifier === "bagian" && (
                   <div className="space-y-1">
-                    <Label className="text-body-sm font-semibold text-foreground">
+                    <Label htmlFor="upload-part" className="text-body-sm font-semibold text-foreground">
                       {t("documents.upload.partNumber")}
                     </Label>
-                    <Input
+                    <Input id="upload-part"
                       type="number"
                       min={1}
                       max={20}
@@ -592,10 +579,10 @@ export function AdminUploadDocumentDialog({
 
                 {(qualifier === "aplikasi" || qualifier === "problem" || qualifier === "kustom") && (
                   <div className="space-y-1">
-                    <Label className="text-body-sm font-semibold text-foreground">
+                    <Label htmlFor="upload-extra-topic" className="text-body-sm font-semibold text-foreground">
                       {t("documents.upload.extraTopic")} <span className="font-normal text-muted-foreground text-body-xs">({t("documents.upload.optional")})</span>
                     </Label>
-                    <Input
+                    <Input id="upload-extra-topic"
                       value={customTopic}
                       onChange={(e) => setCustomTopic(e.target.value)}
                       placeholder={t("documents.upload.exampleSpringModel")}
@@ -610,7 +597,7 @@ export function AdminUploadDocumentDialog({
               <div className="space-y-3 rounded-lg border border-border/70 bg-muted/10 p-3">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                   <div className="space-y-1">
-                    <Label className="text-body-sm font-semibold text-foreground">
+                    <Label htmlFor="upload-chapter" className="text-body-sm font-semibold text-foreground">
                       Pilih Bab
                     </Label>
                     <Select
@@ -621,7 +608,7 @@ export function AdminUploadDocumentDialog({
                       }}
                       disabled={loading}
                     >
-                      <SelectTrigger className="h-9 text-body-sm rounded-lg">
+                      <SelectTrigger id="upload-chapter" className="h-9 text-body-sm rounded-lg">
                         <SelectValue placeholder={t("documents.upload.selectChapterLabel")} />
                       </SelectTrigger>
                       <SelectContent>
@@ -635,10 +622,10 @@ export function AdminUploadDocumentDialog({
                   </div>
 
                   <div className="space-y-1">
-                    <Label className="text-body-sm font-semibold text-foreground">
+                    <Label htmlFor="upload-scl-title" className="text-body-sm font-semibold text-foreground">
                       {t("documents.upload.sclTitle")}
                     </Label>
-                    <Input
+                    <Input id="upload-scl-title"
                       value={customTopic}
                       onChange={(e) => setCustomTopic(e.target.value)}
                       placeholder={t("documents.upload.exampleModule")}
@@ -653,7 +640,7 @@ export function AdminUploadDocumentDialog({
               <div className="space-y-3 rounded-lg border border-border/70 bg-muted/10 p-3">
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                   <div className="space-y-1">
-                    <Label className="text-body-sm font-semibold text-foreground">
+                    <Label htmlFor="upload-exam" className="text-body-sm font-semibold text-foreground">
                       {t("documents.upload.exam")}
                     </Label>
                     <Select
@@ -661,7 +648,7 @@ export function AdminUploadDocumentDialog({
                       onValueChange={(val) => setSubcategory(val as CourseMaterialSubcategory)}
                       disabled={loading}
                     >
-                      <SelectTrigger className="h-9 text-body-sm rounded-lg">
+                      <SelectTrigger id="upload-exam" className="h-9 text-body-sm rounded-lg">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -673,7 +660,7 @@ export function AdminUploadDocumentDialog({
                   </div>
 
                   <div className="space-y-1">
-                    <Label className="text-body-sm font-semibold text-foreground">
+                    <Label htmlFor="upload-role" className="text-body-sm font-semibold text-foreground">
                       {t("documents.upload.type")}
                     </Label>
                     <Select
@@ -681,7 +668,7 @@ export function AdminUploadDocumentDialog({
                       onValueChange={(val) => handleDocRoleChange(val as "soal" | "pembahasan")}
                       disabled={loading}
                     >
-                      <SelectTrigger className="h-9 text-body-sm rounded-lg">
+                      <SelectTrigger id="upload-role" className="h-9 text-body-sm rounded-lg">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -692,10 +679,10 @@ export function AdminUploadDocumentDialog({
                   </div>
 
                   <div className="space-y-1">
-                    <Label className="text-body-sm font-semibold text-foreground">
+                    <Label htmlFor="upload-year" className="text-body-sm font-semibold text-foreground">
                       {t("documents.upload.year")}
                     </Label>
-                    <Input
+                    <Input id="upload-year"
                       type="number"
                       min={1990}
                       max={2040}
@@ -707,10 +694,10 @@ export function AdminUploadDocumentDialog({
                   </div>
 
                   <div className="space-y-1">
-                    <Label className="text-body-sm font-semibold text-foreground">
+                    <Label htmlFor="upload-session" className="text-body-sm font-semibold text-foreground">
                       {t("documents.upload.session")} <span className="font-normal text-muted-foreground text-body-xs">({t("documents.upload.optional")})</span>
                     </Label>
-                    <Input
+                    <Input id="upload-session"
                       value={session}
                       onChange={(e) => setSession(e.target.value)}
                       placeholder={t("documents.upload.sessionExample")}
@@ -721,16 +708,16 @@ export function AdminUploadDocumentDialog({
 
                 {/* Chapter Presets for Exam */}
                 <div className="space-y-1.5 pt-1">
-                  <div className="flex items-center justify-between">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
                     <Label className="text-body-xs font-semibold text-muted-foreground uppercase tracking-wider">
                       {t("documents.upload.chapterCoverage", { count: selectedChapters.size })}
                     </Label>
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex flex-wrap items-center gap-1.5">
                       <Button
                         type="button"
                         variant="ghost"
                         size="sm"
-                        className="h-6 px-1.5 text-body-xs text-brand-primary"
+                        className="h-7 px-1.5 text-body-sm text-brand-primary"
                         onClick={selectUtsChapters}
                       >
                         {t("documents.upload.utsSet")}
@@ -739,7 +726,7 @@ export function AdminUploadDocumentDialog({
                         type="button"
                         variant="ghost"
                         size="sm"
-                        className="h-6 px-1.5 text-body-xs text-brand-primary"
+                        className="h-7 px-1.5 text-body-sm text-brand-primary"
                         onClick={selectUasChapters}
                       >
                         {t("documents.upload.uasSet")}
@@ -748,7 +735,7 @@ export function AdminUploadDocumentDialog({
                         type="button"
                         variant="ghost"
                         size="sm"
-                        className="h-6 px-1.5 text-body-xs text-brand-primary"
+                        className="h-7 px-1.5 text-body-sm text-brand-primary"
                         onClick={selectAllChapters}
                       >
                         {t("documents.upload.all")}
@@ -757,7 +744,7 @@ export function AdminUploadDocumentDialog({
                         type="button"
                         variant="ghost"
                         size="sm"
-                        className="h-6 px-1.5 text-body-xs text-muted-foreground"
+                        className="h-7 px-1.5 text-body-sm text-muted-foreground"
                         onClick={clearChapters}
                       >
                         {t("documents.upload.clear")}
@@ -771,10 +758,11 @@ export function AdminUploadDocumentDialog({
                         <button
                           key={ch.id}
                           type="button"
+                          aria-pressed={isChecked}
                           onClick={() => toggleChapter(ch.id)}
-                          className={`flex items-center gap-1.5 p-1.5 rounded-md border text-left text-body-xs transition-colors ${
+                          className={`flex items-center gap-1.5 p-1.5 rounded-md border text-left text-body-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring ${
                             isChecked
-                              ? "border-primary bg-primary/10 text-foreground font-medium"
+                              ? "border-primary bg-primary/10 text-foreground"
                               : "border-border/60 hover:bg-muted/30 text-muted-foreground"
                           }`}
                         >
@@ -796,7 +784,7 @@ export function AdminUploadDocumentDialog({
               <div className="space-y-3 rounded-lg border border-border/70 bg-muted/10 p-3">
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                   <div className="space-y-1">
-                    <Label className="text-body-sm font-semibold text-foreground">
+                    <Label htmlFor="upload-subtype" className="text-body-sm font-semibold text-foreground">
                       {t("documents.upload.subtype")}
                     </Label>
                     <Select
@@ -804,7 +792,7 @@ export function AdminUploadDocumentDialog({
                       onValueChange={(val) => setSubcategory(val as CourseMaterialSubcategory)}
                       disabled={loading}
                     >
-                      <SelectTrigger className="h-9 text-body-sm rounded-lg">
+                      <SelectTrigger id="upload-subtype" className="h-9 text-body-sm rounded-lg">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -819,7 +807,7 @@ export function AdminUploadDocumentDialog({
                   </div>
 
                   <div className="space-y-1">
-                    <Label className="text-body-sm font-semibold text-foreground">
+                    <Label htmlFor="upload-role" className="text-body-sm font-semibold text-foreground">
                       {t("documents.upload.type")}
                     </Label>
                     <Select
@@ -827,7 +815,7 @@ export function AdminUploadDocumentDialog({
                       onValueChange={(val) => handleDocRoleChange(val as "soal" | "pembahasan")}
                       disabled={loading}
                     >
-                      <SelectTrigger className="h-9 text-body-sm rounded-lg">
+                      <SelectTrigger id="upload-role" className="h-9 text-body-sm rounded-lg">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -838,10 +826,10 @@ export function AdminUploadDocumentDialog({
                   </div>
 
                   <div className="space-y-1">
-                    <Label className="text-body-sm font-semibold text-foreground">
+                    <Label htmlFor="upload-year" className="text-body-sm font-semibold text-foreground">
                       {t("documents.upload.year")} <span className="font-normal text-muted-foreground text-body-xs">({t("documents.upload.optional")})</span>
                     </Label>
-                    <Input
+                    <Input id="upload-year"
                       type="number"
                       min={1990}
                       max={2040}
@@ -853,10 +841,10 @@ export function AdminUploadDocumentDialog({
                   </div>
 
                   <div className="space-y-1">
-                    <Label className="text-body-sm font-semibold text-foreground">
+                    <Label htmlFor="upload-topic" className="text-body-sm font-semibold text-foreground">
                       {t("documents.upload.numberOrTopic")}
                     </Label>
-                    <Input
+                    <Input id="upload-topic"
                       value={customTopic}
                       onChange={(e) => setCustomTopic(e.target.value)}
                       placeholder="1"
@@ -867,16 +855,16 @@ export function AdminUploadDocumentDialog({
 
                 {/* Chapter Selection */}
                 <div className="space-y-1.5 pt-1">
-                  <div className="flex items-center justify-between">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
                     <Label className="text-body-xs font-semibold text-muted-foreground uppercase tracking-wider">
                       {t("documents.upload.linkChapters", { count: selectedChapters.size })}
                     </Label>
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex flex-wrap items-center gap-1.5">
                       <Button
                         type="button"
                         variant="ghost"
                         size="sm"
-                        className="h-6 px-1.5 text-body-xs text-brand-primary"
+                        className="h-7 px-1.5 text-body-sm text-brand-primary"
                         onClick={selectAllChapters}
                       >
                         {t("documents.upload.allChapters")}
@@ -885,7 +873,7 @@ export function AdminUploadDocumentDialog({
                         type="button"
                         variant="ghost"
                         size="sm"
-                        className="h-6 px-1.5 text-body-xs text-muted-foreground"
+                        className="h-7 px-1.5 text-body-sm text-muted-foreground"
                         onClick={clearChapters}
                       >
                         {t("documents.upload.clear")}
@@ -899,10 +887,11 @@ export function AdminUploadDocumentDialog({
                         <button
                           key={ch.id}
                           type="button"
+                          aria-pressed={isChecked}
                           onClick={() => toggleChapter(ch.id)}
-                          className={`flex items-center gap-1.5 p-1.5 rounded-md border text-left text-body-xs transition-colors ${
+                          className={`flex items-center gap-1.5 p-1.5 rounded-md border text-left text-body-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring ${
                             isChecked
-                              ? "border-primary bg-primary/10 text-foreground font-medium"
+                              ? "border-primary bg-primary/10 text-foreground"
                               : "border-border/60 hover:bg-muted/30 text-muted-foreground"
                           }`}
                         >
@@ -923,10 +912,10 @@ export function AdminUploadDocumentDialog({
             {intent === "ebook" && (
               <div className="space-y-3 rounded-lg border border-border/70 bg-muted/10 p-3">
                 <div className="space-y-1">
-                  <Label className="text-body-sm font-semibold text-foreground">
+                  <Label htmlFor="upload-book" className="text-body-sm font-semibold text-foreground">
                     {t("documents.upload.bookTitleOrAuthor")}
                   </Label>
-                  <Input
+                  <Input id="upload-book"
                     value={customTopic}
                     onChange={(e) => setCustomTopic(e.target.value)}
                     placeholder={t("documents.upload.exampleBook")}
@@ -939,7 +928,7 @@ export function AdminUploadDocumentDialog({
             {/* Live Canonical Title Preview Box */}
             <div className="space-y-1.5 rounded-lg border border-border bg-muted/25 p-3">
               <div className="flex items-center justify-between">
-                <Label className="text-body-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                <Label htmlFor={isManualTitle ? "upload-manual-title" : undefined} className="text-body-xs font-semibold text-muted-foreground uppercase tracking-wider">
                   {t("documents.upload.canonicalTitle")}
                 </Label>
                 <button
@@ -958,6 +947,7 @@ export function AdminUploadDocumentDialog({
 
               {isManualTitle ? (
                 <Input
+                  id="upload-manual-title"
                   value={manualTitle}
                   onChange={(e) => setManualTitle(e.target.value)}
                   placeholder={t("documents.upload.enterTitle")}

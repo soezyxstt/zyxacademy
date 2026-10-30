@@ -180,7 +180,7 @@ export function FlashcardClient({ courseId, initialQueue, studentId }: Flashcard
     const totalSessions = Math.ceil(queue.length / BATCH_SIZE);
     return (
       <div className="mx-auto max-w-2xl rounded-xl border border-border/60 bg-card p-4 text-center">
-        <div className="mx-auto flex size-12 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-600">
+        <div className="mx-auto flex size-12 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-700 dark:text-emerald-400">
           <Check className="size-6" />
         </div>
         <h3 className="mt-4 font-heading text-body-base font-bold text-foreground">
@@ -316,7 +316,7 @@ export function FlashcardClient({ courseId, initialQueue, studentId }: Flashcard
             style={faceStyle}
           >
             <div className="flex items-center justify-between">
-              <span className="inline-flex rounded-md border border-emerald-500/20 bg-emerald-500/5 px-2 py-0.5 text-body-xs font-semibold text-emerald-600 dark:text-emerald-400">
+              <span className="inline-flex rounded-md border border-emerald-500/20 bg-emerald-500/5 px-2 py-0.5 text-body-xs font-semibold text-emerald-700 dark:text-emerald-400">
                 {t("flashcards.answer")}
               </span>
               {typeof activeCard.metadata?.recallDifficulty === "number" ? (
@@ -374,11 +374,11 @@ export function FlashcardClient({ courseId, initialQueue, studentId }: Flashcard
       {mode === "exam" && (
         <div className="rounded-xl border border-border bg-card p-4 space-y-3">
           <div className="flex items-center justify-between">
-            <label className="text-body-xs font-semibold text-foreground">
+            <label className="text-body-sm font-semibold text-foreground">
               {t("flashcards.yourAnswer")}
             </label>
             {isChecked && (
-              <span className={`flex items-center gap-1 text-body-xs font-bold ${passedExam ? "text-emerald-600" : "text-rose-600"}`}>
+              <span className={`flex items-center gap-1 text-body-xs font-bold ${passedExam ? "text-emerald-700 dark:text-emerald-400" : "text-rose-700 dark:text-rose-400"}`}>
                 {passedExam ? (
                   <>
                     <Check className="size-3.5" /> {t("flashcards.correctMatch")}
@@ -405,7 +405,7 @@ export function FlashcardClient({ courseId, initialQueue, studentId }: Flashcard
                 onClick={handleCheckAnswer}
                 disabled={loading}
                 size="lg"
-                className="rounded-md bg-brand-primary text-white hover:bg-brand-primary/95 h-9"
+                className="rounded-md bg-brand-primary text-primary-foreground hover:bg-brand-primary/95 h-9"
               >
                 {t("flashcards.check")}
               </Button>
@@ -436,7 +436,7 @@ export function FlashcardClient({ courseId, initialQueue, studentId }: Flashcard
               type="button"
               disabled={loading}
               onClick={() => handleGrade(1)}
-              className="w-full rounded-md border border-transparent bg-status-error/10 text-status-error hover:bg-status-error/20 active:scale-[0.98] text-body-xs font-bold py-3.5 h-auto transition-all"
+              className="w-full rounded-md border border-transparent bg-status-error/10 text-status-error hover:bg-status-error/20 active:scale-[0.98] text-body-sm font-semibold py-3 h-auto transition-colors"
             >
               {t("flashcards.again")}
             </Button>
@@ -444,7 +444,7 @@ export function FlashcardClient({ courseId, initialQueue, studentId }: Flashcard
               type="button"
               disabled={loading}
               onClick={() => handleGrade(2)}
-              className="w-full rounded-md border border-transparent bg-status-warning/10 text-status-warning hover:bg-status-warning/20 active:scale-[0.98] text-body-xs font-bold py-3.5 h-auto transition-all"
+              className="w-full rounded-md border border-transparent bg-status-warning/10 text-status-warning hover:bg-status-warning/20 active:scale-[0.98] text-body-sm font-semibold py-3 h-auto transition-colors"
             >
               {t("flashcards.hard")}
             </Button>
@@ -452,7 +452,7 @@ export function FlashcardClient({ courseId, initialQueue, studentId }: Flashcard
               type="button"
               disabled={loading}
               onClick={() => handleGrade(3)}
-              className="w-full rounded-md border border-transparent bg-brand-primary/10 text-brand-primary hover:bg-brand-primary/20 active:scale-[0.98] text-body-xs font-bold py-3.5 h-auto transition-all"
+              className="w-full rounded-md border border-transparent bg-brand-primary/10 text-brand-primary hover:bg-brand-primary/20 active:scale-[0.98] text-body-sm font-semibold py-3 h-auto transition-colors"
             >
               {t("flashcards.understood")}
             </Button>
@@ -460,7 +460,7 @@ export function FlashcardClient({ courseId, initialQueue, studentId }: Flashcard
               type="button"
               disabled={loading}
               onClick={() => handleGrade(4)}
-              className="w-full rounded-md border border-transparent bg-status-success/10 text-status-success hover:bg-status-success/20 active:scale-[0.98] text-body-xs font-bold py-3.5 h-auto transition-all"
+              className="w-full rounded-md border border-transparent bg-status-success/10 text-status-success hover:bg-status-success/20 active:scale-[0.98] text-body-sm font-semibold py-3 h-auto transition-colors"
             >
               {t("flashcards.easy")}
             </Button>

@@ -322,7 +322,7 @@ export function ASTInspectorClient() {
               <Button size="sm" variant="outline"
                 type="button"
                 onClick={handleCompile}
-                className="flex items-center gap-1.5 px-3 py-1 rounded-md bg-brand-primary text-white text-body-xs font-semibold hover:opacity-90 transition-opacity cursor-pointer"
+                className="flex items-center gap-1.5 px-3 py-1 rounded-md bg-brand-primary text-primary-foreground text-body-xs font-semibold hover:opacity-90 transition-opacity cursor-pointer"
               >
                 <Play className="size-3" />
                 <span>{t("astInspectorUI.compile")}</span>

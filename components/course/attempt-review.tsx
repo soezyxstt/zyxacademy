@@ -520,7 +520,7 @@ export function AttemptReview({ attemptId }: { attemptId: string }) {
  <span className="text-body-xs font-bold">{index + 1}</span>
  </div>
  <Icon className="size-4 text-muted-foreground shrink-0" />
- <span className="text-body-base font-medium flex-1 min-w-0 truncate">
+ <span className="text-body-base font-medium flex-1 min-w-0 break-words">
  {item.title}
  </span>
  <Button variant="ghost" size="sm" asChild>

@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { Mail, GraduationCap, CalendarDays, User2, ShieldCheck, ClipboardList, Edit3 } from "lucide-react";
 
 import { ShellPage } from "@/components/shell-page";
+import { ProfileAvatar } from "./profile-avatar";
 import { FormattedDate } from "@/components/ui/formatted-date";
 import { TranslatedText } from "@/components/i18n/translated-text";
 import { createMetadata, pageTitle } from "@/lib/site";
@@ -150,21 +151,9 @@ export default async function ProfilePage() {
  <ShellPage title={<TranslatedText namespace="student" messageKey="profile.pageTitle" />}>
  <div className="w-full pb-12">
  {/* Profile Header */}
- <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6 md:gap-8">
- <div className="relative size-24 md:size-28 shrink-0">
- {user.image ? (
- // eslint-disable-next-line @next/next/no-img-element
- <img
- src={user.image}
- alt={user.name}
- className="size-full rounded-full object-cover border-2 border-background ring-4 ring-brand-primary/20 shadow-sm"
- referrerPolicy="no-referrer"
- />
- ) : (
- <span className="flex size-full items-center justify-center rounded-full bg-brand-primary text-h5 font-bold text-white shadow-sm ring-4 ring-brand-primary/20 border-2 border-background">
- {user.name?.charAt(0)?.toUpperCase() ?? "?"}
- </span>
- )}
+ <div className="flex items-start gap-4 sm:gap-6">
+ <div className="relative size-16 sm:size-20 shrink-0">
+ <ProfileAvatar image={user.image} name={user.name} />
  <span
  className="absolute bottom-1 right-1 flex size-4 items-center justify-center rounded-full bg-status-success ring-2 ring-background"
  aria-hidden="true"
@@ -172,7 +161,7 @@ export default async function ProfilePage() {
  <TranslatedText namespace="student" messageKey="profile.googleAccountActive" as="span" className="sr-only" />
  </div>
 
- <div className="flex-1 text-center sm:text-left min-w-0">
+ <div className="flex-1 min-w-0">
  <span className="inline-flex items-center gap-1 rounded-md border border-brand-primary/20 bg-brand-primary/5 px-2.5 py-0.5 text-[10px] font-semibold text-brand-primary uppercase tracking-wider">
  {user.role === "student" || !user.role ? <TranslatedText namespace="student" messageKey="profile.roleStudent" />
    : user.role === "tutor" ? <TranslatedText namespace="student" messageKey="profile.roleTutor" />
@@ -185,10 +174,10 @@ export default async function ProfilePage() {
  {user.name}
  </h2>
 
- <div className="flex flex-wrap justify-center sm:justify-start items-center gap-x-4 gap-y-2 mt-3 text-body-sm text-muted-foreground">
+ <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mt-3 text-body-sm text-muted-foreground">
  <span className="flex items-center gap-1.5 min-w-0">
  <Mail className="size-4 text-muted-foreground/75 shrink-0" />
- <span className="truncate">{user.email}</span>
+ <span className="break-all">{user.email}</span>
  </span>
  <span className="flex items-center gap-1.5 text-status-success font-medium shrink-0">
  <ShieldCheck className="size-4 shrink-0" />
@@ -214,45 +203,45 @@ export default async function ProfilePage() {
 
  {/* Stats Section: Cardless, Dividers Grid */}
  <div className="rounded-xl border border-border bg-card p-4 my-5 grid grid-cols-2 md:grid-cols-4 gap-4">
- <div className="flex flex-col items-center md:items-start md:px-4 first:pl-0">
+ <div className="flex flex-col items-start md:px-4 first:pl-0">
  <span className="font-heading text-h5 font-bold text-brand-primary">
  {activeEnrollments.length}
  </span>
- <span className="text-body-xs font-bold uppercase tracking-wider text-muted-foreground mt-1.5">
+ <span className="text-body-xs font-medium text-muted-foreground mt-1">
  <TranslatedText namespace="student" messageKey="profile.activeClassesStat" />
  </span>
  </div>
 
- <div className="flex flex-col items-center md:items-start md:px-4">
+ <div className="flex flex-col items-start md:px-4">
  <span className="font-heading text-h5 font-bold text-brand-primary">
  {completedCount}
  </span>
- <span className="text-body-xs font-bold uppercase tracking-wider text-muted-foreground mt-1.5">
+ <span className="text-body-xs font-medium text-muted-foreground mt-1">
  <TranslatedText namespace="student" messageKey="profile.completedMaterialsStat" />
  </span>
  </div>
 
- <div className="flex flex-col items-center md:items-start md:px-4">
+ <div className="flex flex-col items-start md:px-4">
  <span className="font-heading text-h5 font-bold text-brand-primary">
  {submissionCount}
  </span>
- <span className="text-body-xs font-bold uppercase tracking-wider text-muted-foreground mt-1.5">
+ <span className="text-body-xs font-medium text-muted-foreground mt-1">
  <TranslatedText namespace="student" messageKey="profile.completedExamsStat" />
  </span>
  </div>
 
- <div className="flex flex-col items-center md:items-start md:px-4 last:pr-0">
+ <div className="flex flex-col items-start md:px-4 last:pr-0">
  <span className="font-heading text-h5 font-bold text-brand-secondary">
  {averageScore !== null ? `${averageScore}%` : "-"}
  </span>
- <span className="text-body-xs font-bold uppercase tracking-wider text-muted-foreground mt-1.5">
+ <span className="text-body-xs font-medium text-muted-foreground mt-1">
  <TranslatedText namespace="student" messageKey="profile.averageScoreStat" />
  </span>
  </div>
  </div>
 
       {/* Main Content Info Row */}
-      <div className="grid gap-8 lg:grid-cols-12 mt-8">
+      <div className="grid gap-6 lg:grid-cols-12 mt-6">
         {/* Left Side: Learning and Bookings */}
         <div className="lg:col-span-7 space-y-6">
           {/* Active Classes list */}
@@ -275,13 +264,13 @@ export default async function ProfilePage() {
                           <FormattedDate date={course.enrolledAt} options={{ dateStyle: "medium" }} />
                         </span>
                       </div>
-                      <h4 className="font-heading text-body-sm font-semibold text-foreground mt-1.5 truncate text-left">
+                      <h4 className="font-heading text-body-sm font-semibold text-foreground mt-1.5 break-words text-left">
                         {course.title}
                       </h4>
                     </div>
                     <Link
                       href={`/courses/${course.id}`}
-                      className="inline-flex items-center justify-center rounded-lg border border-border bg-background px-3 py-1.5 text-body-xs font-semibold text-foreground hover:bg-muted/70 hover:border-border-strong transition-colors h-8 shrink-0"
+                      className="inline-flex items-center justify-center rounded-lg border border-border bg-background px-3 py-1.5 text-body-sm font-semibold text-foreground hover:bg-muted/70 hover:border-border-strong transition-colors h-8 shrink-0"
                     >
                       <TranslatedText namespace="student" messageKey="profile.openClass" />
                     </Link>
@@ -309,10 +298,10 @@ export default async function ProfilePage() {
                       <User2 className="size-4" />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <h4 className="text-body-sm font-semibold text-foreground truncate">
+                      <h4 className="text-body-sm font-semibold text-foreground break-words">
                         <TranslatedText namespace="student" messageKey="profile.tutorialCourse" values={{ course: booking.courseTitle }} />
                       </h4>
-                      <p className="text-body-xs text-muted-foreground mt-0.5 truncate">
+                      <p className="text-body-xs text-muted-foreground mt-0.5 break-words">
                         <TranslatedText namespace="student" messageKey="profile.tutor" /> <span className="font-medium text-foreground">{booking.tutorName}</span>
                       </p>
                       <p className="text-body-xs font-semibold text-brand-secondary mt-2 flex items-center gap-1">

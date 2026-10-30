@@ -113,7 +113,7 @@ export function QuizAnalyticsView({ attemptId, courseId }: QuizAnalyticsViewProp
         <Button
           onClick={handleRecompute}
           disabled={recomputing}
-          className="rounded-md bg-brand-primary text-white hover:bg-brand-primary/90 font-semibold px-6 py-2.5 shadow-sm"
+          className="rounded-md bg-brand-primary text-primary-foreground hover:bg-brand-primary/90 font-semibold px-6 py-2.5 shadow-sm"
         >
           {recomputing && <Loader2 className="mr-2 size-4 animate-spin" />}
           {recomputing ? t("quizAnalytics.generating") : t("quizAnalytics.generate")}
@@ -126,8 +126,8 @@ export function QuizAnalyticsView({ attemptId, courseId }: QuizAnalyticsViewProp
     <div className="space-y-8 font-sans">
       {/* Processing Banner if analysis is still running */}
       {isProcessing && (
-        <div className="flex items-center justify-between rounded-lg border border-brand-primary/30 bg-brand-primary/10 p-4 text-brand-primary">
-          <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-brand-primary/30 bg-brand-primary/10 p-4 text-brand-primary">
+          <div className="flex min-w-0 items-center gap-3">
             <Loader2 className="size-5 animate-spin shrink-0" />
             <div className="text-body-sm">
               <span className="font-bold">{t("quizAnalytics.analysisInProgress")}</span> {t("quizAnalytics.analysisInProgressDescription")}
@@ -161,7 +161,7 @@ export function QuizAnalyticsView({ attemptId, courseId }: QuizAnalyticsViewProp
                   disabled={recomputing}
                   variant="ghost"
                   size="sm"
-                  className="h-6 px-2 text-body-xs text-muted-foreground hover:text-foreground rounded-md ml-auto md:ml-0"
+                  className="text-muted-foreground hover:text-foreground md:ml-0"
                 >
                   <RefreshCw className={`mr-1 size-3 ${recomputing ? "animate-spin" : ""}`} />
                   {recomputing ? t("quizAnalytics.processing") : t("quizAnalytics.reanalyze")}
@@ -177,7 +177,7 @@ export function QuizAnalyticsView({ attemptId, courseId }: QuizAnalyticsViewProp
 
             {/* Score & Performance Badge */}
             {metrics && (
-              <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 border-l border-border/70 pl-5">
+              <div className="flex flex-wrap items-center gap-2 md:shrink-0 md:justify-end md:border-l md:border-border/70 md:pl-5">
                 <span className="text-body-xs font-semibold text-muted-foreground">{t("quizAnalytics.totalScore")}</span>
                 <div className="font-heading text-h5 font-bold text-brand-primary">
                   {metrics.score}<span className="text-body-base text-muted-foreground font-normal">%</span>
@@ -193,14 +193,14 @@ export function QuizAnalyticsView({ attemptId, courseId }: QuizAnalyticsViewProp
         {/* Quick Facts Strip */}
         {metrics && (
           <AdminStatStrip className="grid-cols-2 sm:grid-cols-4">
-            <AdminStatStripItem icon={CheckCircle2} label={t("quizAnalytics.correctAnswers")} value={`${metrics.correctCount} / ${metrics.totalQuestions}`} tone="success" />
-            <AdminStatStripItem icon={TriangleAlert} label={t("quizAnalytics.incorrectOrBlank")} value={metrics.incorrectCount + metrics.unansweredCount} tone="error" />
-            <AdminStatStripItem icon={Clock} label={t("quizAnalytics.timeSpent")} value={formatDuration(metrics.durationSeconds, t("quizAnalytics.minuteShort"), t("quizAnalytics.secondShort"))} tone="info" />
+            <AdminStatStripItem icon={CheckCircle2} iconClassName="text-status-success" label={t("quizAnalytics.correctAnswers")} value={`${metrics.correctCount} / ${metrics.totalQuestions}`} />
+            <AdminStatStripItem icon={TriangleAlert} iconClassName="text-status-error" label={t("quizAnalytics.incorrectOrBlank")} value={metrics.incorrectCount + metrics.unansweredCount} />
+            <AdminStatStripItem icon={Clock} iconClassName="text-status-info" label={t("quizAnalytics.timeSpent")} value={formatDuration(metrics.durationSeconds, t("quizAnalytics.minuteShort"), t("quizAnalytics.secondShort"))} />
             <AdminStatStripItem
               icon={TrendingUp}
               label={t("quizAnalytics.progress")}
               value={metrics.historicalComparison.overallImprovementDelta >= 0 ? `+${metrics.historicalComparison.overallImprovementDelta}%` : `${metrics.historicalComparison.overallImprovementDelta}%`}
-              tone="brand-secondary"
+              iconClassName="text-brand-secondary"
             />
           </AdminStatStrip>
         )}
@@ -293,8 +293,8 @@ export function QuizAnalyticsView({ attemptId, courseId }: QuizAnalyticsViewProp
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Strengths Card */}
           <div className="space-y-3 border-t border-border pt-4">
-            <h4 className="font-heading text-body-sm font-bold text-foreground flex items-center gap-2 text-status-success">
-              <ShieldCheck className="size-5" /> {t("quizAnalytics.strengths")}
+            <h4 className="font-heading text-body-sm font-bold text-foreground flex items-center gap-2">
+              <ShieldCheck className="size-5 text-status-success" /> {t("quizAnalytics.strengths")}
             </h4>
             {diagnosis?.strengths && diagnosis.strengths.length > 0 ? (
               <div className="space-y-3">
@@ -303,8 +303,8 @@ export function QuizAnalyticsView({ attemptId, courseId }: QuizAnalyticsViewProp
                     <div className="font-heading text-body-base font-bold text-foreground"><MathText as="span">{item.title}</MathText></div>
                     <p className="text-body-sm text-muted-foreground leading-snug"><MathText as="span">{item.description}</MathText></p>
                     {item.evidence && item.evidence.length > 0 && (
-                      <div className="text-body-xs text-brand-primary bg-brand-primary/5 p-2 rounded-md font-medium mt-1">
-                        ✓ <MathText as="span">{item.evidence[0].observation}</MathText>
+                      <div className="mt-1 flex items-start gap-1.5 rounded-md bg-brand-primary/5 p-2 text-body-xs font-medium text-foreground">
+                        <CheckCircle2 className="size-4 shrink-0 text-brand-primary" aria-hidden="true" /> <MathText as="span">{item.evidence[0].observation}</MathText>
                       </div>
                     )}
                   </div>
@@ -319,8 +319,8 @@ export function QuizAnalyticsView({ attemptId, courseId }: QuizAnalyticsViewProp
 
           {/* Focus Areas Card */}
           <div className="space-y-3 border-t border-border pt-4">
-            <h4 className="font-heading text-body-sm font-bold text-foreground flex items-center gap-2 text-status-warning">
-              <Target className="size-5" /> {t("quizAnalytics.focusAreas")}
+            <h4 className="font-heading text-body-sm font-bold text-foreground flex items-center gap-2">
+              <Target className="size-5 text-status-warning" /> {t("quizAnalytics.focusAreas")}
             </h4>
             {diagnosis?.focus_areas && diagnosis.focus_areas.length > 0 ? (
               <div className="space-y-3">
@@ -328,8 +328,8 @@ export function QuizAnalyticsView({ attemptId, courseId }: QuizAnalyticsViewProp
                   <div key={i} className="border-b border-border/60 py-3 space-y-1.5 last:border-0">
                     <div className="font-heading text-body-base font-bold text-foreground"><MathText as="span">{item.title}</MathText></div>
                     <p className="text-body-sm text-muted-foreground leading-snug"><MathText as="span">{item.description}</MathText></p>
-                    <div className="text-body-xs text-status-warning bg-status-warning/10 p-2 rounded-md font-medium mt-1">
-                      ! <MathText as="span">{item.importance}</MathText>
+                    <div className="mt-1 flex items-start gap-1.5 rounded-md bg-status-warning/10 p-2 text-body-xs font-medium text-foreground">
+                      <TriangleAlert className="size-4 shrink-0 text-status-warning" aria-hidden="true" /> <MathText as="span">{item.importance}</MathText>
                     </div>
                   </div>
                 ))}
@@ -372,7 +372,7 @@ export function QuizAnalyticsView({ attemptId, courseId }: QuizAnalyticsViewProp
         {metrics && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Cognitive Skills Matrix */}
-            <div className="rounded-xl border border-border/80 bg-card/70 p-5 space-y-4">
+            {metrics.cognitiveSkills.length > 0 && <div className="rounded-xl border border-border/80 bg-card/70 p-5 space-y-4">
               <h4 className="font-heading text-body-sm font-bold text-foreground flex items-center gap-2">
                 <BarChart3 className="size-5 text-brand-primary" /> {t("quizAnalytics.cognitiveSkills")}
               </h4>
@@ -392,7 +392,7 @@ export function QuizAnalyticsView({ attemptId, courseId }: QuizAnalyticsViewProp
                   </div>
                 ))}
               </div>
-            </div>
+            </div>}
 
             {/* Time & Speed Insights */}
             <div className="rounded-xl border border-border/80 bg-card/70 p-5 space-y-4">
@@ -409,8 +409,8 @@ export function QuizAnalyticsView({ attemptId, courseId }: QuizAnalyticsViewProp
                   <span className="font-bold text-foreground">{t("quizAnalytics.questionCount", { count: metrics.timeAnalysis.fastAnswerCount })}</span>
                 </div>
                 {metrics.timeAnalysis.fastIncorrectCount > 0 && (
-                  <div className="rounded-md bg-status-warning/10 p-2.5 text-body-xs text-status-warning font-medium">
-                    ⚠️ {t("quizAnalytics.fastIncorrectWarning", { count: metrics.timeAnalysis.fastIncorrectCount })}
+                  <div className="flex items-start gap-1.5 rounded-md bg-status-warning/10 p-2.5 text-body-xs font-medium text-foreground">
+                    <TriangleAlert className="size-4 shrink-0 text-status-warning" aria-hidden="true" /> {t("quizAnalytics.fastIncorrectWarning", { count: metrics.timeAnalysis.fastIncorrectCount })}
                   </div>
                 )}
                 {diagnosis?.time_insights && diagnosis.time_insights.length > 0 && (
@@ -467,14 +467,14 @@ export function QuizAnalyticsView({ attemptId, courseId }: QuizAnalyticsViewProp
                     <p className="leading-snug"><MathText as="span">{step.action}</MathText></p>
                   </div>
 
-                  <div className="text-body-xs text-status-success font-medium flex items-start gap-1.5">
-                    <CheckCircle2 className="size-4 shrink-0 mt-0.5" />
+                  <div className="text-body-xs text-foreground font-medium flex items-start gap-1.5">
+                    <CheckCircle2 className="size-4 shrink-0 mt-0.5 text-status-success" />
                     <span>{t("quizAnalytics.successCheck")} <MathText as="span">{step.success_check}</MathText></span>
                   </div>
                 </div>
 
                 <div className="pt-4 mt-4 border-t border-border/60">
-                  <Button asChild className="w-full rounded-md bg-brand-primary text-white hover:bg-brand-primary/90 text-body-xs font-semibold">
+                  <Button asChild className="w-full">
                     <Link href={`/courses/${courseId}`}>
                       {t("quizAnalytics.startLearning")}
                       <ArrowUpRight className="ml-1.5 size-3.5" />

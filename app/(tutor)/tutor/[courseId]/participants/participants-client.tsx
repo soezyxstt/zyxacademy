@@ -1,11 +1,13 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Search, Users, UserCheck, Layers, Shield } from "lucide-react";
-import { Input } from "@/components/ui/input";
+import { Users, UserCheck, Layers, Shield } from "lucide-react";
+import { SearchBar } from "@/components/ui/search-bar";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { AdminStatStrip, AdminStatStripItem } from "@/components/admin/stat-card";
+import { AdminEmptyState } from "@/components/admin/state-panels";
 import { useUrlTab } from "@/hooks/use-url-tab";
 import { useTranslations, useAppLocale } from "@/lib/i18n/client";
 import type {
@@ -82,29 +84,29 @@ export function ParticipantsClient({ data }: ParticipantsClientProps) {
 
           {/* Search & Filter Toolbar */}
           <div className="flex flex-wrap items-center gap-2">
-            <div className="relative min-w-[140px] sm:w-64">
-              <Search className="absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                type="search"
+            <div className="min-w-[140px] sm:w-64">
+              <SearchBar
+                size="sm"
+                aria-label={t("search")}
                 placeholder={t("search")}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="h-9 rounded-lg pl-8 text-body-sm"
+                onClear={() => setSearch("")}
               />
             </div>
 
             {activeTab === "participants" && (
-              <select
-                aria-label={t("enrollmentFilter")}
-                value={enrollmentFilter}
-                onChange={(e) => setEnrollmentFilter(e.target.value)}
-                className="h-9 shrink-0 rounded-lg border border-border bg-background px-2.5 text-body-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-              >
-                <option value="all">{t("allTypes")}</option>
-                <option value="direct">{t("direct")}</option>
-                <option value="group">{t("group")}</option>
-                <option value="both">{t("both")}</option>
-              </select>
+              <Select value={enrollmentFilter} onValueChange={setEnrollmentFilter}>
+                <SelectTrigger aria-label={t("enrollmentFilter")} className="h-9 w-auto min-w-32 shrink-0">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">{t("allTypes")}</SelectItem>
+                  <SelectItem value="direct">{t("direct")}</SelectItem>
+                  <SelectItem value="group">{t("group")}</SelectItem>
+                  <SelectItem value="both">{t("both")}</SelectItem>
+                </SelectContent>
+              </Select>
             )}
           </div>
         </div>
@@ -112,21 +114,16 @@ export function ParticipantsClient({ data }: ParticipantsClientProps) {
         {/* ── Tab 1: Participants List ── */}
         <TabsContent value="participants" className="mt-0 space-y-4">
           {filteredParticipants.length === 0 ? (
-            <div className="rounded-xl border border-border bg-card p-12 text-center">
-              <Users className="mx-auto size-8 text-muted-foreground" />
-              <p className="mt-2 font-heading text-body-base font-semibold text-foreground">
-                {t("noParticipantsFound")}
-              </p>
-              <p className="mt-1 text-body-xs text-muted-foreground">
-                {search || enrollmentFilter !== "all"
+            <div className="rounded-xl border border-border bg-card">
+              <AdminEmptyState icon={Users} title={t("noParticipantsFound")}
+                description={search || enrollmentFilter !== "all"
                   ? t("changeFilters")
-                  : t("noActiveParticipants")}
-              </p>
+                  : t("noActiveParticipants")} className="px-4 py-5" />
             </div>
           ) : (
             <div className="overflow-hidden rounded-xl border border-border bg-card">
               <div className="overflow-x-auto">
-                <table className="w-full text-left text-body-sm">
+                <table className="w-full min-w-[720px] text-left text-body-sm">
                   <thead className="border-b border-border bg-muted/40 text-body-xs font-semibold text-muted-foreground">
                     <tr>
                       <th className="px-4 py-3">{t("participants")}</th>
@@ -145,8 +142,8 @@ export function ParticipantsClient({ data }: ParticipantsClientProps) {
                               {p.name.charAt(0).toUpperCase()}
                             </div>
                             <div className="min-w-0">
-                              <p className="font-medium text-foreground truncate">{p.name}</p>
-                              <p className="text-body-xs text-muted-foreground truncate">{p.email}</p>
+                              <p className="break-words font-medium text-foreground">{p.name}</p>
+                              <p className="break-all text-body-xs text-muted-foreground">{p.email}</p>
                             </div>
                           </div>
                         </td>
@@ -157,7 +154,7 @@ export function ParticipantsClient({ data }: ParticipantsClientProps) {
                             </Badge>
                           )}
                           {p.enrollmentType === "direct" && (
-                            <Badge variant="outline" className="rounded-md border-status-success/30 bg-status-success/5 text-status-success text-body-xs font-normal">
+                            <Badge variant="outline" className="rounded-md border-status-success/30 bg-status-success/5 text-foreground text-body-xs font-normal">
                               {t("direct")}
                             </Badge>
                           )}
@@ -204,16 +201,11 @@ export function ParticipantsClient({ data }: ParticipantsClientProps) {
         {/* ── Tab 2: Study Groups List ── */}
         <TabsContent value="groups" className="mt-0 space-y-4">
           {filteredGroups.length === 0 ? (
-            <div className="rounded-xl border border-border bg-card p-12 text-center">
-              <Shield className="mx-auto size-8 text-muted-foreground" />
-              <p className="mt-2 font-heading text-body-base font-semibold text-foreground">
-                {t("noGroupsFound")}
-              </p>
-              <p className="mt-1 text-body-xs text-muted-foreground">
-                {search
+            <div className="rounded-xl border border-border bg-card">
+              <AdminEmptyState icon={Shield} title={t("noGroupsFound")}
+                description={search
                   ? t("changeFilters")
-                  : t("noActiveGroups")}
-              </p>
+                  : t("noActiveGroups")} className="px-4 py-5" />
             </div>
           ) : (
             <div className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
@@ -235,7 +227,7 @@ export function ParticipantsClient({ data }: ParticipantsClientProps) {
                       </Badge>
                     </div>
 
-                    <div className="flex items-center gap-4 text-body-xs text-muted-foreground">
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-body-xs text-muted-foreground">
                       <span>
                         {t("quota")}: <strong className="text-foreground tabular-nums">{grp.usedQuotaSessions} / {grp.totalQuotaSessions}</strong> {t("sessions")}
                       </span>
@@ -266,7 +258,7 @@ export function ParticipantsClient({ data }: ParticipantsClientProps) {
                           key={member.userId}
                           className="flex items-center justify-between gap-2 py-1 text-body-xs"
                         >
-                          <span className="text-foreground truncate">{member.name}</span>
+                          <span className="text-foreground break-words">{member.name}</span>
                           {member.role === "leader" ? (
                             <Badge variant="outline" className="rounded-md border-primary/30 bg-primary/5 text-primary text-[10px] shrink-0 font-medium">
                               {t("leader")}

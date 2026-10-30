@@ -42,7 +42,7 @@ async function CourseProgressSummarySection({
 
   if (!isEnrolled) {
     return (
-      <div className="rounded-xl border border-brand-secondary/25 bg-brand-secondary/5 p-6">
+      <div className="rounded-xl border border-brand-secondary/25 bg-brand-secondary/5 p-4">
         <h3 className="font-heading text-body-base font-bold text-brand-secondary">
           <TranslatedText namespace="learning" messageKey="courseAccess.limited" />
         </h3>

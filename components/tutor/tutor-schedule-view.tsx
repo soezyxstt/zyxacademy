@@ -447,7 +447,7 @@ export function TutorScheduleView({
       <header className="flex flex-col gap-3 border-b border-border pb-3 lg:flex-row lg:items-center lg:justify-between">
         <div className="min-w-0 space-y-1">
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-            <h1 className="font-heading text-xl font-bold text-foreground">{t("title")}</h1>
+            <h1 className="font-heading text-h5 font-bold text-foreground">{t("title")}</h1>
             <span className="text-body-sm font-semibold text-foreground">
               {formatWeekDate(weekInfo.days[0].dateIso, locale)} - {formatWeekDate(weekInfo.days[6].dateIso, locale)}
             </span>
@@ -644,7 +644,7 @@ export function TutorScheduleView({
                   <div key={ticket.id} className="space-y-3 p-4">
                     <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
                       <div className="min-w-0 space-y-1">
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-wrap items-center gap-2">
                           <span className="font-heading text-body-base font-bold text-foreground">{t("ticket")}: {ticket.type === "reschedule" ? t("reschedule") : t("cancellation")}</span>
                           <Badge
                             variant={ticket.status === "approved" ? "default" : ticket.status === "rejected" ? "outline" : "secondary"}
@@ -662,7 +662,7 @@ export function TutorScheduleView({
                           <MessageSquare className="mr-1.5 size-4" />{t("discussion")}{ticket.messages.length > 0 ? ` (${ticket.messages.length})` : ""}
                         </Button>
                         {isPendingTicket && (
-                          <Button size="sm" onClick={() => { setDecidingTicket(ticket); setTicketDecision("approved"); setDecisionNotesInput(""); setIsDecideTicketOpen(true); }} className="h-8 rounded-lg bg-brand-primary text-body-sm text-white hover:bg-brand-primary/90">{t("decide")}</Button>
+                          <Button size="sm" onClick={() => { setDecidingTicket(ticket); setTicketDecision("approved"); setDecisionNotesInput(""); setIsDecideTicketOpen(true); }} className="h-8 rounded-lg bg-brand-primary text-body-sm text-primary-foreground hover:bg-brand-primary/90">{t("decide")}</Button>
                         )}
                       </div>
                     </div>
@@ -715,7 +715,7 @@ export function TutorScheduleView({
             <h2 className="font-heading text-body-base font-bold text-foreground">{t("activeGroups")}</h2>
             <div className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
               {initialData.eligibleGroups.length === 0 ? (
-                <p className="p-4 text-body-sm text-muted-foreground">{t("noActiveGroups")}</p>
+                <AdminEmptyState icon={Users} title={t("noActiveGroups")} className="py-6" />
               ) : (
                 initialData.eligibleGroups.map((grp) => (
                   <div key={grp.id} className="flex flex-col justify-between gap-3 p-4 sm:flex-row sm:items-center">
@@ -788,7 +788,7 @@ export function TutorScheduleView({
           </div>
           <DialogFooter>
             <Button variant="outline" size="sm" disabled={isPending} onClick={() => setIsAddSlotOpen(false)} className="h-9 rounded-lg text-body-sm">{t("cancel")}</Button>
-            <Button size="sm" isLoading={isPending} disabled={!newSlotStart} onClick={handleAddSlot} className="h-9 rounded-lg bg-brand-primary text-body-sm text-white hover:bg-brand-primary/90">{t("saveSlot")}</Button>
+            <Button size="sm" isLoading={isPending} disabled={!newSlotStart} onClick={handleAddSlot} className="h-9 rounded-lg bg-brand-primary text-body-sm text-primary-foreground hover:bg-brand-primary/90">{t("saveSlot")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -833,7 +833,7 @@ export function TutorScheduleView({
           </div>
           <DialogFooter>
             <Button variant="outline" size="sm" disabled={isPending} onClick={() => setIsMoveSessionOpen(false)} className="h-9 rounded-lg text-body-sm">{t("cancel")}</Button>
-            <Button size="sm" isLoading={isPending} onClick={handleMoveSession} className="h-9 rounded-lg bg-brand-primary text-body-sm text-white hover:bg-brand-primary/90">{t("confirmMove")}</Button>
+            <Button size="sm" isLoading={isPending} onClick={handleMoveSession} className="h-9 rounded-lg bg-brand-primary text-body-sm text-primary-foreground hover:bg-brand-primary/90">{t("confirmMove")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -859,7 +859,7 @@ export function TutorScheduleView({
           </div>
           <DialogFooter>
             <Button variant="outline" size="sm" disabled={isPending} onClick={() => setIsDecideTicketOpen(false)} className="h-9 rounded-lg text-body-sm">{t("cancel")}</Button>
-            <Button size="sm" isLoading={isPending} onClick={handleDecideTicket} className={`h-9 rounded-lg text-body-sm ${ticketDecision === "approved" ? "bg-brand-primary text-white hover:bg-brand-primary/90" : "bg-status-error text-white hover:bg-status-error/90"}`}>{t("saveDecision")}</Button>
+            <Button size="sm" isLoading={isPending} onClick={handleDecideTicket} className={`h-9 rounded-lg text-body-sm ${ticketDecision === "approved" ? "bg-brand-primary text-primary-foreground hover:bg-brand-primary/90" : "bg-status-error text-white hover:bg-status-error/90"}`}>{t("saveDecision")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

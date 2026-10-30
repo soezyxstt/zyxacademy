@@ -144,8 +144,8 @@ export function SettingsTab({ course }: Props) {
         <form onSubmit={handleSave} className="space-y-3">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div className="space-y-1">
-              <Label className="text-body-sm font-semibold text-foreground">{t("courseDetail.settings.permanentId")}</Label>
-              <Input
+              <Label htmlFor="course-settings-id" className="text-body-sm font-semibold text-foreground">{t("courseDetail.settings.permanentId")}</Label>
+              <Input id="course-settings-id"
                 value={course.id}
                 disabled
                 className="bg-muted text-muted-foreground font-mono rounded-lg h-9"
@@ -153,8 +153,8 @@ export function SettingsTab({ course }: Props) {
             </div>
 
             <div className="space-y-1">
-              <Label className="text-body-sm font-semibold text-foreground">{t("courseDetail.settings.courseName")}</Label>
-              <Input
+              <Label htmlFor="course-settings-name" className="text-body-sm font-semibold text-foreground">{t("courseDetail.settings.courseName")}</Label>
+              <Input id="course-settings-name"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 disabled={loading}
@@ -164,9 +164,9 @@ export function SettingsTab({ course }: Props) {
           </div>
 
           <div className="space-y-1">
-            <Label className="text-body-sm font-semibold text-foreground">{t("courseDetail.settings.category")}</Label>
+            <Label htmlFor="course-settings-category" className="text-body-sm font-semibold text-foreground">{t("courseDetail.settings.category")}</Label>
             <Select value={category} onValueChange={setCategory} disabled={loading}>
-              <SelectTrigger className="rounded-lg h-9">
+              <SelectTrigger id="course-settings-category" className="rounded-lg h-9">
               <SelectValue placeholder={t("courseDetail.settings.selectCategory")} />
               </SelectTrigger>
               <SelectContent>

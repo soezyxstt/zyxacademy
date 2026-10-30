@@ -149,7 +149,7 @@ export default async function PkaCourseHomePage() {
             {nextSession ? (
               <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-card p-4">
                 <div className="min-w-0">
-                  <span className="block truncate text-body-base font-semibold text-foreground">
+                  <span className="block break-words text-body-base font-semibold text-foreground">
                     {nextSession.title}
                   </span>
                   <span className="mt-0.5 flex items-center gap-1.5 text-body-sm text-muted-foreground">
@@ -163,7 +163,7 @@ export default async function PkaCourseHomePage() {
                     href={nextSession.meetLink}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex shrink-0 items-center gap-1.5 rounded-md bg-brand-primary px-3 py-1.5 text-body-sm font-semibold text-white transition-colors duration-150 hover:bg-brand-primary/90"
+                    className="flex shrink-0 items-center gap-1.5 rounded-md bg-brand-primary px-3 py-1.5 text-body-sm font-semibold text-primary-foreground transition-colors duration-150 hover:bg-brand-primary/90"
                   >
                     <Video className="size-4" />
                     <TranslatedText namespace="studentExtras.pka" messageKey="joinMeet" />
@@ -210,7 +210,7 @@ export default async function PkaCourseHomePage() {
               <Button asChild size="sm">
               <Link
                 href="/courses/tutorial-pka/simulasi"
-                className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-md bg-brand-primary px-4 py-2 text-body-sm font-bold text-white shadow-xs transition-colors duration-150 hover:bg-brand-primary/90"
+                className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-md bg-brand-primary px-4 py-2 text-body-sm font-bold text-primary-foreground shadow-xs transition-colors duration-150 hover:bg-brand-primary/90"
               >
                 <TranslatedText namespace="studentExtras.pka" messageKey={completedCount > 0 ? "continueSimulation" : "openSimulation"} />
                 <ArrowRight className="size-4" />

@@ -109,7 +109,7 @@ export function PkaScheduleCalendar({ sessions }: { sessions: PkaCalendarSession
         {weekdayLabels.map((label) => (
           <span
             key={label}
-            className="py-1 text-center text-[10px] font-bold uppercase tracking-wider text-muted-foreground"
+            className="py-1 text-center text-body-2xs font-bold uppercase tracking-wider text-muted-foreground"
           >
             {label}
           </span>
@@ -127,7 +127,7 @@ export function PkaScheduleCalendar({ sessions }: { sessions: PkaCalendarSession
           const isToday = key === todayKey;
 
           const cellClass = cn(
-            "relative flex aspect-square w-full flex-col items-center justify-center rounded-lg text-body-sm transition-colors duration-150",
+            "relative flex aspect-square w-full flex-col items-center justify-center rounded-lg text-body-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 transition-colors duration-150",
             hasSessions
               ? "bg-brand-primary/10 font-bold text-brand-primary hover:bg-brand-primary/20 cursor-pointer"
               : "text-foreground/80",
@@ -153,7 +153,7 @@ export function PkaScheduleCalendar({ sessions }: { sessions: PkaCalendarSession
         })}
       </div>
 
-      <div className="mt-3 flex items-center gap-4 border-t border-border pt-3 text-body-xs text-muted-foreground">
+      <div className="mt-3 flex flex-wrap items-center gap-4 border-t border-border pt-3 text-body-xs text-muted-foreground">
         <span className="flex items-center gap-1.5">
           <span className="size-1.5 rounded-full bg-brand-primary" />
           {t("calendarHasSessions")}
@@ -181,7 +181,7 @@ export function PkaScheduleCalendar({ sessions }: { sessions: PkaCalendarSession
             {selectedSessions.map((s) => (
               <div key={s.id} className="py-3 space-y-2">
                 <div>
-                  <p className="text-body-base font-semibold text-foreground">{s.title}</p>
+                  <p className="break-words text-body-base font-semibold text-foreground">{s.title}</p>
                 </div>
                 <p className="flex items-center gap-1.5 text-body-sm text-muted-foreground">
                   <CalendarDays className="size-3.5" />

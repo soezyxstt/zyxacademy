@@ -699,7 +699,7 @@ export function AdminVideoDialog({
                             className="h-full w-full object-cover"
                           />
                           {isSelected && (
-                            <div className="absolute top-1 right-1 rounded-full bg-brand-primary p-0.5 text-white">
+                            <div className="absolute top-1 right-1 rounded-full bg-brand-primary p-0.5 text-primary-foreground">
                               <CheckCircle2 className="size-3.5" />
                             </div>
                           )}
@@ -953,7 +953,7 @@ export function AdminVideoDialog({
                   (sourceType === "youtube" && !detectedVideoId) ||
                   (sourceType === "upload" && !video && !videoFile)
                 }
-                className="text-body-sm bg-brand-primary text-white hover:bg-brand-primary/90 gap-1.5"
+                className="text-body-sm bg-brand-primary text-primary-foreground hover:bg-brand-primary/90 gap-1.5"
               >
                 {saving ? (
                   <>

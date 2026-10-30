@@ -19,7 +19,7 @@ export function StreakCalendarStrip({ current, weeklyActivity = [] }: StreakCale
   const currentDayIndex = (new Date().getDay() + 6) % 7; // Monday = 0, Sunday = 6
 
   return (
-    <div className="rounded-xl border border-border/70 bg-card/70 p-3.5 backdrop-blur-md shadow-xs select-none">
+    <div className="rounded-xl border border-border/70 bg-card p-3.5 select-none">
       <div className="flex items-center justify-between mb-2">
         <span className="font-heading text-body-xs font-semibold text-foreground">{t("dashboard.weeklyStreak")}</span>
         <div className="flex items-center gap-1">
@@ -42,7 +42,7 @@ export function StreakCalendarStrip({ current, weeklyActivity = [] }: StreakCale
 
           return (
             <div key={idx} className="flex flex-col items-center gap-1.5 min-w-0">
-              <span className="font-sans text-[11px] font-bold text-foreground/80 leading-none" title={t(`dashboard.weekdays.${day}`)}>
+              <span className="font-sans text-body-xs font-bold text-foreground leading-none" title={t(`dashboard.weekdays.${day}`)}>
                 {t(`dashboard.weekdaysShort.${day}`)}
               </span>
               <div
@@ -50,7 +50,7 @@ export function StreakCalendarStrip({ current, weeklyActivity = [] }: StreakCale
                 className={cn(
                   "flex w-full aspect-square max-w-[24px] items-center justify-center rounded-md text-[10px] font-bold transition-colors",
                   isActive
-                    ? "bg-brand-secondary text-white shadow-xs"
+                    ? "bg-primary text-primary-foreground"
                     : "bg-muted/60 text-muted-foreground/40 border border-border/50",
                   isToday && "ring-1.5 ring-brand-primary ring-offset-1 ring-offset-background"
                 )}

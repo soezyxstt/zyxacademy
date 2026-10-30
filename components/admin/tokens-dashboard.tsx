@@ -224,7 +224,7 @@ export function TokensDashboard({ initialTokens, coursesList }: Props) {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Course Selection */}
             <div className="space-y-2">
-              <label className="text-body-xs font-semibold text-muted-foreground block">
+              <label className="text-body-sm font-semibold text-foreground block">
                 {translate("tokensUI.courses")}
               </label>
               {coursesList.length === 0 ? (
@@ -270,11 +270,12 @@ export function TokensDashboard({ initialTokens, coursesList }: Props) {
               <div className="space-y-2">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="space-y-1.5">
-                    <label className="text-body-sm font-semibold text-foreground block">
+                    <label htmlFor="token-total-quota" className="text-body-sm font-semibold text-foreground block">
                       {translate("tokensUI.quota")}
                     </label>
                     <div className="relative">
                       <Input
+                        id="token-total-quota"
                         type="number"
                         min={0}
                         step={1}
@@ -303,11 +304,12 @@ export function TokensDashboard({ initialTokens, coursesList }: Props) {
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="text-body-sm font-semibold text-foreground block">
+                    <label htmlFor="token-weekly-quota" className="text-body-sm font-semibold text-foreground block">
                       {translate("tokensUI.weeklyLimit")}
                     </label>
                     <div className="relative">
                       <Input
+                        id="token-weekly-quota"
                         type="number"
                         min={0}
                         step={1}
@@ -366,11 +368,12 @@ export function TokensDashboard({ initialTokens, coursesList }: Props) {
               {/* Capacity Settings */}
               <div className="space-y-2">
                 <div className="space-y-1.5">
-                  <label className="text-body-sm font-semibold text-foreground block">
+                  <label htmlFor="token-capacity" className="text-body-sm font-semibold text-foreground block">
                     {translate("tokensUI.groupCapacity")}
                   </label>
                   <div className="relative max-w-xs">
                     <Input
+                        id="token-capacity"
                       type="number"
                       min={1}
                       step={1}

@@ -18,6 +18,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
     <CommandMenuProvider>
       <OpsAiProvider>
         <ApplicationShell
+          showOrnaments={false}
           sidebar={<AdminSidebar />}
           mobileNavigation={<MobileNavbar surface="admin" />}
           overlays={<OpsAiDrawer />}

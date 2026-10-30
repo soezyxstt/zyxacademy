@@ -102,7 +102,7 @@ export function ContinueReadingCard({
                 href={`/courses/${courseId}/material/${data.materialId}${query}`}
                 aria-label={t("course.continueReading.continueNamed", { title: data.materialTitle })}
               >
-                <Button size="sm" className="rounded-md w-full bg-brand-primary text-white hover:bg-brand-primary/95 transition-colors duration-150">
+                <Button size="sm" className="rounded-md w-full bg-brand-primary text-primary-foreground hover:bg-brand-primary/95 transition-colors duration-150">
                   {t("course.continueReading.continue")}
                 </Button>
               </Link>

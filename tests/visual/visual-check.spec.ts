@@ -1,5 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
+test.setTimeout(120_000);
+
 const routes = (process.env.VISUAL_CHECK_PATHS ?? "/")
   .split(",")
   .map((route) => route.trim())
@@ -41,6 +43,14 @@ for (const route of routes) {
   test(`visual quality check for ${route}`, async ({ page }, testInfo) => {
     if (routePathname(route) === "/visual-fixtures/zyra-learning") test.setTimeout(90_000);
     const runtimeErrors: string[] = [];
+    const failedResponses: string[] = [];
+
+    // Local visual fixtures do not provision Firebase or request push permission.
+    if (process.env.VISUAL_CHECK_DISABLE_PUSH === "1") {
+      await page.addInitScript(() => {
+        delete (Navigator.prototype as { serviceWorker?: unknown }).serviceWorker;
+      });
+    }
 
     page.on("console", (message) => {
       if (message.type() === "error") {
@@ -50,9 +60,25 @@ for (const route of routes) {
     page.on("pageerror", (error) => {
       runtimeErrors.push(`page: ${error.message}`);
     });
+    page.on("response", (response) => {
+      if (response.status() >= 400) {
+        failedResponses.push(`${response.status()} ${new URL(response.url()).pathname}`);
+      }
+    });
 
+    await page.emulateMedia({ reducedMotion: "reduce" });
     const response = await page.goto(route, { waitUntil: "domcontentloaded" });
     await expect(page.locator("body")).toBeVisible();
+    if (routePathname(route) === "/tutor" || routePathname(route).startsWith("/tutor/")) {
+      await expect(page.locator("#main-content h1")).toHaveCount(1);
+      await expect.poll(() => page.locator("#main-content > div").evaluate((element) => getComputedStyle(element).opacity)).toBe("1");
+    }
+    if (routePathname(route).startsWith("/tutor/") && routePathname(route).endsWith("/participants")) {
+      await expect.poll(async () => (await page.locator("#main-content [role=combobox]").first().innerText()).trim()).not.toBe("");
+    }
+    if (routePathname(route).startsWith("/courses/")) {
+      await expect(page.getByText("Memuat mata kuliah…")).toHaveCount(0, { timeout: 30_000 });
+    }
     // Pricing deliberately hydrates from a neutral server snapshot. Wait for
     // hydration before changing media preferences or capturing its final state.
     await expect(page.getByRole("status").filter({ hasText: "Memuat harga..." })).toHaveCount(0);
@@ -103,5 +129,6 @@ for (const route of routes) {
     expect(runtimeErrors, "The page must not emit console or runtime errors").toEqual(
       [],
     );
+    expect(failedResponses, "The page must not receive failed HTTP responses").toEqual([]);
   });
 }

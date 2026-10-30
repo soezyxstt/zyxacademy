@@ -61,7 +61,7 @@ export function ReviewClient({ listItem, review }: ReviewClientProps) {
           <div className="text-left md:text-right">
             <span className="text-body-xs font-semibold text-muted-foreground uppercase">{t("review.activePlan")}</span>
             <p className="text-body-xs font-bold text-brand-primary uppercase mt-1">
-              ⭐ {userPlan}
+              {userPlan}
             </p>
           </div>
         </div>
@@ -122,7 +122,7 @@ export function ReviewClient({ listItem, review }: ReviewClientProps) {
                       size="sm"
                       variant="outline"
                       onClick={() => openMistake(item.questionId, item.userAnswer || "")}
-                      className="text-body-xs font-semibold flex items-center gap-1.5 border-brand-primary/30 text-brand-primary hover:bg-brand-primary/5 rounded-lg h-9"
+                      className="text-body-sm font-semibold flex items-center gap-1.5 border-brand-primary/30 text-brand-primary hover:bg-brand-primary/5 rounded-lg h-9"
                     >
                       {t("review.askZyra")}
                     </Button>
@@ -151,7 +151,7 @@ export function ReviewClient({ listItem, review }: ReviewClientProps) {
                         fill
                         className="object-cover"
                       />
-                      <div className="bg-muted/70 px-3 py-1.5 text-[10px] text-center text-muted-foreground border-t border-border font-medium">
+                      <div className="bg-muted/70 px-3 py-1.5 text-body-xs text-center text-muted-foreground border-t border-border font-medium">
                         {t("review.diagramCaption")}
                       </div>
                     </div>
@@ -204,13 +204,13 @@ export function ReviewClient({ listItem, review }: ReviewClientProps) {
                                 <Lock className="size-5" />
                               </span>
                               <h5 className="font-heading text-body-sm font-bold text-white">{t("review.lockedVideoTitle")}</h5>
-                              <p className="text-[10px] text-muted-foreground mt-1 max-w-sm leading-relaxed">
+                              <p className="mt-1 max-w-sm text-body-xs leading-relaxed text-white/80">
                                 {t("review.lockedVideoDescription")}
                               </p>
                               <Button
                                 asChild
                                 size="sm"
-                                className="mt-4 bg-brand-secondary hover:bg-brand-secondary/95 text-white text-body-xs font-semibold h-8"
+                                className="mt-4 bg-brand-secondary hover:bg-brand-secondary/95 text-white text-body-sm font-semibold h-9"
                               >
                                 <Link href="/plans">
                                   {t("review.upgradePlan")}

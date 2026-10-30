@@ -1,10 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Dialog,
   DialogContent,
@@ -26,6 +24,8 @@ type Props = {
 export function MaterialBundleUploadDialog({ kind, open, onOpenChange, onStaged }: Props) {
   const t = useTranslations("adminAcademic");
   const adminT = useTranslations("admin");
+  const mediaT = useTranslations("adminMedia");
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -78,8 +78,13 @@ export function MaterialBundleUploadDialog({ kind, open, onOpenChange, onStaged 
           <DialogDescription>{t("materials.uploadDescription")}</DialogDescription>
         </DialogHeader>
         <div className="space-y-2">
-          <Label htmlFor={`${kind}-bundle-upload`}>{t("materials.zipFile")}</Label>
-          <Input id={`${kind}-bundle-upload`} type="file" accept=".zip,application/zip" onChange={(event) => { setFile(event.target.files?.[0] ?? null); setError(null); }} />
+          <div className="flex flex-wrap items-center gap-2">
+            <input ref={fileInputRef} type="file" accept=".zip,application/zip" className="hidden" onChange={(event) => { setFile(event.target.files?.[0] ?? null); setError(null); }} />
+            <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()}>
+              <Upload className="size-4" />{mediaT("media.selectFile", { name: t("materials.zipFile") })}
+            </Button>
+            {file && <span className="min-w-0 break-all text-body-sm text-foreground">{file.name}</span>}
+          </div>
           <p className="text-body-xs text-muted-foreground">{t("materials.uploadHint")}</p>
         </div>
         {error && <p className="rounded-lg border border-status-error/30 bg-status-error/10 p-3 text-body-sm text-status-error">{error}</p>}

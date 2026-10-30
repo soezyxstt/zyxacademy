@@ -119,7 +119,7 @@ export function TutorActivityClient({
         >
           <div className="flex items-center gap-2 min-w-0">
             <AlertCircle className="size-4 text-status-error shrink-0" aria-hidden />
-            <span className="truncate">{errorMessage}</span>
+            <span className="min-w-0 break-words">{errorMessage}</span>
           </div>
           <Button
             type="button"
@@ -127,7 +127,7 @@ export function TutorActivityClient({
             size="sm"
             onClick={handleRetry}
             disabled={isPending}
-            className="h-8 gap-1 text-body-xs shrink-0"
+            className="h-8 gap-1 text-body-sm shrink-0"
           >
             <RotateCcw className="size-3" aria-hidden />
             <span>{t("tutorActivityUI.retry")}</span>
@@ -137,7 +137,7 @@ export function TutorActivityClient({
 
       <div className="relative">
         {isPending && (
-          <div className="absolute inset-0 bg-background/50 backdrop-blur-xs z-10 rounded-xl flex items-center justify-center pointer-events-none">
+          <div className="absolute inset-0 bg-background/80 z-10 rounded-xl flex items-center justify-center pointer-events-none">
             <span className="text-body-xs font-semibold text-muted-foreground bg-card px-3 py-1.5 rounded-lg border border-border shadow-xs">
               {t("tutorActivityUI.loading")}
             </span>

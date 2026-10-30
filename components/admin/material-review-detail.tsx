@@ -1804,15 +1804,14 @@ export function FlashcardProductView({ product }: { product: Extract<ProductEnti
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border pb-3">
         <div>
-          <span className="text-body-xs font-semibold uppercase tracking-wider text-brand-primary">{t("materials.productView.flashcard")}</span>
-          <h3 className="mt-0.5 font-heading text-body-sm font-bold text-foreground">{t("materials.productView.flashcard")}</h3>
+          <h3 className="font-heading text-body-sm font-bold text-foreground">{t("materials.productView.flashcard")}</h3>
         </div>
         <Button
           type="button"
           size="sm"
           variant="secondary"
           onClick={() => setIsFlipped((prev) => !prev)}
-          className="h-8 gap-1.5 text-body-xs"
+          className="h-8 gap-1.5 text-body-sm"
         >
           <RotateCcw className="size-3.5" />
           {t("materials.productView.flipCard", { side: isFlipped ? t("materials.productView.front") : t("materials.productView.back") })}
@@ -1824,12 +1823,12 @@ export function FlashcardProductView({ product }: { product: Extract<ProductEnti
         role="button"
         tabIndex={0}
         onClick={() => setIsFlipped((prev) => !prev)}
-        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") setIsFlipped((prev) => !prev); }}
+        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setIsFlipped((prev) => !prev); } }}
         className={cn(
-          "flex min-h-[220px] cursor-pointer flex-col justify-between rounded-2xl border-2 p-6 shadow-xs transition-all sm:p-8",
+          "flex min-h-[220px] cursor-pointer flex-col justify-between rounded-xl border p-6 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:p-8",
           isFlipped
             ? "border-brand-secondary/70 bg-card hover:border-brand-secondary"
-            : "border-brand-primary/60 bg-gradient-to-b from-card to-muted/20 hover:border-brand-primary"
+            : "border-brand-primary/60 bg-card hover:border-brand-primary"
         )}
       >
         <div className="flex items-center justify-between border-b border-border/40 pb-2">

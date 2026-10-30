@@ -38,8 +38,8 @@ export function ConceptDrilldown({ open, onClose, concept, trends, mostMissed, c
 
   return (
     <Sheet open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
-      <SheetContent side="right" className="sm:max-w-lg flex flex-col gap-0 p-0 overflow-y-auto">
-        <SheetHeader className="px-5 pt-5 pb-4 border-b border-border">
+      <SheetContent side="right" aria-describedby={undefined} className="sm:max-w-lg flex flex-col gap-0 p-0 overflow-y-auto">
+        <SheetHeader className="pl-5 pr-14 pt-5 pb-4 border-b border-border">
           <SheetTitle className="text-body-base font-heading">
             {concept.conceptName}
           </SheetTitle>
@@ -56,7 +56,7 @@ export function ConceptDrilldown({ open, onClose, concept, trends, mostMissed, c
               total={concept.studentCount}
               className="w-full"
             />
-            <div className="flex gap-4 mt-2 text-body-sm text-muted-foreground">
+            <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-body-xs text-muted-foreground">
               <span><span className="text-status-error font-medium">{concept.bucketLow}</span> {t("low")}</span>
               <span><span className="text-status-warning font-medium">{concept.bucketMid}</span> {t("mid")}</span>
               <span><span className="text-primary font-medium">{concept.bucketHigh}</span> {t("high")}</span>
@@ -111,7 +111,7 @@ export function ConceptDrilldown({ open, onClose, concept, trends, mostMissed, c
               <div className="divide-y divide-border">
                 {mostMissed.map((q) => (
                   <div key={q.id} className="py-2.5 flex items-start justify-between gap-4">
-                    <MathText className="text-body-sm line-clamp-2 min-w-0 block" as="div">{q.prompt}</MathText>
+                    <MathText className="text-body-sm min-w-0 break-words block" as="div">{q.prompt}</MathText>
                     <span className="text-body-sm tabular-nums text-status-error shrink-0 font-medium">
                       {Math.round(q.correctRate * 100)}%
                     </span>

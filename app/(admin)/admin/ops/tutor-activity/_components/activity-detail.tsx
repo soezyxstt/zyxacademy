@@ -103,6 +103,7 @@ export function ActivityDetail({ item, open, onOpenChange }: ActivityDetailProps
                   className="h-6 w-6"
                   onClick={() => copyToClipboard(item.id, "id")}
                   title={t("tutorActivityUI.copyLogId")}
+                  aria-label={t("tutorActivityUI.copyLogId")}
                 >
                   {copiedSection === "id" ? <Check className="size-3 text-status-success" /> : <Copy className="size-3" />}
                 </Button>
@@ -120,7 +121,7 @@ export function ActivityDetail({ item, open, onOpenChange }: ActivityDetailProps
               {item.actorEmail && (
                 <p className="text-body-xs text-muted-foreground font-mono truncate">{item.actorEmail}</p>
               )}
-              <p className="text-[10px] text-muted-foreground font-mono">{item.actorId || t("tutorActivityUI.noId")}</p>
+              <p className="text-body-xs text-muted-foreground font-mono break-all">{item.actorId || t("tutorActivityUI.noId")}</p>
             </div>
 
             <div className="space-y-1">
@@ -165,6 +166,7 @@ export function ActivityDetail({ item, open, onOpenChange }: ActivityDetailProps
                     className="h-6 w-6"
                     onClick={() => copyToClipboard(item.correlationId!, "corrId")}
                     title={t("tutorActivityUI.copyCorrelationId")}
+                    aria-label={t("tutorActivityUI.copyCorrelationId")}
                   >
                     {copiedSection === "corrId" ? <Check className="size-3 text-status-success" /> : <Copy className="size-3" />}
                   </Button>
@@ -201,7 +203,7 @@ export function ActivityDetail({ item, open, onOpenChange }: ActivityDetailProps
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-7 text-body-xs gap-1.5"
+                    className="h-8 text-body-sm gap-1.5"
                     onClick={() => copyToClipboard(beforeJson, "before")}
                   >
                     {copiedSection === "before" ? <Check className="size-3 text-status-success" /> : <Copy className="size-3" />}
@@ -232,7 +234,7 @@ export function ActivityDetail({ item, open, onOpenChange }: ActivityDetailProps
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-7 text-body-xs gap-1.5"
+                    className="h-8 text-body-sm gap-1.5"
                     onClick={() => copyToClipboard(afterJson, "after")}
                   >
                     {copiedSection === "after" ? <Check className="size-3 text-status-success" /> : <Copy className="size-3" />}

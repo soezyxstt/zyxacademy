@@ -238,7 +238,7 @@ export function CourseVideosClient({
     <div className="space-y-4 font-sans">
       {/* Responsive Inline Filter Toolbar */}
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex flex-1 flex-wrap items-center gap-2 min-w-[240px]">
+        <div className="flex flex-1 flex-wrap items-center gap-2 min-w-0">
           {/* Search Bar */}
           <div className="relative min-w-[140px] flex-1 max-w-sm">
             <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
@@ -260,7 +260,7 @@ export function CourseVideosClient({
                   <SelectValue placeholder={t("courseVideos.allChapters")} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all" className="text-body-sm font-medium">
+                  <SelectItem value="all" className="text-body-sm">
                     Semua Bab
                   </SelectItem>
                   {chapters.map((ch) => (
@@ -276,7 +276,7 @@ export function CourseVideosClient({
 
         {/* Action Buttons for Admin or Tutor */}
         {canManage && (
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex flex-wrap items-center gap-2">
             <Button
               variant="outline"
               size="sm"
@@ -290,7 +290,7 @@ export function CourseVideosClient({
               size="sm"
               onClick={() => handleOpenAddVideo()}
               disabled={initialPlaylists.length === 0}
-              className="h-9 text-body-sm rounded-lg gap-1.5 bg-brand-primary text-white hover:bg-brand-primary/90"
+              className="h-9 text-body-sm rounded-lg gap-1.5 bg-brand-primary text-primary-foreground hover:bg-brand-primary/90"
             >
               <Plus className="size-4" />
               <span>{t("courseVideos.addVideo")}</span>
@@ -315,7 +315,7 @@ export function CourseVideosClient({
             <Button
               size="sm"
               onClick={handleOpenCreatePlaylist}
-              className="mt-4 text-body-sm rounded-lg gap-1.5 bg-brand-primary text-white hover:bg-brand-primary/90"
+              className="mt-4 text-body-sm rounded-lg gap-1.5 bg-brand-primary text-primary-foreground hover:bg-brand-primary/90"
             >
               <Plus className="size-4" />
               <span>{t("courseVideos.createFirstPlaylist")}</span>

@@ -14,7 +14,7 @@ export function CourseOverviewPrimaryActionsSkeleton() {
   return (
     <div
       data-testid="course-overview-highlights-skeleton"
-      className="mb-6 grid grid-cols-3 divide-x divide-border/60 overflow-hidden rounded-xl border border-border/70 bg-card"
+      className="mb-6 grid grid-cols-1 divide-y divide-border/60 sm:grid-cols-3 sm:divide-x sm:divide-y-0 overflow-hidden rounded-xl border border-border/70 bg-card"
     >
       {[1, 2, 3].map((i) => (
         <div key={i} className="flex min-w-0 items-center gap-2 p-2.5">

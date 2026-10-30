@@ -182,11 +182,11 @@ export default async function PkaStagePage({ params, searchParams }: Props) {
                     <div key={q.id} className="p-4">
                       <div className="flex items-start gap-2.5">
                         <span className={quizOptionLetterClasses(isCorrect ? "correct" : "wrong")}>{idx + 1}</span>
-                        <div className="flex-1 text-body-base font-medium text-foreground">
+                        <div className="min-w-0 flex-1 text-body-base font-medium text-foreground">
                           <MarkdownRenderer content={q.prompt} className="space-y-3" />
                         </div>
                       </div>
-                      <ul className="mt-3 space-y-2 pl-9">
+                      <ul className="mt-3 space-y-2 sm:pl-9">
                         {q.options.map((opt, i) => {
                           const isSelected = selected.includes(i);
                           const isRight = correct.includes(i);
@@ -200,7 +200,7 @@ export default async function PkaStagePage({ params, searchParams }: Props) {
                         })}
                       </ul>
                       {q.explanation && (
-                        <div className="mt-4 ml-9 space-y-3 border-t border-border/80 pt-4">
+                        <div className="mt-4 space-y-3 border-t border-border/80 pt-4 sm:ml-9">
                           <h4 className="font-heading text-body-xs font-bold uppercase tracking-wider text-foreground"><TranslatedText namespace="studentExtras.pka" messageKey="explanation" /></h4>
                           <div className="text-body-sm text-muted-foreground leading-relaxed">
                             <MarkdownRenderer content={q.explanation} className="space-y-3" />
@@ -208,7 +208,7 @@ export default async function PkaStagePage({ params, searchParams }: Props) {
                         </div>
                       )}
                       {!isCorrect && (
-                        <div className="mt-3 ml-9">
+                        <div className="mt-3 sm:ml-9">
                           <MistakeFeedbackButton
                             questionId={q.id}
                             selectedAnswer={selectedText || t("notAnswered")}

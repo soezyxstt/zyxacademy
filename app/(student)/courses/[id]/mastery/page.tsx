@@ -160,7 +160,7 @@ async function CourseMasteryContent({
   if (!readModel || readModel.groups.length === 0) {
     return (
       <Reveal>
-        <div className="rounded-2xl border border-dashed border-border/80 bg-card/60 p-8 sm:p-12 text-center">
+        <div className="rounded-xl border border-dashed border-border bg-card p-6 text-center">
           <div className="mx-auto mb-3 flex size-12 items-center justify-center rounded-xl bg-brand-primary/10 text-brand-primary">
             <Target className="size-6" />
           </div>
@@ -187,8 +187,8 @@ async function CourseMasteryContent({
     <>
       {readModel.graphNodes.length > 0 && (
         <Reveal>
-          <div className="mb-8 space-y-3">
-            <h2 className="text-body-sm font-semibold uppercase tracking-wide text-muted-foreground"><TranslatedText namespace="learning" messageKey="mastery.conceptGraph" /></h2>
+          <div className="mb-6 space-y-3">
+            <h2 className="font-heading text-body-base font-bold text-foreground"><TranslatedText namespace="learning" messageKey="mastery.conceptGraph" /></h2>
             <ConceptGraphView nodes={readModel.graphNodes} edges={readModel.graphEdges} courseId={id} />
           </div>
         </Reveal>

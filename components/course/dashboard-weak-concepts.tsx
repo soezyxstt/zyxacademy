@@ -73,12 +73,12 @@ export function DashboardWeakConcepts({
             return (
               <div
                 key={c.conceptName}
-                className="flex flex-col gap-1.5 animate-in fade-in slide-in-from-bottom-2 duration-300"
+                className="flex flex-col gap-1.5"
                 style={{ animationDelay: `${index * 50}ms` }}
               >
                 {/* Concept name + trend icon + score */}
                 <div className="flex items-start justify-between gap-2 text-body-sm">
-                  <span className="flex items-center gap-1.5 font-medium text-foreground line-clamp-2 max-w-[85%] leading-snug">
+                  <span className="flex items-center gap-1.5 font-medium text-foreground min-w-0 break-words leading-snug">
                     <MathText as="span">{c.conceptName}</MathText>
                     {isMeasured && <TrendIcon trend={c.trend} />}
                   </span>

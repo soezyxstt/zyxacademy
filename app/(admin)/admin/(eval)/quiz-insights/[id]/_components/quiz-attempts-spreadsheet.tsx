@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import {
-  Search,
   Download,
   FileSpreadsheet,
   CheckCircle2,
@@ -13,7 +12,6 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { SearchBar } from "@/components/ui/search-bar";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -235,7 +233,7 @@ export function QuizAttemptsSpreadsheet({ templateId, quizTitle, translationName
   if (loading && attempts.length === 0) {
     return (
       <Card className="border-border">
-        <CardContent className="p-12 text-center text-muted-foreground space-y-3">
+        <CardContent className="p-6 text-center text-muted-foreground space-y-3">
           <RefreshCw className="size-8 animate-spin mx-auto text-brand-primary" />
           <p className="font-medium text-foreground">{t("quizAttempts.loading")}</p>
         </CardContent>
@@ -244,7 +242,7 @@ export function QuizAttemptsSpreadsheet({ templateId, quizTitle, translationName
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {errorMsg && (
         <div className="p-4 border border-status-error/40 bg-status-error/10 text-status-error rounded-xl text-body-sm flex items-center gap-2">
           <AlertTriangle className="size-4 shrink-0" />
@@ -261,6 +259,8 @@ export function QuizAttemptsSpreadsheet({ templateId, quizTitle, translationName
                 size="sm"
                 placeholder={t("quizAttempts.search")}
                 value={searchQuery}
+                onSearch={setSearchQuery}
+                onClear={() => setSearchQuery("")}
               />
             </div>
 
@@ -292,7 +292,7 @@ export function QuizAttemptsSpreadsheet({ templateId, quizTitle, translationName
 
               <Button
                 onClick={() => setExportDialogOpen(true)}
-                className="bg-brand-primary hover:bg-brand-primary/90 text-white rounded-lg gap-2"
+                className="bg-brand-primary hover:bg-brand-primary/90 text-primary-foreground rounded-lg gap-2"
               >
                 <FileSpreadsheet className="size-4" />
                 {t("quizAttempts.export")}
@@ -350,7 +350,7 @@ export function QuizAttemptsSpreadsheet({ templateId, quizTitle, translationName
                           <Info className="size-3 text-muted-foreground" />
                         </button>
                       </PopoverTrigger>
-                      <PopoverContent className="w-80 p-4 text-body-sm space-y-2 z-50">
+                      <PopoverContent className="w-[min(20rem,calc(100vw-2rem))] p-4 text-body-sm space-y-2 z-50">
                         <div className="font-semibold text-foreground flex items-center justify-between">
                           <span>{t("quizAttempts.questionNumber", { number: idx + 1 })}</span>
                         </div>
@@ -636,7 +636,7 @@ export function QuizAttemptsSpreadsheet({ templateId, quizTitle, translationName
             </Button>
             <Button
               onClick={() => handleExportCsv(exportType)}
-              className="bg-brand-primary hover:bg-brand-primary/90 text-white rounded-lg gap-2"
+              className="bg-brand-primary hover:bg-brand-primary/90 text-primary-foreground rounded-lg gap-2"
             >
               <Download className="size-4" />
               {t("quizAttempts.downloadCsv")}

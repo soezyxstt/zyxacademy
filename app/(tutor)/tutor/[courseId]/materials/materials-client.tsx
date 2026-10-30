@@ -128,7 +128,7 @@ export function MaterialsClient({ courseId, initialMaterials }: Props) {
       {/* Action Row */}
       <div className="flex flex-wrap justify-between items-center gap-2">
         <h2 className="font-heading text-body-base font-semibold text-foreground">{t("materialsCount", { count: initialMaterials.length })}</h2>
-        <Button onClick={handleOpenAdd} className="bg-brand-primary text-white hover:bg-brand-primary/90 rounded-md font-semibold gap-2">
+        <Button onClick={handleOpenAdd} className="gap-2">
           <Plus className="size-4" />
           {t("addMaterial")}
         </Button>
@@ -198,7 +198,7 @@ export function MaterialsClient({ courseId, initialMaterials }: Props) {
                 onChange={(e) => setRawText(e.target.value)}
                 rows={12}
                 placeholder={t("contentPlaceholder")}
-                className="rounded-lg border-input bg-background font-mono text-body-xs leading-relaxed focus-visible:ring-brand-primary"
+                className="rounded-lg border-input bg-background font-mono text-body-sm leading-relaxed focus-visible:ring-brand-primary"
               />
             </div>
           </div>
@@ -207,7 +207,7 @@ export function MaterialsClient({ courseId, initialMaterials }: Props) {
             <Button variant="outline" onClick={() => setIsOpen(false)} disabled={isPending} className="rounded-md border-border/80">
               {t("cancel")}
             </Button>
-            <Button onClick={handleSave} isLoading={isPending} className="bg-brand-primary text-white hover:bg-brand-primary/90 rounded-md font-semibold gap-1.5">
+            <Button onClick={handleSave} isLoading={isPending} className="gap-1.5">
               {t("saveMaterial")}
             </Button>
           </DialogFooter>
@@ -227,7 +227,7 @@ export function MaterialsClient({ courseId, initialMaterials }: Props) {
             <Button variant="outline" onClick={() => setDeleteId(null)} disabled={isPending} className="rounded-md border-border/80">
               {t("cancel")}
             </Button>
-            <Button onClick={handleDelete} isLoading={isPending} className="bg-status-error hover:bg-status-error/90 text-white rounded-md font-semibold gap-1.5">
+            <Button variant="destructive" onClick={handleDelete} isLoading={isPending} className="rounded-md font-semibold gap-1.5">
               {t("deleteMaterial")}
             </Button>
           </DialogFooter>

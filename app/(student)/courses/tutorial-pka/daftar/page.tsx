@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { GraduationCap } from "lucide-react";
+import { CalendarX2, GraduationCap } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { createMetadata } from "@/lib/site";
 import { getTranslations } from "@/lib/i18n/server";
@@ -32,8 +32,9 @@ export default async function PkaRegisterPage() {
       title={<TranslatedText namespace="studentExtras.pka" messageKey="joinTitle" />}
       icon={GraduationCap}
     >
-      <Card>
-        <CardHeader className="text-center">
+      <Card role="status">
+        <CardHeader className="items-center gap-3 text-center">
+          <CalendarX2 aria-hidden="true" className="size-6 text-muted-foreground" />
           <CardTitle><TranslatedText namespace="studentExtras.pka" messageKey="registrationClosed" /></CardTitle>
         </CardHeader>
       </Card>

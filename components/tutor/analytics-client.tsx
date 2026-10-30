@@ -4,12 +4,14 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useAppLocale, useTranslations } from "@/lib/i18n/client";
 import { AdminEmptyState } from "@/components/admin/state-panels";
-import { RefreshCw } from "lucide-react";
+import { BarChart3, RefreshCw } from "lucide-react";
 import { LineChart, Line } from "recharts";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { toast } from "sonner";
 import { Reveal } from "@/components/ui/reveal";
 import { DistributionBar } from "@/components/tutor/distribution-bar";
+import { ConceptRanking } from "@/components/tutor/concept-ranking";
 import { WatchlistTable } from "@/components/tutor/watchlist-table";
 import { ConceptDrilldown } from "@/components/tutor/concept-drilldown";
 import type { SnapshotPayload, WeakConcept } from "@/lib/cohort-analytics";
@@ -37,11 +39,18 @@ export function AnalyticsClient({ courseId, analytics, updatedAt }: Props) {
 
   const updatedDate = updatedAt ? new Date(updatedAt) : null;
 
-  async function handleRefresh() {
-    await fetch(`/api/tutor/analytics/refresh?courseId=${encodeURIComponent(courseId)}`, {
-      method: "POST",
+  function handleRefresh() {
+    startTransition(async () => {
+      try {
+        const response = await fetch(`/api/tutor/analytics/refresh?courseId=${encodeURIComponent(courseId)}`, {
+          method: "POST",
+        });
+        if (!response.ok) throw new Error("Refresh failed");
+        startTransition(() => { router.refresh(); });
+      } catch {
+        toast.error(t("refreshFailed"));
+      }
     });
-    startTransition(() => { router.refresh(); });
   }
 
   function openDrill(concept: WeakConcept) {
@@ -77,13 +86,11 @@ export function AnalyticsClient({ courseId, analytics, updatedAt }: Props) {
       {/* Section 2: Weakest concepts with sparklines */}
       <Reveal>
         <section className="rounded-xl border border-border bg-card p-4" aria-labelledby="weak-heading">
-          <h2 id="weak-heading" className="text-body-base font-semibold mb-3">
+          <h2 id="weak-heading" className="font-heading text-body-base font-bold mb-3">
             {t("priorityConcepts")}
           </h2>
           {analytics.weakConcepts.length === 0 ? (
-            <p className="text-body-sm text-muted-foreground">
-              {t("noQuizResults")}
-            </p>
+            <AdminEmptyState icon={BarChart3} title={t("noQuizResults")} className="py-6" />
           ) : (
             <div className="divide-y divide-border">
               {analytics.weakConcepts.map((concept, index) => {
@@ -92,15 +99,14 @@ export function AnalyticsClient({ courseId, analytics, updatedAt }: Props) {
                   <button
                     key={concept.conceptName}
                     onClick={() => openDrill(concept)}
-                    className="w-full py-3 grid grid-cols-[1.5rem_minmax(0,1fr)_auto] sm:grid-cols-[1.5rem_minmax(0,1fr)_auto_5rem_8rem] items-center gap-2 sm:gap-4 text-left animate-in fade-in slide-in-from-bottom-2 duration-300 hover:bg-muted/40 rounded-md -mx-1 px-1 transition-colors"
-                    style={{ animationDelay: `${Math.min(index, 7) * 50}ms` }}
+                    className="w-full py-3 grid grid-cols-[1.5rem_minmax(0,1fr)_auto] sm:grid-cols-[1.5rem_minmax(0,1fr)_auto_5rem_8rem] items-center gap-2 sm:gap-4 text-left hover:bg-muted/40 rounded-md -mx-1 px-1 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
                   >
                     <span className="text-h6 font-heading text-muted-foreground tabular-nums">
                       {index + 1}
                     </span>
                     <div className="min-w-0">
-                      <p className="text-body-base font-medium truncate">{concept.conceptName}</p>
-                      <p className="text-body-sm text-muted-foreground">{t("students", { count: concept.studentCount })}</p>
+                      <p className="text-body-sm font-medium break-words">{concept.conceptName}</p>
+                      <p className="text-body-xs text-muted-foreground">{t("students", { count: concept.studentCount })}</p>
                     </div>
                     <span className="tabular-nums text-body-base">{concept.avgMastery}</span>
                     {/* Sparkline */}
@@ -125,7 +131,7 @@ export function AnalyticsClient({ courseId, analytics, updatedAt }: Props) {
                       mid={concept.bucketMid}
                       high={concept.bucketHigh}
                       total={concept.studentCount}
-                      className="hidden w-32 sm:flex"
+                      className="col-start-2 col-span-2 w-full sm:col-auto sm:w-32"
                     />
                   </button>
                 );
@@ -138,39 +144,13 @@ export function AnalyticsClient({ courseId, analytics, updatedAt }: Props) {
       {/* Section 3: Full mastery distribution */}
       <Reveal>
         <section className="rounded-xl border border-border bg-card p-4" aria-labelledby="dist-heading">
-          <h2 id="dist-heading" className="text-body-base font-semibold mb-3">
+          <h2 id="dist-heading" className="font-heading text-body-base font-bold mb-3">
             {t("masteryDistribution")}
           </h2>
           {analytics.allConcepts.length === 0 ? (
-            <p className="text-body-sm text-muted-foreground">
-              {t("noQuizResults")}
-            </p>
+            <AdminEmptyState icon={BarChart3} title={t("noQuizResults")} className="py-6" />
           ) : (
-            <div className="divide-y divide-border">
-              {analytics.allConcepts.map((concept, index) => (
-                <div
-                  key={concept.conceptName}
-                  className="py-3 grid grid-cols-[1.5rem_minmax(0,1fr)_auto] sm:grid-cols-[1.5rem_minmax(0,1fr)_auto_8rem] items-center gap-4 animate-in fade-in slide-in-from-bottom-2 duration-300"
-                  style={{ animationDelay: `${Math.min(index, 7) * 50}ms` }}
-                >
-                  <span className="text-h6 font-heading text-muted-foreground tabular-nums">
-                    {index + 1}
-                  </span>
-                  <div className="min-w-0">
-                    <p className="text-body-base font-medium truncate">{concept.conceptName}</p>
-                    <p className="text-body-sm text-muted-foreground">{t("students", { count: concept.studentCount })}</p>
-                  </div>
-                  <span className="tabular-nums text-body-base">{concept.avgMastery}</span>
-                  <DistributionBar
-                    low={concept.bucketLow}
-                    mid={concept.bucketMid}
-                    high={concept.bucketHigh}
-                    total={concept.studentCount}
-                    className="hidden w-32 sm:flex"
-                  />
-                </div>
-              ))}
-            </div>
+            <ConceptRanking concepts={analytics.allConcepts} />
           )}
         </section>
       </Reveal>
@@ -178,7 +158,7 @@ export function AnalyticsClient({ courseId, analytics, updatedAt }: Props) {
       {/* Section 4: Active interventions */}
       <Reveal>
         <section className="rounded-xl border border-border bg-card p-4" aria-labelledby="interventions-heading">
-          <h2 id="interventions-heading" className="text-body-base font-semibold mb-3">
+          <h2 id="interventions-heading" className="font-heading text-body-base font-bold mb-3">
             {t("activeInterventions")}
           </h2>
           {analytics.interventionCounts.length === 0 ? (
@@ -199,19 +179,17 @@ export function AnalyticsClient({ courseId, analytics, updatedAt }: Props) {
       {/* Section 4b: Top misconceptions (cohort-wide) */}
       <Reveal>
         <section className="rounded-xl border border-border bg-card p-4" aria-labelledby="misconceptions-heading">
-          <h2 id="misconceptions-heading" className="text-body-base font-semibold mb-3">
+          <h2 id="misconceptions-heading" className="font-heading text-body-base font-bold mb-3">
             {t("commonMisconceptions")}
           </h2>
           {analytics.topMisconceptions.length === 0 ? (
-            <p className="text-body-sm text-muted-foreground">
-              {t("noMisconceptions")}
-            </p>
+            <AdminEmptyState icon={BarChart3} title={t("noMisconceptions")} className="py-6" />
           ) : (
             <div className="divide-y divide-border">
               {analytics.topMisconceptions.slice(0, 10).map((m) => (
                 <div key={m.misconceptionKoId} className="py-3 flex items-center justify-between gap-4">
                   <div className="min-w-0">
-                    <p className="text-body-base font-medium truncate">{m.label}</p>
+                    <p className="text-body-sm font-medium break-words">{m.label}</p>
                     <p className="text-body-sm text-muted-foreground">
                       {m.conceptName} &middot; {t("attempts", { count: m.sampleSize })}
                     </p>
@@ -227,7 +205,7 @@ export function AnalyticsClient({ courseId, analytics, updatedAt }: Props) {
       {/* Section 5: Watchlist */}
       <Reveal>
         <section className="rounded-xl border border-border bg-card p-4" aria-labelledby="watchlist-heading">
-          <h2 id="watchlist-heading" className="text-body-base font-semibold mb-3">
+          <h2 id="watchlist-heading" className="font-heading text-body-base font-bold mb-3">
             {t("needsAttention")}
           </h2>
           <WatchlistTable students={analytics.watchlist} />

@@ -317,8 +317,9 @@ function DocumentPreview({ material }: { material: CourseMaterial }) {
 }
 
 function CompactDocumentRowThumbnail({ material }: { material: CourseMaterial }) {
+  const [failedThumbnail, setFailedThumbnail] = useState<string | null>(null);
   const baseThumbnailUrl = material.thumbnailUrl ?? "";
-  if (!baseThumbnailUrl) {
+  if (!baseThumbnailUrl || failedThumbnail === baseThumbnailUrl) {
     return (
       <div className="flex size-full items-center justify-center bg-muted/40 text-muted-foreground">
         <DocumentHeaderIcon
@@ -333,7 +334,8 @@ function CompactDocumentRowThumbnail({ material }: { material: CourseMaterial })
     <div className="relative size-full overflow-hidden bg-white dark:bg-zinc-900">
       <Image
         src={baseThumbnailUrl}
-        alt={material.title}
+        alt=""
+        onError={() => setFailedThumbnail(baseThumbnailUrl)}
         fill
         sizes="(max-width: 640px) 96px, 128px"
         className="object-cover object-top"
@@ -751,7 +753,7 @@ export function DocumentListClient({
                         </span>
                       )}
                       <p
-                        className="truncate text-body-sm font-medium text-foreground group-hover:text-primary leading-tight"
+                        className="min-w-0 break-words text-body-sm font-medium text-foreground group-hover:text-primary leading-tight"
                         title={material.title}
                       >
                         {cleanTitle}
@@ -917,13 +919,13 @@ export function DocumentListClient({
                           </span>
                         )}
                         <span
-                          className="truncate text-body-sm font-medium leading-snug"
+                          className="min-w-0 break-words text-body-sm font-medium leading-snug"
                           title={material.title}
                         >
                           {cleanTitle}
                         </span>
                       </div>
-                      <p className="mt-0.5 truncate text-body-xs text-muted-foreground md:hidden">
+                      <p className="mt-0.5 break-words text-body-xs text-muted-foreground md:hidden">
                         {subLabel}
                         {material.year ? ` · ${material.year}` : ""}
                         {material.fileSize && !/^diktat(\s+resmi|\s+canonical)?$/i.test(material.fileSize.trim()) ? ` · ${displayFileSizeLabel(material.fileSize, t)}` : ""}

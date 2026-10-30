@@ -1775,7 +1775,7 @@ export function TutorDrawerView({
                     !attachmentsReady ||
                     (!inputVal.trim() && !activeQuotedContext && attachmentIds.length === 0)
                   }
-                  className="size-7 rounded-full bg-brand-primary text-white hover:bg-brand-primary/90 transition-transform active:scale-95 disabled:opacity-40"
+                  className="size-7 rounded-full bg-brand-primary text-primary-foreground hover:bg-brand-primary/90 transition-transform active:scale-95 disabled:opacity-40"
                   aria-label={t("tutorDrawer.sendMessage")}
                 >
                   <ArrowUp className="size-3.5" />

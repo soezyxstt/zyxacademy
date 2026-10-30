@@ -8,7 +8,6 @@ import {
   AlertCircle,
   XCircle,
   Clock,
-  CheckCircle2,
 } from "lucide-react";
 import type { OpsAiWorkStep, OpsAiStepStatus } from "@/lib/admin-ops-ai/contracts";
 import { cn } from "@/lib/utils";
@@ -76,18 +75,17 @@ export function WorkTraceView({ steps, defaultExpanded }: WorkTraceViewProps) {
   }
 
   const isRunning = steps.some((s) => s.status === "running");
-  const hasFailed = steps.some((s) => s.status === "failed");
   const runningStep = steps.find((s) => s.status === "running");
 
   return (
-    <div className="text-body-xs font-sans text-muted-foreground/90 my-2 select-text">
+    <div className="text-body-xs font-sans text-muted-foreground my-2 select-text">
       {/* Collapsible toggle header (Cloudflare style: > Jejak Kerja Audit) */}
       <button
         type="button"
         onClick={() => setIsExpanded((prev) => !prev)}
         aria-expanded={isExpanded}
         aria-label="Buka atau tutup jejak kerja audit"
-        className="group flex items-start text-left gap-1.5 text-[11px] font-medium text-muted-foreground hover:text-foreground transition-colors cursor-pointer py-0.5 focus-visible:outline-none w-full"
+        className="group flex items-start text-left gap-1.5 text-body-sm font-medium text-muted-foreground hover:text-foreground transition-colors cursor-pointer py-0.5 rounded-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring w-full"
       >
         {isExpanded ? (
           <ChevronDown className="size-3 text-muted-foreground group-hover:text-foreground transition-colors mt-0.5 shrink-0" />
@@ -95,7 +93,7 @@ export function WorkTraceView({ steps, defaultExpanded }: WorkTraceViewProps) {
           <ChevronRight className="size-3 text-muted-foreground group-hover:text-foreground transition-colors mt-0.5 shrink-0" />
         )}
 
-        <span className="font-heading text-body-xs font-bold text-foreground block leading-snug break-words">
+        <span className="font-sans text-body-sm font-medium text-foreground block leading-snug break-words">
           <span>Jejak Kerja Audit ({steps.length} langkah)</span>
           {isRunning && runningStep && (
             <span className="ml-1.5 inline-flex items-center gap-1 text-[10px] text-primary font-normal font-sans">
@@ -108,7 +106,7 @@ export function WorkTraceView({ steps, defaultExpanded }: WorkTraceViewProps) {
 
       {/* Expanded list with clean -> arrow items */}
       {isExpanded && (
-        <div className="mt-1.5 pl-2 border-l border-border/50 space-y-1 text-[11px] font-mono leading-relaxed text-muted-foreground">
+        <div className="mt-1.5 pl-2 border-l border-border/50 space-y-1 text-body-xs font-mono leading-relaxed text-muted-foreground">
           {steps.map((step) => {
             const badge = getStatusBadge(step.status);
             const duration = formatDuration(step.durationMs);
@@ -139,20 +137,20 @@ export function WorkTraceView({ steps, defaultExpanded }: WorkTraceViewProps) {
                     </span>
 
                     {duration && (
-                      <span className="text-[10px] text-muted-foreground/60 shrink-0">
+                      <span className="text-[10px] text-muted-foreground shrink-0">
                         ({duration})
                       </span>
                     )}
                   </div>
 
                   {step.detail && (
-                    <p className="text-[10px] text-muted-foreground/80 pl-2 mt-0.5 line-clamp-2 font-sans">
+                    <p className="text-body-xs text-muted-foreground pl-2 mt-0.5 line-clamp-2 font-sans">
                       {step.detail}
                     </p>
                   )}
 
                   {step.error && (
-                    <p className="text-[10px] text-destructive pl-2 mt-0.5 font-sans">
+                    <p className="text-body-xs text-destructive pl-2 mt-0.5 font-sans">
                       {step.error}
                     </p>
                   )}
