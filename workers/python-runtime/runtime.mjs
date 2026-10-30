@@ -13,8 +13,14 @@ async function permissions(path, dirMode, fileMode) {
   }
   await chmod(path, dirMode);
 }
+async function writableDirectories(path) {
+  await chmod(path, 0o700);
+  for (const item of await readdir(path, { withFileTypes: true })) {
+    if (item.isDirectory()) await writableDirectories(join(path, item.name));
+  }
+}
 async function cleanup(path) {
-  try { await permissions(path, 0o700, 0o600); } finally { await rm(path, { recursive: true, force: true }); }
+  try { await writableDirectories(path); } finally { await rm(path, { recursive: true, force: true }); }
 }
 export async function startPython({ executable, wasm, library, code, onOutput = () => {}, maxOutput = 64000 }) {
   if (process.platform !== "linux" || process.getuid?.() === 0) throw new Error("A non-root Linux process is required");
