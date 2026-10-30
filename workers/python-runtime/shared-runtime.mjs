@@ -16,9 +16,9 @@ const deadline = (promise, ms) => {
 };
 
 // Testing dependencies are injectable; normal calls use the configured Daytona API key.
-export async function startPython({ code, onOutput = () => {}, maxOutput = 64000, daytona, timeoutMs = 30000, sandboxId = process.env.DAYTONA_SANDBOX_ID } = {}) {
+export async function startPython({ code, codeReady, onPrepared = () => {}, onOutput = () => {}, maxOutput = 64000, daytona, timeoutMs = 30000, sandboxId = process.env.DAYTONA_SANDBOX_ID } = {}) {
   if (typeof sandboxId !== 'string' || !sandboxId.trim()) throw new Error('A dedicated sandbox is required');
-  if (typeof code !== 'string' || Buffer.byteLength(code) > 64000) throw new Error('Invalid source');
+  if (!codeReady && (typeof code !== 'string' || Buffer.byteLength(code) > 64000)) throw new Error('Invalid source');
   if (!Number.isSafeInteger(maxOutput) || maxOutput < 100 || maxOutput > 64000) throw new Error('Invalid output limit');
   const client = daytona ?? getClient();
   const id = randomUUID().replaceAll('-', '');
@@ -31,12 +31,12 @@ export async function startPython({ code, onOutput = () => {}, maxOutput = 64000
   const timings = {};
   const advance = (next) => { const now = performance.now(); timings[stage] = Math.round(now - stageAt); stage = next; stageAt = now; };
   const report = (outcome) => { advance('reported'); console.info('Python runtime timing', JSON.stringify({ outcome, ...timings, total: Math.round(performance.now() - startedAt) })); };
-  let sandbox, pty, ptyRequested = false, ptyPending = false, stopped = false, finished = false, outputLimit = false, outputBytes = 0, inputBytes = 0, acceptOutput = false, markerBuffer = Buffer.alloc(0), cleanupPromise;
+  let sandbox, pty, ptyRequested = false, ptyPending = false, sourcePending = 0, stopped = false, finished = false, outputLimit = false, outputBytes = 0, inputBytes = 0, acceptOutput = false, markerBuffer = Buffer.alloc(0), cleanupPromise;
   let stopResolve;
   const stopSignal = new Promise((resolve) => { stopResolve = resolve; });
   const stop = () => { if (!stopped) { stopped = true; stopResolve(); } };
   const cleanup = () => cleanupPromise ??= (async () => {
-    let failed = ptyPending;
+    let failed = ptyPending || sourcePending > 0;
     if (sandbox && ptyRequested) { try { await deadline(sandbox.process.killPtySession(`zyxpty-${id}`), 10000); } catch (error) { if (error?.statusCode !== 404) failed = true; } }
     if (pty) { try { await deadline(pty.disconnect(), 5000); } catch { /* Deletion remains authoritative. */ } }
     if (sandbox) { try { await deadline(sandbox.fs.deleteFile(dir, true), 10000); } catch (error) { if (error?.statusCode !== 404) failed = true; } }
@@ -46,13 +46,27 @@ export async function startPython({ code, onOutput = () => {}, maxOutput = 64000
     sandbox = reconciledSandbox?.client === client && reconciledSandbox.id === sandboxId
       ? reconciledSandbox.sandbox
       : await deadline(client.get(sandboxId), timeoutMs);
-    advance('setup');
-    const setupRuntime = `test -x ${runtimeDir}/wasmtime && test -r ${runtimeDir}/python.wasm && test -d ${runtimeDir}/lib`;
-    const setup = await deadline(sandbox.process.executeCommand(`${setupRuntime} && /bin/mkdir -p ${dir}/src`, undefined, {}, 10), timeoutMs);
-    if (setup.exitCode !== 0) throw new Error('Runtime setup failed');
-    advance('upload');
-    await deadline(sandbox.fs.uploadFile(Buffer.from(code, 'utf8'), `${dir}/src/main.py`, 20), timeoutMs);
-    advance('create-pty');
+    advance('prepare');
+    // Await both bounded branches before cleanup. An operation still pending after
+    // its deadline fails closed and is cleaned up again if it later settles.
+    const sourceOperation = (operation) => {
+      sourcePending++;
+      operation.then(() => {
+        sourcePending--;
+        if (cleanupPromise) void sandbox.fs.deleteFile(dir, true).catch(() => {});
+      }, () => { sourcePending--; });
+      return operation;
+    };
+    const sourcePreparation = (async () => {
+      const setupStart = performance.now();
+      const setupRuntime = `test -x ${runtimeDir}/wasmtime && test -r ${runtimeDir}/python.wasm && test -d ${runtimeDir}/lib`;
+      try {
+        const setup = await deadline(sourceOperation(sandbox.process.executeCommand(`${setupRuntime} && /bin/mkdir -p ${dir}/src`, undefined, {}, 10)), timeoutMs);
+        if (setup.exitCode !== 0) throw new Error('Runtime setup failed');
+      } finally { timings.setupMs = Math.round(performance.now() - setupStart); }
+    })();
+    const ptyPreparation = (async () => {
+    const ptyStart = performance.now();
     ptyRequested = true; ptyPending = true;
     const ptyCreation = sandbox.process.createPty({ id: `zyxpty-${id}`, cols: 100, rows: 30, onData(data) {
       if (stopped || outputLimit) return;
@@ -73,9 +87,19 @@ export async function startPython({ code, onOutput = () => {}, maxOutput = 64000
     } });
     // A timed-out PTY create can resolve later; close that local socket as well.
     ptyCreation.then(handle => { ptyPending = false; if (cleanupPromise) { void sandbox.process.killPtySession(`zyxpty-${id}`).catch(() => {}); void handle.disconnect().catch(() => {}); } }, () => { ptyPending = false; });
-    pty = await deadline(ptyCreation, timeoutMs);
-    advance('pty-connect');
-    await deadline(pty.waitForConnection(), 12000);
+    try {
+      pty = await deadline(ptyCreation, timeoutMs);
+      await deadline(pty.waitForConnection(), 12000);
+    } finally { timings.ptyMs = Math.round(performance.now() - ptyStart); }
+    })();
+    const preparation = await Promise.allSettled([sourcePreparation, ptyPreparation]);
+    const rejected = preparation.find(result => result.status === 'rejected');
+    if (rejected) throw rejected.reason;
+    if (codeReady) { onPrepared(); code = await deadline(codeReady, 120000); }
+    if (typeof code !== 'string' || Buffer.byteLength(code) > 64000) throw new Error('Invalid source');
+      const uploadStart = performance.now();
+      try { await deadline(sourceOperation(sandbox.fs.uploadFile(Buffer.from(code, 'utf8'), `${dir}/src/main.py`, 20)), timeoutMs); }
+      finally { timings.uploadMs = Math.round(performance.now() - uploadStart); }
     // Source is uploaded separately; only generated hexadecimal ID enters shell text.
     const command = `stty -echo; printf '${marker.slice(0, 12)}%s' '${marker.slice(12)}'; exec ${runtimeDir}/wasmtime run -W fuel=5000000000,max-memory-size=134217728 --dir ${runtimeDir}/lib::/lib --dir ${dir}/src::/src --env PYTHONHOME=/ --env PYTHON_COLORS=0 --env NO_COLOR=1 ${runtimeDir}/python.wasm -u /src/main.py; exit 125\n`;
     advance('start-command');

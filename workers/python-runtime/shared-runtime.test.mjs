@@ -24,8 +24,8 @@ test('stop and oversized output kill own session',async()=>{
 test('failed process cleanup disables further runs',async()=>{
  const f=fixture({killFails:true});const run=await startPython(options(f));run.stop();assert.equal((await run.done).cleanupFailed,true);
 });
-test('failed upload removes own directory and never creates a pty',async()=>{
- const f=fixture({uploadFails:true});await assert.rejects(startPython(options(f)));assert.equal(f.calls.deleted.length,1);assert.equal(f.calls.killed.length,0);
+test('failed upload removes its directory and any concurrently created pty',async()=>{
+ const f=fixture({uploadFails:true});await assert.rejects(startPython(options(f)));assert.equal(f.calls.deleted.length,1);assert.equal(f.calls.killed.length,1);
 });
 test('startup reconciliation removes only owned orphan sessions and files',async()=>{
  const f=fixture();await reconcileSandbox({sandboxId:'test-id',daytona:f.client});
@@ -49,4 +49,39 @@ test('reconciled sandbox is reused and a failed setup invalidates it',async()=>{
  const second=await startPython({...options(f),daytona:client});second.stop();await second.done;
  assert.equal(lookups,2);
  assert.match(f.calls.commands[0],/test -x .* && \/bin\/mkdir -p /);
+});
+
+
+test('prepares PTY while source setup is pending',async()=>{
+ const f=fixture();let release;const gate=new Promise(resolve=>{release=resolve});
+ const original=f.sandbox.process.executeCommand;
+ f.sandbox.process.executeCommand=async(...args)=>{await gate;return original(...args)};
+ const pending=startPython(options(f));
+ await new Promise(resolve=>setImmediate(resolve));
+ assert.ok(f.calls.ptyId);
+ assert.equal(f.calls.uploads.length,0);
+ release();const run=await pending;run.stop();await run.done;
+});
+
+test('timed-out source setup fails closed and removes a late-created directory',async()=>{
+ const f=fixture();let release;const gate=new Promise(resolve=>{release=resolve});
+ f.sandbox.process.executeCommand=async()=>{await gate;return {exitCode:0}};
+ await assert.rejects(startPython({...options(f),timeoutMs:10}),error=>error.cleanupFailed===true);
+ assert.equal(f.calls.killed.length,1);
+ assert.equal(f.calls.deleted.length,1);
+ release();await new Promise(resolve=>setImmediate(resolve));
+ assert.equal(f.calls.deleted.length,2);
+});
+
+test('prepared execution waits for source before upload and cleans after cancel',async()=>{
+ const f=fixture();let prepared,resolveCode;const ready=new Promise(resolve=>{prepared=resolve});const codeReady=new Promise(resolve=>{resolveCode=resolve});
+ const pending=startPython({...options(f),codeReady,onPrepared:prepared});
+ await ready;assert.equal(f.calls.uploads.length,0);assert.ok(f.calls.ptyId);
+ resolveCode('print(42)');const run=await pending;assert.equal(f.calls.uploads[0][0].toString(),'print(42)');run.stop();await run.done;assert.equal(f.calls.deleted.length,1);
+});
+
+test('cancelled warm preparation cleans its terminal and directory',async()=>{
+ const f=fixture();let prepared,rejectCode;const ready=new Promise(resolve=>{prepared=resolve});const codeReady=new Promise((_,reject)=>{rejectCode=reject});codeReady.catch(()=>{});
+ const pending=startPython({...options(f),codeReady,onPrepared:prepared});await ready;rejectCode(Error('cancel'));
+ await assert.rejects(pending);assert.equal(f.calls.killed.length,1);assert.equal(f.calls.deleted.length,1);
 });

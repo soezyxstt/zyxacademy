@@ -111,3 +111,50 @@ test("startup retries reconciliation and remains closed until it succeeds", asyn
     assert.equal(attempts, 2);
   } finally { await new Promise(r => app.server.close(r)); }
 });
+
+test('warm session prepares before receiving source and completes after start', async () => {
+  let received, release;
+  const app = createServerApp({ secret, origin, testReady: true, launch: async ({ codeReady, onPrepared }) => {
+    onPrepared(); received = await codeReady;
+    return { input() { return true; }, stop() {}, done: Promise.resolve({ code: 0 }) };
+  }});
+  await new Promise(r => app.server.listen(0, '127.0.0.1', r));
+  const ws = new WebSocket(`ws://127.0.0.1:${app.server.address().port}/v1/terminal`, ['zyx-v1', 'zyx-warm', `ticket.${ticket()}`], { origin });
+  try {
+    const closed = once(ws, 'close');
+    ws.on('message', raw => { const m=JSON.parse(raw); if(m.type==='ready') ws.send(JSON.stringify({type:'prepare'})); if(m.type==='prepared') { assert.equal(received,undefined);ws.send(JSON.stringify({type:'start',code:'print(42)'})); } if(m.type==='result') release=m.status; });
+    await closed;assert.equal(received,'print(42)');assert.equal(release,'completed');
+  } finally { ws.terminate();await new Promise(r=>app.server.close(r)); }
+});
+
+test('only an authenticated connection may evict an idle warm session', async () => {
+  const app=createServerApp({secret,origin,testReady:true,launch:async({codeReady,onPrepared})=>{onPrepared?.();if(codeReady) await codeReady;return {stop(){},input(){return true},done:new Promise(()=>{})}}});
+  await new Promise(r=>app.server.listen(0,'127.0.0.1',r));const base=`ws://127.0.0.1:${app.server.address().port}/v1/terminal`;
+  const warm=new WebSocket(base,['zyx-v1','zyx-warm',`ticket.${ticket()}`],{origin});const active=new WebSocket(base,['zyx-v1',`ticket.${ticket()}`],{origin});
+  try {
+    const prepared=new Promise(resolve=>warm.on('message',raw=>{const m=JSON.parse(raw);if(m.type==='ready')warm.send(JSON.stringify({type:'prepare'}));if(m.type==='prepared')resolve()}));
+    await Promise.all([prepared,once(active,'open')]);
+    const invalid=new WebSocket(base,['zyx-v1','ticket.invalid.invalid'],{origin});await assert.rejects(once(invalid,'open'));assert.equal(warm.readyState,WebSocket.OPEN);
+    const speculative=new WebSocket(base,['zyx-v1','zyx-warm',`ticket.${ticket()}`],{origin});await assert.rejects(once(speculative,'open'));assert.equal(warm.readyState,WebSocket.OPEN);
+    const closed=once(warm,'close');const third=new WebSocket(base,['zyx-v1',`ticket.${ticket()}`],{origin});await assert.rejects(once(third,'open'));await closed;assert.equal(active.readyState,WebSocket.OPEN);
+  } finally {warm.terminate();active.terminate();await new Promise(r=>app.server.close(r));}
+});
+
+
+test('expired warm session cancels preparation and releases capacity after cleanup', async () => {
+  let cancelled = false;
+  const app = createServerApp({ secret, origin, testReady: true, warmTtlMs: 30, launch: async ({ codeReady, onPrepared }) => {
+    onPrepared(); try { await codeReady; } catch { cancelled = true; throw new Error('cancelled'); }
+  }});
+  await new Promise(resolve => app.server.listen(0, '127.0.0.1', resolve));
+  const base = `ws://127.0.0.1:${app.server.address().port}/v1/terminal`;
+  const ws = new WebSocket(base, ['zyx-v1', 'zyx-warm', `ticket.${ticket()}`], { origin });
+  try {
+    ws.on('message', raw => { if (JSON.parse(raw).type === 'ready') ws.send(JSON.stringify({type:'prepare'})); });
+    await once(ws, 'close');
+    await new Promise(resolve => setImmediate(resolve));
+    assert.equal(cancelled, true);
+    const next = new WebSocket(base, ['zyx-v1', 'zyx-warm', `ticket.${ticket()}`], { origin });
+    await once(next, 'open'); next.terminate();
+  } finally { ws.terminate(); await new Promise(resolve => app.server.close(resolve)); }
+});

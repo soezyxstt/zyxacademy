@@ -4,12 +4,13 @@ import { pathToFileURL } from "node:url";
 import { WebSocketServer } from "ws";
 import { startPython, reconcileSandbox } from "./shared-runtime.mjs";
 
-export function createServerApp({ secret = process.env.PYTHON_RUNTIME_TOKEN_SECRET, origin = process.env.PYTHON_RUNTIME_ORIGIN, daytonaApiKey = process.env.DAYTONA_API_KEY, sandboxId = process.env.DAYTONA_SANDBOX_ID, assets = {}, launch = startPython, reconcile = reconcileSandbox, testReady = false } = {}) {
+export function createServerApp({ secret = process.env.PYTHON_RUNTIME_TOKEN_SECRET, origin = process.env.PYTHON_RUNTIME_ORIGIN, daytonaApiKey = process.env.DAYTONA_API_KEY, sandboxId = process.env.DAYTONA_SANDBOX_ID, assets = {}, launch = startPython, reconcile = reconcileSandbox, testReady = false, warmTtlMs = 60000 } = {}) {
   const key = typeof secret === "string" && /^[A-Za-z0-9_-]{43,}$/.test(secret) ? Buffer.from(secret, "base64url") : Buffer.alloc(0);
   const configured = key.length >= 32 && Boolean(origin) && typeof daytonaApiKey === "string" && Boolean(daytonaApiKey.trim()) && typeof sandboxId === "string" && Boolean(sandboxId.trim());
   let ready = key.length >= 32 && Boolean(origin) && testReady;
   const nonces = new Map();
   const clients = new Set();
+  let warmClient;
   let attemptWindow = 0, attempts = 0;
   const server = createServer((req, res) => {
     if (req.method === "GET" && req.url === "/health") return res.writeHead(200, { "content-type": "application/json", "cache-control": "no-store" }).end(JSON.stringify({ service: "python-runtime", execution: ready ? "ready" : "disabled" }));
@@ -44,28 +45,38 @@ export function createServerApp({ secret = process.env.PYTHON_RUNTIME_TOKEN_SECR
     if (++attempts > 60) { socket.write("HTTP/1.1 429 Too Many Requests\r\nConnection: close\r\n\r\n"); socket.destroy(); return; }
     const protocols = (req.headers["sec-websocket-protocol"] || "").split(",").map((value) => value.trim());
     const tokens = protocols.filter((p) => p.startsWith("ticket."));
-    if (!ready || req.url !== "/v1/terminal" || req.headers.origin !== origin || clients.size >= 2 || !protocols.includes("zyx-v1") || tokens.length !== 1 || !verify(tokens[0].slice(7))) { socket.write("HTTP/1.1 401 Unauthorized\r\nConnection: close\r\n\r\n"); socket.destroy(); return; }
-    wss.handleUpgrade(req, socket, head, (ws) => { clients.add(ws); wss.emit("connection", ws); });
+    if (!ready || req.url !== "/v1/terminal" || req.headers.origin !== origin || !protocols.includes("zyx-v1") || tokens.length !== 1 || !verify(tokens[0].slice(7))) { socket.write("HTTP/1.1 401 Unauthorized\r\nConnection: close\r\n\r\n"); socket.destroy(); return; }
+    if (clients.size >= 2) { if (!protocols.includes("zyx-warm") && warmClient) warmClient.terminate(); socket.write("HTTP/1.1 503 Service Unavailable\r\nConnection: close\r\n\r\n"); socket.destroy(); return; }
+    wss.handleUpgrade(req, socket, head, (ws) => { clients.add(ws); wss.emit("connection", ws, { warm: protocols.includes("zyx-warm") }); });
   });
-  wss.on("connection", (ws) => {
-    let run, starting = false, ended = false, released = false;
-    const release = () => { if (!released) { released = true; clients.delete(ws); } };
+  wss.on("connection", (ws, intent) => {
+    let run, starting = false, ended = false, released = false, preparing = false, warmLaunch, supplyCode, cancelWarm;
+    const release = () => { if (!released) { released = true; clients.delete(ws); if (warmClient === ws) warmClient = undefined; } };
     const finish = (result) => { if (result.cleanupFailed) { ready = false; for (const client of clients) if (client !== ws) client.terminate(); } release(); };
     const send = (value) => { if (ws.readyState === ws.OPEN) ws.send(JSON.stringify(value)); };
-    const startTimer = setTimeout(() => { if (!starting && !run) ws.close(1008, "Start required"); }, 15000);
+    const startTimer = setTimeout(() => { if (!starting && !run) ws.close(1008, "Start required"); }, intent.warm ? warmTtlMs : 15000);
     let alive = true;
     ws.on("pong", () => { alive = true; });
     const heartbeat = setInterval(() => { if (!alive) return ws.terminate(); alive = false; ws.ping(); }, 30000);
     ws.on("error", () => {});
-    ws.on("close", () => { ended = true; clearTimeout(startTimer); clearInterval(heartbeat); run?.stop(); if (!starting && !run) release(); });
+    ws.on("close", () => { ended = true; clearTimeout(startTimer); clearInterval(heartbeat); cancelWarm?.(); run?.stop(); if (!starting && !preparing && !run) release(); });
     ws.on("message", async (raw, binary) => {
       if (binary) return ws.close(1003);
       let msg; try { msg = JSON.parse(raw.toString("utf8")); } catch { return ws.close(1007); }
       if (!msg || typeof msg !== "object" || Array.isArray(msg)) return ws.close(1007);
-      if (msg.type === "start" && !starting && !run && typeof msg.code === "string" && Buffer.byteLength(msg.code) <= 64000 && Object.keys(msg).length === 2) {
-        starting = true; clearTimeout(startTimer);
+      if (msg.type === "prepare" && Object.keys(msg).length === 1 && !preparing && !starting && !run) {
+        if (!intent.warm) { ws.close(1008, "Invalid request"); return; }
+        if (warmClient && warmClient !== ws) { ws.close(1013, "Busy"); return; }
+        warmClient = ws; preparing = true;
+        const codeReady = new Promise((resolve, reject) => { supplyCode = resolve; cancelWarm = () => reject(new Error("Cancelled")); });
+        codeReady.catch(() => {});
+        warmLaunch = launch({ ...assets, sandboxId, codeReady, onPrepared: () => { if (!ended) send({ type: "prepared" }); }, onOutput: (stream, bytes) => send({ type: "output", stream, data: bytes.toString("base64") }) });
+        warmLaunch.catch(error => { if (!starting) { if (error?.cleanupFailed) finish({ cleanupFailed: true }); else release(); if (!ended) { send({ type: "result", status: "unavailable" }); ws.close(1011); } } });
+      } else if (msg.type === "start" && !starting && !run && typeof msg.code === "string" && Buffer.byteLength(msg.code) <= 64000 && Object.keys(msg).length === 2) {
+        starting = true; if (warmClient === ws) warmClient = undefined; clearTimeout(startTimer);
         try {
-          run = await launch({ ...assets, sandboxId, code: msg.code, onOutput: (stream, bytes) => send({ type: "output", stream, data: bytes.toString("base64") }) });
+          if (preparing) { if (warmClient === ws) warmClient = undefined; supplyCode(msg.code); cancelWarm = undefined; run = await warmLaunch; }
+          else run = await launch({ ...assets, sandboxId, code: msg.code, onOutput: (stream, bytes) => send({ type: "output", stream, data: bytes.toString("base64") }) });
           if (ended) { run.stop(); finish(await run.done); return; }
           send({ type: "running" });
           const result = await run.done;
