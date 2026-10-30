@@ -31,3 +31,8 @@ test('startup reconciliation removes only owned orphan sessions and files',async
  const f=fixture();await reconcileSandbox({sandboxId:'test-id',daytona:f.client});
  assert.deepEqual(f.calls.killed,['zyxpty-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa']);assert.deepEqual(f.calls.deleted,['/tmp/zyx-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa']);
 });
+
+test('nonzero Python exit with a reason is an execution error, not a runtime failure',async()=>{
+ const f=fixture();const run=await startPython(options(f));f.finish({exitCode:1,error:'process exited with code 1'});const result=await run.done;
+ assert.equal(result.code,1);assert.equal(result.spawnError,false);
+});

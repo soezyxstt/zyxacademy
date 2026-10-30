@@ -66,7 +66,7 @@ export async function startPython({ code, onOutput = () => {}, maxOutput = 64000
     stage = 'pty-connect';
     await deadline(pty.waitForConnection(), 12000);
     // Source is uploaded separately; only generated hexadecimal ID enters shell text.
-    const command = `stty -echo; printf '${marker.slice(0, 12)}%s' '${marker.slice(12)}'; exec ${runtimeDir}/wasmtime run -W fuel=5000000000,max-memory-size=134217728 --dir ${runtimeDir}/lib::/lib --dir ${dir}/src::/src --env PYTHONHOME=/ ${runtimeDir}/python.wasm -u /src/main.py; exit 125\n`;
+    const command = `stty -echo; printf '${marker.slice(0, 12)}%s' '${marker.slice(12)}'; exec ${runtimeDir}/wasmtime run -W fuel=5000000000,max-memory-size=134217728 --dir ${runtimeDir}/lib::/lib --dir ${dir}/src::/src --env PYTHONHOME=/ --env PYTHON_COLORS=0 --env NO_COLOR=1 ${runtimeDir}/python.wasm -u /src/main.py; exit 125\n`;
     stage = 'start-command';
     await deadline(pty.sendInput(command), 10000);
     const done = (async () => {
@@ -75,7 +75,7 @@ export async function startPython({ code, onOutput = () => {}, maxOutput = 64000
       catch { result = { error: true }; }
       finished = true;
       const cleanupFailed = await cleanup();
-      return { code: result.exitCode ?? null, signal: null, stopped, outputLimit, spawnError: Boolean(result.error), cleanupFailed };
+      return { code: result.exitCode ?? null, signal: null, stopped, outputLimit, spawnError: result.exitCode == null && Boolean(result.error), cleanupFailed };
     })();
     return {
       input(value) {
