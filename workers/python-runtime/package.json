@@ -1,0 +1,17 @@
+{
+  "name": "zyx-python-runtime",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@daytona/sdk": "0.227.0",
+    "fflate": "0.8.2",
+    "ws": "8.21.0"
+  },
+  "scripts": {
+    "build": "npm ci --omit=dev --ignore-scripts --no-audit --no-fund && node --check index.mjs && node --check shared-runtime.mjs",
+    "start": "node index.mjs",
+    "test": "node --test",
+    "test:integration": "node runtime.integration.mjs",
+    "test:gateway": "node gateway.integration.mjs"
+  }
+}
