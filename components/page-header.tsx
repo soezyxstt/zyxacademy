@@ -178,7 +178,7 @@ export function PageHeader({
       className={cn(
         "w-full min-w-0 flex-col items-stretch gap-2 text-left",
         hasMobileControls ? "flex mb-3 md:mb-0" : "hidden md:flex",
-        divider && "md:border-b md:border-border md:pb-2.5 md:mb-3.5",
+        divider && "md:pb-2.5 md:mb-3.5",
         className,
       )}
     >
