@@ -47,3 +47,7 @@ const [r1,r2]=await Promise.all([s1.done,s2.done]);
 assert.equal(r1.code,0);assert.equal(r2.code,0);assert.equal(r1.cleanupFailed,false);assert.equal(r2.cleanupFailed,false);
 assert.match(first,/A first/);assert.doesNotMatch(first,/second/);assert.match(second,/B second/);assert.doesNotMatch(second,/first/);
 console.log('two concurrent sessions remain separate: PASS');
+let imports="";
+const stdlib=await startPython({...options,code:'import asyncio, json, random, math\nprint(json.dumps({"value":math.sqrt(16)}))',onOutput:(_ch,b)=>{imports+=b}});
+const sr=await stdlib.done;assert.equal(sr.code,0);assert.match(imports,/"value": 4.0/);assert.equal(sr.cleanupFailed,false);
+console.log('compiled standard library imports: PASS');

@@ -1,8 +1,8 @@
 import { createHash } from "node:crypto";
-import { chmod, mkdir, mkdtemp, readFile, rename, rm, writeFile } from "node:fs/promises";
+import { chmod, mkdir, mkdtemp, readFile, readdir, rename, rm, writeFile } from "node:fs/promises";
 import { execFileSync } from "node:child_process";
 import { join, resolve } from "node:path";
-import { unzipSync } from "fflate";
+import { unzipSync, zipSync } from "fflate";
 
 if (process.platform !== "linux" || process.arch !== "x64") throw new Error("Runtime build requires Linux x64");
 const root = resolve(".runtime");
@@ -38,6 +38,21 @@ try {
   }
   if (!count) throw new Error("Missing Python standard library");
   await chmod(join(temp, "wasmtime"), 0o755);
+  execFileSync(join(temp, "wasmtime"), ["run", "--dir", `${join(temp, "lib")}::/lib`, "--env", "PYTHONHOME=/", join(temp, "python.wasm"), "-m", "compileall", "-q", "-b", "--invalidation-mode", "unchecked-hash", "/lib/python3.13"], { timeout: 300000, env: {} });
+  const stdlib = Object.create(null);
+  async function collect(dir, prefix = "") {
+    for (const entry of await readdir(dir, { withFileTypes: true })) {
+      const name = prefix ? `${prefix}/${entry.name}` : entry.name;
+      if (entry.isDirectory()) await collect(join(dir, entry.name), name);
+      else if (entry.isFile()) stdlib[name] = await readFile(join(dir, entry.name));
+      else throw new Error("Unsupported standard library file");
+    }
+  }
+  await collect(join(temp, "lib", "python3.13"));
+  const packed = zipSync(stdlib, { level: 0 });
+  await rm(join(temp, "lib"), { recursive: true, force: true });
+  await mkdir(join(temp, "lib"));
+  await writeFile(join(temp, "lib", "python313.zip"), packed);
   for (const name of ["wasmtime", "python.wasm", "lib"]) {
     const target = join(root, name);
     await rm(target, { recursive: true, force: true });
