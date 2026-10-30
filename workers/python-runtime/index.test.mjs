@@ -18,6 +18,31 @@ test("health fails closed without a key", async () => {
     assert.equal((await response.json()).execution, "disabled");
   } finally { await new Promise(r => app.server.close(r)); }
 });
+test("health and websocket fail closed without Daytona configuration", async () => {
+  for (const config of [
+    { daytonaApiKey: "", snapshot: "snapshot" },
+    { daytonaApiKey: "test-key", snapshot: "" },
+    { daytonaApiKey: "   ", snapshot: "snapshot" },
+    { daytonaApiKey: "test-key", snapshot: "   " },
+  ]) {
+    const app = createServerApp({ secret, origin, ...config });
+    await new Promise(r => app.server.listen(0, "127.0.0.1", r));
+    try {
+      const base = `http://127.0.0.1:${app.server.address().port}`;
+      assert.equal((await (await fetch(`${base}/health`)).json()).execution, "disabled");
+      const ws = new WebSocket(base.replace("http:", "ws:") + "/v1/terminal", ["zyx-v1", `ticket.${ticket()}`], { origin });
+      await assert.rejects(once(ws, "open"));
+    } finally { await new Promise(r => app.server.close(r)); }
+  }
+});
+test("health reports configured state when required values exist", async () => {
+  const app = createServerApp({ secret, origin, daytonaApiKey: "test-key", snapshot: "trusted-snapshot" });
+  await new Promise(r => app.server.listen(0, "127.0.0.1", r));
+  try {
+    const response = await fetch(`http://127.0.0.1:${app.server.address().port}/health`);
+    assert.equal((await response.json()).execution, "ready");
+  } finally { await new Promise(r => app.server.close(r)); }
+});
 test("only accepts signed, single-use tickets and forwards input", async () => {
   let captured = "", finish;
   const done = new Promise(r => { finish = r; });

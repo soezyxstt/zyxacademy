@@ -1,16 +1,12 @@
 import { createServer } from "node:http";
 import { createHmac, timingSafeEqual } from "node:crypto";
-import { accessSync, constants } from "node:fs";
-import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { WebSocketServer } from "ws";
-import { startPython } from "./runtime.mjs";
+import { startPython } from "./daytona-runtime.mjs";
 
-const runtimeDir = join(process.cwd(), ".runtime");
-export function createServerApp({ secret = process.env.PYTHON_RUNTIME_TOKEN_SECRET, origin = process.env.PYTHON_RUNTIME_ORIGIN, assets = { executable: join(runtimeDir, "wasmtime"), wasm: join(runtimeDir, "python.wasm"), library: join(runtimeDir, "lib") }, launch = startPython, testReady = false } = {}) {
+export function createServerApp({ secret = process.env.PYTHON_RUNTIME_TOKEN_SECRET, origin = process.env.PYTHON_RUNTIME_ORIGIN, daytonaApiKey = process.env.DAYTONA_API_KEY, snapshot = process.env.DAYTONA_PYTHON_SNAPSHOT, assets = {}, launch = startPython, testReady = false } = {}) {
   const key = typeof secret === "string" && /^[A-Za-z0-9_-]{43,}$/.test(secret) ? Buffer.from(secret, "base64url") : Buffer.alloc(0);
-  let ready = key.length >= 32 && Boolean(origin) && (testReady || (process.platform === "linux" && process.getuid?.() !== 0));
-  if (ready && !testReady) { try { accessSync(assets.executable, constants.X_OK); accessSync(assets.wasm, constants.R_OK); accessSync(assets.library, constants.R_OK); } catch { ready = false; } }
+  let ready = key.length >= 32 && Boolean(origin) && (testReady || (typeof daytonaApiKey === "string" && Boolean(daytonaApiKey.trim()) && typeof snapshot === "string" && Boolean(snapshot.trim())));
   const nonces = new Map();
   const clients = new Set();
   let attemptWindow = 0, attempts = 0;
@@ -61,7 +57,7 @@ export function createServerApp({ secret = process.env.PYTHON_RUNTIME_TOKEN_SECR
       if (msg.type === "start" && !starting && !run && typeof msg.code === "string" && Buffer.byteLength(msg.code) <= 64000 && Object.keys(msg).length === 2) {
         starting = true; clearTimeout(startTimer);
         try {
-          run = await launch({ ...assets, code: msg.code, onOutput: (stream, bytes) => send({ type: "output", stream, data: bytes.toString("base64") }) });
+          run = await launch({ ...assets, snapshot, code: msg.code, onOutput: (stream, bytes) => send({ type: "output", stream, data: bytes.toString("base64") }) });
           if (ended) { run.stop(); finish(await run.done); return; }
           send({ type: "running" });
           const result = await run.done;
