@@ -14,6 +14,7 @@ describe("Python runtime frame CSP", () => {
   it("uses the configured public origin instead of a proxy's internal host", async () => {
     process.env.NEXT_PUBLIC_APP_URL = "https://staging.zyxacademy.com";
     const response = await GET(new Request("http://localhost:8080/coding/runtime-frame", { headers: { host: "staging.zyxacademy.com:8080" } }));
+    expect(response.headers.get("document-isolation-policy")).toBe("isolate-and-require-corp");
     const csp = response.headers.get("content-security-policy");
     expect(csp).toContain("connect-src https://staging.zyxacademy.com/api/coding/runtime/ https://staging.zyxacademy.com/coding/worker.js");
     expect(csp).not.toContain(":8080");

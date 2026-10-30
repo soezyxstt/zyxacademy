@@ -527,6 +527,13 @@ The always-on PDF page reader requires `source-read-page` in the Deno compute ap
 
 ## Python coding deployment
 
+Staging interactive Playground and runnable Article examples require
+`PYTHON_RUNTIME_TOKEN_SECRET` in GitHub Environment `staging`, matching the
+Render Python worker. The staging runtime allowlist forwards it to Cloud Run.
+The ticket endpoint checks course access and returns a short-lived WebSocket
+ticket; the key never reaches the browser. The worker and Daytona sandbox must
+already be available. This does not change Submit grading or production Run.
+
 Python coding requires the generated coding table migration and a paired release
 of the Next application and `workers/realtime` for graded Live Quiz. Production
 Submit requires working Cloudflare Browser Run credentials through existing

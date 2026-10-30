@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { FileText } from "lucide-react";
 import { CoursePageShell } from "@/components/course/course-page-shell";
+import { CourseMaterialListSkeleton } from "@/components/course/course-skeletons";
 import { createMetadata } from "@/lib/site";
 import { Reveal } from "@/components/ui/reveal";
 import {
@@ -41,30 +42,15 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   });
 }
 
-export default async function CourseMaterialListPage({ params, searchParams }: Props) {
-  const { id } = await params;
-  const resolvedSearchParams = searchParams ? await searchParams : undefined;
-  const initialTab = resolvedSearchParams?.tab;
-
-  // Run session check and course lookup concurrently while preserving strict auth priority.
-  const sessionPromise = getAuthSession();
-  const coursePromise = getCourse(id).then(
-    (data) => ({ ok: true as const, data }),
-    (err: unknown) => ({ ok: false as const, error: err }),
-  );
-
-  const session = await sessionPromise;
-  const studentId = session?.user?.id;
-  if (!studentId) {
-    redirect(`/sign-in?next=${encodeURIComponent(`/courses/${id}/material`)}`);
-  }
-
-  const courseResult = await coursePromise;
-  if (!courseResult.ok) {
-    throw courseResult.error;
-  }
-  const course = courseResult.data;
-  if (!course) return null;
+async function loadCourseMaterialData({
+  id,
+  studentId,
+  course,
+}: {
+  id: string;
+  studentId: string;
+  course: NonNullable<Awaited<ReturnType<typeof getCourse>>>;
+}) {
   const compatibilityCourseId = course.legacyId ?? id;
 
   // Progress loads with its own error boundary preserving existing error logging
@@ -309,7 +295,7 @@ export default async function CourseMaterialListPage({ params, searchParams }: P
       docCategory: "soal" as const,
       tabGroup: "bank_soal" as const,
       subcategory: "kuis",
-      fileSize: `${qCount} Soal · Kuis Interaktif`,
+      fileSize: `${qCount} Soal \u00b7 Kuis Interaktif`,
       completed: completedQuizIds.has(q.id),
       isPastYear: false,
       isPreview: isFree,
@@ -324,7 +310,7 @@ export default async function CourseMaterialListPage({ params, searchParams }: P
       const parsed = typeof t.settings === "string" ? JSON.parse(t.settings) : t.settings;
       if (parsed?.timeLimitMinutes) duration = parsed.timeLimitMinutes;
     } catch {}
-    return { id: t.id, courseId: id, title: t.title, kind: "tryout" as const, docCategory: "soal" as const, tabGroup: "bank_soal" as const, subcategory: "tryout", fileSize: `${duration} Menit · Tryout Ujian`, completed: false, isPastYear: false, isPreview: false, chapterIds: [], href: `/courses/${id}/tryout/${t.id}` };
+    return { id: t.id, courseId: id, title: t.title, kind: "tryout" as const, docCategory: "soal" as const, tabGroup: "bank_soal" as const, subcategory: "tryout", fileSize: `${duration} Menit \u00b7 Tryout Ujian`, completed: false, isPastYear: false, isPreview: false, chapterIds: [], href: `/courses/${id}/tryout/${t.id}` };
   });
 
   const allMaterials = [...mappedCanonical, ...mappedCanonicalDiktats, ...mappedDiktats, ...mappedDb, ...mappedWeb, ...mappedManual, ...mappedQuizzes, ...mappedTryouts];
@@ -349,32 +335,98 @@ export default async function CourseMaterialListPage({ params, searchParams }: P
   });
   const lockedMaterialCount = materialsWithLockState.filter((m) => m.locked).length;
 
+  return {
+    isEnrolled,
+    isFreeAccess,
+    accessTier: studentAccess?.tier,
+    materialsWithLockState,
+    courseChapters,
+    lockedMaterialCount,
+  };
+}
+
+async function CourseMaterialListContent({
+  courseId,
+  initialTab,
+  dataPromise,
+}: {
+  courseId: string;
+  initialTab?: string;
+  dataPromise: ReturnType<typeof loadCourseMaterialData>;
+}) {
+  const {
+    isEnrolled,
+    accessTier,
+    materialsWithLockState,
+    courseChapters,
+    lockedMaterialCount,
+  } = await dataPromise;
+
+  return (
+    <>
+      {!isEnrolled && (
+        <div className="mb-6 rounded-lg border border-brand-secondary/25 bg-brand-secondary/5 p-4">
+          <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(280px,420px)] md:items-center">
+            <div>
+              <h3 className="font-heading text-body-base font-bold text-brand-secondary">
+                <TranslatedText namespace="learning" messageKey="quizPage.activationTitle" />
+              </h3>
+              <p className="mt-1 max-w-2xl text-body-sm text-muted-foreground">
+                <TranslatedText namespace="learning" messageKey="courseOverview.activationDescription" />
+              </p>
+            </div>
+            <EnrollmentForm className="w-full" />
+          </div>
+        </div>
+      )}
+      <CourseDocumentsClient
+        courseId={courseId}
+        materials={materialsWithLockState}
+        chapters={courseChapters}
+        defaultTab={initialTab}
+        accessTier={accessTier}
+        lockedMaterialCount={lockedMaterialCount}
+      />
+    </>
+  );
+}
+
+export default async function CourseMaterialListPage({ params, searchParams }: Props) {
+  const { id } = await params;
+  const resolvedSearchParams = searchParams ? await searchParams : undefined;
+  const initialTab = resolvedSearchParams?.tab;
+
+  // Run session check and course lookup concurrently while preserving strict auth priority.
+  const sessionPromise = getAuthSession();
+  const coursePromise = getCourse(id).then(
+    (data) => ({ ok: true as const, data }),
+    (err: unknown) => ({ ok: false as const, error: err }),
+  );
+
+  const session = await sessionPromise;
+  const studentId = session?.user?.id;
+  if (!studentId) {
+    redirect(`/sign-in?next=${encodeURIComponent(`/courses/${id}/material`)}`);
+  }
+
+  const courseResult = await coursePromise;
+  if (!courseResult.ok) {
+    throw courseResult.error;
+  }
+  const course = courseResult.data;
+  if (!course) return null;
+
+  const materialDataPromise = loadCourseMaterialData({ id, studentId, course });
+  materialDataPromise.catch(() => {});
+
   return (
     <CoursePageShell title={<TranslatedText namespace="learning" messageKey="materialPage.title" values={{ course: course.title }} />} icon={FileText}>
       <Reveal>
-        {!isEnrolled && (
-          <div className="mb-6 rounded-lg border border-brand-secondary/25 bg-brand-secondary/5 p-4">
-            <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(280px,420px)] md:items-center">
-              <div>
-                <h3 className="font-heading text-body-base font-bold text-brand-secondary">
-                  <TranslatedText namespace="learning" messageKey="quizPage.activationTitle" />
-                </h3>
-                <p className="mt-1 max-w-2xl text-body-sm text-muted-foreground">
-                  <TranslatedText namespace="learning" messageKey="courseOverview.activationDescription" />
-                </p>
-              </div>
-              <EnrollmentForm className="w-full" />
-            </div>
-          </div>
-        )}
-        <Suspense fallback={null}>
-          <CourseDocumentsClient
+        <Suspense fallback={<CourseMaterialListSkeleton />}>
+          <CourseMaterialListContent
             courseId={id}
-            materials={materialsWithLockState}
-            chapters={courseChapters}
-            defaultTab={initialTab}
-            accessTier={studentAccess?.tier}
-            lockedMaterialCount={lockedMaterialCount}
+            initialTab={initialTab}
+            dataPromise={materialDataPromise}
           />
         </Suspense>
       </Reveal>

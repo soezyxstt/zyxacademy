@@ -5,6 +5,7 @@ import React, { Suspense } from "react";
 mock.module("server-only", () => ({}));
 mock.module("next/headers", () => ({
   headers: async () => new Headers(),
+  cookies: async () => ({ get: () => undefined }),
 }));
 
 class RedirectError extends Error {
@@ -34,6 +35,9 @@ const mockNotFound = mock(() => {
 mock.module("next/navigation", () => ({
   redirect: mockRedirect,
   notFound: mockNotFound,
+  usePathname: () => "/courses/math-1",
+  useRouter: () => ({ push: () => {}, replace: () => {}, refresh: () => {} }),
+  useSearchParams: () => new URLSearchParams(),
 }));
 
 // Mock auth session

@@ -17,10 +17,12 @@ class RuntimeSettingsTest(unittest.TestCase):
     def test_only_runtime_settings_are_copied_and_values_are_lossless(self):
         multiline = 'line one,="value"\nline two\\literal'
         self.secrets.update(GA_PRIVATE_KEY=multiline, GCP_SERVICE_ACCOUNT_KEY="ci-key",
+                            PYTHON_RUNTIME_TOKEN_SECRET="runtime-key",
                             DENO_DEPLOY_TOKEN="deno-token", GITHUB_TOKEN="github-token",
                             SKIP_ENV_VALIDATION="1", ALLOW_STAGING_MUTATION="1", UNKNOWN_SECRET="unknown")
         plain, refs = prepare_runtime(self.service, self.secrets, {}, ORIGIN)
         self.assertEqual(plain["GA_PRIVATE_KEY"], multiline)
+        self.assertEqual(plain["PYTHON_RUNTIME_TOKEN_SECRET"], "runtime-key")
         for key in ("GCP_SERVICE_ACCOUNT_KEY", "DENO_DEPLOY_TOKEN", "GITHUB_TOKEN", "SKIP_ENV_VALIDATION", "ALLOW_STAGING_MUTATION", "UNKNOWN_SECRET"):
             self.assertNotIn(key, plain)
         self.assertEqual(refs, [])

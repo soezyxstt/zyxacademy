@@ -40,6 +40,10 @@ export function codingErrorResponse(error: unknown) {
 }
 export function assertCodingSameOrigin(request: Request) {
   const origin = request.headers.get("origin");
+  if (process.env.ZYX_ENVIRONMENT === "staging") {
+    if (origin && origin !== "https://staging.zyxacademy.com") throw new Error("CODING_FORBIDDEN");
+    return;
+  }
   const address = new URL(request.url);
   const host = request.headers.get("host");
   if (host && /^[a-zA-Z0-9.:[\]-]+$/.test(host)) address.host = host;

@@ -205,6 +205,17 @@
  --sidebar-accent-foreground: oklch(0.3211 0 0);
  --sidebar-border: oklch(0.9067 0 0);
  --sidebar-ring: oklch(0.3653 0.0829 266.28);
+ /* Code editor syntax, GitHub Light palette */
+ --code-keyword: #cf222e;
+ --code-string: #0a3069;
+ --code-comment: #6e7781;
+ --code-constant: #0550ae;
+ --code-function: #8250df;
+ --code-type: #953800;
+ --code-invalid: #82071e;
+ --code-gutter: oklch(0.65 0 0);
+ --code-active-line: oklch(0.97 0 0);
+ --code-selection: oklch(0.3653 0.0829 266.28 / 0.14);
 }
 
 .dark {
@@ -256,6 +267,17 @@
  --sidebar-accent-foreground: oklch(1 0 0);
  --sidebar-border: oklch(0.4276 0 0);
  --sidebar-ring: oklch(0.7617 0.1145 240.09);
+ /* Code editor syntax, GitHub Dark palette */
+ --code-keyword: #ff7b72;
+ --code-string: #a5d6ff;
+ --code-comment: #8b949e;
+ --code-constant: #79c0ff;
+ --code-function: #d2a8ff;
+ --code-type: #ffa657;
+ --code-invalid: #ffa198;
+ --code-gutter: oklch(0.55 0 0);
+ --code-active-line: oklch(1 0 0 / 0.04);
+ --code-selection: oklch(0.7617 0.1145 240.09 / 0.24);
 }
 
 @layer base {
@@ -945,4 +967,9 @@
     overflow: visible !important;
     max-width: none;
   }
+}
+
+/* Focus surfaces such as the Python playground opt out of decorative shell ornaments. */
+body:has([data-plain-canvas]) [data-page-ornaments] {
+  display: none;
 }

@@ -17,7 +17,7 @@ export interface TutorCapabilities {
   pet: boolean;
 }
 
-const IMAGE_INPUT_ENABLED = process.env.NEXT_PUBLIC_FEATURE_ZYRA_IMAGE_INPUT_V1 === "1";
+const IMAGE_INPUT_ENABLED = process.env.NEXT_PUBLIC_FEATURE_ZYRA_IMAGE_INPUT_V1 !== "0";
 const CANVAS_ENABLED = true;
 const PET_ENABLED = true;
 

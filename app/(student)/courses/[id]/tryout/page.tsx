@@ -1,7 +1,9 @@
+import { Suspense } from "react";
 import type { Metadata } from "next";
 
 import { GraduationCap } from "lucide-react";
 import { CoursePageShell } from "@/components/course/course-page-shell";
+import { CourseTryoutListSkeleton } from "@/components/course/course-skeletons";
 import { pageTitle } from "@/lib/site";
 import { getCourse } from "@/lib/course-utils";
 import { getAuthSession } from "@/lib/auth-session";
@@ -28,17 +30,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
-export default async function CourseTryoutListPage({ params }: Props) {
-  const { id } = await params;
-  const course = await getCourse(id);
-  if (!course) return null;
-
-  const session = await getAuthSession();
-  const studentId = session?.user?.id;
-  if (!studentId) {
-    redirect(`/sign-in?next=${encodeURIComponent(`/courses/${id}/tryout`)}`);
-  }
-
+async function CourseTryoutListContent({
+  id,
+  course,
+}: {
+  id: string;
+  course: NonNullable<Awaited<ReturnType<typeof getCourse>>>;
+}) {
   const isEnrolled = await checkEnrollment(id);
 
   // Retrieve db tryouts
@@ -78,29 +76,48 @@ export default async function CourseTryoutListPage({ params }: Props) {
   const allTryouts = mappedDb;
 
   return (
+    <Reveal>
+      {!isEnrolled && (
+        <div className="mb-6 rounded-lg border border-brand-secondary/25 bg-brand-secondary/5 p-4">
+          <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(280px,420px)] md:items-center">
+            <div>
+              <h3 className="font-heading text-body-base font-bold text-brand-secondary">
+                <TranslatedText namespace="learning" messageKey="quizPage.activationTitle" />
+              </h3>
+              <p className="mt-1 max-w-2xl text-body-sm text-muted-foreground">
+                <TranslatedText namespace="learning" messageKey="tryoutPage.activationDescription" />
+              </p>
+            </div>
+            <EnrollmentForm className="w-full" />
+          </div>
+        </div>
+      )}
+      <TryoutListClient courseId={id} isEnrolled={isEnrolled} tryouts={allTryouts} />
+    </Reveal>
+  );
+}
+
+export default async function CourseTryoutListPage({ params }: Props) {
+  const { id } = await params;
+  const [course, session] = await Promise.all([
+    getCourse(id),
+    getAuthSession(),
+  ]);
+  if (!course) return null;
+
+  const studentId = session?.user?.id;
+  if (!studentId) {
+    redirect(`/sign-in?next=${encodeURIComponent(`/courses/${id}/tryout`)}`);
+  }
+
+  return (
     <CoursePageShell
       title={<TranslatedText namespace="learning" messageKey="tryoutPage.title" values={{ course: course.title }} />}
-
       icon={GraduationCap}
     >
-      <Reveal>
-        {!isEnrolled && (
-          <div className="mb-6 rounded-lg border border-brand-secondary/25 bg-brand-secondary/5 p-4">
-            <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(280px,420px)] md:items-center">
-              <div>
-                <h3 className="font-heading text-body-base font-bold text-brand-secondary">
-                  <TranslatedText namespace="learning" messageKey="quizPage.activationTitle" />
-                </h3>
-                <p className="mt-1 max-w-2xl text-body-sm text-muted-foreground">
-                  <TranslatedText namespace="learning" messageKey="tryoutPage.activationDescription" />
-                </p>
-              </div>
-              <EnrollmentForm className="w-full" />
-            </div>
-          </div>
-        )}
-        <TryoutListClient courseId={id} isEnrolled={isEnrolled} tryouts={allTryouts} />
-      </Reveal>
+      <Suspense fallback={<CourseTryoutListSkeleton />}>
+        <CourseTryoutListContent id={id} course={course} />
+      </Suspense>
     </CoursePageShell>
   );
 }

@@ -58,7 +58,6 @@ test("real Zyra error, continued correction, stale Run and algorithm flowchart",
   await expect(page.getByText("Eksekusi selesai", { exact: true })).toBeVisible({ timeout: 60000 });
   await capture(page, info, "03-corrected-run");
   if (!mobile) {
-    await page.getByRole("button", { name: "Tulis pertanyaan", exact: true }).click();
     await page.getByLabel("Pertanyaan", { exact: true }).fill("Saya sudah menambahkan tanda yang tadi hilang. Apa perubahan terbaru saya dan apakah hasil Run ini sudah merupakan penilaian Submit?");
     const followup = await consult("continued-correction", "Tanya Zyra");
     expect((followup.request as { sessionId: unknown }).sessionId).toBeTruthy();
