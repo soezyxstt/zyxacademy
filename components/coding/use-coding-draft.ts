@@ -36,7 +36,7 @@ export function useCodingDraft({ courseId, draftKey, learnerId, initialCode, ini
               const candidate = changed.current ? { ...latest.current, revision: local?.revision ?? 0 } : local;
               const decision = reconcileCodingDraft(candidate, draft);
               revision.current = decision.revision;
-              if (decision.conflict) { conflict.current = true; setConflicted(true); setSaved("Draft perangkat lain berbeda. Kode lokal tetap tersimpan."); }
+              if (decision.conflict) { conflict.current = true; setConflicted(true); setSaved("Kode di browser berbeda dari kode tersimpan."); }
               if (decision.source === "remote" && !changed.current) { setCode(draft.code); setStdin(draft.stdin); }
               if (local && !decision.conflict && (local.code !== draft?.code || local.stdin !== draft?.stdin)) changed.current = true;
             }
@@ -57,7 +57,7 @@ export function useCodingDraft({ courseId, draftKey, learnerId, initialCode, ini
         if (conflict.current || identity.current !== localKey || !active.current) return;
         try {
           const response = await fetch("/api/coding/drafts", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ courseId, draftKey, code, stdin, revision: revision.current }) });
-          if (response.status === 409) { conflict.current = true; if (active.current) { setConflicted(true); setSaved("Draft perangkat lain berbeda. Kode lokal tetap tersimpan."); } return; }
+          if (response.status === 409) { conflict.current = true; if (active.current) { setConflicted(true); setSaved("Kode di browser berbeda dari kode tersimpan."); } return; }
           if (!response.ok) return;
           revision.current = (await response.json()).revision;
           try {

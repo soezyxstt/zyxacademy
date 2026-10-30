@@ -7,7 +7,7 @@ Status: `ACTIVE`, local implementation contract. Updated: 2026-10-29.
 Python is always available without a new feature flag. Existing Live Quiz still
 uses its established FEATURE_LIVE gate. Each course has `/courses/[id]/playground`
 with CodeMirror 6 autocomplete, interactive stdin, Run/Stop, stdout, Python errors and Zyra.
-Runnable Article examples use the same terminal. On staging, the application issues a short-lived course-authorized WebSocket ticket for the isolated WASI Python worker; its compute fuel limit does not count time waiting for input. Other environments retain the pinned, self-hosted Pyodide 314.0.7 runtime and its existing hard deadline.
+Runnable Article examples use the same terminal. On staging, the application issues a short-lived course-authorized WebSocket ticket for the isolated WASI Python worker; its compute fuel limit does not count time waiting for input. Interactive editors can prepare one shared idle terminal per page before Run. The worker limits idle warm sessions, expires them after 60 seconds, and falls back to a fresh session when preparation is unavailable. Source code is sent only when Run is pressed. Other environments retain the pinned, self-hosted Pyodide 314.0.7 runtime and its existing hard deadline.
 The initial implementation supports standard-library Python programs and
 stdin/stdout tests, not notebooks, external packages or graphical output.
 
