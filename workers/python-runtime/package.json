@@ -1,0 +1,10 @@
+{
+  "name": "zyx-python-runtime",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node --check index.mjs",
+    "start": "node index.mjs",
+    "test": "node --test"
+  }
+}
