@@ -57,3 +57,13 @@ test("cleanup failure disables subsequent execution", async () => {
     assert.equal((await (await fetch(`${base}/health`)).json()).execution,'disabled');
   } finally {ws.terminate();await new Promise(r=>app.server.close(r));}
 });
+test("setup cleanup failure disables subsequent execution", async () => {
+  const app = createServerApp({ secret, origin, testReady:true, launch:async()=>{const e=new Error('cleanup failed');e.cleanupFailed=true;throw e;} });
+  await new Promise(r=>app.server.listen(0,"127.0.0.1",r));
+  const base = `http://127.0.0.1:${app.server.address().port}`;
+  const ws=new WebSocket(base.replace('http:','ws:')+'/v1/terminal',['zyx-v1',`ticket.${ticket()}`],{origin});
+  try {
+    await once(ws,'open');ws.send(JSON.stringify({type:'start',code:'print(1)'}));await once(ws,'close');
+    assert.equal((await (await fetch(`${base}/health`)).json()).execution,'disabled');
+  } finally {ws.terminate();await new Promise(r=>app.server.close(r));}
+});

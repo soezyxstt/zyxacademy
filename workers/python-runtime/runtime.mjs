@@ -28,7 +28,7 @@ export async function startPython({ executable, wasm, library, code, onOutput = 
     await permissions(lib, 0o555, 0o444);
     child = spawn(executable, ["run", "-W", "fuel=5000000000,max-memory-size=134217728", "--dir", `${lib}::/lib`, "--env", "PYTHONHOME=/", wasm, "-u", "-c", code], { env: {}, stdio: ["pipe", "pipe", "pipe"] });
   } catch (error) {
-    await cleanup(dir);
+    try { await cleanup(dir); } catch { const failure = new Error("Cleanup failed"); failure.cleanupFailed = true; throw failure; }
     throw error;
   }
   let count = 0, inputBytes = 0, stopped = false, outputLimit = false;

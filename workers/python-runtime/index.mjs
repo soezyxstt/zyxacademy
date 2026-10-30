@@ -68,7 +68,7 @@ export function createServerApp({ secret = process.env.PYTHON_RUNTIME_TOKEN_SECR
           finish(result);
           send({ type: "result", status: result.cleanupFailed || result.spawnError ? "unavailable" : result.outputLimit ? "output_limit" : result.stopped ? "stopped" : result.code === 0 ? "completed" : "error" });
           ws.close(1000);
-        } catch { release(); send({ type: "result", status: "unavailable" }); ws.close(1011); }
+        } catch (error) { if (error?.cleanupFailed) finish({ cleanupFailed: true }); else release(); send({ type: "result", status: "unavailable" }); ws.close(1011); }
       } else if (msg.type === "input" && run && typeof msg.data === "string" && Object.keys(msg).length === 2) {
         if (!run.input(msg.data)) { send({ type: "result", status: "input_limit" }); run.stop(); }
       } else if (msg.type === "stop" && Object.keys(msg).length === 1) { if (run) run.stop(); else { ended = true; ws.close(1000); } }
