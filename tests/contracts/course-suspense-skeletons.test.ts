@@ -92,6 +92,14 @@ describe("student course Suspense boundary and tailored skeleton contracts", () 
     }
   });
 
+  it("uses server-safe tab styles for the document loading strip", () => {
+    const skeletons = readSource("components/course/course-skeletons.tsx");
+    const styles = readSource("components/ui/tab-styles.ts");
+    expect(skeletons).toContain('from "@/components/ui/tab-styles"');
+    expect(styles).not.toContain('"use client"');
+    expect(styles).toContain("tabListClassName");
+  });
+
   it("streams MaterialDetailPage content inside Suspense with MaterialReaderContentSkeleton", () => {
     const readerPage = readSource("app/(student)/courses/[id]/material/[materialId]/page.tsx");
     expect(readerPage).toContain("MaterialReaderContentSkeleton");

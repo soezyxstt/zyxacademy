@@ -1,5 +1,7 @@
 "use client";
 
+import { Skeleton } from "@/components/ui/skeleton";
+
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import {
   Download,
@@ -232,12 +234,10 @@ export function QuizAttemptsSpreadsheet({ templateId, quizTitle, translationName
 
   if (loading && attempts.length === 0) {
     return (
-      <Card className="border-border">
-        <CardContent className="p-6 text-center text-muted-foreground space-y-3">
-          <RefreshCw className="size-8 animate-spin mx-auto text-brand-primary" />
-          <p className="font-medium text-foreground">{t("quizAttempts.loading")}</p>
-        </CardContent>
-      </Card>
+      <div role="status" aria-label={t("quizAttempts.loading")} className="space-y-6">
+        <div className="space-y-3"><div className="flex flex-wrap gap-2"><Skeleton className="h-9 min-w-[140px] flex-1" /><Skeleton className="h-9 w-40" /><Skeleton className="h-9 w-32" /></div><div className="flex gap-4 border-t border-border pt-2"><Skeleton className="h-4 w-24" /><Skeleton className="h-4 w-24" /><Skeleton className="h-4 w-24" /></div></div>
+        <div className="overflow-hidden rounded-xl border border-border bg-card"><div className="flex gap-4 border-b border-border bg-muted p-3"><Skeleton className="h-4 flex-1" /><Skeleton className="h-4 w-16" /><Skeleton className="h-4 w-16" /><Skeleton className="hidden h-4 w-24 sm:block" /></div><div className="divide-y divide-border">{[0, 1, 2, 3, 4].map((i) => <div key={i} className="flex gap-4 p-3"><Skeleton className="h-4 flex-1" /><Skeleton className="h-4 w-16" /><Skeleton className="h-4 w-16" /><Skeleton className="hidden h-4 w-24 sm:block" /></div>)}</div></div>
+      </div>
     );
   }
 

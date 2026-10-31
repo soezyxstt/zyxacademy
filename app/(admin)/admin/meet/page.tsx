@@ -1,5 +1,7 @@
 "use client";
 
+import { Skeleton } from "@/components/ui/skeleton";
+
 import { useState, useEffect, useCallback, useMemo } from "react";
 import Link from "next/link";
 import {
@@ -760,9 +762,7 @@ export default function AdminMeetPage() {
         </div>
 
         {loadingRecords ? (
-          <div className="flex h-40 items-center justify-center rounded-2xl border border-border bg-card">
-            <RefreshCw className="size-6 animate-spin text-muted-foreground" />
-          </div>
+          <div role="status" aria-label="Memuat" className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">{[0, 1, 2, 3].map((i) => <div key={i} className="flex items-center gap-4 px-4 py-3.5"><div className="min-w-0 flex-1 space-y-2"><Skeleton className="h-4 w-40 max-w-full" /><Skeleton className="h-3 w-24" /></div><Skeleton className="hidden h-4 w-24 sm:block" /><Skeleton className="hidden h-4 w-16 md:block" /><Skeleton className="h-8 w-8" /></div>)}</div>
         ) : records.length === 0 ? (
           <div className="flex flex-col items-center justify-center rounded-2xl border border-border bg-card p-12 text-center">
             <Clock className="size-10 text-muted-foreground/60" />

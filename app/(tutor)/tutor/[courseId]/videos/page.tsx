@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
+import { TutorVideosContentLoading } from "@/components/tutor/loading-skeletons";
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
@@ -54,7 +55,7 @@ export default async function TutorCourseVideosPage({ params }: Props) {
         backHref={`/tutor/${courseId}`}
         backLabel={<TranslatedText namespace="tutor" messageKey="routeTitles.backToCourse" />}
       />
-      <Suspense fallback={null}>
+      <Suspense fallback={<TutorVideosContentLoading />}>
         <CourseVideosClient
           courseId={data.course.id}
           courseSlug={data.courseSlug}

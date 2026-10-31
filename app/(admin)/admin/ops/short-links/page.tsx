@@ -1,5 +1,7 @@
 "use client";
 
+import { Skeleton } from "@/components/ui/skeleton";
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/toast";
@@ -158,7 +160,7 @@ export default function ShortLinksPage() {
           <TooltipProvider>
             <div className="rounded-xl border border-border bg-card overflow-hidden">
               {loading ? (
-                <div className="p-6 text-center text-body-sm text-muted-foreground">{t("shortLinksUI.loading")}</div>
+                <div role="status" aria-label={t("shortLinksUI.loading")} className="divide-y divide-border">{[0, 1, 2, 3].map((row) => <div key={row} className="flex items-center justify-between gap-3 p-3 sm:p-3.5"><div className="min-w-0 flex-1 space-y-1.5"><Skeleton className="h-4 w-40 max-w-full" /><Skeleton className="h-3 w-3/4" /><Skeleton className="h-3 w-24" /></div><div className="flex gap-1"><Skeleton className="size-8" /><Skeleton className="size-8" /></div></div>)}</div>
               ) : loadError ? (
                 <AdminErrorState message={<span className="text-foreground">{t("shortLinksUI.loadFailed")}</span>} onRetry={() => void fetchLinks()} />
               ) : links.length === 0 ? (
@@ -187,7 +189,7 @@ export default function ShortLinksPage() {
                         </p>
                         <div className="text-body-xs text-muted-foreground flex items-center gap-1.5">
                           <span>{link.clicks} {t("shortLinksUI.clicks")}</span>
-                          <span>·</span>
+                          <span>Â·</span>
                           <FormattedDate
                             date={link.createdAt}
                             options={{ day: "numeric", month: "short", year: "numeric" }}

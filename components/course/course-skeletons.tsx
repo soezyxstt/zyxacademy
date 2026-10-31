@@ -4,7 +4,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { StudyStatisticsSkeleton } from "@/components/course/study-statistics-card";
 import { RecentActivitySkeleton } from "@/components/course/recent-activity-card";
 import { studentCardClass } from "@/components/course/course-surfaces";
-import { tabListClassName, tabTriggerClassName, tabTriggerActiveClassName } from "@/components/ui/tabs";
+import { tabListClassName, tabTriggerClassName, tabTriggerActiveClassName } from "@/components/ui/tab-styles";
 import { cn } from "@/lib/utils";
 
 /**
@@ -86,7 +86,7 @@ export function CourseMaterialListSkeleton() {
             <Skeleton className="size-3.5 rounded-sm" />
             <Skeleton className="h-3.5 w-12" />
           </div>
-          {[16, 14, 20, 20].map((w, idx) => (
+          {[10, 10, 12, 16].map((w, idx) => (
             <div key={idx} className={cn(tabTriggerClassName, "pointer-events-none")}>
               <Skeleton className="size-3.5 rounded-sm opacity-60" />
               <Skeleton className="h-3.5 opacity-60" style={{ width: `${w * 4}px` }} />

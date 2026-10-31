@@ -1,5 +1,7 @@
 "use client";
 
+import { Skeleton } from "@/components/ui/skeleton";
+
 import { useState, useEffect, useCallback } from "react";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
@@ -266,9 +268,8 @@ export function QuizInsightsListClient({
       {/* Quizzes Grid / Table */}
       <AdminTable>
         {loading ? (
-          <div className="p-8 text-center text-body-sm text-muted-foreground space-y-3">
-            <RefreshCw className="size-6 animate-spin mx-auto text-brand-primary" />
-            <p>{tx("loading")}</p>
+          <div role="status" aria-label={tx("loading")} className="divide-y divide-border">
+            {[0, 1, 2, 3, 4].map((row) => <div key={row} className="flex items-center gap-4 px-4 py-3.5"><div className="min-w-0 flex-1 space-y-2"><Skeleton className="h-4 w-40 max-w-full" /><Skeleton className="h-3 w-20" /></div><Skeleton className="hidden h-5 w-24 sm:block" /><Skeleton className="hidden h-5 w-20 md:block" /><Skeleton className="h-5 w-12" /><Skeleton className="hidden h-5 w-16 lg:block" /><Skeleton className="h-8 w-8" /></div>)}
           </div>
         ) : filteredItems.length === 0 ? (
           <AdminEmptyState

@@ -96,13 +96,11 @@ export function OpsClient() {
 
   if (isLoading) {
     return (
-      <div className="max-w-4xl space-y-8">
-        {Array.from({ length: 6 }).map((_, i) => (
-          <div key={i} className="space-y-3">
-            <Skeleton className="h-6 w-48" />
-            <Skeleton className="h-4 w-64" />
-          </div>
-        ))}
+      <div role="status" aria-label="Memuat" className="space-y-5">
+        <div className="flex justify-end"><Skeleton className="h-9 w-24" /></div>
+        <div className="divide-y divide-border rounded-xl border border-border bg-card px-4 sm:px-5">
+          {[0, 1, 2, 3, 4, 5].map((i) => <div key={i} className="space-y-3 py-4"><div className="flex justify-between gap-3"><Skeleton className="h-5 w-40" /><Skeleton className="h-4 w-20" /></div><div className="flex flex-wrap gap-6">{[0, 1, 2].map((stat) => <div key={stat} className="space-y-2"><Skeleton className="h-3 w-20" /><Skeleton className="h-5 w-14" /></div>)}</div></div>)}
+        </div>
       </div>
     );
   }
