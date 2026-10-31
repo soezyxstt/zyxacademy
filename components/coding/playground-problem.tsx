@@ -45,17 +45,20 @@ export function PlaygroundProblem({ courseId, context, problem, onProblemChange,
     } catch { if (!abort.signal.aborted) setError("Zyra belum dapat membuat kode. Coba lagi."); }
     finally { if (!abort.signal.aborted) setBusy(false); }
   }
+  const explanation = answer.replace(/```(?:python|py)\s*\n[\s\S]*?(?:```|$)/gi, "").trim();
   return <div className="fixed bottom-4 right-4 z-40 flex max-w-[calc(100vw-2rem)] flex-col items-end">
-    <div id={panelId} hidden={!open} className="mb-2 max-h-[min(70vh,36rem)] w-[min(26rem,calc(100vw-2rem))] overflow-y-auto rounded-xl border border-border bg-card p-3 shadow-lg">
-      <div className="space-y-2">
-      <Textarea aria-label="Deskripsi masalah" placeholder="Jelaskan masalah atau tugasmu" value={problem} maxLength={4000} onChange={event => onProblemChange(event.target.value)} onPaste={event => { if (busy) return; const files = zyraImageFilesFromClipboard(event.clipboardData.items, event.clipboardData.files); if (files.length) { event.preventDefault(); attachmentComposer.current?.addFiles(files); } }} rows={2} />
-      <ZyraAttachmentComposer ref={attachmentComposer} courseId={courseId} sessionId={sessionId} disabled={busy} hideStandaloneTrigger onSessionCreated={setSessionId} onAttachmentIdsChange={setAttachments} onAttachmentsReadyChange={setReady} />
-      <div className="flex items-center justify-between gap-2"><TooltipProvider><Tooltip><TooltipTrigger asChild><Button type="button" size="icon-sm" variant="ghost" aria-label="Tambahkan gambar" disabled={busy} onClick={() => attachmentComposer.current?.openFileDialog()}><Paperclip className="size-4" /></Button></TooltipTrigger><TooltipContent>Tambahkan gambar</TooltipContent></Tooltip></TooltipProvider><Button size="sm" onClick={generate} disabled={busy || !ready || (!problem.trim() && attachments.length === 0)}>{busy ? <Loader2 className="size-4 animate-spin motion-reduce:animate-none" /> : null}Buat kode</Button></div>
-      {error ? <p role="alert" className="text-body-sm text-destructive">{error}</p> : null}
-      {answer ? <div className="space-y-2 border-t border-border pt-2"><MarkdownRenderer content={answer} />{code && !busy ? <Button size="sm" variant="outline" onClick={() => onUseCode(code)}>Gunakan kode di editor</Button> : null}</div> : busy ? <p role="status" className="text-body-xs text-muted-foreground">Zyra sedang membuat kode...</p> : null}
+    <div id={panelId} hidden={!open} className="mb-2 flex max-h-[min(70dvh,32rem)] w-[min(24rem,calc(100vw-2rem))] flex-col overflow-hidden rounded-xl border border-border bg-card shadow-lg [&[hidden]]:hidden">
+      <div className="min-h-0 overflow-y-auto p-2.5">
+        {error ? <p role="alert" className="mb-2 text-body-xs text-destructive">{error}</p> : null}
+        {explanation || code ? <div className="space-y-2 pb-2 text-body-sm">{explanation ? <MarkdownRenderer content={explanation} density="compact" /> : null}{code && !busy ? <Button size="sm" variant="outline" onClick={() => onUseCode(code)}>Gunakan kode di editor</Button> : null}</div> : null}
+        {children}
       </div>
-      {children ? <div className="mt-3 border-t border-border pt-3">{children}</div> : null}
+      <div className="shrink-0 space-y-1 border-t border-border p-2">
+        <ZyraAttachmentComposer ref={attachmentComposer} courseId={courseId} sessionId={sessionId} disabled={busy} hideStandaloneTrigger onSessionCreated={setSessionId} onAttachmentIdsChange={setAttachments} onAttachmentsReadyChange={setReady} />
+        <Textarea aria-label="Deskripsi masalah" placeholder="Jelaskan masalah atau tugasmu" value={problem} maxLength={4000} onChange={event => onProblemChange(event.target.value)} onPaste={event => { if (busy) return; const files = zyraImageFilesFromClipboard(event.clipboardData.items, event.clipboardData.files); if (files.length) { event.preventDefault(); attachmentComposer.current?.addFiles(files); } }} rows={1} className="field-sizing-content max-h-28 min-h-9 resize-none border-0 bg-transparent px-2 py-1.5 shadow-none focus-visible:ring-offset-0" />
+        <div className="flex items-center gap-2"><TooltipProvider><Tooltip><TooltipTrigger asChild><Button type="button" size="icon-sm" variant="ghost" aria-label="Tambahkan gambar" disabled={busy} onClick={() => attachmentComposer.current?.openFileDialog()}><Paperclip className="size-4" /></Button></TooltipTrigger><TooltipContent>Tambahkan gambar</TooltipContent></Tooltip></TooltipProvider>{busy ? <p role="status" className="min-w-0 flex-1 text-body-xs text-muted-foreground">Zyra sedang membuat kode...</p> : null}<Button size="sm" className="ml-auto shrink-0" onClick={generate} disabled={busy || !ready || (!problem.trim() && attachments.length === 0)}>{busy ? <Loader2 className="size-4 animate-spin motion-reduce:animate-none" /> : null}Buat kode</Button></div>
+      </div>
     </div>
-    <Button type="button" size="sm" aria-expanded={open} aria-controls={panelId} onClick={() => setOpen(value => !value)}><MessageSquare className="size-4" aria-hidden="true" />Masalah yang ingin diselesaikan<ChevronDown className={`size-4 transition-transform ${open ? "" : "rotate-180"}`} aria-hidden="true" /></Button>
+    <Button type="button" size="sm" aria-label="Masalah yang ingin diselesaikan" aria-expanded={open} aria-controls={panelId} onClick={() => setOpen(value => !value)}><MessageSquare className="size-4" aria-hidden="true" />Zyra<ChevronDown className={`size-4 motion-safe:transition-transform ${open ? "" : "rotate-180"}`} aria-hidden="true" /></Button>
   </div>;
 }

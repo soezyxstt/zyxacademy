@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Textarea } from "@/components/ui/textarea";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Bug, GitBranch, Lightbulb, ListTree, Loader2, Send } from "lucide-react";
@@ -12,7 +13,7 @@ import { consumeZyraStream } from "@/lib/zyra/stream-consumer";
 import type { z } from "zod";
 import type { codingHelpRequestSchema } from "@/lib/coding/http-contracts";
 
-export function CodingHelp({ courseId, context, disabled = false, problemDescription = "" }: { courseId: string; context: z.infer<typeof codingHelpRequestSchema>; disabled?: boolean; problemDescription?: string }) {
+export function CodingHelp({ courseId, context, disabled = false, problemDescription = "", compact = false }: { courseId: string; context: z.infer<typeof codingHelpRequestSchema>; disabled?: boolean; problemDescription?: string; compact?: boolean }) {
   const [question, setQuestion] = useState(""), [answer, setAnswer] = useState(""), [error, setError] = useState("");
   const [busy, setBusy] = useState(false), [snapshot, setSnapshot] = useState<string | null>(null);
   const [activeIntent, setActiveIntent] = useState<z.infer<typeof codingHelpRequestSchema>["intent"]>("review");
@@ -49,24 +50,29 @@ ${message}` : message, requestId: crypto.randomUUID(), codingContext: { ...conte
   }
   function submitQuestion() { if (!busy && !disabled && question.trim()) void ask("review", question); }
   return <section className="min-w-0 space-y-2" aria-label="Konsultasi Zyra">
-    <div className="flex flex-wrap items-center gap-x-3 gap-y-1"><h3 className="font-heading text-body-base font-bold">Zyra</h3>{busy ? <p role="status" className="flex items-center gap-1.5 text-body-xs text-muted-foreground"><Loader2 className="size-3.5 animate-spin motion-reduce:animate-none" aria-hidden="true" />{answer ? "Zyra sedang menjawab..." : activeIntent === "explain_error" ? "Zyra sedang meninjau error..." : activeIntent === "flowchart" ? "Zyra sedang menyusun flowchart..." : activeIntent === "decompose" ? "Zyra sedang menguraikan masalah..." : activeIntent === "hint" ? "Zyra sedang menyiapkan petunjuk..." : "Zyra sedang meninjau pertanyaan..."}</p> : null}</div>
-    <form className="min-w-0 space-y-2" onSubmit={(event) => { event.preventDefault(); submitQuestion(); }}>
+    {!compact || busy ? <div className="flex flex-wrap items-center gap-x-3 gap-y-1">{!compact ? <h3 className="font-heading text-body-base font-bold">Zyra</h3> : null}{busy ? <p role="status" className="flex items-center gap-1.5 text-body-xs text-muted-foreground"><Loader2 className="size-3.5 animate-spin motion-reduce:animate-none" aria-hidden="true" />{answer ? "Zyra sedang menjawab..." : activeIntent === "explain_error" ? "Zyra sedang meninjau error..." : activeIntent === "flowchart" ? "Zyra sedang menyusun flowchart..." : activeIntent === "decompose" ? "Zyra sedang menguraikan masalah..." : activeIntent === "hint" ? "Zyra sedang menyiapkan petunjuk..." : "Zyra sedang meninjau pertanyaan..."}</p> : null}</div> : null}
+    <form className={cn("min-w-0", compact ? "flex flex-wrap items-center gap-2" : "space-y-2")} onSubmit={(event) => { event.preventDefault(); submitQuestion(); }}>
       <div role="toolbar" aria-label="Bantuan cepat" className="flex flex-wrap items-center gap-1.5">
         <TooltipProvider>
           {actions.map(({ intent, label, icon: Icon, message }) => { const highlighted = intent === "explain_error" && hasExecutionError; return <Tooltip key={intent}>
             <TooltipTrigger asChild>
-              <Button type="button" size="sm" className={cn("size-7 shrink-0 px-0 text-body-sm sm:w-auto sm:px-2", !highlighted && "bg-primary/10 text-primary hover:bg-primary/20")} variant={highlighted ? "destructive" : "ghost"} aria-label={label} disabled={busy || disabled} onClick={() => ask(intent, message)}>
-                <Icon className="size-3.5" aria-hidden="true" /><span className="hidden sm:inline">{label}</span>
+              <Button type="button" size="sm" className={cn("size-7 shrink-0 px-0 text-body-sm", !compact && "sm:w-auto sm:px-2", !highlighted && "bg-primary/10 text-primary hover:bg-primary/20")} variant={highlighted ? "destructive" : "ghost"} aria-label={label} disabled={busy || disabled} onClick={() => ask(intent, message)}>
+                <Icon className="size-3.5" aria-hidden="true" />{!compact ? <span className="hidden sm:inline">{label}</span> : null}
               </Button>
             </TooltipTrigger>
             <TooltipContent>{label}</TooltipContent>
           </Tooltip>; })}
         </TooltipProvider>
       </div>
+      <Collapsible open={compact ? undefined : true} className={compact ? "min-w-0 flex-1 data-[state=open]:basis-full" : undefined}>
+        {compact ? <CollapsibleTrigger asChild><Button type="button" variant="ghost" size="sm" className="px-2">Tanya tentang kode</Button></CollapsibleTrigger> : null}
+      <CollapsibleContent forceMount className="data-[state=closed]:hidden">
       <div className="flex items-end gap-2 rounded-lg border border-border bg-background p-1.5 focus-within:border-ring">
         <Textarea aria-label="Pertanyaan" rows={1} value={question} onChange={(event) => setQuestion(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); submitQuestion(); } }} maxLength={2000} placeholder="Tanyakan tentang kode atau langkah penyelesaian" className="field-sizing-content max-h-40 min-h-8 resize-none border-0 bg-transparent px-1.5 py-1.5 shadow-none focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0" disabled={disabled} />
         <Button type="submit" size="icon-sm" aria-label="Tanya Zyra" disabled={busy || disabled || !question.trim()}><Send className="size-3.5" aria-hidden="true" /></Button>
       </div>
+      </CollapsibleContent>
+      </Collapsible>
     </form>
     {(answer || canvas || error || (snapshot !== null && snapshot !== contextKey)) ? <div className="min-w-0 space-y-2 border-t border-border pt-2">
     {snapshot !== null && snapshot !== contextKey ? <p className="text-body-xs text-muted-foreground">Penjelasan ini merujuk pada percobaan sebelum perubahan terakhir.</p> : null}

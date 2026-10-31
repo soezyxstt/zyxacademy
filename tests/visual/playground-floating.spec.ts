@@ -22,6 +22,9 @@ test("floating composer preserves its state and safely places generated code", a
   const editor = page.getByRole("textbox", { name: "Kode Python" });
   const prompt = page.getByRole("textbox", { name: "Deskripsi masalah" });
   await toggle.click();
+  await expect(page.getByRole("textbox", { name: "Pertanyaan", exact: true })).toBeHidden();
+  const panel = page.locator("[id]").filter({ has: prompt }).last();
+  expect((await panel.boundingBox())!.height).toBeLessThan(250);
   await prompt.fill("Hitung luas persegi panjang.");
   await prompt.evaluate(element => {
     const clipboard = new DataTransfer();
@@ -45,7 +48,15 @@ test("floating composer preserves its state and safely places generated code", a
   await expect(prompt).toHaveValue("Hitung luas persegi panjang.");
   await expect(page.getByLabel("Lampiran gambar")).toBeVisible();
   await expect(page.getByText("Berikut hasilnya.")).toBeVisible();
+  await expect(panel.locator("pre")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Buat kode" })).toBeInViewport();
   await page.screenshot({ path: info.outputPath("screenshots/floating-answered-reopened.png") });
+  await page.getByRole("button", { name: "Tanya tentang kode" }).click();
+  await page.getByRole("textbox", { name: "Pertanyaan", exact: true }).fill("Mengapa dikalikan?");
+  await page.screenshot({ path: info.outputPath("screenshots/floating-follow-up.png") });
+  await toggle.click();
+  await toggle.click();
+  await expect(page.getByRole("textbox", { name: "Pertanyaan", exact: true })).toHaveValue("Mengapa dikalikan?");
   await editor.fill("print('milik saya')");
   const secondResponse = page.waitForResponse("**/api/zyra/chat");
   await page.getByRole("button", { name: "Buat kode" }).click();

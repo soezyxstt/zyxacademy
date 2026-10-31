@@ -1,6 +1,6 @@
 # Zyx Academy Documentation Index
 
-The `ACTIVE` [feature catalog](features.md) records the collapsible floating Python Playground composer and safe generated-code placement.
+The `ACTIVE` [feature catalog](features.md) records the compact floating Python Playground composer, on-demand follow-up input, and safe generated-code placement.
 
 The `ACTIVE` [Product Bundle V4 contract](bundle/product-bundle-v4.md) describes ordered scientific content, authored Diktat static exports, source assets, trusted verification and explicit review gates implemented locally. V4 is the creation default for new Article/Diktat; V3 readers, validators and explicit legacy revisions remain supported. Synthetic-fixture HTTP/browser/PDF checks do not establish full-chapter acceptance. Deployment, trusted remote verification and installed-host acceptance remain separate boundaries.
 
