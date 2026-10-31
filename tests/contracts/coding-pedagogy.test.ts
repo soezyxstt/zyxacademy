@@ -4,10 +4,22 @@ import { buildPedagogyContext } from "@/lib/zyra/pedagogy/context";
 import { selectTeachingPlan } from "@/lib/zyra/pedagogy/state-machine";
 import { buildPedagogyPromptInput, codingProviderResponseSchema, codingTextProviderResponseSchema } from "@/lib/zyra/pedagogy/prompt-input";
 import { ZyraTeachingResponseSchema } from "@/lib/zyra/pedagogy/contracts";
+import { codingHelpRequestSchema } from "@/lib/coding/http-contracts";
 
 const context = buildPedagogyContext({ courseId: "python", question: "Jelaskan error saya", action: "follow_up", activityKind: "study", attemptState: "none", answerReleaseState: "released", matchState: "none", allowDirectAnswerReveal: true, assessmentReasonCode: "STUDY_PRACTICE_ALLOWED", evidenceSufficiency: "sufficient" });
 
 describe("coding coaching response contract", () => {
+  it("limits generation to playground requests and asks for a complete fenced program", () => {
+    expect(codingHelpRequestSchema.safeParse({ kind: "playground", code: "", stdin: "", execution: null, intent: "generate" }).success).toBe(true);
+    expect(codingHelpRequestSchema.safeParse({ kind: "exercise", problem: { problemId: "p", version: 1 }, code: "", intent: "generate", surface: { kind: "article", articleId: "a", articleVersion: 1, partId: "p" } }).success).toBe(false);
+    const evidence = [{ id: "coding:generate:learner:session", kind: "question", title: "Python", content: "{}", href: "/courses/python/playground" }];
+    const input = buildPedagogyPromptInput(context, selectTeachingPlan(context), "Buat program", evidence);
+    expect(input.outputRules.join(" ")).toContain("complete runnable Python program");
+    expect(input.outputRules.join(" ")).toContain("fenced python code block");
+    const assessment = { ...context, activeAssessment: true, allowDirectAnswerReveal: false };
+    const protectedInput = buildPedagogyPromptInput(assessment, selectTeachingPlan(assessment), "Buat program", evidence);
+    expect(protectedInput.outputRules.join(" ")).not.toContain("complete runnable Python program");
+  });
   it("supplies required response fields, checkpoint and typed flowchart wire format to the model", () => {
     const input = buildPedagogyPromptInput({...context,responseModifiers:["flowchart"]}, selectTeachingPlan(context), context.explicitTopic, [{ id: "coding:learner:session", kind: "question", title: "Python", content: 'print(1 / 0)', href: '/courses/python/playground' }]);
     const rule = input.outputRules[0];
