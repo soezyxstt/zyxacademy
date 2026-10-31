@@ -11,7 +11,8 @@ export async function mockTerminal(page: Page) {
     const sendOutput = (text: string) => ws.send(JSON.stringify({ type: "output", stream: "stdout", data: Buffer.from(text).toString("base64") }));
     ws.onMessage(message => {
       const event = JSON.parse(String(message));
-      if (event.type === "start") {
+      if (event.type === "prepare") ws.send(JSON.stringify({ type: "prepared" }));
+      else if (event.type === "start") {
         code = event.code; ws.send(JSON.stringify({ type: "running" }));
         if (code.includes("while True")) sendOutput("mulai\n");
         else if (code.includes("raise ValueError")) { sendOutput("ValueError: contoh\n"); ws.send(JSON.stringify({ type: "result", status: "error" })); }

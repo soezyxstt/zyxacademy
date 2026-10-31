@@ -1725,7 +1725,6 @@ export function TutorDrawerView({
               ref={textareaRef}
               value={inputVal}
               onChange={(e) => setInputVal(e.target.value)}
-              onPaste={handlePaste}
               onKeyDown={(e) => {
                 if (e.key === "Enter" && !e.shiftKey) {
                   e.preventDefault();

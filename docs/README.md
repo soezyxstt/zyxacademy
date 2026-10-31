@@ -1,5 +1,7 @@
 # Zyx Academy Documentation Index
 
+The `ACTIVE` [feature catalog](features.md) records the collapsible floating Python Playground composer and safe generated-code placement.
+
 The `ACTIVE` [Product Bundle V4 contract](bundle/product-bundle-v4.md) describes ordered scientific content, authored Diktat static exports, source assets, trusted verification and explicit review gates implemented locally. V4 is the creation default for new Article/Diktat; V3 readers, validators and explicit legacy revisions remain supported. Synthetic-fixture HTTP/browser/PDF checks do not establish full-chapter acceptance. Deployment, trusted remote verification and installed-host acceptance remain separate boundaries.
 
 The `ACTIVE` [MCP skills distribution runbook](operations/authoring-mcp-skills.md) documents pinned external builds, full and compact catalogs, local V4 candidate provenance, attested web/Deno builds, configurable Cloudflare Browser Run or Steel verification, resource integrity and host acceptance. The `ACTIVE` deployment and development guides and Product Bundle V4 contract describe provider/version-bound plans, Steel session cleanup and failure categories, GitHub Variables/Secrets compatibility, an explicitly authorized exact-draft staging fixture transfer and read-only Deno context diagnostics when credentials are available, Deno runtime identity, and the read-only `/v4` preview. Full chapter verification remains unproven by local code checks. Local package checks remain separate from installed-host, OAuth and deployment evidence.

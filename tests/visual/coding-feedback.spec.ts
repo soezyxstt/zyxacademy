@@ -12,6 +12,7 @@ test("shows the Python error and describes Zyra's current task", async ({ page }
   await expect(page.getByText("Terjadi error saat menjalankan kode")).toBeVisible();
   await expect(page.locator('pre[aria-live="polite"]')).toContainText("ValueError: contoh");
   await expect(page.getByText("Python belum tersedia. Coba lagi.")).toHaveCount(0);
+  await page.getByRole("button", { name: "Masalah yang ingin diselesaikan" }).click();
   await page.getByRole("button", { name: "Jelaskan error" }).click();
   await expect(page.getByRole("status").filter({ hasText: "Zyra sedang meninjau error" })).toBeVisible();
   await page.screenshot({ path: info.outputPath("screenshots/error-zyra-loading.png"), fullPage: true });

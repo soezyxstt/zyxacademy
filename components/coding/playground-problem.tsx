@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { ChevronDown, Loader2, Paperclip } from "lucide-react";
+import { useEffect, useId, useRef, useState, type ReactNode } from "react";
+import { ChevronDown, Loader2, MessageSquare, Paperclip } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ZyraAttachmentComposer, type ZyraAttachmentComposerHandle } from "@/components/course/zyra-attachment-composer";
@@ -12,9 +12,10 @@ import { consumeZyraStream } from "@/lib/zyra/stream-consumer";
 import type { codingHelpRequestSchema } from "@/lib/coding/http-contracts";
 import type { z } from "zod";
 
-export function PlaygroundProblem({ courseId, context, problem, onProblemChange, onUseCode }: {
+export function PlaygroundProblem({ courseId, context, problem, onProblemChange, onUseCode, onGeneratedCode, children }: {
   courseId: string; context: z.infer<typeof codingHelpRequestSchema>; problem: string;
   onProblemChange: (value: string) => void; onUseCode: (code: string) => void;
+  onGeneratedCode: (code: string) => void; children?: ReactNode;
 }) {
   const [open, setOpen] = useState(false), [busy, setBusy] = useState(false);
   const [answer, setAnswer] = useState(""), [error, setError] = useState("");
@@ -22,6 +23,7 @@ export function PlaygroundProblem({ courseId, context, problem, onProblemChange,
   const [attachments, setAttachments] = useState<string[]>([]), [ready, setReady] = useState(true);
   const controller = useRef<AbortController | null>(null);
   const attachmentComposer = useRef<ZyraAttachmentComposerHandle>(null);
+  const panelId = useId();
   useEffect(() => () => controller.current?.abort(), []);
   const code = answer.match(/```(?:python|py)\s*\n([\s\S]*?)```/i)?.[1];
   async function generate() {
@@ -29,24 +31,31 @@ export function PlaygroundProblem({ courseId, context, problem, onProblemChange,
     const abort = new AbortController(); controller.current = abort;
     setBusy(true); setAnswer(""); setError("");
     try {
+      let text = "", failed = false, completed = false;
       const response = await fetch("/api/zyra/chat", { method: "POST", signal: abort.signal, headers: { "Content-Type": "application/json" }, body: JSON.stringify({ courseId, sessionId, attachmentIds: attachments, requestId: crypto.randomUUID(), question: `Bantu selesaikan masalah berikut dengan kode Python lengkap dan komentar yang menjelaskan langkah penting. Tampilkan kode dalam satu blok Python.\n\n${problem}`, codingContext: { ...context, intent: "review" } }) });
       if (!response.ok || !response.body) throw new Error("Zyra belum dapat membuat kode. Periksa akses dan coba lagi.");
       for await (const part of consumeZyraStream(response.body, abort.signal)) {
-        if (part.type === "text-delta") setAnswer(value => value + part.textDelta);
+        if (part.type === "text-delta") { text += part.textDelta; setAnswer(text); }
         if (part.type === "data-session") setSessionId(part.sessionId);
-        if (part.type === "data-error") setError(part.data.message);
+        if (part.type === "data-error") { failed = true; setError(part.data.message); }
+        if (part.type === "done") completed = true;
       }
+      const generated = text.match(/```(?:python|py)\s*\n([\s\S]*?)```/i)?.[1];
+      if (completed && !failed && !abort.signal.aborted && generated) onGeneratedCode(generated);
     } catch { if (!abort.signal.aborted) setError("Zyra belum dapat membuat kode. Coba lagi."); }
     finally { if (!abort.signal.aborted) setBusy(false); }
   }
-  return <div className="overflow-hidden rounded-t-lg border border-b-0 border-border bg-card">
-    <button type="button" className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-body-sm font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring" aria-expanded={open} onClick={() => setOpen(value => !value)}><span>Masalah yang ingin diselesaikan</span><ChevronDown className={`size-4 transition-transform ${open ? "rotate-180" : ""}`} /></button>
-    <div hidden={!open} className="space-y-2 border-t border-border p-3">
+  return <div className="fixed bottom-4 right-4 z-40 flex max-w-[calc(100vw-2rem)] flex-col items-end">
+    <div id={panelId} hidden={!open} className="mb-2 max-h-[min(70vh,36rem)] w-[min(26rem,calc(100vw-2rem))] overflow-y-auto rounded-xl border border-border bg-card p-3 shadow-lg">
+      <div className="space-y-2">
       <Textarea aria-label="Deskripsi masalah" placeholder="Jelaskan masalah atau tugasmu" value={problem} maxLength={4000} onChange={event => onProblemChange(event.target.value)} onPaste={event => { if (busy) return; const files = zyraImageFilesFromClipboard(event.clipboardData.items, event.clipboardData.files); if (files.length) { event.preventDefault(); attachmentComposer.current?.addFiles(files); } }} rows={2} />
       <ZyraAttachmentComposer ref={attachmentComposer} courseId={courseId} sessionId={sessionId} disabled={busy} hideStandaloneTrigger onSessionCreated={setSessionId} onAttachmentIdsChange={setAttachments} onAttachmentsReadyChange={setReady} />
       <div className="flex items-center justify-between gap-2"><TooltipProvider><Tooltip><TooltipTrigger asChild><Button type="button" size="icon-sm" variant="ghost" aria-label="Tambahkan gambar" disabled={busy} onClick={() => attachmentComposer.current?.openFileDialog()}><Paperclip className="size-4" /></Button></TooltipTrigger><TooltipContent>Tambahkan gambar</TooltipContent></Tooltip></TooltipProvider><Button size="sm" onClick={generate} disabled={busy || !ready || (!problem.trim() && attachments.length === 0)}>{busy ? <Loader2 className="size-4 animate-spin motion-reduce:animate-none" /> : null}Buat kode</Button></div>
       {error ? <p role="alert" className="text-body-sm text-destructive">{error}</p> : null}
       {answer ? <div className="space-y-2 border-t border-border pt-2"><MarkdownRenderer content={answer} />{code && !busy ? <Button size="sm" variant="outline" onClick={() => onUseCode(code)}>Gunakan kode di editor</Button> : null}</div> : busy ? <p role="status" className="text-body-xs text-muted-foreground">Zyra sedang membuat kode...</p> : null}
+      </div>
+      {children ? <div className="mt-3 border-t border-border pt-3">{children}</div> : null}
     </div>
+    <Button type="button" size="sm" aria-expanded={open} aria-controls={panelId} onClick={() => setOpen(value => !value)}><MessageSquare className="size-4" aria-hidden="true" />Masalah yang ingin diselesaikan<ChevronDown className={`size-4 transition-transform ${open ? "" : "rotate-180"}`} aria-hidden="true" /></Button>
   </div>;
 }

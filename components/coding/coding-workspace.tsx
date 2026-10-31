@@ -52,6 +52,8 @@ export function CodingWorkspace({ courseId, draftKey, initialCode = "", initialS
   const [waitingInput, setWaitingInput] = useState(false);
   const sendInput = useRef<((value: string) => void) | null>(null);
   const [playgroundProblem, setPlaygroundProblem] = useState("");
+  const currentCode = useRef(draft.code);
+  useEffect(() => { currentCode.current = draft.code; }, [draft.code]);
   const [terminalOpen, setTerminalOpen] = useState(false);
   const terminalRef = useRef<HTMLDivElement>(null);
   const [split, setSplit] = useState(50);
@@ -129,8 +131,7 @@ export function CodingWorkspace({ courseId, draftKey, initialCode = "", initialS
   }
   const help = problem && surface ? { kind: "exercise" as const, problem: { problemId: problem.problemId, version: problem.version }, code: draft.code, stdin: draft.stdin, intent: "hint" as const, surface, ...(attemptId ? { attemptId } : {}), ...(executedCode === draft.code && executedInput === draft.stdin && execution ? { execution } : {}) } : { kind: "playground" as const, code: draft.code, stdin: interactive ? terminalHistory.join("\n") : draft.stdin, execution: executedCode === draft.code && (interactive || executedInput === draft.stdin) ? execution : null, intent: "review" as const };
   if (interactive) return <section className="min-w-0 space-y-3" aria-label="Playground Python">
-    <div>{!playgroundLink && allowHelp ? <PlaygroundProblem courseId={courseId} context={help} problem={playgroundProblem} onProblemChange={setPlaygroundProblem} onUseCode={draft.setCode} /> : null}
-    <div ref={splitHost} style={{ "--split": `${split}%` } as CSSProperties} className={cn("flex min-w-0 flex-col overflow-hidden rounded-b-lg border border-border bg-background md:flex-row", (playgroundLink || !allowHelp) && "rounded-t-lg")}>
+    <div ref={splitHost} style={{ "--split": `${split}%` } as CSSProperties} className="flex min-w-0 flex-col overflow-hidden rounded-lg border border-border bg-background md:flex-row">
       <div className={cn("flex min-w-0 flex-col", terminalOpen ? "md:w-(--split) md:shrink-0" : "flex-1")}>
         <div className="flex h-10 items-center justify-between gap-2 border-b border-border px-3">
           <div className="flex min-w-0 items-baseline gap-2">
@@ -156,9 +157,8 @@ export function CodingWorkspace({ courseId, draftKey, initialCode = "", initialS
         </div>
       </div>
     </div>
-    </div>
     {draft.conflicted ? <div role="status" className="flex flex-wrap items-center gap-2 text-body-sm"><span>Kode di browser berbeda dari kode tersimpan. Simpan kode ini untuk mengganti kode tersimpan.</span><Button size="sm" className="text-body-sm" variant="outline" onClick={draft.keepLocal}>Simpan kode ini</Button></div> : null}
-    {allowHelp ? <CodingHelp courseId={courseId} context={help} disabled={submitting} problemDescription={playgroundProblem} /> : null}
+    {!playgroundLink && allowHelp ? <PlaygroundProblem courseId={courseId} context={help} problem={playgroundProblem} onProblemChange={setPlaygroundProblem} onUseCode={draft.setCode} onGeneratedCode={(code) => { if (!help.code.trim() && !currentCode.current.trim()) draft.setCode(code); }}><CodingHelp courseId={courseId} context={help} disabled={submitting} problemDescription={playgroundProblem} /></PlaygroundProblem> : allowHelp ? <CodingHelp courseId={courseId} context={help} disabled={submitting} problemDescription={playgroundProblem} /> : null}
   </section>;
   return <section className="min-w-0 max-w-full space-y-4" aria-label={problem ? `Latihan Python: ${problem.title}` : "Playground Python"}>
     {problem ? <div className="space-y-2"><h3 className="font-heading text-body-base font-bold">{problem.title}</h3><MarkdownRenderer content={problem.prompt} />{problem.publicTests.length ? <details className="text-body-sm"><summary className="cursor-pointer">Contoh input dan output</summary><div className="mt-2 space-y-2">{problem.publicTests.map((test) => <div key={test.id} className="grid grid-cols-2 gap-2"><pre className="overflow-x-auto rounded-md bg-muted p-2"><span className="block text-body-xs text-muted-foreground">Input</span>{test.stdin}</pre><pre className="overflow-x-auto rounded-md bg-muted p-2"><span className="block text-body-xs text-muted-foreground">Output</span>{test.expectedStdout}</pre></div>)}</div></details> : null}</div> : null}
