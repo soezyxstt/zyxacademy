@@ -14,8 +14,6 @@ type TabsProps = React.ComponentProps<typeof TabsPrimitive.Root> & {
   syncUrl?: boolean;
 };
 
-import { tabListClassName, tabTriggerClassName, tabTriggerActiveClassName } from "@/components/ui/tab-styles";
-
 function TabsInner({
   value,
   onValueChange,
