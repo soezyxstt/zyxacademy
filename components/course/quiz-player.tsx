@@ -645,7 +645,7 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
         >
           {/* Heading */}
           <div className="flex items-start gap-2.5 md:gap-3">
-            <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-brand-primary text-body-xs font-bold text-white shadow-xs md:size-8 md:text-body-sm">
+            <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-brand-primary text-body-xs font-bold text-primary-foreground shadow-xs md:size-8 md:text-body-sm">
               {index + 1}
             </span>
             <div className="space-y-1 flex-1 leading-relaxed text-foreground">
@@ -838,7 +838,7 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
                           {String.fromCharCode(65 + i)}
                         </span>
 
-                        <div className="flex-1 leading-normal text-foreground">
+                        <div className="min-w-0 flex-1 break-words leading-normal text-foreground">
                           <MarkdownRenderer content={opt} className="space-y-3" />
                         </div>
                       </button>
@@ -905,7 +905,7 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
               <Button
                 type="button"
                 disabled={submitting || isSubmitted}
-                className="h-9 rounded-md bg-brand-primary px-4 text-body-sm font-bold text-white hover:bg-brand-primary/95 sm:px-8"
+                className="h-9 rounded-md bg-brand-primary px-4 text-body-sm font-bold text-primary-foreground hover:bg-brand-primary/95 sm:px-8"
                 onClick={handleRequestSubmit}
               >
                 {submitting ? (
@@ -952,6 +952,8 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
                 <button
                   key={question.id}
                   type="button"
+                  aria-current={active ? "step" : undefined}
+                  aria-label={isAllowed ? t("quiz.questionNumber", { number: idx + 1 }) : t("quiz.lockedQuestion", { number: idx + 1 })}
                   disabled={!isAllowed}
                   onClick={() => {
                     if (isAllowed) setIndex(idx);
@@ -961,7 +963,7 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
                     !isAllowed && "opacity-40 cursor-not-allowed",
                     isAllowed && "cursor-pointer",
                     active
-                      ? "border-brand-primary ring-2 ring-brand-primary/20 scale-105"
+                      ? "border-brand-primary ring-2 ring-brand-primary/20"
                       : "border-transparent",
                     isFlagged
                       ? "bg-brand-secondary/15 text-brand-secondary border-brand-secondary/60 hover:bg-brand-secondary/25"
@@ -1097,7 +1099,7 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
               onClick={() => {
                 handleSubmit(false);
               }}
-              className="w-full sm:w-auto rounded-lg bg-brand-primary text-white hover:bg-brand-primary/90 font-bold"
+              className="w-full sm:w-auto rounded-lg bg-brand-primary text-primary-foreground hover:bg-brand-primary/90 font-bold"
             >
               {t("quiz.confirmSubmit")}
             </Button>

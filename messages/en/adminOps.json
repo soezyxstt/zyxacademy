@@ -332,6 +332,7 @@
     "creating": "Creating...",
     "create": "Create link",
     "loading": "Loading...",
+    "loadFailed": "Short links could not be loaded.",
     "empty": "No short links yet.",
     "clicks": "clicks",
     "copy": "Copy link",

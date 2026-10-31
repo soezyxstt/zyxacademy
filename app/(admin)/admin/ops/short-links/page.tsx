@@ -11,7 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { FormattedDate } from "@/components/ui/formatted-date";
-import { AdminEmptyState } from "@/components/admin/state-panels";
+import { AdminEmptyState, AdminErrorState } from "@/components/admin/state-panels";
 import { QRCodeSVG } from "qrcode.react";
 import { Link as LinkIcon, QrCode, Copy } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
@@ -30,20 +30,22 @@ export default function ShortLinksPage() {
   const t = useTranslations("adminOps");
   const [links, setLinks] = useState<ShortLink[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [url, setUrl] = useState("");
   const [title, setTitle] = useState("");
   const [slug, setSlug] = useState("");
 
   const fetchLinks = async () => {
+    setLoading(true);
+    setLoadError(false);
     try {
       const res = await fetch("/api/admin/short-links");
-      if (res.ok) {
-        const data = await res.json();
-        setLinks(data);
-      }
-    } catch (error) {
-      console.error("Failed to fetch links", error);
+      if (!res.ok) throw new Error("Failed to fetch links");
+      const data = await res.json();
+      setLinks(data);
+    } catch {
+      setLoadError(true);
     } finally {
       setLoading(false);
     }
@@ -65,7 +67,11 @@ export default function ShortLinksPage() {
 
       if (res.ok) {
         const newLink = await res.json();
-        setLinks([newLink, ...links]);
+        if (loadError) {
+          await fetchLinks();
+        } else {
+          setLinks((current) => [newLink, ...current]);
+        }
         setUrl("");
         setTitle("");
         setSlug("");
@@ -97,8 +103,8 @@ export default function ShortLinksPage() {
     <div className="space-y-6">
       <PageHeader icon={LinkIcon} title={t("shortLinks.title")} />
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
-        <div className="md:col-span-1">
+      <div className="grid grid-cols-1 gap-4 items-start lg:grid-cols-3">
+        <div className="lg:col-span-1">
           <Card className="p-4 gap-4">
             <CardHeader className="p-0">
               <CardTitle className="font-heading text-body-base font-bold">{t("shortLinksUI.createTitle")}</CardTitle>
@@ -150,11 +156,13 @@ export default function ShortLinksPage() {
           </Card>
         </div>
 
-        <div className="md:col-span-2">
+        <div className="lg:col-span-2">
           <TooltipProvider>
             <div className="rounded-xl border border-border bg-card overflow-hidden">
               {loading ? (
                 <div role="status" aria-label={t("shortLinksUI.loading")} className="divide-y divide-border">{[0, 1, 2, 3].map((row) => <div key={row} className="flex items-center justify-between gap-3 p-3 sm:p-3.5"><div className="min-w-0 flex-1 space-y-1.5"><Skeleton className="h-4 w-40 max-w-full" /><Skeleton className="h-3 w-3/4" /><Skeleton className="h-3 w-24" /></div><div className="flex gap-1"><Skeleton className="size-8" /><Skeleton className="size-8" /></div></div>)}</div>
+              ) : loadError ? (
+                <AdminErrorState message={<span className="text-foreground">{t("shortLinksUI.loadFailed")}</span>} onRetry={() => void fetchLinks()} />
               ) : links.length === 0 ? (
                 <div className="p-4">
                   <AdminEmptyState compact title={t("shortLinksUI.empty")} />
@@ -164,24 +172,24 @@ export default function ShortLinksPage() {
                   {links.map((link) => (
                     <div
                       key={link.id}
-                      className="p-3 sm:p-3.5 flex items-center justify-between gap-3 transition-colors hover:bg-muted/30"
+                      className="p-3 sm:p-3.5 flex flex-wrap items-start justify-between gap-3 transition-colors hover:bg-muted/30"
                     >
                       <div className="min-w-0 flex-1 space-y-1">
                         <div className="flex items-center gap-1.5 flex-wrap">
                           <LinkIcon className="size-3.5 text-primary shrink-0" />
-                          <span className="font-medium text-body-sm text-foreground truncate">
+                          <span className="font-medium text-body-sm text-foreground break-all">
                             {link.title || `/s/${link.slug}`}
                           </span>
                           {link.title && (
                             <span className="text-body-xs text-muted-foreground">(/s/{link.slug})</span>
                           )}
                         </div>
-                        <p className="text-body-xs text-muted-foreground truncate" title={link.url}>
+                        <p className="text-body-xs text-muted-foreground break-all" title={link.url}>
                           {link.url}
                         </p>
                         <div className="text-body-xs text-muted-foreground flex items-center gap-1.5">
                           <span>{link.clicks} {t("shortLinksUI.clicks")}</span>
-                          <span>·</span>
+                          <span>Â·</span>
                           <FormattedDate
                             date={link.createdAt}
                             options={{ day: "numeric", month: "short", year: "numeric" }}

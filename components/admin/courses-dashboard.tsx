@@ -68,7 +68,7 @@ export function CoursesDashboard({ initialCourses }: Props) {
   const [courses] = useState<CourseWithStats[]>(initialCourses);
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
-  const [viewMode, setViewMode] = useState<"grid" | "table">("grid");
+  const [viewMode, setViewMode] = useState<"grid" | "table">("table");
 
   // Create Modal State
   const [createModalOpen, setCreateModalOpen] = useState(false);
@@ -240,6 +240,7 @@ export function CoursesDashboard({ initialCourses }: Props) {
             variant={viewMode === "grid" ? "secondary" : "ghost"}
             className="size-7 rounded-md"
             onClick={() => setViewMode("grid")}
+            aria-pressed={viewMode === "grid"}
             aria-label={t("courses.cardView")}
             title={t("courses.cardView")}
           >
@@ -251,6 +252,7 @@ export function CoursesDashboard({ initialCourses }: Props) {
             variant={viewMode === "table" ? "secondary" : "ghost"}
             className="size-7 rounded-md"
             onClick={() => setViewMode("table")}
+            aria-pressed={viewMode === "table"}
             aria-label={t("courses.tableView")}
             title={t("courses.tableView")}
           >
@@ -312,7 +314,7 @@ export function CoursesDashboard({ initialCourses }: Props) {
                 </div>
 
                 <div>
-                  <h3 className="font-heading text-body-sm font-bold text-foreground group-hover:text-brand-primary transition-colors line-clamp-1">
+                  <h3 className="font-heading text-body-sm font-bold text-foreground group-hover:text-brand-primary transition-colors">
                     {c.title}
                   </h3>
                 </div>
@@ -342,6 +344,7 @@ export function CoursesDashboard({ initialCourses }: Props) {
                     variant="ghost"
                     className="size-7 rounded-lg text-muted-foreground hover:text-foreground"
                     onClick={(e) => startEditCourse(c, e)}
+                    aria-label={t("courses.edit")}
                     title={t("courses.edit")}
                   >
                     <Edit2 className="size-3.5" />
@@ -351,6 +354,7 @@ export function CoursesDashboard({ initialCourses }: Props) {
                     variant="ghost"
                     className="size-7 rounded-lg text-destructive hover:text-destructive hover:bg-destructive/10"
                     onClick={(e) => startDeleteCourse(c, e)}
+                    aria-label={t("courses.delete")}
                     title={t("courses.delete")}
                   >
                     <Trash2 className="size-3.5" />
@@ -358,7 +362,7 @@ export function CoursesDashboard({ initialCourses }: Props) {
                 </div>
 
                 <Link href={`/admin/courses/${c.id}`}>
-                  <Button size="sm" className="gap-1.5 rounded-lg text-body-xs font-medium h-7 px-2.5">
+                  <Button size="sm" className="gap-1.5 rounded-lg text-body-sm font-medium h-8 px-2.5">
                     <span>{t("courses.manage")}</span>
                     <ArrowRight className="size-3" />
                   </Button>
@@ -412,6 +416,7 @@ export function CoursesDashboard({ initialCourses }: Props) {
                         variant="ghost"
                         className="size-7 rounded-lg text-muted-foreground hover:text-foreground"
                         onClick={(e) => startEditCourse(c, e)}
+                        aria-label={t("courses.edit")}
                         title={t("courses.edit")}
                       >
                         <Edit2 className="size-3" />
@@ -421,12 +426,13 @@ export function CoursesDashboard({ initialCourses }: Props) {
                         variant="ghost"
                         className="size-7 rounded-lg text-destructive hover:text-destructive hover:bg-destructive/10"
                         onClick={(e) => startDeleteCourse(c, e)}
+                        aria-label={t("courses.delete")}
                         title={t("courses.delete")}
                       >
                         <Trash2 className="size-3" />
                       </Button>
                       <Link href={`/admin/courses/${c.id}`}>
-                        <Button size="sm" className="gap-1 rounded-lg text-body-xs font-medium h-7 px-2.5">
+                        <Button size="sm" className="gap-1 rounded-lg text-body-sm font-medium h-8 px-2.5">
                           <span>{t("courses.manage")}</span>
                           <ArrowRight className="size-3" />
                         </Button>

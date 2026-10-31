@@ -38,7 +38,7 @@ export async function ChapterOutline({ courseId, chapters }: ChapterOutlineProps
         </span>
       </div>
 
-      <ul className="divide-y divide-border/60 zebra-no-rows overflow-hidden rounded-xl border border-border/70 bg-card/70 backdrop-blur-md shadow-xs">
+      <ul className="divide-y divide-border/60 zebra-no-rows overflow-hidden rounded-xl border border-border/70 bg-card">
         {chapters.map((ch, idx) => {
           const statusLabel = ch.hasMaterial
             ? ch.completed
@@ -62,13 +62,13 @@ export async function ChapterOutline({ courseId, chapters }: ChapterOutlineProps
                   {ch.completed ? <CheckCircle2 className="size-4" aria-hidden /> : idx + 1}
                 </span>
                 <div className="min-w-0">
-                  <p className="truncate text-body-sm font-semibold text-foreground">{ch.title}</p>
-                  <p className="text-body-sm text-muted-foreground">{statusLabel}</p>
+                  <p className="break-words text-body-sm font-semibold text-foreground">{ch.title}</p>
+                  <p className="text-body-xs text-muted-foreground">{statusLabel}</p>
                 </div>
               </div>
               {ch.hasMaterial && (
                 <ArrowRight
-                  className="size-4 shrink-0 text-muted-foreground transition-transform duration-200 group-hover:translate-x-0.5 group-hover:text-brand-primary"
+                  className="size-4 shrink-0 text-muted-foreground transition-colors group-hover:text-brand-primary"
                   aria-hidden
                 />
               )}

@@ -7,6 +7,7 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { useUrlTab } from "@/hooks/use-url-tab";
 import { useTranslations } from "next-intl";
+import { tabListClassName, tabTriggerClassName, tabTriggerActiveClassName } from "@/components/ui/tab-styles";
 
 type TabsProps = React.ComponentProps<typeof TabsPrimitive.Root> & {
   paramKey?: string;

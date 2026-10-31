@@ -99,7 +99,7 @@ export function TutorSidebar({ assignedCourses = [] }: TutorSidebarProps) {
         <>
           {!collapsed ? (
             <div className="px-2.5 pb-1 pt-3">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/75">
+              <p className="text-body-xs font-semibold text-muted-foreground">
                 Navigasi kelas
               </p>
             </div>

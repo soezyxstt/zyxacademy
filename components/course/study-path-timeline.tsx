@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Check, ChevronDown, CircleAlert, Lock, Play, TriangleAlert } from "lucide-react";
+import { Check, ChevronDown, ChevronRight, CircleAlert, Lock, Play, TriangleAlert } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { MathText } from "@/components/course/math-text";
@@ -71,18 +71,18 @@ function StepRow({ step, courseId }: { step: StudyPathStep; courseId: string }) 
       className={cn(
         "group flex items-center justify-between gap-3 px-4 py-3 transition-colors",
         isLocked
-          ? "bg-muted/15 opacity-70"
+          ? "bg-muted/15"
           : "hover:bg-muted/30 active:bg-muted/50",
       )}
     >
       <div className="flex min-w-0 flex-1 items-center gap-3">
         {statusIndicator}
         <div className="min-w-0 flex-1">
-          <p className="line-clamp-2 text-body-sm font-medium leading-snug text-foreground transition-colors group-hover:text-brand-primary">
+          <p className="break-words text-body-sm font-medium leading-snug text-foreground transition-colors group-hover:text-brand-primary">
             <MathText as="span">{step.conceptName}</MathText>
           </p>
           {isLocked && step.prerequisites.length > 0 && (
-            <p className="mt-0.5 truncate text-body-xs text-muted-foreground">
+            <p className="mt-0.5 break-words text-body-xs text-muted-foreground">
               {t("course.studyPath.prerequisites")} <MathText as="span">{step.prerequisites.slice(0, 2).join(", ")}</MathText>
             </p>
           )}
@@ -92,9 +92,7 @@ function StepRow({ step, courseId }: { step: StudyPathStep; courseId: string }) 
       <div className="flex items-center gap-1.5 shrink-0 text-body-xs text-muted-foreground">
         <span>{t("course.studyPath.minutesShort", { count: step.estimatedMinutes })}</span>
         {!isLocked && (
-          <span className="text-muted-foreground/60 transition-transform group-hover:translate-x-0.5 group-hover:text-brand-primary text-body-sm">
-            ›
-          </span>
+          <ChevronRight aria-hidden="true" className="size-4 text-muted-foreground group-hover:text-brand-primary" />
         )}
       </div>
     </div>
@@ -189,7 +187,7 @@ export function StudyPathTimeline({ courseId }: { courseId: string }) {
                 </p>
               </div>
               {primaryHref(nextStep, courseId) ? (
-                <Button asChild size="sm" className="rounded-lg bg-brand-primary text-white hover:bg-brand-primary/90">
+                <Button asChild size="sm" className="rounded-lg bg-brand-primary text-primary-foreground hover:bg-brand-primary/90">
                   <Link href={primaryHref(nextStep, courseId)!}>
                     <Play className="mr-1.5 size-3.5 fill-white" />{t("course.studyPath.start")}
                   </Link>
@@ -212,10 +210,10 @@ export function StudyPathTimeline({ courseId }: { courseId: string }) {
 
               return (
                 <details key={chapterId} open={defaultOpen} className="group overflow-hidden rounded-xl border border-border/70 bg-card shadow-2xs">
-                  <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 select-none hover:bg-muted/30 transition-colors">
+                  <summary className="flex cursor-pointer list-none flex-wrap items-center justify-between gap-3 px-4 py-3 select-none hover:bg-muted/30 transition-colors">
                     <div className="flex items-center gap-2.5 min-w-0">
                       <ChevronDown className="size-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-180" />
-                      <h2 className="font-heading text-body-sm font-bold truncate">Bab {group.order}: {group.title}</h2>
+                      <h2 className="font-heading text-body-sm font-bold break-words">Bab {group.order}: {group.title}</h2>
                     </div>
                     <span className="text-body-xs text-muted-foreground shrink-0 font-medium">
                       {mastered.length}/{group.steps.length} konsep dikuasai

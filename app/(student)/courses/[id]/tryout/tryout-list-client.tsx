@@ -67,14 +67,14 @@ export function TryoutListClient({ courseId, isEnrolled, tryouts }: TryoutListCl
           <p className="mt-1 text-body-xs text-muted-foreground leading-relaxed">
             {t("tryoutList.emptyDescription")}
           </p>
-          <Button asChild size="sm" className="mt-5 rounded-md text-body-xs">
+          <Button asChild size="sm" className="mt-5 rounded-md">
             <Link href={`/courses/${courseId}/quiz`}>
               {t("tryoutList.practiceWithQuiz")}
             </Link>
           </Button>
         </div>
       ) : (
-        <ul className="overflow-hidden rounded-lg border border-border/70 bg-card/75 backdrop-blur-sm">
+        <ul className="overflow-hidden rounded-lg border border-border bg-card">
           {tryouts.map((tryout) => {
           const attemptCount = attempts[tryout.id] || 0;
           const maxAttempts = tryout.settings?.maxAttempts ?? 2;
@@ -158,7 +158,7 @@ export function TryoutListClient({ courseId, isEnrolled, tryouts }: TryoutListCl
                 asChild
                 variant="default"
                 size="sm"
-                className="interactive rounded-md md:justify-self-end bg-brand-primary text-white hover:bg-brand-primary/95"
+                className="interactive rounded-md md:justify-self-end bg-brand-primary text-primary-foreground hover:bg-brand-primary/95"
               >
                 <Link href={`/courses/${courseId}/tryout/${tryout.id}`}>
                   {t("tryoutList.start")} <ChevronRight className="ml-1 size-4" />
@@ -177,7 +177,7 @@ export function TryoutListClient({ courseId, isEnrolled, tryouts }: TryoutListCl
               >
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
-                    <h3 className="truncate font-heading text-body-base font-semibold text-foreground">
+                    <h3 className="break-words font-heading text-body-sm font-semibold text-foreground">
                       {tryout.title}
                     </h3>
                     {!accessible ? (
@@ -208,12 +208,12 @@ export function TryoutListClient({ courseId, isEnrolled, tryouts }: TryoutListCl
                       </span>
                     ) : null}
                   </div>
-                  <p className="mt-1 text-body-sm text-muted-foreground">
+                  <p className="mt-1 text-body-xs text-muted-foreground">
                     {t("quizList.questions", { count: tryout.questionCount })} · {t("quizList.minutes", { count: tryout.settings?.timeLimitMinutes ?? 90 })}
                   </p>
                 </div>
 
-                <div className="flex items-center gap-2 text-body-sm text-muted-foreground md:justify-center">
+                <div className="flex items-center gap-2 text-body-xs text-muted-foreground md:justify-center">
                   <span className="font-semibold text-foreground">{attemptCount}</span>
                   <span>/ {t("tryoutList.attempts", { count: maxAttempts })}</span>
                   <div className="flex gap-1">

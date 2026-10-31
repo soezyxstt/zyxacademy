@@ -77,6 +77,18 @@ const ROLE_OPTIONS: Array<{ code: PeranCode; label: string; description: string 
   },
 ];
 
+function UserAvatar({ name, image }: { name: string; image: string | null }) {
+  const [failedImage, setFailedImage] = useState<string | null>(null);
+  if (image && failedImage !== image) {
+    return <img src={image} alt="" onError={() => setFailedImage(image)} className="size-8 rounded-full object-cover shrink-0 border border-border" />;
+  }
+  return (
+    <div aria-hidden className="size-8 rounded-full bg-muted text-foreground font-bold text-body-xs flex items-center justify-center shrink-0 border border-border">
+      {name.charAt(0).toUpperCase() || "?"}
+    </div>
+  );
+}
+
 export function UsersDashboard({
   initialUsers,
   initialStats,
@@ -330,7 +342,7 @@ export function UsersDashboard({
         />
       ) : (
         <AdminTable>
-          <table className="w-full text-left text-body-sm border-collapse">
+          <table className="w-full min-w-[640px] text-left text-body-sm border-collapse">
             <AdminTableHead>
               <tr>
                 <th className="px-4 py-3 font-semibold text-foreground">{t("usersUI.user")}</th>
@@ -352,24 +364,14 @@ export function UsersDashboard({
                     {/* User info */}
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
-                        {userItem.image ? (
-                          <img
-                            src={userItem.image}
-                            alt={userItem.name}
-                            className="size-8 rounded-full object-cover shrink-0 border border-border"
-                          />
-                        ) : (
-                          <div className="size-8 rounded-full bg-brand-primary/10 text-brand-primary font-bold text-body-xs flex items-center justify-center shrink-0 border border-brand-primary/20">
-                            {userItem.name.charAt(0).toUpperCase() || "?"}
-                          </div>
-                        )}
+                        <UserAvatar name={userItem.name} image={userItem.image ?? null} />
                         <div className="min-w-0">
                           <div className="flex items-center gap-1.5">
                             <span className="font-semibold text-foreground truncate">
                               {userItem.name}
                             </span>
                             {isSelf && (
-                              <span className="text-[10px] px-1.5 py-0.2 rounded bg-muted text-muted-foreground font-medium">
+                              <span className="text-body-2xs px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-medium">
                                 Anda
                               </span>
                             )}

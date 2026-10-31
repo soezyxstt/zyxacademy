@@ -346,16 +346,14 @@ export function QuizInsightsListClient({
                         )}
                       </td>
                       <td className="px-4 py-3.5 text-right">
-                        <Link href={detailHref}>
-                          <Button
+                        <Button
+                            asChild
                             size="sm"
                             variant={item.lastAiInsight ? "default" : "outline"}
-                            className="gap-1.5 rounded-lg text-body-xs"
+                            className="gap-1.5 rounded-lg text-body-sm"
                           >
-                            <span>{tx("viewAnalysis")}</span>
-                            <ArrowRight className="size-3.5" />
+                            <Link href={detailHref}><span>{tx("viewAnalysis")}</span><ArrowRight className="size-3.5" /></Link>
                           </Button>
-                        </Link>
                       </td>
                     </tr>
                   );

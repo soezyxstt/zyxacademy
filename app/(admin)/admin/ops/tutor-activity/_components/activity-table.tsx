@@ -110,7 +110,7 @@ export function ActivityTable({
                       <div className="min-w-0">
                         <p className="font-medium text-foreground truncate">{item.actorName || t("tutorActivityUI.systemAnonymous")}</p>
                         {item.actorEmail && (
-                          <p className="text-[10px] text-muted-foreground font-mono truncate">{item.actorEmail}</p>
+                          <p className="text-body-xs text-muted-foreground font-mono break-all">{item.actorEmail}</p>
                         )}
                       </div>
                     </div>
@@ -153,7 +153,7 @@ export function ActivityTable({
                       variant="ghost"
                       size="sm"
                       onClick={() => handleOpenDetail(item)}
-                      className="h-8 gap-1 text-body-xs font-medium text-muted-foreground hover:text-foreground"
+                      className="h-8 gap-1 text-body-sm font-medium text-muted-foreground hover:text-foreground"
                     >
                       <Eye className="size-3.5" aria-hidden />
                       <span>{t("tutorActivityUI.view")}</span>
@@ -180,7 +180,7 @@ export function ActivityTable({
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="font-medium text-body-sm text-foreground truncate">{item.actorName || t("tutorActivityUI.systemAnonymous")}</p>
-                  <p className="text-[10px] text-muted-foreground">
+                  <p className="text-body-xs text-muted-foreground">
                     <FormattedDate date={item.createdAt} options={{ dateStyle: "medium", timeStyle: "short" }} />
                   </p>
                 </div>
@@ -215,7 +215,7 @@ export function ActivityTable({
               variant="outline"
               size="sm"
               onClick={() => handleOpenDetail(item)}
-              className="w-full h-8 gap-1 text-body-xs font-medium"
+              className="w-full h-8 gap-1 text-body-sm font-medium"
             >
               <Eye className="size-3.5" aria-hidden />
               <span>{t("tutorActivityUI.detail")}</span>
@@ -237,7 +237,7 @@ export function ActivityTable({
             size="sm"
             onClick={onPrevPage}
             disabled={!hasPrevPage || isPending}
-            className="h-8 gap-1 text-body-xs"
+            className="h-8 gap-1 text-body-sm"
           >
             <ChevronLeft className="size-3.5" aria-hidden />
             <span>{t("tutorActivityUI.previous")}</span>
@@ -249,7 +249,7 @@ export function ActivityTable({
             size="sm"
             onClick={onNextPage}
             disabled={!hasNextPage || isPending}
-            className="h-8 gap-1 text-body-xs"
+            className="h-8 gap-1 text-body-sm"
           >
             <span>{t("tutorActivityUI.next")}</span>
             <ChevronRight className="size-3.5" aria-hidden />

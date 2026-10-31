@@ -452,9 +452,9 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
       </AdminStatStrip>
 
       {/* 2. Search, Filter, and Action Bar */}
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         {/* Search Input */}
-        <div className="flex-1 min-w-0">
+        <div className="flex-1 min-w-[140px]">
           <SearchBar
             size="sm"
             placeholder={translate("groupsUI.search")}
@@ -533,7 +533,7 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
               <Button
                 size="icon"
                 onClick={handleOpenCreate}
-                className="size-9 shrink-0 rounded-lg bg-brand-primary text-white hover:bg-brand-primary/95 shadow-sm shadow-brand-primary/20"
+                className="size-9 shrink-0 rounded-lg bg-brand-primary text-primary-foreground hover:bg-brand-primary/95 shadow-sm shadow-brand-primary/20"
                 aria-label={translate("groupsUI.createGroup")}
               >
                 <Plus className="size-4" />
@@ -639,9 +639,9 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
                             {g.remainingQuota} {translate("groupsUI.remaining")}
                           </span>
                         </div>
-                        <div className="w-full bg-muted rounded-full h-1.5 overflow-hidden">
+                        <div className="w-full bg-muted rounded-md h-1.5 overflow-hidden">
                           <div
-                            className={`h-full rounded-full transition-all ${
+                            className={`h-full rounded-md transition-all ${
                               usedPct >= 90
                                 ? "bg-status-error"
                                 : usedPct >= 60
@@ -965,7 +965,7 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
                 type="submit"
                 disabled={formLoading}
                 isLoading={formLoading}
-                className="bg-brand-primary text-white hover:bg-brand-primary/90 rounded-lg"
+                className="bg-brand-primary text-primary-foreground hover:bg-brand-primary/90 rounded-lg"
               >
                 {translate("groupsUI.saveGroup")}
               </Button>
@@ -1159,7 +1159,7 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
                 type="submit"
                 disabled={formLoading}
                 isLoading={formLoading}
-                className="bg-brand-primary text-white hover:bg-brand-primary/90 rounded-lg"
+                className="bg-brand-primary text-primary-foreground hover:bg-brand-primary/90 rounded-lg"
               >
                 {translate("groupsUI.saveChanges")}
               </Button>
@@ -1329,7 +1329,7 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
                                 size="xs"
                                 disabled={addingMemberId === u.id}
                                 onClick={() => handleAddMemberToGroup(u)}
-                                className="h-7 rounded bg-brand-primary text-white text-[11px] gap-1"
+                                className="h-7 rounded bg-brand-primary text-primary-foreground text-[11px] gap-1"
                               >
                                 <UserPlus className="size-3" />
                                 {addingMemberId === u.id ? translate("groupsUI.adding") : translate("groupsUI.add")}

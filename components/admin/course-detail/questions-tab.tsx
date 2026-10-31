@@ -175,7 +175,7 @@ export function QuestionsTab({
     <div className="space-y-4 font-sans">
       {/* Origin Filter Tabs */}
       <Tabs value={originTab} onValueChange={handleTabChange} syncUrl={false}>
-        <TabsList className="bg-muted/40 border border-border rounded-xl p-1">
+        <TabsList className="bg-muted/40 border border-border rounded-xl p-1 flex-wrap">
           <TabsTrigger value="all" className="text-body-sm font-medium">
             {t("courseDetail.questions.all", { count: questions.length })}
           </TabsTrigger>
@@ -198,7 +198,7 @@ export function QuestionsTab({
           value={search}
           onSearch={handleSearchChange}
           onClear={() => handleSearchChange("")}
-          containerClassName="flex-1 min-w-[160px]"
+          containerClassName="flex-1 min-w-[140px]"
         />
 
         <Select value={difficultyFilter} onValueChange={handleDifficultyChange}>

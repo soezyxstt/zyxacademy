@@ -46,11 +46,11 @@ function TrendIcon({ trend }: { trend?: "improving" | "stable" | "declining" | n
 
 export function ConceptMap({ courseId, groups }: ConceptMapProps) {
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       {groups.map((group) => (
         <Reveal key={group.chapter.id}>
           <div className="space-y-3">
-            <h2 className="text-body-sm font-semibold uppercase tracking-wide text-muted-foreground mt-8 mb-2">
+            <h2 className="font-heading text-body-base font-bold text-foreground">
               {group.chapter.title}
             </h2>
             <div className="border-b border-border" />
@@ -65,12 +65,12 @@ export function ConceptMap({ courseId, groups }: ConceptMapProps) {
                     {c.conceptSlug ? (
                       <Link
                         href={`/courses/${courseId}/concept/${c.conceptSlug}`}
-                        className="text-body-sm font-semibold text-foreground block line-clamp-2 hover:underline hover:text-primary transition-colors"
+                        className="text-body-sm font-semibold text-foreground block break-words hover:underline hover:text-primary transition-colors"
                       >
                         <MathText as="span">{c.conceptName}</MathText>
                       </Link>
                     ) : (
-                      <span className="text-body-sm font-semibold text-foreground block line-clamp-2">
+                      <span className="text-body-sm font-semibold text-foreground block break-words">
                         <MathText as="span">{c.conceptName}</MathText>
                       </span>
                     )}

@@ -197,7 +197,7 @@ export function StudentOnboardingView({
                                 {index + 1}
                               </span>
                             )}
-                            <span className="truncate text-body-xs text-foreground">{chapter.title}</span>
+                            <span className="min-w-0 break-words text-body-xs text-foreground">{chapter.title}</span>
                             <span className="ml-auto shrink-0 rounded-md bg-status-success/10 px-1.5 py-0.5 text-body-2xs font-semibold text-status-success">
                               {t("dashboard.free")}
                             </span>

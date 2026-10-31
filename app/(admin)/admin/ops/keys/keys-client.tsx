@@ -134,8 +134,8 @@ export function KeysClient() {
 
       {keyHealth.map(({ keyId, healthy, totalToday, entries }) => (
         <div key={keyId} className="rounded-xl border border-border bg-card overflow-hidden">
-          <div className="flex items-center justify-between border-b border-border bg-muted/50 px-5 py-3">
-            <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border bg-muted/50 px-4 py-3">
+            <div className="flex flex-wrap items-center gap-3">
               <span className={`size-2.5 rounded-full ${healthy ? "bg-status-success" : "bg-status-error"}`} />
               <h2 className="font-heading text-body-base font-semibold text-foreground">{keyId}</h2>
               <span className={`text-body-sm ${healthy ? "text-status-success" : "text-status-error"}`}>

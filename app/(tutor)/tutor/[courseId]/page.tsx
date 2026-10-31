@@ -98,7 +98,7 @@ export default async function TutorCoursePage({ params }: Props) {
     <ApplicationPage spacing="space-y-5">
       {/* Section 1: headline stats */}
       <Reveal>
-        <section aria-labelledby="course-title">
+        <section>
           <PageHeader
             title={analytics.courseTitle}
             backHref="/tutor"

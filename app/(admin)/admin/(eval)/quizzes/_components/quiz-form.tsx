@@ -606,7 +606,7 @@ export function QuizForm({
               size="sm"
               disabled={submitting}
               onClick={() => handleSubmit(false)}
-              className="h-8 sm:h-9 rounded-lg border-border font-medium text-body-xs"
+              className="h-8 sm:h-9 rounded-lg border-border font-medium text-body-sm"
             >
               <Save className="mr-1.5 size-3.5" />
               {isEdit ? tr("saveChanges") : tr("saveDraft")}
@@ -616,7 +616,7 @@ export function QuizForm({
               size="sm"
               disabled={submitting}
               onClick={() => handleSubmit(true)}
-              className="h-8 sm:h-9 rounded-lg bg-brand-primary text-white hover:bg-brand-primary/95 font-semibold text-body-xs shadow-2xs"
+              className="h-8 sm:h-9 rounded-lg bg-brand-primary text-primary-foreground hover:bg-brand-primary/95 font-semibold text-body-sm shadow-2xs"
             >
               {submitting ? (
                 <>
@@ -766,14 +766,14 @@ export function QuizForm({
                         className={cn(
                           "flex size-4 shrink-0 items-center justify-center rounded-full border mt-0.5",
                           scheduleType === "scheduled"
-                            ? "border-brand-primary bg-brand-primary text-white"
+                            ? "border-brand-primary bg-brand-primary text-primary-foreground"
                             : "border-muted-foreground"
                         )}
                       >
                         {scheduleType === "scheduled" && <div className="size-1.5 rounded-full bg-white" />}
                       </div>
                       <div>
-                        <div className="text-body-xs sm:text-body-sm font-bold text-foreground">{tr("scheduled")}</div>
+                        <div className="text-body-sm font-bold text-foreground">{tr("scheduled")}</div>
                         <div className="text-body-xs text-muted-foreground mt-0.5">
                           {tr("scheduledDescription")}
                         </div>
@@ -799,14 +799,14 @@ export function QuizForm({
                         className={cn(
                           "flex size-4 shrink-0 items-center justify-center rounded-full border mt-0.5",
                           scheduleType === "manual"
-                            ? "border-brand-primary bg-brand-primary text-white"
+                            ? "border-brand-primary bg-brand-primary text-primary-foreground"
                             : "border-muted-foreground"
                         )}
                       >
                         {scheduleType === "manual" && <div className="size-1.5 rounded-full bg-white" />}
                       </div>
                       <div>
-                        <div className="text-body-xs sm:text-body-sm font-bold text-foreground">{tr("manual")}</div>
+                        <div className="text-body-sm font-bold text-foreground">{tr("manual")}</div>
                         <div className="text-body-xs text-muted-foreground mt-0.5">
                           {tr("manualDescription")}
                         </div>
@@ -819,7 +819,7 @@ export function QuizForm({
                     <div className="space-y-3 rounded-lg border border-border/80 bg-muted/20 p-3">
                       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                         <div>
-                          <Label htmlFor="openAt" className="text-body-xs font-semibold text-foreground">
+                          <Label htmlFor="openAt" className="text-body-sm font-semibold text-foreground">
                             {tr("openTime")}
                           </Label>
                           <Input
@@ -827,12 +827,12 @@ export function QuizForm({
                             type="datetime-local"
                             value={openAt}
                             onChange={(e) => setOpenAt(e.target.value)}
-                            className="mt-1 rounded-lg border-border h-8 text-body-xs"
+                            className="mt-1 rounded-lg border-border h-8 text-body-sm"
                           />
                         </div>
 
                         <div>
-                          <Label htmlFor="closeAt" className="text-body-xs font-semibold text-foreground">
+                          <Label htmlFor="closeAt" className="text-body-sm font-semibold text-foreground">
                             {tr("closeTime")}
                           </Label>
                           <Input
@@ -840,20 +840,20 @@ export function QuizForm({
                             type="datetime-local"
                             value={closeAt}
                             onChange={(e) => setCloseAt(e.target.value)}
-                            className="mt-1 rounded-lg border-border h-8 text-body-xs"
+                            className="mt-1 rounded-lg border-border h-8 text-body-sm"
                           />
                         </div>
                       </div>
 
                       <div>
-                        <Label htmlFor="manualStatusScheduled" className="text-body-xs font-semibold text-foreground">
+                        <Label htmlFor="manualStatusScheduled" className="text-body-sm font-semibold text-foreground">
                           {tr("manualStatusOverride")}
                         </Label>
                         <Select
                           value={manualStatus}
                           onValueChange={(v: "open" | "closed" | "scheduled") => setManualStatus(v)}
                         >
-                          <SelectTrigger id="manualStatusScheduled" className="mt-1 rounded-lg border-border h-8 text-body-xs">
+                          <SelectTrigger id="manualStatusScheduled" className="mt-1 rounded-lg border-border h-8 text-body-sm">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
@@ -869,7 +869,7 @@ export function QuizForm({
                   {/* Manual Mode Fields */}
                   {scheduleType === "manual" && (
                     <div className="rounded-lg border border-border/80 bg-muted/20 p-3 space-y-2">
-                      <Label className="text-body-xs font-semibold text-foreground">{tr("quizAvailability")}</Label>
+                      <Label className="text-body-sm font-semibold text-foreground">{tr("quizAvailability")}</Label>
                       <div className="grid grid-cols-2 gap-2.5">
                         <Button
                           type="button"
@@ -877,7 +877,7 @@ export function QuizForm({
                           size="sm"
                           onClick={() => setManualStatus("open")}
                           className={cn(
-                            "rounded-lg font-semibold h-8 text-body-xs",
+                            "rounded-lg font-semibold h-8 text-body-sm",
                             manualStatus === "open" ? "bg-status-success text-white hover:bg-status-success/90" : "border-border"
                           )}
                         >
@@ -889,7 +889,7 @@ export function QuizForm({
                           size="sm"
                           onClick={() => setManualStatus("closed")}
                           className={cn(
-                            "rounded-lg font-semibold h-8 text-body-xs",
+                            "rounded-lg font-semibold h-8 text-body-sm",
                             manualStatus === "closed" ? "bg-muted-foreground text-white hover:bg-muted-foreground/90" : "border-border"
                           )}
                         >
@@ -938,7 +938,7 @@ export function QuizForm({
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 pt-1">
                     <div className="flex items-center justify-between rounded-lg border border-border p-3">
                       <div className="space-y-0.5 pr-2">
-                        <Label htmlFor="showScoreImmediate" className="text-body-xs sm:text-body-sm font-semibold text-foreground cursor-pointer">
+                        <Label htmlFor="showScoreImmediate" className="text-body-sm font-semibold text-foreground cursor-pointer">
                           Tampilkan Skor Instan
                         </Label>
                         <p className="text-body-xs text-muted-foreground">
@@ -953,7 +953,7 @@ export function QuizForm({
                     </div>
 
                     <div className="rounded-lg border border-border p-3 space-y-1">
-                      <Label htmlFor="passingScore" className="text-body-xs sm:text-body-sm font-semibold text-foreground">
+                      <Label htmlFor="passingScore" className="text-body-sm font-semibold text-foreground">
                         Passing Grade (%)
                       </Label>
                       <Input
@@ -964,7 +964,7 @@ export function QuizForm({
                         value={passingScore}
                         onChange={(e) => setPassingScore(e.target.value)}
                         placeholder="70"
-                        className="h-8 rounded-md border-border text-body-xs"
+                        className="h-8 rounded-md border-border text-body-sm"
                       />
                     </div>
                   </div>
@@ -1004,7 +1004,7 @@ export function QuizForm({
                           max={360}
                           value={timeLimitMinutes}
                           onChange={(e) => setTimeLimitMinutes(e.target.value)}
-                          className="w-24 rounded-lg border-border h-8 text-body-xs"
+                          className="w-24 rounded-lg border-border h-8 text-body-sm"
                         />
                         <span className="text-body-xs text-muted-foreground font-medium">{tr("totalMinutes")}</span>
                       </div>
@@ -1033,7 +1033,7 @@ export function QuizForm({
 
                     {perQuestionTimerEnabled && (
                       <div className="rounded-lg border border-border/80 bg-muted/20 p-3 space-y-1.5">
-                        <Label htmlFor="defaultTimer" className="text-body-xs font-semibold text-foreground">
+                        <Label htmlFor="defaultTimer" className="text-body-sm font-semibold text-foreground">
                           {tr("defaultQuestionDuration")}
                         </Label>
                         <div className="flex items-center gap-2">
@@ -1044,7 +1044,7 @@ export function QuizForm({
                             max={600}
                             value={defaultQuestionTimerSeconds}
                             onChange={(e) => setDefaultQuestionTimerSeconds(e.target.value)}
-                            className="w-24 rounded-lg border-border h-8 text-body-xs"
+                            className="w-24 rounded-lg border-border h-8 text-body-sm"
                           />
                           <span className="text-body-xs text-muted-foreground font-medium">{tr("seconds")}</span>
                         </div>
@@ -1115,7 +1115,7 @@ export function QuizForm({
                         value={maxAttempts}
                         onChange={(e) => setMaxAttempts(e.target.value)}
                         placeholder={tr("unlimited")}
-                        className="w-32 rounded-lg border-border h-8 text-body-xs"
+                        className="w-32 rounded-lg border-border h-8 text-body-sm"
                       />
                       <span className="text-body-xs text-muted-foreground">
                         {maxAttempts ? tr("attempts") : tr("unlimited")}
@@ -1166,7 +1166,7 @@ export function QuizForm({
                   type="button"
                   size="sm"
                   onClick={() => handleTabChange("soal")}
-                  className="rounded-lg bg-brand-primary text-white hover:bg-brand-primary/90 font-semibold h-8 text-body-xs"
+                  className="rounded-lg bg-brand-primary text-primary-foreground hover:bg-brand-primary/90 font-semibold h-8 text-body-sm"
                 >
                   Pilih soal <ChevronRight className="ml-1 size-3.5" />
                 </Button>
@@ -1222,7 +1222,7 @@ export function QuizForm({
                     variant="ghost"
                     size="sm"
                     onClick={clearAllSelections}
-                    className="h-7 text-body-xs text-status-error hover:bg-status-error/10 hover:text-status-error"
+                    className="h-7 text-body-sm text-status-error hover:bg-status-error/10 hover:text-status-error"
                   >
                     {tr("clearSelection")}
                   </Button>
@@ -1331,7 +1331,7 @@ export function QuizForm({
               <div className="rounded-xl border border-border bg-card p-3 shadow-2xs space-y-2.5">
                 <div className="flex flex-wrap items-center gap-2">
                   {/* Reusable Search Bar Component */}
-                  <div className="w-full sm:w-64 lg:w-72 shrink-0">
+                  <div className="min-w-[140px] flex-1">
                     <SearchBar
                       size="sm"
                       variant="bordered"
@@ -1349,8 +1349,8 @@ export function QuizForm({
                     size="sm"
                     onClick={() => setOnlySelectedFilter(!onlySelectedFilter)}
                     className={cn(
-                      "h-9 rounded-lg font-semibold shrink-0 text-body-xs gap-1.5",
-                      onlySelectedFilter ? "bg-brand-primary text-white" : "border-border"
+                      "h-9 rounded-lg font-semibold shrink-0 text-body-sm gap-1.5",
+                      onlySelectedFilter ? "bg-brand-primary text-primary-foreground" : "border-border"
                     )}
                   >
                     <CheckSquare className="size-3.5" />
@@ -1358,9 +1358,9 @@ export function QuizForm({
                   </Button>
 
                   {/* Difficulty Select */}
-                  <div className="w-full sm:w-auto shrink-0">
+                  <div className="shrink-0">
                     <Select value={difficultyFilter} onValueChange={setDifficultyFilter}>
-                      <SelectTrigger className="h-9 w-full sm:w-[130px] rounded-lg border-border text-body-xs">
+                      <SelectTrigger className="h-9 w-[130px] rounded-lg border-border text-body-sm">
                         <SelectValue placeholder={tr("allDifficulties")} />
                       </SelectTrigger>
                       <SelectContent>
@@ -1373,9 +1373,9 @@ export function QuizForm({
                   </div>
 
                   {/* Type Select */}
-                  <div className="w-full sm:w-auto shrink-0">
+                  <div className="shrink-0">
                     <Select value={typeFilter} onValueChange={setTypeFilter}>
-                      <SelectTrigger className="h-9 w-full sm:w-[140px] rounded-lg border-border text-body-xs">
+                      <SelectTrigger className="h-9 w-[140px] rounded-lg border-border text-body-sm">
                         <SelectValue placeholder={tr("allTypes")} />
                       </SelectTrigger>
                       <SelectContent>
@@ -1389,9 +1389,9 @@ export function QuizForm({
                   </div>
 
                   {/* Origin Select */}
-                  <div className="w-full sm:w-auto shrink-0">
+                  <div className="shrink-0">
                     <Select value={originFilter} onValueChange={setOriginFilter}>
-                      <SelectTrigger className="h-9 w-full sm:w-[130px] rounded-lg border-border text-body-xs">
+                      <SelectTrigger className="h-9 w-[130px] rounded-lg border-border text-body-sm">
                         <SelectValue placeholder={tr("allSources")} />
                       </SelectTrigger>
                       <SelectContent>
@@ -1403,9 +1403,9 @@ export function QuizForm({
                   </div>
 
                   {/* Tag Select */}
-                  <div className="w-full sm:w-auto shrink-0">
+                  <div className="shrink-0">
                     <Select value={tagFilter} onValueChange={setTagFilter}>
-                      <SelectTrigger className="h-9 w-full sm:w-[130px] rounded-lg border-border text-body-xs">
+                      <SelectTrigger className="h-9 w-[130px] rounded-lg border-border text-body-sm">
                         <SelectValue placeholder={tr("allTopics")} />
                       </SelectTrigger>
                       <SelectContent>
@@ -1420,9 +1420,9 @@ export function QuizForm({
                   </div>
 
                   {/* Status Select */}
-                  <div className="w-full sm:w-auto shrink-0">
+                  <div className="shrink-0">
                     <Select value={statusFilter} onValueChange={setStatusFilter}>
-                      <SelectTrigger className="h-9 w-full sm:w-[130px] rounded-lg border-border text-body-xs">
+                      <SelectTrigger className="h-9 w-[130px] rounded-lg border-border text-body-sm">
                         <SelectValue placeholder={tr("allStatuses")} />
                       </SelectTrigger>
                       <SelectContent>
@@ -1448,7 +1448,7 @@ export function QuizForm({
                       size="sm"
                       onClick={selectAllFiltered}
                       disabled={filteredQuestions.length === 0}
-                      className="h-6 text-body-xs font-semibold text-brand-primary hover:bg-brand-primary/10 px-2"
+                      className="h-8 text-body-sm font-semibold text-brand-primary hover:bg-brand-primary/10 px-2"
                     >
                       Pilih Semua Hasil Filter
                     </Button>
@@ -1458,7 +1458,7 @@ export function QuizForm({
                       size="sm"
                       onClick={deselectAllFiltered}
                       disabled={filteredQuestions.length === 0}
-                      className="h-6 text-body-xs font-semibold text-muted-foreground hover:bg-muted px-2"
+                      className="h-8 text-body-sm font-semibold text-muted-foreground hover:bg-muted px-2"
                     >
                       Batal Pilih Hasil Filter
                     </Button>
@@ -1590,7 +1590,7 @@ export function QuizForm({
                             </div>
 
                             {/* Prompt text */}
-                            <div className="text-body-xs sm:text-body-sm font-medium leading-relaxed text-foreground">
+                            <div className="text-body-sm font-medium leading-relaxed text-foreground">
                               <MathText>{q.prompt}</MathText>
                             </div>
 

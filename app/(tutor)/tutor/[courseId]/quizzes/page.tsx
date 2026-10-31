@@ -69,7 +69,7 @@ export default async function TutorQuizzesPage({ params }: Props) {
           icon={ClipboardList}
           title={<><TranslatedText namespace="tutor" messageKey="routeTitles.manageQuizzesAndBank" />: {courseTitle}</>}
           backHref={`/tutor/${courseId}`}
-          backLabel={<><TranslatedText namespace="tutor" messageKey="routeTitles.dashboardTitle" />: {courseTitle}</>}
+          backLabel={<TranslatedText namespace="tutor" messageKey="routeTitles.overview" />}
         />
       </Reveal>
 

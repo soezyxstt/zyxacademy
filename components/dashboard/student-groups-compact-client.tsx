@@ -224,7 +224,7 @@ export function StudentGroupsCompactClient({ initialGroups }: Props) {
         <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border/50 pb-4">
           <div className="min-w-0">
             <div className="flex items-center gap-1.5">
-              <h2 className="min-w-0 truncate font-heading text-h5 font-bold text-foreground">
+              <h2 className="min-w-0 break-words font-heading text-h5 font-bold text-foreground">
                 {activeGroup.name}
               </h2>
               <button
@@ -339,7 +339,7 @@ export function StudentGroupsCompactClient({ initialGroups }: Props) {
           <div className="flex items-center justify-between gap-3 border-t border-border/50 pt-4">
             <div className="min-w-0">
               <p className="text-body-xs text-muted-foreground">{t("groups.inviteToken")}</p>
-              <p className="truncate font-mono text-body-sm font-semibold text-foreground">{activeGroup.token.token}</p>
+              <p className="break-all font-mono text-body-sm font-semibold text-foreground">{activeGroup.token.token}</p>
             </div>
             <Button
               type="button"

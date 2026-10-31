@@ -27,12 +27,15 @@ describe("schedule calendar regression contracts", () => {
     const admin = source("components/admin/academic-schedules-dashboard.tsx");
 
     expect(admin).toContain('value="calendar"');
-    expect(admin).toContain("Daftar Jadwal");
-    expect(admin).toContain("Ujian ITB");
-    expect(admin).not.toContain("Jadwal Resmi");
-    expect(admin).not.toContain("Ujian Resmi ITB");
-    expect(admin).toContain('<SelectItem value="academic">Akademik</SelectItem>');
-    expect(admin).toContain('<SelectItem value="tutorial">Tutorial</SelectItem>');
+    const labels = JSON.parse(source("messages/id/adminOps.json")).academicScheduleUI;
+    expect(admin).toContain('translate("academicScheduleUI.list")');
+    expect(admin).toContain('t("academicScheduleUI.officialExam")');
+    expect(admin).toContain('<SelectItem value="academic">{translate("academicScheduleUI.academic")}</SelectItem>');
+    expect(admin).toContain('<SelectItem value="tutorial">{translate("academicScheduleUI.tutorial")}</SelectItem>');
+    expect(labels.list).toBe("Daftar jadwal");
+    expect(labels.officialExam).toBe("Ujian ITB");
+    expect(labels.academic).toBe("Akademik");
+    expect(labels.tutorial).toBe("Tutorial");
   });
 
   test("student booking modal contract matches its calendar caller and never trusts a client date", () => {
@@ -60,7 +63,8 @@ describe("schedule calendar regression contracts", () => {
     expect(calendar).toContain("break-words");
     expect(calendar).not.toContain("line-clamp");
     expect(calendar).not.toContain("Keterangan:");
-    expect(calendar).toContain("Keterangan");
+    expect(calendar).toContain('t("calendar.legend")');
+    expect(JSON.parse(source("messages/id/schedule.json")).calendar.legend).toBe("Keterangan");
   });
 
   test("student calendar cards open detailed schedule and tutorial views", () => {
@@ -79,7 +83,8 @@ describe("schedule calendar regression contracts", () => {
     expect(tutor).toContain('id="tutor-slot-date"');
     expect(tutor).toContain('type="date"');
     expect(tutor).not.toMatch(/id="tutor-slot-date"[\s\S]{0,250}readOnly/);
-    expect(tutor).toContain("Catatan tutor");
+    expect(tutor).toContain('t("tutorNotes")');
+    expect(JSON.parse(source("messages/id/tutor.json")).schedule.tutorNotes).toBe("Catatan tutor");
     expect(tutor).toContain("addTutorSlotWithNotesAction");
     expect(actions).toContain("tutorSlotNotes");
     expect(actions).toContain("errorChainMessage");
@@ -110,7 +115,8 @@ describe("schedule calendar regression contracts", () => {
     expect(action).toContain("currentMembership");
     expect(action).not.toContain('membership.role !== "leader"');
     expect(action).toContain("Nama kelompok hanya dapat diganti satu kali setiap 30 hari.");
-    expect(panel).toContain("Setiap anggota kelompok dapat mengubahnya.");
+    expect(panel).toContain('t("groups.visibility")');
+    expect(JSON.parse(source("messages/id/student.json")).groups.visibility).toContain("Setiap anggota kelompok dapat mengubahnya.");
     expect(panel).toContain("groups.map");
   });
 });

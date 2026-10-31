@@ -155,7 +155,7 @@ export function PlaylistDialog({
               type="submit"
               size="sm"
               disabled={loading}
-              className="text-body-sm bg-brand-primary text-white hover:bg-brand-primary/90"
+              className="text-body-sm bg-brand-primary text-primary-foreground hover:bg-brand-primary/90"
             >
               {loading ? t("courseVideos.saving") : isEditing ? t("courseVideos.saveChanges") : t("courseVideos.createPlaylist")}
             </Button>

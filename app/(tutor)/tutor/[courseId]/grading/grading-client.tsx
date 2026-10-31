@@ -103,9 +103,9 @@ export function GradingClient({ courseId, initialSubmissions }: Props) {
         </div>
 
         {/* Workspace Layout */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
           {/* Left Column: Student Answers (8 cols) */}
-          <div className="lg:col-span-8 space-y-4">
+          <div className="lg:col-span-8 divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
             {Array.isArray(qSnapshot) && qSnapshot.map((q: any, idx: number) => {
               const ans = aSnapshot[q.id];
               const isEssay = q.type === "essay";
@@ -113,9 +113,9 @@ export function GradingClient({ courseId, initialSubmissions }: Props) {
               const isShort = q.type === "short_answer";
 
               return (
-                <Card key={q.id} className="bg-card border border-border shadow-xs rounded-2xl p-5 space-y-4">
+                <Card key={q.id} className="rounded-none border-0 bg-transparent p-4 shadow-none space-y-4">
                   <div className="flex items-start gap-2.5">
-                    <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-primary text-body-sm font-bold text-white shadow-xs font-mono">
+                    <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-primary text-body-sm font-bold text-primary-foreground shadow-xs font-mono">
                       {idx + 1}
                     </span>
                     <div className="min-w-0">
@@ -135,7 +135,7 @@ export function GradingClient({ courseId, initialSubmissions }: Props) {
 
                   {/* Options display for MC */}
                   {isMc && q.options && (
-                    <div className="pl-9 grid gap-2 sm:grid-cols-2">
+                    <div className="grid gap-2 sm:grid-cols-2 sm:pl-9">
                       {q.options.map((opt: string, i: number) => {
                         const isStudentChoice = q.type === "multiple_choice"
                           ? ans?.index === i
@@ -159,7 +159,7 @@ export function GradingClient({ courseId, initialSubmissions }: Props) {
                             }`}>
                               {String.fromCharCode(65 + i)}
                             </span>
-                            <span className="truncate">
+                            <span className="min-w-0 break-words">
                               <MathText className="leading-normal" as="span">{opt}</MathText>
                             </span>
                           </div>
@@ -170,9 +170,9 @@ export function GradingClient({ courseId, initialSubmissions }: Props) {
 
                   {/* Short Answer Preview */}
                   {isShort && (
-                    <div className="pl-9 space-y-2">
+                    <div className="space-y-2 sm:pl-9">
                       <div className="bg-muted/20 border border-border/60 rounded-xl p-3.5 text-body-sm">
-                        <span className="text-[10px] font-semibold text-muted-foreground block uppercase">{tr("studentAnswer")}</span>
+                        <span className="text-body-xs font-semibold text-muted-foreground block">{tr("studentAnswer")}</span>
                         <p className="font-semibold text-foreground mt-0.5">
                           <MathText as="span">{ans?.text || "-"}</MathText>
                         </p>
@@ -188,9 +188,9 @@ export function GradingClient({ courseId, initialSubmissions }: Props) {
 
                   {/* Essay Answer Preview */}
                   {isEssay && (
-                    <div className="pl-9 space-y-3">
+                    <div className="space-y-3 sm:pl-9">
                       <div className="bg-muted/20 border border-border/60 rounded-xl p-4 text-body-sm leading-relaxed whitespace-pre-wrap">
-                        <span className="text-[10px] font-semibold text-muted-foreground block uppercase mb-1">{tr("essayAnswer")}</span>
+                        <span className="text-body-xs font-semibold text-muted-foreground block mb-1">{tr("essayAnswer")}</span>
                         {ans?.text || <span className="text-muted-foreground italic">{tr("noEssayAnswer")}</span>}
                       </div>
 
@@ -237,8 +237,8 @@ export function GradingClient({ courseId, initialSubmissions }: Props) {
           </div>
 
           {/* Right Column: Grading Panel (4 cols) */}
-          <div className="lg:col-span-4 sticky top-6 space-y-4">
-            <Card className="bg-card border-border shadow-md rounded-2xl p-5">
+          <div className="lg:col-span-4 lg:sticky lg:top-6 space-y-4">
+            <Card className="bg-card border-border shadow-none rounded-xl p-4">
               <CardHeader className="p-0 mb-4">
                 <CardTitle className="font-heading text-body-base font-bold text-foreground flex items-center gap-2">
                   <Award className="size-5 text-brand-primary" />
@@ -276,7 +276,7 @@ export function GradingClient({ courseId, initialSubmissions }: Props) {
               </div>
 
               <div className="mt-6 space-y-2">
-                <Button onClick={handleSaveGrade} isLoading={isPending} className="w-full bg-brand-primary text-white hover:bg-brand-primary/90 rounded-md font-semibold gap-1.5 shadow-sm">
+                <Button onClick={handleSaveGrade} isLoading={isPending} className="w-full bg-brand-primary text-primary-foreground hover:bg-brand-primary/90 rounded-md font-semibold gap-1.5 shadow-sm">
                   {tr("savePublish")}
                 </Button>
                 <Button variant="outline" onClick={() => setActiveSub(null)} disabled={isPending} className="w-full rounded-md border-border/80">
@@ -329,7 +329,7 @@ export function GradingClient({ courseId, initialSubmissions }: Props) {
                       {s.submittedAt ? new Date(s.submittedAt).toLocaleString(dateLocale, { dateStyle: "medium", timeStyle: "short" }) : "-"}
                     </p>
                   </div>
-                  <Button onClick={() => handleOpenGrade(s)} className="bg-brand-primary text-white hover:bg-brand-primary/90 rounded-md font-semibold text-body-sm">
+                  <Button onClick={() => handleOpenGrade(s)} className="bg-brand-primary text-primary-foreground hover:bg-brand-primary/90 rounded-md font-semibold text-body-sm">
                     {tr("gradeAnswer")}
                   </Button>
                 </Card>
@@ -399,7 +399,7 @@ export function GradingClient({ courseId, initialSubmissions }: Props) {
                       <p className="text-body-xs font-semibold text-muted-foreground uppercase font-sans">{tr("score")}</p>
                       <p className="font-heading text-h6 font-bold text-brand-primary tabular-nums">{s.score != null ? `${s.score}%` : tr("pending")}</p>
                     </div>
-                    <Button onClick={() => handleOpenGrade(s)} className="bg-brand-primary text-white hover:bg-brand-primary/90 rounded-md font-semibold text-body-sm">
+                    <Button onClick={() => handleOpenGrade(s)} className="bg-brand-primary text-primary-foreground hover:bg-brand-primary/90 rounded-md font-semibold text-body-sm">
                       {s.status === "graded" ? tr("editScore") : tr("gradeAnswer")}
                     </Button>
                   </div>

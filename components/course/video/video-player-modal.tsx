@@ -118,7 +118,7 @@ export function VideoPlayerModal({
                 className={cn(
                   "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-body-xs font-semibold backdrop-blur-md transition-all shadow-md cursor-pointer border",
                   isPlaylistOpen
-                    ? "bg-brand-primary text-white border-brand-primary"
+                    ? "bg-brand-primary text-primary-foreground border-brand-primary"
                     : "bg-black/65 hover:bg-black/85 text-white/90 hover:text-white border-white/15"
                 )}
                 title={t("courseVideos.openVideoList")}
@@ -181,7 +181,7 @@ export function VideoPlayerModal({
                   onClick={() => setIsPlaylistOpen((prev) => !prev)}
                   className={cn(
                     "h-8 gap-1.5 text-body-xs rounded-lg transition-colors",
-                    isPlaylistOpen && "bg-brand-primary text-white hover:bg-brand-primary/90"
+                    isPlaylistOpen && "bg-brand-primary text-primary-foreground hover:bg-brand-primary/90"
                   )}
                   aria-expanded={isPlaylistOpen}
                 >
@@ -218,7 +218,7 @@ export function VideoPlayerModal({
                 size="sm"
                 disabled={!prevVideo}
                 onClick={() => prevVideo && onSelectVideo?.(prevVideo)}
-                className="h-8 gap-1 text-body-xs rounded-lg"
+                className="h-8 gap-1 text-body-sm rounded-lg"
               >
                 <ChevronLeft className="size-3.5" />
                 <span className="hidden sm:inline">{t("courseVideos.previous")}</span>
@@ -228,7 +228,7 @@ export function VideoPlayerModal({
                 size="sm"
                 disabled={!nextVideo}
                 onClick={() => nextVideo && onSelectVideo?.(nextVideo)}
-                className="h-8 gap-1 text-body-xs rounded-lg"
+                className="h-8 gap-1 text-body-sm rounded-lg"
               >
                 <span className="hidden sm:inline">{t("courseVideos.next")}</span>
                 <ChevronRight className="size-3.5" />
@@ -248,7 +248,7 @@ export function VideoPlayerModal({
                 variant="ghost"
                 size="sm"
                 onClick={() => onSelectVideo?.(nextVideo)}
-                className="h-6 px-2 text-body-xs text-brand-primary hover:text-brand-primary gap-1 shrink-0 font-semibold"
+                className="h-8 px-2 text-body-sm text-brand-primary hover:text-brand-primary gap-1 shrink-0 font-semibold"
               >
                 <span>{t("courseVideos.play")}</span>
                 <ChevronRight className="size-3" />

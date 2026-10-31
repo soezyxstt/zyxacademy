@@ -62,7 +62,7 @@ export function WeeklyReflection({ reflection }: WeeklyReflectionProps) {
   };
 
   return (
-    <section className="relative mb-6 hidden overflow-hidden rounded-xl border border-border/60 bg-card/60 backdrop-blur-md px-4 py-3 sm:px-5 sm:py-3 shadow-2xs animate-in fade-in slide-in-from-bottom-2 duration-300 sm:block">
+    <section className="relative mb-6 hidden overflow-hidden rounded-xl border border-border/60 bg-card px-4 py-3 sm:px-5 sm:py-3 sm:block">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
           <div className="flex items-center gap-2">
@@ -89,13 +89,13 @@ export function WeeklyReflection({ reflection }: WeeklyReflectionProps) {
             )}
           </div>
           <div className="hidden lg:flex items-center gap-x-3 text-body-xs text-muted-foreground">
-            <span>•</span>
+
             <span>{t("dashboard.quizCount", { count: completed.quizzes })}</span>
-            <span>•</span>
+
             <span>{t("dashboard.flashcardCount", { count: completed.flashcards })}</span>
-            <span>•</span>
+
             <span>{t("dashboard.moduleCount", { count: completed.modules })}</span>
-            <span>•</span>
+
             <span>{t("dashboard.streakCount", { count: streak.currentStreak })}</span>
           </div>
         </div>

@@ -141,7 +141,7 @@ export default async function CourseOverviewPage({ params }: Props) {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
-      <CoursePageShell title={course.title} description={shortDescription} icon={BookOpen} maxWidth="7xl">
+      <CoursePageShell title={course.title} description={shortDescription} icon={BookOpen} maxWidth="7xl" hideMobileTitle>
         <Reveal>
           {!isEnrolled && (
             <div className="mb-6 rounded-lg border border-brand-secondary/25 bg-brand-secondary/5 p-4">

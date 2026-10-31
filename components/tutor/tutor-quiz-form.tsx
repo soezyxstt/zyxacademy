@@ -15,7 +15,6 @@ import {
   Layers,
   HelpCircle,
   Tag,
-  Check,
   Filter,
 } from "lucide-react";
 import { toast } from "@/components/ui/toast";
@@ -26,6 +25,7 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { useUrlTab } from "@/hooks/use-url-tab";
 import { SearchBar } from "@/components/ui/search-bar";
@@ -35,7 +35,9 @@ import { DifficultyProportionSlider } from "@/components/admin/difficulty-propor
 import { formatDatetimeLocal } from "@/lib/date-utils";
 import { cn } from "@/lib/utils";
 import { saveQuizTemplateAction } from "@/app/actions/tutor-management";
-import { useTranslations } from "@/lib/i18n/client";
+import { useAppLocale, useTranslations } from "@/lib/i18n/client";
+
+const QUESTION_PAGE_SIZE = 20;
 
 export interface QuestionBankItem {
   id: string;
@@ -103,8 +105,10 @@ export function TutorQuizForm({
   isEdit = false,
 }: TutorQuizFormProps) {
   const t = useTranslations("tutor.quizForm");
+  const { locale } = useAppLocale();
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
+  const [questionPage, setQuestionPage] = useState(0);
 
   const [currentTab, setCurrentTab] = useUrlTab("tab", "pengaturan");
 
@@ -267,6 +271,10 @@ export function TutorQuizForm({
     });
   }, [questionBank, onlySelectedFilter, selectedQIds, searchQuery, difficultyFilter, typeFilter, tagFilter]);
 
+  const questionPageCount = Math.max(1, Math.ceil(filteredQuestions.length / QUESTION_PAGE_SIZE));
+  const currentQuestionPage = Math.min(questionPage, questionPageCount - 1);
+  const pageQuestions = filteredQuestions.slice(currentQuestionPage * QUESTION_PAGE_SIZE, (currentQuestionPage + 1) * QUESTION_PAGE_SIZE);
+
   const toggleSelectQuestion = (id: string) => {
     setSelectedQIds((prev) =>
       prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
@@ -395,7 +403,7 @@ export function TutorQuizForm({
         backHref={`/tutor/${courseId}/quizzes`}
         backLabel={t("backToQuizList")}
         actions={
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Button
               type="button"
               variant="outline"
@@ -412,7 +420,7 @@ export function TutorQuizForm({
               size="sm"
               disabled={isPending}
               onClick={() => handleSubmit(true)}
-              className="h-9 rounded-md bg-brand-primary text-white hover:bg-brand-primary/90 font-semibold text-body-sm shadow-xs"
+              className="h-9 rounded-md bg-brand-primary text-primary-foreground hover:bg-brand-primary/90 font-semibold text-body-sm shadow-xs"
             >
               {isPending ? (
                 <>
@@ -577,7 +585,7 @@ export function TutorQuizForm({
                         className={cn(
                           "flex size-4 shrink-0 items-center justify-center rounded-full border mt-0.5",
                           scheduleType === "scheduled"
-                            ? "border-brand-primary bg-brand-primary text-white"
+                            ? "border-brand-primary bg-brand-primary text-primary-foreground"
                             : "border-muted-foreground"
                         )}
                       >
@@ -610,7 +618,7 @@ export function TutorQuizForm({
                         className={cn(
                           "flex size-4 shrink-0 items-center justify-center rounded-full border mt-0.5",
                           scheduleType === "manual"
-                            ? "border-brand-primary bg-brand-primary text-white"
+                            ? "border-brand-primary bg-brand-primary text-primary-foreground"
                             : "border-muted-foreground"
                         )}
                       >
@@ -814,14 +822,16 @@ export function TutorQuizForm({
                 <div className="flex-1 min-w-[140px]">
                   <SearchBar
                     placeholder={t("searchQuestions")}
+                    aria-label={t("searchQuestions")}
                     value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onChange={(e) => { setSearchQuery(e.target.value); setQuestionPage(0); }}
+                    onClear={() => { setSearchQuery(""); setQuestionPage(0); }}
                     className="h-9 rounded-lg border-border text-body-sm"
                   />
                 </div>
 
-                <Select value={difficultyFilter} onValueChange={setDifficultyFilter}>
-                  <SelectTrigger className="w-32 h-9 rounded-lg border-border text-body-sm shrink-0">
+                <Select value={difficultyFilter} onValueChange={(value) => { setDifficultyFilter(value); setQuestionPage(0); }}>
+                  <SelectTrigger aria-label={t("difficulty")} className="w-52 h-9 rounded-lg border-border text-body-sm shrink-0">
                     <SelectValue placeholder={t("difficulty")} />
                   </SelectTrigger>
                   <SelectContent className="bg-card border-border">
@@ -832,8 +842,8 @@ export function TutorQuizForm({
                   </SelectContent>
                 </Select>
 
-                <Select value={typeFilter} onValueChange={setTypeFilter}>
-                  <SelectTrigger className="w-36 h-9 rounded-lg border-border text-body-sm shrink-0">
+                <Select value={typeFilter} onValueChange={(value) => { setTypeFilter(value); setQuestionPage(0); }}>
+                  <SelectTrigger aria-label={t("questionType")} className="w-36 h-9 rounded-lg border-border text-body-sm shrink-0">
                     <SelectValue placeholder={t("questionType")} />
                   </SelectTrigger>
                   <SelectContent className="bg-card border-border">
@@ -849,7 +859,8 @@ export function TutorQuizForm({
                   type="button"
                   variant="outline"
                   size="sm"
-                  onClick={() => setOnlySelectedFilter(!onlySelectedFilter)}
+                  onClick={() => { setOnlySelectedFilter(!onlySelectedFilter); setQuestionPage(0); }}
+                  aria-pressed={onlySelectedFilter}
                   className={cn(
                     "h-9 rounded-lg border-border text-body-sm shrink-0",
                     onlySelectedFilter ? "bg-brand-primary/10 border-brand-primary text-brand-primary" : ""
@@ -859,7 +870,7 @@ export function TutorQuizForm({
                   {onlySelectedFilter ? t("selectedOnly") : t("allQuestions")}
                 </Button>
 
-                <div className="flex items-center gap-1.5 ml-auto">
+                <div className="flex flex-wrap items-center gap-1.5 ml-auto">
                   <Button
                     type="button"
                     variant="outline"
@@ -895,8 +906,9 @@ export function TutorQuizForm({
                   <p className="text-body-sm text-muted-foreground">{t("noMatchingQuestions")}</p>
                 </div>
               ) : (
-                <div className="space-y-2.5 max-h-[600px] overflow-y-auto pr-1">
-                  {filteredQuestions.map((q) => {
+                <>
+                <div className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
+                  {pageQuestions.map((q) => {
                     const isSelected = selectedQIds.includes(q.id);
                     const qOpts = Array.isArray(q.options)
                       ? q.options
@@ -915,27 +927,19 @@ export function TutorQuizForm({
                         key={q.id}
                         onClick={() => toggleSelectQuestion(q.id)}
                         className={cn(
-                          "flex items-start gap-3 px-2 py-3 border-b border-border transition-colors cursor-pointer text-left",
+                          "flex items-start gap-3 px-3 py-3 transition-colors cursor-pointer text-left",
                           isSelected
-                            ? "border-brand-primary bg-brand-primary/5 shadow-xs"
-                            : "border-border bg-card hover:bg-muted/30"
+                            ? "bg-primary/5"
+                            : "hover:bg-muted/30"
                         )}
                       >
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            toggleSelectQuestion(q.id);
-                          }}
-                          className={cn(
-                            "flex size-5 shrink-0 items-center justify-center rounded border transition-colors mt-0.5",
-                            isSelected
-                              ? "bg-brand-primary border-brand-primary text-white"
-                              : "border-border hover:border-brand-primary"
-                          )}
-                        >
-                          {isSelected && <Check className="size-3" />}
-                        </button>
+                        <Checkbox
+                          checked={isSelected}
+                          onCheckedChange={() => toggleSelectQuestion(q.id)}
+                          onClick={(event) => event.stopPropagation()}
+                          aria-label={t("questionNumber", { count: questionBank.indexOf(q) + 1 })}
+                          className="mt-0.5 shrink-0"
+                        />
 
                         <div className="flex-1 min-w-0 space-y-1.5">
                           <div className="flex flex-wrap items-center gap-2">
@@ -972,7 +976,7 @@ export function TutorQuizForm({
                           {qOpts.length > 0 && (
                             <div className="grid gap-1 sm:grid-cols-2 pt-1">
                               {qOpts.map((opt: string, optIdx: number) => (
-                                <div key={optIdx} className="text-body-xs text-muted-foreground truncate">
+                                <div key={optIdx} className="text-body-xs text-muted-foreground break-words">
                                   <span className="font-semibold text-foreground/80 mr-1">
                                     {String.fromCharCode(65 + optIdx)}.
                                   </span>
@@ -986,6 +990,14 @@ export function TutorQuizForm({
                     );
                   })}
                 </div>
+                {questionPageCount > 1 && (
+                  <nav aria-label={locale === "id" ? "Halaman bank soal" : "Question bank pages"} className="flex flex-wrap items-center justify-end gap-2">
+                    <Button type="button" variant="outline" size="sm" disabled={currentQuestionPage === 0} onClick={() => setQuestionPage(currentQuestionPage - 1)}>{locale === "id" ? "Sebelumnya" : "Previous"}</Button>
+                    <span className="text-body-sm text-muted-foreground" aria-live="polite">{currentQuestionPage + 1} / {questionPageCount}</span>
+                    <Button type="button" variant="outline" size="sm" disabled={currentQuestionPage === questionPageCount - 1} onClick={() => setQuestionPage(currentQuestionPage + 1)}>{locale === "id" ? "Berikutnya" : "Next"}</Button>
+                  </nav>
+                )}
+                </>
               )}
             </CardContent>
           </Card>

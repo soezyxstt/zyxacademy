@@ -3,6 +3,8 @@
 import React, { useState } from "react";
 import { ArrowUp, Check, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
 export interface QuickActionsBarProps {
   options: string[];
@@ -111,27 +113,29 @@ export function QuickActionsBar({
         const isNo = /^(?:tidak|batal|jangan)$/i.test(opt);
 
         return (
-          <button
+          <Button
+            variant="outline"
+            size="sm"
             key={`${opt}-${idx}`}
             type="button"
             disabled={disabled}
             onClick={() => onSelect(opt)}
             aria-label={`Pilih opsi ${opt}`}
             className={cn(
-              "inline-flex items-center gap-1 px-2.5 py-1 text-body-xs font-medium rounded-lg border transition-all cursor-pointer active:scale-95 disabled:opacity-50 disabled:pointer-events-none shadow-2xs h-7",
+              "h-auto min-h-7 max-w-full whitespace-normal text-left",
               isYes &&
                 "border-primary/40 bg-primary/10 text-primary hover:bg-primary/20 hover:border-primary/60",
               isNo &&
                 "border-border/80 bg-muted/60 text-muted-foreground hover:text-foreground hover:bg-muted",
               !isYes &&
                 !isNo &&
-                "border-border/80 bg-background/90 text-foreground hover:border-primary/50 hover:bg-primary/5 max-w-[220px] truncate"
+                "border-border bg-background text-foreground hover:border-primary/50 hover:bg-primary/5"
             )}
           >
             {isYes && <Check className="size-3 shrink-0" />}
             {isNo && <X className="size-3 shrink-0" />}
-            <span className="truncate">{opt}</span>
-          </button>
+            <span className="break-words">{opt}</span>
+          </Button>
         );
       })}
 
@@ -141,24 +145,25 @@ export function QuickActionsBar({
         className="inline-flex items-center min-w-[140px] max-w-[220px] flex-1 sm:flex-initial"
       >
         <div className="relative w-full flex items-center">
-          <input
+          <Input
             type="text"
             value={customText}
             onChange={(e) => setCustomText(e.target.value)}
             disabled={disabled}
             placeholder="Ketik sendiri..."
             aria-label="Ketik sendiri respon Anda"
-            className="w-full text-body-xs px-2.5 py-1 pr-7 rounded-lg border border-border/80 bg-background/80 placeholder:text-muted-foreground/70 focus:border-primary focus:bg-background focus:outline-none disabled:opacity-50 h-7 transition-all shadow-2xs"
+            className="h-8 pr-9"
           />
           {customText.trim() && (
-            <button
+            <Button
+              size="icon-sm"
               type="submit"
               disabled={disabled}
               aria-label="Kirim respon kustom"
-              className="absolute right-1 size-5 inline-flex items-center justify-center rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors cursor-pointer"
+              className="absolute right-0.5"
             >
               <ArrowUp className="size-3" />
-            </button>
+            </Button>
           )}
         </div>
       </form>

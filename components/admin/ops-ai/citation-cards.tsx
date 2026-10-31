@@ -5,10 +5,6 @@ import {
   ChevronRight,
   ChevronDown,
   ExternalLink,
-  BookOpen,
-  Database,
-  Compass,
-  FileText,
 } from "lucide-react";
 import type {
   OpsAiCitation,
@@ -57,7 +53,7 @@ export function CitationCards({ citations }: CitationCardsProps) {
         onClick={() => setIsExpanded((prev) => !prev)}
         aria-expanded={isExpanded}
         aria-label={`Buka atau tutup daftar sumber referensi (${citations.length} sumber)`}
-        className="group flex items-start text-left gap-1.5 text-[11px] font-medium text-muted-foreground hover:text-foreground transition-colors cursor-pointer py-0.5 focus-visible:outline-none w-full"
+        className="group flex items-start text-left gap-1.5 text-body-sm font-medium text-muted-foreground hover:text-foreground transition-colors cursor-pointer py-0.5 rounded-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring w-full"
       >
         {isExpanded ? (
           <ChevronDown className="size-3 text-muted-foreground group-hover:text-foreground transition-colors mt-0.5 shrink-0" />
@@ -65,15 +61,15 @@ export function CitationCards({ citations }: CitationCardsProps) {
           <ChevronRight className="size-3 text-muted-foreground group-hover:text-foreground transition-colors mt-0.5 shrink-0" />
         )}
 
-        <span className="font-heading text-body-xs font-bold text-foreground block leading-snug break-words">
+        <span className="font-sans text-body-sm font-medium text-foreground block leading-snug break-words">
           {OPS_AI_CITATION_OFFICIAL_LABEL} ({citations.length} referensi)
         </span>
       </button>
 
       {/* Expanded list with clean -> arrow items */}
       {isExpanded && (
-        <div className="mt-1.5 pl-2 border-l border-border/50 space-y-2 text-[11px]">
-          <p className="text-[10px] text-muted-foreground/80 italic leading-snug">
+        <div className="mt-1.5 pl-2 border-l border-border/50 space-y-2 text-body-xs">
+          <p className="text-body-xs text-muted-foreground italic leading-snug">
             {OPS_AI_CITATION_OFFICIAL_DISCLAIMER}
           </p>
 
@@ -117,7 +113,7 @@ export function CitationCards({ citations }: CitationCardsProps) {
 
                       {/* Excerpt */}
                       {cite.snippet && (
-                        <div className="mt-1 pl-1 text-[11px] text-muted-foreground/90 font-sans leading-relaxed">
+                        <div className="mt-1 pl-1 text-body-xs text-muted-foreground font-sans leading-relaxed">
                           <p className={cn("bg-muted/30 p-1.5 rounded-md border border-border/30", !snippetOpen && "line-clamp-2")}>
                             {cite.snippet}
                           </p>
@@ -125,7 +121,7 @@ export function CitationCards({ citations }: CitationCardsProps) {
                             <button
                               type="button"
                               onClick={() => toggleSnippet(cite.id)}
-                              className="mt-0.5 text-[10px] text-primary hover:underline cursor-pointer"
+                              className="mt-0.5 rounded-md text-body-sm text-primary hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring cursor-pointer"
                             >
                               {snippetOpen ? "Perkecil kutipan" : "Lihat kutipan lengkap"}
                             </button>
@@ -138,7 +134,7 @@ export function CitationCards({ citations }: CitationCardsProps) {
                         <div className="mt-0.5">
                           <a
                             href={cite.url}
-                            className="inline-flex items-center gap-1 text-[10px] text-primary hover:underline font-medium"
+                            className="inline-flex items-center gap-1 rounded-md text-body-sm text-primary hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring font-medium"
                           >
                             <span>Buka halaman: {cite.url}</span>
                             <ExternalLink className="size-2.5" />

@@ -352,7 +352,7 @@ export function HistoricalQuestionsClient({ questions, courses, courseMap, canon
                   setCurrentPage(1);
                 }}
               >
-                <SelectTrigger aria-label={t("pageSize")} className="h-7 w-[68px] rounded-md text-body-xs px-2">
+                <SelectTrigger aria-label={t("pageSize")} className="h-8 w-[68px] rounded-md text-body-sm px-2">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -513,10 +513,10 @@ export function HistoricalQuestionsClient({ questions, courses, courseMap, canon
         const options = normalizeOptions(question.options);
         const reviewAction = reviewActionFor(question);
         return (
-          <section key={"detail-" + question.id} className="space-y-4 rounded-xl border border-border/70 bg-card/75 p-4 shadow-xs">
+          <section key={"detail-" + question.id} className="space-y-4 rounded-xl border border-border bg-card p-4">
             <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/60 pb-3">
               <div>
-                <p className="text-body-xs font-semibold uppercase tracking-wide text-muted-foreground">{t("detailTitle")}</p>
+                <p className="text-body-sm font-semibold text-foreground">{t("detailTitle")}</p>
                 <p className="mt-1 text-body-sm font-semibold text-foreground">{question.sourceTitle}</p>
               </div>
               {reviewAction ? (
@@ -539,8 +539,8 @@ export function HistoricalQuestionsClient({ questions, courses, courseMap, canon
             ) : null}
             {question.answerMarkdown ? (
               <div className="border-t border-border pt-3">
-                <p className="mb-1.5 text-body-xs font-bold uppercase tracking-wide text-muted-foreground">{t("answerExplanation")}</p>
-                <MarkdownRenderer content={question.answerMarkdown} className="space-y-3 text-body-sm leading-relaxed text-foreground/80" />
+                <p className="mb-1.5 text-body-sm font-semibold text-foreground">{t("answerExplanation")}</p>
+                <MarkdownRenderer content={question.answerMarkdown} className="space-y-3 text-body-sm leading-relaxed text-foreground" />
               </div>
             ) : null}
             <div className="flex flex-wrap gap-x-4 gap-y-1 text-body-xs text-muted-foreground">

@@ -246,7 +246,7 @@ export function QuizInsightDetailClient({
           <Button
             onClick={handleRunAiAnalysis}
             disabled={analyzingAi || summary.totalCompleted === 0}
-            className="gap-2 bg-brand-primary text-white hover:bg-brand-primary/90 rounded-lg"
+            className="gap-2 bg-brand-primary text-primary-foreground hover:bg-brand-primary/90 rounded-lg"
           >
             {analyzingAi ? (
               <RefreshCw className="size-4 animate-spin" />
@@ -301,7 +301,7 @@ export function QuizInsightDetailClient({
           }
           caption={latestAiInsight ? tx("basedOnAttempts", { count: latestAiInsight.sampleSize }) : undefined}
           icon={BrainCircuit}
-          iconClassName="text-amber-500"
+          iconClassName="text-status-warning"
         />
       </AdminStatStrip>
 
@@ -330,7 +330,7 @@ export function QuizInsightDetailClient({
         {/* Tab 1: AI evaluation */}
         <TabsContent value="ai-insights" className="space-y-4">
           {!latestAiInsight ? (
-            <div className="border border-border/80 rounded-2xl p-12 text-center bg-card/50 space-y-4">
+            <div className="border border-border rounded-xl p-6 text-center bg-card space-y-4">
               <div className="size-12 rounded-full bg-brand-primary/10 text-brand-primary flex items-center justify-center mx-auto">
                 <BrainCircuit className="size-6" />
               </div>
@@ -343,7 +343,7 @@ export function QuizInsightDetailClient({
               <Button
                 onClick={handleRunAiAnalysis}
                 disabled={analyzingAi || summary.totalCompleted === 0}
-                className="gap-2 bg-brand-primary text-white hover:bg-brand-primary/90"
+                className="gap-2 bg-brand-primary text-primary-foreground hover:bg-brand-primary/90"
               >
                 {analyzingAi ? <RefreshCw className="size-4 animate-spin" /> : <Zap className="size-4" />}
                 {summary.totalCompleted === 0 ? tx("needOneAttempt") : tx("runAnalysis")}
@@ -354,7 +354,7 @@ export function QuizInsightDetailClient({
               {/* Executive Summary */}
               <div className="border border-border rounded-xl p-4 bg-card space-y-3">
                 <div className="flex items-center gap-2 text-foreground font-semibold text-body-base">
-                  <Lightbulb className="size-5 text-amber-500" />
+                  <Lightbulb className="size-5 text-status-warning" />
                   <h4>{tx("evaluationSummary")}</h4>
                 </div>
                 <p className="text-body-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">
@@ -446,9 +446,9 @@ export function QuizInsightDetailClient({
 
         {/* Tab 2: Question Item & Distractor Analysis */}
         <TabsContent value="questions" className="space-y-4">
-          <div className="space-y-4">
+          <div className="divide-y divide-border rounded-xl border border-border bg-card">
             {questionAnalysis.map((q, idx) => (
-              <div key={q.questionId} className="border border-border rounded-xl p-4 bg-card space-y-3">
+              <div key={q.questionId} className="p-4 space-y-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
                     <span className="size-6 rounded-full bg-brand-primary/10 text-brand-primary text-body-xs font-bold flex items-center justify-center">
@@ -494,7 +494,7 @@ export function QuizInsightDetailClient({
                         >
                           <div className="flex items-center gap-2 min-w-0">
                             <span className="font-bold shrink-0">{String.fromCharCode(65 + optIdx)}.</span>
-                            <div className="truncate"><MathText>{opt}</MathText></div>
+                            <div className="min-w-0 break-words"><MathText>{opt}</MathText></div>
                           </div>
                           <div className="shrink-0 tabular-nums text-right">
                             <span>{chosenCount} ({percentage}%)</span>
@@ -541,7 +541,7 @@ export function QuizInsightDetailClient({
                         <span>{range.label}</span>
                         <span className="font-semibold text-foreground">{tx("studentsPercent", { count: range.count, percent: pct })}</span>
                       </div>
-                      <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
+                      <div className="h-2 w-full bg-muted rounded-md overflow-hidden">
                         <div className={`h-full ${range.color}`} style={{ width: `${pct}%` }} />
                       </div>
                     </div>
@@ -568,7 +568,7 @@ export function QuizInsightDetailClient({
                           {tx("accuracy")}: <strong className={c.accuracyRate >= 70 ? "text-status-success" : "text-status-warning"}>{c.accuracyRate}%</strong> ({c.correctCount}/{c.totalAnswered})
                         </span>
                       </div>
-                      <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
+                      <div className="h-2 w-full bg-muted rounded-md overflow-hidden">
                         <div
                           className={`h-full ${c.accuracyRate >= 70 ? "bg-status-success" : "bg-status-warning"}`}
                           style={{ width: `${c.accuracyRate}%` }}

@@ -326,13 +326,13 @@ export default async function AIQuestionsPage() {
           </>
         }
       />
-      <Tabs defaultValue="ai-generated" className="w-full space-y-6">
+      <Tabs defaultValue="ai-generated" className="w-full space-y-4">
         <TabsList>
           <TabsTrigger value="ai-generated"><TranslatedText namespace="adminEval" messageKey="routes.activeQuestions" /></TabsTrigger>
           <TabsTrigger value="historical"><TranslatedText namespace="adminEval" messageKey="routes.historicalQuestions" /></TabsTrigger>
         </TabsList>
 
-        <TabsContent value="ai-generated" className="w-full space-y-6">
+        <TabsContent value="ai-generated" className="w-full space-y-4">
           <QuestionBankClient
             questions={questions}
             courses={allCourses}
@@ -344,7 +344,7 @@ export default async function AIQuestionsPage() {
           />
         </TabsContent>
 
-        <TabsContent value="historical" className="w-full space-y-6">
+        <TabsContent value="historical" className="w-full space-y-4">
           <HistoricalQuestionsClient
             questions={historicalQuestions}
             courses={allCourses}

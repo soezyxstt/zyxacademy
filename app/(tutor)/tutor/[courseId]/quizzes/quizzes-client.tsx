@@ -67,6 +67,8 @@ interface Props {
   initialQuestionBank: QuestionBankItem[];
 }
 
+const QUESTION_PAGE_SIZE = 20;
+
 function quizCategoryLabelKey(category: QuizTemplate["category"]) {
   switch (category) {
     case "daily": return "categoryDaily";
@@ -83,6 +85,10 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
   const { locale } = useAppLocale();
   const dateLocale = locale === "id" ? "id-ID" : "en-US";
   const [isPending, startTransition] = useTransition();
+  const [questionPage, setQuestionPage] = useState(0);
+  const questionPageCount = Math.max(1, Math.ceil(initialQuestionBank.length / QUESTION_PAGE_SIZE));
+  const currentQuestionPage = Math.min(questionPage, questionPageCount - 1);
+  const questionOffset = currentQuestionPage * QUESTION_PAGE_SIZE;
 
   const [deleteTplId, setDeleteTplId] = useState<string | null>(null);
 
@@ -300,7 +306,7 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
         <TabsContent value="templates" className="space-y-4">
           <div className="flex flex-wrap justify-between items-center gap-2">
             <h2 className="font-heading text-body-base font-semibold text-foreground">{tr("quizCount", { count: initialTemplates.length })}</h2>
-            <Button asChild className="bg-brand-primary text-white hover:bg-brand-primary/90 rounded-md font-semibold gap-2">
+            <Button asChild className="bg-brand-primary text-primary-foreground hover:bg-brand-primary/90 rounded-md font-semibold gap-2">
               <Link href={`/tutor/${courseId}/quizzes/new`}>
                 <Plus className="size-4" />
                 {tr("createQuiz")}
@@ -326,9 +332,11 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
                             {tr(quizCategoryLabelKey(t.category))}
                           </Badge>
                           <button
+                            type="button"
                             onClick={() => handleTogglePublishStatus(t.id, t.status)}
+                            aria-pressed={t.status === "published"}
                             className={cn(
-                              "capitalize text-[10px] rounded-md px-2 py-0.5 font-semibold border cursor-pointer transition-colors",
+                              "capitalize text-body-sm rounded-md px-2 py-1 font-semibold border cursor-pointer transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
                               t.status === "published"
                                 ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20"
                                 : "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20 hover:bg-amber-500/20"
@@ -352,7 +360,7 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
                       </div>
 
                       <p className="text-body-xs text-muted-foreground mt-0.5">
-                        {tr("attemptLimit", { attempts: t.maxAttempts ? `${t.maxAttempts}x` : tr("unlimited"), duration: t.timeLimitSeconds ? `${t.timeLimitSeconds / 60} min` : tr("free") })}
+                        {tr("attemptLimit", { attempts: t.maxAttempts ? `${t.maxAttempts}x` : tr("unlimited"), duration: t.timeLimitSeconds ? `${t.timeLimitSeconds / 60} ${locale === "id" ? "menit" : "minutes"}` : tr("free") })}
                       </p>
                     </CardHeader>
                     <CardContent className="px-4 pb-3 space-y-2">
@@ -431,23 +439,23 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
                       )}
                     </CardContent>
                     <div className="flex flex-wrap gap-2 px-4 pb-3">
-                      <Link href={`/tutor/${courseId}/quizzes/${t.id}/attempts`}>
-                        <Button variant="outline" size="sm" className="rounded-md border-border/80 text-emerald-600 hover:bg-emerald-500/10 hover:text-emerald-600 gap-1 text-body-xs">
+                      <Button asChild variant="outline" size="sm" className="gap-1">
+                        <Link href={`/tutor/${courseId}/quizzes/${t.id}/attempts`}>
                           <FileSpreadsheet className="size-3.5" />
                           {tr("results")}
-                        </Button>
-                      </Link>
-                      <Button variant="outline" size="sm" onClick={() => handleOpenPreviewTpl(t)} className="rounded-md border-border/80 text-brand-primary hover:bg-brand-primary/10 hover:text-brand-primary gap-1 text-body-xs">
+                        </Link>
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={() => handleOpenPreviewTpl(t)} className="rounded-md border-border/80 text-brand-primary hover:bg-brand-primary/10 hover:text-brand-primary gap-1 text-body-sm">
                         <Eye className="size-3.5" />
                         {tr("preview")}
                       </Button>
                       {isSimulation ? (
-                        <Button variant="outline" size="sm" disabled className="rounded-md border-border/80 text-muted-foreground gap-1 opacity-50 cursor-not-allowed text-body-xs">
+                        <Button variant="outline" size="sm" disabled className="rounded-md border-border/80 text-muted-foreground gap-1 opacity-50 cursor-not-allowed text-body-sm">
                           <Edit2 className="size-3.5" />
                           {tr("editAdmin")}
                         </Button>
                       ) : (
-                        <Button asChild variant="outline" size="sm" className="rounded-md border-border/80 text-muted-foreground hover:text-foreground hover:bg-muted gap-1 text-body-xs">
+                        <Button asChild variant="outline" size="sm" className="rounded-md border-border/80 text-muted-foreground hover:text-foreground hover:bg-muted gap-1 text-body-sm">
                           <Link href={`/tutor/${courseId}/quizzes/${t.id}/edit`}>
                             <Edit2 className="size-3.5" />
                             {tr("edit")}
@@ -455,11 +463,11 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
                         </Button>
                       )}
                       <Button
-                        variant="outline"
+                        variant="destructive"
                         size="sm"
                         disabled={isSimulation}
                         onClick={() => setDeleteTplId(t.id)}
-                        className="rounded-md border-border/80 text-status-error hover:bg-status-error/10 hover:text-status-error gap-1 text-body-xs disabled:opacity-50"
+                        className="gap-1"
                       >
                         <Trash2 className="size-3.5" />
                         {tr("delete")}
@@ -478,7 +486,7 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
         <TabsContent value="questionbank" className="space-y-4">
           <div className="flex flex-wrap justify-between items-center gap-2">
             <h2 className="font-heading text-body-base font-semibold text-foreground">{tr("questionBankTitle", { count: initialQuestionBank.length })}</h2>
-            <Button onClick={handleOpenAddQ} className="bg-brand-primary text-white hover:bg-brand-primary/90 rounded-md font-semibold gap-2">
+            <Button onClick={handleOpenAddQ} className="bg-brand-primary text-primary-foreground hover:bg-brand-primary/90 rounded-md font-semibold gap-2">
               <Plus className="size-4" />
               {tr("addQuestion")}
             </Button>
@@ -487,23 +495,24 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
           {initialQuestionBank.length === 0 ? (
             <AdminEmptyState icon={HelpCircle} title={tr("emptyBank")} />
           ) : (
-            <div className="space-y-3">
-              {initialQuestionBank.map((q, idx) => {
+            <>
+            <div className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
+              {initialQuestionBank.slice(questionOffset, questionOffset + QUESTION_PAGE_SIZE).map((q, idx) => {
                 const isImmutableReference = q.origin !== "zyx_original";
                 const tagsArr = typeof q.tags === "string" ? JSON.parse(q.tags) : q.tags;
                 const opts = typeof q.options === "string" ? JSON.parse(q.options) : q.options;
                 const correct = typeof q.correctIndices === "string" ? JSON.parse(q.correctIndices) : q.correctIndices;
 
                 return (
-                  <Card key={q.id} className="bg-card border-border shadow-xs rounded-xl p-5 relative">
+                  <Card key={q.id} className="relative rounded-none border-0 bg-transparent p-4 shadow-none">
                     <div className="flex items-start justify-between gap-4">
                       <div className="space-y-1.5 flex-1 min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
-                          <span className="text-body-xs font-bold text-muted-foreground">{tr("questionNumber", { number: initialQuestionBank.length - idx })}</span>
+                          <span className="text-body-xs font-bold text-muted-foreground">{tr("questionNumber", { number: initialQuestionBank.length - questionOffset - idx })}</span>
                           <Badge className={`text-[10px] rounded-md px-1.5 py-0.5 border ${
-                            q.difficulty === "easy" ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20" :
-                            q.difficulty === "medium" ? "bg-amber-500/10 text-amber-600 border-amber-500/20" :
-                            "bg-rose-500/10 text-rose-600 border-rose-500/20"
+                            q.difficulty === "easy" ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20" :
+                            q.difficulty === "medium" ? "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20" :
+                            "bg-rose-500/10 text-rose-700 dark:text-rose-400 border-rose-500/20"
                           }`}>
                             {tr(q.difficulty)}
                           </Badge>
@@ -525,7 +534,7 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
                           <Button variant="ghost" size="xs" onClick={() => handleOpenEditQ(q)} className="rounded-md text-muted-foreground hover:text-foreground" aria-label={tr("editQuestion")}>
                             <Edit2 className="size-3.5" />
                           </Button>
-                          <Button variant="ghost" size="xs" onClick={() => setDeleteQId(q.id)} className="rounded-md text-status-error hover:bg-status-error/10 hover:text-status-error" aria-label={tr("deleteQuestion")}>
+                          <Button variant="ghost" size="xs" onClick={() => setDeleteQId(q.id)} className="rounded-md text-destructive hover:bg-destructive/10 hover:text-destructive" aria-label={tr("deleteQuestion")}>
                             <Trash2 className="size-3.5" />
                           </Button>
                         </div>
@@ -539,14 +548,14 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
                           const isCorrect = Array.isArray(correct) && correct.includes(i);
                           return (
                             <div key={i} className={`flex items-center gap-2 text-body-xs px-3 py-1.5 rounded-lg border ${
-                              isCorrect ? "bg-emerald-500/5 border-emerald-500/25 text-emerald-700" : "bg-muted/10 border-border/50 text-muted-foreground"
+                              isCorrect ? "bg-status-success/5 border-status-success/25 text-foreground" : "bg-muted/10 border-border/50 text-muted-foreground"
                             }`}>
                               <span className={`flex size-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${
-                                isCorrect ? "bg-emerald-500 text-white" : "bg-muted text-muted-foreground"
+                                isCorrect ? "bg-status-success/15 text-foreground" : "bg-muted text-muted-foreground"
                               }`}>
                                 {String.fromCharCode(65 + i)}
                               </span>
-                              <span className="truncate">
+                              <span className="min-w-0 break-words">
                                 <MathText className="leading-normal" as="span">{opt}</MathText>
                               </span>
                             </div>
@@ -586,6 +595,18 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
                 );
               })}
             </div>
+            {questionPageCount > 1 && (
+              <nav aria-label={locale === "id" ? "Halaman bank soal" : "Question bank pages"} className="flex flex-wrap items-center justify-end gap-2">
+                <Button variant="outline" size="sm" disabled={currentQuestionPage === 0} onClick={() => setQuestionPage(currentQuestionPage - 1)}>
+                  {locale === "id" ? "Sebelumnya" : "Previous"}
+                </Button>
+                <span className="text-body-sm text-muted-foreground" aria-live="polite">{currentQuestionPage + 1} / {questionPageCount}</span>
+                <Button variant="outline" size="sm" disabled={currentQuestionPage === questionPageCount - 1} onClick={() => setQuestionPage(currentQuestionPage + 1)}>
+                  {locale === "id" ? "Berikutnya" : "Next"}
+                </Button>
+              </nav>
+            )}
+            </>
           )}
         </TabsContent>
       </Tabs>
@@ -612,14 +633,14 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="grid gap-2">
                 <Label htmlFor="q-type" className="text-body-sm font-semibold">{tr("questionType")}</Label>
                 <Select value={qType} onValueChange={(val: any) => {
                   setQType(val);
                   setQCorrectIndices([]);
                 }}>
-                  <SelectTrigger className="rounded-lg border-input bg-background">
+                  <SelectTrigger id="q-type" className="rounded-lg border-input bg-background">
                     <SelectValue placeholder={tr("chooseType")} />
                   </SelectTrigger>
                   <SelectContent className="bg-card border-border">
@@ -634,7 +655,7 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
               <div className="grid gap-2">
                 <Label htmlFor="q-diff" className="text-body-sm font-semibold">{tr("difficulty")}</Label>
                 <Select value={qDifficulty} onValueChange={(val: any) => setQDifficulty(val)}>
-                  <SelectTrigger className="rounded-lg border-input bg-background">
+                  <SelectTrigger id="q-diff" className="rounded-lg border-input bg-background">
                     <SelectValue placeholder={tr("chooseDifficulty")} />
                   </SelectTrigger>
                   <SelectContent className="bg-card border-border">
@@ -650,7 +671,7 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
             {(qType === "multiple_choice" || qType === "multiple_choices") && (
               <div className="space-y-3">
                 <Label className="text-body-sm font-semibold block">{tr("answerOptions")}</Label>
-                <span className="text-[10px] text-muted-foreground block -mt-2">
+                <span className="text-body-xs text-muted-foreground block -mt-2">
                   {tr("selectCorrect")}
                 </span>
                 
@@ -660,9 +681,11 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
                     <div key={i} className="flex items-center gap-3">
                       <button
                         type="button"
+                        aria-label={tr("markCorrect", { letter: String.fromCharCode(65 + i) })}
+                        aria-pressed={checked}
                         onClick={() => toggleCorrectIndex(i)}
-                        className={`flex size-6 shrink-0 items-center justify-center border transition-all ${
-                          checked ? "bg-emerald-500 border-emerald-500 text-white rounded-lg shadow-xs" : "border-border text-muted-foreground hover:border-emerald-500 rounded-lg"
+                        className={`flex size-6 shrink-0 items-center justify-center border transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring ${
+                          checked ? "bg-primary border-primary text-primary-foreground rounded-lg" : "border-border text-muted-foreground hover:border-primary rounded-lg"
                         }`}
                       >
                         {qType === "multiple_choice" ? (
@@ -672,6 +695,7 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
                         )}
                       </button>
                       <Input
+                        aria-label={tr("option", { letter: String.fromCharCode(65 + i) })}
                         value={opt}
                         onChange={(e) => {
                           const copy = [...qOptions];
@@ -738,7 +762,7 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
             <Button variant="outline" onClick={() => setIsQOpen(false)} disabled={isPending} className="rounded-md border-border/80">
               {tr("cancel")}
             </Button>
-            <Button onClick={handleSaveQ} isLoading={isPending} className="bg-brand-primary text-white hover:bg-brand-primary/90 rounded-md font-semibold gap-1.5">
+            <Button onClick={handleSaveQ} isLoading={isPending} className="bg-brand-primary text-primary-foreground hover:bg-brand-primary/90 rounded-md font-semibold gap-1.5">
               {tr("saveQuestion")}
             </Button>
           </DialogFooter>

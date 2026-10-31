@@ -22,7 +22,6 @@ export function WatchlistTable({ students }: { students: WatchlistStudent[] }) {
   if (students.length === 0) return <AdminEmptyState icon={Users} title={t("noWatchlist")} />;
 
   return (
-    <div className="overflow-x-auto">
       <Table className="w-full text-body-sm">
         <TableHeader>
           <TableRow className="border-b border-border text-left text-muted-foreground text-body-xs font-semibold">
@@ -40,14 +39,13 @@ export function WatchlistTable({ students }: { students: WatchlistStudent[] }) {
               : shown.join(", ") + (overflow > 0 ? ` ${t("otherConcepts", { count: overflow })}` : "");
             return (
               <TableRow key={student.studentId}>
-                <TableCell className="px-4 py-2.5 font-medium text-foreground">{student.name}</TableCell>
-                <TableCell className="px-4 py-2.5 text-muted-foreground max-w-xs truncate">{conceptLabel}</TableCell>
+                <TableCell className="px-4 py-2.5 font-medium text-foreground whitespace-normal break-words">{student.name}</TableCell>
+                <TableCell className="px-4 py-2.5 text-muted-foreground max-w-xs whitespace-normal break-words">{conceptLabel}</TableCell>
                 <TableCell className="px-4 py-2.5 whitespace-nowrap text-muted-foreground">{relativeTime(student.lastActiveAt, locale, (key) => t(key))}</TableCell>
               </TableRow>
             );
           })}
         </TableBody>
       </Table>
-    </div>
   );
 }

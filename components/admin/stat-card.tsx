@@ -41,17 +41,17 @@ export function AdminStatCard({
   return (
     <div
       className={cn(
-        "flex min-w-0 items-center gap-2 rounded-lg border border-border/70 bg-card/70 px-3 backdrop-blur-md",
-        size === "sm" ? "min-h-9 py-1.5" : "min-h-11 py-2",
+        "flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border border-border bg-card px-4",
+        size === "sm" ? "min-h-10 py-2" : "min-h-14 py-3",
         className
       )}
     >
       {Icon && <Icon className={cn("size-3.5 shrink-0", toneClasses[tone], iconClassName)} aria-hidden />}
-      <span className="min-w-0 truncate text-body-xs font-medium text-muted-foreground">{label}</span>
-      <div className={cn("ml-auto shrink-0 font-heading text-body-base font-bold", toneClasses[tone])}>
+      <span className="min-w-0 text-body-sm text-muted-foreground">{label}</span>
+      <div className={cn("ml-auto min-w-0 break-words font-heading text-h5 font-bold", toneClasses[tone])}>
         {value}
       </div>
-      {caption && <span className="sr-only">{caption}</span>}
+      {caption && <span className="basis-full text-body-xs text-muted-foreground">{caption}</span>}
     </div>
   );
 }
@@ -79,7 +79,7 @@ export function AdminStatStrip({ children, className }: AdminStatStripProps) {
   return (
     <div
       className={cn(
-        "grid grid-cols-1 gap-px overflow-hidden rounded-lg border border-border/70 bg-border/60 backdrop-blur-md sm:grid-cols-2",
+        "grid grid-cols-1 gap-px overflow-hidden rounded-lg border border-border bg-border sm:grid-cols-2",
         className
       )}
     >
@@ -100,16 +100,16 @@ export function AdminStatStripItem({
   return (
     <div
       className={cn(
-        "flex min-w-0 items-center gap-2 bg-card/75 px-3 backdrop-blur-md",
-        compact ? "min-h-9 py-1.5" : "min-h-11 py-2"
+        "flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 bg-card px-4",
+        compact ? "min-h-10 py-2" : "min-h-14 py-3"
       )}
     >
       {Icon && <Icon className={cn("size-3.5 shrink-0", toneClasses[tone], iconClassName)} aria-hidden />}
-      <span className="min-w-0 truncate text-body-xs font-medium text-muted-foreground">{label}</span>
-      <div className={cn("ml-auto shrink-0 font-heading text-body-base font-bold", toneClasses[tone])}>
+      <span className="min-w-0 text-body-sm text-muted-foreground">{label}</span>
+      <div className={cn("ml-auto min-w-0 break-words font-heading text-h5 font-bold", toneClasses[tone])}>
         {value}
       </div>
-      {caption && <span className="sr-only">{caption}</span>}
+      {caption && <span className="basis-full text-body-xs text-muted-foreground">{caption}</span>}
     </div>
   );
 }

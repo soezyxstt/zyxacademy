@@ -8,6 +8,7 @@ import { CourseQuizListSkeleton } from "@/components/course/course-skeletons";
 import { pageTitle } from "@/lib/site";
 import { QuizListClient } from "./quiz-list-client";
 import { Reveal } from "@/components/ui/reveal";
+import { tabListClassName, tabTriggerClassName, tabTriggerActiveClassName } from "@/components/ui/tab-styles";
 import { db } from "@/db";
 import { studentQuizAttempts } from "@/db/schema";
 import { eq } from "drizzle-orm";
@@ -132,17 +133,15 @@ export default async function CourseQuizListPage({ params, searchParams }: Props
       title={<TranslatedText namespace="learning" messageKey="quizPage.title" values={{ course: course.title }} />}
       icon={ClipboardList}
       actions={(
-        <nav className="flex max-w-full items-center gap-1 overflow-x-auto" aria-labelledby="quiz-access-filter-label">
+        <nav className={tabListClassName} aria-labelledby="quiz-access-filter-label">
           <span id="quiz-access-filter-label" className="sr-only"><TranslatedText namespace="learning" messageKey="quizPage.filterLabel" /></span>
           {filters.map((filter) => (
             <Link
               key={filter.value}
               href={filter.value === "all" ? `/courses/${id}/quiz` : `/courses/${id}/quiz?access=${filter.value}`}
               className={cn(
-                "inline-flex shrink-0 items-center gap-1 rounded-md px-2.5 py-1.5 text-body-sm font-semibold transition-colors",
-                access === filter.value
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                tabTriggerClassName,
+                access === filter.value && tabTriggerActiveClassName,
               )}
               aria-current={access === filter.value ? "page" : undefined}
             >

@@ -71,7 +71,7 @@ export function CompleteProfileDialog({
       if (!isOpen) handleDismiss();
       else setOpen(isOpen);
     }}>
-      <DialogContent className="max-w-md p-6">
+      <DialogContent className="max-w-md">
         <div className="flex items-center gap-3 mb-2">
           <div className="flex size-10 items-center justify-center rounded-xl bg-brand-primary/10 text-brand-primary border border-brand-primary/20 shrink-0">
             <GraduationCap className="size-5" />
@@ -96,26 +96,26 @@ export function CompleteProfileDialog({
           <div className="my-2 border-y border-border py-3 space-y-1.5 text-body-xs">
             <div className="flex items-center justify-between">
               <span className="text-muted-foreground">{t("dashboard.profilePrompt.faculty")}</span>
-              <span className={missingFields.faculty ? "font-semibold text-amber-600 dark:text-amber-500" : "text-status-success font-semibold"}>
+              <span className={missingFields.faculty ? "font-semibold text-status-warning" : "text-status-success font-semibold"}>
                 {missingFields.faculty ? t("dashboard.profilePrompt.missing") : t("dashboard.profilePrompt.complete")}
               </span>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-muted-foreground">{t("dashboard.profilePrompt.major")}</span>
-              <span className={missingFields.major ? "font-semibold text-amber-600 dark:text-amber-500" : "text-status-success font-semibold"}>
+              <span className={missingFields.major ? "font-semibold text-status-warning" : "text-status-success font-semibold"}>
                 {missingFields.major ? t("dashboard.profilePrompt.missing") : t("dashboard.profilePrompt.complete")}
               </span>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-muted-foreground">{t("dashboard.profilePrompt.entryYear")}</span>
-              <span className={missingFields.entryYear ? "font-semibold text-amber-600 dark:text-amber-500" : "text-status-success font-semibold"}>
+              <span className={missingFields.entryYear ? "font-semibold text-status-warning" : "text-status-success font-semibold"}>
                 {missingFields.entryYear ? t("dashboard.profilePrompt.missing") : t("dashboard.profilePrompt.complete")}
               </span>
             </div>
           </div>
         )}
 
-        <DialogFooter className="flex-row items-center justify-end gap-2 pt-2 sm:justify-end">
+        <DialogFooter className="flex flex-wrap items-center justify-end gap-2 pt-2 sm:justify-end">
           <Button
             type="button"
             variant="outline"
@@ -129,7 +129,7 @@ export function CompleteProfileDialog({
             type="button"
             size="sm"
             onClick={handleCompleteNow}
-            className="gap-1.5 text-body-sm font-semibold bg-brand-primary hover:bg-primary-hover text-white"
+            className="gap-1.5 text-body-sm font-semibold bg-brand-primary hover:bg-primary-hover text-primary-foreground"
           >
             {t("dashboard.profilePrompt.completeNow")}
             <ArrowRight className="size-3.5" />

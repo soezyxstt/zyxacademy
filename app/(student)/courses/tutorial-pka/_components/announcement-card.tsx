@@ -37,9 +37,9 @@ export function AnnouncementCard({ id, title, body, createdAt, isPinned }: Annou
   return (
     <div className="relative p-4 group">
       <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2 pr-8">
-        <div className="flex items-center gap-2">
-          {isPinned && <Pin className="size-4 text-brand-primary fill-brand-primary/20" aria-label={t("pinned")} />}
-          <h3 className="font-heading text-body-base font-bold text-foreground">
+        <div className="flex min-w-0 items-start gap-2">
+          {isPinned && <Pin className="size-4 shrink-0 text-brand-primary fill-brand-primary/20" aria-label={t("pinned")} />}
+          <h3 className="min-w-0 break-words font-heading text-body-base font-bold text-foreground">
             {title}
           </h3>
         </div>

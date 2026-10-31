@@ -1129,10 +1129,11 @@ export function StructuredArticleReader({
                     <button
                       type="button"
                       onClick={() => navigateToSection(section)}
+                      aria-current={isCurrent ? "location" : undefined}
                       className={cn(
-                        "w-full text-left px-2.5 py-2 rounded-lg transition-colors flex items-start gap-2.5",
+                        "w-full text-left px-2.5 py-2 rounded-lg transition-colors flex items-start gap-2.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
                         isCurrent
-                          ? "bg-primary/10 text-primary font-medium border-l-2 border-primary"
+                          ? "bg-primary/10 text-primary border-l-2 border-primary"
                           : "hover:bg-muted/60 text-foreground",
                       )}
                     >
@@ -1146,7 +1147,7 @@ export function StructuredArticleReader({
                         )}
                       </div>
                       <div className="min-w-0 flex-1 py-0.5">
-                        <p className="text-body-xs font-semibold line-clamp-2 leading-snug">
+                        <p className="text-body-sm font-semibold break-words leading-snug">
                           <MathText className="normal-case">{formatReaderTocTitle(section.title)}</MathText>
                         </p>
                       </div>
@@ -1160,7 +1161,7 @@ export function StructuredArticleReader({
                               key={b.id}
                               type="button"
                               onClick={() => navigateToBlock(b.id)}
-                              className="block w-full text-left text-body-2xs text-muted-foreground hover:text-foreground line-clamp-1 py-1 transition-colors"
+                              className="block w-full break-words py-1 text-left text-body-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                             >
                               <MathText className="normal-case">{title}</MathText>
                             </button>

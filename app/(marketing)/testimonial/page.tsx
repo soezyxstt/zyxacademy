@@ -17,13 +17,6 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 
-/** One accent colour per card, cycling through brand palette */
-const CARD_ACCENTS = [
- "var(--primary)", // blue
- "var(--color-brand-secondary)", // orange
- "var(--color-tertiary-1)", // teal
-] as const;
-
 export default async function TestimonialPage() {
  const t = await getTranslations("marketing");
  return (
@@ -50,30 +43,13 @@ export default async function TestimonialPage() {
  </div>
 
  <div className="relative z-10 columns-1 gap-6 sm:columns-2 lg:columns-3">
- {testimonialStories.map((story, idx) => {
- const accent = CARD_ACCENTS[idx % CARD_ACCENTS.length];
- return (
+ {testimonialStories.map((story) => (
  <figure
  key={story.id}
  itemScope
  itemType="https://schema.org/Review"
- className="relative break-inside-avoid mb-6 flex flex-col overflow-hidden rounded-2xl border border-border/60 bg-background"
- style={{
-  boxShadow: `0 8px 32px -4px color-mix(in oklch, ${accent} 18%, transparent), 0 2px 10px -2px color-mix(in oklch, var(--color-foreground) 9%, transparent)`,
- }}
+ className="mb-6 flex break-inside-avoid flex-col rounded-xl border border-border bg-card"
  >
- {/* Coloured accent strip */}
- <div className="h-[3px] w-full shrink-0" style={{ background: accent }} />
-
- {/* Large watermark quote ; decorative only */}
- <span
- aria-hidden
- className="pointer-events-none absolute -top-2 right-3 select-none font-heading text-[108px] font-black leading-none"
- style={{ color: accent, opacity: 0.08 }}
- >
- &rdquo;
- </span>
-
  <div className="relative z-10 flex flex-1 flex-col gap-4 p-6">
  <blockquote
  itemProp="reviewBody"
@@ -95,19 +71,18 @@ export default async function TestimonialPage() {
  itemScope
  itemType="https://schema.org/Person"
  itemProp="author"
- className="block truncate font-heading text-body-sm font-semibold text-foreground"
+ className="block font-heading text-body-sm font-semibold text-foreground"
  >
  <span itemProp="name">{story.name}</span>
  </span>
- <span className="block truncate text-body-sm text-muted-foreground">
+ <span className="block text-body-xs text-muted-foreground">
  {story.program} / {story.location}
  </span>
  </div>
  </figcaption>
  </div>
  </figure>
- );
- })}
+ ))}
  </div>
  </SectionContainer>
  </Reveal>

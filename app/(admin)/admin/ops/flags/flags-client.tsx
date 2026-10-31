@@ -10,7 +10,6 @@ import {
   Search,
   Check,
   Copy,
-  Flag,
   CheckCircle2,
   XCircle,
   Info,
@@ -172,9 +171,6 @@ export function FlagsClient() {
       {/* Subheader bar with provider status & actions */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <div className="flex size-10 items-center justify-center rounded-lg bg-brand-primary/10 text-brand-primary border border-brand-primary/20">
-            <Flag className="size-5" />
-          </div>
           <div>
             <div className="flex items-center gap-2 flex-wrap">
               <span className="text-body-sm font-semibold text-foreground">{t("flagsUI.provider")}</span>
@@ -199,7 +195,7 @@ export function FlagsClient() {
           </div>
         </div>
 
-        <div className="flex items-center gap-2 self-start sm:self-auto">
+        <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
           <Button variant="ghost" size="sm"
             type="button"
             onClick={handleCopyAllEnv}
@@ -249,12 +245,12 @@ export function FlagsClient() {
           onClear={() => setSearch("")}
           shortcut="/"
           placeholder={t("flagsUI.search")}
-          containerClassName="flex-1 min-w-0"
+          containerClassName="flex-1 min-w-[140px]"
         />
 
         {/* Category Select */}
         <Select value={categoryFilter} onValueChange={(val) => setCategoryFilter(val as any)}>
-          <SelectTrigger className="w-[140px] sm:w-[160px] h-9 text-body-sm rounded-lg shrink-0">
+          <SelectTrigger aria-label={t("flagsUI.allCategories")} className="w-[140px] sm:w-[160px] h-9 text-body-sm rounded-lg shrink-0">
             <SelectValue placeholder={t("flagsUI.allCategories")} />
           </SelectTrigger>
           <SelectContent>
@@ -268,10 +264,11 @@ export function FlagsClient() {
         </Select>
 
         {/* Status Tabs (Segmented Button Bar) */}
-        <div className="flex items-center rounded-lg border border-border bg-muted/40 p-0.5 shrink-0">
+        <div className="flex flex-wrap items-center rounded-lg border border-border bg-muted/40 p-0.5">
           <Button variant="ghost" size="sm"
             type="button"
             onClick={() => setStatusFilter("all")}
+            aria-pressed={statusFilter === "all"}
             className={`rounded-md px-2.5 py-1 text-body-sm font-semibold transition-all cursor-pointer ${
               statusFilter === "all"
                 ? "bg-background text-foreground shadow-xs border border-border/60"
@@ -283,6 +280,7 @@ export function FlagsClient() {
           <Button variant="ghost" size="sm"
             type="button"
             onClick={() => setStatusFilter("active")}
+            aria-pressed={statusFilter === "active"}
             className={`rounded-md px-2.5 py-1 text-body-sm font-semibold transition-all cursor-pointer ${
               statusFilter === "active"
                 ? "bg-status-success/15 text-status-success shadow-xs border border-status-success/30"
@@ -294,6 +292,7 @@ export function FlagsClient() {
           <Button variant="ghost" size="sm"
             type="button"
             onClick={() => setStatusFilter("inactive")}
+            aria-pressed={statusFilter === "inactive"}
             className={`rounded-md px-2.5 py-1 text-body-sm font-semibold transition-all cursor-pointer ${
               statusFilter === "inactive"
                 ? "bg-background text-muted-foreground shadow-xs border border-border/60"
@@ -307,7 +306,7 @@ export function FlagsClient() {
 
       {/* Main Flags List Card */}
       <div className="rounded-xl border border-border bg-card overflow-hidden">
-        <div className="border-b border-border bg-muted/30 px-5 py-3.5 flex items-center justify-between">
+        <div className="border-b border-border bg-muted/30 px-4 py-3 flex flex-wrap items-center justify-between gap-2">
           <div className="flex flex-wrap items-center gap-2">
             <Zap className="size-4 text-brand-primary" />
             <h2 className="font-heading text-body-base font-semibold text-foreground">
@@ -378,13 +377,14 @@ export function FlagsClient() {
                     </div>
 
                     <div className="flex items-center justify-start gap-2 text-left">
-                      <code className="rounded bg-muted/80 px-2 py-0.5 font-mono text-body-xs font-semibold text-foreground border border-border/80">
+                      <code className="min-w-0 break-all rounded bg-muted/80 px-2 py-0.5 font-mono text-body-xs font-semibold text-foreground border border-border/80">
                         {flag.key}
                       </code>
                       <Button variant="ghost" size="sm"
                         type="button"
                         onClick={() => handleCopyKey(flag.key)}
                         title={t("flagsUI.copyName")}
+                        aria-label={t("flagsUI.copyName")}
                         className="inline-flex items-center gap-1 rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors cursor-pointer"
                       >
                         {isJustCopied ? (
@@ -446,7 +446,7 @@ export function FlagsClient() {
           </p>
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="rounded-lg border border-border bg-muted/30 p-3.5 space-y-1.5">
-              <p className="font-semibold text-foreground text-body-xs uppercase tracking-wider">
+              <p className="font-semibold text-foreground text-body-sm">
                 {t("flagsUI.enabledTitle")}
               </p>
               <p className="text-body-xs">
@@ -454,7 +454,7 @@ export function FlagsClient() {
               </p>
             </div>
             <div className="rounded-lg border border-border bg-muted/30 p-3.5 space-y-1.5">
-              <p className="font-semibold text-foreground text-body-xs uppercase tracking-wider">
+              <p className="font-semibold text-foreground text-body-sm">
                 {t("flagsUI.disabledTitle")}
               </p>
               <p className="text-body-xs">

@@ -21,9 +21,9 @@ export function studentInteractiveCardClass(className?: string) {
 /** List row / interactive link card */
 export function courseListRowClass(className?: string) {
   return cn(
-    "group flex items-start gap-3 rounded-xl border border-border/70 bg-card/70 px-4 py-3 backdrop-blur-md",
+    "group flex items-start gap-3 rounded-xl border border-border/70 bg-card px-4 py-3",
     "transition-all duration-200",
-    "hover:border-primary/40 hover:bg-card/90 hover:shadow-xs",
+    "hover:border-primary/40 hover:bg-muted/30",
     className,
   );
 }

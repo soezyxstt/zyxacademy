@@ -3,7 +3,7 @@
 import { AdminEmptyState } from "@/components/admin/state-panels";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { useTranslations } from "@/lib/i18n/client";
+import { useAppLocale, useTranslations } from "@/lib/i18n/client";
 import { Plus, Edit2, Trash2, Trophy, Clock, Layers, ArrowLeft, Check, Library } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
@@ -66,6 +66,8 @@ const provenanceEnabled = true;
 export function TryoutsClient({ courseId, initialTryouts, initialQuestions, questionBank }: Props) {
   const router = useRouter();
   const tr = useTranslations("tutor.tryouts");
+  const quizTr = useTranslations("tutor.quizList");
+  const { locale } = useAppLocale();
   const [isPending, startTransition] = useTransition();
 
   // Tryout Dialog State
@@ -96,6 +98,9 @@ export function TryoutsClient({ courseId, initialTryouts, initialQuestions, ques
   const [deleteQId, setDeleteQId] = useState<string | null>(null);
   const [bankOpen, setBankOpen] = useState(false);
   const [selectedBankIds, setSelectedBankIds] = useState<Set<string>>(new Set());
+  const [bankPage, setBankPage] = useState(0);
+  const bankPageCount = Math.max(1, Math.ceil(questionBank.length / 20));
+  const currentBankPage = Math.min(bankPage, bankPageCount - 1);
 
   const activeQuestions = activeExam
     ? initialQuestions.filter((q) => q.examId === activeExam.id).sort((a, b) => a.order - b.order)
@@ -318,11 +323,11 @@ export function TryoutsClient({ courseId, initialTryouts, initialQuestions, ques
 
         {/* Action Row */}
         <div className="flex flex-wrap justify-end gap-2">
-          <Button variant="outline" onClick={() => { setSelectedBankIds(new Set()); setBankOpen(true); }} className="rounded-md border-border font-semibold gap-2">
+          <Button variant="outline" onClick={() => { setSelectedBankIds(new Set()); setBankPage(0); setBankOpen(true); }} className="rounded-md border-border font-semibold gap-2">
             <Library className="size-4" />
             {tr("importFromBank")}
           </Button>
-          <Button onClick={handleOpenAddQ} className="bg-brand-primary text-white hover:bg-brand-primary/90 rounded-md font-semibold gap-2">
+          <Button onClick={handleOpenAddQ} className="bg-brand-primary text-primary-foreground hover:bg-brand-primary/90 rounded-md font-semibold gap-2">
             <Plus className="size-4" />
             {tr("addQuestion")}
           </Button>
@@ -332,11 +337,11 @@ export function TryoutsClient({ courseId, initialTryouts, initialQuestions, ques
         {activeQuestions.length === 0 ? (
           <AdminEmptyState icon={Trophy} title={tr("examEmpty")} />
         ) : (
-          <div className="space-y-4">
+          <div className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
             {activeQuestions.map((q) => {
               const content = typeof q.content === "string" ? JSON.parse(q.content) : q.content;
               return (
-                <Card key={q.id} className="bg-card border border-border shadow-xs rounded-2xl p-5 relative">
+                <Card key={q.id} className="relative rounded-none border-0 bg-transparent p-4 shadow-none">
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-2">
@@ -391,17 +396,17 @@ export function TryoutsClient({ courseId, initialTryouts, initialQuestions, ques
 
                   {/* Options Preview for MC */}
                   {(q.type === "multiple_choice" || q.type === "multiple_choices") && content.options && (
-                    <div className="mt-3 grid gap-2 sm:grid-cols-2 pl-8">
+                    <div className="mt-3 grid gap-2 sm:grid-cols-2 sm:pl-8">
                       {content.options.map((opt: string, i: number) => {
                         const isCorrect = q.type === "multiple_choice"
                           ? content.correctIndex === i
                           : content.correctIndices?.includes(i);
                         return (
                           <div key={i} className={`flex items-center gap-2 text-body-xs px-3 py-1.5 rounded-lg border ${
-                            isCorrect ? "bg-emerald-500/5 border-emerald-500/25 text-emerald-700 font-medium" : "bg-muted/10 border-border/50 text-muted-foreground"
+                            isCorrect ? "bg-status-success/10 border-status-success/30 text-foreground font-medium" : "bg-muted/10 border-border/50 text-muted-foreground"
                           }`}>
                             <span className={`flex size-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${
-                              isCorrect ? "bg-emerald-500 text-white" : "bg-muted text-muted-foreground"
+                              isCorrect ? "bg-status-success/15 text-foreground" : "bg-muted text-muted-foreground"
                             }`}>
                               {String.fromCharCode(65 + i)}
                             </span>
@@ -443,12 +448,13 @@ export function TryoutsClient({ courseId, initialTryouts, initialQuestions, ques
             <div className="max-h-[55vh] divide-y divide-border overflow-y-auto border-y border-border">
               {questionBank.length === 0 ? (
                 <p className="py-8 text-center text-body-sm text-muted-foreground">{tr("noPublishedQuestions")}</p>
-              ) : questionBank.map((question) => {
+              ) : questionBank.slice(currentBankPage * 20, (currentBankPage + 1) * 20).map((question) => {
                 const alreadyImported = importedBankIds.has(question.id);
                 const checked = selectedBankIds.has(question.id) || alreadyImported;
                 return (
-                  <label key={question.id} className="flex cursor-pointer items-start gap-3 py-3">
+                  <div key={question.id} className="flex items-start gap-3 py-3">
                     <Checkbox
+                      id={`bank-question-${question.id}`}
                       checked={checked}
                       disabled={alreadyImported}
                       onCheckedChange={(next) => setSelectedBankIds((current) => {
@@ -457,9 +463,8 @@ export function TryoutsClient({ courseId, initialTryouts, initialQuestions, ques
                         else updated.delete(question.id);
                         return updated;
                       })}
-                      aria-label={tr("question")}
                     />
-                    <div className="min-w-0 flex-1">
+                    <label htmlFor={`bank-question-${question.id}`} className="min-w-0 flex-1 cursor-pointer">
                       <div className="flex flex-wrap items-center gap-2">
                         {provenanceEnabled ? <Badge variant="outline">{question.origin === "itb_example" ? tr("itbExample") : tr("originalZyx")}</Badge> : null}
                         <span className="text-body-xs text-muted-foreground">{tr(question.difficulty)}</span>
@@ -467,11 +472,18 @@ export function TryoutsClient({ courseId, initialTryouts, initialQuestions, ques
                       </div>
                       <MarkdownRenderer content={question.prompt} className="mt-1 text-body-sm" />
                       {provenanceEnabled && question.origin === "itb_example" && question.sourceEventName ? <p className="mt-1 text-body-xs text-muted-foreground">{tr("source")} {question.sourceEventName}</p> : null}
-                    </div>
-                  </label>
+                    </label>
+                  </div>
                 );
               })}
             </div>
+            {bankPageCount > 1 && (
+              <nav aria-label={locale === "id" ? "Halaman bank soal" : "Question bank pages"} className="flex flex-wrap items-center justify-end gap-2">
+                <Button variant="outline" size="sm" disabled={currentBankPage === 0} onClick={() => setBankPage(currentBankPage - 1)}>{locale === "id" ? "Sebelumnya" : "Previous"}</Button>
+                <span className="text-body-sm text-muted-foreground" aria-live="polite">{currentBankPage + 1} / {bankPageCount}</span>
+                <Button variant="outline" size="sm" disabled={currentBankPage === bankPageCount - 1} onClick={() => setBankPage(currentBankPage + 1)}>{locale === "id" ? "Berikutnya" : "Next"}</Button>
+              </nav>
+            )}
             <DialogFooter className="gap-2">
               <Button variant="outline" onClick={() => setBankOpen(false)} disabled={isPending}>{tr("cancel")}</Button>
               <Button onClick={handleImportFromBank} disabled={isPending || selectedBankIds.size === 0}>{tr("addSelected", { count: selectedBankIds.size })}</Button>
@@ -491,7 +503,7 @@ export function TryoutsClient({ courseId, initialTryouts, initialQuestions, ques
               <Button variant="outline" onClick={() => setDeleteQId(null)} disabled={isPending} className="rounded-md border-border/80">
                 {tr("cancel")}
               </Button>
-              <Button onClick={handleDeleteQ} isLoading={isPending} className="bg-status-error hover:bg-status-error/90 text-white rounded-md font-semibold gap-1.5">
+              <Button variant="destructive" onClick={handleDeleteQ} isLoading={isPending}>
                 {tr("confirmDeleteQuestion")}
               </Button>
             </DialogFooter>
@@ -508,7 +520,7 @@ export function TryoutsClient({ courseId, initialTryouts, initialQuestions, ques
             </DialogHeader>
 
             <div className="space-y-4 my-2 font-sans overflow-y-auto max-h-[65vh] pr-1">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div className="grid gap-2">
                   <Label htmlFor="que-type" className="text-body-sm font-semibold">{tr("questionType")}</Label>
                   <Select value={qType} onValueChange={(val: any) => {
@@ -516,7 +528,7 @@ export function TryoutsClient({ courseId, initialTryouts, initialQuestions, ques
                     setQCorrectIndex(undefined);
                     setQCorrectIndices([]);
                   }}>
-                    <SelectTrigger className="rounded-lg border-input bg-background">
+                    <SelectTrigger id="que-type" className="rounded-lg border-input bg-background">
                       <SelectValue placeholder={tr("chooseType")} />
                     </SelectTrigger>
                     <SelectContent className="bg-card border-border">
@@ -564,9 +576,11 @@ export function TryoutsClient({ courseId, initialTryouts, initialQuestions, ques
                       <div key={i} className="flex items-center gap-3">
                         <button
                           type="button"
+                          aria-label={quizTr("markCorrect", { letter: String.fromCharCode(65 + i) })}
+                          aria-pressed={checked}
                           onClick={() => qType === "multiple_choice" ? selectSingleCorrect(i) : toggleMultiCorrect(i)}
-                          className={`flex size-6 shrink-0 items-center justify-center border transition-all ${
-                            checked ? "bg-emerald-500 border-emerald-500 text-white rounded-lg" : "border-border hover:border-emerald-500 rounded-lg"
+                          className={`flex size-6 shrink-0 items-center justify-center rounded-lg border transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring ${
+                            checked ? "border-primary bg-primary text-primary-foreground" : "border-border text-muted-foreground hover:border-primary"
                           }`}
                         >
                           {checked ? <Check className="size-3.5" /> : <span>{String.fromCharCode(65 + i)}</span>}
@@ -620,7 +634,7 @@ export function TryoutsClient({ courseId, initialTryouts, initialQuestions, ques
               <Button variant="outline" onClick={() => setIsQOpen(false)} disabled={isPending} className="rounded-md border-border/80">
                 {tr("cancel")}
               </Button>
-              <Button onClick={handleSaveQ} isLoading={isPending} className="bg-brand-primary text-white hover:bg-brand-primary/90 rounded-md font-semibold gap-1.5">
+              <Button onClick={handleSaveQ} isLoading={isPending} className="bg-brand-primary text-primary-foreground hover:bg-brand-primary/90 rounded-md font-semibold gap-1.5">
                 {tr("saveQuestion")}
               </Button>
             </DialogFooter>
@@ -636,7 +650,7 @@ export function TryoutsClient({ courseId, initialTryouts, initialQuestions, ques
       {/* Header action */}
       <div className="flex flex-wrap justify-between items-center gap-2">
         <h2 className="font-heading text-body-base font-semibold text-foreground">{tr("tryoutCount", { count: initialTryouts.length })}</h2>
-        <Button onClick={handleOpenAddT} className="bg-brand-primary text-white hover:bg-brand-primary/90 rounded-md font-semibold gap-2">
+        <Button onClick={handleOpenAddT} className="bg-brand-primary text-primary-foreground hover:bg-brand-primary/90 rounded-md font-semibold gap-2">
           <Plus className="size-4" />
           {tr("addTryout")}
         </Button>
@@ -655,12 +669,8 @@ export function TryoutsClient({ courseId, initialTryouts, initialQuestions, ques
                 <CardHeader className="min-w-0 flex-1 p-4">
                   <div className="flex justify-between items-start gap-2">
                     <CardTitle className="font-heading text-body-base font-bold text-foreground break-words">{t.title}</CardTitle>
-                    <Badge variant={t.status === "published" ? "default" : "secondary"} className={`text-[10px] rounded-md px-1.5 py-0.5 border ${
-                      t.status === "published" ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20" :
-                      t.status === "draft" ? "bg-amber-500/10 text-amber-600 border-amber-500/20" :
-                      "bg-muted text-muted-foreground"
-                    }`}>
-                      {t.status}
+                    <Badge variant="secondary" className="shrink-0">
+                      {tr(t.status)}
                     </Badge>
                   </div>
                   <p className="text-body-xs text-muted-foreground mt-0.5 flex items-center gap-4">
@@ -716,7 +726,7 @@ export function TryoutsClient({ courseId, initialTryouts, initialQuestions, ques
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="grid gap-2">
                 <Label htmlFor="t-time" className="text-body-sm font-semibold">{tr("timeMinutes")}</Label>
                 <Input
@@ -745,7 +755,7 @@ export function TryoutsClient({ courseId, initialTryouts, initialQuestions, ques
             <div className="grid gap-2">
               <Label htmlFor="t-status" className="text-body-sm font-semibold">{tr("publicationStatus")}</Label>
               <Select value={tStatus} onValueChange={(val: any) => setTStatus(val)}>
-                <SelectTrigger className="rounded-lg border-input bg-background">
+                <SelectTrigger id="t-status" className="rounded-lg border-input bg-background">
                   <SelectValue placeholder={tr("chooseStatus")} />
                 </SelectTrigger>
                 <SelectContent className="bg-card border-border">
@@ -785,7 +795,7 @@ export function TryoutsClient({ courseId, initialTryouts, initialQuestions, ques
             <Button variant="outline" onClick={() => setIsTOpen(false)} disabled={isPending} className="rounded-md border-border/80">
               {tr("cancel")}
             </Button>
-            <Button onClick={handleSaveT} isLoading={isPending} className="bg-brand-primary text-white hover:bg-brand-primary/90 rounded-md font-semibold gap-1.5">
+            <Button onClick={handleSaveT} isLoading={isPending} className="bg-brand-primary text-primary-foreground hover:bg-brand-primary/90 rounded-md font-semibold gap-1.5">
               {tr("saveTryout")}
             </Button>
           </DialogFooter>
@@ -805,7 +815,7 @@ export function TryoutsClient({ courseId, initialTryouts, initialQuestions, ques
             <Button variant="outline" onClick={() => setDeleteTId(null)} disabled={isPending} className="rounded-md border-border/80">
               {tr("cancel")}
             </Button>
-            <Button onClick={handleDeleteT} isLoading={isPending} className="bg-status-error hover:bg-status-error/90 text-white rounded-md font-semibold gap-1.5">
+            <Button variant="destructive" onClick={handleDeleteT} isLoading={isPending}>
               {tr("deleteTryoutConfirm")}
             </Button>
           </DialogFooter>

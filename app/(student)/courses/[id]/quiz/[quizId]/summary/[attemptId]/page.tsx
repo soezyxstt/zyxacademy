@@ -74,14 +74,14 @@ export default async function QuizSummaryPage({ params }: Props) {
       <Reveal>
         <div className="space-y-6">
           <div className="flex flex-wrap items-center justify-between gap-3 pb-2 border-b border-border/60">
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <Button asChild variant="outline" size="sm" className="rounded-md border-border/80 text-muted-foreground hover:text-foreground">
                 <Link href={`/courses/${id}/quiz/${quizId}?attemptId=${attemptId}`}>
                   <ArrowLeft className="mr-1.5 size-4" />
                   <TranslatedText namespace="learning" messageKey="summary.viewReview" />
                 </Link>
               </Button>
-              <Button asChild variant="ghost" size="sm" className="rounded-md text-body-xs text-muted-foreground hover:text-foreground">
+              <Button asChild variant="ghost" size="sm" className="rounded-md text-body-sm text-muted-foreground hover:text-foreground">
                 <Link href={`/courses/${id}/my-results`}>
                   <TranslatedText namespace="learning" messageKey="summary.examHistory" />
                 </Link>

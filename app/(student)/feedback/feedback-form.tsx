@@ -60,7 +60,7 @@ export function FeedbackForm({ initialEmail }: { initialEmail?: string }) {
   if (submitted) {
     return (
       <div className="rounded-xl border border-border bg-card p-5 text-center">
-        <div className="mx-auto mb-4 flex size-14 items-center justify-center rounded-2xl bg-status-success/10 text-status-success ring-1 ring-status-success/20">
+        <div className="mx-auto mb-3 flex size-10 items-center justify-center text-status-success">
           <CheckCircle2 className="size-7" />
         </div>
         <h2 className="font-heading text-h5 font-bold text-foreground">
@@ -72,7 +72,7 @@ export function FeedbackForm({ initialEmail }: { initialEmail?: string }) {
         <Button
           type="button"
           variant="outline"
-          className="mt-6 rounded-lg text-body-sm"
+          className="mt-4 rounded-lg text-body-sm"
           onClick={() => {
             setMessage("");
             setSubmitted(false);
@@ -90,10 +90,10 @@ export function FeedbackForm({ initialEmail }: { initialEmail?: string }) {
       className="space-y-4 max-w-2xl rounded-xl border border-border bg-card p-4 sm:p-5"
     >
       {/* Category selector */}
-      <div>
-        <label className="block text-body-sm font-semibold text-foreground mb-2.5">
+      <fieldset>
+        <legend className="block text-body-sm font-semibold text-foreground mb-2.5">
           {t("feedback.categoryLabel")}
-        </label>
+        </legend>
         <div className="flex flex-wrap gap-2">
           {CATEGORIES.map((cat) => (
             <Button
@@ -114,14 +114,14 @@ export function FeedbackForm({ initialEmail }: { initialEmail?: string }) {
             </Button>
           ))}
         </div>
-      </div>
+      </fieldset>
 
       {/* Rating selector */}
-      <div>
-        <label className="block text-body-sm font-semibold text-foreground mb-2">
+      <fieldset>
+        <legend className="block text-body-sm font-semibold text-foreground mb-2">
           {t("feedback.ratingLabel")}
-        </label>
-        <div className="flex items-center gap-1.5">
+        </legend>
+        <div className="flex flex-wrap items-center gap-1.5">
           {[1, 2, 3, 4, 5].map((star) => (
             <Button
               variant="ghost"
@@ -132,15 +132,15 @@ export function FeedbackForm({ initialEmail }: { initialEmail?: string }) {
               onMouseEnter={() => setHoverRating(star)}
               onMouseLeave={() => setHoverRating(0)}
               onClick={() => setRating(star)}
-              className="p-1 text-muted-foreground hover:scale-110 transition-transform cursor-pointer"
+              className="p-1 text-muted-foreground cursor-pointer"
               aria-label={t("feedback.starAria", { rating: star })}
             >
               <Star
                 className={cn(
                   "size-6 transition-colors",
                   (hoverRating || rating) >= star
-                    ? "fill-yellow-400 text-yellow-500"
-                    : "text-muted-foreground/30"
+                    ? "fill-status-warning text-status-warning"
+                    : "text-muted-foreground"
                 )}
               />
             </Button>
@@ -153,7 +153,7 @@ export function FeedbackForm({ initialEmail }: { initialEmail?: string }) {
             {rating === 1 && t("feedback.needsImprovement")}
           </span>
         </div>
-      </div>
+      </fieldset>
 
       {/* Message textarea */}
       <div>

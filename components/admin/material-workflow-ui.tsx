@@ -99,7 +99,7 @@ export function WorkflowStepBar({ steps, currentStep }: { steps: WorkflowStep[];
               className={cn(
                 "flex size-5 shrink-0 items-center justify-center rounded-full border text-body-xs font-bold",
                 complete && "border-status-success bg-status-success text-white",
-                active && "border-brand-primary bg-brand-primary text-white",
+                active && "border-brand-primary bg-brand-primary text-primary-foreground",
                 !complete && !active && "border-border bg-muted text-muted-foreground",
               )}
             >

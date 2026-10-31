@@ -144,7 +144,7 @@ export default async function CourseTryoutTakePage({ params }: Props) {
     return (
       <CoursePageShell title={<TranslatedText namespace="learning" messageKey="tryoutTake.notOpen" />} description={exam.title} hideHeader>
         <Reveal>
-          <div className="rounded-lg border border-border/70 bg-card/75 p-5 backdrop-blur-sm text-center">
+          <div className="rounded-lg border border-border/70 bg-card p-5 text-center">
             <h3 className="font-heading text-body-base font-bold text-foreground"><TranslatedText namespace="learning" messageKey="tryoutTake.notOpen" /></h3>
             <p className="mt-2 text-body-sm text-muted-foreground">
               <TranslatedText namespace="learning" messageKey="tryoutTake.opensOn" />{" "}
@@ -165,7 +165,7 @@ export default async function CourseTryoutTakePage({ params }: Props) {
     return (
       <CoursePageShell title={<TranslatedText namespace="learning" messageKey="tryoutTake.closed" />} description={exam.title} hideHeader>
         <Reveal>
-          <div className="rounded-lg border border-border/70 bg-card/75 p-5 backdrop-blur-sm text-center">
+          <div className="rounded-lg border border-border/70 bg-card p-5 text-center">
             <h3 className="font-heading text-body-base font-bold text-foreground"><TranslatedText namespace="learning" messageKey="tryoutTake.closed" /></h3>
             <p className="mt-2 text-body-sm text-muted-foreground">
               <TranslatedText namespace="learning" messageKey="tryoutTake.closedSince" />{" "}
@@ -196,7 +196,7 @@ export default async function CourseTryoutTakePage({ params }: Props) {
           </Button>
         </div>
         <Reveal>
-          <div className="rounded-lg border border-border/70 bg-card/75 p-4 backdrop-blur-sm">
+          <div className="rounded-lg border border-border/70 bg-card p-4">
             <div className="flex items-start gap-3">
               <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground ring-1 ring-border">
                 <Lock className="size-5" />

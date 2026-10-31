@@ -8,14 +8,14 @@ export const cardVariants = cva(
     variants: {
       variant: {
         default:
-          "border border-border/70 bg-card/70 backdrop-blur-md shadow-xs",
+          "border border-border bg-card shadow-xs",
         translucent:
           "border border-border/70 bg-card/70 backdrop-blur-md shadow-xs",
         solid: "border border-border bg-card shadow-xs",
         interactive:
-          "border border-border/70 bg-card/70 backdrop-blur-md shadow-xs transition-all duration-200 hover:-translate-y-0.5 hover:border-brand-primary/40 hover:bg-card/90 hover:shadow-md hover:shadow-brand-primary/5",
+          "border border-border bg-card shadow-xs transition-colors duration-200 hover:border-primary/50",
         subtle:
-          "border border-border/50 bg-card/40 backdrop-blur-xs shadow-xs",
+          "border border-border/70 bg-muted/30",
       },
     },
     defaultVariants: {
@@ -40,7 +40,7 @@ function Card({
 }
 
 function CardHeader({ className, ...props }: React.ComponentProps<"div">) {
-  return <div className={cn("flex flex-col space-y-1.5 p-6", className)} {...props} />;
+  return <div className={cn("flex flex-col space-y-1.5 p-5", className)} {...props} />;
 }
 
 function CardTitle({ className, ...props }: React.ComponentProps<"h3">) {
@@ -48,7 +48,7 @@ function CardTitle({ className, ...props }: React.ComponentProps<"h3">) {
 }
 
 function CardContent({ className, ...props }: React.ComponentProps<"div">) {
-  return <div className={cn("p-6 pt-0", className)} {...props} />;
+  return <div className={cn("p-5 pt-0", className)} {...props} />;
 }
 
 function CardDescription({ className, ...props }: React.ComponentProps<"p">) {
@@ -56,7 +56,7 @@ function CardDescription({ className, ...props }: React.ComponentProps<"p">) {
 }
 
 function CardFooter({ className, ...props }: React.ComponentProps<"div">) {
-  return <div className={cn("flex items-center p-6 pt-0", className)} {...props} />;
+  return <div className={cn("flex items-center p-5 pt-0", className)} {...props} />;
 }
 
 export { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter };

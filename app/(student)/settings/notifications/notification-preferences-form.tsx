@@ -63,7 +63,7 @@ export function NotificationPreferencesForm({
   }, [state, t]);
 
   return (
-    <form action={formAction} className="w-full space-y-6">
+    <form action={formAction} className="w-full space-y-4">
       {Object.entries(preferences).map(([key, value]) => (
         <input key={key} type="hidden" name={key} value={String(value)} />
       ))}
@@ -71,7 +71,7 @@ export function NotificationPreferencesForm({
       <Card className="w-full shadow-xs">
         <CardHeader className="border-b border-border">
           <div className="flex items-start gap-3">
-            <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+            <span className="flex size-8 shrink-0 items-center justify-center text-primary">
               <Mail className="size-5" aria-hidden />
             </span>
             <div className="min-w-0">
@@ -84,7 +84,7 @@ export function NotificationPreferencesForm({
         </CardHeader>
 
         <CardContent className="p-0">
-          <label className="flex cursor-pointer items-start gap-4 border-b border-border px-4 py-3 hover:bg-muted/20 transition-colors">
+          <label className="flex cursor-pointer items-start gap-3 border-b border-border px-4 py-3 hover:bg-muted/20 transition-colors">
             <Checkbox
               checked={preferences.emailEnabled}
               onCheckedChange={(checked) => setPreferences((current) => ({ ...current, emailEnabled: checked === true }))}
@@ -106,7 +106,7 @@ export function NotificationPreferencesForm({
             {CATEGORY_ROWS.map(({ key, labelKey, descriptionKey, icon: Icon }) => (
               <label
                 key={key}
-                className="flex cursor-pointer items-start gap-4 px-4 py-3 has-[:disabled]:cursor-not-allowed hover:bg-muted/20 transition-colors"
+                className="flex cursor-pointer items-start gap-3 px-4 py-3 has-[:disabled]:cursor-not-allowed hover:bg-muted/20 transition-colors"
               >
                 <Checkbox
                   checked={preferences[key]}
@@ -138,7 +138,7 @@ export function NotificationPreferencesForm({
         </div>
       </div>
 
-      <div className="flex justify-end">
+      <div className="flex justify-end border-t border-border pt-4">
         <Button type="submit" size="default" className="rounded-lg px-6 font-semibold" disabled={pending}>
           {pending ? t("notificationPreferences.saving") : t("notificationPreferences.save")}
         </Button>

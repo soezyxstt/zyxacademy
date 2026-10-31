@@ -27,7 +27,7 @@ export function QuestionFilterPopover({ activeCount, children, onReset }: Questi
           <ListFilter className="size-4" />
           <span>{t("questionBank.filter")}</span>
           {activeCount > 0 && (
-            <span className="min-w-5 rounded-md bg-brand-primary px-1.5 py-0.5 text-center text-body-2xs font-semibold text-white">
+            <span className="min-w-5 rounded-md bg-brand-primary px-1.5 py-0.5 text-center text-body-2xs font-semibold text-primary-foreground">
               {activeCount}
             </span>
           )}
@@ -44,7 +44,7 @@ export function QuestionFilterPopover({ activeCount, children, onReset }: Questi
               type="button"
               variant="ghost"
               size="sm"
-              className="h-8 rounded-lg px-2 text-body-xs text-muted-foreground"
+              className="h-8 rounded-lg px-2 text-body-sm text-muted-foreground"
               onClick={onReset}
             >
               {t("questionBank.reset")}

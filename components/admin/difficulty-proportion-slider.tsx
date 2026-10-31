@@ -653,7 +653,7 @@ export function DifficultyProportionSlider({
                 type="button"
                 size="xs"
                 onClick={normalizeToTarget}
-                className="h-6 rounded-md text-[11px] font-semibold bg-brand-primary text-white hover:bg-brand-primary/90"
+                className="h-6 rounded-md text-[11px] font-semibold bg-brand-primary text-primary-foreground hover:bg-brand-primary/90"
               >
                 {t("slider.normalize", { count: safeTotal })}
               </Button>
