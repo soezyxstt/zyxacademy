@@ -20,6 +20,12 @@ describe("coding coaching response contract", () => {
     const protectedInput = buildPedagogyPromptInput(assessment, selectTeachingPlan(assessment), "Buat program", evidence);
     expect(protectedInput.outputRules.join(" ")).not.toContain("complete runnable Python program");
   });
+  it("preserves long multiline playground problems in the provider input", () => {
+    const question = `Buat program:\n${"syarat lengkap ".repeat(100)}\nInput:\n2\n3\nOutput:\n5`;
+    const evidence = [{ id: "coding:generate:learner:session", kind: "question", title: "Python", content: "{}", href: "/courses/python/playground" }];
+    const input = buildPedagogyPromptInput(context, selectTeachingPlan(context), question, evidence);
+    expect(input.learnerQuestion).toBe(question);
+  });
   it("supplies required response fields, checkpoint and typed flowchart wire format to the model", () => {
     const input = buildPedagogyPromptInput({...context,responseModifiers:["flowchart"]}, selectTeachingPlan(context), context.explicitTopic, [{ id: "coding:learner:session", kind: "question", title: "Python", content: 'print(1 / 0)', href: '/courses/python/playground' }]);
     const rule = input.outputRules[0];

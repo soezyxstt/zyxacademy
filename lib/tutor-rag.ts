@@ -407,6 +407,17 @@ Generate a single JSON object:
 }`,
 };
 
+const codingImageGenerationAnswer: SystemPrompt<UngroundedVars> = {
+  ...tutorImageAnswer,
+  version: "tutor_rag/coding_image_generation/v1.0.0",
+  systemInstruction: `${tutorImageAnswer.systemInstruction} For a readable playground programming problem, generate the complete runnable Python program in one fenced python code block in the answer field. Do not provide only hints or placeholders. Use Markdown for code instead of LaTeX. If essential details are unreadable, ask for a clearer image. Never claim to have run the program.`,
+};
+
+export function selectImageTutorPrompt(pageContextId: string | undefined, attemptState: string) {
+  return pageContextId?.startsWith("coding:generate:") && attemptState === "none"
+    ? codingImageGenerationAnswer : tutorImageAnswer;
+}
+
 interface PersonalVars {
  question: string;
  baseAnswer: string;
@@ -780,7 +791,7 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
       .join("\n\n");
     const result = await PromptExecutor.run({
       userId: studentId,
-      prompt: hasImages ? tutorImageAnswer : tutorUngroundedAnswer,
+      prompt: hasImages ? selectImageTutorPrompt(pageContext?.id, attemptState) : tutorUngroundedAnswer,
       variables: { question: searchQuestion, conversationHistory: historyText, responseLanguage },
       schema: UngroundedSchema,
       useCase,
