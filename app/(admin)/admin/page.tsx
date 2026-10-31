@@ -349,10 +349,10 @@ export default async function AdminHomePage() {
         </Alert>
       )}
 
-      <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-2 xl:grid-cols-3">
+      <div className="columns-1 gap-4 lg:columns-2 xl:columns-3">
         {categories.map((category) => (
-          <Card key={category.name} variant="solid" className="min-w-0 shadow-none">
-            <CardHeader className="px-4 py-3">
+          <Card key={category.name} variant="solid" className="mb-4 inline-block w-full overflow-hidden align-top shadow-none">
+            <CardHeader className="border-b border-border/60 px-5 py-4">
               <CardTitle>{category.name}</CardTitle>
             </CardHeader>
             <CardContent className="divide-y divide-border/60 px-0 pb-0">
@@ -360,16 +360,18 @@ export default async function AdminHomePage() {
                 <Link
                   key={item.href}
                   href={item.href}
-                  className="group flex min-w-0 items-start gap-3 px-4 py-3 transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring last:rounded-b-xl"
+                  className="group flex min-w-0 items-center gap-3 px-5 py-3 transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
                 >
-                  <item.icon className={`mt-0.5 size-4 shrink-0 ${item.iconColor}`} aria-hidden />
+                  <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted/70">
+                    <item.icon className={`size-4 ${item.iconColor}`} aria-hidden />
+                  </span>
                   <div className="min-w-0 flex-1">
                     <span className="block text-body-sm font-semibold text-foreground group-hover:text-primary">
                       {item.title}
                     </span>
                     {item.stat && <span className="mt-0.5 block text-body-xs text-muted-foreground">{item.stat}</span>}
                   </div>
-                  <ChevronRight className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden />
+                  <ChevronRight className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" aria-hidden />
                 </Link>
               ))}
             </CardContent>
