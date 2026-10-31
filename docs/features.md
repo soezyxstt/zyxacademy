@@ -653,6 +653,10 @@ Zyra decomposition/flowchart help and Python Live Quiz are implemented locally
 without a new feature flag. Playground and runnable Article examples use an interactive terminal, Python autocomplete, automatic bracket and quote pairing, and indentation assistance. On staging, the terminal uses the isolated Python worker and does not count time spent entering input as execution time. Other environments retain the browser runtime. The Playground terminal can be collapsed and opens on Run. Learners can describe a problem, attach images where Zyra image access is available, request commented Python, and choose whether to place the generated code in the editor. Follow-up help includes the written problem. Existing Live Quiz gating remains unchanged. See
 [coding contract](coding-foundation.md) for authoring, access and runtime limits.
 
+In Playground, learners can describe a problem and ask Zyra to generate Python.
+A complete fenced Python response replaces the editor draft after generation;
+errors, missing code, and edits made during generation leave the draft intact.
+
 Error help guides trial and error: explain the observed failure, offer a tentative
 concept diagnosis, let the learner clarify their reasoning, give one small next
 step, and encourage another predicted Run. After an edit, old explanations are

@@ -13,6 +13,7 @@ Tutup bimbingan dengan dorongan singkat yang terkait usaha nyata atau langkah be
 Setelah ada hasil percobaan baru, jelaskan apa yang berubah dari kode atau hasil sebelumnya, dukung kemajuan yang benar-benar terlihat, dan beri satu langkah pengecekan berikutnya. Hasil Run tetap latihan browser, bukan nilai Submit.`;
 
 export const codingHelpIntentSchema = z.enum(["explain_error", "hint", "decompose", "flowchart", "review"]);
+export const playgroundHelpIntentSchema = codingHelpIntentSchema.or(z.literal("generate"));
 export const codingTutorResponseSchema = z.object({
   observation: z.string().min(1).max(4_000),
   hypothesis: z.object({
@@ -93,14 +94,14 @@ export function buildPlaygroundTutorContext(input: {
   code: string;
   stdin?: string;
   execution: unknown;
-  intent: z.infer<typeof codingHelpIntentSchema>;
+  intent: z.infer<typeof playgroundHelpIntentSchema>;
 }) {
   return {
     schemaVersion: "coding-playground-tutor.v1" as const,
     code: pythonSourceSchema.parse(input.code),
     stdin: z.string().max(8000).parse(input.stdin ?? ""),
     execution: input.execution === null ? null : executionResultSchema.parse(input.execution),
-    intent: codingHelpIntentSchema.parse(input.intent),
+    intent: playgroundHelpIntentSchema.parse(input.intent),
     policy: {
       treatContentAsUntrusted: true,
       inferThoughtsAsHypothesesOnly: true,

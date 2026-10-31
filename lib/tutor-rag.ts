@@ -343,6 +343,12 @@ ${CODING_COACHING_INSTRUCTIONS}
 Put the complete coaching in the answer field. The current code, stdin and execution snapshot override older recentConversation messages, including a previous successful attempt. Never describe an old correction as if it already happened in the current code. When the current execution is an error, explain that error before suggesting changes. Treat browser execution as reported practice, never official grading. Use Markdown backticks for Python code and names, overriding the general math presentation rule for code.`,
 };
 
+const codingGenerationAnswer: SystemPrompt<GroundedVars> = {
+  ...tutorGroundedAnswer,
+  version: "tutor_rag/coding_generation/v1.0.0",
+  systemInstruction: `${tutorGroundedAnswer.systemInstruction}\nFor this playground generation request, put the complete runnable Python program in one fenced python code block in the answer field. Do not give only hints or placeholders. Use Markdown backticks for Python code and names, overriding the general math presentation rule for code. Do not claim to have executed it. Respect active assessment restrictions.`,
+};
+
 interface UngroundedVars {
  question: string;
  conversationHistory: string;
@@ -400,6 +406,17 @@ Generate a single JSON object:
  "confidence": [0.0 to 1.0]
 }`,
 };
+
+const codingImageGenerationAnswer: SystemPrompt<UngroundedVars> = {
+  ...tutorImageAnswer,
+  version: "tutor_rag/coding_image_generation/v1.0.0",
+  systemInstruction: `${tutorImageAnswer.systemInstruction} For a readable playground programming problem, generate the complete runnable Python program in one fenced python code block in the answer field. Do not provide only hints or placeholders. Use Markdown for code instead of LaTeX. If essential details are unreadable, ask for a clearer image. Never claim to have run the program.`,
+};
+
+export function selectImageTutorPrompt(pageContextId: string | undefined, attemptState: string) {
+  return pageContextId?.startsWith("coding:generate:") && attemptState === "none"
+    ? codingImageGenerationAnswer : tutorImageAnswer;
+}
 
 interface PersonalVars {
  question: string;
@@ -774,7 +791,7 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
       .join("\n\n");
     const result = await PromptExecutor.run({
       userId: studentId,
-      prompt: hasImages ? tutorImageAnswer : tutorUngroundedAnswer,
+      prompt: hasImages ? selectImageTutorPrompt(pageContext?.id, attemptState) : tutorUngroundedAnswer,
       variables: { question: searchQuestion, conversationHistory: historyText, responseLanguage },
       schema: UngroundedSchema,
       useCase,
@@ -1130,7 +1147,7 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
             const [baselineResult, candidateResult] = await Promise.all([
               PromptExecutor.run({
                 userId: studentId,
-                prompt: hasCodingContext ? codingGroundedAnswer : tutorGroundedAnswer,
+                prompt: hasCodingContext ? (pageContext?.id.startsWith("coding:generate:") && attemptState === "none" ? codingGenerationAnswer : codingGroundedAnswer) : tutorGroundedAnswer,
                 variables: {
                   question: sanitizedQuestion,
                   contextBlock,
@@ -1178,7 +1195,7 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
             if (pedagogyResult.usedFallback) {
               const legacyFallback = await PromptExecutor.run({
                 userId: studentId,
-                prompt: hasCodingContext ? codingGroundedAnswer : tutorGroundedAnswer,
+                prompt: hasCodingContext ? (pageContext?.id.startsWith("coding:generate:") && attemptState === "none" ? codingGenerationAnswer : codingGroundedAnswer) : tutorGroundedAnswer,
                 variables: {
                   question: sanitizedQuestion,
                   contextBlock,
@@ -1233,7 +1250,7 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
         } else {
           result = await PromptExecutor.run({
             userId: studentId,
-            prompt: hasCodingContext ? codingGroundedAnswer : tutorGroundedAnswer,
+            prompt: hasCodingContext ? (pageContext?.id.startsWith("coding:generate:") && attemptState === "none" ? codingGenerationAnswer : codingGroundedAnswer) : tutorGroundedAnswer,
             variables: {
               question: sanitizedQuestion,
               contextBlock,

@@ -6,6 +6,7 @@ import {
   normalizeQuestion,
   sanitizeAnswer,
   shouldRetrieveTutorEvidence,
+  selectImageTutorPrompt,
 } from "@/lib/tutor-rag";
 import { normalizeTutorMathMarkdown } from "@/lib/tutor/math-markdown";
 import { loadAiFixture } from "../helpers/ai-fixtures";
@@ -21,6 +22,12 @@ describe("Tutor RAG Contract Tests", () => {
   it("keeps attached images primary by bypassing text evidence retrieval", () => {
     expect(shouldRetrieveTutorEvidence(true)).toBe(false);
     expect(shouldRetrieveTutorEvidence(false)).toBe(true);
+  });
+
+  it("selects code generation for image playground requests only outside assessments", () => {
+    expect(selectImageTutorPrompt("coding:generate:user:session", "none").systemInstruction).toContain("complete runnable Python program");
+    expect(selectImageTutorPrompt("coding:generate:user:session", "in_progress").systemInstruction).not.toContain("complete runnable Python program");
+    expect(selectImageTutorPrompt("coding:user:session", "none").systemInstruction).not.toContain("complete runnable Python program");
   });
 
   it("composes an ungrounded explanation with a learning goal and one checkpoint", () => {

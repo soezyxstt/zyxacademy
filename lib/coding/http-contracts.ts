@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { codingLocatorSchema, codingSubmissionRequestSchema, executionResultSchema, pythonSourceSchema } from "./contracts";
-import { codingHelpIntentSchema } from "./zyra";
+import { codingHelpIntentSchema, playgroundHelpIntentSchema } from "./zyra";
 
 export const codingSurfaceSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("article"), articleId: z.string().min(1), articleVersion: z.number().int().positive(), partId: z.string().min(1) }).strict(),
@@ -8,7 +8,7 @@ export const codingSurfaceSchema = z.discriminatedUnion("kind", [
 ]);
 export const codingSubmitHttpSchema = z.object({ courseId: z.string().min(1), surface: codingSurfaceSchema, submission: codingSubmissionRequestSchema }).strict();
 export const codingHelpRequestSchema = z.discriminatedUnion("kind", [
-  z.object({ kind: z.literal("playground"), code: pythonSourceSchema, stdin: z.string().max(8000).default(""), execution: executionResultSchema.nullable(), intent: codingHelpIntentSchema }).strict(),
+  z.object({ kind: z.literal("playground"), code: pythonSourceSchema, stdin: z.string().max(8000).default(""), execution: executionResultSchema.nullable(), intent: playgroundHelpIntentSchema }).strict(),
   z.object({ kind: z.literal("exercise"), problem: codingLocatorSchema, code: pythonSourceSchema, stdin: z.string().max(8000).default(""), intent: codingHelpIntentSchema, surface: codingSurfaceSchema, attemptId: z.string().min(1).optional(), execution: executionResultSchema.optional() }).strict(),
 ]);
 
