@@ -1,5 +1,7 @@
 "use client";
 
+import { Skeleton } from "@/components/ui/skeleton";
+
 import { useState, useEffect, useCallback } from "react";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
@@ -180,9 +182,11 @@ export function QuizInsightDetailClient({
 
   if (loading) {
     return (
-      <div className="p-12 text-center text-body-sm text-muted-foreground space-y-3">
-        <RefreshCw className="size-8 animate-spin mx-auto text-brand-primary" />
-        <p className="font-medium text-foreground">{tx("loading")}</p>
+      <div role="status" aria-label={tx("loading")} className="space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-4"><div className="space-y-2"><Skeleton className="h-7 w-56" /><Skeleton className="h-4 w-40" /></div><Skeleton className="h-9 w-40" /></div>
+        <div className="grid grid-cols-2 overflow-hidden rounded-xl border border-border bg-card lg:grid-cols-4">{[0, 1, 2, 3].map((i) => <div key={i} className="space-y-2 p-4"><Skeleton className="h-4 w-24" /><Skeleton className="h-6 w-16" /></div>)}</div>
+        <Skeleton className="h-10 w-80 max-w-full" />
+        <div className="grid gap-4 md:grid-cols-2">{[0, 1].map((i) => <div key={i} className="space-y-3 rounded-xl border border-border bg-card p-4"><Skeleton className="h-5 w-40" /><Skeleton className="h-32 w-full" /></div>)}</div>
       </div>
     );
   }

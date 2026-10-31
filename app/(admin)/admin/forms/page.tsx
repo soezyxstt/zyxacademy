@@ -1,6 +1,7 @@
 import { Suspense } from "react";
+import { FormsBuilderSkeleton } from "./loading-skeleton";
 
-import { FileText, RefreshCw } from "lucide-react";
+import { FileText } from "lucide-react";
 
 import { pageTitle } from "@/lib/site";
 import { AdminPageHeader } from "@/components/admin/page-header";
@@ -25,11 +26,7 @@ export default async function AdminFormsPage() {
         title={<TranslatedText namespace="adminOps" messageKey="forms.title" />}
       />
       <Suspense
-        fallback={
-          <div className="flex h-60 items-center justify-center rounded-2xl border border-border bg-card">
-            <RefreshCw className="size-6 animate-spin text-muted-foreground" />
-          </div>
-        }
+        fallback={<FormsBuilderSkeleton />}
       >
         <AdminFormsBuilder presetsEnabled={presetsEnabled} />
       </Suspense>

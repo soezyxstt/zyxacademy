@@ -1,5 +1,7 @@
 "use client";
 
+import { Skeleton } from "@/components/ui/skeleton";
+
 import { useState, useEffect, useCallback, use, useMemo } from "react";
 import Link from "next/link";
 import {
@@ -497,9 +499,7 @@ export default function DetailedFormAnalyticsPage({
       )}
 
       {loading ? (
-        <Card className="flex h-60 items-center justify-center">
-          <RefreshCw className="size-8 animate-spin text-primary" />
-        </Card>
+        <div role="status" aria-label="Memuat" className="space-y-4 rounded-xl border border-border bg-card p-6"><div className="flex flex-wrap justify-between gap-3"><Skeleton className="h-5 w-36" /><div className="flex gap-2"><Skeleton className="h-9 w-32" /><Skeleton className="h-9 w-24" /></div></div><Skeleton className="h-10 w-72 max-w-full" /><div className="divide-y divide-border">{[0, 1, 2, 3].map((i) => <div key={i} className="flex gap-4 py-4"><Skeleton className="h-4 flex-1" /><Skeleton className="h-4 w-24" /></div>)}</div></div>
       ) : !form ? (
         <Card className="flex flex-col items-center justify-center p-12 text-center">
           <AlertCircle className="size-10 text-muted-foreground" />

@@ -1,5 +1,7 @@
 "use client";
 
+import { Skeleton } from "@/components/ui/skeleton";
+
 import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
@@ -112,18 +114,10 @@ export function FlagsClient() {
 
   if (isLoading) {
     return (
-      <div className="space-y-6">
-        <div className="grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-border lg:grid-cols-4">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="h-12 bg-muted/60 animate-pulse" />
-          ))}
-        </div>
-        <div className="h-14 rounded-xl bg-muted/60 animate-pulse border border-border" />
-        <div className="overflow-hidden rounded-xl border border-border">
-          {Array.from({ length: 5 }).map((_, i) => (
-            <div key={i} className="h-16 border-b border-border bg-muted/60 animate-pulse" />
-          ))}
-        </div>
+      <div role="status" aria-label="Memuat" className="space-y-6">
+        <div className="grid grid-cols-2 overflow-hidden rounded-xl border border-border bg-card lg:grid-cols-4">{[0, 1, 2, 3].map((i) => <div key={i} className="space-y-2 p-4"><Skeleton className="h-4 w-24" /><Skeleton className="h-6 w-12" /></div>)}</div>
+        <div className="flex flex-wrap gap-2"><Skeleton className="h-9 min-w-[140px] flex-1" /><Skeleton className="h-9 w-32" /></div>
+        <div className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">{[0, 1, 2, 3, 4].map((i) => <div key={i} className="flex items-center gap-3 p-4"><div className="flex-1 space-y-2"><Skeleton className="h-4 w-48 max-w-full" /><Skeleton className="h-3 w-2/3" /></div><Skeleton className="h-6 w-12" /></div>)}</div>
       </div>
     );
   }

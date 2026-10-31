@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
+import { Skeleton } from "@/components/ui/skeleton";
 import Link from "next/link";
 import { db } from "@/db";
 import {
@@ -52,7 +54,7 @@ export async function generateMetadata(): Promise<Metadata> {
   return { title: pageTitle(t("metadata.homeTitle")), description: t("metadata.homeDescription") };
 }
 
-export default async function AdminHomePage() {
+async function AdminHomeContent() {
   const todayStart = new Date();
   todayStart.setHours(0, 0, 0, 0);
   const todayStartMs = todayStart.getTime();
@@ -379,4 +381,32 @@ export default async function AdminHomePage() {
       </div>
     </div>
   );
+}
+
+function AdminHomeLoading() {
+  return (
+    <div role="status" aria-label="Memuat" className="space-y-5">
+      <AdminPageHeader icon={LayoutDashboard} title="Admin" actions={<Skeleton className="h-9 w-32" />} />
+      <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-2 xl:grid-cols-3">
+        {[3, 2, 6, 2, 6].map((rows, section) => (
+          <div key={section} className="min-w-0 overflow-hidden rounded-xl border border-border bg-card">
+            <div className="px-4 py-3"><Skeleton className="h-5 w-40" /></div>
+            <div className="divide-y divide-border/60">
+              {Array.from({ length: rows }, (_, row) => (
+                <div key={row} className="flex items-center gap-3 px-4 py-3">
+                  <Skeleton className="size-4 shrink-0 rounded-lg" />
+                  <div className="min-w-0 flex-1 space-y-1.5"><Skeleton className="h-4 w-36 max-w-full" /><Skeleton className="h-3 w-24" /></div>
+                  <Skeleton className="size-4 shrink-0" />
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export default function AdminHomePage() {
+  return <Suspense fallback={<AdminHomeLoading />}><AdminHomeContent /></Suspense>;
 }
