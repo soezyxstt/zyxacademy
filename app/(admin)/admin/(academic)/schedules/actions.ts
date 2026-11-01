@@ -39,12 +39,10 @@ import {
 import {
   addTutorialDays,
   getTutorialWeekRange,
-  isTutorialWeekLocked,
 } from "@/lib/schedule/week-policy";
 import {
   checkActiveGroupCourseEligibility,
   checkCanonicalTutorAssignment,
-  countsTowardGroupWeeklyQuota,
   doTutorSlotsOverlap,
   getIndonesianDayFromDate,
   validateSlotDuration,

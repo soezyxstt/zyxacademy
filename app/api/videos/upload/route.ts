@@ -206,7 +206,7 @@ export async function POST(req: NextRequest) {
   const leaf = storageKey.split("/").pop() || file.name;
   const mime = matchedMime;
 
-  const { key, url } = await storage.upload(file, leaf, mime, {
+  const { key } = await storage.upload(file, leaf, mime, {
     key: storageKey,
     metadata: {
       uploadedBy: session.user.id,

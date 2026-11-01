@@ -9,7 +9,7 @@ import {
   peran,
 } from "@/db/schema";
 import { assertAdmin } from "@/lib/auth/admin-guards";
-import { eq, inArray, desc } from "drizzle-orm";
+import { eq, desc } from "drizzle-orm";
 import {
   PERAN_CODES,
   PERAN_SEEDS,

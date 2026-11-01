@@ -6,7 +6,7 @@ import { Brain, Check, X, RotateCw, RefreshCw, SkipForward } from "lucide-react"
 import { Input } from "@/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+
 import { MathText } from "@/components/course/math-text";
 import { submitReviewAction } from "./actions";
 import { toast } from "@/components/ui/toast";

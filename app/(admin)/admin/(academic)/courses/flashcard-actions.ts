@@ -6,11 +6,9 @@ import {
   setFlashcard,
   flashcard,
   bab,
-  mataKuliah,
   flashcardSets,
   flashcards,
   chapters,
-  courses,
 } from "@/db/schema";
 import { assertAdmin } from "@/lib/auth/admin-guards";
 import { resolveCourseIdentity } from "@/lib/admin/course-identity";

@@ -16,7 +16,7 @@ export async function generateMetadata() {
 export const dynamic = "force-dynamic";
 
 export default async function AdminTautanPage() {
-  const t = await getTranslations("adminOps");
+  await getTranslations("adminOps");
   try {
     await assertAdmin();
   } catch {

@@ -1,14 +1,11 @@
 import { geminiKeyPool, type GeminiKey } from "@/lib/gemini-keys";
 import {
   MODEL_IDS,
-  getModelEntry,
   modelSupportsAiGateway,
-  type ModelId,
 } from "@/lib/ai/provider/model-registry";
 import { zyraRuntimeEnv } from "@/lib/zyra/runtime-env";
 import { ProviderAdapterError } from "@/lib/ai/provider/errors";
 import { type GoogleGenAI } from "@google/genai";
-import { OPS_AI_POLICY_BOUNDS } from "./contracts";
 import { randomUUID } from "node:crypto";
 
 // ============================================================================

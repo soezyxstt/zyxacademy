@@ -1,7 +1,7 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import { Suspense, useState } from "react";
+import { Suspense} from "react";
 import { CoursePrimaryActions } from "@/components/course/course-primary-actions";
 import { CourseCatalogClient } from "@/app/(student)/courses/course-catalog-client";
 import { QuizListClient } from "@/app/(student)/courses/[id]/quiz/quiz-list-client";
@@ -11,7 +11,7 @@ import { CourseDocumentsClient } from "@/app/(student)/courses/[id]/material/cou
 import { FlashcardClient } from "@/app/(student)/courses/[id]/flashcard/flashcard-client";
 import { AcademicSchedulesDashboard } from "@/components/admin/academic-schedules-dashboard";
 import { Check, ChevronRight } from "lucide-react";
-import { MathText } from "@/components/course/math-text";
+
 
 // --- Mock Data ---
 

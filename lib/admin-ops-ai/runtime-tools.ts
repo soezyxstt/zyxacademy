@@ -1,14 +1,11 @@
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
-import { tool, type Tool } from "ai";
+import { type Tool } from "ai";
 import { defineOpsTool, type OpsToolDefinition } from "./ops-tool-definition";
 export type { OpsToolDefinition };
 import {
-  OPS_AI_TOOL_SECURITY_REGISTRY,
-  OPS_AI_DOMAIN_TOOL_SECURITY_REGISTRY,
   ALL_OPS_AI_TOOL_SECURITY_REGISTRY,
   sanitizeUserSearchProjection,
-  type OpsAiToolSecurityClassification,
   type OpsAiCitation,
   type OpsAiCitationAvailability,
   type OpsAiActionProposalV2,
@@ -19,14 +16,11 @@ import {
   buildSemanticRagCitation,
   buildDatabaseReadCitation,
   buildLiveToolCitation,
-  assertProvenanceIntegrity,
 } from "./citations";
 import {
   retrieveAdminOpsKnowledge,
-  type RetrieveAdminKnowledgeOptions,
 } from "./admin-knowledge-retrieval";
 import {
-  type AdminKnowledgeSearchResult,
   type AdminKnowledgeRetrievalResult,
   type AdminKnowledgeSourceRecord,
   type AdminKnowledgeChunk,
@@ -34,7 +28,6 @@ import {
 import {
   introspectDbSchema,
   getLiveSystemMetrics,
-  type SchemaTableInfo,
 } from "./schema-introspection";
 import { db } from "@/db";
 import { user } from "@/db/schema";

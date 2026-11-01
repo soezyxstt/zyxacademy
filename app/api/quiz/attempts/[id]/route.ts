@@ -201,7 +201,7 @@ export async function POST(req: NextRequest, { params }: Context) {
  return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
  }
 
-  const { answers, durationSeconds } = parsed.data;
+  const { answers } = parsed.data;
 
   // Validate that any attached fileKey belongs to this quiz template and was registered by this attempt
   const expectedAttachmentPrefix = quizAttachmentPrefix(attempt.templateId);

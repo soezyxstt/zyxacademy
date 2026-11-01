@@ -1,5 +1,7 @@
 "use client";
 
+import Image from "next/image";
+
 import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import {
@@ -12,13 +14,11 @@ import {
   MoreVertical,
   Pencil,
   Trash2,
-  Layers,
   Filter,
 } from "lucide-react";
 import { FaYoutube } from "react-icons/fa6";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
   DialogContent,
@@ -453,7 +453,7 @@ export function CourseVideosClient({
                               {/* Landscape Video Thumbnail */}
                               <div className="relative w-28 sm:w-36 aspect-video shrink-0 overflow-hidden rounded-lg border border-border/60 bg-muted/20">
                                 {thumbnail ? (
-                                  <img
+                                  <Image unoptimized loading="eager" width={160} height={90}
                                     src={thumbnail}
                                     alt={video.title}
                                     className="size-full object-cover transition-transform group-hover:scale-105 duration-200"

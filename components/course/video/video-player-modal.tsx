@@ -1,5 +1,7 @@
 "use client";
 
+import Image from "next/image";
+
 import { useState } from "react";
 import {
   Dialog,
@@ -357,7 +359,7 @@ export function VideoPlayerModal({
                       {/* Thumbnail with duration */}
                       <div className="relative aspect-video w-24 sm:w-28 shrink-0 overflow-hidden rounded-lg bg-black/20 border border-border/40">
                         {item.thumbnailUrl ? (
-                          <img
+                          <Image unoptimized loading="eager" width={160} height={90}
                             src={item.thumbnailUrl}
                             alt=""
                             className="h-full w-full object-cover"

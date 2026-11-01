@@ -310,7 +310,7 @@ export function ProductFormativeCheck({
       {/* Question prompt */}
       {contentNode || content ? (
         <div className="text-body-base leading-relaxed text-foreground">
-          {contentNode ?? <MarkdownRenderer content={content} density={density} />}
+          {contentNode ?? <MarkdownRenderer content={content} />}
         </div>
       ) : null}
 
@@ -460,7 +460,7 @@ export function ProductFormativeCheck({
           </div>
           <div className="border-t border-border/60 pt-2.5">
             <span className="mb-1 block text-body-2xs font-bold uppercase tracking-wider text-muted-foreground">Penjelasan dan pembahasan</span>
-            <div className="text-body-sm leading-relaxed text-foreground"><MarkdownRenderer content={reveal.explanation} density={density} /></div>
+            <div className="text-body-sm leading-relaxed text-foreground"><MarkdownRenderer content={reveal.explanation} /></div>
           </div>
         </div>
       ) : null}

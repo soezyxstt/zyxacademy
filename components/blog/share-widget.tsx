@@ -62,7 +62,7 @@ export function ShareBlock({ slug, title, description, inline = false, locale }:
     if (typeof navigator !== "undefined" && (navigator as any).share) {
       setCanShare(true);
     }
-  }, [slug]);
+  }, [locale, slug]);
 
   const handleCopy = async () => {
     if (!shareUrl) return;

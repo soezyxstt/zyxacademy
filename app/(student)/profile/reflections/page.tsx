@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { BookmarkCheck, ArrowRight, ArrowLeft } from "lucide-react";
+import { BookmarkCheck, ArrowRight} from "lucide-react";
 import { db } from "@/db";
 import { weeklyReflections } from "@/db/schema";
 import { eq, desc } from "drizzle-orm";

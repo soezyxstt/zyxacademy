@@ -112,7 +112,7 @@ export function FormPresetsPanel({
       } else {
         toast.error(t("presets.saveFailed"));
       }
-    } catch (err: any) {
+    } catch {
       toast.error(t("presets.networkError"));
     } finally {
       setSaving(false);
@@ -139,7 +139,7 @@ export function FormPresetsPanel({
       } else {
         toast.error(t("presets.deleteFailed"));
       }
-    } catch (err: any) {
+    } catch {
       toast.error(t("presets.networkError"));
     } finally {
       setDeletingId(null);

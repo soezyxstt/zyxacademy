@@ -22,10 +22,6 @@ export interface TutorialWeekRange {
   sunday: Date;
 }
 
-function targetWeekStartIso(targetDate: TutorialDateInput): string {
-  return getCalendarWeekRange(calendarDateFromInput(targetDate)).startIso;
-}
-
 /** Shifts a validated tutorial calendar date without changing its timezone semantics. */
 export function addTutorialDays(dateIso: string, days: number): string {
   return addCalendarDays(calendarDateFromInput(dateIso), days);

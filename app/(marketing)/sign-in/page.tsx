@@ -4,7 +4,7 @@ import {
   getOAuthCallbackErrorKey,
   getSafeRedirectPath,
 } from "@/lib/auth-redirect";
-import { createMetadata, pageTitle } from "@/lib/site";
+import { createMetadata} from "@/lib/site";
 import type { Locale } from "@/lib/i18n/locale";
 import { getTranslations } from "@/lib/i18n/server";
 
