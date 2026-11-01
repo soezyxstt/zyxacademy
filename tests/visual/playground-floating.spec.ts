@@ -526,3 +526,37 @@ test("image retries preserve the original request and a new draft", async ({ pag
   await expect(editor).toContainText("print(99)");
   expect(uploads).toBe(2);
 });
+
+test("retry follows a draft session promoted by a new image without consuming the draft", async ({ page }, info) => {
+  const errors = failures(page);
+  const requests: Record<string, any>[] = [];
+  await page.route("**/api/zyra/chat", route => {
+    requests.push(route.request().postDataJSON());
+    return route.fulfill({ contentType: "text/event-stream", body: requests.length === 1
+      ? `data: ${JSON.stringify({ type: "data-error", data: { message: "Coba kembali." } })}\n\ndata: [DONE]\n\n`
+      : reply("Penjelasan retry tanpa gambar draft baru.") });
+  });
+  await page.route("**/api/zyra/attachments", route => route.fulfill({ json: { id: "image-id", sessionId: "promoted-session", width: 1, height: 1 } }));
+  const { drawer, composer } = await openZyra(page);
+  await drawer.getByRole("button", { name: "Obrolan baru", exact: true }).click();
+  await expect(page.locator("[data-sonner-toast]")).toHaveCount(0, { timeout: 10000 });
+  await composer.fill("Mengapa loop ini berhenti?");
+  await composer.press("Enter");
+  await expect(drawer.getByText(/Coba kembali/)).toBeVisible();
+  expect(requests[0].sessionId).toBeUndefined();
+  await composer.fill("Draft gambar baru");
+  await composer.evaluate(element => {
+    const data = new DataTransfer();
+    data.items.add(new File([Uint8Array.from(atob("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII="), c => c.charCodeAt(0))], "new-draft.png", { type: "image/png" }));
+    element.dispatchEvent(new ClipboardEvent("paste", { clipboardData: data, bubbles: true, cancelable: true }));
+  });
+  await expect(drawer.getByRole("button", { name: "Hapus new-draft.png" })).toBeVisible();
+  await capture(page, info, "promoted-session-before-retry");
+  await drawer.getByRole("button", { name: /Coba lagi/i }).last().click();
+  await expect(drawer.getByText("Penjelasan retry tanpa gambar draft baru.", { exact: true })).toBeVisible();
+  expect(requests[1]).toMatchObject({ question: "Mengapa loop ini berhenti?", sessionId: "promoted-session", attachmentIds: [], codingContext: { intent: "review" } });
+  await expect(composer).toContainText("Draft gambar baru");
+  await expect(drawer.getByRole("button", { name: "Hapus new-draft.png" })).toBeVisible();
+  await capture(page, info, "promoted-session-retried");
+  expect(errors).toEqual([]);
+});

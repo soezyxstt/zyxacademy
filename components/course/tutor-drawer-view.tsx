@@ -110,6 +110,7 @@ interface ChatMessage {
     attachments: ZyraMessageAttachment[];
     courseId: string | null;
     sessionId: string | null;
+    conversationEpoch: number;
   };
 }
 
@@ -844,7 +845,7 @@ export function TutorDrawerView({
   // Handle sending arbitrary chat messages with SSE streaming
   const handleSend = async (suggestedQuestion?: string, overrideQuote?: ZyraQuotedContext | null, presetIntent?: PythonPreset["intent"] | "hint" | "generate", retry?: NonNullable<ChatMessage["failedPayload"]>) => {
     if (chatLoading || abortControllerRef.current) return;
-    if (retry && (retry.courseId !== courseIdFromPath || retry.sessionId !== sessionId)) return;
+    if (retry && (retry.courseId !== courseIdFromPath || retry.conversationEpoch !== conversationEpochRef.current || (retry.sessionId !== null && retry.sessionId !== sessionId))) return;
     const codingRequest = codingBridge?.capture();
     const isCodeQuote = (overrideQuote !== undefined ? overrideQuote : activeQuotedContext)?.blockType === "code";
     const intent = retry?.intent ?? (isCodeQuote ? "review" : presetIntent ?? (assistantMode === "python" ? "review" : "hint"));
@@ -899,7 +900,7 @@ export function TutorDrawerView({
       ? crypto.randomUUID()
       : `zyra-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
     let activeSid = sessionId;
-    const failureSnapshot = () => ({ question: rawQuestion, quotedContext: effectiveQuote, intent, attachmentIds: requestedAttachmentIds, attachments: requestedAttachments, courseId: courseIdFromPath, sessionId: activeSid });
+    const failureSnapshot = () => ({ question: rawQuestion, quotedContext: effectiveQuote, intent, attachmentIds: requestedAttachmentIds, attachments: requestedAttachments, courseId: courseIdFromPath, sessionId: activeSid, conversationEpoch: requestConversationEpoch });
     const requestConversationKey = conversationKeyRef.current;
     const requestConversationEpoch = conversationEpochRef.current;
     const requestLocaleEpoch = localeEpochRef.current;
