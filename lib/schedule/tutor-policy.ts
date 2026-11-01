@@ -1,4 +1,4 @@
-import { and, eq, inArray, isNotNull, isNull, ne, notInArray, or, sql } from "drizzle-orm";
+import { and, eq, gte, inArray, isNotNull, isNull, lte, ne, notInArray, or, sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
   bookingAuditLogs,
@@ -70,6 +70,30 @@ export function countsTowardGroupWeeklyQuota(): ReturnType<typeof sql> {
     WHERE ${bookingAuditLogs.bookingId} = ${bookings.id}
       AND ${bookingAuditLogs.action} = ${CANCELLED_QUOTA_REFUND_LOG_ACTION}
   ))`;
+}
+
+export async function getGroupWeeklyUsage(
+  groupIds: string[],
+  startIso: string,
+  endIso: string,
+  client: Pick<typeof db, "select"> = db,
+): Promise<Map<string, number>> {
+  if (!groupIds.length) return new Map();
+  const rows = await client
+    .select({ groupId: bookings.groupId, count: sql<number>`count(*)` })
+    .from(bookings)
+    .where(and(
+      inArray(bookings.groupId, groupIds),
+      gte(bookings.sessionDate, startIso),
+      lte(bookings.sessionDate, endIso),
+      countsTowardGroupWeeklyQuota(),
+    ))
+    .groupBy(bookings.groupId);
+  return new Map(rows.map((row) => [row.groupId, Number(row.count)]));
+}
+
+export function occupiesTutorSlot() {
+  return ne(bookings.status, "cancelled");
 }
 
 export const TERMINAL_BOOKING_STATUSES = ["completed", "cancelled"] as const;

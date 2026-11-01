@@ -1,6 +1,7 @@
 import { db } from "@/db";
 import { bookings, tutorSlots } from "@/db/schema";
 import { and, desc, eq, gte, inArray, lte } from "drizzle-orm";
+import { occupiesTutorSlot } from "@/lib/schedule/tutor-policy";
 import { ensureGoogleMeetForBooking } from "@/lib/schedule-lock";
 import {
   executeAdminAssignTutorialSession,
@@ -206,10 +207,10 @@ export async function executeRescheduleOrCancelMeet(input: RescheduleOrCancelMee
       eq(tutorSlots.startTime, startTime),
       eq(tutorSlots.endTime, endTime),
     ),
-    with: { booking: true },
+    with: { bookings: { columns: { id: true }, where: occupiesTutorSlot() } },
     limit: 5,
   });
-  let targetSlotId = exactSlots.find((slot) => !slot.booking)?.id || null;
+  let targetSlotId = exactSlots.find((slot) => slot.bookings.length === 0)?.id || null;
   let createdTargetSlotId: string | null = null;
 
   if (!targetSlotId) {
@@ -267,10 +268,10 @@ export interface ListTutorAvailabilityInput {
 export async function executeListTutorAvailability(input: ListTutorAvailabilityInput) {
   const slots = await db.query.tutorSlots.findMany({
     where: input.tutorId ? eq(tutorSlots.tutorId, input.tutorId.trim()) : undefined,
-    with: { tutor: true, booking: true },
+    with: { tutor: true, bookings: { columns: { id: true }, where: occupiesTutorSlot() } },
     limit: 50,
   });
-  const availableSlots = slots.filter((slot) => !slot.booking);
+  const availableSlots = slots.filter((slot) => slot.bookings.length === 0);
 
   return {
     summary: `Ditemukan ${availableSlots.length} slot waktu tutor yang tersedia.`,

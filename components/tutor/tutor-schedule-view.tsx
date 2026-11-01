@@ -118,6 +118,7 @@ export function TutorScheduleView({
   initialWeekOffset = 0,
 }: TutorScheduleViewProps) {
   const t = useTranslations("tutor.schedule");
+  const statusLabel = useTranslations("schedule.session.status");
   const { locale } = useAppLocale();
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -400,11 +401,9 @@ export function TutorScheduleView({
   const weekSlots = scheduleData.ownedSlots.filter(
     (slot) => slot.sessionDate && slot.sessionDate >= weekInfo.startOfWeekIso && slot.sessionDate <= weekInfo.endOfWeekIso,
   );
-  const weekBookings = scheduleData.ownedBookings.filter(
-    (booking) => booking.sessionDate && booking.sessionDate >= weekInfo.startOfWeekIso && booking.sessionDate <= weekInfo.endOfWeekIso,
-  );
+  const slotsWithHistory = new Set(scheduleData.ownedBookings.map((booking) => booking.slotId));
   const openedSlotCount = weekSlots.length;
-  const filledSlotCount = new Set(weekBookings.map((booking) => booking.slotId)).size;
+  const filledSlotCount = weekSlots.filter((slot) => slot.booking).length;
   const availableSlotCount = Math.max(0, openedSlotCount - filledSlotCount);
   const activeSessionBooking = activeSessionBookingId
     ? scheduleData.ownedBookings.find((booking) => booking.id === activeSessionBookingId) || null
@@ -577,11 +576,11 @@ export function TutorScheduleView({
                     <div className="flex shrink-0 items-center gap-2">
                       {isBooked ? (
                         <Button variant="outline" size="sm" disabled className="h-8 rounded-lg text-body-sm opacity-60">{t("booked")}</Button>
-                      ) : (
+                      ) : !slotsWithHistory.has(slot.id) ? (
                         <Button variant="ghost" size="sm" disabled={isPending} onClick={() => requestDeleteSlot(slot.id)} className="h-8 rounded-lg text-body-sm text-status-error hover:bg-status-error/10 hover:text-status-error">
                           <Trash2 className="mr-1.5 size-4" />{t("delete")}
                         </Button>
-                      )}
+                      ) : null}
                     </div>
                   </div>
                 );
@@ -601,7 +600,7 @@ export function TutorScheduleView({
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="font-heading text-body-base font-bold text-foreground">{booking.course?.title || t("course")}</span>
                       <Badge variant="outline" className="rounded-md border-brand-primary/30 text-body-xs font-semibold text-brand-primary">{booking.group?.name || t("group")}</Badge>
-                      <Badge variant={booking.status === "completed" ? "default" : "secondary"} className="rounded-md text-body-xs">{booking.status === "completed" ? t("completed") : t("scheduled")}</Badge>
+                      <Badge variant={booking.status === "completed" ? "default" : "secondary"} className="rounded-md text-body-xs">{statusLabel(booking.status === "completed" || booking.status === "cancelled" ? booking.status : "scheduled")}</Badge>
                     </div>
                     <div className="flex flex-wrap items-center gap-3 text-body-xs text-muted-foreground">
                       <span className="inline-flex items-center gap-1"><Clock className="size-3.5" />{booking.sessionDate} ({booking.startTime} - {booking.endTime})</span>

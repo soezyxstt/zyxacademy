@@ -664,7 +664,8 @@ export async function getTutorScheduleReadModel(
     .where(and(...slotConditions));
 
   const slotIds = rawSlots.map((s) => s.id);
-  const slotBookingsMap = new Map<string, typeof bookings.$inferSelect>();
+  const activeBookingsBySlot = new Map<string, typeof bookings.$inferSelect>();
+  const bookingsById = new Map<string, typeof bookings.$inferSelect>();
   const resourcesByBookingId = new Map<string, SessionResource[]>();
 
   if (slotIds.length > 0) {
@@ -674,7 +675,8 @@ export async function getTutorScheduleReadModel(
       .where(inArray(bookings.slotId, slotIds));
 
     for (const b of slotBookingRows) {
-      slotBookingsMap.set(b.slotId, b);
+      bookingsById.set(b.id, b);
+      if (b.status !== "cancelled") activeBookingsBySlot.set(b.slotId, b);
     }
 
     // The resource table is additive. Keep the legacy read model usable while
@@ -696,7 +698,7 @@ export async function getTutorScheduleReadModel(
   }
 
   const ownedSlots: OwnedSlotItem[] = rawSlots.map((s) => {
-    const b = slotBookingsMap.get(s.id);
+    const b = activeBookingsBySlot.get(s.id);
     const resources = b
       ? mergeBookingResources(b, resourcesByBookingId.get(b.id) ?? [])
       : [];
@@ -769,7 +771,7 @@ export async function getTutorScheduleReadModel(
 
     for (const b of bookingRows) {
       ownedBookingIds.push(b.id);
-      const bookingSnapshot = slotBookingsMap.get(b.slotId);
+      const bookingSnapshot = bookingsById.get(b.id);
       const resources = bookingSnapshot
         ? mergeBookingResources(bookingSnapshot, resourcesByBookingId.get(b.id) ?? [])
         : resourcesByBookingId.get(b.id) ?? [];

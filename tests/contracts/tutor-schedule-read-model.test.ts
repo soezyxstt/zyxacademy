@@ -18,7 +18,10 @@ async function createTestDb() {
       created_at INTEGER NOT NULL,
       updated_at INTEGER NOT NULL,
       role TEXT DEFAULT 'student',
-      last_activity_at INTEGER
+      last_activity_at INTEGER,
+      faculty TEXT,
+      major TEXT,
+      entry_year INTEGER
     );
   `);
 
@@ -66,6 +69,7 @@ async function createTestDb() {
       title TEXT NOT NULL,
       status TEXT NOT NULL DEFAULT 'active',
       legacy_course_id TEXT REFERENCES courses(id),
+      is_demo INTEGER NOT NULL DEFAULT 0,
       created_at INTEGER NOT NULL,
       updated_at INTEGER NOT NULL
     );
@@ -149,7 +153,7 @@ async function createTestDb() {
   await client.execute(`
     CREATE TABLE IF NOT EXISTS bookings (
       id TEXT PRIMARY KEY,
-      slot_id TEXT NOT NULL UNIQUE REFERENCES tutor_slots(id),
+      slot_id TEXT NOT NULL REFERENCES tutor_slots(id),
       student_id TEXT NOT NULL REFERENCES user(id),
       course_id TEXT NOT NULL REFERENCES courses(id),
       group_id TEXT NOT NULL REFERENCES groups(id),
@@ -176,6 +180,10 @@ async function createTestDb() {
       completed_by_id TEXT,
       booked_at INTEGER NOT NULL
     );
+  `);
+
+  await client.execute(`
+    CREATE UNIQUE INDEX bookings_occupied_slot_unique ON bookings(slot_id) WHERE status <> 'cancelled'
   `);
 
   await client.execute(`
@@ -729,6 +737,17 @@ describe("Tutor Schedule Read-Model Contracts", () => {
         bookedAt: now,
       },
       {
+        id: "booking-main-cancelled",
+        slotId: "slot-main-booked",
+        studentId: "student-1",
+        courseId: "crs-stat",
+        groupId: "grp-stat-1",
+        status: "cancelled",
+        postSessionLinkUrl: "https://legacy.test/cancelled",
+        lastModifiedAt: now,
+        bookedAt: new Date(now.getTime() - 60_000),
+      },
+      {
         id: "booking-other-1",
         slotId: "slot-other",
         studentId: "student-1",
@@ -860,7 +879,9 @@ describe("Tutor Schedule Read-Model Contracts", () => {
     expect(result.ownedSlots.some((s) => s.id === "slot-other")).toBe(false);
 
     // Verify ownedBookings
-    expect(result.ownedBookings).toHaveLength(1);
+    expect(result.ownedBookings).toHaveLength(2);
+    const cancelled = result.ownedBookings.find((booking) => booking.id === "booking-main-cancelled");
+    expect(cancelled?.resources.map((resource) => resource.url)).toEqual(["https://legacy.test/cancelled"]);
     expect(result.ownedBookings[0].id).toBe("booking-main-1");
     expect(result.ownedBookings[0].student?.name).toBe("Student Satu");
     expect(result.ownedBookings[0].group?.name).toBe("Kelompok Statistika");

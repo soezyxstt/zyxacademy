@@ -512,14 +512,11 @@ The canonical scheduling workflow uses concrete, date-specific 90-minute tutor s
 
 - Group Ownership & Collaborative Booking:
   - Tutoring sessions are booked on behalf of Study Groups.
-  - All group members have equal rights to choose, move, or cancel slots before the weekly lock cut-off.
-- Weekly Quota (Derived, Per Group):
-  - Each group carries a weekly session quota (`weeklyQuotaSessions`) set by admins according to the purchased package preset (1 to 3 sessions per week; custom values allowed).
-  - Usage is derived by counting active booking rows of the group inside the target week. Pre-lock cancellations preserve the booking row with status `cancelled` and write a durable `BOOKING_CANCELLED_QUOTA_REFUNDED` marker into `booking_audit_logs` to free the quota. Post-lock cancellations do not receive the refund marker and stay counted against the weekly quota (hangus).
-  - Students see "Terpakai minggu ini X/Y" when booking and on the Groups page; the last 4 weeks show attended versus missed/cancelled counts for traceability.
-- Weekly Lock & Automated Cut-Off:
-  - Tutors may publish availability for any future tutorial week. Changes for a target week close on the Friday before that week at 18:00 WIB. Student booking for that target week opens on the preceding Monday and remains open until Saturday at 23:59 WIB (Asia/Jakarta).
-  - Post-lock schedule adjustments require formal Reschedule or Cancellation tickets.
+  - Any group member can book or move a session to a slot before its start time in Asia/Jakarta. At the start time the calendar disables booking, and the server rejects late requests without consuming quota.
+- Booking and quota:
+  - A booking uses one package session. A student cancellation returns that session once. Another eligible group can then book the same future slot. The cancelled booking, its audit entries, and its documents stay attached to the original booking ID.
+  - Schedule and Groups use the same package counter. Weekly usage counts bookings in the Jakarta week, including historical cancellations without a refund marker. Cancelled rows carrying `BOOKING_CANCELLED_QUOTA_REFUNDED` do not count.
+  - Students can book an available slot later today. The server checks the slot's stored date and start time for both bookings and moves.
 - Fixed 90-Minute Slots:
   - Tutors open concrete availability slots of exactly 90 minutes. The server rejects other durations and the tutor form auto-computes the end time.
   - Copying the previous week creates new concrete rows for the target week. It never creates an unbounded recurring browser event.
@@ -579,7 +576,7 @@ The tutor experience is housed in a dedicated, role-scoped shell (`app/(tutor)`)
   - Exact 90-Minute Slots: Availability slots must span exactly 90 minutes. Start and end times are validated server-side.
   - Calendar-First Availability: The tutor schedule opens in week view and also supports day and month views. Selecting a future calendar time creates a date-specific 90-minute slot with a concrete session date. Visual states distinguish available slots, booked sessions, and unavailable past or locked slots.
   - Group Eligibility & Representative Selection: Sessions are scheduled for active study groups enrolled in the course. Group representative is deterministically selected (leader first, earliest `joinedAt`, lexicographical `userId`, member record `id`).
-  - Weekly Quota & Cancellation Refunds: Groups carry a weekly quota (`weekly_quota_sessions`, default 2). Usage is computed by counting booking rows in the target ISO week. Cancellations before the Saturday 23:59 WIB lock cut-off receive a durable `BOOKING_CANCELLED_QUOTA_REFUNDED` marker in `booking_audit_logs`, keeping the booking row for traceability while exempting it from weekly quota. Post-lock cancellations forfeit the quota without refund (hangus).
+  - Weekly usage follows the booking and refund policy above. Both the calendar and the Groups page exclude refunded sessions from the weekly count.
   - Notifications: Schedule bookings, cancellations, and status changes dispatch real-time multi-recipient notifications via `sendToMany`.
   - Durable Mutation Audit: Every tutor slot mutation, deletion, session creation, or cancellation (including failures and validation rejections) is recorded in `audit_mutasi` using `recordTutorMutationAudit` with bounded exponential backoff on SQLite lock contention (`TutorAuditPersistenceError`).
 

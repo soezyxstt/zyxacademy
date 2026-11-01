@@ -701,6 +701,13 @@
       "when": 1792844518311,
       "tag": "0099_hard_meteorite",
       "breakpoints": true
+    },
+    {
+      "idx": 100,
+      "version": "6",
+      "when": 1793547833417,
+      "tag": "0100_tutorial_slot_occupancy",
+      "breakpoints": true
     }
   ]
 }

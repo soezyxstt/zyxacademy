@@ -184,6 +184,7 @@
       "chooseGroup": "Choose a study group first.",
       "chooseCourse": "Choose a tutorial course.",
       "invalidUrl": "Every link must be a valid http or https URL.",
+      "slotStarted": "This session has started. Choose another slot.",
       "slotTaken": "Another group just took this slot.",
       "book": "Could not book the slot.",
       "saveLink": "Could not save the link.",

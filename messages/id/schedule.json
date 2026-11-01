@@ -184,6 +184,7 @@
       "chooseGroup": "Pilih kelompok belajar terlebih dahulu.",
       "chooseCourse": "Pilih mata kuliah tutorial.",
       "invalidUrl": "Setiap link harus berupa URL http atau https.",
+      "slotStarted": "Sesi ini sudah dimulai. Pilih slot lain.",
       "slotTaken": "Slot ini baru saja diambil kelompok lain.",
       "book": "Slot gagal dipesan.",
       "saveLink": "Link gagal disimpan.",

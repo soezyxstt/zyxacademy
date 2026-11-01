@@ -19,6 +19,11 @@ on:
       - 'drizzle.config.ts'
       - 'lib/groups/group-name-policy.ts'
       - 'lib/schedule/week-policy.ts'
+      - 'lib/schedule/tutor-policy.ts'
+      - 'lib/schedule/tutor-read-model.ts'
+      - 'tests/contracts/tutor-schedule-actions.test.ts'
+      - 'tests/contracts/tutor-schedule-read-model.test.ts'
+      - 'tests/integration/tutorial-booking-lifecycle.ts'
       - 'tests/contracts/group-name-policy.test.ts'
       - 'tests/contracts/schedule-calendar-regressions.test.ts'
       - 'tests/contracts/tutorial-week-policy.test.ts'
@@ -53,3 +58,11 @@ jobs:
           tests/contracts/tutorial-week-policy.test.ts
           tests/contracts/group-name-policy.test.ts
           tests/contracts/schedule-calendar-regressions.test.ts
+
+      - name: Verify tutorial booking, refund, and read paths
+        env:
+          SKIP_ENV_VALIDATION: "1"
+        run: |
+          bun tests/integration/tutorial-booking-lifecycle.ts
+          bun test tests/contracts/tutor-schedule-read-model.test.ts
+          bun test tests/contracts/tutor-schedule-actions.test.ts -t 'charges only for a future WIB slot|preserves the original booking'
