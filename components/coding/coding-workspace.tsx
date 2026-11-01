@@ -9,6 +9,8 @@ import { Input } from "@/components/ui/input";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { MarkdownRenderer } from "@/components/course/markdown-renderer";
 import { useSession } from "@/lib/auth-client";
+import { useTutor } from "@/components/course/tutor-drawer";
+import { PythonPresets } from "./python-presets";
 import { PythonEditor } from "./python-editor";
 import { CodingHelp } from "./coding-help";
 import { registerPlaygroundBridge } from "./playground-bridge";
@@ -33,6 +35,7 @@ export function CodingWorkspace({ courseId, draftKey, initialCode = "", initialS
   surface?: z.infer<typeof codingSurfaceSchema>; allowHelp?: boolean; learnerId?: string;
   playgroundLink?: boolean; disabled?: boolean; interactive?: boolean;
 }) {
+  const { openChatWithQuestion } = useTutor();
   const { data: session } = useSession();
   const router = useRouter();
   const owner = learnerId ?? session?.user?.id;
@@ -157,18 +160,19 @@ export function CodingWorkspace({ courseId, draftKey, initialCode = "", initialS
             {phase === "idle" ? <Button size="sm" className="min-w-[84px] bg-brand-secondary text-body-sm text-white hover:bg-brand-secondary/90 hover:shadow-none" onClick={run} disabled={draft.code.length > 64000}><Play className="size-3.5 fill-current" />Jalankan</Button> : <Button size="sm" className="min-w-[84px] text-body-sm" variant="outline" onClick={() => active.current?.abort()}><Square className="size-3.5 fill-current" />Stop</Button>}
           </div>
         </div>
-        <PythonEditor value={draft.code} onChange={setEditorCode} className="flex-1 rounded-none border-0 focus-within:ring-1 focus-within:ring-inset focus-within:ring-ring" />
+        <PythonEditor value={draft.code} onChange={setEditorCode} fillAvailableHeight={!playgroundLink} className="flex-1 rounded-none border-0 focus-within:ring-1 focus-within:ring-inset focus-within:ring-ring" />
       </div>
       {terminalOpen ? <div role="separator" tabIndex={0} aria-orientation="vertical" aria-label="Ubah lebar panel" aria-valuemin={25} aria-valuemax={75} aria-valuenow={Math.round(split)} onPointerDown={dragSplit} onDoubleClick={() => setSplit(50)} onKeyDown={(event) => { if (event.key === "ArrowLeft" || event.key === "ArrowRight") { event.preventDefault(); setSplit((value) => clampSplit(value + (event.key === "ArrowLeft" ? -5 : 5))); } }} className="relative hidden w-px shrink-0 cursor-col-resize touch-none bg-border transition-colors after:absolute after:inset-y-0 after:-inset-x-1.5 after:content-[''] hover:bg-ring focus-visible:bg-ring focus-visible:outline-none md:block" /> : null}
       <div ref={terminalRef} id={inputId + "-terminal"} hidden={!terminalOpen} className={cn("min-w-0 flex-1 flex-col border-t border-border md:border-t-0", terminalOpen && "flex")}>
         <div className="flex h-10 items-center border-b border-border px-3"><h2 className="font-heading text-body-xs font-semibold">Terminal</h2></div>
         <div className="min-h-[220px] flex-1 bg-muted/30 p-3 font-mono text-body-sm text-foreground">
-          <div className="max-h-80 overflow-auto whitespace-pre-wrap break-words"><pre aria-live="polite" className="inline whitespace-pre-wrap break-words">{terminalOutput}</pre>{waitingInput ? <form className="inline" onSubmit={(event) => { event.preventDefault(); const value = terminalInput; sendInput.current?.(value); if (!useStagingTerminal) { sendInput.current = null; setWaitingInput(false); } setTerminalOutput((output) => (output + value + "\n").slice(0, 8000)); setTerminalHistory((history) => [...history, value]); setTerminalInput(""); }}><Input autoFocus aria-label="Input terminal" value={terminalInput} maxLength={Math.max(0, 8000 - terminalHistory.join("\n").length - (terminalHistory.length ? 1 : 0))} onChange={(event) => setTerminalInput(event.target.value)} size={Math.max(1, terminalInput.length + 1)} className="inline h-auto w-auto max-w-full min-w-0 rounded-none border-0 bg-transparent p-0 font-mono text-body-sm shadow-none outline-none focus-visible:ring-1 focus-visible:ring-ring" /></form> : null}</div>
+          <div className="max-h-80 overflow-auto whitespace-pre-wrap break-words"><pre aria-live="polite" className="inline whitespace-pre-wrap break-words">{terminalOutput}</pre>{waitingInput ? <form className="inline" onSubmit={(event) => { event.preventDefault(); const value = terminalInput; sendInput.current?.(value); if (!useStagingTerminal) { sendInput.current = null; setWaitingInput(false); } setTerminalOutput((output) => (output + value + "\n").slice(0, 8000)); setTerminalHistory((history) => [...history, value]); setTerminalInput(""); }}><Input autoFocus aria-label="Input terminal" value={terminalInput} maxLength={Math.max(0, 8000 - terminalHistory.join("\n").length - (terminalHistory.length ? 1 : 0))} onChange={(event) => setTerminalInput(event.target.value)} autoComplete="off" autoCapitalize="off" spellCheck={false} style={{ width: `${Math.max(1, Array.from(terminalInput).length + 1)}ch` }} className="inline h-auto w-auto max-w-full min-w-0 rounded-none border-0 bg-transparent p-0 font-mono text-body-sm shadow-none outline-none caret-foreground align-baseline focus-visible:border-transparent focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0" /></form> : null}</div>
           {phase === "loading" ? <p role="status" className="flex items-center gap-1.5 font-sans text-body-xs text-foreground/80"><Loader2 className="size-3.5 animate-spin" aria-hidden="true" />Menyiapkan Python...</p> : null}
           {execution ? <p role="status" className={cn("mt-3 flex items-start gap-1.5 border-t border-border pt-2 font-sans text-body-xs", execution.status === "completed" ? "text-foreground/80" : "text-destructive")}>{execution.status === "completed" ? <CheckCircle2 className="mt-px size-3.5 shrink-0 text-status-success" aria-hidden="true" /> : <AlertCircle className="mt-px size-3.5 shrink-0" aria-hidden="true" />}<span>{statusLabels[execution.status]}{execution.stderr && !terminalOutput.includes(execution.stderr) && execution.stderr.replace(/[.!]+$/, "") !== statusLabels[execution.status].replace(/[.!]+$/, "") ? `: ${execution.stderr}` : ""}</span></p> : null}
         </div>
       </div>
     </div>
+    {!playgroundLink && allowHelp ? <PythonPresets code={draft.code} hasError={executedCode === draft.code && ["syntax_error", "runtime_error", "timeout"].includes(execution?.status ?? "")} disabled={phase !== "idle"} onSelect={preset => openChatWithQuestion(preset.message)} /> : null}
     {draft.conflicted ? <div role="status" className="flex flex-wrap items-center gap-2 text-body-sm"><span>Kode di browser berbeda dari kode tersimpan. Simpan kode ini untuk mengganti kode tersimpan.</span><Button size="sm" className="text-body-sm" variant="outline" onClick={draft.keepLocal}>Simpan kode ini</Button></div> : null}
     {playgroundLink && allowHelp ? <CodingHelp courseId={courseId} context={help} disabled={submitting} /> : null}
   </section>;

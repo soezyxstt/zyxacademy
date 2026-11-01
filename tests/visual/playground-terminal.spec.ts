@@ -19,9 +19,16 @@ test("Playground terminal, delayed input, repeated input and autocomplete", asyn
   const input = page.getByRole("textbox", { name: "Input terminal" });
   await expect(terminal).toContainText("Nama:");
   await expect(input).toBeVisible();
-  await page.screenshot({ path: info.outputPath("screenshots/waiting.png"), fullPage: true });
+  await page.screenshot({ path: info.outputPath("screenshots/waiting.png"), fullPage: true, caret: "initial" });
   await page.waitForTimeout(6500);
-  await input.fill("Áyu"); await input.press("Enter");
+  await input.fill("Áyu");
+  await expect(input).toBeFocused();
+  expect(await input.evaluate(element => getComputedStyle(element).outlineStyle)).toBe("none");
+  await page.screenshot({ path: info.outputPath("screenshots/input-typed.png"), fullPage: true, caret: "initial" });
+  await page.locator("html").evaluate(element => element.classList.add("dark"));
+  await page.screenshot({ path: info.outputPath("screenshots/input-typed-dark.png"), fullPage: true, caret: "initial" });
+  await page.locator("html").evaluate(element => element.classList.remove("dark"));
+  await input.press("Enter");
   await expect(terminal).toContainText("Kota:");
   await input.fill("Bandung"); await input.press("Enter");
   await expect(terminal).toContainText("Halo Áyu dari Bandung");

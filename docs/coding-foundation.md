@@ -215,3 +215,5 @@ draft/auth responses and AI streams in visual tests use deterministic synthetic
 responses; they are not proof of live AI, production grading or remote database
 success. Exact command outcomes and inspected screenshots are recorded in
 [coding verification](coding-verification.md).
+
+Playground editors measure their available viewport height, allowing long code to grow beyond 400 px while reserving 64 px for the quick actions and bottom spacing. Embedded Article editors retain their existing cap. Python help keeps contextual quick actions next to the editor and inside the existing Zyra drawer in Python mode. Presets send their specific coding intent without generating or applying replacement code. Code explanation and flowchart require code; error explanation requires a current failed execution. General Tutor follow-up presets appear only in Tutor mode. Image paste is consumed once in the composer capture handler before CodeMirror handles it. Terminal input uses a native caret without a focus ring.

@@ -22,7 +22,7 @@ const highlight = HighlightStyle.define([
 ]);
 
 const theme = EditorView.theme({
-  "&": { color: "var(--foreground)", backgroundColor: "var(--background)", fontSize: "14px", height: "100%", maxHeight: "400px" },
+  "&": { color: "var(--foreground)", backgroundColor: "var(--background)", fontSize: "14px", height: "100%", maxHeight: "var(--python-editor-max-height, 400px)" },
   "&.cm-focused": { outline: "none" },
   ".cm-scroller": { overflowY: "auto", overflowX: "hidden", fontFamily: "var(--font-mono, ui-monospace, monospace)", lineHeight: "1.6" },
   ".cm-content": { minHeight: "220px", padding: "12px 0", caretColor: "var(--foreground)" },
@@ -40,9 +40,23 @@ const theme = EditorView.theme({
   ".cm-completionDetail": { color: "var(--muted-foreground)", fontStyle: "normal", marginLeft: "8px" },
 });
 
-export function PythonEditor({ value, onChange, label = "Kode Python", className }: { value: string; onChange(value: string): void; label?: string; className?: string }) {
+export function PythonEditor({ value, onChange, label = "Kode Python", className, fillAvailableHeight = false }: { value: string; onChange(value: string): void; label?: string; className?: string; fillAvailableHeight?: boolean }) {
   const host = useRef<HTMLDivElement>(null), view = useRef<EditorView | null>(null);
   const change = useRef(onChange);
+  useEffect(() => {
+    const element = host.current;
+    if (!fillAvailableHeight || !element) return;
+    const update = () => {
+      // Measure the actual editor position so headers and optional controls count.
+      const top = element.getBoundingClientRect().top;
+      element.style.setProperty("--python-editor-max-height", `${Math.max(220, window.innerHeight - top - 64)}px`);
+    };
+    const observer = new ResizeObserver(update);
+    observer.observe(element.parentElement!.parentElement!);
+    window.addEventListener("resize", update);
+    update();
+    return () => { observer.disconnect(); window.removeEventListener("resize", update); };
+  }, [fillAvailableHeight]);
   useEffect(() => { change.current = onChange; }, [onChange]);
   useEffect(() => {
     if (!host.current) return;
@@ -61,5 +75,5 @@ export function PythonEditor({ value, onChange, label = "Kode Python", className
     const editor = view.current;
     if (editor && value !== editor.state.doc.toString()) editor.dispatch({ changes: { from: 0, to: editor.state.doc.length, insert: value } });
   }, [value]);
-  return <div ref={host} className={cn("min-w-0 max-h-[400px] overflow-hidden rounded-lg border border-border transition-colors focus-within:border-ring", className)} />;
+  return <div ref={host} className={cn("min-w-0 max-h-[var(--python-editor-max-height,400px)] overflow-hidden rounded-lg border border-border transition-colors focus-within:border-ring", className)} />;
 }

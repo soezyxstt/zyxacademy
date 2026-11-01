@@ -403,3 +403,40 @@ test("history count respects the 100-message retention limit", async ({ page }, 
   await capture(page, info, "history-retention-limit");
   expect(errors).toEqual([]);
 });
+
+test("Python presets use contextual intents and the editor fills remaining height", async ({ page }, info) => {
+  const errors = failures(page);
+  const requests: Record<string, unknown>[] = [];
+  await page.route("**/api/zyra/chat", route => {
+    requests.push(route.request().postDataJSON());
+    return route.fulfill({ contentType: "text/event-stream", body: reply("Langkah pertama adalah membaca input.") });
+  });
+  await mockTerminal(page);
+  await mockZyraDrawer(page);
+  await page.goto("/visual-fixtures/coding?terminal=1");
+  const editor = page.getByRole("textbox", { name: "Kode Python", exact: true });
+  await editor.fill(Array.from({ length: 90 }, (_, i) => `print(${i})`).join("\n"));
+  for (const state of ["closed", "open"]) {
+    if (state === "open") await page.getByRole("button", { name: "Buka terminal", exact: true }).click();
+    await expect.poll(async () => {
+      const box = await page.locator(".cm-editor").boundingBox();
+      return box ? Math.abs(box.y + box.height - (page.viewportSize()!.height - 64)) : 999;
+    }).toBeLessThan(3);
+    await capture(page, info, `viewport-${state}`);
+  }
+  await page.getByRole("button", { name: "Buka Zyra" }).click();
+  const drawer = page.getByRole("complementary", { name: "Asisten belajar Zyra" });
+  await expect(drawer.getByRole("toolbar", { name: "Bantuan Python" })).toBeVisible();
+  await expect(drawer.getByRole("button", { name: "Jelaskan error", exact: true })).toBeDisabled();
+  await capture(page, info, "python-presets-idle");
+  await drawer.getByRole("button", { name: "Pecah masalah", exact: true }).click();
+  await expect.poll(() => requests.length).toBe(1);
+  expect(requests[0].codingContext).toMatchObject({ kind: "playground", intent: "decompose" });
+  await expect(drawer.getByText("Langkah pertama adalah membaca input.", { exact: true })).toBeVisible();
+  await expect(drawer.getByText("Kode diterapkan ke editor.", { exact: true })).toHaveCount(0);
+  await capture(page, info, "python-presets-response");
+  await drawer.getByRole("tab", { name: "Tutor", exact: true }).click();
+  await expect(drawer.getByRole("toolbar", { name: "Bantuan Python" })).toHaveCount(0);
+  await capture(page, info, "tutor-presets");
+  expect(errors).toEqual([]);
+});

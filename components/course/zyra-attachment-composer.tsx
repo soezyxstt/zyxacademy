@@ -176,7 +176,7 @@ export const ZyraAttachmentComposer = React.forwardRef<ZyraAttachmentComposerHan
   };
 
   const handlePaste = (event: React.ClipboardEvent<HTMLDivElement>) => {
-    if (disabled) return;
+    if (event.defaultPrevented || disabled) return;
     const files = zyraImageFilesFromClipboard(event.clipboardData?.items, event.clipboardData?.files);
     if (files.length > 0) {
       event.preventDefault();

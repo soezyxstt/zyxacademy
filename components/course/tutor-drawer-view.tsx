@@ -60,6 +60,7 @@ import { ZyraMathPalette } from "@/components/course/zyra-math-palette";
 import { ZyraComposerInput, type ZyraComposerInputHandle } from "@/components/course/zyra-composer-input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getPlaygroundBridge, subscribePlaygroundBridge } from "@/components/coding/playground-bridge";
+import { PythonPresets, pythonPresets, type PythonPreset } from "@/components/coding/python-presets";
 import { pythonReply } from "@/lib/coding/python-reply";
 import { composerMathRanges } from "@/components/course/zyra-composer-math";
 import { LearningCanvasRenderer } from "@/components/course/learning-canvas/learning-canvas-renderer";
@@ -835,7 +836,7 @@ export function TutorDrawerView({
 
   const handlePaste = React.useCallback(
     (e: React.ClipboardEvent<HTMLElement>) => {
-      if (!imageInputEnabled || !courseIdFromPath || chatLoading) return;
+      if (e.defaultPrevented || !imageInputEnabled || !courseIdFromPath || chatLoading) return;
       const files = zyraImageFilesFromClipboard(
         e.clipboardData?.items ?? null,
         e.clipboardData?.files ?? null,
@@ -848,10 +849,10 @@ export function TutorDrawerView({
   );
 
   // Handle sending arbitrary chat messages with SSE streaming
-  const handleSend = async (suggestedQuestion?: string, overrideQuote?: ZyraQuotedContext | null) => {
+  const handleSend = async (suggestedQuestion?: string, overrideQuote?: ZyraQuotedContext | null, presetIntent?: PythonPreset["intent"]) => {
     if (chatLoading) return;
     const codingRequest = codingBridge?.capture();
-    const pythonRequest = assistantMode === "python" ? codingRequest : null;
+    const pythonRequest = assistantMode === "python" && !presetIntent ? codingRequest : null;
     const rawQuestion = (suggestedQuestion || inputVal).trim();
     const effectiveQuote = overrideQuote !== undefined ? overrideQuote : activeQuotedContext;
     const requestedAttachmentIds = [...attachmentIds];
@@ -908,7 +909,7 @@ export function TutorDrawerView({
     const requestLocaleEpoch = localeEpochRef.current;
     const languageRequestBase = {
       question,
-      ...(codingRequest ? { codingContext: { ...codingRequest.context, intent: assistantMode === "python" ? "generate" as const : "hint" as const } } : {}),
+      ...(codingRequest ? { codingContext: { ...codingRequest.context, intent: presetIntent ?? (assistantMode === "python" ? "generate" as const : "hint" as const) } } : {}),
       courseId: courseId ?? "unknown",
       conceptId: koId || undefined,
       sessionId: activeSid || undefined,
@@ -1095,6 +1096,15 @@ export function TutorDrawerView({
         : "Jawaban ini belum tersimpan. Salin bagian yang diperlukan sebelum menutup percakapan."));
     }
   };
+
+  React.useEffect(() => {
+    const preset = pythonPresets.find(item => item.message === initialQuestion);
+    if (!isOpen || !codingBridge || !preset) return;
+    setAssistantMode("python");
+    void handleSend(preset.message, null, preset.intent);
+    // Initial preset requests are consumed once, like initialQuestion above.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialQuestion, isOpen]);
 
   const handleRetry = (payload: { question: string; quotedContext?: ZyraQuotedContext | null }) => {
     void handleSend(payload.question, payload.quotedContext);
@@ -1603,7 +1613,7 @@ export function TutorDrawerView({
                     )}
 
                     {/* Quick Accelerators / Socratic follow-up chips */}
-                    {isLastAiTurn && !chatLoading && (
+                    {assistantMode === "tutor" && isLastAiTurn && !chatLoading && (
                       <FollowUpChips
                         comprehensionCheck={showComprehensionCheck}
                         onSend={handleSend}
@@ -1656,10 +1666,12 @@ export function TutorDrawerView({
           )}
         </div>
 
+        {assistantMode === "python" && codingBridge ? <div className="shrink-0 px-3 pb-1"><PythonPresets code={codingBridge.capture().context.code} hasError={["syntax_error", "runtime_error", "timeout"].includes(codingBridge.capture().context.execution?.status ?? "")} disabled={chatLoading} onSelect={preset => void handleSend(preset.message, null, preset.intent)} /></div> : null}
+
         {/* Input Composer & Toolbar */}
         <footer className="shrink-0 border-t border-border/40 bg-background p-2">
           <div
-            onPaste={handlePaste}
+            onPasteCapture={handlePaste}
             className="relative rounded-2xl border border-border bg-background/95 backdrop-blur-md shadow-md focus-within:border-brand-primary/60 focus-within:ring-1 focus-within:ring-brand-primary/20 transition-colors p-1.5"
           >
             {imageInputEnabled && courseIdFromPath && (
