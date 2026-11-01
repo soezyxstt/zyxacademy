@@ -25,7 +25,7 @@ test("history replay preserves one pair and one image link, including after expi
       db: drizzle(client), tutorChatMessages, chatSessions, zyraMessageAttachments,
       and, asc, desc, eq, gt, inArray, isNull, or, createHash, randomUUID,
       requireCourseAccess: async () => ({ user: { id: "student" }, access: { tier: "paid" } }),
-      requireOwnedChatSession: async () => "session",
+      requireOwnedChatSession: async (_user: string, _course: string, session: string) => session || "session",
       sanitizeAnswer: (text: string) => text,
       isZyraCanvasFeatureEnabled: () => false,
       serializeTutorMessageSources: () => null,
@@ -41,6 +41,10 @@ test("history replay preserves one pair and one image link, including after expi
     expect((await client.execute("SELECT id FROM tutor_chat_messages ORDER BY id")).rows).toEqual(first.rows);
     expect(first.rows).toHaveLength(2);
     expect((await client.execute("SELECT message_id FROM zyra_message_attachments")).rows[0].message_id).toBeTruthy();
+    await expect(save("course", [{ ...pair[0], content: "Changed" }, pair[1]], "session", "request-1")).rejects.toThrow("ZYRA_HISTORY_REPLAY_CONFLICT");
+    await expect(save("course", [pair[0], { ...pair[1], content: "Different answer" }], "session", "request-1")).rejects.toThrow("ZYRA_HISTORY_REPLAY_CONFLICT");
+    await expect(save("course", pair, "another-session", "request-1")).rejects.toThrow("ZYRA_HISTORY_REPLAY_CONFLICT");
+    await expect(save("course", [{ ...pair[0], attachmentIds: [] }, pair[1]], "session", "request-1")).rejects.toThrow("ZYRA_HISTORY_REPLAY_CONFLICT");
     await save("course", pair.map(({ attachmentIds: _ids, ...row }) => row), "session", "request-2");
     expect((await client.execute("SELECT id FROM tutor_chat_messages")).rows).toHaveLength(4);
     await expect(save("course", pair, "session", "request-3")).rejects.toThrow("ZYRA_ATTACHMENT_LINK_FAILED");

@@ -1123,7 +1123,7 @@ export function TutorDrawerView({
       }
     }
 
-    if (pythonRequest && !completed && !hasError && !abortController.signal.aborted && requestConversationEpoch === conversationEpochRef.current) {
+    if (!completed && !hasError && !abortController.signal.aborted && requestConversationEpoch === conversationEpochRef.current) {
       hasError = true;
       setMessages((prev) => prev.map((m) => m.id === aiMsgId ? {
         ...m, content: t("tutorDrawer.responseProcessingError"), isError: true,
@@ -1154,7 +1154,9 @@ export function TutorDrawerView({
       ], activeSid).then(() => {
         setMessages((prev) => prev.map((m) => m.id === studentMsg.id || m.id === aiMsgId ? { ...m, persisted: true } : m));
         return loadSessions();
-      }).catch(() => {});
+      }).catch(() => toast.error(locale === "en"
+        ? "This answer could not be saved. Copy anything you need before closing this conversation."
+        : "Jawaban ini belum tersimpan. Salin bagian yang diperlukan sebelum menutup percakapan."));
     }
   };
 
@@ -1408,7 +1410,7 @@ export function TutorDrawerView({
                           >
                             <p className="truncate text-body-xs font-medium">{sess.title}</p>
                             <span className="text-[10px] text-muted-foreground">
-                              {t("tutorDrawer.messageCount", { count: sess.id === sessionId ? Math.max(sess.messageCount, messages.filter((message) => message.id !== "chat-welcome" && message.persisted !== false && (message.content.trim() || message.pythonStatus || message.attachments?.length) && !message.isError).length) : sess.messageCount })}{sess.lastMessageAt ? ` • ${formatSessionDate(sess.lastMessageAt, locale, { justNow: t("tutorDrawer.justNow"), minutes: t("tutorDrawer.minutesAgo"), hours: t("tutorDrawer.hoursAgo"), days: t("tutorDrawer.daysAgo") })}` : ""}
+                              {t("tutorDrawer.messageCount", { count: sess.id === sessionId ? Math.max(sess.messageCount, Math.min(100, messages.filter((message) => message.id !== "chat-welcome" && message.persisted !== false && (message.content.trim() || message.pythonStatus || message.attachments?.length) && !message.isError).length)) : sess.messageCount })}{sess.lastMessageAt ? ` • ${formatSessionDate(sess.lastMessageAt, locale, { justNow: t("tutorDrawer.justNow"), minutes: t("tutorDrawer.minutesAgo"), hours: t("tutorDrawer.hoursAgo"), days: t("tutorDrawer.daysAgo") })}` : ""}
                             </span>
                           </button>
                           <button

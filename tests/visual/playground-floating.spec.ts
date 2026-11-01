@@ -365,11 +365,33 @@ test("unsaved and interrupted replies do not inflate history counts", async ({ p
   await capture(page, info, "history-save-failed");
   await drawer.getByRole("button", { name: "Menu topik dan mode Zyra" }).click();
   saved = true;
+  await drawer.getByRole("tab", { name: "Tutor", exact: true }).click();
   await composer.fill("Coba lagi.");
   await composer.press("Enter");
   await expect(drawer.getByText("Maaf, terjadi kendala saat memproses jawaban. Coba lagi dalam beberapa saat.")).toBeVisible();
   await drawer.getByRole("button", { name: "Menu topik dan mode Zyra" }).click();
   await expect(drawer.getByText(/2 pesan/)).toBeVisible();
   await capture(page, info, "history-incomplete-not-counted");
+  expect(errors).toEqual([]);
+});
+
+test("history count respects the 100-message retention limit", async ({ page }, info) => {
+  const errors = failures(page);
+  await mockTerminal(page);
+  await mockZyraDrawer(page, 50);
+  await page.route("**/api/zyra/chat", route => route.fulfill({ contentType: "text/event-stream", body: reply("Diterima.") }));
+  await page.goto("/visual-fixtures/coding?terminal=1");
+  await page.getByRole("button", { name: "Buka Zyra" }).click();
+  const drawer = page.getByRole("complementary", { name: "Asisten belajar Zyra" });
+  await expect(drawer.getByText("Kalikan panjang dengan lebar.", { exact: true })).toHaveCount(50);
+  await drawer.getByRole("tab", { name: "Tutor", exact: true }).click();
+  const composer = drawer.getByRole("textbox", { name: "Tanyakan materi atau rumus..." });
+  await composer.fill("Pertanyaan berikutnya.");
+  await composer.press("Enter");
+  await expect(drawer.getByText("Diterima.", { exact: true })).toBeVisible();
+  await drawer.getByRole("button", { name: "Menu topik dan mode Zyra" }).click();
+  await expect(drawer.getByText(/100 pesan/)).toBeVisible();
+  await expect(drawer.getByText(/102 pesan/)).toHaveCount(0);
+  await capture(page, info, "history-retention-limit");
   expect(errors).toEqual([]);
 });

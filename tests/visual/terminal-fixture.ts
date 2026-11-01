@@ -1,7 +1,7 @@
 import type { Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
 
-export async function mockZyraDrawer(page: Page) {
+export async function mockZyraDrawer(page: Page, historyPairs = 1) {
   let saveCalls = 0;
   await page.route("**/api/zyra/attachments/image-id**", route => route.fulfill({ contentType: "image/png", body: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=", "base64") }));
   await page.route("**/api/zyra/allowance**", route => route.fulfill({ json: { summary: null } }));
@@ -12,10 +12,10 @@ export async function mockZyraDrawer(page: Page) {
     const name = manifest.node[action]?.exportedName;
     if (name === "saveTutorMessagesAction") saveCalls++;
     const response = name === "getTutorCourseContextAction" ? "Berpikir komputasi"
-      : name === "loadTutorHistoryAction" ? { sessionId: "zyra-session", messages: [
-        { id: "old-user", role: "student", content: "Bagaimana cara menghitung luas?" },
-        { id: "old-ai", role: "ai", content: "Kalikan panjang dengan lebar." },
-      ] }
+      : name === "loadTutorHistoryAction" ? { sessionId: "zyra-session", messages: Array.from({ length: historyPairs }, (_, index) => [
+        { id: `old-user-${index}`, role: "student", content: "Bagaimana cara menghitung luas?" },
+        { id: `old-ai-${index}`, role: "ai", content: "Kalikan panjang dengan lebar." },
+      ]).flat() }
       : name === "listTutorSessionsAction" ? [{ id: "zyra-session", title: "Luas persegi panjang", messageCount: 0, lastMessageAt: null }]
       : { success: true, sessionId: "zyra-session" };
     await route.fulfill({ contentType: "text/x-component", body: `0:{"a":"$@1","f":"","b":"development"}\n1:${JSON.stringify(response)}\n` });

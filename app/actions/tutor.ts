@@ -823,9 +823,22 @@ export async function saveTutorMessagesAction(
 
   await db.transaction(async (tx) => {
     if (requestId) {
-      const existing = await tx.select({ id: tutorChatMessages.id }).from(tutorChatMessages)
+      const existing = await tx.select().from(tutorChatMessages)
         .where(inArray(tutorChatMessages.id, preparedRows.map((row) => row.id)));
-      if (existing.length === preparedRows.length) return;
+      if (existing.length > 0) {
+        if (existing.length !== preparedRows.length || preparedRows.some((row) => {
+          const saved = existing.find((message) => message.id === row.id);
+          return !saved || saved.sessionId !== row.sessionId || saved.role !== row.role || saved.content !== row.content
+            || JSON.stringify(saved.sources) !== JSON.stringify(row.sources);
+        })) throw new Error("ZYRA_HISTORY_REPLAY_CONFLICT");
+        const linked = await tx.select({ id: zyraMessageAttachments.id, messageId: zyraMessageAttachments.messageId })
+          .from(zyraMessageAttachments).where(inArray(zyraMessageAttachments.messageId, preparedRows.map((row) => row.id)));
+        const expected = preparedRows.flatMap((row) => row.attachmentIds.map((id) => ({ id, messageId: row.id })));
+        if (linked.length !== expected.length || expected.some((image) => !linked.some((saved) => saved.id === image.id && saved.messageId === image.messageId))) {
+          throw new Error("ZYRA_HISTORY_REPLAY_CONFLICT");
+        }
+        return;
+      }
     }
     await tx.insert(tutorChatMessages).values(preparedRows.map(({ attachmentIds: _attachmentIds, ...row }) => row)).onConflictDoNothing();
     for (const row of preparedRows) {

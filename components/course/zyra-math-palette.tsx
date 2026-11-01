@@ -165,9 +165,6 @@ export function ZyraMathPalette({
             </TabsContent>
           ))}
         </Tabs>
-        <p className="mt-1.5 text-body-xs text-muted-foreground text-center select-none">
-          {t("mathPalette.insertAtCursor")}
-        </p>
       </PopoverContent>
     </Popover>
   );
