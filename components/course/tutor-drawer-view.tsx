@@ -268,7 +268,7 @@ export function TutorDrawerView({
       if (quotedContext.blockType === "code" && codingBridge) setAssistantMode("python");
       setActiveQuotedContext(quotedContext);
     }
-  }, [quotedContext]);
+  }, [quotedContext, codingBridge]);
 
   const [chatLoading, setChatLoading] = React.useState(false);
   const [sessionId, setSessionId] = React.useState<string | null>(null);
@@ -542,7 +542,7 @@ export function TutorDrawerView({
         textareaRef.current?.focus();
       }, 100);
     }
-  }, [initialQuestion, onClearInitialQuestion]);
+  }, [initialQuestion, onClearInitialQuestion, quotedContext]);
 
   // Escape key to close
   React.useEffect(() => {
@@ -837,7 +837,7 @@ export function TutorDrawerView({
   );
 
   // Handle sending arbitrary chat messages with SSE streaming
-  const handleSend = async (suggestedQuestion?: string, overrideQuote?: ZyraQuotedContext | null, presetIntent?: PythonPreset["intent"]) => {
+  const handleSend = async (suggestedQuestion?: string, overrideQuote?: ZyraQuotedContext | null, presetIntent?: PythonPreset["intent"] | "hint") => {
     if (chatLoading || abortControllerRef.current) return;
     const codingRequest = codingBridge?.capture();
     const isCodeQuote = (overrideQuote !== undefined ? overrideQuote : activeQuotedContext)?.blockType === "code";

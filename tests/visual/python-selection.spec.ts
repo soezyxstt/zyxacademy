@@ -2,6 +2,11 @@ import { expect, test } from "@playwright/test";
 import { mockTerminal, mockZyraDrawer } from "./terminal-fixture";
 
 test("selected Python is quoted for review without changing the editor", async ({ page }, info) => {
+  const errors: string[] = [];
+  page.on("pageerror", error => errors.push(error.message));
+  page.on("console", message => { if (message.type() === "error") errors.push(message.text()); });
+  page.on("response", response => { if (response.status() >= 400) errors.push(`${response.status()} ${response.url()}`); });
+  await page.emulateMedia({ reducedMotion: "reduce" });
   await mockTerminal(page);
   await mockZyraDrawer(page);
   let payload: any;
@@ -11,6 +16,7 @@ test("selected Python is quoted for review without changing the editor", async (
   });
   await page.goto("/visual-fixtures/coding?terminal=1&selection=1");
   const editor = page.getByRole("textbox", { name: "Kode Python" });
+  await page.addStyleTag({ content: "nextjs-portal{display:none!important}" });
   await editor.fill("print(123)");
   await editor.press("ControlOrMeta+A");
   const bar = page.locator('[data-slot="python-selection-actions"]');
@@ -18,6 +24,7 @@ test("selected Python is quoted for review without changing the editor", async (
   await page.screenshot({ path: info.outputPath("screenshots/selected.png") });
   await bar.getByRole("button", { name: "Tutup pilihan kode" }).click();
   await expect(bar).toHaveCount(0);
+  await page.screenshot({ path: info.outputPath("screenshots/dismissed.png"), animations: "disabled" });
   await editor.press("ArrowRight");
   await editor.press("ControlOrMeta+A");
   await expect(bar).toBeVisible();
@@ -26,11 +33,18 @@ test("selected Python is quoted for review without changing the editor", async (
   const drawer = page.getByRole("complementary", { name: "Asisten belajar Zyra" });
   await expect(drawer.getByRole("tab", { name: "Python", exact: true })).toHaveAttribute("aria-selected", "true");
   await expect(drawer.locator("footer")).toContainText("print(123)");
-  await page.screenshot({ path: info.outputPath("screenshots/quoted.png") });
+  await expect.poll(async () => {
+    const bounds = await drawer.boundingBox();
+    return bounds ? Math.round(bounds.x + bounds.width) : 0;
+  }).toBe(page.viewportSize()!.width);
+  await page.screenshot({ path: info.outputPath("screenshots/quoted.png"), animations: "disabled" });
   await drawer.getByRole("button", { name: "Kirim pesan", exact: true }).click();
   await expect.poll(() => payload?.codingContext?.intent).toBe("review");
+  await expect(drawer.getByText("Penjelasan.", { exact: true })).toBeVisible();
+  await page.screenshot({ path: info.outputPath("screenshots/explained.png"), animations: "disabled" });
   expect(payload.selectionContext.snippet).toBe("print(123)");
   expect(payload.codingContext.code).toBe("print(123)");
   await expect(editor).toContainText("print(123)");
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+  expect(errors).toEqual([]);
 });

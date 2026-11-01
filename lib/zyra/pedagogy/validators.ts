@@ -1,6 +1,7 @@
 import { validateTutorOutput, type ProtectedItemPayload } from "@/lib/assessment-assistance-policy";
 import { validateVisualSpec } from "@/lib/tutor/visual-contracts";
 import { validateCanvasSpec } from "@/lib/zyra/canvas";
+import { FOLLOWUPS_OPEN, FOLLOWUPS_CLOSE, parseFollowupAnswer } from "@/lib/zyra/followups";
 import { sanitizeAnswer } from "@/lib/tutor/answer-sanitizer";
 import type { SemanticValidator, SemanticViolation } from "@/lib/ai/validation";
 import {
@@ -63,7 +64,8 @@ export function validateTeachingResponse(
   const violations: SemanticViolation[] = [];
 
   const evidenceList = [...allowedSources.keys()].map((id) => ({ id }));
-  value.learnerFacingText = sanitizeAnswer(value.learnerFacingText, evidenceList);
+  const parsedAnswer = parseFollowupAnswer(value.learnerFacingText);
+  value.learnerFacingText = sanitizeAnswer(parsedAnswer.text, evidenceList);
   for (const block of value.explanationBlocks) {
     if (block.text) {
       block.text = sanitizeAnswer(block.text, evidenceList);
@@ -121,6 +123,9 @@ export function validateTeachingResponse(
   }
 
   violations.push(...validateNoProtectedAnswer(value, context, protectedAnswers));
+  if (!context.activeAssessment && parsedAnswer.followups.length) {
+    value.learnerFacingText += `\n${FOLLOWUPS_OPEN}${JSON.stringify(parsedAnswer.followups)}${FOLLOWUPS_CLOSE}`;
+  }
   return { valid: violations.length === 0, violations, response: value };
 }
 

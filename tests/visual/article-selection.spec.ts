@@ -72,9 +72,10 @@ test(`article selection keeps mobile quote and desktop popover${breakpoint ? " a
     await page.evaluate(() => window.getSelection()?.removeAllRanges());
     await bar.getByRole("button", { name: "Tanya Zyra", exact: true }).tap();
     await expect(bar).toHaveCount(0);
-    await expect(page.getByPlaceholder("Tanyakan materi atau rumus...")).toHaveValue(`Bantu saya memahami bagian ini: "${quote}".`);
+    await expect(page.getByRole("textbox", { name: "Tanyakan materi atau rumus...", exact: true })).toBeVisible();
+    await expect(page.getByRole("textbox", { name: "Tanyakan materi atau rumus...", exact: true })).not.toBeFocused();
     await expect(page.getByRole("button", { name: "Hapus kutipan" })).toBeVisible();
-    await expect(page.getByRole("complementary", { name: "Zyra Learning Assistant" }).locator("footer")).toContainText(quote);
+    await expect(page.getByRole("complementary", { name: "Asisten belajar Zyra" }).locator("footer")).toContainText(quote);
     await capture("drawer-with-quote");
   } else {
     await paragraph.dispatchEvent("mouseup");

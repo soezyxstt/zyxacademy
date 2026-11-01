@@ -22,7 +22,7 @@ The `ACTIVE` feature catalog records Zyra session continuity, conversational tut
 
 The `ACTIVE` feature catalog also documents compact Article formula rows, reading-first embedded graphs, optional parameter controls, and explicit graph interaction activation.
 
-The `ACTIVE` feature catalog records the mobile Article selection action and saved quote handoff to Zyra, with the desktop selection popover preserved.
+The `ACTIVE` feature catalog records Article selection explanations, contextual live-session follow-up suggestions, and the beginner Python generation policy.
 
 ---
 
