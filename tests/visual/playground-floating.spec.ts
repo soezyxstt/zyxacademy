@@ -330,11 +330,12 @@ test("Python generation errors and missing code preserve the editor", async ({ p
   const editor = page.getByRole("textbox", { name: "Kode Python" });
   const before = await editor.textContent();
   let failed = true;
+  let unframed = false;
   await page.route("**/api/zyra/chat", route => {
     expect(route.request().postDataJSON().codingContext.intent).toBe("generate");
     return route.fulfill({ contentType: "text/event-stream", body: failed
       ? `data: ${JSON.stringify({ type: "data-error", data: { message: "Zyra belum dapat merespons." } })}\n\ndata: [DONE]\n\n`
-      : reply("Coba gunakan print.") });
+      : reply(unframed ? "print(99)" : "Coba gunakan print.") });
   });
   await composer.fill("Tampilkan satu.");
   await composer.press("Enter");
@@ -344,9 +345,16 @@ test("Python generation errors and missing code preserve the editor", async ({ p
   failed = false;
   await composer.fill("Coba lagi.");
   await composer.press("Enter");
-  await expect(drawer.getByText("Minta satu blok Python lengkap agar kode dapat diterapkan.")).toBeVisible();
+  await expect(drawer.getByText("Program lengkap belum tersedia. Coba lagi atau gunakan mode Tutor untuk pembahasan.")).toBeVisible();
   await expect(editor).toHaveText(before!);
   await capture(page, info, "generation-no-code");
+  unframed = true;
+  await composer.fill("Buat program lengkap.");
+  await composer.press("Enter");
+  await expect(drawer.getByText("Program lengkap belum tersedia. Coba lagi atau gunakan mode Tutor untuk pembahasan.")).toHaveCount(2);
+  await expect(drawer.getByText("print(99)", { exact: true })).toHaveCount(0);
+  await expect(editor).toHaveText(before!);
+  await capture(page, info, "generation-unframed-code");
   expect(errors).toEqual([]);
 });
 

@@ -73,3 +73,15 @@ test("stopping after partial streamed text does not save a turn", async () => {
     expect(saves).toHaveLength(0);
   } finally { answer = previous; }
 });
+
+test("unframed Python is replaced by recovery guidance in saved history", async () => {
+  saves.length = 0;
+  const previous = answer;
+  answer = "print(99)";
+  try {
+    await request("generate");
+    const content = (saves[0][1] as Array<{ content: string }>)[1].content;
+    expect(content).not.toContain("print(99)");
+    expect(content).toContain("mode Tutor");
+  } finally { answer = previous; }
+});

@@ -1133,7 +1133,7 @@ export function TutorDrawerView({
     if (pythonRequest && completed && !hasError && !abortController.signal.aborted && requestConversationEpoch === conversationEpochRef.current) {
       const result = pythonReply(accumulatedContent);
       const applied = result.code ? pythonRequest.apply(result.code) : "invalid";
-      const pythonStatus = applied === "applied" ? "Kode diterapkan ke editor." : applied === "changed" ? "Editor berubah saat Zyra menjawab. Terapkan hasil untuk mengganti kode terbaru." : applied === "inactive" ? "Buka Playground asal untuk meminta kode lagi." : "Minta satu blok Python lengkap agar kode dapat diterapkan.";
+      const pythonStatus = applied === "applied" ? "Kode diterapkan ke editor." : applied === "changed" ? "Editor berubah saat Zyra menjawab. Terapkan hasil untuk mengganti kode terbaru." : applied === "inactive" ? "Buka Playground asal untuk meminta kode lagi." : "Program lengkap belum tersedia. Coba lagi atau gunakan mode Tutor untuk pembahasan.";
       setMessages((prev) => prev.map((m) => m.id === aiMsgId ? {
         ...m, content: result.explanation, pythonStatus,
         pendingPython: applied === "changed" && result.code ? { code: result.code, apply: pythonRequest.apply } : undefined,

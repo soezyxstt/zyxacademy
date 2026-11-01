@@ -1240,6 +1240,9 @@ Coding history uses stable, actor-scoped message IDs for request replay. The API
 acknowledges saved history over SSE; a failed save keeps the answer visible with
 a recovery notification. Unconfirmed and interrupted turns do not increase the
 session count.
+Python generation without an explicit code fence is hidden until a framed
+response is available. Ambiguous or unframed final responses use recovery
+guidance instead of putting an unclassified program into floating history.
 The mixed-text composer uses the installed CodeMirror editor with KaTeX widgets
 for explicit math delimiters, preserving raw source and plain-text paste.
 Recent-session counts use one grouped left join on tutor messages, matching
