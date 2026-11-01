@@ -1,5 +1,7 @@
 "use client";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+import { Button } from "@/components/ui/button";
+import { X } from "lucide-react";
 import { EditorState } from "@codemirror/state";
 import { EditorView, keymap, lineNumbers, highlightActiveLine, highlightActiveLineGutter, drawSelection } from "@codemirror/view";
 import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirror/commands";
@@ -40,9 +42,12 @@ const theme = EditorView.theme({
   ".cm-completionDetail": { color: "var(--muted-foreground)", fontStyle: "normal", marginLeft: "8px" },
 });
 
-export function PythonEditor({ value, onChange, label = "Kode Python", className, fillAvailableHeight = false }: { value: string; onChange(value: string): void; label?: string; className?: string; fillAvailableHeight?: boolean }) {
+export function PythonEditor({ value, onChange, label = "Kode Python", className, fillAvailableHeight = false, onExplainSelection }: { value: string; onChange(value: string): void; label?: string; className?: string; fillAvailableHeight?: boolean; onExplainSelection?: (text: string) => void }) {
   const host = useRef<HTMLDivElement>(null), view = useRef<EditorView | null>(null);
   const change = useRef(onChange);
+  const [selection, setSelection] = useState<{ text: string; top: number; left: number } | null>(null);
+  const selectionCallback = useRef(onExplainSelection);
+  selectionCallback.current = onExplainSelection;
   useEffect(() => {
     const element = host.current;
     if (!fillAvailableHeight || !element) return;
@@ -64,7 +69,16 @@ export function PythonEditor({ value, onChange, label = "Kode Python", className
       lineNumbers(), history(), python(), EditorView.lineWrapping, closeBrackets(), bracketMatching(), indentOnInput(), autocompletion({ icons: false }), drawSelection(), highlightActiveLine(), highlightActiveLineGutter(), syntaxHighlighting(highlight), theme,
       keymap.of([...closeBracketsKeymap, ...defaultKeymap, ...historyKeymap, indentWithTab]),
       EditorView.contentAttributes.of({ "aria-label": label, "aria-multiline": "true", role: "textbox" }),
-      EditorView.updateListener.of((update) => { if (update.docChanged) change.current(update.state.doc.toString()); }),
+      EditorView.updateListener.of((update) => {
+        if (update.docChanged) change.current(update.state.doc.toString());
+        if (update.selectionSet || update.docChanged) {
+          const range = update.state.selection.main;
+          if (range.empty || !selectionCallback.current) { setSelection(null); return; }
+          const text = update.state.sliceDoc(range.from, range.to);
+          const rect = update.view.coordsAtPos(range.from);
+          setSelection({ text, top: rect?.top ?? 0, left: rect?.left ?? 0 });
+        }
+      }),
     ] }) });
     view.current = editor;
     return () => { editor.destroy(); view.current = null; };
@@ -75,5 +89,11 @@ export function PythonEditor({ value, onChange, label = "Kode Python", className
     const editor = view.current;
     if (editor && value !== editor.state.doc.toString()) editor.dispatch({ changes: { from: 0, to: editor.state.doc.length, insert: value } });
   }, [value]);
-  return <div ref={host} className={cn("min-w-0 max-h-[var(--python-editor-max-height,400px)] overflow-hidden rounded-lg border border-border transition-colors focus-within:border-ring", className)} />;
+  return <>
+    <div ref={host} className={cn("min-w-0 max-h-[var(--python-editor-max-height,400px)] overflow-hidden rounded-lg border border-border transition-colors focus-within:border-ring", className)} />
+    {selection && onExplainSelection && <div data-slot="python-selection-actions" role="toolbar" aria-label="Pilihan kode" className="fixed z-50 flex items-center gap-1 rounded-lg border border-border bg-card p-1 shadow-lg max-md:inset-x-4 max-md:bottom-[max(1rem,env(safe-area-inset-bottom))]" style={typeof window !== "undefined" && window.innerWidth >= 768 ? { top: Math.max(8, selection.top - 44), left: Math.max(8, Math.min(selection.left, window.innerWidth - 190)) } : undefined}>
+      <Button type="button" size="sm" className="max-md:min-h-11 max-md:flex-1" onPointerDown={event => event.preventDefault()} onClick={() => { onExplainSelection(selection.text); setSelection(null); }}>Jelaskan pilihan</Button>
+      <Button type="button" variant="ghost" size="icon" aria-label="Tutup pilihan kode" onPointerDown={event => event.preventDefault()} onClick={() => setSelection(null)}><X className="size-4" /></Button>
+    </div>}
+  </>;
 }

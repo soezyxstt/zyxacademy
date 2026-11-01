@@ -1,3 +1,4 @@
+import { PYTHON_GENERATION_POLICY } from "@/lib/coding/python-generation-policy";
 import { CODING_COACHING_INSTRUCTIONS } from "@/lib/coding/zyra";
 /**
  * P3 grounded tutor pipeline. Three tiers:
@@ -345,8 +346,8 @@ Put the complete coaching in the answer field. The current code, stdin and execu
 
 const codingGenerationAnswer: SystemPrompt<GroundedVars> = {
   ...tutorGroundedAnswer,
-  version: "tutor_rag/coding_generation/v1.0.0",
-  systemInstruction: `${tutorGroundedAnswer.systemInstruction}\nFor this playground generation request, put the complete runnable Python program in one fenced python code block in the answer field. Do not give only hints or placeholders. Use Markdown backticks for Python code and names, overriding the general math presentation rule for code. Do not claim to have executed it. Respect active assessment restrictions.`,
+  version: "tutor_rag/coding_generation/v1.1.0",
+  systemInstruction: `${tutorGroundedAnswer.systemInstruction}\nWhen the learner actually requests a program, put the complete runnable Python program in one fenced python code block in the answer field. Do not give only hints or placeholders. Use Markdown backticks for Python code and names, overriding the general math presentation rule for code. Do not claim to have executed it. Respect active assessment restrictions. ${PYTHON_GENERATION_POLICY}`,
 };
 
 interface UngroundedVars {
@@ -409,8 +410,8 @@ Generate a single JSON object:
 
 const codingImageGenerationAnswer: SystemPrompt<UngroundedVars> = {
   ...tutorImageAnswer,
-  version: "tutor_rag/coding_image_generation/v1.0.0",
-  systemInstruction: `${tutorImageAnswer.systemInstruction} For a readable playground programming problem, generate the complete runnable Python program in one fenced python code block in the answer field. Do not provide only hints or placeholders. Use Markdown for code instead of LaTeX. If essential details are unreadable, ask for a clearer image. Never claim to have run the program.`,
+  version: "tutor_rag/coding_image_generation/v1.1.0",
+  systemInstruction: `${tutorImageAnswer.systemInstruction} When the learner actually requests a program for a readable playground programming problem, generate the complete runnable Python program in one fenced python code block in the answer field. Do not provide only hints or placeholders. Use Markdown for code instead of LaTeX. If essential details are unreadable, ask for a clearer image. Never claim to have run the program. ${PYTHON_GENERATION_POLICY}`,
 };
 
 export function selectImageTutorPrompt(pageContextId: string | undefined, attemptState: string) {

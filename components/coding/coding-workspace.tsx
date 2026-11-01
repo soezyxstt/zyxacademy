@@ -36,6 +36,7 @@ export function CodingWorkspace({ courseId, draftKey, initialCode = "", initialS
   playgroundLink?: boolean; disabled?: boolean; interactive?: boolean;
 }) {
   const { openChatWithQuestion } = useTutor();
+  const explainSelection = (snippet: string) => openChatWithQuestion("Jelaskan bagian kode Python ini.", { title: "Kode Python", snippet, blockType: "code", intent: "define" });
   const { data: session } = useSession();
   const router = useRouter();
   const owner = learnerId ?? session?.user?.id;
@@ -160,7 +161,7 @@ export function CodingWorkspace({ courseId, draftKey, initialCode = "", initialS
             {phase === "idle" ? <Button size="sm" className="min-w-[84px] bg-brand-secondary text-body-sm text-white hover:bg-brand-secondary/90 hover:shadow-none" onClick={run} disabled={draft.code.length > 64000}><Play className="size-3.5 fill-current" />Jalankan</Button> : <Button size="sm" className="min-w-[84px] text-body-sm" variant="outline" onClick={() => active.current?.abort()}><Square className="size-3.5 fill-current" />Stop</Button>}
           </div>
         </div>
-        <PythonEditor value={draft.code} onChange={setEditorCode} fillAvailableHeight={!playgroundLink} className="flex-1 rounded-none border-0 focus-within:ring-1 focus-within:ring-inset focus-within:ring-ring" />
+        <PythonEditor value={draft.code} onChange={setEditorCode} onExplainSelection={allowHelp ? explainSelection : undefined} fillAvailableHeight={!playgroundLink} className="flex-1 rounded-none border-0 focus-within:ring-1 focus-within:ring-inset focus-within:ring-ring" />
       </div>
       {terminalOpen ? <div role="separator" tabIndex={0} aria-orientation="vertical" aria-label="Ubah lebar panel" aria-valuemin={25} aria-valuemax={75} aria-valuenow={Math.round(split)} onPointerDown={dragSplit} onDoubleClick={() => setSplit(50)} onKeyDown={(event) => { if (event.key === "ArrowLeft" || event.key === "ArrowRight") { event.preventDefault(); setSplit((value) => clampSplit(value + (event.key === "ArrowLeft" ? -5 : 5))); } }} className="relative hidden w-px shrink-0 cursor-col-resize touch-none bg-border transition-colors after:absolute after:inset-y-0 after:-inset-x-1.5 after:content-[''] hover:bg-ring focus-visible:bg-ring focus-visible:outline-none md:block" /> : null}
       <div ref={terminalRef} id={inputId + "-terminal"} hidden={!terminalOpen} className={cn("min-w-0 flex-1 flex-col border-t border-border md:border-t-0", terminalOpen && "flex")}>
@@ -178,7 +179,7 @@ export function CodingWorkspace({ courseId, draftKey, initialCode = "", initialS
   </section>;
   return <section className="min-w-0 max-w-full space-y-4" aria-label={problem ? `Latihan Python: ${problem.title}` : "Playground Python"}>
     {problem ? <div className="space-y-2"><h3 className="font-heading text-body-base font-bold">{problem.title}</h3><MarkdownRenderer content={problem.prompt} />{problem.publicTests.length ? <details className="text-body-sm"><summary className="cursor-pointer">Contoh input dan output</summary><div className="mt-2 space-y-2">{problem.publicTests.map((test) => <div key={test.id} className="grid grid-cols-2 gap-2"><pre className="overflow-x-auto rounded-md bg-muted p-2"><span className="block text-body-xs text-muted-foreground">Input</span>{test.stdin}</pre><pre className="overflow-x-auto rounded-md bg-muted p-2"><span className="block text-body-xs text-muted-foreground">Output</span>{test.expectedStdout}</pre></div>)}</div></details> : null}</div> : null}
-    <PythonEditor value={draft.code} onChange={draft.setCode} />
+    <PythonEditor value={draft.code} onChange={draft.setCode} onExplainSelection={allowHelp ? explainSelection : undefined} />
     <div className="space-y-1.5"><label htmlFor={inputId} className="text-body-sm font-semibold">Input program</label><Textarea id={inputId} value={draft.stdin} onChange={(event) => draft.setStdin(event.target.value)} maxLength={8000} rows={2} className="font-mono text-body-sm" placeholder="Satu nilai per baris untuk input()" /></div>
     <div className="flex flex-wrap items-center gap-2">
       <Button size="sm" className="text-body-sm" onClick={run} disabled={phase !== "idle" || submitting || draft.code.length > 64000}><Play className="size-4" />Jalankan</Button>

@@ -278,6 +278,7 @@ export function TutorDrawerView({
 
   React.useEffect(() => {
     if (quotedContext) {
+      if (quotedContext.blockType === "code" && codingBridge) setAssistantMode("python");
       setActiveQuotedContext(quotedContext);
     }
   }, [quotedContext]);
@@ -550,7 +551,7 @@ export function TutorDrawerView({
     if (initialQuestion) {
       setInputVal(initialQuestion);
       onClearInitialQuestion?.();
-      setTimeout(() => {
+      if (!quotedContext) setTimeout(() => {
         textareaRef.current?.focus();
       }, 100);
     }
@@ -852,7 +853,8 @@ export function TutorDrawerView({
   const handleSend = async (suggestedQuestion?: string, overrideQuote?: ZyraQuotedContext | null, presetIntent?: PythonPreset["intent"]) => {
     if (chatLoading) return;
     const codingRequest = codingBridge?.capture();
-    const pythonRequest = assistantMode === "python" && !presetIntent ? codingRequest : null;
+    const isCodeQuote = (overrideQuote !== undefined ? overrideQuote : activeQuotedContext)?.blockType === "code";
+    const pythonRequest = assistantMode === "python" && !presetIntent && !isCodeQuote ? codingRequest : null;
     const rawQuestion = (suggestedQuestion || inputVal).trim();
     const effectiveQuote = overrideQuote !== undefined ? overrideQuote : activeQuotedContext;
     const requestedAttachmentIds = [...attachmentIds];
@@ -909,7 +911,7 @@ export function TutorDrawerView({
     const requestLocaleEpoch = localeEpochRef.current;
     const languageRequestBase = {
       question,
-      ...(codingRequest ? { codingContext: { ...codingRequest.context, intent: presetIntent ?? (assistantMode === "python" ? "generate" as const : "hint" as const) } } : {}),
+      ...(codingRequest ? { codingContext: { ...codingRequest.context, intent: presetIntent ?? (isCodeQuote ? "review" as const : assistantMode === "python" ? "generate" as const : "hint" as const) } } : {}),
       courseId: courseId ?? "unknown",
       conceptId: koId || undefined,
       sessionId: activeSid || undefined,

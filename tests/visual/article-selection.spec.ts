@@ -59,6 +59,7 @@ test(`article selection keeps mobile quote and desktop popover${breakpoint ? " a
     await capture("selected");
     await bar.getByRole("button", { name: "Tutup Tanya Zyra" }).click();
     await expect(bar).toHaveCount(0);
+    expect(await page.evaluate(() => window.getSelection()?.toString())).toBe(quote);
     await capture("dismissed");
     await selectText(page, 54);
     await expect(bar).toBeVisible();
