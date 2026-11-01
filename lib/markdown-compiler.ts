@@ -1169,7 +1169,10 @@ export function parseCanonicalMarkdown(markdown: string): ASTBlock[] {
       continue;
     }
 
-    if (trimmed === "$" || trimmed.startsWith("$$") || trimmed.startsWith("\\[") || /^\$[^$]+\$$/.test(trimmed)) {
+    // A display formula can begin mid-paragraph; its closing delimiter is not a new block.
+    const closesParagraphMath = presenterType === "p" && trimmed.startsWith("$$") &&
+      (presenterLines.join("\n").replace(/`[^`]*`/g, "").match(/(?<!\\)\$\$/g)?.length ?? 0) % 2 === 1;
+    if (!closesParagraphMath && (trimmed === "$" || trimmed.startsWith("$$") || trimmed.startsWith("\\[") || /^\$[^$]+\$$/.test(trimmed))) {
       // Flush presenter block first
       if (presenterType) {
         flushPresenterBlock(presenterType, presenterLines);

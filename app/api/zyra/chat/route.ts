@@ -6,6 +6,7 @@ import { askTutorRagAction, saveTutorMessagesAction } from "@/app/actions/tutor"
 import { resolveCourseAccess } from "@/lib/student/course-access";
 import { FREE_ALLOWANCE_IDEMPOTENCY_PREFIX } from "@/lib/usage-budget-service";
 import { sanitizeAnswer } from "@/lib/tutor/answer-sanitizer";
+import { pythonHistoryReply } from "@/lib/coding/python-reply";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -267,12 +268,20 @@ export async function POST(req: Request) {
           }
 
           if (coding?.success && res.sessionId && res.answer && !res.failureCode && !res.budgetExhausted && !req.signal.aborted) {
+            const historyAnswer = coding.data.kind === "playground" && coding.data.intent === "generate"
+              ? pythonHistoryReply(fullAnswer, res.responseLanguage)
+              : fullAnswer;
             try {
               await saveTutorMessagesAction(normalizedCourseId, [
-                { role: "student", content: normalizedQuestion },
-                { role: "ai", content: fullAnswer, sources: res.sources, canvasSpec: res.canvasSpec },
-              ], res.sessionId);
-            } catch { /* A history failure must not discard a completed explanation. */ }
+                { role: "student", content: normalizedQuestion, attachmentIds },
+                { role: "ai", content: historyAnswer, sources: res.sources, canvasSpec: res.canvasSpec },
+              ], res.sessionId, idempotencyKey);
+              sendEvent({ type: "data-history", saved: true });
+            } catch {
+              sendEvent({ type: "data-history", saved: false, message: res.responseLanguage === "en"
+                ? "This answer could not be saved. Copy anything you need before closing this conversation."
+                : "Jawaban ini belum tersimpan. Salin bagian yang diperlukan sebelum menutup percakapan." });
+            }
           }
 
           // 5. Complete stream

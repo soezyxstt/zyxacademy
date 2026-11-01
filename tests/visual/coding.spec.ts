@@ -310,37 +310,3 @@ test("compact Zyra controls remain available in Article and Live Quiz", async ({
   }
   expect(failures).toEqual([]);
 });
-
-test("playground inserts generated code and preserves the editor on failure", async ({ page }, info) => {
-  const failures: string[] = [];
-  page.on("pageerror", (error) => failures.push(error.message));
-  page.on("console", (message) => { if (message.type() === "error") failures.push(message.text()); });
-  page.on("response", (response) => { if (response.status() >= 400) failures.push(`${response.status()} ${response.url()}`); });
-  await setup(page);
-  let reply = "";
-  await page.route("**/api/zyra/chat", (route) => {
-    expect(route.request().postDataJSON().codingContext.intent).toBe("generate");
-    return route.fulfill({ contentType: "text/event-stream", body: reply });
-  });
-  expect((await page.goto("/visual-fixtures/coding?terminal=1"))?.status()).toBe(200);
-  await expect(page).toHaveURL(/\/visual-fixtures\/coding\?terminal=1$/);
-  const editor = page.getByRole("textbox", { name: "Kode Python", exact: true });
-  await page.getByRole("button", { name: "Masalah yang ingin diselesaikan" }).click();
-  const help = page.locator("div").filter({ has: page.getByRole("textbox", { name: "Deskripsi masalah", exact: true }) }).filter({ has: page.getByRole("button", { name: "Buat kode", exact: true }) }).last();
-  await page.getByRole("textbox", { name: "Deskripsi masalah", exact: true }).fill("Tampilkan angka satu");
-  reply = `data: ${JSON.stringify({ type: "text-delta", textDelta: "Berikut programnya:\n```python\nprint(1)\n```" })}\n\ndata: [DONE]\n\n`;
-  await help.getByRole("button", { name: "Buat kode" }).click();
-  await expect(editor).toContainText("print(1)");
-  await capture(page, info, "generation-complete");
-  reply = `data: ${JSON.stringify({ type: "data-error", data: { message: "Zyra belum dapat merespons." } })}\n\ndata: [DONE]\n\n`;
-  await help.getByRole("button", { name: "Buat kode" }).click();
-  await expect(help.getByRole("alert")).toHaveText("Zyra belum dapat merespons.");
-  await expect(editor).toContainText("print(1)");
-  await capture(page, info, "generation-error");
-  reply = `data: ${JSON.stringify({ type: "text-delta", textDelta: "Coba gunakan print." })}\n\ndata: [DONE]\n\n`;
-  await help.getByRole("button", { name: "Buat kode" }).click();
-  await expect(help.getByRole("alert")).toHaveText("Kode belum tersedia. Coba buat kode lagi.");
-  await expect(editor).toContainText("print(1)");
-  await capture(page, info, "generation-no-code");
-  expect(failures).toEqual([]);
-});

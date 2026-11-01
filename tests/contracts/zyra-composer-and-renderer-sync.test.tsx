@@ -8,7 +8,6 @@ import { getTutorCapabilities } from "@/lib/tutor-capabilities";
 import { sanitizeAnswer, extractEmbeddedArticleParts } from "@/lib/tutor/answer-sanitizer";
 import { compileMarkdown } from "@/lib/markdown-compiler";
 import { MarkdownRenderer } from "@/components/course/markdown-renderer";
-import { ZyraFormulaPreview } from "@/components/course/zyra-formula-preview";
 import { extractContextFromContainer } from "@/lib/zyra/selection-serializer";
 import { semanticArticleParts } from "@/tests/fixtures/product-learning/article-semantics";
 
@@ -68,12 +67,6 @@ describe("Zyra composer Ctrl+V paste and Artikel v4 renderer sync", () => {
     const routeSource = readFileSync("app/api/zyra/attachments/route.ts", "utf8");
     expect(routeSource).toContain('createChatSession(user.id, rawCourseId, "General Chat")');
     expect(routeSource).toContain("sessionId: resolvedSessionId");
-  });
-
-  test("renders live KaTeX math preview in ZyraFormulaPreview", () => {
-    const html = renderToStaticMarkup(<ZyraFormulaPreview input="Hitung $\frac{a^2 + b^2}{c}$" />);
-    expect(html).toContain('class="katex"');
-    expect(html).not.toContain('class="katex-error"');
   });
 
   test("sanitizes Artikel v4 HTML comments and extracts embedded Artikel v4 parts", () => {
@@ -185,4 +178,15 @@ describe("Zyra composer Ctrl+V paste and Artikel v4 renderer sync", () => {
     expect(ctx.sectionTitle).toBe("Turunan $f(x)$");
     expect(ctx.blockTitle).toBe("Contoh $x^2$");
   });
+});
+
+
+test("keeps a mid-paragraph display formula and its trailing punctuation together", () => {
+  const content = "Jelaskan $$\nx+1\n$$.";
+  const compiled = compileMarkdown(content);
+  expect(compiled.ast.blocks).toHaveLength(1);
+  expect(renderToStaticMarkup(<MarkdownRenderer content={content} />)).not.toContain('aria-label="Rumus utama"');
+  const afterCode = compileMarkdown("Literal `$$`\n\n$$\nx+1\n$$");
+  expect(afterCode.ast.blocks).toHaveLength(2);
+  expect(afterCode.ast.blocks[1].id).toContain("mathblk");
 });

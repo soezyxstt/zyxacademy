@@ -11,7 +11,7 @@ import { MarkdownRenderer } from "@/components/course/markdown-renderer";
 import { useSession } from "@/lib/auth-client";
 import { PythonEditor } from "./python-editor";
 import { CodingHelp } from "./coding-help";
-import { PlaygroundProblem } from "./playground-problem";
+import { registerPlaygroundBridge } from "./playground-bridge";
 import { useCodingDraft } from "./use-coding-draft";
 import { createBrowserPythonRuntime, preloadPythonAssets } from "@/lib/coding/browser-runtime";
 import { createRemotePythonRuntime } from "@/lib/coding/remote-runtime";
@@ -51,7 +51,12 @@ export function CodingWorkspace({ courseId, draftKey, initialCode = "", initialS
   const [terminalHistory, setTerminalHistory] = useState<string[]>([]);
   const [waitingInput, setWaitingInput] = useState(false);
   const sendInput = useRef<((value: string) => void) | null>(null);
-  const [playgroundProblem, setPlaygroundProblem] = useState("");
+  const observedCode = useRef(draft.code), codeRevision = useRef(0);
+  if (observedCode.current !== draft.code) { observedCode.current = draft.code; codeRevision.current++; }
+  function setEditorCode(code: string) {
+    if (observedCode.current !== code) { observedCode.current = code; codeRevision.current++; }
+    draft.setCode(code);
+  }
   const [terminalOpen, setTerminalOpen] = useState(false);
   const terminalRef = useRef<HTMLDivElement>(null);
   const [split, setSplit] = useState(50);
@@ -128,9 +133,17 @@ export function CodingWorkspace({ courseId, draftKey, initialCode = "", initialS
     } catch { setError("Kode belum dapat dibuka di Playground. Salin kode terlebih dahulu."); }
   }
   const help = problem && surface ? { kind: "exercise" as const, problem: { problemId: problem.problemId, version: problem.version }, code: draft.code, stdin: draft.stdin, intent: "hint" as const, surface, ...(attemptId ? { attemptId } : {}), ...(executedCode === draft.code && executedInput === draft.stdin && execution ? { execution } : {}) } : { kind: "playground" as const, code: draft.code, stdin: interactive ? terminalHistory.join("\n") : draft.stdin, execution: executedCode === draft.code && (interactive || executedInput === draft.stdin) ? execution : null, intent: "review" as const };
+  const bridgeState = useRef({ help, setEditorCode });
+  bridgeState.current = { help, setEditorCode };
+  useEffect(() => {
+    if (!interactive || playgroundLink || !allowHelp || disabled || problem || surface) return;
+    return registerPlaygroundBridge(courseId, () => {
+      const context = bridgeState.current.help as Extract<typeof help, { kind: "playground" }>;
+      return context.code === observedCode.current ? context : { ...context, code: observedCode.current, execution: null };
+    }, () => codeRevision.current, (code) => bridgeState.current.setEditorCode(code));
+  }, [interactive, playgroundLink, allowHelp, disabled, problem, surface, courseId, draftKey, owner]);
   if (interactive) return <section className="min-w-0 space-y-3" aria-label="Playground Python">
-    <div>{!playgroundLink && allowHelp ? <PlaygroundProblem courseId={courseId} context={help} problem={playgroundProblem} onProblemChange={setPlaygroundProblem} onUseCode={draft.setCode} /> : null}
-    <div ref={splitHost} style={{ "--split": `${split}%` } as CSSProperties} className={cn("flex min-w-0 flex-col overflow-hidden rounded-b-lg border border-border bg-background md:flex-row", (playgroundLink || !allowHelp) && "rounded-t-lg")}>
+    <div ref={splitHost} style={{ "--split": `${split}%` } as CSSProperties} className="flex min-w-0 flex-col overflow-hidden rounded-lg border border-border bg-background md:flex-row">
       <div className={cn("flex min-w-0 flex-col", terminalOpen ? "md:w-(--split) md:shrink-0" : "flex-1")}>
         <div className="flex h-10 items-center justify-between gap-2 border-b border-border px-3">
           <div className="flex min-w-0 items-baseline gap-2">
@@ -138,13 +151,13 @@ export function CodingWorkspace({ courseId, draftKey, initialCode = "", initialS
             {draft.saved && !draft.conflicted ? <span role="status" className="truncate text-body-xs text-muted-foreground">{draft.saved}</span> : null}
           </div>
           <div className="flex shrink-0 items-center gap-1">
-            <TooltipProvider><Tooltip><TooltipTrigger asChild><Button size="icon-sm" variant="ghost" aria-label="Reset" disabled={phase !== "idle"} onClick={() => { draft.setCode(initialCode); draft.setStdin(""); }}><RotateCcw className="size-3.5" /></Button></TooltipTrigger><TooltipContent>Reset</TooltipContent></Tooltip>
+            <TooltipProvider><Tooltip><TooltipTrigger asChild><Button size="icon-sm" variant="ghost" aria-label="Reset" disabled={phase !== "idle"} onClick={() => { setEditorCode(initialCode); draft.setStdin(""); }}><RotateCcw className="size-3.5" /></Button></TooltipTrigger><TooltipContent>Reset</TooltipContent></Tooltip>
             {playgroundLink ? <Tooltip><TooltipTrigger asChild><Button size="icon-sm" variant="ghost" aria-label="Playground" onClick={handoff}><ExternalLink className="size-3.5" /></Button></TooltipTrigger><TooltipContent>Playground</TooltipContent></Tooltip> : null}</TooltipProvider>
             <Button size="icon-sm" variant="ghost" aria-label={terminalOpen ? "Tutup terminal" : "Buka terminal"} aria-expanded={terminalOpen} aria-controls={inputId + "-terminal"} onClick={() => setTerminalOpen((open) => !open)}>{terminalOpen ? <PanelRightClose className="size-4" /> : <PanelRightOpen className="size-4" />}</Button>
             {phase === "idle" ? <Button size="sm" className="min-w-[84px] bg-brand-secondary text-body-sm text-white hover:bg-brand-secondary/90 hover:shadow-none" onClick={run} disabled={draft.code.length > 64000}><Play className="size-3.5 fill-current" />Jalankan</Button> : <Button size="sm" className="min-w-[84px] text-body-sm" variant="outline" onClick={() => active.current?.abort()}><Square className="size-3.5 fill-current" />Stop</Button>}
           </div>
         </div>
-        <PythonEditor value={draft.code} onChange={draft.setCode} className="flex-1 rounded-none border-0 focus-within:ring-1 focus-within:ring-inset focus-within:ring-ring" />
+        <PythonEditor value={draft.code} onChange={setEditorCode} className="flex-1 rounded-none border-0 focus-within:ring-1 focus-within:ring-inset focus-within:ring-ring" />
       </div>
       {terminalOpen ? <div role="separator" tabIndex={0} aria-orientation="vertical" aria-label="Ubah lebar panel" aria-valuemin={25} aria-valuemax={75} aria-valuenow={Math.round(split)} onPointerDown={dragSplit} onDoubleClick={() => setSplit(50)} onKeyDown={(event) => { if (event.key === "ArrowLeft" || event.key === "ArrowRight") { event.preventDefault(); setSplit((value) => clampSplit(value + (event.key === "ArrowLeft" ? -5 : 5))); } }} className="relative hidden w-px shrink-0 cursor-col-resize touch-none bg-border transition-colors after:absolute after:inset-y-0 after:-inset-x-1.5 after:content-[''] hover:bg-ring focus-visible:bg-ring focus-visible:outline-none md:block" /> : null}
       <div ref={terminalRef} id={inputId + "-terminal"} hidden={!terminalOpen} className={cn("min-w-0 flex-1 flex-col border-t border-border md:border-t-0", terminalOpen && "flex")}>
@@ -156,9 +169,8 @@ export function CodingWorkspace({ courseId, draftKey, initialCode = "", initialS
         </div>
       </div>
     </div>
-    </div>
     {draft.conflicted ? <div role="status" className="flex flex-wrap items-center gap-2 text-body-sm"><span>Kode di browser berbeda dari kode tersimpan. Simpan kode ini untuk mengganti kode tersimpan.</span><Button size="sm" className="text-body-sm" variant="outline" onClick={draft.keepLocal}>Simpan kode ini</Button></div> : null}
-    {allowHelp ? <CodingHelp courseId={courseId} context={help} disabled={submitting} problemDescription={playgroundProblem} /> : null}
+    {playgroundLink && allowHelp ? <CodingHelp courseId={courseId} context={help} disabled={submitting} /> : null}
   </section>;
   return <section className="min-w-0 max-w-full space-y-4" aria-label={problem ? `Latihan Python: ${problem.title}` : "Playground Python"}>
     {problem ? <div className="space-y-2"><h3 className="font-heading text-body-base font-bold">{problem.title}</h3><MarkdownRenderer content={problem.prompt} />{problem.publicTests.length ? <details className="text-body-sm"><summary className="cursor-pointer">Contoh input dan output</summary><div className="mt-2 space-y-2">{problem.publicTests.map((test) => <div key={test.id} className="grid grid-cols-2 gap-2"><pre className="overflow-x-auto rounded-md bg-muted p-2"><span className="block text-body-xs text-muted-foreground">Input</span>{test.stdin}</pre><pre className="overflow-x-auto rounded-md bg-muted p-2"><span className="block text-body-xs text-muted-foreground">Output</span>{test.expectedStdout}</pre></div>)}</div></details> : null}</div> : null}

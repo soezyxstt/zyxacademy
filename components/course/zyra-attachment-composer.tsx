@@ -48,6 +48,11 @@ export const ZyraAttachmentComposer = React.forwardRef<ZyraAttachmentComposerHan
   onAttachmentsReadyChange,
 }: ZyraAttachmentComposerProps, ref) {
   const [items, setItems] = React.useState<PendingZyraImage[]>([]);
+  const itemsRef = React.useRef<PendingZyraImage[]>([]);
+  const updateItems = React.useCallback((update: (current: PendingZyraImage[]) => PendingZyraImage[]) => {
+    itemsRef.current = update(itemsRef.current);
+    setItems(itemsRef.current);
+  }, []);
   const [previews, setPreviews] = React.useState<Record<string, string>>({});
   const [composerError, setComposerError] = React.useState<string | null>(null);
   const inputRef = React.useRef<HTMLInputElement>(null);
@@ -93,7 +98,7 @@ export const ZyraAttachmentComposer = React.forwardRef<ZyraAttachmentComposerHan
       } | null;
       if (!response.ok || !payload?.id || !payload.width || !payload.height) {
         setComposerError("Gambar gagal diunggah. Periksa format dan ukuran file, lalu coba lagi.");
-        setItems((current) => setItemStatus(current, item.key, {
+        updateItems((current) => setItemStatus(current, item.key, {
           status: "failed",
           errorCode: payload?.error ?? "ATTACHMENT_UPLOAD_FAILED",
         }));
@@ -103,7 +108,7 @@ export const ZyraAttachmentComposer = React.forwardRef<ZyraAttachmentComposerHan
         sessionIdRef.current = payload.sessionId;
         onSessionCreated?.(payload.sessionId);
       }
-      setItems((current) => setItemStatus(current, item.key, {
+      updateItems((current) => setItemStatus(current, item.key, {
         status: "ready",
         attachmentId: payload.id,
         width: payload.width,
@@ -113,12 +118,12 @@ export const ZyraAttachmentComposer = React.forwardRef<ZyraAttachmentComposerHan
       setComposerError(null);
     } catch {
       setComposerError("Koneksi terputus saat mengunggah gambar. Coba lagi.");
-      setItems((current) => setItemStatus(current, item.key, {
+      updateItems((current) => setItemStatus(current, item.key, {
         status: "failed",
         errorCode: "ATTACHMENT_UPLOAD_FAILED",
       }));
     }
-  }, [courseId, onSessionCreated]);
+  }, [courseId, onSessionCreated, updateItems]);
 
   const uploadItem = React.useCallback((item: PendingZyraImage) => {
     // If no sessionId exists yet, serialize behind the queue so multi-file paste
@@ -131,7 +136,8 @@ export const ZyraAttachmentComposer = React.forwardRef<ZyraAttachmentComposerHan
   }, [performUpload]);
 
   const addFiles = React.useCallback((files: readonly File[]) => {
-    const result = selectZyraImageFiles(items, files);
+    const current = itemsRef.current;
+    const result = selectZyraImageFiles(current, files);
     if (result.rejected.length > 0) {
       const first = result.rejected[0];
       setComposerError(first === "SOURCE_TOO_LARGE"
@@ -144,11 +150,11 @@ export const ZyraAttachmentComposer = React.forwardRef<ZyraAttachmentComposerHan
     } else {
       setComposerError(null);
     }
-    if (result.accepted.length === items.length) return;
-    setItems(result.accepted);
-    const newItems = result.accepted.filter((item) => !items.some((existing) => existing.key === item.key));
+    if (result.accepted.length === current.length) return;
+    updateItems(() => result.accepted);
+    const newItems = result.accepted.slice(current.length);
     newItems.forEach((item) => { void uploadItem(item); });
-  }, [items, uploadItem]);
+  }, [updateItems, uploadItem]);
 
   React.useImperativeHandle(ref, () => ({
     addFiles,
@@ -161,11 +167,11 @@ export const ZyraAttachmentComposer = React.forwardRef<ZyraAttachmentComposerHan
       const query = new URLSearchParams({ courseId, sessionId: activeSessionId });
       await fetch(`/api/zyra/attachments/${encodeURIComponent(item.attachmentId)}?${query.toString()}`, { method: "DELETE" }).catch(() => undefined);
     }
-    setItems((current) => current.filter((candidate) => candidate.key !== item.key));
+    updateItems((current) => current.filter((candidate) => candidate.key !== item.key));
   };
 
   const retryItem = (item: PendingZyraImage) => {
-    setItems((current) => setItemStatus(current, item.key, { status: "uploading", errorCode: undefined }));
+    updateItems((current) => setItemStatus(current, item.key, { status: "uploading", errorCode: undefined }));
     void uploadItem({ ...item, status: "uploading", attachmentId: undefined });
   };
 
@@ -174,6 +180,7 @@ export const ZyraAttachmentComposer = React.forwardRef<ZyraAttachmentComposerHan
     const files = zyraImageFilesFromClipboard(event.clipboardData?.items, event.clipboardData?.files);
     if (files.length > 0) {
       event.preventDefault();
+      event.stopPropagation();
       addFiles(files);
     }
   };

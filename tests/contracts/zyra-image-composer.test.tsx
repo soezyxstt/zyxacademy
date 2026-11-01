@@ -17,4 +17,22 @@ describe("Zyra image composer contract", () => {
     ]);
     expect(files).toEqual([image]);
   });
+
+  test("merges matching clipboard item and file representations without dropping distinct images", () => {
+    const image = new File(["one"], "clipboard.png", { type: "image/png", lastModified: 5 });
+    const sameImage = new File(["one"], "clipboard.png", { type: "image/png", lastModified: 5 });
+    const other = new File(["two"], "other.png", { type: "image/png", lastModified: 6 });
+    expect(zyraImageFilesFromClipboard([
+      { kind: "file", type: "image/png", getAsFile: () => image },
+    ], [sameImage, other])).toEqual([image, other]);
+  });
+
+  test("successive selections reject a duplicate and retain distinct files within the limit", () => {
+    const image = new File(["one"], "clipboard.png", { type: "image/png", lastModified: 5 });
+    const other = new File(["two"], "other.png", { type: "image/png", lastModified: 6 });
+    const first = selectZyraImageFiles([], [image]);
+    const second = selectZyraImageFiles(first.accepted, [image, other]);
+    expect(second.rejected).toEqual(["DUPLICATE_IMAGE"]);
+    expect(second.accepted.map((item) => item.file)).toEqual([image, other]);
+  });
 });

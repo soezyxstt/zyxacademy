@@ -128,6 +128,9 @@ export function ZyraMathPalette({
         align="start"
         className="w-72 p-2.5"
         onOpenAutoFocus={(event) => event.preventDefault()}
+        onCloseAutoFocus={(event) => {
+          if (document.activeElement?.getAttribute("role") === "textbox") event.preventDefault();
+        }}
       >
         <Tabs defaultValue="populer" syncUrl={false}>
           <TabsList className="w-full flex-wrap h-auto gap-0.5">
@@ -148,6 +151,7 @@ export function ZyraMathPalette({
                     type="button"
                     onClick={() => {
                       onInsert(symbol.insert);
+                      setOpen(false);
                     }}
                     title={label}
                     aria-label={t("mathPalette.insertSymbol", { symbol: label })}
@@ -161,9 +165,6 @@ export function ZyraMathPalette({
             </TabsContent>
           ))}
         </Tabs>
-        <p className="mt-1.5 text-body-xs text-muted-foreground text-center select-none">
-          {t("mathPalette.insertAtCursor")}
-        </p>
       </PopoverContent>
     </Popover>
   );

@@ -6,12 +6,13 @@ import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
 import { TutorActionService } from "@/lib/tutor-actions";
 import { db } from "@/db";
-import { aiQuestionBank, knowledgeObjects, tutorChatMessages, chatSessions, studentQuizAttempts, quizTemplates, zyraMessageAttachments, bab, chapters, mataKuliah, courseMaterials} from "@/db/schema";
-import { eq, and, asc, desc, gt, inArray, isNull, or, sql } from "drizzle-orm";
-import { randomUUID } from "node:crypto";
+import { aiQuestionBank, knowledgeObjects, tutorChatMessages, chatSessions, studentQuizAttempts, quizTemplates, zyraMessageAttachments, bab, chapters, mataKuliah, courseMaterials } from "@/db/schema";
+import { eq, and, asc, desc, gt, inArray, isNull, or } from "drizzle-orm";
+import { createHash, randomUUID } from "node:crypto";
 import { exams } from "@/lib/student-course-fixtures";
 import { askTutorRag, type TutorPageContext } from "@/lib/tutor-rag";
 import { getOrCreateChatSession } from "@/lib/zyra/zyra-context-builder";
+import { getRecentSessions } from "@/lib/zyra/analytics-queries";
 import { isFreeChapterScoped } from "@/lib/course-utils";
 import { resolveCourseAccess, type CourseAccessResult } from "@/lib/student/course-access";
 import { resolveCourseIdentity } from "@/lib/admin/course-identity";
@@ -775,7 +776,8 @@ const CHAT_HISTORY_LIMIT = 100;
 export async function saveTutorMessagesAction(
   courseId: string,
   messages: Array<{ role: "student" | "ai"; content: string; sources?: unknown; canvasSpec?: unknown; attachmentIds?: readonly string[] }>,
-  sessionId?: string | null
+  sessionId?: string | null,
+  requestId?: string
 ) {
   const { user, access } = await requireCourseAccess(courseId);
 
@@ -793,13 +795,15 @@ export async function saveTutorMessagesAction(
 
   const sid = await requireOwnedChatSession(user.id, courseId, providedSessionId, "General Chat");
 
-  const preparedRows = messages.map((m) => {
+  const preparedRows = messages.map((m, index) => {
     const rawSources = Array.isArray(m.sources) ? m.sources : [];
     const content = m.role === "ai"
       ? sanitizeAnswer(m.content ?? "", rawSources as any)
       : (m.content ?? "");
     return {
-      id: randomUUID(),
+      id: requestId && /^[A-Za-z0-9._:-]{1,128}$/.test(requestId)
+        ? createHash("sha256").update(JSON.stringify([user.id, courseId, requestId, index])).digest("hex")
+        : randomUUID(),
       studentId: user.id,
       courseId,
       sessionId: sid,
@@ -818,7 +822,25 @@ export async function saveTutorMessagesAction(
   for (const row of preparedRows) assertZyraImageCount(row.attachmentIds.length);
 
   await db.transaction(async (tx) => {
-    await tx.insert(tutorChatMessages).values(preparedRows.map(({ attachmentIds: _attachmentIds, ...row }) => row));
+    if (requestId) {
+      const existing = await tx.select().from(tutorChatMessages)
+        .where(inArray(tutorChatMessages.id, preparedRows.map((row) => row.id)));
+      if (existing.length > 0) {
+        if (existing.length !== preparedRows.length || preparedRows.some((row) => {
+          const saved = existing.find((message) => message.id === row.id);
+          return !saved || saved.sessionId !== row.sessionId || saved.role !== row.role || saved.content !== row.content
+            || JSON.stringify(saved.sources) !== JSON.stringify(row.sources);
+        })) throw new Error("ZYRA_HISTORY_REPLAY_CONFLICT");
+        const linked = await tx.select({ id: zyraMessageAttachments.id, messageId: zyraMessageAttachments.messageId })
+          .from(zyraMessageAttachments).where(inArray(zyraMessageAttachments.messageId, preparedRows.map((row) => row.id)));
+        const expected = preparedRows.flatMap((row) => row.attachmentIds.map((id) => ({ id, messageId: row.id })));
+        if (linked.length !== expected.length || expected.some((image) => !linked.some((saved) => saved.id === image.id && saved.messageId === image.messageId))) {
+          throw new Error("ZYRA_HISTORY_REPLAY_CONFLICT");
+        }
+        return;
+      }
+    }
+    await tx.insert(tutorChatMessages).values(preparedRows.map(({ attachmentIds: _attachmentIds, ...row }) => row)).onConflictDoNothing();
     for (const row of preparedRows) {
       if (row.attachmentIds.length === 0) continue;
       for (const attachmentId of row.attachmentIds) {
@@ -980,24 +1002,7 @@ export async function clearTutorHistoryAction(
 
 export async function listTutorSessionsAction(courseId: string) {
   const { user } = await requireCourseAccess(courseId);
-  const rows = await db
-    .select({
-      id: chatSessions.id,
-      title: chatSessions.title,
-      startedAt: chatSessions.startedAt,
-      lastMessageAt: chatSessions.lastMessageAt,
-      messageCount: sql<number>`(
-        select count(*) from ${tutorChatMessages}
-        where ${tutorChatMessages.sessionId} = ${chatSessions.id}
-      )`,
-    })
-    .from(chatSessions)
-    .where(and(
-      eq(chatSessions.studentId, user.id),
-      eq(chatSessions.courseId, courseId),
-    ))
-    .orderBy(desc(chatSessions.lastMessageAt))
-    .limit(30);
+  const rows = await getRecentSessions(user.id, courseId, 30);
 
   return rows.map((r) => ({
     id: r.id,

@@ -13,7 +13,7 @@ import {
 } from "@/db/schema";
 import { and, eq, gte, sql, count, desc, asc } from "drizzle-orm";
 
-export async function getRecentSessions(
+export function getRecentSessionsQuery(
   studentId: string,
   courseId: string,
   limit = 10
@@ -24,18 +24,25 @@ export async function getRecentSessions(
       title: chatSessions.title,
       startedAt: chatSessions.startedAt,
       lastMessageAt: chatSessions.lastMessageAt,
-      messageCount: sql<number>`(
-        select count(*) from ${tutorChatMessages}
-        where ${tutorChatMessages.sessionId} = ${chatSessions.id}
-      )`,
+      messageCount: count(tutorChatMessages.id).as("messageCount"),
     })
     .from(chatSessions)
+    .leftJoin(tutorChatMessages, and(
+      eq(tutorChatMessages.sessionId, chatSessions.id),
+      eq(tutorChatMessages.studentId, chatSessions.studentId),
+      eq(tutorChatMessages.courseId, chatSessions.courseId),
+    ))
     .where(and(
       eq(chatSessions.studentId, studentId),
       eq(chatSessions.courseId, courseId)
     ))
+    .groupBy(chatSessions.id)
     .orderBy(desc(chatSessions.lastMessageAt))
     .limit(limit);
+}
+
+export async function getRecentSessions(studentId: string, courseId: string, limit = 10) {
+  return getRecentSessionsQuery(studentId, courseId, limit);
 }
 
 export async function getMostDiscussedConcepts(

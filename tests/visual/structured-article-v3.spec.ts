@@ -15,7 +15,7 @@ async function stabilize(page: Page) {
 async function capture(page: Page, testInfo: TestInfo, name: string) {
   await stabilize(page);
   const path = testInfo.outputPath(`screenshots/${name}.png`);
-  await page.screenshot({ path, fullPage: true, animations: "disabled", caret: "hide", scale: "css" });
+  await page.screenshot({ path, fullPage: true, animations: "disabled", caret: "initial", scale: "css" });
   await testInfo.attach(name, { path, contentType: "image/png" });
   const width = await page.evaluate(() => ({ client: document.documentElement.clientWidth, scroll: document.documentElement.scrollWidth }));
   expect(width.scroll, `Horizontal overflow: ${width.scroll}px in ${width.client}px`).toBeLessThanOrEqual(width.client);
