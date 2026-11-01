@@ -70,7 +70,11 @@ import {
 } from "@/components/course/zyra-attachment-composer";
 import { ZyraAllowanceSummary } from "@/components/course/zyra-allowance-summary";
 import { ZyraMathPalette } from "@/components/course/zyra-math-palette";
-import { ZyraFormulaPreview } from "@/components/course/zyra-formula-preview";
+import { ZyraComposerInput, type ZyraComposerInputHandle } from "@/components/course/zyra-composer-input";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { getPlaygroundBridge, subscribePlaygroundBridge } from "@/components/coding/playground-bridge";
+import { pythonReply } from "@/lib/coding/python-reply";
+import { composerMathRanges } from "@/components/course/zyra-composer-math";
 import { useSwipe } from "@/hooks/use-swipe";
 import { LearningCanvasRenderer } from "@/components/course/learning-canvas/learning-canvas-renderer";
 import type { CanvasSpec } from "@/lib/zyra/canvas";
@@ -106,6 +110,8 @@ interface ChatMessage {
   visuals?: PublicVisualSpec[];
   workedExample?: PublicWorkedExamplePayload | null;
   isError?: boolean;
+  pendingPython?: { code: string; apply: (code: string, force?: boolean) => string };
+  pythonStatus?: string;
   failedPayload?: {
     question: string;
     quotedContext?: ZyraQuotedContext | null;
@@ -244,7 +250,11 @@ export function TutorDrawerView({
     setResponseLanguageState(nextState);
   }, [locale]);
   const pathname = usePathname();
-  const courseIdFromPath = pathname?.startsWith("/courses/") ? pathname.split("/")[2] : null;
+  const registeredBridge = React.useSyncExternalStore(subscribePlaygroundBridge, getPlaygroundBridge, () => null);
+  const codingBridge = pathname?.startsWith("/courses/") && pathname.split("/")[2] !== registeredBridge?.courseId ? null : registeredBridge;
+  const [assistantMode, setAssistantMode] = React.useState<"python" | "tutor">(() => codingBridge ? "python" : "tutor");
+  React.useEffect(() => { setAssistantMode(codingBridge ? "python" : "tutor"); }, [codingBridge]);
+  const courseIdFromPath = pathname?.startsWith("/courses/") ? pathname.split("/")[2] : codingBridge?.courseId ?? null;
   const conversationScope = `${accountId ?? "anonymous"}:${courseIdFromPath ?? "none"}`;
   const conversationKeyForSession = React.useCallback(
     (id: string) => `session:${conversationScope}:${id}`,
@@ -311,7 +321,7 @@ export function TutorDrawerView({
   const [sessionsLoading, setSessionsLoading] = React.useState(false);
 
   const loadSessions = React.useCallback(async () => {
-    const courseId = pathname?.startsWith("/courses/") ? pathname.split("/")[2] : null;
+    const courseId = courseIdFromPath;
     if (!courseId) return;
     setSessionsLoading(true);
     try {
@@ -322,10 +332,10 @@ export function TutorDrawerView({
     } finally {
       setSessionsLoading(false);
     }
-  }, [pathname]);
+  }, [courseIdFromPath]);
 
   const attachmentComposerRef = React.useRef<ZyraAttachmentComposerHandle>(null);
-  const textareaRef = React.useRef<HTMLTextAreaElement>(null);
+  const textareaRef = React.useRef<ZyraComposerInputHandle>(null);
   const scrollContainerRef = React.useRef<HTMLDivElement>(null);
   const savedDataRef = React.useRef<any>(null);
   const focusReturnRef = React.useRef<HTMLElement | null>(null);
@@ -523,7 +533,7 @@ export function TutorDrawerView({
   // Load chat history smoothly in background when in chat mode (non-blocking)
   React.useEffect(() => {
     if (activeMode !== "chat") return;
-    const courseId = pathname?.startsWith("/courses/") ? pathname.split("/")[2] : null;
+    const courseId = courseIdFromPath;
     const initialEpoch = conversationEpochRef.current;
     let active = true;
 
@@ -548,7 +558,7 @@ export function TutorDrawerView({
         .catch(() => {});
     }
     return () => { active = false; };
-  }, [activeMode, pathname, activateConversation, conversationKeyForSession]);
+  }, [activeMode, courseIdFromPath, activateConversation, conversationKeyForSession]);
 
   // Handle initial question if passed
   React.useEffect(() => {
@@ -556,7 +566,7 @@ export function TutorDrawerView({
       setInputVal(initialQuestion);
       onClearInitialQuestion?.();
       setTimeout(() => {
-        textareaRef.current?.focus({ preventScroll: true });
+        textareaRef.current?.focus();
       }, 100);
     }
   }, [initialQuestion, onClearInitialQuestion]);
@@ -626,7 +636,7 @@ export function TutorDrawerView({
     if (!data || !advancedModesEnabled) return;
     if (savedDataRef.current === data) return;
 
-    const courseId = pathname?.startsWith("/courses/") ? pathname.split("/")[2] : null;
+    const courseId = courseIdFromPath;
     let newMessages: ChatMessage[] = [];
 
     if (activeMode === "explain") {
@@ -691,7 +701,7 @@ export function TutorDrawerView({
         })), sessionId).catch(() => {});
       }
     }
-  }, [data, activeMode, pathname, sessionId, advancedModesEnabled, zyraAccessTier]);
+  }, [data, activeMode, courseIdFromPath, sessionId, advancedModesEnabled, zyraAccessTier, t]);
 
   // Resize Pointer Handlers
   const handlePointerDownResize = React.useCallback(
@@ -902,6 +912,9 @@ export function TutorDrawerView({
 
   // Handle sending arbitrary chat messages with SSE streaming
   const handleSend = async (suggestedQuestion?: string, overrideQuote?: ZyraQuotedContext | null) => {
+    if (chatLoading) return;
+    const codingRequest = codingBridge?.capture();
+    const pythonRequest = assistantMode === "python" ? codingRequest : null;
     const rawQuestion = (suggestedQuestion || inputVal).trim();
     const effectiveQuote = overrideQuote !== undefined ? overrideQuote : activeQuotedContext;
     const requestedAttachmentIds = [...attachmentIds];
@@ -913,14 +926,15 @@ export function TutorDrawerView({
       : requestedAttachmentIds.length > 0
         ? "Bantu jelaskan gambar ini."
         : "";
-    const question = normalizeTutorMathMarkdown(rawQuestion || fallbackQuestion);
-    const displayStudentQuestion = rawQuestion ? normalizeTutorMathMarkdown(rawQuestion) : "";
+    const question = rawQuestion || fallbackQuestion;
+    const displayStudentQuestion = rawQuestion;
 
     if (zyraAccessTier === "free" && requestedAttachmentIds.length > 0) {
       toast.error(t("tutorDrawer.freeTextOnly") || "Paket Free hanya mendukung pertanyaan teks.");
       return;
     }
     hasStartedConversationRef.current = true;
+    if (activeMode !== "chat") setActiveMode("chat");
 
     const studentMsg: ChatMessage = {
       id: `msg-${Date.now()}`,
@@ -944,9 +958,7 @@ export function TutorDrawerView({
     const abortController = new AbortController();
     abortControllerRef.current = abortController;
 
-    const courseId = pathname?.startsWith("/courses/")
-      ? pathname.split("/")[2]
-      : undefined;
+    const courseId = courseIdFromPath ?? undefined;
 
     const aiMsgId = `msg-ai-${Date.now()}`;
     const requestId = typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
@@ -957,7 +969,8 @@ export function TutorDrawerView({
     const requestConversationEpoch = conversationEpochRef.current;
     const requestLocaleEpoch = localeEpochRef.current;
     const languageRequestBase = {
-      question,
+      question: pythonRequest ? `Bantu buat atau perbaiki kode Python sesuai permintaan berikut. Berikan kode final lengkap dalam satu blok python. Tulis penjelasan singkat di luar blok kode.\n\n${question}` : question,
+      ...(codingRequest ? { codingContext: { ...codingRequest.context, intent: assistantMode === "python" ? "review" as const : "hint" as const } } : {}),
       courseId: courseId ?? "unknown",
       conceptId: koId || undefined,
       sessionId: activeSid || undefined,
@@ -977,6 +990,7 @@ export function TutorDrawerView({
     let finalSources: any = undefined;
     let finalCanvasSpec: CanvasSpec | null = null;
     let hasError = false;
+    let completed = false;
 
     setMessages((prev) => [
       ...prev,
@@ -1007,18 +1021,19 @@ export function TutorDrawerView({
 
       if (response.body) {
         for await (const part of consumeZyraStream(response.body, abortController.signal)) {
-          if (part.type === "text-delta" && part.textDelta) {
+          if (part.type === "done") { completed = true; }
+          else if (part.type === "text-delta" && part.textDelta) {
             accumulatedContent += part.textDelta;
             setMessages((prev) =>
               prev.map((m) =>
-                m.id === aiMsgId ? { ...m, content: accumulatedContent } : m
+                m.id === aiMsgId ? { ...m, content: pythonRequest ? pythonReply(accumulatedContent).explanation : accumulatedContent } : m
               )
             );
           } else if (part.type === "chunk" && part.text) {
             accumulatedContent += part.text;
             setMessages((prev) =>
               prev.map((m) =>
-                m.id === aiMsgId ? { ...m, content: accumulatedContent } : m
+                m.id === aiMsgId ? { ...m, content: pythonRequest ? pythonReply(accumulatedContent).explanation : accumulatedContent } : m
               )
             );
           } else if (part.type === "data-response-language") {
@@ -1074,7 +1089,7 @@ export function TutorDrawerView({
         accumulatedContent = accumulatedContent || t("tutorDrawer.responseStopped");
         setMessages((prev) =>
           prev.map((m) =>
-            m.id === aiMsgId ? { ...m, content: accumulatedContent } : m
+            m.id === aiMsgId ? { ...m, content: pythonRequest ? pythonReply(accumulatedContent).explanation : accumulatedContent } : m
           )
         );
       } else {
@@ -1098,6 +1113,17 @@ export function TutorDrawerView({
       }
     }
 
+    if (pythonRequest && completed && !hasError && !abortController.signal.aborted && requestConversationEpoch === conversationEpochRef.current) {
+      const result = pythonReply(accumulatedContent);
+      const applied = result.code ? pythonRequest.apply(result.code) : "invalid";
+      const pythonStatus = applied === "applied" ? "Kode diterapkan ke editor." : applied === "changed" ? "Editor berubah saat Zyra menjawab. Terapkan hasil untuk mengganti kode terbaru." : applied === "inactive" ? "Buka Playground asal untuk meminta kode lagi." : "Minta satu blok Python lengkap agar kode dapat diterapkan.";
+      setMessages((prev) => prev.map((m) => m.id === aiMsgId ? {
+        ...m, content: result.explanation, pythonStatus,
+        pendingPython: applied === "changed" && result.code ? { code: result.code, apply: pythonRequest.apply } : undefined,
+      } : m));
+      accumulatedContent = result.explanation + "\n\n" + pythonStatus;
+    }
+
     if (
       courseId &&
       accumulatedContent &&
@@ -1107,7 +1133,7 @@ export function TutorDrawerView({
       saveTutorMessagesAction(courseId, [
         { role: studentMsg.role, content: studentMsg.content || question, attachmentIds: requestedAttachmentIds },
         { role: "ai", content: accumulatedContent, sources: finalSources, canvasSpec: finalCanvasSpec },
-      ], activeSid).catch(() => {});
+      ], activeSid).then(() => loadSessions()).catch(() => {});
     }
   };
 
@@ -1129,7 +1155,7 @@ export function TutorDrawerView({
       setShowMenu(false);
       return;
     }
-    const courseId = pathname?.startsWith("/courses/") ? pathname.split("/")[2] : null;
+    const courseId = courseIdFromPath;
     if (!courseId) return;
     hasStartedConversationRef.current = true;
     invalidateConversationRequests();
@@ -1158,11 +1184,11 @@ export function TutorDrawerView({
     } finally {
       if (loadEpoch === conversationEpochRef.current) setChatLoading(false);
     }
-  }, [pathname, sessionId, t, activateConversation, invalidateConversationRequests, conversationKeyForSession, resetComposerAttachments]);
+  }, [courseIdFromPath, sessionId, t, activateConversation, invalidateConversationRequests, conversationKeyForSession, resetComposerAttachments]);
 
   const handleDeleteSession = React.useCallback(async (targetSessionId: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    const courseId = pathname?.startsWith("/courses/") ? pathname.split("/")[2] : null;
+    const courseId = courseIdFromPath;
     if (!courseId) return;
     const targetConversationKey = conversationKeyForSession(targetSessionId);
     const isCurrentConversation = conversationKeyRef.current === targetConversationKey;
@@ -1187,7 +1213,7 @@ export function TutorDrawerView({
     } catch {
       toast.error(t("tutorDrawer.sessionDeleteFailed"));
     }
-  }, [pathname, t, startNewConversation, invalidateConversationRequests, conversationKeyForSession, resetComposerAttachments]);
+  }, [courseIdFromPath, t, startNewConversation, invalidateConversationRequests, conversationKeyForSession, resetComposerAttachments]);
 
   const handleNewChat = React.useCallback(() => {
     startNewConversation();
@@ -1206,7 +1232,7 @@ export function TutorDrawerView({
   }, [t, startNewConversation, resetComposerAttachments]);
 
   const handleClearHistory = React.useCallback(async () => {
-    const courseId = pathname?.startsWith("/courses/") ? pathname.split("/")[2] : null;
+    const courseId = courseIdFromPath;
     startNewConversation();
     setSessionId(null);
     resetComposerAttachments();
@@ -1223,23 +1249,12 @@ export function TutorDrawerView({
       await clearTutorHistoryAction(courseId).catch(() => {});
     }
     toast.success(t("tutorDrawer.historyCleared"));
-  }, [pathname, t, startNewConversation, resetComposerAttachments]);
+  }, [courseIdFromPath, t, startNewConversation, resetComposerAttachments]);
 
   const handleInsertSnippet = (snippet: string) => {
-    const el = textareaRef.current;
-    if (!el) {
-      setInputVal((prev) => prev + snippet);
-      return;
-    }
-    const start = el.selectionStart ?? inputVal.length;
-    const end = el.selectionEnd ?? inputVal.length;
-    const next = inputVal.slice(0, start) + snippet + inputVal.slice(end);
-    setInputVal(next);
-    requestAnimationFrame(() => {
-      el.focus();
-      const caret = start + snippet.length;
-      el.setSelectionRange(caret, caret);
-    });
+    const caret = textareaRef.current?.selectionStart ?? inputVal.length;
+    const inMath = composerMathRanges(inputVal).some(({ from, to }) => caret > from && caret < to);
+    textareaRef.current?.insertText(inMath ? snippet : `$${snippet.trim()}$`);
   };
 
   return (
@@ -1360,7 +1375,7 @@ export function TutorDrawerView({
                           >
                             <p className="truncate text-body-xs font-medium">{sess.title}</p>
                             <span className="text-[10px] text-muted-foreground">
-                              {t("tutorDrawer.messageCount", { count: sess.messageCount })}{sess.lastMessageAt ? ` • ${formatSessionDate(sess.lastMessageAt, locale, { justNow: t("tutorDrawer.justNow"), minutes: t("tutorDrawer.minutesAgo"), hours: t("tutorDrawer.hoursAgo"), days: t("tutorDrawer.daysAgo") })}` : ""}
+                              {t("tutorDrawer.messageCount", { count: sess.id === sessionId ? Math.max(sess.messageCount, messages.filter((message) => message.id !== "chat-welcome" && (message.content.trim() || message.pythonStatus) && !message.isError).length) : sess.messageCount })}{sess.lastMessageAt ? ` • ${formatSessionDate(sess.lastMessageAt, locale, { justNow: t("tutorDrawer.justNow"), minutes: t("tutorDrawer.minutesAgo"), hours: t("tutorDrawer.hoursAgo"), days: t("tutorDrawer.daysAgo") })}` : ""}
                             </span>
                           </button>
                           <button
@@ -1479,7 +1494,7 @@ export function TutorDrawerView({
                   const attachmentSessionId = msg.sessionId ?? sessionId;
                   return (
                     <div key={msg.id || index} className="flex justify-end">
-                      <div className="max-w-[85%] rounded-2xl bg-muted/90 text-foreground px-4 py-2.5 text-body-sm leading-relaxed shadow-2xs space-y-2">
+                      <div className="min-w-0 max-w-[85%] rounded-2xl bg-muted/90 text-foreground px-4 py-2.5 text-body-sm leading-relaxed shadow-2xs space-y-2">
                         {msg.quotedContext && (
                           <div className="border-l-2 border-brand-primary/60 pl-2.5 py-0.5 text-body-xs space-y-0.5 text-muted-foreground">
                             <p className="font-medium text-foreground text-[11px] truncate">
@@ -1563,7 +1578,12 @@ export function TutorDrawerView({
                         ) : (
                           <MarkdownRenderer content={sanitizeAnswer(msg.content, msg.sources)} density="compact" />
                         )}
-                        {msg.workedExample && (
+                        {msg.pythonStatus ? <p role="status" className="text-body-xs text-muted-foreground">{msg.pythonStatus}</p> : null}
+                      {msg.pendingPython ? <Button size="sm" variant="outline" onClick={() => {
+                        const result = msg.pendingPython!.apply(msg.pendingPython!.code, true);
+                        setMessages((prev) => prev.map((m) => m.id === msg.id ? { ...m, pendingPython: undefined, pythonStatus: result === "applied" ? "Kode diterapkan ke editor." : "Playground asal sudah ditutup. Minta kode kembali di Playground." } : m));
+                      }}>Terapkan ke editor</Button> : null}
+                      {msg.workedExample && (
                           <ProductWorkedExample example={msg.workedExample} density="compact" />
                         )}
                         {!msg.parts?.length && msg.visuals && msg.visuals.length > 0 && (
@@ -1648,7 +1668,7 @@ export function TutorDrawerView({
               })}
 
               {chatLoading && (
-                <div className="flex items-center gap-2 text-muted-foreground text-body-xs p-2">
+                <div role="status" className="flex items-center gap-2 text-muted-foreground text-body-xs p-2">
                   <Loader2 className="size-3.5 animate-spin text-brand-primary" />
                   <span>{t("tutorDrawer.thinking")}</span>
                   <Button
@@ -1666,10 +1686,10 @@ export function TutorDrawerView({
         </div>
 
         {/* Input Composer & Toolbar */}
-        <footer className="shrink-0 border-t border-border/40 p-3 pt-2 bg-background/80 backdrop-blur-md">
+        <footer className="shrink-0 border-t border-border/40 bg-background p-2">
           <div
             onPaste={handlePaste}
-            className="relative rounded-2xl border border-border bg-background/95 backdrop-blur-md shadow-md focus-within:border-brand-primary/60 focus-within:ring-1 focus-within:ring-brand-primary/20 transition-all p-2.5"
+            className="relative rounded-2xl border border-border bg-background/95 backdrop-blur-md shadow-md focus-within:border-brand-primary/60 focus-within:ring-1 focus-within:ring-brand-primary/20 transition-colors p-1.5"
           >
             {imageInputEnabled && courseIdFromPath && (
               <ZyraAttachmentComposer
@@ -1721,22 +1741,17 @@ export function TutorDrawerView({
               </div>
             )}
 
-            <textarea
+            <ZyraComposerInput
               ref={textareaRef}
               value={inputVal}
-              onChange={(e) => setInputVal(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault();
-                  void handleSend();
-                }
-              }}
+              onChange={setInputVal}
+              onSubmit={() => void handleSend()}
+              aria-label={t("tutorDrawer.inputPlaceholder")}
               placeholder={t("tutorDrawer.inputPlaceholder")}
-              rows={2}
-              className="w-full resize-none border-none bg-transparent p-1 text-body-sm text-foreground placeholder:text-muted-foreground focus:outline-none"
+              disabled={chatLoading}
             />
 
-            <div className="flex items-center justify-between pt-2 border-t border-border/30">
+            <div className="flex items-center justify-between gap-1 pt-1">
               <div className="flex items-center gap-1">
                 {imageInputEnabled && courseIdFromPath && (
                   <Button
@@ -1752,12 +1767,16 @@ export function TutorDrawerView({
                     <Paperclip className="size-3.5" />
                   </Button>
                 )}
-                <ZyraMathPalette onInsert={handleInsertSnippet} />
-                <ZyraFormulaPreview input={inputVal} />
+                <ZyraMathPalette onInsert={handleInsertSnippet} disabled={chatLoading} />
+                <Tabs value={assistantMode} onValueChange={(mode) => { setAssistantMode(mode as "python" | "tutor"); setActiveMode("chat"); }} syncUrl={false}>
+                  <TabsList aria-label="Mode Zyra" className="gap-0 p-0.5">
+                    <TabsTrigger value="python" disabled={!codingBridge || chatLoading} className="px-2 py-1" title={!codingBridge ? "Buka Playground untuk menggunakan Python" : undefined}>Python</TabsTrigger>
+                    <TabsTrigger value="tutor" disabled={chatLoading} className="px-2 py-1">Tutor</TabsTrigger>
+                  </TabsList>
+                </Tabs>
               </div>
 
               <div className="flex items-center gap-2">
-                <ZyraAllowanceSummary courseId={courseIdFromPath} onAccessTierChange={setZyraAccessTier} />
                 {zyraAccessTier === "free" && (
                   <Link
                     href="/plans"
@@ -1774,7 +1793,7 @@ export function TutorDrawerView({
                     !attachmentsReady ||
                     (!inputVal.trim() && !activeQuotedContext && attachmentIds.length === 0)
                   }
-                  className="size-7 rounded-full bg-brand-primary text-primary-foreground hover:bg-brand-primary/90 transition-transform active:scale-95 disabled:opacity-40"
+                  className="size-8 rounded-lg bg-brand-primary text-primary-foreground hover:bg-brand-primary/90 transition-transform active:scale-95 disabled:opacity-40"
                   aria-label={t("tutorDrawer.sendMessage")}
                 >
                   <ArrowUp className="size-3.5" />
@@ -1782,6 +1801,7 @@ export function TutorDrawerView({
               </div>
             </div>
           </div>
+          <div className="mt-1 empty:hidden"><ZyraAllowanceSummary courseId={courseIdFromPath} onAccessTierChange={setZyraAccessTier} /></div>
         </footer>
 
         {/* Micro-apps Modal View (Flashcards / Practice Quiz) */}

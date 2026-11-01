@@ -1228,6 +1228,16 @@ Verification jobs derive their required checks on the server and bind the bundle
 
 ## Python learning
 
+The active Playground registers a client-only editor bridge with current public
+coding context and a revision counter. The shared Zyra drawer captures it at
+request time. Python responses apply through that capture only after successful
+completion; a changed revision requires explicit replacement, and an unmounted
+editor rejects stale responses. Tutor responses do not apply code.
+The mixed-text composer uses the installed CodeMirror editor with KaTeX widgets
+for explicit math delimiters, preserving raw source and plain-text paste.
+Recent-session counts use one grouped left join on tutor messages, matching
+session, student and course. Empty sessions return zero.
+
 CodeMirror 6 powers the shared coding editor. On staging, interactive Playground
 and runnable Article examples obtain an authenticated, short-lived ticket from
 the application and connect to the isolated Python worker over WebSocket. The

@@ -7,11 +7,12 @@ import { auth } from "@/lib/auth";
 import { TutorActionService } from "@/lib/tutor-actions";
 import { db } from "@/db";
 import { aiQuestionBank, knowledgeObjects, tutorChatMessages, chatSessions, studentQuizAttempts, quizTemplates, zyraMessageAttachments, bab, chapters, mataKuliah, courseMaterials, diktatMateri } from "@/db/schema";
-import { eq, and, asc, desc, gt, inArray, isNull, or, sql } from "drizzle-orm";
+import { eq, and, asc, desc, gt, inArray, isNull, or } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 import { exams } from "@/lib/student-course-fixtures";
 import { askTutorRag, type TutorPageContext } from "@/lib/tutor-rag";
 import { getOrCreateChatSession } from "@/lib/zyra/zyra-context-builder";
+import { getRecentSessions } from "@/lib/zyra/analytics-queries";
 import { isFreeChapterScoped } from "@/lib/course-utils";
 import { resolveCourseAccess, type CourseAccessResult } from "@/lib/student/course-access";
 import { resolveCourseIdentity } from "@/lib/admin/course-identity";
@@ -979,24 +980,7 @@ export async function clearTutorHistoryAction(
 
 export async function listTutorSessionsAction(courseId: string) {
   const { user } = await requireCourseAccess(courseId);
-  const rows = await db
-    .select({
-      id: chatSessions.id,
-      title: chatSessions.title,
-      startedAt: chatSessions.startedAt,
-      lastMessageAt: chatSessions.lastMessageAt,
-      messageCount: sql<number>`(
-        select count(*) from ${tutorChatMessages}
-        where ${tutorChatMessages.sessionId} = ${chatSessions.id}
-      )`,
-    })
-    .from(chatSessions)
-    .where(and(
-      eq(chatSessions.studentId, user.id),
-      eq(chatSessions.courseId, courseId),
-    ))
-    .orderBy(desc(chatSessions.lastMessageAt))
-    .limit(30);
+  const rows = await getRecentSessions(user.id, courseId, 30);
 
   return rows.map((r) => ({
     id: r.id,

@@ -8,7 +8,6 @@ import { getTutorCapabilities } from "@/lib/tutor-capabilities";
 import { sanitizeAnswer, extractEmbeddedArticleParts } from "@/lib/tutor/answer-sanitizer";
 import { compileMarkdown } from "@/lib/markdown-compiler";
 import { MarkdownRenderer } from "@/components/course/markdown-renderer";
-import { ZyraFormulaPreview } from "@/components/course/zyra-formula-preview";
 import { extractContextFromContainer } from "@/lib/zyra/selection-serializer";
 import { semanticArticleParts } from "@/tests/fixtures/product-learning/article-semantics";
 
@@ -68,12 +67,6 @@ describe("Zyra composer Ctrl+V paste and Artikel v4 renderer sync", () => {
     const routeSource = readFileSync("app/api/zyra/attachments/route.ts", "utf8");
     expect(routeSource).toContain('createChatSession(user.id, rawCourseId, "General Chat")');
     expect(routeSource).toContain("sessionId: resolvedSessionId");
-  });
-
-  test("renders live KaTeX math preview in ZyraFormulaPreview", () => {
-    const html = renderToStaticMarkup(<ZyraFormulaPreview input="Hitung $\frac{a^2 + b^2}{c}$" />);
-    expect(html).toContain('class="katex"');
-    expect(html).not.toContain('class="katex-error"');
   });
 
   test("sanitizes Artikel v4 HTML comments and extracts embedded Artikel v4 parts", () => {

@@ -145,11 +145,17 @@ Ordinary coding explanations use text; explicit flowchart requests enable the
 structured diagram. Syntax and indentation inside code blocks survive answer
 cleanup. Current questions and code take priority over older conversation topics.
 
-The question composer stays closed until the learner opens the chat control;
-closing it preserves the typed question. Helper controls use labeled icons with
-tooltips on mobile and visible text on larger screens. The error explanation
-control uses the destructive treatment for a current syntax error, runtime error
-or timeout, returning to neutral when code or stdin changes.
+Playground uses the existing Zyra drawer and one compact composer with Python
+and Tutor modes. Python captures the current editor and revision before sending.
+One complete final Python block applies directly only while that editor remains
+active and unchanged. Concurrent edits require an explicit apply action. Final
+code is omitted from chat; Tutor explanations and snippets stay in the chat and
+do not alter the editor. Article and exercise helpers retain their existing flows.
+The composer renders explicitly delimited math inline, exposing the source on
+selection. Ordinary prose, currency, code spans and incomplete formulas remain
+text. Enter sends, Shift+Enter inserts a line, and composition does not send.
+Session counts use persisted tutor messages scoped to the same user and course,
+with empty sessions retained and a refresh after successful saves.
 
 Helper actions cover hints, decomposition, error explanation, review and
 flowcharts. Zyra is instructed to separate observations from hypotheses, support
