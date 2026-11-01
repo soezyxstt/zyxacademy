@@ -146,8 +146,8 @@ export function CollaborativeBookingModal({
       });
 
       if (!result.success || !result.bookingId) {
-        if (result.reason === "SLOT_TAKEN") {
-          toast.error(t("booking.errors.slotTaken"));
+        if (result.reason === "SLOT_TAKEN" || result.reason === "SLOT_STARTED") {
+          toast.error(t(result.reason === "SLOT_STARTED" ? "booking.errors.slotStarted" : "booking.errors.slotTaken"));
           onOpenChange(false);
           await onSlotTaken?.();
         } else {

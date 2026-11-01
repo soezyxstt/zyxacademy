@@ -20,6 +20,7 @@ import { auth } from "@/lib/auth";
 import { getPeranCodes } from "@/lib/auth/authorization";
 import { eq, and, desc, inArray, sql, gte, lte, lt, gt, isNotNull, isNull, or } from "drizzle-orm";
 import { daysFrom } from "@/lib/date-utils";
+import { canBookTutorialSlot } from "@/lib/schedule/week-policy";
 import {
   getJakartaNow,
   getWeekScheduleDays,
@@ -31,7 +32,8 @@ import {
   CANCELLED_QUOTA_REFUND_LOG_ACTION,
   checkActiveGroupCourseEligibility,
   checkCanonicalTutorAssignment,
-  countsTowardGroupWeeklyQuota,
+  getGroupWeeklyUsage,
+  occupiesTutorSlot,
   isTerminalBookingStatus,
   terminalStatusGuard,
   validateSlotDuration,
@@ -143,29 +145,10 @@ export async function getScheduleData(weekOffset = 0) {
   const myGroupIds = myGroups.map((g) => g.id);
 
   // 1b. Weekly usage per group for the viewed week (derived quota display)
-  const weeklyCounts = myGroupIds.length
-    ? await db
-        .select({
-          groupId: bookings.groupId,
-          count: sql<number>`count(*)`,
-        })
-        .from(bookings)
-        .where(
-          and(
-            inArray(bookings.groupId, myGroupIds),
-            gte(bookings.sessionDate, viewWeekStart),
-            lte(bookings.sessionDate, viewWeekEnd),
-            countsTowardGroupWeeklyQuota(),
-          )
-        )
-        .groupBy(bookings.groupId)
-    : [];
-
+  const weeklyCounts = await getGroupWeeklyUsage(myGroupIds, viewWeekStart, viewWeekEnd);
   const groupsWithWeeklyUsage = myGroups.map((g) => ({
     ...g,
-    weeklyUsedSessions: Number(
-      weeklyCounts.find((c) => c.groupId === g.id)?.count ?? 0
-    ),
+    weeklyUsedSessions: weeklyCounts.get(g.id) ?? 0,
   }));
 
   // 2. Get student active enrollments
@@ -198,31 +181,10 @@ export async function getScheduleData(weekOffset = 0) {
           },
         },
       },
-      booking: {
-        with: {
-          group: true,
-          course: true,
-          student: true,
-          resources: true,
-          lastModifier: true,
-          auditLogs: {
-            with: {
-              actor: true,
-            },
-            orderBy: [desc(bookingAuditLogs.createdAt)],
-          },
-          rescheduleTickets: {
-            with: {
-              requestedBy: true,
-              proposedSlot: true,
-              messages: {
-                with: {
-                  sender: true,
-                },
-              },
-            },
-          },
-        },
+      bookings: {
+        columns: { id: true },
+        where: occupiesTutorSlot(),
+        limit: 1,
       },
     },
   });
@@ -282,9 +244,9 @@ export async function getScheduleData(weekOffset = 0) {
   // booking details in the group-scoped read above so another group's topic,
   // notes, resources, audit entries, and ticket thread are never exposed as
   // part of the availability payload.
-  const availableSlots = allTutorSlots.map(({ booking, ...slot }) => ({
+  const availableSlots = allTutorSlots.map(({ bookings: occupants, ...slot }) => ({
     ...slot,
-    booking: booking ? { id: booking.id } : null,
+    booking: occupants[0] ?? null,
   }));
 
   return {
@@ -463,10 +425,9 @@ export async function collaborativeBookSlot(
 
       // 8. Weekly quota restriction removed: groups may book multiple sessions per week up to their total package quota.
 
-      // 9. Verify FCFS immediately before the insert. The UNIQUE(slotId)
-      // constraint remains the final race guard for concurrent transactions.
+      // The partial unique index also guards concurrent claims.
       const existingBooking = await tx.query.bookings.findFirst({
-        where: eq(bookings.slotId, slotId),
+        where: and(eq(bookings.slotId, slotId), occupiesTutorSlot()),
       });
 
       if (existingBooking) {
@@ -477,8 +438,12 @@ export async function collaborativeBookSlot(
         };
       }
 
+      const now = options?.executor && options.now ? options.now : new Date();
+      if (!canBookTutorialSlot(sessionDateIso, slot.startTime, now)) {
+        return { success: false, error: "Slot tutorial sudah dimulai.", reason: "SLOT_STARTED" };
+      }
+
       const bookingId = randomUUID();
-      const now = new Date();
       const resolvedCourseId =
         groupEligibility.legacyCourseId ?? groupEligibility.courseId ?? courseId;
       const bookingTopic = typeof options?.topic === "string"
@@ -732,7 +697,7 @@ export async function collaborativeMoveSlot(
 
       // 7. Verify FCFS for new slot
       const existing = await tx.query.bookings.findFirst({
-        where: eq(bookings.slotId, newSlotId),
+        where: and(eq(bookings.slotId, newSlotId), occupiesTutorSlot()),
       });
 
       if (existing && existing.id !== bookingId) {
@@ -741,7 +706,10 @@ export async function collaborativeMoveSlot(
 
       // 7.5 Weekly quota restriction removed: groups may move bookings freely into any target week within package quota.
 
-      const now = new Date();
+      const now = options?.executor && options.now ? options.now : new Date();
+      if (!canBookTutorialSlot(newSlot.sessionDate, newSlot.startTime, now)) {
+        return { success: false, error: "Slot tutorial sudah dimulai.", reason: "SLOT_STARTED" };
+      }
 
       // 8. Guarded update on booking
       const updateRes = await tx
@@ -1449,6 +1417,10 @@ export async function tutorCompleteSession(
       return { success: false, error: "Hanya tutor pengampu yang dapat menandai sesi selesai" };
     }
 
+    if (booking.status === "cancelled") {
+      return { success: false, error: "Sesi yang dibatalkan tidak dapat diselesaikan." };
+    }
+
     const now = new Date();
 
     // Fetch link preview if link URL provided
@@ -1474,7 +1446,7 @@ export async function tutorCompleteSession(
       uploadedAt: now.toISOString(),
     }));
 
-    await db
+    const updated = await db
       .update(bookings)
       .set({
         status: "completed",
@@ -1489,7 +1461,10 @@ export async function tutorCompleteSession(
         lastModifiedBy: currentUser.id,
         lastModifiedAt: now,
       })
-      .where(eq(bookings.id, bookingId));
+      .where(and(eq(bookings.id, bookingId), eq(bookings.slotId, booking.slotId), occupiesTutorSlot()));
+    if (!updated.rowsAffected) {
+      return { success: false, error: "Status atau jadwal sesi sudah berubah." };
+    }
 
     await db
       .delete(bookingResources)
@@ -1599,8 +1574,8 @@ export async function completeTutorSessionAction(
     }
 
     const now = new Date();
-    await db.transaction(async (tx) => {
-      await tx
+    const saved = await db.transaction(async (tx) => {
+      const updated = await tx
         .update(bookings)
         .set({
           status: "completed",
@@ -1610,7 +1585,8 @@ export async function completeTutorSessionAction(
           lastModifiedBy: currentUser.id,
           lastModifiedAt: now,
         })
-        .where(eq(bookings.id, targetBookingId));
+        .where(and(eq(bookings.id, targetBookingId), eq(bookings.slotId, booking.slotId), occupiesTutorSlot()));
+      if (!updated.rowsAffected) return false;
 
       await tx.insert(bookingAuditLogs).values({
         id: randomUUID(),
@@ -1622,7 +1598,9 @@ export async function completeTutorSessionAction(
         metadata: { notesLength: notes.length },
         createdAt: now,
       });
+      return true;
     });
+    if (!saved) return { success: false, error: "Status atau jadwal sesi sudah berubah." };
 
     revalidatePath("/dashboard/schedule");
     revalidatePath("/tutor/schedule");

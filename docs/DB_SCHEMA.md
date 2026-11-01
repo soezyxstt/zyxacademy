@@ -118,9 +118,9 @@ This table keeps a user's interface language separate from authorization, course
 * `name`: Study group name (e.g. Kelompok Belajar Alpha).
 * `packageType`: Package tier ("reguler_15", "intensif_30", "super_intensif_45", "custom").
 * `packageName`: Display package label (e.g. Paket Reguler (15 Sesi)).
-* `totalQuotaSessions`: Total meeting quota per semester (default 15). Deprecated for enforcement: booking no longer decrements it.
-* `usedQuotaSessions`: Legacy counter kept read-only. Weekly usage is now derived from `bookings` rows per target week.
-* `weeklyQuotaSessions`: Sessions the group may book per target week (default 2; presets set 1-3). Enforcement derives usage by counting bookings in that ISO week, so pre-lock cancellations free quota while post-lock cancellations keep it consumed.
+* `totalQuotaSessions`: Number of sessions in the group package (default 15).
+* `usedQuotaSessions`: Package sessions used. Booking consumes one session and a student cancellation returns one session.
+* `weeklyQuotaSessions`: Target sessions per week. Weekly usage counts bookings in the Jakarta week and excludes cancellations that have a refund marker.
 * `academicYear`: Academic year string (e.g. 2026/2027).
 * `semester`: Active semester label (e.g. Ganjil, Genap, Pendek).
 * `startDate`: Semester start timestamp.
@@ -180,7 +180,7 @@ Canonical policy: tutor availability for the following week opens Monday and clo
 
 ### bookings
 * `id`
-* `slotId`: Unique reference to booked tutor slot (FCFS per slot).
+* `slotId`: Reference to the tutor slot. A partial unique index allows one non-cancelled booking per slot. Cancelled bookings keep their slot reference and history.
 * `studentId`: Student user ID who initiated the booking.
 * `courseId`: Course associated with the session.
 * `groupId`: Study group that owns the booking.

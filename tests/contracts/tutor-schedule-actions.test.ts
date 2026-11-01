@@ -90,6 +90,7 @@ async function createTestDb() {
       code TEXT NOT NULL UNIQUE,
       title TEXT NOT NULL,
       status TEXT NOT NULL DEFAULT 'active',
+      is_demo INTEGER NOT NULL DEFAULT 0,
       legacy_course_id TEXT REFERENCES courses(id),
       created_at INTEGER NOT NULL,
       updated_at INTEGER NOT NULL
@@ -174,7 +175,7 @@ async function createTestDb() {
   await client.execute(`
     CREATE TABLE IF NOT EXISTS bookings (
       id TEXT PRIMARY KEY,
-      slot_id TEXT NOT NULL UNIQUE REFERENCES tutor_slots(id),
+      slot_id TEXT NOT NULL REFERENCES tutor_slots(id),
       student_id TEXT NOT NULL REFERENCES user(id),
       course_id TEXT NOT NULL REFERENCES courses(id),
       group_id TEXT NOT NULL REFERENCES groups(id),
@@ -201,6 +202,11 @@ async function createTestDb() {
       completed_by_id TEXT,
       booked_at INTEGER NOT NULL
     );
+  `);
+
+  await client.execute(`
+    CREATE UNIQUE INDEX bookings_occupied_slot_unique_idx ON bookings(slot_id)
+    WHERE status <> 'cancelled';
   `);
 
   await client.execute(`
@@ -2738,6 +2744,23 @@ describe("Tutor Schedule Action Contracts", () => {
    * 7. collaborativeMoveSlot
    * ──────────────────────────────────────────────────────────────────────── */
   describe("collaborativeMoveSlot", () => {
+    it("preserves the original booking when the requested slot has started", async () => {
+      const { testDb } = await createTestDb();
+      const { now } = await seedQuotaFixture(testDb, { weekly: 2, total: 15, used: 1 });
+      await seedFixtureBooking(testDb, {
+        id: "bk-future", slotId: "slot-c", sessionDate: "2026-09-04", status: "scheduled",
+      }, now);
+      await setFixtureSlotDate(testDb, "slot-b", "2026-09-02");
+
+      const result = await collaborativeMoveSlot("bk-future", "slot-b", "2026-09-02", {
+        actorId: "student-1", executor: testDb, now: new Date("2026-09-02T09:00:00+07:00"),
+      });
+
+      expect(result.reason).toBe("SLOT_STARTED");
+      const [booking] = await testDb.select().from(schema.bookings).where(eq(schema.bookings.id, "bk-future"));
+      expect(booking.slotId).toBe("slot-c");
+    });
+
     it("allows collaborative move into another week now that weekly usage is not checked", async () => {
       const { testDb } = await createTestDb();
       const { now } = await seedQuotaFixture(testDb, { weekly: 1, total: 15, used: 2 });
@@ -2931,6 +2954,30 @@ describe("Tutor Schedule Action Contracts", () => {
    * 10. collaborativeBookSlot Quota and TOCTOU Protection
    * ──────────────────────────────────────────────────────────────────────── */
   describe("collaborativeBookSlot Quota and TOCTOU Protection", () => {
+    it.each([
+      { start: "8:00", end: "09:30", at: "2026-08-31T00:59:59.999Z", allowed: true },
+      { start: "8:00", end: "09:30", at: "2026-08-31T01:00:00.000Z", allowed: false },
+      { start: "8:00", end: "09:30", at: "2026-08-31T06:00:00.000Z", allowed: false },
+      { start: "00:00", end: "01:30", at: "2026-08-30T16:59:59.999Z", allowed: true },
+      { start: "00:00", end: "01:30", at: "2026-08-30T17:00:00.000Z", allowed: false },
+    ])("charges only for a future WIB slot ($start at $at)", async ({ start, end, at, allowed }) => {
+      const { testDb } = await createTestDb();
+      await seedQuotaFixture(testDb, { weekly: 2, total: 15, used: 0 });
+      await testDb.update(schema.tutorSlots)
+        .set({ sessionDate: "2026-08-31", startTime: start, endTime: end, mode: "offline" })
+        .where(eq(schema.tutorSlots.id, "slot-a"));
+
+      const result = await collaborativeBookSlot("slot-a", "crs-calc", "grp-q", "2026-08-31", {
+        actorId: "student-1", executor: testDb, now: new Date(at),
+      });
+
+      expect(result.success).toBe(allowed);
+      if (!allowed) expect(result.reason).toBe("SLOT_STARTED");
+      expect(await testDb.select().from(schema.bookings)).toHaveLength(allowed ? 1 : 0);
+      const [group] = await testDb.select().from(schema.groups).where(eq(schema.groups.id, "grp-q"));
+      expect(group.usedQuotaSessions).toBe(allowed ? 1 : 0);
+    });
+
     it("does not consume package quota when booking an occupied slot across repeated attempts", async () => {
       const { testDb } = await createTestDb();
       const { now } = await seedQuotaFixture(testDb, { weekly: 2, total: 15, used: 3 });

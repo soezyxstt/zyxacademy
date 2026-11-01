@@ -26,6 +26,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import { canBookTutorialSlot } from "@/lib/schedule/week-policy";
 import {
   addCalendarDays,
   addCalendarMonths,
@@ -103,6 +104,7 @@ type CalendarEvent = {
   courseId?: string | null;
   tutorId?: string | null;
   locked?: boolean;
+  hasBookingHistory?: boolean;
   allDay?: boolean;
   source: any;
 };
@@ -352,7 +354,7 @@ function EventCard({
       <div className="flex h-full min-w-0 flex-col gap-0.5">
         <div className="flex min-w-0 items-start gap-1">
           <p className={cn("min-w-0 flex-1 break-words font-semibold leading-tight", compact ? "text-[10px]" : "text-[11px]")}>{event.title}</p>
-          {event.kind === "availability" && onDeleteSlot && !event.locked ? (
+          {event.kind === "availability" && onDeleteSlot && !event.locked && !event.hasBookingHistory ? (
             <button
               type="button"
               onClick={(clickEvent) => {
@@ -415,8 +417,15 @@ export function ScheduleCalendarView({
   const [activeDate, setActiveDate] = useState<CalendarDate>(() => weekInfo.startOfWeekIso as CalendarDate);
   const [courseFilter, setCourseFilter] = useState(initialCourseFilter || "all");
   const [tutorFilter, setTutorFilter] = useState("all");
-  const today = getJakartaCalendarDate();
-  const nowMinutes = getJakartaClock();
+  const [now, setNow] = useState(() => new Date());
+  const today = getJakartaCalendarDate(now);
+  const nowMinutes = getJakartaClock(now);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setNow(new Date()), 60_000 - Date.now() % 60_000);
+    return () => window.clearTimeout(timer);
+  }, [now]);
+
   const eventLabels = { deleteSlot: t("calendar.deleteSlot"), allDay: t("calendar.allDay"), online: t("session.online"), offline: t("calendar.offline") };
   const weekdayLabels = Array.from({ length: 7 }, (_, index) => new Intl.DateTimeFormat(locale === "id" ? "id-ID" : "en-US", { weekday: "short", timeZone: "UTC" }).format(new Date(Date.UTC(2024, 0, index + 1))));
 
@@ -447,7 +456,8 @@ export function ScheduleCalendarView({
 
   const normalizedEvents = useMemo<CalendarEvent[]>(() => {
     const result: CalendarEvent[] = [];
-    const bookingSlotIds = new Set(bookings.map((booking: any) => booking.slotId).filter(Boolean));
+    const bookingSlotIds = new Set(bookings.filter((booking) => booking.status !== "cancelled").map((booking) => booking.slotId));
+    const cancelledSlotIds = new Set(bookings.filter((booking) => booking.status === "cancelled").map((booking) => booking.slotId));
 
     for (const slot of slots) {
       const dateIso = slot.sessionDate as CalendarDate | null | undefined;
@@ -467,7 +477,8 @@ export function ScheduleCalendarView({
         mode: slot.mode,
         location: slot.location,
         tutorId: slot.tutorId || slot.tutor?.id || null,
-        locked: dateIso < today,
+        locked: role === "student" ? !canBookTutorialSlot(dateIso, slot.startTime, now) : dateIso < today,
+        hasBookingHistory: cancelledSlotIds.has(slot.id),
         source: slot,
       });
     }
@@ -479,7 +490,7 @@ export function ScheduleCalendarView({
       const endMinutes = Math.max(startMinutes + 30, timeToMinutes(booking.endTime || booking.slot?.endTime));
       const groupName = booking.group?.name || booking.groupName;
       const tutorName = booking.slot?.tutor?.name || booking.tutor?.name;
-      const subtitle = [groupName, tutorName ? `${t("audit.tutor")}: ${tutorName}` : null].filter(Boolean).join(" • ") || null;
+      const subtitle = [booking.status === "cancelled" ? t("session.status.cancelled") : null, groupName, tutorName ? `${t("audit.tutor")}: ${tutorName}` : null].filter(Boolean).join(" • ") || null;
       result.push({
         id: `booking-${booking.id}`,
         kind: "booking",
@@ -526,7 +537,7 @@ export function ScheduleCalendarView({
     }
 
     return result;
-  }, [academicSchedules, bookings, slots, today, t]);
+  }, [academicSchedules, bookings, slots, role, now, today, t]);
 
   const filteredEvents = useMemo(() => normalizedEvents.filter((event) => {
     if (courseFilter !== "all") {
@@ -559,6 +570,16 @@ export function ScheduleCalendarView({
     return weekInfo.days;
   }, [activeDate, locale, today, viewMode, weekInfo.days]);
 
+  const timedDays = visibleDays.map((day) => {
+    const events = layoutEvents(filteredEvents.filter((event) =>
+      !event.allDay && event.dateIso === day.dateIso && event.endMinutes > START_MINUTES && event.startMinutes < END_MINUTES
+    ));
+    const laneCount = events.reduce((max, event) => Math.max(max, event.laneCount), 1);
+    return { day, events, minWidth: laneCount === 1 ? 108 : laneCount * 128 };
+  });
+  const gridTemplateColumns = ["56px", ...timedDays.map(({ minWidth }) => `minmax(${minWidth}px, 1fr)`)].join(" ");
+  const gridMinWidth = timedDays.reduce((width, column) => width + column.minWidth, 56);
+
   const rangeLabel = viewMode === "day"
     ? formatCalendarDateLabel(activeDate, { weekday: "short", day: "numeric", month: "short", year: "numeric" }, locale)
     : viewMode === "month"
@@ -567,8 +588,11 @@ export function ScheduleCalendarView({
 
   const openEvent = (event: CalendarEvent) => {
     if (event.kind === "availability") {
-      if (role === "student" && !event.locked) onSelectSlotToBook?.(event.source, event.dateIso);
-      else if (role === "admin") onAssignTutorialSlot?.(event.source);
+      if (role === "student" && canBookTutorialSlot(event.dateIso, event.source.startTime)) {
+        onSelectSlotToBook?.(event.source, event.dateIso);
+      } else if (role === "admin") {
+        onAssignTutorialSlot?.(event.source);
+      }
       return;
     }
     if (event.kind === "academic") {
@@ -578,6 +602,13 @@ export function ScheduleCalendarView({
     if (onOpenSessionDetail) onOpenSessionDetail(event.source);
     else if (role === "student") onOpenPreSession?.(event.source);
     else onOpenPostSession?.(event.source);
+  };
+
+  const eventHandler = (event: CalendarEvent) => {
+    if (event.kind === "availability" && role !== "admin" && (role !== "student" || event.locked)) {
+      return undefined;
+    }
+    return () => openEvent(event);
   };
 
   const handleGridCreate = (dateIso: CalendarDate, hour: number) => {
@@ -677,16 +708,16 @@ export function ScheduleCalendarView({
             setViewMode("day");
             selectAnchor(dateIso);
           }}
-          onOpenEvent={openEvent}
+          eventHandler={eventHandler}
           weekdayLabels={weekdayLabels}
           labels={eventLabels}
         />
       ) : (
         <div className="overflow-x-auto rounded-xl border border-border/80 bg-card/55 shadow-xs">
-          <div className={cn("min-w-[820px]", viewMode === "day" && "min-w-[420px]") }>
+          <div style={{ minWidth: gridMinWidth }}>
             <div
               className="grid border-b border-border/70 bg-muted/20"
-              style={{ gridTemplateColumns: viewMode === "day" ? "56px minmax(0,1fr)" : "56px repeat(7,minmax(108px,1fr))" }}
+              style={{ gridTemplateColumns }}
             >
               <div className="flex flex-col items-center justify-center border-r border-border/70 py-2 text-[10px] font-semibold text-muted-foreground">
                 <span>WIB</span><span className="mt-0.5 text-[9px]">GMT+7</span>
@@ -702,7 +733,7 @@ export function ScheduleCalendarView({
             {filteredEvents.some((event) => event.allDay && visibleDays.some((day) => day.dateIso === event.dateIso)) ? (
               <div
                 className="grid border-b border-border/70 bg-card"
-                style={{ gridTemplateColumns: viewMode === "day" ? "56px minmax(0,1fr)" : "56px repeat(7,minmax(108px,1fr))" }}
+                style={{ gridTemplateColumns }}
               >
                 <div className="flex items-center justify-end border-r border-border/70 px-1 py-1.5 text-[9px] font-medium text-muted-foreground">
                   {t("calendar.allDay")}
@@ -726,7 +757,7 @@ export function ScheduleCalendarView({
               <div
                 className="grid relative"
                 style={{
-                  gridTemplateColumns: viewMode === "day" ? "56px minmax(0,1fr)" : "56px repeat(7,minmax(108px,1fr))",
+                  gridTemplateColumns,
                   height: `${HOURS.length * HOUR_HEIGHT}px`,
                 }}
               >
@@ -739,9 +770,8 @@ export function ScheduleCalendarView({
                   <span className="absolute bottom-0 right-1 translate-y-1/2 bg-card px-0.5 text-[9px] text-muted-foreground">24:00</span>
                 </div>
 
-                {visibleDays.map((day) => {
+                {timedDays.map(({ day, events: dayEvents }) => {
                   const dayIso = day.dateIso as CalendarDate;
-                  const dayEvents = layoutEvents(filteredEvents.filter((event) => !event.allDay && event.dateIso === dayIso && event.endMinutes > START_MINUTES && event.startMinutes < END_MINUTES));
                   const canCreate = Boolean(onCreateScheduleDirect) && (role === "admin" || role === "teacher") && dayIso >= today;
                   return (
                     <div key={dayIso} className={cn("relative border-r border-border/60", day.isToday && "bg-brand-primary/[0.02]") }>
@@ -771,9 +801,6 @@ export function ScheduleCalendarView({
                         const height = Math.max(42, ((visibleEnd - visibleStart) / 60) * HOUR_HEIGHT - 3);
                         const laneWidth = 100 / event.laneCount;
                         const left = event.lane * laneWidth;
-                        const opening = event.kind === "availability"
-                          ? role === "student" ? !event.locked : role === "admin"
-                          : true;
                         return (
                           <div
                             key={event.id}
@@ -782,7 +809,7 @@ export function ScheduleCalendarView({
                           >
                             <EventCard
                               event={event}
-                              onOpen={opening ? () => openEvent(event) : undefined}
+                              onOpen={eventHandler(event)}
                               onDeleteSlot={(role === "teacher" || (role === "admin" && (adminMode === "tutorial" || adminMode === "all"))) ? onDeleteSlot : undefined}
                               labels={eventLabels}
                             />
@@ -810,7 +837,7 @@ function MonthView({
   events,
   today,
   onSelectDate,
-  onOpenEvent,
+  eventHandler,
   weekdayLabels,
   labels,
 }: {
@@ -818,7 +845,7 @@ function MonthView({
   events: CalendarEvent[];
   today: CalendarDate;
   onSelectDate: (dateIso: CalendarDate) => void;
-  onOpenEvent: (event: CalendarEvent) => void;
+  eventHandler: (event: CalendarEvent) => (() => void) | undefined;
   weekdayLabels: string[];
   labels: { deleteSlot: string; allDay: string; online: string; offline: string };
 }) {
@@ -847,7 +874,7 @@ function MonthView({
                 <div className="space-y-1">
                   {dayEvents.map((event) => (
                     <div key={event.id} className="min-h-12">
-                      <EventCard event={event} compact onOpen={() => onOpenEvent(event)} labels={labels} />
+                      <EventCard event={event} compact onOpen={eventHandler(event)} labels={labels} />
                     </div>
                   ))}
                 </div>

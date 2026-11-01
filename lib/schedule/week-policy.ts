@@ -91,6 +91,16 @@ export function canTutorDeleteAvailability(
   return true;
 }
 
+/** Student bookings and moves require a slot whose WIB start is still in the future. */
+export function canBookTutorialSlot(dateIso: string, startTime: string, now = new Date()): boolean {
+  try {
+    const startsAt = calendarDateToJakartaInstant(dateIso, startTime.padStart(5, "0"));
+    return now.getTime() < startsAt.getTime();
+  } catch {
+    return false;
+  }
+}
+
 export function canStudentBook(
   _targetDate?: TutorialDateInput,
   _now: Date = new Date(),

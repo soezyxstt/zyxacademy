@@ -44,6 +44,7 @@ import {
   INDONESIAN_DAYS,
   type IndonesianDay,
   isTerminalBookingStatus,
+  occupiesTutorSlot,
   terminalStatusGuard,
   validateSlotDeletionPolicy,
   validateSlotDuration,
@@ -1259,7 +1260,7 @@ export async function executeMoveTutorSession(
   const existingSlotBooking = await client
     .select({ id: bookings.id })
     .from(bookings)
-    .where(eq(bookings.slotId, targetSlotId))
+    .where(and(eq(bookings.slotId, targetSlotId), occupiesTutorSlot()))
     .limit(1);
 
   if (existingSlotBooking.length > 0 && existingSlotBooking[0].id !== targetBookingId) {
@@ -2065,7 +2066,7 @@ export async function executeDecideTutorRescheduleTicket(
       const occupiedBooking = await client
         .select({ id: bookings.id })
         .from(bookings)
-        .where(eq(bookings.slotId, ticket.proposedSlotId))
+        .where(and(eq(bookings.slotId, ticket.proposedSlotId), occupiesTutorSlot()))
         .limit(1);
 
       if (occupiedBooking.length > 0 && occupiedBooking[0].id !== ticket.bookingId) {

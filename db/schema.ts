@@ -657,8 +657,7 @@ export const bookings = sqliteTable(
     id: text("id").primaryKey(),
     slotId: text("slot_id")
       .notNull()
-      .references(() => tutorSlots.id, { onDelete: "cascade" })
-      .unique(), // Ensure first-come first-served (only one booking per slot)
+      .references(() => tutorSlots.id, { onDelete: "cascade" }),
     studentId: text("student_id")
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
@@ -717,6 +716,9 @@ export const bookings = sqliteTable(
     bookedAt: integer("booked_at", { mode: "timestamp" }).defaultNow().notNull(),
   },
   (table) => [
+    uniqueIndex("bookings_occupied_slot_unique_idx")
+      .on(table.slotId)
+      .where(sql`${table.status} <> 'cancelled'`),
     index("bookings_slot_idx").on(table.slotId),
     index("bookings_student_idx").on(table.studentId),
     index("bookings_group_idx").on(table.groupId),
@@ -989,7 +991,7 @@ export const tutorSlotsRelations = relations(tutorSlots, ({ one, many }) => ({
     fields: [tutorSlots.tutorId],
     references: [user.id],
   }),
-  booking: one(bookings),
+  bookings: many(bookings),
   proposedTickets: many(bookingRescheduleTickets),
 }));
 

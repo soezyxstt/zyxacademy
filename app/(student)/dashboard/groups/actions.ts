@@ -12,7 +12,8 @@ import {
 } from "@/db/schema";
 import { auth } from "@/lib/auth";
 import { eq, and, desc } from "drizzle-orm";
-import { getJakartaNow, getIsoWeekRange, computeWeeklySessionStats } from "@/lib/schedule-lock";
+import { getIsoWeekRange, computeWeeklySessionStats } from "@/lib/schedule-lock";
+import { getGroupWeeklyUsage } from "@/lib/schedule/tutor-policy";
 import { getSemesterEndDate } from "@/lib/utils";
 import { PACKAGE_PRESETS, type PackageType } from "@/lib/group-constants";
 import { dualWriteEnrollment } from "@/lib/migrasi/repository-kompatibilitas";
@@ -83,6 +84,9 @@ export async function getStudentStudyGroups() {
     .map((m) => m.group)
     .filter(Boolean);
 
+  const { startIso, endIso } = getIsoWeekRange(new Date());
+  const weeklyUsage = await getGroupWeeklyUsage(validGroups.map((g) => g.id), startIso, endIso);
+
   return validGroups.map((g) => {
     // 1. Resolve Courses
     const directCourses = g.courses.map((gc) => ({
@@ -108,23 +112,16 @@ export async function getStudentStudyGroups() {
     const resolvedCourses = Array.from(courseMap.values());
 
     // 2. Quota & Session Stats
-    const bookingCount = g.bookings?.length || 0;
-    const effectiveUsed = Math.max(g.usedQuotaSessions || 0, bookingCount);
+    const usedQuotaSessions = g.usedQuotaSessions;
     const totalQuota = g.totalQuotaSessions ?? 15;
-    const remainingQuota = Math.max(0, totalQuota - effectiveUsed);
+    const remainingQuota = Math.max(0, totalQuota - usedQuotaSessions);
     const usedPercentage = totalQuota > 0
-      ? Math.min(100, Math.round((effectiveUsed / totalQuota) * 100))
+      ? Math.min(100, Math.round((usedQuotaSessions / totalQuota) * 100))
       : 0;
 
     // Weekly quota (derived from bookings in the current Jakarta week)
-    const { startIso: weekStartIso, endIso: weekEndIso } = getIsoWeekRange(getJakartaNow());
     const weeklyQuotaSessions = g.weeklyQuotaSessions ?? 2;
-    const weeklyUsedSessions = (g.bookings || []).filter(
-      (b) =>
-        b.sessionDate &&
-        b.sessionDate >= weekStartIso &&
-        b.sessionDate <= weekEndIso
-    ).length;
+    const weeklyUsedSessions = weeklyUsage.get(g.id) ?? 0;
     const weeklyRemainingQuota = Math.max(0, weeklyQuotaSessions - weeklyUsedSessions);
 
     // Weekly attendance traceability (last 4 weeks)
@@ -157,7 +154,7 @@ export async function getStudentStudyGroups() {
       packageName: g.packageName,
       frequencyLabel,
       totalQuotaSessions: totalQuota,
-      usedQuotaSessions: effectiveUsed,
+      usedQuotaSessions,
       remainingQuota,
       usedPercentage,
       weeklyQuotaSessions,
