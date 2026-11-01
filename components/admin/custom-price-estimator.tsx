@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { AlertCircle, BookOpen, CalendarDays, Calculator, Info, Tag, Users, X } from "lucide-react";
+import { AlertCircle, BookOpen, CalendarDays, Calculator, Info, Tag, Users } from "lucide-react";
 import { AdminSectionTitle } from "@/components/admin/section-title";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";

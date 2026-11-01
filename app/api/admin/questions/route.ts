@@ -19,7 +19,7 @@ import {
 import { auth } from '@/lib/auth';
 import { hasAnyPeran } from '@/lib/auth/authorization';
 import { headers } from 'next/headers';
-import { and, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
+import { and, eq, inArray, isNull, sql } from 'drizzle-orm';
 import { questionAuthoringInputSchema, canonicalQuestionStatus } from '@/lib/question-authoring-contract';
 import { createCanonicalQuestion, QuestionAuthoringError } from '@/lib/question-authoring';
 

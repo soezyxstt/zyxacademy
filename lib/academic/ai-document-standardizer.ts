@@ -6,7 +6,6 @@ import {
 } from "@/lib/course-materials";
 import {
   detectMetadataFromFilename,
-  standardizeDocumentTitle,
   buildCanonicalDocumentTitle,
   detectSessionFromFilename,
   detectPartNumberFromFilename,
@@ -88,8 +87,6 @@ export function buildDeterministicFallback(
   if (chapterIds.length === 1) {
     matchedChapter = chapters.find((c) => c.id === chapterIds[0]) || null;
   }
-
-  const cleanCourseCode = courseCode.toUpperCase().replace(/[^A-Z0-9]/g, "");
 
   const session = detectSessionFromFilename(filename);
   const partNumber = detectPartNumberFromFilename(filename);

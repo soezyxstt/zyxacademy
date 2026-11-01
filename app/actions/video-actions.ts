@@ -5,7 +5,6 @@ import { db } from "@/db";
 import {
   courses,
   chapters,
-  mataKuliah,
   courseVideoPlaylists,
   courseVideos,
 } from "@/db/schema";

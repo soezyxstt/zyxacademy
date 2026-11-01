@@ -12,9 +12,7 @@ import {
   UserCheck,
   Shield,
   Send,
-  Layers,
   HelpCircle,
-  Tag,
   Filter,
 } from "lucide-react";
 import { toast } from "@/components/ui/toast";
@@ -31,7 +29,6 @@ import { useUrlTab } from "@/hooks/use-url-tab";
 import { SearchBar } from "@/components/ui/search-bar";
 import { PageHeader } from "@/components/page-header";
 import { MathText } from "@/components/course/math-text";
-import { DifficultyProportionSlider } from "@/components/admin/difficulty-proportion-slider";
 import { formatDatetimeLocal } from "@/lib/date-utils";
 import { cn } from "@/lib/utils";
 import { saveQuizTemplateAction } from "@/app/actions/tutor-management";
@@ -165,10 +162,10 @@ export function TutorQuizForm({
     initialData?.selectionRules?.explanationRelease ||
       (initialData?.showDiscussion === false ? "never" : "after_close")
   );
-  const [showScoreImmediate, setShowScoreImmediate] = useState(
+  const [showScoreImmediate] = useState(
     initialData?.selectionRules?.showScoreImmediate ?? true
   );
-  const [passingScore, setPassingScore] = useState(
+  const [passingScore] = useState(
     initialData?.selectionRules?.passingScore !== undefined && initialData?.selectionRules?.passingScore !== null
       ? String(initialData.selectionRules.passingScore)
       : "70"
@@ -176,44 +173,24 @@ export function TutorQuizForm({
 
   // Question Selection Mode
   const initialFixedIds = initialData?.selectionRules?.fixedQuestionIds || [];
-  const [selectionMode, setSelectionMode] = useState<"specific" | "distribution">(
+  const [selectionMode] = useState<"specific" | "distribution">(
     initialFixedIds.length > 0 ? "specific" : "specific"
   );
 
   // Distribution State
-  const [count, setCount] = useState(String(initialData?.selectionRules?.count ?? 10));
-  const [tagsStr, setTagsStr] = useState((initialData?.selectionRules?.tags ?? []).join(", "));
-  const [easy, setEasy] = useState(String(initialData?.selectionRules?.difficulty_proportions?.easy ?? 3));
-  const [medium, setMedium] = useState(String(initialData?.selectionRules?.difficulty_proportions?.medium ?? 5));
-  const [hard, setHard] = useState(String(initialData?.selectionRules?.difficulty_proportions?.hard ?? 2));
+  const [count] = useState(String(initialData?.selectionRules?.count ?? 10));
+  const [tagsStr] = useState((initialData?.selectionRules?.tags ?? []).join(", "));
+  const [easy] = useState(String(initialData?.selectionRules?.difficulty_proportions?.easy ?? 3));
+  const [medium] = useState(String(initialData?.selectionRules?.difficulty_proportions?.medium ?? 5));
+  const [hard] = useState(String(initialData?.selectionRules?.difficulty_proportions?.hard ?? 2));
 
   // Specific Question Picker States
   const [selectedQIds, setSelectedQIds] = useState<string[]>(initialFixedIds);
   const [searchQuery, setSearchQuery] = useState("");
   const [difficultyFilter, setDifficultyFilter] = useState<string>("all");
   const [typeFilter, setTypeFilter] = useState<string>("all");
-  const [tagFilter, setTagFilter] = useState<string>("all");
+  const [tagFilter] = useState<string>("all");
   const [onlySelectedFilter, setOnlySelectedFilter] = useState(false);
-
-  // Available tags from question bank
-  const availableTags = useMemo(() => {
-    const tagSet = new Set<string>();
-    for (const q of questionBank) {
-      const qTags = Array.isArray(q.tags)
-        ? q.tags
-        : typeof q.tags === "string"
-        ? (() => {
-            try {
-              return JSON.parse(q.tags);
-            } catch {
-              return [];
-            }
-          })()
-        : [];
-      qTags.forEach((t: string) => tagSet.add(t));
-    }
-    return Array.from(tagSet);
-  }, [questionBank]);
 
   // Selected Questions Breakdown
   const selectedDifficultyCounts = useMemo(() => {

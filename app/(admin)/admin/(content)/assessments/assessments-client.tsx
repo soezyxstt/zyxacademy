@@ -189,7 +189,7 @@ export function AssessmentsClient({ sources, courses, courseMap }: Props) {
         }),
       });
 
-      const data = await res.json();
+      await res.json();
       if (!res.ok) {
         toast.error(t("saveFailed"));
         return;

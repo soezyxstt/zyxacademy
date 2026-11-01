@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
-import { createMetadata, pageTitle } from "@/lib/site";
+import { createMetadata} from "@/lib/site";
 import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
 import { getStudentStudyGroups } from "./actions";

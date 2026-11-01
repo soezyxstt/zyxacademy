@@ -245,7 +245,7 @@ export function QuestionBankClient({ questions, courses, courseMap, canonicalCou
       if (filterCourse !== "all") {
         const resolveCourseId = (id: string | null | undefined) => {
           if (!id) return "";
-          return canonicalCourseMap?.[id] ?? canonicalCourseForLegacy(id) ?? id;
+          return canonicalCourseMap?.[id] ?? authoringCourses.find((course) => course.legacyCourseId === id)?.id ?? id;
         };
         if (resolveCourseId(q.courseId) !== resolveCourseId(filterCourse)) return false;
       }

@@ -6,8 +6,6 @@ import { pageTitle } from "@/lib/site";
 import { getTranslations } from "@/lib/i18n/server";
 import { CourseDetailHeader } from "@/components/admin/course-detail/course-detail-header";
 import { CourseDocumentsClient } from "@/app/(student)/courses/[id]/material/course-documents-client";
-// DocumentListClient is composed inside CourseDocumentsClient for subcategory views
-import { DocumentListClient } from "@/app/(student)/courses/[id]/material/document-list-client";
 import { resolveCourseIdentity } from "@/lib/admin/course-identity";
 import { listAdminCourseMaterials } from "@/lib/admin/course-material-preview";
 import { getCourseDetailData } from "../../actions";

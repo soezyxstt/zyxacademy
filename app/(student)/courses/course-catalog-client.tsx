@@ -84,7 +84,6 @@ function getCourseBadgeInfo(course: CatalogCourseItem) {
 
 export function CourseCatalogClient({
   groups,
-  studentTargetCategory,
 }: CourseCatalogClientProps) {
   const t = useTranslations("learning");
   const totalCourses = groups.reduce((acc, g) => acc + g.courses.length, 0);

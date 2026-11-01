@@ -18,7 +18,7 @@ import {
 } from "@/db/schema";
 import { auth } from "@/lib/auth";
 import { getPeranCodes } from "@/lib/auth/authorization";
-import { eq, ne, and, desc, inArray, sql, gte, lte, lt, gt, isNotNull, isNull, or } from "drizzle-orm";
+import { eq, and, desc, inArray, sql, gte, lte, lt, gt, isNotNull, isNull, or } from "drizzle-orm";
 import { daysFrom } from "@/lib/date-utils";
 import {
   getJakartaNow,
@@ -41,11 +41,7 @@ import { executeDecideTutorRescheduleTicket } from "@/app/(tutor)/tutor/schedule
 import { recordMutationAudit } from "@/lib/audit/mutasi";
 import { type DbExecutor } from "@/lib/auth/tutor-access";
 import { listStudentEnrollments } from "@/lib/student/course-catalog";
-import {
-  canStudentBook,
-  getTutorialWeekPhase,
-  isTutorialWeekLocked,
-} from "@/lib/schedule/week-policy";
+
 import {
   addBookingResource,
   deleteBookingResource,
@@ -648,7 +644,6 @@ export async function collaborativeMoveSlot(
 
   try {
     return await client.transaction(async (tx) => {
-      const moveNow = options?.now ?? new Date();
       const booking = await tx.query.bookings.findFirst({
         where: eq(bookings.id, bookingId),
         with: {

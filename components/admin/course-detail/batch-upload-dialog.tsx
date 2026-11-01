@@ -65,7 +65,6 @@ import {
   detectMetadataFromFilename,
   formatBytes,
   generateFileName,
-  standardizeDocumentTitle,
   isHiddenOrSystemFile,
   isSupportedBatchFile,
   type BatchChapterInfo,
@@ -236,7 +235,10 @@ export function BatchUploadDialog({
   const router = useRouter();
   const t = useTranslations("adminAcademic");
   const bundleT = useTranslations("admin");
-  const explainError = (value: string) => explainBundleError(value, (key) => bundleT(`bundleErrors.${key}`));
+  const explainError = useCallback(
+    (value: string) => explainBundleError(value, (key) => bundleT(`bundleErrors.${key}`)),
+    [bundleT],
+  );
 
   const [step, setStep] = useState<UploadStep>("category");
   const [viewMode, setViewMode] = useState<ChapterViewMode>("kanban");

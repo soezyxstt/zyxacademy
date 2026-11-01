@@ -26,7 +26,6 @@ import {
 
 export { INDONESIAN_DAYS, type IndonesianDay };
 import { isNinetyMinuteSlot, timeToMinutes } from "@/lib/schedule-lock";
-import { canTutorDeleteAvailability } from "@/lib/schedule/week-policy";
 
 const DAY_MAP_FROM_UTC_DAY: Record<number, IndonesianDay> = {
   0: "Minggu",

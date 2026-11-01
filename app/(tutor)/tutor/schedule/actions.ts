@@ -31,7 +31,6 @@ import { getIsoWeekRange } from "@/lib/schedule-lock";
 import { getJakartaCalendarDate } from "@/lib/date-utils";
 import {
   addTutorialDays,
-  canTutorCreateAvailability,
   getTutorialWeekRange,
   isTutorialWeekLocked,
 } from "@/lib/schedule/week-policy";

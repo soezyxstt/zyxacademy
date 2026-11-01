@@ -3,9 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useAppLocale, useTranslations } from "@/lib/i18n/client";
 import {
-  AlertCircle,
   CalendarDays,
-  CheckCircle2,
   ChevronLeft,
   ChevronRight,
   Info,
@@ -394,7 +392,6 @@ export function ScheduleCalendarView({
   role,
   adminMode = "all",
   weekInfo,
-  isWeekLocked,
   weekOffset,
   onWeekChange,
   coursesList,
@@ -406,9 +403,7 @@ export function ScheduleCalendarView({
   onCreateScheduleDirect,
   onOpenPreSession,
   onOpenPostSession,
-  onOpenAuditLog,
   onEditSchedule,
-  onMoveSession,
   onDeleteSlot,
   onAssignTutorialSlot,
   onOpenSessionDetail,
@@ -531,7 +526,7 @@ export function ScheduleCalendarView({
     }
 
     return result;
-  }, [academicSchedules, bookings, isWeekLocked, slots, today, t]);
+  }, [academicSchedules, bookings, slots, today, t]);
 
   const filteredEvents = useMemo(() => normalizedEvents.filter((event) => {
     if (courseFilter !== "all") {

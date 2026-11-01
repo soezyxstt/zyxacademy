@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
-import { Lock, ChevronRight, Calendar, Award, Clock, AlertTriangle, ArrowLeft, CheckCircle2, XCircle, FileText, Download, Check } from "lucide-react";
+import { Lock, Calendar, Award, Clock, AlertTriangle, ArrowLeft, CheckCircle2, XCircle, FileText, Download, Check } from "lucide-react";
 import { CoursePageShell } from "@/components/course/course-page-shell";
 import { QuizPlayer } from "@/components/course/quiz-player";
 import { EnrollmentForm } from "@/components/enrollment-form";
 import { Reveal } from "@/components/ui/reveal";
-import { createMetadata, pageTitle } from "@/lib/site";
+import { createMetadata} from "@/lib/site";
 import { db } from "@/db";
 import { quizTemplates, studentQuizAttempts, aiQuestionBank, knowledgeObjects, chapters } from "@/db/schema";
 import { and, or, eq, desc, sql, inArray } from "drizzle-orm";

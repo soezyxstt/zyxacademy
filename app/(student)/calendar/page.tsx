@@ -16,7 +16,7 @@ import { eq, and, inArray, desc } from "drizzle-orm";
 import { PageHeader } from "@/components/page-header";
 import { ApplicationPage } from "@/components/application-page";
 import { Reveal } from "@/components/ui/reveal";
-import { createMetadata, pageTitle } from "@/lib/site";
+import { createMetadata} from "@/lib/site";
 import { listStudentEnrollments } from "@/lib/student/course-catalog";
 import { CalendarAgendaClient, type CalendarEventItem } from "./calendar-agenda-client";
 import { TranslatedText } from "@/components/i18n/translated-text";

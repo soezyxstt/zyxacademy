@@ -1025,7 +1025,7 @@ export async function sortQuizTemplatesByChapter<T extends SortableQuizTemplate>
   });
 }
 
-export async function getStudentVisibleCourseQuizzes(courseId: string, studentId?: string) {
+export async function getStudentVisibleCourseQuizzes(courseId: string, _studentId?: string) {
   const course = await resolveStudentCourse(courseId);
   const compatibilityCourseId = course?.legacyId ?? courseId;
   const templates = await db
@@ -1077,7 +1077,7 @@ export async function getCourseQuizzes(courseId: string, studentId?: string) {
   return mappedQuizzes;
 }
 
-export async function getCourseTryouts(courseId: string, studentId?: string) {
+export async function getCourseTryouts(courseId: string, _studentId?: string) {
   const course = await resolveStudentCourse(courseId);
   const compatibilityCourseId = course?.legacyId ?? courseId;
   const dbTryouts = await db

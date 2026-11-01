@@ -9,8 +9,7 @@ import {
   pengguna,
   sumberMateri,
 } from "@/db/schema";
-import { eq, asc, and, like, or, inArray } from "drizzle-orm";
-import { randomUUID } from "node:crypto";
+import { eq, asc, inArray } from "drizzle-orm";
 import {
   saveCourseWithCanonicalProjection,
   saveChapterWithCanonicalProjection,
@@ -133,7 +132,7 @@ export async function executeCreateCourse(input: CreateCourseInput, actorId?: st
       isNew: true,
       actorId: await resolvePenggunaActorId(actorId),
     });
-  } catch (err: any) {
+  } catch {
     await db.insert(courses).values({
       id: cleanId,
       title: cleanTitle,
@@ -358,7 +357,7 @@ export async function executeBatchCreateChapters(input: BatchCreateChaptersInput
           actorId: resolvedActorId,
         }, tx);
         createdChapters.push({ id: created.id, title: ch.title, orderIndex });
-      } catch (err: any) {
+      } catch {
         await tx.insert(chapters).values({
           id: chapterId,
           courseId: cleanCourseId,

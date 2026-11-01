@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -69,8 +69,6 @@ type CourseDocumentsClientProps = {
   isAdmin?: boolean;
 };
 
-const MAX_THUMBNAIL_RETRIES = 8;
-
 const tabs: Array<{ key: TabKey; label: string; icon: typeof FileText }> = [
   { key: "all", label: "all", icon: FileText },
   { key: "materi", label: "material", icon: FileText },
@@ -87,78 +85,11 @@ function normalizeTabKey(tab?: string | null): TabKey {
   return "all";
 }
 
-function resolveTabGroup(material: CourseMaterial): Exclude<TabKey, "all"> {
-  if (material.tabGroup) return material.tabGroup;
-  if (material.docCategory === "diktat") return "diktat";
-  if (
-    material.docCategory === "soal" ||
-    material.docCategory === "solusi" ||
-    material.kind === "quiz" ||
-    material.kind === "tryout"
-  ) {
-    return "bank_soal";
-  }
-  if (material.kind === "pdf") return "pdf";
-  return "materi";
-}
-
-const typeStyle: Record<
-  Exclude<TabKey, "all">,
-  { label: string; border: string; icon: typeof FileText; iconClass: string }
-> = {
-  materi: {
-    label: "Materi",
-    border: "border-l-blue-500",
-    icon: FileText,
-    iconClass: "text-blue-500",
-  },
-  diktat: {
-    label: "Diktat",
-    border: "border-l-indigo-500",
-    icon: BookOpen,
-    iconClass: "text-indigo-500",
-  },
-  bank_soal: {
-    label: "Soal",
-    border: "border-l-amber-500",
-    icon: ClipboardList,
-    iconClass: "text-amber-500",
-  },
-  pdf: {
-    label: "PDF Materi",
-    border: "border-l-rose-500",
-    icon: FileText,
-    iconClass: "text-rose-500",
-  },
-};
-
 function materialChapterIds(material: CourseMaterial): string[] {
   if (Array.isArray(material.chapterIds) && material.chapterIds.length > 0) {
     return material.chapterIds.filter(Boolean);
   }
   return material.chapterId ? [material.chapterId] : [];
-}
-
-function documentMeta(material: CourseMaterial, typeLabel: string): string {
-  const subcategory = material.subcategory
-    ? getSubcategoryLabel(material.subcategory as CourseMaterialSubcategory) ?? material.subcategory
-    : null;
-
-  const rawFileSize = material.fileSize?.trim();
-  const isRedundantFileSize =
-    !rawFileSize ||
-    /^diktat(\s+resmi|\s+canonical)?$/i.test(rawFileSize) ||
-    rawFileSize.toLowerCase() === typeLabel.toLowerCase() ||
-    rawFileSize.toLowerCase() === "artikel";
-
-  return [
-    typeLabel,
-    subcategory,
-    material.year ? String(material.year) : null,
-    isRedundantFileSize ? null : rawFileSize,
-  ]
-    .filter(Boolean)
-    .join(" · ");
 }
 
 export type MaterialHierarchyTier = "article" | "diktat" | "materi_pdf" | "soal_pdf";
@@ -614,7 +545,7 @@ export function CourseDocumentsClient({
   const [urlTab, setUrlTab] = useUrlTab("tab", "all", initialTab);
   const activeTab = normalizeTabKey(urlTab);
 
-  const { chapterKeyById, knownChapterIds } = useMemo(() => {
+  const { chapterKeyById } = useMemo(() => {
     const keyMap = new Map<string, string>();
     const allKnown = new Set<string>();
 

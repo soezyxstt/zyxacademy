@@ -73,15 +73,26 @@ function normalizeCanvasInput(input: unknown): unknown {
     });
 
     if (!record.fallback || typeof record.fallback !== "object" || !Array.isArray((record.fallback as Record<string, unknown>).columns)) {
-      const seriesNames = (record.series as Array<{ label: string; expression: string }>).map((s) => s.label || "y");
+      const series = record.series as Array<{ label: string; expression: string; excludedX?: number[] }>;
+      const seriesNames = series.map((s) => s?.label || "y");
+      const variables = (record.variables as Array<{ id?: unknown; defaultValue?: unknown }>).filter(
+        (variable) => variable && typeof variable.id === "string" && typeof variable.defaultValue === "number" && Number.isFinite(variable.defaultValue),
+      );
+      const defaults = Object.fromEntries(variables.map((variable) => [variable.id as string, variable.defaultValue as number]));
+      const sample = (item: typeof series[number], x: number): string => {
+        if (!item || typeof item.expression !== "string") return "N/A";
+        if ((Array.isArray(item.excludedX) && item.excludedX.includes(x)) || (Array.isArray(record.pointMarkers) && record.pointMarkers.some((marker: { seriesId?: string; x?: number; kind?: string } | null) => marker?.seriesId === (item as { id?: string }).id && marker?.x === x && marker?.kind === "open"))) return "N/A";
+        try {
+          const value = compileSafeExpression(item.expression, { variables: ["x", ...Object.keys(defaults)] }).evaluate({ ...defaults, x });
+          return Number.isFinite(value) ? String(Number(value.toPrecision(8))) : "N/A";
+        } catch {
+          return "N/A";
+        }
+      };
       record.fallback = {
         summary: `Tabel nilai untuk ${record.title}`,
         columns: [{ id: "x", label: "x" }, ...seriesNames.map((name, i) => ({ id: `y_${i}`, label: name }))],
-        rows: [
-          [String(min), ...seriesNames.map(() => "0")],
-          ["0", ...seriesNames.map(() => "0")],
-          [String(max), ...seriesNames.map(() => "0")],
-        ],
+        rows: [min, (min + max) / 2, max].map((x) => [String(x), ...series.map((item) => sample(item, x))]),
       };
     }
   }

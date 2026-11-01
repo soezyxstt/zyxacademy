@@ -381,6 +381,8 @@ The standalone Admin material editor is retired. Existing website material remai
 - Cache identity is scoped to canonical evidence, policy, language, route, assessment mode, and embedding profile; learner-specific data is excluded.
 - Personalization is applied after cache retrieval, while cache hits consume zero provider units.
 
+Zyra uses bounded, session-scoped conversation context to interpret follow-up questions. Turns using that context bypass shared response caches; active assessment safeguards still apply. General explanations use a conversational tutor voice without mandatory learning-goal headings.
+
 ### Zyra Pedagogy V3
 
 - The server-owned teaching state machine and typed response contract are always-on. Shadow comparison remains an explicit staging request.
@@ -662,3 +664,5 @@ concept diagnosis, let the learner clarify their reasoning, give one small next
 step, and encourage another predicted Run. After an edit, old explanations are
 marked stale until a new consultation. A successful browser Run remains practice,
 not an official Submit grade.
+
+Zyra preserves LaTeX spacing commands during answer cleanup and renders standalone formula steps as separate display rows. Display formula boundaries containing escaped line breaks are normalized without changing commands such as `\neq` or `\nabla`.

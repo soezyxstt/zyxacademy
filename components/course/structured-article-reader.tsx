@@ -9,7 +9,6 @@ import {
   CheckCircle2,
   Circle,
   Clock,
-  Compass,
   ChevronLeft,
   ChevronRight,
   PanelRightClose,
@@ -50,7 +49,7 @@ import { cn } from "@/lib/utils";
 import { MarkdownRenderer } from "@/components/course/markdown-renderer";
 import { emitActivityUpdated } from "@/lib/activity-signal";
 import { useTutor } from "@/components/course/tutor-drawer";
-import { isZyraSelectionAskEnabled, normalizeZyraSelection } from "@/lib/zyra/murid";
+import { isZyraSelectionAskEnabled } from "@/lib/zyra/murid";
 import { extractZyraSelection, type ZyraSelectionContext } from "@/lib/zyra/selection-serializer";
 import { ZyraSelectionToolbar } from "@/components/course/zyra-selection-toolbar";
 import {
@@ -441,12 +440,6 @@ export function StructuredArticleReader({
     );
   }, [article.sections, activeSectionSlug, requestedSlug, article.progress?.lastSectionSlug]);
 
-  const activeIndex = useMemo(() => {
-    if (!activeSection) return 0;
-    const idx = article.sections.findIndex((s) => s.id === activeSection.id);
-    return idx >= 0 ? idx : 0;
-  }, [article.sections, activeSection]);
-
   // TOC sidebar & mobile sheet states
   const [internalTocOpen, setInternalTocOpen] = useState(true);
   const [internalMobileSheetOpen, setInternalMobileSheetOpen] = useState(false);
@@ -595,7 +588,7 @@ export function StructuredArticleReader({
         window.history.replaceState(null, "", url.toString());
       } catch {}
     },
-    [],
+    [setIsMobileSheetOpen],
   );
 
   const navigateToBlock = useCallback(
@@ -609,7 +602,7 @@ export function StructuredArticleReader({
         el.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "start" });
       }
     },
-    [],
+    [setIsMobileSheetOpen],
   );
 
   // Initial scroll effect if a specific section was opened via URL
@@ -729,7 +722,7 @@ export function StructuredArticleReader({
         }
       } catch {}
     },
-    [article.id, learnerMode],
+    [article.id, course?.id, learnerMode],
   );
 
   // Reset scroll & timer tracking on active section change
@@ -753,30 +746,6 @@ export function StructuredArticleReader({
       }
     };
   }, [activeSection, learnerMode, sendProgressUpdate]);
-
-  // Manual section completion helper
-  const markSectionCompleted = useCallback(
-    (sectionId: string) => {
-      completedSectionsSentRef.current.add(sectionId);
-      setSectionProgressMap((prev) => ({
-        ...prev,
-        [sectionId]: {
-          maxReadPercent: Math.max(prev[sectionId]?.maxReadPercent ?? 0, 100),
-          completed: true,
-          timeSpentSeconds:
-            (prev[sectionId]?.timeSpentSeconds ?? 0) +
-            (activeSection?.id === sectionId ? activeTimeSpentRef.current : 5),
-        },
-      }));
-      sendProgressUpdate(
-        sectionId,
-        100,
-        activeSection?.id === sectionId ? activeTimeSpentRef.current : 5,
-        true,
-      );
-    },
-    [activeSection, sendProgressUpdate],
-  );
 
   // Scroll listener to track read percentage and completion across all sections in continuous flow
   useEffect(() => {
@@ -971,31 +940,6 @@ export function StructuredArticleReader({
   }, [article.sections, sectionProgressMap]);
 
   const overallPercent = Math.min(100, Math.round((completedCount / totalSections) * 100));
-
-  // Contextual prev and next sections
-  const prevSection = activeIndex > 0 ? article.sections[activeIndex - 1] : null;
-  const nextSection =
-    activeIndex < article.sections.length - 1 ? article.sections[activeIndex + 1] : null;
-
-  const handleNextSection = () => {
-    if (activeSection) {
-      sendProgressUpdate(
-        activeSection.id,
-        Math.max(90, maxScrollPercentRef.current),
-        activeTimeSpentRef.current,
-        true,
-      );
-    }
-    if (nextSection) {
-      navigateToSection(nextSection);
-    }
-  };
-
-  const handlePrevSection = () => {
-    if (prevSection) {
-      navigateToSection(prevSection);
-    }
-  };
 
   const handleFinishArticle = () => {
     if (learnerMode) {

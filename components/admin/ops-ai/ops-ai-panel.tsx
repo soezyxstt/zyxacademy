@@ -4,10 +4,8 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import {
   X,
-  Send,
   Loader2,
   Trash2,
-  RotateCcw,
   Bot,
   Copy,
   Check,
@@ -15,11 +13,9 @@ import {
   ChevronDown,
   Plus,
   MessageSquare,
-  Clock,
   ArrowUp,
   Maximize2,
   Minimize2,
-  Layers,
   FileEdit,
 } from "lucide-react";
 import { useOpsAiContext } from "./ops-ai-context";
@@ -28,7 +24,6 @@ import {
   saveOpsAiMessages,
   clearOpsAiMessages,
   loadOpsAiSessions,
-  saveOpsAiSessions,
   loadActiveSessionId,
   saveActiveSessionId,
   createOpsAiSession,
@@ -63,24 +58,6 @@ const DEFAULT_SUGGESTIONS = [
   "Buatkan token aktivasi untuk kelompok 5 orang",
   "Bagaimana prosedur darurat rollback cache?",
 ];
-
-function formatSessionTime(timestamp: number): string {
-  try {
-    const d = new Date(timestamp);
-    const now = new Date();
-    const isToday =
-      d.getDate() === now.getDate() &&
-      d.getMonth() === now.getMonth() &&
-      d.getFullYear() === now.getFullYear();
-
-    if (isToday) {
-      return d.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" });
-    }
-    return d.toLocaleDateString("id-ID", { day: "numeric", month: "short" });
-  } catch {
-    return "";
-  }
-}
 
 export function OpsAiPanel({ initialMessages }: { initialMessages?: OpsAiMessageV2[] } = {}) {
   const {
@@ -310,7 +287,7 @@ export function OpsAiPanel({ initialMessages }: { initialMessages?: OpsAiMessage
         }
       };
 
-      const handleUp = (ev?: MouseEvent | PointerEvent) => {
+      const handleUp = () => {
         if (!isDraggingRef.current) return;
         isDraggingRef.current = false;
 
@@ -617,22 +594,6 @@ export function OpsAiPanel({ initialMessages }: { initialMessages?: OpsAiMessage
       setIsStreaming(false);
       abortControllerRef.current = null;
     }
-  };
-
-  const handleRetryLast = () => {
-    if (isStreaming) return;
-    const lastUser = [...messages].reverse().find((m) => m.role === "user");
-    if (!lastUser) return;
-
-    setMessages((prev) => {
-      const copy = [...prev];
-      if (copy.length > 0 && copy[copy.length - 1]?.role === "assistant") {
-        copy.pop();
-      }
-      return copy;
-    });
-
-    handleSendMessage(lastUser.content);
   };
 
   const handleKeyDownInput = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {

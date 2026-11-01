@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { and, desc, eq, or } from "drizzle-orm";
+import { and, eq, or } from "drizzle-orm";
 import { db } from "@/db";
 import {
   auditMutasi,

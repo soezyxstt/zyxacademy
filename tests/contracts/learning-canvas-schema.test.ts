@@ -25,6 +25,16 @@ const functionPlot = {
 };
 
 describe("Learning Canvas schema", () => {
+  test("computes missing plot fallback values and preserves undefined limit points", () => {
+    const result = validateCanvasSpec({ ...functionPlot, fallback: undefined, domain: { min: 0, max: 2 }, series: [{ id: "f", label: "f(x)", expression: "(x^2-1)/(x-1)", excludedX: [1] }] }, ["claim-1"]);
+    expect(result.isValid).toBe(true);
+    expect(result.spec?.fallback.rows).toEqual([["0", "1"], ["1", "N/A"], ["2", "3"]]);
+  });
+
+  test("computes missing fallback using default coefficients within the domain", () => {
+    const result = validateCanvasSpec({ ...functionPlot, fallback: undefined, domain: { min: 2, max: 4 }, variables: [{ id: "a", label: "Koefisien", min: 0, max: 4, defaultValue: 2 }] }, ["claim-1"]);
+    expect(result.spec?.fallback.rows).toEqual([["2", "8"], ["3", "18"], ["4", "32"]]);
+  });
   test("distinguishes an excluded limit point from the defined function value", () => {
     const pointMarkers = [
       { seriesId: "f", x: 0, y: 1, label: "Limit = 1", kind: "open" },

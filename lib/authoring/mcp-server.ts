@@ -48,13 +48,9 @@ import {
   QUALITY_POLICY_VERSION,
   pedagogicRubricItemSchema,
   pedagogicExceptionSchema,
-  validatePedagogicRubricDecision,
   type DiagnosticIssue,
-  type PedagogicRubricItem,
-  type PedagogicException,
 } from "@/lib/materials/quality-policy";
 import {
-  validatePdfArtifactEvidence,
   type PdfArtifactEvidence,
 } from "@/lib/materials/pdf-artifact-contract";
 import { sha256Text } from "@/lib/bundle/validator";

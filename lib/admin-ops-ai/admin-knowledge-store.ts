@@ -4,7 +4,7 @@ import {
   adminOpsKnowledgeChunks,
   adminOpsKnowledgeSyncQueue,
 } from "@/db/schema";
-import { eq, and, inArray, sql } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import type {
   AdminKnowledgeChunk,
   AdminKnowledgeSourceRecord,

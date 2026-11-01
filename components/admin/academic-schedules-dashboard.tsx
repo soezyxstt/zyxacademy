@@ -55,7 +55,6 @@ import {
   updateTutorCourses,
 } from "@/app/(admin)/admin/(academic)/schedules/actions";
 import { daysFrom, formatIsoDate, getJakartaNow, getWeekScheduleDays } from "@/lib/date-utils";
-import { isTutorialWeekLocked } from "@/lib/schedule/week-policy";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useUrlTab } from "@/hooks/use-url-tab";
 import { useTranslations } from "@/lib/i18n/client";
