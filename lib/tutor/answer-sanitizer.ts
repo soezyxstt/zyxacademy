@@ -186,7 +186,7 @@ export function sanitizeAnswer(
   // 3. Tidy prose only. Citation/ID redaction above still covers code, while
   // whitespace, empty calls and empty lists are meaningful Python syntax.
   const codeSegments: string[] = [];
-  out = out.replace(/```[\s\S]*?```|`[^`\n]*`/g, (segment) => {
+  out = out.replace(/```[\s\S]*?```|`[^`\n]*`|\$\$[\s\S]*?\$\$|\$[^$\n]+\$|\\\[[\s\S]*?\\\]|\\\([^\n]*?\\\)/g, (segment) => {
     const marker = `@@ZYRA_CODE_${codeSegments.length}@@`;
     codeSegments.push(segment);
     return marker;

@@ -14,9 +14,11 @@ test("Zyra article rendering and local graph exploration", async ({ page }, test
   await expect(page.locator('[data-zyra-hydrated="true"]')).toBeVisible();
   await expect(page.getByText("Bab 1: Sistem bilangan", { exact: false })).toBeVisible();
   await expect(page.getByText("Bagian materi yang dipilih")).toBeVisible();
-  await expect(page.locator(".katex-display")).toBeVisible();
+  await expect(page.locator(".katex-display").first()).toBeVisible();
   await expect(page.locator("main")).not.toContainText("article-article");
   await expect(page.locator("main")).not.toContainText("selection-179");
+  await expect(page.getByTestId("limit-steps").locator('[data-math-scroll]')).toHaveCount(3);
+  await expect(page.getByTestId("limit-steps").locator('.katex-error')).toHaveCount(0);
   await page.evaluate(async () => { await document.fonts.ready; });
   await page.screenshot({ path: testInfo.outputPath("screenshots/answer.png"), fullPage: true });
   await page.getByRole("button", { name: "Ubah rumus", exact: true }).click();
@@ -26,7 +28,7 @@ test("Zyra article rendering and local graph exploration", async ({ page }, test
   await page.getByRole("slider", { name: "Ubah nilai Kemiringan" }).fill("-1");
   await page.getByRole("button", { name: "Nilai grafik", exact: true }).click();
   await expect(page.getByRole("button", { name: "Sembunyikan nilai grafik" })).toHaveAttribute("aria-expanded", "true");
-  await expect(page.getByRole("row").filter({ hasText: /^0\s*2$/ })).toBeVisible();
+  await expect(page.getByRole("table").locator("tbody tr").nth(3).locator("td").nth(1).locator("annotation")).toHaveText("2");
   await page.screenshot({ path: testInfo.outputPath("screenshots/explore.png"), fullPage: true });
   await expression.fill("alert(1)");
   await expression.press("Tab");

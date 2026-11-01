@@ -134,7 +134,7 @@ const STYLE_PATTERNS: Array<{ regex: RegExp; modifier: ResponseModifier }> = [
 
 const GREETING_META_REGEX = /^(terima kasih|makasih|thanks|thank you|halo|hai|hi|siapa kamu|siapa anda|oke|ok|siap|paham|baik|mantap)\b/i;
 
-const PRONOUN_AMBIGUOUS_REGEX = /^(maksudnya\??|kenapa\??|mengapa\??|bisa bantu\??|maksudnya gimana\??|itu apa\??|dia apa\??)$/i;
+const PRONOUN_AMBIGUOUS_REGEX = /^(maksudnya\??|kenapa\??|mengapa\??|bisa bantu\??|maksudnya gimana\??|itu apa\??|dia apa\??|(?:jelaskan|terangkan) (?:itu|ini)(?: dong)?[?.!]*|explain (?:it|this)[?.!]*)$/i;
 
 const INJECTION_PATTERNS = /\b(ignore|previous|instructions|system prompt|jailbreak|disregard|dan abaikan|abaikan instruksi)\b/gi;
 
@@ -229,10 +229,15 @@ export async function classifyQueryAction(
 
   // 4. Conversation history exists: check for deterministic style follow-up on same topic
   const studentMessages = history.filter((m) => m.role === "student");
-  const lastStudentMsg = studentMessages[studentMessages.length - 1]?.content || "";
+  const lastStudentMsg = [...studentMessages].reverse().find((message) => {
+    const text = message.content.trim();
+    return !PRONOUN_AMBIGUOUS_REGEX.test(text)
+      && !GREETING_META_REGEX.test(text)
+      && extractStyleModifiers(text).cleanedText.length >= 3;
+  })?.content || studentMessages[studentMessages.length - 1]?.content || "";
   const lastTopicCleaned = extractStyleModifiers(lastStudentMsg).cleanedText;
 
-  if (modifiers.length > 0 && (cleanedText.length < 4 || PRONOUN_AMBIGUOUS_REGEX.test(rawQuestion))) {
+  if ((modifiers.length > 0 && cleanedText.length < 4) || PRONOUN_AMBIGUOUS_REGEX.test(rawQuestion)) {
     return {
       action: "reuse_previous_evidence",
       contentFocus: sanitizeTopicFocus(lastTopicCleaned || lastStudentMsg || rawQuestion),

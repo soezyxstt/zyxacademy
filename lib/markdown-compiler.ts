@@ -1169,7 +1169,7 @@ export function parseCanonicalMarkdown(markdown: string): ASTBlock[] {
       continue;
     }
 
-    if (trimmed.startsWith("$") || trimmed.startsWith("\\[")) {
+    if (trimmed === "$" || trimmed.startsWith("$$") || trimmed.startsWith("\\[") || /^\$[^$]+\$$/.test(trimmed)) {
       // Flush presenter block first
       if (presenterType) {
         flushPresenterBlock(presenterType, presenterLines);
@@ -1177,8 +1177,8 @@ export function parseCanonicalMarkdown(markdown: string): ASTBlock[] {
         presenterType = null;
       }
 
-      const openDelim = trimmed.startsWith("$") ? "$" : "\\[";
-      const closeDelim = openDelim === "$" ? "$" : "\\]";
+      const openDelim = trimmed.startsWith("$$") ? "$$" : trimmed.startsWith("$") ? "$" : "\\[";
+      const closeDelim = openDelim === "\\[" ? "\\]" : openDelim;
       const mathLines: string[] = [];
       if (trimmed.endsWith(closeDelim) && trimmed.length > openDelim.length + closeDelim.length) {
         mathLines.push(trimmed.slice(openDelim.length, -closeDelim.length).trim());
@@ -1186,7 +1186,7 @@ export function parseCanonicalMarkdown(markdown: string): ASTBlock[] {
           id: `md-${globalIndex}-mathblk`,
           type: "p",
           globalOrderIndex: globalIndex++,
-          content: `$${mathLines[0]}$`,
+          content: `$$${mathLines[0]}$$`,
         });
       } else {
         const firstLineRest = trimmed.slice(openDelim.length).trim();
@@ -1211,7 +1211,7 @@ export function parseCanonicalMarkdown(markdown: string): ASTBlock[] {
           id: `md-${globalIndex}-mathblk`,
           type: "p",
           globalOrderIndex: globalIndex++,
-          content: `$\n${mathLines.join("\n")}\n$`,
+          content: `$$\n${mathLines.join("\n")}\n$$`,
         });
       }
       continue;
