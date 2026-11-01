@@ -106,6 +106,10 @@ interface ChatMessage {
     question: string;
     quotedContext?: ZyraQuotedContext | null;
     intent: PythonPreset["intent"] | "hint" | "generate";
+    attachmentIds: string[];
+    attachments: ZyraMessageAttachment[];
+    courseId: string | null;
+    sessionId: string | null;
   };
 }
 
@@ -838,18 +842,19 @@ export function TutorDrawerView({
   );
 
   // Handle sending arbitrary chat messages with SSE streaming
-  const handleSend = async (suggestedQuestion?: string, overrideQuote?: ZyraQuotedContext | null, presetIntent?: PythonPreset["intent"] | "hint" | "generate") => {
+  const handleSend = async (suggestedQuestion?: string, overrideQuote?: ZyraQuotedContext | null, presetIntent?: PythonPreset["intent"] | "hint" | "generate", retry?: NonNullable<ChatMessage["failedPayload"]>) => {
     if (chatLoading || abortControllerRef.current) return;
+    if (retry && (retry.courseId !== courseIdFromPath || retry.sessionId !== sessionId)) return;
     const codingRequest = codingBridge?.capture();
     const isCodeQuote = (overrideQuote !== undefined ? overrideQuote : activeQuotedContext)?.blockType === "code";
-    const intent = isCodeQuote ? "review" : presetIntent ?? (assistantMode === "python" ? "review" : "hint");
+    const intent = retry?.intent ?? (isCodeQuote ? "review" : presetIntent ?? (assistantMode === "python" ? "review" : "hint"));
     const pythonRequest = intent === "generate" ? codingRequest : null;
     const rawQuestion = (suggestedQuestion ?? inputVal).trim();
     const effectiveQuote = overrideQuote !== undefined ? overrideQuote : activeQuotedContext;
-    const requestedAttachmentIds = [...attachmentIds];
-    const requestedAttachments = [...readyAttachments];
+    const requestedAttachmentIds = [...(retry?.attachmentIds ?? attachmentIds)];
+    const requestedAttachments = (retry?.attachments ?? readyAttachments).map((attachment) => ({ ...attachment }));
     if (!rawQuestion && !effectiveQuote && requestedAttachmentIds.length === 0) return;
-    if (!attachmentsReady) return;
+    if (!retry && !attachmentsReady) return;
     const fallbackQuestion = effectiveQuote
       ? t("tutorDrawer.explainPrompt")
       : requestedAttachmentIds.length > 0
@@ -876,13 +881,12 @@ export function TutorDrawerView({
     };
 
     setMessages((prev) => [...prev.map((message) => ({ ...message, followups: undefined })), studentMsg]);
-    setInputVal("");
-    setActiveQuotedContext(null);
-    onClearQuotedContext?.();
-    setAttachmentIds([]);
-    setReadyAttachments([]);
-    setAttachmentsReady(true);
-    setAttachmentComposerKey((value) => value + 1);
+    if (!retry) {
+      setInputVal("");
+      setActiveQuotedContext(null);
+      onClearQuotedContext?.();
+      resetComposerAttachments();
+    }
     setChatLoading(true);
 
     const abortController = new AbortController();
@@ -895,6 +899,7 @@ export function TutorDrawerView({
       ? crypto.randomUUID()
       : `zyra-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
     let activeSid = sessionId;
+    const failureSnapshot = () => ({ question: rawQuestion, quotedContext: effectiveQuote, intent, attachmentIds: requestedAttachmentIds, attachments: requestedAttachments, courseId: courseIdFromPath, sessionId: activeSid });
     const requestConversationKey = conversationKeyRef.current;
     const requestConversationEpoch = conversationEpochRef.current;
     const requestLocaleEpoch = localeEpochRef.current;
@@ -1017,7 +1022,7 @@ export function TutorDrawerView({
                   ...m,
                   content: accumulatedContent,
                   isError: true,
-                  failedPayload: { question: rawQuestion, quotedContext: effectiveQuote, intent },
+                  failedPayload: failureSnapshot(),
                 } : m
               )
             );
@@ -1030,7 +1035,7 @@ export function TutorDrawerView({
         accumulatedContent = accumulatedContent || t("tutorDrawer.responseStopped");
         setMessages((prev) =>
           prev.map((m) =>
-            m.id === aiMsgId ? { ...m, content: pythonRequest ? pythonReply(accumulatedContent).explanation : accumulatedContent, followups: undefined } : m
+            m.id === aiMsgId ? { ...m, content: pythonRequest ? pythonReply(accumulatedContent).explanation : accumulatedContent, followups: undefined, isError: true, failedPayload: failureSnapshot() } : m
           )
         );
       } else {
@@ -1042,7 +1047,7 @@ export function TutorDrawerView({
               ...m,
               content: accumulatedContent,
               isError: true,
-              failedPayload: { question: rawQuestion, quotedContext: effectiveQuote, intent },
+              failedPayload: failureSnapshot(),
             } : m
           )
         );
@@ -1058,7 +1063,7 @@ export function TutorDrawerView({
       hasError = true;
       setMessages((prev) => prev.map((m) => m.id === aiMsgId ? {
         ...m, content: t("tutorDrawer.responseProcessingError"), isError: true,
-        failedPayload: { question: rawQuestion, quotedContext: effectiveQuote, intent },
+        failedPayload: failureSnapshot(),
       } : m));
     }
     if (pythonRequest && completed && !hasError && !abortController.signal.aborted && requestConversationEpoch === conversationEpochRef.current) {
@@ -1101,7 +1106,7 @@ export function TutorDrawerView({
   }, [initialQuestion, isOpen]);
 
   const handleRetry = (payload: NonNullable<ChatMessage["failedPayload"]>) => {
-    void handleSend(payload.question, payload.quotedContext, payload.intent);
+    void handleSend(payload.question, payload.quotedContext, payload.intent, payload);
   };
 
   const handleCopyText = (id: string, text: string) => {
