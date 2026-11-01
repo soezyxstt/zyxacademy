@@ -969,7 +969,7 @@ export function TutorDrawerView({
     const requestConversationEpoch = conversationEpochRef.current;
     const requestLocaleEpoch = localeEpochRef.current;
     const languageRequestBase = {
-      question: pythonRequest ? `Bantu buat atau perbaiki kode Python sesuai permintaan berikut. Berikan kode final lengkap dalam satu blok python. Tulis penjelasan singkat di luar blok kode.\n\n${question}` : question,
+      question,
       ...(codingRequest ? { codingContext: { ...codingRequest.context, intent: assistantMode === "python" ? "generate" as const : "hint" as const } } : {}),
       courseId: courseId ?? "unknown",
       conceptId: koId || undefined,
@@ -1134,6 +1134,7 @@ export function TutorDrawerView({
     if (
       courseId &&
       accumulatedContent &&
+      !codingRequest &&
       !hasError &&
       requestConversationEpoch === conversationEpochRef.current
     ) {

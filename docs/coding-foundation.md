@@ -150,7 +150,10 @@ and Tutor modes. Python captures the current editor and revision before sending.
 One complete final Python block applies directly only while that editor remains
 active and unchanged. Concurrent edits require an explicit apply action. Final
 code is omitted from chat; Tutor explanations and snippets stay in the chat and
-do not alter the editor. Article and exercise helpers retain their existing flows.
+do not alter the editor. Coding turns are saved once by the chat API, including
+image linkage. Python history retains explanation and regeneration guidance,
+without claiming that a pending result was applied. Article and exercise helpers
+retain their existing flows.
 The composer renders explicitly delimited math inline, exposing the source on
 selection. Ordinary prose, currency, code spans and incomplete formulas remain
 text. Enter sends, Shift+Enter inserts a line, and composition does not send.

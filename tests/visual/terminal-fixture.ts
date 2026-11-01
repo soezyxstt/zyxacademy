@@ -2,6 +2,7 @@ import type { Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
 
 export async function mockZyraDrawer(page: Page) {
+  let saveCalls = 0;
   await page.route("**/api/zyra/attachments/image-id**", route => route.fulfill({ contentType: "image/png", body: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=", "base64") }));
   await page.route("**/api/zyra/allowance**", route => route.fulfill({ json: { summary: null } }));
   await page.route("**/visual-fixtures/coding**", async route => {
@@ -9,6 +10,7 @@ export async function mockZyraDrawer(page: Page) {
     if (!action) return route.fallback();
     const manifest = JSON.parse(readFileSync(".next/dev/server/server-reference-manifest.json", "utf8"));
     const name = manifest.node[action]?.exportedName;
+    if (name === "saveTutorMessagesAction") saveCalls++;
     const response = name === "getTutorCourseContextAction" ? "Berpikir komputasi"
       : name === "loadTutorHistoryAction" ? { sessionId: "zyra-session", messages: [
         { id: "old-user", role: "student", content: "Bagaimana cara menghitung luas?" },
@@ -18,6 +20,7 @@ export async function mockZyraDrawer(page: Page) {
       : { success: true, sessionId: "zyra-session" };
     await route.fulfill({ contentType: "text/x-component", body: `0:{"a":"$@1","f":"","b":"development"}\n1:${JSON.stringify(response)}\n` });
   });
+  return { get saveCalls() { return saveCalls; } };
 }
 
 export async function mockTerminal(page: Page) {

@@ -5,13 +5,13 @@ test.setTimeout(90_000);
 
 async function openZyra(page: Page) {
   await mockTerminal(page);
-  await mockZyraDrawer(page);
+  const history = await mockZyraDrawer(page);
   await page.goto("/visual-fixtures/coding?terminal=1");
   await expect(page.getByRole("button", { name: "Masalah yang ingin diselesaikan" })).toHaveCount(0);
   await page.getByRole("button", { name: "Buka Zyra" }).click();
   const drawer = page.getByRole("complementary", { name: "Asisten belajar Zyra" });
   await expect(drawer.getByText("Kalikan panjang dengan lebar.")).toBeVisible();
-  return { drawer, composer: drawer.getByRole("textbox", { name: "Tanyakan materi atau rumus..." }) };
+  return { drawer, history, composer: drawer.getByRole("textbox", { name: "Tanyakan materi atau rumus..." }) };
 }
 
 function failures(page: Page) {
@@ -40,7 +40,7 @@ test("one compact composer routes final Python to the editor and keeps Tutor sni
     if (requests.length === 1) await waiting;
     await route.fulfill({ contentType: "text/event-stream", body: reply(requests.length === 1 ? "Luas dihitung dari panjang dan lebar.\n```python\nprint(24)\n```" : "Gunakan perkalian, misalnya `6 * 4`.\n```python\n6 * 4\n```") });
   });
-  const { drawer, composer } = await openZyra(page);
+  const { drawer, composer, history } = await openZyra(page);
   await expect(drawer.getByRole("tab", { name: "Python", exact: true })).toHaveAttribute("aria-selected", "true");
   expect((await drawer.locator("footer").boundingBox())!.height).toBeLessThan(130);
   await capture(page, info, "compact-idle");
@@ -61,7 +61,7 @@ test("one compact composer routes final Python to the editor and keeps Tutor sni
   await expect(drawer.getByText("Kode diterapkan ke editor.", { exact: true })).toBeVisible();
   await expect(page.getByRole("textbox", { name: "Kode Python" })).toContainText("print(24)");
   await expect(drawer.locator("pre")).toHaveCount(0);
-  expect(requests[0].codingContext).toMatchObject({ kind: "playground" });
+  expect(requests[0].codingContext).toMatchObject({ kind: "playground", intent: "generate" });
   await capture(page, info, "python-complete");
   await drawer.getByRole("tab", { name: "Tutor", exact: true }).click();
   await composer.fill("Mengapa memakai perkalian?");
@@ -75,6 +75,7 @@ test("one compact composer routes final Python to the editor and keeps Tutor sni
   await expect(drawer.getByText(/6 pesan/)).toBeVisible();
   await expect(drawer.getByText(/^0 pesan/)).toHaveCount(0);
   await capture(page, info, "history-count");
+  expect(history.saveCalls).toBe(0);
   expect(errors).toEqual([]);
 });
 
@@ -113,6 +114,15 @@ test("mixed math renders inline while prose, currency and code remain literal", 
   await composer.locator(".zyra-composer-math").click();
   await expect(composer).toContainText(String.raw`\int_{a}^{b}`);
   await capture(page, info, "math-editing");
+  for (let i = 0; i < 6; i++) await composer.press("ArrowRight");
+  await composer.press("Delete");
+  await composer.press("5");
+  for (let i = 0; i < 3; i++) await composer.press("ArrowRight");
+  await composer.press("Delete");
+  await composer.pressSequentially("10");
+  await drawer.getByRole("tab", { name: "Tutor", exact: true }).click();
+  await expect(composer.locator(".zyra-composer-math")).toHaveAttribute("aria-label", String.raw`\int_{5}^{10} x^2\,dx`);
+  await capture(page, info, "math-bounds-edited");
   await composer.fill("Hitung $x^2$ saja.");
   await drawer.getByRole("tab", { name: "Tutor", exact: true }).click();
   await composer.locator(".zyra-composer-math").click();
@@ -310,5 +320,31 @@ test("an unfinished Python stream cannot change the editor or expose final code"
   await expect(drawer.locator("pre")).toHaveCount(0);
   await expect(drawer.getByText("print(99)", { exact: true })).toHaveCount(0);
   await capture(page, info, "python-incomplete-stream");
+  expect(errors).toEqual([]);
+});
+
+test("Python generation errors and missing code preserve the editor", async ({ page }, info) => {
+  const errors = failures(page);
+  const { drawer, composer } = await openZyra(page);
+  const editor = page.getByRole("textbox", { name: "Kode Python" });
+  const before = await editor.textContent();
+  let failed = true;
+  await page.route("**/api/zyra/chat", route => {
+    expect(route.request().postDataJSON().codingContext.intent).toBe("generate");
+    return route.fulfill({ contentType: "text/event-stream", body: failed
+      ? `data: ${JSON.stringify({ type: "data-error", data: { message: "Zyra belum dapat merespons." } })}\n\ndata: [DONE]\n\n`
+      : reply("Coba gunakan print.") });
+  });
+  await composer.fill("Tampilkan satu.");
+  await composer.press("Enter");
+  await expect(drawer.getByText(/Zyra belum dapat merespons/)).toBeVisible();
+  await expect(editor).toHaveText(before!);
+  await capture(page, info, "generation-error");
+  failed = false;
+  await composer.fill("Coba lagi.");
+  await composer.press("Enter");
+  await expect(drawer.getByText("Minta satu blok Python lengkap agar kode dapat diterapkan.")).toBeVisible();
+  await expect(editor).toHaveText(before!);
+  await capture(page, info, "generation-no-code");
   expect(errors).toEqual([]);
 });

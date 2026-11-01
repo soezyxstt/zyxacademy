@@ -1232,7 +1232,10 @@ The active Playground registers a client-only editor bridge with current public
 coding context and a revision counter. The shared Zyra drawer captures it at
 request time. Python responses apply through that capture only after successful
 completion; a changed revision requires explicit replacement, and an unmounted
-editor rejects stale responses. Tutor responses do not apply code.
+editor rejects stale responses. Tutor responses do not apply code. The chat API
+is the sole history writer for coding turns and links student attachments once.
+Generated Python history omits fenced code and explains how to regenerate an
+unapplied result; the drawer does not save the same turn again.
 The mixed-text composer uses the installed CodeMirror editor with KaTeX widgets
 for explicit math delimiters, preserving raw source and plain-text paste.
 Recent-session counts use one grouped left join on tutor messages, matching

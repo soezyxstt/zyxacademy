@@ -116,6 +116,7 @@ export function ProductWorkedExample({
 }
 
 export interface ProductFormativeCheckProps {
+  density?: MarkdownDensity;
   title?: string | null;
   content: string;
   contentNode?: React.ReactNode;
@@ -160,6 +161,7 @@ const verdictClasses: Record<FormativeCheckResult["verdict"], string> = {
 };
 
 export function ProductFormativeCheck({
+  density = "default",
   title,
   content,
   formativeCheck,
