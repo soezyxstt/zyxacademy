@@ -107,6 +107,7 @@ export const PedagogyPromptInputSchema = z.object({
   hintLevel: HintLevelSchema,
   evidence: z.array(PedagogySourceSchema).max(12),
   learnerQuestion: z.string().min(1).max(5000),
+  conversation: z.array(z.object({ role: z.enum(["student", "ai"]), content: z.string().max(800) })).max(6).optional(),
   outputRules: z.array(z.string().min(1)).min(1).max(16),
 }).strict();
 export type PedagogyPromptInput = z.infer<typeof PedagogyPromptInputSchema>;

@@ -122,6 +122,15 @@ describe("Zyra composer Ctrl+V paste and Artikel v4 renderer sync", () => {
     }
   });
 
+  test("renders display formula rows without stray delimiters and keeps sentence-leading inline math", () => {
+    const html = renderToStaticMarkup(<MarkdownRenderer content={"$$\n\\frac{x^2-1}{x-1}\n$$\n\n$x$ mendekati $1$, jadi nilainya $2$."} />);
+    expect(html).toContain('class="katex-display"');
+    expect(html).not.toContain('katex-error');
+    expect(html).toContain('mendekati');
+    const compiled = compileMarkdown("$$x+1$$");
+    expect((compiled.ast.blocks[0] as { content: string }).content).toBe("$$x+1$$");
+  });
+
   test("renders Artikel v4 embedded parts and scientific table cells in MarkdownRenderer", () => {
     const encoded = Buffer.from(JSON.stringify({ parts: semanticArticleParts }), "utf8").toString("base64url");
     const v4Comment = `<!--__ZYX_V4_BLOCK_PAYLOAD__:${encoded}-->`;

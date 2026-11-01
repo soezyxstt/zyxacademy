@@ -30,7 +30,7 @@ describe("Tutor RAG Contract Tests", () => {
     expect(selectImageTutorPrompt("coding:user:session", "none").systemInstruction).not.toContain("complete runnable Python program");
   });
 
-  it("composes an ungrounded explanation with a learning goal and one checkpoint", () => {
+  it("composes an ungrounded explanation without rigid headings", () => {
     const answer = composeUngroundedTeachingAnswer({
       answer: "Konsep ini berada di luar materi kuliah saat ini.\n\n1. Mulai dari bentuk umum.",
       learningGoal: "Memahami bentuk umum persamaan kuadrat.",
@@ -39,9 +39,25 @@ describe("Tutor RAG Contract Tests", () => {
       confidence: 0.8,
     });
 
-    expect(answer).toContain("### Tujuan belajar");
-    expect(answer).toContain("### Cek pemahaman");
+    expect(answer).not.toContain("### Tujuan belajar");
+    expect(answer).not.toContain("### Cek pemahaman");
     expect(answer.match(/Apa peran diskriminan/g)).toHaveLength(1);
+  });
+
+  it("resolves a pronoun follow-up to the prior topic in deterministic mode", async () => {
+    const result = await classifyQueryAction({ question: "explain it", historyMessages: [
+      { role: "student", content: "limit" }, { role: "ai", content: "Limit describes an approaching value." },
+    ] }, { deterministicOnly: true });
+    expect(result.action).toBe("reuse_previous_evidence");
+    expect(result.contentFocus).toBe("limit");
+  });
+
+  it("keeps the topic across consecutive pronoun follow-ups", async () => {
+    const result = await classifyQueryAction({ question: "jelaskan itu", historyMessages: [
+      { role: "student", content: "limit" }, { role: "ai", content: "Limit describes an approaching value." },
+      { role: "student", content: "explain it" }, { role: "ai", content: "Think of approaching a point." },
+    ] }, { deterministicOnly: true });
+    expect(result.contentFocus).toBe("limit");
   });
 
   it("repairs common raw tutor equations without changing valid LaTeX", () => {
@@ -82,16 +98,16 @@ describe("Tutor RAG Contract Tests", () => {
     expect(resolveResponseLanguage({ requestedLanguage: "id", responseModifiers: [] })).toBe("id");
   });
 
-  it("builds an English general-teaching fallback with English controls and headings", () => {
+  it("builds an English general-teaching fallback without forced headings", () => {
     const answer = composeUngroundedTeachingAnswer({
       answer: "Use the definition to compare the two values.",
       matchedConcepts: [],
       confidence: 0.8,
     }, "en");
 
-    expect(answer).toContain("### Learning goal");
-    expect(answer).toContain("### Check your understanding");
-    expect(answer).toContain("In your own words");
+    expect(answer).not.toContain("### Learning goal");
+    expect(answer).not.toContain("### Check your understanding");
+    expect(answer).toBe("Use the definition to compare the two values.");
     expect(answer).not.toContain("Tujuan belajar");
   });
 

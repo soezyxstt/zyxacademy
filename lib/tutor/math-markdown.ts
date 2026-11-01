@@ -8,13 +8,18 @@ export function normalizeTutorMathMarkdown(text: string): string {
     /```[\s\S]*?```|`[^`\n]*`|\$\$[\s\S]*?\$\$|\$[^$\n]+\$|\\\[[\s\S]*?\\\]|\\\([^\n]*?\\\)/g,
     (segment) => {
       const marker = `@@ZYRA_MATH_${protectedSegments.length}@@`;
-      protectedSegments.push(segment);
+      // Providers sometimes double-escape line breaks inside display math.
+      // Keep LaTeX commands such as \neq and \nabla intact.
+      const isDisplay = segment.startsWith("$$") || segment.startsWith("\\[");
+      protectedSegments.push(isDisplay
+        ? segment.replace(/\\n(?=\\|\s|\$\$|$)/g, "\n")
+        : segment);
       return marker;
     },
   );
 
   // Unescape literal \n strings outside math/code blocks (fixes raw "\n" prefix bugs)
-  const cleanNewlines = protectedText.replace(/\\n/g, "\n");
+  const cleanNewlines = protectedText.replace(/\\n(?![A-Za-z])/g, "\n");
 
   const equationSegments: string[] = [];
   const withEquations = cleanNewlines.replace(
@@ -31,7 +36,20 @@ export function normalizeTutorMathMarkdown(text: string): string {
     (expression) => `$${expression.trim()}$`,
   );
 
-  return withPolynomials
+  const formulaRows = withPolynomials.replace(
+    /^(\s*)(@@ZYRA_MATH_\d+@@)([ \t]*)$/gm,
+    (row, _indent: string, marker: string) => {
+      const index = Number(marker.match(/\d+/)?.[0]);
+      const formula = protectedSegments[index];
+      if (formula?.startsWith("$") && !formula.startsWith("$$")) {
+        protectedSegments[index] = `$$\n${formula.slice(1, -1)}\n$$`;
+        return `\n${marker}\n`;
+      }
+      return row;
+    },
+  );
+
+  return formulaRows
     .replace(/@@ZYRA_EQUATION_(\d+)@@/g, (_, index: string) => equationSegments[Number(index)] ?? "")
     .replace(/@@ZYRA_MATH_(\d+)@@/g, (_, index: string) => protectedSegments[Number(index)] ?? "");
 }
