@@ -1,11 +1,23 @@
+import { renderKatexToString } from "@/lib/math/katex-render";
+
 /**
  * Adds safe delimiters to common raw equations emitted by a provider.
  * Existing LaTeX, inline code, and fenced code remain unchanged.
  */
 function restoreEscapedNewlines(text: string): string {
-  // These raw LaTeX commands begin with n; all other escaped n sequences
-  // represent provider-escaped line boundaries, including before plain letters.
-  return text.replace(/\\n(?!(?:abla|eq|e|u|ot|eg|i|exists|subseteq|parallel|mid|olinebreak|ewcommand|ewline)\b)/g, "\n");
+  return text.replace(/\\n([A-Za-z]*)/g, (command, suffix: string) => {
+    if (!suffix) return "\n";
+    try {
+      // Ask the same renderer used by the UI whether this is a real command.
+      // A missing argument still means the command exists and must survive.
+      renderKatexToString(command, { throwOnError: true, strict: false, trust: false });
+      return command;
+    } catch (error) {
+      return error instanceof Error && error.message.includes("Undefined control sequence")
+        ? `\n${suffix}`
+        : command;
+    }
+  });
 }
 
 export function normalizeTutorMathMarkdown(text: string): string {

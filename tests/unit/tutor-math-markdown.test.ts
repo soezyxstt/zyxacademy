@@ -36,3 +36,11 @@ test("repairs escaped boundaries before letter-starting display formulas", () =>
   expect(normalizeTutorMathMarkdown(String.raw`\[\nx+1\n\]`)).toBe("\\[\nx+1\n\\]");
   expect(normalizeTutorMathMarkdown(String.raw`$$\nabla f \neq 0$$`)).toBe(String.raw`$$\nabla f \neq 0$$`);
 });
+
+
+test("preserves supported n-prefixed LaTeX commands without a partial allowlist", () => {
+  for (const command of ["notin", "nearrow", "nleq", "nRightarrow", "nabla", "neq", "nu", "newcommand"]) {
+    const formula = `$$x \\${command} A$$`;
+    expect(normalizeTutorMathMarkdown(formula)).toBe(formula);
+  }
+});
