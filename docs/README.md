@@ -22,7 +22,7 @@ The `ACTIVE` feature catalog records Zyra session continuity, conversational tut
 
 The `ACTIVE` feature catalog also documents compact Article formula rows, reading-first embedded graphs, optional parameter controls, and explicit graph interaction activation.
 
-The `ACTIVE` feature catalog records the mobile Article selection action and saved quote handoff to Zyra, with the desktop selection popover preserved.
+The `ACTIVE` feature catalog records Article selection explanations, policy-validated contextual live-session follow-up suggestions, explicit Python generation with preserved retry intent and image snapshots, and the beginner Python generation policy.
 
 ---
 
@@ -85,7 +85,7 @@ Every document in this repository has one of the following explicit statuses:
 |---|---|---|---|---|
 | [operations/cloud-run-staging.md](operations/cloud-run-staging.md) | Operations | `OPEN / IN PROGRESS` | 2026-10-25 | Taiwan Cloud Run staging CI/CD, GitHub Actions image build/push and automatic revision/traffic rollout, single-account JSON-key authentication, automatic GitHub staging runtime configuration sync, direct revision readiness and post-routing service checks, inherited project IAM permissions, free-tier limits, and one-time Console setup. |
 | [README.md](README.md) | Index | `ACTIVE` | 2026-10-24 | Master documentation index, hierarchy map, course workspace compatibility status, marketing improvement plan, and lifecycle status ledger, including current bilingual implementation evidence and open gates. |
-| [coding-foundation.md](coding-foundation.md) | Coding | `ACTIVE` | 2026-10-30 | Python Article/Playground/Live Quiz contract, staging WASI terminal and bounded editor prewarming, browser runtime outside staging, explicit Submit provider and fail-closed session cleanup. |
+| [coding-foundation.md](coding-foundation.md) | Coding | `ACTIVE` | 2026-10-30 | Python contextual help sheet and viewport-aware Playground editor, Article/Playground/Live Quiz contract, staging WASI terminal and bounded editor prewarming, browser runtime outside staging, explicit Submit provider and fail-closed session cleanup. |
 | [coding-verification.md](coding-verification.md) | Coding verification | `ACTIVE` | 2026-10-24 | PR #217: real Steel Python matrix, Article/Live correct and incorrect grading, deadline retries with zero Live score, authenticated Playground Run at both viewports, browser harness and cleanup. CI remains blocked by Sonar authorization and inherited bilingual Schedule assertions; earlier evidence is historical. |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Core Architecture | `ACTIVE` | 2026-10-24 | Request-scoped read deduplication, catalogue projections, first-content streaming, V4 authoring default, trusted verification and publication boundaries, bilingual request locale and preference precedence, finite public rewrites, worker-safe communications, Zyra override memory limits, source figures, and publication gates, and isolated Python provider execution. |
 | [operations/authoring-mcp-skills.md](operations/authoring-mcp-skills.md) | Operations | `ACTIVE` | 2026-10-23 | Pinned external snapshots, 0.4.1 V4 defaults, browser deadlines and 2-slice checkpoints, early remote cleanup, backoff-aware leases, canonical CDP validation, scoped diagnostics and exact-revision recovery/cancellation, attested renderer and separate installed-host acceptance. |

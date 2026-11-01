@@ -4,6 +4,8 @@ import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import type { Followup } from "@/lib/zyra/followups";
 import {
   Compass,
   AlertTriangle,
@@ -60,6 +62,7 @@ import { ZyraMathPalette } from "@/components/course/zyra-math-palette";
 import { ZyraComposerInput, type ZyraComposerInputHandle } from "@/components/course/zyra-composer-input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getPlaygroundBridge, subscribePlaygroundBridge } from "@/components/coding/playground-bridge";
+import { PythonPresets, pythonPresets, type PythonPreset } from "@/components/coding/python-presets";
 import { pythonReply } from "@/lib/coding/python-reply";
 import { composerMathRanges } from "@/components/course/zyra-composer-math";
 import { LearningCanvasRenderer } from "@/components/course/learning-canvas/learning-canvas-renderer";
@@ -86,6 +89,7 @@ interface ChatMessage {
   id: string;
   role: "student" | "ai";
   content: string;
+  followups?: Followup[];
   quotedContext?: ZyraQuotedContext | null;
   sources?: Array<{ type: string; id: string; label: string; href: string }>;
   canvasSpec?: CanvasSpec | null;
@@ -101,6 +105,12 @@ interface ChatMessage {
   failedPayload?: {
     question: string;
     quotedContext?: ZyraQuotedContext | null;
+    intent: PythonPreset["intent"] | "hint" | "generate";
+    attachmentIds: string[];
+    attachments: ZyraMessageAttachment[];
+    courseId: string | null;
+    sessionId: string | null;
+    conversationEpoch: number;
   };
 }
 
@@ -113,12 +123,6 @@ function safeText(value: unknown, fallback: string): string {
   if (typeof value !== "string") return fallback;
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : fallback;
-}
-
-function isComprehensionCheck(content: string): boolean {
-  if (/cek pemahaman|uji pemahaman/i.test(content)) return true;
-  const tail = content.trimEnd().slice(-400);
-  return /\?/.test(tail.replace(/[$`\\]/g, ""));
 }
 
 function formatSessionDate(isoString: string, locale: "id" | "en", labels: { justNow: string; minutes: string; hours: string; days: string }): string {
@@ -147,39 +151,29 @@ function FollowUpChipIcon({ name }: { name: "example" | "help" | "compass" | "re
   return <HelpCircle className="size-3 text-brand-secondary" />;
 }
 
-function FollowUpChips({
-  comprehensionCheck,
-  onSend,
-}: {
-  comprehensionCheck: boolean;
-  onSend: (prompt: string) => void;
+function FollowUpChips({ followups, disabled, onSend }: {
+  followups: Followup[];
+  disabled: boolean;
+  onSend: (followup: Followup) => void;
 }) {
   const t = useTranslations("studentCourse");
-  const chips = comprehensionCheck
-    ? [
-        { icon: "help" as const, label: t("tutorDrawer.chips.firstHint"), prompt: t("tutorDrawer.prompts.firstHint") },
-        { icon: "refresh" as const, label: t("tutorDrawer.chips.slower"), prompt: t("tutorDrawer.prompts.slower") },
-        { icon: "arrow" as const, label: t("tutorDrawer.chips.solution"), prompt: t("tutorDrawer.prompts.solution") },
-      ]
-    : [
-        { icon: "example" as const, label: t("tutorDrawer.chips.example"), prompt: t("tutorDrawer.prompts.example") },
-        { icon: "help" as const, label: t("tutorDrawer.chips.checkUnderstanding"), prompt: t("tutorDrawer.prompts.checkUnderstanding") },
-        { icon: "compass" as const, label: t("tutorDrawer.chips.analogy"), prompt: t("tutorDrawer.prompts.analogy") },
-      ];
   return (
-    <div className="mt-2 pt-1.5 flex items-center gap-0.5 overflow-x-auto no-scrollbar" aria-label={t("tutorDrawer.followUpActions")}>
-      {chips.map((chip) => (
-        <button
-          key={chip.label}
-          type="button"
-          onClick={() => onSend(chip.prompt)}
-          className="inline-flex shrink-0 items-center gap-1 rounded-md px-2 py-1 text-body-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-colors"
-        >
-          <FollowUpChipIcon name={chip.icon} />
-          <span>{chip.label}</span>
-        </button>
+    <TooltipProvider>
+    <div className="mt-2 flex flex-wrap items-center gap-1" aria-label={t("tutorDrawer.followUpActions")}>
+      {followups.map((chip, index) => (
+        <Tooltip key={`${chip.label}-${index}`}>
+          <TooltipTrigger asChild>
+            <Button type="button" variant="ghost" size="sm" disabled={disabled}
+              onClick={() => onSend(chip)} className="h-auto max-w-full whitespace-normal px-2 py-1 text-left">
+              <FollowUpChipIcon name={chip.icon} />
+              <span className="break-words">{chip.label}</span>
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>{chip.prompt}</TooltipContent>
+        </Tooltip>
       ))}
     </div>
+    </TooltipProvider>
   );
 }
 
@@ -277,9 +271,10 @@ export function TutorDrawerView({
 
   React.useEffect(() => {
     if (quotedContext) {
+      if (quotedContext.blockType === "code" && codingBridge) setAssistantMode("python");
       setActiveQuotedContext(quotedContext);
     }
-  }, [quotedContext]);
+  }, [quotedContext, codingBridge]);
 
   const [chatLoading, setChatLoading] = React.useState(false);
   const [sessionId, setSessionId] = React.useState<string | null>(null);
@@ -549,11 +544,11 @@ export function TutorDrawerView({
     if (initialQuestion) {
       setInputVal(initialQuestion);
       onClearInitialQuestion?.();
-      setTimeout(() => {
+      if (!quotedContext) setTimeout(() => {
         textareaRef.current?.focus();
       }, 100);
     }
-  }, [initialQuestion, onClearInitialQuestion]);
+  }, [initialQuestion, onClearInitialQuestion, quotedContext]);
 
   // Escape key to close
   React.useEffect(() => {
@@ -835,7 +830,7 @@ export function TutorDrawerView({
 
   const handlePaste = React.useCallback(
     (e: React.ClipboardEvent<HTMLElement>) => {
-      if (!imageInputEnabled || !courseIdFromPath || chatLoading) return;
+      if (e.defaultPrevented || !imageInputEnabled || !courseIdFromPath || chatLoading) return;
       const files = zyraImageFilesFromClipboard(
         e.clipboardData?.items ?? null,
         e.clipboardData?.files ?? null,
@@ -848,16 +843,19 @@ export function TutorDrawerView({
   );
 
   // Handle sending arbitrary chat messages with SSE streaming
-  const handleSend = async (suggestedQuestion?: string, overrideQuote?: ZyraQuotedContext | null) => {
-    if (chatLoading) return;
+  const handleSend = async (suggestedQuestion?: string, overrideQuote?: ZyraQuotedContext | null, presetIntent?: PythonPreset["intent"] | "hint" | "generate", retry?: NonNullable<ChatMessage["failedPayload"]>) => {
+    if (chatLoading || abortControllerRef.current) return;
+    if (retry && (retry.courseId !== courseIdFromPath || retry.conversationEpoch !== conversationEpochRef.current || (retry.sessionId !== null && retry.sessionId !== sessionId))) return;
     const codingRequest = codingBridge?.capture();
-    const pythonRequest = assistantMode === "python" ? codingRequest : null;
-    const rawQuestion = (suggestedQuestion || inputVal).trim();
+    const isCodeQuote = (overrideQuote !== undefined ? overrideQuote : activeQuotedContext)?.blockType === "code";
+    const intent = retry?.intent ?? (isCodeQuote ? "review" : presetIntent ?? (assistantMode === "python" ? "review" : "hint"));
+    const pythonRequest = intent === "generate" ? codingRequest : null;
+    const rawQuestion = (suggestedQuestion ?? inputVal).trim();
     const effectiveQuote = overrideQuote !== undefined ? overrideQuote : activeQuotedContext;
-    const requestedAttachmentIds = [...attachmentIds];
-    const requestedAttachments = [...readyAttachments];
+    const requestedAttachmentIds = [...(retry?.attachmentIds ?? attachmentIds)];
+    const requestedAttachments = (retry?.attachments ?? readyAttachments).map((attachment) => ({ ...attachment }));
     if (!rawQuestion && !effectiveQuote && requestedAttachmentIds.length === 0) return;
-    if (!attachmentsReady) return;
+    if (!retry && !attachmentsReady) return;
     const fallbackQuestion = effectiveQuote
       ? t("tutorDrawer.explainPrompt")
       : requestedAttachmentIds.length > 0
@@ -883,14 +881,13 @@ export function TutorDrawerView({
       sessionId,
     };
 
-    setMessages((prev) => [...prev, studentMsg]);
-    setInputVal("");
-    setActiveQuotedContext(null);
-    onClearQuotedContext?.();
-    setAttachmentIds([]);
-    setReadyAttachments([]);
-    setAttachmentsReady(true);
-    setAttachmentComposerKey((value) => value + 1);
+    setMessages((prev) => [...prev.map((message) => ({ ...message, followups: undefined })), studentMsg]);
+    if (!retry) {
+      setInputVal("");
+      setActiveQuotedContext(null);
+      onClearQuotedContext?.();
+      resetComposerAttachments();
+    }
     setChatLoading(true);
 
     const abortController = new AbortController();
@@ -903,12 +900,13 @@ export function TutorDrawerView({
       ? crypto.randomUUID()
       : `zyra-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
     let activeSid = sessionId;
+    const failureSnapshot = () => ({ question: rawQuestion, quotedContext: effectiveQuote, intent, attachmentIds: requestedAttachmentIds, attachments: requestedAttachments, courseId: courseIdFromPath, sessionId: activeSid, conversationEpoch: requestConversationEpoch });
     const requestConversationKey = conversationKeyRef.current;
     const requestConversationEpoch = conversationEpochRef.current;
     const requestLocaleEpoch = localeEpochRef.current;
     const languageRequestBase = {
       question,
-      ...(codingRequest ? { codingContext: { ...codingRequest.context, intent: assistantMode === "python" ? "generate" as const : "hint" as const } } : {}),
+      ...(codingRequest ? { codingContext: { ...codingRequest.context, intent } } : {}),
       courseId: courseId ?? "unknown",
       conceptId: koId || undefined,
       sessionId: activeSid || undefined,
@@ -982,6 +980,9 @@ export function TutorDrawerView({
             ) {
               updateResponseLanguageState((current) => zyraResponseLanguageResolved(current, part.responseLanguage));
             }
+          } else if (part.type === "data-followups") {
+            if (requestConversationEpoch !== conversationEpochRef.current || abortController.signal.aborted) continue;
+            setMessages((prev) => prev.map((m) => m.id === aiMsgId ? { ...m, followups: part.followups } : m));
           } else if (part.type === "data-sources" && part.sources) {
             finalSources = part.sources;
             setMessages((prev) =>
@@ -1022,7 +1023,7 @@ export function TutorDrawerView({
                   ...m,
                   content: accumulatedContent,
                   isError: true,
-                  failedPayload: { question: rawQuestion, quotedContext: effectiveQuote },
+                  failedPayload: failureSnapshot(),
                 } : m
               )
             );
@@ -1035,7 +1036,7 @@ export function TutorDrawerView({
         accumulatedContent = accumulatedContent || t("tutorDrawer.responseStopped");
         setMessages((prev) =>
           prev.map((m) =>
-            m.id === aiMsgId ? { ...m, content: pythonRequest ? pythonReply(accumulatedContent).explanation : accumulatedContent } : m
+            m.id === aiMsgId ? { ...m, content: pythonRequest ? pythonReply(accumulatedContent).explanation : accumulatedContent, followups: undefined, isError: true, failedPayload: failureSnapshot() } : m
           )
         );
       } else {
@@ -1047,7 +1048,7 @@ export function TutorDrawerView({
               ...m,
               content: accumulatedContent,
               isError: true,
-              failedPayload: { question: rawQuestion, quotedContext: effectiveQuote },
+              failedPayload: failureSnapshot(),
             } : m
           )
         );
@@ -1063,18 +1064,18 @@ export function TutorDrawerView({
       hasError = true;
       setMessages((prev) => prev.map((m) => m.id === aiMsgId ? {
         ...m, content: t("tutorDrawer.responseProcessingError"), isError: true,
-        failedPayload: { question: rawQuestion, quotedContext: effectiveQuote },
+        failedPayload: failureSnapshot(),
       } : m));
     }
     if (pythonRequest && completed && !hasError && !abortController.signal.aborted && requestConversationEpoch === conversationEpochRef.current) {
       const result = pythonReply(accumulatedContent);
       const applied = result.code ? pythonRequest.apply(result.code) : "invalid";
-      const pythonStatus = applied === "applied" ? "Kode diterapkan ke editor." : applied === "changed" ? "Editor berubah saat Zyra menjawab. Terapkan hasil untuk mengganti kode terbaru." : applied === "inactive" ? "Buka Playground asal untuk meminta kode lagi." : "Program lengkap belum tersedia. Coba lagi atau gunakan mode Tutor untuk pembahasan.";
+      const pythonStatus = !result.code && result.explanation ? undefined : applied === "applied" ? "Kode diterapkan ke editor." : applied === "changed" ? "Editor berubah saat Zyra menjawab. Terapkan hasil untuk mengganti kode terbaru." : applied === "inactive" ? "Buka Playground asal untuk meminta kode lagi." : "Program lengkap belum tersedia. Coba lagi atau gunakan mode Tutor untuk pembahasan.";
       setMessages((prev) => prev.map((m) => m.id === aiMsgId ? {
         ...m, content: result.explanation, pythonStatus,
         pendingPython: applied === "changed" && result.code ? { code: result.code, apply: pythonRequest.apply } : undefined,
       } : m));
-      accumulatedContent = result.explanation + "\n\n" + pythonStatus;
+      accumulatedContent = [result.explanation, pythonStatus].filter(Boolean).join("\n\n");
     }
 
     if (
@@ -1096,8 +1097,17 @@ export function TutorDrawerView({
     }
   };
 
-  const handleRetry = (payload: { question: string; quotedContext?: ZyraQuotedContext | null }) => {
-    void handleSend(payload.question, payload.quotedContext);
+  React.useEffect(() => {
+    const preset = pythonPresets.find(item => item.message === initialQuestion);
+    if (!isOpen || !codingBridge || !preset) return;
+    setAssistantMode("python");
+    void handleSend(preset.message, null, preset.intent);
+    // Initial preset requests are consumed once, like initialQuestion above.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialQuestion, isOpen]);
+
+  const handleRetry = (payload: NonNullable<ChatMessage["failedPayload"]>) => {
+    void handleSend(payload.question, payload.quotedContext, payload.intent, payload);
   };
 
   const handleCopyText = (id: string, text: string) => {
@@ -1459,7 +1469,6 @@ export function TutorDrawerView({
               {messages.map((msg, index) => {
                 const isStudent = msg.role === "student";
                 const isLastAiTurn = !isStudent && index === messages.length - 1;
-                const showComprehensionCheck = isLastAiTurn && !chatLoading && isComprehensionCheck(msg.content);
 
                 if (isStudent) {
                   const attachmentSessionId = msg.sessionId ?? sessionId;
@@ -1602,11 +1611,15 @@ export function TutorDrawerView({
                       </div>
                     )}
 
-                    {/* Quick Accelerators / Socratic follow-up chips */}
-                    {isLastAiTurn && !chatLoading && (
+                    {isLastAiTurn && !chatLoading && !msg.isError && !!msg.followups?.length && (
                       <FollowUpChips
-                        comprehensionCheck={showComprehensionCheck}
-                        onSend={handleSend}
+                        followups={msg.followups}
+                        disabled={chatLoading || !attachmentsReady}
+                        onSend={(followup) => void handleSend(
+                          followup.prompt,
+                          null,
+                          assistantMode === "python" ? (followup.intent === "explain" ? "review" : "hint") : undefined,
+                        )}
                       />
                     )}
 
@@ -1656,10 +1669,12 @@ export function TutorDrawerView({
           )}
         </div>
 
+        {assistantMode === "python" && codingBridge ? <div className="shrink-0 px-3 pb-1"><PythonPresets code={codingBridge.capture().context.code} hasError={["syntax_error", "runtime_error", "timeout"].includes(codingBridge.capture().context.execution?.status ?? "")} disabled={chatLoading} onSelect={preset => void handleSend(preset.message, null, preset.intent)} /></div> : null}
+
         {/* Input Composer & Toolbar */}
         <footer className="shrink-0 border-t border-border/40 bg-background p-2">
           <div
-            onPaste={handlePaste}
+            onPasteCapture={handlePaste}
             className="relative rounded-2xl border border-border bg-background/95 backdrop-blur-md shadow-md focus-within:border-brand-primary/60 focus-within:ring-1 focus-within:ring-brand-primary/20 transition-colors p-1.5"
           >
             {imageInputEnabled && courseIdFromPath && (
@@ -1756,6 +1771,9 @@ export function TutorDrawerView({
                   >
                     {t("tutorDrawer.fullFeatures") || "Buka fitur lengkap"}
                   </Link>
+                )}
+                {assistantMode === "python" && codingBridge && !activeQuotedContext && (
+                  <Button type="button" variant="outline" size="sm" className="h-8 text-body-sm" disabled={chatLoading || !attachmentsReady || (!inputVal.trim() && attachmentIds.length === 0)} onClick={() => void handleSend(undefined, null, "generate")}>Buat kode</Button>
                 )}
                 <Button
                   size="icon-xs"

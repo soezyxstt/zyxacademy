@@ -1,6 +1,8 @@
 import { validateTutorOutput, type ProtectedItemPayload } from "@/lib/assessment-assistance-policy";
 import { validateVisualSpec } from "@/lib/tutor/visual-contracts";
 import { validateCanvasSpec } from "@/lib/zyra/canvas";
+import { FOLLOWUPS_OPEN, FOLLOWUPS_CLOSE, parseFollowupAnswer } from "@/lib/zyra/followups";
+import { safeFollowups, PIPELINE_LANGUAGE } from "@/lib/zyra/followup-safety";
 import { sanitizeAnswer } from "@/lib/tutor/answer-sanitizer";
 import type { SemanticValidator, SemanticViolation } from "@/lib/ai/validation";
 import {
@@ -17,7 +19,6 @@ export interface TeachingResponseValidationResult {
   response?: ZyraTeachingResponse;
 }
 
-const PIPELINE_LANGUAGE = /\b(?:system prompt|prompt|pipeline|retriev(?:e|al|ed)?|vector(?:ize)?|semantic cache|cache hit|json|internal validation|model output|ai gateway|canonical runtime|source list|snippet|excerpt|panduan konteks|murid sedang membaca|harus merujuk)\b/i;
 const ACTIVE_ASSESSMENT_SOLUTION_LANGUAGE = /\b(?:jawaban akhir|final answer|solusi lengkap|kunci jawaban|correct option|pilih opsi|hasil akhirnya)\b/i;
 
 function violation(code: string, path: string, message: string): SemanticViolation {
@@ -63,7 +64,8 @@ export function validateTeachingResponse(
   const violations: SemanticViolation[] = [];
 
   const evidenceList = [...allowedSources.keys()].map((id) => ({ id }));
-  value.learnerFacingText = sanitizeAnswer(value.learnerFacingText, evidenceList);
+  const parsedAnswer = parseFollowupAnswer(value.learnerFacingText);
+  value.learnerFacingText = sanitizeAnswer(parsedAnswer.text, evidenceList);
   for (const block of value.explanationBlocks) {
     if (block.text) {
       block.text = sanitizeAnswer(block.text, evidenceList);
@@ -121,6 +123,10 @@ export function validateTeachingResponse(
   }
 
   violations.push(...validateNoProtectedAnswer(value, context, protectedAnswers));
+  const followups = safeFollowups(parsedAnswer.followups, { sources: evidenceList, activeAssessment: context.activeAssessment, protectedAnswers });
+  if (followups.length) {
+    value.learnerFacingText += `\n${FOLLOWUPS_OPEN}${JSON.stringify(followups)}${FOLLOWUPS_CLOSE}`;
+  }
   return { valid: violations.length === 0, violations, response: value };
 }
 

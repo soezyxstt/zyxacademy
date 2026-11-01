@@ -20,6 +20,16 @@ describe("coding coaching response contract", () => {
     const protectedInput = buildPedagogyPromptInput(assessment, selectTeachingPlan(assessment), "Buat program", evidence);
     expect(protectedInput.outputRules.join(" ")).not.toContain("complete runnable Python program");
   });
+  it("applies the introductory policy only to generation, preserving assessment and coaching boundaries", () => {
+    const make = (id: string, ctx = context) => buildPedagogyPromptInput(ctx, selectTeachingPlan(ctx), "Jelaskan error", [{ id, kind: "question", title: "Python", content: "{}", href: "/courses/python/playground" }]).outputRules.join(" ");
+    const generated = make("coding:generate:learner:session");
+    expect(generated).toContain("supplied course material");
+    expect(generated).toContain("learner's explicit request");
+    expect(generated).toContain("Functions and other constructs are appropriate");
+    expect(generated).toContain("module level");
+    expect(make("coding:learner:session")).not.toContain("Prefer clear, direct statements at module level");
+    expect(make("coding:generate:learner:session", { ...context, activeAssessment: true, allowDirectAnswerReveal: false })).not.toContain("Prefer clear, direct statements at module level");
+  });
   it("preserves long multiline playground problems in the provider input", () => {
     const question = `Buat program:\n${"syarat lengkap ".repeat(100)}\nInput:\n2\n3\nOutput:\n5`;
     const evidence = [{ id: "coding:generate:learner:session", kind: "question", title: "Python", content: "{}", href: "/courses/python/playground" }];

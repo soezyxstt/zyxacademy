@@ -1,5 +1,7 @@
 "use server";
 
+import { finalizeTutorFollowups } from "@/lib/zyra/followup-safety";
+
 import { resolveCodingTutorContext, CODING_TUTOR_INSTRUCTIONS } from "@/lib/coding/tutor-context-server";
 import { getConversationMemory } from "@/lib/zyra/conversation-memory";
 import { headers } from "next/headers";
@@ -760,12 +762,18 @@ export async function askTutorRagAction(
     pedagogyAction: codingPedagogyAction,
   });
 
+  const finalizedAnswer = finalizeTutorFollowups(result.answer, {
+    sources: result.sources,
+    activeAssessment: hasActiveAttempt || codingHintOnly,
+    protectedAnswers,
+  });
   if (requestedAttachmentIds.length > 0 && result.answer) {
     await markZyraAttachmentsDispatched(requestedAttachmentIds, user.id);
   }
 
   return {
     ...result,
+    ...finalizedAnswer,
     sessionId: sid,
     processingTimeMs: Date.now() - startTime,
   };

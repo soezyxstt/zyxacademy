@@ -1,3 +1,5 @@
+import { PYTHON_GENERATION_POLICY } from "@/lib/coding/python-generation-policy";
+import { FOLLOWUPS_GUIDANCE, parseFollowupAnswer, FOLLOWUPS_OPEN, FOLLOWUPS_CLOSE } from "@/lib/zyra/followups";
 import { CODING_COACHING_INSTRUCTIONS } from "@/lib/coding/zyra";
 /**
  * P3 grounded tutor pipeline. Three tiers:
@@ -160,6 +162,12 @@ function sha256(value: string): string {
   return createHash("sha256").update(value).digest("hex");
 }
 
+function sanitizeGeneratedAnswer(text: string, sources?: readonly SanitizationSource[]): string {
+  const parsed = parseFollowupAnswer(text);
+  const visible = sanitizeAnswer(parsed.text, sources);
+  return visible + (parsed.followups.length ? `${FOLLOWUPS_OPEN}${JSON.stringify(parsed.followups)}${FOLLOWUPS_CLOSE}` : "");
+}
+
 function assessmentSafeFallback(language: ResponseLanguage): string {
   return language === "en"
     ? "Let's focus on the core concept first. Which definition or property applies here?"
@@ -316,6 +324,8 @@ QUESTION: ${vars.question}
 
 ${TUTOR_MATH_PRESENTATION_POLICY}
 
+${FOLLOWUPS_GUIDANCE} Place this block at the end of the answer field inside the JSON object, never after the JSON object.
+
 IMAGE INPUT RULE: If images are attached, inspect them together with the question. Distinguish visible facts from inference, state uncertainty for blurry or cropped content, and never invent unreadable labels or values.
 
 COURSE MATERIAL EXCERPTS:
@@ -345,8 +355,8 @@ Put the complete coaching in the answer field. The current code, stdin and execu
 
 const codingGenerationAnswer: SystemPrompt<GroundedVars> = {
   ...tutorGroundedAnswer,
-  version: "tutor_rag/coding_generation/v1.0.0",
-  systemInstruction: `${tutorGroundedAnswer.systemInstruction}\nFor this playground generation request, put the complete runnable Python program in one fenced python code block in the answer field. Do not give only hints or placeholders. Use Markdown backticks for Python code and names, overriding the general math presentation rule for code. Do not claim to have executed it. Respect active assessment restrictions.`,
+  version: "tutor_rag/coding_generation/v1.1.0",
+  systemInstruction: `${tutorGroundedAnswer.systemInstruction}\nWhen the learner actually requests a program, put the complete runnable Python program in one fenced python code block in the answer field. Do not give only hints or placeholders. Use Markdown backticks for Python code and names, overriding the general math presentation rule for code. Do not claim to have executed it. Respect active assessment restrictions. ${PYTHON_GENERATION_POLICY}`,
 };
 
 interface UngroundedVars {
@@ -367,6 +377,8 @@ RESPONSE LANGUAGE: ${vars.responseLanguage === "en" ? "English" : "Bahasa Indone
 QUESTION: ${vars.question}
 
 ${TUTOR_MATH_PRESENTATION_POLICY}
+
+${FOLLOWUPS_GUIDANCE} Place this block at the end of the answer field inside the JSON object, never after the JSON object.
 
 IMAGE INPUT RULE: If images are attached, inspect them together with the question. Distinguish visible facts from inference, state uncertainty for blurry or cropped content, and never invent unreadable labels or values.
 
@@ -394,6 +406,8 @@ ${TUTOR_MATH_PRESENTATION_POLICY}
 RECENT CONVERSATION FOR PRONOUN CONTINUITY ONLY:
 ${vars.conversationHistory || "No previous history."}
 
+${FOLLOWUPS_GUIDANCE} Place this block at the end of the answer field inside the JSON object, never after the JSON object.
+
 Inspect the attached image or images now. The current attachments override unrelated exercises in conversation history.
 
 Generate a single JSON object:
@@ -409,8 +423,8 @@ Generate a single JSON object:
 
 const codingImageGenerationAnswer: SystemPrompt<UngroundedVars> = {
   ...tutorImageAnswer,
-  version: "tutor_rag/coding_image_generation/v1.0.0",
-  systemInstruction: `${tutorImageAnswer.systemInstruction} For a readable playground programming problem, generate the complete runnable Python program in one fenced python code block in the answer field. Do not provide only hints or placeholders. Use Markdown for code instead of LaTeX. If essential details are unreadable, ask for a clearer image. Never claim to have run the program.`,
+  version: "tutor_rag/coding_image_generation/v1.1.0",
+  systemInstruction: `${tutorImageAnswer.systemInstruction} When the learner actually requests a program for a readable playground programming problem, generate the complete runnable Python program in one fenced python code block in the answer field. Do not provide only hints or placeholders. Use Markdown for code instead of LaTeX. If essential details are unreadable, ask for a clearer image. Never claim to have run the program. ${PYTHON_GENERATION_POLICY}`,
 };
 
 export function selectImageTutorPrompt(pageContextId: string | undefined, attemptState: string) {
@@ -468,14 +482,16 @@ export function composeUngroundedTeachingAnswer(
   responseLanguage: ResponseLanguage = "id",
 ): string {
   const data = UngroundedSchema.parse(input);
-  const answer = sanitizeAnswer(data.answer);
+  const parsed = parseFollowupAnswer(data.answer);
+  const answer = sanitizeAnswer(parsed.text);
+  const metadata = parsed.followups.length ? `${FOLLOWUPS_OPEN}${JSON.stringify(parsed.followups)}${FOLLOWUPS_CLOSE}` : "";
   if (!data.inScope) {
     return answer || (responseLanguage === "en"
       ? "Zyra helps with learning topics within Zyx. Ask about a course concept, practice, or study strategy."
       : "Zyra membantu topik belajar dalam cakupan Zyx. Coba tanyakan konsep pelajaran, latihan, atau strategi belajar.");
   }
   const checkpoint = data.checkForUnderstanding?.trim();
-  return checkpoint ? `${answer}\n\n${normalizeTutorMathMarkdown(checkpoint)}` : answer;
+  return (checkpoint ? `${answer}\n\n${normalizeTutorMathMarkdown(checkpoint)}` : answer) + metadata;
 }
 
 export function shouldRetrieveTutorEvidence(hasImages: boolean): boolean {
@@ -742,7 +758,7 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
       idempotencyKey,
     });
     let ansText = result.success && result.data
-      ? sanitizeAnswer(result.data.answer)
+      ? sanitizeGeneratedAnswer(result.data.answer)
       : responseLanguage === "en" ? "Hi, what would you like help learning today?" : "Halo, ada yang bisa aku bantu mengenai materi kuliah hari ini?";
 
     if (policy) {
@@ -968,7 +984,7 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
       base = await kvGet<TutorRagAnswer>(cacheKey);
     }
     if (base && typeof base.answer === "string") {
-      let ansText = sanitizeAnswer(base.answer, base.sources);
+      let ansText = sanitizeGeneratedAnswer(base.answer, base.sources);
 
       if (policy) {
         const val = validateTutorOutput(ansText, protectedPayload, policy.allowedHelpLevel);
@@ -1272,7 +1288,7 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
               return { type: s.type, id: s.id, label: s.label, href: s.href };
             });
 
-            let ansText = sanitizeAnswer(d.answer, sources);
+            let ansText = sanitizeGeneratedAnswer(d.answer, sources);
 
             if (policy) {
               const validation = validateTutorOutput(ansText, protectedPayload, policy.allowedHelpLevel);
@@ -1291,7 +1307,7 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
               canvasSpec: pedagogyCanvasSpec,
             };
           } else {
-            let ansText = sanitizeAnswer(d.answer, retrieved);
+            let ansText = sanitizeGeneratedAnswer(d.answer, retrieved);
 
             base = {
               answer: ansText,
@@ -1365,6 +1381,8 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
 
  // Plan 008: learner-local adaptation runs after shared cache lookup and write.
  let adaptation: ZyraAdaptationDecision | null = null;
+ const parsedBase = parseFollowupAnswer(base.answer);
+ base = { ...base, answer: parsedBase.text };
  let adaptedAnswer = base.answer;
  const readOnly = pedagogyMode === "shadow" || Boolean(params.suppressLearnerSideEffects);
  try {
@@ -1449,7 +1467,7 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
   return {
     ...base,
     responseLanguage,
-    answer: adaptedAnswer,
+    answer: adaptedAnswer + (parsedBase.followups.length ? `${FOLLOWUPS_OPEN}${JSON.stringify(parsedBase.followups)}${FOLLOWUPS_CLOSE}` : ""),
     canvasSpec: recoveredCanvasSpec,
     cached,
     addendum,

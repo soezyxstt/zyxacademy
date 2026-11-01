@@ -7,6 +7,7 @@ import type {
 import type { TeachingPlan } from "./state-machine";
 import type { CanvasSpec } from "@/lib/zyra/canvas";
 import { parseCanvasSpec } from "@/lib/zyra/canvas";
+import { FOLLOWUPS_OPEN, FOLLOWUPS_CLOSE, parseFollowupAnswer } from "@/lib/zyra/followups";
 import { sanitizeAnswer } from "@/lib/tutor/answer-sanitizer";
 
 export interface LegacyTutorAnswer {
@@ -163,8 +164,12 @@ export function teachingResponseToTutorAnswer(
       label: source.title,
       href: source.href,
     }));
+  const parsedAnswer = parseFollowupAnswer(response.learnerFacingText);
+  const suffix = parsedAnswer.followups.length
+    ? `\n${FOLLOWUPS_OPEN}${JSON.stringify(parsedAnswer.followups)}${FOLLOWUPS_CLOSE}`
+    : "";
   return {
-    answer: sanitizeAnswer(response.learnerFacingText, evidence),
+    answer: sanitizeAnswer(parsedAnswer.text, evidence) + suffix,
     sources,
     matchedConcepts: response.citations.map((citation) => citation.sourceId),
     confidence: sources.length > 0 ? 0.85 : 0,

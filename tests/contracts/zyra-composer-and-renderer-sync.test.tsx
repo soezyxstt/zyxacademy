@@ -58,7 +58,7 @@ describe("Zyra composer Ctrl+V paste and Artikel v4 renderer sync", () => {
 
   test("wires Ctrl+V paste, Paperclip button, and draft session creation in TutorDrawerView and attachment route", () => {
     const drawerSource = readFileSync("components/course/tutor-drawer-view.tsx", "utf8");
-    expect(drawerSource).toContain("onPaste={handlePaste}");
+    expect(drawerSource).toContain("onPasteCapture={handlePaste}");
     expect(drawerSource).toContain("zyraImageFilesFromClipboard");
     expect(drawerSource).toContain("attachmentComposerRef.current?.addFiles(files)");
     expect(drawerSource).toContain("attachmentComposerRef.current?.openFileDialog()");

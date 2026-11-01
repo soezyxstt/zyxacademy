@@ -54,7 +54,7 @@ test("one compact composer routes final Python to the editor and keeps Tutor sni
   await expect.poll(() => uploads).toBe(1);
   // Image-only messages must count even while the history summary is stale.
   await expect(composer.locator(".cm-placeholder")).toBeVisible();
-  await drawer.getByRole("button", { name: "Kirim pesan", exact: true }).click();
+  await drawer.getByRole("button", { name: "Buat kode", exact: true }).click();
   await expect(drawer.getByRole("tab", { name: "Tutor", exact: true })).toBeDisabled();
   await expect(drawer.getByRole("button", { name: "Input matematika" })).toBeDisabled();
   await capture(page, info, "python-sending");
@@ -86,8 +86,8 @@ test("Python protects edits made while the response is pending", async ({ page }
   const waiting = new Promise<void>(resolve => { release = resolve; });
   await page.route("**/api/zyra/chat", async route => { await waiting; await route.fulfill({ contentType: "text/event-stream", body: reply("```python\nprint(24)\n```") }); });
   const { drawer, composer } = await openZyra(page);
-  await composer.fill("Buat kode luas.");
-  await composer.press("Enter");
+  await composer.fill("Buat program luas persegi panjang.");
+  await drawer.getByRole("button", { name: "Buat kode", exact: true }).click();
   const editor = page.getByRole("textbox", { name: "Kode Python" });
   await editor.fill("print('edit terbaru')", { force: true });
   release();
@@ -315,7 +315,7 @@ test("an unfinished Python stream cannot change the editor or expose final code"
   const editor = page.getByRole("textbox", { name: "Kode Python" });
   const before = await editor.textContent();
   await composer.fill("Buat program.");
-  await composer.press("Enter");
+  await drawer.getByRole("button", { name: "Buat kode", exact: true }).click();
   await expect(drawer.getByText("Maaf, terjadi kendala saat memproses jawaban. Coba lagi dalam beberapa saat.")).toBeVisible();
   await expect(editor).toHaveText(before!);
   await expect(drawer.locator("pre")).toHaveCount(0);
@@ -338,21 +338,19 @@ test("Python generation errors and missing code preserve the editor", async ({ p
       : reply(unframed ? "print(99)" : "Coba gunakan print.") });
   });
   await composer.fill("Tampilkan satu.");
-  await composer.press("Enter");
+  await drawer.getByRole("button", { name: "Buat kode", exact: true }).click();
   await expect(drawer.getByText(/Zyra belum dapat merespons/)).toBeVisible();
   await expect(editor).toHaveText(before!);
   await capture(page, info, "generation-error");
   failed = false;
-  await composer.fill("Coba lagi.");
-  await composer.press("Enter");
-  await expect(drawer.getByText("Program lengkap belum tersedia. Coba lagi atau gunakan mode Tutor untuk pembahasan.")).toBeVisible();
+  await drawer.getByRole("button", { name: /Coba lagi/i }).last().click();
+  await expect(drawer.getByText("Coba gunakan print.")).toBeVisible();
   await expect(editor).toHaveText(before!);
   await capture(page, info, "generation-no-code");
   unframed = true;
   await composer.fill("Buat program lengkap.");
-  await composer.press("Enter");
-  await expect(drawer.getByText("Program lengkap belum tersedia. Coba lagi atau gunakan mode Tutor untuk pembahasan.")).toHaveCount(2);
-  await expect(drawer.getByText("print(99)", { exact: true })).toHaveCount(0);
+  await drawer.getByRole("button", { name: "Buat kode", exact: true }).click();
+  await expect(drawer.getByText("print(99)", { exact: true })).toBeVisible();
   await expect(editor).toHaveText(before!);
   await capture(page, info, "generation-unframed-code");
   expect(errors).toEqual([]);
@@ -401,5 +399,164 @@ test("history count respects the 100-message retention limit", async ({ page }, 
   await expect(drawer.getByText(/100 pesan/)).toBeVisible();
   await expect(drawer.getByText(/102 pesan/)).toHaveCount(0);
   await capture(page, info, "history-retention-limit");
+  expect(errors).toEqual([]);
+});
+
+test("Python presets use contextual intents and the editor fills remaining height", async ({ page }, info) => {
+  const errors = failures(page);
+  const requests: Record<string, unknown>[] = [];
+  await page.route("**/api/zyra/chat", route => {
+    requests.push(route.request().postDataJSON());
+    return route.fulfill({ contentType: "text/event-stream", body: reply("Langkah pertama adalah membaca input.") });
+  });
+  await mockTerminal(page);
+  await mockZyraDrawer(page);
+  await page.goto("/visual-fixtures/coding?terminal=1");
+  const editor = page.getByRole("textbox", { name: "Kode Python", exact: true });
+  await editor.fill(Array.from({ length: 90 }, (_, i) => `print(${i})`).join("\n"));
+  for (const state of ["closed", "open"]) {
+    if (state === "open") await page.getByRole("button", { name: "Buka terminal", exact: true }).click();
+    await expect.poll(async () => {
+      const box = await page.locator(".cm-editor").boundingBox();
+      return box ? Math.abs(box.y + box.height - (page.viewportSize()!.height - 64)) : 999;
+    }).toBeLessThan(3);
+    await capture(page, info, `viewport-${state}`);
+  }
+  await page.getByRole("button", { name: "Buka Zyra" }).click();
+  const drawer = page.getByRole("complementary", { name: "Asisten belajar Zyra" });
+  await expect(drawer.getByRole("toolbar", { name: "Bantuan Python" })).toBeVisible();
+  await expect(drawer.getByRole("button", { name: "Jelaskan error", exact: true })).toBeDisabled();
+  await capture(page, info, "python-presets-idle");
+  await drawer.getByRole("button", { name: "Pecah masalah", exact: true }).click();
+  await expect.poll(() => requests.length).toBe(1);
+  expect(requests[0].codingContext).toMatchObject({ kind: "playground", intent: "decompose" });
+  await expect(drawer.getByText("Langkah pertama adalah membaca input.", { exact: true })).toBeVisible();
+  await expect(drawer.getByText("Kode diterapkan ke editor.", { exact: true })).toHaveCount(0);
+  await capture(page, info, "python-presets-response");
+  await drawer.getByRole("tab", { name: "Tutor", exact: true }).click();
+  await expect(drawer.getByRole("toolbar", { name: "Bantuan Python" })).toHaveCount(0);
+  await capture(page, info, "tutor-presets");
+  expect(errors).toEqual([]);
+});
+
+test("review and contextual followup retries never replace the editor", async ({ page }, info) => {
+  const errors = failures(page);
+  const requests: string[] = [];
+  await page.route("**/api/zyra/chat", route => {
+    const intent = route.request().postDataJSON().codingContext.intent;
+    requests.push(intent);
+    const n = requests.length;
+    const body = n === 1 || n === 3
+      ? `data: ${JSON.stringify({ type: "data-error", data: { message: "Coba kembali." } })}\n\ndata: [DONE]\n\n`
+      : `data: ${JSON.stringify({ type: "text-delta", textDelta: "Penjelasan.\n\`\`\`python\nprint(99)\n\`\`\`" })}\n\n` +
+        (n === 2 ? `data: ${JSON.stringify({ type: "data-followups", followups: [{ label: "Jelaskan lagi", prompt: "Jelaskan langkah ini", icon: "help", intent: "explain" }] })}\n\n` : "") + "data: [DONE]\n\n";
+    return route.fulfill({ contentType: "text/event-stream", body });
+  });
+  const { drawer, composer } = await openZyra(page);
+  const editor = page.getByRole("textbox", { name: "Kode Python" });
+  const before = await editor.textContent();
+  await composer.fill("Mengapa loop ini berhenti?");
+  await composer.press("Enter");
+  await expect(drawer.getByRole("button", { name: /Coba lagi/i }).last()).toBeVisible();
+  await capture(page, info, "review-error");
+  await drawer.getByRole("button", { name: /Coba lagi/i }).last().click();
+  await expect(drawer.getByRole("button", { name: "Jelaskan lagi" })).toBeVisible();
+  await capture(page, info, "review-retried");
+  await drawer.getByRole("button", { name: "Jelaskan lagi" }).click();
+  await drawer.getByRole("button", { name: /Coba lagi/i }).last().click();
+  await expect.poll(() => requests.length).toBe(4);
+  expect(requests).toEqual(["review", "review", "review", "review"]);
+  await expect(drawer.getByText("Penjelasan.", { exact: true }).last()).toBeVisible();
+  await capture(page, info, "followup-retried");
+  expect(errors).toEqual([]);
+  await expect(editor).toHaveText(before!);
+});
+
+test("image retries preserve the original request and a new draft", async ({ page }, info) => {
+  const requests: Record<string, any>[] = [];
+  let uploads = 0;
+  await page.route("**/api/zyra/attachments", route => {
+    uploads++;
+    return route.fulfill({ json: { id: `image-${uploads}`, sessionId: "zyra-session", width: 1, height: 1 } });
+  });
+  await page.route("**/api/zyra/attachments/image-**", route => route.fulfill({ contentType: "image/png", body: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=", "base64") }));
+  await page.route("**/api/zyra/chat", route => {
+    requests.push(route.request().postDataJSON());
+    const n = requests.length;
+    const body = n === 1
+      ? `data: ${JSON.stringify({ type: "data-error", data: { message: "Coba kembali." } })}\n\ndata: [DONE]\n\n`
+      : n === 3 ? `data: ${JSON.stringify({ type: "text-delta", textDelta: "partial" })}\n\n`
+      : reply(`Penjelasan.\n\`\`\`python\nprint(${n === 4 ? 77 : 99})\n\`\`\``);
+    return route.fulfill({ contentType: "text/event-stream", body });
+  });
+  const { drawer, composer } = await openZyra(page);
+  const editor = page.getByRole("textbox", { name: "Kode Python" });
+  const before = await editor.textContent();
+  const pasteImage = async (name: string) => composer.evaluate((element, filename) => {
+    const data = new DataTransfer();
+    data.items.add(new File([Uint8Array.from(atob("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII="), c => c.charCodeAt(0))], filename, { type: "image/png" }));
+    element.dispatchEvent(new ClipboardEvent("paste", { clipboardData: data, bubbles: true, cancelable: true }));
+  }, name);
+  await pasteImage("first.png");
+  await expect.poll(() => uploads).toBe(1);
+  await expect(drawer.getByRole("button", { name: "Buat kode", exact: true })).toBeEnabled();
+  await drawer.getByRole("button", { name: "Buat kode", exact: true }).click();
+  await expect(drawer.getByText(/Coba kembali/)).toBeVisible();
+  await expect(editor).toHaveText(before!);
+  await capture(page, info, "image-retry-error");
+  await composer.fill("Draft baru");
+  await pasteImage("second.png");
+  await expect.poll(() => uploads).toBe(2);
+  await capture(page, info, "image-retry-draft");
+  await drawer.getByRole("button", { name: /Coba lagi/i }).last().click();
+  await expect(editor).toContainText("print(99)");
+  await expect(composer).toContainText("Draft baru");
+  await capture(page, info, "image-retry-success");
+  expect(requests.slice(0, 2).map(r => [r.sessionId, r.attachmentIds, r.codingContext.intent])).toEqual([
+    ["zyra-session", ["image-1"], "generate"], ["zyra-session", ["image-1"], "generate"],
+  ]);
+  await composer.press("Enter");
+  await expect(drawer.getByRole("button", { name: /Coba lagi/i }).last()).toBeVisible();
+  await drawer.getByRole("button", { name: /Coba lagi/i }).last().click();
+  await expect.poll(() => requests.length).toBe(4);
+  await expect(drawer.getByText("Penjelasan.", { exact: true }).last()).toBeVisible();
+  expect(requests.slice(2).map(r => [r.question, r.sessionId, r.attachmentIds, r.codingContext.intent])).toEqual([
+    ["Draft baru", "zyra-session", ["image-2"], "review"], ["Draft baru", "zyra-session", ["image-2"], "review"],
+  ]);
+  await expect(editor).toContainText("print(99)");
+  expect(uploads).toBe(2);
+});
+
+test("retry follows a draft session promoted by a new image without consuming the draft", async ({ page }, info) => {
+  const errors = failures(page);
+  const requests: Record<string, any>[] = [];
+  await page.route("**/api/zyra/chat", route => {
+    requests.push(route.request().postDataJSON());
+    return route.fulfill({ contentType: "text/event-stream", body: requests.length === 1
+      ? `data: ${JSON.stringify({ type: "data-error", data: { message: "Coba kembali." } })}\n\ndata: [DONE]\n\n`
+      : reply("Penjelasan retry tanpa gambar draft baru.") });
+  });
+  await page.route("**/api/zyra/attachments", route => route.fulfill({ json: { id: "image-id", sessionId: "promoted-session", width: 1, height: 1 } }));
+  const { drawer, composer } = await openZyra(page);
+  await drawer.getByRole("button", { name: "Obrolan baru", exact: true }).click();
+  await expect(page.locator("[data-sonner-toast]")).toHaveCount(0, { timeout: 10000 });
+  await composer.fill("Mengapa loop ini berhenti?");
+  await composer.press("Enter");
+  await expect(drawer.getByText(/Coba kembali/)).toBeVisible();
+  expect(requests[0].sessionId).toBeUndefined();
+  await composer.fill("Draft gambar baru");
+  await composer.evaluate(element => {
+    const data = new DataTransfer();
+    data.items.add(new File([Uint8Array.from(atob("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII="), c => c.charCodeAt(0))], "new-draft.png", { type: "image/png" }));
+    element.dispatchEvent(new ClipboardEvent("paste", { clipboardData: data, bubbles: true, cancelable: true }));
+  });
+  await expect(drawer.getByRole("button", { name: "Hapus new-draft.png" })).toBeVisible();
+  await capture(page, info, "promoted-session-before-retry");
+  await drawer.getByRole("button", { name: /Coba lagi/i }).last().click();
+  await expect(drawer.getByText("Penjelasan retry tanpa gambar draft baru.", { exact: true })).toBeVisible();
+  expect(requests[1]).toMatchObject({ question: "Mengapa loop ini berhenti?", sessionId: "promoted-session", attachmentIds: [], codingContext: { intent: "review" } });
+  await expect(composer).toContainText("Draft gambar baru");
+  await expect(drawer.getByRole("button", { name: "Hapus new-draft.png" })).toBeVisible();
+  await capture(page, info, "promoted-session-retried");
   expect(errors).toEqual([]);
 });

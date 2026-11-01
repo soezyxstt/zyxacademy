@@ -889,7 +889,7 @@ export function StructuredArticleReader({
 
     // Close the toolbar popover and clear selection
     handleToolbarOpenChange(false);
-    window.getSelection()?.removeAllRanges();
+    if (!isMobileSelection) window.getSelection()?.removeAllRanges();
 
     const sectionTitle = currentContext.sectionTitle || activeSection?.title || "";
     let questionText = customQuestion?.trim();
@@ -1468,7 +1468,6 @@ export function StructuredArticleReader({
                   aria-label={t("articleReader.closeAskZyra")}
                   onClick={() => {
                     handleToolbarOpenChange(false);
-                    window.getSelection()?.removeAllRanges();
                   }}
                 >
                   <X className="size-4" />
