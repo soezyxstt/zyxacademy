@@ -653,6 +653,10 @@ Zyra decomposition/flowchart help and Python Live Quiz are implemented locally
 without a new feature flag. Playground and runnable Article examples use an interactive terminal, Python autocomplete, automatic bracket and quote pairing, and indentation assistance. On staging, the terminal uses the isolated Python worker and does not count time spent entering input as execution time. Other environments retain the browser runtime. The Playground terminal can be collapsed and opens on Run. Playground uses the existing Zyra drawer with one compact composer and Python/Tutor modes beside the attachment and math controls. Python mode sends the current editor context and applies one complete final Python block directly to the active editor, without repeating it in chat. If the editor changed during generation, an explicit apply action protects the new work. Tutor mode keeps explanations and example snippets in chat and does not change the editor. Explicit math delimiters render formulas inside the composer, with source editing on selection; prose, currency, code, invalid LaTeX, and unfinished formulas stay literal. Rendered formulas are single units for arrow navigation and deletion. The symbol palette closes after insertion and retains typing focus; Escape closes the palette before the drawer. Sending clears draft undo history. Conversation history counts persisted messages and refreshes after saves. Existing Live Quiz gating remains unchanged. See
 [coding contract](coding-foundation.md) for authoring, access and runtime limits.
 
+In Playground, learners can describe a problem and ask Zyra to generate Python.
+A complete fenced Python response replaces the editor draft after generation;
+errors, missing code, and edits made during generation leave the draft intact.
+
 Error help guides trial and error: explain the observed failure, offer a tentative
 concept diagnosis, let the learner clarify their reasoning, give one small next
 step, and encourage another predicted Run. After an edit, old explanations are

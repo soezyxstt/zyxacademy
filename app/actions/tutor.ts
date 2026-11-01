@@ -736,7 +736,8 @@ export async function askTutorRagAction(
     const recentConversation = memory.recentMessages
       .filter((message) => !codingHintOnly || message.role === "student")
       .map((message) => ({ role: message.role, content: message.content.slice(0, 600) }));
-    pageContext = { id: `coding:${user.id}:${sid}`, label: "Python", href: pagePath ?? `/courses/${courseId}/playground`, content: `${CODING_TUTOR_INSTRUCTIONS}\n\n${JSON.stringify({ recentConversation, ...coding.context })}` };
+    const generate = (codingRequest as { kind?: unknown; intent?: unknown }).kind === "playground" && (codingRequest as { intent?: unknown }).intent === "generate" && !hasActiveAttempt;
+    pageContext = { id: `coding:${generate ? "generate:" : ""}${user.id}:${sid}`, label: "Python", href: pagePath ?? `/courses/${courseId}/playground`, content: `${CODING_TUTOR_INSTRUCTIONS}\n\n${JSON.stringify({ recentConversation, ...coding.context })}` };
   }
 
   const result = await askTutorRag({
