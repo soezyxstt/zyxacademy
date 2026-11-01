@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { FollowupParser, validateFollowups, FOLLOWUPS_OPEN, FOLLOWUPS_CLOSE } from '../../lib/zyra/followups.ts';
+import { FollowupParser, validateFollowups, FOLLOWUPS_OPEN, FOLLOWUPS_CLOSE, parseFollowupAnswer, followupEvent } from '../../lib/zyra/followups.ts';
 
 const item = { label: 'Try an example', prompt: 'Can we try another example?', icon: 'example', intent: 'practice' };
 test('split delimiters never leak and valid metadata is parsed', () => {
@@ -26,4 +26,18 @@ test('rejects invalid fields and oversized collections', () => {
 test('plain text is retained', () => {
   const parser = new FollowupParser();
   assert.equal(parser.push('Answer <zyra-') + parser.finish().text, 'Answer ');
+});
+
+test('completion preserves an ordinary trailing less-than sign without leaking partial metadata', () => {
+  for (const [input, expected] of [['x <', 'x <'], ['x <zyra-', 'x ']]) {
+    const parser = new FollowupParser();
+    assert.equal(parser.push(input) + parser.finish().text, expected);
+  }
+});
+test('completed response yields only visible text and a validated event', () => {
+  const parsed = parseFollowupAnswer(`Hello${FOLLOWUPS_OPEN}${JSON.stringify([item])}${FOLLOWUPS_CLOSE}`);
+  assert.equal(parsed.text, 'Hello');
+  assert.deepEqual(followupEvent(parsed.followups), { type: 'data-followups', followups: [item] });
+  assert.equal(followupEvent([{ ...item, icon: 'bad' }]), null);
+  assert.equal(parseFollowupAnswer(`Hello${FOLLOWUPS_OPEN}[broken`).text, 'Hello');
 });

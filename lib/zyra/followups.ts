@@ -51,10 +51,23 @@ export class FollowupParser {
     else if (!this.overflow) this.metadata += chunk;
   }
   finish(): { text: string; followups: Followup[] } {
-    if (!this.hidden) return { text: '', followups: [] };
+    if (!this.hidden) return { text: this.pending.length < 2 ? this.pending : '', followups: [] };
     const end = this.metadata.indexOf(FOLLOWUPS_CLOSE);
     if (this.overflow || end < 0 || this.metadata.slice(end + FOLLOWUPS_CLOSE.length).trim()) return { text: '', followups: [] };
     try { return { text: '', followups: validateFollowups(JSON.parse(this.metadata.slice(0, end))) }; }
     catch { return { text: '', followups: [] }; }
   }
+}
+
+/** Normalize a completed answer before persistence or streaming. */
+export function parseFollowupAnswer(answer: string): { text: string; followups: Followup[] } {
+  const parser = new FollowupParser();
+  const visible = parser.push(answer);
+  const result = parser.finish();
+  return { text: visible + result.text, followups: result.followups };
+}
+
+export function followupEvent(value: unknown): { type: 'data-followups'; followups: Followup[] } | null {
+  const followups = validateFollowups(value);
+  return followups.length ? { type: 'data-followups', followups } : null;
 }

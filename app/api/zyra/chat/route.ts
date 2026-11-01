@@ -1,3 +1,4 @@
+import { followupEvent, parseFollowupAnswer } from "@/lib/zyra/followups";
 import { codingHelpRequestSchema } from "@/lib/coding/http-contracts";
 import { headers } from "next/headers";
 import { randomUUID } from "node:crypto";
@@ -232,7 +233,7 @@ export async function POST(req: Request) {
           } else if (!res.answer) {
             fullAnswer = res.responseLanguage === "en" ? "Sorry, something went wrong while preparing the answer. Please try again shortly." : "Maaf, terjadi gangguan saat memproses jawaban. Coba lagi dalam beberapa saat.";
           } else {
-            fullAnswer = sanitizeAnswer(res.answer, res.sources);
+            fullAnswer = sanitizeAnswer(parseFollowupAnswer(res.answer).text, res.sources);
           }
 
           // 3. Progressive stream of text-delta chunks for smooth typing effect
@@ -251,6 +252,9 @@ export async function POST(req: Request) {
               await new Promise((r) => setTimeout(r, 15));
             }
           }
+
+          const followups = followupEvent(res.followups);
+          if (followups && !req.signal.aborted && !res.failureCode && !res.budgetExhausted) sendEvent(followups);
 
           // 4. Send metadata: Sources & Learning Canvas
           if (res.sources && res.sources.length > 0) {
