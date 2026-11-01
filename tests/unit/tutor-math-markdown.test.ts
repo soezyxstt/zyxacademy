@@ -29,3 +29,10 @@ test("restores escaped prose newlines before letters while protecting math and c
   expect(normalizeTutorMathMarkdown(String.raw`\nabla f \neq 0`)).toBe(String.raw`\nabla f \neq 0`);
   expect(normalizeTutorMathMarkdown("`a\\nb`")).toBe("`a\\nb`");
 });
+
+
+test("repairs escaped boundaries before letter-starting display formulas", () => {
+  expect(normalizeTutorMathMarkdown(String.raw`$$\nx+1\n$$`)).toBe("$$\nx+1\n$$");
+  expect(normalizeTutorMathMarkdown(String.raw`\[\nx+1\n\]`)).toBe("\\[\nx+1\n\\]");
+  expect(normalizeTutorMathMarkdown(String.raw`$$\nabla f \neq 0$$`)).toBe(String.raw`$$\nabla f \neq 0$$`);
+});

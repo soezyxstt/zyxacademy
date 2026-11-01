@@ -127,6 +127,8 @@ describe("Zyra composer Ctrl+V paste and Artikel v4 renderer sync", () => {
     expect(html).toContain('class="katex-display"');
     expect(html).not.toContain('katex-error');
     expect(html).toContain('mendekati');
+    const legacy = compileMarkdown("$\nx+1\n$");
+    expect((legacy.ast.blocks[0] as { content: string }).content).toBe("$$\nx+1\n$$");
     const compiled = compileMarkdown("$$x+1$$");
     expect((compiled.ast.blocks[0] as { content: string }).content).toBe("$$x+1$$");
   });

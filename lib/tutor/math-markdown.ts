@@ -2,6 +2,12 @@
  * Adds safe delimiters to common raw equations emitted by a provider.
  * Existing LaTeX, inline code, and fenced code remain unchanged.
  */
+function restoreEscapedNewlines(text: string): string {
+  // These raw LaTeX commands begin with n; all other escaped n sequences
+  // represent provider-escaped line boundaries, including before plain letters.
+  return text.replace(/\\n(?!(?:abla|eq|e|u|ot|eg|i|exists|subseteq|parallel|mid|olinebreak|ewcommand|ewline)\b)/g, "\n");
+}
+
 export function normalizeTutorMathMarkdown(text: string): string {
   const protectedSegments: string[] = [];
   const protectedText = text.replace(
@@ -12,14 +18,14 @@ export function normalizeTutorMathMarkdown(text: string): string {
       // Keep LaTeX commands such as \neq and \nabla intact.
       const isDisplay = segment.startsWith("$$") || segment.startsWith("\\[");
       protectedSegments.push(isDisplay
-        ? segment.replace(/\\n(?=\\|\s|\$\$|$)/g, "\n")
+        ? restoreEscapedNewlines(segment)
         : segment);
       return marker;
     },
   );
 
   // Unescape literal \n strings outside math/code blocks (fixes raw "\n" prefix bugs)
-  const cleanNewlines = protectedText.replace(/\\n(?!(?:abla|eq|e|u|ot|eg|i|exists|subseteq|parallel|mid|olinebreak|ewcommand|ewline)\b)/g, "\n");
+  const cleanNewlines = restoreEscapedNewlines(protectedText);
 
   const equationSegments: string[] = [];
   const withEquations = cleanNewlines.replace(

@@ -1169,7 +1169,7 @@ export function parseCanonicalMarkdown(markdown: string): ASTBlock[] {
       continue;
     }
 
-    if (trimmed.startsWith("$$") || trimmed.startsWith("\\[") || /^\$[^$]+\$$/.test(trimmed)) {
+    if (trimmed === "$" || trimmed.startsWith("$$") || trimmed.startsWith("\\[") || /^\$[^$]+\$$/.test(trimmed)) {
       // Flush presenter block first
       if (presenterType) {
         flushPresenterBlock(presenterType, presenterLines);
