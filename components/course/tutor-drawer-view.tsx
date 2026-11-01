@@ -4,6 +4,8 @@ import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import type { Followup } from "@/lib/zyra/followups";
 import {
   Compass,
   AlertTriangle,
@@ -87,6 +89,7 @@ interface ChatMessage {
   id: string;
   role: "student" | "ai";
   content: string;
+  followups?: Followup[];
   quotedContext?: ZyraQuotedContext | null;
   sources?: Array<{ type: string; id: string; label: string; href: string }>;
   canvasSpec?: CanvasSpec | null;
@@ -116,12 +119,6 @@ function safeText(value: unknown, fallback: string): string {
   return trimmed.length > 0 ? trimmed : fallback;
 }
 
-function isComprehensionCheck(content: string): boolean {
-  if (/cek pemahaman|uji pemahaman/i.test(content)) return true;
-  const tail = content.trimEnd().slice(-400);
-  return /\?/.test(tail.replace(/[$`\\]/g, ""));
-}
-
 function formatSessionDate(isoString: string, locale: "id" | "en", labels: { justNow: string; minutes: string; hours: string; days: string }): string {
   try {
     const date = new Date(isoString);
@@ -148,39 +145,29 @@ function FollowUpChipIcon({ name }: { name: "example" | "help" | "compass" | "re
   return <HelpCircle className="size-3 text-brand-secondary" />;
 }
 
-function FollowUpChips({
-  comprehensionCheck,
-  onSend,
-}: {
-  comprehensionCheck: boolean;
-  onSend: (prompt: string) => void;
+function FollowUpChips({ followups, disabled, onSend }: {
+  followups: Followup[];
+  disabled: boolean;
+  onSend: (followup: Followup) => void;
 }) {
   const t = useTranslations("studentCourse");
-  const chips = comprehensionCheck
-    ? [
-        { icon: "help" as const, label: t("tutorDrawer.chips.firstHint"), prompt: t("tutorDrawer.prompts.firstHint") },
-        { icon: "refresh" as const, label: t("tutorDrawer.chips.slower"), prompt: t("tutorDrawer.prompts.slower") },
-        { icon: "arrow" as const, label: t("tutorDrawer.chips.solution"), prompt: t("tutorDrawer.prompts.solution") },
-      ]
-    : [
-        { icon: "example" as const, label: t("tutorDrawer.chips.example"), prompt: t("tutorDrawer.prompts.example") },
-        { icon: "help" as const, label: t("tutorDrawer.chips.checkUnderstanding"), prompt: t("tutorDrawer.prompts.checkUnderstanding") },
-        { icon: "compass" as const, label: t("tutorDrawer.chips.analogy"), prompt: t("tutorDrawer.prompts.analogy") },
-      ];
   return (
-    <div className="mt-2 pt-1.5 flex items-center gap-0.5 overflow-x-auto no-scrollbar" aria-label={t("tutorDrawer.followUpActions")}>
-      {chips.map((chip) => (
-        <button
-          key={chip.label}
-          type="button"
-          onClick={() => onSend(chip.prompt)}
-          className="inline-flex shrink-0 items-center gap-1 rounded-md px-2 py-1 text-body-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-colors"
-        >
-          <FollowUpChipIcon name={chip.icon} />
-          <span>{chip.label}</span>
-        </button>
+    <TooltipProvider>
+    <div className="mt-2 flex flex-wrap items-center gap-1" aria-label={t("tutorDrawer.followUpActions")}>
+      {followups.map((chip, index) => (
+        <Tooltip key={`${chip.label}-${index}`}>
+          <TooltipTrigger asChild>
+            <Button type="button" variant="ghost" size="sm" disabled={disabled}
+              onClick={() => onSend(chip)} className="h-auto max-w-full whitespace-normal px-2 py-1 text-left">
+              <FollowUpChipIcon name={chip.icon} />
+              <span className="break-words">{chip.label}</span>
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>{chip.prompt}</TooltipContent>
+        </Tooltip>
       ))}
     </div>
+    </TooltipProvider>
   );
 }
 
@@ -851,7 +838,7 @@ export function TutorDrawerView({
 
   // Handle sending arbitrary chat messages with SSE streaming
   const handleSend = async (suggestedQuestion?: string, overrideQuote?: ZyraQuotedContext | null, presetIntent?: PythonPreset["intent"]) => {
-    if (chatLoading) return;
+    if (chatLoading || abortControllerRef.current) return;
     const codingRequest = codingBridge?.capture();
     const isCodeQuote = (overrideQuote !== undefined ? overrideQuote : activeQuotedContext)?.blockType === "code";
     const pythonRequest = assistantMode === "python" && !presetIntent && !isCodeQuote ? codingRequest : null;
@@ -886,7 +873,7 @@ export function TutorDrawerView({
       sessionId,
     };
 
-    setMessages((prev) => [...prev, studentMsg]);
+    setMessages((prev) => [...prev.map((message) => ({ ...message, followups: undefined })), studentMsg]);
     setInputVal("");
     setActiveQuotedContext(null);
     onClearQuotedContext?.();
@@ -985,6 +972,9 @@ export function TutorDrawerView({
             ) {
               updateResponseLanguageState((current) => zyraResponseLanguageResolved(current, part.responseLanguage));
             }
+          } else if (part.type === "data-followups") {
+            if (requestConversationEpoch !== conversationEpochRef.current || abortController.signal.aborted) continue;
+            setMessages((prev) => prev.map((m) => m.id === aiMsgId ? { ...m, followups: part.followups } : m));
           } else if (part.type === "data-sources" && part.sources) {
             finalSources = part.sources;
             setMessages((prev) =>
@@ -1038,7 +1028,7 @@ export function TutorDrawerView({
         accumulatedContent = accumulatedContent || t("tutorDrawer.responseStopped");
         setMessages((prev) =>
           prev.map((m) =>
-            m.id === aiMsgId ? { ...m, content: pythonRequest ? pythonReply(accumulatedContent).explanation : accumulatedContent } : m
+            m.id === aiMsgId ? { ...m, content: pythonRequest ? pythonReply(accumulatedContent).explanation : accumulatedContent, followups: undefined } : m
           )
         );
       } else {
@@ -1471,7 +1461,6 @@ export function TutorDrawerView({
               {messages.map((msg, index) => {
                 const isStudent = msg.role === "student";
                 const isLastAiTurn = !isStudent && index === messages.length - 1;
-                const showComprehensionCheck = isLastAiTurn && !chatLoading && isComprehensionCheck(msg.content);
 
                 if (isStudent) {
                   const attachmentSessionId = msg.sessionId ?? sessionId;
@@ -1614,11 +1603,15 @@ export function TutorDrawerView({
                       </div>
                     )}
 
-                    {/* Quick Accelerators / Socratic follow-up chips */}
-                    {assistantMode === "tutor" && isLastAiTurn && !chatLoading && (
+                    {isLastAiTurn && !chatLoading && !msg.isError && !!msg.followups?.length && (
                       <FollowUpChips
-                        comprehensionCheck={showComprehensionCheck}
-                        onSend={handleSend}
+                        followups={msg.followups}
+                        disabled={chatLoading || !attachmentsReady}
+                        onSend={(followup) => void handleSend(
+                          followup.prompt,
+                          null,
+                          assistantMode === "python" ? (followup.intent === "explain" ? "review" : "hint") : undefined,
+                        )}
                       />
                     )}
 
