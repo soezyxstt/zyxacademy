@@ -27,7 +27,7 @@ async function capture(page: Page, info: TestInfo, name: string) {
   await page.screenshot({ path: info.outputPath(`screenshots/${name}.png`), animations: "disabled" });
 }
 function reply(text: string) {
-  return `data: ${JSON.stringify({ type: "text-delta", textDelta: text })}\n\ndata: [DONE]\n\n`;
+  return `data: ${JSON.stringify({ type: "text-delta", textDelta: text })}\n\ndata: ${JSON.stringify({ type: "data-history", saved: true })}\n\ndata: [DONE]\n\n`;
 }
 
 test("one compact composer routes final Python to the editor and keeps Tutor snippets in chat", async ({ page }, info) => {
@@ -52,7 +52,8 @@ test("one compact composer routes final Python to the editor and keeps Tutor sni
     for (let i = 0; i < 2; i++) element.dispatchEvent(new ClipboardEvent("paste", { clipboardData: data, bubbles: true, cancelable: true }));
   });
   await expect.poll(() => uploads).toBe(1);
-  await composer.fill("Hitung luas 6 kali 4.");
+  // Image-only messages must count even while the history summary is stale.
+  await expect(composer.locator(".cm-placeholder")).toBeVisible();
   await drawer.getByRole("button", { name: "Kirim pesan", exact: true }).click();
   await expect(drawer.getByRole("tab", { name: "Tutor", exact: true })).toBeDisabled();
   await expect(drawer.getByRole("button", { name: "Input matematika" })).toBeDisabled();
@@ -346,5 +347,29 @@ test("Python generation errors and missing code preserve the editor", async ({ p
   await expect(drawer.getByText("Minta satu blok Python lengkap agar kode dapat diterapkan.")).toBeVisible();
   await expect(editor).toHaveText(before!);
   await capture(page, info, "generation-no-code");
+  expect(errors).toEqual([]);
+});
+
+test("unsaved and interrupted replies do not inflate history counts", async ({ page }, info) => {
+  const errors = failures(page);
+  const { drawer, composer } = await openZyra(page);
+  let saved = false;
+  await page.route("**/api/zyra/chat", route => route.fulfill({ contentType: "text/event-stream", body:
+    `data: ${JSON.stringify({ type: "text-delta", textDelta: "Penjelasan tetap tersedia." })}\n\n` +
+    (saved ? "" : `data: ${JSON.stringify({ type: "data-history", saved: false, message: "Jawaban ini belum tersimpan. Salin bagian yang diperlukan." })}\n\ndata: [DONE]\n\n`) }));
+  await composer.fill("Bantu saya.");
+  await composer.press("Enter");
+  await expect(page.getByText("Jawaban ini belum tersimpan. Salin bagian yang diperlukan.")).toBeVisible();
+  await drawer.getByRole("button", { name: "Menu topik dan mode Zyra" }).click();
+  await expect(drawer.getByText(/2 pesan/)).toBeVisible();
+  await capture(page, info, "history-save-failed");
+  await drawer.getByRole("button", { name: "Menu topik dan mode Zyra" }).click();
+  saved = true;
+  await composer.fill("Coba lagi.");
+  await composer.press("Enter");
+  await expect(drawer.getByText("Maaf, terjadi kendala saat memproses jawaban. Coba lagi dalam beberapa saat.")).toBeVisible();
+  await drawer.getByRole("button", { name: "Menu topik dan mode Zyra" }).click();
+  await expect(drawer.getByText(/2 pesan/)).toBeVisible();
+  await capture(page, info, "history-incomplete-not-counted");
   expect(errors).toEqual([]);
 });

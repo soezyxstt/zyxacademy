@@ -1236,6 +1236,10 @@ editor rejects stale responses. Tutor responses do not apply code. The chat API
 is the sole history writer for coding turns and links student attachments once.
 Generated Python history omits fenced code and explains how to regenerate an
 unapplied result; the drawer does not save the same turn again.
+Coding history uses stable, actor-scoped message IDs for request replay. The API
+acknowledges saved history over SSE; a failed save keeps the answer visible with
+a recovery notification. Unconfirmed and interrupted turns do not increase the
+session count.
 The mixed-text composer uses the installed CodeMirror editor with KaTeX widgets
 for explicit math delimiters, preserving raw source and plain-text paste.
 Recent-session counts use one grouped left join on tutor messages, matching

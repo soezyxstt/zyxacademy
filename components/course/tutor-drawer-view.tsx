@@ -110,6 +110,7 @@ interface ChatMessage {
   visuals?: PublicVisualSpec[];
   workedExample?: PublicWorkedExamplePayload | null;
   isError?: boolean;
+  persisted?: boolean;
   pendingPython?: { code: string; apply: (code: string, force?: boolean) => string };
   pythonStatus?: string;
   failedPayload?: {
@@ -937,6 +938,7 @@ export function TutorDrawerView({
     if (activeMode !== "chat") setActiveMode("chat");
 
     const studentMsg: ChatMessage = {
+      persisted: false,
       id: `msg-${Date.now()}`,
       role: "student",
       content: displayStudentQuestion,
@@ -994,7 +996,7 @@ export function TutorDrawerView({
 
     setMessages((prev) => [
       ...prev,
-      { id: aiMsgId, role: "ai", content: "" },
+      { id: aiMsgId, role: "ai", content: "", persisted: false },
     ]);
 
     try {
@@ -1058,6 +1060,14 @@ export function TutorDrawerView({
                 m.id === aiMsgId ? { ...m, canvasSpec: part.canvasSpec } : m
               )
             );
+          } else if (part.type === "data-history") {
+            if (requestConversationEpoch !== conversationEpochRef.current) continue;
+            if (part.saved) {
+              setMessages((prev) => prev.map((m) => m.id === studentMsg.id || m.id === aiMsgId ? { ...m, persisted: true } : m));
+              void loadSessions();
+            } else if (part.message) {
+              toast.error(part.message);
+            }
           } else if (part.type === "data-session" && part.sessionId) {
             if (
               requestConversationEpoch !== conversationEpochRef.current ||
@@ -1141,7 +1151,10 @@ export function TutorDrawerView({
       saveTutorMessagesAction(courseId, [
         { role: studentMsg.role, content: studentMsg.content || question, attachmentIds: requestedAttachmentIds },
         { role: "ai", content: accumulatedContent, sources: finalSources, canvasSpec: finalCanvasSpec },
-      ], activeSid).then(() => loadSessions()).catch(() => {});
+      ], activeSid).then(() => {
+        setMessages((prev) => prev.map((m) => m.id === studentMsg.id || m.id === aiMsgId ? { ...m, persisted: true } : m));
+        return loadSessions();
+      }).catch(() => {});
     }
   };
 
@@ -1395,7 +1408,7 @@ export function TutorDrawerView({
                           >
                             <p className="truncate text-body-xs font-medium">{sess.title}</p>
                             <span className="text-[10px] text-muted-foreground">
-                              {t("tutorDrawer.messageCount", { count: sess.id === sessionId ? Math.max(sess.messageCount, messages.filter((message) => message.id !== "chat-welcome" && (message.content.trim() || message.pythonStatus) && !message.isError).length) : sess.messageCount })}{sess.lastMessageAt ? ` • ${formatSessionDate(sess.lastMessageAt, locale, { justNow: t("tutorDrawer.justNow"), minutes: t("tutorDrawer.minutesAgo"), hours: t("tutorDrawer.hoursAgo"), days: t("tutorDrawer.daysAgo") })}` : ""}
+                              {t("tutorDrawer.messageCount", { count: sess.id === sessionId ? Math.max(sess.messageCount, messages.filter((message) => message.id !== "chat-welcome" && message.persisted !== false && (message.content.trim() || message.pythonStatus || message.attachments?.length) && !message.isError).length) : sess.messageCount })}{sess.lastMessageAt ? ` • ${formatSessionDate(sess.lastMessageAt, locale, { justNow: t("tutorDrawer.justNow"), minutes: t("tutorDrawer.minutesAgo"), hours: t("tutorDrawer.hoursAgo"), days: t("tutorDrawer.daysAgo") })}` : ""}
                             </span>
                           </button>
                           <button

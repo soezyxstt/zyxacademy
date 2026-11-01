@@ -275,8 +275,13 @@ export async function POST(req: Request) {
               await saveTutorMessagesAction(normalizedCourseId, [
                 { role: "student", content: normalizedQuestion, attachmentIds },
                 { role: "ai", content: historyAnswer, sources: res.sources, canvasSpec: res.canvasSpec },
-              ], res.sessionId);
-            } catch { /* A history failure must not discard a completed explanation. */ }
+              ], res.sessionId, idempotencyKey);
+              sendEvent({ type: "data-history", saved: true });
+            } catch {
+              sendEvent({ type: "data-history", saved: false, message: res.responseLanguage === "en"
+                ? "This answer could not be saved. Copy anything you need before closing this conversation."
+                : "Jawaban ini belum tersimpan. Salin bagian yang diperlukan sebelum menutup percakapan." });
+            }
           }
 
           // 5. Complete stream
