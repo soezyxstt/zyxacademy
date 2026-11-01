@@ -141,7 +141,7 @@ test("mixed math renders inline while prose, currency and code remain literal", 
   await capture(page, info, "math-palette-open");
   await page.getByRole("button", { name: /Sisipkan.*Integral tentu/ }).click();
   await expect(composer.locator(".zyra-composer-math")).toHaveAttribute("aria-label", String.raw`\int_{a}^{b}`);
-  await drawer.getByRole("button", { name: "Input matematika" }).click();
+  await expect(drawer.getByRole("button", { name: "Input matematika" })).toHaveAttribute("aria-expanded", "false");
   await capture(page, info, "math-palette-inserted");
   await composer.fill(String.raw`Belum selesai $\int_{a}`);
   await expect(composer.locator(".katex")).toHaveCount(0);
@@ -163,6 +163,139 @@ test("mixed math renders inline while prose, currency and code remain literal", 
   expect(errors).toEqual([]);
 });
 
+
+test("typing, navigating and deleting math keeps the draft intact", async ({ page }, info) => {
+  const errors = failures(page);
+  const { drawer, composer } = await openZyra(page);
+  await composer.click();
+  await composer.pressSequentially(String.raw`Hitung $\int_{a}^{b} x^2\,dx$ lalu jelaskan.`, { delay: 15 });
+  await expect(composer.locator(".zyra-composer-math")).toHaveCount(1);
+  await capture(page, info, "keyboard-typed-math");
+  await composer.press("ControlOrMeta+Home");
+  for (let i = 0; i < 8; i++) await composer.press("ArrowRight");
+  // A rendered formula is one navigation/deletion unit, not hidden source offsets.
+  await expect(composer.locator(".zyra-composer-math")).toHaveCount(1);
+  await composer.press("Backspace");
+  await expect(composer).toHaveText("Hitung  lalu jelaskan.");
+  await composer.press("ControlOrMeta+z");
+  await expect(composer.locator(".zyra-composer-math")).toHaveCount(1);
+  await composer.press("ControlOrMeta+Home");
+  for (let i = 0; i < 7; i++) await composer.press("ArrowRight");
+  await composer.press("Delete");
+  await expect(composer).toHaveText("Hitung  lalu jelaskan.");
+  await composer.press("ControlOrMeta+z");
+  await composer.press("ControlOrMeta+Shift+Z");
+  await expect(composer).toHaveText("Hitung  lalu jelaskan.");
+  await composer.press("ControlOrMeta+z");
+  await composer.press("ControlOrMeta+End");
+  await composer.pressSequentially(" Harga $5 dan $10.");
+  await expect(composer.locator(".zyra-composer-math")).toHaveCount(1);
+  await expect(composer).toContainText("Harga $5 dan $10.");
+  await drawer.getByRole("tab", { name: "Tutor", exact: true }).click();
+  await capture(page, info, "keyboard-draft-complete");
+  expect(errors).toEqual([]);
+});
+
+test("composer preserves raw source through copy, paste, send and undo", async ({ page }, info) => {
+  const errors = failures(page);
+  const { drawer, composer } = await openZyra(page);
+  await drawer.getByRole("tab", { name: "Tutor", exact: true }).click();
+  let question = "";
+  await page.route("**/api/zyra/chat", route => {
+    question = route.request().postDataJSON().question;
+    return route.fulfill({ contentType: "text/event-stream", body: reply("Diterima.") });
+  });
+  const source = String.raw`Jelaskan $\frac{1}{2}$ dan $x^2$.`;
+  await composer.click();
+  await composer.pressSequentially(source);
+  await expect(composer.locator(".zyra-composer-math")).toHaveCount(2);
+  await composer.press("ControlOrMeta+a");
+  const copied = await composer.evaluate(element => {
+    const data = new DataTransfer();
+    element.dispatchEvent(new ClipboardEvent("copy", { clipboardData: data, bubbles: true, cancelable: true }));
+    return data.getData("text/plain");
+  });
+  expect(copied).toBe(source);
+  await composer.press("Backspace");
+  await expect(composer.locator(".cm-placeholder")).toBeVisible();
+  await composer.press("ControlOrMeta+z");
+  await composer.press("ControlOrMeta+End");
+  await expect(composer.locator(".zyra-composer-math")).toHaveCount(2);
+  await capture(page, info, "copy-undo-restored");
+  await composer.press("ControlOrMeta+a");
+  await composer.press("Backspace");
+  await composer.evaluate((element, text) => {
+    const data = new DataTransfer();
+    data.setData("text/plain", text);
+    element.dispatchEvent(new ClipboardEvent("paste", { clipboardData: data, bubbles: true, cancelable: true }));
+  }, copied);
+  await expect(composer.locator(".zyra-composer-math")).toHaveCount(2);
+  await composer.press("Enter");
+  await expect.poll(() => question).toBe(source);
+  await expect(drawer.getByText("Diterima.", { exact: true })).toBeVisible();
+  await composer.click();
+  await composer.press("ControlOrMeta+z");
+  await expect(composer.locator(".cm-placeholder")).toBeVisible();
+  await capture(page, info, "sent-draft-undo-empty");
+  expect(errors).toEqual([]);
+});
+
+test("composer keeps invalid math literal and grows only to its scroll limit", async ({ page }, info) => {
+  const errors = failures(page);
+  const { drawer, composer } = await openZyra(page);
+  const samples = [
+    [String.raw`Teks biasa, harga $5 dan $10, URL https://example.com/a_b.`, 0],
+    [String.raw`Belum selesai $\int_{a}^{b}`, 0],
+    [String.raw`Salah $\notACommand{x}$ dan benar $x^2$.`, 1],
+    [String.raw`Kode ` + "`$x^2$`" + String.raw` dan \$literal, benar \(y^2\) serta \[z^2\].`, 2],
+    [String.raw`Dua rumus $$\frac{1}{2}$$ dan $\sqrt{x}$.`, 2],
+  ] as const;
+  for (const [source, count] of samples) {
+    await composer.click();
+    await composer.press("ControlOrMeta+a");
+    await composer.pressSequentially(source);
+    await expect(composer.locator(".zyra-composer-math")).toHaveCount(count);
+  }
+  await capture(page, info, "multiple-delimiters");
+  await composer.press("ControlOrMeta+a");
+  await composer.pressSequentially(String.raw`Perbaiki $\notACommand{x}$ tanpa mengubah teks.`);
+  await capture(page, info, "invalid-math-literal");
+  await composer.press("ControlOrMeta+a");
+  await composer.pressSequentially("Jelaskan langkah berikut.");
+  for (let i = 0; i < 12; i++) {
+    await composer.press("Shift+Enter");
+    await composer.pressSequentially(`Baris ${i + 1} dengan keterangan.`);
+  }
+  const scroller = drawer.locator("footer .cm-scroller");
+  expect(await scroller.evaluate(el => el.scrollHeight > el.clientHeight)).toBe(true);
+  expect((await drawer.locator("footer").boundingBox())!.height).toBeLessThan(250);
+  await expect(drawer.getByRole("button", { name: "Kirim pesan", exact: true })).toBeInViewport();
+  await capture(page, info, "long-draft-scroll");
+  expect(errors).toEqual([]);
+});
+
+test("math palette closes, restores typing focus and replaces selections safely", async ({ page }, info) => {
+  const errors = failures(page);
+  const { drawer, composer } = await openZyra(page);
+  const palette = drawer.getByRole("button", { name: "Input matematika" });
+  await composer.click();
+  await composer.pressSequentially("A $x^2$ B");
+  await composer.locator(".zyra-composer-math").click();
+  await composer.press("Shift+End");
+  await palette.click();
+  await page.getByRole("button", { name: /Sisipkan.*Integral tentu/ }).click();
+  await expect(palette).toHaveAttribute("aria-expanded", "false");
+  await expect(composer).toBeFocused();
+  await expect(composer.locator(".zyra-composer-math")).toHaveCount(1);
+  await composer.pressSequentially(" selesai.");
+  await capture(page, info, "palette-selection-replaced");
+  await composer.press("ControlOrMeta+a");
+  await expect(composer).toHaveText(String.raw`A $\int_{a}^{b}$ selesai.`);
+  await palette.click();
+  await page.keyboard.press("Escape");
+  await expect(palette).toBeFocused();
+  expect(errors).toEqual([]);
+});
 
 test("an unfinished Python stream cannot change the editor or expose final code", async ({ page }, info) => {
   const errors = failures(page);

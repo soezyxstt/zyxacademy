@@ -3,7 +3,7 @@
 import * as React from "react";
 import { Annotation, Compartment, EditorState, StateEffect, StateField } from "@codemirror/state";
 import { Decoration, EditorView, keymap, placeholder as editorPlaceholder, type DecorationSet, WidgetType } from "@codemirror/view";
-import { defaultKeymap, history, historyKeymap, insertNewline } from "@codemirror/commands";
+import { defaultKeymap, history, historyKeymap, insertNewline, redo } from "@codemirror/commands";
 import katex from "@/lib/math/katex";
 import { composerMathRanges } from "./zyra-composer-math";
 import "katex/dist/katex.min.css";
@@ -29,12 +29,12 @@ type Props = {
 const externalChange = Annotation.define<boolean>();
 
 class MathWidget extends WidgetType {
-  constructor(readonly source: string, readonly from: number, readonly openLength: number) { super(); }
+  constructor(readonly source: string, readonly from: number, readonly openLength: number, readonly html: string) { super(); }
   eq(other: MathWidget) { return this.source === other.source && this.from === other.from && this.openLength === other.openLength; }
   toDOM(view: EditorView) {
     const span = document.createElement("span");
     span.className = "zyra-composer-math";
-    span.innerHTML = katex.renderToString(this.source, { throwOnError: false, displayMode: false });
+    span.innerHTML = this.html;
     span.setAttribute("aria-label", this.source);
     span.addEventListener("pointerdown", (event) => {
       event.preventDefault();
@@ -51,7 +51,16 @@ function mathDecorations(state: EditorState, focused: boolean, composing: boolea
   const selections = state.selection.ranges;
   return Decoration.set(composerMathRanges(state.doc.toString())
     .filter(({ from, to }) => !focused || !selections.some((range) => (range.from < to && range.to > from) || (range.empty && range.from > from && range.from < to)))
-    .map(({ from, to, source }) => Decoration.replace({ widget: new MathWidget(source, from, state.doc.sliceString(from, from + 1) === "$" && state.doc.sliceString(from, from + 2) !== "$$" ? 1 : 2) }).range(from, to)));
+    .flatMap(({ from, to, source }) => {
+      try {
+        const html = katex.renderToString(`\\displaystyle ${source}`, { throwOnError: true, displayMode: false });
+        const openLength = state.doc.sliceString(from, from + 1) === "$" && state.doc.sliceString(from, from + 2) !== "$$" ? 1 : 2;
+        return [Decoration.replace({ widget: new MathWidget(source, from, openLength, html) }).range(from, to)];
+      } catch {
+        // Keep incomplete or invalid LaTeX editable instead of replacing it with an error widget.
+        return [];
+      }
+    }));
 }
 const mathRendering = StateField.define<{ decorations: DecorationSet; focused: boolean; composing: boolean }>({
   create: (state) => ({ decorations: mathDecorations(state, false, false), focused: false, composing: false }),
@@ -63,7 +72,10 @@ const mathRendering = StateField.define<{ decorations: DecorationSet; focused: b
     }
     return { focused, composing, decorations: mathDecorations(transaction.state, focused, composing) };
   },
-  provide: field => EditorView.decorations.from(field, value => value.decorations),
+  provide: field => [
+    EditorView.decorations.from(field, value => value.decorations),
+    EditorView.atomicRanges.of(view => view.state.field(field).decorations),
+  ],
 });
 
 /** Selection offsets refer to the original string, including math delimiters. */
@@ -76,6 +88,7 @@ export const ZyraComposerInput = React.forwardRef<ZyraComposerInputHandle, Props
   const editable = React.useMemo(() => new Compartment(), []);
   const hint = React.useMemo(() => new Compartment(), []);
   const label = React.useMemo(() => new Compartment(), []);
+  const undo = React.useMemo(() => new Compartment(), []);
 
   React.useImperativeHandle(ref, () => ({
     focus: () => editor.current?.focus(),
@@ -101,7 +114,7 @@ export const ZyraComposerInput = React.forwardRef<ZyraComposerInputHandle, Props
     const view = new EditorView({ parent: host.current, state: EditorState.create({
       doc: latest.current.value,
       extensions: [
-        history(), mathRendering,
+        undo.of(history()), mathRendering,
         EditorView.domEventHandlers({
           focus: (_event, view) => { view.dispatch({ effects: mathInteraction.of({ focused: true }) }); },
           blur: (_event, view) => { view.dispatch({ effects: mathInteraction.of({ focused: false }) }); },
@@ -111,7 +124,7 @@ export const ZyraComposerInput = React.forwardRef<ZyraComposerInputHandle, Props
         editable.of([EditorView.editable.of(!latest.current.disabled), EditorState.readOnly.of(!!latest.current.disabled)]),
         hint.of(editorPlaceholder(latest.current.placeholder ?? "")),
         label.of(EditorView.contentAttributes.of({ "aria-label": latest.current["aria-label"] ?? latest.current.placeholder ?? "Pesan", "aria-multiline": "true" })),
-        keymap.of([{ key: "Shift-Enter", run: insertNewline }, { key: "Enter", run: (v) => { if (v.composing || v.state.field(mathRendering).composing || latest.current.disabled) return false; latest.current.onSubmit(); return true; } }, ...defaultKeymap, ...historyKeymap]),
+        keymap.of([{ key: "Shift-Enter", run: insertNewline }, { key: "Mod-Shift-z", run: redo, preventDefault: true }, { key: "Enter", run: (v) => { if (v.composing || v.state.field(mathRendering).composing || latest.current.disabled) return false; latest.current.onSubmit(); return true; } }, ...defaultKeymap, ...historyKeymap]),
         EditorView.lineWrapping,
         EditorView.updateListener.of((update) => {
           if (update.docChanged && !update.transactions.some((tr) => tr.annotation(externalChange))) latest.current.onChange(update.state.doc.toString());
@@ -120,22 +133,25 @@ export const ZyraComposerInput = React.forwardRef<ZyraComposerInputHandle, Props
           "&": { fontSize: "inherit", minHeight: "36px", maxHeight: "160px" },
           ".cm-scroller": { overflow: "auto", maxHeight: "160px", fontFamily: "inherit" },
           ".cm-content": { minHeight: "36px", padding: "4px", caretColor: "currentColor" },
+          ".cm-line": { lineHeight: "1.65" },
           "&.cm-focused": { outline: "none" },
           ".cm-placeholder": { color: "var(--muted-foreground)" },
-          ".zyra-composer-math": { cursor: "text" },
+          ".zyra-composer-math": { display: "inline-block", verticalAlign: "baseline", cursor: "text" },
         }),
       ],
     }) });
     editor.current = view;
     return () => { editor.current = null; view.destroy(); };
-  }, [editable, hint, label]);
+  }, [editable, hint, label, undo]);
 
   React.useEffect(() => {
     const view = editor.current;
     if (view && view.state.doc.toString() !== props.value) {
-      view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: props.value }, annotations: externalChange.of(true) });
+      // A sent message or another conversation must not remain in draft undo history.
+      view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: props.value }, annotations: externalChange.of(true), effects: undo.reconfigure([]) });
+      view.dispatch({ effects: undo.reconfigure(history()) });
     }
-  }, [props.value]);
+  }, [props.value, undo]);
   React.useEffect(() => { editor.current?.dispatch({ effects: editable.reconfigure([EditorView.editable.of(!props.disabled), EditorState.readOnly.of(!!props.disabled)]) }); }, [props.disabled, editable]);
   React.useEffect(() => { editor.current?.dispatch({ effects: hint.reconfigure(editorPlaceholder(props.placeholder ?? "")) }); }, [props.placeholder, hint]);
   React.useEffect(() => { editor.current?.dispatch({ effects: label.reconfigure(EditorView.contentAttributes.of({ "aria-label": ariaLabel, "aria-multiline": "true" })) }); }, [ariaLabel, label]);

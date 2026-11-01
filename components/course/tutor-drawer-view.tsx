@@ -574,7 +574,7 @@ export function TutorDrawerView({
   // Escape key to close
   React.useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
+      if (event.key === "Escape" && !event.defaultPrevented) onClose();
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
@@ -1259,8 +1259,20 @@ export function TutorDrawerView({
   }, [courseIdFromPath, t, startNewConversation, resetComposerAttachments]);
 
   const handleInsertSnippet = (snippet: string) => {
-    const caret = textareaRef.current?.selectionStart ?? inputVal.length;
-    const inMath = composerMathRanges(inputVal).some(({ from, to }) => caret > from && caret < to);
+    let start = textareaRef.current?.selectionStart ?? inputVal.length;
+    let end = textareaRef.current?.selectionEnd ?? start;
+    const ranges = composerMathRanges(inputVal);
+    const inMath = ranges.some(({ from, to }) => {
+      const delimiterLength = inputVal[from] === "$" && inputVal[from + 1] !== "$" ? 1 : 2;
+      return start >= from + delimiterLength && end <= to - delimiterLength;
+    });
+    if (!inMath && start !== end) {
+      for (const range of ranges) if (range.from < end && range.to > start) {
+        start = Math.min(start, range.from);
+        end = Math.max(end, range.to);
+      }
+      textareaRef.current?.setSelectionRange(start, end);
+    }
     textareaRef.current?.insertText(inMath ? snippet : `$${snippet.trim()}$`);
   };
 
