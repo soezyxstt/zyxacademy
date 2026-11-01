@@ -26,6 +26,7 @@ export interface RunPedagogicalTurnParams {
   cacheTtlSeconds?: number;
   idempotencyKey?: string;
   imageParts?: readonly ProviderInputPart[];
+  conversation?: Array<{ role: "student" | "ai"; content: string }>;
 }
 
 export interface PedagogicalTurnResult {
@@ -75,7 +76,7 @@ export async function runPedagogicalTurn(params: RunPedagogicalTurnParams): Prom
     plan,
     params.learnerQuestion,
     params.evidence,
-    { hasImages: Boolean(params.imageParts?.length) },
+    { hasImages: Boolean(params.imageParts?.length), conversation: params.conversation },
   );
   const parsedInput = PedagogyPromptInputSchema.parse(promptInput);
   const allowedSources = sourceMap(parsedInput.evidence);
@@ -108,7 +109,7 @@ export async function runPedagogicalTurn(params: RunPedagogicalTurnParams): Prom
       evidenceIds: parsedInput.evidence.map((source) => source.id),
       evidenceVersions: parsedInput.evidence.map((source) => source.version),
     },
-    cachePolicy: params.imageParts?.length
+    cachePolicy: params.imageParts?.length || params.conversation?.length
       ? "bypass"
       : params.context.activeAssessment ? "active_assessment" : "public_scaffold",
     cacheKey: params.imageParts?.length ? undefined : params.cacheKey,
