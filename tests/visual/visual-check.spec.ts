@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { mockTerminal } from "./terminal-fixture";
 
 test.setTimeout(120_000);
 
@@ -44,6 +45,7 @@ for (const route of routes) {
     if (routePathname(route) === "/visual-fixtures/zyra-learning") test.setTimeout(90_000);
     const runtimeErrors: string[] = [];
     const failedResponses: string[] = [];
+    if (routePathname(route) === "/visual-fixtures/coding") await mockTerminal(page);
 
     // Local visual fixtures do not provision Firebase or request push permission.
     if (process.env.VISUAL_CHECK_DISABLE_PUSH === "1") {
