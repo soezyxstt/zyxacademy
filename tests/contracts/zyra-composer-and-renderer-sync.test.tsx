@@ -179,3 +179,14 @@ describe("Zyra composer Ctrl+V paste and Artikel v4 renderer sync", () => {
     expect(ctx.blockTitle).toBe("Contoh $x^2$");
   });
 });
+
+
+test("keeps a mid-paragraph display formula and its trailing punctuation together", () => {
+  const content = "Jelaskan $$\nx+1\n$$.";
+  const compiled = compileMarkdown(content);
+  expect(compiled.ast.blocks).toHaveLength(1);
+  expect(renderToStaticMarkup(<MarkdownRenderer content={content} />)).not.toContain('aria-label="Rumus utama"');
+  const afterCode = compileMarkdown("Literal `$$`\n\n$$\nx+1\n$$");
+  expect(afterCode.ast.blocks).toHaveLength(2);
+  expect(afterCode.ast.blocks[1].id).toContain("mathblk");
+});

@@ -216,7 +216,7 @@ test("composer preserves raw source through copy, paste, send and undo", async (
     question = route.request().postDataJSON().question;
     return route.fulfill({ contentType: "text/event-stream", body: reply("Diterima.") });
   });
-  const source = String.raw`Jelaskan $\frac{1}{2}$ dan $x^2$.`;
+  const source = String.raw`Jelaskan $\frac{1}{2}$ dan $x^2$, serta $$\nx+1\n$$.`;
   await composer.click();
   await composer.pressSequentially(source);
   await expect(composer.locator(".zyra-composer-math")).toHaveCount(2);
@@ -242,7 +242,7 @@ test("composer preserves raw source through copy, paste, send and undo", async (
   }, copied);
   await expect(composer.locator(".zyra-composer-math")).toHaveCount(2);
   await composer.press("Enter");
-  await expect.poll(() => question).toBe(source);
+  await expect.poll(() => question).toBe(source.replace(/\\n/g, "\n"));
   await expect(drawer.getByText("Diterima.", { exact: true })).toBeVisible();
   await composer.click();
   await composer.press("ControlOrMeta+z");

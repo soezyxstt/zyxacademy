@@ -863,8 +863,8 @@ export function TutorDrawerView({
       : requestedAttachmentIds.length > 0
         ? "Bantu jelaskan gambar ini."
         : "";
-    const question = rawQuestion || fallbackQuestion;
-    const displayStudentQuestion = rawQuestion;
+    const question = normalizeTutorMathMarkdown(rawQuestion || fallbackQuestion);
+    const displayStudentQuestion = rawQuestion ? normalizeTutorMathMarkdown(rawQuestion) : "";
 
     if (zyraAccessTier === "free" && requestedAttachmentIds.length > 0) {
       toast.error(t("tutorDrawer.freeTextOnly") || "Paket Free hanya mendukung pertanyaan teks.");

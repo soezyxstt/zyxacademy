@@ -71,6 +71,9 @@ for (const route of routes) {
     await page.emulateMedia({ reducedMotion: "reduce" });
     const response = await page.goto(route, { waitUntil: "domcontentloaded" });
     await expect(page.locator("body")).toBeVisible();
+    if (routePathname(route) === "/visual-fixtures/coding" && new URL(route, "http://visual-check.local").searchParams.get("terminal") === "1") {
+      await expect(page.getByRole("textbox", { name: "Kode Python" })).toBeVisible();
+    }
     if (routePathname(route) === "/tutor" || routePathname(route).startsWith("/tutor/")) {
       await expect(page.locator("#main-content h1")).toHaveCount(1);
       await expect.poll(() => page.locator("#main-content > div").evaluate((element) => getComputedStyle(element).opacity)).toBe("1");
