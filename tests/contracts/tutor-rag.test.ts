@@ -8,6 +8,7 @@ import {
   shouldRetrieveTutorEvidence,
   selectImageTutorPrompt,
 } from "@/lib/tutor-rag";
+import { latestConversationSources } from "@/lib/zyra/conversation-memory";
 import { normalizeTutorMathMarkdown } from "@/lib/tutor/math-markdown";
 import { loadAiFixture } from "../helpers/ai-fixtures";
 import { assertNoStudentTextInSharedCache, buildTutorCacheKey, computeEvidenceVersion } from "@/lib/tutor/cache-contract";
@@ -19,6 +20,18 @@ import { classifyEvidence } from "@/lib/tutor/evidence-coverage";
 import { sanitizePromptInput, formatSourceEnvelope, SourceEnvelope } from "@/lib/tutor/prompt-sanitizer";
 
 describe("Tutor RAG Contract Tests", () => {
+  it("uses only the latest exchange's evidence after a topic switch", () => {
+    const messages = [
+      { role: "student" as const, content: "limit" },
+      { role: "ai" as const, sources: [{ id: "limit-source" }] },
+      { role: "student" as const, content: "integral" },
+      { role: "ai" as const, sources: [{ id: "integral-source" }] },
+    ];
+    expect(latestConversationSources(messages)).toEqual([{ id: "integral-source" }]);
+    expect(latestConversationSources([...messages, { role: "ai", sources: [] }])).toEqual([]);
+    expect(latestConversationSources([...messages, { role: "ai" }])).toEqual([]);
+  });
+
   it("keeps attached images primary by bypassing text evidence retrieval", () => {
     expect(shouldRetrieveTutorEvidence(true)).toBe(false);
     expect(shouldRetrieveTutorEvidence(false)).toBe(true);

@@ -4,6 +4,11 @@ import { and, desc, eq } from "drizzle-orm";
 import { deserializeTutorMessageSources } from "./canvas/chat";
 import type { ConversationMemory, TutorSource } from "./memory-layers";
 
+/** Only the latest reply belongs to the active exchange, even if it has no sources. */
+export function latestConversationSources<T>(messages: Array<{ role: "student" | "ai"; sources?: T[] }>): T[] {
+  return [...messages].reverse().find((message) => message.role === "ai")?.sources ?? [];
+}
+
 const DEFAULT_MESSAGE_LIMIT = 20;
 
 export interface ConversationMemoryInput {

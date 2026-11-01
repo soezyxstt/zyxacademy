@@ -23,7 +23,7 @@ import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { kvGet, kvPut } from "@/lib/kv-cache";
 import { PromptExecutor, type SystemPrompt } from "@/lib/prompt-executor";
-import { getConversationMemory } from "@/lib/zyra/conversation-memory";
+import { getConversationMemory, latestConversationSources } from "@/lib/zyra/conversation-memory";
 import { isCurrentQuizContextQuery, isMetaExamQuery, executeMetaQuery } from "./assessment-intelligence-service";
 import {
  buildLearnerProfile,
@@ -829,17 +829,9 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
   if (hasCodingContext || !shouldRetrieveTutorEvidence(hasImages)) {
     retrieved = [];
   } else if (classification.action === "reuse_previous_evidence") {
-    // Reuse sources attached to recent conversation history instead of issuing new vector search
-    const historySources: RetrievedSource[] = [];
-    for (const msg of history.recentMessages) {
-      if (Array.isArray(msg.sources)) {
-        for (const s of msg.sources) {
-          if (s && typeof s === "object" && typeof s.id === "string") {
-            historySources.push(s as RetrievedSource);
-          }
-        }
-      }
-    }
+    // Reuse only the active exchange. An ungrounded latest reply must not
+    // inherit evidence from an older topic; empty rehydration retrieves below.
+    const historySources = latestConversationSources(history.recentMessages);
     const canonicalRequest = {
       studentId,
       courseId,

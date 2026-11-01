@@ -22,3 +22,10 @@ test("repairs escaped display line boundaries without damaging LaTeX commands", 
   expect(normalizeTutorMathMarkdown(String.raw`$$\n\frac{1}{x}\n$$`)).toBe("$$\n\\frac{1}{x}\n$$");
   expect(normalizeTutorMathMarkdown(String.raw`$x\neq y$ dan $\nabla f$`)).toBe(String.raw`$x\neq y$ dan $\nabla f$`);
 });
+
+
+test("restores escaped prose newlines before letters while protecting math and code", () => {
+  expect(normalizeTutorMathMarkdown(String.raw`Langkah pertama\nKemudian hitung`)).toBe("Langkah pertama\nKemudian hitung");
+  expect(normalizeTutorMathMarkdown(String.raw`\nabla f \neq 0`)).toBe(String.raw`\nabla f \neq 0`);
+  expect(normalizeTutorMathMarkdown("`a\\nb`")).toBe("`a\\nb`");
+});

@@ -19,7 +19,7 @@ export function normalizeTutorMathMarkdown(text: string): string {
   );
 
   // Unescape literal \n strings outside math/code blocks (fixes raw "\n" prefix bugs)
-  const cleanNewlines = protectedText.replace(/\\n(?![A-Za-z])/g, "\n");
+  const cleanNewlines = protectedText.replace(/\\n(?!(?:abla|eq|e|u|ot|eg|i|exists|subseteq|parallel|mid|olinebreak|ewcommand|ewline)\b)/g, "\n");
 
   const equationSegments: string[] = [];
   const withEquations = cleanNewlines.replace(
