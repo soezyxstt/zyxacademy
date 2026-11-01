@@ -18,7 +18,7 @@ export function createRemotePythonRuntime(courseId: string, onPhase: (phase: "lo
         const response = await fetch("/api/coding/terminal", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ courseId }), signal });
         if (!response.ok) return unavailable();
         connection = await response.json();
-        if (connection.url !== "wss://zyx-py-runtime.onrender.com/v1/terminal" || typeof connection.ticket !== "string" || !/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(connection.ticket)) return unavailable();
+        if (!connection || connection.url !== "wss://zyx-py-runtime.onrender.com/v1/terminal" || typeof connection.ticket !== "string" || !/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(connection.ticket)) return unavailable();
         }
       } catch { return signal?.aborted ? { status: "stopped", stdout: "", stderr: "", truncated: false } : unavailable(); }
       return new Promise<ExecutionResult>((resolve) => {

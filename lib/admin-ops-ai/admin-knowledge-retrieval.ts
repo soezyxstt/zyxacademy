@@ -17,7 +17,6 @@ import {
 import {
   getChunksByVectorIds,
   getKnowledgeSourceById,
-  listActiveKnowledgeSources,
 } from "./admin-knowledge-store";
 
 export interface RetrieveAdminKnowledgeOptions {

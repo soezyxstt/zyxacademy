@@ -1,5 +1,5 @@
 import { db } from "@/db";
-import { sql, count } from "drizzle-orm";
+import { count } from "drizzle-orm";
 import {
   user,
   courses,
@@ -7,9 +7,8 @@ import {
   enrollmentTokens,
   pkaRegistrations,
   groups,
-  academicSchedules,
 } from "@/db/schema";
-import { KNOWN_FEATURE_FLAGS, getAllFeatureFlagsStatus } from "@/lib/feature-flags";
+import { getAllFeatureFlagsStatus } from "@/lib/feature-flags";
 
 export interface SchemaTableInfo {
   tableName: string;

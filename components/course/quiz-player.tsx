@@ -269,7 +269,7 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
           body: JSON.stringify({ attemptId, fileKey }),
         });
         if (!res.ok) {
-          const errData = await res.json().catch(() => null);
+          await res.json().catch(() => null);
           throw new Error(t("quiz.removeFileFailed"));
         }
       } catch (err: any) {
@@ -329,7 +329,7 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
     }
 
     setShowConfirmModal(true);
-  }, [isSubmitted, submitting, uploadingFile, requireAllAnswered, sorted, isQuestionAnswered]);
+  }, [isSubmitted, submitting, uploadingFile, requireAllAnswered, t, sorted, isQuestionAnswered]);
 
   // Per-question timer state
   const currentQuestionId = sorted[index]?.id;
@@ -438,7 +438,7 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
       submittingRef.current = false;
       setSubmitting(false);
     }
-  }, [courseId, router, timerStorageKey, attemptId, durationSeconds, timeLeft, exam.id, exam.questions, getRedirectPath, redirectBasePath, requireAllAnswered, sorted, isQuestionAnswered, uploadingFile]);
+  }, [uploadingFile, requireAllAnswered, t, sorted, isQuestionAnswered, attemptId, durationSeconds, timeLeft, courseId, timerStorageKey, getRedirectPath, redirectBasePath, exam.id, exam.questions, router]);
 
   // Per-question timer interval
   useEffect(() => {
@@ -467,7 +467,7 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
     }, 1000);
 
     return () => clearInterval(qTimer);
-  }, [perQuestionTimerEnabled, isSubmitted, submitting, index, sorted.length, timerStorageKey]);
+  }, [perQuestionTimerEnabled, isSubmitted, submitting, index, sorted.length, timerStorageKey, t]);
 
   useEffect(() => {
     const rawDeadline = window.localStorage.getItem(timerStorageKey);
@@ -513,7 +513,7 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
       }
     }, 1000);
     return () => clearInterval(timer);
-  }, [handleSubmit, isSubmitted, submitting, timerStorageKey]);
+  }, [handleSubmit, isSubmitted, submitting, t, timerStorageKey]);
 
   const formatTime = (seconds: number) => {
     const m = Math.floor(seconds / 60);

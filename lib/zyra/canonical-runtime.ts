@@ -4,7 +4,6 @@ import { db } from "@/db";
 import {
   artikel,
   ide,
-  mataKuliah,
   pendaftaranMurid,
   pembahasanSoal,
   potonganSumber,

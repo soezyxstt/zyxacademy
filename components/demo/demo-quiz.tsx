@@ -66,7 +66,7 @@ export function DemoQuiz({
       }
       setScore(payload.score ?? 0);
       setResults(payload.results);
-    } catch (submitError) {
+    } catch {
       setError(t("demo.quiz.error"));
     } finally {
       setSubmitting(false);

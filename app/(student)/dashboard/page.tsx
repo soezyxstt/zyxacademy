@@ -17,7 +17,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { FormattedDate } from "@/components/ui/formatted-date";
 import { Reveal } from "@/components/ui/reveal";
-import { createMetadata, pageTitle } from "@/lib/site";
+import { createMetadata} from "@/lib/site";
 import { getAuthSession } from "@/lib/auth-session";
 
 

@@ -8,7 +8,7 @@ import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { studentCardClass } from "@/components/course/course-surfaces";
 import { env } from "@/lib/env";
-import { createMetadata, pageTitle } from "@/lib/site";
+import { createMetadata} from "@/lib/site";
 import { auth } from "@/lib/auth";
 import { db } from "@/db";
 import { user as userTable } from "@/db/schema";
@@ -96,7 +96,6 @@ export default async function CoursesPage() {
   }
 
   const studentTargetCategory = getStudentTargetCategory(studentMajor, studentEntryYear);
-  const normTarget = studentTargetCategory ? formatCategoryName(studentTargetCategory) : null;
 
   const groups: CourseGroup[] = Array.from(groupsMap.entries()).map(([jurusan, items]) => ({
     jurusan,

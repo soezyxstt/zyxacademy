@@ -1,5 +1,7 @@
 "use client";
 
+import Image from "next/image";
+
 import { useState, useMemo, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
@@ -8,12 +10,10 @@ import {
   GraduationCap,
   BookOpen,
   UserCheck,
-  Search,
   RotateCcw,
   UserCog,
   ShieldAlert,
   Mail,
-  Calendar,
 } from "lucide-react";
 import {
   AdminStatStrip,
@@ -24,7 +24,6 @@ import { StatusBadge } from "@/components/admin/status-badges";
 import { AdminEmptyState } from "@/components/admin/state-panels";
 import { AdminConfirmDialog } from "@/components/admin/confirm-dialog";
 import { SearchBar } from "@/components/ui/search-bar";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -80,7 +79,7 @@ const ROLE_OPTIONS: Array<{ code: PeranCode; label: string; description: string 
 function UserAvatar({ name, image }: { name: string; image: string | null }) {
   const [failedImage, setFailedImage] = useState<string | null>(null);
   if (image && failedImage !== image) {
-    return <img src={image} alt="" onError={() => setFailedImage(image)} className="size-8 rounded-full object-cover shrink-0 border border-border" />;
+    return <Image unoptimized loading="eager" width={32} height={32} src={image} alt="" onError={() => setFailedImage(image)} className="size-8 rounded-full object-cover shrink-0 border border-border" />;
   }
   return (
     <div aria-hidden className="size-8 rounded-full bg-muted text-foreground font-bold text-body-xs flex items-center justify-center shrink-0 border border-border">

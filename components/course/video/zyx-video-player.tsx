@@ -1,12 +1,14 @@
 "use client";
 
+import Image from "next/image";
+
 import { useEffect, useState, useRef } from "react";
 import "@vidstack/react/player/styles/default/theme.css";
 import "@vidstack/react/player/styles/default/layouts/video.css";
 import { MediaPlayer, MediaProvider, type MediaPlayerInstance } from "@vidstack/react";
 import { DefaultVideoLayout, defaultLayoutIcons } from "@vidstack/react/player/layouts/default";
-import { extractYouTubeVideoId, getCanonicalYouTubeUrl } from "@/lib/video/youtube";
-import { Play, Loader2 } from "lucide-react";
+import { extractYouTubeVideoId } from "@/lib/video/youtube";
+import { Play } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTranslations } from "@/lib/i18n/client";
 
@@ -52,7 +54,7 @@ export function ZyxVideoPlayer({
         )}
       >
         {poster && (
-          <img
+          <Image unoptimized loading="eager" width={160} height={90}
             src={poster}
             alt={title}
             className="absolute inset-0 h-full w-full object-cover opacity-60"

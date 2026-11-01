@@ -100,7 +100,7 @@ export function TryoutForm({ courseId, exam }: TryoutFormProps) {
       });
     }, 1000);
     return () => clearInterval(timer);
-  }, [handleSubmit]);
+  }, [handleSubmit, t]);
 
   const formatTime = (seconds: number) => {
     const h = Math.floor(seconds / 3600);

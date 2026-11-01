@@ -8,7 +8,7 @@ import { ShellPage } from "@/components/shell-page";
 import { ProfileAvatar } from "./profile-avatar";
 import { FormattedDate } from "@/components/ui/formatted-date";
 import { TranslatedText } from "@/components/i18n/translated-text";
-import { createMetadata, pageTitle } from "@/lib/site";
+import { createMetadata} from "@/lib/site";
 import { auth } from "@/lib/auth";
 import { db } from "@/db";
 import { eq, and } from "drizzle-orm";

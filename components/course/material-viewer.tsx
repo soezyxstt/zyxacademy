@@ -57,7 +57,6 @@ import type { CourseMaterial } from "@/lib/student-course-fixtures";
 import { updateMaterialProgress } from "@/app/(student)/dashboard/actions";
 import { cn } from "@/lib/utils";
 import { getViewablePdfUrl } from "@/lib/pdf-utils";
-import { ArticleReadingCanvas } from "@/components/course/article-reading-canvas";
 import { MarkdownRenderer } from "@/components/course/markdown-renderer";
 import { MathText } from "@/components/course/math-text";
 import { useTutor } from "@/components/course/tutor-drawer";

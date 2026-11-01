@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import {
   AlertTriangle,
   ArchiveX,
@@ -334,7 +333,7 @@ function DetailLoading() {
 // Idea Bundle Review Detail (Compact & Space-Efficient)
 // ---------------------------------------------------------------------------
 
-export function IdeaBundleReviewDetail({ detailId, backHref, backLabel, showBackButton = true }: DetailProps) {
+export function IdeaBundleReviewDetail({ detailId, backHref }: DetailProps) {
   const t = useTranslations("adminAcademic");
   const adminT = useTranslations("admin");
   const router = useRouter();
@@ -2340,7 +2339,7 @@ function ProductBundleMetadataPanel({
 }
 
 /** Loads the Product Bundle and coordinates product, section, and bundle review. */
-export function ProductBundleReviewDetail({ detailId, courseLabels = {}, backHref, backLabel, showBackButton = true }: DetailProps) {
+export function ProductBundleReviewDetail({ detailId, courseLabels = {}, backHref }: DetailProps) {
   const t = useTranslations("adminAcademic");
   const adminT = useTranslations("admin");
   const router = useRouter();

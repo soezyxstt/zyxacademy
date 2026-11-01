@@ -243,7 +243,7 @@ export default function AdminFormsBuilder({
     setActiveQIndex(0);
     setActiveTab("builder");
     setErrorMsg(null);
-  }, []);
+  }, [setActiveTab]);
 
   const handleStartEdit = useCallback((formToEdit: StoredNativeForm) => {
     loadFormIntoEditor(formToEdit);
@@ -543,7 +543,7 @@ export default function AdminFormsBuilder({
           message: t("messages.uploadFailed"),
         });
       }
-    } catch (err: any) {
+    } catch {
       setAlertDialogInfo({
         title: t("messages.networkError"),
         message: t("messages.uploadError"),
@@ -668,14 +668,12 @@ export default function AdminFormsBuilder({
           setErrorMsg(t("messages.createFailed"));
         }
       }
-    } catch (err: any) {
+    } catch {
       setErrorMsg(t("messages.networkSaveError"));
     } finally {
       setSubmitting(false);
     }
   };
-
-  const handleCreateForm = handleSubmitForm;
 
   const executeDeleteForm = async (formId: string) => {
     setDeletingId(formId);
@@ -694,7 +692,7 @@ export default function AdminFormsBuilder({
           message: t("messages.deleteFailed"),
         });
       }
-    } catch (err: any) {
+    } catch {
       setConfirmDeleteFormId(null);
       setAlertDialogInfo({
         title: t("messages.networkError"),

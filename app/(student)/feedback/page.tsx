@@ -4,7 +4,7 @@ import { MessageSquareHeart } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { ApplicationPage } from "@/components/application-page";
 import { Reveal } from "@/components/ui/reveal";
-import { createMetadata, pageTitle } from "@/lib/site";
+import { createMetadata} from "@/lib/site";
 import { auth } from "@/lib/auth";
 import { FeedbackForm } from "./feedback-form";
 import { TranslatedText } from "@/components/i18n/translated-text";

@@ -49,8 +49,6 @@ const CallbackBodySchema = z.object({
   codingResults: z.record(z.string(), z.record(z.string(), z.object({ score: z.number().min(0).max(1), ordinal: z.number().int().positive() }))).default({}),
 });
 
-type CallbackBody = z.infer<typeof CallbackBodySchema>;
-
 const CLAIM_LEASE_TTL_MS = 30_000;
 
 export async function POST(req: NextRequest) {

@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { CoursePageShell } from "@/components/course/course-page-shell";
 import { Button } from "@/components/ui/button";
 import { Reveal } from "@/components/ui/reveal";
-import { createMetadata, pageTitle } from "@/lib/site";
+import { createMetadata} from "@/lib/site";
 import { db } from "@/db";
 import { studentQuizAttempts, submissions, exams } from "@/db/schema";
 import { and, eq } from "drizzle-orm";

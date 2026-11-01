@@ -1,7 +1,6 @@
 "use client";
 
 import Image from "next/image";
-import Link from "next/link";
 import { ArrowUpRight, Quote } from "lucide-react";
 import { testimonialStories } from "@/lib/testimonials";
 import { SectionContainer } from "@/components/layout/section-container";

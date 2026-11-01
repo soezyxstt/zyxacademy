@@ -7,7 +7,6 @@ import { useTranslations } from "@/lib/i18n/client";
 import {
   ArrowLeft,
   BookOpenCheck,
-  Check,
   Eye,
   FileText,
   Globe,
@@ -16,7 +15,6 @@ import {
   PanelRight,
   PanelRightClose,
   Pencil,
-  RotateCcw,
   Save,
   Bot,
   Trash2,

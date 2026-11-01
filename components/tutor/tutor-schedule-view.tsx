@@ -57,10 +57,6 @@ import {
   parseDateInput,
   daysFrom,
 } from "@/lib/date-utils";
-import {
-  canTutorCreateAvailability,
-  isTutorialWeekLocked,
-} from "@/lib/schedule/week-policy";
 import { ScheduleCalendarView } from "@/components/schedule/schedule-calendar-view";
 import calendarStyles from "@/components/schedule/schedule-calendar-readability.module.css";
 import { SessionDetailDrawer } from "@/components/schedule/session-detail-drawer";
@@ -193,7 +189,6 @@ export function TutorScheduleView({
     () => getIndonesianWeekdayFromDate(newSlotDate),
     [newSlotDate],
   );
-  const canEditSelectedSlotDate = true;
 
   const [movingBooking, setMovingBooking] = useState<OwnedBookingItem | null>(null);
   const [targetMoveSlotId, setTargetMoveSlotId] = useState<string>("");

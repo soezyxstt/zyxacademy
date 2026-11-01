@@ -5,17 +5,13 @@ import { useTranslations } from "@/lib/i18n/client";
 import {
   Layers,
   Plus,
-  Search,
   Trash2,
   Pencil,
-  FileQuestion,
   ChevronDown,
   ChevronRight,
   BookOpen,
   CheckCircle2,
   AlertCircle,
-  HelpCircle,
-  RefreshCw,
   FolderPlus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -81,7 +77,6 @@ type Props = {
 
 export function FlashcardsTab({
   courseId,
-  courseTitle,
   courseSlug,
   chapters,
   initialSets,

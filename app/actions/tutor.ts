@@ -6,7 +6,7 @@ import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
 import { TutorActionService } from "@/lib/tutor-actions";
 import { db } from "@/db";
-import { aiQuestionBank, knowledgeObjects, tutorChatMessages, chatSessions, studentQuizAttempts, quizTemplates, zyraMessageAttachments, bab, chapters, mataKuliah, courseMaterials, diktatMateri } from "@/db/schema";
+import { aiQuestionBank, knowledgeObjects, tutorChatMessages, chatSessions, studentQuizAttempts, quizTemplates, zyraMessageAttachments, bab, chapters, mataKuliah, courseMaterials} from "@/db/schema";
 import { eq, and, asc, desc, gt, inArray, isNull, or, sql } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 import { exams } from "@/lib/student-course-fixtures";

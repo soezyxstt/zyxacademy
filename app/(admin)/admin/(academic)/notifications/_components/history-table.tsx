@@ -22,7 +22,7 @@ import { useTranslations, useAppLocale } from "@/lib/i18n/client";
 
 // ─── Type labels and colors ───────────────────────────────────────────────────
 
-function TypeBadge({ type, label }: { type: string; label: string }) {
+function TypeBadge({ label }: { type: string; label: string }) {
   return (
     <span className="inline-flex items-center rounded-md border border-border/60 bg-muted/40 px-2 py-0.5 text-body-xs font-medium text-foreground">
       {label}

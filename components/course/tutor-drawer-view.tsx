@@ -5,9 +5,6 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
-  BookOpen,
-  Layers,
-  ClipboardList,
   Compass,
   AlertTriangle,
   Loader2,
@@ -20,28 +17,18 @@ import {
   Minimize2,
   Copy,
   Trash2,
-  Send,
   HelpCircle,
   Paperclip,
   Plus,
-  Square,
   ArrowUp,
   ChevronDown,
   Quote,
 } from "lucide-react";
 import type { ZyraQuotedContext } from "./tutor-drawer";
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import {
   explainConceptAction,
   analyzeMistakeAction,
   buildStudyPlanAction,
-  generatePracticeQuizAction,
-  askTutorRagAction,
   saveTutorMessagesAction,
   loadTutorHistoryAction,
   clearTutorHistoryAction,
@@ -71,13 +58,11 @@ import {
 import { ZyraAllowanceSummary } from "@/components/course/zyra-allowance-summary";
 import { ZyraMathPalette } from "@/components/course/zyra-math-palette";
 import { ZyraFormulaPreview } from "@/components/course/zyra-formula-preview";
-import { useSwipe } from "@/hooks/use-swipe";
 import { LearningCanvasRenderer } from "@/components/course/learning-canvas/learning-canvas-renderer";
 import type { CanvasSpec } from "@/lib/zyra/canvas";
 import { zyraImageFilesFromClipboard } from "@/lib/zyra/images/composer";
 import type { ZyraMessageAttachment } from "@/lib/zyra/images/contracts";
 import { ZyraMessageAttachments } from "@/components/course/zyra-message-attachments";
-import { getFlashcardsForKOAction } from "@/app/actions/tutor-extra";
 import { consumeZyraStream } from "@/lib/zyra/stream-consumer";
 import {
   createZyraResponseLanguageState,
@@ -328,7 +313,6 @@ export function TutorDrawerView({
   const textareaRef = React.useRef<HTMLTextAreaElement>(null);
   const scrollContainerRef = React.useRef<HTMLDivElement>(null);
   const savedDataRef = React.useRef<any>(null);
-  const focusReturnRef = React.useRef<HTMLElement | null>(null);
 
   const panelRef = React.useRef<HTMLElement>(null);
   const abortControllerRef = React.useRef<AbortController | null>(null);
@@ -445,11 +429,10 @@ export function TutorDrawerView({
 
   // Micro-apps inside drawer
   const [activeAction, setActiveAction] = React.useState<ActiveAction>("none");
-  const [actionData, setActionData] = React.useState<any[]>([]);
+  const [actionData] = React.useState<any[]>([]);
   const [actionIndex, setActionIndex] = React.useState(0);
   const [actionFlipped, setActionFlipped] = React.useState(false);
   const [actionSelectedAnswer, setActionSelectedAnswer] = React.useState<number | null>(null);
-  const [actionQuizSubmitted, setActionQuizSubmitted] = React.useState(false);
 
   // Initialize stored width safely on client
   React.useEffect(() => {
@@ -608,7 +591,7 @@ export function TutorDrawerView({
     }
 
     loadData();
-  }, [activeMode, koId, questionId, userAnswer, explainMode, advancedModesEnabled]);
+  }, [activeMode, koId, questionId, userAnswer, explainMode, advancedModesEnabled, t]);
 
   // Free accounts only receive the text chat lane. Reset a mode that may have
   // been selected before the allowance tier finished loading, and keep the
@@ -691,7 +674,7 @@ export function TutorDrawerView({
         })), sessionId).catch(() => {});
       }
     }
-  }, [data, activeMode, pathname, sessionId, advancedModesEnabled, zyraAccessTier]);
+  }, [data, activeMode, pathname, sessionId, advancedModesEnabled, zyraAccessTier, t]);
 
   // Resize Pointer Handlers
   const handlePointerDownResize = React.useCallback(
@@ -817,53 +800,6 @@ export function TutorDrawerView({
   const toggleExpand = React.useCallback(() => {
     setIsExpanded((prev) => !prev);
   }, []);
-
-  // Flashcards launcher inside drawer
-  const handleLaunchFlashcards = async (targetKoId: string) => {
-    if (!advancedModesEnabled) return;
-    setLoading(true);
-    try {
-      const cards = await getFlashcardsForKOAction(targetKoId);
-      if (cards.length > 0) {
-        setActionData(cards);
-        setActionIndex(0);
-        setActionFlipped(false);
-        setActiveAction("flashcards");
-        toast.success(`Memuat ${cards.length} kartu hafalan.`);
-      } else {
-        toast.info(t("tutorDrawer.noFlashcards"));
-      }
-    } catch {
-      toast.error(t("tutorDrawer.flashcardsLoadFailed"));
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Practice Quiz launcher inside drawer
-  const handleLaunchPracticeQuiz = async (targetKoId: string) => {
-    if (!advancedModesEnabled) return;
-    setLoading(true);
-    try {
-      void generatePracticeQuizAction(targetKoId, "medium");
-      const { getQuestionsForKOAction } = await import("@/app/actions/tutor-extra");
-      const questions = await getQuestionsForKOAction(targetKoId);
-      if (questions.length > 0) {
-        setActionData(questions.slice(0, 3));
-        setActionIndex(0);
-        setActionSelectedAnswer(null);
-        setActionQuizSubmitted(false);
-        setActiveAction("practice-quiz");
-        toast.success(t("tutorDrawer.quickQuizReady"));
-      } else {
-        toast.info(t("tutorDrawer.quickQuizNotFound"));
-      }
-    } catch {
-      toast.error(t("tutorDrawer.quickQuizFailed"));
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleStopStream = () => {
     if (abortControllerRef.current) {
