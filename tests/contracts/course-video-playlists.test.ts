@@ -65,7 +65,7 @@ describe("Course Video Playlists Contract", () => {
         ALLOWED_IMAGE_EXTENSIONS,
         ALLOWED_VIDEO_MIME_TYPES,
         ALLOWED_IMAGE_MIME_TYPES,
-      } = await import("@/app/api/videos/upload/route");
+      } = await import("@/lib/video/upload-policy");
 
       expect(ALLOWED_VIDEO_EXTENSIONS).toContain(".mp4");
       expect(ALLOWED_VIDEO_EXTENSIONS).toContain(".webm");

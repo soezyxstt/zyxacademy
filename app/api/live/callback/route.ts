@@ -4,7 +4,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { createHash, randomUUID } from "node:crypto";
+import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { db } from "@/db";
 import { liveQuizSessions, liveQuizResults, masteryRecomputeQueue } from "@/db/schema";
@@ -12,14 +12,7 @@ import { env } from "@/lib/env";
 import { and, eq, isNull } from "drizzle-orm";
 import { recordLearningEvents } from "@/lib/learning-events";
 import { inngest } from "@/lib/inngest";
-
-export function buildLiveQuizLearningEventId(sessionId: string, userId: string, qi: number): string {
-  const hash = createHash("sha256")
-    .update(JSON.stringify(["live_quiz_answer", sessionId, userId, qi]))
-    .digest("hex")
-    .slice(0, 32);
-  return `le_lq_${hash}`;
-}
+import { buildLiveQuizLearningEventId } from "@/lib/live-quiz-learning-event";
 
 const LeaderboardEntrySchema = z.object({
   userId: z.string().min(1),
