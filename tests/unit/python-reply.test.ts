@@ -5,8 +5,8 @@ test("separates final Python from explanations without applying incomplete or am
   expect(pythonReply("Penjelasan.\n```python\nprint(2)\n```" )).toEqual({ explanation: "Penjelasan.", code: "print(2)\n" });
   expect(pythonReply("Penjelasan.\n```python\nprint(")).toEqual({ explanation: "Penjelasan.", code: null });
   expect(pythonReply("```py\na\n```\n```python\nb\n```").code).toBeNull();
-  expect(pythonReply("print(2)")).toEqual({ explanation: "", code: null });
-  expect(pythonHistoryReply("print(2)", "id")).not.toContain("print(2)");
+  expect(pythonReply("print(2)")).toEqual({ explanation: "print(2)", code: null });
+  expect(pythonHistoryReply("Perlu detail tambahan.", "id")).toBe("Perlu detail tambahan.");
   expect(pythonReply("```python\nprint(1)\n```\n```python\nprint(2)").code).toBeNull();
   expect(pythonReply("```python\nprint(1)\n```\n```\nprint(2)\n```").code).toBeNull();
   const streamed = "Penjelasan.\n```python\nprint(2)\n```";

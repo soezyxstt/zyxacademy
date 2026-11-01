@@ -54,7 +54,7 @@ test("one compact composer routes final Python to the editor and keeps Tutor sni
   await expect.poll(() => uploads).toBe(1);
   // Image-only messages must count even while the history summary is stale.
   await expect(composer.locator(".cm-placeholder")).toBeVisible();
-  await drawer.getByRole("button", { name: "Kirim pesan", exact: true }).click();
+  await drawer.getByRole("button", { name: "Buat kode", exact: true }).click();
   await expect(drawer.getByRole("tab", { name: "Tutor", exact: true })).toBeDisabled();
   await expect(drawer.getByRole("button", { name: "Input matematika" })).toBeDisabled();
   await capture(page, info, "python-sending");
@@ -86,8 +86,8 @@ test("Python protects edits made while the response is pending", async ({ page }
   const waiting = new Promise<void>(resolve => { release = resolve; });
   await page.route("**/api/zyra/chat", async route => { await waiting; await route.fulfill({ contentType: "text/event-stream", body: reply("```python\nprint(24)\n```") }); });
   const { drawer, composer } = await openZyra(page);
-  await composer.fill("Buat kode luas.");
-  await composer.press("Enter");
+  await composer.fill("Buat program luas persegi panjang.");
+  await drawer.getByRole("button", { name: "Buat kode", exact: true }).click();
   const editor = page.getByRole("textbox", { name: "Kode Python" });
   await editor.fill("print('edit terbaru')", { force: true });
   release();
@@ -315,7 +315,7 @@ test("an unfinished Python stream cannot change the editor or expose final code"
   const editor = page.getByRole("textbox", { name: "Kode Python" });
   const before = await editor.textContent();
   await composer.fill("Buat program.");
-  await composer.press("Enter");
+  await drawer.getByRole("button", { name: "Buat kode", exact: true }).click();
   await expect(drawer.getByText("Maaf, terjadi kendala saat memproses jawaban. Coba lagi dalam beberapa saat.")).toBeVisible();
   await expect(editor).toHaveText(before!);
   await expect(drawer.locator("pre")).toHaveCount(0);
@@ -338,21 +338,19 @@ test("Python generation errors and missing code preserve the editor", async ({ p
       : reply(unframed ? "print(99)" : "Coba gunakan print.") });
   });
   await composer.fill("Tampilkan satu.");
-  await composer.press("Enter");
+  await drawer.getByRole("button", { name: "Buat kode", exact: true }).click();
   await expect(drawer.getByText(/Zyra belum dapat merespons/)).toBeVisible();
   await expect(editor).toHaveText(before!);
   await capture(page, info, "generation-error");
   failed = false;
-  await composer.fill("Coba lagi.");
-  await composer.press("Enter");
-  await expect(drawer.getByText("Program lengkap belum tersedia. Coba lagi atau gunakan mode Tutor untuk pembahasan.")).toBeVisible();
+  await drawer.getByRole("button", { name: /Coba lagi/i }).last().click();
+  await expect(drawer.getByText("Coba gunakan print.")).toBeVisible();
   await expect(editor).toHaveText(before!);
   await capture(page, info, "generation-no-code");
   unframed = true;
   await composer.fill("Buat program lengkap.");
-  await composer.press("Enter");
-  await expect(drawer.getByText("Program lengkap belum tersedia. Coba lagi atau gunakan mode Tutor untuk pembahasan.")).toHaveCount(2);
-  await expect(drawer.getByText("print(99)", { exact: true })).toHaveCount(0);
+  await drawer.getByRole("button", { name: "Buat kode", exact: true }).click();
+  await expect(drawer.getByText("print(99)", { exact: true })).toBeVisible();
   await expect(editor).toHaveText(before!);
   await capture(page, info, "generation-unframed-code");
   expect(errors).toEqual([]);
@@ -439,4 +437,37 @@ test("Python presets use contextual intents and the editor fills remaining heigh
   await expect(drawer.getByRole("toolbar", { name: "Bantuan Python" })).toHaveCount(0);
   await capture(page, info, "tutor-presets");
   expect(errors).toEqual([]);
+});
+
+test("review and contextual followup retries never replace the editor", async ({ page }, info) => {
+  const errors = failures(page);
+  const requests: string[] = [];
+  await page.route("**/api/zyra/chat", route => {
+    const intent = route.request().postDataJSON().codingContext.intent;
+    requests.push(intent);
+    const n = requests.length;
+    const body = n === 1 || n === 3
+      ? `data: ${JSON.stringify({ type: "data-error", data: { message: "Coba kembali." } })}\n\ndata: [DONE]\n\n`
+      : `data: ${JSON.stringify({ type: "text-delta", textDelta: "Penjelasan.\n\`\`\`python\nprint(99)\n\`\`\`" })}\n\n` +
+        (n === 2 ? `data: ${JSON.stringify({ type: "data-followups", followups: [{ label: "Jelaskan lagi", prompt: "Jelaskan langkah ini", icon: "help", intent: "explain" }] })}\n\n` : "") + "data: [DONE]\n\n";
+    return route.fulfill({ contentType: "text/event-stream", body });
+  });
+  const { drawer, composer } = await openZyra(page);
+  const editor = page.getByRole("textbox", { name: "Kode Python" });
+  const before = await editor.textContent();
+  await composer.fill("Mengapa loop ini berhenti?");
+  await composer.press("Enter");
+  await expect(drawer.getByRole("button", { name: /Coba lagi/i }).last()).toBeVisible();
+  await capture(page, info, "review-error");
+  await drawer.getByRole("button", { name: /Coba lagi/i }).last().click();
+  await expect(drawer.getByRole("button", { name: "Jelaskan lagi" })).toBeVisible();
+  await capture(page, info, "review-retried");
+  await drawer.getByRole("button", { name: "Jelaskan lagi" }).click();
+  await drawer.getByRole("button", { name: /Coba lagi/i }).last().click();
+  await expect.poll(() => requests.length).toBe(4);
+  expect(requests).toEqual(["review", "review", "review", "review"]);
+  await expect(drawer.getByText("Penjelasan.", { exact: true }).last()).toBeVisible();
+  await capture(page, info, "followup-retried");
+  expect(errors).toEqual([]);
+  await expect(editor).toHaveText(before!);
 });

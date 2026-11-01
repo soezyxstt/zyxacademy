@@ -105,6 +105,7 @@ interface ChatMessage {
   failedPayload?: {
     question: string;
     quotedContext?: ZyraQuotedContext | null;
+    intent: PythonPreset["intent"] | "hint" | "generate";
   };
 }
 
@@ -837,12 +838,13 @@ export function TutorDrawerView({
   );
 
   // Handle sending arbitrary chat messages with SSE streaming
-  const handleSend = async (suggestedQuestion?: string, overrideQuote?: ZyraQuotedContext | null, presetIntent?: PythonPreset["intent"] | "hint") => {
+  const handleSend = async (suggestedQuestion?: string, overrideQuote?: ZyraQuotedContext | null, presetIntent?: PythonPreset["intent"] | "hint" | "generate") => {
     if (chatLoading || abortControllerRef.current) return;
     const codingRequest = codingBridge?.capture();
     const isCodeQuote = (overrideQuote !== undefined ? overrideQuote : activeQuotedContext)?.blockType === "code";
-    const pythonRequest = assistantMode === "python" && !presetIntent && !isCodeQuote ? codingRequest : null;
-    const rawQuestion = (suggestedQuestion || inputVal).trim();
+    const intent = isCodeQuote ? "review" : presetIntent ?? (assistantMode === "python" ? "review" : "hint");
+    const pythonRequest = intent === "generate" ? codingRequest : null;
+    const rawQuestion = (suggestedQuestion ?? inputVal).trim();
     const effectiveQuote = overrideQuote !== undefined ? overrideQuote : activeQuotedContext;
     const requestedAttachmentIds = [...attachmentIds];
     const requestedAttachments = [...readyAttachments];
@@ -898,7 +900,7 @@ export function TutorDrawerView({
     const requestLocaleEpoch = localeEpochRef.current;
     const languageRequestBase = {
       question,
-      ...(codingRequest ? { codingContext: { ...codingRequest.context, intent: presetIntent ?? (isCodeQuote ? "review" as const : assistantMode === "python" ? "generate" as const : "hint" as const) } } : {}),
+      ...(codingRequest ? { codingContext: { ...codingRequest.context, intent } } : {}),
       courseId: courseId ?? "unknown",
       conceptId: koId || undefined,
       sessionId: activeSid || undefined,
@@ -1015,7 +1017,7 @@ export function TutorDrawerView({
                   ...m,
                   content: accumulatedContent,
                   isError: true,
-                  failedPayload: { question: rawQuestion, quotedContext: effectiveQuote },
+                  failedPayload: { question: rawQuestion, quotedContext: effectiveQuote, intent },
                 } : m
               )
             );
@@ -1040,7 +1042,7 @@ export function TutorDrawerView({
               ...m,
               content: accumulatedContent,
               isError: true,
-              failedPayload: { question: rawQuestion, quotedContext: effectiveQuote },
+              failedPayload: { question: rawQuestion, quotedContext: effectiveQuote, intent },
             } : m
           )
         );
@@ -1056,18 +1058,18 @@ export function TutorDrawerView({
       hasError = true;
       setMessages((prev) => prev.map((m) => m.id === aiMsgId ? {
         ...m, content: t("tutorDrawer.responseProcessingError"), isError: true,
-        failedPayload: { question: rawQuestion, quotedContext: effectiveQuote },
+        failedPayload: { question: rawQuestion, quotedContext: effectiveQuote, intent },
       } : m));
     }
     if (pythonRequest && completed && !hasError && !abortController.signal.aborted && requestConversationEpoch === conversationEpochRef.current) {
       const result = pythonReply(accumulatedContent);
       const applied = result.code ? pythonRequest.apply(result.code) : "invalid";
-      const pythonStatus = applied === "applied" ? "Kode diterapkan ke editor." : applied === "changed" ? "Editor berubah saat Zyra menjawab. Terapkan hasil untuk mengganti kode terbaru." : applied === "inactive" ? "Buka Playground asal untuk meminta kode lagi." : "Program lengkap belum tersedia. Coba lagi atau gunakan mode Tutor untuk pembahasan.";
+      const pythonStatus = !result.code && result.explanation ? undefined : applied === "applied" ? "Kode diterapkan ke editor." : applied === "changed" ? "Editor berubah saat Zyra menjawab. Terapkan hasil untuk mengganti kode terbaru." : applied === "inactive" ? "Buka Playground asal untuk meminta kode lagi." : "Program lengkap belum tersedia. Coba lagi atau gunakan mode Tutor untuk pembahasan.";
       setMessages((prev) => prev.map((m) => m.id === aiMsgId ? {
         ...m, content: result.explanation, pythonStatus,
         pendingPython: applied === "changed" && result.code ? { code: result.code, apply: pythonRequest.apply } : undefined,
       } : m));
-      accumulatedContent = result.explanation + "\n\n" + pythonStatus;
+      accumulatedContent = [result.explanation, pythonStatus].filter(Boolean).join("\n\n");
     }
 
     if (
@@ -1098,8 +1100,8 @@ export function TutorDrawerView({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialQuestion, isOpen]);
 
-  const handleRetry = (payload: { question: string; quotedContext?: ZyraQuotedContext | null }) => {
-    void handleSend(payload.question, payload.quotedContext);
+  const handleRetry = (payload: NonNullable<ChatMessage["failedPayload"]>) => {
+    void handleSend(payload.question, payload.quotedContext, payload.intent);
   };
 
   const handleCopyText = (id: string, text: string) => {
@@ -1763,6 +1765,9 @@ export function TutorDrawerView({
                   >
                     {t("tutorDrawer.fullFeatures") || "Buka fitur lengkap"}
                   </Link>
+                )}
+                {assistantMode === "python" && codingBridge && !activeQuotedContext && (
+                  <Button type="button" variant="outline" size="sm" className="h-8 text-body-sm" disabled={chatLoading || !attachmentsReady || (!inputVal.trim() && attachmentIds.length === 0)} onClick={() => void handleSend(undefined, null, "generate")}>Buat kode</Button>
                 )}
                 <Button
                   size="icon-xs"
