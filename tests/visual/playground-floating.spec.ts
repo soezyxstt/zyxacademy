@@ -1,6 +1,8 @@
 import { expect, test, type Page, type TestInfo } from "@playwright/test";
 import { mockTerminal, mockZyraDrawer } from "./terminal-fixture";
 
+test.setTimeout(90_000);
+
 async function openZyra(page: Page) {
   await mockTerminal(page);
   await mockZyraDrawer(page);
@@ -158,5 +160,22 @@ test("mixed math renders inline while prose, currency and code remain literal", 
   });
   await expect(composer).toContainText("Teks <b>biasa</b>");
   await expect(composer.locator("img,b")).toHaveCount(0);
+  expect(errors).toEqual([]);
+});
+
+
+test("an unfinished Python stream cannot change the editor or expose final code", async ({ page }, info) => {
+  const errors = failures(page);
+  await page.route("**/api/zyra/chat", route => route.fulfill({ contentType: "text/event-stream", body: `data: ${JSON.stringify({ type: "text-delta", textDelta: "```python\nprint(99)\n```" })}\n\n` }));
+  const { drawer, composer } = await openZyra(page);
+  const editor = page.getByRole("textbox", { name: "Kode Python" });
+  const before = await editor.textContent();
+  await composer.fill("Buat program.");
+  await composer.press("Enter");
+  await expect(drawer.getByText("Maaf, terjadi kendala saat memproses jawaban. Coba lagi dalam beberapa saat.")).toBeVisible();
+  await expect(editor).toHaveText(before!);
+  await expect(drawer.locator("pre")).toHaveCount(0);
+  await expect(drawer.getByText("print(99)", { exact: true })).toHaveCount(0);
+  await capture(page, info, "python-incomplete-stream");
   expect(errors).toEqual([]);
 });

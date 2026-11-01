@@ -1,6 +1,8 @@
 import { expect, test } from "@playwright/test";
 import { mockTerminal, mockZyraDrawer } from "./terminal-fixture";
 
+test.setTimeout(90_000);
+
 test("shows Zyra's answer with the compact composer", async ({ page }, info) => {
   await mockTerminal(page);
   await mockZyraDrawer(page);

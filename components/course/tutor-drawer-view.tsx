@@ -1113,6 +1113,13 @@ export function TutorDrawerView({
       }
     }
 
+    if (pythonRequest && !completed && !hasError && !abortController.signal.aborted && requestConversationEpoch === conversationEpochRef.current) {
+      hasError = true;
+      setMessages((prev) => prev.map((m) => m.id === aiMsgId ? {
+        ...m, content: t("tutorDrawer.responseProcessingError"), isError: true,
+        failedPayload: { question: rawQuestion, quotedContext: effectiveQuote },
+      } : m));
+    }
     if (pythonRequest && completed && !hasError && !abortController.signal.aborted && requestConversationEpoch === conversationEpochRef.current) {
       const result = pythonReply(accumulatedContent);
       const applied = result.code ? pythonRequest.apply(result.code) : "invalid";
@@ -1742,6 +1749,7 @@ export function TutorDrawerView({
             )}
 
             <ZyraComposerInput
+              className="text-body-sm"
               ref={textareaRef}
               value={inputVal}
               onChange={setInputVal}
