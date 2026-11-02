@@ -203,3 +203,5 @@ Admin MCP isolation validation: local negative scenarios, target-aware transport
 Admin MCP review fixes update `operations/admin-mcp.md`: queued operations recheck persisted OAuth client/resource consent before provider effects; video metadata edits preserve omitted values. Local review regression checks are recorded there, with CI acceptance still pending.
 
 Admin MCP review corrections were verified locally by the standalone OAuth consent integration, 80 CI-runner contracts, final video/outbox regressions, incremental TypeScript and source lint. Updated PR CI acceptance remains pending.
+
+Admin MCP CI compatibility follow-up is `OPEN / IN PROGRESS` pending remote checks: all 105 prior test-compiler diagnostics were reproduced on staging, then corrected at fixture/type boundaries. The unchanged CI compiler scope and 263 affected runtime tests now pass locally. No CI selection or assertion coverage was reduced; evidence is recorded in `operations/admin-mcp.md`.

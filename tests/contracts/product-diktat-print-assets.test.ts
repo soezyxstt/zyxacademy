@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import { tmpdir } from "node:os";
 import { buildSelfContainedKatexCss, PRODUCT_DIKTAT_FOOTER_TEMPLATE } from "@/lib/bundle/product-diktat-pdf";
-import worker from "../../workers/diktat-renderer/src/index";
+import worker, { type BrowserRun } from "../../workers/diktat-renderer/src/index";
 
 test("KaTeX assets resolve outside the repository working directory", () => {
   const original = process.cwd();
@@ -16,13 +16,13 @@ test("KaTeX assets resolve outside the repository working directory", () => {
 });
 
 test("renderer places supplied contacts in the PDF footer with no default header", async () => {
-  let captured: any;
+  let captured: Parameters<BrowserRun["quickAction"]>[1] | undefined;
   const response = await worker.fetch(new Request("https://renderer.test/render", {
     method: "POST", headers: { Authorization: "Bearer test", "Content-Type": "application/json" },
     body: JSON.stringify({html:"<p>PDF</p>",printProfile:"a4-self-study-readable-v3",footerTemplate:PRODUCT_DIKTAT_FOOTER_TEMPLATE}),
-  }), {SHARED_SECRET:"test",BROWSER:{quickAction:async (_action, options) => {captured=options;return new Response("%PDF-");}}});
+  }), {SHARED_SECRET:"test",BROWSER:{quickAction:async (_action: "pdf", options: Parameters<BrowserRun["quickAction"]>[1]) => {captured=options;return new Response("%PDF-");}}});
   expect(response.status).toBe(200);
   expect(PRODUCT_DIKTAT_FOOTER_TEMPLATE).toContain('class="pageNumber"');
   expect(PRODUCT_DIKTAT_FOOTER_TEMPLATE).toContain('class="totalPages"');
-  expect(captured.pdfOptions).toMatchObject({displayHeaderFooter:true,headerTemplate:"<span></span>",footerTemplate:PRODUCT_DIKTAT_FOOTER_TEMPLATE,preferCSSPageSize:true});
+  expect(captured?.pdfOptions).toMatchObject({displayHeaderFooter:true,headerTemplate:"<span></span>",footerTemplate:PRODUCT_DIKTAT_FOOTER_TEMPLATE,preferCSSPageSize:true});
 });

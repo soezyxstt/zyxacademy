@@ -299,6 +299,7 @@ describe("Course Catalog Stats Batch Projection", () => {
       },
     ]);
 
+    // Preserve the legacy midterm value to test exclusion from tryout counts.
     // 4. Seed tryouts for Course A and Course B
     await testDb.insert(schema.exams).values([
       {
@@ -319,7 +320,7 @@ describe("Course Catalog Stats Batch Projection", () => {
         id: "exam-a-midterm",
         courseId: "legacy-course-a",
         title: "UTS Fisika",
-        type: "midterm",
+        type: "midterm" as typeof schema.exams.$inferInsert.type,
         status: "published",
       },
       {

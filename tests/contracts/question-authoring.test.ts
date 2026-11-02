@@ -116,26 +116,26 @@ B. B
 
   it("uses extracted source_solution text and never fabricates a fallback explanation", () => {
     expect(getHistoricalSolutionContent(
-      { solutionMetadata: { extractedText: "<!-- source page 2 -->\nLangkah resmi." } },
+      { solutionMetadata: { category: "pembahasan_soal", title: "Solution", subcategory: null, year: null, checksum: null, fileKey: "solution", extractedText: "<!-- source page 2 -->\nLangkah resmi." } },
       { solutionProvenance: "source_solution", questionNumber: "1", part: null },
     )).toBeNull();
     expect(getHistoricalSolutionContent(
-      { solutionMetadata: { extractedText: "Soal 1\nLangkah resmi 1.\n\nSoal 2\nLangkah resmi 2." } },
+      { solutionMetadata: { category: "pembahasan_soal", title: "Solution", subcategory: null, year: null, checksum: null, fileKey: "solution", extractedText: "Soal 1\nLangkah resmi 1.\n\nSoal 2\nLangkah resmi 2." } },
       { solutionProvenance: "source_solution", questionNumber: "1", part: null },
     )).toBe("Soal 1\nLangkah resmi 1.");
     expect(getHistoricalSolutionContent(
-      { solutionMetadata: { extractedText: null } },
+      { solutionMetadata: { category: "pembahasan_soal", title: "Solution", subcategory: null, year: null, checksum: null, fileKey: "solution", extractedText: null } },
       { solutionProvenance: "source_solution", questionNumber: "1", part: null },
     )).toBeNull();
     expect(getHistoricalSolutionContent(
-      { solutionMetadata: { extractedText: "Generated text" } },
+      { solutionMetadata: { category: "pembahasan_soal", title: "Solution", subcategory: null, year: null, checksum: null, fileKey: "solution", extractedText: "Generated text" } },
       { solutionProvenance: "zyx_generated", questionNumber: "1", part: null },
     )).toBeNull();
   });
 
   it("keeps a matching solution part separate from adjacent numbered solutions", () => {
     expect(getHistoricalSolutionContent(
-      { solutionMetadata: { extractedText: "1(a)\nBagian a.\n\n1(b)\nBagian b.\n\n2.\nSoal berikutnya." } },
+      { solutionMetadata: { category: "pembahasan_soal", title: "Solution", subcategory: null, year: null, checksum: null, fileKey: "solution", extractedText: "1(a)\nBagian a.\n\n1(b)\nBagian b.\n\n2.\nSoal berikutnya." } },
       { solutionProvenance: "source_solution", questionNumber: "1", part: "b" },
     )).toBe("1(b)\nBagian b.");
   });

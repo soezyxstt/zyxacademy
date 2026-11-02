@@ -11,9 +11,10 @@ const article = { sections: [{ id: "section", blocks: [{ id: "block", parts: [{ 
 const valid = () => ({ article, importId: "import", checksum: hash, fingerprint: hash, review: { decision: "approved", expectedRevision: hash, policyVersion: QUALITY_POLICY_VERSION, contentFingerprint: hash, verificationPlanHash: hash, verificationReceiptSignature: hash, sectionDecisions: [{ sectionId: "section", semanticHash: computeProductV4SectionSemanticHash(article, "section"), decision: "approved" as const }], criteria: PEDAGOGIC_CRITERION_IDS.map(criterionId => ({ criterionId, status: "met" as const, contentAnchors: [{ targetType: "section" as const, targetId: "section" }], reason: "Reviewed current content" })) }, verification: { ready: true, planHash: hash, importId: "import", receiptSignature: hash } });
 
 test("V4 review cannot silently certify multiple articles or diktats", () => {
-  const products = [{ productType: "article" }, { productType: "article" }] as Parameters<typeof assertProductV4ReviewCardinality>[0];
+  // Cardinality validation only reads productType, so these intentionally partial records isolate it.
+  const products = [{ productType: "article" }, { productType: "article" }] as unknown as Parameters<typeof assertProductV4ReviewCardinality>[0];
   expect(() => assertProductV4ReviewCardinality(products)).toThrow("SINGLE_ARTICLE_REQUIRED");
-  expect(() => assertProductV4ReviewCardinality([{ productType: "article" }, { productType: "diktat" }, { productType: "diktat" }] as Parameters<typeof assertProductV4ReviewCardinality>[0])).toThrow("SINGLE_ARTICLE_REQUIRED");
+  expect(() => assertProductV4ReviewCardinality([{ productType: "article" }, { productType: "diktat" }, { productType: "diktat" }] as unknown as Parameters<typeof assertProductV4ReviewCardinality>[0])).toThrow("SINGLE_ARTICLE_REQUIRED");
 });
 
 test("V4 requires explicit current decisions for every section and all criteria", () => {
@@ -36,9 +37,9 @@ test("V4 requires explicit current decisions for every section and all criteria"
 
 test("section semantic hashes include bound visual closure but ignore unrelated registry entries", () => {
   const previous = computeProductV4SectionSemanticHash(article, "section");
-  const unrelated = structuredClone(article); unrelated.visuals![1].title = "Changed unrelated";
+  const unrelated = structuredClone(article); (unrelated.visuals![1] as unknown as { title: string }).title = "Changed unrelated";
   expect(computeProductV4SectionSemanticHash(unrelated, "section")).toBe(previous);
-  const bound = structuredClone(article); bound.visuals![0].title = "Changed bound";
+  const bound = structuredClone(article); (bound.visuals![0] as unknown as { title: string }).title = "Changed bound";
   expect(computeProductV4SectionSemanticHash(bound, "section")).not.toBe(previous);
 });
 

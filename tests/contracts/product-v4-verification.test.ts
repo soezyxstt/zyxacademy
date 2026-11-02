@@ -166,7 +166,7 @@ test("interrupted verification resumes memoized checks and reports bounded progr
     if (saved.has(id)) return saved.get(id) as T;
     if (interrupt && saved.size === 3) throw new Error("WORKER_INTERRUPTED");
     const value = await execute();
-    if (id.startsWith("verify-")) expect((value as ProductV4VerificationResult).artifacts[0].bytes).toBeUndefined();
+    if (id.startsWith("verify-")) expect(((value as ProductV4VerificationResult).artifacts[0] as unknown as { bytes?: unknown }).bytes).toBeUndefined();
     saved.set(id, value);
     return value;
   };
@@ -254,9 +254,9 @@ test("chapter capture batches retain every image under unique persisted identiti
   const result = await service.process({ importId: "import", runId: "run", planHash: requested.jobId });
   expect(result.evaluation.ready).toBe(true);
   const webIds = new Set(result.plan.requirements.filter(check => check.layer === "web").map(check => check.id));
-  for (const check of result.receipt.results.filter(check => webIds.has(check.checkId))) {
+  for (const check of result.receipt.results.filter((check: ProductV4VerificationResult) => webIds.has(check.checkId))) {
     expect(check.artifacts).toHaveLength(17);
-    expect(new Set(check.artifacts.map(artifact => artifact.id)).size).toBe(17);
+    expect(new Set(check.artifacts.map((artifact: ProductV4VerificationResult["artifacts"][number]) => artifact.id)).size).toBe(17);
   }
 });
 

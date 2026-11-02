@@ -191,3 +191,13 @@ Read-only public metadata probes returned HTTP 200 for both canonical endpoints.
 PR review corrections: queued provider jobs now revalidate live client consent as well as session/admin authority; video updates accept partial metadata and preserve the existing playback URL when omitted. PostgreSQL regressions cover consent revocation, narrowed export permissions, manual-client rejection and title-only video edits. OAuth integration also rejects approval of unrequested scopes explicitly.
 
 Review-fix verification: the standalone OAuth consent integration command exited 0; eight focused files passed 80 tests through the CI contract runner. The final video/outbox regressions passed 15 tests after preserving all omitted video fields. Incremental application TypeScript, focused source lint and whitespace checks exited 0. CI acceptance for the updated PR head remains pending; no provider or remote database writes were performed.
+
+## CI fixture compatibility follow-up
+
+Status: `OPEN / IN PROGRESS`, local validation passed; remote CI acceptance pending.
+
+The affected-code test compiler reported 105 diagnostics in 28 files that were unchanged by the MCP PR. Every reported file/line/error-code tuple was reproduced against staging commit `a67a4744` with matching installed dependencies. The comparison source was kept outside repository test discovery after inspection; its evidence is in ignored `artifacts/admin-mcp/staging-baseline-error-comparison.json`.
+
+The follow-up aligns existing fixture types and provenance fields with current schemas, narrows optional contracts/visual unions, and preserves assertion expectations and deliberately invalid legacy cases. The existing PDF worker uses an equivalent portable Fetch signature so its entrypoint can also be imported by Node contract tests. The reader fixture supplies the cookie mock required by locale resolution. No operational capability, assertion coverage or CI selection was removed.
+
+The exact CI-selected test compiler scope (216 roots) passed with incremental checking and a 2560 MB heap cap. All 26 changed contract files passed 243 tests through the isolated CI runner; the changed reader suite passed 20 tests. Worker-project typechecking, focused worker lint and whitespace checks also exited 0. The final planner retained the same 203 runtime suites and compiler roots. Previous failures from the comparison-only copied tests are retained in local logs; final clean receipts are `artifacts/test-contracts/1793612372076/results.json` and `/data/workspace/zyx-tooling/pr292-reader-fixture.log`. No staging or production data was accessed or changed.

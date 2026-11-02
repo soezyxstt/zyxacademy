@@ -464,7 +464,7 @@ describe("stored original verification and scope binding", () => {
       { courseId: scope.courseId, chapterId: scope.chapterId },
     );
     expect(result.ok).toBe(true);
-    if (!result.ok) throw new Error("expected valid Source Pack");
+    if (!result.ok || !result.sourcePackToken) throw new Error("expected valid Source Pack token");
     expect(readMcpSourcePackBinding(result.sourcePackToken)).toEqual({
       courseId: scope.courseId,
       chapterId: scope.chapterId,
@@ -484,7 +484,7 @@ describe("stored original verification and scope binding", () => {
       new Map([["source-doc-001", original]]),
     );
     expect(localOnly.ok).toBe(true);
-    if (!localOnly.ok) throw new Error("expected valid local Source Pack");
+    if (!localOnly.ok || !localOnly.sourcePackToken) throw new Error("expected valid local Source Pack token");
     expect(readMcpSourcePackBinding(localOnly.sourcePackToken)).toEqual({ courseId: undefined, chapterId: undefined });
   });
 });
