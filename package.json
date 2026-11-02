@@ -16,9 +16,9 @@
     "start": "next start",
     "preview": "NODE_OPTIONS=\"--max-old-space-size=4096\" next build --turbo && next start",
     "lint": "eslint",
-    "typecheck": "node --max-old-space-size=4096 ./node_modules/typescript/bin/tsc --noEmit",
+    "typecheck": "node --max-old-space-size=4096 ./node_modules/typescript/bin/tsc --noEmit --tsBuildInfoFile .cache/typecheck/app.tsbuildinfo",
     "i18n:check": "bun scripts/check-i18n-catalogs.ts",
-    "typecheck:tests": "node --max-old-space-size=4096 ./node_modules/typescript/bin/tsc -p tsconfig.test.json --noEmit",
+    "typecheck:tests": "node --max-old-space-size=4096 ./node_modules/typescript/bin/tsc -p tsconfig.test.json --noEmit --tsBuildInfoFile .cache/typecheck/tests.tsbuildinfo",
     "typecheck:structured-articles": "tsc -p tsconfig.structured-articles.json",
     "test": "bun test",
     "test:visual": "playwright test --config=playwright.config.ts",
@@ -108,7 +108,9 @@
     "staging:smoke-auth": "bun scripts/staging/smoke-auth.ts",
     "staging:classify-role-literals": "bun scripts/staging/classify-role-literals.ts",
     "db:sync-prod-to-staging:destructive": "bun scripts/sync-turso-db.ts --destructive",
-    "watch-start": "nodemon --watch app --watch components --watch styles -e js,jsx,ts,tsx,css --exec \"next build && next start\""
+    "watch-start": "nodemon --watch app --watch components --watch styles -e js,jsx,ts,tsx,css --exec \"next build && next start\"",
+    "typegen": "next typegen",
+    "ci:plan": "python3 scripts/ci/plan.py"
   },
   "dependencies": {
     "@ai-sdk/provider": "^3.0.10",

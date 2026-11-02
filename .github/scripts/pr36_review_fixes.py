@@ -413,7 +413,6 @@ calendar_module.write_text('''export {
 
 # 6. Clean prohibited en/em dashes from files in this PR.
 changed_files = [
-    ".github/workflows/schedule-domain-validation.yml",
     "app/(student)/dashboard/schedule/booking-actions.ts",
     "app/(tutor)/tutor/page.tsx",
     "app/(tutor)/tutor/schedule/slot-note-actions.ts",
@@ -503,55 +502,7 @@ describe("schedule PR review fixes", () => {
 });
 ''')
 
-# 8. Make schedule-domain validation a persistent PR gate.
-Path(".github/workflows/schedule-domain-validation.yml").write_text('''name: Schedule Domain Validation
-
-on:
-  pull_request:
-    branches:
-      - staging
-    paths:
-      - "app/(admin)/admin/(academic)/schedules/**"
-      - "app/(student)/dashboard/schedule/**"
-      - "app/(tutor)/tutor/**"
-      - "components/schedule/**"
-      - "components/tutor/**"
-      - "lib/admin-ops-ai/domain-schedules.ts"
-      - "lib/date-utils.ts"
-      - "lib/schedule/**"
-      - "tests/contracts/schedule-*.test.ts"
-      - ".github/workflows/schedule-domain-validation.yml"
-  workflow_dispatch:
-
-concurrency:
-  group: schedule-domain-validation-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
-
-jobs:
-  validate:
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    env:
-      BETTER_AUTH_SECRET: schedule-domain-validation-secret-1234567890
-      SKIP_ENV_VALIDATION: "1"
-    steps:
-      - uses: actions/checkout@v4
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: latest
-      - run: bun install --frozen-lockfile
-      - name: Schedule contracts
-        run: >-
-          bun test
-          tests/contracts/schedule-calendar-date.test.ts
-          tests/contracts/tutorial-week-policy.test.ts
-          tests/contracts/schedule-dates.test.ts
-          tests/contracts/schedule-calendar-regressions.test.ts
-          tests/contracts/schedule-review-fixes.test.ts
-          tests/contracts/tutor-schedule-actions.test.ts
-      - name: Typecheck
-        run: bun run typecheck
-''')
+# Schedule validation is owned by ci.yml; do not generate another automatic workflow.
 
 # Temporary trigger/workflow/script must not remain in the final PR.
 for transient in [
