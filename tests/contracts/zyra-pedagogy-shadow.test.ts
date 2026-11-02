@@ -1,4 +1,11 @@
-import { describe, expect, it, spyOn } from "bun:test";
+import { beforeAll, describe, expect, it, spyOn } from "bun:test";
+import { db } from "@/db";
+import { user, pengguna } from "@/db/schema";
+
+beforeAll(async () => {
+  await db.insert(user).values({ id: "usr_shadow_001", name: "Shadow fixture", email: "shadow@example.invalid", role: "student" });
+  await db.insert(pengguna).values({ id: "usr_shadow_001", status: "active" });
+});
 
 process.env.MOCK_GEMINI = "true";
 

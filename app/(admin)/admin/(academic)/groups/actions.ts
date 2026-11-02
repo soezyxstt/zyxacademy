@@ -11,7 +11,7 @@ import {
   enrollments,
 } from "@/db/schema";
 import { assertAdmin } from "@/lib/auth/admin-guards";
-import { eq, desc, and, like, or } from "drizzle-orm";
+import { eq, desc, and, ilike, or } from "drizzle-orm";
 import { getSemesterEndDate } from "@/lib/utils";
 import { dualWriteEnrollment } from "@/lib/migrasi/repository-kompatibilitas";
 import { PACKAGE_PRESETS, type PackageType } from "@/lib/group-constants";
@@ -645,8 +645,8 @@ export async function searchStudents(query: string) {
 
   const found = await db.query.user.findMany({
     where: or(
-      like(user.name, `%${clean}%`),
-      like(user.email, `%${clean}%`)
+      ilike(user.name, `%${clean}%`),
+      ilike(user.email, `%${clean}%`)
     ),
     limit: 10,
   });

@@ -1,5 +1,5 @@
 export type VerificationBrowserProvider = "cloudflare" | "steel";
-export const CLOUDFLARE_VERIFICATION_BROWSER_VERSION = "128.0.6613.137";
+export const CLOUDFLARE_VERIFICATION_BROWSER_VERSION = "152.0.7977.64";
 
 export function verificationBrowserProvider(env = process.env): VerificationBrowserProvider {
   const provider = env.AUTHORING_VERIFICATION_BROWSER_PROVIDER ?? "cloudflare";

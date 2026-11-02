@@ -2,9 +2,9 @@ import type { MetadataRoute } from "next";
 import { getAppLocale, getTranslations } from "@/lib/i18n/server";
 import { APP_MANIFEST_ID, APP_MANIFEST_SCOPE, getLocalizedManifestStartUrl } from "@/lib/i18n/manifest";
 
-export default async function manifest(): Promise<MetadataRoute.Manifest> {
+export async function GET() {
   const [locale, t] = await Promise.all([getAppLocale(), getTranslations("core")]);
-  return {
+  const manifest: MetadataRoute.Manifest = {
     name: "Zyx Academy",
     short_name: "Zyx",
     description: t("site.description"),
@@ -42,4 +42,5 @@ export default async function manifest(): Promise<MetadataRoute.Manifest> {
       },
     ],
   };
+  return Response.json(manifest, { headers: { "Content-Type": "application/manifest+json" } });
 }

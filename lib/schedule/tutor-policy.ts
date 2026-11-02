@@ -1,4 +1,6 @@
 import { and, eq, gte, inArray, isNotNull, isNull, lte, ne, notInArray, or, sql } from "drizzle-orm";
+import { affectedRows } from "@/lib/mutation-result";
+import { lockScheduleEntity } from "@/lib/schedule/transaction-lock";
 import { db } from "@/db";
 import {
   bookingAuditLogs,
@@ -306,6 +308,10 @@ export async function backfillBookedNullTutorSlotDates(
         ),
       );
 
+    for (const tutorId of [...new Set(candidateRows.map((row) => row.tutorId))].sort()) {
+      await lockScheduleEntity(tx, "tutor", tutorId);
+    }
+
     const candidatesBySlot = new Map<string, typeof candidateRows>();
     for (const row of candidateRows) {
       const rows = candidatesBySlot.get(row.slotId) ?? [];
@@ -391,7 +397,7 @@ export async function backfillBookedNullTutorSlotDates(
         .set({ sessionDate })
         .where(and(eq(tutorSlots.id, slotId), isNull(tutorSlots.sessionDate)));
 
-      if ((updateResult.rowsAffected ?? 0) > 0) {
+      if (affectedRows(updateResult) > 0) {
         updatedCount += 1;
       } else {
         skippedCount += 1;

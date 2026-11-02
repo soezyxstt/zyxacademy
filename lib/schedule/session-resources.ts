@@ -1,3 +1,4 @@
+import { affectedRows } from "@/lib/mutation-result";
 import { headers } from "next/headers";
 import { randomUUID } from "node:crypto";
 import { asc, and, eq } from "drizzle-orm";
@@ -345,7 +346,7 @@ export async function deleteBookingResource(
     const result = await client
       .delete(bookingResources)
       .where(eq(bookingResources.id, targetResourceId));
-    if ((result.rowsAffected ?? 0) === 0) {
+    if (affectedRows(result) === 0) {
       return failure("Resource tidak ditemukan.", "RESOURCE_NOT_FOUND");
     }
     return { success: true, resourceId: targetResourceId };

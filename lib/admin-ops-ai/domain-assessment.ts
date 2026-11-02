@@ -5,7 +5,7 @@ import {
   studentQuizAttempts,
   courses,
 } from "@/db/schema";
-import { eq, desc, and, inArray, like } from "drizzle-orm";
+import { eq, desc, and, inArray, ilike } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 
 export interface ListQuizzesInput {
@@ -146,7 +146,7 @@ export async function executeListQuizzes(input: ListQuizzesInput) {
     // Search exact/substring matches in SQL first so the full filtered scope is
     // considered before the result limit is applied. Only use the bounded newest
     // set when no direct match exists and typo-tolerant fuzzy scoring is needed.
-    const directConditions = [...conditions, like(quizTemplates.title, `%${search}%`)];
+    const directConditions = [...conditions, ilike(quizTemplates.title, `%${search}%`)];
     rows = await db
       .select()
       .from(quizTemplates)
@@ -300,7 +300,7 @@ export async function executeListQuestions(input: ListQuestionsInput) {
   if (input.courseId) conditions.push(eq(aiQuestionBank.courseId, input.courseId.trim().toLowerCase()));
   if (input.difficulty) conditions.push(eq(aiQuestionBank.difficulty, input.difficulty));
   if (input.reviewStatus) conditions.push(eq(aiQuestionBank.reviewStatus, input.reviewStatus as any));
-  if (input.search) conditions.push(like(aiQuestionBank.prompt, `%${input.search.trim()}%`));
+  if (input.search) conditions.push(ilike(aiQuestionBank.prompt, `%${input.search.trim()}%`));
 
   const limit = Math.min(Math.max(input.limit ?? 20, 1), 100);
   const rows = await db

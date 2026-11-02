@@ -1,6 +1,5 @@
-import { describe, expect, it, mock, beforeEach } from "bun:test";
-import { createClient } from "@libsql/client";
-import { drizzle } from "drizzle-orm/libsql";
+import { afterAll, beforeAll, describe, expect, it, mock, beforeEach } from "bun:test";
+import { createPostgresTestDb } from "../helpers/postgres";
 import { eq } from "drizzle-orm";
 import * as schema from "@/db/schema";
 import {
@@ -11,11 +10,24 @@ import {
 
 let mockSession: any = null;
 
-const client = createClient({ url: "file::memory:?cache=shared" });
-const testDb = drizzle(client, { schema });
+let client: Awaited<ReturnType<typeof createPostgresTestDb>>["client"];
+let testDb: Awaited<ReturnType<typeof createPostgresTestDb>>["testDb"];
+const dbProxy = new Proxy({} as typeof testDb, {
+  get(_target, key) {
+    const value = Reflect.get(testDb, key);
+    return typeof value === "function" ? value.bind(testDb) : value;
+  },
+});
+beforeAll(async () => { ({ client, testDb } = await createPostgresTestDb()); }, 60_000);
+afterAll(async () => { await client?.close(); });
+
+async function clearTestData() {
+  const result = await client.query<{ tablename: string }>("SELECT tablename FROM pg_tables WHERE schemaname = 'public'");
+  if (result.rows.length) await client.exec(`TRUNCATE TABLE ${result.rows.map(({ tablename }) => `"${tablename.replaceAll('"', '""')}"`).join(", ")} CASCADE`);
+}
 
 mock.module("@/db", () => ({
-  db: testDb,
+  db: dbProxy,
 }));
 
 mock.module("@/lib/auth", () => ({
@@ -36,209 +48,6 @@ mock.module("next/cache", () => ({
 }));
 
 import { gradeSubmissionAction, submitTryoutAction } from "@/app/actions/tutor-management";
-
-async function setupTables() {
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS user (
-      id TEXT PRIMARY KEY,
-      name TEXT NOT NULL,
-      email TEXT NOT NULL UNIQUE,
-      email_verified INTEGER NOT NULL DEFAULT 0,
-      image TEXT,
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL,
-      role TEXT DEFAULT 'student',
-      last_activity_at INTEGER
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS pengguna (
-      id TEXT PRIMARY KEY REFERENCES user(id),
-      status TEXT NOT NULL DEFAULT 'active',
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS peran (
-      id TEXT PRIMARY KEY,
-      code TEXT NOT NULL UNIQUE,
-      created_at INTEGER NOT NULL
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS pengguna_peran (
-      id TEXT PRIMARY KEY,
-      pengguna_id TEXT NOT NULL REFERENCES pengguna(id),
-      peran_id TEXT NOT NULL REFERENCES peran(id),
-      source TEXT NOT NULL,
-      audit_actor_pengguna_id TEXT,
-      created_at INTEGER NOT NULL
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS courses (
-      id TEXT PRIMARY KEY,
-      title TEXT NOT NULL,
-      category TEXT NOT NULL DEFAULT 'Matematika',
-      description TEXT
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS mata_kuliah (
-      id TEXT PRIMARY KEY,
-      code TEXT NOT NULL UNIQUE,
-      title TEXT NOT NULL,
-      status TEXT NOT NULL DEFAULT 'active',
-      legacy_course_id TEXT REFERENCES courses(id),
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS penugasan_tutor (
-      id TEXT PRIMARY KEY,
-      pengguna_id TEXT NOT NULL REFERENCES pengguna(id),
-      mata_kuliah_id TEXT NOT NULL REFERENCES mata_kuliah(id),
-      status TEXT NOT NULL DEFAULT 'active',
-      assignment_scope TEXT NOT NULL DEFAULT 'course',
-      legacy_tutor_course_id TEXT,
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS tutor_courses (
-      id TEXT PRIMARY KEY,
-      tutor_id TEXT NOT NULL REFERENCES user(id),
-      course_id TEXT NOT NULL REFERENCES courses(id),
-      created_at INTEGER NOT NULL
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS enrollments (
-      id TEXT PRIMARY KEY,
-      user_id TEXT NOT NULL REFERENCES user(id),
-      course_id TEXT NOT NULL REFERENCES courses(id),
-      enrolled_at INTEGER,
-      expires_at INTEGER NOT NULL
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS exams (
-      id TEXT PRIMARY KEY,
-      course_id TEXT NOT NULL,
-      title TEXT NOT NULL,
-      type TEXT NOT NULL DEFAULT 'tryout',
-      status TEXT NOT NULL DEFAULT 'draft',
-      settings TEXT,
-      open_at INTEGER,
-      close_at INTEGER,
-      created_at INTEGER NOT NULL DEFAULT (unixepoch())
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS questions (
-      id TEXT PRIMARY KEY,
-      exam_id TEXT NOT NULL REFERENCES exams(id),
-      type TEXT NOT NULL,
-      "order" INTEGER NOT NULL,
-      content TEXT NOT NULL,
-      created_at INTEGER NOT NULL DEFAULT (unixepoch())
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS submissions (
-      id TEXT PRIMARY KEY,
-      user_id TEXT NOT NULL REFERENCES user(id),
-      exam_id TEXT NOT NULL REFERENCES exams(id),
-      status TEXT NOT NULL DEFAULT 'pending_review',
-      score REAL,
-      teacher_notes TEXT,
-      answers_snapshot TEXT,
-      questions_snapshot TEXT,
-      submitted_at INTEGER,
-      created_at INTEGER NOT NULL DEFAULT (unixepoch()),
-      attempt_number INTEGER
-    );
-  `);
-  try {
-    await client.execute(`ALTER TABLE submissions ADD COLUMN attempt_number INTEGER;`);
-  } catch {}
-  await client.execute(`
-    CREATE UNIQUE INDEX IF NOT EXISTS idx_submissions_user_exam_attempt ON submissions (user_id, exam_id, attempt_number);
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS audit_mutasi (
-      id TEXT PRIMARY KEY,
-      actor_id TEXT REFERENCES pengguna(id) ON DELETE SET NULL,
-      entity_type TEXT NOT NULL,
-      entity_id TEXT NOT NULL,
-      action TEXT NOT NULL,
-      before_snapshot TEXT,
-      after_snapshot TEXT,
-      correlation_id TEXT,
-      course_id TEXT,
-      outcome TEXT,
-      reason TEXT,
-      created_at INTEGER NOT NULL DEFAULT (unixepoch())
-    );
-  `);
-}
-
-const SHARED_PURGE_TABLES = [
-  "audit_mutasi",
-  "item_asesmen",
-  "cakupan_asesmen",
-  "soal",
-  "bab",
-  "asesmen",
-  "blueprint_asesmen",
-  "quiz_templates",
-  "ai_question_bank",
-  "ai_material_instance_chunks",
-  "ai_material_instance_sections",
-  "ai_material_instances",
-  "submissions",
-  "questions",
-  "exams",
-  "enrollments",
-  "penugasan_tutor",
-  "tutor_courses",
-  "mata_kuliah",
-  "courses",
-  "pengguna_peran",
-  "pengguna",
-  "peran",
-  "user",
-] as const;
-
-async function purgeSharedTables() {
-  const existing = await client.execute(
-    `SELECT name FROM sqlite_master WHERE type = 'table'`,
-  );
-  const present = new Set(existing.rows.map((row) => String(row.name)));
-  for (const table of SHARED_PURGE_TABLES) {
-    if (!present.has(table)) continue;
-    await client.execute(`DELETE FROM ${table}`);
-  }
-}
-
-async function clearGradingData() {
-  await purgeSharedTables();
-}
 
 async function seedGradingData() {
   const now = new Date();
@@ -355,7 +164,7 @@ async function seedGradingData() {
   // 1. Valid tryout exam in Course 1
   await testDb.insert(schema.exams).values({
     id: "exam-tryout-calc",
-    courseId: "mk-calc",
+    courseId: "crs-calc",
     title: "Tryout Tengah Semester Kalkulus",
     type: "tryout",
     status: "published",
@@ -364,7 +173,7 @@ async function seedGradingData() {
   // 2. Non-tryout exam in Course 1 (e.g. quiz)
   await testDb.insert(schema.exams).values({
     id: "exam-quiz-calc",
-    courseId: "mk-calc",
+    courseId: "crs-calc",
     title: "Kuis Latihan Kalkulus",
     type: "quiz",
     status: "published",
@@ -373,7 +182,7 @@ async function seedGradingData() {
   // 3. Tryout exam in Course 2 (unassigned course)
   await testDb.insert(schema.exams).values({
     id: "exam-tryout-physics",
-    courseId: "mk-physics",
+    courseId: "crs-physics",
     title: "Tryout Fisika",
     type: "tryout",
     status: "published",
@@ -386,8 +195,8 @@ async function seedGradingData() {
     examId: "exam-tryout-calc",
     status: "pending_review",
     score: null,
-    answersSnapshot: JSON.stringify({ "q-1": { text: "Jawaban esai murid rahasia" } }),
-    questionsSnapshot: JSON.stringify([{ id: "q-1", type: "essay", prompt: "Jelaskan teorema Rolle" }]),
+    answersSnapshot: { "q-1": { text: "Jawaban esai murid rahasia" } },
+    questionsSnapshot: [{ id: "q-1", type: "essay", prompt: "Jelaskan teorema Rolle" }],
     submittedAt: now,
   }).onConflictDoNothing();
 
@@ -398,8 +207,8 @@ async function seedGradingData() {
     examId: "exam-quiz-calc",
     status: "pending_review",
     score: null,
-    answersSnapshot: JSON.stringify({}),
-    questionsSnapshot: JSON.stringify([]),
+    answersSnapshot: {},
+    questionsSnapshot: [],
     submittedAt: now,
   }).onConflictDoNothing();
 
@@ -410,16 +219,15 @@ async function seedGradingData() {
     examId: "exam-tryout-physics",
     status: "pending_review",
     score: null,
-    answersSnapshot: JSON.stringify({}),
-    questionsSnapshot: JSON.stringify([]),
+    answersSnapshot: {},
+    questionsSnapshot: [],
     submittedAt: now,
   }).onConflictDoNothing();
 }
 
 describe("Tutor Grading Scope and Policy", () => {
   beforeEach(async () => {
-    await setupTables();
-    await clearGradingData();
+    await clearTestData();
     await seedGradingData();
   });
 
@@ -487,8 +295,8 @@ describe("Tutor Grading Scope and Policy", () => {
       examId: "exam-tryout-calc",
       status: "completed",
       score: 80,
-      answersSnapshot: JSON.stringify({}),
-      questionsSnapshot: JSON.stringify([]),
+      answersSnapshot: {},
+      questionsSnapshot: [],
       submittedAt: new Date(),
     }).onConflictDoNothing();
 
@@ -523,8 +331,8 @@ describe("Tutor Grading Scope and Policy", () => {
       examId: "exam-tryout-calc",
       status: "late",
       score: null,
-      answersSnapshot: JSON.stringify({}),
-      questionsSnapshot: JSON.stringify([]),
+      answersSnapshot: {},
+      questionsSnapshot: [],
       submittedAt: new Date(),
     }).onConflictDoNothing();
 
@@ -624,8 +432,8 @@ describe("Tutor Grading Scope and Policy", () => {
       examId: "exam-tryout-calc",
       status: "pending_review",
       score: null,
-      answersSnapshot: JSON.stringify({}),
-      questionsSnapshot: JSON.stringify([]),
+      answersSnapshot: {},
+      questionsSnapshot: [],
       submittedAt: new Date(),
     }).onConflictDoNothing();
 
@@ -662,11 +470,11 @@ describe("Tutor Grading Scope and Policy", () => {
           examId: "exam-tryout-calc",
           type: "multiple_choice",
           order: 1,
-          content: JSON.stringify({
+          content: {
             prompt: "1 + 1 = ?",
             options: ["1", "2", "3"],
             correctIndex: 1,
-          }),
+          },
         },
       ]).onConflictDoNothing();
     });
@@ -731,7 +539,7 @@ describe("Tutor Grading Scope and Policy", () => {
       // Create draft exam
       await testDb.insert(schema.exams).values({
         id: "exam-draft-calc",
-        courseId: "mk-calc",
+        courseId: "crs-calc",
         title: "Tryout Draft",
         type: "tryout",
         status: "draft",
@@ -759,7 +567,7 @@ describe("Tutor Grading Scope and Policy", () => {
       // Future openAt
       await testDb.insert(schema.exams).values({
         id: "exam-future-calc",
-        courseId: "mk-calc",
+        courseId: "crs-calc",
         title: "Tryout Belum Buka",
         type: "tryout",
         status: "published",
@@ -769,7 +577,7 @@ describe("Tutor Grading Scope and Policy", () => {
       // Past closeAt
       await testDb.insert(schema.exams).values({
         id: "exam-closed-calc",
-        courseId: "mk-calc",
+        courseId: "crs-calc",
         title: "Tryout Sudah Tutup",
         type: "tryout",
         status: "published",
@@ -799,7 +607,7 @@ describe("Tutor Grading Scope and Policy", () => {
     it("enforces maxAttempts limit on server side", async () => {
       await testDb.insert(schema.exams).values({
         id: "exam-max-attempt",
-        courseId: "mk-calc",
+        courseId: "crs-calc",
         title: "Tryout Single Attempt",
         type: "tryout",
         status: "published",
@@ -811,7 +619,7 @@ describe("Tutor Grading Scope and Policy", () => {
         examId: "exam-max-attempt",
         type: "multiple_choice",
         order: 1,
-        content: JSON.stringify({ prompt: "Q1", options: ["A", "B"], correctIndex: 0 }),
+        content: { prompt: "Q1", options: ["A", "B"], correctIndex: 0 },
       }).onConflictDoNothing();
 
       await testDb.insert(schema.enrollments).values({
@@ -881,7 +689,7 @@ describe("Tutor Grading Scope and Policy", () => {
       const now = new Date();
       await testDb.insert(schema.exams).values({
         id: "exam-race-attempt",
-        courseId: "mk-calc",
+        courseId: "crs-calc",
         title: "Tryout Uji Balap",
         type: "tryout",
         status: "published",
@@ -894,7 +702,7 @@ describe("Tutor Grading Scope and Policy", () => {
         examId: "exam-race-attempt",
         type: "multiple_choice",
         order: 1,
-        content: JSON.stringify({ prompt: "1+1?", options: ["2", "3"], correctIndex: 0 }),
+        content: { prompt: "1+1?", options: ["2", "3"], correctIndex: 0 },
       }).onConflictDoNothing();
 
       mockSession = { user: { id: "usr-student-1", role: "student" } };
@@ -935,7 +743,7 @@ describe("Tutor Grading Scope and Policy", () => {
       const now = new Date();
       await testDb.insert(schema.exams).values({
         id: "exam-db-unique",
-        courseId: "mk-calc",
+        courseId: "crs-calc",
         title: "Tryout Unique DB Test",
         type: "tryout",
         status: "published",

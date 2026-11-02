@@ -29,16 +29,21 @@ describe("student courses layout, whatsapp contact, and material access contract
   test("student onboarding dashboard positions package section below free section and token form in sidebar", () => {
     const dashboard = source("components/dashboard/student-onboarding-view.tsx");
 
+    const messages = JSON.parse(source("messages/id/student.json")).dashboard;
+    expect(messages.hasClassToken).toBe("Sudah punya token kelas?");
+    expect(messages.availableInFree).toBe("Yang tersedia di Free");
+    expect(messages.semesterPlans).toBe("Paket belajar semester");
+
     // Token activation form in sidebar
-    expect(dashboard).toContain("Sudah punya token kelas?");
+    expect(dashboard).toContain('t("dashboard.hasClassToken")');
     expect(dashboard).toContain("<EnrollmentForm");
 
-    // Paket belajar semester section exists in main content
-    expect(dashboard).toContain("Paket belajar semester");
+    // Semester plans section exists in main content
+    expect(dashboard).toContain('t("dashboard.semesterPlans")');
 
-    // Order: Free section appears before Paket belajar semester
-    const freeIndex = dashboard.indexOf("Yang tersedia di Free");
-    const paketIndex = dashboard.indexOf("Paket belajar semester");
+    // Order: Free section appears before semester plans
+    const freeIndex = dashboard.indexOf('t("dashboard.availableInFree")');
+    const paketIndex = dashboard.indexOf('t("dashboard.semesterPlans")');
     expect(freeIndex).toBeGreaterThan(-1);
     expect(paketIndex).toBeGreaterThan(-1);
     expect(paketIndex).toBeGreaterThan(freeIndex);

@@ -13,10 +13,15 @@ describe("Free dashboard and Zyra surface contract", () => {
     expect(page).toContain("getCourseQuizzes(course.id, user.id)");
     expect(page).toContain("freeChapters: chapterOutline.map");
     expect(page).toContain("firstIncompleteMaterialId");
-    expect(view).toContain("Bab pertama gratis di setiap mata kuliah.");
+    expect(page).toContain("completedFreeMaterialCount: completedMaterialCount");
+    expect(view).toContain('t("dashboard.firstChapterFree")');
+    const dashboardMessages = JSON.parse(source("messages/id/student.json")).dashboard;
+    expect(dashboardMessages.firstChapterFree).toBe("Bab pertama gratis di setiap mata kuliah.");
     expect(view).toContain("course.firstIncompleteMaterialId");
-    expect(view).toContain("Mulai Bab 1");
-    expect(view).toContain("Progres tersimpan");
+    expect(view).toContain('t("dashboard.startChapterOne")');
+    expect(dashboardMessages.startChapterOne).toBe("Mulai bab 1");
+    expect(view).toContain('t("dashboard.onboardingMaterialProgress", { complete: completedMaterials, total: totalMaterials })');
+    expect(dashboardMessages.onboardingMaterialProgress).toBe("{complete}/{total} materi");
     const buttonLines = view.split("\n").filter((line) => line.includes("<Button"));
     expect(buttonLines.length).toBeGreaterThan(0);
     expect(buttonLines.every((line) => !line.includes("text-body-xs"))).toBe(true);

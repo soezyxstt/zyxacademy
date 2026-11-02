@@ -1,19 +1,8 @@
-import { describe, it, expect, beforeEach, afterEach, mock } from "bun:test";
+import type { ServerStoredProposal, OpsAiMutationAuditRecord } from "@/lib/admin-ops-ai/proposal-store";
+import { createPostgresTestDb } from "../helpers/postgres";
+import * as schema from "@/db/schema";
+import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach, mock } from "bun:test";
 import { randomUUID } from "node:crypto";
-import {
-  proposalStore,
-  computeProposalDiffHash,
-  VALID_PROPOSAL_TRANSITIONS,
-  type ServerStoredProposal,
-  type OpsAiMutationAuditRecord,
-} from "@/lib/admin-ops-ai/proposal-store";
-import {
-  executeOpsAiTool,
-  createOpsAiTools,
-} from "@/lib/admin-ops-ai/runtime-tools";
-import {
-  createOpsAiRuntimeResponse,
-} from "@/lib/admin-ops-ai/runtime";
 import {
   setOpsAiModelStreamMock,
 } from "@/lib/admin-ops-ai/model-factory";
@@ -31,6 +20,15 @@ import {
 // Auth & Header Mocks for Next.js Route Testing
 // ============================================================================
 
+let client: Awaited<ReturnType<typeof createPostgresTestDb>>["client"];
+let proposalStore: typeof import("@/lib/admin-ops-ai/proposal-store").proposalStore;
+let executeOpsAiTool: typeof import("@/lib/admin-ops-ai/runtime-tools").executeOpsAiTool;
+let executeRoutePost: typeof import("@/app/api/admin/ops-ai/execute/route").POST;
+let createOpsAiTools: typeof import("@/lib/admin-ops-ai/runtime-tools").createOpsAiTools;
+let createOpsAiRuntimeResponse: typeof import("@/lib/admin-ops-ai/runtime").createOpsAiRuntimeResponse;
+let computeProposalDiffHash: typeof import("@/lib/admin-ops-ai/proposal-store").computeProposalDiffHash;
+let VALID_PROPOSAL_TRANSITIONS: typeof import("@/lib/admin-ops-ai/proposal-store").VALID_PROPOSAL_TRANSITIONS;
+
 let mockSessionUser: { id: string; role?: string; name?: string; email?: string } | null = null;
 let mockHasPeranAdmin = false;
 
@@ -45,7 +43,9 @@ mock.module("@/lib/auth", () => ({
   },
 }));
 
+const originalAuthorization = await import("@/lib/auth/authorization");
 mock.module("@/lib/auth/authorization", () => ({
+  ...originalAuthorization,
   hasPeran: async (_userId: string, role: string) => {
     if (role === "admin") return mockHasPeranAdmin;
     return false;
@@ -57,7 +57,6 @@ mock.module("next/headers", () => ({
   headers: async () => new Headers(),
 }));
 
-import { POST as executeRoutePost } from "@/app/api/admin/ops-ai/execute/route";
 
 // ============================================================================
 // Helper to parse SSE stream events
@@ -91,6 +90,24 @@ async function parseSseEvents(response: Response): Promise<Array<Record<string, 
 // ============================================================================
 
 describe("Admin Ops AI Mutations - CP5 Server-Stored Proposal & Hardened Executor", () => {
+  beforeAll(async () => {
+    const fixture = await createPostgresTestDb();
+    client = fixture.client;
+    const testDb = fixture.testDb;
+    const now = new Date();
+    const actors = ["admin", "admin-1", "admin-101", "admin-user-42", "user-admin-1", "super-admin-777", "admin-actor-42", "admin-academic-1"];
+    await testDb.insert(schema.user).values(actors.map((id) => ({ id, name: id, email: `${id}@example.test`, role: "admin", createdAt: now, updatedAt: now })));
+    await testDb.insert(schema.pengguna).values(actors.map(id => ({ id, status: "active" as const })));
+    await testDb.insert(schema.courses).values(["kalkulus-1", "kalk-1", "fisika-dasar"].map((id) => ({ id, title: id, category: "Test" })));
+    mock.module("@/db", () => ({ db: testDb }));
+    ({ proposalStore, computeProposalDiffHash, VALID_PROPOSAL_TRANSITIONS } = await import("@/lib/admin-ops-ai/proposal-store"));
+    ({ executeOpsAiTool, createOpsAiTools } = await import("@/lib/admin-ops-ai/runtime-tools"));
+    ({ createOpsAiRuntimeResponse } = await import("@/lib/admin-ops-ai/runtime"));
+    ({ POST: executeRoutePost } = await import("@/app/api/admin/ops-ai/execute/route"));
+  }, 60000);
+
+  afterAll(async () => { await client?.close(); });
+
   beforeEach(() => {
     proposalStore.clear();
     mockSessionUser = null;
@@ -199,6 +216,7 @@ describe("Admin Ops AI Mutations - CP5 Server-Stored Proposal & Hardened Executo
         actorId: "admin-actor-42",
       });
 
+      proposalStore.clearInMemoryCacheOnly();
       const stored = await proposalStore.getProposal(publicProposal.id);
       expect(stored).not.toBeNull();
       expect(stored?.actorId).toBe("admin-actor-42");

@@ -1,146 +1,22 @@
-import { describe, expect, it } from "bun:test";
-import { createClient } from "@libsql/client";
-import { drizzle } from "drizzle-orm/libsql";
+import { afterEach, beforeAll, describe, expect, it } from "bun:test";
+import { createPostgresTestDb, preparePostgresTestDb } from "../helpers/postgres";
 import * as schema from "@/db/schema";
 import { getTutorCourseParticipants } from "@/lib/tutor/participant-read-model";
 
+beforeAll(preparePostgresTestDb, 60_000);
+const clients: Array<Awaited<ReturnType<typeof createPostgresTestDb>>["client"]> = [];
+afterEach(async () => {
+  for (const client of clients.splice(0)) await client.close();
+});
+
 async function createTestDb() {
-  const client = createClient({ url: ":memory:" });
-  const testDb = drizzle(client, { schema });
+  const { client, testDb } = await createPostgresTestDb();
+  clients.push(client);
 
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS user (
-      id TEXT PRIMARY KEY,
-      name TEXT NOT NULL,
-      email TEXT NOT NULL UNIQUE,
-      email_verified INTEGER NOT NULL DEFAULT 0,
-      image TEXT,
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL,
-      role TEXT DEFAULT 'student',
-      last_activity_at INTEGER
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS pengguna (
-      id TEXT PRIMARY KEY REFERENCES user(id),
-      status TEXT NOT NULL DEFAULT 'active',
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS peran (
-      id TEXT PRIMARY KEY,
-      code TEXT NOT NULL UNIQUE,
-      created_at INTEGER NOT NULL
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS pengguna_peran (
-      id TEXT PRIMARY KEY,
-      pengguna_id TEXT NOT NULL REFERENCES pengguna(id),
-      peran_id TEXT NOT NULL REFERENCES peran(id),
-      source TEXT NOT NULL,
-      audit_actor_pengguna_id TEXT,
-      created_at INTEGER NOT NULL
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS courses (
-      id TEXT PRIMARY KEY,
-      title TEXT NOT NULL,
-      category TEXT NOT NULL DEFAULT 'Matematika',
-      description TEXT
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS mata_kuliah (
-      id TEXT PRIMARY KEY,
-      code TEXT NOT NULL UNIQUE,
-      title TEXT NOT NULL,
-      status TEXT NOT NULL DEFAULT 'active',
-      legacy_course_id TEXT,
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS penugasan_tutor (
-      id TEXT PRIMARY KEY,
-      pengguna_id TEXT NOT NULL REFERENCES pengguna(id),
-      mata_kuliah_id TEXT NOT NULL REFERENCES mata_kuliah(id),
-      status TEXT NOT NULL DEFAULT 'active',
-      assignment_scope TEXT NOT NULL DEFAULT 'course',
-      legacy_tutor_course_id TEXT,
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS tutor_courses (
-      id TEXT PRIMARY KEY,
-      tutor_id TEXT NOT NULL REFERENCES user(id),
-      course_id TEXT NOT NULL,
-      created_at INTEGER NOT NULL
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS enrollments (
-      id TEXT PRIMARY KEY,
-      user_id TEXT NOT NULL REFERENCES user(id),
-      course_id TEXT NOT NULL,
-      enrolled_at INTEGER,
-      expires_at INTEGER NOT NULL
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS groups (
-      id TEXT PRIMARY KEY,
-      name TEXT NOT NULL,
-      package_type TEXT NOT NULL DEFAULT 'reguler_15',
-      package_name TEXT NOT NULL DEFAULT 'Paket Reguler (15 Sesi)',
-      total_quota_sessions INTEGER NOT NULL DEFAULT 15,
-      used_quota_sessions INTEGER NOT NULL DEFAULT 0,
-      weekly_quota_sessions INTEGER NOT NULL DEFAULT 2,
-      academic_year TEXT NOT NULL DEFAULT '2026/2027',
-      semester TEXT NOT NULL DEFAULT 'Ganjil',
-      start_date INTEGER,
-      end_date INTEGER,
-      status TEXT NOT NULL DEFAULT 'active',
-      notes TEXT,
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS group_courses (
-      id TEXT PRIMARY KEY,
-      group_id TEXT NOT NULL REFERENCES groups(id),
-      course_id TEXT NOT NULL,
-      created_at INTEGER NOT NULL
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS group_members (
-      id TEXT PRIMARY KEY,
-      group_id TEXT NOT NULL REFERENCES groups(id),
-      user_id TEXT NOT NULL REFERENCES user(id),
-      role TEXT NOT NULL DEFAULT 'member',
-      joined_at INTEGER NOT NULL
-    );
-  `);
+  await testDb.insert(schema.courses).values([
+    { id: "mk-kalkulus", title: "Kalkulus 1", category: "Matematika" },
+    { id: "mk-kimia", title: "Kimia Dasar 1", category: "Kimia" },
+  ]);
 
   await testDb.insert(schema.peran).values([
     { id: "peran-admin", code: "admin" },
@@ -153,8 +29,8 @@ async function createTestDb() {
 
 describe("Course-scoped tutor participants read model", () => {
   it("enforces canonical tutor assignment and rejects unauthorized access", async () => {
-    const { client, testDb } = await createTestDb();
-    try {
+    const { testDb } = await createTestDb();
+    {
       const now = new Date();
 
       // Setup course
@@ -187,14 +63,12 @@ describe("Course-scoped tutor participants read model", () => {
       await expect(
         getTutorCourseParticipants("usr-stranger", "mk-kalkulus", { allowAdmin: false }, testDb),
       ).rejects.toThrow("TUTOR_ACCESS_DENIED");
-    } finally {
-      client.close();
     }
   });
 
   it("returns active participants and active groups linked to the course", async () => {
-    const { client, testDb } = await createTestDb();
-    try {
+    const { testDb } = await createTestDb();
+    {
       const now = new Date();
       const futureDate = new Date(Date.now() + 30 * 86_400_000);
       const pastDate = new Date(Date.now() - 30 * 86_400_000);
@@ -461,14 +335,12 @@ describe("Course-scoped tutor participants read model", () => {
       expect(alpha.membersCount).toBe(2);
       expect(alpha.representative?.userId).toBe("std-4");
       expect(alpha.representative?.role).toBe("leader");
-    } finally {
-      client.close();
     }
   });
 
   it("strictly scopes participants to the requested course", async () => {
-    const { client, testDb } = await createTestDb();
-    try {
+    const { testDb } = await createTestDb();
+    {
       const now = new Date();
       const futureDate = new Date(Date.now() + 30 * 86_400_000);
 
@@ -558,14 +430,12 @@ describe("Course-scoped tutor participants read model", () => {
       expect(result.summary.totalParticipants).toBe(0);
       expect(result.participants.length).toBe(0);
       expect(result.groups.length).toBe(0);
-    } finally {
-      client.close();
     }
   });
 
   it("deduplicates direct active enrollments by user for both participant list and summary KPI", async () => {
-    const { client, testDb } = await createTestDb();
-    try {
+    const { testDb } = await createTestDb();
+    {
       const now = new Date();
       const futureDate1 = new Date(Date.now() + 15 * 86_400_000);
       const futureDate2 = new Date(Date.now() + 30 * 86_400_000);
@@ -659,14 +529,12 @@ describe("Course-scoped tutor participants read model", () => {
       expect(Math.floor((result.participants[0].expiresAt?.getTime() ?? 0) / 1000)).toBe(
         Math.floor(futureDate2.getTime() / 1000),
       );
-    } finally {
-      client.close();
     }
   });
 
   it("deduplicates group memberships by (groupId, userId) for member count, representative, and badges", async () => {
-    const { client, testDb } = await createTestDb();
-    try {
+    const { testDb } = await createTestDb();
+    {
       const now = new Date();
       const earlierDate = new Date(Date.now() - 5 * 86_400_000);
 
@@ -788,8 +656,6 @@ describe("Course-scoped tutor participants read model", () => {
       expect(result.participants[0].groups.length).toBe(1);
       expect(result.participants[0].groups[0].name).toBe("Kelompok Beta");
       expect(result.participants[0].groups[0].role).toBe("leader");
-    } finally {
-      client.close();
     }
   });
 });

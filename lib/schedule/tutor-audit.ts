@@ -1,12 +1,15 @@
 import { db } from "@/db";
+import { auditMutasi } from "@/db/schema";
+import { hasDatabaseErrorCode } from "@/lib/database-retry";
 import { type DbExecutor } from "@/lib/auth/tutor-access";
 import {
   type DrizzleTxLike,
-  recordMutationAudit,
+  buildMutationAuditRow,
   recordTutorMutationAudit,
 } from "@/lib/audit/mutasi";
 
 export function isSqliteBusyError(err: unknown): boolean {
+  if (hasDatabaseErrorCode(err, ["40001", "40P01"])) return true;
   const text = [
     err instanceof Error ? err.message : String(err),
     (err as { code?: string })?.code ?? "",
@@ -28,7 +31,7 @@ export class TutorAuditPersistenceError extends Error {
 
 /**
  * Persists failure and rejection audits outside the main transaction.
- * Retries on SQLite lock contention with bounded exponential backoff
+ * Retries on database contention with bounded exponential backoff
  * (25, 50, 100, 200, 400, 800 ms). Throws TUTOR_AUDIT_PERSISTENCE_FAILED
  * upon exhaustion or non-retryable failure to ensure persistence failures
  * are never silently swallowed.
@@ -64,7 +67,7 @@ export async function recordTutorFailureAudit(
  * Durable audit for calls that never authenticated. Uses the generic mutation
  * audit builder because tutor/admin roles cannot be claimed for an
  * unauthenticated actor.
- * Retries on SQLite lock contention with bounded exponential backoff.
+ * Retries on database contention with bounded exponential backoff.
  * Throws TUTOR_AUDIT_PERSISTENCE_FAILED upon exhaustion or non-retryable failure.
  */
 export async function recordUnauthenticatedRejectAudit(params: {
@@ -81,7 +84,7 @@ export async function recordUnauthenticatedRejectAudit(params: {
 
   for (let attempt = 1; attempt <= FAILURE_AUDIT_ATTEMPTS; attempt++) {
     try {
-      await recordMutationAudit(
+      const row = buildMutationAuditRow(
         {
           actorId: "anonymous",
           actorRoles: ["unauthenticated"],
@@ -96,8 +99,9 @@ export async function recordUnauthenticatedRejectAudit(params: {
           requestId: params.requestId,
           reason: params.reason,
         },
-        (params.executor ?? db) as unknown as Parameters<typeof recordMutationAudit>[1],
       );
+      const client = (params.executor ?? db) as DrizzleTxLike;
+      await client.insert(auditMutasi).values({ ...row, actorId: null });
       return;
     } catch (auditErr) {
       lastErr = auditErr;

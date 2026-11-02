@@ -419,19 +419,19 @@ export async function upsertProductBlockReview(input: {
     if (!isMissingReviewTargetColumns(error)) throw error;
     const notes = input.notes?.trim() || null;
     const id = stableId("review-product-block", `${input.importId}:${input.reviewerId}:${input.productId}:${input.blockId}`);
-    await db.run(sql`
+    await db.execute(sql`
       INSERT INTO review_item_bundle (
         id, impor_bundle_id, reviewer_id, product_id, block_id, status, notes, created_at, updated_at
       ) VALUES (
         ${id}, ${input.importId}, ${input.reviewerId}, ${input.productId}, ${input.blockId}, ${input.status}, ${notes},
-        cast((julianday('now') - 2440587.5) * 86400000 as integer),
-        cast((julianday('now') - 2440587.5) * 86400000 as integer)
+        CURRENT_TIMESTAMP,
+        CURRENT_TIMESTAMP
       )
       ON CONFLICT (impor_bundle_id, reviewer_id, product_id, block_id)
       DO UPDATE SET
         status = excluded.status,
         notes = excluded.notes,
-        updated_at = cast((julianday('now') - 2440587.5) * 86400000 as integer)
+        updated_at = CURRENT_TIMESTAMP
     `);
     return { id, productId: input.productId, blockId: input.blockId, status: input.status, notes, updatedAt: new Date() };
   }

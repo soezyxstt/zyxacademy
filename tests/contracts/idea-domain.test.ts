@@ -1,7 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { createClient } from "@libsql/client";
-import { drizzle } from "drizzle-orm/libsql";
-import { migrate } from "drizzle-orm/libsql/migrator";
+import { createPostgresTestDb } from "../helpers/postgres";
+import * as schema from "@/db/schema";
 import {
   ideaPublicationSchema,
   ideaRelationGraphSchema,
@@ -267,14 +266,12 @@ describe("Plan 003 source and Idea domain contracts", () => {
     ])).toThrow();
   });
 
-  it("creates the additive domain tables and enforces self-relation and source-span constraints in SQLite", async () => {
-    const client = createClient({ url: "file::memory:?cache=shared" });
+  it("creates the additive domain tables and enforces self-relation and source-span constraints in PostgreSQL", async () => {
+    const { client, testDb } = await createPostgresTestDb();
     try {
-      await migrate(drizzle(client), { migrationsFolder: "./drizzle" });
-      await client.execute("PRAGMA foreign_keys = ON");
 
-      const tableResult = await client.execute(
-        "SELECT name FROM sqlite_master WHERE type = 'table' AND name IN ('mata_kuliah', 'bab', 'pendaftaran_murid', 'penugasan_tutor', 'sumber_materi', 'potongan_sumber', 'ide', 'asal_ide', 'relasi_ide', 'ketergantungan_produk', 'peta_id_legacy') ORDER BY name",
+      const tableResult = await client.query(
+        "SELECT table_name AS name FROM information_schema.tables WHERE table_schema = 'public' AND table_name IN ('mata_kuliah', 'bab', 'pendaftaran_murid', 'penugasan_tutor', 'sumber_materi', 'potongan_sumber', 'ide', 'asal_ide', 'relasi_ide', 'ketergantungan_produk', 'peta_id_legacy') ORDER BY table_name",
       );
       expect(tableResult.rows.map((row) => String(row.name))).toEqual([
         "asal_ide",
@@ -290,45 +287,18 @@ describe("Plan 003 source and Idea domain contracts", () => {
         "sumber_materi",
       ]);
 
-      await client.execute({
-        sql: "INSERT INTO user (id, name, email, email_verified, created_at, updated_at, role) VALUES (?, ?, ?, ?, ?, ?, ?)",
-        args: ["user-idea-db", "Idea Tutor", "idea-db@example.test", 1, 0, 0, "teacher"],
-      });
-      await client.execute({
-        sql: "INSERT INTO pengguna (id, status, created_at, updated_at) VALUES (?, ?, ?, ?)",
-        args: ["user-idea-db", "active", 0, 0],
-      });
-      await client.execute({
-        sql: "INSERT INTO mata_kuliah (id, code, title, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)",
-        args: ["mk-idea-db", "FIS-DB", "Fisika", "active", 0, 0],
-      });
-      await client.execute({
-        sql: "INSERT INTO bab (id, mata_kuliah_id, code, title, order_index, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-        args: ["bab-idea-db", "mk-idea-db", "BAB-1", "Gerak", 1, "active", 0, 0],
-      });
-      await client.execute({
-        sql: "INSERT INTO ide (id, mata_kuliah_id, bab_id, stable_key, code, canonical_statement, concise_explanation, difficulty_metadata, version, status, source_policy, schema_version, semantic_hash, generation_hash, creator_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-        args: ["idea-idea-db", "mk-idea-db", "bab-idea-db", "stable-idea-db", "IDE-1", "Pernyataan", "Penjelasan", JSON.stringify({ level: "introductory" }), 1, "draft", "source_grounded", "idea.v1", checksumA, checksumB, "user-idea-db", 0, 0],
-      });
-      await client.execute({
-        sql: "INSERT INTO sumber_materi (id, mata_kuliah_id, source_type, title, canonical_uri_or_r2_key, version, checksum, status, creator_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-        args: ["source-idea-db", "mk-idea-db", "markdown", "Source", "sources/idea-db.md", 1, checksumA, "active", "user-idea-db", 0, 0],
-      });
-      await client.execute({
-        sql: "INSERT INTO potongan_sumber (id, sumber_materi_id, source_version, content, start_offset, end_offset, checksum, embedding_eligible, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-        args: ["chunk-idea-db", "source-idea-db", 1, "Pernyataan", 0, 10, checksumB, 1, 0, 0],
-      });
+      await testDb.insert(schema.user).values({ id: "user-idea-db", name: "Idea Tutor", email: "idea-db@example.test", emailVerified: true, role: "teacher" });
+      await testDb.insert(schema.pengguna).values({ id: "user-idea-db", status: "active" });
+      await testDb.insert(schema.mataKuliah).values({ id: "mk-idea-db", code: "FIS-DB", title: "Fisika", status: "active" });
+      await testDb.insert(schema.bab).values({ id: "bab-idea-db", mataKuliahId: "mk-idea-db", code: "BAB-1", title: "Gerak", orderIndex: 1, status: "active" });
+      await testDb.insert(schema.ide).values({ id: "idea-idea-db", mataKuliahId: "mk-idea-db", babId: "bab-idea-db", stableKey: "stable-idea-db", code: "IDE-1", canonicalStatement: "Pernyataan", conciseExplanation: "Penjelasan", difficultyMetadata: { level: "introductory" }, version: 1, status: "draft", sourcePolicy: "source_grounded", schemaVersion: "idea.v1", semanticHash: checksumA, generationHash: checksumB, creatorId: "user-idea-db" });
+      await testDb.insert(schema.sumberMateri).values({ id: "source-idea-db", mataKuliahId: "mk-idea-db", sourceType: "markdown", title: "Source", canonicalUriOrR2Key: "sources/idea-db.md", version: 1, checksum: checksumA, status: "active", creatorId: "user-idea-db" });
+      await testDb.insert(schema.potonganSumber).values({ id: "chunk-idea-db", sumberMateriId: "source-idea-db", sourceVersion: 1, content: "Pernyataan", startOffset: 0, endOffset: 10, checksum: checksumB, embeddingEligible: true });
 
-      await expect(client.execute({
-        sql: "INSERT INTO potongan_sumber (id, sumber_materi_id, source_version, content, start_offset, end_offset, checksum, embedding_eligible, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-        args: ["chunk-invalid", "source-idea-db", 1, "Invalid", 10, 10, checksumB, 1, 0, 0],
-      })).rejects.toThrow();
-      await expect(client.execute({
-        sql: "INSERT INTO relasi_ide (id, source_idea_id, target_idea_id, relation_type, version, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-        args: ["relation-invalid", "idea-idea-db", "idea-idea-db", "related", 1, "active", 0, 0],
-      })).rejects.toThrow();
+      await expect(testDb.insert(schema.potonganSumber).values({ id: "chunk-invalid", sumberMateriId: "source-idea-db", sourceVersion: 1, content: "Invalid", startOffset: 10, endOffset: 10, checksum: checksumB, embeddingEligible: true }).execute()).rejects.toThrow();
+      await expect(testDb.insert(schema.relasiIde).values({ id: "relation-invalid", sourceIdeaId: "idea-idea-db", targetIdeaId: "idea-idea-db", relationType: "related", version: 1, status: "active" }).execute()).rejects.toThrow();
     } finally {
-      client.close();
+      await client.close();
     }
-  });
+  }, 60000);
 });

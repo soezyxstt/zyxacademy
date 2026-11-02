@@ -1,16 +1,28 @@
-import { describe, expect, it, mock, beforeEach } from "bun:test";
-import { createClient } from "@libsql/client";
-import { drizzle } from "drizzle-orm/libsql";
+import { afterAll, beforeAll, describe, expect, it, mock, beforeEach } from "bun:test";
+import { createPostgresTestDb } from "../helpers/postgres";
 import { eq } from "drizzle-orm";
 import * as schema from "@/db/schema";
 import { TUTOR_CAPABILITY_ERRORS } from "@/lib/tutor/assessment-policy";
 let mockSession: any = null;
 
-const client = createClient({ url: "file::memory:?cache=shared" });
-const testDb = drizzle(client, { schema });
+let client: Awaited<ReturnType<typeof createPostgresTestDb>>["client"];
+let testDb: Awaited<ReturnType<typeof createPostgresTestDb>>["testDb"];
+const dbProxy = new Proxy({} as typeof testDb, {
+  get(_target, key) {
+    const value = Reflect.get(testDb, key);
+    return typeof value === "function" ? value.bind(testDb) : value;
+  },
+});
+beforeAll(async () => { ({ client, testDb } = await createPostgresTestDb()); }, 60_000);
+afterAll(async () => { await client?.close(); });
+
+async function clearTestData() {
+  const result = await client.query<{ tablename: string }>("SELECT tablename FROM pg_tables WHERE schemaname = 'public'");
+  if (result.rows.length) await client.exec(`TRUNCATE TABLE ${result.rows.map(({ tablename }) => `"${tablename.replaceAll('"', '""')}"`).join(", ")} CASCADE`);
+}
 
 mock.module("@/db", () => ({
-  db: testDb,
+  db: dbProxy,
 }));
 
 mock.module("@/lib/auth", () => ({
@@ -48,407 +60,6 @@ import {
   saveQuestionBankAction,
   deleteQuestionBankAction,
 } from "@/app/actions/tutor-management";
-
-async function setupTables() {
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS user (
-      id TEXT PRIMARY KEY,
-      name TEXT NOT NULL,
-      email TEXT NOT NULL UNIQUE,
-      email_verified INTEGER NOT NULL DEFAULT 0,
-      image TEXT,
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL,
-      role TEXT DEFAULT 'student',
-      last_activity_at INTEGER
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS pengguna (
-      id TEXT PRIMARY KEY REFERENCES user(id),
-      status TEXT NOT NULL DEFAULT 'active',
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS peran (
-      id TEXT PRIMARY KEY,
-      code TEXT NOT NULL UNIQUE,
-      created_at INTEGER NOT NULL
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS pengguna_peran (
-      id TEXT PRIMARY KEY,
-      pengguna_id TEXT NOT NULL REFERENCES pengguna(id),
-      peran_id TEXT NOT NULL REFERENCES peran(id),
-      source TEXT NOT NULL,
-      audit_actor_pengguna_id TEXT,
-      created_at INTEGER NOT NULL
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS courses (
-      id TEXT PRIMARY KEY,
-      title TEXT NOT NULL,
-      category TEXT NOT NULL DEFAULT 'Matematika',
-      description TEXT
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS mata_kuliah (
-      id TEXT PRIMARY KEY,
-      code TEXT NOT NULL UNIQUE,
-      title TEXT NOT NULL,
-      status TEXT NOT NULL DEFAULT 'active',
-      legacy_course_id TEXT REFERENCES courses(id),
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS penugasan_tutor (
-      id TEXT PRIMARY KEY,
-      pengguna_id TEXT NOT NULL REFERENCES pengguna(id),
-      mata_kuliah_id TEXT NOT NULL REFERENCES mata_kuliah(id),
-      status TEXT NOT NULL DEFAULT 'active',
-      assignment_scope TEXT NOT NULL DEFAULT 'course',
-      legacy_tutor_course_id TEXT,
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS tutor_courses (
-      id TEXT PRIMARY KEY,
-      tutor_id TEXT NOT NULL REFERENCES user(id),
-      course_id TEXT NOT NULL REFERENCES courses(id),
-      created_at INTEGER NOT NULL
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS ai_material_instances (
-      id TEXT PRIMARY KEY,
-      course_id TEXT NOT NULL,
-      title TEXT NOT NULL,
-      source_type TEXT NOT NULL,
-      summary TEXT NOT NULL,
-      learning_objectives TEXT NOT NULL DEFAULT '[]',
-      keywords TEXT NOT NULL DEFAULT '[]',
-      chapter_ids TEXT DEFAULT '[]',
-      pinecone_sync_status TEXT NOT NULL DEFAULT 'pending',
-      last_sync_error TEXT,
-      thumbnail_url TEXT,
-      created_at INTEGER NOT NULL DEFAULT (unixepoch()),
-      updated_at INTEGER NOT NULL DEFAULT (unixepoch())
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS ai_material_instance_sections (
-      id TEXT PRIMARY KEY,
-      material_instance_id TEXT NOT NULL REFERENCES ai_material_instances(id),
-      title TEXT,
-      order_index INTEGER NOT NULL,
-      created_at INTEGER NOT NULL DEFAULT (unixepoch())
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS ai_material_instance_chunks (
-      id TEXT PRIMARY KEY,
-      section_id TEXT NOT NULL REFERENCES ai_material_instance_sections(id),
-      chunk_text TEXT NOT NULL,
-      order_index INTEGER NOT NULL,
-      pinecone_vector_id TEXT,
-      is_synced INTEGER NOT NULL DEFAULT 0,
-      created_at INTEGER NOT NULL DEFAULT (unixepoch())
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS exams (
-      id TEXT PRIMARY KEY,
-      course_id TEXT NOT NULL,
-      title TEXT NOT NULL,
-      type TEXT NOT NULL DEFAULT 'tryout',
-      status TEXT NOT NULL DEFAULT 'draft',
-      settings TEXT,
-      open_at INTEGER,
-      close_at INTEGER,
-      created_at INTEGER NOT NULL DEFAULT (unixepoch())
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS questions (
-      id TEXT PRIMARY KEY,
-      exam_id TEXT NOT NULL REFERENCES exams(id),
-      type TEXT NOT NULL,
-      "order" INTEGER NOT NULL,
-      content TEXT NOT NULL,
-      created_at INTEGER NOT NULL DEFAULT (unixepoch())
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS submissions (
-      id TEXT PRIMARY KEY,
-      user_id TEXT NOT NULL REFERENCES user(id),
-      exam_id TEXT NOT NULL REFERENCES exams(id),
-      status TEXT NOT NULL DEFAULT 'pending_review',
-      score REAL,
-      teacher_notes TEXT,
-      answers_snapshot TEXT,
-      questions_snapshot TEXT,
-      submitted_at INTEGER,
-      created_at INTEGER NOT NULL DEFAULT (unixepoch()),
-      attempt_number INTEGER
-    );
-  `);
-  try {
-    await client.execute(`ALTER TABLE submissions ADD COLUMN attempt_number INTEGER;`);
-  } catch {}
-  await client.execute(`
-    CREATE UNIQUE INDEX IF NOT EXISTS idx_submissions_user_exam_attempt ON submissions (user_id, exam_id, attempt_number);
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS quiz_templates (
-      id TEXT PRIMARY KEY,
-      course_id TEXT NOT NULL,
-      title TEXT NOT NULL,
-      category TEXT NOT NULL DEFAULT 'daily',
-      visibility TEXT NOT NULL DEFAULT 'free',
-      status TEXT NOT NULL DEFAULT 'draft',
-      time_limit_seconds INTEGER,
-      max_attempts INTEGER,
-      selection_rules TEXT NOT NULL,
-      open_at INTEGER,
-      close_at INTEGER,
-      manual_status TEXT NOT NULL DEFAULT 'open',
-      show_discussion INTEGER NOT NULL DEFAULT 1,
-      spreadsheet_id TEXT,
-      spreadsheet_url TEXT,
-      created_at INTEGER NOT NULL DEFAULT (unixepoch()),
-      updated_at INTEGER NOT NULL DEFAULT (unixepoch())
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS ai_question_bank (
-      id TEXT PRIMARY KEY,
-      course_id TEXT NOT NULL,
-      source_section_id TEXT,
-      origin TEXT NOT NULL DEFAULT 'zyx_original',
-      source_event_name TEXT,
-      source_reference_id TEXT,
-      assessment_source_id TEXT,
-      source_question_number TEXT,
-      source_question_part TEXT,
-      source_page INTEGER,
-      answer_provenance TEXT,
-      solution_provenance TEXT,
-      knowledge_object_id TEXT,
-      source_mtd_id TEXT,
-      source_mtd_version INTEGER,
-      generation_hash TEXT,
-      generation_run_id TEXT,
-      status TEXT NOT NULL DEFAULT 'active',
-      is_stale INTEGER NOT NULL DEFAULT 0,
-      difficulty TEXT NOT NULL DEFAULT 'medium',
-      question_type TEXT NOT NULL DEFAULT 'multiple_choice',
-      tags TEXT NOT NULL DEFAULT '[]',
-      prompt TEXT NOT NULL,
-      options TEXT NOT NULL,
-      correct_indices TEXT NOT NULL,
-      acceptable_answers TEXT,
-      distractor_map TEXT DEFAULT '[]',
-      explanation TEXT NOT NULL,
-      review_status TEXT NOT NULL DEFAULT 'generated',
-      quiz_eligible INTEGER NOT NULL DEFAULT 0,
-      quality_score REAL,
-      use_count INTEGER NOT NULL DEFAULT 0,
-      styled_after_assessment_object_id TEXT,
-      pattern TEXT,
-      reasoning_type TEXT,
-      application_level TEXT,
-      estimated_steps INTEGER,
-      created_at INTEGER NOT NULL DEFAULT (unixepoch())
-    );
-  `);
-
-  await client.execute(
-    "ALTER TABLE ai_question_bank ADD COLUMN quiz_eligible INTEGER NOT NULL DEFAULT 0",
-  ).catch(() => {});
-  for (const columnDefinition of [
-    "assessment_source_id TEXT",
-    "source_question_number TEXT",
-    "source_question_part TEXT",
-    "source_page INTEGER",
-    "answer_provenance TEXT",
-    "solution_provenance TEXT",
-  ]) {
-    await client.execute(`ALTER TABLE ai_question_bank ADD COLUMN ${columnDefinition}`).catch(() => {});
-  }
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS blueprint_asesmen (
-      id TEXT PRIMARY KEY,
-      mata_kuliah_id TEXT NOT NULL REFERENCES mata_kuliah(id),
-      title TEXT NOT NULL,
-      assessment_type TEXT NOT NULL,
-      blueprint TEXT NOT NULL,
-      version INTEGER NOT NULL DEFAULT 1,
-      status TEXT NOT NULL DEFAULT 'draft',
-      generation_hash TEXT NOT NULL,
-      creator_id TEXT NOT NULL REFERENCES pengguna(id),
-      curator_id TEXT REFERENCES pengguna(id),
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS asesmen (
-      id TEXT PRIMARY KEY,
-      blueprint_asesmen_id TEXT NOT NULL REFERENCES blueprint_asesmen(id),
-      mata_kuliah_id TEXT NOT NULL REFERENCES mata_kuliah(id),
-      title TEXT NOT NULL,
-      assessment_type TEXT NOT NULL,
-      version INTEGER NOT NULL DEFAULT 1,
-      status TEXT NOT NULL DEFAULT 'draft',
-      generation_hash TEXT NOT NULL,
-      creator_id TEXT NOT NULL REFERENCES pengguna(id),
-      curator_id TEXT REFERENCES pengguna(id),
-      published_at INTEGER,
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS bab (
-      id TEXT PRIMARY KEY,
-      mata_kuliah_id TEXT NOT NULL REFERENCES mata_kuliah(id),
-      code TEXT NOT NULL,
-      title TEXT NOT NULL,
-      order_index INTEGER NOT NULL,
-      legacy_chapter_id TEXT,
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS cakupan_asesmen (
-      id TEXT PRIMARY KEY,
-      asesmen_id TEXT NOT NULL REFERENCES asesmen(id),
-      bab_id TEXT NOT NULL REFERENCES bab(id),
-      order_index INTEGER NOT NULL,
-      created_at INTEGER NOT NULL
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS soal (
-      id TEXT PRIMARY KEY,
-      mata_kuliah_id TEXT NOT NULL REFERENCES mata_kuliah(id),
-      bab_id TEXT REFERENCES bab(id),
-      prompt_markdown TEXT NOT NULL,
-      question_type TEXT NOT NULL,
-      difficulty TEXT NOT NULL,
-      options_snapshot TEXT,
-      correct_answer_payload TEXT,
-      version INTEGER NOT NULL DEFAULT 1,
-      generation_hash TEXT,
-      created_at INTEGER NOT NULL
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS item_asesmen (
-      id TEXT PRIMARY KEY,
-      asesmen_id TEXT NOT NULL REFERENCES asesmen(id),
-      soal_id TEXT NOT NULL REFERENCES soal(id),
-      order_index INTEGER NOT NULL,
-      rendered_question_snapshot TEXT NOT NULL,
-      option_order_snapshot TEXT NOT NULL,
-      grading_policy_snapshot TEXT NOT NULL,
-      content_version INTEGER NOT NULL DEFAULT 1,
-      generation_hash TEXT NOT NULL,
-      created_at INTEGER NOT NULL
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS audit_mutasi (
-      id TEXT PRIMARY KEY,
-      actor_id TEXT REFERENCES pengguna(id) ON DELETE SET NULL,
-      entity_type TEXT NOT NULL,
-      entity_id TEXT NOT NULL,
-      action TEXT NOT NULL,
-      before_snapshot TEXT,
-      after_snapshot TEXT,
-      correlation_id TEXT,
-      course_id TEXT,
-      outcome TEXT,
-      reason TEXT,
-      created_at INTEGER NOT NULL DEFAULT (unixepoch())
-    );
-  `);
-}
-
-const SHARED_PURGE_TABLES = [
-  "audit_mutasi",
-  "item_asesmen",
-  "cakupan_asesmen",
-  "soal",
-  "bab",
-  "asesmen",
-  "blueprint_asesmen",
-  "quiz_templates",
-  "ai_question_bank",
-  "ai_material_instance_chunks",
-  "ai_material_instance_sections",
-  "ai_material_instances",
-  "submissions",
-  "questions",
-  "exams",
-  "enrollments",
-  "penugasan_tutor",
-  "tutor_courses",
-  "mata_kuliah",
-  "courses",
-  "pengguna_peran",
-  "pengguna",
-  "peran",
-  "user",
-] as const;
-
-async function purgeSharedTables() {
-  const existing = await client.execute(
-    `SELECT name FROM sqlite_master WHERE type = 'table'`,
-  );
-  const present = new Set(existing.rows.map((row) => String(row.name)));
-  for (const table of SHARED_PURGE_TABLES) {
-    if (!present.has(table)) continue;
-    await client.execute(`DELETE FROM ${table}`);
-  }
-}
-
-async function clearAllData() {
-  await purgeSharedTables();
-}
 
 async function seedBaseData() {
   const now = new Date();
@@ -555,8 +166,7 @@ async function seedBaseData() {
 
 describe("Tutor Capability Boundary Server Actions", () => {
   beforeEach(async () => {
-    await setupTables();
-    await clearAllData();
+    await clearTestData();
     await seedBaseData();
   });
 
@@ -719,12 +329,12 @@ describe("Tutor Capability Boundary Server Actions", () => {
     // Insert template belonging to physics course
     await testDb.insert(schema.quizTemplates).values({
       id: "tpl-physics-1",
-      courseId: "mk-physics",
+      courseId: "crs-physics",
       title: "Kuis Fisika 1",
       category: "daily",
       visibility: "free",
       status: "draft",
-      selectionRules: JSON.stringify({ count: 5 }),
+      selectionRules: { count: 5 },
       createdAt: now,
       updatedAt: now,
     });
@@ -749,14 +359,14 @@ describe("Tutor Capability Boundary Server Actions", () => {
     // Insert question bank item belonging to physics course
     await testDb.insert(schema.aiQuestionBank).values({
       id: "qbk-physics-1",
-      courseId: "mk-physics",
+      courseId: "crs-physics",
       prompt: "Kecepatan cahaya?",
-      options: JSON.stringify(["3e8 m/s", "100 m/s"]),
-      correctIndices: JSON.stringify([0]),
+      options: ["3e8 m/s", "100 m/s"],
+      correctIndices: [0],
       difficulty: "easy",
       questionType: "multiple_choice",
       explanation: "3e8 m/s",
-      tags: JSON.stringify(["fisika"]),
+      tags: ["fisika"],
       status: "active",
       reviewStatus: "published",
       createdAt: now,
@@ -840,6 +450,8 @@ describe("Tutor Capability Boundary Server Actions", () => {
       "# Materi Admin",
     );
     expect(matRes.success).toBe(true);
+    const [material] = await testDb.select().from(schema.aiMaterialInstances).where(eq(schema.aiMaterialInstances.id, matRes.id));
+    expect(material.courseId).toBe("crs-calc");
 
     // 2. Admin tryout save
     const tryoutRes = await saveTryoutAction("mk-calc", null, {
@@ -849,6 +461,8 @@ describe("Tutor Capability Boundary Server Actions", () => {
       maxAttempts: 1,
     });
     expect(tryoutRes.success).toBe(true);
+    const [exam] = await testDb.select().from(schema.exams).where(eq(schema.exams.id, tryoutRes.id));
+    expect(exam.courseId).toBe("crs-calc");
 
     // 3. Admin simulation quiz template save
     const simRes = await saveQuizTemplateAction("mk-calc", null, {
