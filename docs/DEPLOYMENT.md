@@ -532,12 +532,21 @@ The always-on PDF page reader requires `source-read-page` in the Deno compute ap
 
 ## Python coding deployment
 
-Staging interactive Playground and runnable Article examples require
-`PYTHON_RUNTIME_TOKEN_SECRET` in GitHub Environment `staging`, matching the
-Render Python worker. The staging runtime allowlist forwards it to Cloud Run.
-The ticket endpoint checks course access and returns a short-lived WebSocket
-ticket; the key never reaches the browser. The worker and Daytona sandbox must
-already be available. This does not change Submit grading or production Run.
+Interactive Playground and runnable Article examples use the shared Render
+Python worker on the public staging and production origins. Set
+`PYTHON_RUNTIME_TOKEN_SECRET` in GitHub Environment `staging`, Cloud Run staging,
+and Vercel Production to the key configured on the Render worker. Configure the
+worker's `PYTHON_RUNTIME_ORIGIN` as the comma-separated exact origins
+`https://staging.zyxacademy.com,https://www.zyxacademy.com,https://zyxacademy.com`.
+The ticket endpoint checks course access and the configured public origin.
+Production tickets use audience `zyx-python-production`; staging keeps
+`zyx-python-staging`. The worker rejects a ticket from the other environment.
+The key never reaches the browser. The worker and Daytona sandbox must already
+be available; both environments share the existing two-session capacity.
+Deploy the worker's multi-origin support before releasing the web changes.
+For key rotation, update the worker and both ticket issuers together and verify
+fresh staging and production tickets. Local and unrecognized browser origins
+retain Pyodide. Submit grading is separate.
 
 Python coding requires the generated coding table migration and a paired release
 of the Next application and `workers/realtime` for graded Live Quiz. Production

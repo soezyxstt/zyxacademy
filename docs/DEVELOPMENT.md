@@ -454,9 +454,9 @@ Build the private renderer with `bun scripts/authoring/build-local-verification-
 
 ## Python coding runtime
 
-Install pinned dependencies with Bun. Staging interactive Playground and Article
+Install pinned dependencies with Bun. Public staging and production Playground and Article
 examples use the Python worker and require the server-only
-`PYTHON_RUNTIME_TOKEN_SECRET` shared with the staging worker. Other browser
+`PYTHON_RUNTIME_TOKEN_SECRET` shared with the Render worker for staging and production. Other browser
 Python assets are served locally from the Pyodide package. Local Submit
 requires Playwright Chromium with a functioning kernel sandbox. Run
 `bun run test:visual:install` when browsers are missing. Production Submit reuses
