@@ -1,92 +1,27 @@
-import { describe, expect, test, beforeAll, beforeEach, mock } from "bun:test";
-import { createClient } from "@libsql/client";
-import { drizzle } from "drizzle-orm/libsql";
+import { describe, expect, test, beforeAll, beforeEach, afterAll, mock } from "bun:test";
+import { createPostgresTestDb } from "../helpers/postgres";
 import { eq } from "drizzle-orm";
 import * as schema from "@/db/schema";
-import { transitionZyraProposalStatus } from "@/lib/zyra/proposals";
-import { createZyraProposal, transitionZyraProposal } from "@/lib/zyra/proposals/service";
+import { transitionZyraProposalStatus } from "@/lib/zyra/proposals/contracts";
 
-const client = createClient({ url: "file::memory:?cache=shared" });
-const testDb = drizzle(client, { schema });
+let client: Awaited<ReturnType<typeof createPostgresTestDb>>["client"];
+let testDb: Awaited<ReturnType<typeof createPostgresTestDb>>["testDb"];
+let createZyraProposal: typeof import("@/lib/zyra/proposals/service").createZyraProposal;
+let transitionZyraProposal: typeof import("@/lib/zyra/proposals/service").transitionZyraProposal;
 
-mock.module("@/db", () => ({
-  db: testDb,
-}));
+
 
 describe("Zyra proposal lifecycle", () => {
   beforeAll(async () => {
-    await client.execute(`
-      CREATE TABLE IF NOT EXISTS user (
-        id TEXT PRIMARY KEY,
-        name TEXT NOT NULL,
-        email TEXT NOT NULL UNIQUE,
-        email_verified INTEGER NOT NULL DEFAULT 0,
-        image TEXT,
-        created_at INTEGER NOT NULL,
-        updated_at INTEGER NOT NULL,
-        role TEXT DEFAULT 'student',
-        last_activity_at INTEGER
-      );
-    `);
+    ({ client, testDb } = await createPostgresTestDb());
+    mock.module("@/db", () => ({ db: testDb }));
+    ({ createZyraProposal, transitionZyraProposal } = await import("@/lib/zyra/proposals/service"));
+  }, 60000);
 
-    await client.execute(`
-      CREATE TABLE IF NOT EXISTS courses (
-        id TEXT PRIMARY KEY,
-        title TEXT NOT NULL,
-        category TEXT NOT NULL DEFAULT 'Matematika',
-        description TEXT
-      );
-    `);
-
-    await client.execute(`
-      CREATE TABLE IF NOT EXISTS zyra_proposals (
-        id TEXT PRIMARY KEY,
-        actor_id TEXT NOT NULL REFERENCES user(id),
-        role TEXT NOT NULL,
-        proposal_type TEXT NOT NULL,
-        course_id TEXT REFERENCES courses(id),
-        scope TEXT NOT NULL,
-        evidence_refs TEXT NOT NULL,
-        precondition_snapshot TEXT NOT NULL,
-        operations TEXT NOT NULL,
-        learner_impact TEXT NOT NULL,
-        reversibility TEXT NOT NULL,
-        warnings TEXT NOT NULL,
-        proposer_trace TEXT NOT NULL,
-        validator_result TEXT NOT NULL,
-        status TEXT NOT NULL DEFAULT 'draft',
-        precondition_version INTEGER NOT NULL,
-        diff_hash TEXT NOT NULL,
-        audit_id TEXT,
-        failure_code TEXT,
-        expires_at INTEGER NOT NULL,
-        created_at INTEGER NOT NULL DEFAULT (cast((julianday('now') - 2440587.5)*86400000 as integer)),
-        reviewed_at INTEGER,
-        confirmed_at INTEGER,
-        applied_at INTEGER,
-        updated_at INTEGER NOT NULL DEFAULT (cast((julianday('now') - 2440587.5)*86400000 as integer))
-      );
-    `);
-
-    await client.execute(`
-      CREATE TABLE IF NOT EXISTS zyra_proposal_events (
-        id TEXT PRIMARY KEY,
-        proposal_id TEXT NOT NULL REFERENCES zyra_proposals(id) ON DELETE CASCADE,
-        actor_id TEXT NOT NULL,
-        from_status TEXT,
-        to_status TEXT NOT NULL,
-        reason_code TEXT NOT NULL,
-        diff_hash TEXT NOT NULL,
-        created_at INTEGER NOT NULL DEFAULT (unixepoch())
-      );
-    `);
-  });
+  afterAll(async () => { await client?.close(); });
 
   beforeEach(async () => {
-    await client.execute("DELETE FROM zyra_proposal_events").catch(() => {});
-    await client.execute("DELETE FROM zyra_proposals").catch(() => {});
-    await client.execute("DELETE FROM courses").catch(() => {});
-    await client.execute("DELETE FROM user").catch(() => {});
+    await client.exec('TRUNCATE TABLE zyra_proposal_events, zyra_proposals, courses, "user" CASCADE');
   });
 
   test("requires a second reviewer and explicit proposer confirmation", () => {

@@ -3,7 +3,7 @@ import { verificationBrowserIdentity, verificationBrowserProvider } from "@/lib/
 import { acquireConfiguredVerificationBrowser } from "@/lib/compute/product-v4-browser-session";
 
 test("provider defaults retain Cloudflare and reject typos and unreviewed Steel versions", () => {
-  expect(verificationBrowserIdentity({})).toEqual({ browserProvider: "cloudflare", browserVersion: "128.0.6613.137" });
+  expect(verificationBrowserIdentity({})).toEqual({ browserProvider: "cloudflare", browserVersion: "152.0.7977.64" });
   expect(() => verificationBrowserProvider({ AUTHORING_VERIFICATION_BROWSER_PROVIDER: "typo" })).toThrow("PROVIDER_INVALID");
   for (const version of [undefined, "latest", "128", "*"]) {
     expect(() => verificationBrowserIdentity({ AUTHORING_VERIFICATION_BROWSER_PROVIDER: "steel", AUTHORING_VERIFICATION_STEEL_BROWSER_VERSION: version })).toThrow("VERSION_CONFIGURATION_REQUIRED");

@@ -29,7 +29,9 @@ describe("Site metadata and Open Graph contract", () => {
       expect(existsSync(path.resolve(process.cwd(), "public/brand", icon))).toBe(true);
     }
 
-    const manifest = readFileSync(path.resolve(process.cwd(), "app/manifest.ts"), "utf8");
+    expect(content).toContain('<link rel="manifest" href="/manifest.webmanifest" crossOrigin="use-credentials" />');
+    expect(existsSync(path.resolve(process.cwd(), "app/manifest.ts"))).toBe(false);
+    const manifest = readFileSync(path.resolve(process.cwd(), "app/manifest.webmanifest/route.ts"), "utf8");
     expect(manifest).toContain('theme_color: "#1a2744"');
     expect(manifest).toContain('zyx-app-192.png');
     expect(manifest).toContain('zyx-app-512.png');
@@ -57,6 +59,6 @@ describe("Site metadata and Open Graph contract", () => {
     const blogPagePath = path.resolve(process.cwd(), "app/(marketing)/blog/[slug]/page.tsx");
     const content = readFileSync(blogPagePath, "utf8");
 
-    expect(content).toContain("image: article.thumbnailUrl || siteOgImage");
+    expect(content).toContain('image: article.thumbnailUrl?.startsWith("http") ? storage.getUrl(article.thumbnailUrl) : article.thumbnailUrl || siteOgImage');
   });
 });

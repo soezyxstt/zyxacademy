@@ -1,8 +1,11 @@
 # Deployment Guide
 
-## Proposed Cloud Run staging setup
+## Cloud Run staging
 
-The [Cloud Run staging runbook](operations/cloud-run-staging.md) is `OPEN / IN PROGRESS` for project `zyx-academy` in Taiwan (`asia-east1`). It covers the proposed request-based, scale-to-zero configuration, cost limits, container prerequisites, secrets, OAuth/origin checks, and scheduler migration. No Cloud Run deployment is verified yet.
+The [Cloud Run staging runbook](operations/cloud-run-staging.md) is `ACTIVE` for project `zyx-academy` in Taiwan (`asia-east1`). Staging serves Neon PostgreSQL and private Neon object storage following a verified frozen import. Its Deno worker uses the same guarded target. Target identity, hosted acceptance and rollback evidence are in the [migration runbook](operations/neon-migration.md).
+The separate Vercel migration project remains a rehearsal. Production remains on Turso and R2; the topology below describes that production deployment.
+
+Production Neon cutover is `OPEN / IN PROGRESS`; follow [the production runbook](operations/neon-production-cutover.md). Its dedicated target is prepared, but production runtime settings and traffic must remain on Turso/R2 until the frozen-cutover gates pass. The prepared release adds exact-target checks to both Vercel and Deno deployment paths.
 
 ## Architecture
 
@@ -10,13 +13,13 @@ Production runs on Vercel (Next.js) + Turso (DB) with Deno Deploy (background co
 
 ```
 Vercel (Next.js App Router)
- ├── Turso (libsql database)
- ├── Inngest Cloud (background orchestration)
- │    └── Deno Deploy (background worker: zyx-background / zyx-background-staging)
- ├── Cloudflare R2 (object storage)
- ├── Cloudflare AI Gateway (Gemini proxy)
- ├── Cloudflare Vectorize (canonical 768-dimensional vector store)
- └── Cloudflare Workers (3 production services plus the staging-only Zyra control plane)
+ â”œâ”€â”€ Turso (libsql database)
+ â”œâ”€â”€ Inngest Cloud (background orchestration)
+ â”‚    â””â”€â”€ Deno Deploy (background worker: zyx-background / zyx-background-staging)
+ â”œâ”€â”€ Cloudflare R2 (object storage)
+ â”œâ”€â”€ Cloudflare AI Gateway (Gemini proxy)
+ â”œâ”€â”€ Cloudflare Vectorize (canonical 768-dimensional vector store)
+ â””â”€â”€ Cloudflare Workers (3 production services plus the staging-only Zyra control plane)
 ```
 
 ## Deno Deploy Background Worker Deployment
@@ -67,7 +70,11 @@ The old production-to-staging sync is not part of the overhaul. Any exceptional 
 
 ## Vercel Deployment
 
+Keep `.vercelignore` in CLI deployment inputs to exclude environment files and local artifacts.
+
 V4 verification uses the existing Deno Deploy worker with Cloudflare Browser Run (default) or Steel over CDP. Sync `BETTER_AUTH_SECRET`, `CF_API_TOKEN`, `CF_ACCOUNT_ID` and `NEXT_PUBLIC_APP_URL` from the exact GitHub environment. The browser token needs Browser Rendering Edit permission. Set GitHub environment variable `AUTHORING_VERIFICATION_BROWSER_PROVIDER=steel`, environment secret `STEEL_API_KEY`, and environment variable `AUTHORING_VERIFICATION_STEEL_BROWSER_VERSION` to the exact reviewed version from a probe. Mirror the two non-secret variables in the web deployment environment so web and worker derive the same plan. The Deno deploy workflow syncs these settings and the key; the operations workflow reads the same provider/version. Cloudflare credentials stay compatible. Each new plan pins provider and deployed browser version; drift or an older plan without provider identity fails closed until reviewed and released. Switching provider changes plan hashes and requires a new attempt, receipt and PDF evidence. Inspect and cancel the exact existing native run before retrying the revision. The Deno workflow regenerates the V4 build identity before uploading it with the worker. Source crops pin the same PDF.js and native canvas versions in both Deno import maps. The local Node verification adapter is a test utility, not another hosting requirement.
+
+The browser-specific `CF_BROWSER_API_TOKEN` falls back to `CF_API_TOKEN`. A private same-origin `AUTHORING_VERIFICATION_ACCESS_URL` can establish access cookies without disabling deployment protection.
 
 The read-only `/v4` page presents a version-specific Article preview and its inspected static Diktat PDF. It does not convert or publish existing course content. Existing Articles adopt V4 through an explicitly authored and reviewed V4 bundle.
 
@@ -186,7 +193,7 @@ turso db create-token zyx-academy
 
 ### Migration
 ```bash
-bun run db:push:prod   # safe runner: backup → migrate → verify
+bun run db:push:prod   # safe runner: backup â†’ migrate â†’ verify
 ```
 
 The production migration script (`db/push-prod.ts`):
@@ -214,8 +221,8 @@ Cloudflare dashboard. No payload recording is configured by this repository.
 ### 1. zyx-vector-api (Vectorize proxy)
 ```
 workers/vector-api/
-├── wrangler.toml
-├── index.ts
+â”œâ”€â”€ wrangler.toml
+â”œâ”€â”€ index.ts
 ```
 
 - Exposes authenticated `/v2/upsert`, `/v2/query`, `/v2/delete`, `/v2/list`, and `/v2/get` routes
@@ -283,8 +290,8 @@ Keep `zyx-edu` and the legacy `VECTORIZE` binding during the entire rollout. For
 ### 2. zyxrealtime (Live quiz WebSocket/SSE)
 ```
 workers/realtime/
-├── wrangler.toml
-├── src/index.ts
+â”œâ”€â”€ wrangler.toml
+â”œâ”€â”€ src/index.ts
 ```
 
 - Durable Object `LiveQuizRoom` for real-time quiz sessions

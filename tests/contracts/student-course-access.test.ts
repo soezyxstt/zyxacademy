@@ -1,6 +1,6 @@
-import { describe, expect, it } from "bun:test";
-import { createClient } from "@libsql/client";
-import { drizzle } from "drizzle-orm/libsql";
+import { describe, expect, it, beforeAll } from "bun:test";
+import { createPostgresTestDb, preparePostgresTestDb } from "../helpers/postgres";
+beforeAll(preparePostgresTestDb,60000);
 import { eq } from "drizzle-orm";
 import * as schema from "@/db/schema";
 import {
@@ -15,133 +15,15 @@ const resolveCourseAccess: typeof resolveCourseAccessAt = (input, executor) =>
   resolveCourseAccessAt({ now: new Date("2026-09-14T00:00:00.000Z"), ...input }, executor);
 
 async function createTestDb() {
-  const client = createClient({ url: ":memory:" });
-  const testDb = drizzle(client, { schema });
-
-  await client.executeMultiple(`
-    CREATE TABLE user (
-      id TEXT PRIMARY KEY,
-      name TEXT NOT NULL,
-      email TEXT NOT NULL UNIQUE,
-      email_verified INTEGER NOT NULL DEFAULT 0,
-      image TEXT,
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL,
-      role TEXT DEFAULT 'student',
-      last_activity_at INTEGER,
-      faculty TEXT,
-      major TEXT,
-      entry_year INTEGER
-    );
-    CREATE TABLE courses (
-      id TEXT PRIMARY KEY,
-      title TEXT NOT NULL,
-      category TEXT NOT NULL DEFAULT 'Matematika',
-      description TEXT
-    );
-    CREATE TABLE mata_kuliah (
-      id TEXT PRIMARY KEY,
-      code TEXT NOT NULL UNIQUE,
-      title TEXT NOT NULL,
-      status TEXT NOT NULL DEFAULT 'active',
-      is_demo INTEGER NOT NULL DEFAULT 0,
-      legacy_course_id TEXT REFERENCES courses(id),
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL
-    );
-    CREATE UNIQUE INDEX mata_kuliah_single_demo_idx ON mata_kuliah(is_demo) WHERE is_demo = 1;
-    CREATE TABLE pengguna (
-      id TEXT PRIMARY KEY REFERENCES user(id),
-      status TEXT NOT NULL DEFAULT 'active',
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL
-    );
-    CREATE TABLE peran (
-      id TEXT PRIMARY KEY,
-      code TEXT NOT NULL UNIQUE,
-      created_at INTEGER NOT NULL
-    );
-    CREATE TABLE pengguna_peran (
-      id TEXT PRIMARY KEY,
-      pengguna_id TEXT NOT NULL REFERENCES pengguna(id),
-      peran_id TEXT NOT NULL REFERENCES peran(id),
-      source TEXT NOT NULL,
-      audit_actor_pengguna_id TEXT,
-      created_at INTEGER NOT NULL
-    );
-    CREATE TABLE enrollments (
-      id TEXT PRIMARY KEY,
-      user_id TEXT NOT NULL REFERENCES user(id),
-      course_id TEXT NOT NULL REFERENCES courses(id),
-      enrolled_at INTEGER,
-      expires_at INTEGER NOT NULL
-    );
-    CREATE TABLE bab (
-      id TEXT PRIMARY KEY,
-      mata_kuliah_id TEXT NOT NULL REFERENCES mata_kuliah(id),
-      code TEXT NOT NULL,
-      title TEXT NOT NULL,
-      order_index INTEGER NOT NULL,
-      status TEXT NOT NULL DEFAULT 'active',
-      legacy_chapter_id TEXT,
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL
-    );
-    CREATE TABLE chapters (
-      id TEXT PRIMARY KEY,
-      course_id TEXT NOT NULL REFERENCES courses(id),
-      title TEXT NOT NULL,
-      description TEXT,
-      order_index INTEGER NOT NULL,
-      status TEXT NOT NULL DEFAULT 'draft',
-      asset_gen_status TEXT NOT NULL DEFAULT 'idle',
-      asset_gen_flashcards_total INTEGER NOT NULL DEFAULT 0,
-      asset_gen_flashcards_current INTEGER NOT NULL DEFAULT 0,
-      asset_gen_questions_total INTEGER NOT NULL DEFAULT 0,
-      asset_gen_questions_current INTEGER NOT NULL DEFAULT 0,
-      asset_gen_error TEXT,
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL
-    );
-    CREATE TABLE pendaftaran_murid (
-      id TEXT PRIMARY KEY,
-      pengguna_id TEXT NOT NULL REFERENCES pengguna(id),
-      mata_kuliah_id TEXT NOT NULL REFERENCES mata_kuliah(id),
-      status TEXT NOT NULL DEFAULT 'active',
-      start_at INTEGER,
-      end_at INTEGER,
-      legacy_enrollment_id TEXT,
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL
-    );
-    CREATE TABLE penugasan_tutor (
-      id TEXT PRIMARY KEY,
-      pengguna_id TEXT NOT NULL REFERENCES pengguna(id),
-      mata_kuliah_id TEXT NOT NULL REFERENCES mata_kuliah(id),
-      status TEXT NOT NULL DEFAULT 'active',
-      assignment_scope TEXT NOT NULL DEFAULT 'course',
-      legacy_tutor_course_id TEXT,
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL
-    );
-    CREATE TABLE tutor_courses (
-      id TEXT PRIMARY KEY,
-      tutor_id TEXT NOT NULL REFERENCES user(id),
-      course_id TEXT NOT NULL REFERENCES courses(id),
-      created_at INTEGER NOT NULL
-    );
-  `);
-
-  await testDb.insert(schema.peran).values([
-    { id: "role-admin", code: "admin" },
-    { id: "role-tutor", code: "tutor" },
-    { id: "role-murid", code: "murid" },
+  const fixture=await createPostgresTestDb();
+  await fixture.testDb.insert(schema.peran).values([
+    {id:"role-admin",code:"admin"}, {id:"role-tutor",code:"tutor"}, {id:"role-murid",code:"murid"},
   ]);
-  return { client, testDb };
+  return fixture;
 }
 
 async function insertUser(
-  testDb: ReturnType<typeof drizzle<typeof schema>>,
+  testDb: Awaited<ReturnType<typeof createTestDb>>["testDb"],
   input: {
     id: string;
     role?: "admin" | "teacher" | "student";
@@ -226,6 +108,11 @@ describe("student course access policy", () => {
         createdAt: now,
         updatedAt: now,
       });
+      await testDb.insert(schema.chapters).values([
+        { id: "chapter-demo-1", courseId: "legacy-demo", title: "Satu", orderIndex: 1 },
+        { id: "chapter-demo-2", courseId: "legacy-demo", title: "Dua", orderIndex: 2 },
+        { id: "chapter-demo-3", courseId: "legacy-demo", title: "Tiga", orderIndex: 3 },
+      ]);
       await testDb.insert(schema.bab).values([
         { id: "bab-demo-2", mataKuliahId: "mk-demo", code: "02", title: "Dua", orderIndex: 2, status: "active", legacyChapterId: "chapter-demo-2", createdAt: now, updatedAt: now },
         { id: "bab-demo-1", mataKuliahId: "mk-demo", code: "01", title: "Satu", orderIndex: 1, status: "active", legacyChapterId: "chapter-demo-1", createdAt: now, updatedAt: now },
@@ -273,7 +160,7 @@ describe("student course access policy", () => {
       expect(canAccessCourseContent(freeOther, "article", ["bab-other-2"])).toBe(false);
       expect(canAccessCourseContent(freeOther, "article", ["bab-other-3"])).toBe(false);
     } finally {
-      client.close();
+      await client.close();
     }
   });
 
@@ -307,7 +194,7 @@ describe("student course access policy", () => {
       expect(canAccessCourseContent(access, "article", ["legacy-chapter-2"])).toBe(false);
       expect(canAccessCourseContent(access, "article", ["legacy-chapter-3"])).toBe(false);
     } finally {
-      client.close();
+      await client.close();
     }
   });
 
@@ -351,7 +238,7 @@ describe("student course access policy", () => {
       expect(access.tier).toBe("free");
       expect(identity).toEqual({ id: "auth-only-user", status: "active" });
     } finally {
-      client.close();
+      await client.close();
     }
   });
 
@@ -436,7 +323,7 @@ describe("student course access policy", () => {
       expect(repairedAdmin.tier).toBe("staff");
       expect(repairedAdmin.roles).toEqual(["admin"]);
     } finally {
-      client.close();
+      await client.close();
     }
   });
 
@@ -507,13 +394,13 @@ describe("student course access policy", () => {
         updatedAt: now,
       });
 
-      const canonicalEnrolled = await resolveCourseAccess({ courseId: "mk-paid", userId: "enrolled-user" }, testDb);
+      const canonicalEnrolled = await resolveCourseAccess({ courseId: "mk-paid", userId: "enrolled-user", now }, testDb);
       expect(canonicalEnrolled.tier).toBe("enrolled");
       expect(canonicalEnrolled.isEnrolled).toBe(true);
       expect(canAccessCourseContent(canonicalEnrolled, "article", ["bab-paid-1"])).toBe(true);
       expect(canonicalEnrolled.capabilities.canDownloadDiktat).toBe(true);
 
-      const legacyEnrolled = await resolveCourseAccess({ courseId: "legacy-paid", userId: "legacy-enrolled-user" }, testDb);
+      const legacyEnrolled = await resolveCourseAccess({ courseId: "legacy-paid", userId: "legacy-enrolled-user", now }, testDb);
       expect(legacyEnrolled.tier).toBe("enrolled");
       expect(legacyEnrolled.isEnrolled).toBe(true);
 
@@ -527,12 +414,12 @@ describe("student course access policy", () => {
       expect(tutor.tier).toBe("staff");
       expect(tutor.capabilities.canDownloadDiktat).toBe(false);
 
-      const unassignedTutor = await resolveCourseAccess({ courseId: "mk-staff", userId: "unassigned-tutor" }, testDb);
+      const unassignedTutor = await resolveCourseAccess({ courseId: "mk-staff", userId: "unassigned-tutor", now }, testDb);
       expect(unassignedTutor.isEnrolled).toBe(true);
       expect(unassignedTutor.hasCourseAccess).toBe(false);
       expect(unassignedTutor.tier).toBe("anonymous");
 
-      const roleHintAdmin = await resolveCourseAccess({ courseId: "mk-staff", userId: "role-hint-admin", roleHint: "admin" }, testDb);
+      const roleHintAdmin = await resolveCourseAccess({ courseId: "mk-staff", userId: "role-hint-admin", roleHint: "admin", now }, testDb);
       expect(roleHintAdmin.tier).not.toBe("staff");
       expect(roleHintAdmin.hasCourseAccess).toBe(true);
 
@@ -546,7 +433,7 @@ describe("student course access policy", () => {
       expect(suspended.reason).toBe("USER_INACTIVE");
       expect(suspended.hasCourseAccess).toBe(false);
     } finally {
-      client.close();
+      await client.close();
     }
   });
 
@@ -587,7 +474,7 @@ describe("student course access policy", () => {
       expect(access.hasCourseAccess).toBe(false);
       expect(access.isEnrolled).toBe(false);
     } finally {
-      client.close();
+      await client.close();
     }
   });
 
@@ -643,7 +530,7 @@ describe("student course access policy", () => {
       expect(withAssignment.tier).toBe("staff");
       expect(withAssignment.hasCourseAccess).toBe(true);
     } finally {
-      client.close();
+      await client.close();
     }
   });
 });

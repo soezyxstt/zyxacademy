@@ -1,7 +1,6 @@
-import { describe, expect, it } from "bun:test";
+import { afterEach, beforeAll, describe, expect, it } from "bun:test";
 import { randomUUID } from "node:crypto";
-import { createClient } from "@libsql/client";
-import { drizzle } from "drizzle-orm/libsql";
+import { createPostgresTestDb } from "../helpers/postgres";
 import { eq } from "drizzle-orm";
 import * as schema from "@/db/schema";
 import {
@@ -25,239 +24,18 @@ import {
   collaborativeBookSlot,
   collaborativeMoveSlot,
 } from "@/app/(student)/dashboard/schedule/actions";
+const clients: Array<Awaited<ReturnType<typeof createPostgresTestDb>>["client"]> = [];
+beforeAll(async () => {
+  const { client } = await createPostgresTestDb();
+  await client.close();
+}, 60_000);
+afterEach(async () => {
+  await Promise.all(clients.splice(0).map((client) => client.close()));
+});
+
 async function createTestDb() {
-  const dbPath = `/tmp/zyx_test_${randomUUID().replace(/-/g, "")}.db`;
-  const client = createClient({ url: `file:${dbPath}` });
-  const testDb = drizzle(client, { schema });
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS user (
-      id TEXT PRIMARY KEY,
-      name TEXT NOT NULL,
-      email TEXT NOT NULL UNIQUE,
-      email_verified INTEGER NOT NULL DEFAULT 0,
-      image TEXT,
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL,
-      role TEXT DEFAULT 'student',
-      last_activity_at INTEGER,
-      faculty TEXT,
-      major TEXT,
-      entry_year INTEGER
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS pengguna (
-      id TEXT PRIMARY KEY REFERENCES user(id),
-      status TEXT NOT NULL DEFAULT 'active',
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS peran (
-      id TEXT PRIMARY KEY,
-      code TEXT NOT NULL UNIQUE,
-      created_at INTEGER NOT NULL
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS pengguna_peran (
-      id TEXT PRIMARY KEY,
-      pengguna_id TEXT NOT NULL REFERENCES pengguna(id),
-      peran_id TEXT NOT NULL REFERENCES peran(id),
-      source TEXT NOT NULL,
-      audit_actor_pengguna_id TEXT,
-      created_at INTEGER NOT NULL
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS courses (
-      id TEXT PRIMARY KEY,
-      title TEXT NOT NULL,
-      category TEXT NOT NULL DEFAULT 'Matematika',
-      description TEXT
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS mata_kuliah (
-      id TEXT PRIMARY KEY,
-      code TEXT NOT NULL UNIQUE,
-      title TEXT NOT NULL,
-      status TEXT NOT NULL DEFAULT 'active',
-      is_demo INTEGER NOT NULL DEFAULT 0,
-      legacy_course_id TEXT REFERENCES courses(id),
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS penugasan_tutor (
-      id TEXT PRIMARY KEY,
-      pengguna_id TEXT NOT NULL REFERENCES pengguna(id),
-      mata_kuliah_id TEXT NOT NULL REFERENCES mata_kuliah(id),
-      status TEXT NOT NULL DEFAULT 'active',
-      assignment_scope TEXT NOT NULL DEFAULT 'course',
-      legacy_tutor_course_id TEXT,
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS tutor_courses (
-      id TEXT PRIMARY KEY,
-      tutor_id TEXT NOT NULL REFERENCES user(id),
-      course_id TEXT NOT NULL REFERENCES courses(id),
-      created_at INTEGER NOT NULL
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS groups (
-      id TEXT PRIMARY KEY,
-      name TEXT NOT NULL,
-      package_type TEXT NOT NULL DEFAULT 'reguler_15',
-      package_name TEXT NOT NULL DEFAULT 'Paket Reguler (15 Sesi)',
-      total_quota_sessions INTEGER NOT NULL DEFAULT 15,
-      used_quota_sessions INTEGER NOT NULL DEFAULT 0,
-      weekly_quota_sessions INTEGER NOT NULL DEFAULT 2,
-      academic_year TEXT NOT NULL DEFAULT '2026/2027',
-      semester TEXT NOT NULL DEFAULT 'Ganjil',
-      start_date INTEGER,
-      end_date INTEGER,
-      status TEXT NOT NULL DEFAULT 'active',
-      notes TEXT,
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS group_courses (
-      id TEXT PRIMARY KEY,
-      group_id TEXT NOT NULL REFERENCES groups(id),
-      course_id TEXT NOT NULL REFERENCES courses(id),
-      created_at INTEGER NOT NULL
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS group_members (
-      id TEXT PRIMARY KEY,
-      group_id TEXT NOT NULL REFERENCES groups(id),
-      user_id TEXT NOT NULL REFERENCES user(id),
-      role TEXT NOT NULL DEFAULT 'member',
-      joined_at INTEGER NOT NULL
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS tutor_slots (
-      id TEXT PRIMARY KEY,
-      tutor_id TEXT NOT NULL REFERENCES user(id),
-      day_of_week TEXT NOT NULL,
-      start_time TEXT NOT NULL,
-      end_time TEXT NOT NULL,
-      mode TEXT NOT NULL DEFAULT 'online',
-      location TEXT,
-      session_date TEXT,
-      created_at INTEGER NOT NULL
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS bookings (
-      id TEXT PRIMARY KEY,
-      slot_id TEXT NOT NULL REFERENCES tutor_slots(id),
-      student_id TEXT NOT NULL REFERENCES user(id),
-      course_id TEXT NOT NULL REFERENCES courses(id),
-      group_id TEXT NOT NULL REFERENCES groups(id),
-      status TEXT NOT NULL DEFAULT 'scheduled',
-      session_date TEXT,
-      start_time TEXT,
-      end_time TEXT,
-      mode TEXT NOT NULL DEFAULT 'online',
-      location TEXT,
-      google_meet_url TEXT,
-      google_meet_space_name TEXT,
-      last_modified_by TEXT,
-      last_modified_at INTEGER NOT NULL,
-      topic TEXT,
-      pre_session_notes TEXT,
-      pre_session_attachments TEXT,
-      post_session_notes TEXT,
-      post_session_attachments TEXT,
-      post_session_link_url TEXT,
-      post_session_link_title TEXT,
-      post_session_link_description TEXT,
-      post_session_link_image TEXT,
-      completed_at INTEGER,
-      completed_by_id TEXT,
-      booked_at INTEGER NOT NULL
-    );
-  `);
-
-  await client.execute(`
-    CREATE UNIQUE INDEX bookings_occupied_slot_unique_idx ON bookings(slot_id)
-    WHERE status <> 'cancelled';
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS booking_audit_logs (
-      id TEXT PRIMARY KEY,
-      booking_id TEXT NOT NULL REFERENCES bookings(id),
-      group_id TEXT REFERENCES groups(id),
-      actor_id TEXT REFERENCES user(id),
-      action TEXT NOT NULL,
-      summary TEXT NOT NULL,
-      metadata TEXT,
-      created_at INTEGER NOT NULL
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS booking_reschedule_tickets (
-      id TEXT PRIMARY KEY,
-      booking_id TEXT NOT NULL REFERENCES bookings(id),
-      group_id TEXT NOT NULL REFERENCES groups(id),
-      requested_by_id TEXT NOT NULL REFERENCES user(id),
-      tutor_id TEXT REFERENCES user(id),
-      type TEXT NOT NULL DEFAULT 'reschedule',
-      status TEXT NOT NULL DEFAULT 'pending',
-      reason TEXT NOT NULL,
-      proposed_slot_id TEXT REFERENCES tutor_slots(id),
-      proposed_date TEXT,
-      decision_notes TEXT,
-      decided_at INTEGER,
-      decided_by_id TEXT REFERENCES user(id),
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS audit_mutasi (
-      id TEXT PRIMARY KEY,
-      actor_id TEXT NOT NULL,
-      entity_type TEXT NOT NULL,
-      entity_id TEXT NOT NULL,
-      action TEXT NOT NULL,
-      outcome TEXT NOT NULL,
-      before_snapshot TEXT,
-      after_snapshot TEXT,
-      correlation_id TEXT NOT NULL,
-      course_id TEXT NOT NULL,
-      reason TEXT NOT NULL,
-      created_at INTEGER NOT NULL DEFAULT (unixepoch())
-    );
-  `);
+  const { client, testDb } = await createPostgresTestDb();
+  clients.push(client);
 
   await testDb.insert(schema.peran).values([
     { id: "peran-admin", code: "admin" },
@@ -293,12 +71,10 @@ describe("Tutor Schedule Action Contracts", () => {
         updatedAt: now,
       },
     ]);
-    await testDb.insert(schema.pengguna).values({
-      id: "tutor-1",
-      status: "active",
-      createdAt: now,
-      updatedAt: now,
-    });
+    await testDb.insert(schema.pengguna).values([
+      { id: "tutor-1", status: "active", createdAt: now, updatedAt: now },
+      { id: "student-1", status: "active", createdAt: now, updatedAt: now },
+    ]);
     await testDb.insert(schema.penggunaPeran).values({
       id: "pp-1",
       penggunaId: "tutor-1",
@@ -700,7 +476,7 @@ describe("Tutor Schedule Action Contracts", () => {
       expect(slots).toHaveLength(2);
     });
 
-    it("requires a valid dated weekday and enforces the tutor mutation deadline", async () => {
+    it("requires a valid dated weekday and allows availability after the former deadline", async () => {
       const { testDb } = await createTestDb();
       await seedTutorIdentity(testDb);
 
@@ -744,8 +520,8 @@ describe("Tutor Schedule Action Contracts", () => {
           now: new Date("2026-09-11T11:00:00.000Z"),
         },
       );
-      expect(afterDeadline.success).toBe(false);
-      expect(afterDeadline.reason).toBe("TUTOR_AVAILABILITY_DEADLINE_PASSED");
+      expect(afterDeadline.success).toBe(true);
+      expect(await testDb.select().from(schema.tutorSlots)).toHaveLength(1);
     });
 
     it("backfills only booked null-date slots with an unambiguous date", async () => {
@@ -990,7 +766,7 @@ describe("Tutor Schedule Action Contracts", () => {
       expect(audits[0].outcome).toBe("rejected");
     });
 
-    it("rejects deletion of an unbooked dated slot after the tutor deadline", async () => {
+    it("allows deletion of an unbooked dated slot after the former deadline", async () => {
       const { testDb } = await createTestDb();
       const now = new Date();
       await seedTutorIdentity(testDb, now);
@@ -1014,9 +790,8 @@ describe("Tutor Schedule Action Contracts", () => {
         },
       );
 
-      expect(res.success).toBe(false);
-      expect(res.reason).toBe("TUTOR_AVAILABILITY_DEADLINE_PASSED");
-      expect(await testDb.select().from(schema.tutorSlots)).toHaveLength(1);
+      expect(res.success).toBe(true);
+      expect(await testDb.select().from(schema.tutorSlots)).toHaveLength(0);
     });
 
     it("prevents slot deletion race condition if slot is booked right before deletion transaction executes", async () => {
@@ -1472,7 +1247,7 @@ describe("Tutor Schedule Action Contracts", () => {
       expect(ticketRows.length).toBe(0);
     });
 
-    it("rejects creating duplicate pending reschedule tickets for the same locked session", async () => {
+    it("moves sessions directly without tickets after the former weekly lock", async () => {
       const { testDb } = await createTestDb();
       const { now } = await seedQuotaFixture(testDb, { weekly: 2, total: 10, used: 1 });
 
@@ -1483,7 +1258,7 @@ describe("Tutor Schedule Action Contracts", () => {
         status: "scheduled",
       }, now);
 
-      // First locked move: creates a pending ticket
+      // Weekly locks were removed; this move must update the booking directly.
       const firstMove = await executeMoveTutorSession(
         {
           bookingId: "bk-locked-dup",
@@ -1501,10 +1276,10 @@ describe("Tutor Schedule Action Contracts", () => {
       );
 
       expect(firstMove.success).toBe(true);
-      expect(firstMove.requiresTicket).toBe(true);
-      expect(firstMove.ticketId).toBeDefined();
+      expect(firstMove.requiresTicket).not.toBe(true);
+      expect(firstMove.ticketId).toBeUndefined();
 
-      // Second locked move on the same booking while previous ticket is pending
+      // A second direct move must preserve the same booking identity.
       const secondMove = await executeMoveTutorSession(
         {
           bookingId: "bk-locked-dup",
@@ -1521,12 +1296,14 @@ describe("Tutor Schedule Action Contracts", () => {
         },
       );
 
-      expect(secondMove.success).toBe(false);
-      expect(secondMove.reason).toBe("DUPLICATE_PENDING_TICKET");
+      expect(secondMove.success).toBe(true);
+      const [moved] = await testDb.select().from(schema.bookings).where(eq(schema.bookings.id, "bk-locked-dup"));
+      expect(moved.slotId).toBe("slot-c");
+      expect(moved.sessionDate).toBe("2026-08-28");
 
-      // Ensure only 1 ticket was created
+      // Direct moves must not leave pending tickets.
       const tickets = await testDb.select().from(schema.bookingRescheduleTickets);
-      expect(tickets).toHaveLength(1);
+      expect(tickets).toHaveLength(0);
     });
 
     it("rejects direct move into a full target week (cross-week weekly quota exceeded) and writes rejected audit", async () => {

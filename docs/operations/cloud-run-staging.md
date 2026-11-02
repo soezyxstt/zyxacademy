@@ -1,10 +1,10 @@
 # Cloud Run staging setup
 
-Status: `OPEN / IN PROGRESS`. Pricing checked on 2026-10-25. The user reports creating the Artifact Registry repository in Taiwan. The local standalone build and container smoke checks pass. No remote image publication or Cloud Run deployment has been verified by this task.
+Status: `ACTIVE`. Staging image publication, Cloud Run deployment and traffic promotion are verified. Staging uses Neon PostgreSQL and private Neon object storage; production is unchanged. Final feature acceptance and cutover evidence are recorded in the [migration runbook](neon-migration.md). Pricing below was checked on 2026-10-25.
 
 ## Target and configuration
 
-The selected project is `zyx-academy`; the selected region is Taiwan, `asia-east1`. The user has already created service `zyx-academy`; CI deploys directly to that existing service and does not create another one. Kuala Lumpur was not available in the user's repository creation form. Deploy the Next.js web app and retain the existing staging Turso database, R2 storage, Deno worker, Inngest environment, and supporting Cloudflare Workers.
+The selected project is `zyx-academy`; the selected region is Taiwan, `asia-east1`. CI deploys directly to the existing service `zyx-academy`. The staging database and object bucket are the final Neon branch recorded in the migration runbook. Retain the existing Deno app, Inngest staging environment and supporting Cloudflare Workers. Preserve the previous Turso/R2 resources for coordinated rollback.
 
 | Setting | Initial value |
 | --- | --- |
@@ -48,7 +48,13 @@ The staging job authenticates with the service-account JSON stored in GitHub Env
 
 The deployment targets only `zyx-academy/asia-east1/zyx-academy`. It synchronizes allowlisted runtime values from GitHub staging, retains unmanaged variables and unreplaced Secret Manager references, and preserves invocation IAM. It reapplies the cost settings in the table above and the same account identified by the CI JSON key. A missing service, missing required runtime settings, explicit non-staging marker, or non-staging database/origin blocks deployment. Missing staging markers and old runtime origins are repaired using the staging build origin. A failed or mismatched revision does not trigger a traffic switch. The existing Deno deployment workflow is separate. No Cloud Build trigger is created.
 
-The image runs as an unprivileged Node 24 user and uses the traced server, static assets and public files. The Docker build context is allowlisted by `Dockerfile.cloud-run.dockerignore`. Root `.env` files, keys, local databases and generated Google credentials do not enter the image. Chromium is not downloaded; deployed browser work stays on the existing external providers. Only the isolated Next build process skips server environment validation. Sitemap generation requires the existing staging Turso URL/token as process environment values; the workflow checks the exact staging database hostname before building. These credentials are not image build arguments, copied environment files, or image environment settings. Prefer a read-only token for the build. The final image leaves runtime validation enabled.
+The image runs as an unprivileged Node 24 user and uses the traced server, static assets and public files. The Docker build context is allowlisted by `Dockerfile.cloud-run.dockerignore`. Root `.env` files, keys, local databases and generated Google credentials do not enter the image. Chromium is not downloaded; deployed browser work stays on the existing external providers. Only the isolated Next build process skips server environment validation. Sitemap generation uses the staging PostgreSQL `DATABASE_URL` as a process environment value; the workflow validates its exact Neon target before building. Credentials are not image build arguments, copied environment files, or image environment settings. The final image leaves runtime validation enabled.
+
+## Neon staging integration
+
+The migration branch uses PostgreSQL for both the build and runtime. Before deployment, configure and independently verify GitHub staging variables `NEON_EXPECTED_HOST`, `NEON_EXPECTED_STORAGE_ENDPOINT`, and `NEON_EXPECTED_STORAGE_BUCKET` against the final branch recorded in the migration runbook. Set `DATABASE_URL` to that branch's PostgreSQL connection with `sslmode=verify-full` and `STORAGE_PROVIDER_MODE=neon`, with `NEON_STORAGE_BUCKET`, `AWS_ENDPOINT_URL_S3`, `AWS_REGION`, `AWS_ACCESS_KEY_ID`, and `AWS_SECRET_ACCESS_KEY` scoped to its private bucket. Connection parameters cannot override the pinned host, database, port or TLS policy. The web and Deno workflows reject mismatched targets before external deployment mutation; worker releases accept only `main` or `staging`. Preserve existing authentication, compute, browser, Inngest and feature settings.
+
+The Neon staging cutover completed its write freeze and data reconciliation. Earlier Turso build instructions and validation checkpoints below are historical rollback context. Do not change the production environment, reuse the rehearsal database, or restore a Turso URL into PostgreSQL-only code. Preserve the previous immutable image, runtime environment and worker configuration together for rollback.
 
 ## One-time Console setup for CI/CD
 

@@ -636,7 +636,7 @@ describe("Source Pack Storage & Persistence", () => {
       expect(defaultContent.document.markdown).toContain(correction);
     }
 
-    // Also test equal-timestamp tie-breaking: set identical createdAt & updatedAt on A and B, and verify rowid DESC still selects B
+    // Also test equal-timestamp tie-breaking: set identical createdAt & updatedAt on A and B, and verify the PostgreSQL insertion ordinal still selects B
     const { imporBundle } = await import("@/db/schema");
     const { inArray } = await import("drizzle-orm");
     const sameTime = new Date("2026-10-19T09:00:00.000Z");

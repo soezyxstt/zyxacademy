@@ -4,6 +4,15 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { MathText } from "@/components/course/math-text";
 import { PublicFormViewer } from "@/components/forms/public-form-viewer";
 import type { QuestionType } from "@/lib/google-forms";
+import { NextIntlClientProvider } from "next-intl";
+import publicForms from "@/messages/id/publicForms.json";
+
+function renderForm(props: React.ComponentProps<typeof PublicFormViewer>) {
+  return renderToStaticMarkup(React.createElement(NextIntlClientProvider, {
+    locale: "id", timeZone: "Asia/Jakarta", messages: { publicForms },
+    children: React.createElement(PublicFormViewer, props),
+  }));
+}
 
 describe("Form Studio - Markdown Rendering & Clickable Links", () => {
   it("renders markdown links [title](url) as clickable <a> tags with target='_blank'", () => {
@@ -95,12 +104,10 @@ describe("Form Studio - Non-Question Statement Slides & Preview Logic", () => {
       },
     };
 
-    const html = renderToStaticMarkup(
-      React.createElement(PublicFormViewer, {
+    const html = renderForm({
         previewForm,
         isPreview: true,
-      })
-    );
+    });
 
     // Verify form rendered in preview mode
     expect(html).toContain("Kuesioner Praktikum Kimia");
@@ -129,13 +136,11 @@ describe("Form Studio - Non-Question Statement Slides & Preview Logic", () => {
     };
 
     // Step 0: cover, Step 1: final question and submit action
-    const html = renderToStaticMarkup(
-      React.createElement(PublicFormViewer, {
+    const html = renderForm({
         previewForm,
         isPreview: true,
         initialStepIndex: 1,
-      })
-    );
+    });
 
     expect(html).not.toContain("Tinjau Jawaban Anda");
     expect(html).toContain("Kirim tanggapan");

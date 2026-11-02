@@ -1,6 +1,7 @@
 import { and, count, desc, eq, gt, lt, max, ne } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
-import { codingAttempts } from "@/db/schema";
+import { isDeepStrictEqual } from "node:util";
+import { codingAttempts, user } from "@/db/schema";
 import type { db as database } from "@/db";
 import type { CodingAttempt, CodingAttemptRepository } from "./submissions";
 import { codingEvaluationSchema } from "./contracts";
@@ -15,11 +16,13 @@ export function createCodingAttemptRepository(db: Database): CodingAttemptReposi
   return {
     async reserve(input) {
       return db.transaction(async (tx) => {
+        // PostgreSQL writers must serialize the learner-wide pending-job check.
+        await tx.select({ id: user.id }).from(user).where(eq(user.id, input.learnerId)).for("update");
         const scope = and(eq(codingAttempts.learnerId, input.learnerId), eq(codingAttempts.surface, input.surface), eq(codingAttempts.surfaceId, input.surfaceId));
         const [existing] = await tx.select().from(codingAttempts).where(and(scope, eq(codingAttempts.requestId, input.request.requestId))).limit(1);
         const now = Date.now();
         if (existing) {
-          if (existing.courseId !== input.courseId || JSON.stringify(existing.request) !== JSON.stringify(input.request)) throw new Error("CODING_REQUEST_CONFLICT");
+          if (existing.courseId !== input.courseId || !isDeepStrictEqual(existing.request, input.request)) throw new Error("CODING_REQUEST_CONFLICT");
           if (existing.status === "completed" || (existing.status === "pending" && existing.leaseExpiresAt > now)) return { created: false, attempt: toAttempt(existing) };
           const token = randomUUID();
           const [reclaimed] = await tx.update(codingAttempts).set({ status: "pending", evaluation: null, leaseToken: token, leaseExpiresAt: now + 120_000 }).where(and(eq(codingAttempts.id, existing.id), eq(codingAttempts.leaseToken, existing.leaseToken))).returning();

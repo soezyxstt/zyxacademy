@@ -1,9 +1,13 @@
 import { describe, expect, test, mock } from "bun:test";
+import { readFileSync } from "node:fs";
 
 mock.module("server-only", () => ({}));
 
 const { parseAdminCourseSlug, getAdminCourseNavItems } = await import("@/components/admin-sidebar");
 const { getRouteTitle } = await import("@/components/mobile-navbar");
+const routeTitle = (path: string) => getRouteTitle(path, undefined, (key) => key);
+const adminMessages = JSON.parse(readFileSync("messages/id/admin.json", "utf8"));
+const studentMessages = JSON.parse(readFileSync("messages/id/student.json", "utf8"));
 const { getCourseNavContext } = await import("@/app/(admin)/admin/(academic)/courses/actions");
 
 describe("Admin Course Workspace Navigation & Mobile Route Titles Contract", () => {
@@ -45,13 +49,14 @@ describe("Admin Course Workspace Navigation & Mobile Route Titles Contract", () 
     const slug = "kalkulus-1";
     const items = getAdminCourseNavItems(slug);
 
-    test("returns exactly eleven items in the prescribed order", () => {
-      expect(items).toHaveLength(11);
+    test("returns exactly twelve items in the prescribed order", () => {
+      expect(items).toHaveLength(12);
       expect(items.map((i) => i.label)).toEqual([
         "Bab",
         "Dokumen",
         "Video",
         "Kuis",
+        "Tryout",
         "Soal",
         "Flashcard",
         "Hasil",
@@ -78,6 +83,7 @@ describe("Admin Course Workspace Navigation & Mobile Route Titles Contract", () 
         `/admin/courses/${slug}/documents`,
         `/admin/courses/${slug}/videos`,
         `/admin/courses/${slug}/quizzes`,
+        `/admin/courses/${slug}/tryouts`,
         `/admin/courses/${slug}/questions`,
         `/admin/courses/${slug}/flashcards`,
         `/admin/courses/${slug}/results`,
@@ -128,8 +134,8 @@ describe("Admin Course Workspace Navigation & Mobile Route Titles Contract", () 
 
       // Settings route: only Settings is active
       const settingsPath = `/admin/courses/${slug}/settings`;
-      expect(isItemActive(items[10], settingsPath)).toBe(true);
-      expect(items.slice(0, 10).every((i) => !isItemActive(i, settingsPath))).toBe(true);
+      expect(isItemActive(items[11], settingsPath)).toBe(true);
+      expect(items.slice(0, 11).every((i) => !isItemActive(i, settingsPath))).toBe(true);
     });
   });
 
@@ -150,36 +156,48 @@ describe("Admin Course Workspace Navigation & Mobile Route Titles Contract", () 
   });
 
   describe("Mobile route titles contract (getRouteTitle)", () => {
-    test("preserves global course title for /admin/courses root", () => {
-      expect(getRouteTitle("/admin/courses")).toBe("Mata Kuliah");
-      expect(getRouteTitle("/admin/courses/")).toBe("Mata Kuliah");
+    test("Indonesian catalogs contain the route labels", () => {
+      expect(adminMessages.routeTitles).toMatchObject({
+        courses: "Mata kuliah", chapters: "Bab", documents: "Dokumen", videos: "Video",
+        quizzes: "Kuis", tryouts: "Tryout", questions: "Soal", flashcards: "Flashcard",
+        results: "Hasil", leaderboard: "Papan peringkat", analytics: "Analitik",
+        review: "Review materi", settings: "Pengaturan", dashboard: "Panel admin",
+        blog: "Kelola blog", schedules: "Jadwal umum", ops: "Monitor Ops",
+      });
+      expect(studentMessages.routeTitles.dashboard).toBe("Dashboard Siswa");
     });
 
-    test("resolves mobile route titles for all eleven contextual course routes", () => {
+    test("preserves global course title for /admin/courses root", () => {
+      expect(routeTitle("/admin/courses")).toBe("admin.routeTitles.courses");
+      expect(routeTitle("/admin/courses/")).toBe("admin.routeTitles.courses");
+    });
+
+    test("resolves mobile route titles for all twelve contextual course routes", () => {
       const slug = "aljabar-linear";
-      expect(getRouteTitle(`/admin/courses/${slug}`)).toBe("Bab");
-      expect(getRouteTitle(`/admin/courses/${slug}/`)).toBe("Bab");
-      expect(getRouteTitle(`/admin/courses/${slug}/documents`)).toBe("Dokumen");
-      expect(getRouteTitle(`/admin/courses/${slug}/videos`)).toBe("Video");
-      expect(getRouteTitle(`/admin/courses/${slug}/quizzes`)).toBe("Kuis");
-      expect(getRouteTitle(`/admin/courses/${slug}/quizzes/new`)).toBe("Kuis");
-      expect(getRouteTitle(`/admin/courses/${slug}/questions`)).toBe("Soal");
-      expect(getRouteTitle(`/admin/courses/${slug}/flashcards`)).toBe("Flashcard");
-      expect(getRouteTitle(`/admin/courses/${slug}/results`)).toBe("Hasil");
-      expect(getRouteTitle(`/admin/courses/${slug}/leaderboard`)).toBe("Papan Peringkat");
-      expect(getRouteTitle(`/admin/courses/${slug}/analytics`)).toBe("Analitik");
-      expect(getRouteTitle(`/admin/courses/${slug}/review`)).toBe("Review Materi");
-      expect(getRouteTitle(`/admin/courses/${slug}/settings`)).toBe("Pengaturan");
+      expect(routeTitle(`/admin/courses/${slug}`)).toBe("admin.routeTitles.chapters");
+      expect(routeTitle(`/admin/courses/${slug}/`)).toBe("admin.routeTitles.chapters");
+      expect(routeTitle(`/admin/courses/${slug}/documents`)).toBe("admin.routeTitles.documents");
+      expect(routeTitle(`/admin/courses/${slug}/videos`)).toBe("admin.routeTitles.videos");
+      expect(routeTitle(`/admin/courses/${slug}/quizzes`)).toBe("admin.routeTitles.quizzes");
+      expect(routeTitle(`/admin/courses/${slug}/quizzes/new`)).toBe("admin.routeTitles.quizzes");
+      expect(routeTitle(`/admin/courses/${slug}/tryouts`)).toBe("admin.routeTitles.tryouts");
+      expect(routeTitle(`/admin/courses/${slug}/questions`)).toBe("admin.routeTitles.questions");
+      expect(routeTitle(`/admin/courses/${slug}/flashcards`)).toBe("admin.routeTitles.flashcards");
+      expect(routeTitle(`/admin/courses/${slug}/results`)).toBe("admin.routeTitles.results");
+      expect(routeTitle(`/admin/courses/${slug}/leaderboard`)).toBe("admin.routeTitles.leaderboard");
+      expect(routeTitle(`/admin/courses/${slug}/analytics`)).toBe("admin.routeTitles.analytics");
+      expect(routeTitle(`/admin/courses/${slug}/review`)).toBe("admin.routeTitles.review");
+      expect(routeTitle(`/admin/courses/${slug}/settings`)).toBe("admin.routeTitles.settings");
     });
 
     test("preserves existing non-course admin and student route titles", () => {
-      expect(getRouteTitle("/admin")).toBe("Panel Admin");
-      expect(getRouteTitle("/admin/blog")).toBe("Kelola Blog");
-      expect(getRouteTitle("/admin/schedules")).toBe("Jadwal");
-      expect(getRouteTitle("/admin/questions")).toBe("Bank Soal");
-      expect(getRouteTitle("/admin/quizzes")).toBe("Kuis");
-      expect(getRouteTitle("/admin/ops")).toBe("Monitor Ops");
-      expect(getRouteTitle("/dashboard")).toBe("Dashboard Siswa");
+      expect(routeTitle("/admin")).toBe("admin.routeTitles.dashboard");
+      expect(routeTitle("/admin/blog")).toBe("admin.routeTitles.blog");
+      expect(routeTitle("/admin/schedules")).toBe("admin.routeTitles.schedules");
+      expect(routeTitle("/admin/questions")).toBe("admin.routeTitles.questions");
+      expect(routeTitle("/admin/quizzes")).toBe("admin.routeTitles.quizzes");
+      expect(routeTitle("/admin/ops")).toBe("admin.routeTitles.ops");
+      expect(routeTitle("/dashboard")).toBe("routeTitles.dashboard");
     });
   });
 

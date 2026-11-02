@@ -185,6 +185,8 @@ export async function computeSnapshotPayload(courseId: string): Promise<Snapshot
   const twentyEightDaysAgo = new Date(Date.now() - 28 * 24 * 60 * 60 * 1000);
   const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
 
+  const historyWeek = sql<string>`to_char(${studentConceptMasteryHistory.snapshotDate}::date, 'YYYY') || '-W' || lpad(floor((extract(doy from ${studentConceptMasteryHistory.snapshotDate}::date) + 6 - (extract(isodow from ${studentConceptMasteryHistory.snapshotDate}::date) - 1)) / 7)::text, 2, '0')`;
+
   // Run base analytics and all P6B queries in parallel
   const [
     base,
@@ -201,7 +203,7 @@ export async function computeSnapshotPayload(courseId: string): Promise<Snapshot
     db
       .select({
         conceptName: studentConceptMasteryHistory.conceptName,
-        week: sql<string>`strftime('%Y-W%W', ${studentConceptMasteryHistory.snapshotDate})`,
+        week: historyWeek,
         avgMastery: avg(studentConceptMasteryHistory.masteryScore),
       })
       .from(studentConceptMasteryHistory)
@@ -213,11 +215,11 @@ export async function computeSnapshotPayload(courseId: string): Promise<Snapshot
       )
       .groupBy(
         studentConceptMasteryHistory.conceptName,
-        sql`strftime('%Y-W%W', ${studentConceptMasteryHistory.snapshotDate})`
+        historyWeek
       )
       .orderBy(
         studentConceptMasteryHistory.conceptName,
-        sql`strftime('%Y-W%W', ${studentConceptMasteryHistory.snapshotDate})`
+        historyWeek
       ),
 
     // Completed attempts for most-missed computation (last 28 days)
@@ -251,7 +253,7 @@ export async function computeSnapshotPayload(courseId: string): Promise<Snapshot
     db
       .select({
         studentId: studentConceptMastery.studentId,
-        concepts: sql<string>`GROUP_CONCAT(${studentConceptMastery.conceptName})`,
+        concepts: sql<string>`string_agg(${studentConceptMastery.conceptName}, ',')`,
       })
       .from(studentConceptMastery)
       .where(

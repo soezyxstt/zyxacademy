@@ -24,7 +24,8 @@ describe("mobile/tablet 1-step direct PDF opening contract", () => {
   it("MaterialViewer uses normalized viewable PDF URL for Buka Berkas Asli and renders mobile launcher card", () => {
     const src = source("components/course/material-viewer.tsx");
     expect(src).toContain("getViewablePdfUrl(material.url)");
-    expect(src).toContain("Buka Berkas Asli");
+    expect(src).toContain('t("reader.openOriginal")');
+    expect(JSON.parse(source("messages/id/learning.json")).reader.openOriginal).toBe("Buka berkas asli");
     expect(src).toContain("Buka Dokumen PDF");
     expect(src).toContain("md:hidden");
   });

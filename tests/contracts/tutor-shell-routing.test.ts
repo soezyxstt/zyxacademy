@@ -1,8 +1,9 @@
-import { describe, expect, it, mock, beforeEach } from "bun:test";
+import { afterEach, beforeAll, describe, expect, it, mock, beforeEach } from "bun:test";
 import React from "react";
+import { NextIntlClientProvider } from "next-intl";
+import { loadMessages } from "@/lib/i18n/catalogs";
 import { renderToStaticMarkup } from "react-dom/server";
-import { createClient } from "@libsql/client";
-import { drizzle } from "drizzle-orm/libsql";
+import { createPostgresTestDb, preparePostgresTestDb } from "../helpers/postgres";
 import * as schema from "@/db/schema";
 import {
   requireTutorCourseAccess,
@@ -10,7 +11,16 @@ import {
 } from "@/lib/auth/tutor-access";
 import { hasAnyPeran } from "@/lib/auth/authorization";
 
+const messages = await loadMessages("id");
+function renderWithMessages(node: React.ReactNode) {
+  return renderToStaticMarkup(React.createElement(NextIntlClientProvider, {
+    locale: "id", timeZone: "Asia/Jakarta", messages, children: node,
+  }));
+}
+
 let currentPathname = "/tutor";
+mock.module("next/headers", () => ({ headers: async () => new Headers() }));
+mock.module("@/lib/auth", () => ({ auth: { api: { getSession: async () => null } } }));
 
 mock.module("next/navigation", () => ({
   usePathname: () => currentPathname,
@@ -68,94 +78,15 @@ import { TutorCourseSwitcher } from "@/components/tutor/tutor-course-switcher";
 import TutorMaterialsPage from "@/app/(tutor)/tutor/[courseId]/materials/page";
 import TutorTryoutsPage from "@/app/(tutor)/tutor/[courseId]/tryouts/page";
 
+beforeAll(preparePostgresTestDb, 60_000);
+const clients: Array<Awaited<ReturnType<typeof createPostgresTestDb>>["client"]> = [];
+afterEach(async () => {
+  for (const client of clients.splice(0)) await client.close();
+});
+
 async function createTestDb() {
-  const client = createClient({ url: ":memory:" });
-  const testDb = drizzle(client, { schema });
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS user (
-      id TEXT PRIMARY KEY,
-      name TEXT NOT NULL,
-      email TEXT NOT NULL UNIQUE,
-      email_verified INTEGER NOT NULL DEFAULT 0,
-      image TEXT,
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL,
-      role TEXT DEFAULT 'student',
-      last_activity_at INTEGER
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS pengguna (
-      id TEXT PRIMARY KEY REFERENCES user(id),
-      status TEXT NOT NULL DEFAULT 'active',
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS peran (
-      id TEXT PRIMARY KEY,
-      code TEXT NOT NULL UNIQUE,
-      created_at INTEGER NOT NULL
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS pengguna_peran (
-      id TEXT PRIMARY KEY,
-      pengguna_id TEXT NOT NULL REFERENCES pengguna(id),
-      peran_id TEXT NOT NULL REFERENCES peran(id),
-      source TEXT NOT NULL,
-      audit_actor_pengguna_id TEXT,
-      created_at INTEGER NOT NULL
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS courses (
-      id TEXT PRIMARY KEY,
-      title TEXT NOT NULL,
-      category TEXT NOT NULL DEFAULT 'Matematika',
-      description TEXT
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS mata_kuliah (
-      id TEXT PRIMARY KEY,
-      code TEXT NOT NULL UNIQUE,
-      title TEXT NOT NULL,
-      status TEXT NOT NULL DEFAULT 'active',
-      legacy_course_id TEXT REFERENCES courses(id),
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS penugasan_tutor (
-      id TEXT PRIMARY KEY,
-      pengguna_id TEXT NOT NULL REFERENCES pengguna(id),
-      mata_kuliah_id TEXT NOT NULL REFERENCES mata_kuliah(id),
-      status TEXT NOT NULL DEFAULT 'active',
-      assignment_scope TEXT NOT NULL DEFAULT 'course',
-      legacy_tutor_course_id TEXT,
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL
-    );
-  `);
-
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS tutor_courses (
-      id TEXT PRIMARY KEY,
-      tutor_id TEXT NOT NULL REFERENCES user(id),
-      course_id TEXT NOT NULL REFERENCES courses(id),
-      created_at INTEGER NOT NULL
-    );
-  `);
+  const { client, testDb } = await createPostgresTestDb();
+  clients.push(client);
 
   await testDb.insert(schema.peran).values([
     { id: "peran-admin", code: "admin" },
@@ -173,7 +104,7 @@ describe("Tutor shell routing and route containment", () => {
 
   it("renders canonical global navigation items Pengajaran and Jadwal", () => {
     currentPathname = "/tutor";
-    const markup = renderToStaticMarkup(React.createElement(TutorSidebar));
+    const markup = renderWithMessages(React.createElement(TutorSidebar));
 
     expect(markup).toContain("Pengajaran");
     expect(markup).toContain('href="/tutor"');
@@ -187,7 +118,7 @@ describe("Tutor shell routing and route containment", () => {
 
   it("does not treat /tutor/schedule as an active course route", () => {
     currentPathname = "/tutor/schedule";
-    const markup = renderToStaticMarkup(React.createElement(TutorSidebar));
+    const markup = renderWithMessages(React.createElement(TutorSidebar));
 
     expect(markup).toContain("Pengajaran");
     expect(markup).toContain("Jadwal");
@@ -201,7 +132,7 @@ describe("Tutor shell routing and route containment", () => {
 
   it("does not detect active course from legacy /courses/:id routes", () => {
     currentPathname = "/courses/mk-kalkulus";
-    const markup = renderToStaticMarkup(React.createElement(TutorSidebar));
+    const markup = renderWithMessages(React.createElement(TutorSidebar));
 
     // Should not render tutor active course nav for /courses/...
     expect(markup).not.toContain("Navigasi Kelas");
@@ -219,7 +150,7 @@ describe("Tutor shell routing and route containment", () => {
       },
     ];
 
-    const markup = renderToStaticMarkup(
+    const markup = renderWithMessages(
       React.createElement(TutorSidebar, { assignedCourses }),
     );
 
@@ -230,17 +161,18 @@ describe("Tutor shell routing and route containment", () => {
     // Allowed active course navigation
     expect(markup).toContain("Ringkasan");
     expect(markup).toContain('href="/tutor/mk-kalkulus"');
-    expect(markup).toContain("Peserta &amp; Kelompok");
+    expect(markup).toContain("Peserta dan kelompok");
     expect(markup).toContain('href="/tutor/mk-kalkulus/participants"');
     expect(markup).toContain("Kuis");
     expect(markup).toContain('href="/tutor/mk-kalkulus/quizzes"');
-    expect(markup).toContain("Kuis Langsung");
+    expect(markup).toContain("Kuis langsung");
     expect(markup).toContain('href="/tutor/mk-kalkulus/live"');
-    expect(markup).toContain("Penilaian Tryout");
+    expect(markup).toContain("Penilaian tryout");
     expect(markup).toContain('href="/tutor/mk-kalkulus/grading"');
 
     // Forbidden authoring nav items must be absent
-    expect(markup).not.toContain("/tutor/mk-kalkulus/materials");
+    expect(markup).toContain('href="/tutor/mk-kalkulus/materials"');
+    expect(markup).toContain("Dokumen");
     expect(markup).not.toContain("Kelola Materi");
     expect(markup).not.toContain("/tutor/mk-kalkulus/tryouts");
     expect(markup).not.toContain("Kelola Tryout");
@@ -251,7 +183,7 @@ describe("Tutor shell routing and route containment", () => {
       { courseId: "mk-1", title: "Kalkulus 1", code: "MA-1101" },
     ];
 
-    const markup = renderToStaticMarkup(
+    const markup = renderWithMessages(
       React.createElement(TutorCourseSwitcher, {
         courses: singleCourse,
         activeCourseId: "mk-1",
@@ -270,7 +202,7 @@ describe("Tutor shell routing and route containment", () => {
       { courseId: "mk-2", title: "Fisika Dasar 1", code: "FI-1101" },
     ];
 
-    const markup = renderToStaticMarkup(
+    const markup = renderWithMessages(
       React.createElement(TutorCourseSwitcher, {
         courses: assignedCourses,
         activeCourseId: "mk-1",
@@ -282,7 +214,7 @@ describe("Tutor shell routing and route containment", () => {
     expect(markup).toContain("MA-1101");
   });
 
-  it("redirects forbidden materials authoring page directly to /tutor/:courseId", async () => {
+  it("redirects unauthenticated materials visits to /tutor", async () => {
     let redirectedUrl = "";
     try {
       await TutorMaterialsPage({
@@ -295,7 +227,7 @@ describe("Tutor shell routing and route containment", () => {
     }
 
     expect(redirectedUrl).toContain("NEXT_REDIRECT");
-    expect(redirectedUrl).toContain("/tutor/mk-kalkulus");
+    expect(redirectedUrl).toBe("NEXT_REDIRECT;replace;/tutor;307;");
   });
 
   it("redirects forbidden tryouts authoring page directly to /tutor/:courseId", async () => {
@@ -315,8 +247,8 @@ describe("Tutor shell routing and route containment", () => {
   });
 
   it("enforces requireTutorCourseAccess with explicit allowAdmin: false on course overview", async () => {
-    const { client, testDb } = await createTestDb();
-    try {
+    const { testDb } = await createTestDb();
+    {
       const now = new Date();
 
       // Admin user (not assigned as tutor)
@@ -399,8 +331,6 @@ describe("Tutor shell routing and route containment", () => {
       expect(tutorAccess.hasAccess).toBe(true);
       expect(tutorAccess.source).toBe("canonical_assignment");
       expect(tutorAccess.courseId).toBe("mk-kimia");
-    } finally {
-      client.close();
     }
   });
 
@@ -483,8 +413,8 @@ describe("Tutor shell routing and route containment", () => {
   });
 
   it("rejects pure admin from tutor shell layout and index authorization", async () => {
-    const { client, testDb } = await createTestDb();
-    try {
+    const { testDb } = await createTestDb();
+    {
       const now = new Date();
 
       await testDb.insert(schema.user).values({
@@ -526,14 +456,12 @@ describe("Tutor shell routing and route containment", () => {
       // 2. listTutorAccessibleCourses rejects admin with allowAdmin: false
       const accessible = await listTutorAccessibleCourses("usr-admin-only", { allowAdmin: false }, testDb);
       expect(accessible).toEqual([]);
-    } finally {
-      client.close();
     }
   });
 
   it("bridges canonical courseId to verified legacyCourseId for cohort analytics", async () => {
-    const { client, testDb } = await createTestDb();
-    try {
+    const { testDb } = await createTestDb();
+    {
       const now = new Date();
 
       await testDb.insert(schema.courses).values({
@@ -592,8 +520,6 @@ describe("Tutor shell routing and route containment", () => {
       expect(access.hasAccess).toBe(true);
       expect(access.courseId).toBe("mk-calc-canonical");
       expect(access.legacyCourseId).toBe("crs-calc-legacy");
-    } finally {
-      client.close();
     }
   });
 });

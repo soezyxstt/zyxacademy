@@ -48,7 +48,7 @@ async function main() {
   // 1. Database Connectivity (Turso / SQLite)
   results.push(
     await runCheck("Database (Turso/SQLite)", async () => {
-      const res = await db.run(sql`SELECT 1 as alive`);
+      await db.execute(sql`SELECT 1 as alive`);
       return "SELECT 1 executed successfully";
     })
   );

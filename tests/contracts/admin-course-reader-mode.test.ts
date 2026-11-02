@@ -31,8 +31,10 @@ describe("admin course reader mode contract", () => {
     const content = source("components/course/structured-article-reader.tsx");
     expect(content).toContain('if (!learnerMode) return;\n      try {\n        const res = await fetch(`/api/student/articles/');
     expect(content).toContain('if (!learnerMode) return;\n    activeTimeSpentRef.current = 0');
-    expect(content).toContain('if (!learnerMode) return;\n    const handleSelectionChange');
-    expect(content).toContain("learnerMode && selectionCoords && selectedText");
+    expect(content).toContain('if (!learnerMode || !selectionAskEnabled || !isMobileSelection || isTutorOpen) return;\n');
+    expect(content).toContain('if (!learnerMode || !selectionAskEnabled || isMobileSelection) return;\n');
+    expect(content).toContain("learnerMode && isMobileSelection && !isTutorOpen && isSelectionToolbarOpen && selectionContext");
+    expect(content).toContain("learnerMode && !isMobileSelection && selectionCoords && selectionContext");
   });
 
   test("admin preview authenticates and resolves ownership before rendering", () => {
@@ -52,7 +54,8 @@ describe("admin course reader mode contract", () => {
     const page = source("app/(admin)/admin/(academic)/courses/[slug]/documents/page.tsx");
     const workspace = source("components/admin/course-detail/admin-document-workspace.tsx");
     const student = source("app/(student)/courses/[id]/material/[materialId]/page.tsx");
-    expect(page).toContain("DocumentListClient");
+    expect(page).toContain("CourseDocumentsClient");
+    expect(source("app/(student)/courses/[id]/material/course-documents-client.tsx")).toContain("<DocumentListClient");
     expect(page).toContain("listAdminCourseMaterials(identity)");
     expect(workspace.indexOf("AdminMaterialPreviewBar")).toBeLessThan(workspace.indexOf("StructuredArticleReader"));
     expect(student).not.toContain("AdminMaterialPreviewBar");

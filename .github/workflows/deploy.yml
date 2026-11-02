@@ -118,6 +118,8 @@ on:
       - 'lib/course-materials.ts'
       - 'lib/date-utils.ts'
       - 'lib/db/index.ts'
+      - 'lib/db/postgres-result.ts'
+      - 'lib/mutation-result.ts'
       - 'lib/diktat-auditor.ts'
       - 'lib/diktat-exam-intelligence.ts'
       - 'lib/diktat-generator.ts'
@@ -345,6 +347,8 @@ on:
       - 'lib/course-materials.ts'
       - 'lib/date-utils.ts'
       - 'lib/db/index.ts'
+      - 'lib/db/postgres-result.ts'
+      - 'lib/mutation-result.ts'
       - 'lib/diktat-auditor.ts'
       - 'lib/diktat-exam-intelligence.ts'
       - 'lib/diktat-generator.ts'
@@ -458,6 +462,14 @@ on:
       - 'workers/deno-background/**'
   workflow_dispatch:
     inputs:
+      runtime_diagnostics:
+        description: "Read the production worker rollback identity without deploying or exporting secrets"
+        type: boolean
+        default: false
+      restore_turso_worker:
+        description: "Restore the recorded pre-Neon production worker and its original storage/database routing"
+        type: boolean
+        default: false
       browser_diagnostics:
         description: "Probe Browser Run only, without deploying or changing application data"
         type: boolean
@@ -473,6 +485,26 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  runtime-diagnostics:
+    if: github.event_name == 'workflow_dispatch' && (inputs.runtime_diagnostics || inputs.restore_turso_worker)
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - run: python3 .github/scripts/inspect_production_deno.py ${{ inputs.restore_turso_worker && '--restore-turso' || '' }}
+        env:
+          DENO_DEPLOY_TOKEN: ${{ secrets.DENO_DEPLOY_TOKEN }}
+      - uses: actions/upload-artifact@v4
+        if: ${{ !inputs.restore_turso_worker }}
+        with:
+          name: neon-production-deno-before
+          path: artifacts/neon-production/deno-before.json
+          retention-days: 7
+
   browser-diagnostics:
     if: github.event_name == 'workflow_dispatch' && inputs.browser_diagnostics
     runs-on: ubuntu-latest
@@ -543,7 +575,7 @@ jobs:
 
   deploy:
     name: Deploy Background Worker (${{ github.ref_name }})
-    if: github.event_name != 'pull_request' && !inputs.browser_diagnostics
+    if: github.event_name != 'pull_request' && !inputs.browser_diagnostics && !inputs.runtime_diagnostics && !inputs.restore_turso_worker && (github.ref_name == 'main' || github.ref_name == 'staging')
     runs-on: ubuntu-latest
     environment: ${{ github.ref_name == 'main' && 'production' || 'staging' }}
 
@@ -620,7 +652,7 @@ jobs:
       - name: Verify Diktat Runtime Assets
         if: steps.impact.outputs.should_deploy == 'true'
         env:
-          DATABASE_URL: https://diktat-smoke.invalid
+          DATABASE_URL: postgresql://placeholder:placeholder@127.0.0.1:5432/placeholder
         run: deno run --allow-read --allow-env --config workers/deno-background/deno.json workers/deno-background/diktat-assets-smoke.ts
 
       - name: Configure Target Environment
@@ -641,9 +673,42 @@ jobs:
 
       - name: Prepare V4 build identity for Deno
         if: steps.impact.outputs.should_deploy == 'true'
+        env:
+          ZYX_POSTGRES_BUILD_PLACEHOLDER: '1'
         run: |
           bun install --frozen-lockfile --ignore-scripts
           bun scripts/authoring/prepare-web-verification.ts
+
+      - name: Validate staging Neon target before Deno mutation
+        if: steps.impact.outputs.should_deploy == 'true' && github.ref_name == 'staging'
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          STORAGE_PROVIDER_MODE: ${{ vars.STORAGE_PROVIDER_MODE || secrets.STORAGE_PROVIDER_MODE }}
+          NEON_STORAGE_BUCKET: ${{ vars.NEON_STORAGE_BUCKET || secrets.NEON_STORAGE_BUCKET }}
+          AWS_ENDPOINT_URL_S3: ${{ vars.AWS_ENDPOINT_URL_S3 || secrets.AWS_ENDPOINT_URL_S3 }}
+          AWS_REGION: ${{ vars.AWS_REGION || secrets.AWS_REGION }}
+          NEON_EXPECTED_HOST: ${{ vars.NEON_EXPECTED_HOST }}
+          NEON_EXPECTED_STORAGE_ENDPOINT: ${{ vars.NEON_EXPECTED_STORAGE_ENDPOINT }}
+          NEON_EXPECTED_STORAGE_BUCKET: ${{ vars.NEON_EXPECTED_STORAGE_BUCKET }}
+        run: |
+          PYTHONPATH=.github/scripts python3 - <<'PY'
+          import os
+          from cloud_run_runtime import validate_staging_target
+          validate_staging_target(dict(os.environ), dict(os.environ))
+          print("Staging Neon database and storage targets verified.")
+          PY
+
+      - name: Validate production Neon target before Deno mutation
+        if: steps.impact.outputs.should_deploy == 'true' && github.ref_name == 'main'
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          STORAGE_PROVIDER_MODE: ${{ vars.STORAGE_PROVIDER_MODE || secrets.STORAGE_PROVIDER_MODE }}
+          NEON_STORAGE_BUCKET: ${{ vars.NEON_STORAGE_BUCKET || secrets.NEON_STORAGE_BUCKET }}
+          AWS_ENDPOINT_URL_S3: ${{ vars.AWS_ENDPOINT_URL_S3 || secrets.AWS_ENDPOINT_URL_S3 }}
+          AWS_REGION: ${{ vars.AWS_REGION || secrets.AWS_REGION }}
+          AWS_ACCESS_KEY_ID: ${{ vars.AWS_ACCESS_KEY_ID || secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ vars.AWS_SECRET_ACCESS_KEY || secrets.AWS_SECRET_ACCESS_KEY }}
+        run: bun scripts/neon/validate-production-target.ts
 
       - name: Provision Deno Deploy App (if not exists)
         if: steps.impact.outputs.should_deploy == 'true'
@@ -697,6 +762,15 @@ jobs:
           VERIFICATION_STEEL_BROWSER_VERSION: ${{ vars.AUTHORING_VERIFICATION_STEEL_BROWSER_VERSION || secrets.AUTHORING_VERIFICATION_STEEL_BROWSER_VERSION }}
           SECRET_CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
           SECRET_NEXT_PUBLIC_APP_URL: ${{ secrets.NEXT_PUBLIC_APP_URL }}
+          TARGET_STORAGE_PROVIDER_MODE: ${{ vars.STORAGE_PROVIDER_MODE || secrets.STORAGE_PROVIDER_MODE }}
+          TARGET_NEON_STORAGE_BUCKET: ${{ vars.NEON_STORAGE_BUCKET || secrets.NEON_STORAGE_BUCKET }}
+          TARGET_AWS_ENDPOINT_URL_S3: ${{ vars.AWS_ENDPOINT_URL_S3 || secrets.AWS_ENDPOINT_URL_S3 }}
+          TARGET_AWS_REGION: ${{ vars.AWS_REGION || secrets.AWS_REGION }}
+          TARGET_AWS_ACCESS_KEY_ID: ${{ vars.AWS_ACCESS_KEY_ID || secrets.AWS_ACCESS_KEY_ID }}
+          TARGET_AWS_SECRET_ACCESS_KEY: ${{ vars.AWS_SECRET_ACCESS_KEY || secrets.AWS_SECRET_ACCESS_KEY }}
+          TARGET_INNGEST_ENV: ${{ vars.INNGEST_ENV || secrets.INNGEST_ENV }}
+          TARGET_CF_BROWSER_API_TOKEN: ${{ vars.CF_BROWSER_API_TOKEN || secrets.CF_BROWSER_API_TOKEN }}
+          TARGET_AUTHORING_VERIFICATION_ACCESS_URL: ${{ vars.AUTHORING_VERIFICATION_ACCESS_URL || secrets.AUTHORING_VERIFICATION_ACCESS_URL }}
         run: |
           R2_BUCKET_RESOLVED="${SECRET_R2_BUCKET:-$SECRET_LEGACY_CF_R2_BUCKET}"
           R2_ACCESS_KEY_ID_RESOLVED="${SECRET_R2_ACCESS_KEY_ID:-$SECRET_LEGACY_CF_R2_ACCESS_KEY_ID}"
@@ -734,6 +808,18 @@ jobs:
           CF_API_TOKEN=${SECRET_CF_API_TOKEN}
           NEXT_PUBLIC_APP_URL=${SECRET_NEXT_PUBLIC_APP_URL}
           DIKTAT_RENDERER_SECRET=${SECRET_DIKTAT_RENDERER_SECRET}
+          EOF
+
+          cat << EOF >> .env.deploy
+          STORAGE_PROVIDER_MODE=${TARGET_STORAGE_PROVIDER_MODE}
+          NEON_STORAGE_BUCKET=${TARGET_NEON_STORAGE_BUCKET}
+          AWS_ENDPOINT_URL_S3=${TARGET_AWS_ENDPOINT_URL_S3}
+          AWS_REGION=${TARGET_AWS_REGION}
+          AWS_ACCESS_KEY_ID=${TARGET_AWS_ACCESS_KEY_ID}
+          AWS_SECRET_ACCESS_KEY=${TARGET_AWS_SECRET_ACCESS_KEY}
+          INNGEST_ENV=${TARGET_INNGEST_ENV}
+          CF_BROWSER_API_TOKEN=${TARGET_CF_BROWSER_API_TOKEN}
+          AUTHORING_VERIFICATION_ACCESS_URL=${TARGET_AUTHORING_VERIFICATION_ACCESS_URL}
           EOF
 
           # Remove empty assignments while preserving Base64 padding and embedded '='.

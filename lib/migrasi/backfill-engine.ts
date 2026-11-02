@@ -1,27 +1,15 @@
-import { createClient } from "@libsql/client";
-import { drizzle } from "drizzle-orm/libsql";
+import type { db as applicationDb } from "@/lib/db";
 import { and, eq, inArray } from "drizzle-orm";
 import * as schema from "@/db/schema";
 import {
-  appendMigrationCheckpoint,
   currentSourceCommit,
-  finishMigrationRun,
-  parseCliArgs,
-  requiredCliArg,
   sha256Text,
   stableStringify,
-  startMigrationRun,
-  writeArtifact,
   type MigrationEvidence,
 } from "@/lib/staging/migration-ledger";
-import {
-  assertStagingEnvironment,
-  parseEnvFile,
-  resolveDatabaseConnection,
-} from "@/lib/staging/staging-guard";
 
 type Row = Record<string, any>;
-type Db = ReturnType<typeof drizzle<typeof schema>>;
+type Db = typeof applicationDb;
 type Tx = any;
 
 export const BACKFILL_MAPPING_VERSION = 1;
@@ -1133,53 +1121,7 @@ export async function runBackfill(options: {
   expectNoop?: boolean;
   env?: NodeJS.ProcessEnv;
 }): Promise<Report> {
-  const environment = options.env ?? process.env;
-  const report = emptyReport(options.runId, options.mode);
-  assertStagingEnvironment({
-    productionEnv: parseEnvFile(`${process.cwd()}/.env.prod`),
-    requireMutation: options.mode === "apply",
-    requiredResources: ["database", "authUrl"],
-  });
-  const client = createClient(resolveDatabaseConnection(environment));
-  const db = drizzle(client, { schema }) as Db;
-  try {
-    const source = await loadSourceRows(db);
-    for (const [tableName, rows] of Object.entries(source)) report.sourceRows[tableName] = rows.length;
-    const fallbackUserId = await firstUserId(db);
-    if (options.mode === "dry-run") {
-      simulateDryRun(source, report);
-    } else {
-      const existingRun = await db.select().from(schema.migrationRuns).where(eq(schema.migrationRuns.id, options.runId)).limit(1);
-      if (existingRun.length === 0) {
-        await startMigrationRun(db, {
-          id: options.runId,
-          planNumber: "005",
-          sourceCommit: currentSourceCommit(environment),
-          schemaVersion: "plan005-v1",
-          databaseFingerprint: sha256Text(stableStringify({ sourceRows: report.sourceRows })),
-          phase: options.phase ?? "all",
-        });
-      }
-    }
-
-    const phase = options.phase ?? "all";
-    if (options.mode === "apply" && (phase === "all" || phase === "idea" || phase === "product" || phase === "assessment")) {
-      if (phase === "all" || phase === "idea") await backfillIdentity(db, source, options.runId, report, fallbackUserId);
-      if (phase === "all" || phase === "idea") await backfillSourceAndIdeas(db, source, options.runId, report, fallbackUserId);
-      if (phase === "all" || phase === "product") await backfillProductsAndQuestions(db, source, options.runId, report, fallbackUserId);
-      if (phase === "all" || phase === "assessment") await backfillHistoryAndLearning(db, source, options.runId, report);
-    }
-    report.targetRows = await getCounts(db);
-    if (options.expectNoop && report.changedRows > 0) throw new Error(`EXPECTED_NOOP_BUT_CHANGED:${report.changedRows}`);
-    if (options.mode === "apply") {
-      const manifestHash = sha256Text(stableStringify({ sourceRows: report.sourceRows, targetRows: report.targetRows, mappedRows: report.mappedRows, exceptionRows: report.exceptionRows }));
-      await appendMigrationCheckpoint(db, { runId: options.runId, phase: phase, checkpoint: "backfill-complete", status: report.blockingExceptions === 0 ? "passed" : "blocked", manifestHash, rowCount: report.changedRows, details: report as unknown as Record<string, unknown> });
-      await finishMigrationRun(db, options.runId, { status: report.blockingExceptions === 0 ? "passed" : "blocked", rowCountManifestHash: manifestHash, errorCode: report.blockingExceptions === 0 ? undefined : "BLOCKING_EXCEPTIONS" });
-    }
-    return report;
-  } finally {
-    client.close();
-  }
+  throw new Error("Legacy staging backfill is unsupported on the PostgreSQL migration branch");
 }
 
 export function reportToEvidence(report: Report, sourceCommit = currentSourceCommit()): MigrationEvidence {
@@ -1205,13 +1147,5 @@ export function reportToEvidence(report: Report, sourceCommit = currentSourceCom
 }
 
 export async function runBackfillCli(defaultPhase: "all" | "idea" | "product" | "assessment" = "all"): Promise<void> {
-  const args = parseCliArgs();
-  const runId = requiredCliArg(args, "run-id");
-  const mode = args["dry-run"] ? "dry-run" : args["apply"] ? "apply" : null;
-  if (!mode) throw new Error("Provide exactly one of --dry-run or --apply");
-  const phase = typeof args.phase === "string" ? args.phase as "all" | "idea" | "product" | "assessment" : defaultPhase;
-  const report = await runBackfill({ runId, mode, phase, expectNoop: Boolean(args["expect-noop"]) });
-  await writeArtifact(runId, `backfill-${phase}-${mode}.json`, report);
-  if (mode === "apply") await writeArtifact(runId, "plan-005-result.json", reportToEvidence(report));
-  console.log(JSON.stringify({ status: report.blockingExceptions === 0 ? "ok" : "blocked", runId, mode, phase, changedRows: report.changedRows, blockingExceptions: report.blockingExceptions, mappedRows: report.mappedRows, exceptionRows: report.exceptionRows }));
+  await runBackfill({ runId: "", mode: "dry-run", phase: defaultPhase });
 }

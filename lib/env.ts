@@ -60,8 +60,13 @@ export const env = createEnv({
  R2_ACCESS_KEY_ID: z.string().optional(),
  /** Cloudflare R2 secret access key */
  R2_SECRET_ACCESS_KEY: z.string().optional(),
- /** Storage provider mode: 'r2' | 'uploadthing' (default: r2) */
- STORAGE_PROVIDER_MODE: z.string().optional(),
+ /** Storage provider for this deployment. */
+ STORAGE_PROVIDER_MODE: z.enum(['r2', 'neon']).optional(),
+ NEON_STORAGE_BUCKET: z.string().optional(),
+ AWS_ENDPOINT_URL_S3: z.string().url().optional(),
+ AWS_REGION: z.string().optional(),
+ AWS_ACCESS_KEY_ID: z.string().optional(),
+ AWS_SECRET_ACCESS_KEY: z.string().optional(),
  // ── Cloudflare AI Gateway ──────────────────────────────────────────────
  /**
  * Cloudflare AI Gateway base URL for Gemini requests.
@@ -200,6 +205,11 @@ export const env = createEnv({
   R2_ACCESS_KEY_ID: process.env.R2_ACCESS_KEY_ID,
   R2_SECRET_ACCESS_KEY: process.env.R2_SECRET_ACCESS_KEY,
   STORAGE_PROVIDER_MODE: process.env.STORAGE_PROVIDER_MODE,
+  NEON_STORAGE_BUCKET: process.env.NEON_STORAGE_BUCKET,
+  AWS_ENDPOINT_URL_S3: process.env.AWS_ENDPOINT_URL_S3,
+  AWS_REGION: process.env.AWS_REGION,
+  AWS_ACCESS_KEY_ID: process.env.AWS_ACCESS_KEY_ID,
+  AWS_SECRET_ACCESS_KEY: process.env.AWS_SECRET_ACCESS_KEY,
   // AI Gateway
   CF_AI_GATEWAY_URL: process.env.CF_AI_GATEWAY_URL,
   CF_AI_GATEWAY_TOKEN: process.env.CF_AI_GATEWAY_TOKEN,

@@ -37,7 +37,7 @@ export async function generateMetadata(): Promise<Metadata> {
       type: "website",
       images: [{ url: siteOgImage, width: 1200, height: 630, alt: siteName }],
     },
-    twitter: { card: "summary", title, description, images: [siteOgImage] },
+    twitter: { card: "summary_large_image", title, description, images: [siteOgImage] },
     icons: {
       icon: [
         { url: "/brand/zyx-favicon-16.png", sizes: "16x16", type: "image/png" },
@@ -70,6 +70,7 @@ export default async function RootLayout({
  return (
  <html lang={locale} suppressHydrationWarning className={`${inter.variable} ${lexend.variable} overflow-x-clip`}>
  <head>
+   <link rel="manifest" href="/manifest.webmanifest" crossOrigin="use-credentials" />
  </head>
   <body className="font-sans min-h-screen flex flex-col overflow-x-clip">
     <PostHogProvider>

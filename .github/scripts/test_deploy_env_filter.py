@@ -28,6 +28,16 @@ class DeployEnvFilterTest(unittest.TestCase):
             self.assertEqual(source.read_text(), content)
             return (Path(directory) / ".env.deploy.filtered").read_text()
 
+    def test_both_environments_sync_neon_and_optional_runtime_settings(self):
+        workflow = (Path(__file__).resolve().parents[1] / "workflows" / "deploy.yml").read_text()
+        self.assertNotIn('if [ "${{ github.ref_name }}" = staging ]; then', workflow)
+        target = workflow.split("cat << EOF >> .env.deploy", 1)[1].split("          EOF", 1)[0]
+        for key in ("STORAGE_PROVIDER_MODE", "NEON_STORAGE_BUCKET", "AWS_ENDPOINT_URL_S3", "AWS_REGION",
+                    "AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "INNGEST_ENV", "CF_BROWSER_API_TOKEN",
+                    "AUTHORING_VERIFICATION_ACCESS_URL"):
+            with self.subTest(key=key):
+                self.assertIn(f"{key}=${{TARGET_{key}}}", target)
+
     def test_preserves_padded_secrets_and_embedded_equals(self):
         values = (
             "BETTER_AUTH_SECRET=ZHVtbXktdmFsdWU=\n"

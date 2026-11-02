@@ -1,16 +1,11 @@
-import { createClient, type Client } from "@libsql/client";
-import {
-  assertStagingEnvironment,
-  isAllowlistedStagingResource,
-  parseEnvFile,
-  resolveDatabaseConnection,
-  safeGuardError,
-} from "@/lib/staging/staging-guard";
+import assert from "node:assert/strict";
+import { Client } from "pg";
+import { assertTarget } from "@/scripts/neon/import-core";
 
-export async function countLegacyAdminsWithoutActiveGrant(client: Client): Promise<number> {
-  const { rows } = await client.execute(`
+export async function countLegacyAdminsWithoutActiveGrant(client: { query(sql: string): Promise<{ rows: Record<string, unknown>[] }> }): Promise<number> {
+  const { rows } = await client.query(`
     SELECT COUNT(*) AS count
-    FROM user u
+    FROM "user" u
     WHERE u.role = 'admin' AND NOT EXISTS (
       SELECT 1
       FROM pengguna p
@@ -24,22 +19,22 @@ export async function countLegacyAdminsWithoutActiveGrant(client: Client): Promi
 
 if (import.meta.main) {
   try {
-    const { databaseUrl } = assertStagingEnvironment({
-      productionEnv: parseEnvFile(".env.prod"),
-      requiredResources: ["database"],
-    });
-    if (!isAllowlistedStagingResource("database", databaseUrl)) {
-      throw new Error("UNEXPECTED_STAGING_DATABASE");
-    }
-    const client = createClient(resolveDatabaseConnection());
+    assert.equal(process.env.ZYX_ENVIRONMENT, "staging");
+    const databaseUrl = process.env.DATABASE_URL || "";
+    assertTarget(databaseUrl, process.env.NEON_EXPECTED_HOST || "", "neondb");
+    const client = new Client({ connectionString: databaseUrl });
     try {
+      await client.connect();
+      await client.query("BEGIN READ ONLY");
+      const identity = await client.query("SELECT current_setting('neon.branch_id', true) AS branch");
+      assert.equal(identity.rows[0].branch, "br-gentle-scene-azq0gp91");
       const legacyAdminsWithoutActiveCanonicalAdmin = await countLegacyAdminsWithoutActiveGrant(client);
       console.log(JSON.stringify({ legacyAdminsWithoutActiveCanonicalAdmin }));
     } finally {
-      client.close();
+      await client.end();
     }
-  } catch (error) {
-    console.error(JSON.stringify(safeGuardError(error)));
+  } catch {
+    console.error(JSON.stringify({ code: "STAGING_ADMIN_ROLE_AUDIT_FAILED" }));
     process.exitCode = 1;
   }
 }

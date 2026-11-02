@@ -8,7 +8,7 @@ async function hasActivityOn(studentId: string, dateStr: string): Promise<boolea
  .select({ count: sql<number>`count(*)` })
  .from(learningEvents)
  .where(
- sql`${learningEvents.studentId} = ${studentId} AND strftime('%Y-%m-%d', datetime(${learningEvents.createdAt}, 'unixepoch')) = ${dateStr}`
+ sql`${learningEvents.studentId} = ${studentId} AND to_char(${learningEvents.createdAt} AT TIME ZONE 'UTC', 'YYYY-MM-DD') = ${dateStr}`
  );
  return (row?.count ?? 0) > 0;
 }
@@ -69,7 +69,7 @@ export async function getOrUpdateStreak(
  * Returns a 7-element boolean array mapping Monday to Sunday activity of the current week.
  */
 export async function getWeeklyActivity(studentId: string): Promise<boolean[]> {
- // Use UTC throughout ; must match the SQL strftime('...', 'unixepoch') which is UTC-based
+ // Match the UTC date used by the activity query.
  const today = new Date();
  const dayOfWeekUtc = today.getUTCDay(); // 0: Sunday, 1: Mon, ..., 6: Sat
 

@@ -191,7 +191,7 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
   // Check if questions are available for this template
   const tags = (rules.tags as string[] | undefined) || [];
   const tagConditions = tags.map(
-    (tag) => sql`exists (select 1 from json_each(${aiQuestionBank.tags}) where json_each.value = ${tag})`
+    (tag) => sql`exists (select 1 from jsonb_array_elements_text(${aiQuestionBank.tags}::jsonb) as tag_value where tag_value = ${tag})`
   );
   const tagCondition = tags.length > 0 ? or(...tagConditions) : undefined;
   const quizEligibilityCondition = or(
@@ -541,7 +541,7 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
       } else {
         const tags = (rules?.tags as string[] | undefined) || [];
         const tagConditions = tags.map(
-          (tag) => sql`exists (select 1 from json_each(${aiQuestionBank.tags}) where json_each.value = ${tag})`
+          (tag) => sql`exists (select 1 from jsonb_array_elements_text(${aiQuestionBank.tags}::jsonb) as tag_value where tag_value = ${tag})`
         );
         const tagCondition = tags.length > 0 ? or(...tagConditions) : undefined;
 

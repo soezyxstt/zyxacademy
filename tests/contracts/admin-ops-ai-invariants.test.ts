@@ -1,12 +1,7 @@
-import { describe, it, expect, beforeEach, mock } from "bun:test";
-import {
-  proposalStore,
-  type ServerStoredProposal,
-} from "@/lib/admin-ops-ai/proposal-store";
-import {
-  executeOpsAiTool,
-  createOpsAiTools,
-} from "@/lib/admin-ops-ai/runtime-tools";
+import type { ServerStoredProposal } from "@/lib/admin-ops-ai/proposal-store";
+import { createPostgresTestDb } from "../helpers/postgres";
+import * as schema from "@/db/schema";
+import { describe, it, expect, beforeAll, afterAll, beforeEach, mock } from "bun:test";
 import {
   OPS_AI_TOOL_SECURITY_REGISTRY,
   assertNoModelCallableMutation,
@@ -19,6 +14,12 @@ import {
 // ============================================================================
 // Auth & Header Mocks for Route Invariant Verification
 // ============================================================================
+
+let client: Awaited<ReturnType<typeof createPostgresTestDb>>["client"];
+let proposalStore: typeof import("@/lib/admin-ops-ai/proposal-store").proposalStore;
+let executeOpsAiTool: typeof import("@/lib/admin-ops-ai/runtime-tools").executeOpsAiTool;
+let executeRoutePost: typeof import("@/app/api/admin/ops-ai/execute/route").POST;
+let createOpsAiTools: typeof import("@/lib/admin-ops-ai/runtime-tools").createOpsAiTools;
 
 let mockSessionUser: { id: string; role?: string; name?: string; email?: string } | null = null;
 let mockHasPeranAdmin = false;
@@ -34,7 +35,9 @@ mock.module("@/lib/auth", () => ({
   },
 }));
 
+const originalAuthorization = await import("@/lib/auth/authorization");
 mock.module("@/lib/auth/authorization", () => ({
+  ...originalAuthorization,
   hasPeran: async (_userId: string, role: string) => {
     if (role === "admin") return mockHasPeranAdmin;
     return false;
@@ -46,13 +49,29 @@ mock.module("next/headers", () => ({
   headers: async () => new Headers(),
 }));
 
-import { POST as executeRoutePost } from "@/app/api/admin/ops-ai/execute/route";
 
 // ============================================================================
 // Test Suites: Architecture & Security Invariants
 // ============================================================================
 
 describe("Admin Ops AI Security Invariants (Architecture Baseline)", () => {
+  beforeAll(async () => {
+    const fixture = await createPostgresTestDb();
+    client = fixture.client;
+    const testDb = fixture.testDb;
+    const now = new Date();
+    const actors = ["admin-1", "admin-2"];
+    await testDb.insert(schema.user).values(actors.map((id) => ({ id, name: id, email: `${id}@example.test`, role: "admin", createdAt: now, updatedAt: now })));
+    await testDb.insert(schema.pengguna).values(actors.map(id => ({ id, status: "active" as const })));
+    await testDb.insert(schema.courses).values(["kalkulus-1", "kalk-1", "fisika-dasar"].map((id) => ({ id, title: id, category: "Test" })));
+    mock.module("@/db", () => ({ db: testDb }));
+    ({ proposalStore } = await import("@/lib/admin-ops-ai/proposal-store"));
+    ({ executeOpsAiTool, createOpsAiTools } = await import("@/lib/admin-ops-ai/runtime-tools"));
+    ({ POST: executeRoutePost } = await import("@/app/api/admin/ops-ai/execute/route"));
+  }, 60000);
+
+  afterAll(async () => { await client?.close(); });
+
   beforeEach(() => {
     proposalStore.clear();
     mockSessionUser = null;
@@ -125,7 +144,7 @@ describe("Admin Ops AI Security Invariants (Architecture Baseline)", () => {
         title: "Test Proposal",
         description: "Test",
         preview: { summary: "Test", targetEntity: "course-1" },
-        payload: { courseIds: ["kalkulus-1"], capacity: 10 },
+        payload: { courseIds: ["kalkulus-1"], capacity: 5 },
         actorId: "admin-1",
       });
 
@@ -142,8 +161,8 @@ describe("Admin Ops AI Security Invariants (Architecture Baseline)", () => {
 
       const res = await executeRoutePost(req);
       expect(res.status).toBe(200);
-      expect(executedPayload).toEqual({ courseIds: ["kalkulus-1"], capacity: 10 });
-      expect(executedPayload.capacity).toBe(10);
+      expect(executedPayload).toEqual({ courseIds: ["kalkulus-1"], capacity: 5 });
+      expect(executedPayload.capacity).toBe(5);
     });
   });
 

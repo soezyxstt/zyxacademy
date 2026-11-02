@@ -376,7 +376,7 @@ export async function getCourseDetailData(courseId: string) {
           sql`${aiQuestionBank.status} != 'retired'`
         )
       )
-      .orderBy(sql`(CASE WHEN ${aiQuestionBank.createdAt} > 10000000000 THEN ${aiQuestionBank.createdAt} / 1000 ELSE ${aiQuestionBank.createdAt} END) DESC`),
+      .orderBy(desc(aiQuestionBank.createdAt)),
   ]);
 
   // Map chapters from canonical bab if available, preserving legacy descriptions

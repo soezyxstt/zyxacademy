@@ -1,9 +1,9 @@
-import { describe, expect, test, beforeAll, beforeEach } from "bun:test";
+import { describe, expect, test, beforeEach, afterAll } from "bun:test";
 import { mock } from "bun:test";
-import { readFileSync } from "node:fs";
-import { createClient } from "@libsql/client";
-import { drizzle } from "drizzle-orm/libsql";
-import { migrate } from "drizzle-orm/libsql/migrator";
+import type { ArticleDocument } from "@/lib/materials/article-contract";
+import { EIGENVALUES_ARTICLE_FIXTURE } from "../fixtures/product-learning/eigenvalues";
+import { TCP_HANDSHAKE_ARTICLE_FIXTURE } from "../fixtures/product-learning/tcp-handshake";
+import { createPostgresTestDb } from "../helpers/postgres";
 import { and, eq } from "drizzle-orm";
 import { zipSync } from "fflate";
 import * as schema from "@/db/schema";
@@ -77,10 +77,7 @@ const mockStorage = {
   },
 };
 
-const client = createClient({
-  url: "file::memory:?cache=shared",
-});
-const testDb = drizzle(client, { schema });
+const { client, testDb } = await createPostgresTestDb();
 
 mock.module("@/db", () => ({ db: testDb }));
 mock.module("@/lib/storage", () => ({ storage: mockStorage }));
@@ -165,8 +162,9 @@ function buildBundleZip(
 function createV3Article(
   articleId = "article-cp2-001",
   customText?: string,
+  fixture: ArticleDocument = LIMIT_ARTICLE_FIXTURE,
 ): Extract<ProductEntity, { productType: "article" }> {
-  const cloned = structuredClone(LIMIT_ARTICLE_FIXTURE);
+  const cloned = structuredClone(fixture);
   const clonedGraph = structuredClone(LIMIT_EPSILON_DELTA_GRAPH);
   const sourceRef = {
     sourceId: "source-cp2-001",
@@ -228,7 +226,7 @@ function createV3Article(
           : undefined,
       })),
     })),
-    visuals: [clonedGraph],
+    visuals: fixture === LIMIT_ARTICLE_FIXTURE ? [clonedGraph] : structuredClone(fixture.visuals),
   };
 }
 
@@ -280,21 +278,19 @@ function loadNormalizedCp7Rehearsal(runName: string): {
   article: Extract<ProductEntity, { productType: "article" }>;
   diktat: Extract<ProductEntity, { productType: "diktat" }>;
 } {
-  const raw = JSON.parse(
-    readFileSync(
-      `artifacts/product-bundle-self-study/cp7/runs/${runName}/draft.json`,
-      "utf8",
-    ),
-  ) as { products: ProductEntity[] };
-  const article = structuredClone(
-    raw.products.find((product) => product.productType === "article"),
-  ) as Extract<ProductEntity, { productType: "article" }>;
-  const diktat = structuredClone(
-    raw.products.find((product) => product.productType === "diktat"),
-  ) as Extract<ProductEntity, { productType: "diktat" }>;
-  if (!article || !diktat) {
-    throw new Error(`CP7_REHEARSAL_PRODUCTS_MISSING:${runName}`);
-  }
+  const fixtures: Record<string, ArticleDocument> = {
+    "limit-a": LIMIT_ARTICLE_FIXTURE,
+    "limit-b": LIMIT_ARTICLE_FIXTURE,
+    eigen: EIGENVALUES_ARTICLE_FIXTURE,
+    tcp: TCP_HANDSHAKE_ARTICLE_FIXTURE,
+  };
+  const fixture = fixtures[runName];
+  if (!fixture) throw new Error(`REHEARSAL_FIXTURE_MISSING:${runName}`);
+  const article = createV3Article(`article-${runName}`, undefined, fixture);
+  const diktat = createDiktat(article, `diktat-${runName}`);
+  diktat.contentMarkdown = article.sections.map((section, index) =>
+    `${index === Math.ceil(article.sections.length / 2) ? "<!-- page-break -->\n\n" : ""}## ${section.title}\n\n${section.blocks.map(block => block.contentMarkdown).join("\n\n")}`,
+  ).join("\n\n");
 
   const sourceRef = {
     sourceId: "source-cp2-001",
@@ -344,65 +340,22 @@ function loadNormalizedCp7Rehearsal(runName: string): {
 }
 
 describe("CP2 Publication Integration Contract", () => {
-  beforeAll(async () => {
-    await migrate(testDb, { migrationsFolder: "./drizzle" });
-    await client.execute("PRAGMA foreign_keys = ON");
-  });
+  afterAll(async () => { await client.close(); });
 
   beforeEach(async () => {
     storageMap.clear();
 
-    await client.execute("DELETE FROM vector_sync_queue");
-    await client.execute("DELETE FROM audit_mutasi");
-    await client.execute("DELETE FROM publikasi_bundle");
-    await client.execute("DELETE FROM review_pedagogi_bundle");
-    await client.execute("DELETE FROM bukti_pdf_bundle");
-    await client.execute("DELETE FROM review_item_bundle");
-    await client.execute("DELETE FROM review_bundle");
-    await client.execute("DELETE FROM ketergantungan_produk");
-    await client.execute("DELETE FROM blok_artikel_sumber");
-    await client.execute("DELETE FROM blok_artikel_ide");
-    await client.execute("DELETE FROM blok_artikel");
-    await client.execute("DELETE FROM bagian_artikel");
-    await client.execute("DELETE FROM artikel_ide");
-    await client.execute("DELETE FROM artikel");
-    await client.execute("DELETE FROM diktat_ide");
-    await client.execute("DELETE FROM diktat_materi");
-    await client.execute("DELETE FROM item_impor_bundle");
-    await client.execute("DELETE FROM impor_bundle");
-    await client.execute("DELETE FROM potongan_sumber");
-    await client.execute("DELETE FROM sumber_materi");
-    await client.execute("DELETE FROM ide");
-    await client.execute("DELETE FROM bagian_pembelajaran");
-    await client.execute("DELETE FROM bab");
-    await client.execute("DELETE FROM pengguna_peran");
-    await client.execute("DELETE FROM peran");
-    await client.execute("DELETE FROM pengguna");
-    await client.execute("DELETE FROM user");
-    await client.execute("DELETE FROM mata_kuliah");
-    await client.execute("DELETE FROM courses");
+    await client.exec('TRUNCATE TABLE "user", courses, mata_kuliah, peran CASCADE');
 
     // Setup course
-    await client.execute({
-      sql: "INSERT INTO courses (id, title, category, description) VALUES (?, ?, ?, ?)",
-      args: ["course-cp2", "Kalkulus CP2", "Matematika", "Deskripsi Kalkulus"],
-    });
-    await client.execute({
-      sql: "INSERT INTO mata_kuliah (id, code, title, status, legacy_course_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, 0, 0)",
-      args: ["mk-cp2", "KAL-CP2", "Kalkulus CP2", "active", "course-cp2"],
-    });
+    await client.query("INSERT INTO courses (id, title, category, description) VALUES ($1, $2, $3, $4)", ["course-cp2", "Kalkulus CP2", "Matematika", "Deskripsi Kalkulus"]);
+    await client.query("INSERT INTO mata_kuliah (id, code, title, status, legacy_course_id, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, now(), now())", ["mk-cp2", "KAL-CP2", "Kalkulus CP2", "active", "course-cp2"]);
 
     // Setup admin users
-    await client.execute({
-      sql: "INSERT INTO user (id, name, email, email_verified, role, created_at, updated_at) VALUES (?, ?, ?, 1, 'admin', 0, 0)",
-      args: ["user-admin-1", "Admin One", "admin1@example.test"],
-    });
+    await client.query("INSERT INTO \"user\" (id, name, email, email_verified, role, created_at, updated_at) VALUES ($1, $2, $3, true, 'admin', now(), now())", ["user-admin-1", "Admin One", "admin1@example.test"]);
     await provisionPenggunaForNewUser({ id: "user-admin-1", role: "admin" });
 
-    await client.execute({
-      sql: "INSERT INTO user (id, name, email, email_verified, role, created_at, updated_at) VALUES (?, ?, ?, 1, 'admin', 0, 0)",
-      args: ["user-other-admin", "Other Admin", "other@example.test"],
-    });
+    await client.query("INSERT INTO \"user\" (id, name, email, email_verified, role, created_at, updated_at) VALUES ($1, $2, $3, true, 'admin', now(), now())", ["user-other-admin", "Other Admin", "other@example.test"]);
     await provisionPenggunaForNewUser({
       id: "user-other-admin",
       role: "admin",
@@ -1350,11 +1303,9 @@ describe("CP2 Publication Integration Contract", () => {
     expect(successResult.published).toBe(true);
   });
 
-  test("runs four clean CP7 rehearsals through stage, review, real PDF, publish, and download gates", async () => {
-    const executablePath =
-      process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH ??
-      "/home/soezyxst/.cache/ms-playwright/chromium-1234/chrome-linux64/chrome";
-    const browser = await chromium.launch({ executablePath });
+  test("runs four tracked fixture rehearsals through stage, review, real PDF, publish, and download gates", async () => {
+    const executablePath = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH;
+    const browser = await chromium.launch(executablePath ? { executablePath } : {});
 
     try {
       for (const runName of ["limit-a", "limit-b", "eigen", "tcp"]) {

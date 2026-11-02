@@ -1,22 +1,18 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import { createClient } from "@libsql/client";
-import { drizzle } from "drizzle-orm/libsql";
-import { randomUUID } from "node:crypto";
-import { readFileSync, rmSync } from "node:fs";
+import { createPostgresTestDb } from "../helpers/postgres";
 import * as schema from "@/db/schema";
 import { createCodingAttemptRepository } from "@/lib/coding/repository";
 import type { db as database } from "@/db";
 import type { CodingEvaluation, CodingSubmissionRequest } from "@/lib/coding/contracts";
 import { eq } from "drizzle-orm";
-const clients: ReturnType<typeof createClient>[] = [];
-const files: string[] = [];
-afterEach(() => { for (const client of clients.splice(0)) client.close(); for (const file of files.splice(0)) rmSync(file, { force: true }); });
+const clients: Awaited<ReturnType<typeof createPostgresTestDb>>["client"][] = [];
+afterEach(async () => { for (const client of clients.splice(0)) await client.close(); });
 async function setup() {
-  const file = `/tmp/zyx-coding-repository-${randomUUID()}.db`; files.push(file);
-  const client = createClient({ url: `file:${file}` }); clients.push(client);
-  await client.executeMultiple("CREATE TABLE user (id TEXT PRIMARY KEY); CREATE TABLE mata_kuliah (id TEXT PRIMARY KEY); INSERT INTO user VALUES ('student'); INSERT INTO mata_kuliah VALUES ('course');");
-  await client.executeMultiple(readFileSync("drizzle/0099_hard_meteorite.sql", "utf8").replaceAll("--> statement-breakpoint", ""));
-  const db = drizzle(client, { schema }) as unknown as typeof database;
+  const { client, testDb } = await createPostgresTestDb();
+  clients.push(client);
+  await testDb.insert(schema.user).values({ id: "student", name: "Student", email: "student@example.test" });
+  await testDb.insert(schema.mataKuliah).values({ id: "course", code: "COURSE", title: "Course" });
+  const db = testDb as unknown as typeof database;
   return { db, repository: createCodingAttemptRepository(db) };
 }
 const request: CodingSubmissionRequest = { requestId: "request-1", problem: { problemId: "problem", version: 1 }, code: "print(1)", stdin: "" };
@@ -28,6 +24,8 @@ describe("durable coding attempts", () => {
     const first = await repository.reserve(input);
     expect(first.created).toBe(true);
     expect((await repository.reserve(input)).created).toBe(false);
+    const reordered = { stdin: request.stdin, code: request.code, problem: { version: 1, problemId: "problem" }, requestId: request.requestId };
+    expect((await repository.reserve({ ...input, request: reordered })).created).toBe(false);
     await expect(repository.reserve({ ...input, request: { ...request, code: "different" } })).rejects.toThrow("REQUEST_CONFLICT");
     await repository.complete(first.attempt.id, evaluation);
     const replay = await repository.reserve(input);

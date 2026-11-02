@@ -10,25 +10,51 @@ import {
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import type { StorageProvider } from "./index";
-import { assertSafeKey, INVALID_OBJECT_KEY } from "./keys";
+import { assertSafeKey, extractStorageKey, INVALID_OBJECT_KEY } from "./keys";
 
-export class R2Provider implements StorageProvider {
-  private s3: S3Client;
-  private bucket: string;
-  private publicUrl: string;
-
-  constructor() {
-    this.bucket = process.env.R2_BUCKET || "zyx";
-    this.publicUrl = process.env.R2_PUBLIC_URL || "";
-    
-    this.s3 = new S3Client({
+export function getS3StorageConfig(mode: "r2" | "neon" = "r2") {
+  if (mode === "neon") {
+    const { NEON_STORAGE_BUCKET, AWS_ENDPOINT_URL_S3, AWS_REGION, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY } = process.env;
+    if (!NEON_STORAGE_BUCKET || !AWS_ENDPOINT_URL_S3 || !AWS_REGION || !AWS_ACCESS_KEY_ID || !AWS_SECRET_ACCESS_KEY) {
+      throw new Error("NEON_STORAGE_CONFIG_REQUIRED");
+    }
+    return {
+      bucket: NEON_STORAGE_BUCKET,
+      publicUrl: "",
+      client: {
+        region: AWS_REGION,
+        endpoint: AWS_ENDPOINT_URL_S3,
+        forcePathStyle: true,
+        credentials: { accessKeyId: AWS_ACCESS_KEY_ID, secretAccessKey: AWS_SECRET_ACCESS_KEY },
+      },
+    };
+  }
+  return {
+    bucket: process.env.R2_BUCKET || "zyx",
+    publicUrl: process.env.R2_PUBLIC_URL || "",
+    client: {
       region: "auto",
       endpoint: process.env.R2_ENDPOINT,
       credentials: {
         accessKeyId: process.env.R2_ACCESS_KEY_ID || "",
         secretAccessKey: process.env.R2_SECRET_ACCESS_KEY || "",
       },
-    });
+    },
+  };
+}
+
+export class R2Provider implements StorageProvider {
+  private s3: S3Client;
+  private bucket: string;
+  private publicUrl: string;
+  private mode: "r2" | "neon";
+
+  constructor(mode: "r2" | "neon" = "r2") {
+    this.mode = mode;
+    const config = getS3StorageConfig(mode);
+    this.bucket = config.bucket;
+    this.publicUrl = config.publicUrl;
+    this.s3 = new S3Client(config.client);
   }
 
   async upload(
@@ -90,6 +116,15 @@ export class R2Provider implements StorageProvider {
     if (!key) return "";
     // If it's already a full URL (starts with http), return it as-is (legacy compatibility)
     if (key.startsWith("http://") || key.startsWith("https://")) {
+      const legacyBase = process.env.R2_PUBLIC_URL?.replace(/\/+$/, "");
+      if (this.mode === "neon" && legacyBase && key.startsWith(`${legacyBase}/`)) {
+        const objectKey = extractStorageKey(key);
+        if (objectKey) {
+          assertSafeKey(objectKey);
+          const url = new URL(key);
+          return `/api/storage/file/${objectKey.split("/").map(encodeURIComponent).join("/")}${url.search}${url.hash}`;
+        }
+      }
       return key;
     }
     // Use relative path for Next.js to dynamically resolve to the active origin
@@ -125,14 +160,10 @@ export class R2Provider implements StorageProvider {
       if (!response.Body) throw new Error(`R2_DOWNLOAD_FAILED:${key}`);
       return response.Body.transformToByteArray();
     } catch (s3Error: any) {
-      const hasEndpoint = Boolean(process.env.R2_ENDPOINT);
-      const hasAccessKey = Boolean(process.env.R2_ACCESS_KEY_ID);
       const hasPublicUrl = Boolean(this.publicUrl);
       console.error("[R2Provider.download] S3 GetObject failed:", {
         key,
         bucket: this.bucket,
-        hasEndpoint,
-        hasAccessKey,
         hasPublicUrl,
         code: s3Error?.name ?? s3Error?.Code,
         status: s3Error?.$metadata?.httpStatusCode,

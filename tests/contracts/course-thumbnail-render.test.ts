@@ -1,14 +1,15 @@
 import { describe, expect, it } from "bun:test";
 import sharp from "sharp";
-import { renderPdfFirstPageWebp } from "@/lib/thumbnail";
+import { renderPdfFirstPagePng } from "@/lib/compute/pdf-thumbnail";
 
 function minimalPdf(): Uint8Array {
   const objects = [
     "<< /Type /Catalog /Pages 2 0 R >>",
-    "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+    "<< /Type /Pages /Kids [3 0 R 6 0 R] /Count 2 >>",
     "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 300 200] /Resources << /Font << /F1 5 0 R >> >> /Contents 4 0 R >>",
     "<< /Length 44 >>\nstream\nBT /F1 24 Tf 36 100 Td (Zyx PDF) Tj ET\nendstream",
     "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+    "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 200 300] /Resources << /Font << /F1 5 0 R >> >> /Contents 4 0 R >>",
   ];
   let pdf = "%PDF-1.4\n";
   const offsets = [0];
@@ -24,10 +25,10 @@ function minimalPdf(): Uint8Array {
 }
 
 describe("course PDF thumbnail renderer", () => {
-  it("rasterizes only page one into WebP", async () => {
-    const output = await renderPdfFirstPageWebp(minimalPdf());
+  it("rasterizes only page one into PNG", async () => {
+    const output = await renderPdfFirstPagePng(minimalPdf());
     const metadata = await sharp(output).metadata();
-    expect(metadata.format).toBe("webp");
+    expect(metadata.format).toBe("png");
     expect(metadata.width).toBe(720);
     expect(metadata.height).toBe(480);
   });

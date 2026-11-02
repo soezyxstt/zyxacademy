@@ -16,6 +16,7 @@ import { cn } from "@/lib/utils";
 import { createLocalizedMetadata } from "@/lib/site-metadata";
 import { getTranslations } from "@/lib/i18n/server";
 import { LocalizedPublicLink } from "@/components/localized-public-link";
+import { storage } from "@/lib/storage";
 
 export async function generateMetadata(): Promise<Metadata> {
   return createLocalizedMetadata({ path: "/blog", titleKey: "meta.blog.title", descriptionKey: "meta.blog.description" });
@@ -282,7 +283,7 @@ function ArticleCard({ article, t }: { article: any; t: Awaited<ReturnType<typeo
       <div className="relative aspect-[4/3] w-full overflow-hidden border-b border-border/50 bg-muted">
         {article.thumbnailUrl ? (
           <Image
-            src={article.thumbnailUrl}
+            src={article.thumbnailUrl.startsWith("http") ? storage.getUrl(article.thumbnailUrl) : article.thumbnailUrl}
             alt={article.title}
             fill
             sizes="(max-width: 768px) 100vw, (max-width: 1280px) 33vw, 400px"

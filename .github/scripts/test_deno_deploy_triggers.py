@@ -38,6 +38,24 @@ def matches_any_pattern(file_path: str, patterns: list[str]) -> bool:
 
 
 class DenoDeployTriggersTest(unittest.TestCase):
+    def test_diktat_asset_smoke_uses_local_postgres_placeholder(self):
+        text = DEPLOY_WORKFLOW.read_text(encoding="utf-8")
+        step = text.split("- name: Verify Diktat Runtime Assets", 1)[1].split("- name:", 1)[0]
+        self.assertIn("DATABASE_URL: postgresql://placeholder:placeholder@127.0.0.1:5432/placeholder", step)
+        preparation = text.split("- name: Prepare V4 build identity for Deno", 1)[1].split("- name:", 1)[0]
+        self.assertIn("ZYX_POSTGRES_BUILD_PLACEHOLDER: '1'", preparation)
+
+    def test_only_release_branches_can_mutate_worker_and_staging_guard_runs_first(self):
+        text = DEPLOY_WORKFLOW.read_text(encoding="utf-8")
+        self.assertIn("&& (github.ref_name == 'main' || github.ref_name == 'staging')", text)
+        self.assertLess(text.index("name: Validate staging Neon target before Deno mutation"),
+                        text.index("name: Provision Deno Deploy App"))
+        self.assertLess(text.index("name: Validate production Neon target before Deno mutation"),
+                        text.index("name: Provision Deno Deploy App"))
+        production = text.split("- name: Validate production Neon target before Deno mutation", 1)[1].split("- name:", 1)[0]
+        for key in ("DATABASE_URL", "AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_ENDPOINT_URL_S3", "NEON_STORAGE_BUCKET"):
+            self.assertIn(key + ":", production)
+
     def test_deploy_workflow_has_no_broad_top_level_globs(self):
         push_paths, pr_paths = load_trigger_paths()
         forbidden_globs = {"app/**", "components/**", "lib/**", "prompts/**", "db/**"}

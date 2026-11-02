@@ -1,6 +1,5 @@
-import { describe, expect, it } from "bun:test";
-import { createClient } from "@libsql/client";
-import { drizzle } from "drizzle-orm/libsql";
+import { afterEach, beforeAll, describe, expect, it } from "bun:test";
+import { createPostgresTestDb, preparePostgresTestDb } from "../helpers/postgres";
 import * as schema from "@/db/schema";
 import {
   buildAuditRowId,
@@ -12,49 +11,16 @@ import {
   type TutorMutationAuditInput,
 } from "@/lib/audit/mutasi";
 
+const clients: Array<Awaited<ReturnType<typeof createPostgresTestDb>>["client"]> = [];
+beforeAll(preparePostgresTestDb, 60_000);
+afterEach(async () => { for (const client of clients.splice(0)) await client.close(); });
+
 async function createAuditTestDb() {
-  const client = createClient({ url: ":memory:" });
-  const testDb = drizzle(client, { schema });
+  const { client, testDb } = await createPostgresTestDb();
+  clients.push(client);
 
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS user (
-      id TEXT PRIMARY KEY,
-      name TEXT NOT NULL,
-      email TEXT NOT NULL UNIQUE,
-      email_verified INTEGER NOT NULL DEFAULT 0,
-      image TEXT,
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL,
-      role TEXT DEFAULT 'student',
-      last_activity_at INTEGER
-    );
-  `);
 
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS pengguna (
-      id TEXT PRIMARY KEY REFERENCES user(id),
-      status TEXT NOT NULL DEFAULT 'active',
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL
-    );
-  `);
 
-  await client.execute(`
-    CREATE TABLE IF NOT EXISTS audit_mutasi (
-      id TEXT PRIMARY KEY,
-      actor_id TEXT REFERENCES pengguna(id) ON DELETE SET NULL,
-      entity_type TEXT NOT NULL,
-      entity_id TEXT NOT NULL,
-      action TEXT NOT NULL,
-      before_snapshot TEXT,
-      after_snapshot TEXT,
-      correlation_id TEXT,
-      course_id TEXT,
-      outcome TEXT,
-      reason TEXT,
-      created_at INTEGER NOT NULL
-    );
-  `);
 
   return { client, testDb };
 }
@@ -542,7 +508,8 @@ describe("Tutor Mutation Audit Contract", () => {
         outcome: "success",
       }));
     } finally {
-      client.close();
+      await client.close();
+      clients.splice(clients.indexOf(client), 1);
     }
   });
 

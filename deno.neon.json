@@ -1,0 +1,66 @@
+{
+  "deploy": {
+    "org": "soezyxst",
+    "app": "zyx-background-neon-migration",
+    "entrypoint": "workers/deno-background/main.ts",
+    // Upload manifest scope. The worker only needs its import graph (workers/deno-background,
+    // jobs, db, lib, prompts) plus root configs, so large unrelated areas are excluded to keep
+    // diffsync uploads small and reliable. Verify with scripts/audit-worker-dependencies.ts --list
+    // before adding a new top-level area here.
+    "exclude": [
+      "./.env*", "./.tmp/**", "./.vercel/**", "./.next/**", "./artifacts/**", "./drizzle-postgres/**",
+      "./.github/**",
+      "./android/**",
+      "./app/**",
+      "./components/**",
+      "./docs/**",
+      "./drizzle/**",
+      "./plans/**",
+      "./plugins/**",
+      "./public/**",
+      "./scripts/**",
+      "./tests/**",
+      "./workers/diktat-renderer/**",
+      "./workers/realtime/**",
+      "./workers/vector-api/**",
+      "./workers/zyra-control-plane/**",
+      "./bun.lock",
+      "./package-lock.json"
+    ]
+  },
+  "unstable": [
+    "sloppy-imports"
+  ],
+  "nodeModulesDir": "auto",
+  "compilerOptions": {
+    "lib": ["deno.ns", "dom", "dom.iterable", "esnext"],
+    "types": ["node"],
+    "noImplicitAny": false
+  },
+  "imports": {
+    "@/": "./",
+    "hono": "npm:hono@^4.7.2",
+    "inngest": "npm:inngest@^4.6.0",
+    "inngest/hono": "npm:inngest@^4.6.0/hono",
+    "fflate": "npm:fflate@^0.8.2",
+    "drizzle-orm": "npm:drizzle-orm@^0.45.2",
+    "drizzle-orm/": "npm:/drizzle-orm@^0.45.2/",
+    "@google/genai": "npm:@google/genai@^2.8.0",
+    "zod": "npm:zod@4.4.3",
+    "pg": "npm:pg@8.21.0",
+    "@libsql/client": "npm:@libsql/client@^0.17.4",
+    "@libsql/client/": "npm:/@libsql/client@^0.17.4/",
+    "date-fns": "npm:date-fns@^4.4.0",
+    "katex": "npm:katex@0.17.0",
+    "mathjs": "npm:mathjs@15.2.0",
+    "pdf-parse": "npm:pdf-parse@2.4.5",
+    "@napi-rs/canvas": "npm:@napi-rs/canvas@0.1.80",
+    "pdfjs-dist": "npm:pdfjs-dist@5.4.296",
+    "pdfjs-dist/": "npm:/pdfjs-dist@5.4.296/",
+    "playwright-core": "npm:playwright-core@1.62.1",
+    "resend": "npm:resend@^6.14.0",
+    "fuse.js": "npm:fuse.js@^7.4.2",
+    "@aws-sdk/client-s3": "npm:@aws-sdk/client-s3@^3.1071.0",
+    "@aws-sdk/s3-request-presigner": "npm:@aws-sdk/s3-request-presigner@^3.1071.0"
+  }
+}

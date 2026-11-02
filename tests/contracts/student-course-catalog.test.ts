@@ -1,30 +1,10 @@
-import { describe, expect, test, mock } from "bun:test";
-import { createClient } from "@libsql/client";
-import { drizzle } from "drizzle-orm/libsql";
+import { describe, expect, test, mock, afterAll } from "bun:test";
+import { createPostgresTestDb } from "../helpers/postgres";
 import { eq } from "drizzle-orm";
 import * as schema from "@/db/schema";
 
-const client = createClient({ url: ":memory:" });
-const testDb = drizzle(client, { schema });
-
-await client.executeMultiple(`
-  CREATE TABLE courses (
-    id TEXT PRIMARY KEY,
-    title TEXT NOT NULL,
-    category TEXT NOT NULL,
-    description TEXT
-  );
-  CREATE TABLE mata_kuliah (
-    id TEXT PRIMARY KEY,
-    code TEXT NOT NULL UNIQUE,
-    title TEXT NOT NULL,
-    status TEXT NOT NULL DEFAULT 'active',
-    is_demo INTEGER NOT NULL DEFAULT 0,
-    legacy_course_id TEXT REFERENCES courses(id),
-    created_at INTEGER NOT NULL,
-    updated_at INTEGER NOT NULL
-  );
-`);
+const {client,testDb}=await createPostgresTestDb();
+afterAll(()=>client.close());
 
 mock.module("@/db", () => ({ db: testDb }));
 const { listStudentCourses } = await import("@/lib/student/course-catalog");

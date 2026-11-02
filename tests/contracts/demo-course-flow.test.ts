@@ -43,13 +43,14 @@ describe("public demo course contract", () => {
     const dashboard = source("app/(marketing)/demo/page.tsx");
     const detail = source("app/(marketing)/demo/[view]/page.tsx");
     const empty = source("components/demo/demo-empty-state.tsx");
-    expect(dashboard).toContain("index: false");
-    expect(dashboard).toContain("follow: false");
-    expect(detail).toContain("index: false");
-    expect(detail).toContain("follow: false");
+    expect(dashboard).toContain("noIndex: true");
+    expect(detail).toContain("noIndex: true");
+    const metadata = source("lib/site.ts");
+    expect(metadata).toMatch(/noIndex[\s\S]*index: false[\s\S]*follow: false/);
     expect(dashboard).toContain("if (!content) return <DemoEmptyState />");
     expect(detail).toContain("if (!content) return <DemoEmptyState />");
-    expect(empty).toContain("Demo belum tersedia");
+    expect(empty).toContain('t("demo.emptyTitle")');
+    expect(JSON.parse(source("messages/id/marketing.json")).demo.emptyTitle).toBe("Demo belum tersedia");
   });
 
   test("keeps quiz submission stateless and answer keys server-only", () => {
@@ -66,8 +67,13 @@ describe("public demo course contract", () => {
     expect(api).toContain("sameQuestionOrder");
     expect(quiz).toContain('fetch("/api/demo/quiz"');
     expect(quiz).toContain("questionSetToken");
-    expect(quiz).not.toContain("Kuis singkat");
-    expect(quiz).toContain("hasil hanya muncul setelah dikirim.");
+    expect(quiz).toContain('t("demo.quiz.title")');
+    expect(quiz).toContain('t("demo.quiz.description")');
+    expect(JSON.parse(source("messages/id/marketing.json")).demo.quiz.title).not.toContain("Kuis singkat");
+    expect(quiz).toContain("useState<QuizResult[] | null>(null)");
+    expect(quiz).toContain("setResults(payload.results)");
+    expect(quiz).toContain("const result = results?.[questionIndex]");
+    expect(quiz).toContain("{result ? (");
     expect(data).toContain("function toPublicContent");
     expect(data).toContain("quiz: pieces.quiz.map(({ id, prompt, options, multiple })");
     expect(data).toContain("DEMO_QUESTION_SET_TOKEN_VERSION");
@@ -101,13 +107,15 @@ describe("public demo course contract", () => {
   });
 
   test("points landing CTAs and package copy at the agreed flow", () => {
-    expect(source("components/landing/landing-hero.tsx")).toContain('<Link href="/demo">Coba demo</Link>');
-    expect(source("components/landing/landing-closing-cta.tsx")).toContain('<Link href="/demo">Coba demo</Link>');
+    expect(source("components/landing/landing-hero.tsx")).toContain('<LocalizedPublicLink href="/demo">{t("home.tryDemo")}</LocalizedPublicLink>');
+    expect(source("components/landing/landing-closing-cta.tsx")).toContain('<LocalizedPublicLink href="/demo">{t("home.tryDemo")}</LocalizedPublicLink>');
+    expect(JSON.parse(source("messages/id/marketing.json")).home.tryDemo).toBe("Coba demo");
     const plans = source("lib/plan-tiers.ts");
-    expect(plans).toContain("Bab 1 dan Bab 2 di setiap mata kuliah");
+    expect(plans).toContain("Bab pertama di setiap mata kuliah");
     expect(plans).toContain("Diktat dapat dibaca, tanpa unduhan");
     expect(plans).toContain("1 pertanyaan Zyra per hari");
-    expect(source("components/landing/landing-faq.tsx")).toContain("Bisa melihat fitur sebelum membuat akun?");
+    expect(source("components/landing/landing-faq.tsx")).toContain('"faq.preview"');
+    expect(JSON.parse(source("messages/id/marketing.json")).faq.preview.question).toBe("Bisa melihat fitur sebelum membuat akun?");
   });
 
   test("returns demo visitors to the selected course after sign-in", () => {

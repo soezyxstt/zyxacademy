@@ -43,33 +43,23 @@ jobs:
           bun-version: '1.3.14'
       - name: Install pinned Vercel CLI
         run: npm install --global "vercel@$VERCEL_CLI_VERSION"
-      - name: Pull the exact deployment environment
+      - name: Validate production Neon target
+        # Vercel pull substitutes [SENSITIVE] for production secrets.
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          STORAGE_PROVIDER_MODE: ${{ vars.STORAGE_PROVIDER_MODE || secrets.STORAGE_PROVIDER_MODE }}
+          NEON_STORAGE_BUCKET: ${{ vars.NEON_STORAGE_BUCKET || secrets.NEON_STORAGE_BUCKET }}
+          AWS_ENDPOINT_URL_S3: ${{ vars.AWS_ENDPOINT_URL_S3 || secrets.AWS_ENDPOINT_URL_S3 }}
+          AWS_REGION: ${{ vars.AWS_REGION || secrets.AWS_REGION }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        run: bun scripts/neon/validate-production-target.ts
+      - name: Build and deploy production on Vercel
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
         run: |
           set -euo pipefail
-          if [ -z "${VERCEL_TOKEN:-}" ]; then
-            echo '::error::Configure VERCEL_TOKEN in this GitHub Environment before enabling web deployments.'
-            exit 1
-          fi
-          args=(--yes --environment="$VERCEL_ENVIRONMENT")
-          if [ "$VERCEL_ENVIRONMENT" = preview ]; then
-            args+=(--git-branch=staging)
-          fi
-          vercel pull "${args[@]}"
-      - name: Build on the GitHub runner
-        # vercel build runs the frozen installCommand and bun run build from
-        # vercel.json, including authoring skills and V4 runtime preparation.
-        run: |
-          set -euo pipefail
-          vercel build --environment="$VERCEL_ENVIRONMENT"
-          test -s .vercel/output/config.json
-      - name: Deploy the prebuilt output
-        env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-        run: |
-          set -euo pipefail
-          vercel deploy --prebuilt --yes --environment="$VERCEL_ENVIRONMENT" \
+          vercel deploy --prod --yes --archive=tgz \
             --meta githubDeployment=1 \
             --meta githubCommitOrg=soezyxstt \
             --meta githubCommitRepo=zyxacademy \
@@ -153,9 +143,8 @@ jobs:
           # Only this build process skips server-secret validation. Runtime does not.
           SKIP_ENV_VALIDATION: '1'
           # Sitemap generation reads published blog metadata during the build.
-          DATABASE_URL: ${{ secrets.TURSO_DATABASE_URL || secrets.TURSO_CONNECTION_URL || secrets.DATABASE_URL }}
-          TURSO_CONNECTION_URL: ${{ secrets.TURSO_DATABASE_URL || secrets.TURSO_CONNECTION_URL || secrets.DATABASE_URL }}
-          TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          NEON_EXPECTED_HOST: ${{ vars.NEON_EXPECTED_HOST }}
           AUTHORING_VERIFICATION_BROWSER_PROVIDER: ${{ vars.AUTHORING_VERIFICATION_BROWSER_PROVIDER || secrets.AUTHORING_VERIFICATION_BROWSER_PROVIDER || 'cloudflare' }}
           AUTHORING_VERIFICATION_STEEL_BROWSER_VERSION: ${{ vars.AUTHORING_VERIFICATION_STEEL_BROWSER_VERSION || secrets.AUTHORING_VERIFICATION_STEEL_BROWSER_VERSION }}
           NEXT_PUBLIC_APP_URL: ${{ vars.NEXT_PUBLIC_APP_URL || secrets.NEXT_PUBLIC_APP_URL }}
@@ -185,14 +174,7 @@ jobs:
               unset "$key"
             fi
           done < <(compgen -e)
-          bun -e '
-            const database = process.env.TURSO_CONNECTION_URL;
-            if (!database || !process.env.TURSO_AUTH_TOKEN ||
-                new URL(database).hostname !== "zyx-staging-soezyxstt.aws-ap-south-1.turso.io") {
-              throw new Error("Configure the existing staging Turso URL and token; production targets are rejected.");
-            }
-            console.log("Staging database build target verified.");
-          '
+          PYTHONPATH=.github/scripts python3 -c 'import os; from cloud_run_runtime import validate_database; validate_database(os.environ.get("DATABASE_URL", ""), os.environ.get("NEON_EXPECTED_HOST", ""))'
           bun run build
           test -s .next/standalone/server.js
           test -s .next/standalone/dist/skills/manifest.json

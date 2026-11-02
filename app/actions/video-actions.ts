@@ -178,29 +178,12 @@ export async function getCourseVideosData(courseSlugOrId: string) {
   const chapterMap = new Map(chapterRows.map((ch) => [ch.id, ch.title]));
 
   const mappedVideos: VideoItem[] = videoRows.map((v) => {
-    const isExternalVideo =
-      Boolean(v.videoUrl) &&
-      (v.videoUrl.startsWith("http://") ||
-        v.videoUrl.startsWith("https://") ||
-        v.videoUrl.startsWith("youtube/"));
-
     const resolvedVideoUrl = v.videoUrl
-      ? isExternalVideo
+      ? v.videoUrl.startsWith("youtube/")
         ? v.videoUrl
         : storage.getUrl(v.videoUrl)
       : "";
-
-    const isExternalThumb =
-      Boolean(v.thumbnailUrl) &&
-      (v.thumbnailUrl?.startsWith("http://") ||
-        v.thumbnailUrl?.startsWith("https://") ||
-        false);
-
-    const resolvedThumbnailUrl = v.thumbnailUrl
-      ? isExternalThumb
-        ? v.thumbnailUrl
-        : storage.getUrl(v.thumbnailUrl)
-      : null;
+    const resolvedThumbnailUrl = v.thumbnailUrl ? storage.getUrl(v.thumbnailUrl) : null;
 
     return {
       id: v.id,

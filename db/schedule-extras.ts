@@ -1,4 +1,4 @@
-import { index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { index, pgTable, text, timestamp } from "drizzle-orm/pg-core";
 import { groups, tutorSlots, user } from "@/db/schema";
 
 /**
@@ -6,13 +6,13 @@ import { groups, tutorSlots, user } from "@/db/schema";
  * books the slot. Keep this separate from booking notes, which belong to a
  * concrete tutorial session.
  */
-export const tutorSlotNotes = sqliteTable("tutor_slot_notes", {
+export const tutorSlotNotes = pgTable("tutor_slot_notes", {
   slotId: text("slot_id")
     .primaryKey()
     .references(() => tutorSlots.id, { onDelete: "cascade" }),
   notes: text("notes").notNull(),
-  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
-  updatedAt: integer("updated_at", { mode: "timestamp" })
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
     .defaultNow()
     .$onUpdate(() => new Date())
     .notNull(),
@@ -22,7 +22,7 @@ export const tutorSlotNotes = sqliteTable("tutor_slot_notes", {
  * Immutable history used to enforce the 30-day student group-name cooldown.
  * The cooldown is checked against the latest row for the group on every write.
  */
-export const groupNameChangeAudit = sqliteTable(
+export const groupNameChangeAudit = pgTable(
   "group_name_change_audit",
   {
     id: text("id").primaryKey(),
@@ -34,7 +34,7 @@ export const groupNameChangeAudit = sqliteTable(
       .references(() => user.id, { onDelete: "cascade" }),
     oldName: text("old_name").notNull(),
     newName: text("new_name").notNull(),
-    changedAt: integer("changed_at", { mode: "timestamp" }).defaultNow().notNull(),
+    changedAt: timestamp("changed_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (table) => [
     index("group_name_change_group_time_idx").on(table.groupId, table.changedAt),

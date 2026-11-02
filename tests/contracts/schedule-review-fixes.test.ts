@@ -10,16 +10,22 @@ describe("schedule PR review fixes", () => {
     expect(source).not.toContain("fromDate: week.startIso");
     expect(source).not.toContain("toDate: week.endIso");
     expect(source).toContain("AdminEmptyState");
-    expect(source).toContain('title="Belum ada sesi mendatang"');
-    expect(source).toContain('title="Tidak ada tiket pending"');
+    expect(source).toContain('title={t("noUpcoming")}');
+    expect(source).toContain('title={t("noPendingTickets")}');
+    const messages = JSON.parse(read("messages/id/tutor.json")).dashboard;
+    expect(messages.noUpcoming).toBe("Belum ada sesi mendatang");
+    expect(messages.noPendingTickets).toBe("Tidak ada tiket menunggu");
   });
 
   test("academic date-only events remain visible outside the timed grid", () => {
     const source = read("components/schedule/schedule-calendar-view.tsx");
     expect(source).toContain("allDay?: boolean");
     expect(source).toContain("const allDay = start.minutes === 0 && !schedule.endDate");
-    expect(source).toContain("Sepanjang hari");
-    expect(source).toContain("!event.allDay && event.dateIso === dayIso");
+    expect(source).toContain('t("calendar.allDay")');
+    expect(source).toContain("{labels.allDay}");
+    expect(source).toContain("event.allDay && event.dateIso === day.dateIso");
+    expect(JSON.parse(read("messages/id/schedule.json")).calendar.allDay).toBe("Sepanjang hari");
+    expect(source).toContain("!event.allDay && event.dateIso === day.dateIso");
   });
 
   test("Ops AI filters before limit and rolls back only through guarded admin scheduling", () => {

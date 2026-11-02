@@ -1,7 +1,7 @@
 {
   "deploy": {
     "org": "soezyxst",
-    "app": "zyx-background",
+    "app": "zyx-background-neon-migration",
     "entrypoint": "workers/deno-background/main.ts",
     // Upload manifest scope. The worker only needs its import graph (workers/deno-background,
     // jobs, db, lib, prompts) plus root configs, so large unrelated areas are excluded to keep
@@ -46,6 +46,7 @@
     "drizzle-orm/": "npm:/drizzle-orm@^0.45.2/",
     "@google/genai": "npm:@google/genai@^2.8.0",
     "zod": "npm:zod@4.4.3",
+    "pg": "npm:pg@8.21.0",
     "@libsql/client": "npm:@libsql/client@^0.17.4",
     "@libsql/client/": "npm:/@libsql/client@^0.17.4/",
     "date-fns": "npm:date-fns@^4.4.0",
