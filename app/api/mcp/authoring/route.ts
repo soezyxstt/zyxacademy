@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import { auth } from "@/lib/auth";
 import { principalFromConnectionToken, resolveMcpAdmin, type McpPrincipal } from "@/lib/authoring/mcp-auth";
+import { publicMcpOrigin, resourceUrl } from "@/lib/authoring/mcp-oauth";
 import { createAuthoringMcpServer } from "@/lib/authoring/mcp-server";
 import { MCP_AUTHORING_DEFAULT_SCOPES, MCP_AUTHORING_SCOPES } from "@/lib/authoring/mcp-workflows";
 import { timePdfStage } from "@/lib/compute/pdf-read-options";
@@ -9,8 +10,8 @@ import { timePdfStage } from "@/lib/compute/pdf-read-options";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-function unauthorized(request: NextRequest, message: string): NextResponse {
-  const resourceMetadata = `${request.nextUrl.origin}/.well-known/oauth-protected-resource/api/mcp/authoring`;
+function unauthorized(message: string): NextResponse {
+  const resourceMetadata = `${publicMcpOrigin()}/.well-known/oauth-protected-resource/api/mcp/authoring`;
   return NextResponse.json(
     { error: message },
     {
@@ -30,21 +31,21 @@ function isForbidden(error: unknown): boolean {
 async function authenticate(request: NextRequest): Promise<McpPrincipal | NextResponse> {
   const authorization = request.headers.get("authorization");
   if (authorization) {
-    if (!authorization.startsWith("Bearer ")) return unauthorized(request, "AUTHORING_MCP_AUTH_REQUIRED");
+    if (!authorization.startsWith("Bearer ")) return unauthorized("AUTHORING_MCP_AUTH_REQUIRED");
     try {
-      return await principalFromConnectionToken(authorization.slice("Bearer ".length));
+      return await principalFromConnectionToken(authorization.slice("Bearer ".length), resourceUrl());
     } catch (error) {
       if (isForbidden(error)) return NextResponse.json({ error: "AUTHORING_MCP_ADMIN_REQUIRED" }, { status: 403 });
-      return unauthorized(request, error instanceof Error ? error.message.split(":")[0] : "AUTHORING_MCP_AUTH_INVALID");
+      return unauthorized(error instanceof Error ? error.message.split(":")[0] : "AUTHORING_MCP_AUTH_INVALID");
     }
   }
 
   const cookie = request.headers.get("cookie");
-  if (!cookie) return unauthorized(request, "AUTHORING_MCP_LOGIN_REQUIRED");
+  if (!cookie) return unauthorized("AUTHORING_MCP_LOGIN_REQUIRED");
 
   try {
     const session = await auth.api.getSession({ headers: request.headers });
-    if (!session?.user) return unauthorized(request, "AUTHORING_MCP_LOGIN_REQUIRED");
+    if (!session?.user) return unauthorized("AUTHORING_MCP_LOGIN_REQUIRED");
     return await resolveMcpAdmin({
       userId: session.user.id,
       sessionId: session.session.id,
@@ -53,7 +54,7 @@ async function authenticate(request: NextRequest): Promise<McpPrincipal | NextRe
     });
   } catch (error) {
     if (isForbidden(error)) return NextResponse.json({ error: "AUTHORING_MCP_ADMIN_REQUIRED" }, { status: 403 });
-    return unauthorized(request, error instanceof Error ? error.message.split(":")[0] : "AUTHORING_MCP_AUTH_INVALID");
+    return unauthorized(error instanceof Error ? error.message.split(":")[0] : "AUTHORING_MCP_AUTH_INVALID");
   }
 }
 

@@ -69,7 +69,7 @@ export async function POST(request: NextRequest) {
       scopes: authorization.scope,
       authMethod: "oauth",
     });
-    if (authorization.resource !== resourceUrl(request.nextUrl.origin)) return tokenError("invalid_target");
+    if (authorization.resource !== resourceUrl()) return tokenError("invalid_target");
     const accessToken = issueAccessToken(authorization);
     return NextResponse.json({
       access_token: accessToken,
