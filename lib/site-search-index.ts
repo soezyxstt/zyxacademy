@@ -323,6 +323,14 @@ export const STATIC_PAGES: Omit<SiteSearchDocument, "id">[] = [
 
   // Admin Panels - Alat, Komunikasi & Media
   {
+    title: "Dokumentasi admin",
+    subtitle: "Admin",
+    href: "/admin/docs",
+    group: "Halaman",
+    keywords: "panduan dokumentasi admin course materi video mcp token",
+    content: "Panduan operasional admin, penamaan materi, dan authoring MCP",
+  },
+  {
     title: "Kalkulator harga custom",
     subtitle: "Admin",
     href: "/admin/pricing",
